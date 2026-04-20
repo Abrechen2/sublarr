@@ -20,13 +20,27 @@ logger = logging.getLogger(__name__)
 _MAX_SUBTITLE_SIZE = 50 * 1024 * 1024  # 50 MB
 
 
-def _stream_download(session, url: str, timeout: int = 15) -> bytes:
+def _stream_download(
+    session,
+    url: str,
+    timeout: int = 15,
+    headers: dict | None = None,
+    allow_redirects: bool = True,
+    **kwargs,
+) -> bytes:
     """Download a subtitle file with a 50 MB size cap (P5).
 
     Uses streaming to avoid loading the entire response into memory at once.
     Raises RuntimeError if the declared or actual content exceeds _MAX_SUBTITLE_SIZE.
+    Extra kwargs (headers, allow_redirects, ...) are forwarded to session.get.
     """
-    with session.get(url, stream=True, timeout=timeout) as response:
+    get_kwargs = dict(kwargs)
+    get_kwargs["stream"] = True
+    get_kwargs["timeout"] = timeout
+    get_kwargs["allow_redirects"] = allow_redirects
+    if headers is not None:
+        get_kwargs["headers"] = headers
+    with session.get(url, **get_kwargs) as response:
         response.raise_for_status()
 
         # Preflight: reject oversized files advertised via Content-Length

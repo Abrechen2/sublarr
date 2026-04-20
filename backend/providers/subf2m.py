@@ -11,9 +11,16 @@ try:
 except ImportError:
     _HAS_BS4 = False
 
-from providers import register_provider
-from providers.base import SubtitleFormat, SubtitleProvider, SubtitleResult, VideoQuery
+from providers import _stream_download, register_provider
+from providers.base import (
+    ProviderError,
+    SubtitleFormat,
+    SubtitleProvider,
+    SubtitleResult,
+    VideoQuery,
+)
 from providers.http_session import create_session
+from security_utils import validate_download_url
 
 logger = logging.getLogger(__name__)
 
@@ -226,16 +233,23 @@ class Subf2mProvider(SubtitleProvider):
         if not dl_url:
             raise RuntimeError(f"Subf2m: no download URL found at {detail_url}")
 
+        # P1: Validate download URL against allowlist
+        url_ok, url_err = validate_download_url(dl_url, self.name)
+        if not url_ok:
+            raise ProviderError(f"Subf2m download URL rejected: {url_err}")
+
         try:
-            resp = self.session.get(dl_url, headers={"Referer": detail_url}, timeout=self.timeout)
-            if resp.status_code != 200:
-                raise RuntimeError(f"Subf2m download failed: HTTP {resp.status_code}")
+            # P5: 50 MB streaming cap
+            content = _stream_download(
+                self.session,
+                dl_url,
+                timeout=self.timeout,
+                headers={"Referer": detail_url},
+            )
         except RuntimeError:
             raise
         except Exception as e:
             raise RuntimeError(f"Subf2m download error: {e}") from e
-
-        content = resp.content
         if content[:2] == b"PK":
             try:
                 entries = extract_subtitles_from_zip(content)

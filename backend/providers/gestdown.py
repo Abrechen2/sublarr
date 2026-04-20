@@ -15,8 +15,9 @@ import os
 import time
 from typing import ClassVar
 
-from providers import register_provider
+from providers import _stream_download, register_provider
 from providers.base import (
+    ProviderError,
     ProviderRateLimitError,
     SubtitleFormat,
     SubtitleProvider,
@@ -24,6 +25,7 @@ from providers.base import (
     VideoQuery,
 )
 from providers.http_session import create_session
+from security_utils import validate_download_url
 
 logger = logging.getLogger(__name__)
 
@@ -452,15 +454,18 @@ class GestdownProvider(SubtitleProvider):
         if url.startswith("/"):
             url = f"{API_BASE}{url}"
 
-        resp = self.session.get(url, allow_redirects=True)
+        # P1: Validate download URL against allowlist
+        url_ok, url_err = validate_download_url(url, self.name)
+        if not url_ok:
+            raise ProviderError(f"Gestdown download URL rejected: {url_err}")
 
-        if resp.status_code == 429:
-            raise ProviderRateLimitError("Gestdown download rate limited")
-
-        if resp.status_code != 200:
-            raise RuntimeError(f"Gestdown download failed: HTTP {resp.status_code}")
-
-        content = resp.content
+        try:
+            # P5: 50 MB streaming cap
+            content = _stream_download(self.session, url, timeout=self.timeout)
+        except ProviderRateLimitError:
+            raise
+        except Exception as e:
+            raise RuntimeError(f"Gestdown download failed: {e}") from e
         result.content = content
         logger.info("Gestdown: downloaded %s (%d bytes)", result.filename, len(content))
         return content

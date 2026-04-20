@@ -3,9 +3,16 @@
 import logging
 
 from archive_utils import extract_subtitles_from_zip
-from providers import register_provider
-from providers.base import SubtitleFormat, SubtitleProvider, SubtitleResult, VideoQuery
+from providers import _stream_download, register_provider
+from providers.base import (
+    ProviderError,
+    SubtitleFormat,
+    SubtitleProvider,
+    SubtitleResult,
+    VideoQuery,
+)
 from providers.http_session import create_session
+from security_utils import validate_download_url
 
 logger = logging.getLogger(__name__)
 
@@ -153,20 +160,24 @@ class YifySubtitlesProvider(SubtitleProvider):
     def download(self, result: SubtitleResult) -> bytes:
         if not self.session:
             raise RuntimeError("YifySubtitles not initialized")
+
+        # P1: Validate download URL against allowlist
+        url_ok, url_err = validate_download_url(result.download_url or "", self.name)
+        if not url_ok:
+            raise ProviderError(f"YifySubtitles download URL rejected: {url_err}")
+
         try:
-            resp = self.session.get(
+            # P5: 50 MB streaming cap
+            content = _stream_download(
+                self.session,
                 result.download_url,
-                headers={"Referer": _BASE_URL},
                 timeout=self.timeout,
+                headers={"Referer": _BASE_URL},
             )
-            if resp.status_code != 200:
-                raise RuntimeError(f"YifySubtitles download failed: HTTP {resp.status_code}")
         except RuntimeError:
             raise
         except Exception as e:
             raise RuntimeError(f"YifySubtitles download error: {e}") from e
-
-        content = resp.content
         if content[:2] == b"PK":
             try:
                 entries = extract_subtitles_from_zip(content)

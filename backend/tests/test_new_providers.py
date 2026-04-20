@@ -624,7 +624,6 @@ class TestTVSubtitlesZipFormatDetection:
         p = TVSubtitlesProvider()
         p.session = MagicMock()
         zip_bytes = self._make_zip("Subtitle.ass")
-        p.session.get.return_value = MagicMock(status_code=200, content=zip_bytes)
 
         r = SubtitleResult(
             provider_name="tvsubtitles",
@@ -633,7 +632,8 @@ class TestTVSubtitlesZipFormatDetection:
             format=SubtitleFormat.SRT,
             download_url="https://www.tvsubtitles.net/download-1.zip",
         )
-        p.download(r)
+        with patch("providers.tvsubtitles._stream_download", return_value=zip_bytes):
+            p.download(r)
 
         assert r.format == SubtitleFormat.ASS
         assert r.filename == "Subtitle.ass"
@@ -645,7 +645,6 @@ class TestTVSubtitlesZipFormatDetection:
         p = TVSubtitlesProvider()
         p.session = MagicMock()
         zip_bytes = self._make_zip("Subtitle.srt")
-        p.session.get.return_value = MagicMock(status_code=200, content=zip_bytes)
 
         r = SubtitleResult(
             provider_name="tvsubtitles",
@@ -654,7 +653,8 @@ class TestTVSubtitlesZipFormatDetection:
             format=SubtitleFormat.SRT,
             download_url="https://www.tvsubtitles.net/download-2.zip",
         )
-        p.download(r)
+        with patch("providers.tvsubtitles._stream_download", return_value=zip_bytes):
+            p.download(r)
 
         assert r.format == SubtitleFormat.SRT
         assert r.filename == "Subtitle.srt"
@@ -666,7 +666,6 @@ class TestTVSubtitlesZipFormatDetection:
         p = TVSubtitlesProvider()
         p.session = MagicMock()
         raw_srt = b"1\n00:00:01,000 --> 00:00:02,000\nHello\n"
-        p.session.get.return_value = MagicMock(status_code=200, content=raw_srt)
 
         r = SubtitleResult(
             provider_name="tvsubtitles",
@@ -675,7 +674,8 @@ class TestTVSubtitlesZipFormatDetection:
             format=SubtitleFormat.SRT,
             download_url="https://www.tvsubtitles.net/download-3",
         )
-        p.download(r)
+        with patch("providers.tvsubtitles._stream_download", return_value=raw_srt):
+            p.download(r)
 
         assert r.format == SubtitleFormat.SRT
 
@@ -700,7 +700,6 @@ class TestTurkcealtyaziZipFormatDetection:
         p.session = MagicMock()
         p._logged_in = True
         zip_bytes = self._make_zip("Altyazi.ass")
-        p.session.get.return_value = MagicMock(status_code=200, content=zip_bytes)
 
         r = SubtitleResult(
             provider_name="turkcealtyazi",
@@ -710,7 +709,12 @@ class TestTurkcealtyaziZipFormatDetection:
             download_url="https://turkcealtyazi.org/indir/1",
             provider_data={"detail_url": "https://turkcealtyazi.org/alt/1"},
         )
-        with patch.object(p, "_get_download_url", return_value="https://turkcealtyazi.org/indir/1"):
+        with (
+            patch.object(
+                p, "_get_download_url", return_value="https://turkcealtyazi.org/indir/1"
+            ),
+            patch("providers.turkcealtyazi._stream_download", return_value=zip_bytes),
+        ):
             p.download(r)
 
         assert r.format == SubtitleFormat.ASS
@@ -724,7 +728,6 @@ class TestTurkcealtyaziZipFormatDetection:
         p.session = MagicMock()
         p._logged_in = True
         zip_bytes = self._make_zip("Altyazi.srt")
-        p.session.get.return_value = MagicMock(status_code=200, content=zip_bytes)
 
         r = SubtitleResult(
             provider_name="turkcealtyazi",
@@ -734,7 +737,12 @@ class TestTurkcealtyaziZipFormatDetection:
             download_url="https://turkcealtyazi.org/indir/2",
             provider_data={"detail_url": "https://turkcealtyazi.org/alt/2"},
         )
-        with patch.object(p, "_get_download_url", return_value="https://turkcealtyazi.org/indir/2"):
+        with (
+            patch.object(
+                p, "_get_download_url", return_value="https://turkcealtyazi.org/indir/2"
+            ),
+            patch("providers.turkcealtyazi._stream_download", return_value=zip_bytes),
+        ):
             p.download(r)
 
         assert r.format == SubtitleFormat.SRT

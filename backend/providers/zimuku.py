@@ -21,13 +21,15 @@ try:
 except ImportError:
     _HAS_BS4 = False
 
-from providers import register_provider
+from providers import _stream_download, register_provider
 from providers.base import (
+    ProviderError,
     SubtitleFormat,
     SubtitleProvider,
     SubtitleResult,
     VideoQuery,
 )
+from security_utils import validate_download_url
 from providers.http_session import create_session
 
 logger = logging.getLogger(__name__)
@@ -212,20 +214,23 @@ class ZimukuProvider(SubtitleProvider):
         if result.provider_data:
             referer = result.provider_data.get("detail_url", _BASE_URL)
 
+        # P1: Validate download URL against allowlist
+        url_ok, url_err = validate_download_url(result.download_url or "", self.name)
+        if not url_ok:
+            raise ProviderError(f"Zimuku download URL rejected: {url_err}")
+
         try:
-            resp = self.session.get(
+            # P5: 50 MB streaming cap
+            content = _stream_download(
+                self.session,
                 result.download_url,
-                headers={"Referer": referer},
                 timeout=self.timeout,
+                headers={"Referer": referer},
             )
-            if resp.status_code != 200:
-                raise RuntimeError(f"Zimuku download failed: HTTP {resp.status_code}")
         except RuntimeError:
             raise
         except Exception as e:
             raise RuntimeError(f"Zimuku download error: {e}") from e
-
-        content = resp.content
 
         # ZIP archive
         if content[:2] == b"PK":

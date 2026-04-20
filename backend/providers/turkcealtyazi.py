@@ -20,14 +20,16 @@ try:
 except ImportError:
     _HAS_BS4 = False
 
-from providers import register_provider
+from providers import _stream_download, register_provider
 from providers.base import (
     ProviderAuthError,
+    ProviderError,
     SubtitleFormat,
     SubtitleProvider,
     SubtitleResult,
     VideoQuery,
 )
+from security_utils import validate_download_url
 from providers.http_session import create_session
 
 logger = logging.getLogger(__name__)
@@ -228,11 +230,21 @@ class TurkcealtyaziProvider(SubtitleProvider):
         if not dl_url:
             raise RuntimeError(f"Turkcealtyazi: no download URL found on {detail_url}")
 
-        resp = self.session.get(dl_url, headers={"Referer": detail_url}, timeout=self.timeout)
-        if resp.status_code != 200:
-            raise RuntimeError(f"Turkcealtyazi download failed: HTTP {resp.status_code}")
+        # P1: Validate download URL against allowlist
+        url_ok, url_err = validate_download_url(dl_url, self.name)
+        if not url_ok:
+            raise ProviderError(f"Turkcealtyazi download URL rejected: {url_err}")
 
-        content = resp.content
+        try:
+            # P5: 50 MB streaming cap
+            content = _stream_download(
+                self.session,
+                dl_url,
+                timeout=self.timeout,
+                headers={"Referer": detail_url},
+            )
+        except Exception as e:
+            raise RuntimeError(f"Turkcealtyazi download failed: {e}") from e
 
         if content[:2] == b"PK":
             try:

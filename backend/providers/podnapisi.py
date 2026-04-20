@@ -14,8 +14,9 @@ import logging
 import os
 
 from archive_utils import extract_subtitles_from_zip
-from providers import register_provider
+from providers import _stream_download, register_provider
 from providers.base import (
+    ProviderError,
     ProviderRateLimitError,
     SubtitleFormat,
     SubtitleProvider,
@@ -23,6 +24,7 @@ from providers.base import (
     VideoQuery,
 )
 from providers.http_session import create_session
+from security_utils import validate_download_url
 
 logger = logging.getLogger(__name__)
 
@@ -414,15 +416,20 @@ class PodnapisiProvider(SubtitleProvider):
             pid = result.provider_data.get("pid") or result.subtitle_id
             url = f"{API_BASE}/subtitles/{pid}/download"
 
-        resp = self.session.get(url, allow_redirects=True)
+        # P1: Validate download URL against allowlist before fetching
+        url_ok, url_err = validate_download_url(url, self.name)
+        if not url_ok:
+            raise ProviderError(f"Podnapisi download URL rejected: {url_err}")
 
-        if resp.status_code == 429:
-            raise ProviderRateLimitError("Podnapisi download rate limited")
-
-        if resp.status_code != 200:
-            raise RuntimeError(f"Podnapisi download failed: HTTP {resp.status_code}")
-
-        content = resp.content
+        try:
+            # P5: 50 MB streaming cap
+            content = _stream_download(self.session, url, timeout=self.timeout)
+        except ProviderRateLimitError:
+            raise
+        except RuntimeError:
+            raise
+        except Exception as e:
+            raise RuntimeError(f"Podnapisi download failed: {e}") from e
 
         # Podnapisi returns ZIP archives -- extract the first subtitle file
         if content[:4] == b"PK\x03\x04":

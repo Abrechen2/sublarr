@@ -341,13 +341,9 @@ class TestProviderArchiveConsolidation:
         from providers.podnapisi import PodnapisiProvider
 
         zip_bytes = _make_zip(("test.srt", _VALID_SRT))
-        mock_resp = MagicMock()
-        mock_resp.status_code = 200
-        mock_resp.content = zip_bytes
 
         provider = PodnapisiProvider()
         provider.session = MagicMock()
-        provider.session.get.return_value = mock_resp
 
         result = SubtitleResult(
             provider_name="podnapisi",
@@ -359,7 +355,12 @@ class TestProviderArchiveConsolidation:
             provider_data={"pid": "pid-42"},
         )
 
-        with patch("providers.podnapisi.extract_subtitles_from_zip") as mock_extract:
+        # P5: fetch goes through _stream_download (50 MB cap) — mock it so
+        # the provider receives the ZIP bytes without real network access.
+        with (
+            patch("providers.podnapisi._stream_download", return_value=zip_bytes),
+            patch("providers.podnapisi.extract_subtitles_from_zip") as mock_extract,
+        ):
             mock_extract.return_value = [("test.srt", _VALID_SRT)]
             provider.download(result)
             mock_extract.assert_called_once()

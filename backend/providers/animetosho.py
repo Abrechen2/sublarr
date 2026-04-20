@@ -12,7 +12,7 @@ import os
 from typing import ClassVar
 
 from archive_utils import extract_subtitles_from_zip
-from providers import register_provider
+from providers import _stream_download, register_provider
 from providers.animetosho_parsers import (  # noqa: F401 — re-exported for back-compat
     _ISO639_2_TO_1,
     _MAX_DECOMPRESSED_SIZE,
@@ -22,6 +22,7 @@ from providers.animetosho_parsers import (  # noqa: F401 — re-exported for bac
 )
 from providers.base import (
     ProviderAuthError,
+    ProviderError,
     ProviderRateLimitError,
     SubtitleFormat,
     SubtitleProvider,
@@ -29,6 +30,7 @@ from providers.base import (
     VideoQuery,
 )
 from providers.http_session import create_session
+from security_utils import validate_download_url
 
 logger = logging.getLogger(__name__)
 
@@ -369,11 +371,16 @@ class AnimeToshoProvider(SubtitleProvider):
         if not url:
             raise ValueError("No download URL")
 
-        resp = self.session.get(url)
-        if resp.status_code != 200:
-            raise RuntimeError(f"AnimeTosho download failed: HTTP {resp.status_code}")
+        # P1: Validate download URL against allowlist
+        url_ok, url_err = validate_download_url(url, self.name)
+        if not url_ok:
+            raise ProviderError(f"AnimeTosho download URL rejected: {url_err}")
 
-        content = resp.content
+        try:
+            # P5: 50 MB streaming cap
+            content = _stream_download(self.session, url, timeout=self.timeout)
+        except Exception as e:
+            raise RuntimeError(f"AnimeTosho download failed: {e}") from e
 
         # Handle XZ compression
         if result.provider_data.get("is_xz") or url.endswith(".xz"):

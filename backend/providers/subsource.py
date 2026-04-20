@@ -11,9 +11,16 @@ Rate:     20 req / 60 s
 import logging
 
 from archive_utils import extract_subtitles_from_zip
-from providers import register_provider
-from providers.base import SubtitleFormat, SubtitleProvider, SubtitleResult, VideoQuery
+from providers import _stream_download, register_provider
+from providers.base import (
+    ProviderError,
+    SubtitleFormat,
+    SubtitleProvider,
+    SubtitleResult,
+    VideoQuery,
+)
 from providers.http_session import create_session
+from security_utils import validate_download_url
 
 logger = logging.getLogger(__name__)
 
@@ -185,16 +192,20 @@ class SubsourceProvider(SubtitleProvider):
         except Exception as e:
             raise RuntimeError(f"Subsource download link error: {e}") from e
 
+        # P1: Validate download URL against allowlist
+        url_ok, url_err = validate_download_url(dl_url, self.name)
+        if not url_ok:
+            raise ProviderError(f"Subsource download URL rejected: {url_err}")
+
         try:
-            resp2 = self.session.get(dl_url, timeout=self.timeout)
-            if resp2.status_code != 200:
-                raise RuntimeError(f"Subsource file download failed: HTTP {resp2.status_code}")
+            # P5: 50 MB streaming cap
+            archive_content = _stream_download(self.session, dl_url, timeout=self.timeout)
         except RuntimeError:
             raise
         except Exception as e:
             raise RuntimeError(f"Subsource file download error: {e}") from e
 
-        content = resp2.content
+        content = archive_content
         if content[:2] == b"PK":
             try:
                 entries = extract_subtitles_from_zip(content)

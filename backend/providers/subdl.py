@@ -14,9 +14,10 @@ import re
 from typing import ClassVar
 
 from archive_utils import extract_subtitles_from_zip
-from providers import register_provider
+from providers import _stream_download, register_provider
 from providers.base import (
     ProviderAuthError,
+    ProviderError,
     ProviderRateLimitError,
     SubtitleFormat,
     SubtitleProvider,
@@ -24,6 +25,7 @@ from providers.base import (
     VideoQuery,
 )
 from providers.http_session import create_session
+from security_utils import validate_download_url
 
 logger = logging.getLogger(__name__)
 
@@ -382,11 +384,17 @@ class SubDLProvider(SubtitleProvider):
             raise ValueError("No sd_id in provider_data")
 
         url = f"{DOWNLOAD_BASE}/{sd_id}.zip"
-        resp = self.session.get(url)
-        if resp.status_code != 200:
-            raise RuntimeError(f"SubDL download failed: HTTP {resp.status_code}")
 
-        archive_content = resp.content
+        # P1: Validate download URL against allowlist
+        url_ok, url_err = validate_download_url(url, self.name)
+        if not url_ok:
+            raise ProviderError(f"SubDL download URL rejected: {url_err}")
+
+        try:
+            # P5: 50 MB streaming cap
+            archive_content = _stream_download(self.session, url, timeout=self.timeout)
+        except Exception as e:
+            raise RuntimeError(f"SubDL download failed: {e}") from e
 
         # Extract subtitle files from ZIP
         extracted = extract_subtitles_from_zip(archive_content)

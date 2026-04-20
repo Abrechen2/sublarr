@@ -207,12 +207,7 @@ class TestYifySubtitlesProvider:
         from providers.yifysubtitles import YifySubtitlesProvider
 
         p = YifySubtitlesProvider()
-        mock_session = MagicMock()
-        mock_session.get.return_value = MagicMock(
-            status_code=200,
-            content=b"1\n00:00:01,000 --> 00:00:02,000\nHello\n",
-        )
-        p.session = mock_session
+        p.session = MagicMock()
         r = SubtitleResult(
             provider_name="yifysubtitles",
             subtitle_id="sub1",
@@ -221,8 +216,11 @@ class TestYifySubtitlesProvider:
             filename="sub1.srt",
             download_url="https://yifysubtitles.ch/subs/sub1.zip",
         )
-        content = p.download(r)
-        assert content == b"1\n00:00:01,000 --> 00:00:02,000\nHello\n"
+        # P5: fetch goes through _stream_download (50 MB cap) — mock it.
+        expected = b"1\n00:00:01,000 --> 00:00:02,000\nHello\n"
+        with patch("providers.yifysubtitles._stream_download", return_value=expected):
+            content = p.download(r)
+        assert content == expected
         assert r.content == content
 
 
@@ -412,11 +410,9 @@ class TestZimukuProvider:
         from providers.zimuku import ZimukuProvider
 
         p = ZimukuProvider()
-        mock_session = MagicMock()
+        p.session = MagicMock()
         # RAR magic: Rar! (0x52 0x61 0x72 0x21)
         rar_bytes = b"Rar!\x1a\x07\x00" + b"\x00" * 50
-        mock_session.get.return_value = MagicMock(status_code=200, content=rar_bytes)
-        p.session = mock_session
         r = SubtitleResult(
             provider_name="zimuku",
             subtitle_id="x",
@@ -426,22 +422,18 @@ class TestZimukuProvider:
             download_url="https://zimuku.net/x",
             provider_data={"detail_url": "https://zimuku.net/subs/123"},
         )
-        # Should attempt RAR extraction and raise RuntimeError on invalid RAR
-        with pytest.raises((RuntimeError, Exception)):
-            p.download(r)
+        with patch("providers.zimuku._stream_download", return_value=rar_bytes):
+            # Should attempt RAR extraction and raise RuntimeError on invalid RAR
+            with pytest.raises((RuntimeError, Exception)):
+                p.download(r)
 
     def test_download_success_returns_content(self):
         from providers.base import SubtitleFormat, SubtitleResult
         from providers.zimuku import ZimukuProvider
 
         p = ZimukuProvider()
-        mock_session = MagicMock()
+        p.session = MagicMock()
         srt_content = b"1\n00:00:01,000 --> 00:00:02,000\n\xe4\xb8\xad\xe6\x96\x87\n"
-        mock_session.get.return_value = MagicMock(
-            status_code=200,
-            content=srt_content,
-        )
-        p.session = mock_session
         r = SubtitleResult(
             provider_name="zimuku",
             subtitle_id="123",
@@ -451,7 +443,8 @@ class TestZimukuProvider:
             download_url="https://zimuku.net/dld/123",
             provider_data={"detail_url": "https://zimuku.net/subs/123"},
         )
-        content = p.download(r)
+        with patch("providers.zimuku._stream_download", return_value=srt_content):
+            content = p.download(r)
         assert content == srt_content
         assert r.content == content
 

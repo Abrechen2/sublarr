@@ -16,7 +16,7 @@ from typing import ClassVar
 from urllib.parse import quote, urljoin
 
 from archive_utils import extract_subtitles_from_zip
-from providers import register_provider
+from providers import _stream_download, register_provider
 from providers.base import (
     ProviderError,
     SubtitleFormat,
@@ -26,6 +26,7 @@ from providers.base import (
 )
 from providers.captcha_solver import CaptchaSolverError, build_solver_from_settings
 from providers.http_session import create_session
+from security_utils import validate_download_url
 
 logger = logging.getLogger(__name__)
 
@@ -329,16 +330,18 @@ class KitsunekkoProvider(SubtitleProvider):
         if not url:
             raise ValueError("No download URL")
 
+        # P1: Validate download URL against allowlist
+        url_ok, url_err = validate_download_url(url, self.name)
+        if not url_ok:
+            raise ProviderError(f"Kitsunekko download URL rejected: {url_err}")
+
         try:
-            resp = self.session.get(url, timeout=self.timeout)
-            if resp.status_code != 200:
-                raise ProviderError(f"Kitsunekko download failed: HTTP {resp.status_code}")
+            # P5: 50 MB streaming cap
+            content = _stream_download(self.session, url, timeout=self.timeout)
         except ProviderError:
             raise
         except Exception as e:
             raise ProviderError(f"Kitsunekko download error: {e}") from e
-
-        content = resp.content
 
         # Handle ZIP archives: extract best subtitle file (prefer .ass > .srt > .ssa)
         if result.provider_data.get("is_zip") or content[:4] == b"PK\x03\x04":

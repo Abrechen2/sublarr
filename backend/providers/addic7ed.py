@@ -25,14 +25,16 @@ try:
 except ImportError:
     _HAS_BS4 = False
 
-from providers import register_provider
+from providers import _stream_download, register_provider
 from providers.base import (
+    ProviderError,
     SubtitleFormat,
     SubtitleProvider,
     SubtitleResult,
     VideoQuery,
 )
 from providers.http_session import create_session
+from security_utils import validate_download_url
 
 logger = logging.getLogger(__name__)
 
@@ -307,15 +309,21 @@ class Addic7edProvider(SubtitleProvider):
         if not self.session:
             raise RuntimeError("Addic7ed not initialized")
 
-        resp = self.session.get(
-            result.download_url,
-            headers={"Referer": _BASE_URL},
-            timeout=self.timeout,
-        )
-        if resp.status_code != 200:
-            raise RuntimeError(f"Addic7ed download failed: HTTP {resp.status_code}")
+        # P1: Validate download URL against allowlist
+        url_ok, url_err = validate_download_url(result.download_url or "", self.name)
+        if not url_ok:
+            raise ProviderError(f"Addic7ed download URL rejected: {url_err}")
 
-        content = resp.content
+        try:
+            # P5: 50 MB streaming cap
+            content = _stream_download(
+                self.session,
+                result.download_url,
+                timeout=self.timeout,
+                headers={"Referer": _BASE_URL},
+            )
+        except Exception as e:
+            raise RuntimeError(f"Addic7ed download failed: {e}") from e
 
         if content[:2] == b"PK":
             try:

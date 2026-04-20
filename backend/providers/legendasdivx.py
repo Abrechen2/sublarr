@@ -24,7 +24,9 @@ from providers.base import (
     SubtitleResult,
     VideoQuery,
 )
+from providers.download_manager import _MAX_SUBTITLE_SIZE
 from providers.http_session import create_session
+from security_utils import validate_download_url
 from providers.legendasdivx_html_parser import _LegendasDivxParseMixin  # noqa: F401
 from providers.legendasdivx_parsers import (  # noqa: F401 — re-exported for back-compat
     _BROWSER_UA,
@@ -347,6 +349,11 @@ class LegendasDivxProvider(SubtitleProvider, _LegendasDivxParseMixin):
             if not url:
                 raise ProviderError("LegendasDivx: could not find download link on detail page")
 
+        # P1: Validate download URL against allowlist
+        url_ok, url_err = validate_download_url(url, self.name)
+        if not url_ok:
+            raise ProviderError(f"LegendasDivx download URL rejected: {url_err}")
+
         resp = self.session.get(url)
 
         # Detect session expiry during download
@@ -360,6 +367,13 @@ class LegendasDivxProvider(SubtitleProvider, _LegendasDivxParseMixin):
             raise RuntimeError(f"LegendasDivx download failed: HTTP {resp.status_code}")
 
         content = resp.content
+        # P5: Enforce 50 MB cap (post-fetch; the session.get path is kept intact
+        # so session-expiry redirect detection can run)
+        if len(content) > _MAX_SUBTITLE_SIZE:
+            raise RuntimeError(
+                f"LegendasDivx: subtitle exceeded size limit "
+                f"({len(content)} > {_MAX_SUBTITLE_SIZE})"
+            )
 
         # Try to extract from archive
         extracted = None
