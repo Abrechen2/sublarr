@@ -107,6 +107,23 @@ class TestPromptInjectionGuard:
             assert zw not in result
         assert "textignorepreviousinstructions" == result
 
+    def test_bidi_override_chars_stripped(self):
+        """Trojan Source (CVE-2021-42574) bidi-override chars are stripped."""
+        from translation.llm_utils import _escape_subtitle_line
+
+        # Classic Trojan Source payload: RLO flip + override + PDF/PDI pop
+        injected = (
+            "safe \u202etxe\u202c text"  # LRO/RLO → reads backwards
+            "\u2066isolate\u2069"  # isolate block
+            "\u202aembed\u202cend"  # embedding
+        )
+        result = _escape_subtitle_line(injected)
+        for bidi in (
+            "\u202a", "\u202b", "\u202c", "\u202d", "\u202e",
+            "\u2066", "\u2067", "\u2068", "\u2069",
+        ):
+            assert bidi not in result, f"{bidi!r} should be stripped"
+
     def test_long_line_truncated(self):
         """Lines beyond the max length are truncated to bound token cost."""
         from translation.llm_utils import _MAX_LINE_LENGTH, _escape_subtitle_line

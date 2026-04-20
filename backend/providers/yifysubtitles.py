@@ -172,7 +172,7 @@ class YifySubtitlesProvider(SubtitleProvider):
                 self.session,
                 result.download_url,
                 timeout=self.timeout,
-                headers={"Referer": _BASE_URL},
+                headers={"Referer": _BASE_URL}, provider_name=self.name,
             )
         except RuntimeError:
             raise

@@ -115,6 +115,19 @@ _ZERO_WIDTH = (
     "\u200d"  # zero-width joiner
     "\u2060"  # word joiner
     "\ufeff"  # zero-width no-break space (BOM)
+    # Bidirectional-override / isolate chars. These are invisible to the user
+    # but can flip text direction AND hide adversarial instructions from a
+    # left-to-right reader, which is the classic Trojan Source (CVE-2021-42574)
+    # attack vector.
+    "\u202a"  # LRE — Left-to-Right Embedding
+    "\u202b"  # RLE — Right-to-Left Embedding
+    "\u202c"  # PDF — Pop Directional Formatting
+    "\u202d"  # LRO — Left-to-Right Override
+    "\u202e"  # RLO — Right-to-Left Override
+    "\u2066"  # LRI — Left-to-Right Isolate
+    "\u2067"  # RLI — Right-to-Left Isolate
+    "\u2068"  # FSI — First Strong Isolate
+    "\u2069"  # PDI — Pop Directional Isolate
 )
 
 

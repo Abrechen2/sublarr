@@ -320,7 +320,7 @@ class Addic7edProvider(SubtitleProvider):
                 self.session,
                 result.download_url,
                 timeout=self.timeout,
-                headers={"Referer": _BASE_URL},
+                headers={"Referer": _BASE_URL}, provider_name=self.name,
             )
         except Exception as e:
             raise RuntimeError(f"Addic7ed download failed: {e}") from e

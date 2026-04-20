@@ -292,7 +292,7 @@ class SubsDumpProvider(SubtitleProvider):
 
         try:
             # P5: 50 MB streaming cap
-            raw = _stream_download(self._session, result.download_url, timeout=60)
+            raw = _stream_download(self._session, result.download_url, timeout=60, provider_name=self.name)
         except Exception as exc:
             raise ProviderError(f"subsdump: download failed: {exc}") from exc
 

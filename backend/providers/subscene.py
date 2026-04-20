@@ -294,11 +294,19 @@ class SubsceneProvider(SubtitleProvider):
             raise RuntimeError("Subscene not initialized")
 
         detail_url = (result.provider_data or {}).get("detail_url") or result.download_url
+
+        # P1 (detail-page pre-validation): a compromised API result could set
+        # detail_url to an off-allowlist host; validate BEFORE we fetch it.
+        if detail_url:
+            ok_detail, err_detail = validate_download_url(detail_url, self.name)
+            if not ok_detail:
+                raise ProviderError(f"Subscene detail URL rejected: {err_detail}")
+
         dl_url = self._get_download_url(detail_url)
         if not dl_url:
             raise RuntimeError(f"Subscene: no download URL on {detail_url}")
 
-        # P1: Validate download URL against allowlist
+        # P1: Validate resolved download URL as well
         url_ok, url_err = validate_download_url(dl_url, self.name)
         if not url_ok:
             raise ProviderError(f"Subscene download URL rejected: {url_err}")
@@ -309,7 +317,7 @@ class SubsceneProvider(SubtitleProvider):
                 self.session,
                 dl_url,
                 timeout=self.timeout,
-                headers={"Referer": detail_url},
+                headers={"Referer": detail_url}, provider_name=self.name,
             )
         except Exception as e:
             raise RuntimeError(f"Subscene download failed: {e}") from e

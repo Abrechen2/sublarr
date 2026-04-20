@@ -408,7 +408,7 @@ class JimakuProvider(SubtitleProvider):
             raise ProviderError(f"Jimaku download URL rejected: {url_err}")
 
         # P5: 50 MB streaming cap
-        content = _stream_download(self.session, url)
+        content = _stream_download(self.session, url, provider_name=self.name)
         is_archive = result.provider_data.get("is_archive", False)
 
         if is_archive:

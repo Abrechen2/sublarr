@@ -226,11 +226,18 @@ class TurkcealtyaziProvider(SubtitleProvider):
             raise ProviderAuthError("Turkcealtyazi: not logged in")
 
         detail_url = (result.provider_data or {}).get("detail_url") or result.download_url
+
+        # P1 (detail-page pre-validation)
+        if detail_url:
+            ok_detail, err_detail = validate_download_url(detail_url, self.name)
+            if not ok_detail:
+                raise ProviderError(f"Turkcealtyazi detail URL rejected: {err_detail}")
+
         dl_url = self._get_download_url(detail_url)
         if not dl_url:
             raise RuntimeError(f"Turkcealtyazi: no download URL found on {detail_url}")
 
-        # P1: Validate download URL against allowlist
+        # P1: Validate resolved download URL
         url_ok, url_err = validate_download_url(dl_url, self.name)
         if not url_ok:
             raise ProviderError(f"Turkcealtyazi download URL rejected: {url_err}")
@@ -241,7 +248,7 @@ class TurkcealtyaziProvider(SubtitleProvider):
                 self.session,
                 dl_url,
                 timeout=self.timeout,
-                headers={"Referer": detail_url},
+                headers={"Referer": detail_url}, provider_name=self.name,
             )
         except Exception as e:
             raise RuntimeError(f"Turkcealtyazi download failed: {e}") from e

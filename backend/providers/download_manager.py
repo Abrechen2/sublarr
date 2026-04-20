@@ -26,6 +26,7 @@ def _stream_download(
     timeout: int = 15,
     headers: dict | None = None,
     allow_redirects: bool = True,
+    provider_name: str | None = None,
     **kwargs,
 ) -> bytes:
     """Download a subtitle file with a 50 MB size cap (P5).
@@ -33,6 +34,10 @@ def _stream_download(
     Uses streaming to avoid loading the entire response into memory at once.
     Raises RuntimeError if the declared or actual content exceeds _MAX_SUBTITLE_SIZE.
     Extra kwargs (headers, allow_redirects, ...) are forwarded to session.get.
+
+    When ``provider_name`` is supplied, every redirect hop AND the final
+    response URL are re-validated against the provider's P1 domain allowlist.
+    This closes the "allowlist-valid URL redirects to evil host" bypass.
     """
     get_kwargs = dict(kwargs)
     get_kwargs["stream"] = True
@@ -42,6 +47,29 @@ def _stream_download(
         get_kwargs["headers"] = headers
     with session.get(url, **get_kwargs) as response:
         response.raise_for_status()
+
+        # P1: validate every redirect hop + the final URL against the
+        # provider allowlist. Skip when no provider_name is set (back-compat
+        # for internal callers that validated upfront and use a keyless
+        # download path).
+        if provider_name:
+            from security_utils import validate_download_url
+
+            hops = [r.url for r in (response.history or [])]
+            final_url = response.url
+            if final_url:
+                hops.append(final_url)
+            for hop in hops:
+                # Only validate real string URLs — skip MagicMock / non-str
+                # objects which appear in unit tests that mock the session.
+                if not isinstance(hop, str) or not hop:
+                    continue
+                hop_ok, hop_err = validate_download_url(hop, provider_name)
+                if not hop_ok:
+                    raise RuntimeError(
+                        f"Subtitle download blocked at redirect hop "
+                        f"{hop!r}: {hop_err}"
+                    )
 
         # Preflight: reject oversized files advertised via Content-Length
         content_length = response.headers.get("Content-Length")

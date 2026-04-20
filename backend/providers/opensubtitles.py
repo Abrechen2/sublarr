@@ -407,7 +407,7 @@ class OpenSubtitlesProvider(SubtitleProvider, _OpenSubtitlesFetchMixin):
             raise ProviderError(f"OpenSubtitles download URL rejected: {url_err}")
 
         # Download the actual file (P5: 50 MB streaming cap)
-        content = _stream_download(self.session, download_link, timeout=15)
+        content = _stream_download(self.session, download_link, timeout=15, provider_name=self.name)
         result.content = content
         logger.info("OpenSubtitles: downloaded %s (%d bytes)", result.filename, len(content))
         return content

@@ -229,11 +229,18 @@ class Subf2mProvider(SubtitleProvider):
             raise RuntimeError("Subf2m not initialized")
 
         detail_url = (result.provider_data or {}).get("detail_url") or result.download_url
+
+        # P1 (detail-page pre-validation) — validate BEFORE the detail fetch
+        if detail_url:
+            ok_detail, err_detail = validate_download_url(detail_url, self.name)
+            if not ok_detail:
+                raise ProviderError(f"Subf2m detail URL rejected: {err_detail}")
+
         dl_url = self._get_download_url(detail_url)
         if not dl_url:
             raise RuntimeError(f"Subf2m: no download URL found at {detail_url}")
 
-        # P1: Validate download URL against allowlist
+        # P1: Validate resolved download URL
         url_ok, url_err = validate_download_url(dl_url, self.name)
         if not url_ok:
             raise ProviderError(f"Subf2m download URL rejected: {url_err}")
@@ -244,7 +251,7 @@ class Subf2mProvider(SubtitleProvider):
                 self.session,
                 dl_url,
                 timeout=self.timeout,
-                headers={"Referer": detail_url},
+                headers={"Referer": detail_url}, provider_name=self.name,
             )
         except RuntimeError:
             raise

@@ -383,20 +383,26 @@ class TitrariProvider(SubtitleProvider):
         if not url:
             raise ValueError("No download URL")
 
+        # P1 (detail-page pre-validation) — validate BEFORE the detail fetch
+        if result.provider_data.get("is_detail_page") and url:
+            ok_detail, err_detail = validate_download_url(url, self.name)
+            if not ok_detail:
+                raise ProviderError(f"Titrari detail URL rejected: {err_detail}")
+
         # If the URL points to a detail page, fetch it and find the actual download link
         if result.provider_data.get("is_detail_page"):
             url = self._resolve_download_url(url)
             if not url:
                 raise ProviderError("Titrari: could not find download link on detail page")
 
-        # P1: Validate download URL against allowlist
+        # P1: Validate resolved download URL
         url_ok, url_err = validate_download_url(url, self.name)
         if not url_ok:
             raise ProviderError(f"Titrari download URL rejected: {url_err}")
 
         try:
             # P5: 50 MB streaming cap
-            content = _stream_download(self.session, url, timeout=self.timeout)
+            content = _stream_download(self.session, url, timeout=self.timeout, provider_name=self.name)
         except Exception as e:
             raise RuntimeError(f"Titrari download failed: {e}") from e
 
