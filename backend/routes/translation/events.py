@@ -137,6 +137,7 @@ def memory_stats():
 def memory_purge():
     body = request.get_json(silent=True) or {}
     older_than_days = body.get("older_than_days")
+    backend = body.get("backend")
 
     from sqlalchemy import text
 
@@ -159,6 +160,20 @@ def memory_purge():
         conditions.append("created_at < :cutoff")
         params["cutoff"] = cutoff
 
+    if backend is not None:
+        if not isinstance(backend, str) or not backend.strip():
+            return (
+                jsonify(
+                    {
+                        "error": "backend must be a non-empty string",
+                        "error_type": "ValidationError",
+                    }
+                ),
+                400,
+            )
+        conditions.append("backend = :backend")
+        params["backend"] = backend.strip()
+
     where = ("WHERE " + " AND ".join(conditions)) if conditions else ""
     result = db.session.execute(text(f"DELETE FROM translation_memory {where}"), params)
     db.session.commit()
@@ -167,6 +182,7 @@ def memory_purge():
     _audit_log(
         "purge-memory",
         older_than_days=older_than_days,
+        backend=backend,
         deleted=deleted,
     )
     return jsonify({"status": "purged", "deleted": deleted}), 202

@@ -589,6 +589,44 @@ class TestTranslationMemoryCache:
         result = repo.lookup_translation_cache("en", "de", "Hello")
         assert result == "Hallo (updated)"
 
+    def test_store_persists_backend_field(self, repo):
+        """Plan A follow-up — backend kwarg is persisted on the TranslationMemory row."""
+        from db.models.translation import TranslationMemory
+
+        repo.store_translation_cache("en", "de", "HelloBackend", "HalloBackend", backend="ollama")
+
+        entry = TranslationMemory.query.filter_by(
+            source_lang="en", target_lang="de", translated_text="HalloBackend"
+        ).one_or_none()
+        assert entry is not None
+        assert entry.backend == "ollama"
+
+    def test_store_backend_default_none(self, repo):
+        """Legacy callers that don't pass backend still work — field stays None."""
+        from db.models.translation import TranslationMemory
+
+        repo.store_translation_cache("en", "de", "HelloLegacy", "HalloLegacy")
+
+        entry = TranslationMemory.query.filter_by(
+            source_lang="en", target_lang="de", translated_text="HalloLegacy"
+        ).one_or_none()
+        assert entry is not None
+        assert entry.backend is None
+
+    def test_store_upsert_updates_backend_when_provided(self, repo):
+        """Re-storing with a new backend updates the backend field on the existing row."""
+        from db.models.translation import TranslationMemory
+
+        repo.store_translation_cache("en", "de", "HelloUpsert", "HalloUpsert", backend="ollama")
+        repo.store_translation_cache("en", "de", "HelloUpsert", "HalloUpsert2", backend="claude")
+
+        entry = TranslationMemory.query.filter_by(
+            source_lang="en", target_lang="de", source_text_normalized="helloupsert"
+        ).one_or_none()
+        assert entry is not None
+        assert entry.backend == "claude"
+        assert entry.translated_text == "HalloUpsert2"
+
     def test_fuzzy_lookup_below_threshold(self, repo):
         """Fuzzy lookup with low similarity returns None when below threshold."""
         repo.store_translation_cache("en", "de", "The cat sat on the mat", "Die Katze...")

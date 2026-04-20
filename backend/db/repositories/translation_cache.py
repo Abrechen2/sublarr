@@ -135,6 +135,7 @@ class _TranslationCacheMixin:
         target_lang: str,
         source_text: str,
         translated_text: str,
+        backend: str | None = None,
     ) -> None:
         """Store a translation in the memory cache (upsert by unique key).
 
@@ -143,6 +144,8 @@ class _TranslationCacheMixin:
             target_lang: ISO 639-1 target language code.
             source_text: Raw source text (normalized internally).
             translated_text: The translated output to cache.
+            backend: Optional backend identifier that produced this translation
+                (e.g. ``ollama``, ``claude``). Enables backend-filtered purge.
         """
         from db.models.translation import TranslationMemory
 
@@ -161,6 +164,8 @@ class _TranslationCacheMixin:
         if existing:
             # Update the cached translation (the source text remains identical)
             existing.translated_text = translated_text
+            if backend:
+                existing.backend = backend
         else:
             entry = TranslationMemory(
                 source_lang=source_lang,
@@ -168,6 +173,7 @@ class _TranslationCacheMixin:
                 source_text_normalized=normalized,
                 text_hash=text_hash,
                 translated_text=translated_text,
+                backend=backend,
                 created_at=now,
             )
             self.session.add(entry)

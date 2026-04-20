@@ -95,9 +95,16 @@ def _translate_with_manager(lines, source_lang, target_lang, arr_context=None, s
     for out_idx, translated in zip(uncached_indices, all_translated):
         output[out_idx] = translated
 
-    # Persist newly translated lines to cache
+    # Persist newly translated lines to cache (Plan A follow-up: carry backend name
+    # so memory can be purged per-backend later)
     if cache_enabled:
-        _store_translations_in_cache(uncached_lines, all_translated, source_lang, target_lang)
+        _store_translations_in_cache(
+            uncached_lines,
+            all_translated,
+            source_lang,
+            target_lang,
+            backend=getattr(result, "backend_name", None),
+        )
 
     return output, result
 

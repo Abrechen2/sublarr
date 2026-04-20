@@ -42,15 +42,18 @@ def _apply_translation_cache(lines, source_lang, target_lang, similarity_thresho
     return cached_results, uncached_indices, uncached_lines
 
 
-def _store_translations_in_cache(source_lines, translated_lines, source_lang, target_lang):
+def _store_translations_in_cache(
+    source_lines, translated_lines, source_lang, target_lang, backend=None
+):
     """Persist newly translated lines into the translation memory cache.
 
     Silently ignores errors so cache failures never break the translation pipeline.
+    Passing `backend` (Plan A follow-up) lets operators purge memory per-backend later.
     """
     from db.translation import store_translation_cache
 
     for src_line, tgt_line in zip(source_lines, translated_lines):
         try:
-            store_translation_cache(source_lang, target_lang, src_line, tgt_line)
+            store_translation_cache(source_lang, target_lang, src_line, tgt_line, backend=backend)
         except Exception as e:
             logger.debug("Cache store error: %s", e)

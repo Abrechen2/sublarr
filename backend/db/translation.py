@@ -228,10 +228,15 @@ def store_translation_cache(
     target_lang: str,
     source_text: str,
     translated_text: str,
+    backend: str | None = None,
 ) -> None:
-    """Store a translation in the persistent memory cache."""
+    """Store a translation in the persistent memory cache.
+
+    `backend` (optional) identifies the translation backend that produced this
+    entry (e.g. ``ollama``, ``claude``). Enables backend-filtered purge.
+    """
     return _get_repo().store_translation_cache(
-        source_lang, target_lang, source_text, translated_text
+        source_lang, target_lang, source_text, translated_text, backend=backend
     )
 
 

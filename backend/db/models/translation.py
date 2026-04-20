@@ -147,6 +147,8 @@ class TranslationMemory(db.Model):
     text_hash: Mapped[str] = mapped_column(Text, nullable=False)
     translated_text: Mapped[str] = mapped_column(Text, nullable=False)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    # Plan A follow-up — Backend that produced this translation (nullable; older rows pre-A1 are NULL).
+    backend: Mapped[str | None] = mapped_column(String(32), nullable=True, default=None)
 
     __table_args__ = (
         # Fast exact-match lookup
