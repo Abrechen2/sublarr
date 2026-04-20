@@ -126,5 +126,20 @@
     },
     "no_items": "No blacklisted subtitles. Use the ban button on search results or history to block unwanted subtitles.",
     "remove_from_blacklist": "Remove from blacklist"
+  },
+  "wanted_row": {
+    "col_provider": "Provider",
+    "col_format": "Format",
+    "col_score": "Score",
+    "col_release": "Release",
+    "preview_subtitle": "Preview subtitle",
+    "interactive_search": "Interactive search"
+  },
+  "ocr": {
+    "title": "OCR Extraction",
+    "preview_frame": "Preview Frame",
+    "ocr_preview": "OCR Preview",
+    "extracted_text_lower": "Extracted text:",
+    "extracted_text_upper": "Extracted Text:"
   }
 }

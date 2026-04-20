@@ -10,7 +10,7 @@ import type { WantedSearchResponse } from '@/lib/types'
 import type { WantedItem } from '@/types/wanted'
 import { SubtitlePresencePills } from '@/pages/wanted/SubtitlePresencePills'
 
-export function formatRetryCountdown(retryAfter: string | null): string | null {
+  const { t } = useTranslation('activity')
   if (!retryAfter) return null
   const diff = new Date(retryAfter).getTime() - Date.now()
   if (diff <= 0) return null
@@ -111,11 +111,11 @@ export function SearchResultsRow({ results, isLoading, onBlacklist, t }: SearchR
           <table className="w-full">
             <thead>
               <tr style={{ backgroundColor: 'var(--bg-surface)', borderBottom: '1px solid var(--border)' }}>
-                <th className="text-left text-[10px] font-semibold uppercase tracking-wider px-3 py-1.5" style={{ color: 'var(--text-muted)' }}>Provider</th>
+                <th className="text-left text-[10px] font-semibold uppercase tracking-wider px-3 py-1.5" style={{ color: 'var(--text-muted)' }}>{t('wanted_row.col_provider')}</th>
                 <th className="text-left text-[10px] font-semibold uppercase tracking-wider px-3 py-1.5" style={{ color: 'var(--text-muted)' }}>Type</th>
-                <th className="text-left text-[10px] font-semibold uppercase tracking-wider px-3 py-1.5" style={{ color: 'var(--text-muted)' }}>Format</th>
-                <th className="text-left text-[10px] font-semibold uppercase tracking-wider px-3 py-1.5" style={{ color: 'var(--text-muted)' }}>Score</th>
-                <th className="text-left text-[10px] font-semibold uppercase tracking-wider px-3 py-1.5" style={{ color: 'var(--text-muted)' }}>Release</th>
+                <th className="text-left text-[10px] font-semibold uppercase tracking-wider px-3 py-1.5" style={{ color: 'var(--text-muted)' }}>{t('wanted_row.col_format')}</th>
+                <th className="text-left text-[10px] font-semibold uppercase tracking-wider px-3 py-1.5" style={{ color: 'var(--text-muted)' }}>{t('wanted_row.col_score')}</th>
+                <th className="text-left text-[10px] font-semibold uppercase tracking-wider px-3 py-1.5" style={{ color: 'var(--text-muted)' }}>{t('wanted_row.col_release')}</th>
                 <th className="text-left text-[10px] font-semibold uppercase tracking-wider px-3 py-1.5" style={{ color: 'var(--text-muted)' }}>Lang</th>
                 <th className="text-right text-[10px] font-semibold uppercase tracking-wider px-3 py-1.5" style={{ color: 'var(--text-muted)' }}></th>
               </tr>
@@ -253,7 +253,7 @@ export function WantedRowActions({
         <button
           onClick={() => onPreview(deriveSubtitlePath(item.file_path, item.target_language, item.existing_sub))}
           className="p-1 rounded transition-colors duration-150"
-          title="Preview subtitle"
+          title={t('wanted_row.preview_subtitle')}
           style={{ color: 'var(--text-muted)' }}
           onMouseEnter={(e) => (e.currentTarget.style.color = 'var(--accent)')}
           onMouseLeave={(e) => (e.currentTarget.style.color = 'var(--text-muted)')}
@@ -291,7 +291,7 @@ export function WantedRowActions({
       <button
         onClick={() => onInteractiveSearch({ id: item.id, title: item.title })}
         className="p-1 rounded transition-colors duration-150"
-        title="Interaktive Suche"
+        title={t('wanted_row.interactive_search')}
         style={{ color: 'var(--text-muted)' }}
         onMouseEnter={(e) => (e.currentTarget.style.color = 'var(--accent)')}
         onMouseLeave={(e) => (e.currentTarget.style.color = 'var(--text-muted)')}

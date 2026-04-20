@@ -126,5 +126,20 @@
     },
     "no_items": "Keine gesperrten Untertitel. Verwende den Sperren-Button bei Suchergebnissen oder im Verlauf, um unerwünschte Untertitel zu blockieren.",
     "remove_from_blacklist": "Von Sperrliste entfernen"
+  },
+  "wanted_row": {
+    "col_provider": "Provider",
+    "col_format": "Format",
+    "col_score": "Score",
+    "col_release": "Release",
+    "preview_subtitle": "Untertitel-Vorschau",
+    "interactive_search": "Interaktive Suche"
+  },
+  "ocr": {
+    "title": "OCR-Extraktion",
+    "preview_frame": "Frame-Vorschau",
+    "ocr_preview": "OCR-Vorschau",
+    "extracted_text_lower": "Extrahierter Text:",
+    "extracted_text_upper": "Extrahierter Text:"
   }
 }

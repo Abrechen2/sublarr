@@ -10,7 +10,7 @@ import { SettingsDetailLayout } from '@/components/settings/SettingsDetailLayout
 // rows. Chain editing is a follow-up — B7 ships the architecture.
 
 function LoadingState() {
-  return <div className="py-8 text-center text-muted">Loading sync engines…</div>
+  return <div className="py-8 text-center text-muted">{t('sync_engines_tab.loading')}</div>
 }
 
 function ErrorState({ message }: { readonly message: string }) {
@@ -35,7 +35,7 @@ function formatOffset(ms: number | null): string {
   return `${ms} ms`
 }
 
-export function SyncEnginesTab() {
+  const { t } = useTranslation('settings')
   const enginesQuery = useQuery({
     queryKey: ['sync-engines', 'engines'],
     queryFn: fetchSyncEngines,
@@ -47,14 +47,14 @@ export function SyncEnginesTab() {
 
   if (enginesQuery.isLoading) {
     return (
-      <SettingsDetailLayout title="Sync Engines">
+      <SettingsDetailLayout title={t('sync_engines_tab.title')}>
         <LoadingState />
       </SettingsDetailLayout>
     )
   }
   if (enginesQuery.isError) {
     return (
-      <SettingsDetailLayout title="Sync Engines">
+      <SettingsDetailLayout title={t('sync_engines_tab.title')}>
         <ErrorState message="Error loading sync engine configuration." />
       </SettingsDetailLayout>
     )
@@ -66,14 +66,14 @@ export function SyncEnginesTab() {
 
   return (
     <SettingsDetailLayout
-      title="Sync Engines"
+      title={t('sync_engines_tab.title')}
       subtitle="Ordered fallback chain for subtitle synchronization. The orchestrator tries each engine in turn and accepts the first sane result."
     >
       <div className="max-w-3xl space-y-6">
         <section className="bg-surface border border-border rounded-md p-4">
-          <h2 className="font-medium mb-3">Engine chain</h2>
+          <h2 className="font-medium mb-3">{t('sync_engines_tab.engine_chain')}</h2>
           {engines.length === 0 ? (
-            <p className="text-muted text-sm">No engines configured.</p>
+            <p className="text-muted text-sm">{t('sync_engines_tab.no_engines')}</p>
           ) : (
             <ol className="space-y-2">
               {engines.map((engine, idx) => (
@@ -107,9 +107,9 @@ export function SyncEnginesTab() {
         </section>
 
         <section className="bg-surface border border-border rounded-md p-4">
-          <h2 className="font-medium mb-3">Recent sync runs</h2>
+          <h2 className="font-medium mb-3">{t('sync_engines_tab.recent_runs')}</h2>
           {runsQuery.isLoading ? (
-            <p className="text-muted text-sm">Loading recent runs…</p>
+            <p className="text-muted text-sm">{t('sync_engines_tab.loading_runs')}</p>
           ) : runs.length === 0 ? (
             <p className="text-muted text-sm">
               No sync runs recorded yet. Every engine attempt (success, skip, error)

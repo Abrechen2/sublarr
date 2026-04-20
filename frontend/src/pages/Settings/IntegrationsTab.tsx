@@ -153,7 +153,7 @@ function BazarrMigrationSection() {
                 </div>
               ))}
               <div className="flex items-center gap-1.5">
-                <span style={{ color: 'var(--text-muted)' }}>Sonarr Config:</span>
+                <span style={{ color: 'var(--text-muted)' }}>{t('integrations_page.sonarr_config')}</span>
                 {report.migration_summary.has_sonarr_config ? (
                   <CheckCircle size={12} style={{ color: 'var(--success)' }} />
                 ) : (
@@ -161,7 +161,7 @@ function BazarrMigrationSection() {
                 )}
               </div>
               <div className="flex items-center gap-1.5">
-                <span style={{ color: 'var(--text-muted)' }}>Radarr Config:</span>
+                <span style={{ color: 'var(--text-muted)' }}>{t('integrations_page.radarr_config')}</span>
                 {report.migration_summary.has_radarr_config ? (
                   <CheckCircle size={12} style={{ color: 'var(--success)' }} />
                 ) : (
@@ -482,7 +482,7 @@ function ExtendedHealthSection() {
           {/* Sonarr */}
           {healthData.sonarr.length > 0 && (
             <div className="space-y-2">
-              <h4 className="text-xs font-semibold uppercase tracking-wide" style={{ color: 'var(--text-muted)' }}>Sonarr</h4>
+              <h4 className="text-xs font-semibold uppercase tracking-wide" style={{ color: 'var(--text-muted)' }}>{t('integrations_page.sonarr')}</h4>
               {healthData.sonarr.map((s, i) => (
                 <HealthServiceCard key={i} name={s.name} check={s} />
               ))}
@@ -492,7 +492,7 @@ function ExtendedHealthSection() {
           {/* Radarr */}
           {healthData.radarr.length > 0 && (
             <div className="space-y-2">
-              <h4 className="text-xs font-semibold uppercase tracking-wide" style={{ color: 'var(--text-muted)' }}>Radarr</h4>
+              <h4 className="text-xs font-semibold uppercase tracking-wide" style={{ color: 'var(--text-muted)' }}>{t('integrations_page.radarr')}</h4>
               {healthData.radarr.map((r, i) => (
                 <HealthServiceCard key={i} name={r.name} check={r} />
               ))}
@@ -502,7 +502,7 @@ function ExtendedHealthSection() {
           {/* Jellyfin */}
           {healthData.jellyfin && (
             <div className="space-y-2">
-              <h4 className="text-xs font-semibold uppercase tracking-wide" style={{ color: 'var(--text-muted)' }}>Jellyfin / Emby</h4>
+              <h4 className="text-xs font-semibold uppercase tracking-wide" style={{ color: 'var(--text-muted)' }}>{t('integrations_page.jellyfin_emby')}</h4>
               <HealthServiceCard name="Jellyfin" check={healthData.jellyfin} />
             </div>
           )}

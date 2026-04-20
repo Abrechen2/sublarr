@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react'
+import { useTranslation } from 'react-i18next'
 import { Loader2, Wand2 } from 'lucide-react'
 import { toast } from '@/components/shared/Toast'
 import { SettingRow } from '@/components/shared/SettingRow'
@@ -14,7 +15,7 @@ import { TemplatePickerModal } from '@/pages/Settings/translation/TemplatePicker
 
 // ─── Context Window Size Row ─────────────────────────────────────────────────
 
-export function ContextWindowSizeRow() {
+  const { t } = useTranslation('settings')
   const { value, save, isPending } = useContextWindowSize()
   const [localValue, setLocalValue] = useState<number>(value)
 
@@ -30,7 +31,7 @@ export function ContextWindowSizeRow() {
 
   return (
     <SettingRow
-      label="Context window (lines)"
+      label={t('translation_backends.context_window')}
       helpText="Number of lines before and after each batch sent as context to the LLM. 0 = disabled."
     >
       <input
@@ -73,7 +74,7 @@ export function DefaultSyncEngineRow() {
 
   return (
     <SettingRow
-      label="Default sync engine"
+      label={t('translation_backends.default_sync_engine')}
       helpText="Engine used by auto-sync when no per-request override is given. alass = audio-based alignment; ffsubsync = frame-rate-based."
     >
       <select
@@ -125,7 +126,7 @@ export function AutoSyncSection() {
   return (
     <>
       <SettingRow
-        label="Auto-Sync nach Download"
+        label={t('translation_backends.auto_sync_after_download')}
         helpText="Synchronisiert heruntergeladene Untertitel automatisch gegen die Videodatei (nur ffsubsync)."
       >
         <Toggle
@@ -136,7 +137,7 @@ export function AutoSyncSection() {
       </SettingRow>
       {enabled && (
         <SettingRow
-          label="Auto-Sync Engine"
+          label={t('translation_backends.auto_sync_engine')}
           helpText="Engine für automatische Synchronisierung. alass wird bei Auto-Sync übersprungen (erfordert Referenz-Track)."
         >
           <select
@@ -194,7 +195,7 @@ export function EpisodeContextSection() {
       </h2>
 
       <SettingRow
-        label="Use Episode Context"
+        label={t('translation_backends.use_episode_context')}
         description="Include previous episode subtitle as context for translation"
       >
         <Toggle
@@ -217,7 +218,7 @@ export function EpisodeContextSection() {
 
       {useEpisodeContext && (
         <SettingRow
-          label="Context Episodes"
+          label={t('translation_backends.context_episodes')}
           description="Number of prior episodes to include as context"
         >
           <input
@@ -235,7 +236,7 @@ export function EpisodeContextSection() {
       )}
 
       <SettingRow
-        label="Auto Series Glossary"
+        label={t('translation_backends.auto_series_glossary')}
         description="Automatically build a per-series glossary from translation history"
       >
         <Toggle
@@ -423,7 +424,7 @@ export function TranslationBackendsTab() {
           Applied to all translation backends that use the Ollama/LLM pipeline.
         </p>
         <SettingRow
-          label="Request timeout (seconds)"
+          label={t('translation_backends.request_timeout')}
           helpText="Timeout for each LLM API request. Increase for slow or large models. Default: 90."
         >
           <input
@@ -449,7 +450,7 @@ export function TranslationBackendsTab() {
           />
         </SettingRow>
         <SettingRow
-          label="Backoff base (seconds)"
+          label={t('translation_backends.backoff_base')}
           helpText="Base interval for exponential backoff on retries. Default: 5."
         >
           <input

@@ -20,7 +20,7 @@ interface OCRExtractorProps {
   className?: string
 }
 
-export function OCRExtractor({
+  const { t } = useTranslation('activity')
   filePath,
   streamIndex = 0,
   language = 'eng',
@@ -70,7 +70,7 @@ export function OCRExtractor({
   return (
     <div className={`bg-gray-900 rounded border border-gray-700 p-4 ${className}`}>
       <div className="mb-4">
-        <h3 className="text-lg font-semibold mb-2">OCR Extraction</h3>
+        <h3 className="text-lg font-semibold mb-2">{t('ocr.title')}</h3>
         <p className="text-sm text-gray-400">
           Extract text from embedded image subtitles (DVD, Blu-ray) using Tesseract OCR.
         </p>
@@ -78,7 +78,7 @@ export function OCRExtractor({
 
       {/* Preview Section */}
       <div className="mb-4">
-        <label className="block text-sm font-medium mb-2">Preview Frame</label>
+        <label className="block text-sm font-medium mb-2">{t('ocr.preview_frame')}</label>
         <div className="flex gap-2 mb-2">
           <input
             type="number"
@@ -113,7 +113,7 @@ export function OCRExtractor({
             </div>
             {previewFrame.preview_text && (
               <div className="text-sm text-gray-300">
-                <strong>Extracted text:</strong>
+                <strong>{t('ocr.extracted_text_lower')}</strong>
                 <p className="mt-1 p-2 bg-gray-900 rounded">{previewFrame.preview_text}</p>
               </div>
             )}
@@ -156,7 +156,7 @@ export function OCRExtractor({
             </span>
           </div>
           <div className="mt-2">
-            <label className="block text-sm font-medium mb-1">Extracted Text:</label>
+            <label className="block text-sm font-medium mb-1">{t('ocr.extracted_text_upper')}</label>
             <textarea
               readOnly
               value={extractResult.text}

@@ -149,8 +149,8 @@ export default function SubtitleDiff({
       <div className="flex h-full flex-col">
         <DiffHeader onClose={onClose} onBackToEditor={onBackToEditor} />
         <div className="flex flex-1 flex-col items-center justify-center gap-2" style={{ color: 'var(--text-muted)' }}>
-          <span className="text-sm">No backup found for this file.</span>
-          <span className="text-xs">Save the file first to create a backup.</span>
+          <span className="text-sm">{t('subtitle_diff.no_backup')}</span>
+          <span className="text-xs">{t('subtitle_diff.save_first')}</span>
         </div>
       </div>
     )
@@ -285,9 +285,9 @@ export default function SubtitleDiff({
                 <th className="px-3 py-2 text-left text-xs font-medium w-10" style={{ color: 'var(--text-muted)' }}>#</th>
                 <th className="px-3 py-2 text-left text-xs font-medium w-28" style={{ color: 'var(--text-muted)' }}>Time</th>
                 <th className="px-3 py-2 text-left text-xs font-medium w-20" style={{ color: 'var(--text-muted)' }}>Type</th>
-                <th className="px-3 py-2 text-left text-xs font-medium" style={{ color: 'var(--text-muted)' }}>Original</th>
-                <th className="px-3 py-2 text-left text-xs font-medium" style={{ color: 'var(--text-muted)' }}>Modified</th>
-                <th className="px-3 py-2 text-center text-xs font-medium w-20" style={{ color: 'var(--text-muted)' }}>Accept</th>
+                <th className="px-3 py-2 text-left text-xs font-medium" style={{ color: 'var(--text-muted)' }}>{t('subtitle_diff.original')}</th>
+                <th className="px-3 py-2 text-left text-xs font-medium" style={{ color: 'var(--text-muted)' }}>{t('subtitle_diff.modified')}</th>
+                <th className="px-3 py-2 text-center text-xs font-medium w-20" style={{ color: 'var(--text-muted)' }}>{t('subtitle_diff.accept')}</th>
               </tr>
             </thead>
             <tbody>
@@ -399,7 +399,7 @@ function DiffHeader({
       className="flex items-center gap-2 px-3 py-1.5 flex-shrink-0"
       style={{ borderBottom: '1px solid var(--border)', backgroundColor: 'var(--bg-elevated)' }}
     >
-      <span className="text-sm font-medium" style={{ color: 'var(--text-primary)' }}>Diff View</span>
+      <span className="text-sm font-medium" style={{ color: 'var(--text-primary)' }}>{t('subtitle_diff.diff_view')}</span>
 
       <div className="flex-1" />
 

@@ -46,5 +46,13 @@
     "ignore": "Ignorieren",
     "replace_with": "Durch \"{{suggestion}}\" ersetzen",
     "line": "Zeile {{n}}"
+  },
+  "subtitle_diff": {
+    "no_backup": "Kein Backup für diese Datei gefunden.",
+    "save_first": "Datei erst speichern, um ein Backup zu erstellen.",
+    "original": "Original",
+    "modified": "Geändert",
+    "accept": "Übernehmen",
+    "diff_view": "Diff-Ansicht"
   }
 }

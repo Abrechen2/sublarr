@@ -1116,5 +1116,31 @@
     "col_status": "Status",
     "col_duration": "Duration",
     "no_execution_logs": "No execution logs yet."
+  },
+  "translation_backends": {
+    "context_window": "Context window (lines)",
+    "default_sync_engine": "Default sync engine",
+    "auto_sync_after_download": "Auto-Sync after download",
+    "auto_sync_engine": "Auto-Sync engine",
+    "use_episode_context": "Use Episode Context",
+    "context_episodes": "Context Episodes",
+    "auto_series_glossary": "Auto Series Glossary",
+    "request_timeout": "Request timeout (seconds)",
+    "backoff_base": "Backoff base (seconds)"
+  },
+  "sync_engines_tab": {
+    "loading": "Loading sync engines…",
+    "title": "Sync Engines",
+    "engine_chain": "Engine chain",
+    "no_engines": "No engines configured.",
+    "recent_runs": "Recent sync runs",
+    "loading_runs": "Loading recent runs…"
+  },
+  "integrations_page": {
+    "sonarr_config": "Sonarr Config:",
+    "radarr_config": "Radarr Config:",
+    "sonarr": "Sonarr",
+    "radarr": "Radarr",
+    "jellyfin_emby": "Jellyfin / Emby"
   }
 }
