@@ -5,6 +5,11 @@ All notable changes to Sublarr are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.70.2-beta] - 2026-04-20
+
+### Fixed
+- **Plan A1 follow-up — TranslationMemory `backend` column fully wired.** The A1 `translation_events` migration added a `backend` column to the existing `translation_memory` table but the ORM model never exposed it, and the backend filter on `POST /api/v1/translation/memory/purge` had been dropped. Now: `TranslationMemory.backend` is a `Mapped[str | None]` column; `store_translation_cache()` accepts a `backend=` kwarg at every layer (repository, `db.translation` wrapper, `translator/cache.py::_store_translations_in_cache`, `translator/manager.py` passes `result.backend_name`); purge endpoint accepts a `"backend"` filter in the request body. 3 new tests cover field persistence, None default, upsert updating backend.
+
 ## [0.70.1-beta] - 2026-04-20
 
 ### Fixed
