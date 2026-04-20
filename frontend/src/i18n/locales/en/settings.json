@@ -202,7 +202,10 @@
       "include": "Include Only (if set, only these events)",
       "exclude": "Exclude Events",
       "content": "Content Filters"
-    }
+    },
+    "template_name_placeholder": "e.g. Download Complete",
+    "all_events": "All Events",
+    "any_service": "Any service"
   },
   "apiKeys": {
     "title": "API Key Management",
@@ -234,7 +237,9 @@
     "test_title": "Test Path Mapping",
     "mapped_to": "Mapped to:",
     "file_exists": "File exists",
-    "file_not_found": "File not found"
+    "file_not_found": "File not found",
+    "example_windows": "Z:\\Media",
+    "remove_mapping": "Remove mapping"
   },
   "instances": {
     "title": "{{label}} Instances",
@@ -511,7 +516,10 @@
   },
   "subtitle_tools_tab": {
     "common_fixes": "Common Fixes",
-    "preview_subtitle": "Preview Subtitle"
+    "preview_subtitle": "Preview Subtitle",
+    "file_path_placeholder": "File path (e.g. /media/show/sub.srt)",
+    "file_path_label": "File path",
+    "view_first_lines": "View the first 100 lines of a subtitle file."
   },
   "migration": {
     "config_entries": "Config Entries",
@@ -630,7 +638,10 @@
       "engine": "Engine:",
       "fallback": "Fallback:",
       "no_fallback": "none"
-    }
+    },
+    "ffmpeg_timeout": "FFmpeg timeout (seconds)",
+    "metadata_engine": "Metadata engine",
+    "metadata_worker": "Metadata worker"
   },
   "scoring_tab": {
     "presets_title": "Quick Start: Apply a Preset",
@@ -1181,5 +1192,19 @@
     "refresh_github": "Refresh from GitHub",
     "view_on_github": "View on GitHub",
     "no_plugins": "No plugins found."
+  },
+  "post_processing_tab": {
+    "loading": "Loading post-processing config…",
+    "title": "Post-Processing Pipeline",
+    "subtitle": "Run actions after a subtitle is downloaded, translated, or synced."
+  },
+  "security_tab": {
+    "rate_limiting_session": "Rate Limiting & Session",
+    "session_timeout": "Session Timeout (minutes)"
+  },
+  "translation_memory_section": {
+    "enable": "Enable translation memory",
+    "similarity_threshold": "Similarity threshold",
+    "clear": "Clear Translation Memory"
   }
 }

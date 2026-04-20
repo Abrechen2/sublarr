@@ -12,7 +12,9 @@
     "statistics": "Statistiken",
     "tasks": "Aufgaben",
     "plugins": "Plugins",
-    "trash": "Papierkorb"
+    "trash": "Papierkorb",
+    "toggle_menu": "Menü umschalten",
+    "log_out": "Abmelden"
   },
   "nav_groups": {
     "content": "Inhalte",

@@ -72,7 +72,7 @@ export function SubtitleToolsTab() {
             type="text"
             value={hiPath}
             onChange={(e) => setHiPath(e.target.value)}
-            placeholder="File path (e.g. /media/show/sub.srt)"
+            placeholder={t('subtitle_tools_tab.file_path_placeholder')}
             className="flex-1 px-3 py-2 rounded-md text-sm"
             style={{
               backgroundColor: 'var(--bg-primary)',
@@ -109,7 +109,7 @@ export function SubtitleToolsTab() {
           Positive values delay, negative values advance.
         </p>
         <div className="flex items-center gap-2">
-          <input type="text" value={timingPath} onChange={(e) => setTimingPath(e.target.value)} placeholder="File path"
+          <input type="text" value={timingPath} onChange={(e) => setTimingPath(e.target.value)} placeholder={t('subtitle_tools_tab.file_path_label')}
             className="flex-1 px-3 py-2 rounded-md text-sm"
             style={{ backgroundColor: 'var(--bg-primary)', border: '1px solid var(--border)', color: 'var(--text-primary)', fontFamily: 'var(--font-mono)', fontSize: '13px' }} />
           <div className="flex items-center gap-1">
@@ -140,7 +140,7 @@ export function SubtitleToolsTab() {
           Apply common subtitle cleaning operations: fix encoding, trim whitespace, normalize line breaks, remove empty lines.
         </p>
         <div className="flex items-center gap-2 mb-3">
-          <input type="text" value={fixesPath} onChange={(e) => setFixesPath(e.target.value)} placeholder="File path"
+          <input type="text" value={fixesPath} onChange={(e) => setFixesPath(e.target.value)} placeholder={t('subtitle_tools_tab.file_path_label')}
             className="flex-1 px-3 py-2 rounded-md text-sm"
             style={{ backgroundColor: 'var(--bg-primary)', border: '1px solid var(--border)', color: 'var(--text-primary)', fontFamily: 'var(--font-mono)', fontSize: '13px' }} />
         </div>
@@ -170,9 +170,9 @@ export function SubtitleToolsTab() {
       {/* Preview */}
       <div className="rounded-lg p-5" style={{ backgroundColor: 'var(--bg-surface)', border: '1px solid var(--border)' }}>
         <h3 className="text-sm font-semibold mb-1" style={{ color: 'var(--text-primary)' }}>{t('subtitle_tools_tab.preview_subtitle')}</h3>
-        <p className="text-xs mb-3" style={{ color: 'var(--text-muted)' }}>View the first 100 lines of a subtitle file.</p>
+        <p className="text-xs mb-3" style={{ color: 'var(--text-muted)' }}>{t('subtitle_tools_tab.view_first_lines')}</p>
         <div className="flex items-center gap-2 mb-3">
-          <input type="text" value={previewPath} onChange={(e) => setPreviewPath(e.target.value)} placeholder="File path"
+          <input type="text" value={previewPath} onChange={(e) => setPreviewPath(e.target.value)} placeholder={t('subtitle_tools_tab.file_path_label')}
             className="flex-1 px-3 py-2 rounded-md text-sm"
             style={{ backgroundColor: 'var(--bg-primary)', border: '1px solid var(--border)', color: 'var(--text-primary)', fontFamily: 'var(--font-mono)', fontSize: '13px' }} />
           <button

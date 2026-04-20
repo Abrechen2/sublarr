@@ -97,7 +97,7 @@ export function Sidebar() {
           border: '1px solid var(--border)',
           color: 'var(--text-primary)',
         }}
-        aria-label="Toggle menu"
+        aria-label={t('nav.toggle_menu')}
       >
         {mobileOpen ? <X size={18} /> : <Menu size={18} />}
       </button>
@@ -236,7 +236,7 @@ export function Sidebar() {
               style={{ color: 'var(--text-muted)' }}
             >
               <LogOut size={16} />
-              <span>Log out</span>
+              <span>{t('nav.log_out')}</span>
             </button>
           )}
 

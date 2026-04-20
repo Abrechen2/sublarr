@@ -8,7 +8,7 @@ import { useConfig, useUpdateConfig, useTranslationMemoryStats, useClearTranslat
 
 // ─── Translation Memory Section ─────────────────────────────────────────────
 
-export function TranslationMemorySection() {
+  const { t } = useTranslation('settings')
   const { data: config } = useConfig()
   const updateConfig = useUpdateConfig()
   const { data: stats, isLoading: statsLoading } = useTranslationMemoryStats()
@@ -78,7 +78,7 @@ export function TranslationMemorySection() {
       </div>
 
       <SettingRow
-        label="Enable translation memory"
+        label={t('translation_memory_section.enable')}
         helpText="Reuse previously translated lines that are similar to new ones, reducing LLM calls and improving consistency."
       >
         <Toggle
@@ -89,7 +89,7 @@ export function TranslationMemorySection() {
       </SettingRow>
 
       <SettingRow
-        label="Similarity threshold"
+        label={t('translation_memory_section.similarity_threshold')}
         helpText="Minimum similarity (0.0–1.0) for a cached translation to be reused. 1.0 = exact match only; 0.8 = near-identical lines reused."
       >
         <input
@@ -153,7 +153,7 @@ export function TranslationMemorySection() {
       </div>
       <ConfirmModal
         open={showClearConfirm}
-        title="Clear Translation Memory"
+        title={t('translation_memory_section.clear')}
         message="Clear all cached translations? This cannot be undone."
         confirmLabel="Clear"
         onConfirm={() => { setShowClearConfirm(false); handleClearCache() }}

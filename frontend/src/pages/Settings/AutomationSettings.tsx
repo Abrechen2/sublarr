@@ -52,7 +52,7 @@ function SearchScanAdvancedContent() {
   return (
     <div data-testid="search-scan-advanced-content">
       <FormGroup
-        label="FFmpeg Timeout (Sekunden)"
+        label={t('automation_page.ffmpeg_timeout')}
         hint="Maximale Wartezeit für ffprobe/ffmpeg-Operationen beim Scannen der Mediathek."
         htmlFor="ffmpeg-timeout"
         advanced
@@ -72,7 +72,7 @@ function SearchScanAdvancedContent() {
       </FormGroup>
 
       <FormGroup
-        label="Metadaten-Engine"
+        label={t('automation_page.metadata_engine')}
         hint="Tool für das Auslesen von Mediendatei-Metadaten. 'auto' wählt automatisch."
         htmlFor="scan-metadata-engine"
         advanced
@@ -93,7 +93,7 @@ function SearchScanAdvancedContent() {
       </FormGroup>
 
       <FormGroup
-        label="Metadaten-Worker"
+        label={t('automation_page.metadata_worker')}
         hint="Anzahl paralleler Threads für den Metadaten-Scan."
         htmlFor="scan-metadata-max-workers"
         advanced

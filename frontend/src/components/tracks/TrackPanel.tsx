@@ -190,7 +190,7 @@ function TrackRow({ track, episodeId, videoPath, onOpenEditor }: { track: Track;
                   border: '1px solid var(--accent-dim)',
                   opacity: usingAsSource ? 0.6 : 1,
                 }}
-                title="Im Editor öffnen"
+                title={t('track_panel.open_in_editor')}
               >
                 {usingAsSource ? <Loader2 size={10} className="animate-spin" /> : <FileText size={10} />}
                 Als Quelle
@@ -210,9 +210,9 @@ function TrackRow({ track, episodeId, videoPath, onOpenEditor }: { track: Track;
                       color: 'var(--text-secondary)',
                       border: '1px solid var(--border)',
                     }}
-                    title="In anderes Format konvertieren"
+                    title={t('track_panel.convert_format')}
                   >
-                    <option value="">Konvertieren…</option>
+                    <option value="">{t('track_panel.converting_ellipsis')}</option>
                     {(['srt', 'ass', 'vtt'] as const)
                       .filter((f) => f !== track.codec.replace('subrip', 'srt').replace('ssa', 'ass'))
                       .map((f) => (

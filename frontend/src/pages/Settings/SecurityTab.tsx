@@ -115,10 +115,10 @@ export function SecurityTab() {
 
       {/* Rate Limiting & Session (Step 46) */}
       <div data-testid="section-extended-security">
-        <SettingsCard title="Rate Limiting & Session" icon={Shield}>
+        <SettingsCard title={t('security_tab.rate_limiting_session')} icon={Shield}>
           <div className="space-y-4 pt-1">
             <FormGroup
-              label="Session Timeout (minutes)"
+              label={t('security_tab.session_timeout')}
               hint="0 = sessions never expire"
               data-testid="form-group-session-timeout-minutes"
             >

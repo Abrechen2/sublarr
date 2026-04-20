@@ -306,5 +306,10 @@
     "more_actions": "More actions",
     "timing": "Timing",
     "analyse": "Analyse"
+  },
+  "track_panel": {
+    "open_in_editor": "Open in editor",
+    "convert_format": "Convert to different format",
+    "converting_ellipsis": "Converting…"
   }
 }

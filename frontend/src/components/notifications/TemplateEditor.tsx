@@ -80,7 +80,7 @@ export function TemplateEditor({ template, onChange }: TemplateEditorProps) {
           type="text"
           value={template.name ?? ''}
           onChange={(e) => onChange({ name: e.target.value })}
-          placeholder="e.g. Download Complete"
+          placeholder={t('notifications.template_name_placeholder')}
           className="w-full px-3 py-2 rounded-md text-sm focus:outline-none"
           style={{
             backgroundColor: 'var(--bg-primary)',
@@ -107,7 +107,7 @@ export function TemplateEditor({ template, onChange }: TemplateEditorProps) {
                 color: 'var(--text-primary)',
               }}
             >
-              <option value="">All Events</option>
+              <option value="">{t('notifications.all_events')}</option>
               {eventTypes.map((evt) => (
                 <option key={evt.name} value={evt.name}>{evt.label || evt.name}</option>
               ))}
@@ -127,7 +127,7 @@ export function TemplateEditor({ template, onChange }: TemplateEditorProps) {
             type="text"
             value={template.service_name ?? ''}
             onChange={(e) => onChange({ service_name: e.target.value || null })}
-            placeholder="Any service"
+            placeholder={t('notifications.any_service')}
             className="w-full px-3 py-2 rounded-md text-sm focus:outline-none"
             style={{
               backgroundColor: 'var(--bg-primary)',

@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import {
   fetchOps,
@@ -26,7 +27,7 @@ const TRIGGERS: readonly Trigger[] = [
 
 function LoadingState() {
   return (
-    <div className="py-8 text-center text-muted">Loading post-processing config…</div>
+    <div className="py-8 text-center text-muted">{t('post_processing_tab.loading')}</div>
   )
 }
 
@@ -302,7 +303,7 @@ function TriggerSection({ trigger, configured, ops, onChange }: TriggerSectionPr
   )
 }
 
-export function PostProcessingTab() {
+  const { t } = useTranslation('settings')
   const qc = useQueryClient()
   const opsQuery = useQuery({
     queryKey: ['post-processing', 'ops'],
@@ -320,14 +321,14 @@ export function PostProcessingTab() {
 
   if (opsQuery.isLoading || cfgQuery.isLoading) {
     return (
-      <SettingsDetailLayout title="Post-Processing Pipeline">
+      <SettingsDetailLayout title={t('post_processing_tab.title')}>
         <LoadingState />
       </SettingsDetailLayout>
     )
   }
   if (opsQuery.isError || cfgQuery.isError) {
     return (
-      <SettingsDetailLayout title="Post-Processing Pipeline">
+      <SettingsDetailLayout title={t('post_processing_tab.title')}>
         <ErrorState message="Error loading post-processing config." />
       </SettingsDetailLayout>
     )
@@ -338,8 +339,8 @@ export function PostProcessingTab() {
 
   return (
     <SettingsDetailLayout
-      title="Post-Processing Pipeline"
-      subtitle="Run actions after a subtitle is downloaded, translated, or synced."
+      title={t('post_processing_tab.title')}
+      subtitle={t('post_processing_tab.subtitle')}
     >
       <div className="max-w-3xl">
         {TRIGGERS.map((trigger) => (

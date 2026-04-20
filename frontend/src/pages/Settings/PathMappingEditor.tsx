@@ -100,7 +100,7 @@ export function PathMappingEditor({
               type="text"
               value={row.local}
               onChange={(e) => updateRow(i, 'local', e.target.value)}
-              placeholder="Z:\Media"
+              placeholder={t('path_mapping.example_windows')}
               className="px-3 py-2 rounded-md text-sm focus:outline-none"
               style={{
                 backgroundColor: 'var(--bg-primary)',
@@ -114,7 +114,7 @@ export function PathMappingEditor({
               onClick={() => removeRow(i)}
               className="p-1.5 rounded transition-all duration-150"
               style={{ color: 'var(--text-muted)' }}
-              title="Remove mapping"
+              title={t('path_mapping.remove_mapping')}
               onMouseEnter={(e) => { e.currentTarget.style.color = 'var(--error)' }}
               onMouseLeave={(e) => { e.currentTarget.style.color = 'var(--text-muted)' }}
             >
@@ -193,7 +193,7 @@ export function PathMappingEditor({
         {testResult && (
           <div className="text-xs space-y-1" style={{ color: 'var(--text-secondary)', fontFamily: 'var(--font-mono)' }}>
             <div>
-              <span style={{ color: 'var(--text-muted)' }}>Mapped to:</span>{' '}
+              <span style={{ color: 'var(--text-muted)' }}>{t('path_mapping.mapped_to')}</span>{' '}
               <span style={{ color: 'var(--accent)' }}>{testResult.mapped_path}</span>
             </div>
             <div>

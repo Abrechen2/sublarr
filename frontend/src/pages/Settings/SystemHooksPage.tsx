@@ -74,7 +74,7 @@ function HookFormModal({
 
         <div className="space-y-3">
           <div>
-            <label className="text-xs font-medium" style={{ color: 'var(--text-muted)' }}>Name *</label>
+            <label className="text-xs font-medium" style={{ color: 'var(--text-muted)' }}>{t('system_hooks_page.form.name')}</label>
             <input
               type="text"
               value={form.name}
@@ -85,7 +85,7 @@ function HookFormModal({
             />
           </div>
           <div>
-            <label className="text-xs font-medium" style={{ color: 'var(--text-muted)' }}>Event *</label>
+            <label className="text-xs font-medium" style={{ color: 'var(--text-muted)' }}>{t('system_hooks_page.form.event')}</label>
             <select
               value={form.event_name}
               onChange={(e) => update('event_name', e.target.value)}
@@ -97,7 +97,7 @@ function HookFormModal({
             </select>
           </div>
           <div>
-            <label className="text-xs font-medium" style={{ color: 'var(--text-muted)' }}>Script path *</label>
+            <label className="text-xs font-medium" style={{ color: 'var(--text-muted)' }}>{t('system_hooks_page.form.script_path')}</label>
             <input
               type="text"
               value={form.script_path}

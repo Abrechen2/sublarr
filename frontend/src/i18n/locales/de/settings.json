@@ -202,7 +202,10 @@
       "include": "Nur einschließen (wenn gesetzt, nur diese Events)",
       "exclude": "Events ausschließen",
       "content": "Inhaltsfilter"
-    }
+    },
+    "template_name_placeholder": "z.B. Download abgeschlossen",
+    "all_events": "Alle Events",
+    "any_service": "Jeder Dienst"
   },
   "apiKeys": {
     "title": "API-Key-Verwaltung",
@@ -232,9 +235,11 @@
     "remote_path": "Remote-Pfad",
     "local_path": "Lokaler Pfad",
     "test_title": "Pfadzuordnung testen",
-    "mapped_to": "Zugeordnet zu:",
+    "mapped_to": "Abgebildet auf:",
     "file_exists": "Datei existiert",
-    "file_not_found": "Datei nicht gefunden"
+    "file_not_found": "Datei nicht gefunden",
+    "example_windows": "Z:\\Media",
+    "remove_mapping": "Mapping entfernen"
   },
   "instances": {
     "title": "{{label}}-Instanzen",
@@ -511,7 +516,10 @@
   },
   "subtitle_tools_tab": {
     "common_fixes": "Allgemeine Korrektionen",
-    "preview_subtitle": "Untertitel-Vorschau"
+    "preview_subtitle": "Untertitel-Vorschau",
+    "file_path_placeholder": "Dateipfad (z.B. /media/show/sub.srt)",
+    "file_path_label": "Dateipfad",
+    "view_first_lines": "Die ersten 100 Zeilen einer Untertitel-Datei anzeigen."
   },
   "migration": {
     "config_entries": "Konfigurationseinträge",
@@ -630,7 +638,10 @@
       "engine": "Engine:",
       "fallback": "Fallback:",
       "no_fallback": "keiner"
-    }
+    },
+    "ffmpeg_timeout": "FFmpeg-Timeout (Sekunden)",
+    "metadata_engine": "Metadaten-Engine",
+    "metadata_worker": "Metadaten-Worker"
   },
   "scoring_tab": {
     "presets_title": "Schnellstart: Preset anwenden",
@@ -1181,5 +1192,19 @@
     "refresh_github": "Von GitHub aktualisieren",
     "view_on_github": "Auf GitHub ansehen",
     "no_plugins": "Keine Plugins gefunden."
+  },
+  "post_processing_tab": {
+    "loading": "Post-Processing-Konfiguration wird geladen…",
+    "title": "Post-Processing-Pipeline",
+    "subtitle": "Aktionen nach Download, Übersetzung oder Sync ausführen."
+  },
+  "security_tab": {
+    "rate_limiting_session": "Rate-Limiting & Session",
+    "session_timeout": "Session-Timeout (Minuten)"
+  },
+  "translation_memory_section": {
+    "enable": "Translation Memory aktivieren",
+    "similarity_threshold": "Ähnlichkeits-Schwelle",
+    "clear": "Translation Memory leeren"
   }
 }
