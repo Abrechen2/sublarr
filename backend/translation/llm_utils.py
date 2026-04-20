@@ -108,13 +108,36 @@ def parse_llm_response(response_text: str, expected_count: int) -> list[str] | N
     return None
 
 
-def _escape_subtitle_line(line: str) -> str:
-    """Escape control characters in subtitle text to prevent prompt injection.
+_MAX_LINE_LENGTH = 2000  # subtitle lines rarely exceed ~250 chars; 2000 is generous
+_ZERO_WIDTH = (
+    "\u200b"  # zero-width space
+    "\u200c"  # zero-width non-joiner
+    "\u200d"  # zero-width joiner
+    "\u2060"  # word joiner
+    "\ufeff"  # zero-width no-break space (BOM)
+)
 
-    Replaces literal newlines and carriage returns with their escaped representations
-    so they cannot break the numbered prompt format.
+
+def _escape_subtitle_line(line: str) -> str:
+    """Escape control characters in subtitle text to prevent prompt injection (P3).
+
+    Defence surface:
+    - Escape newlines + carriage returns so they can't break the numbered
+      prompt format the LLM is trained on.
+    - Strip null bytes (\\x00) — LLMs should never see them and some
+      tokenisers treat them as string terminators.
+    - Strip zero-width Unicode (ZWSP/ZWJ/BOM) — these render as nothing
+      but let an attacker hide adversarial directives inside "normal" text.
+    - Cap to ``_MAX_LINE_LENGTH`` characters so a single malicious line
+      can't blow the model's context window or inflate cost.
     """
-    return line.replace("\r\n", "\\r\\n").replace("\r", "\\r").replace("\n", "\\n")
+    escaped = line.replace("\r\n", "\\r\\n").replace("\r", "\\r").replace("\n", "\\n")
+    escaped = escaped.replace("\x00", "")
+    for zw in _ZERO_WIDTH:
+        escaped = escaped.replace(zw, "")
+    if len(escaped) > _MAX_LINE_LENGTH:
+        escaped = escaped[:_MAX_LINE_LENGTH]
+    return escaped
 
 
 def _is_valid_glossary_entry(term: str) -> bool:

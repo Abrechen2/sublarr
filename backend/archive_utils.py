@@ -10,12 +10,27 @@ import logging
 import os
 import zipfile
 
+from werkzeug.utils import secure_filename
+
 logger = logging.getLogger(__name__)
 
 _MAX_ARCHIVE_BYTES = 20 * 1024 * 1024  # 20 MB — reject before extraction
 _MAX_EXTRACTED_BYTES = 50 * 1024 * 1024  # 50 MB — total extracted
 _MAX_COMPRESSION_RATIO = 100  # 100:1 — ZIP bomb ratio
 _SUBTITLE_EXTENSIONS = frozenset({".ass", ".srt", ".ssa", ".vtt"})
+
+
+def _safe_basename(path: str) -> str:
+    """Return a filename-safe basename (P2).
+
+    ``os.path.basename`` is platform-dependent: on Linux it does not strip
+    backslashes, so a ZIP entry named ``..\\..\\cmd.exe.srt`` would slip
+    through on non-Windows hosts. ``secure_filename`` normalises to ASCII,
+    strips traversal components, and blocks control chars / nul / slashes
+    on every platform.
+    """
+    raw = os.path.basename(path.replace("\\", "/"))
+    return secure_filename(raw)
 
 
 def extract_subtitles_from_zip(
@@ -65,8 +80,8 @@ def extract_subtitles_from_zip(
                 # Skip directory entries
                 if info.filename.endswith("/"):
                     continue
-                # Strip any path components to prevent ZIP slip
-                basename = os.path.basename(info.filename)
+                # Strip any path components + sanitize for disk write (ZIP slip + P2)
+                basename = _safe_basename(info.filename)
                 if not basename:
                     continue
                 ext = os.path.splitext(basename)[1].lower()
@@ -110,7 +125,7 @@ def extract_subtitles_from_rar(
     try:
         with rarfile.RarFile(io.BytesIO(data)) as rf:
             for info in rf.infolist():
-                basename = os.path.basename(info.filename)
+                basename = _safe_basename(info.filename)
                 if not basename:
                     continue
                 ext = os.path.splitext(basename)[1].lower()

@@ -390,7 +390,11 @@ class GestdownProvider(SubtitleProvider):
 
                     sub_id = sub.get("subtitleId") or sub.get("id") or ""
                     download_url = sub.get("downloadUri") or sub.get("download_url") or ""
-                    filename = sub.get("fileName") or sub.get("filename") or f"{sub_id}.srt"
+                    # P2: sanitize API-provided filename to block path traversal
+                    from werkzeug.utils import secure_filename as _sf
+
+                    raw_name = sub.get("fileName") or sub.get("filename") or f"{sub_id}.srt"
+                    filename = _sf(raw_name) or f"{sub_id or 'subtitle'}.srt"
                     version = sub.get("version") or sub.get("release") or ""
 
                     # Detect format from filename extension

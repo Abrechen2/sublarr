@@ -307,8 +307,12 @@ class AnimeToshoProvider(SubtitleProvider):
                 fmt = _FORMAT_MAP.get(ext, SubtitleFormat.UNKNOWN)
 
                 # Build a descriptive filename: track_name.lang.ext
+                # P2: sanitize API-provided track_name before using in filename
+                from werkzeug.utils import secure_filename as _sf
+
                 track_name = info.get("name", f"track{info.get('tracknum', attach_id)}")
-                filename = f"{track_name}.{lang_raw or lang}.{ext.lstrip('.')}"
+                safe_track = _sf(track_name) or f"track{attach_id}"
+                filename = f"{safe_track}.{lang_raw or lang}.{ext.lstrip('.')}"
 
                 # Language fall back to filename heuristic if not in ISO table
                 if not lang:
@@ -390,8 +394,9 @@ class AnimeToshoProvider(SubtitleProvider):
         if content[:4] == b"PK\x03\x04":
             entries = extract_subtitles_from_zip(content)
             if entries:
+                # extract_subtitles_from_zip already applies _safe_basename (P2)
                 name, content = entries[0]
-                result.filename = os.path.basename(name)
+                result.filename = name
                 ext = os.path.splitext(name)[1].lower()
                 result.format = _FORMAT_MAP.get(ext, SubtitleFormat.UNKNOWN)
 
