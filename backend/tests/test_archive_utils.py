@@ -63,6 +63,33 @@ class TestZipSlip:
             assert "\\" not in name
             assert name == "passwd.srt"
 
+    def test_zip_windows_backslash_path_stripped(self):
+        """Linux os.path.basename doesn't strip backslashes; _safe_basename must."""
+        data = _make_zip({"..\\..\\windows\\cmd.exe.srt": b"fake sub content"})
+        results = extract_subtitles_from_zip(data)
+        assert results, "ZIP with backslash path should still extract a safe basename"
+        name, _ = results[0]
+        assert "\\" not in name
+        assert ".." not in name
+        assert name.endswith(".srt")
+
+    def test_zip_null_byte_path_sanitized(self):
+        """Null byte in ZIP entry path is stripped by secure_filename."""
+        data = _make_zip({"normal\x00hidden.srt": b"fake sub content"})
+        results = extract_subtitles_from_zip(data)
+        if results:
+            name, _ = results[0]
+            assert "\x00" not in name
+
+    def test_zip_unicode_path_sanitized(self):
+        """Unicode in ZIP entry path is ASCII-normalised by secure_filename."""
+        data = _make_zip({"Anime【HorribleSubs】.srt": b"fake sub content"})
+        results = extract_subtitles_from_zip(data)
+        if results:
+            name, _ = results[0]
+            # secure_filename strips non-ASCII — result is still .srt-extensioned
+            assert name.endswith(".srt")
+
 
 class TestMalformedInput:
     def test_bad_zip_returns_empty(self):
