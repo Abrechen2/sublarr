@@ -402,5 +402,30 @@
   },
   "common": {
     "undo_warning": "This cannot be undone."
+  },
+  "language_names": {
+    "de": "German (de)",
+    "en": "English (en)",
+    "fr": "French (fr)",
+    "es": "Spanish (es)",
+    "it": "Italian (it)",
+    "pt": "Portuguese (pt)",
+    "nl": "Dutch (nl)",
+    "pl": "Polish (pl)",
+    "zh": "Chinese (zh)",
+    "ja": "Japanese (ja)",
+    "ko": "Korean (ko)",
+    "hr": "Croatian (hr)",
+    "sr": "Serbian (sr)",
+    "cs": "Czech (cs)",
+    "hu": "Hungarian (hu)",
+    "ro": "Romanian (ro)",
+    "tr": "Turkish (tr)",
+    "ru": "Russian (ru)",
+    "ar": "Arabic (ar)",
+    "he": "Hebrew (he)",
+    "el": "Greek (el)",
+    "name_de": "German",
+    "name_en": "English"
   }
 }

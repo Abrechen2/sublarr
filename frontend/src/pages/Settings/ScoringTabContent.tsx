@@ -7,6 +7,7 @@
  * Import via EventsTab.tsx barrel for LegacySettings backwards compatibility.
  */
 import { useState, useEffect, useMemo } from 'react'
+import { useTranslation } from 'react-i18next'
 import {
   useScoringWeights, useUpdateScoringWeights, useResetScoringWeights,
   useProviderModifiers, useUpdateProviderModifiers,
@@ -22,6 +23,7 @@ import type { ScoringWeights, ScoringPreset } from '@/lib/types'
 // ─── Release Group Section ────────────────────────────────────────────────────
 
 function ReleaseGroupSection() {
+  const { t } = useTranslation('settings')
   const { data: configData } = useConfig()
   const updateConfig = useUpdateConfig()
 
@@ -58,7 +60,7 @@ function ReleaseGroupSection() {
 
   return (
     <SettingSection
-      title="Release Group Filter"
+      title={t('scoring.release_group_filter')}
       description="Provider-Suchergebnisse nach Release-Gruppe filtern und priorisieren."
     >
       <div className="flex items-center justify-end -mt-1">
@@ -75,7 +77,7 @@ function ReleaseGroupSection() {
       <div className="space-y-3">
         <div className="flex items-center justify-between gap-3">
           <div>
-            <span className="text-[12px] font-medium" style={{ color: 'var(--text-primary)' }}>Preferred Release Groups</span>
+            <span className="text-[12px] font-medium" style={{ color: 'var(--text-primary)' }}>{t('scoring.preferred_release_groups')}</span>
             <p className="text-[11px] mt-0.5" style={{ color: 'var(--text-muted)' }}>
               Komma-getrennte Release-Gruppen die bevorzugt werden (Score-Bonus). Leer = deaktiviert.
             </p>
@@ -96,7 +98,7 @@ function ReleaseGroupSection() {
         </div>
         <div className="flex items-center justify-between gap-3">
           <div>
-            <span className="text-[12px] font-medium" style={{ color: 'var(--text-primary)' }}>Blocked Release Groups</span>
+            <span className="text-[12px] font-medium" style={{ color: 'var(--text-primary)' }}>{t('scoring.blocked_release_groups')}</span>
             <p className="text-[11px] mt-0.5" style={{ color: 'var(--text-muted)' }}>
               Komma-getrennte Release-Gruppen die aus Suchergebnissen ausgeschlossen werden.
             </p>
@@ -117,7 +119,7 @@ function ReleaseGroupSection() {
         </div>
         <div className="flex items-center justify-between gap-3">
           <div>
-            <span className="text-[12px] font-medium" style={{ color: 'var(--text-primary)' }}>Prefer Bonus (score pts)</span>
+            <span className="text-[12px] font-medium" style={{ color: 'var(--text-primary)' }}>{t('scoring.prefer_bonus')}</span>
             <p className="text-[11px] mt-0.5" style={{ color: 'var(--text-muted)' }}>
               Score-Bonus für Ergebnisse die einer bevorzugten Gruppe entsprechen.
             </p>
@@ -146,6 +148,7 @@ function ReleaseGroupSection() {
 // ─── MT Detection Section ─────────────────────────────────────────────────────
 
 function MtDetectionSection() {
+  const { t } = useTranslation('settings')
   const { data: configData } = useConfig()
   const updateConfig = useUpdateConfig()
 
@@ -175,7 +178,7 @@ function MtDetectionSection() {
 
   return (
     <SettingSection
-      title="Machine Translation Detection"
+      title={t('scoring.mt_detection')}
       description="Subtitles detected as machine-translated receive a score penalty. Set penalty to 0 to disable. Threshold: minimum confidence (0-100) required to apply the penalty."
     >
       <div className="flex items-center justify-end -mt-1">
@@ -192,7 +195,7 @@ function MtDetectionSection() {
       <div className="space-y-3">
         <div className="flex items-center justify-between gap-3">
           <div>
-            <span className="text-[12px] font-medium" style={{ color: 'var(--text-primary)' }}>MT Score Penalty</span>
+            <span className="text-[12px] font-medium" style={{ color: 'var(--text-primary)' }}>{t('scoring.mt_score_penalty')}</span>
             <p className="text-[11px] mt-0.5" style={{ color: 'var(--text-muted)' }}>
               Applied to machine-translated subtitles (-50 to 0; 0 = disabled)
             </p>
@@ -214,7 +217,7 @@ function MtDetectionSection() {
         </div>
         <div className="flex items-center justify-between gap-3">
           <div>
-            <span className="text-[12px] font-medium" style={{ color: 'var(--text-primary)' }}>MT Confidence Threshold</span>
+            <span className="text-[12px] font-medium" style={{ color: 'var(--text-primary)' }}>{t('scoring.mt_confidence_threshold')}</span>
             <p className="text-[11px] mt-0.5" style={{ color: 'var(--text-muted)' }}>
               Minimum confidence % (0-100) to flag as machine-translated
             </p>
@@ -242,6 +245,7 @@ function MtDetectionSection() {
 // ─── Scoring Tab ────────────────────────────────────────────────────────────
 
 export function ScoringTab() {
+  const { t } = useTranslation('settings')
   const { data: scoringData } = useScoringWeights()
   const { data: providers } = useProviders()
   const { data: modifiers } = useProviderModifiers()
@@ -384,7 +388,7 @@ export function ScoringTab() {
 
       {/* Scoring Presets */}
       <SettingSection
-        title="Load Preset"
+        title={t('scoring.load_preset')}
         description="Apply a bundled scoring profile or import a custom JSON preset."
       >
         <div className="flex flex-wrap items-end gap-2">
@@ -395,7 +399,7 @@ export function ScoringTab() {
               className="w-full px-3 py-2 rounded-md text-sm focus:outline-none"
               style={{ backgroundColor: 'var(--bg-primary)', border: '1px solid var(--border)', color: 'var(--text-primary)', fontSize: '13px' }}
             >
-              <option value="">Select preset…</option>
+              <option value="">{t('scoring.select_preset')}</option>
               {(presets ?? []).map((p: { name: string; description: string }) => (
                 <option key={p.name} value={p.name}>{p.name} — {p.description}</option>
               ))}
@@ -450,7 +454,7 @@ export function ScoringTab() {
 
       {/* Scoring Weights */}
       <SettingSection
-        title="Scoring Weights"
+        title={t('scoring.scoring_weights')}
         description="Higher weights = more important match criteria. Default values shown in grey."
       >
         <div className="flex items-center justify-end gap-2 -mt-1">
@@ -478,7 +482,7 @@ export function ScoringTab() {
 
       {/* Provider Modifiers */}
       <SettingSection
-        title="Provider Modifiers"
+        title={t('scoring.provider_modifiers')}
         description="Add bonus (positive) or penalty (negative) to all results from a specific provider."
       >
         <div className="flex items-center justify-end -mt-1">
@@ -511,7 +515,7 @@ export function ScoringTab() {
             </div>
           ))}
           {Object.keys(providerMods).length === 0 && (
-            <p className="text-center text-xs py-3" style={{ color: 'var(--text-muted)' }}>No providers available.</p>
+            <p className="text-center text-xs py-3" style={{ color: 'var(--text-muted)' }}>{t('scoring.no_providers')}</p>
           )}
         </div>
       </SettingSection>

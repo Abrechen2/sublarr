@@ -402,5 +402,30 @@
   },
   "common": {
     "undo_warning": "Dies kann nicht rückgängig gemacht werden."
+  },
+  "language_names": {
+    "de": "Deutsch (de)",
+    "en": "Englisch (en)",
+    "fr": "Französisch (fr)",
+    "es": "Spanisch (es)",
+    "it": "Italienisch (it)",
+    "pt": "Portugiesisch (pt)",
+    "nl": "Niederländisch (nl)",
+    "pl": "Polnisch (pl)",
+    "zh": "Chinesisch (zh)",
+    "ja": "Japanisch (ja)",
+    "ko": "Koreanisch (ko)",
+    "hr": "Kroatisch (hr)",
+    "sr": "Serbisch (sr)",
+    "cs": "Tschechisch (cs)",
+    "hu": "Ungarisch (hu)",
+    "ro": "Rumänisch (ro)",
+    "tr": "Türkisch (tr)",
+    "ru": "Russisch (ru)",
+    "ar": "Arabisch (ar)",
+    "he": "Hebräisch (he)",
+    "el": "Griechisch (el)",
+    "name_de": "Deutsch",
+    "name_en": "Englisch"
   }
 }

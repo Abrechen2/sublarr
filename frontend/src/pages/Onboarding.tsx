@@ -42,6 +42,7 @@ const inputStyle = {
 
 export default function Onboarding() {
   const { t } = useTranslation('onboarding')
+  const { t: tc } = useTranslation('common')
   const navigate = useNavigate()
   const [step, setStep] = useState(0)
   const [saving, setSaving] = useState(false)
@@ -433,27 +434,9 @@ export default function Onboarding() {
                   className="w-full px-3 py-2 rounded-md text-sm focus:outline-none"
                   style={inputStyle}
                 >
-                  <option value="de">German (de)</option>
-                  <option value="en">English (en)</option>
-                  <option value="fr">French (fr)</option>
-                  <option value="es">Spanish (es)</option>
-                  <option value="it">Italian (it)</option>
-                  <option value="pt">Portuguese (pt)</option>
-                  <option value="nl">Dutch (nl)</option>
-                  <option value="pl">Polish (pl)</option>
-                  <option value="zh">Chinese (zh)</option>
-                  <option value="ja">Japanese (ja)</option>
-                  <option value="ko">Korean (ko)</option>
-                  <option value="hr">Croatian (hr)</option>
-                  <option value="sr">Serbian (sr)</option>
-                  <option value="cs">Czech (cs)</option>
-                  <option value="hu">Hungarian (hu)</option>
-                  <option value="ro">Romanian (ro)</option>
-                  <option value="tr">Turkish (tr)</option>
-                  <option value="ru">Russian (ru)</option>
-                  <option value="ar">Arabic (ar)</option>
-                  <option value="he">Hebrew (he)</option>
-                  <option value="el">Greek (el)</option>
+                  {['de','en','fr','es','it','pt','nl','pl','zh','ja','ko','hr','sr','cs','hu','ro','tr','ru','ar','he','el'].map((code) => (
+                    <option key={code} value={code}>{tc(`language_names.${code}`)}</option>
+                  ))}
                 </select>
               </div>
               <div className="space-y-1.5">
@@ -466,13 +449,9 @@ export default function Onboarding() {
                   className="w-full px-3 py-2 rounded-md text-sm focus:outline-none"
                   style={inputStyle}
                 >
-                  <option value="en">English (en)</option>
-                  <option value="ja">Japanese (ja)</option>
-                  <option value="ko">Korean (ko)</option>
-                  <option value="zh">Chinese (zh)</option>
-                  <option value="de">German (de)</option>
-                  <option value="fr">French (fr)</option>
-                  <option value="es">Spanish (es)</option>
+                  {['en','ja','ko','zh','de','fr','es'].map((code) => (
+                    <option key={code} value={code}>{tc(`language_names.${code}`)}</option>
+                  ))}
                 </select>
               </div>
               <p className="text-xs" style={{ color: 'var(--text-muted)' }}>
@@ -578,9 +557,9 @@ export default function Onboarding() {
               <Field label={t('ollama_step.model')} keyName="ollama_model" placeholder="qwen2.5:14b-instruct" />
               <div className="grid grid-cols-2 gap-3">
                 <Field label={t('ollama_step.source_language')} keyName="source_language" placeholder="en" />
-                <Field label={t('ollama_step.source_language_name')} keyName="source_language_name" placeholder="English" />
+                <Field label={t('ollama_step.source_language_name')} keyName="source_language_name" placeholder={tc('language_names.name_en')} />
                 <Field label={t('ollama_step.target_language')} keyName="target_language" placeholder="de" />
-                <Field label={t('ollama_step.target_language_name')} keyName="target_language_name" placeholder="German" />
+                <Field label={t('ollama_step.target_language_name')} keyName="target_language_name" placeholder={tc('language_names.name_de')} />
               </div>
               <button
                 onClick={testOllama}
