@@ -1,0 +1,4 @@
+# Subtitle-repair fixtures must be byte-stable across platforms.
+# Windows git auto-crlf conversion breaks the CRLF precondition assertions
+# and makes the LF-normalization no-op test fail on checkout.
+*.srt -text eol=lf
