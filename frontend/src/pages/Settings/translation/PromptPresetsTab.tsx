@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import { Loader2, Plus, Edit2, Trash2, Check, X } from 'lucide-react'
 import { toast } from '@/components/shared/Toast'
 import {
@@ -7,7 +8,7 @@ import {
 
 // ─── Prompt Presets Tab ────────────────────────────────────────────────────────
 
-export function PromptPresetsTab() {
+  const { t } = useTranslation('settings')
   const { data, isLoading } = usePromptPresets()
   const createPreset = useCreatePromptPreset()
   const updatePreset = useUpdatePromptPreset()
@@ -81,7 +82,7 @@ export function PromptPresetsTab() {
   return (
     <div className="space-y-4">
       <div className="rounded-lg p-4 mb-4 text-sm" style={{ backgroundColor: 'var(--bg-surface)', border: '1px solid var(--border)', color: 'var(--text-secondary)' }}>
-        <p className="font-medium mb-1" style={{ color: 'var(--text-primary)' }}>Verfügbare Variablen</p>
+        <p className="font-medium mb-1" style={{ color: 'var(--text-primary)' }}>{t('prompt_presets_tab.available_variables')}</p>
         <p className="font-mono text-xs" style={{ color: 'var(--accent)' }}>{'{title}'} {'{context}'} {'{source_lang}'} {'{target_lang}'} {'{line_count}'}</p>
         <p className="mt-1 text-xs" style={{ color: 'var(--text-muted)' }}>Diese Variablen werden beim Übersetzen durch die jeweiligen Werte ersetzt.</p>
       </div>
@@ -113,7 +114,7 @@ export function PromptPresetsTab() {
           <div className="space-y-2">
             <input
               type="text"
-              placeholder="Preset name"
+              placeholder={t('prompt_presets_tab.preset_name')}
               value={formData.name}
               onChange={(e) => setFormData((f) => ({ ...f, name: e.target.value }))}
               className="w-full px-3 py-2 rounded-md text-sm"
@@ -124,7 +125,7 @@ export function PromptPresetsTab() {
               }}
             />
             <textarea
-              placeholder="Prompt template..."
+              placeholder={t('prompt_presets_tab.prompt_template_placeholder')}
               value={formData.prompt_template}
               onChange={(e) => setFormData((f) => ({ ...f, prompt_template: e.target.value }))}
               rows={8}
@@ -190,7 +191,7 @@ export function PromptPresetsTab() {
                 onClick={() => startEdit(p)}
                 className="p-1.5 rounded transition-all duration-150"
                 style={{ border: '1px solid var(--border)', color: 'var(--text-secondary)', backgroundColor: 'var(--bg-primary)' }}
-                title="Edit preset"
+                title={t('prompt_presets_tab.edit_preset')}
               >
                 <Edit2 size={12} />
               </button>
@@ -200,7 +201,7 @@ export function PromptPresetsTab() {
                   disabled={deletePreset.isPending}
                   className="p-1.5 rounded transition-all duration-150"
                   style={{ border: '1px solid var(--border)', color: 'var(--error)', backgroundColor: 'var(--bg-primary)' }}
-                  title="Delete preset"
+                  title={t('prompt_presets_tab.delete_preset')}
                 >
                   <Trash2 size={12} />
                 </button>

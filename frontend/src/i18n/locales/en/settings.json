@@ -1142,5 +1142,26 @@
     "sonarr": "Sonarr",
     "radarr": "Radarr",
     "jellyfin_emby": "Jellyfin / Emby"
+  },
+  "library_sources_tab": {
+    "scan_all": "Scan all folders",
+    "movie": "Movie",
+    "edit_folder": "Edit folder",
+    "remove_folder": "Remove folder",
+    "label_optional": "Label (optional)"
+  },
+  "prompt_presets_tab": {
+    "available_variables": "Available variables",
+    "preset_name": "Preset name",
+    "prompt_template_placeholder": "Prompt template...",
+    "edit_preset": "Edit preset",
+    "delete_preset": "Delete preset"
+  },
+  "translation_quality": {
+    "enable_quality_scoring": "Enable quality scoring",
+    "quality_threshold": "Quality threshold (0–100)",
+    "max_retries": "Max retries (0–5)",
+    "temperature": "Temperature (0.0–1.0)",
+    "batch_size": "Batch size (lines)"
   }
 }

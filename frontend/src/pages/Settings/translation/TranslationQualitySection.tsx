@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react'
+import { useTranslation } from 'react-i18next'
 import { Activity } from 'lucide-react'
 import { toast } from '@/components/shared/Toast'
 import { SettingRow } from '@/components/shared/SettingRow'
@@ -7,7 +8,7 @@ import { useConfig, useUpdateConfig } from '@/hooks/useApi'
 
 // ─── Translation Quality Section ─────────────────────────────────────────────
 
-export function TranslationQualitySection() {
+  const { t } = useTranslation('settings')
   const { data: config } = useConfig()
   const updateConfig = useUpdateConfig()
 
@@ -120,7 +121,7 @@ export function TranslationQualitySection() {
       </p>
 
       <SettingRow
-        label="Enable quality scoring"
+        label={t('translation_quality.enable_quality_scoring')}
         helpText="Score each translated line after translation and retry low-quality results."
       >
         <Toggle
@@ -131,7 +132,7 @@ export function TranslationQualitySection() {
       </SettingRow>
 
       <SettingRow
-        label="Quality threshold (0–100)"
+        label={t('translation_quality.quality_threshold')}
         helpText="Lines scoring below this value are retried. Default: 50."
       >
         <input
@@ -158,7 +159,7 @@ export function TranslationQualitySection() {
       </SettingRow>
 
       <SettingRow
-        label="Max retries (0–5)"
+        label={t('translation_quality.max_retries')}
         helpText="Max retry attempts per line when quality is below threshold. Default: 2."
       >
         <input
@@ -185,7 +186,7 @@ export function TranslationQualitySection() {
       </SettingRow>
 
       <SettingRow
-        label="Temperature (0.0–1.0)"
+        label={t('translation_quality.temperature')}
         helpText="LLM sampling temperature. Lower values are more deterministic; 0.1–0.3 recommended for translation. Default: 0.3."
       >
         <input
@@ -212,7 +213,7 @@ export function TranslationQualitySection() {
       </SettingRow>
 
       <SettingRow
-        label="Batch size (lines)"
+        label={t('translation_quality.batch_size')}
         helpText="Number of subtitle lines sent to the LLM per request. Smaller batches are slower but use less context. Default: 15."
       >
         <input

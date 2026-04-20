@@ -280,5 +280,20 @@
     "search": "Search",
     "find_better": "Find Better",
     "accept": "Accept"
+  },
+  "episode_history": {
+    "col_action": "Action",
+    "col_provider": "Provider",
+    "col_format": "Format",
+    "col_score": "Score",
+    "col_status": "Status"
+  },
+  "glossary_panel": {
+    "col_source": "Source",
+    "col_target": "Target",
+    "col_notes": "Notes",
+    "col_actions": "Actions",
+    "action_edit": "Edit",
+    "action_delete": "Delete"
   }
 }

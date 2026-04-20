@@ -317,11 +317,11 @@ export function GlossaryPanel({ seriesId }: GlossaryPanelProps) {
           <table className="w-full">
             <thead>
               <tr style={{ backgroundColor: 'var(--bg-surface)', borderBottom: '1px solid var(--border)' }}>
-                <th className="text-left text-[10px] font-semibold uppercase tracking-wider px-3 py-1.5" style={{ color: 'var(--text-muted)' }}>Source</th>
-                <th className="text-left text-[10px] font-semibold uppercase tracking-wider px-3 py-1.5" style={{ color: 'var(--text-muted)' }}>Target</th>
-                <th className="text-left text-[10px] font-semibold uppercase tracking-wider px-3 py-1.5" style={{ color: 'var(--text-muted)' }}>Notes</th>
+                <th className="text-left text-[10px] font-semibold uppercase tracking-wider px-3 py-1.5" style={{ color: 'var(--text-muted)' }}>{t('glossary_panel.col_source')}</th>
+                <th className="text-left text-[10px] font-semibold uppercase tracking-wider px-3 py-1.5" style={{ color: 'var(--text-muted)' }}>{t('glossary_panel.col_target')}</th>
+                <th className="text-left text-[10px] font-semibold uppercase tracking-wider px-3 py-1.5" style={{ color: 'var(--text-muted)' }}>{t('glossary_panel.col_notes')}</th>
                 <th className="text-left text-[10px] font-semibold uppercase tracking-wider px-3 py-1.5" style={{ color: 'var(--text-muted)' }}>Type</th>
-                <th className="text-left text-[10px] font-semibold uppercase tracking-wider px-3 py-1.5" style={{ color: 'var(--text-muted)' }}>Actions</th>
+                <th className="text-left text-[10px] font-semibold uppercase tracking-wider px-3 py-1.5" style={{ color: 'var(--text-muted)' }}>{t('glossary_panel.col_actions')}</th>
               </tr>
             </thead>
             <tbody>
@@ -355,7 +355,7 @@ export function GlossaryPanel({ seriesId }: GlossaryPanelProps) {
                         onClick={() => startEdit(entry)}
                         className="p-1 rounded transition-colors"
                         style={{ color: 'var(--text-secondary)', backgroundColor: 'var(--bg-surface)' }}
-                        title="Edit"
+                        title={t('glossary_panel.action_edit')}
                       >
                         <Edit2 size={10} />
                       </button>
@@ -364,7 +364,7 @@ export function GlossaryPanel({ seriesId }: GlossaryPanelProps) {
                         disabled={deleteEntry.isPending}
                         className="p-1 rounded transition-colors"
                         style={{ color: 'var(--error)', backgroundColor: 'var(--bg-surface)' }}
-                        title="Delete"
+                        title={t('glossary_panel.action_delete')}
                       >
                         <Trash2 size={10} />
                       </button>

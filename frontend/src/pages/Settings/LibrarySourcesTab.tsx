@@ -187,7 +187,7 @@ export function LibrarySourcesTab({
                 color: 'var(--text-secondary)',
                 backgroundColor: 'var(--bg-primary)',
               }}
-              title="Scan all folders"
+              title={t('library_sources_tab.scan_all')}
             >
               {(scanAll.isPending || standaloneStatus?.scanner_scanning) ? (
                 <Loader2 size={12} className="animate-spin" />
@@ -264,7 +264,7 @@ export function LibrarySourcesTab({
                         >
                           <option value="auto">Auto</option>
                           <option value="tv">TV</option>
-                          <option value="movie">Movie</option>
+                          <option value="movie">{t('library_sources_tab.movie')}</option>
                         </select>
                       </div>
                       <div className="flex items-center gap-2">
@@ -329,7 +329,7 @@ export function LibrarySourcesTab({
                           onClick={() => handleEditFolder(folder)}
                           className="p-1.5 rounded transition-all duration-150"
                           style={{ color: 'var(--text-muted)', border: '1px solid var(--border)', backgroundColor: 'var(--bg-surface)' }}
-                          title="Edit folder"
+                          title={t('library_sources_tab.edit_folder')}
                         >
                           <Edit2 size={12} />
                         </button>
@@ -337,7 +337,7 @@ export function LibrarySourcesTab({
                           onClick={() => handleDelete(folder.id)}
                           className="p-1.5 rounded transition-all duration-150"
                           style={{ color: 'var(--text-muted)', border: '1px solid var(--border)', backgroundColor: 'var(--bg-surface)' }}
-                          title="Remove folder"
+                          title={t('library_sources_tab.remove_folder')}
                           onMouseEnter={(e) => { e.currentTarget.style.color = 'var(--error)' }}
                           onMouseLeave={(e) => { e.currentTarget.style.color = 'var(--text-muted)' }}
                         >
@@ -382,7 +382,7 @@ export function LibrarySourcesTab({
                 type="text"
                 value={newLabel}
                 onChange={(e) => setNewLabel(e.target.value)}
-                placeholder="Label (optional)"
+                placeholder={t('library_sources_tab.label_optional')}
                 className="flex-1 px-2.5 py-1.5 rounded text-sm focus:outline-none"
                 style={{
                   backgroundColor: 'var(--bg-surface)',
@@ -399,7 +399,7 @@ export function LibrarySourcesTab({
               >
                 <option value="auto">Auto</option>
                 <option value="tv">TV</option>
-                <option value="movie">Movie</option>
+                <option value="movie">{t('library_sources_tab.movie')}</option>
               </select>
             </div>
             <div className="flex items-center gap-2">
