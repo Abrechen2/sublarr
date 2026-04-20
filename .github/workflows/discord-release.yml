@@ -74,7 +74,15 @@ jobs:
                   url,
                   data=data,
                   method="POST",
-                  headers={"Content-Type": "application/json"},
+                  headers={
+                      "Content-Type": "application/json",
+                      # Cloudflare in front of discord.com blocks the default
+                      # Python-urllib UA with HTTP 403 / code 1010.
+                      "User-Agent": (
+                          "Sublarr-Release-Bot "
+                          "(https://github.com/abrechen2/sublarr, 1.0)"
+                      ),
+                  },
               )
               try:
                   with urllib.request.urlopen(req, timeout=15) as resp:
