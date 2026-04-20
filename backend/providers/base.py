@@ -342,12 +342,22 @@ def compute_score(result: SubtitleResult, query: VideoQuery) -> int:
     # its entries into the breakdown under ``rule:<id>`` keys before the
     # final sum so pipeline contributions are visible in the UI breakdown
     # and participate in the final score.
+    #
+    # When a pipeline rule supersedes a legacy weight-map key (e.g.
+    # ``release_group_match`` supersedes ``release_group``), drop the legacy
+    # credit to avoid double-counting. Disabled rules (weight=0) leave the
+    # legacy path untouched.
     try:
-        from wanted_search.penalty_rules import apply_penalty_pipeline
+        from wanted_search.penalty_rules import (
+            apply_penalty_pipeline,
+            superseded_legacy_keys,
+        )
 
         pipeline_breakdown = apply_penalty_pipeline(result, query)
         for rule_id, applied in pipeline_breakdown.items():
             breakdown[f"rule:{rule_id}"] = int(applied)
+        for legacy_key in superseded_legacy_keys(pipeline_breakdown):
+            breakdown.pop(legacy_key, None)
     except Exception:
         # Never let the pipeline break scoring; legacy weight-map path is
         # sufficient on its own.

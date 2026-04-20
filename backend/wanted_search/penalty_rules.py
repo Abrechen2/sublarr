@@ -115,6 +115,24 @@ def register_penalty(cls: type[PenaltyRule]) -> type[PenaltyRule]:
     return cls
 
 
+# Plan B4 follow-up — when a pipeline rule fires with a non-zero weight we
+# skip the matching legacy weight-map credit so callers that still populate
+# ``SubtitleResult.matches`` don't double-count. Map: rule_id → weight-map
+# keys the rule supersedes. Rules without an entry have no legacy equivalent.
+_RULE_SUPERSEDES: dict[str, tuple[str, ...]] = {
+    "release_group_match": ("release_group",),
+    "source_match": ("source",),
+    "audio_codec_match": ("audio_codec",),
+    "resolution_match": ("resolution",),
+    "video_codec_match": ("video_codec",),
+    "format_bonus_ass": ("format_bonus",),
+    "hi_preference_prefer": ("hi_preference",),
+    "hi_preference_exclude_or_only": ("hi_preference",),
+    "forced_preference_prefer": ("forced_preference",),
+    "forced_preference_exclude_or_only": ("forced_preference",),
+}
+
+
 def apply_penalty_pipeline(
     candidate: SubtitleResult,
     query: VideoQuery,
@@ -157,6 +175,23 @@ def apply_penalty_pipeline(
             logger.warning("Penalty rule %s raised: %s", rule_cls.rule_id, e)
 
     return breakdown
+
+
+def superseded_legacy_keys(pipeline_breakdown: dict[str, int]) -> set[str]:
+    """Return the weight-map keys that the current pipeline breakdown covers.
+
+    Callers (``providers.base.compute_score``) drop these keys from the legacy
+    weight-map credit to avoid double-counting. Only non-zero pipeline
+    contributions cause supersession — a disabled rule (weight 0) leaves the
+    legacy path untouched.
+    """
+    superseded: set[str] = set()
+    for rule_id, applied in pipeline_breakdown.items():
+        if applied == 0:
+            continue
+        for key in _RULE_SUPERSEDES.get(rule_id, ()):
+            superseded.add(key)
+    return superseded
 
 
 # ─── Port group — reproduce existing Sublarr scoring as named rules ──────────

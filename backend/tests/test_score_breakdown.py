@@ -50,7 +50,10 @@ class TestScoreBreakdown:
         ):
             compute_score(result, query)
 
-        assert result.score_breakdown.get("format_bonus") == 50
+        # Plan B4 — pipeline rule `format_bonus_ass` supersedes the legacy
+        # `format_bonus` weight-map key. Only the pipeline credit remains.
+        assert result.score_breakdown.get("rule:format_bonus_ass") == 50
+        assert "format_bonus" not in result.score_breakdown
 
     def test_provider_modifier_in_breakdown(self):
         from providers.base import SubtitleFormat, SubtitleResult, VideoQuery, compute_score
