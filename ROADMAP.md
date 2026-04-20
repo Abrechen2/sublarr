@@ -391,14 +391,28 @@ Goals: Per-series term glossary auto-populated from translation history, injecte
 
 ---
 
-## v0.39.0 — Security Hardening P1–P5 (Planned)
+## v0.39.0 ✅ — Security Hardening P1–P5
 
-- P1 — Domain allowlist for provider download URLs (SSRF prevention)
-- P2 — `werkzeug.secure_filename()` on all provider filenames
-- P3 — Prompt injection guard for Ollama (subtitle content sanitization)
-- P4 — Magic byte validation after subtitle download
-- P5 — Streaming size cap (50 MB limit via `iter_content()`)
-- F-05 — Webhook missing-signature warning in `auth.py`
+Shipped incrementally across v0.38–v0.70.4-beta; final round rolled up
+in the 2026-04-20 hardening batch.
+
+- P1 ✅ — Per-provider domain allowlist for subtitle download URLs
+  (SSRF prevention). `security_utils.validate_download_url()` called
+  from all 29 providers; 15 were wired in the 2026-04-20 batch.
+- P2 ✅ — `werkzeug.secure_filename()` centralised in
+  `archive_utils._safe_basename()` (strips backslashes + non-ASCII +
+  null bytes + traversal), applied to every ZIP/RAR extraction path.
+  `animetosho` + `gestdown` additionally sanitise API-sourced names.
+- P3 ✅ — Prompt-injection guard for Ollama / Claude / OpenAI:
+  newline/CR escape, null-byte strip, zero-width Unicode strip
+  (U+200B/C/D/2060/FEFF), 2000-char truncation per line.
+- P4 ✅ — Magic-byte validation (`_validate_subtitle_content()`)
+  called from `save_subtitle()` before every disk write.
+- P5 ✅ — 50 MB streaming cap via `_stream_download()` on all 29
+  provider download paths; `_MAX_SUBTITLE_SIZE` post-fetch guard for
+  `legendasdivx` (keeps session-expiry redirect detection intact).
+- F-05 — Webhook missing-signature warning in `auth.py` (still open;
+  accepted risk for internal tool).
 
 ---
 
