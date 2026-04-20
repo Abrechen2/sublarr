@@ -102,8 +102,8 @@ class TestStoreTranslationsInCache:
         _store_translations_in_cache(src, tgt, "en", "de")
 
         assert mock_store.call_count == 2
-        mock_store.assert_any_call("en", "de", "Hello", "Hallo")
-        mock_store.assert_any_call("en", "de", "World", "Welt")
+        mock_store.assert_any_call("en", "de", "Hello", "Hallo", backend=None)
+        mock_store.assert_any_call("en", "de", "World", "Welt", backend=None)
 
     @patch("db.translation.store_translation_cache")
     def test_store_exception_silently_ignored(self, mock_store):
@@ -135,4 +135,4 @@ class TestStoreTranslationsInCache:
         from translator.cache import _store_translations_in_cache
 
         _store_translations_in_cache(["Hi"], ["Hallo"], "ja", "de")
-        mock_store.assert_called_once_with("ja", "de", "Hi", "Hallo")
+        mock_store.assert_called_once_with("ja", "de", "Hi", "Hallo", backend=None)
