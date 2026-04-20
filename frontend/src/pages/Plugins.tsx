@@ -166,7 +166,7 @@ export function PluginsPage() {
       {!isLoading && filteredPlugins.length === 0 && (
         <div className="text-center py-12 text-gray-400">
           <Package className="w-12 h-12 mx-auto mb-4 opacity-50" />
-          <p>No plugins found matching your criteria.</p>
+          <p>{tc('ui.no_plugins_found')}</p>
         </div>
       )}
     </div>

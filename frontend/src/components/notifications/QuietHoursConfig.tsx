@@ -119,7 +119,7 @@ export function QuietHoursEditor({ config, onChange }: QuietHoursEditorProps) {
           type="text"
           value={config.name ?? ''}
           onChange={(e) => onChange({ name: e.target.value })}
-          placeholder="e.g. Nighttime"
+          placeholder={tc('ui.quiet_hours_name_placeholder')}
           className="w-full px-3 py-2 rounded-md text-sm focus:outline-none"
           style={{
             backgroundColor: 'var(--bg-primary)',

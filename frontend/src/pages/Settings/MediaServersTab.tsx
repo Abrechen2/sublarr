@@ -9,7 +9,7 @@ import { Toggle } from '@/components/shared/Toggle'
 import { SettingRow } from '@/components/shared/SettingRow'
 import type { MediaServerType, MediaServerInstance, MediaServerTestResult } from '@/lib/types'
 
-export function MediaServersTab() {
+  const { t: tc } = useTranslation('common')
   const { t } = useTranslation('settings')
   const { data: typesData, isLoading: typesLoading } = useMediaServerTypes()
   const { data: instancesData, isLoading: instancesLoading } = useMediaServerInstances()
@@ -237,7 +237,7 @@ export function MediaServersTab() {
                       type="text"
                       value={String(inst.name ?? '')}
                       onChange={(e) => updateInstance(idx, 'name', e.target.value)}
-                      placeholder="e.g. Living Room Plex"
+                      placeholder={tc('ui.plex_name_placeholder')}
                       className="w-full px-2.5 py-1.5 rounded text-xs transition-all duration-150 focus:outline-none"
                       style={{
                         backgroundColor: 'var(--bg-primary)',

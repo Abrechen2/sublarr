@@ -26,8 +26,8 @@ export function ConnectionsSettings() {
 
   return (
     <SettingsDetailLayout
-      title="Connections"
-      subtitle="Configure external service integrations"
+      title={tc('ui.connections')}
+      subtitle={tc('ui.configure_external')}
       breadcrumb={[
         { label: t('settings.breadcrumb.settings', 'Settings'), href: '/settings' },
         { label: 'Connections' },

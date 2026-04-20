@@ -34,7 +34,7 @@ const HL_OFF: React.CSSProperties = {
 }
 const HL_NONE: React.CSSProperties = {}
 
-export function FormGroup({
+  const { t: tc } = useTranslation('common')
   label,
   hint,
   htmlFor,
@@ -154,7 +154,7 @@ export function FormGroup({
                   <button
                     type="button"
                     data-testid="form-group-info-icon"
-                    aria-label="Show hint"
+                    aria-label={tc('ui.show_hint')}
                     style={{
                       width: '15px',
                       height: '15px',

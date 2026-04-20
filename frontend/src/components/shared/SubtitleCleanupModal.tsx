@@ -5,6 +5,7 @@
  * (checkboxes), shows a size preview, and calls batchDeleteSeriesSubtitles.
  */
 import { useMemo, useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { X, Trash2, Loader2, CheckSquare, Square } from 'lucide-react'
 import { listSeriesSubtitles, batchDeleteSeriesSubtitles } from '@/api/client'
@@ -225,7 +226,7 @@ export function SubtitleCleanupModal({ seriesId, targetLanguages, onClose }: Pro
                           {lang}
                         </span>
                         {isTarget && (
-                          <span className="text-[10px]" style={{ color: 'var(--text-muted)' }}>Target</span>
+                          <span className="text-[10px]" style={{ color: 'var(--text-muted)' }}>{tc('ui.target')}</span>
                         )}
                       </span>
                       <span className="text-xs tabular-nums" style={{ color: 'var(--text-secondary)' }}>

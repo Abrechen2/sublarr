@@ -12,7 +12,7 @@ interface BreadcrumbProps {
 
 export function Breadcrumb({ items }: BreadcrumbProps) {
   return (
-    <nav aria-label="Breadcrumb" className="flex items-center gap-1.5 text-xs mb-4">
+    <nav aria-label={tc('ui.breadcrumb')} className="flex items-center gap-1.5 text-xs mb-4">
       {items.map((item, i) => (
         <span key={i} className="flex items-center gap-1.5">
           {i > 0 && <ChevronRight size={12} className="text-[var(--text-muted)]" />}

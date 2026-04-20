@@ -116,7 +116,7 @@ export function KeyboardShortcutsModal({ open, onClose }: KeyboardShortcutsModal
             onClick={onClose}
             className="rounded p-1 transition-colors hover:opacity-70"
             style={{ color: 'var(--text-secondary)' }}
-            aria-label="Close"
+            aria-label={tc('ui.close')}
           >
             <X size={18} />
           </button>

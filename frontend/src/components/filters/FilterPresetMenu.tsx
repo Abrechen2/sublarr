@@ -91,7 +91,7 @@ export function FilterPresetMenu({ scope, activeFilters, onPresetLoad }: Props) 
                 onClick={() => deletePreset.mutate(p.id)}
                 className="opacity-0 group-hover:opacity-100"
                 style={{ color: 'var(--danger)' }}
-                aria-label="Delete preset"
+                aria-label={tc('ui.delete_preset')}
               >
                 <Trash2 className="h-3 w-3" />
               </button>

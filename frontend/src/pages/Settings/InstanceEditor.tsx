@@ -9,7 +9,7 @@ interface InstanceEntry {
   path_mapping?: string
 }
 
-export function InstanceEditor({
+  const { t: tc } = useTranslation('common')
   label,
   value,
   onChange,
@@ -110,7 +110,7 @@ export function InstanceEditor({
             />
             <input
               type="password"
-              placeholder="API Key"
+              placeholder={tc('ui.api_key')}
               value={inst.api_key}
               onChange={(e) => updateField(idx, 'api_key', e.target.value)}
               className="w-full px-2.5 py-1.5 rounded text-sm focus:outline-none"

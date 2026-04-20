@@ -13,7 +13,7 @@ interface Props {
   readonly placeholder?: string
 }
 
-export function LanguagePillSelector({
+  const { t: tc } = useTranslation('common')
   value,
   options,
   onChange,
@@ -62,7 +62,7 @@ export function LanguagePillSelector({
               {opt?.label ?? lang}
               <button
                 type="button"
-                aria-label="Remove"
+                aria-label={tc('ui.remove')}
                 onClick={() => remove(lang)}
                 style={{
                   display: 'inline-flex',

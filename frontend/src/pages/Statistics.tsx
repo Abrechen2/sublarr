@@ -38,8 +38,8 @@ function SeriesQualityTable({ data }: { data: SeriesQuality[] }) {
       <table className="w-full text-xs">
         <thead>
           <tr style={{ borderBottom: '1px solid var(--border)', color: 'var(--text-muted)' }}>
-            <th className="text-left py-2 pr-3 font-medium">Series</th>
-            <th className="text-left py-2 px-3 font-medium">Formats</th>
+            <th className="text-left py-2 pr-3 font-medium">{tc('ui.series')}</th>
+            <th className="text-left py-2 px-3 font-medium">{tc('ui.formats')}</th>
             <th
               className="text-left py-2 px-3 font-medium cursor-pointer select-none"
               onClick={() => setSortBy('avg_score')}
@@ -86,7 +86,7 @@ function SeriesQualityTable({ data }: { data: SeriesQuality[] }) {
   )
 }
 
-export function StatisticsPage() {
+  const { t: tc } = useTranslation('common')
   const { t } = useTranslation('statistics')
   const [range, setRange] = useState<string>('30d')
   const [exportOpen, setExportOpen] = useState(false)

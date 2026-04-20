@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import { X, Loader2, TestTube, Trash2, Download, Database } from 'lucide-react'
 import { SettingRow } from '@/components/shared/SettingRow'
 import ProviderKeysPool from '@/components/settings/ProviderKeysPool'
@@ -25,7 +26,7 @@ interface ProviderEditModalProps {
   onClose: () => void
 }
 
-export function ProviderEditModal({
+  const { t: tc } = useTranslation('common')
   provider, cacheCount, priority: _priority, totalProviders: _totalProviders,
   fieldValues, testResult,
   onFieldChange, onTest, onToggle,
@@ -124,7 +125,7 @@ export function ProviderEditModal({
 
           {/* ── Aktiviert Toggle ── */}
           <SettingRow
-            label="Aktiviert"
+            label={tc('ui.enabled')}
             description="Provider für die automatische Untertitel-Suche verwenden"
           >
             <button
@@ -330,7 +331,7 @@ export function ProviderEditModal({
             )}
             {onRemove && confirmRemove && (
               <div className="flex items-center gap-1.5">
-                <span className="text-xs" style={{ color: 'var(--text-muted)' }}>Wirklich?</span>
+                <span className="text-xs" style={{ color: 'var(--text-muted)' }}>{tc('ui.are_you_sure')}</span>
                 <button
                   onClick={onRemove}
                   className="px-2.5 py-1.5 rounded text-xs font-medium"

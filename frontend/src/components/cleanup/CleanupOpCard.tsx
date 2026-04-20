@@ -329,7 +329,7 @@ export function CleanupOpCard({ meta, rule, onToggle, onUpdate }: CleanupOpCardP
         {/* Last run timestamp — shown when collapsed */}
         {!expanded && rule?.last_run_at && (
           <div className="text-[11px] text-right flex-shrink-0 hidden sm:block" style={{ color: 'var(--text-muted)' }}>
-            <div>Zuletzt</div>
+            <div>{tc('ui.zuletzt')}</div>
             <div>{new Date(rule.last_run_at).toLocaleDateString('de-DE')}</div>
           </div>
         )}

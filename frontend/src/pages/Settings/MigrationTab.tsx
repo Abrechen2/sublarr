@@ -23,7 +23,7 @@ interface MigrationResult {
   history_imported: number
 }
 
-export function MigrationTab() {
+  const { t: tc } = useTranslation('common')
   const { t } = useTranslation('settings')
   const [step, setStep] = useState<'upload' | 'preview' | 'import' | 'complete'>('upload')
   const [configFile, setConfigFile] = useState<File | null>(null)
@@ -95,7 +95,7 @@ export function MigrationTab() {
   return (
     <div className="space-y-6">
       <div className="rounded-lg p-4 mb-6" style={{ backgroundColor: 'var(--bg-surface)', border: '1px solid var(--border)' }}>
-        <h3 className="text-sm font-semibold mb-1" style={{ color: 'var(--text-primary)' }}>Bazarr-Migration</h3>
+        <h3 className="text-sm font-semibold mb-1" style={{ color: 'var(--text-primary)' }}>{tc('ui.bazarr_migration')}</h3>
         <p className="text-sm" style={{ color: 'var(--text-secondary)' }}>
           Importiert Bazarr-Konfiguration und Subtitle-Metadaten. Nutze dies wenn du von Bazarr zu Sublarr wechselst.
           Deine bestehenden Subtitle-Dateien bleiben unverändert — nur die Konfiguration und Datenbankeinträge werden übertragen.
@@ -220,7 +220,7 @@ export function MigrationTab() {
           <div className="rounded-lg p-6" style={{ backgroundColor: 'var(--bg-surface)', border: '1px solid var(--border)' }}>
             <div className="flex items-center gap-3 mb-4">
               <CheckCircle className="w-8 h-8 text-green-500" />
-              <h3 className="text-lg font-semibold">Migration Complete!</h3>
+              <h3 className="text-lg font-semibold">{tc('ui.migration_complete')}</h3>
             </div>
 
             <div className="space-y-3">

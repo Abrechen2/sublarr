@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import { ChevronDown, Scissors, Wrench, RotateCcw, Clock } from 'lucide-react'
 import { checkBakExists, processSubtitle, undoProcessSubtitle } from '@/api/client'
 import { advancedSync } from '@/api/system/tasks'
@@ -131,7 +132,7 @@ export function SubtitleActionsMenu({ subtitlePath, onRefresh }: Props) {
 
       {activePanel === 'timing' && (
         <div className="absolute right-0 z-30 mt-1 border border-zinc-700 rounded-lg bg-zinc-900 p-4 space-y-3 w-64">
-          <div className="text-sm font-medium text-zinc-300">Timing verschieben</div>
+          <div className="text-sm font-medium text-zinc-300">{tc('ui.timing_shift')}</div>
           <div className="flex items-center gap-2">
             <input
               type="number"

@@ -114,7 +114,7 @@ function ServiceKeyCard({
                     type="password"
                     value={editValue}
                     onChange={(e) => setEditValue(e.target.value)}
-                    placeholder="Enter new value..."
+                    placeholder={tc('ui.enter_new_value')}
                     className="flex-1 px-2 py-1 rounded text-xs focus:outline-none"
                     style={{
                       backgroundColor: 'var(--bg-surface)',
@@ -140,7 +140,7 @@ function ServiceKeyCard({
                     onClick={handleCancel}
                     className="p-1 rounded"
                     style={{ color: 'var(--text-muted)' }}
-                    title="Cancel"
+                    title={tc('ui.cancel')}
                   >
                     <X size={14} />
                   </button>
@@ -270,7 +270,7 @@ function BazarrPreviewModal({
 
 // ─── Main ApiKeysTab Component ───────────────────────────────────────────────
 
-export function ApiKeysTab({
+  const { t: tc } = useTranslation('common')
   excludeServices = [],
   includeOnly,
 }: {

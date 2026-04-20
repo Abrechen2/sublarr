@@ -184,7 +184,7 @@ export function TranslationSettings() {
               <TranslationQualitySection />
               <TranslationMemorySection />
               <FormGroup
-                label="Translation Workers"
+                label={tc('ui.translation_workers')}
                 hint="Maximum parallel translation worker threads."
                 htmlFor="translation-max-workers"
               >

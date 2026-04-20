@@ -93,7 +93,7 @@ export function FansubOverrideModal({ seriesId, open, onClose }: Props) {
         </h3>
 
         {isLoading ? (
-          <p style={{ color: 'var(--text-muted)', fontSize: 12 }}>Loading…</p>
+          <p style={{ color: 'var(--text-muted)', fontSize: 12 }}>{tc('ui.loading_ellipsis')}</p>
         ) : (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
             <label style={{ fontSize: 12 }}>

@@ -6,6 +6,7 @@
  * weight. Setting a weight to 0 disables the rule in the pipeline.
  */
 import { useEffect, useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import { Loader2, Save } from 'lucide-react'
 
 import { FormGroup } from '@/components/settings/FormGroup'
@@ -17,7 +18,7 @@ import { settingsInputStyle } from '@/styles/settingsShared'
 
 const inputStyle: React.CSSProperties = { ...settingsInputStyle, outline: 'none' }
 
-export function ScoringPenaltyRules() {
+  const { t: tc } = useTranslation('common')
   const { data, isLoading } = usePenaltyRules()
   const updateRule = useUpdatePenaltyRule()
 
@@ -36,7 +37,7 @@ export function ScoringPenaltyRules() {
 
   if (isLoading) {
     return (
-      <SettingsSection title="Penalty Rules" description="Loading rules...">
+      <SettingsSection title={tc('ui.penalty_rules')} description="Loading rules...">
         <Loader2 size={14} className="animate-spin" />
       </SettingsSection>
     )
@@ -57,7 +58,7 @@ export function ScoringPenaltyRules() {
 
   return (
     <SettingsSection
-      title="Penalty Rules"
+      title={tc('ui.penalty_rules')}
       description="Named rules that add or subtract from subtitle scores. Set a rule's weight to 0 to disable it."
     >
       {rules.length === 0 && (

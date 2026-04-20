@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { useTranslation } from 'react-i18next'
 
 interface Props {
   score: number
@@ -74,7 +75,7 @@ export function ScoreBreakdown({ score, breakdown, className }: Props) {
             Score breakdown
           </div>
           {!hasEntries && (
-            <div style={{ color: 'var(--text-muted)', fontStyle: 'italic' }}>No breakdown available</div>
+            <div style={{ color: 'var(--text-muted)', fontStyle: 'italic' }}>{tc('ui.no_breakdown')}</div>
           )}
           {hasEntries && Object.entries(breakdown)
             .sort(([, a], [, b]) => Math.abs(b) - Math.abs(a))
@@ -93,7 +94,7 @@ export function ScoreBreakdown({ score, breakdown, className }: Props) {
             <>
               <div style={{ borderTop: '1px solid var(--border)', margin: '6px 0' }} />
               <div style={{ display: 'flex', justifyContent: 'space-between', fontWeight: 600 }}>
-                <span>Total</span>
+                <span>{tc('ui.total')}</span>
                 <span style={{ fontFamily: 'var(--font-mono)' }}>{score}</span>
               </div>
             </>

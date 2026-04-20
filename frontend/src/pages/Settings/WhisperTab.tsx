@@ -165,7 +165,7 @@ function WhisperBackendCard({
                 <table className="w-full">
                   <thead>
                     <tr style={{ backgroundColor: 'var(--bg-primary)' }}>
-                      <th className="text-left px-3 py-1.5 font-medium" style={{ color: 'var(--text-secondary)' }}>Model</th>
+                      <th className="text-left px-3 py-1.5 font-medium" style={{ color: 'var(--text-secondary)' }}>{tc('ui.model')}</th>
                       <th className="text-left px-3 py-1.5 font-medium" style={{ color: 'var(--text-secondary)' }}>{t('whisper_tab.approx_size')}</th>
                     </tr>
                   </thead>
@@ -238,7 +238,7 @@ function WhisperBackendCard({
   )
 }
 
-export function WhisperTab() {
+  const { t: tc } = useTranslation('common')
   const { t } = useTranslation('settings')
   const { data: backendsData, isLoading: backendsLoading } = useWhisperBackends()
   const { data: statsData } = useWhisperStats()
@@ -349,7 +349,7 @@ export function WhisperTab() {
               color: 'var(--text-primary)',
             }}
           >
-            <option value="">Select backend...</option>
+            <option value="">{tc('ui.select_backend')}</option>
             {backends.map((b) => (
               <option key={b.name} value={b.name}>{b.display_name}</option>
             ))}

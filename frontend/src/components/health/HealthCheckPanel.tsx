@@ -113,7 +113,7 @@ export function HealthCheckPanel({ filePath, onClose, onFixed }: HealthCheckPane
             disabled={isLoading}
             className="p-1.5 rounded transition-colors"
             style={{ color: 'var(--text-muted)' }}
-            title="Re-check"
+            title={tc('ui.recheck')}
             onMouseEnter={(e) => { e.currentTarget.style.color = 'var(--accent)' }}
             onMouseLeave={(e) => { e.currentTarget.style.color = 'var(--text-muted)' }}
           >

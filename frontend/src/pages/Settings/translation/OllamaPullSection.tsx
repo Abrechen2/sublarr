@@ -6,7 +6,7 @@ import { useOllamaPullModel } from '@/hooks/useTranslationApi'
 
 // ─── Ollama Pull Section ──────────────────────────────────────────────────────
 
-export function OllamaPullSection() {
+  const { t: tc } = useTranslation('common')
   const [modelName, setModelName] = useState('')
   const [pulling, setPulling] = useState(false)
   const pullMut = useOllamaPullModel()
@@ -27,7 +27,7 @@ export function OllamaPullSection() {
   }
 
   return (
-    <SettingRow label="Pull Ollama model" description="Download or update a model from the Ollama registry.">
+    <SettingRow label={tc('ui.pull_ollama_model')} description="Download or update a model from the Ollama registry.">
       <div className="flex gap-2 items-center">
         <input
           type="text"

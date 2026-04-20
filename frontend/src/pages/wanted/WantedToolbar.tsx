@@ -19,7 +19,7 @@ export interface WantedToolbarProps {
   onBatchTranslate: () => void
 }
 
-export function WantedToolbar({
+  const { t: tc } = useTranslation('common')
   summaryTotal,
   scanRunning,
   batchRunning,
@@ -51,7 +51,7 @@ export function WantedToolbar({
           onClick={onStartProbe}
           disabled={startProbePending || probeRunning || batchRunning}
           className="flex items-center gap-2 px-4 py-2 rounded-md text-sm font-medium hover:opacity-90"
-          title="Scan for embedded subtitles in all unresolved items"
+          title={tc('ui.scan_embedded')}
           style={{
             backgroundColor: 'var(--bg-surface)',
             color: 'var(--text-primary)',
@@ -81,7 +81,7 @@ export function WantedToolbar({
             onClick={onBatchTranslate}
             disabled={batchTranslatePending}
             className="flex items-center gap-2 px-4 py-2 rounded-md text-sm font-medium hover:opacity-90"
-            title="Batch translate downloaded subtitles"
+            title={tc('ui.batch_translate_downloaded')}
             data-testid="batch-translate-btn"
             style={{
               backgroundColor: 'var(--bg-surface)',

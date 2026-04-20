@@ -221,7 +221,7 @@ function SupportModal({ onClose }: { onClose: () => void }) {
 
 const LOG_LEVELS = ['DEBUG', 'INFO', 'WARNING', 'ERROR'] as const
 
-export function ProtokollTab() {
+  const { t: tc } = useTranslation('common')
   const { t } = useTranslation('settings')
   const queryClient = useQueryClient()
 
@@ -287,7 +287,7 @@ export function ProtokollTab() {
         <div className="space-y-4 p-4">
           {/* Log level */}
           <div>
-            <label className="block text-sm font-medium mb-1">Log-Level</label>
+            <label className="block text-sm font-medium mb-1">{tc('ui.log_level')}</label>
             <select
               value={(config as Record<string, string> | undefined)?.log_level ?? 'INFO'}
               onChange={e => saveConfig({ log_level: e.target.value })}

@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef, useMemo } from 'react'
+import { useTranslation } from 'react-i18next'
 import { useNavigate } from 'react-router-dom'
 import { Search, LayoutDashboard, SlidersHorizontal } from 'lucide-react'
 import { FIELDS } from '@/pages/Settings/settingsFields'
@@ -155,7 +156,7 @@ export function SettingsSearchModal({ open, onClose }: SettingsSearchModalProps)
           <input
             ref={inputRef}
             type="text"
-            placeholder="Einstellung suchen…"
+            placeholder={tc('ui.search_settings_placeholder')}
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             className="flex-1 bg-transparent text-sm outline-none"
@@ -225,7 +226,7 @@ export function SettingsSearchModal({ open, onClose }: SettingsSearchModalProps)
         >
           <span>↑↓ navigieren</span>
           <span>↵ öffnen</span>
-          <span>Esc schließen</span>
+          <span>{tc('ui.esc_close')}</span>
         </div>
       </div>
     </div>

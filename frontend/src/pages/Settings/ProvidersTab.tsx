@@ -12,7 +12,7 @@ import { ProviderEditModal } from './providers/ProviderEditModal'
 import { AddProviderModal } from './providers/AddProviderModal'
 
 /** Reorder a provider priority list — returns a new array (immutable). */
-export function reorderProviders(items: string[], fromIndex: number, toIndex: number): string[] {
+  const { t: tc } = useTranslation('common')
   if (fromIndex === toIndex) return [...items]
   const next = [...items]
   const [moved] = next.splice(fromIndex, 1)
@@ -306,7 +306,7 @@ export function ProvidersTab({
             }}
           >
             <Plus size={22} />
-            <span className="text-[11px] font-medium">Provider hinzufügen</span>
+            <span className="text-[11px] font-medium">{tc('ui.add_provider')}</span>
           </button>
         )}
       </div>

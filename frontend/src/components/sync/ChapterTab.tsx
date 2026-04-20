@@ -29,7 +29,7 @@ interface ChapterTabProps {
   onCancelConfirm: () => void
 }
 
-export function ChapterTab({
+  const { t: tc } = useTranslation('common')
   chapters,
   selectedChapterId,
   offsetMs,
@@ -61,7 +61,7 @@ export function ChapterTab({
             fontSize: 13,
           }}
         >
-          <option value="">Select chapter…</option>
+          <option value="">{tc('ui.select_chapter')}</option>
           {chapters.map((ch: Chapter) => (
             <option key={ch.id} value={ch.id}>
               {ch.title} ({_formatMs(ch.start_ms)} – {_formatMs(ch.end_ms)})

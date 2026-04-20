@@ -103,7 +103,7 @@ export function SettingsSearch({ className }: SettingsSearchProps) {
           placeholder={t('settings_search.placeholder')}
           className="flex-1 bg-transparent text-[13px] outline-none"
           style={{ color: 'var(--text-primary)' }}
-          aria-label="Search settings"
+          aria-label={tc('ui.search_settings')}
           aria-expanded={isOpen}
           aria-controls="settings-search-results"
           role="combobox"

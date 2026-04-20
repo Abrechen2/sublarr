@@ -156,7 +156,7 @@ export function SettingsNav() {
         }}
       >
         <Search size={12} />
-        <span className="flex-1 text-left">Suchen…</span>
+        <span className="flex-1 text-left">{tc('ui.search_ellipsis')}</span>
         <kbd
           className="font-mono text-[10px] px-1 py-0.5 rounded"
           style={{ backgroundColor: 'var(--bg-surface)', border: '1px solid var(--border)' }}

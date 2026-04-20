@@ -15,7 +15,7 @@ interface ProviderTileProps {
   onRemove: () => void
 }
 
-export function ProviderTile({
+  const { t: tc } = useTranslation('common')
   provider, cacheCount, priority,
   onOpenEdit, onToggle, onRemove,
 }: ProviderTileProps) {
@@ -116,7 +116,7 @@ export function ProviderTile({
         <button
           onClick={onOpenEdit}
           className="p-1.5 rounded transition-colors"
-          title="Bearbeiten"
+          title={tc('ui.edit')}
           style={{ backgroundColor: 'var(--bg-elevated)', color: 'var(--text-muted)' }}
           onMouseEnter={(e) => { e.currentTarget.style.color = 'var(--accent)' }}
           onMouseLeave={(e) => { e.currentTarget.style.color = 'var(--text-muted)' }}
@@ -126,7 +126,7 @@ export function ProviderTile({
         <button
           onClick={onRemove}
           className="p-1.5 rounded transition-colors"
-          title="Entfernen"
+          title={tc('ui.remove')}
           style={{ backgroundColor: 'var(--bg-elevated)', color: 'var(--text-muted)' }}
           onMouseEnter={(e) => { e.currentTarget.style.color = 'var(--error)' }}
           onMouseLeave={(e) => { e.currentTarget.style.color = 'var(--text-muted)' }}
