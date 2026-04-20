@@ -1,0 +1,24 @@
+# Dev + test dependencies for Sublarr Backend.
+# NOT installed in the Docker image. Keep requirements-dev.txt in sync with:
+#   `pip-compile requirements-dev.in -o requirements-dev.txt`
+-c requirements.txt
+
+pytest>=8.3.0
+pytest-cov>=6.0.0
+pytest-mock>=3.14.0
+pytest-benchmark>=4.0.0
+pytest-asyncio>=0.23
+fakeredis>=2.26
+
+ruff>=0.8.0
+mypy>=1.11.0
+pre-commit>=3.8.0
+vulture>=2.10
+bandit[toml]>=1.7.5
+radon>=6.0.1
+
+pip-tools>=7.4.0
+pip-audit>=2.7.0
+liccheck>=0.9.0
+
+locust>=2.24.0

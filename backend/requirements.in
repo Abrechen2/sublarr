@@ -1,31 +1,67 @@
-# Unpinned dependencies for Sublarr Backend
-# Use pip-compile to generate requirements.txt with pinned versions
-# Command: pip-compile requirements.in
+# Runtime dependencies for Sublarr Backend — source of truth.
+# Development/test deps live in requirements-dev.in.
+# Regenerate requirements.txt: `pip-compile requirements.in -o requirements.txt`
 
-flask>=3.1.0
+# --- Core web + framework ---
+flask>=3.1.0,<4
 flask-socketio>=5.4.0
+flask-limiter>=3.5,<5
+Flask-SQLAlchemy>=3.1.0,<4
+Flask-Migrate>=4.0,<5
+SQLAlchemy>=2.0,<3
+alembic>=1.13,<2
 gunicorn>=23.0.0
-pysubs2>=1.7.0
-requests>=2.32.0
+simple-websocket>=1.1.0
+
+# --- API + schema ---
+apispec>=6.9.0
+apispec-webframeworks>=1.0.0
+flask-swagger-ui>=4.0.0
 pydantic>=2.10.0
 pydantic-settings>=2.7.0
-python-dotenv>=1.0.0
-simple-websocket>=1.1.0
-rarfile>=4.2
-apprise>=1.9.0
-prometheus_client>=0.21.0
-psutil>=6.1.0
-pyenchant>=3.2.0
-pytesseract>=0.3.10
 
-# Development dependencies (optional, can be in separate requirements-dev.in)
-pytest>=8.3.0
-pytest-cov>=6.0.0
-pytest-mock>=3.14.0
-ruff>=0.8.0
-mypy>=1.11.0
-pre-commit>=3.8.0
-vulture>=2.10
-bandit[toml]>=1.7.5
-radon>=6.0.1
-pip-tools>=7.4.0
+# --- HTTP + scraping ---
+requests>=2.32.0
+beautifulsoup4>=4.12.0
+lxml>=5.1.0
+
+# --- Subtitle handling ---
+pysubs2>=1.7.0
+pysrt>=1.1.2
+rarfile>=4.2
+chardet>=5.2.0
+guessit>=3.8.0
+
+# --- Translation backends ---
+anthropic>=0.39,<1.0
+openai>=1.0.0
+deepl>=1.20.0
+google-cloud-translate>=3.10.0
+
+# --- Scheduling + queue ---
+APScheduler>=3.10,<4
+redis>=5.0
+rq>=2.0
+
+# --- Infrastructure ---
+PlexAPI>=4.18.0
+python-dotenv>=1.0.0
+watchdog>=6.0.0
+bcrypt>=4.2
+click>=8.1,<9
+dogpile.cache>=1.3.0
+stevedore>=5.2.0
+
+# --- Optional at runtime (graceful degradation via try/except) ---
+apprise>=1.9.0
+ffsubsync>=0.4.26
+# ffsubsync transitively imports pkg_resources via webrtcvad — setuptools>=81
+# dropped pkg_resources so we pin to the last compatible release.
+setuptools>=70,<81
+pyenchant>=3.2.0   # spell-checker (disabled if unavailable)
+pytesseract>=0.3.10  # OCR for image-based subs (disabled if unavailable)
+psycopg2-binary>=2.9  # PostgreSQL driver (SQLite still works without)
+
+# --- Observability ---
+prometheus-client>=0.21.0
+psutil>=6.1.0
