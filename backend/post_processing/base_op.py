@@ -23,6 +23,11 @@ class OpResult:
 _OP_REGISTRY: list[type[BaseOp]] = []
 
 
+# Recognised types for ``config_schema`` entries. Anything else is rejected
+# by the API validator and by tests that assert schema well-formedness.
+_VALID_SCHEMA_TYPES = ("text", "password", "number")
+
+
 class BaseOp(ABC):
     """Base class for all post-processing ops.
 
@@ -33,6 +38,10 @@ class BaseOp(ABC):
       - abort_on_error: bool (default False). If True, a failure aborts the
         whole pipeline. Most ops should stay False so one broken op doesn't
         block the rest.
+      - config_schema: list of configurable fields. Each entry is a dict
+        ``{"key": str, "label": str, "type": "text"|"password"|"number",
+        "required": bool, "default": str}``. Ops without config declare
+        an empty list.
       - execute(context) -> OpResult — actually do the work.
     """
 
@@ -40,6 +49,7 @@ class BaseOp(ABC):
     label: ClassVar[str] = ""
     description: ClassVar[str] = ""
     abort_on_error: ClassVar[bool] = False
+    config_schema: ClassVar[list[dict]] = []
 
     @abstractmethod
     def execute(self, context: dict) -> OpResult:

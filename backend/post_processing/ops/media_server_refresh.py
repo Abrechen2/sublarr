@@ -23,6 +23,30 @@ class PlexRefreshOp(BaseOp):
     token: str = ""
     section_id: str = ""  # optional: target a specific library section
 
+    config_schema: list[dict] = [
+        {
+            "key": "base_url",
+            "label": "Plex base URL",
+            "type": "text",
+            "required": True,
+            "default": "",
+        },
+        {
+            "key": "token",
+            "label": "Plex token",
+            "type": "password",
+            "required": True,
+            "default": "",
+        },
+        {
+            "key": "section_id",
+            "label": "Library section ID (optional)",
+            "type": "text",
+            "required": False,
+            "default": "",
+        },
+    ]
+
     def execute(self, context: dict) -> OpResult:
         start = time.monotonic()
         if not self.base_url or not self.token:
@@ -48,6 +72,23 @@ class EmbyRefreshOp(BaseOp):
     base_url: str = ""
     api_key: str = ""
 
+    config_schema: list[dict] = [
+        {
+            "key": "base_url",
+            "label": "Emby base URL",
+            "type": "text",
+            "required": True,
+            "default": "",
+        },
+        {
+            "key": "api_key",
+            "label": "Emby API key",
+            "type": "password",
+            "required": True,
+            "default": "",
+        },
+    ]
+
     def execute(self, context: dict) -> OpResult:
         start = time.monotonic()
         if not self.base_url or not self.api_key:
@@ -71,6 +112,23 @@ class JellyfinRefreshOp(BaseOp):
 
     base_url: str = ""
     api_key: str = ""
+
+    config_schema: list[dict] = [
+        {
+            "key": "base_url",
+            "label": "Jellyfin base URL",
+            "type": "text",
+            "required": True,
+            "default": "",
+        },
+        {
+            "key": "api_key",
+            "label": "Jellyfin API key",
+            "type": "password",
+            "required": True,
+            "default": "",
+        },
+    ]
 
     def execute(self, context: dict) -> OpResult:
         start = time.monotonic()

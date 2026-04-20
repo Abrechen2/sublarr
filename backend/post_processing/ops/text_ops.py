@@ -21,6 +21,7 @@ class StripHtmlOp(BaseOp):
     op_id = "strip_html"
     label = "Strip HTML tags"
     description = "Remove <i>, <b>, <font>, <br> and other HTML tags from subtitle lines."
+    config_schema: list[dict] = []
 
     def execute(self, context: dict) -> OpResult:
         start = time.monotonic()
@@ -43,6 +44,7 @@ class RemoveBomOp(BaseOp):
     op_id = "remove_bom"
     label = "Remove BOM"
     description = "Strip UTF-8 BOM (0xEF 0xBB 0xBF) from the start of the subtitle file."
+    config_schema: list[dict] = []
 
     def execute(self, context: dict) -> OpResult:
         start = time.monotonic()
@@ -62,6 +64,7 @@ class ConvertEncodingOp(BaseOp):
     op_id = "convert_encoding"
     label = "Convert encoding"
     description = "Re-encode the subtitle to UTF-8 (auto-detects source encoding via chardet)."
+    config_schema: list[dict] = []
 
     def execute(self, context: dict) -> OpResult:
         start = time.monotonic()

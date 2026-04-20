@@ -26,10 +26,34 @@ class WebhookOp(BaseOp):
         "substitution in the request body template."
     )
 
-    # Op config fields (populated from per-trigger config in future wiring):
+    # Op config fields (populated from per-op config via _configure_op_instance):
     url: str = ""
     method: str = "POST"
     template: str = ""  # JSON body template with {placeholders}
+
+    config_schema: list[dict] = [
+        {
+            "key": "url",
+            "label": "Webhook URL",
+            "type": "text",
+            "required": True,
+            "default": "",
+        },
+        {
+            "key": "method",
+            "label": "HTTP method",
+            "type": "text",
+            "required": False,
+            "default": "POST",
+        },
+        {
+            "key": "template",
+            "label": "Body template (JSON with {placeholders})",
+            "type": "text",
+            "required": False,
+            "default": "",
+        },
+    ]
 
     def execute(self, context: dict) -> OpResult:
         start = time.monotonic()

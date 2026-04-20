@@ -26,6 +26,16 @@ class DiscordNotifyOp(BaseOp):
 
     webhook_url: str = ""
 
+    config_schema: list[dict] = [
+        {
+            "key": "webhook_url",
+            "label": "Discord webhook URL",
+            "type": "password",
+            "required": True,
+            "default": "",
+        },
+    ]
+
     def execute(self, context: dict) -> OpResult:
         start = time.monotonic()
 
