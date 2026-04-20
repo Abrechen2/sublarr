@@ -301,7 +301,7 @@ class TestTranscribeEndpoint:
 
     def test_file_outside_media_path_returns_403(self, client):
         with (
-            patch("routes.whisper.is_safe_path", return_value=False),
+            patch("routes.whisper.transcribe.is_safe_path", return_value=False),
             patch("config.map_path", return_value="/etc/passwd"),
         ):
             resp = client.post(
@@ -315,7 +315,7 @@ class TestTranscribeEndpoint:
 
     def test_nonexistent_file_returns_404(self, client):
         with (
-            patch("routes.whisper.is_safe_path", return_value=True),
+            patch("routes.whisper.transcribe.is_safe_path", return_value=True),
             patch("config.map_path", return_value="/media/does_not_exist.mkv"),
         ):
             resp = client.post(
@@ -340,7 +340,7 @@ class TestTranscribeEndpoint:
             mock_queue.submit.return_value = "generated-job-id"
 
             with (
-                patch("routes.whisper.is_safe_path", return_value=True),
+                patch("routes.whisper.transcribe.is_safe_path", return_value=True),
                 patch("config.map_path", return_value=tmp_path),
                 patch("whisper.get_whisper_manager", return_value=mock_manager),
                 patch("routes.whisper._get_queue", return_value=mock_queue),
@@ -363,7 +363,7 @@ class TestTranscribeEndpoint:
             tmp_path = tmp.name
         try:
             with (
-                patch("routes.whisper.is_safe_path", return_value=True),
+                patch("routes.whisper.transcribe.is_safe_path", return_value=True),
                 patch("config.map_path", return_value=tmp_path),
             ):
                 resp = client.post(
@@ -382,7 +382,7 @@ class TestTranscribeEndpoint:
             tmp_path = tmp.name
         try:
             with (
-                patch("routes.whisper.is_safe_path", return_value=True),
+                patch("routes.whisper.transcribe.is_safe_path", return_value=True),
                 patch("config.map_path", return_value=tmp_path),
             ):
                 resp = client.post(

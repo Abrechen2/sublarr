@@ -160,8 +160,8 @@ class TestWhisperTranscribeRoute:
                 return "j1"
 
         monkeypatch.setattr("routes.whisper._queue", FakeQueue())
-        monkeypatch.setattr("routes.whisper.is_safe_path", lambda *a: True)
-        monkeypatch.setattr("routes.whisper.os.path.exists", lambda p: True)
+        monkeypatch.setattr("routes.whisper.transcribe.is_safe_path", lambda *a: True)
+        monkeypatch.setattr("routes.whisper.transcribe.os.path.exists", lambda p: True)
         r = client.post(
             "/api/v1/whisper/transcribe",
             json={"file_path": "/media/ep1.mkv", "audio_track_index": 2},
@@ -179,8 +179,8 @@ class TestWhisperTranscribeRoute:
                 return "j2"
 
         monkeypatch.setattr("routes.whisper._queue", FakeQueue())
-        monkeypatch.setattr("routes.whisper.is_safe_path", lambda *a: True)
-        monkeypatch.setattr("routes.whisper.os.path.exists", lambda p: True)
+        monkeypatch.setattr("routes.whisper.transcribe.is_safe_path", lambda *a: True)
+        monkeypatch.setattr("routes.whisper.transcribe.os.path.exists", lambda p: True)
         r = client.post(
             "/api/v1/whisper/transcribe",
             json={"file_path": "/media/ep1.mkv"},
@@ -190,8 +190,8 @@ class TestWhisperTranscribeRoute:
         assert captured.get("audio_track_index") is None
 
     def test_rejects_negative_index(self, client, monkeypatch):
-        monkeypatch.setattr("routes.whisper.is_safe_path", lambda *a: True)
-        monkeypatch.setattr("routes.whisper.os.path.exists", lambda p: True)
+        monkeypatch.setattr("routes.whisper.transcribe.is_safe_path", lambda *a: True)
+        monkeypatch.setattr("routes.whisper.transcribe.os.path.exists", lambda p: True)
         r = client.post(
             "/api/v1/whisper/transcribe",
             json={"file_path": "/media/ep1.mkv", "audio_track_index": -1},
@@ -200,8 +200,8 @@ class TestWhisperTranscribeRoute:
         assert r.status_code == 400
 
     def test_rejects_string_index(self, client, monkeypatch):
-        monkeypatch.setattr("routes.whisper.is_safe_path", lambda *a: True)
-        monkeypatch.setattr("routes.whisper.os.path.exists", lambda p: True)
+        monkeypatch.setattr("routes.whisper.transcribe.is_safe_path", lambda *a: True)
+        monkeypatch.setattr("routes.whisper.transcribe.os.path.exists", lambda p: True)
         r = client.post(
             "/api/v1/whisper/transcribe",
             json={"file_path": "/media/ep1.mkv", "audio_track_index": "first"},
