@@ -5,6 +5,15 @@ All notable changes to Sublarr are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.70.3-beta] - 2026-04-20
+
+### Fixed
+- **Plan A3 follow-up — Claude cache-token pricing correctly bills at 0.1× for reads and 1.25× for writes.** Previously `cache_read_input_tokens` was summed into `tokens_in` and billed at the full input rate, overstating costs by up to 10× when Anthropic's prompt-cache discount applied. Now `LLMResponse` carries `cache_read_tokens` + `cache_write_tokens` separately, and `calculate_llm_cost_micro_usd()` bills them at 0.1× (90% read discount) and 1.25× (write premium) relative to the fresh-input rate — exactly matching Anthropic's pricing. Non-caching backends are unaffected (defaults of 0 on both new fields). 4 new cost-tracker tests pin the arithmetic including a realistic 10k-cached-token scenario.
+
+### Non-issues / closed follow-ups
+- **Plan A4 Ollama context-windowing** — already correctly skipped by design (V8/V9 fine-tune prompt format is fixed; lookback/lookahead would drift from training distribution). No change needed.
+- **Plan A4 OpenAI-Compat context-windowing** — already supports lookback/lookahead (prepends to user prompt). No change needed.
+
 ## [0.70.2-beta] - 2026-04-20
 
 ### Fixed
