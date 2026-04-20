@@ -436,6 +436,84 @@ class TestLLMBackendHooks:
             backend._parse_response(raw)
 
 
+class TestCjkHallucinationRetry:
+    """Plan A3 follow-up — Ollama retries once on CJK hallucination."""
+
+    def _make_resp(self, translations: list[str]) -> "LLMResponse":
+        from translation.llm_base import LLMResponse
+
+        return LLMResponse(
+            translations=translations,
+            tokens_in=10,
+            tokens_out=10,
+            model="test-model",
+            finish_reason="stop",
+            raw_latency_ms=0,
+        )
+
+    def test_clean_response_returns_unchanged_no_retry(self):
+        backend = _make_backend()
+        resp = self._make_resp(["Hallo", "Welt"])
+        with patch.object(backend, "_attempt") as mock_attempt:
+            out = backend._verify_line_count(
+                resp=resp,
+                lines=["Hello", "World"],
+                source_lang="en",
+                target_lang="de",
+                glossary_entries=None,
+                series_context=None,
+            )
+        assert out is resp
+        mock_attempt.assert_not_called()
+
+    def test_cjk_hallucination_triggers_single_retry(self):
+        backend = _make_backend()
+        # First response has Chinese characters (hallucination)
+        tainted = self._make_resp(["你好", "Welt"])
+        clean_retry = self._make_resp(["Hallo", "Welt"])
+
+        with patch.object(backend, "_attempt", return_value=clean_retry) as mock_attempt:
+            out = backend._verify_line_count(
+                resp=tainted,
+                lines=["Hello", "World"],
+                source_lang="en",
+                target_lang="de",
+                glossary_entries=None,
+                series_context=None,
+            )
+
+        assert mock_attempt.call_count == 1
+        # is_retry=True must be passed so strict prompt kicks in
+        assert mock_attempt.call_args.kwargs.get("is_retry") is True
+        # Retry result accepted because it's clean
+        assert out.translations == ["Hallo", "Welt"]
+        # Tokens summed across both attempts
+        assert out.tokens_in == 20
+        assert out.tokens_out == 20
+
+    def test_cjk_persists_after_retry_keeps_original_with_summed_tokens(self):
+        backend = _make_backend()
+        tainted_first = self._make_resp(["你好", "Welt"])
+        tainted_retry = self._make_resp(["你好", "世界"])  # still CJK
+
+        with patch.object(backend, "_attempt", return_value=tainted_retry) as mock_attempt:
+            out = backend._verify_line_count(
+                resp=tainted_first,
+                lines=["Hello", "World"],
+                source_lang="en",
+                target_lang="de",
+                glossary_entries=None,
+                series_context=None,
+            )
+
+        assert mock_attempt.call_count == 1
+        # Original kept (best-effort — CJK translation better than none)
+        assert out.translations == ["你好", "Welt"]
+        # But tokens reflect both attempts
+        assert out.tokens_in == 20
+        assert out.tokens_out == 20
+
+
 class TestHealthCheck:
     """Tests for health_check method."""
 

@@ -20,7 +20,7 @@ from decimal import Decimal
 import requests
 
 from translation.llm_base import LLMBackend, LLMResponse
-from translation.llm_utils import build_translation_prompt
+from translation.llm_utils import build_translation_prompt, has_cjk_hallucination
 
 logger = logging.getLogger(__name__)
 
@@ -367,6 +367,87 @@ class OllamaBackend(LLMBackend):
             finish_reason=raw.get("done_reason"),
             raw_latency_ms=raw_latency_ms,
         )
+
+    def _verify_line_count(
+        self,
+        resp: LLMResponse,
+        lines: list[str],
+        source_lang: str,
+        target_lang: str,
+        glossary_entries: list[dict] | None,
+        series_context: str | None = None,
+        *,
+        lookback: list[str] | None = None,
+        lookahead: list[str] | None = None,
+    ) -> LLMResponse:
+        """Ollama's line-count retry, plus one extra retry on CJK hallucination.
+
+        Qwen2.5 and other multilingual LLMs occasionally drift into Chinese
+        characters when translating between non-CJK languages. This override
+        first defers to the base-class line-count retry; if that succeeds but
+        any output line contains CJK characters, we attempt one more retry
+        with ``is_retry=True`` (strict prompt). If CJK persists after the
+        retry we keep the best-effort output — a translation with some
+        hallucinated characters is more useful than no translation — and log
+        a warning so the issue is visible.
+        """
+        resp = super()._verify_line_count(
+            resp,
+            lines,
+            source_lang,
+            target_lang,
+            glossary_entries,
+            series_context,
+            lookback=lookback,
+            lookahead=lookahead,
+        )
+
+        tainted = [i for i, t in enumerate(resp.translations) if has_cjk_hallucination(t)]
+        if not tainted:
+            return resp
+
+        logger.warning(
+            "%s: CJK hallucination in %d/%d lines (indices %s) — retrying with strict prompt",
+            self.name,
+            len(tainted),
+            len(resp.translations),
+            tainted,
+        )
+        resp_retry = self._attempt(
+            lines,
+            source_lang,
+            target_lang,
+            glossary_entries,
+            series_context=series_context,
+            is_retry=True,
+            lookback=lookback,
+            lookahead=lookahead,
+        )
+
+        # Always sum tokens — we paid for both attempts regardless of outcome
+        resp_retry.tokens_in += resp.tokens_in
+        resp_retry.tokens_out += resp.tokens_out
+        resp_retry.cache_read_tokens += resp.cache_read_tokens
+        resp_retry.cache_write_tokens += resp.cache_write_tokens
+
+        still_tainted = [
+            i for i, t in enumerate(resp_retry.translations) if has_cjk_hallucination(t)
+        ]
+        if len(resp_retry.translations) == len(lines) and not still_tainted:
+            return resp_retry
+
+        # Retry didn't help — keep original (best-effort). The token counters
+        # of the retry are merged into ``resp`` so the event captures full spend.
+        resp.tokens_in = resp_retry.tokens_in
+        resp.tokens_out = resp_retry.tokens_out
+        resp.cache_read_tokens = resp_retry.cache_read_tokens
+        resp.cache_write_tokens = resp_retry.cache_write_tokens
+        logger.warning(
+            "%s: CJK hallucination persisted after retry (still %d tainted), keeping original output",
+            self.name,
+            len(still_tainted) if still_tainted else len(tainted),
+        )
+        return resp
 
     # ------------------------------------------------------------------ #
     # Legacy helpers (kept for health_check + tests + external callers)
