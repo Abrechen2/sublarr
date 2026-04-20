@@ -1,10 +1,14 @@
+import { useEffect, useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import {
   fetchOps,
   fetchConfig,
   updateTrigger,
+  fetchOpConfig,
+  updateOpConfig,
   type Trigger,
   type PostProcessingOp,
+  type OpConfigSchemaEntry,
 } from '@/api/postProcessing'
 import { SettingsDetailLayout } from '@/components/settings/SettingsDetailLayout'
 
@@ -34,6 +38,132 @@ function ErrorState({ message }: { readonly message: string }) {
   )
 }
 
+interface OpConfigFormProps {
+  readonly opId: string
+  readonly onClose: () => void
+}
+
+function OpConfigForm({ opId, onClose }: OpConfigFormProps) {
+  const qc = useQueryClient()
+  const cfgQuery = useQuery({
+    queryKey: ['post-processing', 'op-config', opId],
+    queryFn: () => fetchOpConfig(opId),
+  })
+  const [draft, setDraft] = useState<Record<string, string>>({})
+  const [error, setError] = useState<string | null>(null)
+
+  useEffect(() => {
+    if (cfgQuery.data) setDraft({ ...cfgQuery.data.values })
+  }, [cfgQuery.data])
+
+  const mut = useMutation({
+    mutationFn: (values: Record<string, string>) => updateOpConfig(opId, values),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['post-processing', 'op-config', opId] })
+      onClose()
+    },
+    onError: (err: unknown) => {
+      const msg = err instanceof Error ? err.message : 'Save failed'
+      setError(msg)
+    },
+  })
+
+  if (cfgQuery.isLoading) {
+    return (
+      <div className="mt-2 p-3 bg-bg rounded border border-border text-xs text-muted">
+        Loading…
+      </div>
+    )
+  }
+  if (cfgQuery.isError || !cfgQuery.data) {
+    return (
+      <div
+        className="mt-2 p-3 bg-bg rounded border border-border text-xs"
+        style={{ color: 'var(--error)' }}
+      >
+        Failed to load config
+      </div>
+    )
+  }
+
+  const schema: readonly OpConfigSchemaEntry[] = cfgQuery.data.schema
+  if (schema.length === 0) {
+    return (
+      <div className="mt-2 p-3 bg-bg rounded border border-border text-xs text-muted">
+        No configuration for this op.
+      </div>
+    )
+  }
+
+  const onFieldChange = (key: string, value: string) => {
+    setDraft((prev) => ({ ...prev, [key]: value }))
+  }
+
+  const onSubmit = (e: React.FormEvent) => {
+    e.preventDefault()
+    setError(null)
+    // Submit the draft as-is. The backend preserves existing passwords
+    // when the mask sentinel "***" is sent back unchanged.
+    mut.mutate(draft)
+  }
+
+  return (
+    <form
+      className="mt-2 p-3 bg-bg rounded border border-border space-y-2"
+      onSubmit={onSubmit}
+      aria-label={`configure ${opId}`}
+    >
+      {schema.map((entry) => {
+        const inputType =
+          entry.type === 'password'
+            ? 'password'
+            : entry.type === 'number'
+              ? 'number'
+              : 'text'
+        return (
+          <div key={entry.key} className="flex flex-col gap-1">
+            <label className="text-xs text-muted" htmlFor={`${opId}-${entry.key}`}>
+              {entry.label}
+              {entry.required ? ' *' : ''}
+            </label>
+            <input
+              id={`${opId}-${entry.key}`}
+              type={inputType}
+              className="bg-surface border border-border rounded-md p-2 text-sm"
+              value={draft[entry.key] ?? ''}
+              onChange={(ev) => onFieldChange(entry.key, ev.target.value)}
+              required={entry.required && entry.type !== 'password'}
+              placeholder={entry.default || undefined}
+              autoComplete="off"
+            />
+          </div>
+        )
+      })}
+      {error && (
+        <div className="text-xs" style={{ color: 'var(--error)' }}>
+          {error}
+        </div>
+      )}
+      <div className="flex gap-2">
+        <button
+          type="submit"
+          className="text-xs px-3 py-1 rounded border border-border bg-surface hover:bg-surface-hover"
+          disabled={mut.isPending}
+        >
+          {mut.isPending ? 'Saving…' : 'Save'}
+        </button>
+        <button
+          type="button"
+          className="text-xs px-3 py-1 rounded border border-border"
+          onClick={onClose}
+        >
+          Cancel
+        </button>
+      </div>
+    </form>
+  )
+}
+
 interface TriggerSectionProps {
   readonly trigger: Trigger
   readonly configured: readonly string[]
@@ -41,9 +171,22 @@ interface TriggerSectionProps {
   readonly onChange: (next: readonly string[]) => void
 }
 
+// Ops that have at least one field in config_schema. Kept in sync with the
+// backend classes in backend/post_processing/ops/. The actual source of
+// truth is the GET /ops/<id>/config response; this set just controls the
+// visibility of the "Configure" button in the compact list view.
+const OPS_WITH_CONFIG = new Set<string>([
+  'webhook',
+  'discord_notify',
+  'plex_refresh',
+  'emby_refresh',
+  'jellyfin_refresh',
+])
+
 function TriggerSection({ trigger, configured, ops, onChange }: TriggerSectionProps) {
   const available = ops.map((op) => op.op_id)
   const opById = new Map(ops.map((op) => [op.op_id, op] as const))
+  const [expandedIdx, setExpandedIdx] = useState<number | null>(null)
 
   const add = (opId: string) => {
     if (!opId) return
@@ -53,6 +196,7 @@ function TriggerSection({ trigger, configured, ops, onChange }: TriggerSectionPr
 
   const remove = (idx: number) => {
     onChange(configured.filter((_, i) => i !== idx))
+    if (expandedIdx === idx) setExpandedIdx(null)
   }
 
   const move = (idx: number, delta: number) => {
@@ -61,6 +205,8 @@ function TriggerSection({ trigger, configured, ops, onChange }: TriggerSectionPr
     const next = [...configured]
     ;[next[idx], next[target]] = [next[target], next[idx]]
     onChange(next)
+    if (expandedIdx === idx) setExpandedIdx(target)
+    else if (expandedIdx === target) setExpandedIdx(idx)
   }
 
   return (
@@ -74,45 +220,63 @@ function TriggerSection({ trigger, configured, ops, onChange }: TriggerSectionPr
         <ul className="space-y-2 mb-3">
           {configured.map((opId, idx) => {
             const meta = opById.get(opId)
+            const hasConfig = OPS_WITH_CONFIG.has(opId)
+            const isExpanded = expandedIdx === idx
             return (
               <li
                 key={`${opId}-${idx}`}
-                className="flex items-center gap-2 bg-bg rounded-md p-2 border border-border"
+                className="bg-bg rounded-md p-2 border border-border"
               >
-                <span className="text-xs text-muted">{idx + 1}.</span>
-                <code className="text-sm flex-1">{opId}</code>
-                {meta && (
-                  <span className="text-xs text-muted hidden md:inline">
-                    {meta.label}
-                  </span>
+                <div className="flex items-center gap-2">
+                  <span className="text-xs text-muted">{idx + 1}.</span>
+                  <code className="text-sm flex-1">{opId}</code>
+                  {meta && (
+                    <span className="text-xs text-muted hidden md:inline">
+                      {meta.label}
+                    </span>
+                  )}
+                  {hasConfig && (
+                    <button
+                      type="button"
+                      className="text-xs px-2 py-1 rounded border border-border hover:bg-surface-hover"
+                      onClick={() => setExpandedIdx(isExpanded ? null : idx)}
+                      aria-label={`configure ${opId}`}
+                      aria-expanded={isExpanded}
+                    >
+                      {isExpanded ? 'Close' : 'Configure'}
+                    </button>
+                  )}
+                  <button
+                    type="button"
+                    className="text-xs px-2 py-1 rounded border border-border hover:bg-surface-hover"
+                    onClick={() => move(idx, -1)}
+                    disabled={idx === 0}
+                    aria-label={`move ${opId} up`}
+                  >
+                    ↑
+                  </button>
+                  <button
+                    type="button"
+                    className="text-xs px-2 py-1 rounded border border-border hover:bg-surface-hover"
+                    onClick={() => move(idx, 1)}
+                    disabled={idx === configured.length - 1}
+                    aria-label={`move ${opId} down`}
+                  >
+                    ↓
+                  </button>
+                  <button
+                    type="button"
+                    className="text-xs px-2 py-1 rounded border"
+                    style={{ color: 'var(--error)', borderColor: 'var(--error)' }}
+                    onClick={() => remove(idx)}
+                    aria-label={`remove ${opId}`}
+                  >
+                    remove
+                  </button>
+                </div>
+                {isExpanded && hasConfig && (
+                  <OpConfigForm opId={opId} onClose={() => setExpandedIdx(null)} />
                 )}
-                <button
-                  type="button"
-                  className="text-xs px-2 py-1 rounded border border-border hover:bg-surface-hover"
-                  onClick={() => move(idx, -1)}
-                  disabled={idx === 0}
-                  aria-label={`move ${opId} up`}
-                >
-                  ↑
-                </button>
-                <button
-                  type="button"
-                  className="text-xs px-2 py-1 rounded border border-border hover:bg-surface-hover"
-                  onClick={() => move(idx, 1)}
-                  disabled={idx === configured.length - 1}
-                  aria-label={`move ${opId} down`}
-                >
-                  ↓
-                </button>
-                <button
-                  type="button"
-                  className="text-xs px-2 py-1 rounded border"
-                  style={{ color: 'var(--error)', borderColor: 'var(--error)' }}
-                  onClick={() => remove(idx)}
-                  aria-label={`remove ${opId}`}
-                >
-                  remove
-                </button>
               </li>
             )
           })}

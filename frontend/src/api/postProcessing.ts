@@ -45,3 +45,35 @@ export async function fetchRuns(limit = 50): Promise<PostProcessingRun[]> {
   )
   return data.runs
 }
+
+// --- Per-op config (B6 follow-up) -----------------------------------------
+
+export type OpConfigFieldType = 'text' | 'password' | 'number'
+
+export interface OpConfigSchemaEntry {
+  key: string
+  label: string
+  type: OpConfigFieldType
+  required: boolean
+  default: string
+}
+
+export interface OpConfigResponse {
+  op_id: string
+  schema: OpConfigSchemaEntry[]
+  values: Record<string, string>
+}
+
+export async function fetchOpConfig(opId: string): Promise<OpConfigResponse> {
+  const { data } = await api.get<OpConfigResponse>(
+    `/post-processing/ops/${opId}/config`,
+  )
+  return data
+}
+
+export async function updateOpConfig(
+  opId: string,
+  values: Record<string, string>,
+): Promise<void> {
+  await api.put(`/post-processing/ops/${opId}/config`, { values })
+}
