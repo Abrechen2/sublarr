@@ -431,7 +431,6 @@
     "name_en": "Englisch"
   },
   "ui": {
-    "zuletzt": "Zuletzt",
     "delete_preset": "Preset löschen",
     "recheck": "Erneut prüfen",
     "quiet_hours_name_placeholder": "z.B. Nachtzeit",
@@ -472,6 +471,7 @@
     "formats": "Formate",
     "series": "Serien",
     "batch_translate_downloaded": "Heruntergeladene Untertitel als Batch übersetzen",
-    "scan_embedded": "In allen ungelösten Einträgen nach eingebetteten Untertiteln scannen"
+    "scan_embedded": "In allen ungelösten Einträgen nach eingebetteten Untertiteln scannen",
+    "last": "Zuletzt"
   }
 }

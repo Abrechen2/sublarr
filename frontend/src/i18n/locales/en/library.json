@@ -311,5 +311,15 @@
     "open_in_editor": "Open in editor",
     "convert_format": "Convert to different format",
     "converting_ellipsis": "Converting…"
+  },
+  "bulk_sync": {
+    "bulk_auto_sync": "Bulk Auto-Sync",
+    "start_bulk_sync": "Start Bulk Sync",
+    "running": "Running"
+  },
+  "wanted_extra": {
+    "legend": "Legend:",
+    "target": "Target:",
+    "source": "Source:"
   }
 }

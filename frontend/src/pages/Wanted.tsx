@@ -350,8 +350,8 @@ export function WantedPage() {
             />
           </div>
           <div className="flex gap-4 mt-2 text-xs text-secondary">
-            <span>Ziel: {probeStatus.found}</span>
-            <span>Quelle: {probeStatus.extracted}</span>
+            <span>{t('wanted_extra.target')} {probeStatus.found}</span>
+            <span>{t('wanted_extra.source')} {probeStatus.extracted}</span>
             <span>{t('wanted.skipped', 'Skipped')}: {probeStatus.skipped}</span>
             <span>{t('wanted.failed', 'Failed')}: {probeStatus.failed}</span>
           </div>
@@ -474,7 +474,7 @@ export function WantedPage() {
         className="flex items-center flex-wrap gap-2 px-3 py-2 rounded-md bg-surface border border-border"
       >
         <span className="text-xs font-medium shrink-0 text-muted">
-          Legende:
+          {t('wanted_extra.legend')}
         </span>
         {(['wanted', 'searching', 'found', 'extracted', 'failed', 'ignored'] as const).map((s) => (
           <StatusBadge key={s} status={s} />

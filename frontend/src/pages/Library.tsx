@@ -173,13 +173,13 @@ function BulkSyncPanel({
       <div className="flex items-center gap-2">
         <RefreshCw size={14} className="text-accent" />
         <span className="text-sm font-semibold text-foreground">
-          Bulk Auto-Sync
+          {t('bulk_sync.bulk_auto_sync')}
         </span>
         {syncState.isRunning && (
           <span
             className="text-[10px] px-1.5 py-0.5 rounded font-medium animate-pulse bg-accent-bg text-accent"
           >
-            Running
+            {t('bulk_sync.running')}
           </span>
         )}
       </div>
@@ -229,7 +229,7 @@ function BulkSyncPanel({
             className="flex items-center gap-1.5 px-3 py-1.5 rounded text-xs font-medium text-white disabled:opacity-50 bg-accent"
           >
             {loading ? <Loader2 size={12} className="animate-spin" /> : <RefreshCw size={12} />}
-            Start Bulk Sync
+            {t('bulk_sync.start_bulk_sync')}
           </button>
         </div>
       )}

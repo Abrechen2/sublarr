@@ -431,7 +431,6 @@
     "name_en": "English"
   },
   "ui": {
-    "zuletzt": "Last",
     "delete_preset": "Delete preset",
     "recheck": "Re-check",
     "quiet_hours_name_placeholder": "e.g. Nighttime",
@@ -472,6 +471,7 @@
     "formats": "Formats",
     "series": "Series",
     "batch_translate_downloaded": "Batch translate downloaded subtitles",
-    "scan_embedded": "Scan for embedded subtitles in all unresolved items"
+    "scan_embedded": "Scan for embedded subtitles in all unresolved items",
+    "last": "Last"
   }
 }
