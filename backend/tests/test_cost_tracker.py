@@ -33,6 +33,95 @@ def test_llm_cost_zero_price_is_zero():
     assert cost == 0
 
 
+def test_llm_cost_with_cache_read_tokens_bills_at_tenth_rate():
+    """Cache-read tokens are billed at 0.1× the fresh-input rate (90% discount)."""
+    from translation.cost_tracker import calculate_llm_cost_micro_usd
+
+    # 100 fresh in + 1000 cache reads + 0 out @ $3/1M in, $15/1M out
+    # fresh: 100 * 3 / 1M = $0.0003 = 300 micro_usd
+    # cache read: 1000 * 3 * 0.1 / 1M = $0.0003 = 300 micro_usd
+    # total: 600 micro_usd
+    cost = calculate_llm_cost_micro_usd(
+        tokens_in=100,
+        tokens_out=0,
+        price_in_per_1m=Decimal("3.00"),
+        price_out_per_1m=Decimal("15.00"),
+        cache_read_tokens=1000,
+    )
+    assert cost == 600
+
+
+def test_llm_cost_with_cache_write_tokens_bills_at_1_25_rate():
+    """Cache-write tokens are billed at 1.25× the fresh-input rate (25% premium)."""
+    from translation.cost_tracker import calculate_llm_cost_micro_usd
+
+    # 0 fresh + 1000 cache write + 0 out @ $3/1M in
+    # cache write: 1000 * 3 * 1.25 / 1M = $0.00375 = 3750 micro_usd
+    cost = calculate_llm_cost_micro_usd(
+        tokens_in=0,
+        tokens_out=0,
+        price_in_per_1m=Decimal("3.00"),
+        price_out_per_1m=Decimal("15.00"),
+        cache_write_tokens=1000,
+    )
+    assert cost == 3750
+
+
+def test_llm_cost_cache_tokens_default_zero_preserves_legacy_behaviour():
+    """Callers that don't pass cache_* kwargs get the same result as before."""
+    from translation.cost_tracker import calculate_llm_cost_micro_usd
+
+    without_kwargs = calculate_llm_cost_micro_usd(
+        tokens_in=1000,
+        tokens_out=500,
+        price_in_per_1m=Decimal("3.00"),
+        price_out_per_1m=Decimal("15.00"),
+    )
+    with_explicit_zero = calculate_llm_cost_micro_usd(
+        tokens_in=1000,
+        tokens_out=500,
+        price_in_per_1m=Decimal("3.00"),
+        price_out_per_1m=Decimal("15.00"),
+        cache_read_tokens=0,
+        cache_write_tokens=0,
+    )
+    assert without_kwargs == with_explicit_zero == 10500
+
+
+def test_llm_cost_realistic_claude_scenario_with_90pct_cache_hit():
+    """Example: 10k tokens of stable system prompt cached, 500 fresh per call.
+
+    Without caching: 10500 tokens_in @ $3/1M = $0.0315 = 31500 micro_usd
+    With caching (first call + write):    500 fresh + 10000 cache_write + 200 out
+                                          = 500*3/1M + 10000*3*1.25/1M + 200*15/1M
+                                          = 1500 + 37500 + 3000 = 42000 micro_usd
+    With caching (subsequent call):       500 fresh + 10000 cache_read + 200 out
+                                          = 500*3/1M + 10000*3*0.1/1M + 200*15/1M
+                                          = 1500 + 3000 + 3000 = 7500 micro_usd
+
+    After N≥3 calls caching wins. This test pins the arithmetic.
+    """
+    from translation.cost_tracker import calculate_llm_cost_micro_usd
+
+    first_call = calculate_llm_cost_micro_usd(
+        tokens_in=500,
+        tokens_out=200,
+        price_in_per_1m=Decimal("3.00"),
+        price_out_per_1m=Decimal("15.00"),
+        cache_write_tokens=10000,
+    )
+    assert first_call == 42000
+
+    subsequent_call = calculate_llm_cost_micro_usd(
+        tokens_in=500,
+        tokens_out=200,
+        price_in_per_1m=Decimal("3.00"),
+        price_out_per_1m=Decimal("15.00"),
+        cache_read_tokens=10000,
+    )
+    assert subsequent_call == 7500
+
+
 def test_char_cost_simple():
     from translation.cost_tracker import calculate_char_cost_micro_usd
 

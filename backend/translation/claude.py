@@ -121,10 +121,14 @@ class ClaudeBackend(LLMBackend):
         text = "".join(b.get("text", "") for b in content_blocks if b.get("type") == "text")
         lines = text.split("\n")
         usage = raw.get("usage", {}) or {}
-        # tokens_in = fresh input + cache reads (for accurate accounting)
-        tokens_in = int(usage.get("input_tokens", 0) or 0) + int(
-            usage.get("cache_read_input_tokens", 0) or 0
-        )
+        # Split Anthropic's three token counters so the cost calculator can
+        # bill them at their respective rates:
+        #   - input_tokens: fresh tokens billed at 1× price_in
+        #   - cache_read_input_tokens: billed at 0.1× price_in (90% discount)
+        #   - cache_creation_input_tokens: billed at 1.25× price_in (one-time premium)
+        tokens_in = int(usage.get("input_tokens", 0) or 0)
+        cache_read_tokens = int(usage.get("cache_read_input_tokens", 0) or 0)
+        cache_write_tokens = int(usage.get("cache_creation_input_tokens", 0) or 0)
         tokens_out = int(usage.get("output_tokens", 0) or 0)
 
         stop_reason = raw.get("stop_reason")
@@ -136,6 +140,8 @@ class ClaudeBackend(LLMBackend):
             translations=lines,
             tokens_in=tokens_in,
             tokens_out=tokens_out,
+            cache_read_tokens=cache_read_tokens,
+            cache_write_tokens=cache_write_tokens,
             model=raw.get("model", self._model),
             finish_reason=stop_reason,
             raw_latency_ms=0,

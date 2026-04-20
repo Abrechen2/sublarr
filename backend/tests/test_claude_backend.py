@@ -115,14 +115,16 @@ def test_parse_response_refusal_surfaces_as_content_filter():
     assert resp.finish_reason == "content_filter"
 
 
-def test_parse_response_counts_cache_tokens():
-    """If usage includes cache_read_input_tokens, they should count as tokens_in."""
+def test_parse_response_splits_cache_tokens_from_fresh_input():
+    """Cache-read and cache-write tokens are split from tokens_in so the cost
+    calculator can bill them at the right rate (0.1× / 1.25×).
+    """
     b = _claude()
     raw = {
         "content": [{"type": "text", "text": "ok"}],
         "usage": {
             "input_tokens": 10,
-            "cache_creation_input_tokens": 0,
+            "cache_creation_input_tokens": 50,
             "cache_read_input_tokens": 200,
             "output_tokens": 5,
         },
@@ -130,8 +132,10 @@ def test_parse_response_counts_cache_tokens():
         "stop_reason": "end_turn",
     }
     resp = b._parse_response(raw)
-    # tokens_in includes both fresh + cached reads (for accounting)
-    assert resp.tokens_in == 210
+    # Fresh input only — cache reads/writes now tracked separately
+    assert resp.tokens_in == 10
+    assert resp.cache_read_tokens == 200
+    assert resp.cache_write_tokens == 50
     assert resp.tokens_out == 5
 
 

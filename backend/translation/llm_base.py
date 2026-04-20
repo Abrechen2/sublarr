@@ -39,7 +39,15 @@ class JobCancelledError(RuntimeError):
 
 @dataclass
 class LLMResponse:
-    """Parsed response from an LLM backend's _parse_response hook."""
+    """Parsed response from an LLM backend's _parse_response hook.
+
+    ``cache_read_tokens`` and ``cache_write_tokens`` (default 0) are used by
+    prompt-caching backends like Anthropic Claude:
+      - cache_read: billed at ~0.1× the fresh-input rate
+      - cache_write: billed at ~1.25× the fresh-input rate
+    Non-caching backends leave them at 0 and the cost math reduces to the
+    usual ``tokens_in * price_in``.
+    """
 
     translations: list[str]
     tokens_in: int
@@ -47,6 +55,8 @@ class LLMResponse:
     model: str
     finish_reason: str | None
     raw_latency_ms: int
+    cache_read_tokens: int = 0
+    cache_write_tokens: int = 0
 
 
 class LLMBackend(TranslationBackend):
@@ -188,6 +198,8 @@ class LLMBackend(TranslationBackend):
                     tokens_out=resp.tokens_out,
                     price_in_per_1m=self.cost_per_1m_tokens_in,
                     price_out_per_1m=self.cost_per_1m_tokens_out,
+                    cache_read_tokens=resp.cache_read_tokens,
+                    cache_write_tokens=resp.cache_write_tokens,
                 )
 
             chars_out_val: int | None = None
@@ -297,6 +309,8 @@ class LLMBackend(TranslationBackend):
             # Sum tokens so the error-case event captures full spend
             resp.tokens_in = resp.tokens_in + resp_retry.tokens_in
             resp.tokens_out = resp.tokens_out + resp_retry.tokens_out
+            resp.cache_read_tokens = resp.cache_read_tokens + resp_retry.cache_read_tokens
+            resp.cache_write_tokens = resp.cache_write_tokens + resp_retry.cache_write_tokens
             raise LineCountMismatchError(
                 f"{self.name} returned {len(resp_retry.translations)} "
                 f"lines after retry, expected {len(lines)}"
@@ -305,6 +319,8 @@ class LLMBackend(TranslationBackend):
         # Replace with retry response but sum tokens (we paid for both attempts)
         resp_retry.tokens_in = resp.tokens_in + resp_retry.tokens_in
         resp_retry.tokens_out = resp.tokens_out + resp_retry.tokens_out
+        resp_retry.cache_read_tokens = resp.cache_read_tokens + resp_retry.cache_read_tokens
+        resp_retry.cache_write_tokens = resp.cache_write_tokens + resp_retry.cache_write_tokens
         return resp_retry
 
     def _assemble_messages(
