@@ -29,6 +29,7 @@ function getLangLabel(code: string): string {
 // ─── Language Profiles Tab ────────────────────────────────────────────────────
 
 export function LanguageProfilesTab() {
+  const { t } = useTranslation('settings')
   const { t: _t } = useTranslation('settings')
   const { data: profiles, isLoading } = useLanguageProfiles()
   const createProfile = useCreateProfile()
@@ -140,11 +141,11 @@ export function LanguageProfilesTab() {
 
             {/* Profile name */}
             <div className="space-y-1 md:col-span-2">
-              <label className="text-xs font-medium" style={{ color: 'var(--text-secondary)' }}>Profilname</label>
+              <label className="text-xs font-medium" style={{ color: 'var(--text-secondary)' }}>{t('language_profiles.profile_name')}</label>
               <input
                 type="text" value={form.name}
                 onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))}
-                placeholder="z.B. Deutsch"
+                placeholder={t('language_profiles.profile_name_placeholder')}
                 className="w-full px-2.5 py-1.5 rounded text-xs"
                 style={{ backgroundColor: 'var(--bg-primary)', border: '1px solid var(--border)', color: 'var(--text-primary)' }}
               />
@@ -167,7 +168,7 @@ export function LanguageProfilesTab() {
                   // reset cutoff if the selected language was removed
                   cutoff_language: langs.includes(f.cutoff_language) ? f.cutoff_language : '',
                 }))}
-                placeholder="— Sprache hinzufügen —"
+                placeholder={t('language_profiles.add_language')}
               />
               <p className="text-[10px]" style={{ color: 'var(--text-muted)' }}>
                 Sublarr sucht Untertitel in dieser Reihenfolge. Die erste verfügbare Sprache wird verwendet.
@@ -176,16 +177,16 @@ export function LanguageProfilesTab() {
 
             {/* Forced Subtitles Preference */}
             <div className="space-y-1">
-              <label className="text-xs font-medium" style={{ color: 'var(--text-secondary)' }}>Erzwungene Untertitel</label>
+              <label className="text-xs font-medium" style={{ color: 'var(--text-secondary)' }}>{t('language_profiles.forced_subtitles')}</label>
               <select
                 value={form.forced_preference}
                 onChange={(e) => setForm((f) => ({ ...f, forced_preference: e.target.value as 'disabled' | 'separate' | 'auto' }))}
                 className="w-full px-2.5 py-1.5 rounded text-xs"
                 style={{ backgroundColor: 'var(--bg-primary)', border: '1px solid var(--border)', color: 'var(--text-primary)' }}
               >
-                <option value="disabled">Deaktiviert</option>
-                <option value="separate">Separat suchen</option>
-                <option value="auto">Automatisch erkennen</option>
+                <option value="disabled">{t('language_profiles.forced_disabled')}</option>
+                <option value="separate">{t('language_profiles.forced_separate')}</option>
+                <option value="auto">{t('language_profiles.forced_auto_detect')}</option>
               </select>
               <p className="text-[11px]" style={{ color: 'var(--text-muted)' }}>
                 {form.forced_preference === 'disabled' && 'Forced/Signs-Untertitel werden ignoriert'}
@@ -196,17 +197,17 @@ export function LanguageProfilesTab() {
 
             {/* Forced Subtitles Scoring */}
             <div className="space-y-1">
-              <label className="text-xs font-medium" style={{ color: 'var(--text-secondary)' }}>Forced-Untertitel Wertung</label>
+              <label className="text-xs font-medium" style={{ color: 'var(--text-secondary)' }}>{t('language_profiles.forced_scoring')}</label>
               <select
                 value={form.forced_scoring}
                 onChange={(e) => setForm((f) => ({ ...f, forced_scoring: e.target.value as 'include' | 'prefer' | 'exclude' | 'only' }))}
                 className="w-full px-2.5 py-1.5 rounded text-xs"
                 style={{ backgroundColor: 'var(--bg-primary)', border: '1px solid var(--border)', color: 'var(--text-primary)' }}
               >
-                <option value="include">Einschließen</option>
-                <option value="prefer">Bevorzugen</option>
-                <option value="exclude">Ausschließen</option>
-                <option value="only">Nur Forced</option>
+                <option value="include">{t('language_profiles.include')}</option>
+                <option value="prefer">{t('language_profiles.prefer')}</option>
+                <option value="exclude">{t('language_profiles.exclude')}</option>
+                <option value="only">{t('language_profiles.only_forced')}</option>
               </select>
               <p className="text-[11px]" style={{ color: 'var(--text-muted)' }}>
                 {form.forced_scoring === 'include' && 'Forced-Untertitel werden gleichwertig bewertet'}
@@ -218,17 +219,17 @@ export function LanguageProfilesTab() {
 
             {/* HI Subtitles Preference */}
             <div className="space-y-1">
-              <label className="text-xs font-medium" style={{ color: 'var(--text-secondary)' }}>Hörgeschädigten-Untertitel (HI)</label>
+              <label className="text-xs font-medium" style={{ color: 'var(--text-secondary)' }}>{t('language_profiles.hi_subtitles')}</label>
               <select
                 value={form.hi_preference}
                 onChange={(e) => setForm((f) => ({ ...f, hi_preference: e.target.value as 'include' | 'prefer' | 'exclude' | 'only' }))}
                 className="w-full px-2.5 py-1.5 rounded text-xs"
                 style={{ backgroundColor: 'var(--bg-primary)', border: '1px solid var(--border)', color: 'var(--text-primary)' }}
               >
-                <option value="include">Einschließen</option>
-                <option value="prefer">Bevorzugen</option>
-                <option value="exclude">Ausschließen</option>
-                <option value="only">Nur HI</option>
+                <option value="include">{t('language_profiles.include')}</option>
+                <option value="prefer">{t('language_profiles.prefer')}</option>
+                <option value="exclude">{t('language_profiles.exclude')}</option>
+                <option value="only">{t('language_profiles.only_hi')}</option>
               </select>
               <p className="text-[11px]" style={{ color: 'var(--text-muted)' }}>
                 {form.hi_preference === 'include' && 'HI-Untertitel werden gleichwertig eingeschlossen'}
@@ -250,7 +251,7 @@ export function LanguageProfilesTab() {
                 style={{ backgroundColor: 'var(--bg-primary)', border: '1px solid var(--border)', color: 'var(--text-primary)' }}
                 disabled={form.target_languages.length === 0}
               >
-                <option value="">Keine — alle Sprachen immer suchen</option>
+                <option value="">{t('language_profiles.no_filter')}</option>
                 {form.target_languages.map((lang) => {
                   const label = LANGUAGE_OPTIONS.find((o) => o.value === lang)?.label ?? lang
                   return (
@@ -319,17 +320,17 @@ export function LanguageProfilesTab() {
                   disabled={setAsDefaultForAll.isPending}
                   className="flex items-center gap-1 px-2 py-1 rounded text-xs transition-all duration-150"
                   style={{ border: '1px solid var(--accent-dim)', color: 'var(--accent)', backgroundColor: 'var(--accent-bg)' }}
-                  title="Als Standard für alle bestehenden und neuen Serien/Filme aktivieren"
+                  title={t('language_profiles.set_default')}
                 >
                   <Star size={11} />
-                  Als Standard
+                  {t('language_profiles.set_default_short', 'Als Standard')}
                 </button>
               )}
               <button
                 onClick={() => startEdit(p)}
                 className="p-1.5 rounded transition-all duration-150"
                 style={{ border: '1px solid var(--border)', color: 'var(--text-secondary)', backgroundColor: 'var(--bg-primary)' }}
-                title="Edit profile"
+                title={t('language_profiles.edit_profile')}
               >
                 <Edit2 size={12} />
               </button>
@@ -339,7 +340,7 @@ export function LanguageProfilesTab() {
                   disabled={deleteProfile.isPending}
                   className="p-1.5 rounded transition-all duration-150"
                   style={{ border: '1px solid var(--border)', color: 'var(--error)', backgroundColor: 'var(--bg-primary)' }}
-                  title="Delete profile"
+                  title={t('language_profiles.delete_profile')}
                 >
                   <Trash2 size={12} />
                 </button>
@@ -349,7 +350,7 @@ export function LanguageProfilesTab() {
 
           {/* Target languages */}
           <div className="flex items-center gap-2 flex-wrap">
-            <span className="text-xs" style={{ color: 'var(--text-muted)' }}>Zielsprachen:</span>
+            <span className="text-xs" style={{ color: 'var(--text-muted)' }}>{t('language_profiles.target_languages')}</span>
             {p.target_languages.map((lang, i) => (
               <span
                 key={lang}

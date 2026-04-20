@@ -399,5 +399,8 @@
       "format_naming": "Format & Benennung",
       "scheduler": "Scheduler"
     }
+  },
+  "common": {
+    "undo_warning": "Dies kann nicht rückgängig gemacht werden."
   }
 }

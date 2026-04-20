@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import { ChevronDown, ChevronRight } from 'lucide-react'
 import { InterjectionListEditor } from './InterjectionListEditor'
 
@@ -18,15 +19,20 @@ interface Props {
 }
 
 export function ProcessingPipelineSettings({ config, onSave }: Props) {
+  const { t } = useTranslation('settings')
   const [hiExpanded, setHiExpanded] = useState(false)
 
   return (
     <div className="space-y-4">
-      <h3 className="text-sm font-semibold text-zinc-300">Post-Download Verarbeitung</h3>
+      <h3 className="text-sm font-semibold text-zinc-300">
+        {t('automation_page.processing_pipeline.heading')}
+      </h3>
 
       {/* Common Fixes */}
       <div className="flex items-center justify-between py-2 border-b border-zinc-800">
-        <span className="text-sm text-zinc-300">Common Fixes</span>
+        <span className="text-sm text-zinc-300">
+          {t('automation_page.processing_pipeline.common_fixes')}
+        </span>
         <input
           type="checkbox"
           checked={config.auto_process_common_fixes}
@@ -43,7 +49,7 @@ export function ProcessingPipelineSettings({ config, onSave }: Props) {
             className="flex items-center gap-1 text-sm text-zinc-300"
           >
             {hiExpanded ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
-            HI-Removal
+            {t('automation_page.processing_pipeline.hi_removal')}
           </button>
           <input
             type="checkbox"
@@ -61,7 +67,9 @@ export function ProcessingPipelineSettings({ config, onSave }: Props) {
 
       {/* Credit Removal */}
       <div className="flex items-center justify-between py-2 border-b border-zinc-800">
-        <span className="text-sm text-zinc-300">Credit-Removal</span>
+        <span className="text-sm text-zinc-300">
+          {t('automation_page.processing_pipeline.credit_removal')}
+        </span>
         <input
           type="checkbox"
           checked={config.auto_process_credit_removal}
@@ -73,7 +81,9 @@ export function ProcessingPipelineSettings({ config, onSave }: Props) {
       {/* Auto-Sync */}
       <div className="space-y-2 py-2">
         <div className="flex items-center justify-between">
-          <span className="text-sm text-zinc-300">Auto-Sync</span>
+          <span className="text-sm text-zinc-300">
+            {t('automation_page.processing_pipeline.auto_sync')}
+          </span>
           <input
             type="checkbox"
             checked={config.auto_sync_after_download}
@@ -84,7 +94,7 @@ export function ProcessingPipelineSettings({ config, onSave }: Props) {
         {config.auto_sync_after_download && (
           <div className="pl-4 space-y-2 text-xs text-zinc-400">
             <div className="flex items-center gap-2">
-              <span>Score-Schwelle:</span>
+              <span>{t('automation_page.processing_pipeline.score_threshold')}</span>
               <input
                 type="number"
                 min={0}
@@ -95,7 +105,7 @@ export function ProcessingPipelineSettings({ config, onSave }: Props) {
               />
             </div>
             <div className="flex items-center gap-2">
-              <span>Engine:</span>
+              <span>{t('automation_page.processing_pipeline.engine')}</span>
               <select
                 value={config.auto_sync_engine}
                 onChange={e => onSave({ auto_sync_engine: e.target.value })}
@@ -106,7 +116,7 @@ export function ProcessingPipelineSettings({ config, onSave }: Props) {
               </select>
             </div>
             <div className="flex items-center gap-2">
-              <span>Fallback:</span>
+              <span>{t('automation_page.processing_pipeline.fallback')}</span>
               <select
                 value={config.auto_process_sync_fallback_engine}
                 onChange={e => onSave({ auto_process_sync_fallback_engine: e.target.value })}
@@ -114,7 +124,7 @@ export function ProcessingPipelineSettings({ config, onSave }: Props) {
               >
                 <option value="ffsubsync">ffsubsync</option>
                 <option value="alass">alass</option>
-                <option value="">keiner</option>
+                <option value="">{t('automation_page.processing_pipeline.no_fallback')}</option>
               </select>
             </div>
           </div>

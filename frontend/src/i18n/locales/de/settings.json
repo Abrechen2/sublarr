@@ -143,12 +143,25 @@
     "api_key": "Radarr API Key"
   },
   "library_sources": {
-    "standalone_enabled": "Standalone-Modus aktivieren",
-    "tmdb_api_key": "TMDB API Key (Bearer Token)",
-    "tvdb_api_key": "TVDB API Key (Optional)",
-    "tvdb_pin": "TVDB PIN (Optional)",
-    "scan_interval": "Scan-Intervall (Stunden, 0=deaktiviert)",
-    "debounce": "Datei-Erkennungs-Debounce (Sekunden)"
+    "watched_folders": "Überwachte Ordner",
+    "watcher_watching": "Überwacht",
+    "watcher_stopped": "Gestoppt",
+    "scan_all": "Alle scannen",
+    "scanning": "Scanne…",
+    "add_folder": "Ordner hinzufügen",
+    "last_scan": "Letzter Scan:",
+    "folder_enabled": "Aktiviert",
+    "folder_disabled": "Deaktiviert",
+    "no_folders": "Keine überwachten Ordner konfiguriert. Füge einen Ordner hinzu um Medien zu scannen.",
+    "label_placeholder": "Bezeichnung (optional)",
+    "folder_added": "Ordner hinzugefügt",
+    "folder_add_failed": "Fehler beim Hinzufügen des Ordners",
+    "folder_updated": "Ordner aktualisiert",
+    "folder_update_failed": "Fehler beim Aktualisieren des Ordners",
+    "folder_removed": "Ordner entfernt",
+    "folder_remove_failed": "Fehler beim Entfernen des Ordners",
+    "scan_started": "Scan gestartet",
+    "scan_failed": "Fehler beim Starten des Scans"
   },
   "notifications": {
     "on_download": "Benachrichtigung bei Download",
@@ -215,7 +228,7 @@
     "disabled": "Deaktiviert"
   },
   "path_mapping": {
-    "title": "Pfadzuordnung (Remote \u2192 Lokal)",
+    "title": "Pfadzuordnung (Remote → Lokal)",
     "remote_path": "Remote-Pfad",
     "local_path": "Lokaler Pfad",
     "test_title": "Pfadzuordnung testen",
@@ -342,10 +355,22 @@
       "create": "Erstellen"
     },
     "rule_types": {
-      "language_filter": { "label": "Sprach-Filter", "desc": "Löscht Sidecars in nicht erlaubten Sprachen" },
-      "format_upgrade": { "label": "Format-Upgrade", "desc": "Löscht SRT wenn ASS für gleiche Episode existiert" },
-      "orphan_files": { "label": "Verwaiste Dateien", "desc": "Löscht Subtitle-Sidecars ohne Video auf Disk" },
-      "orphan_db": { "label": "DB-Bereinigung", "desc": "Entfernt DB-Einträge ohne Datei auf Disk" }
+      "language_filter": {
+        "label": "Sprach-Filter",
+        "desc": "Löscht Sidecars in nicht erlaubten Sprachen"
+      },
+      "format_upgrade": {
+        "label": "Format-Upgrade",
+        "desc": "Löscht SRT wenn ASS für gleiche Episode existiert"
+      },
+      "orphan_files": {
+        "label": "Verwaiste Dateien",
+        "desc": "Löscht Subtitle-Sidecars ohne Video auf Disk"
+      },
+      "orphan_db": {
+        "label": "DB-Bereinigung",
+        "desc": "Entfernt DB-Einträge ohne Datei auf Disk"
+      }
     }
   },
   "integrations": {
@@ -442,7 +467,26 @@
     "description": "Sprachprofile für die Untertitelsuche und Übersetzung konfigurieren.",
     "forced_subtitles": "Erzwungene Untertitel",
     "translation_backend": "Übersetzungs-Backend",
-    "fallback_chain": "Fallback-Kette"
+    "fallback_chain": "Fallback-Kette",
+    "profile_name": "Profilname",
+    "profile_name_placeholder": "z.B. Deutsch",
+    "add_language": "— Sprache hinzufügen —",
+    "forced_disabled": "Deaktiviert",
+    "forced_separate": "Separat suchen",
+    "forced_auto_detect": "Automatisch erkennen",
+    "forced_scoring": "Forced-Untertitel Wertung",
+    "include": "Einschließen",
+    "prefer": "Bevorzugen",
+    "exclude": "Ausschließen",
+    "only_forced": "Nur Forced",
+    "hi_subtitles": "Hörgeschädigten-Untertitel (HI)",
+    "only_hi": "Nur HI",
+    "no_filter": "Keine — alle Sprachen immer suchen",
+    "set_default": "Als Standard für alle bestehenden und neuen Serien/Filme aktivieren",
+    "edit_profile": "Profil bearbeiten",
+    "delete_profile": "Profil löschen",
+    "target_languages": "Zielsprachen:",
+    "set_default_short": "Als Standard"
   },
   "security": {
     "ui_auth_title": "UI-Authentifizierung",
@@ -575,7 +619,18 @@
     "keep_formats": "Formate behalten",
     "keep_formats_hint": "Kommagetrennte Untertitel-Formate die bei der Bereinigung behalten werden (z.B. ass,srt).",
     "trash_retention": "Papierkorb-Aufbewahrung (Tage)",
-    "trash_retention_hint": "Gelöschte Untertitel für diese Anzahl von Tagen im Papierkorb behalten bevor sie endgültig gelöscht werden."
+    "trash_retention_hint": "Gelöschte Untertitel für diese Anzahl von Tagen im Papierkorb behalten bevor sie endgültig gelöscht werden.",
+    "processing_pipeline": {
+      "heading": "Post-Download Verarbeitung",
+      "common_fixes": "Common Fixes",
+      "hi_removal": "HI-Removal",
+      "credit_removal": "Credit-Removal",
+      "auto_sync": "Auto-Sync",
+      "score_threshold": "Score-Schwelle:",
+      "engine": "Engine:",
+      "fallback": "Fallback:",
+      "no_fallback": "keiner"
+    }
   },
   "scoring_tab": {
     "presets_title": "Schnellstart: Preset anwenden",
@@ -817,27 +872,6 @@
     "url_placeholder": "URL (z.B. http://localhost:8989)",
     "path_mapping_placeholder": "Pfad-Mapping (optional)"
   },
-  "library_sources": {
-    "watched_folders": "Überwachte Ordner",
-    "watcher_watching": "Überwacht",
-    "watcher_stopped": "Gestoppt",
-    "scan_all": "Alle scannen",
-    "scanning": "Scanne…",
-    "add_folder": "Ordner hinzufügen",
-    "last_scan": "Letzter Scan:",
-    "folder_enabled": "Aktiviert",
-    "folder_disabled": "Deaktiviert",
-    "no_folders": "Keine überwachten Ordner konfiguriert. Füge einen Ordner hinzu um Medien zu scannen.",
-    "label_placeholder": "Bezeichnung (optional)",
-    "folder_added": "Ordner hinzugefügt",
-    "folder_add_failed": "Fehler beim Hinzufügen des Ordners",
-    "folder_updated": "Ordner aktualisiert",
-    "folder_update_failed": "Fehler beim Aktualisieren des Ordners",
-    "folder_removed": "Ordner entfernt",
-    "folder_remove_failed": "Fehler beim Entfernen des Ordners",
-    "scan_started": "Scan gestartet",
-    "scan_failed": "Fehler beim Starten des Scans"
-  },
   "connections": {
     "standalone": {
       "status_auto": "Auto-aktiv",
@@ -883,7 +917,25 @@
   },
   "system_hooks_page": {
     "title": "Hooks & Webhooks",
-    "subtitle": "Shell-Hooks und eingehende Webhook-Endpunkte für Sonarr, Radarr und Jellyfin"
+    "subtitle": "Shell-Hooks und eingehende Webhook-Endpunkte für Sonarr, Radarr und Jellyfin",
+    "form": {
+      "name": "Name *",
+      "event": "Event *",
+      "script_path": "Skript-Pfad *"
+    },
+    "action": {
+      "test": "Hook testen",
+      "edit": "Hook bearbeiten",
+      "delete": "Hook löschen"
+    },
+    "confirm_delete_title": "Hook löschen?",
+    "confirm_clear_title": "Alle Hook-Logs löschen?",
+    "logs": {
+      "empty": "Noch keine Hook-Logs.",
+      "timestamp": "Zeitstempel",
+      "event": "Event",
+      "status": "Status"
+    }
   },
   "scheduler": {
     "title": "Scheduler",

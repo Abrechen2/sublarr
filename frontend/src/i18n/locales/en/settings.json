@@ -143,12 +143,25 @@
     "api_key": "Radarr API Key"
   },
   "library_sources": {
-    "standalone_enabled": "Enable Standalone Mode",
-    "tmdb_api_key": "TMDB API Key (Bearer Token)",
-    "tvdb_api_key": "TVDB API Key (Optional)",
-    "tvdb_pin": "TVDB PIN (Optional)",
-    "scan_interval": "Scan Interval (hours, 0=disabled)",
-    "debounce": "File Detection Debounce (seconds)"
+    "watched_folders": "Watched Folders",
+    "watcher_watching": "Watching",
+    "watcher_stopped": "Stopped",
+    "scan_all": "Scan All",
+    "scanning": "Scanning…",
+    "add_folder": "Add Folder",
+    "last_scan": "Last scan:",
+    "folder_enabled": "Enabled",
+    "folder_disabled": "Disabled",
+    "no_folders": "No watched folders configured. Add a folder to start scanning for media.",
+    "label_placeholder": "Label (optional)",
+    "folder_added": "Folder added",
+    "folder_add_failed": "Failed to add folder",
+    "folder_updated": "Folder updated",
+    "folder_update_failed": "Failed to update folder",
+    "folder_removed": "Folder removed",
+    "folder_remove_failed": "Failed to remove folder",
+    "scan_started": "Scan started",
+    "scan_failed": "Failed to start scan"
   },
   "notifications": {
     "on_download": "Notify on Download",
@@ -215,7 +228,7 @@
     "disabled": "Disabled"
   },
   "path_mapping": {
-    "title": "Path Mapping (Remote \u2192 Local)",
+    "title": "Path Mapping (Remote → Local)",
     "remote_path": "Remote Path",
     "local_path": "Local Path",
     "test_title": "Test Path Mapping",
@@ -342,10 +355,22 @@
       "create": "Create"
     },
     "rule_types": {
-      "language_filter": { "label": "Language Filter", "desc": "Deletes sidecars in disallowed languages" },
-      "format_upgrade": { "label": "Format Upgrade", "desc": "Deletes SRT when ASS exists for the same episode" },
-      "orphan_files": { "label": "Orphan Files", "desc": "Deletes subtitle sidecars with no video on disk" },
-      "orphan_db": { "label": "DB Cleanup", "desc": "Removes DB entries with no file on disk" }
+      "language_filter": {
+        "label": "Language Filter",
+        "desc": "Deletes sidecars in disallowed languages"
+      },
+      "format_upgrade": {
+        "label": "Format Upgrade",
+        "desc": "Deletes SRT when ASS exists for the same episode"
+      },
+      "orphan_files": {
+        "label": "Orphan Files",
+        "desc": "Deletes subtitle sidecars with no video on disk"
+      },
+      "orphan_db": {
+        "label": "DB Cleanup",
+        "desc": "Removes DB entries with no file on disk"
+      }
     }
   },
   "integrations": {
@@ -440,9 +465,28 @@
   "language_profiles": {
     "title": "Language Profiles",
     "description": "Configure language profiles for subtitle search and translation.",
-    "forced_subtitles": "Forced Subtitles",
+    "forced_subtitles": "Forced subtitles",
     "translation_backend": "Translation Backend",
-    "fallback_chain": "Fallback Chain"
+    "fallback_chain": "Fallback Chain",
+    "profile_name": "Profile name",
+    "profile_name_placeholder": "e.g. German",
+    "add_language": "— Add language —",
+    "forced_disabled": "Disabled",
+    "forced_separate": "Search separately",
+    "forced_auto_detect": "Auto-detect",
+    "forced_scoring": "Forced subtitle scoring",
+    "include": "Include",
+    "prefer": "Prefer",
+    "exclude": "Exclude",
+    "only_forced": "Only forced",
+    "hi_subtitles": "Hearing-impaired subtitles (HI)",
+    "only_hi": "Only HI",
+    "no_filter": "None — always search all languages",
+    "set_default": "Enable as default for all existing and new series/movies",
+    "edit_profile": "Edit profile",
+    "delete_profile": "Delete profile",
+    "target_languages": "Target languages:",
+    "set_default_short": "Set default"
   },
   "security": {
     "ui_auth_title": "UI Authentication",
@@ -575,7 +619,18 @@
     "keep_formats": "Keep Formats",
     "keep_formats_hint": "Comma-separated subtitle formats to keep during cleanup (e.g. ass,srt).",
     "trash_retention": "Trash Retention (days)",
-    "trash_retention_hint": "Keep deleted subtitles in trash for this many days before permanent removal."
+    "trash_retention_hint": "Keep deleted subtitles in trash for this many days before permanent removal.",
+    "processing_pipeline": {
+      "heading": "Post-Download Processing",
+      "common_fixes": "Common Fixes",
+      "hi_removal": "HI Removal",
+      "credit_removal": "Credit Removal",
+      "auto_sync": "Auto-Sync",
+      "score_threshold": "Score threshold:",
+      "engine": "Engine:",
+      "fallback": "Fallback:",
+      "no_fallback": "none"
+    }
   },
   "scoring_tab": {
     "presets_title": "Quick Start: Apply a Preset",
@@ -817,27 +872,6 @@
     "url_placeholder": "URL (e.g. http://localhost:8989)",
     "path_mapping_placeholder": "Path Mapping (optional)"
   },
-  "library_sources": {
-    "watched_folders": "Watched Folders",
-    "watcher_watching": "Watching",
-    "watcher_stopped": "Stopped",
-    "scan_all": "Scan All",
-    "scanning": "Scanning…",
-    "add_folder": "Add Folder",
-    "last_scan": "Last scan:",
-    "folder_enabled": "Enabled",
-    "folder_disabled": "Disabled",
-    "no_folders": "No watched folders configured. Add a folder to start scanning for media.",
-    "label_placeholder": "Label (optional)",
-    "folder_added": "Folder added",
-    "folder_add_failed": "Failed to add folder",
-    "folder_updated": "Folder updated",
-    "folder_update_failed": "Failed to update folder",
-    "folder_removed": "Folder removed",
-    "folder_remove_failed": "Failed to remove folder",
-    "scan_started": "Scan started",
-    "scan_failed": "Failed to start scan"
-  },
   "connections": {
     "standalone": {
       "status_auto": "Auto-active",
@@ -894,7 +928,25 @@
   },
   "system_hooks_page": {
     "title": "Hooks & Webhooks",
-    "subtitle": "Shell hooks and incoming webhook endpoints for Sonarr, Radarr and Jellyfin"
+    "subtitle": "Shell hooks and incoming webhook endpoints for Sonarr, Radarr and Jellyfin",
+    "form": {
+      "name": "Name *",
+      "event": "Event *",
+      "script_path": "Script path *"
+    },
+    "action": {
+      "test": "Test hook",
+      "edit": "Edit hook",
+      "delete": "Delete hook"
+    },
+    "confirm_delete_title": "Delete hook?",
+    "confirm_clear_title": "Clear all hook logs?",
+    "logs": {
+      "empty": "No hook logs yet.",
+      "timestamp": "Timestamp",
+      "event": "Event",
+      "status": "Status"
+    }
   },
   "scheduler": {
     "title": "Scheduler",

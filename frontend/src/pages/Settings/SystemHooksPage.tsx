@@ -110,7 +110,7 @@ function HookFormModal({
         </div>
 
         <div className="flex gap-2 justify-end pt-1">
-          <button className="btn-secondary text-sm" onClick={onCancel}>Cancel</button>
+          <button className="btn-secondary text-sm" onClick={onCancel}>{tc('actions.cancel')}</button>
           <button
             className="btn-primary text-sm"
             onClick={() => onSave(form)}
@@ -206,7 +206,7 @@ function OutgoingHooksSection() {
           </div>
           <div className="flex items-center gap-1.5">
             <button
-              title="Test hook"
+              title={t('system_hooks_page.action.test')}
               onClick={() => handleTest(hook.id)}
               className="p-1.5 rounded"
               style={{ color: 'var(--text-muted)', border: '1px solid var(--border)' }}
@@ -215,7 +215,7 @@ function OutgoingHooksSection() {
               <TestTube size={13} />
             </button>
             <button
-              title="Edit hook"
+              title={t('system_hooks_page.action.edit')}
               onClick={() => { setEditingHook(hook); setShowModal(true) }}
               className="p-1.5 rounded"
               style={{ color: 'var(--text-muted)', border: '1px solid var(--border)' }}
@@ -224,7 +224,7 @@ function OutgoingHooksSection() {
               <Edit2 size={13} />
             </button>
             <button
-              title="Delete hook"
+              title={t('system_hooks_page.action.delete')}
               onClick={() => setDeleteConfirmId(hook.id)}
               className="p-1.5 rounded"
               style={{ color: 'var(--error)', border: '1px solid var(--border)' }}
@@ -257,10 +257,10 @@ function OutgoingHooksSection() {
             className="w-full max-w-sm mx-4 rounded-xl p-5 space-y-4"
             style={{ backgroundColor: 'var(--bg-surface)', border: '1px solid var(--border)' }}
           >
-            <h3 className="font-semibold text-sm" style={{ color: 'var(--text-primary)' }}>Delete hook?</h3>
-            <p className="text-xs" style={{ color: 'var(--text-muted)' }}>This cannot be undone.</p>
+            <h3 className="font-semibold text-sm" style={{ color: 'var(--text-primary)' }}>{t('system_hooks_page.confirm_delete_title')}</h3>
+            <p className="text-xs" style={{ color: 'var(--text-muted)' }}>{tc('common.undo_warning')}</p>
             <div className="flex gap-2 justify-end">
-              <button className="btn-secondary text-sm" onClick={() => setDeleteConfirmId(null)}>Cancel</button>
+              <button className="btn-secondary text-sm" onClick={() => setDeleteConfirmId(null)}>{tc('actions.cancel')}</button>
               <button
                 className="text-sm px-3 py-1.5 rounded"
                 style={{ backgroundColor: 'var(--error)', color: 'white', border: 'none', cursor: 'pointer' }}
@@ -305,16 +305,16 @@ function HookLogsSection() {
       </div>
 
       {logList.length === 0 ? (
-        <div className="text-center py-6 text-sm" style={{ color: 'var(--text-muted)' }}>No hook logs yet.</div>
+        <div className="text-center py-6 text-sm" style={{ color: 'var(--text-muted)' }}>{t('system_hooks_page.logs.empty')}</div>
       ) : (
         <div className="overflow-x-auto rounded-lg" style={{ border: '1px solid var(--border)' }}>
           <table className="w-full text-xs">
             <thead>
               <tr style={{ backgroundColor: 'var(--bg-surface-hover)', color: 'var(--text-muted)' }}>
-                <th className="px-3 py-2 text-left">Timestamp</th>
+                <th className="px-3 py-2 text-left">{t('system_hooks_page.logs.timestamp')}</th>
                 <th className="px-3 py-2 text-left">Hook</th>
-                <th className="px-3 py-2 text-left">Event</th>
-                <th className="px-3 py-2 text-left">Status</th>
+                <th className="px-3 py-2 text-left">{t('system_hooks_page.logs.event')}</th>
+                <th className="px-3 py-2 text-left">{t('system_hooks_page.logs.status')}</th>
               </tr>
             </thead>
             <tbody>
@@ -348,10 +348,10 @@ function HookLogsSection() {
             className="w-full max-w-sm mx-4 rounded-xl p-5 space-y-4"
             style={{ backgroundColor: 'var(--bg-surface)', border: '1px solid var(--border)' }}
           >
-            <h3 className="font-semibold text-sm" style={{ color: 'var(--text-primary)' }}>Clear all hook logs?</h3>
-            <p className="text-xs" style={{ color: 'var(--text-muted)' }}>This cannot be undone.</p>
+            <h3 className="font-semibold text-sm" style={{ color: 'var(--text-primary)' }}>{t('system_hooks_page.confirm_clear_title')}</h3>
+            <p className="text-xs" style={{ color: 'var(--text-muted)' }}>{tc('common.undo_warning')}</p>
             <div className="flex gap-2 justify-end">
-              <button className="btn-secondary text-sm" onClick={() => setShowClearConfirm(false)}>Cancel</button>
+              <button className="btn-secondary text-sm" onClick={() => setShowClearConfirm(false)}>{tc('actions.cancel')}</button>
               <button
                 className="text-sm px-3 py-1.5 rounded"
                 style={{ backgroundColor: 'var(--error)', color: 'white', border: 'none', cursor: 'pointer' }}
@@ -434,6 +434,8 @@ function WebhooksSection() {
 // ─── SystemHooksPage ──────────────────────────────────────────────────────────
 
 export function SystemHooksPage() {
+  const { t } = useTranslation('settings')
+  const { t: tc } = useTranslation('common')
   const { t } = useTranslation('settings')
   const { t: tCommon } = useTranslation('common')
 

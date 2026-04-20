@@ -399,5 +399,8 @@
       "format_naming": "Format & Naming",
       "scheduler": "Scheduler"
     }
+  },
+  "common": {
+    "undo_warning": "This cannot be undone."
   }
 }
