@@ -56,7 +56,10 @@ jobs:
               }],
           }
 
-          data = json.dumps(payload).encode()
+          # ensure_ascii=False keeps em-dashes / emoji / accents as UTF-8
+          # bytes instead of \uXXXX escapes — Discord renders both correctly,
+          # but the raw form is human-readable in webhook delivery logs.
+          data = json.dumps(payload, ensure_ascii=False).encode("utf-8")
           targets = []
           # Prereleases only land in #changelog; final releases land in both.
           if os.environ.get("WEBHOOK_CHANGELOG"):
@@ -75,7 +78,7 @@ jobs:
                   data=data,
                   method="POST",
                   headers={
-                      "Content-Type": "application/json",
+                      "Content-Type": "application/json; charset=utf-8",
                       # Cloudflare in front of discord.com blocks the default
                       # Python-urllib UA with HTTP 403 / code 1010.
                       "User-Agent": (
