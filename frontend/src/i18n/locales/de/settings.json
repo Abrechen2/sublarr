@@ -1091,5 +1091,30 @@
     "dyn_timeout_max": "Dyn. Timeout max. (s)",
     "circuit_breaker_threshold": "Circuit-Breaker Schwelle",
     "circuit_breaker_cooldown": "Circuit-Breaker Cooldown (s)"
+  },
+  "glossary_page": {
+    "title": "Glossar",
+    "max_terms": "Max. Glossar-Einträge",
+    "search_placeholder": "Glossar-Einträge suchen...",
+    "term_placeholder": "z.B. Titan",
+    "notes_placeholder": "Kontext oder Verwendungshinweise",
+    "col_source": "Quelle",
+    "col_target": "Ziel",
+    "col_notes": "Notizen",
+    "col_actions": "Aktionen",
+    "edit_entry": "Eintrag bearbeiten",
+    "delete_entry": "Eintrag löschen"
+  },
+  "events_hooks_page": {
+    "hook_name": "Hook-Name",
+    "select_event": "Event auswählen...",
+    "timeout_seconds": "Timeout (Sekunden)",
+    "webhook_name": "Webhook-Name",
+    "secret_hmac": "Secret (optional, für HMAC-Signierung)",
+    "retries": "Wiederholungen",
+    "col_event": "Event",
+    "col_status": "Status",
+    "col_duration": "Dauer",
+    "no_execution_logs": "Noch keine Ausführungs-Logs."
   }
 }

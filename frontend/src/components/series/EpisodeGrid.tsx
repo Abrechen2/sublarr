@@ -24,10 +24,10 @@ export function EpisodeGridHeader() {
     >
       <span /> {/* checkbox placeholder */}
       <span>#</span>
-      <span>Episode</span>
-      <span>Audio</span>
-      <span>Subtitles</span>
-      <span style={{ textAlign: 'right' }}>Actions</span>
+      <span>{t('episode_ui.col_episode')}</span>
+      <span>{t('episode_ui.col_audio')}</span>
+      <span>{t('episode_ui.col_subtitles')}</span>
+      <span style={{ textAlign: 'right' }}>{t('episode_ui.col_actions')}</span>
     </div>
   )
 }
@@ -113,7 +113,7 @@ export function ScoreCell({ status, score, isSearching }: ScoreCellProps) {
       <span style={{
         fontSize: '10px', fontWeight: 700, padding: '2px 6px', borderRadius: '4px',
         backgroundColor: 'rgba(239,68,68,0.15)', color: 'var(--error)',
-      }}>Missing</span>
+      }}>{t('episode_ui.missing')}</span>
     )
   }
   if (score === null) {
@@ -162,7 +162,7 @@ export function EpisodeInlineActions({
           fontSize: '11px', padding: '3px 10px', borderRadius: '4px', opacity: 0.4,
           backgroundColor: 'var(--bg-elevated)', color: 'var(--text-muted)',
           border: '1px solid var(--border)',
-        }}>Searching…</button>
+        }}>{t('episode_ui.searching_ellipsis')}</button>
       </div>
     )
   }
@@ -175,7 +175,7 @@ export function EpisodeInlineActions({
             fontSize: '11px', fontWeight: 600, padding: '3px 10px', borderRadius: '4px',
             backgroundColor: 'var(--accent)', color: '#fff', border: 'none', cursor: 'pointer',
           }}
-        >Search</button>
+        >{t('episode_ui.search')}</button>
         <button
           onClick={onSkip}
           style={{
@@ -196,7 +196,7 @@ export function EpisodeInlineActions({
             fontSize: '11px', fontWeight: 600, padding: '3px 10px', borderRadius: '4px',
             backgroundColor: 'var(--accent)', color: '#fff', border: 'none', cursor: 'pointer',
           }}
-        >Find Better</button>
+        >{t('episode_ui.find_better')}</button>
         <button
           onClick={onAccept}
           style={{
@@ -204,7 +204,7 @@ export function EpisodeInlineActions({
             backgroundColor: 'transparent', color: 'var(--text-secondary)',
             border: '1px solid var(--border)', cursor: 'pointer',
           }}
-        >Accept</button>
+        >{t('episode_ui.accept')}</button>
       </div>
     )
   }

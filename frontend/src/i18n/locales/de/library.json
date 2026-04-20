@@ -102,7 +102,7 @@
     "ignore_action": "Ignorieren",
     "retry_at": "Retry um",
     "no_match_filters": "Keine Einträge entsprechen den aktuellen Filtern",
-    "no_wanted_items": "Keine gesuchten Einträge \u2014 starte einen Scan um fehlende Untertitel zu erkennen",
+    "no_wanted_items": "Keine gesuchten Einträge — starte einen Scan um fehlende Untertitel zu erkennen",
     "page_of": "Seite {{page}} von {{totalPages}} ({{total}} gesamt)",
     "searching_providers": "Provider werden durchsucht...",
     "no_results_found": "Keine Ergebnisse von Providern gefunden.",
@@ -258,5 +258,27 @@
     "series_settings": "Serieneinstellungen",
     "search_season": "Staffel {{number}} suchen",
     "no_pending_wanted": "Keine ausstehenden Einträge in der Wanted-Liste für diese Serie"
+  },
+  "episode_ui": {
+    "season_select_all": "Alle Episoden dieser Staffel auswählen",
+    "no_subtitle_found": "Kein Untertitel gefunden",
+    "no_file": "Keine Datei",
+    "export_nfo": "NFO-Sidecar exportieren",
+    "preview_subtitle": "Untertitel-Vorschau",
+    "edit_subtitle": "Untertitel bearbeiten",
+    "preview_in_player": "Im Player ansehen",
+    "transcribe_whisper": "Audio via Whisper transkribieren",
+    "detect_op_ed": "OP/ED-Segmente erkennen",
+    "skip_ignored": "Überspringen — als ignoriert markieren",
+    "accept_quality": "Akzeptieren — Qualität ist in Ordnung",
+    "col_episode": "Episode",
+    "col_audio": "Audio",
+    "col_subtitles": "Untertitel",
+    "col_actions": "Aktionen",
+    "missing": "Fehlt",
+    "searching_ellipsis": "Suche…",
+    "search": "Suchen",
+    "find_better": "Besseres finden",
+    "accept": "Akzeptieren"
   }
 }

@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react'
+import { useTranslation } from 'react-i18next'
 import { Loader2, Plus, Edit2, Trash2, Check, X, BookOpen, Search, Download } from 'lucide-react'
 import { toast } from '@/components/shared/Toast'
 import { SettingRow } from '@/components/shared/SettingRow'
@@ -10,7 +11,7 @@ import {
 
 // ─── Global Glossary Panel ──────────────────────────────────────────────────
 
-export function GlobalGlossaryPanel() {
+  const { t } = useTranslation('settings')
   const { data, isLoading } = useGlobalGlossaryEntries()
   const createEntry = useCreateGlossaryEntry()
   const updateEntry = useUpdateGlossaryEntry()
@@ -186,7 +187,7 @@ export function GlobalGlossaryPanel() {
         style={{ backgroundColor: 'var(--bg-surface)', border: '1px solid var(--border)' }}
       >
         <SettingRow
-          label="Glossary"
+          label={t('glossary_page.title')}
           helpText="Inject per-series glossary terms into LLM translation prompts for consistent proper noun handling."
         >
           <Toggle
@@ -196,7 +197,7 @@ export function GlobalGlossaryPanel() {
           />
         </SettingRow>
         <SettingRow
-          label="Max Glossary Terms"
+          label={t('glossary_page.max_terms')}
           helpText="Maximum number of glossary terms injected per translation request."
           advanced
         >
@@ -231,7 +232,7 @@ export function GlobalGlossaryPanel() {
           <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2" style={{ color: 'var(--text-muted)' }} />
           <input
             type="text"
-            placeholder="Search glossary entries..."
+            placeholder={t('glossary_page.search_placeholder')}
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             className="w-full pl-9 pr-3 py-2 rounded-md text-sm"
@@ -260,7 +261,7 @@ export function GlobalGlossaryPanel() {
               </label>
               <input
                 type="text"
-                placeholder="e.g. Titan"
+                placeholder={t('glossary_page.term_placeholder')}
                 value={formData.source_term}
                 onChange={(e) => setFormData((f) => ({ ...f, source_term: e.target.value }))}
                 className="w-full px-3 py-2 rounded-md text-sm"
@@ -277,7 +278,7 @@ export function GlobalGlossaryPanel() {
               </label>
               <input
                 type="text"
-                placeholder="e.g. Titan"
+                placeholder={t('glossary_page.term_placeholder')}
                 value={formData.target_term}
                 onChange={(e) => setFormData((f) => ({ ...f, target_term: e.target.value }))}
                 className="w-full px-3 py-2 rounded-md text-sm"
@@ -295,7 +296,7 @@ export function GlobalGlossaryPanel() {
             </label>
             <input
               type="text"
-              placeholder="Context or usage notes"
+              placeholder={t('glossary_page.notes_placeholder')}
               value={formData.notes}
               onChange={(e) => setFormData((f) => ({ ...f, notes: e.target.value }))}
               className="w-full px-3 py-2 rounded-md text-sm"
@@ -345,10 +346,10 @@ export function GlobalGlossaryPanel() {
           <table className="w-full">
             <thead>
               <tr style={{ backgroundColor: 'var(--bg-surface)', borderBottom: '1px solid var(--border)' }}>
-                <th className="text-left text-[10px] font-semibold uppercase tracking-wider px-3 py-2" style={{ color: 'var(--text-muted)' }}>Source</th>
-                <th className="text-left text-[10px] font-semibold uppercase tracking-wider px-3 py-2" style={{ color: 'var(--text-muted)' }}>Target</th>
-                <th className="text-left text-[10px] font-semibold uppercase tracking-wider px-3 py-2" style={{ color: 'var(--text-muted)' }}>Notes</th>
-                <th className="text-right text-[10px] font-semibold uppercase tracking-wider px-3 py-2" style={{ color: 'var(--text-muted)' }}>Actions</th>
+                <th className="text-left text-[10px] font-semibold uppercase tracking-wider px-3 py-2" style={{ color: 'var(--text-muted)' }}>{t('glossary_page.col_source')}</th>
+                <th className="text-left text-[10px] font-semibold uppercase tracking-wider px-3 py-2" style={{ color: 'var(--text-muted)' }}>{t('glossary_page.col_target')}</th>
+                <th className="text-left text-[10px] font-semibold uppercase tracking-wider px-3 py-2" style={{ color: 'var(--text-muted)' }}>{t('glossary_page.col_notes')}</th>
+                <th className="text-right text-[10px] font-semibold uppercase tracking-wider px-3 py-2" style={{ color: 'var(--text-muted)' }}>{t('glossary_page.col_actions')}</th>
               </tr>
             </thead>
             <tbody>
@@ -372,7 +373,7 @@ export function GlobalGlossaryPanel() {
                         onClick={() => startEdit(entry)}
                         className="p-1.5 rounded transition-all duration-150"
                         style={{ border: '1px solid var(--border)', color: 'var(--text-secondary)', backgroundColor: 'var(--bg-primary)' }}
-                        title="Edit entry"
+                        title={t('glossary_page.edit_entry')}
                       >
                         <Edit2 size={12} />
                       </button>
@@ -381,7 +382,7 @@ export function GlobalGlossaryPanel() {
                         disabled={deleteEntry.isPending}
                         className="p-1.5 rounded transition-all duration-150"
                         style={{ border: '1px solid var(--border)', color: 'var(--error)', backgroundColor: 'var(--bg-primary)' }}
-                        title="Delete entry"
+                        title={t('glossary_page.delete_entry')}
                       >
                         <Trash2 size={12} />
                       </button>

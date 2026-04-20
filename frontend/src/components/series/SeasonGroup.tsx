@@ -100,16 +100,7 @@ export interface SeasonGroupProps {
 
 // ─── SeasonGroup ──────────────────────────────────────────────────────────────
 
-export function SeasonGroup({
-  season, episodes, targetLanguages, seriesId: _seriesId,
-  isExtracting, onExtract, expandedEp,
-  onSearch, onInteractiveSearch, onHistory: _onHistory, onTracks: _onTracks, onClose,
-  searchResults, searchLoading, historyEntries, historyLoading,
-  onProcess, onPreviewSub, onEditSub, onCompare, onSync, onAutoSync, onVideoSync,
-  onHealthCheck, healthScores, onOpenEditor, sidecarMap, onDeleteSidecar,
-  onOpenCleanupModal, onPreview, streamingEnabled, onRefreshSidecars, t,
-  episodeWantedMap: _episodeWantedMap, onSkipEpisode, onAcceptEpisode,
-}: SeasonGroupProps) {
+  const { t } = useTranslation('library')
   const [expanded, setExpanded] = useState(true)
   const [selectedEpisodes, setSelectedEpisodes] = useState<Set<number>>(new Set())
   const batchTranslateMutation = useBatchTranslate()
@@ -168,7 +159,7 @@ export function SeasonGroup({
               checked={allSelectableIds.length > 0 && selectedEpisodes.size === allSelectableIds.length}
               onChange={() => selectedEpisodes.size === allSelectableIds.length ? clearAll() : selectAll()}
               style={{ accentColor: 'var(--accent)' }}
-              title="Select all episodes in this season"
+              title={t('episode_ui.season_select_all')}
             />
             <span style={{ fontSize: '10px', color: 'var(--text-muted)' }}>All</span>
           </div>
@@ -248,13 +239,13 @@ export function SeasonGroup({
                       </div>
                       <div style={{ fontSize: '11px', marginTop: '2px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                         {status === 'missing' ? (
-                          <span style={{ color: 'var(--error)' }}>No subtitle found</span>
+                          <span style={{ color: 'var(--error)' }}>{t('episode_ui.no_subtitle_found')}</span>
                         ) : ep.file_path ? (
                           <span style={{ color: 'var(--text-muted)' }}>
                             {ep.file_path.split(/[/\\]/).pop() ?? ep.file_path}
                           </span>
                         ) : (
-                          <span style={{ color: 'var(--text-muted)' }}>No file</span>
+                          <span style={{ color: 'var(--text-muted)' }}>{t('episode_ui.no_file')}</span>
                         )}
                       </div>
                     </div>
@@ -321,7 +312,7 @@ export function SeasonGroup({
                                       }}
                                       className="p-0.5 rounded transition-colors"
                                       style={{ color: 'var(--text-muted)', lineHeight: 1 }}
-                                      title="Export NFO sidecar"
+                                      title={t('episode_ui.export_nfo')}
                                     >
                                       <FileCode size={10} />
                                     </button>
@@ -338,7 +329,7 @@ export function SeasonGroup({
                                       onClick={() => onPreviewSub(subPath)}
                                       className="p-0.5 rounded transition-colors"
                                       style={{ color: 'var(--text-muted)' }}
-                                      title="Preview subtitle"
+                                      title={t('episode_ui.preview_subtitle')}
                                       onMouseEnter={(e) => { e.currentTarget.style.color = 'var(--accent)' }}
                                       onMouseLeave={(e) => { e.currentTarget.style.color = 'var(--text-muted)' }}
                                     >
@@ -348,7 +339,7 @@ export function SeasonGroup({
                                       onClick={() => onEditSub(subPath)}
                                       className="p-0.5 rounded transition-colors"
                                       style={{ color: 'var(--text-muted)' }}
-                                      title="Edit subtitle"
+                                      title={t('episode_ui.edit_subtitle')}
                                       onMouseEnter={(e) => { e.currentTarget.style.color = 'var(--accent)' }}
                                       onMouseLeave={(e) => { e.currentTarget.style.color = 'var(--text-muted)' }}
                                     >
@@ -399,7 +390,7 @@ export function SeasonGroup({
                           })()}
                         </>
                       ) : (
-                        <span style={{ fontSize: '10px', color: 'var(--text-muted)' }}>No file</span>
+                        <span style={{ fontSize: '10px', color: 'var(--text-muted)' }}>{t('episode_ui.no_file')}</span>
                       )}
                     </div>
 
@@ -411,7 +402,7 @@ export function SeasonGroup({
                           onClick={() => onPreview(ep)}
                           className="p-1 rounded transition-colors"
                           style={{ color: 'var(--text-muted)' }}
-                          title="Preview in player"
+                          title={t('episode_ui.preview_in_player')}
                           onMouseEnter={(e) => { e.currentTarget.style.color = 'var(--accent)' }}
                           onMouseLeave={(e) => { e.currentTarget.style.color = 'var(--text-muted)' }}
                         >
@@ -423,7 +414,7 @@ export function SeasonGroup({
                         <>
                           <button
                             className="p-1 rounded transition-colors"
-                            title="Transcribe audio to subtitles via Whisper"
+                            title={t('episode_ui.transcribe_whisper')}
                             onClick={() => transcribe.mutate({ filePath: ep.file_path })}
                             disabled={transcribe.isPending}
                             data-testid={`transcribe-btn-${ep.id}`}
@@ -435,7 +426,7 @@ export function SeasonGroup({
                           </button>
                           <button
                             className="p-1 rounded transition-colors"
-                            title="Detect OP/ED segments"
+                            title={t('episode_ui.detect_op_ed')}
                             onClick={() => detectOpEd.mutate(ep.file_path)}
                             disabled={detectOpEd.isPending}
                             data-testid={`detect-oped-btn-${ep.id}`}
@@ -456,7 +447,7 @@ export function SeasonGroup({
                             backgroundColor: 'transparent', color: 'var(--text-secondary)',
                             border: '1px solid var(--border)', cursor: 'pointer',
                           }}
-                          title="Skip — mark as ignored"
+                          title={t('episode_ui.skip_ignored')}
                         >
                           Skip
                         </button>
@@ -470,7 +461,7 @@ export function SeasonGroup({
                             backgroundColor: 'transparent', color: 'var(--text-secondary)',
                             border: '1px solid var(--border)', cursor: 'pointer',
                           }}
-                          title="Accept — I'm ok with this quality"
+                          title={t('episode_ui.accept_quality')}
                         >
                           Accept
                         </button>

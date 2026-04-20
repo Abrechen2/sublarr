@@ -144,14 +144,14 @@ export function EventsHooksTab() {
                 <div className="grid grid-cols-2 gap-2">
                   <input
                     value={hookForm.name} onChange={(e) => setHookForm({ ...hookForm, name: e.target.value })}
-                    placeholder="Hook name"
+                    placeholder={t('events_hooks_page.hook_name')}
                     className="px-2 py-1.5 rounded text-sm" style={{ backgroundColor: 'var(--bg-surface)', border: '1px solid var(--border)', color: 'var(--text-primary)' }}
                   />
                   <select
                     value={hookForm.event_name} onChange={(e) => setHookForm({ ...hookForm, event_name: e.target.value })}
                     className="px-2 py-1.5 rounded text-sm" style={{ backgroundColor: 'var(--bg-surface)', border: '1px solid var(--border)', color: 'var(--text-primary)' }}
                   >
-                    <option value="">Select event...</option>
+                    <option value="">{t('events_hooks_page.select_event')}</option>
                     {events.map((ev) => <option key={ev.name} value={ev.name}>{ev.label}</option>)}
                   </select>
                 </div>
@@ -164,7 +164,7 @@ export function EventsHooksTab() {
                   <input
                     type="number" value={hookForm.timeout_seconds} onChange={(e) => setHookForm({ ...hookForm, timeout_seconds: parseInt(e.target.value) || 30 })}
                     className="w-20 px-2 py-1.5 rounded text-sm text-center" style={{ backgroundColor: 'var(--bg-surface)', border: '1px solid var(--border)', color: 'var(--text-primary)' }}
-                    title="Timeout (seconds)"
+                    title={t('events_hooks_page.timeout_seconds')}
                   />
                 </div>
                 <div className="flex items-center gap-2">
@@ -252,14 +252,14 @@ export function EventsHooksTab() {
                 <div className="grid grid-cols-2 gap-2">
                   <input
                     value={webhookForm.name} onChange={(e) => setWebhookForm({ ...webhookForm, name: e.target.value })}
-                    placeholder="Webhook name"
+                    placeholder={t('events_hooks_page.webhook_name')}
                     className="px-2 py-1.5 rounded text-sm" style={{ backgroundColor: 'var(--bg-surface)', border: '1px solid var(--border)', color: 'var(--text-primary)' }}
                   />
                   <select
                     value={webhookForm.event_name} onChange={(e) => setWebhookForm({ ...webhookForm, event_name: e.target.value })}
                     className="px-2 py-1.5 rounded text-sm" style={{ backgroundColor: 'var(--bg-surface)', border: '1px solid var(--border)', color: 'var(--text-primary)' }}
                   >
-                    <option value="">Select event...</option>
+                    <option value="">{t('events_hooks_page.select_event')}</option>
                     <option value="*">{t('hooks.all_events')}</option>
                     {events.map((ev) => <option key={ev.name} value={ev.name}>{ev.label}</option>)}
                   </select>
@@ -274,7 +274,7 @@ export function EventsHooksTab() {
                     <input
                       type={showWebhookSecret ? 'text' : 'password'}
                       value={webhookForm.secret} onChange={(e) => setWebhookForm({ ...webhookForm, secret: e.target.value })}
-                      placeholder="Secret (optional, for HMAC signing)"
+                      placeholder={t('events_hooks_page.secret_hmac')}
                       className="w-full px-2 py-1.5 rounded text-sm pr-8" style={{ backgroundColor: 'var(--bg-surface)', border: '1px solid var(--border)', color: 'var(--text-primary)' }}
                     />
                     <button onClick={() => setShowWebhookSecret(!showWebhookSecret)} className="absolute right-2 top-1/2 -translate-y-1/2" style={{ color: 'var(--text-muted)' }}>
@@ -284,12 +284,12 @@ export function EventsHooksTab() {
                   <input
                     type="number" value={webhookForm.retry_count} onChange={(e) => setWebhookForm({ ...webhookForm, retry_count: parseInt(e.target.value) || 3 })}
                     className="w-16 px-2 py-1.5 rounded text-sm text-center" style={{ backgroundColor: 'var(--bg-surface)', border: '1px solid var(--border)', color: 'var(--text-primary)' }}
-                    title="Retries"
+                    title={t('events_hooks_page.retries')}
                   />
                   <input
                     type="number" value={webhookForm.timeout_seconds} onChange={(e) => setWebhookForm({ ...webhookForm, timeout_seconds: parseInt(e.target.value) || 10 })}
                     className="w-16 px-2 py-1.5 rounded text-sm text-center" style={{ backgroundColor: 'var(--bg-surface)', border: '1px solid var(--border)', color: 'var(--text-primary)' }}
-                    title="Timeout (seconds)"
+                    title={t('events_hooks_page.timeout_seconds')}
                   />
                 </div>
                 <div className="flex items-center gap-2">
@@ -343,10 +343,10 @@ export function EventsHooksTab() {
                 <thead>
                   <tr style={{ borderBottom: '1px solid var(--border)' }}>
                     <th className="text-left py-1.5 px-2 font-medium" style={{ color: 'var(--text-muted)' }}>Time</th>
-                    <th className="text-left py-1.5 px-2 font-medium" style={{ color: 'var(--text-muted)' }}>Event</th>
+                    <th className="text-left py-1.5 px-2 font-medium" style={{ color: 'var(--text-muted)' }}>{t('events_hooks_page.col_event')}</th>
                     <th className="text-left py-1.5 px-2 font-medium" style={{ color: 'var(--text-muted)' }}>Type</th>
-                    <th className="text-left py-1.5 px-2 font-medium" style={{ color: 'var(--text-muted)' }}>Status</th>
-                    <th className="text-right py-1.5 px-2 font-medium" style={{ color: 'var(--text-muted)' }}>Duration</th>
+                    <th className="text-left py-1.5 px-2 font-medium" style={{ color: 'var(--text-muted)' }}>{t('events_hooks_page.col_status')}</th>
+                    <th className="text-right py-1.5 px-2 font-medium" style={{ color: 'var(--text-muted)' }}>{t('events_hooks_page.col_duration')}</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -390,7 +390,7 @@ export function EventsHooksTab() {
               </table>
             </div>
             {logList.length === 0 && (
-              <p className="text-center text-xs py-4" style={{ color: 'var(--text-muted)' }}>No execution logs yet.</p>
+              <p className="text-center text-xs py-4" style={{ color: 'var(--text-muted)' }}>{t('events_hooks_page.no_execution_logs')}</p>
             )}
           </div>
         )}

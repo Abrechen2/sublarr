@@ -102,7 +102,7 @@
     "ignore_action": "Ignore",
     "retry_at": "Retry at",
     "no_match_filters": "No items match the current filters",
-    "no_wanted_items": "No wanted items \u2014 run a scan to detect missing subtitles",
+    "no_wanted_items": "No wanted items — run a scan to detect missing subtitles",
     "page_of": "Page {{page}} of {{totalPages}} ({{total}} total)",
     "searching_providers": "Searching providers...",
     "no_results_found": "No results found from any provider.",
@@ -258,5 +258,27 @@
     "series_settings": "Series Settings",
     "search_season": "Search Season {{number}}",
     "no_pending_wanted": "No pending wanted items for this series"
+  },
+  "episode_ui": {
+    "season_select_all": "Select all episodes in this season",
+    "no_subtitle_found": "No subtitle found",
+    "no_file": "No file",
+    "export_nfo": "Export NFO sidecar",
+    "preview_subtitle": "Preview subtitle",
+    "edit_subtitle": "Edit subtitle",
+    "preview_in_player": "Preview in player",
+    "transcribe_whisper": "Transcribe audio to subtitles via Whisper",
+    "detect_op_ed": "Detect OP/ED segments",
+    "skip_ignored": "Skip — mark as ignored",
+    "accept_quality": "Accept — I'm ok with this quality",
+    "col_episode": "Episode",
+    "col_audio": "Audio",
+    "col_subtitles": "Subtitles",
+    "col_actions": "Actions",
+    "missing": "Missing",
+    "searching_ellipsis": "Searching…",
+    "search": "Search",
+    "find_better": "Find Better",
+    "accept": "Accept"
   }
 }
