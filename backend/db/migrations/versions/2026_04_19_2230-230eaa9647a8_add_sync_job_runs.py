@@ -15,23 +15,25 @@ depends_on = None
 
 
 def upgrade() -> None:
-    op.create_table(
-        "sync_job_runs",
-        sa.Column("id", sa.Integer, primary_key=True, autoincrement=True),
-        sa.Column("engine", sa.String(length=32), nullable=False),
-        sa.Column("offset_ms", sa.Integer, nullable=True),
-        sa.Column("status", sa.String(length=16), nullable=False),
-        sa.Column("duration_ms", sa.Integer, nullable=False),
-        sa.Column("subtitle_path", sa.Text, nullable=True),
-        sa.Column("video_path", sa.Text, nullable=True),
-        sa.Column("reason", sa.String(length=64), nullable=True),
-        sa.Column(
-            "created_at",
-            sa.DateTime(timezone=True),
-            nullable=False,
-            server_default=sa.func.now(),
-        ),
-    )
+    bind = op.get_bind()
+    if not sa.inspect(bind).has_table("sync_job_runs"):
+        op.create_table(
+            "sync_job_runs",
+            sa.Column("id", sa.Integer, primary_key=True, autoincrement=True),
+            sa.Column("engine", sa.String(length=32), nullable=False),
+            sa.Column("offset_ms", sa.Integer, nullable=True),
+            sa.Column("status", sa.String(length=16), nullable=False),
+            sa.Column("duration_ms", sa.Integer, nullable=False),
+            sa.Column("subtitle_path", sa.Text, nullable=True),
+            sa.Column("video_path", sa.Text, nullable=True),
+            sa.Column("reason", sa.String(length=64), nullable=True),
+            sa.Column(
+                "created_at",
+                sa.DateTime(timezone=True),
+                nullable=False,
+                server_default=sa.func.now(),
+            ),
+        )
     op.create_index(
         "idx_sync_runs_created_at",
         "sync_job_runs",
@@ -47,6 +49,8 @@ def upgrade() -> None:
 
 
 def downgrade() -> None:
-    op.drop_index("idx_sync_runs_engine", table_name="sync_job_runs")
-    op.drop_index("idx_sync_runs_created_at", table_name="sync_job_runs")
-    op.drop_table("sync_job_runs")
+    bind = op.get_bind()
+    if sa.inspect(bind).has_table("sync_job_runs"):
+        op.drop_index("idx_sync_runs_engine", table_name="sync_job_runs")
+        op.drop_index("idx_sync_runs_created_at", table_name="sync_job_runs")
+        op.drop_table("sync_job_runs")

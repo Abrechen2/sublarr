@@ -124,15 +124,17 @@ def test_upgrade_creates_both_tables(migrated_db_engine):
 def test_downgrade_drops_both_tables(migrated_db_engine):
     """Downgrade past scheduler migration drops the scheduler tables; upgrade re-creates them.
 
-    After upgrade to head, we're at the A1 translation_events migration. To verify
-    the scheduler migration's downgrade works, we must downgrade twice: once past
-    the A1 migration, then past the scheduler migration itself.
+    After upgrade to head, the DB is at the latest revision. To verify the
+    scheduler migration's downgrade works, we downgrade to ``PREVIOUS_HEAD``
+    (the revision preceding scheduler_infrastructure) — this walks past every
+    intermediate migration added after it (A1 translation_events, blacklist
+    file_hash, post_processing_runs, sync_job_runs, …) without the test
+    needing to track how many there are.
     """
     from alembic import command
 
     cfg = _alembic_config(str(migrated_db_engine.url))
-    # Downgrade -2 to drop both A1 + scheduler migrations
-    command.downgrade(cfg, "-2")
+    command.downgrade(cfg, PREVIOUS_HEAD)
     insp = sa.inspect(migrated_db_engine)
     assert "scheduler_job_runs" not in insp.get_table_names()
     assert "apscheduler_jobs" not in insp.get_table_names()
