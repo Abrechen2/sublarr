@@ -295,5 +295,16 @@
     "col_actions": "Actions",
     "action_edit": "Edit",
     "action_delete": "Delete"
+  },
+  "processing_override": {
+    "global_default": "Global (default)",
+    "enabled": "Enabled",
+    "disabled": "Disabled",
+    "title": "Processing Override"
+  },
+  "episode_action_menu": {
+    "more_actions": "More actions",
+    "timing": "Timing",
+    "analyse": "Analyse"
   }
 }

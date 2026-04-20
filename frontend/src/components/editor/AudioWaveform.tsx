@@ -192,7 +192,7 @@ export function AudioWaveform({
   if (!videoPath) {
     return (
       <div className={`flex items-center justify-center h-48 bg-gray-900 rounded ${className}`}>
-        <p className="text-gray-500">No video file selected</p>
+        <p className="text-gray-500">{t('audio_waveform.no_video')}</p>
       </div>
     )
   }
@@ -201,7 +201,7 @@ export function AudioWaveform({
     return (
       <div className={`flex items-center justify-center h-48 bg-gray-900 rounded ${className}`}>
         <Loader2 className="w-8 h-8 animate-spin text-teal-500" />
-        <span className="ml-2 text-gray-400">Generating waveform...</span>
+        <span className="ml-2 text-gray-400">{t('audio_waveform.generating')}</span>
       </div>
     )
   }
@@ -209,7 +209,7 @@ export function AudioWaveform({
   if (error) {
     return (
       <div className={`flex items-center justify-center h-48 bg-gray-900 rounded ${className}`}>
-        <p className="text-red-500">Failed to load waveform</p>
+        <p className="text-red-500">{t('audio_waveform.load_failed')}</p>
       </div>
     )
   }
@@ -217,7 +217,7 @@ export function AudioWaveform({
   if (!waveformData) {
     return (
       <div className={`flex items-center justify-center h-48 bg-gray-900 rounded ${className}`}>
-        <p className="text-gray-500">No waveform data available</p>
+        <p className="text-gray-500">{t('audio_waveform.no_data')}</p>
       </div>
     )
   }

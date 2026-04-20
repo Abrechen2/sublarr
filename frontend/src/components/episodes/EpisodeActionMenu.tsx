@@ -143,7 +143,7 @@ export function EpisodeActionMenu({
           onClick={() => setDropdownOpen((v) => !v)}
           className={iconBtn}
           style={{ color: dropdownOpen ? accent : muted, backgroundColor: dropdownOpen ? accentBg : '' }}
-          title="More actions"
+          title={t('episode_action_menu.more_actions')}
           onMouseEnter={(e) => { e.currentTarget.style.color = accent; e.currentTarget.style.backgroundColor = accentBg }}
           onMouseLeave={(e) => { e.currentTarget.style.color = dropdownOpen ? accent : muted; e.currentTarget.style.backgroundColor = dropdownOpen ? accentBg : '' }}
         >
@@ -176,7 +176,7 @@ export function EpisodeActionMenu({
             {/* Divider: Timing group */}
             {hasAnySub && firstSubPath && (
               <>
-                <DropdownDivider label="Timing" />
+                <DropdownDivider label={t('episode_action_menu.timing')} />
                 <DropdownItem
                   icon={<Timer size={13} />}
                   label={t('episode_actions.sync_timing')}
@@ -198,7 +198,7 @@ export function EpisodeActionMenu({
             {/* Divider: Analysis group */}
             {ep.has_file && (
               <>
-                <DropdownDivider label="Analyse" />
+                <DropdownDivider label={t('episode_action_menu.analyse')} />
                 {hasAnySub && firstSubPath && (
                   <DropdownItem
                     icon={<ShieldCheck size={13} />}

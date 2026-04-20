@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import { Settings2 } from 'lucide-react'
 import { updateSeriesProcessingConfig } from '@/api/client'
 import { toast } from '@/components/shared/Toast'
@@ -41,9 +42,9 @@ function OverrideSelect({
       }}
       className="text-xs bg-zinc-800 border border-zinc-700 rounded px-2 py-1 text-zinc-200"
     >
-      <option value="global">Global (Standard)</option>
-      <option value="on">Aktiviert</option>
-      <option value="off">Deaktiviert</option>
+      <option value="global">{t('processing_override.global_default')}</option>
+      <option value="on">{t('processing_override.enabled')}</option>
+      <option value="off">{t('processing_override.disabled')}</option>
     </select>
   )
 }
@@ -77,7 +78,7 @@ export function SeriesProcessingOverride({ seriesId, initialConfig }: Props) {
         className="flex items-center gap-2 w-full px-3 py-2 text-sm text-zinc-300 hover:bg-zinc-800"
       >
         <Settings2 size={14} />
-        <span>Processing Override</span>
+        <span>{t('processing_override.title')}</span>
       </button>
 
       {expanded && (

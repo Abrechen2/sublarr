@@ -54,5 +54,27 @@
     "modified": "Modified",
     "accept": "Accept",
     "diff_view": "Diff View"
+  },
+  "audio_waveform": {
+    "no_video": "No video file selected",
+    "generating": "Generating waveform...",
+    "load_failed": "Failed to load waveform",
+    "no_data": "No waveform data available"
+  },
+  "sync_preview": {
+    "before_start": "Before Start",
+    "before_end": "Before End",
+    "after_start": "After Start",
+    "after_end": "After End"
+  },
+  "comparison": {
+    "loading": "Loading comparison...",
+    "load_failed": "Failed to load comparison data",
+    "close": "Close comparison"
+  },
+  "editor_modal": {
+    "title": "Subtitle Editor",
+    "auto_sync_tooltip": "Auto-sync subtitle timing with alass/ffsubsync",
+    "close_esc": "Close (Esc)"
   }
 }

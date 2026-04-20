@@ -1163,5 +1163,23 @@
     "max_retries": "Max. Wiederholungen (0–5)",
     "temperature": "Temperatur (0.0–1.0)",
     "batch_size": "Batch-Größe (Zeilen)"
+  },
+  "connections_media_servers": {
+    "api_key": "API-Key",
+    "sonarr": "Sonarr",
+    "radarr": "Radarr",
+    "title": "Media-Server"
+  },
+  "connections_metadata": {
+    "tmdb_placeholder": "TMDB v3 API-Key eingeben",
+    "tvdb_placeholder": "TheTVDB v4 API-Key eingeben",
+    "subscriber_pin": "Optionale Abonnenten-PIN",
+    "title": "Metadaten-API-Keys"
+  },
+  "marketplace_tab": {
+    "search_placeholder": "Plugins suchen...",
+    "refresh_github": "Von GitHub aktualisieren",
+    "view_on_github": "Auf GitHub ansehen",
+    "no_plugins": "Keine Plugins gefunden."
   }
 }

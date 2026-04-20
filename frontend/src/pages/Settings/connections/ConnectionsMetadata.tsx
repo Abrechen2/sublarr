@@ -8,6 +8,7 @@
  * Note: ffmpeg_timeout was moved to Automation → Search & Scan (Advanced).
  */
 import { useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import { Database } from 'lucide-react'
 import { Eye, EyeOff } from 'lucide-react'
 import { toast } from '@/components/shared/Toast'
@@ -85,7 +86,7 @@ function MetadataApiKeysSection() {
             type={showTmdb ? 'text' : 'password'}
             value={tmdbKey}
             onChange={(e) => setTmdbKey(e.target.value)}
-            placeholder="Enter TMDB v3 API key"
+            placeholder={t('connections_metadata.tmdb_placeholder')}
             className="focus:outline-none"
             style={{ ...inputStyle, width: '260px' }}
           />
@@ -123,7 +124,7 @@ function MetadataApiKeysSection() {
             type={showTvdb ? 'text' : 'password'}
             value={tvdbKey}
             onChange={(e) => setTvdbKey(e.target.value)}
-            placeholder="Enter TheTVDB v4 API key"
+            placeholder={t('connections_metadata.tvdb_placeholder')}
             className="focus:outline-none"
             style={{ ...inputStyle, width: '260px' }}
           />
@@ -161,7 +162,7 @@ function MetadataApiKeysSection() {
             type={showPin ? 'text' : 'password'}
             value={tvdbPin}
             onChange={(e) => setTvdbPin(e.target.value)}
-            placeholder="Optional subscriber PIN"
+            placeholder={t('connections_metadata.subscriber_pin')}
             className="focus:outline-none"
             style={{ ...inputStyle, width: '260px' }}
           />
@@ -224,10 +225,10 @@ function MetadataApiKeysSection() {
 
 // ─── MetadataSectionWrapper (exported) ──────────────────────────────────────
 
-export function MetadataSectionWrapper() {
+  const { t } = useTranslation('settings')
   return (
     <SettingsSection
-      title="Metadata API Keys"
+      title={t('connections_metadata.title')}
       description="API keys for metadata providers (TMDB, TheTVDB)"
       icon={<Database size={16} style={{ color: 'var(--accent)' }} />}
     >

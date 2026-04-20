@@ -240,7 +240,7 @@ function InstanceCard({
             type={showKey ? 'text' : 'password'}
             value={inst.api_key}
             onChange={(e) => onApiKeyChange(e.target.value)}
-            placeholder="API Key"
+            placeholder={t('connections_media_servers.api_key')}
             className="flex-1 focus:outline-none"
             style={inputStyle}
           />
@@ -587,7 +587,7 @@ export function SonarrSection() {
   return (
     <SettingsSection
       data-testid="sonarr-section"
-      title="Sonarr"
+      title={t('connections_media_servers.sonarr')}
       description={t('connections.sonarr.section_desc')}
       icon={<Link size={16} style={{ color: 'var(--accent)' }} />}
     >
@@ -603,7 +603,7 @@ export function RadarrSection() {
   return (
     <SettingsSection
       data-testid="radarr-section"
-      title="Radarr"
+      title={t('connections_media_servers.radarr')}
       description={t('connections.radarr.section_desc')}
       icon={<PlugZap size={16} style={{ color: 'var(--accent)' }} />}
     >
@@ -619,7 +619,7 @@ export function MediaServersSection() {
   return (
     <SettingsSection
       data-testid="media-servers-section"
-      title="Media Servers"
+      title={t('connections_media_servers.title')}
       description={t('connections.media_servers.section_desc')}
       icon={<Server size={16} style={{ color: 'var(--accent)' }} />}
     >

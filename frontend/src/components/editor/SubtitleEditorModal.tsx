@@ -199,7 +199,7 @@ export default function SubtitleEditorModal({
       <div
         role="dialog"
         aria-modal="true"
-        aria-label="Subtitle Editor"
+        aria-label={t('editor_modal.title')}
         className="w-[92vw] h-[88vh] max-w-7xl rounded-lg overflow-hidden flex flex-col"
         style={{
           backgroundColor: 'var(--bg-surface)',
@@ -246,7 +246,7 @@ export default function SubtitleEditorModal({
               color: 'var(--text-secondary)',
               border: '1px solid var(--border)',
             }}
-            title="Auto-sync subtitle timing with alass/ffsubsync"
+            title={t('editor_modal.auto_sync_tooltip')}
           >
             {syncLoading
               ? <Loader2 size={12} className="animate-spin" />
@@ -279,7 +279,7 @@ export default function SubtitleEditorModal({
               onClick={handleClose}
               className="p-1 rounded transition-colors"
               style={{ color: 'var(--text-muted)' }}
-              title="Close (Esc)"
+              title={t('editor_modal.close_esc')}
               onMouseEnter={(e) => { e.currentTarget.style.color = 'var(--error)' }}
               onMouseLeave={(e) => { e.currentTarget.style.color = 'var(--text-muted)' }}
             >

@@ -6,6 +6,7 @@
  */
 
 import { useEffect, useRef, useCallback } from 'react'
+import { useTranslation } from 'react-i18next'
 import { X, Loader2, AlertCircle } from 'lucide-react'
 import { useCompareSubtitles } from '@/hooks/useApi'
 import { ComparisonPanel } from './ComparisonPanel'
@@ -66,7 +67,7 @@ export function SubtitleComparison({ filePaths, onClose }: SubtitleComparisonPro
           style={{ color: 'var(--text-muted)' }}
         >
           <Loader2 size={20} className="animate-spin" />
-          <span className="text-sm">Loading comparison...</span>
+          <span className="text-sm">{t('comparison.loading')}</span>
         </div>
       </div>
     )
@@ -82,7 +83,7 @@ export function SubtitleComparison({ filePaths, onClose }: SubtitleComparisonPro
           style={{ color: 'var(--text-muted)' }}
         >
           <AlertCircle size={28} style={{ color: 'var(--error)' }} />
-          <p className="text-sm">Failed to load comparison data</p>
+          <p className="text-sm">{t('comparison.load_failed')}</p>
           <button
             onClick={() => compareMutation.mutate(filePaths)}
             className="rounded px-4 py-1.5 text-xs font-medium transition-colors"
@@ -151,7 +152,7 @@ function ComparisonHeader({
           onClick={onClose}
           className="rounded p-1.5 transition-colors"
           style={{ color: 'var(--text-muted)' }}
-          title="Close comparison"
+          title={t('comparison.close')}
           onMouseEnter={(e) => {
             e.currentTarget.style.color = 'var(--error)'
             e.currentTarget.style.backgroundColor = 'var(--bg-surface)'

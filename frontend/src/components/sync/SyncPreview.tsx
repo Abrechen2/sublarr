@@ -37,10 +37,10 @@ export function SyncPreview({ events, operation }: SyncPreviewProps) {
           <thead>
             <tr style={{ backgroundColor: 'var(--bg-elevated)', borderBottom: '1px solid var(--border)' }}>
               <th className="text-left text-[10px] font-semibold uppercase tracking-wider px-2 py-1.5" style={{ color: 'var(--text-muted)', width: '40px' }}>#</th>
-              <th className="text-left text-[10px] font-semibold uppercase tracking-wider px-2 py-1.5" style={{ color: 'var(--text-muted)' }}>Before Start</th>
-              <th className="text-left text-[10px] font-semibold uppercase tracking-wider px-2 py-1.5" style={{ color: 'var(--text-muted)' }}>Before End</th>
-              <th className="text-left text-[10px] font-semibold uppercase tracking-wider px-2 py-1.5" style={{ color: 'var(--accent)' }}>After Start</th>
-              <th className="text-left text-[10px] font-semibold uppercase tracking-wider px-2 py-1.5" style={{ color: 'var(--accent)' }}>After End</th>
+              <th className="text-left text-[10px] font-semibold uppercase tracking-wider px-2 py-1.5" style={{ color: 'var(--text-muted)' }}>{t('sync_preview.before_start')}</th>
+              <th className="text-left text-[10px] font-semibold uppercase tracking-wider px-2 py-1.5" style={{ color: 'var(--text-muted)' }}>{t('sync_preview.before_end')}</th>
+              <th className="text-left text-[10px] font-semibold uppercase tracking-wider px-2 py-1.5" style={{ color: 'var(--accent)' }}>{t('sync_preview.after_start')}</th>
+              <th className="text-left text-[10px] font-semibold uppercase tracking-wider px-2 py-1.5" style={{ color: 'var(--accent)' }}>{t('sync_preview.after_end')}</th>
               <th className="text-left text-[10px] font-semibold uppercase tracking-wider px-2 py-1.5" style={{ color: 'var(--text-muted)' }}>Text</th>
             </tr>
           </thead>

@@ -141,5 +141,11 @@
     "ocr_preview": "OCR-Vorschau",
     "extracted_text_lower": "Extrahierter Text:",
     "extracted_text_upper": "Extrahierter Text:"
+  },
+  "episode_search": {
+    "col_provider": "Provider",
+    "col_format": "Format",
+    "col_score": "Score",
+    "col_release": "Release"
   }
 }

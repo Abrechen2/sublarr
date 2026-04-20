@@ -54,5 +54,27 @@
     "modified": "Geändert",
     "accept": "Übernehmen",
     "diff_view": "Diff-Ansicht"
+  },
+  "audio_waveform": {
+    "no_video": "Keine Videodatei ausgewählt",
+    "generating": "Waveform wird erzeugt...",
+    "load_failed": "Waveform konnte nicht geladen werden",
+    "no_data": "Keine Waveform-Daten verfügbar"
+  },
+  "sync_preview": {
+    "before_start": "Vor Start",
+    "before_end": "Vor Ende",
+    "after_start": "Nach Start",
+    "after_end": "Nach Ende"
+  },
+  "comparison": {
+    "loading": "Vergleich wird geladen...",
+    "load_failed": "Vergleichsdaten konnten nicht geladen werden",
+    "close": "Vergleich schließen"
+  },
+  "editor_modal": {
+    "title": "Untertitel-Editor",
+    "auto_sync_tooltip": "Untertitel-Timing automatisch via alass/ffsubsync synchronisieren",
+    "close_esc": "Schließen (Esc)"
   }
 }

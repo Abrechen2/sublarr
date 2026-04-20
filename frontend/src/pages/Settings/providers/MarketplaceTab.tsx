@@ -1,4 +1,5 @@
 import { useState, useCallback } from 'react'
+import { useTranslation } from 'react-i18next'
 import {
   Search, RefreshCw, Download, Trash2, ExternalLink,
   Loader2, Package, ShieldCheck,
@@ -20,7 +21,7 @@ function hasRiskyCapabilities(capabilities: string[]): boolean {
   return capabilities.some((c) => HIGH_RISK.has(c))
 }
 
-export function MarketplaceTab() {
+  const { t } = useTranslation('settings')
   const [search, setSearch] = useState('')
   const [onlyInstalled, setOnlyInstalled] = useState(false)
   const [pendingInstall, setPendingInstall] = useState<MarketplaceBrowsePlugin | null>(null)
@@ -80,7 +81,7 @@ export function MarketplaceTab() {
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
           <input
             type="text"
-            placeholder="Search plugins..."
+            placeholder={t('marketplace_tab.search_placeholder')}
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             className="w-full pl-10 pr-4 py-2 bg-gray-800 border border-gray-700 rounded text-white placeholder-gray-500"
@@ -99,7 +100,7 @@ export function MarketplaceTab() {
           onClick={() => refreshMutation.mutate()}
           disabled={refreshMutation.isPending}
           className="px-3 py-2 bg-gray-700 hover:bg-gray-600 text-white rounded flex items-center gap-2 text-sm disabled:opacity-50"
-          title="Refresh from GitHub"
+          title={t('marketplace_tab.refresh_github')}
         >
           <RefreshCw className={`w-4 h-4 ${refreshMutation.isPending ? 'animate-spin' : ''}`} />
           Refresh
@@ -155,7 +156,7 @@ export function MarketplaceTab() {
                       target="_blank"
                       rel="noopener noreferrer"
                       className="p-1.5 text-gray-400 hover:text-white rounded"
-                      title="View on GitHub"
+                      title={t('marketplace_tab.view_on_github')}
                     >
                       <ExternalLink className="w-4 h-4" />
                     </a>
@@ -189,7 +190,7 @@ export function MarketplaceTab() {
           {filtered.length === 0 && (
             <div className="text-center py-12 text-gray-400">
               <Package className="w-10 h-10 mx-auto mb-3 opacity-40" />
-              <p>No plugins found.</p>
+              <p>{t('marketplace_tab.no_plugins')}</p>
             </div>
           )}
         </div>
