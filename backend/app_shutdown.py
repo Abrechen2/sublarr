@@ -61,6 +61,16 @@ def _register_shutdown_handler(app):
         except Exception:
             pass
 
+        # Plan B6 follow-up — drain the post-processing executor so in-flight
+        # ops (webhooks, plex_refresh, etc.) finish cleanly before process exit.
+        try:
+            from post_processing.pipeline import shutdown_executor
+
+            shutdown_executor(wait=True)
+            logger.info("Post-processing executor shutdown complete")
+        except Exception:
+            logger.debug("post_processing shutdown error", exc_info=True)
+
         logger.info("Graceful shutdown complete")
 
     signal.signal(signal.SIGTERM, _graceful_shutdown)

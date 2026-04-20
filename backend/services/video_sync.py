@@ -73,6 +73,10 @@ def sync_with_ffsubsync(subtitle_path: str, video_path: str) -> dict:
 
     Creates a .bak copy before modifying the subtitle in-place.
 
+    Plan B7.1 follow-up: writes a row to ``sync_job_runs`` on every call
+    (success or failure) so legacy route callers get the same audit trail
+    as orchestrator-based calls.
+
     Returns:
         dict with keys: output_path, shift_ms, engine, backup_path
 
@@ -80,7 +84,29 @@ def sync_with_ffsubsync(subtitle_path: str, video_path: str) -> dict:
         SyncUnavailableError: ffsubsync is not installed
         RuntimeError: ffsubsync exited with a non-zero status
     """
+    import time as _time
+
+    start = _time.monotonic()
+
+    def _audit(status: str, offset_ms: int | None, reason: str = "") -> None:
+        """Write an audit row; never raises."""
+        try:
+            from services.sync_engines.events import write_sync_job_run
+
+            write_sync_job_run(
+                engine="ffsubsync",
+                status=status,
+                offset_ms=offset_ms,
+                duration_ms=int((_time.monotonic() - start) * 1000),
+                subtitle_path=subtitle_path,
+                video_path=video_path,
+                reason=reason,
+            )
+        except Exception as _exc:  # pragma: no cover — defensive
+            logger.debug("sync audit write failed: %s", _exc)
+
     if not (shutil.which("ffsubsync") or _check_module("ffsubsync")):
+        _audit("skipped", None, "unavailable")
         raise SyncUnavailableError(
             "ffsubsync is not installed. Install with: pip install ffsubsync"
         )
@@ -97,15 +123,18 @@ def sync_with_ffsubsync(subtitle_path: str, video_path: str) -> dict:
         result = subprocess.run(cmd, capture_output=True, text=True, timeout=600)
     except subprocess.TimeoutExpired:
         _safe_remove(out_path)
+        _audit("error", None, "timeout 600s")
         raise RuntimeError("ffsubsync timed out after 600s") from None
 
     if result.returncode != 0:
         _safe_remove(out_path)
+        _audit("error", None, (result.stderr or "").strip()[:64] or "non-zero exit")
         raise RuntimeError(f"ffsubsync failed: {result.stderr.strip()}")
 
     shutil.move(out_path, subtitle_path)
     shift_ms = _parse_ffsubsync_shift(result.stderr + result.stdout)
     logger.info("ffsubsync: done, estimated shift %dms", shift_ms)
+    _audit("ok", shift_ms, "")
 
     # Plan B6 — fire after_sync post-processing trigger on the happy path.
     _fire_after_sync_trigger(subtitle_path, video_path, "ffsubsync")
@@ -123,6 +152,10 @@ def sync_with_alass(subtitle_path: str, reference_path: str) -> dict:
 
     Creates a .bak copy before modifying the subtitle in-place.
 
+    Plan B7.1 follow-up: writes a row to ``sync_job_runs`` on every call
+    (success or failure) so legacy route callers get the same audit trail
+    as orchestrator-based calls.
+
     Returns:
         dict with keys: output_path, engine, backup_path
 
@@ -130,7 +163,29 @@ def sync_with_alass(subtitle_path: str, reference_path: str) -> dict:
         SyncUnavailableError: alass is not installed
         RuntimeError: alass exited with a non-zero status
     """
+    import time as _time
+
+    start = _time.monotonic()
+
+    def _audit(status: str, reason: str = "") -> None:
+        """Write an audit row; never raises."""
+        try:
+            from services.sync_engines.events import write_sync_job_run
+
+            write_sync_job_run(
+                engine="alass",
+                status=status,
+                offset_ms=None,  # alass doesn't report shift
+                duration_ms=int((_time.monotonic() - start) * 1000),
+                subtitle_path=subtitle_path,
+                video_path=reference_path,
+                reason=reason,
+            )
+        except Exception as _exc:  # pragma: no cover — defensive
+            logger.debug("sync audit write failed: %s", _exc)
+
     if not shutil.which("alass"):
+        _audit("skipped", "unavailable")
         raise SyncUnavailableError(
             "alass is not installed. Download from: https://github.com/kaegi/alass/releases"
         )
@@ -147,14 +202,17 @@ def sync_with_alass(subtitle_path: str, reference_path: str) -> dict:
         result = subprocess.run(cmd, capture_output=True, text=True, timeout=300)
     except subprocess.TimeoutExpired:
         _safe_remove(out_path)
+        _audit("error", "timeout 300s")
         raise RuntimeError("alass timed out after 300s") from None
 
     if result.returncode != 0:
         _safe_remove(out_path)
+        _audit("error", (result.stderr or "").strip()[:64] or "non-zero exit")
         raise RuntimeError(f"alass failed: {result.stderr.strip()}")
 
     shutil.move(out_path, subtitle_path)
     logger.info("alass: sync complete")
+    _audit("ok", "")
 
     # Plan B6 — fire after_sync post-processing trigger on the happy path.
     _fire_after_sync_trigger(subtitle_path, reference_path, "alass")
