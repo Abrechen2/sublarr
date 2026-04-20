@@ -25,6 +25,8 @@ from __future__ import annotations
 
 import logging
 import re
+import threading
+import time
 from abc import ABC, abstractmethod
 from typing import TYPE_CHECKING, ClassVar
 
@@ -35,6 +37,51 @@ logger = logging.getLogger(__name__)
 
 
 _RULE_REGISTRY: list[type[PenaltyRule]] = []
+
+
+# Plan B4 follow-up — TTL cache for penalty-rule weight overrides.
+# Scoring runs on every provider result; reading ``scoring_weights`` per call
+# hits the DB hard on large searches. Matches the 60 s TTL pattern used by
+# ``providers.base._get_cached_weights``; ``invalidate_penalty_rule_weights_cache()``
+# is called from the scoring config-updated hook.
+_RULE_WEIGHTS_CACHE_TTL = 60  # seconds
+_rule_weights_cache: dict = {"data": None, "expires": 0.0}
+_rule_weights_cache_lock = threading.Lock()
+
+
+def _get_cached_rule_weights() -> dict[str, int]:
+    """Return the current ``{rule_id: weight}`` overrides with 60 s TTL caching.
+
+    Falls back to an empty dict on any DB error so the pipeline stays on its
+    ``default_weight`` path.
+    """
+    with _rule_weights_cache_lock:
+        now = time.time()
+        cached = _rule_weights_cache["data"]
+        if cached is not None and now < _rule_weights_cache["expires"]:
+            return cached
+
+        try:
+            from db.scoring import get_penalty_rule_weights
+
+            weights = get_penalty_rule_weights()
+        except Exception:
+            weights = {}
+
+        _rule_weights_cache["data"] = weights
+        _rule_weights_cache["expires"] = now + _RULE_WEIGHTS_CACHE_TTL
+        return weights
+
+
+def invalidate_penalty_rule_weights_cache() -> None:
+    """Clear the cache so the next pipeline call reloads from the DB.
+
+    Called after ``set_penalty_rule_weight`` so operators see their changes
+    immediately instead of waiting up to 60 s.
+    """
+    with _rule_weights_cache_lock:
+        _rule_weights_cache["data"] = None
+        _rule_weights_cache["expires"] = 0.0
 
 
 class PenaltyRule(ABC):
@@ -90,12 +137,7 @@ def apply_penalty_pipeline(
     """
     breakdown: dict[str, int] = {}
 
-    try:
-        from db.scoring import get_penalty_rule_weights
-
-        overrides = get_penalty_rule_weights()
-    except Exception:
-        overrides = {}
+    overrides = _get_cached_rule_weights()
 
     for rule_cls in _RULE_REGISTRY:
         try:

@@ -98,5 +98,15 @@ def get_penalty_rule_weights() -> dict[str, int]:
 
 
 def set_penalty_rule_weight(rule_id: str, weight: int) -> None:
-    """Upsert a weight override for a single penalty rule."""
-    return _get_repo().set_penalty_rule_weight(rule_id, weight)
+    """Upsert a weight override for a single penalty rule.
+
+    Invalidates the 60 s pipeline cache so the new weight takes effect on
+    the next scoring call instead of waiting for TTL expiry.
+    """
+    _get_repo().set_penalty_rule_weight(rule_id, weight)
+    try:
+        from wanted_search.penalty_rules import invalidate_penalty_rule_weights_cache
+
+        invalidate_penalty_rule_weights_cache()
+    except Exception:
+        pass

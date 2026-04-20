@@ -87,6 +87,65 @@ def test_compute_score_no_double_count_when_matches_set_overlaps():
     assert result.score >= 14
 
 
+def test_pipeline_cache_avoids_repeated_db_reads(app_ctx):
+    """Plan B4 follow-up — apply_penalty_pipeline caches rule weights for 60 s."""
+    from unittest.mock import patch
+
+    from providers.base import SubtitleFormat, SubtitleResult, VideoQuery
+    from wanted_search.penalty_rules import (
+        apply_penalty_pipeline,
+        invalidate_penalty_rule_weights_cache,
+    )
+
+    invalidate_penalty_rule_weights_cache()
+
+    query = VideoQuery(
+        file_path="/m/S01E01.mkv",
+        series_title="X",
+        season=1,
+        episode=1,
+        release_group="GRP",
+        languages=["en"],
+    )
+    result = SubtitleResult(
+        provider_name="p",
+        subtitle_id="1",
+        language="en",
+        release_info="BluRay GRP 1080p",
+        format=SubtitleFormat.SRT,
+    )
+
+    with patch("db.scoring.get_penalty_rule_weights") as mock:
+        mock.return_value = {}
+        # Three back-to-back pipeline calls should read the DB exactly once
+        for _ in range(3):
+            apply_penalty_pipeline(result, query)
+        assert mock.call_count == 1
+
+    # invalidate_penalty_rule_weights_cache triggers a fresh read
+    invalidate_penalty_rule_weights_cache()
+    with patch("db.scoring.get_penalty_rule_weights") as mock:
+        mock.return_value = {"release_group_match": 99}
+        apply_penalty_pipeline(result, query)
+        assert mock.call_count == 1
+
+
+def test_set_penalty_rule_weight_invalidates_pipeline_cache(app_ctx):
+    """Plan B4 follow-up — set_penalty_rule_weight clears the cache."""
+    from unittest.mock import patch
+
+    from db.scoring import set_penalty_rule_weight
+    from wanted_search import penalty_rules as pr_mod
+
+    # Prime the cache
+    pr_mod.invalidate_penalty_rule_weights_cache()
+    pr_mod._get_cached_rule_weights()
+
+    with patch.object(pr_mod, "invalidate_penalty_rule_weights_cache") as mock:
+        set_penalty_rule_weight("release_group_match", 20)
+        assert mock.call_count == 1
+
+
 def test_penalty_rule_weights_db_roundtrip(app_ctx):
     """set_penalty_rule_weight persists, get_penalty_rule_weights reads back."""
     from db.scoring import get_penalty_rule_weights, set_penalty_rule_weight
