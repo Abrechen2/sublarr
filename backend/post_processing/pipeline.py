@@ -6,10 +6,40 @@ import logging
 import time
 from concurrent.futures import ThreadPoolExecutor
 
-from post_processing.base_op import _OP_REGISTRY, OpResult
+from post_processing.base_op import _OP_REGISTRY, BaseOp, OpResult
 from post_processing.events import write_post_processing_run
 
 logger = logging.getLogger(__name__)
+
+
+def _configure_op_instance(instance: BaseOp) -> None:
+    """Populate per-op config fields on ``instance`` before execute().
+
+    Reads the stored values from ``config_entries`` via
+    :func:`post_processing.config_store.get_op_config`, then ``setattr``s
+    each known schema field on the instance. Fields absent from storage
+    keep the class default (typically empty string, which triggers the
+    op's own "not configured" fail-closed branch).
+
+    Never raises — a DB or import failure logs a warning and leaves the
+    instance on its class defaults.
+    """
+    try:
+        from post_processing.config_store import get_op_config
+
+        stored = get_op_config(instance.op_id)
+        for entry in instance.config_schema:
+            field = entry.get("key")
+            if not field:
+                continue
+            if field in stored:
+                setattr(instance, field, stored[field])
+    except Exception as exc:  # pragma: no cover — defensive
+        logger.warning(
+            "_configure_op_instance(%s) failed: %s",
+            getattr(instance, "op_id", "?"),
+            exc,
+        )
 
 
 class PostProcessingPipeline:
@@ -39,7 +69,9 @@ class PostProcessingPipeline:
 
             op_start = time.monotonic()
             try:
-                result = cls().execute(context)
+                instance = cls()
+                _configure_op_instance(instance)
+                result = instance.execute(context)
                 results.append(result)
                 if not result.ok and cls.abort_on_error:
                     logger.info(
