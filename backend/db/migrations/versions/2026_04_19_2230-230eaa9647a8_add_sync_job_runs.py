@@ -50,7 +50,11 @@ def upgrade() -> None:
 
 def downgrade() -> None:
     bind = op.get_bind()
-    if sa.inspect(bind).has_table("sync_job_runs"):
-        op.drop_index("idx_sync_runs_engine", table_name="sync_job_runs")
-        op.drop_index("idx_sync_runs_created_at", table_name="sync_job_runs")
+    insp = sa.inspect(bind)
+    if insp.has_table("sync_job_runs"):
+        existing = {i["name"] for i in insp.get_indexes("sync_job_runs")}
+        if "idx_sync_runs_engine" in existing:
+            op.drop_index("idx_sync_runs_engine", table_name="sync_job_runs")
+        if "idx_sync_runs_created_at" in existing:
+            op.drop_index("idx_sync_runs_created_at", table_name="sync_job_runs")
         op.drop_table("sync_job_runs")

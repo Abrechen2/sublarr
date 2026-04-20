@@ -50,6 +50,9 @@ def downgrade() -> None:
     bind = op.get_bind()
     insp = sa.inspect(bind)
     if insp.has_table("post_processing_runs"):
-        op.drop_index("idx_pp_runs_trigger", table_name="post_processing_runs")
-        op.drop_index("idx_pp_runs_created_at", table_name="post_processing_runs")
+        existing = {i["name"] for i in insp.get_indexes("post_processing_runs")}
+        if "idx_pp_runs_trigger" in existing:
+            op.drop_index("idx_pp_runs_trigger", table_name="post_processing_runs")
+        if "idx_pp_runs_created_at" in existing:
+            op.drop_index("idx_pp_runs_created_at", table_name="post_processing_runs")
         op.drop_table("post_processing_runs")
