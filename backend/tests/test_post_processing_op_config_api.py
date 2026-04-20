@@ -78,8 +78,7 @@ def test_password_mask_on_put_does_not_overwrite_existing(client):
 
     # Real secret is preserved
     assert (
-        get_op_config("discord_notify")["webhook_url"]
-        == "https://discord.com/api/webhooks/42/real"
+        get_op_config("discord_notify")["webhook_url"] == "https://discord.com/api/webhooks/42/real"
     )
 
 

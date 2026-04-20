@@ -112,9 +112,7 @@ def set_op_config(op_id: str, config: dict[str, str]) -> None:
         key = _op_field_key(op_id, field)
         existing = ConfigEntry.query.filter_by(key=key).one_or_none()
         if existing is None:
-            db.session.add(
-                ConfigEntry(key=key, value=str(value), updated_at=now)
-            )
+            db.session.add(ConfigEntry(key=key, value=str(value), updated_at=now))
         else:
             existing.value = str(value)
             existing.updated_at = now

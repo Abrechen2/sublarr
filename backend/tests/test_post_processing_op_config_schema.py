@@ -16,9 +16,7 @@ def _all_ops():
 def test_every_op_declares_config_schema_list():
     for cls in _all_ops():
         assert hasattr(cls, "config_schema"), f"{cls.op_id} missing config_schema"
-        assert isinstance(cls.config_schema, list), (
-            f"{cls.op_id}.config_schema must be a list"
-        )
+        assert isinstance(cls.config_schema, list), f"{cls.op_id}.config_schema must be a list"
 
 
 VALID_TYPES = {"text", "password", "number"}
@@ -44,9 +42,7 @@ def test_op_has_expected_schema_keys(op_id: str, expected_keys: set[str]):
     assert cls is not None, f"op {op_id} not registered"
 
     actual_keys = {entry["key"] for entry in cls.config_schema}
-    assert actual_keys == expected_keys, (
-        f"{op_id}: expected {expected_keys}, got {actual_keys}"
-    )
+    assert actual_keys == expected_keys, f"{op_id}: expected {expected_keys}, got {actual_keys}"
 
 
 def test_every_schema_entry_is_well_formed():
@@ -78,6 +74,4 @@ def test_password_fields_marked_correctly():
         cls = next((c for c in _OP_REGISTRY if c.op_id == op_id), None)
         assert cls is not None
         entry = next(e for e in cls.config_schema if e["key"] == key)
-        assert entry["type"] == "password", (
-            f"{op_id}.{key}: secret must be type=password"
-        )
+        assert entry["type"] == "password", f"{op_id}.{key}: secret must be type=password"
