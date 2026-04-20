@@ -8,7 +8,9 @@ from __future__ import annotations
 
 import logging
 import os
+import threading
 import traceback
+import uuid
 from concurrent.futures import ThreadPoolExecutor
 from concurrent.futures import TimeoutError as FutureTimeoutError
 from dataclasses import dataclass
@@ -156,6 +158,27 @@ def _scheduled_tick(spec_id: str) -> None:
 # Separate registry for one-shot (triggered_by='manual') runs.
 _oneshot_registry: dict[str, tuple[Flask, JobSpec]] = {}
 
+# Serialises every run_now() call — check-then-add of the oneshot_id +
+# presence check against get_jobs() is not atomic at the APScheduler level.
+_run_now_lock = threading.Lock()
+
+# Per-job run locks — held for the duration of a tick. Guarantees that
+# scheduled ticks, manual oneshots, and queued retries for the SAME job
+# never run concurrently, regardless of which APScheduler thread dispatched
+# them. For different jobs the locks are independent so the scheduler pool
+# still gets full parallelism.
+_job_run_locks: dict[str, threading.Lock] = {}
+_job_run_locks_guard = threading.Lock()
+
+
+def _get_job_run_lock(job_id: str) -> threading.Lock:
+    with _job_run_locks_guard:
+        lock = _job_run_locks.get(job_id)
+        if lock is None:
+            lock = threading.Lock()
+            _job_run_locks[job_id] = lock
+        return lock
+
 
 def _scheduled_oneshot_tick(oneshot_id: str) -> None:
     """Dispatcher for run_now one-shot jobs.
@@ -163,14 +186,32 @@ def _scheduled_oneshot_tick(oneshot_id: str) -> None:
     Resolves (app, spec) from _oneshot_registry and invokes _tick_wrapper
     with triggered_by='manual'. After completion, removes the registry
     entry so it doesn't accumulate.
+
+    If the registry is empty (e.g. the process restarted between add_job
+    and fire), we fall back to deriving the parent job_id from the
+    oneshot_id prefix and resolve the spec from _tick_registry. This
+    keeps persisted SQLAlchemyJobStore oneshots survivable across
+    restarts instead of warning-and-skipping.
     """
     app, spec = _oneshot_registry.pop(oneshot_id, (None, None))
     if app is None or spec is None:
-        logger.warning(
-            "scheduler: oneshot %s fired but registry entry missing",
-            oneshot_id,
-        )
-        return
+        # Fallback: parse parent job_id from "<job_id>_oneshot_<ts>"
+        if "_oneshot_" in oneshot_id:
+            parent_id = oneshot_id.split("_oneshot_", 1)[0]
+            registry_entry = _tick_registry.get(parent_id)
+            if registry_entry is not None:
+                app, spec = registry_entry
+                logger.info(
+                    "scheduler: oneshot %s recovered from _tick_registry "
+                    "(post-restart fallback)",
+                    oneshot_id,
+                )
+        if app is None or spec is None:
+            logger.warning(
+                "scheduler: oneshot %s fired but registry entry missing",
+                oneshot_id,
+            )
+            return
     _tick_wrapper(app, spec, triggered_by="manual")()
 
 
@@ -192,6 +233,18 @@ def _tick_wrapper(
     def _runner() -> None:
         import time as _time
 
+        # Per-job lock: same spec.id never fires concurrently even when a
+        # manual oneshot overlaps with a scheduled tick.
+        job_lock = _get_job_run_lock(spec.id)
+        if not job_lock.acquire(blocking=False):
+            logger.info(
+                "scheduler: %s skipped — previous tick still running "
+                "(triggered_by=%s)",
+                spec.id,
+                triggered_by,
+            )
+            return
+
         started_at = datetime.now(UTC)
         started_perf = _time.perf_counter()
         status = "ok"
@@ -199,55 +252,60 @@ def _tick_wrapper(
         error_msg: str | None = None
         finished_at: datetime | None = None
 
-        with app.app_context():
-            try:
-                future = _get_tick_executor().submit(_fn_with_ctx)
-                future.result(timeout=spec.timeout_s)
-            except FutureTimeoutError:
-                status = "timeout"
-                error_type = "TimeoutError"
-                error_msg = f"tick exceeded {spec.timeout_s}s"
-                logger.error(
-                    "scheduler: %s timed out after %ds",
-                    spec.id,
-                    spec.timeout_s,
-                    exc_info=True,
-                )
-            except Exception as exc:
-                status = "error"
-                error_type = type(exc).__name__
-                error_msg = f"{exc}\n{traceback.format_exc()}"
-                logger.error(
-                    "scheduler: %s raised %s",
-                    spec.id,
-                    error_type,
-                    exc_info=True,
-                )
-            finally:
-                finished_at = datetime.now(UTC)
-                # perf_counter() is monotonic + high-resolution, so the
-                # histogram observation survives coarse-grained wall-clock
-                # sources (Windows datetime.now ~15 ms) on short ticks.
-                duration_s = _time.perf_counter() - started_perf
+        try:
+            with app.app_context():
                 try:
-                    from monitoring.metrics import (
-                        scheduler_job_duration_seconds,
-                        scheduler_job_runs_total,
+                    future = _get_tick_executor().submit(_fn_with_ctx)
+                    future.result(timeout=spec.timeout_s)
+                except FutureTimeoutError:
+                    status = "timeout"
+                    error_type = "TimeoutError"
+                    error_msg = f"tick exceeded {spec.timeout_s}s"
+                    logger.error(
+                        "scheduler: %s timed out after %ds",
+                        spec.id,
+                        spec.timeout_s,
+                        exc_info=True,
                     )
+                except Exception as exc:
+                    status = "error"
+                    error_type = type(exc).__name__
+                    error_msg = f"{exc}\n{traceback.format_exc()}"
+                    logger.error(
+                        "scheduler: %s raised %s",
+                        spec.id,
+                        error_type,
+                        exc_info=True,
+                    )
+                finally:
+                    finished_at = datetime.now(UTC)
+                    # perf_counter() is monotonic + high-resolution, so the
+                    # histogram observation survives coarse-grained wall-clock
+                    # sources (Windows datetime.now ~15 ms) on short ticks.
+                    duration_s = _time.perf_counter() - started_perf
+                    try:
+                        from monitoring.metrics import (
+                            scheduler_job_duration_seconds,
+                            scheduler_job_runs_total,
+                        )
 
-                    scheduler_job_runs_total.labels(job_id=spec.id, status=status).inc()
-                    scheduler_job_duration_seconds.labels(job_id=spec.id).observe(duration_s)
-                except Exception:
-                    logger.warning("scheduler: metrics emit failed", exc_info=True)
-                _write_job_run(
-                    job_id=spec.id,
-                    started_at=started_at,
-                    finished_at=finished_at,
-                    status=status,
-                    triggered_by=triggered_by,
-                    error_type=error_type,
-                    error_msg=error_msg,
-                )
+                        scheduler_job_runs_total.labels(job_id=spec.id, status=status).inc()
+                        scheduler_job_duration_seconds.labels(job_id=spec.id).observe(duration_s)
+                    except Exception:
+                        logger.warning("scheduler: metrics emit failed", exc_info=True)
+                    _write_job_run(
+                        job_id=spec.id,
+                        started_at=started_at,
+                        finished_at=finished_at,
+                        status=status,
+                        triggered_by=triggered_by,
+                        error_type=error_type,
+                        error_msg=error_msg,
+                    )
+        finally:
+            # Always release the per-job lock so subsequent ticks (scheduled
+            # or manual) can fire.
+            job_lock.release()
 
     return _runner
 
@@ -484,6 +542,12 @@ class SublarrScheduler:
         Raises:
           JobNotRegisteredError: job_id not in registry
           OneshotAlreadyPendingError: another one-shot is pending/running
+
+        Thread-safe: the entire check-then-add is serialised via
+        ``_run_now_lock`` so two concurrent callers cannot both observe
+        the "no pending oneshot" state and race to register colliding
+        entries. The oneshot id uses a uuid4 suffix to avoid collisions
+        from second-granularity timestamps.
         """
         from apscheduler.triggers.date import DateTrigger
 
@@ -499,28 +563,31 @@ class SublarrScheduler:
         if not scheduler.running:
             scheduler.start(paused=True)
 
-        for j in scheduler.get_jobs():
-            if j.id.startswith(prefix):
-                raise OneshotAlreadyPendingError(f"{job_id} already has a pending one-shot: {j.id}")
+        with _run_now_lock:
+            for j in scheduler.get_jobs():
+                if j.id.startswith(prefix):
+                    raise OneshotAlreadyPendingError(
+                        f"{job_id} already has a pending one-shot: {j.id}"
+                    )
 
-        ts = int(datetime.now(UTC).timestamp())
-        oneshot_id = f"{prefix}{ts}"
+            # uuid4 → 32 hex chars; collision-free under realistic load.
+            oneshot_id = f"{prefix}{uuid.uuid4().hex}"
 
-        # Use textual reference to the top-level dispatcher (picklable),
-        # same pattern as start_registered_jobs. Spec lookup happens at
-        # fire time via _tick_registry — also need to register this
-        # oneshot binding so the dispatcher can resolve it with
-        # triggered_by='manual'.
-        _oneshot_registry[oneshot_id] = (self._app, self._spec_by_id(job_id))
+            # Use textual reference to the top-level dispatcher (picklable),
+            # same pattern as start_registered_jobs. Spec lookup happens at
+            # fire time via _tick_registry — also need to register this
+            # oneshot binding so the dispatcher can resolve it with
+            # triggered_by='manual'.
+            _oneshot_registry[oneshot_id] = (self._app, self._spec_by_id(job_id))
 
-        scheduler.add_job(
-            func="services.scheduler:_scheduled_oneshot_tick",
-            args=[oneshot_id],
-            trigger=DateTrigger(run_date=datetime.now(UTC)),
-            id=oneshot_id,
-            replace_existing=False,
-            max_instances=1,
-        )
+            scheduler.add_job(
+                func="services.scheduler:_scheduled_oneshot_tick",
+                args=[oneshot_id],
+                trigger=DateTrigger(run_date=datetime.now(UTC)),
+                id=oneshot_id,
+                replace_existing=False,
+                max_instances=1,
+            )
         return oneshot_id
 
     def _require_registered(self, job_id: str) -> None:
