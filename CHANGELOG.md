@@ -5,6 +5,11 @@ All notable changes to Sublarr are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.70.1-beta] - 2026-04-20
+
+### Fixed
+- **Plan B6 follow-up — Post-processing ops are now actually configurable.** B6 shipped the curated-ops pipeline with 8 ops, but per-op config (webhook URL, Discord webhook URL, Plex/Emby/Jellyfin base_url + token/api_key) was not yet wired — every configurable op failed at runtime with "not configured". Each op now declares a `config_schema` (field name, label, type, required, default). Config is stored in `config_entries` keyed as `post_processing.op.<op_id>.<field>`. The pipeline calls `_configure_op_instance()` before `execute()` to populate the op's attributes from the DB. New API endpoints `GET/PUT /api/v1/post-processing/ops/<op_id>/config` with password-field masking on GET. Frontend Settings → Post-Processing tab gains a per-op config form. 35 new backend tests + 37 regression tests green.
+
 ## [0.70.0-beta] - 2026-04-19
 
 ### Added
