@@ -11,6 +11,7 @@ interface Props {
 }
 
 export function FilterPresetMenu({ scope, activeFilters, onPresetLoad }: Props) {
+  const { t: tc } = useTranslation('common')
   const { t } = useTranslation('common')
   const [open, setOpen] = useState(false)
   const [saveName, setSaveName] = useState('')

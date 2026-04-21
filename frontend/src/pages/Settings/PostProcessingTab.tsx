@@ -26,6 +26,7 @@ const TRIGGERS: readonly Trigger[] = [
 ] as const
 
 function LoadingState() {
+  const { t } = useTranslation('common')
   return (
     <div className="py-8 text-center text-muted">{t('post_processing_tab.loading')}</div>
   )
@@ -303,7 +304,8 @@ function TriggerSection({ trigger, configured, ops, onChange }: TriggerSectionPr
   )
 }
 
-  const { t } = useTranslation('settings')
+export function PostProcessingTab() {
+  const { t } = useTranslation('settings')
   const qc = useQueryClient()
   const opsQuery = useQuery({
     queryKey: ['post-processing', 'ops'],

@@ -4,6 +4,7 @@
 
 import { Loader2, Check, Eye } from 'lucide-react'
 import type { Chapter } from '@/lib/types'
+import { useTranslation } from 'react-i18next'
 
 function _formatMs(ms: number): string {
   const totalSec = Math.floor(ms / 1000)
@@ -29,7 +30,7 @@ interface ChapterTabProps {
   onCancelConfirm: () => void
 }
 
-  const { t: tc } = useTranslation('common')
+export function ChapterTab({
   chapters,
   selectedChapterId,
   offsetMs,
@@ -42,6 +43,7 @@ interface ChapterTabProps {
   onShowConfirm,
   onCancelConfirm,
 }: ChapterTabProps) {
+  const { t: tc } = useTranslation('common')
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
       <div>

@@ -14,10 +14,10 @@ describe('EpisodeGridHeader', () => {
   it('renders 6 column labels', () => {
     render(<EpisodeGridHeader />)
     expect(screen.getByText('#')).toBeInTheDocument()
-    expect(screen.getByText('Episode')).toBeInTheDocument()
-    expect(screen.getByText('Audio')).toBeInTheDocument()
-    expect(screen.getByText('Subtitles')).toBeInTheDocument()
-    expect(screen.getByText('Actions')).toBeInTheDocument()
+    expect(screen.getByText('col_episode')).toBeInTheDocument()
+    expect(screen.getByText('col_audio')).toBeInTheDocument()
+    expect(screen.getByText('col_subtitles')).toBeInTheDocument()
+    expect(screen.getByText('col_actions')).toBeInTheDocument()
   })
 
   it('uses CSS grid with 6 columns', () => {

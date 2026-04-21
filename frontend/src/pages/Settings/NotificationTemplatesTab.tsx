@@ -412,7 +412,7 @@ function FiltersSection() {
 
 // ─── Main NotificationTemplatesTab ───────────────────────────────────────────
 
-  const { t: tc } = useTranslation('common')
+export function NotificationTemplatesTab() {
   return (
     <div className="space-y-6">
       <NotificationToggles />

@@ -11,7 +11,8 @@ import {
 
 // ─── Global Glossary Panel ──────────────────────────────────────────────────
 
-  const { t } = useTranslation('settings')
+export function GlobalGlossaryPanel() {
+  const { t } = useTranslation('settings')
   const { data, isLoading } = useGlobalGlossaryEntries()
   const createEntry = useCreateGlossaryEntry()
   const updateEntry = useUpdateGlossaryEntry()

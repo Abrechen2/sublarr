@@ -37,7 +37,7 @@ function SectionSkeleton() {
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
 export function SubtitlesLanguagesPage() {
-  const { t } = useTranslation('common')
+  const { t } = useTranslation('settings')
 
   return (
     <SettingsDetailLayout

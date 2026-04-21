@@ -107,6 +107,7 @@ function InstanceCard({
   onTest,
   onRemove,
 }: InstanceCardProps) {
+  const { t } = useTranslation('settings')
   const [showKey, setShowKey] = useState(false)
 
   const statusColor: Record<InstanceStatus, string> = {

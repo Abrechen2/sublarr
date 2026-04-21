@@ -1,4 +1,5 @@
 import { Pencil, Download, Database, Clock, Trash2, Power } from 'lucide-react'
+import { useTranslation } from 'react-i18next'
 import type { ProviderInfo } from '@/lib/types'
 import {
   getStatusColor, getStatusLabel, getStatusBg,
@@ -15,10 +16,11 @@ interface ProviderTileProps {
   onRemove: () => void
 }
 
-  const { t: tc } = useTranslation('common')
+export function ProviderTile({
   provider, cacheCount, priority,
   onOpenEdit, onToggle, onRemove,
 }: ProviderTileProps) {
+  const { t: tc } = useTranslation('common')
   const statusColor = getStatusColor(provider)
   const statusLabel = getStatusLabel(provider)
   const statusBg = getStatusBg(provider)

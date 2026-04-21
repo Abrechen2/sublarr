@@ -45,6 +45,7 @@ function HookFormModal({
   onCancel: () => void
   isPending: boolean
 }) {
+  const { t: tc } = useTranslation('common')
   const [form, setForm] = useState<HookFormData>(
     initialData ?? { name: '', event_name: eventNames[0] ?? '', script_path: '', timeout_seconds: 30 }
   )
@@ -129,6 +130,8 @@ function HookFormModal({
 // ─── Outgoing Hooks Section ───────────────────────────────────────────────────
 
 function OutgoingHooksSection() {
+  const { t } = useTranslation('common')
+  const { t: tc } = useTranslation('common')
   const { data: hookData } = useHookConfigs()
   const { data: catalogData } = useEventCatalog()
   const createHook = useCreateHook()
@@ -284,6 +287,8 @@ function OutgoingHooksSection() {
 // ─── Hook Logs Section ────────────────────────────────────────────────────────
 
 function HookLogsSection() {
+  const { t } = useTranslation('common')
+  const { t: tc } = useTranslation('common')
   const { data: logs } = useHookLogs()
   const clearLogs = useClearHookLogs()
   const [showClearConfirm, setShowClearConfirm] = useState(false)
@@ -434,8 +439,6 @@ function WebhooksSection() {
 // ─── SystemHooksPage ──────────────────────────────────────────────────────────
 
 export function SystemHooksPage() {
-  const { t } = useTranslation('settings')
-  const { t: tc } = useTranslation('common')
   const { t } = useTranslation('settings')
   const { t: tCommon } = useTranslation('common')
 

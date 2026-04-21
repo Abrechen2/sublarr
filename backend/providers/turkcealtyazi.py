@@ -29,8 +29,8 @@ from providers.base import (
     SubtitleResult,
     VideoQuery,
 )
-from security_utils import validate_download_url
 from providers.http_session import create_session
+from security_utils import validate_download_url
 
 logger = logging.getLogger(__name__)
 

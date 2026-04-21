@@ -270,7 +270,7 @@ function BazarrPreviewModal({
 
 // ─── Main ApiKeysTab Component ───────────────────────────────────────────────
 
-  const { t: tc } = useTranslation('common')
+export function ApiKeysTab({
   excludeServices = [],
   includeOnly,
 }: {

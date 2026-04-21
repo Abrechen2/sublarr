@@ -15,7 +15,8 @@ import { TemplatePickerModal } from '@/pages/Settings/translation/TemplatePicker
 
 // ─── Context Window Size Row ─────────────────────────────────────────────────
 
-  const { t } = useTranslation('settings')
+export function ContextWindowSizeRow() {
+  const { t } = useTranslation('settings')
   const { value, save, isPending } = useContextWindowSize()
   const [localValue, setLocalValue] = useState<number>(value)
 
@@ -58,6 +59,7 @@ import { TemplatePickerModal } from '@/pages/Settings/translation/TemplatePicker
 // ─── Default Sync Engine Setting ─────────────────────────────────────────────
 
 export function DefaultSyncEngineRow() {
+  const { t } = useTranslation('common')
   const { data: config } = useConfig()
   const updateConfig = useUpdateConfig()
   const currentEngine = config ? ((config['sync.default_engine'] as string | undefined) ?? 'alass') : 'alass'
@@ -97,6 +99,7 @@ export function DefaultSyncEngineRow() {
 }
 
 export function AutoSyncSection() {
+  const { t } = useTranslation('common')
   const { data: config } = useConfig()
   const updateConfig = useUpdateConfig()
 
@@ -163,6 +166,7 @@ export function AutoSyncSection() {
 // ─── Episode Context Section ──────────────────────────────────────────────────
 
 export function EpisodeContextSection() {
+  const { t } = useTranslation('common')
   const { data: config } = useConfig()
   const updateConfig = useUpdateConfig()
 
@@ -262,6 +266,7 @@ export function EpisodeContextSection() {
 // ─── Translation Backends Tab ────────────────────────────────────────────────
 
 export function TranslationBackendsTab() {
+  const { t } = useTranslation('common')
   const { data: backendsData, isLoading: backendsLoading } = useBackends()
   const { data: statsData } = useBackendStats()
   const testBackendMut = useTestBackend()

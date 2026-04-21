@@ -238,8 +238,9 @@ function WhisperBackendCard({
   )
 }
 
-  const { t: tc } = useTranslation('common')
+export function WhisperTab() {
   const { t } = useTranslation('settings')
+  const { t: tc } = useTranslation('common')
   const { data: backendsData, isLoading: backendsLoading } = useWhisperBackends()
   const { data: statsData } = useWhisperStats()
   const { data: whisperConfig, isLoading: configLoading } = useWhisperConfig()

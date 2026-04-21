@@ -18,6 +18,7 @@ import { SettingsSection } from '@/components/settings/SettingsSection'
 // ─── MetadataApiKeysSection ──────────────────────────────────────────────────
 
 function MetadataApiKeysSection() {
+  const { t } = useTranslation('common')
   const { data: configData } = useConfig()
   const updateConfig = useUpdateConfig()
 
@@ -225,7 +226,8 @@ function MetadataApiKeysSection() {
 
 // ─── MetadataSectionWrapper (exported) ──────────────────────────────────────
 
-  const { t } = useTranslation('settings')
+export function MetadataSectionWrapper() {
+  const { t } = useTranslation('settings')
   return (
     <SettingsSection
       title={t('connections_metadata.title')}

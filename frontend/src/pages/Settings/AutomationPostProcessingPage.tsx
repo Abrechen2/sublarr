@@ -80,7 +80,7 @@ function ProcessingPipelineAdvancedContent() {
 }
 
 function ProcessingPipelineContent() {
-  const { t } = useTranslation('common')
+  const { t } = useTranslation('settings')
   const { t: tS } = useTranslation('settings')
   const { data: config, isLoading } = useConfig()
   const updateConfig = useUpdateConfig()
@@ -254,7 +254,7 @@ function ProcessingPipelineContent() {
 }
 
 export function AutomationPostProcessingPage() {
-  const { t } = useTranslation('common')
+  const { t } = useTranslation('settings')
   const { t: tS } = useTranslation('settings')
 
   return (

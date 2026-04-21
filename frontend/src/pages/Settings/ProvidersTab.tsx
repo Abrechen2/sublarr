@@ -12,7 +12,7 @@ import { ProviderEditModal } from './providers/ProviderEditModal'
 import { AddProviderModal } from './providers/AddProviderModal'
 
 /** Reorder a provider priority list — returns a new array (immutable). */
-  const { t: tc } = useTranslation('common')
+export function reorderProviders(items: string[], fromIndex: number, toIndex: number): string[] {
   if (fromIndex === toIndex) return [...items]
   const next = [...items]
   const [moved] = next.splice(fromIndex, 1)

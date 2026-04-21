@@ -88,6 +88,7 @@ interface SettingsSearchModalProps {
 }
 
 export function SettingsSearchModal({ open, onClose }: SettingsSearchModalProps) {
+  const { t: tc } = useTranslation('common')
   const navigate = useNavigate()
   const [query, setQuery] = useState('')
   const [activeIndex, setActiveIndex] = useState(0)

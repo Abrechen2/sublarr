@@ -7,6 +7,7 @@ export const EPISODE_GRID_COLUMNS = '28px 50px 1fr 90px minmax(180px,1.5fr) 170p
 
 /** Episode header row — column labels */
 export function EpisodeGridHeader() {
+  const { t } = useTranslation('library')
   return (
     <div
       data-testid="episode-grid-header"

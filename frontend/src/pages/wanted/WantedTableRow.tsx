@@ -10,7 +10,7 @@ import type { WantedSearchResponse } from '@/lib/types'
 import type { WantedItem } from '@/types/wanted'
 import { SubtitlePresencePills } from '@/pages/wanted/SubtitlePresencePills'
 
-  const { t } = useTranslation('activity')
+export function formatRetryCountdown(retryAfter: string | null): string | null {
   if (!retryAfter) return null
   const diff = new Date(retryAfter).getTime() - Date.now()
   if (diff <= 0) return null

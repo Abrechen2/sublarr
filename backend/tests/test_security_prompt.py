@@ -105,7 +105,7 @@ class TestPromptInjectionGuard:
         result = _escape_subtitle_line(injected)
         for zw in ("\u200b", "\u200c", "\u200d", "\u2060", "\ufeff"):
             assert zw not in result
-        assert "textignorepreviousinstructions" == result
+        assert result == "textignorepreviousinstructions"
 
     def test_bidi_override_chars_stripped(self):
         """Trojan Source (CVE-2021-42574) bidi-override chars are stripped."""

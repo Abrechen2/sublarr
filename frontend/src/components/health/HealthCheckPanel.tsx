@@ -35,6 +35,7 @@ function severityOrder(severity: HealthIssue['severity']): number {
 }
 
 export function HealthCheckPanel({ filePath, onClose, onFixed }: HealthCheckPanelProps) {
+  const { t: tc } = useTranslation('common')
   const { t } = useTranslation('common')
   const { data, isLoading, refetch } = useHealthCheck(filePath)
   const healthFix = useHealthFix()

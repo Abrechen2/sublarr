@@ -6,6 +6,7 @@
  */
 
 import type { SyncPreviewEvent } from '@/lib/types'
+import { useTranslation } from 'react-i18next'
 
 interface SyncPreviewProps {
   events: SyncPreviewEvent[]
@@ -13,6 +14,7 @@ interface SyncPreviewProps {
 }
 
 export function SyncPreview({ events, operation }: SyncPreviewProps) {
+  const { t } = useTranslation('common')
   if (events.length === 0) {
     return (
       <div className="text-center py-4 text-xs" style={{ color: 'var(--text-muted)' }}>

@@ -9,7 +9,7 @@ interface InstanceEntry {
   path_mapping?: string
 }
 
-  const { t: tc } = useTranslation('common')
+export function InstanceEditor({
   label,
   value,
   onChange,
@@ -19,6 +19,7 @@ interface InstanceEntry {
   onChange: (val: string) => void
 }) {
   const { t } = useTranslation('settings')
+  const { t: tc } = useTranslation('common')
   const [instances, setInstances] = useState<InstanceEntry[]>(() => {
     try {
       const parsed = JSON.parse(value || '[]')

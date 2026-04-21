@@ -2,6 +2,7 @@ import { useQuery } from '@tanstack/react-query'
 
 import { fetchSyncEngines, fetchSyncRuns } from '@/api/syncEngines'
 import { SettingsDetailLayout } from '@/components/settings/SettingsDetailLayout'
+import { useTranslation } from 'react-i18next'
 
 // Plan B7 — Multi-Engine Sync Orchestrator settings tab.
 //
@@ -10,6 +11,7 @@ import { SettingsDetailLayout } from '@/components/settings/SettingsDetailLayout
 // rows. Chain editing is a follow-up — B7 ships the architecture.
 
 function LoadingState() {
+  const { t } = useTranslation('common')
   return <div className="py-8 text-center text-muted">{t('sync_engines_tab.loading')}</div>
 }
 
@@ -35,7 +37,8 @@ function formatOffset(ms: number | null): string {
   return `${ms} ms`
 }
 
-  const { t } = useTranslation('settings')
+export function SyncEnginesTab() {
+  const { t } = useTranslation('settings')
   const enginesQuery = useQuery({
     queryKey: ['sync-engines', 'engines'],
     queryFn: fetchSyncEngines,

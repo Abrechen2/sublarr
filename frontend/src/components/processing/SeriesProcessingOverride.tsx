@@ -32,6 +32,7 @@ function OverrideSelect({
   value: Override
   onChange: (v: Override) => void
 }) {
+  const { t } = useTranslation('common')
   const raw = value === null ? 'global' : value ? 'on' : 'off'
   return (
     <select
@@ -50,6 +51,7 @@ function OverrideSelect({
 }
 
 export function SeriesProcessingOverride({ seriesId, initialConfig }: Props) {
+  const { t } = useTranslation('library')
   const [config, setConfig] = useState<Config>({
     hi_removal: initialConfig.hi_removal ?? null,
     common_fixes: initialConfig.common_fixes ?? null,

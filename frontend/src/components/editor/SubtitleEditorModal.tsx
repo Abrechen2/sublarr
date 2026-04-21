@@ -14,6 +14,7 @@ import { useSubtitleContent } from '@/hooks/useApi'
 import { autoSyncFile, overlapFix, timingNormalize, mergeLines, splitLines, spellCheck, removeCredits, detectOpeningEnding } from '@/api/client'
 import { useConvertSubtitleFormat } from '@/hooks/useTranslationApi'
 import { toast } from '@/components/shared/Toast'
+import { useTranslation } from 'react-i18next'
 
 // Lazy-loaded editor components -- CodeMirror stays in separate chunks
 const SubtitlePreview = lazy(() => import('@/components/editor/SubtitlePreview'))
@@ -53,6 +54,7 @@ export default function SubtitleEditorModal({
   videoPath,
   onSeekRequest,
 }: SubtitleEditorModalProps) {
+  const { t } = useTranslation('editor')
   const queryClient = useQueryClient()
   const [mode, setMode] = useState<EditorMode>(initialMode)
   const [content, setContent] = useState<string | null>(null)

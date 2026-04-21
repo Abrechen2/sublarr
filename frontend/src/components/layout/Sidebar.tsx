@@ -70,9 +70,9 @@ const navGroups: NavGroup[] = [
 ]
 
 export function Sidebar() {
+  const { t } = useTranslation('common')
   const { data: health } = useHealth()
   const { data: updateInfo } = useUpdateInfo()
-  const { t } = useTranslation('common')
   const [mobileOpen, setMobileOpen] = useState(false)
   const isHealthy = health?.status === 'healthy'
   const navigate = useNavigate()

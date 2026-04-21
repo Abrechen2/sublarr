@@ -44,7 +44,7 @@ const inputStyle: React.CSSProperties = { ...settingsInputStyle, width: '120px',
 // ─── Per-Language Score Thresholds Section ────────────────────────────────────
 
 function PerLanguageScoresContent() {
-  const { t } = useTranslation('common')
+  const { t } = useTranslation('settings')
   const { data: config, isLoading } = useConfig()
   const { mutate: updateConfig, isPending } = useUpdateConfig()
   const save = (patch: Record<string, unknown>) => updateConfig(patch)
@@ -93,7 +93,7 @@ function PerLanguageScoresContent() {
 // ─── Fansub Preferences Section ───────────────────────────────────────────────
 
 function FansubPreferencesContent() {
-  const { t } = useTranslation('common')
+  const { t } = useTranslation('settings')
   const { data: config, isLoading } = useConfig()
   const { mutate: updateConfig, isPending } = useUpdateConfig()
 
@@ -158,7 +158,7 @@ function FansubPreferencesContent() {
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
 export function SubtitlesScoringPage() {
-  const { t } = useTranslation('common')
+  const { t } = useTranslation('settings')
 
   return (
     <SettingsDetailLayout

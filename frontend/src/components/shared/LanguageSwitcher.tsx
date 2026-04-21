@@ -2,7 +2,6 @@ import { useTranslation } from 'react-i18next'
 
 export function LanguageSwitcher() {
   const { i18n } = useTranslation()
-
   const currentLang = i18n.language?.startsWith('de') ? 'de' : 'en'
 
   const toggleLanguage = () => {

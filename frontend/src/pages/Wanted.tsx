@@ -58,7 +58,7 @@ export function groupByFilePath(items: WantedItem[]): WantedGroup[] {
 }
 
 export function WantedPage() {
-  const { t } = useTranslation('library')
+  const { t } = useTranslation('activity')
 
   const wantedFilters = useMemo<FilterDef[]>(() => [
     { key: 'status', label: t('wanted.status_col'), type: 'select' as const, options: [

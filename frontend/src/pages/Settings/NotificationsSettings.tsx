@@ -61,7 +61,7 @@ const quietInputStyle: React.CSSProperties = {
 // ─── Quiet Hours Config ───────────────────────────────────────────────────────
 
 function QuietHoursConfigStub() {
-  const { t } = useTranslation('common')
+  const { t } = useTranslation('settings')
   const { data: configData } = useConfig()
   const updateConfig = useUpdateConfig()
 
@@ -211,7 +211,7 @@ function QuietHoursConfigStub() {
 // ─── NotificationsSettings Page ───────────────────────────────────────────────
 
 export function NotificationsSettings() {
-  const { t } = useTranslation('common')
+  const { t } = useTranslation('settings')
 
   return (
     <SettingsDetailLayout

@@ -26,12 +26,13 @@ interface ProviderEditModalProps {
   onClose: () => void
 }
 
-  const { t: tc } = useTranslation('common')
+export function ProviderEditModal({
   provider, cacheCount, priority: _priority, totalProviders: _totalProviders,
   fieldValues, testResult,
   onFieldChange, onTest, onToggle,
   onClearCache, onReEnable, onRemove, isNew, onClose,
 }: ProviderEditModalProps) {
+  const { t: tc } = useTranslation('common')
   const [confirmRemove, setConfirmRemove] = useState(false)
   const [errors, setErrors] = useState<Record<string, string>>({})
 

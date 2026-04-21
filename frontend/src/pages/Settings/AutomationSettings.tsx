@@ -42,6 +42,7 @@ function SectionSkeleton() {
 // ─── Search & Scan Section ────────────────────────────────────────────────────
 
 function SearchScanAdvancedContent() {
+  const { t } = useTranslation('common')
   const { t: tS } = useTranslation('settings')
   const { data: config, isLoading } = useConfig()
   const updateConfig = useUpdateConfig()
@@ -291,7 +292,7 @@ function SearchScanAdvancedContent() {
 }
 
 function SearchScanContent() {
-  const { t } = useTranslation('common')
+  const { t } = useTranslation('settings')
   const { t: tS } = useTranslation('settings')
   const { data: config, isLoading } = useConfig()
   const updateConfig = useUpdateConfig()
@@ -428,7 +429,7 @@ function SearchScanContent() {
 // ─── Upgrade Rules Section ────────────────────────────────────────────────────
 
 function UpgradeRulesAdvancedContent() {
-  const { t } = useTranslation('common')
+  const { t } = useTranslation('settings')
   const { data: config, isLoading } = useConfig()
   const updateConfig = useUpdateConfig()
   const save = (patch: Record<string, unknown>) => updateConfig.mutate(patch)
@@ -464,7 +465,7 @@ function UpgradeRulesAdvancedContent() {
 }
 
 function UpgradeRulesContent() {
-  const { t } = useTranslation('common')
+  const { t } = useTranslation('settings')
   const { t: tS } = useTranslation('settings')
   const { data: config, isLoading } = useConfig()
   const updateConfig = useUpdateConfig()
@@ -625,7 +626,7 @@ function WebhookContent() {
 // ─── Scheduled Tasks Section (advanced placeholder) ───────────────────────────
 
 function ScheduledTasksContent() {
-  const { t } = useTranslation('common')
+  const { t } = useTranslation('settings')
 
   return (
     <div data-testid="scheduled-tasks-content">
@@ -642,7 +643,7 @@ function ScheduledTasksContent() {
 // ─── AutomationSettings Page ──────────────────────────────────────────────────
 
 export function AutomationSettings() {
-  const { t } = useTranslation('common')
+  const { t } = useTranslation('settings')
   const { t: tS } = useTranslation('settings')
 
   return (

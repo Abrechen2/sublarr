@@ -30,7 +30,6 @@ function getLangLabel(code: string): string {
 
 export function LanguageProfilesTab() {
   const { t } = useTranslation('settings')
-  const { t: _t } = useTranslation('settings')
   const { data: profiles, isLoading } = useLanguageProfiles()
   const createProfile = useCreateProfile()
   const updateProfile = useUpdateProfile()

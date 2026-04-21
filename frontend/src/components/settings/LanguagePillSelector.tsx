@@ -1,5 +1,6 @@
 import { X } from 'lucide-react'
 import { settingsInputStyle } from '@/styles/settingsShared'
+import { useTranslation } from 'react-i18next'
 
 interface LanguageOption {
   readonly value: string
@@ -13,12 +14,13 @@ interface Props {
   readonly placeholder?: string
 }
 
-  const { t: tc } = useTranslation('common')
+export function LanguagePillSelector({
   value,
   options,
   onChange,
   placeholder = '— Add language —',
 }: Props) {
+  const { t: tc } = useTranslation('common')
   const available = options.filter((o) => !value.includes(o.value))
 
   const remove = (lang: string) => onChange(value.filter((v) => v !== lang))

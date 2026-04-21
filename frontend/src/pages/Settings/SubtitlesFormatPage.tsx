@@ -52,7 +52,7 @@ const SUFFIX_SEPARATORS = [
 // ─── Subtitle Naming Section ──────────────────────────────────────────────────
 
 function SubtitleNamingContent() {
-  const { t } = useTranslation('common')
+  const { t } = useTranslation('settings')
   const { data: config, isLoading } = useConfig()
   const { mutate: updateConfig, isPending } = useUpdateConfig()
   const save = (patch: Record<string, unknown>) => updateConfig(patch)
@@ -147,7 +147,7 @@ function SubtitleNamingContent() {
 // ─── Scan Filters Section ─────────────────────────────────────────────────────
 
 function ScanFiltersContent() {
-  const { t } = useTranslation('common')
+  const { t } = useTranslation('settings')
   const { data: config, isLoading } = useConfig()
   const { mutate: updateConfig, isPending } = useUpdateConfig()
   const save = (patch: Record<string, unknown>) => updateConfig(patch)
@@ -226,7 +226,7 @@ function ScanFiltersContent() {
 // ─── Embedded Extraction Section ─────────────────────────────────────────────
 
 function EmbeddedExtractionContent() {
-  const { t } = useTranslation('common')
+  const { t } = useTranslation('settings')
   const { data: config, isLoading } = useConfig()
   const { mutate: updateConfig, isPending } = useUpdateConfig()
 
@@ -308,7 +308,7 @@ function EmbeddedExtractionContent() {
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
 export function SubtitlesFormatPage() {
-  const { t } = useTranslation('common')
+  const { t } = useTranslation('settings')
 
   return (
     <SettingsDetailLayout

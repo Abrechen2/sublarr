@@ -8,7 +8,8 @@ import {
 
 // ─── Prompt Presets Tab ────────────────────────────────────────────────────────
 
-  const { t } = useTranslation('settings')
+export function PromptPresetsTab() {
+  const { t } = useTranslation('settings')
   const { data, isLoading } = usePromptPresets()
   const createPreset = useCreatePromptPreset()
   const updatePreset = useUpdatePromptPreset()

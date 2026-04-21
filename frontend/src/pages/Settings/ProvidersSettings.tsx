@@ -20,7 +20,7 @@ function parseNum(v: string | undefined, fallback: number): number {
 const inputStyle: React.CSSProperties = { ...settingsInputStyle, width: '220px', outline: 'none' }
 
 export function ProvidersSettings() {
-  const { t } = useTranslation('common')
+  const { t } = useTranslation('settings')
   const { t: ts } = useTranslation('settings')
   const { data: configData } = useConfig()
   const updateConfig = useUpdateConfig()

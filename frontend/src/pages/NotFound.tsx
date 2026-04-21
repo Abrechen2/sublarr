@@ -3,8 +3,8 @@ import { Home, ArrowLeft } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 
 export function NotFoundPage() {
-  const navigate = useNavigate()
   const { t } = useTranslation('common')
+  const navigate = useNavigate()
 
   return (
     <div className="flex items-center justify-center min-h-[60vh]">

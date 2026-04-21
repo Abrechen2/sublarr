@@ -18,7 +18,8 @@ import { settingsInputStyle } from '@/styles/settingsShared'
 
 const inputStyle: React.CSSProperties = { ...settingsInputStyle, outline: 'none' }
 
-  const { t: tc } = useTranslation('common')
+export function ScoringPenaltyRules() {
+  const { t: tc } = useTranslation('common')
   const { data, isLoading } = usePenaltyRules()
   const updateRule = useUpdatePenaltyRule()
 

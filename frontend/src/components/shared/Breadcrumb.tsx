@@ -1,5 +1,6 @@
 import { Link } from 'react-router-dom';
 import { ChevronRight } from 'lucide-react';
+import { useTranslation } from 'react-i18next'
 
 interface BreadcrumbItem {
   label: string;
@@ -11,6 +12,7 @@ interface BreadcrumbProps {
 }
 
 export function Breadcrumb({ items }: BreadcrumbProps) {
+  const { t: tc } = useTranslation('common')
   return (
     <nav aria-label={tc('ui.breadcrumb')} className="flex items-center gap-1.5 text-xs mb-4">
       {items.map((item, i) => (

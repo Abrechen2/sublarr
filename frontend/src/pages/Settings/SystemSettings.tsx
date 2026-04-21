@@ -186,7 +186,7 @@ function DiskMonitoringControls() {
 // ─── SystemSettings Page ──────────────────────────────────────────────────────
 
 export function SystemSettings() {
-  const { t } = useTranslation('common')
+  const { t } = useTranslation('settings')
   const { t: tSettings } = useTranslation('settings')
 
   return (

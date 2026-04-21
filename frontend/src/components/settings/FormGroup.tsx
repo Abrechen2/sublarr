@@ -34,7 +34,7 @@ const HL_OFF: React.CSSProperties = {
 }
 const HL_NONE: React.CSSProperties = {}
 
-  const { t: tc } = useTranslation('common')
+export function FormGroup({
   label,
   hint,
   htmlFor,
@@ -45,6 +45,7 @@ const HL_NONE: React.CSSProperties = {}
   advanced = false,
 }: FormGroupProps) {
   const { t } = useTranslation('settings')
+  const { t: tc } = useTranslation('common')
   const [tooltipVisible, setTooltipVisible] = useState(false)
   const [hlStyle, setHlStyle] = useState<React.CSSProperties>(HL_NONE)
   const wrapperRef = useRef<HTMLDivElement>(null)

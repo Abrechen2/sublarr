@@ -17,6 +17,7 @@ interface SubtitleComparisonProps {
 }
 
 export function SubtitleComparison({ filePaths, onClose }: SubtitleComparisonProps) {
+  const { t } = useTranslation('common')
   const compareMutation = useCompareSubtitles()
   const scrollTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const isScrollSyncingRef = useRef(false)

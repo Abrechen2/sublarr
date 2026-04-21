@@ -116,6 +116,7 @@ function NavPageLink({ href, label }: NavPage) {
 }
 
 export function SettingsNav() {
+  const { t: tc } = useTranslation('common')
   const { data: config } = useConfig()
   const translationEnabled = Boolean(config?.translation_enabled)
   const groups = useNavGroups(translationEnabled)

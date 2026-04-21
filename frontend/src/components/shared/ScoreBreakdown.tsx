@@ -23,6 +23,7 @@ function badgeColor(score: number): 'success' | 'warning' | 'muted' {
 }
 
 export function ScoreBreakdown({ score, breakdown, className }: Props) {
+  const { t: tc } = useTranslation('common')
   const [visible, setVisible] = useState(false)
   const color = badgeColor(score)
   const hasEntries = Object.keys(breakdown).length > 0

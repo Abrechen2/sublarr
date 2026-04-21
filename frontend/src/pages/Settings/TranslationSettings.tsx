@@ -68,8 +68,9 @@ function SectionSkeleton() {
 // ─── TranslationSettings Page ─────────────────────────────────────────────────
 
 export function TranslationSettings() {
-  const { t } = useTranslation('common')
+  const { t } = useTranslation('settings')
   const { t: tTranslation } = useTranslation('settings')
+  const { t: tc } = useTranslation('common')
   const navigate = useNavigate()
   const [showDisableConfirm, setShowDisableConfirm] = useState(false)
   const disableTranslation = useDisableTranslation()

@@ -439,7 +439,7 @@ class TestLLMBackendHooks:
 class TestCjkHallucinationRetry:
     """Plan A3 follow-up — Ollama retries once on CJK hallucination."""
 
-    def _make_resp(self, translations: list[str]) -> "LLMResponse":
+    def _make_resp(self, translations: list[str]):
         from translation.llm_base import LLMResponse
 
         return LLMResponse(

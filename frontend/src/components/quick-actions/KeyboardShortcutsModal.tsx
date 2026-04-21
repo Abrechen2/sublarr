@@ -59,6 +59,7 @@ function ShortcutSection({
 // ─── Modal ───────────────────────────────────────────────────────────────────
 
 export function KeyboardShortcutsModal({ open, onClose }: KeyboardShortcutsModalProps) {
+  const { t: tc } = useTranslation('common')
   const { pathname } = useLocation()
   const { t } = useTranslation('common')
 

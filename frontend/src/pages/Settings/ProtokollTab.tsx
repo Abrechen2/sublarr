@@ -221,8 +221,9 @@ function SupportModal({ onClose }: { onClose: () => void }) {
 
 const LOG_LEVELS = ['DEBUG', 'INFO', 'WARNING', 'ERROR'] as const
 
-  const { t: tc } = useTranslation('common')
+export function ProtokollTab() {
   const { t } = useTranslation('settings')
+  const { t: tc } = useTranslation('common')
   const queryClient = useQueryClient()
 
   // Log-level (uses the same settings API as the rest of the settings page)

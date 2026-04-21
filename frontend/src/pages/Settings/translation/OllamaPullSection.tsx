@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import { Loader2 } from 'lucide-react'
 import { toast } from '@/components/shared/Toast'
 import { SettingRow } from '@/components/shared/SettingRow'
@@ -6,7 +7,8 @@ import { useOllamaPullModel } from '@/hooks/useTranslationApi'
 
 // ─── Ollama Pull Section ──────────────────────────────────────────────────────
 
-  const { t: tc } = useTranslation('common')
+export function OllamaPullSection() {
+  const { t: tc } = useTranslation('common')
   const [modelName, setModelName] = useState('')
   const [pulling, setPulling] = useState(false)
   const pullMut = useOllamaPullModel()

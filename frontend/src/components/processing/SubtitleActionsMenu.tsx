@@ -15,6 +15,7 @@ interface Props {
 type ActivePanel = 'hi_removal' | 'common_fixes' | 'timing' | null
 
 export function SubtitleActionsMenu({ subtitlePath, onRefresh }: Props) {
+  const { t: tc } = useTranslation('common')
   const [open, setOpen] = useState(false)
   const [hasBak, setHasBak] = useState(false)
   const [activePanel, setActivePanel] = useState<ActivePanel>(null)

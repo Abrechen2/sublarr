@@ -56,6 +56,7 @@ function formatBytes(bytes: number): string {
 }
 
 export function SubtitleCleanupModal({ seriesId, targetLanguages, onClose }: Props) {
+  const { t: tc } = useTranslation('common')
   const queryClient = useQueryClient()
 
   const { data, isLoading } = useQuery({

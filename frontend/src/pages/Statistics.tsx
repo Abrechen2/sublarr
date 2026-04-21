@@ -86,7 +86,7 @@ function SeriesQualityTable({ data }: { data: SeriesQuality[] }) {
   )
 }
 
-  const { t: tc } = useTranslation('common')
+export function StatisticsPage() {
   const { t } = useTranslation('statistics')
   const [range, setRange] = useState<string>('30d')
   const [exportOpen, setExportOpen] = useState(false)

@@ -20,7 +20,7 @@ interface OCRExtractorProps {
   className?: string
 }
 
-  const { t } = useTranslation('activity')
+export function OCRExtractor({
   filePath,
   streamIndex = 0,
   language = 'eng',

@@ -14,6 +14,7 @@ interface Props {
 }
 
 export function FansubOverrideModal({ seriesId, open, onClose }: Props) {
+  const { t: tc } = useTranslation('common')
   const { t } = useTranslation('library')
   const { data: prefs, isLoading } = useSeriesFansubPrefs(seriesId)
   const setPrefs = useSetSeriesFansubPrefs(seriesId)

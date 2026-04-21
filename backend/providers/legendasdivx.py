@@ -26,7 +26,6 @@ from providers.base import (
 )
 from providers.download_manager import _MAX_SUBTITLE_SIZE
 from providers.http_session import create_session
-from security_utils import validate_download_url
 from providers.legendasdivx_html_parser import _LegendasDivxParseMixin  # noqa: F401
 from providers.legendasdivx_parsers import (  # noqa: F401 — re-exported for back-compat
     _BROWSER_UA,
@@ -43,6 +42,7 @@ from providers.legendasdivx_parsers import (  # noqa: F401 — re-exported for b
     _detect_format_from_filename,
     _parse_episode_info,
 )
+from security_utils import validate_download_url
 
 logger = logging.getLogger(__name__)
 

@@ -19,7 +19,7 @@ export interface WantedToolbarProps {
   onBatchTranslate: () => void
 }
 
-  const { t: tc } = useTranslation('common')
+export function WantedToolbar({
   summaryTotal,
   scanRunning,
   batchRunning,
@@ -37,6 +37,7 @@ export interface WantedToolbarProps {
   onBatchTranslate,
 }: WantedToolbarProps) {
   const { t } = useTranslation('library')
+  const { t: tc } = useTranslation('common')
 
   return (
     <div className="flex items-center justify-between flex-wrap gap-4">

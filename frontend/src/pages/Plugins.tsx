@@ -16,6 +16,7 @@ import {
 
 export function PluginsPage() {
   const { t } = useTranslation('common')
+  const { t: tc } = useTranslation('common')
   const [searchQuery, setSearchQuery] = useState('')
   const [categoryFilter, setCategoryFilter] = useState<'all' | 'provider' | 'translation' | 'tool'>('all')
   const [installedPlugins, setInstalledPlugins] = useState<string[]>([])

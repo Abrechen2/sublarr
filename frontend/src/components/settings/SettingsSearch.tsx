@@ -16,7 +16,8 @@ interface SettingsSearchProps {
 }
 
 export function SettingsSearch({ className }: SettingsSearchProps) {
-  const { t } = useTranslation('common')
+  const { t } = useTranslation('settings')
+  const { t: tc } = useTranslation('common')
   const navigate = useNavigate()
   const [query, setQuery] = useState('')
   const [results, setResults] = useState<readonly SettingsEntry[]>([])
@@ -103,7 +104,7 @@ export function SettingsSearch({ className }: SettingsSearchProps) {
           placeholder={t('settings_search.placeholder')}
           className="flex-1 bg-transparent text-[13px] outline-none"
           style={{ color: 'var(--text-primary)' }}
-          aria-label={tc('ui.search_settings')}
+          aria-label={tc('ui.search_settings', 'Search settings')}
           aria-expanded={isOpen}
           aria-controls="settings-search-results"
           role="combobox"

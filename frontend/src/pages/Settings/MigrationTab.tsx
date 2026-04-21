@@ -23,8 +23,9 @@ interface MigrationResult {
   history_imported: number
 }
 
-  const { t: tc } = useTranslation('common')
+export function MigrationTab() {
   const { t } = useTranslation('settings')
+  const { t: tc } = useTranslation('common')
   const [step, setStep] = useState<'upload' | 'preview' | 'import' | 'complete'>('upload')
   const [configFile, setConfigFile] = useState<File | null>(null)
   const [dbFile, setDbFile] = useState<File | null>(null)

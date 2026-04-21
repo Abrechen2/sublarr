@@ -85,6 +85,7 @@ function TimelineBar({ startTime, endTime }: { startTime: string; endTime: strin
 }
 
 export function QuietHoursEditor({ config, onChange }: QuietHoursEditorProps) {
+  const { t: tc } = useTranslation('common')
   const { t } = useTranslation('settings')
   const { data: catalogData } = useEventCatalog()
 

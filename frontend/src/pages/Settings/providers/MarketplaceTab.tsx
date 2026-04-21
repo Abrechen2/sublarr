@@ -21,7 +21,8 @@ function hasRiskyCapabilities(capabilities: string[]): boolean {
   return capabilities.some((c) => HIGH_RISK.has(c))
 }
 
-  const { t } = useTranslation('settings')
+export function MarketplaceTab() {
+  const { t } = useTranslation('settings')
   const [search, setSearch] = useState('')
   const [onlyInstalled, setOnlyInstalled] = useState(false)
   const [pendingInstall, setPendingInstall] = useState<MarketplaceBrowsePlugin | null>(null)

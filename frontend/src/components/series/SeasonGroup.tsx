@@ -100,7 +100,16 @@ export interface SeasonGroupProps {
 
 // ─── SeasonGroup ──────────────────────────────────────────────────────────────
 
-  const { t } = useTranslation('library')
+export function SeasonGroup({
+  season, episodes, targetLanguages, seriesId: _seriesId,
+  isExtracting, onExtract, expandedEp,
+  onSearch, onInteractiveSearch, onHistory: _onHistory, onTracks: _onTracks, onClose,
+  searchResults, searchLoading, historyEntries, historyLoading,
+  onProcess, onPreviewSub, onEditSub, onCompare, onSync, onAutoSync, onVideoSync,
+  onHealthCheck, healthScores, onOpenEditor, sidecarMap, onDeleteSidecar,
+  onOpenCleanupModal, onPreview, streamingEnabled, onRefreshSidecars, t,
+  episodeWantedMap: _episodeWantedMap, onSkipEpisode, onAcceptEpisode,
+}: SeasonGroupProps) {
   const [expanded, setExpanded] = useState(true)
   const [selectedEpisodes, setSelectedEpisodes] = useState<Set<number>>(new Set())
   const batchTranslateMutation = useBatchTranslate()

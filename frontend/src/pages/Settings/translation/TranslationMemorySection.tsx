@@ -5,10 +5,12 @@ import { ConfirmModal } from '@/components/shared/ConfirmModal'
 import { SettingRow } from '@/components/shared/SettingRow'
 import { Toggle } from '@/components/shared/Toggle'
 import { useConfig, useUpdateConfig, useTranslationMemoryStats, useClearTranslationMemoryCache } from '@/hooks/useApi'
+import { useTranslation } from 'react-i18next'
 
 // ─── Translation Memory Section ─────────────────────────────────────────────
 
-  const { t } = useTranslation('settings')
+export function TranslationMemorySection() {
+  const { t } = useTranslation('settings')
   const { data: config } = useConfig()
   const updateConfig = useUpdateConfig()
   const { data: stats, isLoading: statsLoading } = useTranslationMemoryStats()

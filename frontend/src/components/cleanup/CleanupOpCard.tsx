@@ -248,6 +248,7 @@ function PreviewPanel({
 // ─── Main Card ────────────────────────────────────────────────────────────────
 
 export function CleanupOpCard({ meta, rule, onToggle, onUpdate }: CleanupOpCardProps) {
+  const { t: tc } = useTranslation('common')
   const { t } = useTranslation('common')
   const [expanded, setExpanded] = useState(false)
   const [previewResult, setPreviewResult] = useState<PreviewResult | null>(null)

@@ -9,8 +9,9 @@ import { Toggle } from '@/components/shared/Toggle'
 import { SettingRow } from '@/components/shared/SettingRow'
 import type { MediaServerType, MediaServerInstance, MediaServerTestResult } from '@/lib/types'
 
-  const { t: tc } = useTranslation('common')
+export function MediaServersTab() {
   const { t } = useTranslation('settings')
+  const { t: tc } = useTranslation('common')
   const { data: typesData, isLoading: typesLoading } = useMediaServerTypes()
   const { data: instancesData, isLoading: instancesLoading } = useMediaServerInstances()
   const saveMut = useSaveMediaServerInstances()

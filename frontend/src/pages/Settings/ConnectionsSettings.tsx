@@ -22,7 +22,8 @@ import {
 import { MetadataSectionWrapper } from './connections/ConnectionsMetadata'
 
 export function ConnectionsSettings() {
-  const { t } = useTranslation('common')
+  const { t } = useTranslation('settings')
+  const { t: tc } = useTranslation('common')
 
   return (
     <SettingsDetailLayout

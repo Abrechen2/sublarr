@@ -8,7 +8,8 @@ import { useConfig, useUpdateConfig } from '@/hooks/useApi'
 
 // ─── Translation Quality Section ─────────────────────────────────────────────
 
-  const { t } = useTranslation('settings')
+export function TranslationQualitySection() {
+  const { t } = useTranslation('settings')
   const { data: config } = useConfig()
   const updateConfig = useUpdateConfig()
 
