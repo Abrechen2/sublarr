@@ -15,9 +15,45 @@ import time
 
 from config import get_settings
 from db.wanted import batch_upsert_context
+from routes.wanted.extract import _extract_embedded_sub
 from services.wanted_item_scanner import scan_radarr_movie, scan_sonarr_series
 
 logger = logging.getLogger(__name__)
+
+
+def _lookup_target_language(item_id: int) -> str | None:
+    """Return the wanted_item's target_language, or None if it isn't found.
+
+    Module-level helper so tests can patch it independently of the
+    scanner instance.
+    """
+    try:
+        from db.wanted import get_wanted_item
+
+        row = get_wanted_item(item_id)
+        if not row:
+            return None
+        lang = row.get("target_language")
+        return lang or None
+    except Exception:
+        logger.exception("subtitle_automation: target_language lookup failed")
+        return None
+
+
+def _enqueue_automation(
+    *, wanted_item_id: int, file_path: str, target_language: str
+) -> None:
+    """Wrapper around the queue repository so tests can stub it cheaply."""
+    from db.repositories.subtitle_automation_queue import (
+        SubtitleAutomationQueueRepository,
+    )
+
+    repo = SubtitleAutomationQueueRepository()
+    repo.enqueue(
+        wanted_item_id=wanted_item_id,
+        file_path=file_path,
+        target_language=target_language,
+    )
 
 
 class _WantedScanSourcesMixin:
@@ -224,18 +260,59 @@ class _WantedScanSourcesMixin:
             return 0, 0, set()
 
     def _maybe_auto_extract(self, item_id: int, file_path: str) -> None:
-        """Trigger embedded subtitle extraction if wanted_auto_extract is enabled."""
+        """Trigger embedded subtitle extraction for a newly-discovered item.
+
+        0.71.0 routing:
+          - If `subtitle_automation_enabled` is on AND we can resolve the
+            target_language, enqueue to `subtitle_automation_queue` for the
+            drain worker to process asynchronously. Scanner stays fast.
+          - Else if `wanted_auto_extract` (legacy) is on, extract inline
+            synchronously as before.
+          - Else no-op.
+
+        Enqueue failures are logged but never propagate — they must not
+        crash the scanner.
+        """
         if item_id is None:
             logger.warning("[Auto-Extract] Skipped — item_id is None for %s", file_path)
             return
         try:
             settings = get_settings()
-            if not getattr(settings, "wanted_auto_extract", False):
-                return
-            from routes.wanted import _extract_embedded_sub
+        except Exception:
+            logger.warning("[Auto-Extract] settings unavailable for item %d", item_id)
+            return
 
+        if getattr(settings, "subtitle_automation_enabled", False):
+            target_lang = _lookup_target_language(item_id)
+            if target_lang:
+                try:
+                    _enqueue_automation(
+                        wanted_item_id=item_id,
+                        file_path=file_path,
+                        target_language=target_lang,
+                    )
+                    logger.info(
+                        "[Auto-Extract] enqueued item %d (%s) for lang=%s",
+                        item_id,
+                        file_path,
+                        target_lang,
+                    )
+                    return
+                except Exception as exc:
+                    logger.warning(
+                        "[Auto-Extract] enqueue failed for item %d: %s — "
+                        "falling through to legacy path",
+                        item_id,
+                        exc,
+                    )
+            # Fall through to legacy path if target_lang missing or enqueue
+            # raised — better to try inline than to drop the work silently.
+
+        if not getattr(settings, "wanted_auto_extract", False):
+            return
+        try:
             auto_translate = getattr(settings, "wanted_auto_translate", False)
-            logger.info("[Auto-Extract] item %d -> %s", item_id, file_path)
+            logger.info("[Auto-Extract] inline item %d -> %s", item_id, file_path)
             _extract_embedded_sub(item_id, file_path, auto_translate=auto_translate)
         except Exception as exc:
-            logger.warning("[Auto-Extract] Failed for item %d: %s", item_id, exc)
+            logger.warning("[Auto-Extract] inline failed for item %d: %s", item_id, exc)
