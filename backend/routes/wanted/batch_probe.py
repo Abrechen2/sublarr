@@ -334,6 +334,23 @@ def _process_probe_result(item: dict, future) -> None:
 
                 if any_extracted:
                     _update_item_db_state(item_id, file_path, target_lang)
+                    # 0.71.0 — foreign-track cleanup runs after successful
+                    # extraction + sidecar trashing. Gated by effective policy
+                    # (series override + global default); no-op otherwise.
+                    # Any failure is swallowed with logging — we must not
+                    # break the happy path because of a cleanup glitch.
+                    try:
+                        from services.foreign_track_cleanup import (
+                            maybe_run_foreign_track_cleanup,
+                        )
+
+                        maybe_run_foreign_track_cleanup(item, file_path)
+                    except Exception as cleanup_exc:
+                        logger.warning(
+                            "[batch-probe] item %d: foreign-track cleanup raised: %s",
+                            item_id,
+                            cleanup_exc,
+                        )
                 else:
                     # All extractions failed
                     _bump_probe_state_counter("skipped")

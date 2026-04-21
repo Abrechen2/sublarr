@@ -357,6 +357,102 @@ def remove_subtitle_stream(
     )
 
 
+def get_media_streams(*args, **kwargs):
+    """Thin re-export so tests can monkeypatch `remux.get_media_streams`.
+
+    Runtime implementation lives in `ass_utils`; we import at call time to
+    avoid a circular import (ass_utils imports remux helpers internally).
+    """
+    from ass_utils import get_media_streams as _impl
+
+    return _impl(*args, **kwargs)
+
+
+def remove_foreign_subtitle_streams(
+    *,
+    video_path: str,
+    target_languages: set[str],
+    keep_und: bool = False,
+    use_reflink: bool = True,
+    trash_dir: str = ".sublarr",
+) -> str | None:
+    """Strip subtitle streams whose language is not in `target_languages`.
+
+    0.71.0 Phase 6 entry point. Run only after all required target-language
+    sidecars for this file have been extracted successfully — the sidecars
+    are the canonical source, the in-container copies are redundant, and
+    removing foreign-language tracks shrinks the container + de-clutters
+    the player track list.
+
+    Parameters
+    ----------
+    video_path:
+        Absolute path to the source video.
+    target_languages:
+        Normalized ISO language codes to keep (e.g. {"ger", "eng"}). If
+        empty, this function is a no-op (defensive — never strip all).
+    keep_und:
+        If True, subtitle tracks with language=und are preserved. Default
+        False matches the global `cleanup_foreign_tracks_keep_und`
+        setting.
+    use_reflink / trash_dir:
+        Forwarded to `remove_subtitle_streams` (backup semantics
+        preserved — nothing is hard-deleted).
+
+    Returns
+    -------
+    str | None
+        Path to the backup file on cleanup, or None if nothing needed to
+        be removed (clean container, empty target set, or no subtitle
+        streams at all).
+    """
+    if not target_languages:
+        logger.debug(
+            "remove_foreign_subtitle_streams: empty target set, skipping %s",
+            video_path,
+        )
+        return None
+
+    try:
+        probe = get_media_streams(video_path)
+    except Exception as exc:
+        raise RemuxError(f"ffprobe failed on {video_path}: {exc}") from exc
+
+    streams_to_remove: list[tuple[int, int]] = []
+    sub_only_idx = 0
+    for stream in probe.get("streams", []):
+        if stream.get("codec_type") != "subtitle":
+            continue
+        lang = (stream.get("tags", {}).get("language", "und") or "und").lower()
+        is_foreign = lang not in target_languages
+        if is_foreign and not (keep_und and lang == "und"):
+            global_idx = stream.get("index")
+            if global_idx is not None:
+                streams_to_remove.append((global_idx, sub_only_idx))
+        sub_only_idx += 1
+
+    if not streams_to_remove:
+        logger.debug(
+            "remove_foreign_subtitle_streams: no foreign tracks in %s", video_path
+        )
+        return None
+
+    logger.info(
+        "remove_foreign_subtitle_streams: stripping %d foreign sub track(s) from %s "
+        "(keep=%s, keep_und=%s)",
+        len(streams_to_remove),
+        video_path,
+        sorted(target_languages),
+        keep_und,
+    )
+    return remove_subtitle_streams(
+        video_path=video_path,
+        streams=streams_to_remove,
+        use_reflink=use_reflink,
+        trash_dir=trash_dir,
+    )
+
+
 def contextlib_suppress(exc_type):
     """Tiny suppress context manager to avoid extra import."""
     import contextlib
