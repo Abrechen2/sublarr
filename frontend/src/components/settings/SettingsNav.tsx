@@ -55,6 +55,7 @@ function useNavGroups(translationEnabled: boolean): readonly NavGroup[] {
       pages: [
         { label: t('settings.nav.search_scan', 'Suche, Scan & Upgrades'), href: '/settings/automation' },
         { label: t('settings.nav.post_processing', 'Post-Processing'), href: '/settings/automation/post-processing' },
+        { label: t('settings.nav.subtitle_automation', 'Untertitel-Automation'), href: '/settings/automation/subtitle' },
       ],
     },
   ]

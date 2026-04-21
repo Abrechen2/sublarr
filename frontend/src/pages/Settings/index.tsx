@@ -101,6 +101,10 @@ const SchedulerPage = lazy(() =>
 const SyncEnginesTab = lazy(() =>
   import('./SyncEnginesTab').then((m) => ({ default: m.SyncEnginesTab })),
 )
+// 0.71.0 — Subtitle Automation (queue drain + SDH + foreign-track cleanup)
+const SubtitleAutomationPage = lazy(() =>
+  import('./SubtitleAutomationPage').then((m) => ({ default: m.SubtitleAutomationPage })),
+)
 const AboutSettings = lazy(() =>
   import('./AboutSettings').then((m) => ({ default: m.AboutSettings })),
 )
@@ -128,6 +132,7 @@ export function SettingsPage() {
             <Route path="automation" element={<AutomationSettings />} />
             <Route path="automation/post-processing" element={<AutomationPostProcessingPage />} />
             <Route path="automation/post-processing-pipeline" element={<PostProcessingTab />} />
+            <Route path="automation/subtitle" element={<SubtitleAutomationPage />} />
             <Route path="translation" element={<TranslationSettings />} />
             <Route
               path="translation/cost-memory"

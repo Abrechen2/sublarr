@@ -4,6 +4,7 @@ from flask import Blueprint
 
 bp = Blueprint("wanted", __name__, url_prefix="/api/v1")
 
+import routes.wanted.automation  # noqa: E402, F401
 import routes.wanted.batch_extract  # noqa: E402, F401
 import routes.wanted.batch_probe  # noqa: E402, F401
 import routes.wanted.bulk_actions  # noqa: E402, F401

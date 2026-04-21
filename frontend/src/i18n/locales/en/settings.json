@@ -1206,5 +1206,54 @@
     "enable": "Enable translation memory",
     "similarity_threshold": "Similarity threshold",
     "clear": "Clear Translation Memory"
+  },
+  "subtitle_automation_page": {
+    "title": "Subtitle Automation",
+    "subtitle": "One-click pipeline for embedded extract, SDH handling, and foreign-track cleanup",
+    "master": {
+      "title": "Automation",
+      "description": "Master switch for the entire pipeline. When off, the sub-toggles below are honored individually.",
+      "label": "Enable full automation",
+      "help": "On: embedded subs auto-extract, SDH is a valid fallback, and foreign-language tracks can be cleaned from containers."
+    },
+    "queue": {
+      "title": "Auto-Extract Queue",
+      "description": "Drain worker that runs until every pending embedded extract has landed on disk.",
+      "enabled": "Drain worker",
+      "enabled_help": "Processes new library items automatically. Falls back to the legacy \"Auto-Extract on scan\" behavior when off.",
+      "interval": "Drain interval (minutes)",
+      "interval_help": "Scheduler cadence. Lower = more responsive, higher = lower CPU."
+    },
+    "sdh": {
+      "title": "SDH Tolerance",
+      "description": "Whether SDH/CC tracks (Subtitles for Deaf / Hard-of-Hearing) are acceptable sources.",
+      "allow": "Allow SDH as source",
+      "allow_help": "Many Disney/Marvel rips only ship English as SDH. Keep this on unless you truly never want SDH extracted.",
+      "penalty": "SDH score penalty",
+      "penalty_help": "Points subtracted from SDH tracks so a non-SDH track wins a tie."
+    },
+    "cleanup": {
+      "title": "Foreign-Track Cleanup",
+      "description": "After extraction succeeds, remove non-target-language subtitle tracks from the container. Backups go to the trash folder — nothing is permanently deleted.",
+      "default": "Strip by default",
+      "default_help": "Global default; per-series overrides live on the series settings panel.",
+      "keep_und": "Keep undetermined (und)",
+      "keep_und_help": "Preserve tracks where the language tag is \"und\". Leave off unless your library has unlabelled subs you want to keep."
+    },
+    "status": {
+      "title": "Live Status",
+      "description": "Queue counts refresh every 5 seconds.",
+      "pending": "Pending",
+      "running": "Running",
+      "failed": "Failed",
+      "done": "Done",
+      "last_run": "Last run",
+      "last_error": "Last error",
+      "run_now": "Run now",
+      "run_started": "Drain triggered ({{n}} processed)."
+    }
+  },
+  "nav": {
+    "subtitle_automation": "Subtitle Automation"
   }
 }

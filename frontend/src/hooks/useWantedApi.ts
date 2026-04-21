@@ -185,3 +185,26 @@ export function useSearchAllWanted() {
     },
   })
 }
+
+// ─── Subtitle Automation (0.71.0) ────────────────────────────────────────────
+
+import { getAutomationStatus, runAutomationNow } from '@/api/wanted'
+
+/** Polls `/wanted/automation/status` every 5 s while the page is open. */
+export function useAutomationStatus() {
+  return useQuery({
+    queryKey: ['automation-status'],
+    queryFn: getAutomationStatus,
+    refetchInterval: 5000,
+  })
+}
+
+export function useRunAutomationNow() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: runAutomationNow,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['automation-status'] })
+    },
+  })
+}

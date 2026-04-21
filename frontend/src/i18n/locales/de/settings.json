@@ -1206,5 +1206,54 @@
     "enable": "Translation Memory aktivieren",
     "similarity_threshold": "Ähnlichkeits-Schwelle",
     "clear": "Translation Memory leeren"
+  },
+  "subtitle_automation_page": {
+    "title": "Untertitel-Automation",
+    "subtitle": "Ein-Klick-Pipeline für Embedded-Extraktion, SDH-Umgang und Fremdspur-Cleanup",
+    "master": {
+      "title": "Automatisierung",
+      "description": "Hauptschalter für die gesamte Pipeline. Ist er aus, bleiben die Unter-Schalter unten einzeln wirksam.",
+      "label": "Vollautomation aktivieren",
+      "help": "An: Embedded-Untertitel werden automatisch extrahiert, SDH gilt als gültige Quelle, und nicht benötigte Sprachspuren können aus den Containern entfernt werden."
+    },
+    "queue": {
+      "title": "Auto-Extraktions-Warteschlange",
+      "description": "Drain-Worker, der arbeitet bis jeder ausstehende Embedded-Extract auf der Platte liegt.",
+      "enabled": "Drain-Worker",
+      "enabled_help": "Verarbeitet neu hinzugefügte Library-Einträge automatisch. Bei \"aus\" greift das Legacy-Verhalten \"Auto-Extract im Scan\".",
+      "interval": "Drain-Intervall (Minuten)",
+      "interval_help": "Scheduler-Takt. Niedriger = reaktiver, höher = weniger CPU-Last."
+    },
+    "sdh": {
+      "title": "SDH-Toleranz",
+      "description": "Ob SDH-/CC-Spuren (Subtitles for Deaf / Hard-of-Hearing) als Quelle zulässig sind.",
+      "allow": "SDH als Quelle zulassen",
+      "allow_help": "Viele Disney-/Marvel-Rips liefern Englisch nur als SDH. Nur ausschalten, wenn du SDH wirklich nie extrahieren willst.",
+      "penalty": "SDH-Score-Abzug",
+      "penalty_help": "Punkte, die SDH-Spuren abgezogen werden, damit eine Nicht-SDH-Spur bei Gleichstand gewinnt."
+    },
+    "cleanup": {
+      "title": "Fremdspur-Cleanup",
+      "description": "Nach erfolgreicher Extraktion die nicht benötigten Untertitel-Sprachspuren aus dem Container entfernen. Backups landen im Trash — nichts wird endgültig gelöscht.",
+      "default": "Standardmäßig entfernen",
+      "default_help": "Globaler Standard; Serien-spezifische Overrides gibt es im Serien-Einstellungspanel.",
+      "keep_und": "Undetermined (und) behalten",
+      "keep_und_help": "Spuren mit Sprach-Tag \"und\" werden nicht entfernt. Nur einschalten, wenn in deiner Library unbeschriftete Subs sind, die du behalten willst."
+    },
+    "status": {
+      "title": "Live-Status",
+      "description": "Warteschlangen-Stände aktualisieren sich alle 5 Sekunden.",
+      "pending": "Wartend",
+      "running": "Läuft",
+      "failed": "Fehlgeschlagen",
+      "done": "Fertig",
+      "last_run": "Letzter Lauf",
+      "last_error": "Letzter Fehler",
+      "run_now": "Jetzt ausführen",
+      "run_started": "Drain ausgelöst ({{n}} verarbeitet)."
+    }
+  },
+  "nav": {
+    "subtitle_automation": "Untertitel-Automation"
   }
 }

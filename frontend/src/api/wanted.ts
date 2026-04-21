@@ -195,6 +195,34 @@ export async function getScannerStatus(): Promise<ScannerStatus> {
   return data
 }
 
+// ─── Subtitle Automation (0.71.0) ───────────────────────────────────────────
+
+export interface AutomationQueueCounts {
+  pending: number
+  running: number
+  failed: number
+  done: number
+}
+
+export interface AutomationStatus {
+  enabled: boolean
+  queue_size: number
+  queue: AutomationQueueCounts
+  last_run_at: string | null
+  last_run_status: string | null
+  last_error: string | null
+}
+
+export async function getAutomationStatus(): Promise<AutomationStatus> {
+  const { data } = await api.get('/wanted/automation/status')
+  return data
+}
+
+export async function runAutomationNow(): Promise<{ status: string; processed?: number }> {
+  const { data } = await api.post('/wanted/automation/run-now')
+  return data
+}
+
 // ─── Batch ───────────────────────────────────────────────────────────────────
 
 export async function startBatch(directory: string, force = false, dryRun = false) {
