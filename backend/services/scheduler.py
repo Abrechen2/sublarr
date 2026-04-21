@@ -722,6 +722,7 @@ def _build_default_jobs() -> list[JobSpec]:
     from anidb_sync import anidb_sync_tick
     from cleanup_scheduler import DEFAULT_INTERVAL_HOURS as CLEANUP_DEFAULT
     from cleanup_scheduler import cleanup_tick
+    from services.subtitle_automation_runner import subtitle_automation_tick
     from services.wanted_scanner_scheduler import (
         wanted_scanner_tick,
         wanted_search_tick,
@@ -736,6 +737,7 @@ def _build_default_jobs() -> list[JobSpec]:
     scan_interval_hours = 6
     search_interval_hours = 24
     upgrade_interval_hours = 168  # trigger floor; adapter pauses when 0
+    automation_drain_minutes = 2
     try:
         from config import get_settings
 
@@ -745,6 +747,9 @@ def _build_default_jobs() -> list[JobSpec]:
         upgrade_cfg = int(getattr(settings, "upgrade_scan_interval_hours", 0) or 0)
         if upgrade_cfg > 0:
             upgrade_interval_hours = upgrade_cfg
+        automation_drain_minutes = max(
+            1, int(getattr(settings, "subtitle_automation_drain_interval_minutes", 2) or 2)
+        )
     except Exception:
         logger.debug("scheduler: settings unavailable during _build_default_jobs", exc_info=True)
 
@@ -817,6 +822,18 @@ def _build_default_jobs() -> list[JobSpec]:
             timeout_s=900,
             owner_module="services.wanted_scanner",
             description="Search providers for all wanted items.",
+        ),
+        JobSpec(
+            id="subtitle_automation",
+            func=subtitle_automation_tick,
+            default_trigger=IntervalTrigger(minutes=automation_drain_minutes),
+            timeout_s=600,
+            owner_module="services.subtitle_automation_runner",
+            description=(
+                "Drain the subtitle_automation_queue: extract pending embedded "
+                "subtitles into sidecars. No-op when the master toggle "
+                "(subtitle_automation_enabled) is off."
+            ),
         ),
     ]
 
