@@ -364,7 +364,54 @@ class SeriesSettings(db.Model):
     processing_config: Mapped[str | None] = mapped_column(Text, nullable=True)
     priority_override: Mapped[str | None] = mapped_column(String(20), nullable=True)
     min_attempts_per_day: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    # 0.71.0: per-series override for foreign-track cleanup. NULL = inherit global
+    # `cleanup_foreign_tracks_default`. True/False = explicit opt-in/opt-out.
+    cleanup_foreign_tracks: Mapped[bool | None] = mapped_column(
+        Boolean, nullable=True, default=None
+    )
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+
+
+class SubtitleAutomationQueueEntry(db.Model):
+    """Persistent drain queue for auto-extract of embedded subtitles (0.71.0).
+
+    One row per wanted_item that has an embedded target-language track waiting
+    to be extracted to a sidecar. The drain worker picks rows in order and
+    calls `_extract_embedded_sub`. Rows survive restarts so extraction can
+    resume across deploys without losing state.
+
+    State machine: pending → running → done | failed. Failed rows carry
+    `last_error` + `next_retry_at` for backoff-driven retries.
+    """
+
+    __tablename__ = "subtitle_automation_queue"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    wanted_item_id: Mapped[int] = mapped_column(Integer, nullable=False, unique=True)
+    file_path: Mapped[str] = mapped_column(Text, nullable=False)
+    target_language: Mapped[str] = mapped_column(String(8), nullable=False)
+    state: Mapped[str] = mapped_column(String(10), nullable=False, default="pending")
+    attempt_count: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    next_retry_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
+    last_error: Mapped[str | None] = mapped_column(Text, nullable=True)
+    last_started_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
+    last_finished_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+
+    __table_args__ = (
+        Index(
+            "idx_subtitle_automation_queue_drain",
+            "state",
+            "next_retry_at",
+        ),
+    )
 
 
 class FansubPreference(db.Model):
@@ -448,6 +495,7 @@ __all__ = [
     "FilterPreset",
     "AnidbAbsoluteMapping",
     "SeriesSettings",
+    "SubtitleAutomationQueueEntry",
     "FansubPreference",
     "ProviderLearnedLimit",
     "ProviderAccountPool",
