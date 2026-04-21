@@ -95,6 +95,18 @@ def _get_standalone_series_detail(series_id: int, settings) -> dict | None:
             futures = {fp: executor.submit(_detect_subtitles, fp) for fp in unique_fps}
         subtitle_map = {fp: f.result() for fp, f in futures.items()}
 
+    # 0.71.0 Phase 8 — wanted_items.existing_sub fallback keyed by file_path.
+    # Maps file_path → {lang: existing_sub} so embedded_srt/embedded_ass fills
+    # the gap where the filesystem sidecar hasn't been written yet. Mirrors
+    # the Sonarr path's wanted_fallback merge at line ~357.
+    wanted_fallback_sa: dict = {}
+    for _it in wanted_items:
+        _fp = _it.get("file_path", "")
+        _lang = _it.get("target_language") or ""
+        _existing = _it.get("existing_sub") or ""
+        if _fp and _lang and _existing:
+            wanted_fallback_sa.setdefault(_fp, {})[_lang] = _existing
+
     episodes = []
     seen: set = set()
     for item in wanted_items:
@@ -108,7 +120,14 @@ def _get_standalone_series_detail(series_id: int, settings) -> dict | None:
             m = re.match(r"S(\d+)E(\d+)", se, re.IGNORECASE)
             if m:
                 season, episode = int(m.group(1)), int(m.group(2))
-        subtitles = subtitle_map.get(fp, {lang: "" for lang in target_languages})
+        fs_subs = subtitle_map.get(fp, {})
+        subtitles = {}
+        for lang in target_languages:
+            fs = fs_subs.get(lang, "") if fs_subs else ""
+            if fs:
+                subtitles[lang] = fs
+            else:
+                subtitles[lang] = wanted_fallback_sa.get(fp, {}).get(lang, "")
         ep_scores_sa = standalone_scores.get(fp, {})
         episodes.append(
             {
