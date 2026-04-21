@@ -169,6 +169,30 @@ class Settings(BaseSettings):
     use_embedded_subs: bool = True  # Check embedded subtitle streams in MKV files
     scan_yield_ms: int = 0  # Sleep between series/movies (ms) to yield CPU to API threads
 
+    # 0.71.0 — Subtitle Automation (batteries-included extract/SDH/cleanup bundle)
+    #
+    # Master toggle off by default so upgrading users opt-in explicitly. When
+    # on, the three sub-toggles below (queue drain, SDH tolerance, foreign-track
+    # cleanup default) are honored. Individual sub-toggles can still be flipped
+    # independently by power users.
+    subtitle_automation_enabled: bool = False
+    subtitle_automation_queue_enabled: bool = True  # Drain worker for pending extracts
+    subtitle_automation_drain_interval_minutes: int = 2  # Scheduler tick cadence
+
+    # SDH source tolerance. SDH tracks (Subtitles for Deaf / Hard-of-Hearing)
+    # are valid fallbacks by default — many Disney/Marvel rips ship EN only as
+    # SDH. A small scoring penalty ensures a non-SDH track wins when both are
+    # available for the same language.
+    embedded_allow_sdh: bool = True
+    embedded_sdh_penalty: int = 5
+
+    # Foreign-track cleanup. Destructive (remuxes the MKV with backup-to-trash)
+    # so off by default. `keep_und` preserves language=undetermined streams
+    # even during cleanup — also off by default since `und` is usually a
+    # stray unwanted track from a bad rip.
+    cleanup_foreign_tracks_default: bool = False
+    cleanup_foreign_tracks_keep_und: bool = False
+
     # Provider Re-ranking
     provider_reranking_enabled: bool = False  # Auto-adjust score modifiers from download history
     provider_reranking_min_downloads: int = (
