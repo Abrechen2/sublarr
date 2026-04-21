@@ -15,9 +15,33 @@ restore_tags, fix_line_breaks) stay in ass_utils.py.
 import json
 import logging
 import os
+import re
 import subprocess
 
 from config import get_settings
+
+# 0.71.0 — SDH detection. Matches the common markers fansubs and studios
+# use in track titles. Language codes never trigger this; we only inspect
+# the `title` field (word-boundary) plus the ffprobe `hearing_impaired`
+# disposition flag.
+_SDH_TITLE_RE = re.compile(r"\b(sdh|cc|hi)\b", re.IGNORECASE)
+
+
+def is_sdh_stream(stream: dict) -> bool:
+    """Return True if the given ffprobe subtitle stream looks like SDH/CC/HI.
+
+    Detection sources (either is sufficient):
+      - `tags.title` matches /\b(sdh|cc|hi)\b/i
+      - `disposition.hearing_impaired` is truthy
+    """
+    if not stream:
+        return False
+    tags = stream.get("tags") or {}
+    title = (tags.get("title") or "")
+    if _SDH_TITLE_RE.search(title):
+        return True
+    disposition = stream.get("disposition") or {}
+    return bool(disposition.get("hearing_impaired"))
 
 logger = logging.getLogger(__name__)
 

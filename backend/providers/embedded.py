@@ -14,7 +14,9 @@ import logging
 import os
 import tempfile
 
+from ass_probe import is_sdh_stream
 from ass_utils import extract_subtitle_stream, get_media_streams
+from config import get_settings
 from providers import register_provider
 from providers.base import (
     SubtitleFormat,
@@ -180,6 +182,16 @@ class EmbeddedSubtitlesProvider(SubtitleProvider):
         results: list[SubtitleResult] = []
         sub_index = 0
 
+        # 0.71.0 SDH tolerance — read the toggle once per search.
+        allow_sdh = True
+        sdh_penalty = 5
+        try:
+            _s = get_settings()
+            allow_sdh = bool(getattr(_s, "embedded_allow_sdh", True))
+            sdh_penalty = int(getattr(_s, "embedded_sdh_penalty", 5) or 0)
+        except Exception:
+            logger.debug("Embedded: SDH settings unavailable; using defaults")
+
         for stream in probe.get("streams", []):
             if stream.get("codec_type") != "subtitle":
                 continue
@@ -202,6 +214,15 @@ class EmbeddedSubtitlesProvider(SubtitleProvider):
             title = tags.get("title") or tags.get("handler_name") or ""
             track_name = f"{iso_lang}_{stream_index}.{ext}"
 
+            # 0.71.0 — SDH detection via shared helper (title markers +
+            # disposition.hearing_impaired flag). Legacy code checked the
+            # title alone; the helper is stricter and more accurate.
+            is_hi = is_sdh_stream(stream)
+            if is_hi and not allow_sdh:
+                # Toggle says SDH is not an acceptable source — skip entirely.
+                sub_index += 1
+                continue
+
             # Plan B5 — rank tracks by (language, forced, HI) match.
             # Base bonus applies when language matches (already true here).
             score_bonus = _EMBEDDED_SCORE_BONUS
@@ -210,14 +231,19 @@ class EmbeddedSubtitlesProvider(SubtitleProvider):
             if getattr(query, "forced_only", False):
                 score_bonus += 15 if forced else -5
 
-            # HI preference — track is HI if title contains "sdh" or "cc"
-            title_lower = title.lower()
-            is_hi = ("sdh" in title_lower) or ("cc" in title_lower)
+            # HI preference (legacy per-query knob)
             hi_pref = getattr(query, "hi_preference", "include")
             if hi_pref == "prefer" and is_hi:
                 score_bonus += 10
             elif hi_pref == "exclude" and is_hi:
                 score_bonus -= 999
+
+            # 0.71.0 — small penalty so non-SDH wins ties when both are
+            # available. Default 5 points. No effect when the legacy
+            # "prefer"/"exclude" knobs above already moved the bonus in
+            # a direction the user explicitly asked for.
+            if is_hi and hi_pref == "include":
+                score_bonus -= sdh_penalty
 
             results.append(
                 SubtitleResult(

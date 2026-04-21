@@ -91,9 +91,20 @@ def _bump_probe_state_counter(key: str) -> None:
 def _collect_subtitle_streams(probe_data: dict) -> list[dict]:
     """Classify text-subtitle streams from ffprobe output.
 
-    Returns a list of dicts with keys: sub_index, stream_index, format, language.
-    Skips image-based formats (PGS, VobSub, etc.).
+    Returns a list of dicts with keys: sub_index, stream_index, format,
+    language, is_sdh. Skips image-based formats (PGS, VobSub, etc.).
+
+    0.71.0: honours `embedded_allow_sdh`. When False, SDH/CC/HI streams
+    are dropped entirely so the batch-probe ignores them. Default True.
     """
+    from ass_probe import is_sdh_stream
+
+    allow_sdh = True
+    try:
+        allow_sdh = bool(getattr(get_settings(), "embedded_allow_sdh", True))
+    except Exception:
+        logger.debug("batch_probe: embedded_allow_sdh unavailable; assuming True")
+
     sub_streams = []
     sub_index = 0
     for stream in probe_data.get("streams", []):
@@ -107,6 +118,10 @@ def _collect_subtitle_streams(probe_data: dict) -> list[dict]:
         else:
             sub_index += 1
             continue  # skip PGS, VobSub, etc.
+        sdh = is_sdh_stream(stream)
+        if sdh and not allow_sdh:
+            sub_index += 1
+            continue
         lang = (stream.get("tags", {}).get("language", "und") or "und").lower()
         sub_streams.append(
             {
@@ -114,6 +129,7 @@ def _collect_subtitle_streams(probe_data: dict) -> list[dict]:
                 "stream_index": stream.get("index"),
                 "format": fmt,
                 "language": lang,
+                "is_sdh": sdh,
             }
         )
         sub_index += 1
