@@ -5,6 +5,26 @@ All notable changes to Sublarr are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.71.0-beta] - 2026-04-21
+
+### Added
+- **Subtitle Automation — unified pipeline for embedded extract, SDH, and cleanup.** New Settings → Automation → Subtitle Automation page exposes a master toggle plus granular sub-toggles for the drain worker, SDH source tolerance, and foreign-track cleanup. When enabled, the scanner enqueues newly-discovered embedded tracks into a new persistent `subtitle_automation_queue` table; the drain worker (registered as APScheduler job `subtitle_automation`, default cadence 2 min, configurable) pulls rows and extracts embedded subtitles into sidecars with exponential backoff on failure (5m → 15m → 1h → 6h → 24h, capped). `FileNotFoundError` treated as terminal failure (no retry). Live status card shows queue counts (`pending/running/failed/done`), last run, last error, and a one-click Run-now button.
+- **Persistent drain queue with atomic claim.** New `SubtitleAutomationQueueRepository` exposes `enqueue` (idempotent by `wanted_item_id`; re-enqueue of a `done` row resets to `pending`), `claim_next` (optimistic-lock transition to `running`, works on both SQLite and Postgres without dialect-specific SQL), `mark_done`, `mark_failed(error, next_retry_at)`, and `get_counts`.
+- **SDH source tolerance.** `is_sdh_stream` helper in `ass_probe.py` detects SDH/CC/HI via word-boundary regex on track titles plus the ffprobe `disposition.hearing_impaired` flag. `EmbeddedSubtitlesProvider.search` applies a configurable score penalty (default 5) so a non-SDH track wins a tie while SDH remains a valid source by default — necessary because Marvel/Disney rips ship English only as SDH. `embedded_allow_sdh=False` drops SDH tracks from the candidate pool entirely.
+- **Foreign-track cleanup helper.** New `remux.remove_foreign_subtitle_streams` strips subtitle streams whose language is not in the target-language set after a successful target-language extraction. Uses the existing `remove_subtitle_streams` path so backups-to-trash semantics are preserved — nothing is hard-deleted. Opt-in globally (`cleanup_foreign_tracks_default`, default off) with per-series override (`SeriesSettings.cleanup_foreign_tracks`, nullable). `cleanup_foreign_tracks_keep_und` preserves `language=und` tracks when cleanup runs.
+- **Status + run-now API.** `GET /api/v1/wanted/automation/status` returns the dashboard payload. `POST /api/v1/wanted/automation/run-now` triggers a synchronous drain (max 25 items per call). Master-toggle-off returns `status="disabled"` rather than a 500.
+- **Standalone series display alignment.** `_get_standalone_series_detail` now merges `wanted_items.existing_sub` (`embedded_srt` / `embedded_ass`) as a fallback when the filesystem sidecar is absent, mirroring the Sonarr path. Standalone series with only embedded tracks no longer render red pills for languages that already exist in the container.
+
+### Changed
+- **Scanner auto-extract routes through the new queue when automation is enabled.** `_WantedScanSourcesMixin._maybe_auto_extract` now routes through `subtitle_automation_queue` when `subtitle_automation_enabled` is on and the target language can be resolved; falls back to the legacy synchronous inline-extract path (gated by `wanted_auto_extract`) when the master toggle is off, the lookup fails, or enqueue raises. Scanner stays fast — enqueue is O(1) and drain happens asynchronously.
+- **7 new config keys** exposed via the ScanningSettings grouped view (so `/api/v1/config` reads/writes work without per-key plumbing): `subtitle_automation_enabled` (false), `subtitle_automation_queue_enabled` (true), `subtitle_automation_drain_interval_minutes` (2), `embedded_allow_sdh` (true), `embedded_sdh_penalty` (5), `cleanup_foreign_tracks_default` (false), `cleanup_foreign_tracks_keep_und` (false). All respect the `SUBLARR_` env-var prefix.
+
+### Migration
+- `a1b1c1d1e1f1` — adds nullable `series_settings.cleanup_foreign_tracks` (`NULL` = inherit global default) and creates the new `subtitle_automation_queue` table with UNIQUE(`wanted_item_id`) and composite index `(state, next_retry_at)` for drain lookups. PG-tolerant with `IF NOT EXISTS` on the added column.
+
+### Tests
+- 89 new tests across 8 test modules (TDD, one file per phase): schema (10), config (11), queue repository (13), drain runner + scheduler (21), scanner enqueue wiring (6), SDH tolerance (12), foreign-track cleanup (9), status API (5), standalone display (2).
+
 ## [0.70.4-beta] - 2026-04-20
 
 ### Fixed
