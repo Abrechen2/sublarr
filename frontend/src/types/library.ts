@@ -74,6 +74,11 @@ export interface SeriesDetail {
   source_language_name: string
   episodes: EpisodeInfo[]
   absolute_order?: boolean
+  // 0.71.1: per-series foreign-track cleanup override.
+  //   cleanup_foreign_tracks_override: raw SeriesSettings value (null = inherit).
+  //   cleanup_foreign_tracks_effective: resolved policy after applying global default.
+  cleanup_foreign_tracks_override?: boolean | null
+  cleanup_foreign_tracks_effective?: boolean
 }
 
 export interface EpisodeHistoryEntry {

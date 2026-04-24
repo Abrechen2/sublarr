@@ -197,6 +197,24 @@ export function SeriesDetailPage() {
     )
   }, [seriesId, updateSeriesSettingsMutation])
 
+  const handleSetCleanupForeignTracks = useCallback(
+    (value: boolean | null) => {
+      if (seriesId == null) return
+      patchSeriesSettings(seriesId, { cleanup_foreign_tracks: value })
+        .then(() => {
+          void queryClient.invalidateQueries({ queryKey: ['series', seriesId] })
+          const label =
+            value === true ? 'Cleanup: always' : value === false ? 'Cleanup: never' : 'Cleanup: inherit'
+          toast(label, 'success')
+        })
+        .catch((err: unknown) => {
+          const msg = err instanceof Error ? err.message : 'Speichern fehlgeschlagen'
+          toast(msg, 'error')
+        })
+    },
+    [seriesId, queryClient]
+  )
+
   const handleRefreshAnidbMapping = useCallback(() => {
     refreshAnidbMappingMutation.mutate(undefined, {
       onSuccess: () => toast('AniDB mapping refresh started'),
@@ -538,6 +556,7 @@ export function SeriesDetailPage() {
           extractProgress={extractProgress}
           onToggleGlossary={() => setShowGlossary((v) => !v)}
           onToggleAbsoluteOrder={handleToggleAbsoluteOrder}
+          onSetCleanupForeignTracks={handleSetCleanupForeignTracks}
           onRefreshAnidb={handleRefreshAnidbMapping}
           onExtract={handleExtract}
           onCleanup={() => setShowCleanupModal(true)}

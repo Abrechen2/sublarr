@@ -47,6 +47,14 @@ def patch_series_settings(series_id: int):
                 }
             ), 400
 
+    # Validate cleanup_foreign_tracks — strictly tri-state (true | false | null).
+    # JSON booleans in Python are also `int` subclasses, so reject non-bool ints
+    # explicitly to stop "cleanup_foreign_tracks: 1" from masquerading as True.
+    if "cleanup_foreign_tracks" in data:
+        cv = data["cleanup_foreign_tracks"]
+        if cv is not None and not isinstance(cv, bool):
+            return jsonify({"error": "cleanup_foreign_tracks must be true, false, or null"}), 400
+
     now = datetime.now(UTC)
     row = db.session.get(SeriesSettings, series_id)
     if row is None:
@@ -62,6 +70,8 @@ def patch_series_settings(series_id: int):
         row.priority_override = data["priority_override"]
     if "min_attempts_per_day" in data:
         row.min_attempts_per_day = int(data["min_attempts_per_day"])
+    if "cleanup_foreign_tracks" in data:
+        row.cleanup_foreign_tracks = data["cleanup_foreign_tracks"]
     row.updated_at = now
     db.session.commit()
 
@@ -70,5 +80,6 @@ def patch_series_settings(series_id: int):
             "sonarr_series_id": row.sonarr_series_id,
             "priority_override": row.priority_override,
             "min_attempts_per_day": row.min_attempts_per_day,
+            "cleanup_foreign_tracks": row.cleanup_foreign_tracks,
         }
     ), 200

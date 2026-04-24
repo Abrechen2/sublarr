@@ -12,6 +12,7 @@ interface SeriesSettingsPanelProps {
   readonly extractProgress: { current: number; total: number; filename: string } | null
   readonly onToggleGlossary: () => void
   readonly onToggleAbsoluteOrder: (enabled: boolean) => void
+  readonly onSetCleanupForeignTracks: (value: boolean | null) => void
   readonly onRefreshAnidb: () => void
   readonly onExtract: () => void
   readonly onCleanup: () => void
@@ -45,6 +46,7 @@ export function SeriesSettingsPanel({
   extractProgress,
   onToggleGlossary,
   onToggleAbsoluteOrder,
+  onSetCleanupForeignTracks,
   onRefreshAnidb,
   onExtract,
   onCleanup,
@@ -175,6 +177,77 @@ export function SeriesSettingsPanel({
               🔄 AniDB Refresh
             </button>
           )}
+
+          {/* Foreign-track cleanup override — three-state (inherit / always / never).
+              0.71.1 follow-up #1. Reads cleanup_foreign_tracks_override + _effective
+              from SeriesDetail and PATCHes /api/v1/series/<id>/settings. */}
+          <Tooltip
+            content={t('series_settings_panel.tooltip_cleanup_foreign_tracks', {
+              defaultValue:
+                'After extraction: strip non-target-language subtitle streams from the MKV. ' +
+                '"Inherit" follows the global default in Settings.',
+            })}
+          >
+            <label
+              htmlFor="cleanup-foreign-tracks-select"
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '6px',
+                fontSize: '11px',
+                color: 'var(--text-secondary)',
+                cursor: updatePending ? 'default' : 'pointer',
+                opacity: updatePending ? 0.6 : 1,
+              }}
+            >
+              <span>
+                {t('series_settings_panel.cleanup_foreign_tracks_label', {
+                  defaultValue: 'Cleanup foreign tracks:',
+                })}
+              </span>
+              <select
+                id="cleanup-foreign-tracks-select"
+                aria-label="Cleanup foreign tracks"
+                disabled={updatePending}
+                value={
+                  series.cleanup_foreign_tracks_override === true
+                    ? 'true'
+                    : series.cleanup_foreign_tracks_override === false
+                      ? 'false'
+                      : 'null'
+                }
+                onChange={(e) => {
+                  const next = e.target.value
+                  if (next === 'true') onSetCleanupForeignTracks(true)
+                  else if (next === 'false') onSetCleanupForeignTracks(false)
+                  else onSetCleanupForeignTracks(null)
+                }}
+                style={{
+                  fontSize: '11px',
+                  padding: '2px 6px',
+                  borderRadius: '4px',
+                  border: '1px solid var(--border)',
+                  backgroundColor: 'var(--bg-elevated)',
+                  color: 'var(--text-secondary)',
+                }}
+              >
+                <option value="null">
+                  {t('series_settings_panel.cleanup_inherit', {
+                    defaultValue: 'Inherit',
+                  })}
+                  {series.cleanup_foreign_tracks_effective !== undefined
+                    ? ` (${series.cleanup_foreign_tracks_effective ? 'on' : 'off'})`
+                    : ''}
+                </option>
+                <option value="true">
+                  {t('series_settings_panel.cleanup_always', { defaultValue: 'Always' })}
+                </option>
+                <option value="false">
+                  {t('series_settings_panel.cleanup_never', { defaultValue: 'Never' })}
+                </option>
+              </select>
+            </label>
+          </Tooltip>
         </div>
       </div>
 
