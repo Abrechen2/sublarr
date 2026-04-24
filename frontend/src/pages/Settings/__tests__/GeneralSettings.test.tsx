@@ -83,14 +83,14 @@ describe('GeneralSettings', () => {
 
   it('renders the Interface Preferences section', () => {
     renderWithProviders(<GeneralSettings />)
-    expect(screen.getByTestId('section-interface-preferences')).toBeInTheDocument()
+    expect(screen.getByTestId('settings.general.section-interface-preferences')).toBeInTheDocument()
   })
 
   // ── Paths & Server section ───────────────────────────────────────────────
 
   it('renders the Paths & Server section', () => {
     renderWithProviders(<GeneralSettings />)
-    expect(screen.getByTestId('section-paths')).toBeInTheDocument()
+    expect(screen.getByTestId('settings.general.section-paths')).toBeInTheDocument()
   })
 
   it('displays the media_path value from config', () => {
@@ -126,7 +126,7 @@ describe('GeneralSettings', () => {
 
   it('shows advanced fields after clicking the Advanced toggle in Paths section', () => {
     renderWithProviders(<GeneralSettings />)
-    const pathsSection = screen.getByTestId('section-paths')
+    const pathsSection = screen.getByTestId('settings.general.section-paths')
     const advancedToggle = pathsSection.querySelector(
       '[data-testid="settings-section-advanced-toggle"]',
     ) as HTMLElement
@@ -138,7 +138,7 @@ describe('GeneralSettings', () => {
 
   it('calls updateConfig with db_path when advanced field changes', () => {
     renderWithProviders(<GeneralSettings />)
-    const pathsSection = screen.getByTestId('section-paths')
+    const pathsSection = screen.getByTestId('settings.general.section-paths')
     const advancedToggle = pathsSection.querySelector(
       '[data-testid="settings-section-advanced-toggle"]',
     ) as HTMLElement
@@ -152,7 +152,7 @@ describe('GeneralSettings', () => {
 
   it('renders the Logging section', () => {
     renderWithProviders(<GeneralSettings />)
-    expect(screen.getByTestId('section-logging')).toBeInTheDocument()
+    expect(screen.getByTestId('settings.general.section-logging')).toBeInTheDocument()
   })
 
   it('displays the log_level select with current config value', () => {
@@ -225,9 +225,9 @@ describe('Interface Preferences section', () => {
 
   it('renders the section heading "Interface Preferences"', () => {
     renderWithProviders(<GeneralSettings />)
-    expect(screen.getByTestId('section-interface-preferences')).toBeInTheDocument()
+    expect(screen.getByTestId('settings.general.section-interface-preferences')).toBeInTheDocument()
     const title = screen
-      .getByTestId('section-interface-preferences')
+      .getByTestId('settings.general.section-interface-preferences')
       .querySelector('[data-testid="settings-section-title"]')
     expect(title).toHaveTextContent('interface_prefs_section')
   })
