@@ -5,6 +5,18 @@ All notable changes to Sublarr are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.72.0-beta] - 2026-04-24
+
+### Added
+- **Per-series foreign-track cleanup override.** The Series Settings Panel now exposes a three-state toggle (Inherit / Always / Never) for the `cleanup_foreign_tracks` policy. Inherit follows the global default from Settings → Subtitle Automation; Always/Never force the per-series behavior. The 'Inherit' label also shows the resolved effective state ('Inherit (on)' / 'Inherit (off)') so users see what the global default currently produces without having to leave the page. Backed by a new tri-state validator on `PATCH /api/v1/series/<id>/settings` that strictly rejects non-boolean values (including integer coercions).
+- **Series-detail API surfaces the cleanup policy.** `GET /api/v1/library/series/<id>` now returns two new fields: `cleanup_foreign_tracks_override` (the raw `SeriesSettings` column value — `true`/`false`/`null` meaning inherit) and `cleanup_foreign_tracks_effective` (the resolved policy after applying the global default via `services.foreign_track_cleanup.should_cleanup_foreign_tracks`). Works for both Sonarr-managed and standalone-library series.
+
+### Fixed
+- **Dashboard StatusStripe no longer shows 'Paused' 99% of the time.** Previously the stripe label used a 2-state boolean (`is_scanning || is_searching`), so the brief scan/search windows flipped to 'Active' and the rest of the time showed 'Paused' — which users read as 'automation is disabled'. Replaced with a 3-state machine (`active` / `idle` / `paused`) that reads the real `wanted_scanner` + `wanted_search` scheduler-job state. 'Idle' is the new honest label for 'armed, waiting for next run' — shown with `var(--text-muted)` grey. 'Paused' is now reserved for the genuine case where both jobs are manually paused — shown with `var(--warning)` yellow to signal a deliberate user action. The real-time running state keeps the green pulse. New i18n keys: `statusStripe.idle` ('READY' / 'BEREIT'), plus a screen-reader-friendly `aria-live='polite'` region and `aria-label` with the full state.
+
+### Tests
+- +15 new tests (4 pytest for series-detail response shape, 6 pytest + 6 RTL for the per-series cleanup override, 3 RTL for the SubtitleAutomationPage status card that shipped in 0.71.0, 6 RTL for the 3-state StatusStripe logic).
+
 ## [0.71.1-beta] - 2026-04-24
 
 ### Fixed
