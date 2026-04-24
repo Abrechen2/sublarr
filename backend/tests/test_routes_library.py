@@ -1,5 +1,6 @@
 """HTTP tests for routes/library/ — list, series detail, episode search, history."""
 
+from datetime import UTC, datetime
 from unittest.mock import MagicMock, patch
 
 # ---------------------------------------------------------------------------
@@ -179,6 +180,127 @@ def test_series_detail_includes_profile_info(client, monkeypatch):
     assert resp.status_code == 200
     assert "target_languages" in data
     assert "profile_name" in data
+
+
+# ---------------------------------------------------------------------------
+# 0.71.1 follow-up #3 — cleanup_foreign_tracks_override / _effective response fields
+# ---------------------------------------------------------------------------
+
+
+def _sonarr_series_stub(sid: int):
+    mock_sonarr = MagicMock()
+    mock_sonarr.get_series_by_id.return_value = {
+        "id": sid,
+        "title": f"Series {sid}",
+        "year": 2024,
+        "path": f"/media/s{sid}",
+        "images": [],
+        "tags": [],
+        "status": "continuing",
+        "overview": "",
+    }
+    mock_sonarr.get_episodes.return_value = []
+    mock_sonarr.get_episode_files_by_series.return_value = {}
+    mock_sonarr.get_tags.return_value = []
+    return mock_sonarr
+
+
+def test_series_detail_cleanup_foreign_tracks_no_row_inherits_global_false(client, monkeypatch):
+    """No SeriesSettings row, global default False → override null, effective False."""
+    monkeypatch.setattr("sonarr_client.get_sonarr_client", lambda *a, **kw: _sonarr_series_stub(1))
+    resp = client.get("/api/v1/library/series/1")
+    data = resp.get_json()
+    assert resp.status_code == 200
+    assert data["cleanup_foreign_tracks_override"] is None
+    assert data["cleanup_foreign_tracks_effective"] is False
+
+
+def test_series_detail_cleanup_foreign_tracks_series_override_true(client, monkeypatch):
+    """SeriesSettings.cleanup_foreign_tracks = True beats global False → effective True."""
+    from db.models.core import SeriesSettings
+    from extensions import db as _db
+
+    with client.application.app_context():
+        row = SeriesSettings(
+            sonarr_series_id=7,
+            cleanup_foreign_tracks=True,
+            updated_at=datetime.now(UTC),
+        )
+        _db.session.add(row)
+        _db.session.commit()
+
+    monkeypatch.setattr("sonarr_client.get_sonarr_client", lambda *a, **kw: _sonarr_series_stub(7))
+    resp = client.get("/api/v1/library/series/7")
+    data = resp.get_json()
+    assert resp.status_code == 200
+    assert data["cleanup_foreign_tracks_override"] is True
+    assert data["cleanup_foreign_tracks_effective"] is True
+
+
+def test_series_detail_cleanup_foreign_tracks_series_override_false_beats_global_true(
+    client, monkeypatch
+):
+    """SeriesSettings.cleanup_foreign_tracks = False beats global True → effective False."""
+    from db.models.core import SeriesSettings
+    from extensions import db as _db
+
+    with client.application.app_context():
+        row = SeriesSettings(
+            sonarr_series_id=9,
+            cleanup_foreign_tracks=False,
+            updated_at=datetime.now(UTC),
+        )
+        _db.session.add(row)
+        _db.session.commit()
+
+    # Simulate global True via a fake Settings object returned by get_settings().
+    class _S:
+        cleanup_foreign_tracks_default = True
+        target_language = "de"
+        target_language_name = "German"
+        source_language = "en"
+        source_language_name = "English"
+
+    monkeypatch.setattr("config.get_settings", lambda: _S())
+    monkeypatch.setattr("sonarr_client.get_sonarr_client", lambda *a, **kw: _sonarr_series_stub(9))
+    resp = client.get("/api/v1/library/series/9")
+    data = resp.get_json()
+    assert resp.status_code == 200
+    assert data["cleanup_foreign_tracks_override"] is False
+    assert data["cleanup_foreign_tracks_effective"] is False
+
+
+def test_standalone_series_detail_cleanup_foreign_tracks_inherits_global(client, monkeypatch):
+    """Standalone path has no SeriesSettings → override null, effective = global default."""
+    # No Sonarr → falls through to standalone
+    monkeypatch.setattr("sonarr_client.get_sonarr_client", lambda *a, **kw: None)
+
+    fake_series = {
+        "id": 42,
+        "title": "Standalone Show",
+        "year": 2023,
+        "folder_path": "/media/standalone/show",
+        "status": "continuing",
+        "season_count": 1,
+        "poster_url": None,
+    }
+
+    class _S:
+        cleanup_foreign_tracks_default = True
+        target_language = "de"
+        target_language_name = "German"
+        source_language = "en"
+        source_language_name = "English"
+
+    monkeypatch.setattr("config.get_settings", lambda: _S())
+    with patch("db.standalone.get_standalone_series", return_value=fake_series):
+        resp = client.get("/api/v1/library/series/42")
+
+    data = resp.get_json()
+    assert resp.status_code == 200
+    assert data["source"] == "standalone"
+    assert data["cleanup_foreign_tracks_override"] is None
+    assert data["cleanup_foreign_tracks_effective"] is True
 
 
 # ---------------------------------------------------------------------------

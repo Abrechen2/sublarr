@@ -150,6 +150,11 @@ def _get_standalone_series_detail(series_id: int, settings) -> dict | None:
         )
 
     poster = f"/api/v1/standalone/series/{series_id}/poster" if series.get("poster_url") else ""
+
+    # Standalone series have no SeriesSettings row — override is always null,
+    # effective policy mirrors the global default.
+    global_default = bool(getattr(settings, "cleanup_foreign_tracks_default", False))
+
     return {
         "id": series.get("id"),
         "title": series.get("title", ""),
@@ -169,6 +174,8 @@ def _get_standalone_series_detail(series_id: int, settings) -> dict | None:
         "source_language": settings.source_language,
         "source_language_name": settings.source_language_name,
         "absolute_order": False,
+        "cleanup_foreign_tracks_override": None,
+        "cleanup_foreign_tracks_effective": global_default,
         "episodes": episodes,
         "source": "standalone",
     }
@@ -437,19 +444,29 @@ def get_series_detail(series_id):
     except Exception as _e:
         logger.debug("Could not load series settings for %d: %s", series_id, _e)
 
-    # Load processing config override for this series
+    # Load processing config override + cleanup_foreign_tracks override for this series
     import json as _json
 
+    from services.foreign_track_cleanup import should_cleanup_foreign_tracks
+
     processing_config: dict = {}
+    cleanup_override: bool | None = None
     try:
         from db.models.core import SeriesSettings
         from extensions import db as _db
 
         row = _db.session.get(SeriesSettings, series_id)
-        if row and row.processing_config:
-            processing_config = _json.loads(row.processing_config)
+        if row:
+            if row.processing_config:
+                processing_config = _json.loads(row.processing_config)
+            cleanup_override = row.cleanup_foreign_tracks
     except Exception as _e:
-        logger.debug("Could not load processing config for %d: %s", series_id, _e)
+        logger.debug("Could not load series settings for %d: %s", series_id, _e)
+
+    global_default = bool(getattr(settings, "cleanup_foreign_tracks_default", False))
+    cleanup_effective = should_cleanup_foreign_tracks(
+        series_override=cleanup_override, global_default=global_default
+    )
 
     return jsonify(
         {
@@ -471,6 +488,8 @@ def get_series_detail(series_id):
             "source_language": settings.source_language,
             "source_language_name": settings.source_language_name,
             "absolute_order": absolute_order,
+            "cleanup_foreign_tracks_override": cleanup_override,
+            "cleanup_foreign_tracks_effective": cleanup_effective,
             "processing_config": processing_config,
             "episodes": episodes,
         }
