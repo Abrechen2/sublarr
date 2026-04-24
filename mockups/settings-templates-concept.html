@@ -1,0 +1,856 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Sublarr Settings — Three Templates Reference</title>
+<style>
+  :root {
+    --bg-primary: #0a0f14;
+    --bg-surface: #111820;
+    --bg-elevated: #1a222c;
+    --bg-raised: #222c38;
+    --border: #2a3440;
+    --border-strong: #3a4658;
+    --text-primary: #e6edf3;
+    --text-secondary: #aab4c0;
+    --text-muted: #6a7686;
+    --accent: #1db8d4;
+    --accent-dim: #0f9bb5;
+    --accent-bg: rgba(29, 184, 212, 0.08);
+    --success: #3fb950;
+    --warning: #e8a33d;
+    --error: #f05c5c;
+    --radius-sm: 4px;
+    --radius-md: 6px;
+    --radius-lg: 8px;
+    --font: -apple-system, BlinkMacSystemFont, "Inter", "Segoe UI", Roboto, sans-serif;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; font-family: var(--font); font-size: 13px;
+    background: var(--bg-primary); color: var(--text-primary);
+    line-height: 1.45;
+  }
+  .page-wrap { max-width: 1440px; margin: 0 auto; padding: 32px; }
+
+  /* ─── Top intro ───────────────────────────────────── */
+  .intro {
+    background: linear-gradient(135deg, rgba(29,184,212,.08), rgba(29,184,212,.02));
+    border: 1px solid var(--accent-dim);
+    border-radius: var(--radius-lg);
+    padding: 24px 28px;
+    margin-bottom: 32px;
+  }
+  .intro h1 { margin: 0 0 8px; font-size: 22px; font-weight: 700; }
+  .intro .tagline { color: var(--text-secondary); font-size: 14px; margin-bottom: 16px; }
+  .intro ol { margin: 8px 0 0; padding-left: 20px; color: var(--text-secondary); }
+  .intro li { margin: 4px 0; }
+  .intro code {
+    font-family: ui-monospace, monospace; font-size: 11px;
+    padding: 2px 6px; background: var(--bg-surface); border-radius: 3px;
+    border: 1px solid var(--border);
+  }
+
+  /* ─── Template card ───────────────────────────────── */
+  .template-card {
+    background: var(--bg-surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    overflow: hidden;
+    margin-bottom: 40px;
+  }
+  .template-head {
+    padding: 20px 28px;
+    background: linear-gradient(180deg, #0f1a22, #0a1217);
+    border-bottom: 1px solid var(--border);
+    display: flex; align-items: center; justify-content: space-between;
+  }
+  .template-title { display: flex; align-items: center; gap: 12px; }
+  .template-badge {
+    font-family: ui-monospace, monospace;
+    font-size: 10px; font-weight: 700; padding: 4px 10px;
+    background: var(--accent-bg); color: var(--accent);
+    border-radius: 12px; border: 1px solid var(--accent-dim);
+  }
+  .template-name { font-weight: 700; font-size: 18px; }
+  .template-sub { color: var(--text-muted); font-size: 12px; margin-top: 3px; }
+  .template-use {
+    font-size: 11px; color: var(--text-muted); text-align: right;
+    max-width: 40%;
+  }
+  .template-use strong { color: var(--text-secondary); }
+
+  .template-body {
+    padding: 0;
+  }
+
+  /* ─── Mini page-frame (simulates Settings area) ───── */
+  .frame {
+    display: grid;
+    grid-template-columns: 180px 1fr;
+    min-height: 480px;
+    background: var(--bg-primary);
+  }
+  .frame-nav {
+    background: var(--bg-surface);
+    border-right: 1px solid var(--border);
+    padding: 16px 12px;
+    font-size: 11px; color: var(--text-muted);
+  }
+  .frame-nav-head {
+    font-size: 10px; font-weight: 700; text-transform: uppercase;
+    letter-spacing: .5px; margin: 0 0 8px; padding: 0 8px;
+    color: var(--text-muted);
+  }
+  .frame-nav-item {
+    padding: 6px 10px; border-radius: 4px; cursor: pointer;
+    color: var(--text-secondary);
+  }
+  .frame-nav-item.active {
+    background: var(--accent-bg); color: var(--accent); font-weight: 600;
+  }
+
+  .frame-content { padding: 20px 28px; }
+  .page-head {
+    padding-bottom: 14px; border-bottom: 1px solid var(--border);
+    margin-bottom: 20px; display: flex; justify-content: space-between; align-items: flex-end;
+  }
+  .crumbs {
+    font-size: 10px; color: var(--text-muted);
+    margin-bottom: 4px; display: flex; gap: 5px;
+  }
+  .crumbs .current { color: var(--text-primary); font-weight: 500; }
+  .page-title { font-size: 18px; font-weight: 700; margin: 0; }
+  .page-sub { color: var(--text-muted); font-size: 11px; margin-top: 2px; }
+  .save-state {
+    display: inline-flex; align-items: center; gap: 5px;
+    font-size: 10px; color: var(--success);
+    padding: 3px 7px; border-radius: 10px;
+    background: rgba(63,185,80,.08);
+  }
+  .save-state .dot { width: 5px; height: 5px; border-radius: 50%; background: currentColor; }
+
+  /* ─── Shared primitives ───────────────────────────── */
+  .section {
+    padding-bottom: 18px; border-bottom: 1px solid var(--border);
+    margin-bottom: 18px;
+  }
+  .section:last-child { border-bottom: 0; margin-bottom: 0; }
+  .section-title { font-weight: 700; font-size: 13px; margin: 0 0 4px; }
+  .section-desc { color: var(--text-muted); margin: 0 0 12px; font-size: 11px; }
+  .field { display: grid; grid-template-columns: 200px 1fr; gap: 14px; align-items: start; margin-bottom: 10px; }
+  .field-label { font-weight: 500; font-size: 12px; }
+  .field-hint { color: var(--text-muted); font-size: 10px; margin-top: 2px; }
+  .input {
+    background: var(--bg-primary);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    padding: 6px 9px; color: var(--text-primary);
+    font-size: 12px; font-family: inherit; width: 100%;
+  }
+  .input:focus { outline: none; border-color: var(--accent); }
+  .input.masked { font-family: ui-monospace, monospace; letter-spacing: 1px; }
+  .btn {
+    display: inline-flex; align-items: center; gap: 5px;
+    padding: 5px 10px; border-radius: var(--radius-sm);
+    background: var(--bg-elevated); border: 1px solid var(--border);
+    color: var(--text-primary); cursor: pointer; font-size: 11px;
+    font-weight: 500; font-family: inherit;
+  }
+  .btn.primary { background: var(--accent); color: #0a0f14; border-color: var(--accent); }
+  .pill {
+    display: inline-flex; align-items: center; gap: 4px;
+    padding: 2px 7px; border-radius: 10px;
+    font-size: 10px; font-weight: 500;
+  }
+  .pill.ok   { background: rgba(63,185,80,.12); color: var(--success); }
+  .pill.warn { background: rgba(232,163,61,.12); color: var(--warning); }
+  .pill.err  { background: rgba(240,92,92,.12); color: var(--error); }
+  .pill.inh  { background: rgba(29,184,212,.1); color: var(--accent); }
+  .pill.ov   { background: rgba(232,163,61,.1); color: var(--warning); }
+
+  /* ─── TEMPLATE A: Collection (Master-Detail) ─────── */
+  .md {
+    display: grid; grid-template-columns: 240px 1fr 220px;
+    gap: 0; min-height: 440px;
+  }
+  .md-list {
+    background: var(--bg-surface); border: 1px solid var(--border);
+    border-radius: var(--radius-md) 0 0 var(--radius-md);
+    padding: 12px;
+  }
+  .md-head {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 4px 8px 8px; font-size: 10px; text-transform: uppercase;
+    letter-spacing: .5px; color: var(--text-muted); font-weight: 700;
+  }
+  .md-add { color: var(--accent); cursor: pointer; }
+  .md-item {
+    padding: 8px 10px; border-radius: var(--radius-sm);
+    cursor: pointer; display: flex; align-items: center; gap: 8px;
+    font-size: 12px; margin-bottom: 2px;
+  }
+  .md-item:hover { background: var(--bg-elevated); }
+  .md-item.active {
+    background: var(--accent-bg); border: 1px solid var(--accent-dim);
+  }
+  .md-item .meta { margin-left: auto; font-size: 10px; color: var(--text-muted); }
+  .dot { width: 6px; height: 6px; border-radius: 50%; flex-shrink: 0; }
+  .dot.ok { background: var(--success); }
+  .dot.warn { background: var(--warning); }
+  .dot.err  { background: var(--error); }
+  .dot.off  { background: var(--text-muted); }
+
+  .md-detail {
+    background: var(--bg-surface); border: 1px solid var(--border);
+    border-left: 0; padding: 20px;
+  }
+
+  /* Health rail */
+  .rail {
+    background: var(--bg-surface); border: 1px solid var(--border);
+    border-left: 0; border-radius: 0 var(--radius-md) var(--radius-md) 0;
+    padding: 14px;
+  }
+  .rail-head {
+    font-size: 10px; font-weight: 700; text-transform: uppercase;
+    letter-spacing: .5px; color: var(--text-muted); margin: 0 0 10px;
+  }
+  .rail-item {
+    padding: 8px 10px; border-radius: var(--radius-sm);
+    background: var(--bg-elevated); border: 1px solid var(--border);
+    font-size: 11px; margin-bottom: 6px;
+  }
+  .rail-item.err { border-color: rgba(240,92,92,.35); }
+  .rail-item.warn { border-color: rgba(232,163,61,.35); }
+  .rail-item .head { font-weight: 500; font-size: 11px; margin-bottom: 3px; display: flex; align-items: center; gap: 6px; }
+  .rail-item .body { color: var(--text-muted); font-size: 10px; }
+  .rail-item .fix { color: var(--accent); cursor: pointer; font-size: 10px; margin-top: 4px; display: inline-block; }
+
+  /* ─── TEMPLATE B: Form (Scroll + Section TOC) ────── */
+  .fm {
+    display: grid; grid-template-columns: 1fr 180px;
+    gap: 20px; min-height: 440px;
+  }
+  .fm-content {
+    background: var(--bg-surface); border: 1px solid var(--border);
+    border-radius: var(--radius-md);
+    padding: 20px 24px;
+  }
+  .fm-toc {
+    position: sticky; top: 16px;
+    background: var(--bg-surface); border: 1px solid var(--border);
+    border-radius: var(--radius-md);
+    padding: 14px;
+    align-self: start;
+    font-size: 11px;
+  }
+  .fm-toc-head {
+    font-size: 10px; font-weight: 700; text-transform: uppercase;
+    letter-spacing: .5px; color: var(--text-muted); margin: 0 0 10px;
+  }
+  .fm-toc-list { display: flex; flex-direction: column; gap: 2px; }
+  .fm-toc-item {
+    padding: 5px 8px; border-radius: var(--radius-sm);
+    color: var(--text-secondary); cursor: pointer;
+    display: flex; align-items: center; justify-content: space-between;
+  }
+  .fm-toc-item:hover { background: var(--bg-elevated); }
+  .fm-toc-item.active {
+    background: var(--accent-bg); color: var(--accent); font-weight: 600;
+    border-left: 2px solid var(--accent);
+    padding-left: 6px;
+  }
+  .fm-toc-item .hash { font-size: 9px; color: var(--text-muted); }
+
+  /* ─── TEMPLATE C: Rules (Inheritance/Overrides) ──── */
+  .rl {
+    display: grid; grid-template-columns: 280px 1fr;
+    gap: 0; min-height: 460px;
+  }
+  .rl-tree {
+    background: var(--bg-surface); border: 1px solid var(--border);
+    border-radius: var(--radius-md) 0 0 var(--radius-md);
+    padding: 12px;
+  }
+  .rl-tree-head {
+    font-size: 10px; font-weight: 700; text-transform: uppercase;
+    letter-spacing: .5px; color: var(--text-muted);
+    padding: 4px 8px 10px;
+  }
+  .rl-node {
+    padding: 7px 10px; border-radius: var(--radius-sm);
+    cursor: pointer; display: flex; align-items: center; gap: 6px;
+    font-size: 12px; margin-bottom: 2px;
+  }
+  .rl-node:hover { background: var(--bg-elevated); }
+  .rl-node.active {
+    background: var(--accent-bg); border: 1px solid var(--accent-dim);
+  }
+  .rl-node .chev { color: var(--text-muted); width: 10px; font-size: 10px; }
+  .rl-node .lbl { flex: 1; }
+  .rl-node .override-badge {
+    font-size: 9px; padding: 1px 5px; border-radius: 6px;
+    background: rgba(232,163,61,.12); color: var(--warning); font-weight: 600;
+  }
+  .rl-node.ind-1 { padding-left: 22px; font-size: 11px; }
+  .rl-node.ind-2 { padding-left: 34px; font-size: 11px; color: var(--text-secondary); }
+
+  .rl-detail {
+    background: var(--bg-surface); border: 1px solid var(--border);
+    border-left: 0; border-radius: 0 var(--radius-md) var(--radius-md) 0;
+    padding: 20px 24px;
+  }
+
+  /* Rules-specific widget: resolved value + chain */
+  .resolved-row {
+    background: linear-gradient(135deg, rgba(29,184,212,.06), rgba(29,184,212,.01));
+    border: 1px solid var(--accent-dim);
+    border-radius: var(--radius-md);
+    padding: 12px 14px;
+    margin-bottom: 16px;
+  }
+  .resolved-head {
+    display: flex; align-items: center; justify-content: space-between;
+    font-size: 11px; color: var(--text-secondary); margin-bottom: 6px;
+  }
+  .resolved-value {
+    font-size: 14px; font-weight: 700; color: var(--accent);
+  }
+  .resolved-chain {
+    display: flex; gap: 8px; margin-top: 10px;
+    font-family: ui-monospace, monospace; font-size: 10px;
+  }
+  .chain-step {
+    flex: 1; padding: 6px 8px;
+    background: var(--bg-elevated); border-radius: var(--radius-sm);
+    border: 1px solid var(--border);
+  }
+  .chain-step .level { color: var(--text-muted); font-size: 9px; margin-bottom: 2px; }
+  .chain-step .val { color: var(--text-secondary); }
+  .chain-step.wins {
+    border-color: var(--accent); background: var(--accent-bg);
+  }
+  .chain-step.wins .val { color: var(--accent); font-weight: 700; }
+  .chain-step.overridden {
+    opacity: 0.5; text-decoration: line-through;
+  }
+  .chain-arrow { color: var(--text-muted); align-self: center; }
+
+  /* Override widget */
+  .override-widget {
+    padding: 14px; background: var(--bg-elevated);
+    border: 1px solid var(--border); border-radius: var(--radius-md);
+    margin-bottom: 14px;
+  }
+  .override-head {
+    display: flex; align-items: center; gap: 8px;
+    margin-bottom: 10px; font-size: 12px; font-weight: 500;
+  }
+  .override-mode {
+    display: flex; gap: 6px;
+  }
+  .mode-btn {
+    padding: 4px 10px; border-radius: 12px;
+    font-size: 10px; cursor: pointer;
+    background: var(--bg-raised); border: 1px solid var(--border);
+    color: var(--text-muted);
+  }
+  .mode-btn.selected {
+    background: var(--accent-bg); color: var(--accent); border-color: var(--accent);
+    font-weight: 600;
+  }
+
+  /* ─── Annotation strips between templates ─────────── */
+  .annot {
+    padding: 14px 24px;
+    background: linear-gradient(135deg, rgba(29,184,212,.05), transparent);
+    border-left: 3px solid var(--accent);
+    margin: 0;
+    font-size: 12px; color: var(--text-secondary);
+  }
+  .annot strong { color: var(--accent); }
+  .annot ul { margin: 4px 0 0; padding-left: 20px; }
+  .annot li { margin: 2px 0; }
+
+  .footer {
+    margin-top: 40px; padding-top: 24px;
+    border-top: 1px solid var(--border);
+    font-size: 12px; color: var(--text-secondary);
+  }
+  .footer h2 { font-size: 14px; font-weight: 700; margin: 0 0 12px; }
+  .footer-grid {
+    display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px;
+  }
+  .footer-box {
+    background: var(--bg-surface); border: 1px solid var(--border);
+    border-radius: var(--radius-md); padding: 14px;
+  }
+  .footer-box h3 {
+    margin: 0 0 8px; font-size: 12px; font-weight: 700; color: var(--accent);
+    text-transform: uppercase; letter-spacing: .5px;
+  }
+  .footer-box ul { margin: 0; padding-left: 18px; }
+  .footer-box li { margin: 3px 0; font-size: 11px; }
+</style>
+</head>
+<body>
+
+<div class="page-wrap">
+
+  <!-- ─── INTRO ────────────────────────────────────── -->
+  <div class="intro">
+    <h1>Sublarr Settings — Three-Template Reference</h1>
+    <div class="tagline">Per Codex consult (gpt-5.4, xhigh reasoning): three templates, not two. Three small examples stacked so you can compare at a glance.</div>
+    <ol>
+      <li><code>A — CollectionLayout</code> for list-of-objects pages (Providers, Channels, Jobs, Plugins …)</li>
+      <li><code>B — FormLayout</code> for bounded categorical forms (General, Languages, About …)</li>
+      <li><code>C — RulesLayout</code> for inheritance/override pages (per-series + profile overrides)</li>
+    </ol>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════ -->
+  <!-- ─── TEMPLATE A: Collection (Master-Detail) ──────── -->
+  <!-- ═══════════════════════════════════════════════════ -->
+  <div class="template-card">
+    <div class="template-head">
+      <div class="template-title">
+        <span class="template-badge">A</span>
+        <div>
+          <div class="template-name">CollectionLayout</div>
+          <div class="template-sub">Master-Detail — List of objects, one selected at a time</div>
+        </div>
+      </div>
+      <div class="template-use">
+        <strong>Used for:</strong><br/>
+        Providers · Connections · Notification Channels · Scheduler Jobs · Plugins · Hooks · Pipeline Steps · Prompt Presets
+      </div>
+    </div>
+
+    <div class="template-body">
+      <div class="frame">
+        <div class="frame-nav">
+          <div class="frame-nav-head">Settings</div>
+          <div class="frame-nav-item">General</div>
+          <div class="frame-nav-item">Connections</div>
+          <div class="frame-nav-item active">Providers</div>
+          <div class="frame-nav-item">Processing</div>
+          <div class="frame-nav-item">Automation</div>
+          <div class="frame-nav-item">Profiles &amp; Overrides</div>
+          <div class="frame-nav-item">Notifications</div>
+          <div class="frame-nav-item">System</div>
+        </div>
+
+        <div class="frame-content">
+          <div class="page-head">
+            <div>
+              <div class="crumbs">
+                Settings › Providers › <span class="current">OpenSubtitles</span>
+              </div>
+              <h1 class="page-title">Providers</h1>
+              <div class="page-sub">10 configured · 7 healthy · 1 exhausted</div>
+            </div>
+            <div class="save-state"><span class="dot"></span> All changes saved</div>
+          </div>
+
+          <div class="md">
+            <!-- LIST -->
+            <div class="md-list">
+              <div class="md-head">
+                <span>10 Providers</span>
+                <span class="md-add">+ Add</span>
+              </div>
+              <div class="md-item active"><span class="dot ok"></span> OpenSubtitles <span class="meta">#1</span></div>
+              <div class="md-item"><span class="dot ok"></span> SubDL <span class="meta">#2</span></div>
+              <div class="md-item"><span class="dot err"></span> Animetosho <span class="meta">#3</span></div>
+              <div class="md-item"><span class="dot off"></span> Addic7ed <span class="meta">off</span></div>
+              <div class="md-item"><span class="dot ok"></span> Jimaku <span class="meta">#4</span></div>
+              <div class="md-item"><span class="dot ok"></span> Kitsunekko <span class="meta">#5</span></div>
+              <div class="md-item"><span class="dot warn"></span> LegendasDivx <span class="meta">#6</span></div>
+            </div>
+
+            <!-- DETAIL -->
+            <div class="md-detail">
+              <div class="section">
+                <h3 class="section-title">Connection</h3>
+                <p class="section-desc">Credentials and endpoint.</p>
+                <div class="field">
+                  <div>
+                    <div class="field-label">API key</div>
+                    <div class="field-hint">Server-side only.</div>
+                  </div>
+                  <div>
+                    <input class="input masked" value="aOAxRuss0RciJjvyJVyBh6YFnp1lclkf" />
+                    <div style="display:flex;gap:6px;margin-top:6px;align-items:center">
+                      <button class="btn primary">Test connection</button>
+                      <span class="pill ok">● last validated 2m ago</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div class="section">
+                <h3 class="section-title">Daily budget</h3>
+                <div style="background:var(--bg-elevated);padding:10px;border-radius:4px;border:1px solid var(--border)">
+                  <div style="display:flex;justify-content:space-between;font-size:11px;margin-bottom:6px">
+                    <span>Used today</span><strong>1,247 / 10,000</strong>
+                  </div>
+                  <div style="height:5px;background:var(--bg-raised);border-radius:2px;overflow:hidden">
+                    <div style="width:12.5%;height:100%;background:linear-gradient(90deg,var(--accent),var(--accent-dim))"></div>
+                  </div>
+                  <div style="display:flex;gap:12px;margin-top:6px;font-size:10px;color:var(--text-muted)">
+                    <span>Remaining: <strong style="color:var(--text-primary)">8,753</strong></span>
+                    <span>Reset: <strong style="color:var(--text-primary)">6h 47min</strong></span>
+                    <span class="pill ok">● hard stop at 100%</span>
+                  </div>
+                </div>
+              </div>
+
+              <div class="section">
+                <h3 class="section-title">Advanced</h3>
+                <p class="section-desc" style="margin:0">
+                  <span class="btn" style="font-size:10px">▸ 4 options (timeout, user-agent, retries, TLS)</span>
+                </p>
+              </div>
+            </div>
+
+            <!-- HEALTH RAIL -->
+            <div class="rail">
+              <h3 class="rail-head">◉ Health</h3>
+              <div class="rail-item err">
+                <div class="head"><span style="color:var(--error)">✕</span> Animetosho key pool exhausted</div>
+                <div class="body">All keys 429-cooling.</div>
+                <a class="fix">Fix →</a>
+              </div>
+              <div class="rail-item warn">
+                <div class="head"><span style="color:var(--warning)">!</span> LegendasDivx slow</div>
+                <div class="body">Response p95 &gt; 8 s.</div>
+                <a class="fix">Investigate →</a>
+              </div>
+              <div class="rail-item">
+                <div class="head"><span style="color:var(--success)">✓</span> 7 providers healthy</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="annot">
+      <strong>Template A pattern:</strong>
+      <ul>
+        <li>Left: list of items with status-dot + rank/meta. "+ Add" at top. Reordering is drag-drop for priority-ordered collections.</li>
+        <li>Center: detail editor for the selected item, organized in sections (Connection / Budget / Capabilities / Advanced).</li>
+        <li>Right rail (optional, show when relevant): Health Checklist with "Fix →" deep-links. Not every page needs it — hide on clean state.</li>
+        <li>Breadcrumbs show the selected item's name as the current leaf. Save-state pill top-right.</li>
+      </ul>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════ -->
+  <!-- ─── TEMPLATE B: Form (Scroll + Section TOC) ─────── -->
+  <!-- ═══════════════════════════════════════════════════ -->
+  <div class="template-card">
+    <div class="template-head">
+      <div class="template-title">
+        <span class="template-badge">B</span>
+        <div>
+          <div class="template-name">FormLayout</div>
+          <div class="template-sub">Scroll-form with right Section-TOC — bounded categorical settings</div>
+        </div>
+      </div>
+      <div class="template-use">
+        <strong>Used for:</strong><br/>
+        General · Languages &amp; Matching · Automation Cadence · Subtitle Scoring · About
+      </div>
+    </div>
+
+    <div class="template-body">
+      <div class="frame">
+        <div class="frame-nav">
+          <div class="frame-nav-head">Settings</div>
+          <div class="frame-nav-item active">General</div>
+          <div class="frame-nav-item">Connections</div>
+          <div class="frame-nav-item">Providers</div>
+          <div class="frame-nav-item">Processing</div>
+          <div class="frame-nav-item">Automation</div>
+          <div class="frame-nav-item">Profiles &amp; Overrides</div>
+          <div class="frame-nav-item">Notifications</div>
+          <div class="frame-nav-item">System</div>
+        </div>
+
+        <div class="frame-content">
+          <div class="page-head">
+            <div>
+              <div class="crumbs">Settings › <span class="current">General</span></div>
+              <h1 class="page-title">General</h1>
+              <div class="page-sub">App defaults · 6 sections</div>
+            </div>
+            <div class="save-state"><span class="dot"></span> All changes saved</div>
+          </div>
+
+          <div class="fm">
+            <!-- SCROLL CONTENT -->
+            <div class="fm-content">
+              <div class="section">
+                <h3 class="section-title">Appearance</h3>
+                <p class="section-desc">Theme, language, date format.</p>
+                <div class="field">
+                  <div><div class="field-label">UI language</div></div>
+                  <div><select class="input"><option>Deutsch</option><option>English</option></select></div>
+                </div>
+                <div class="field">
+                  <div><div class="field-label">Theme</div></div>
+                  <div><select class="input"><option>Dark</option><option>Light</option></select></div>
+                </div>
+              </div>
+
+              <div class="section">
+                <h3 class="section-title">Identity</h3>
+                <p class="section-desc">How this install identifies itself.</p>
+                <div class="field">
+                  <div><div class="field-label">Instance name</div></div>
+                  <div><input class="input" value="Sublarr-Prod" /></div>
+                </div>
+              </div>
+
+              <div class="section">
+                <h3 class="section-title">Logging</h3>
+                <p class="section-desc">Log level + retention.</p>
+                <div class="field">
+                  <div><div class="field-label">Level</div></div>
+                  <div><select class="input"><option>INFO</option><option>DEBUG</option></select></div>
+                </div>
+              </div>
+
+              <div class="section">
+                <h3 class="section-title">Backups</h3>
+                <p class="section-desc">Auto-backup schedule.</p>
+              </div>
+            </div>
+
+            <!-- TOC -->
+            <div class="fm-toc">
+              <h3 class="fm-toc-head">On this page</h3>
+              <div class="fm-toc-list">
+                <div class="fm-toc-item active">Appearance<span class="hash">2</span></div>
+                <div class="fm-toc-item">Identity<span class="hash">1</span></div>
+                <div class="fm-toc-item">Logging<span class="hash">2</span></div>
+                <div class="fm-toc-item">Backups<span class="hash">3</span></div>
+                <div class="fm-toc-item">API &amp; security<span class="hash">4</span></div>
+                <div class="fm-toc-item">Performance<span class="hash">2</span></div>
+              </div>
+              <div style="margin-top:14px;padding:8px 10px;background:var(--bg-elevated);border-radius:4px;font-size:10px;color:var(--text-muted);border:1px solid var(--border)">
+                <strong style="color:var(--accent)">Expert mode: off</strong><br/>
+                Toggle to reveal 3 hidden items (HTTP headers, raw CORS, pool size).
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="annot">
+      <strong>Template B pattern:</strong>
+      <ul>
+        <li>Scrollable form with repeated <code>SettingsSection</code> blocks — one concept per section, description below title.</li>
+        <li>Right sticky TOC with anchor jumps + section count badge. <strong>Cap at 5-6 sections.</strong> At 7+ split into a sub-page.</li>
+        <li>Expert-mode indicator in TOC panel — shows how many items are currently hidden behind the toggle.</li>
+        <li>No master list on the left — this is a bounded, finite set of settings that belong together.</li>
+      </ul>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════ -->
+  <!-- ─── TEMPLATE C: Rules (Inheritance / Overrides) ── -->
+  <!-- ═══════════════════════════════════════════════════ -->
+  <div class="template-card">
+    <div class="template-head">
+      <div class="template-title">
+        <span class="template-badge">C</span>
+        <div>
+          <div class="template-name">RulesLayout</div>
+          <div class="template-sub">Inheritance &amp; overrides — "what wins, what's inherited, where to override"</div>
+        </div>
+      </div>
+      <div class="template-use">
+        <strong>Used for:</strong><br/>
+        Profiles &amp; Overrides · per-Series overrides · per-Movie overrides · Quiet-Hours policies
+      </div>
+    </div>
+
+    <div class="template-body">
+      <div class="frame">
+        <div class="frame-nav">
+          <div class="frame-nav-head">Settings</div>
+          <div class="frame-nav-item">General</div>
+          <div class="frame-nav-item">Connections</div>
+          <div class="frame-nav-item">Providers</div>
+          <div class="frame-nav-item">Processing</div>
+          <div class="frame-nav-item">Automation</div>
+          <div class="frame-nav-item active">Profiles &amp; Overrides</div>
+          <div class="frame-nav-item">Notifications</div>
+          <div class="frame-nav-item">System</div>
+        </div>
+
+        <div class="frame-content">
+          <div class="page-head">
+            <div>
+              <div class="crumbs">
+                Settings › Profiles &amp; Overrides ›
+                Profile <em>Anime-Default</em> ›
+                <span class="current">Series: Attack on Titan</span>
+              </div>
+              <h1 class="page-title">Rules &amp; Overrides</h1>
+              <div class="page-sub">Global → Profile → Series — resolve to effective values</div>
+            </div>
+            <div class="save-state"><span class="dot"></span> All changes saved</div>
+          </div>
+
+          <div class="rl">
+            <!-- TREE -->
+            <div class="rl-tree">
+              <div class="rl-tree-head">Scope tree</div>
+              <div class="rl-node"><span class="chev">▾</span><span class="lbl">Global defaults</span></div>
+              <div class="rl-node ind-1"><span class="chev">▾</span><span class="lbl">Profile: Anime-Default</span><span class="override-badge">3</span></div>
+              <div class="rl-node ind-2 active"><span class="lbl">● Attack on Titan</span><span class="override-badge">2</span></div>
+              <div class="rl-node ind-2"><span class="lbl">Frieren</span></div>
+              <div class="rl-node ind-2"><span class="lbl">Classroom of the Elite</span><span class="override-badge">1</span></div>
+              <div class="rl-node ind-1"><span class="chev">▸</span><span class="lbl">Profile: Live-Action</span></div>
+              <div class="rl-node ind-1"><span class="chev">▸</span><span class="lbl">Profile: Kids (strict)</span></div>
+            </div>
+
+            <!-- DETAIL -->
+            <div class="rl-detail">
+
+              <!-- Resolved headline -->
+              <div class="resolved-row">
+                <div class="resolved-head">
+                  <span>cleanup_foreign_tracks</span>
+                  <span class="pill ov">overridden here</span>
+                </div>
+                <div style="display:flex;align-items:center;gap:10px">
+                  <span class="resolved-value">Always strip</span>
+                  <span style="color:var(--text-muted);font-size:11px">— effective for this series</span>
+                </div>
+                <div class="resolved-chain">
+                  <div class="chain-step overridden">
+                    <div class="level">Global</div>
+                    <div class="val">Off</div>
+                  </div>
+                  <span class="chain-arrow">→</span>
+                  <div class="chain-step overridden">
+                    <div class="level">Profile</div>
+                    <div class="val">Inherit (Off)</div>
+                  </div>
+                  <span class="chain-arrow">→</span>
+                  <div class="chain-step wins">
+                    <div class="level">Series (this) ★</div>
+                    <div class="val">Always strip</div>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Override widget -->
+              <div class="override-widget">
+                <div class="override-head">
+                  cleanup_foreign_tracks for <strong>Attack on Titan</strong>
+                </div>
+                <div class="override-mode">
+                  <div class="mode-btn">Inherit (Off)</div>
+                  <div class="mode-btn selected">Always strip</div>
+                  <div class="mode-btn">Never strip</div>
+                </div>
+                <div style="margin-top:8px;font-size:10px;color:var(--text-muted)">
+                  Inherit keeps this series in sync with the profile. Always/Never pin it.
+                </div>
+              </div>
+
+              <!-- Other rules with their own chain mini-view -->
+              <div class="section" style="padding-top:8px">
+                <h3 class="section-title" style="font-size:12px">Other rules for this series</h3>
+                <div style="display:flex;flex-direction:column;gap:6px">
+                  <div style="display:flex;align-items:center;gap:8px;padding:8px 10px;background:var(--bg-elevated);border-radius:4px;font-size:11px">
+                    <strong style="min-width:160px">priority_override</strong>
+                    <span class="pill ov">overridden</span>
+                    <span style="color:var(--text-muted);font-size:10px">global: standard → here: <strong style="color:var(--accent)">premium</strong></span>
+                  </div>
+                  <div style="display:flex;align-items:center;gap:8px;padding:8px 10px;background:var(--bg-elevated);border-radius:4px;font-size:11px">
+                    <strong style="min-width:160px">min_attempts_per_day</strong>
+                    <span class="pill inh">inherited</span>
+                    <span style="color:var(--text-muted);font-size:10px">from global → effective: <strong style="color:var(--text-primary)">3</strong></span>
+                  </div>
+                  <div style="display:flex;align-items:center;gap:8px;padding:8px 10px;background:var(--bg-elevated);border-radius:4px;font-size:11px">
+                    <strong style="min-width:160px">absolute_order</strong>
+                    <span class="pill inh">inherited</span>
+                    <span style="color:var(--text-muted);font-size:10px">from profile → effective: <strong style="color:var(--text-primary)">On</strong></span>
+                  </div>
+                </div>
+              </div>
+
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="annot">
+      <strong>Template C pattern</strong> (the one Codex insisted on — separate from A and B because the primary UX is <em>"understand what wins"</em> not <em>"edit this object"</em> or <em>"fill this page"</em>):
+      <ul>
+        <li>Left: <strong>scope tree</strong> (Global → Profile → Series/Movie). Overrides badged in amber. Current selection highlighted in cyan.</li>
+        <li>Right top: <strong>Resolved headline</strong> — one setting with its full resolution chain displayed left-to-right. Overridden steps are struck through; the winner is highlighted.</li>
+        <li>Right center: <strong>Override widget</strong> — three-state (Inherit / Force X / Force Y). Inherit keeps in sync with the parent scope; Force pins.</li>
+        <li>Right bottom: <strong>Summary list</strong> of all other rules at this scope with <em>inherited</em> vs <em>overridden</em> pills. No raw form fields — everything is presented as a decision.</li>
+        <li><strong>No tree-view as a separate page template</strong> — the tree is a control <em>inside</em> the left pane here, not its own archetype. (Codex's explicit instruction.)</li>
+      </ul>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════ -->
+  <!-- ─── MIGRATION FOOTER ─────────────────────────────── -->
+  <!-- ═══════════════════════════════════════════════════ -->
+  <div class="footer">
+    <h2>Adopting the scaffolds — Hybrid Ratchet (Codex recommendation)</h2>
+    <div class="footer-grid">
+
+      <div class="footer-box">
+        <h3>Step 1 — Land the primitives</h3>
+        <ul>
+          <li>Extract <code>&lt;CollectionLayout&gt;</code> + <code>&lt;FormLayout&gt;</code> + <code>&lt;RulesLayout&gt;</code> as pure layout components</li>
+          <li>Shared primitives: <code>&lt;InheritanceRow&gt;</code> · <code>&lt;BudgetBar&gt;</code> · <code>&lt;ApiKeyField&gt;</code> · <code>&lt;HealthRail&gt;</code></li>
+          <li>No page rewrites yet. Scaffold exists but unused.</li>
+        </ul>
+      </div>
+
+      <div class="footer-box">
+        <h3>Step 2 — Three reference migrations</h3>
+        <ul>
+          <li><code>General</code> → <code>FormLayout</code> (reference for B)</li>
+          <li><code>Providers</code> → <code>CollectionLayout</code> (reference for A)</li>
+          <li><code>Profiles &amp; Overrides</code> → <code>RulesLayout</code> (reference for C)</li>
+          <li>These three become the canonical examples every other page converges toward.</li>
+        </ul>
+      </div>
+
+      <div class="footer-box">
+        <h3>Step 3 — Ratchet everything else</h3>
+        <ul>
+          <li>Any <strong>new</strong> Settings page: must use a template. No exceptions.</li>
+          <li>Any <strong>existing</strong> page touched for feature work: migrate it as part of that work.</li>
+          <li>Pages never touched for features: stay legacy — no speculative rewrites.</li>
+          <li>Convergence without stalling the product. Solo-maintainer-safe.</li>
+        </ul>
+      </div>
+
+    </div>
+
+    <div style="margin-top:20px;padding:14px 18px;background:var(--bg-surface);border-left:3px solid var(--warning);border-radius:0 var(--radius-md) var(--radius-md) 0;font-size:12px">
+      <strong style="color:var(--warning)">Rule:</strong> never combine a framework-migration commit with a feature commit. Migrate first, ship behind the template, then add new features on top. This keeps bisect-ability and PR reviews sane.
+    </div>
+  </div>
+
+</div>
+
+</body>
+</html>

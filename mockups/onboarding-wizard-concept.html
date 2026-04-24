@@ -1,0 +1,467 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Sublarr Onboarding — Wizard Mockup (Codex Blueprint)</title>
+<style>
+  :root {
+    --bg-primary: #0a0f14;
+    --bg-surface: #111820;
+    --bg-elevated: #1a222c;
+    --bg-raised: #222c38;
+    --border: #2a3440;
+    --border-strong: #3a4658;
+    --text-primary: #e6edf3;
+    --text-secondary: #aab4c0;
+    --text-muted: #6a7686;
+    --accent: #1db8d4;
+    --accent-dim: #0f9bb5;
+    --accent-bg: rgba(29, 184, 212, 0.08);
+    --success: #3fb950;
+    --warning: #e8a33d;
+    --error: #f05c5c;
+    --radius-sm: 4px;
+    --radius-md: 6px;
+    --radius-lg: 8px;
+    --radius-xl: 12px;
+    --font: -apple-system, BlinkMacSystemFont, "Inter", "Segoe UI", Roboto, sans-serif;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; font-family: var(--font); font-size: 13px;
+    background: radial-gradient(ellipse at top, #142028 0%, var(--bg-primary) 50%);
+    color: var(--text-primary); min-height: 100vh;
+  }
+  .shell {
+    display: grid; place-items: center; min-height: 100vh; padding: 32px 16px;
+  }
+  .wizard {
+    display: grid;
+    grid-template-columns: 280px 1fr;
+    width: min(1100px, 100%); min-height: 720px;
+    background: var(--bg-surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-xl);
+    overflow: hidden;
+    box-shadow: 0 24px 60px rgba(0,0,0,.5);
+  }
+
+  /* ─── Step sidebar ───────────────────────────────────── */
+  .wizard-nav {
+    padding: 28px 22px;
+    background: linear-gradient(180deg, #0f1a22 0%, #0c1318 100%);
+    border-right: 1px solid var(--border);
+    display: flex; flex-direction: column; gap: 24px;
+  }
+  .brand {
+    display: flex; align-items: center; gap: 10px;
+    margin-bottom: 12px;
+  }
+  .brand-logo {
+    width: 32px; height: 32px; border-radius: 8px;
+    background: linear-gradient(135deg, var(--accent), var(--accent-dim));
+    display: grid; place-items: center; font-weight: 700; color: #0a0f14;
+    box-shadow: 0 4px 12px rgba(29,184,212,.35);
+  }
+  .brand-name { font-weight: 700; font-size: 16px; }
+  .brand-sub { font-size: 11px; color: var(--text-muted); margin-top: 2px; }
+
+  .wizard-intro {
+    padding: 14px;
+    background: var(--accent-bg);
+    border-left: 2px solid var(--accent);
+    border-radius: var(--radius-sm);
+    font-size: 12px; color: var(--text-secondary);
+    line-height: 1.5;
+  }
+
+  .steps { display: flex; flex-direction: column; gap: 4px; }
+  .step {
+    display: flex; gap: 12px; align-items: flex-start;
+    padding: 10px 12px; border-radius: var(--radius-md);
+    cursor: pointer; transition: background .12s;
+  }
+  .step:hover { background: var(--bg-elevated); }
+  .step-num {
+    width: 24px; height: 24px; flex-shrink: 0;
+    border-radius: 50%; display: grid; place-items: center;
+    font-size: 11px; font-weight: 700;
+    background: var(--bg-raised);
+    border: 1.5px solid var(--border-strong);
+    color: var(--text-muted);
+  }
+  .step-title { font-weight: 600; font-size: 13px; line-height: 1.3; }
+  .step-sub { font-size: 10px; color: var(--text-muted); margin-top: 2px; }
+  .step.done .step-num {
+    background: var(--success); border-color: var(--success);
+    color: #0a0f14;
+  }
+  .step.done .step-title { color: var(--text-secondary); }
+  .step.current { background: var(--accent-bg); }
+  .step.current .step-num {
+    background: var(--accent); border-color: var(--accent); color: #0a0f14;
+    box-shadow: 0 0 12px rgba(29,184,212,.4);
+  }
+  .step.current .step-title { color: var(--accent); }
+  .step.upcoming .step-title { color: var(--text-muted); }
+
+  .wizard-progress {
+    margin-top: auto;
+    padding: 14px;
+    background: var(--bg-elevated); border-radius: var(--radius-md);
+  }
+  .wizard-progress-head {
+    display: flex; justify-content: space-between;
+    font-size: 11px; color: var(--text-muted); margin-bottom: 6px;
+  }
+  .wizard-progress-bar {
+    height: 4px; background: var(--bg-raised); border-radius: 2px; overflow: hidden;
+  }
+  .wizard-progress-fill {
+    height: 100%; width: 50%;
+    background: linear-gradient(90deg, var(--accent), var(--accent-dim));
+  }
+  .skip-link {
+    margin-top: 8px; font-size: 11px; color: var(--text-muted);
+    text-align: center; cursor: pointer;
+  }
+  .skip-link:hover { color: var(--accent); }
+
+  /* ─── Content panel ─────────────────────────────────── */
+  .wizard-body {
+    padding: 44px 48px; display: flex; flex-direction: column;
+    overflow-y: auto;
+  }
+  .body-head { margin-bottom: 28px; }
+  .body-kicker {
+    font-size: 11px; text-transform: uppercase; letter-spacing: .8px;
+    font-weight: 700; color: var(--accent); margin-bottom: 8px;
+  }
+  .body-title {
+    font-size: 28px; font-weight: 700; margin: 0;
+    letter-spacing: -.02em; line-height: 1.15;
+  }
+  .body-sub {
+    font-size: 14px; color: var(--text-secondary);
+    margin: 10px 0 0; line-height: 1.5;
+  }
+
+  /* ─── Step 3 content: targets ──────────────────────── */
+  .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+  .grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 12px; }
+
+  .profile-card {
+    background: var(--bg-elevated);
+    border: 1.5px solid var(--border);
+    border-radius: var(--radius-lg);
+    padding: 18px;
+    cursor: pointer;
+    transition: border-color .15s, transform .15s;
+    position: relative;
+  }
+  .profile-card:hover { border-color: var(--border-strong); transform: translateY(-1px); }
+  .profile-card.selected {
+    border-color: var(--accent);
+    background: linear-gradient(135deg, rgba(29,184,212,.1), rgba(29,184,212,.02));
+  }
+  .profile-card.selected::after {
+    content: '✓'; position: absolute; top: 12px; right: 14px;
+    width: 22px; height: 22px; border-radius: 50%;
+    background: var(--accent); color: #0a0f14;
+    display: grid; place-items: center;
+    font-size: 12px; font-weight: 700;
+  }
+  .profile-icon {
+    width: 44px; height: 44px; border-radius: 10px;
+    background: var(--bg-raised); display: grid; place-items: center;
+    font-size: 20px; margin-bottom: 12px;
+  }
+  .profile-card.selected .profile-icon {
+    background: var(--accent-bg); color: var(--accent);
+  }
+  .profile-name { font-weight: 600; font-size: 14px; margin-bottom: 4px; }
+  .profile-desc { font-size: 11px; color: var(--text-muted); line-height: 1.5; }
+  .profile-preset {
+    display: inline-block; margin-top: 10px;
+    font-size: 10px; padding: 2px 8px; border-radius: 10px;
+    background: rgba(29,184,212,.1); color: var(--accent);
+  }
+
+  /* ─── Provider tiles ────────────────────────────────── */
+  .provider-tile {
+    display: flex; align-items: center; gap: 12px;
+    padding: 14px; border-radius: var(--radius-md);
+    background: var(--bg-elevated); border: 1.5px solid var(--border);
+    cursor: pointer;
+  }
+  .provider-tile:hover { border-color: var(--border-strong); }
+  .provider-tile.selected {
+    border-color: var(--accent);
+    background: linear-gradient(135deg, rgba(29,184,212,.08), rgba(29,184,212,.02));
+  }
+  .provider-logo {
+    width: 36px; height: 36px; border-radius: var(--radius-sm);
+    background: var(--bg-raised); flex-shrink: 0;
+    display: grid; place-items: center; font-weight: 700; font-size: 14px;
+  }
+  .provider-main { flex: 1; min-width: 0; }
+  .provider-name { font-weight: 600; font-size: 13px; }
+  .provider-sub { font-size: 10px; color: var(--text-muted); }
+  .provider-tag {
+    font-size: 10px; padding: 2px 6px; border-radius: 8px;
+    background: var(--bg-raised); color: var(--text-muted);
+  }
+  .provider-tag.recommended {
+    background: rgba(29,184,212,.15); color: var(--accent);
+  }
+  .provider-tag.api-key {
+    background: rgba(232,163,61,.12); color: var(--warning);
+  }
+
+  /* ─── Inline connector form ─────────────────────────── */
+  .connector {
+    padding: 20px;
+    background: var(--bg-elevated);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-md);
+    margin-bottom: 12px;
+  }
+  .connector-head {
+    display: flex; align-items: center; gap: 12px;
+    margin-bottom: 16px;
+  }
+  .connector-icon {
+    width: 36px; height: 36px; border-radius: var(--radius-sm);
+    background: var(--bg-raised);
+    display: grid; place-items: center; font-size: 18px;
+  }
+  .connector-title { font-weight: 600; font-size: 14px; }
+  .connector-sub { font-size: 11px; color: var(--text-muted); }
+  .connector-status {
+    margin-left: auto;
+    font-size: 11px; padding: 4px 10px; border-radius: 12px;
+    background: rgba(63,185,80,.12); color: var(--success);
+    font-weight: 500;
+  }
+  .connector-status.warn {
+    background: rgba(232,163,61,.12); color: var(--warning);
+  }
+  .connector-status.neutral {
+    background: var(--bg-raised); color: var(--text-muted);
+  }
+  .connector-row { display: flex; gap: 10px; align-items: center; }
+  .input {
+    background: var(--bg-primary);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-md);
+    padding: 8px 10px; color: var(--text-primary);
+    font-size: 13px; font-family: inherit; width: 100%;
+  }
+  .input:focus { outline: none; border-color: var(--accent); }
+  .btn {
+    display: inline-flex; align-items: center; gap: 6px;
+    padding: 8px 14px; border-radius: var(--radius-md);
+    background: var(--bg-raised); border: 1px solid var(--border-strong);
+    color: var(--text-primary); cursor: pointer; font-size: 12px;
+    font-weight: 500; font-family: inherit; white-space: nowrap;
+  }
+  .btn:hover { background: var(--bg-elevated); border-color: var(--accent); }
+  .btn.primary {
+    background: var(--accent); color: #0a0f14; border-color: var(--accent);
+  }
+  .btn.primary:hover { background: var(--accent-dim); }
+
+  .chip-row { display: flex; flex-wrap: wrap; gap: 8px; }
+  .chip {
+    padding: 6px 12px; border-radius: 16px;
+    background: var(--bg-elevated); border: 1.5px solid var(--border);
+    font-size: 12px; cursor: pointer;
+  }
+  .chip:hover { border-color: var(--border-strong); }
+  .chip.selected {
+    background: var(--accent-bg); border-color: var(--accent); color: var(--accent);
+    font-weight: 600;
+  }
+  .chip.primary {
+    background: var(--accent); border-color: var(--accent); color: #0a0f14; font-weight: 600;
+  }
+
+  /* ─── Footer ────────────────────────────────────────── */
+  .wizard-footer {
+    margin-top: auto; padding-top: 24px; border-top: 1px solid var(--border);
+    display: flex; justify-content: space-between; align-items: center;
+    gap: 12px;
+  }
+  .footer-hint { font-size: 11px; color: var(--text-muted); }
+
+  /* ─── Annotations box ───────────────────────────────── */
+  .annot-map {
+    margin: 24px auto 0; width: min(1100px, 100%);
+    padding: 16px 20px;
+    background: linear-gradient(135deg, rgba(29,184,212,.06), rgba(29,184,212,.01));
+    border-left: 3px solid var(--accent);
+    border-radius: 0 var(--radius-md) var(--radius-md) 0;
+    font-size: 12px; color: var(--text-secondary);
+  }
+  .annot-map strong { color: var(--accent); }
+  .annot-map ol { margin: 6px 0 0; padding-left: 20px; }
+  .annot-map li { margin: 4px 0; line-height: 1.5; }
+</style>
+</head>
+<body>
+
+<div class="shell">
+  <div class="wizard">
+
+    <!-- ─── STEP SIDEBAR (6 steps from Codex) ─────────────── -->
+    <aside class="wizard-nav">
+      <div class="brand">
+        <div class="brand-logo">S</div>
+        <div>
+          <div class="brand-name">Welcome to Sublarr</div>
+          <div class="brand-sub">5-minute setup</div>
+        </div>
+      </div>
+
+      <div class="wizard-intro">
+        Each step saves as you go. Come back any time — you can change anything later in Settings.
+      </div>
+
+      <div class="steps">
+        <div class="step done">
+          <div class="step-num">✓</div>
+          <div>
+            <div class="step-title">Usage profile</div>
+            <div class="step-sub">Anime-heavy · +Translate on missing</div>
+          </div>
+        </div>
+        <div class="step done">
+          <div class="step-num">✓</div>
+          <div>
+            <div class="step-title">Connect media</div>
+            <div class="step-sub">Sonarr + Radarr + Emby · all healthy</div>
+          </div>
+        </div>
+        <div class="step current">
+          <div class="step-num">3</div>
+          <div>
+            <div class="step-title">Languages &amp; matching</div>
+            <div class="step-sub">Target + fallback + release rules</div>
+          </div>
+        </div>
+        <div class="step upcoming">
+          <div class="step-num">4</div>
+          <div>
+            <div class="step-title">Pick providers</div>
+            <div class="step-sub">1–3 sources to start with</div>
+          </div>
+        </div>
+        <div class="step upcoming">
+          <div class="step-num">5</div>
+          <div>
+            <div class="step-title">Translation &amp; transcription</div>
+            <div class="step-sub">Optional — Ollama, Whisper</div>
+          </div>
+        </div>
+        <div class="step upcoming">
+          <div class="step-num">6</div>
+          <div>
+            <div class="step-title">Schedule &amp; notify</div>
+            <div class="step-sub">Scan cadence + first alert</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="wizard-progress">
+        <div class="wizard-progress-head">
+          <span>Step 3 of 6</span>
+          <span>50%</span>
+        </div>
+        <div class="wizard-progress-bar"><div class="wizard-progress-fill"></div></div>
+        <div class="skip-link">Skip wizard — I'll configure manually</div>
+      </div>
+    </aside>
+
+    <!-- ─── CONTENT (Step 3: Languages & matching) ────────── -->
+    <main class="wizard-body">
+      <div class="body-head">
+        <div class="body-kicker">Step 3 — Languages &amp; matching</div>
+        <h1 class="body-title">What language do you want subtitles in?</h1>
+        <p class="body-sub">
+          Pick a primary target and an optional fallback. Sublarr will also learn your release-matching
+          preferences from the anime-heavy profile you picked — you can override this later under Settings › Languages.
+        </p>
+      </div>
+
+      <!-- Target language -->
+      <div style="margin-bottom: 28px">
+        <div style="font-weight:600;font-size:13px;margin-bottom:8px">Primary target</div>
+        <div class="chip-row">
+          <div class="chip primary">🇩🇪 Deutsch (de)</div>
+          <div class="chip">🇬🇧 English (en)</div>
+          <div class="chip">🇪🇸 Español (es)</div>
+          <div class="chip">🇫🇷 Français (fr)</div>
+          <div class="chip">🇮🇹 Italiano (it)</div>
+          <div class="chip">🇯🇵 日本語 (ja)</div>
+          <div class="chip">+ Add other</div>
+        </div>
+      </div>
+
+      <!-- Fallback language -->
+      <div style="margin-bottom: 28px">
+        <div style="font-weight:600;font-size:13px;margin-bottom:4px">Fallback (optional)</div>
+        <div style="font-size:11px;color:var(--text-muted);margin-bottom:8px">If no target-language sub is available, try this next. Many users pick English as fallback for anime.</div>
+        <div class="chip-row">
+          <div class="chip selected">🇬🇧 English (en)</div>
+          <div class="chip">None — skip if target missing</div>
+          <div class="chip">Translate via LLM instead</div>
+        </div>
+      </div>
+
+      <!-- Release preference from profile -->
+      <div class="connector">
+        <div class="connector-head">
+          <div class="connector-icon">🎌</div>
+          <div>
+            <div class="connector-title">Anime-heavy matching rules</div>
+            <div class="connector-sub">Inherited from your profile · click to review</div>
+          </div>
+          <div class="connector-status">✓ Preset applied</div>
+        </div>
+        <div style="font-size:12px;color:var(--text-secondary);line-height:1.6">
+          • Prefer fansub groups (HorribleSubs, Erai-raws, SubsPlease) over generic encodes<br/>
+          • Absolute episode order detection via AniDB (auto-activated per series)<br/>
+          • SDH subs allowed as fallback (Disney/Marvel rips often ship EN only as SDH)<br/>
+          • Foreign-track cleanup: <strong>off</strong> by default (can override per series later)
+        </div>
+      </div>
+
+      <!-- Footer -->
+      <div class="wizard-footer">
+        <div class="footer-hint">Changes auto-save · continue any time from this step</div>
+        <div style="display:flex; gap: 8px">
+          <button class="btn">← Back</button>
+          <button class="btn primary">Next: pick providers →</button>
+        </div>
+      </div>
+    </main>
+
+  </div>
+</div>
+
+<div class="annot-map">
+  <strong>Wizard map — 6 Codex-Schritte in einer Flow</strong>
+  <ol>
+    <li><strong>Step 1 — Usage profile</strong> (Movies / Series / Anime-heavy / Translate on missing) setzt Smart-Defaults für die folgenden Schritte. Done + Preview unter dem Titel.</li>
+    <li><strong>Step 2 — Connect media</strong>: Sonarr/Radarr/Jellyfin/Plex/Emby als Integrationen (Home-Assistant-Pattern) mit Live-Test, grünen Status-Pills, optional skippable.</li>
+    <li><strong>Step 3 — Languages &amp; matching</strong> (dieser Screen): Primary-Chip + Fallback-Chip + automatisch vom Profil geerbte Matching-Regeln (nicht als Formular-Feld sondern als lesbarer Summary-Block mit „inherited from your profile"-Tag).</li>
+    <li><strong>Step 4 — Pick providers</strong>: Kacheln für die 10 Provider mit Badges (`recommended`, `free`, `needs API key`). Nur 1–3 auswählen; Rest später in Settings.</li>
+    <li><strong>Step 5 — Translation &amp; transcription</strong>: Optional. Wenn „Translate on missing" im Usage-Profil aktiv ist, ist dieser Schritt vorausgefüllt mit dem Ollama-Endpoint-Feld.</li>
+    <li><strong>Step 6 — Schedule &amp; notify</strong>: Cron-Builder-Lite (4 Presets: hourly/6h/daily/manual) + ein Test-Notification-Button (Discord-URL eintragen → „Send test" → grünes Pill bei Erfolg).</li>
+  </ol>
+  <p style="margin-top:12px; color: var(--text-muted)">Prinzipien: <strong>jeder Schritt isoliert + auto-save</strong> (kein fail-and-restart), <strong>Skip jederzeit</strong> möglich, <strong>Step-Sidebar zeigt Preview-Werte</strong> der bereits getroffenen Entscheidungen, <strong>Profile als Smart-Default-Engine</strong> (anime-heavy → alle downstream Steps vorausgefüllt).</p>
+</div>
+
+</body>
+</html>

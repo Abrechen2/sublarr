@@ -1,0 +1,748 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Sublarr Settings — Concept Mockup (Codex Blueprint)</title>
+<style>
+  :root {
+    --bg-primary: #0a0f14;
+    --bg-surface: #111820;
+    --bg-elevated: #1a222c;
+    --bg-raised: #222c38;
+    --border: #2a3440;
+    --border-strong: #3a4658;
+    --text-primary: #e6edf3;
+    --text-secondary: #aab4c0;
+    --text-muted: #6a7686;
+    --accent: #1db8d4;
+    --accent-dim: #0f9bb5;
+    --accent-bg: rgba(29, 184, 212, 0.08);
+    --success: #3fb950;
+    --warning: #e8a33d;
+    --error: #f05c5c;
+    --radius-sm: 4px;
+    --radius-md: 6px;
+    --radius-lg: 8px;
+    --space-1: 4px;
+    --space-2: 8px;
+    --space-3: 12px;
+    --space-4: 16px;
+    --space-6: 24px;
+    --space-8: 32px;
+    --font: -apple-system, BlinkMacSystemFont, "Inter", "Segoe UI", Roboto, sans-serif;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    font-family: var(--font);
+    font-size: 13px;
+    background: var(--bg-primary);
+    color: var(--text-primary);
+    line-height: 1.45;
+  }
+  .app { display: grid; grid-template-columns: 220px 1fr; min-height: 100vh; }
+
+  /* ─── Left app sidebar ────────────────────────────────────── */
+  .app-sidebar {
+    background: var(--bg-surface);
+    border-right: 1px solid var(--border);
+    padding: var(--space-4);
+    display: flex; flex-direction: column; gap: var(--space-2);
+  }
+  .brand { display: flex; align-items: center; gap: 10px; padding: 4px 6px; margin-bottom: 16px; }
+  .brand-logo {
+    width: 28px; height: 28px; border-radius: 6px;
+    background: linear-gradient(135deg, var(--accent), var(--accent-dim));
+    display: grid; place-items: center; font-weight: 700; color: #0a0f14;
+  }
+  .brand-name { font-weight: 700; }
+  .brand-version { font-size: 10px; color: var(--text-muted); }
+  .nav-link {
+    display: flex; align-items: center; gap: 10px;
+    padding: 8px 10px; border-radius: var(--radius-md);
+    color: var(--text-secondary); cursor: pointer;
+    font-size: 13px;
+  }
+  .nav-link:hover { background: var(--bg-elevated); color: var(--text-primary); }
+  .nav-link.active {
+    background: var(--accent-bg); color: var(--accent);
+    font-weight: 600;
+  }
+  .nav-icon { width: 16px; height: 16px; opacity: .75; }
+  .nav-spacer { flex: 1; }
+
+  /* ─── Main content frame ─────────────────────────────────── */
+  .main { display: grid; grid-template-columns: 260px 1fr; }
+
+  /* ─── Settings inner sidebar ─────────────────────────────── */
+  .settings-sidebar {
+    background: var(--bg-surface);
+    border-right: 1px solid var(--border);
+    padding: var(--space-4);
+    display: flex; flex-direction: column; gap: var(--space-4);
+  }
+  .search-bar {
+    display: flex; align-items: center; gap: 8px;
+    padding: 8px 10px;
+    background: var(--bg-elevated);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-md);
+    color: var(--text-muted);
+    cursor: pointer;
+    font-size: 12px;
+  }
+  .search-bar:hover { border-color: var(--border-strong); }
+  .kbd {
+    display: inline-flex; align-items: center; padding: 2px 6px;
+    font-size: 10px; font-family: ui-monospace, monospace;
+    background: var(--bg-primary); border: 1px solid var(--border);
+    border-radius: 3px; color: var(--text-muted);
+  }
+  .cat-group { display: flex; flex-direction: column; gap: 2px; }
+  .cat-header {
+    font-size: 10px; font-weight: 700; color: var(--text-muted);
+    text-transform: uppercase; letter-spacing: 0.5px;
+    padding: 6px 10px 4px;
+  }
+  .cat-item {
+    display: flex; align-items: center; gap: 10px;
+    padding: 7px 10px; border-radius: var(--radius-md);
+    color: var(--text-secondary); cursor: pointer;
+    font-size: 13px;
+  }
+  .cat-item:hover { background: var(--bg-elevated); color: var(--text-primary); }
+  .cat-item.active {
+    background: var(--accent-bg); color: var(--accent); font-weight: 600;
+  }
+  .cat-badge {
+    margin-left: auto; font-size: 10px; padding: 1px 6px;
+    border-radius: 10px; background: var(--bg-raised); color: var(--text-muted);
+  }
+  .cat-badge.warn { background: rgba(232,163,61,.15); color: var(--warning); }
+  .cat-badge.err  { background: rgba(240,92,92,.15); color: var(--error); }
+  .expert-toggle {
+    margin-top: auto;
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 10px 12px;
+    background: var(--bg-elevated);
+    border-radius: var(--radius-md);
+    border: 1px solid var(--border);
+  }
+  .toggle {
+    position: relative; display: inline-block; width: 32px; height: 18px;
+    background: var(--bg-raised); border-radius: 10px; cursor: pointer;
+    transition: background .15s;
+  }
+  .toggle::after {
+    content: ''; position: absolute; left: 2px; top: 2px; width: 14px; height: 14px;
+    background: var(--text-secondary); border-radius: 50%;
+    transition: left .15s, background .15s;
+  }
+  .toggle.on { background: var(--accent); }
+  .toggle.on::after { left: 16px; background: #0a0f14; }
+
+  /* ─── Content area ───────────────────────────────────────── */
+  .content { padding: var(--space-6) var(--space-8); overflow-x: hidden; }
+  .page-head {
+    display: flex; align-items: flex-end; justify-content: space-between;
+    margin-bottom: var(--space-6); padding-bottom: var(--space-4);
+    border-bottom: 1px solid var(--border);
+  }
+  .breadcrumbs {
+    font-size: 11px; color: var(--text-muted);
+    margin-bottom: 6px; display: flex; gap: 6px;
+  }
+  .breadcrumbs .sep { opacity: .5; }
+  .breadcrumbs .current { color: var(--text-primary); font-weight: 500; }
+  h1.page-title { font-size: 22px; margin: 0; font-weight: 700; letter-spacing: -.01em; }
+  .page-sub { color: var(--text-muted); margin-top: 4px; font-size: 13px; }
+  .save-state {
+    display: inline-flex; align-items: center; gap: 6px;
+    font-size: 11px; color: var(--success);
+    padding: 4px 8px; border-radius: 12px;
+    background: rgba(63,185,80,.08);
+  }
+  .save-state.dirty { color: var(--warning); background: rgba(232,163,61,.08); }
+  .save-state .dot { width: 6px; height: 6px; border-radius: 50%; background: currentColor; }
+
+  /* ─── Master-Detail layout ──────────────────────────────── */
+  .md {
+    display: grid; grid-template-columns: 280px 1fr;
+    gap: var(--space-6);
+    background: var(--bg-surface); border: 1px solid var(--border);
+    border-radius: var(--radius-lg); overflow: hidden;
+  }
+  .md-list {
+    background: var(--bg-surface); border-right: 1px solid var(--border);
+    padding: var(--space-3);
+    display: flex; flex-direction: column; gap: 2px;
+  }
+  .md-list-head {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 4px 8px 8px;
+  }
+  .md-list-head .title { font-weight: 700; font-size: 12px; color: var(--text-muted); text-transform: uppercase; letter-spacing: .5px; }
+  .md-list-head .add { font-size: 11px; color: var(--accent); cursor: pointer; }
+  .md-item {
+    padding: 10px 12px; border-radius: var(--radius-md);
+    cursor: pointer; display: flex; align-items: center; gap: 10px;
+  }
+  .md-item:hover { background: var(--bg-elevated); }
+  .md-item.active { background: var(--accent-bg); border: 1px solid var(--accent-dim); }
+  .md-item .name { font-weight: 500; }
+  .md-item .meta { margin-left: auto; font-size: 10px; color: var(--text-muted); }
+  .health-dot { width: 6px; height: 6px; border-radius: 50%; }
+  .health-dot.ok   { background: var(--success); box-shadow: 0 0 6px rgba(63,185,80,.5); }
+  .health-dot.warn { background: var(--warning); }
+  .health-dot.err  { background: var(--error); }
+  .health-dot.off  { background: var(--text-muted); }
+
+  .md-detail { padding: var(--space-6); overflow-y: auto; max-height: 820px; }
+
+  /* ─── Form primitives ───────────────────────────────────── */
+  .section {
+    padding-bottom: var(--space-6);
+    border-bottom: 1px solid var(--border);
+    margin-bottom: var(--space-6);
+  }
+  .section:last-child { border-bottom: 0; margin-bottom: 0; }
+  .section-title { font-weight: 700; font-size: 14px; margin: 0 0 4px; }
+  .section-desc { color: var(--text-muted); margin: 0 0 16px; font-size: 12px; }
+  .advanced-toggle {
+    display: inline-flex; align-items: center; gap: 6px;
+    padding: 6px 10px; background: var(--bg-elevated);
+    border: 1px dashed var(--border-strong); border-radius: var(--radius-md);
+    color: var(--text-muted); font-size: 11px; cursor: pointer;
+    margin-top: 8px;
+  }
+  .advanced-toggle:hover { color: var(--text-primary); border-color: var(--accent); }
+
+  .field { display: grid; grid-template-columns: 280px 1fr; gap: 16px; align-items: start; margin-bottom: 14px; }
+  .field-label { font-weight: 500; font-size: 13px; }
+  .field-hint { color: var(--text-muted); font-size: 11px; margin-top: 2px; }
+  .field-control { display: flex; flex-direction: column; gap: 8px; }
+  .input, .select {
+    background: var(--bg-primary);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-md);
+    padding: 8px 10px; color: var(--text-primary);
+    font-size: 13px; font-family: inherit; width: 100%;
+  }
+  .input:focus, .select:focus { outline: none; border-color: var(--accent); }
+  .input.masked { font-family: ui-monospace, monospace; letter-spacing: 1px; }
+  .btn {
+    display: inline-flex; align-items: center; gap: 6px;
+    padding: 7px 12px; border-radius: var(--radius-md);
+    background: var(--bg-elevated); border: 1px solid var(--border);
+    color: var(--text-primary); cursor: pointer; font-size: 12px;
+    font-weight: 500; font-family: inherit;
+  }
+  .btn:hover { background: var(--bg-raised); border-color: var(--border-strong); }
+  .btn.primary { background: var(--accent); color: #0a0f14; border-color: var(--accent); }
+  .btn.primary:hover { background: var(--accent-dim); }
+  .btn-row { display: flex; gap: 8px; align-items: center; }
+  .pill {
+    display: inline-flex; align-items: center; gap: 6px;
+    padding: 3px 8px; border-radius: 12px;
+    font-size: 11px; font-weight: 500;
+  }
+  .pill.ok   { background: rgba(63,185,80,.12); color: var(--success); }
+  .pill.warn { background: rgba(232,163,61,.12); color: var(--warning); }
+  .pill.err  { background: rgba(240,92,92,.12); color: var(--error); }
+
+  /* ─── Inheritance-aware field ───────────────────────────── */
+  .inherited-row {
+    display: flex; align-items: center; gap: 8px;
+    padding: 6px 10px; background: var(--bg-elevated);
+    border-radius: var(--radius-sm); font-size: 11px; color: var(--text-muted);
+  }
+  .inherited-row .from { color: var(--text-secondary); font-weight: 500; }
+  .inherited-row .eff { color: var(--accent); font-weight: 500; }
+  .override-btn { margin-left: auto; color: var(--accent); cursor: pointer; font-weight: 500; }
+
+  /* ─── Budget bar ────────────────────────────────────────── */
+  .budget-row {
+    padding: 12px; background: var(--bg-elevated);
+    border-radius: var(--radius-md); border: 1px solid var(--border);
+  }
+  .budget-head { display: flex; justify-content: space-between; font-size: 12px; margin-bottom: 8px; }
+  .budget-bar {
+    height: 8px; background: var(--bg-raised); border-radius: 4px; overflow: hidden;
+  }
+  .budget-fill {
+    height: 100%; background: linear-gradient(90deg, var(--accent), var(--accent-dim));
+    border-radius: 4px;
+  }
+  .budget-meta { display: flex; gap: 16px; margin-top: 8px; font-size: 11px; color: var(--text-muted); }
+  .budget-meta strong { color: var(--text-primary); font-weight: 600; }
+
+  /* ─── Priority / drag-drop ──────────────────────────────── */
+  .priority-list { display: flex; flex-direction: column; gap: 4px; }
+  .priority-row {
+    display: flex; align-items: center; gap: 10px;
+    padding: 10px 12px;
+    background: var(--bg-elevated); border: 1px solid var(--border);
+    border-radius: var(--radius-md); cursor: grab;
+  }
+  .priority-row:hover { border-color: var(--accent-dim); background: var(--bg-raised); }
+  .priority-rank { width: 24px; font-size: 10px; color: var(--text-muted); font-weight: 700; }
+  .priority-handle { color: var(--text-muted); cursor: grab; font-size: 14px; }
+  .priority-body { flex: 1; display: flex; flex-direction: column; }
+  .priority-name { font-weight: 500; font-size: 13px; }
+  .priority-note { font-size: 10px; color: var(--text-muted); }
+  .preview-btn {
+    font-size: 11px; color: var(--accent); cursor: pointer;
+    padding: 6px 10px; border: 1px dashed var(--border-strong); border-radius: var(--radius-md);
+  }
+
+  /* ─── Right rail — Health Checklist ─────────────────────── */
+  .split { display: grid; grid-template-columns: 1fr 320px; gap: var(--space-6); }
+  .rail {
+    background: var(--bg-surface); border: 1px solid var(--border);
+    border-radius: var(--radius-lg); padding: var(--space-4);
+    align-self: start; position: sticky; top: var(--space-4);
+  }
+  .rail-title { font-size: 12px; font-weight: 700; margin: 0 0 10px; text-transform: uppercase; letter-spacing: .5px; color: var(--text-muted); }
+  .rail-items { display: flex; flex-direction: column; gap: 8px; }
+  .rail-item {
+    display: flex; align-items: flex-start; gap: 10px;
+    padding: 10px; border-radius: var(--radius-md);
+    background: var(--bg-elevated); border: 1px solid var(--border);
+  }
+  .rail-item .ic { width: 16px; height: 16px; flex-shrink: 0; margin-top: 2px; }
+  .rail-item .head { font-size: 12px; font-weight: 500; }
+  .rail-item .body { font-size: 11px; color: var(--text-muted); margin-top: 2px; }
+  .rail-item.warn  { border-color: rgba(232,163,61,.35); }
+  .rail-item.err   { border-color: rgba(240,92,92,.35); }
+  .rail-item .fix { color: var(--accent); cursor: pointer; font-size: 11px; margin-top: 6px; display: inline-block; }
+
+  /* ─── Cmd+K overlay ─────────────────────────────────────── */
+  .kbar-backdrop {
+    position: fixed; inset: 0; background: rgba(0,0,0,.6);
+    display: grid; place-items: start center; padding-top: 80px; z-index: 100;
+  }
+  .kbar {
+    width: 640px; max-width: 90vw;
+    background: var(--bg-surface); border: 1px solid var(--border-strong);
+    border-radius: var(--radius-lg); overflow: hidden;
+    box-shadow: 0 20px 60px rgba(0,0,0,.5);
+  }
+  .kbar-input {
+    padding: 14px 18px; font-size: 15px;
+    background: transparent; border: 0; color: var(--text-primary); width: 100%;
+    border-bottom: 1px solid var(--border);
+  }
+  .kbar-list { max-height: 400px; overflow-y: auto; }
+  .kbar-group { padding: 6px 18px 4px; font-size: 10px; color: var(--text-muted); text-transform: uppercase; letter-spacing: .5px; }
+  .kbar-hit {
+    display: flex; align-items: center; gap: 10px;
+    padding: 10px 18px; cursor: pointer;
+  }
+  .kbar-hit:hover, .kbar-hit.active { background: var(--bg-elevated); }
+  .kbar-hit .label { font-size: 13px; font-weight: 500; }
+  .kbar-hit .path { font-size: 11px; color: var(--text-muted); }
+  .kbar-hit .tags { margin-left: auto; display: flex; gap: 4px; }
+  .kbar-hit .tag { font-size: 10px; padding: 1px 6px; background: var(--bg-raised); border-radius: 8px; color: var(--text-muted); }
+  .kbar-footer {
+    display: flex; justify-content: space-between; padding: 8px 18px;
+    border-top: 1px solid var(--border);
+    font-size: 11px; color: var(--text-muted);
+  }
+  .kbar-footer .kbd { margin: 0 4px; }
+
+  /* ─── Annotations ───────────────────────────────────────── */
+  .annot {
+    margin-top: var(--space-6);
+    padding: 14px 18px;
+    background: linear-gradient(135deg, rgba(29,184,212,.08), rgba(29,184,212,.02));
+    border-left: 3px solid var(--accent);
+    border-radius: 0 var(--radius-md) var(--radius-md) 0;
+    font-size: 12px; color: var(--text-secondary);
+  }
+  .annot strong { color: var(--accent); }
+  .annot ol { margin: 6px 0 0; padding-left: 20px; }
+  .annot li { margin: 3px 0; }
+</style>
+</head>
+<body>
+
+<div class="app">
+  <!-- ─── LEFT APP SIDEBAR ─────────────────────────────────── -->
+  <aside class="app-sidebar">
+    <div class="brand">
+      <div class="brand-logo">S</div>
+      <div>
+        <div class="brand-name">Sublarr</div>
+        <div class="brand-version">v0.72.0-beta</div>
+      </div>
+    </div>
+
+    <div class="nav-link">◯ Dashboard</div>
+    <div class="nav-link">▤ Library</div>
+    <div class="nav-link">⬇ Wanted</div>
+    <div class="nav-link">⇄ Translations</div>
+    <div class="nav-link">⌫ Trash</div>
+    <div class="nav-spacer"></div>
+    <div class="nav-link active">⚙ Settings</div>
+    <div class="nav-link">≡ Logs</div>
+  </aside>
+
+  <!-- ─── MAIN ─────────────────────────────────────────────── -->
+  <div class="main">
+    <!-- ─── Settings inner sidebar (8 top-level categories) ─ -->
+    <aside class="settings-sidebar">
+      <div class="search-bar" onclick="document.getElementById('kbar').style.display='grid'">
+        <span>⌕</span>
+        <span>Search settings…</span>
+        <span style="margin-left:auto"><span class="kbd">⌘</span><span class="kbd">K</span></span>
+      </div>
+
+      <div class="cat-group">
+        <div class="cat-header">Core</div>
+        <div class="cat-item">⇄ Media &amp; Integrations
+          <span class="cat-badge">4</span>
+        </div>
+        <div class="cat-item active">⋮⋮ Providers
+          <span class="cat-badge warn">10</span>
+        </div>
+        <div class="cat-item">◈ Processing
+          <span class="cat-badge">5</span>
+        </div>
+        <div class="cat-item">⌘ Languages &amp; Matching</div>
+      </div>
+
+      <div class="cat-group">
+        <div class="cat-header">Control</div>
+        <div class="cat-item">◷ Automation</div>
+        <div class="cat-item">◭ Profiles &amp; Overrides
+          <span class="cat-badge">3</span>
+        </div>
+        <div class="cat-item">✉ Notifications</div>
+      </div>
+
+      <div class="cat-group">
+        <div class="cat-header">Operations</div>
+        <div class="cat-item">⚙ System
+          <span class="cat-badge err">1</span>
+        </div>
+      </div>
+
+      <div class="expert-toggle">
+        <div>
+          <div style="font-size:12px;font-weight:500">Expert mode</div>
+          <div style="font-size:10px;color:var(--text-muted);margin-top:2px">Show raw cron, regex, scoring weights</div>
+        </div>
+        <div class="toggle" onclick="this.classList.toggle('on')"></div>
+      </div>
+    </aside>
+
+    <!-- ─── CONTENT ───────────────────────────────────────── -->
+    <section class="content">
+      <header class="page-head">
+        <div>
+          <div class="breadcrumbs">
+            <span>Settings</span><span class="sep">›</span>
+            <span>Providers</span><span class="sep">›</span>
+            <span class="current">OpenSubtitles</span>
+          </div>
+          <h1 class="page-title">OpenSubtitles</h1>
+          <div class="page-sub">REST API • accounts pool of 1 key • last healthy 2 min ago</div>
+        </div>
+        <div class="save-state">
+          <span class="dot"></span>
+          All changes saved
+        </div>
+      </header>
+
+      <div class="split">
+        <!-- ─── Master-Detail Provider view ───────────────── -->
+        <div class="md">
+          <!-- List ─── -->
+          <div class="md-list">
+            <div class="md-list-head">
+              <div class="title">Providers</div>
+              <div class="add">+ Add</div>
+            </div>
+            <div class="md-item active">
+              <span class="health-dot ok"></span>
+              <span class="name">OpenSubtitles</span>
+              <span class="meta">#1</span>
+            </div>
+            <div class="md-item">
+              <span class="health-dot warn"></span>
+              <span class="name">SubDL</span>
+              <span class="meta">#2</span>
+            </div>
+            <div class="md-item">
+              <span class="health-dot err"></span>
+              <span class="name">Animetosho</span>
+              <span class="meta">#3</span>
+            </div>
+            <div class="md-item">
+              <span class="health-dot off"></span>
+              <span class="name">Addic7ed</span>
+              <span class="meta">off</span>
+            </div>
+            <div class="md-item">
+              <span class="health-dot ok"></span>
+              <span class="name">Jimaku</span>
+              <span class="meta">#4</span>
+            </div>
+            <div class="md-item">
+              <span class="health-dot ok"></span>
+              <span class="name">Kitsunekko</span>
+              <span class="meta">#5</span>
+            </div>
+            <div class="md-item">
+              <span class="health-dot warn"></span>
+              <span class="name">LegendasDivx</span>
+              <span class="meta">#6</span>
+            </div>
+            <div class="md-item">
+              <span class="health-dot off"></span>
+              <span class="name">Napisy24</span>
+              <span class="meta">off</span>
+            </div>
+          </div>
+
+          <!-- Detail ─── -->
+          <div class="md-detail">
+
+            <!-- Connection section -->
+            <section class="section">
+              <h3 class="section-title">Connection</h3>
+              <p class="section-desc">Credentials and endpoint. Test before saving.</p>
+
+              <div class="field">
+                <div>
+                  <div class="field-label">API key</div>
+                  <div class="field-hint">Kept in the server config, never sent to the client.</div>
+                </div>
+                <div class="field-control">
+                  <input class="input masked" type="password" value="aOAxRuss0RciJjvyJVyBh6YFnp1lclkf"/>
+                  <div class="btn-row">
+                    <button class="btn primary">⚡ Test connection</button>
+                    <span class="pill ok">● last validated 2 min ago</span>
+                    <span class="pill ok">scopes: read, search, download</span>
+                  </div>
+                </div>
+              </div>
+
+              <div class="field">
+                <div>
+                  <div class="field-label">Username</div>
+                  <div class="field-hint">VIP account increases daily quota.</div>
+                </div>
+                <div class="field-control">
+                  <input class="input" value="abrechen2"/>
+                </div>
+              </div>
+
+              <button class="advanced-toggle">▸ Advanced · 4 options (timeout, user-agent, retries, TLS)</button>
+            </section>
+
+            <!-- Budget section -->
+            <section class="section">
+              <h3 class="section-title">Budget &amp; rate limits</h3>
+              <p class="section-desc">Live counter — drops back each day at 00:00 UTC.</p>
+
+              <div class="budget-row">
+                <div class="budget-head">
+                  <span>Daily quota</span>
+                  <span><strong style="color:var(--text-primary)">1,247</strong> / 10,000 requests used</span>
+                </div>
+                <div class="budget-bar"><div class="budget-fill" style="width:12.5%"></div></div>
+                <div class="budget-meta">
+                  <span>Remaining today: <strong>8,753</strong></span>
+                  <span>Last 24h: <strong>1,247</strong></span>
+                  <span>Reset in: <strong>6h 47min</strong></span>
+                  <span class="pill ok">● hard stop at 100%</span>
+                </div>
+              </div>
+
+              <div class="field" style="margin-top:16px">
+                <div>
+                  <div class="field-label">Requests per minute</div>
+                  <div class="field-hint">Provider-enforced limit. Learned dynamically from 429s.</div>
+                </div>
+                <div class="field-control">
+                  <div class="btn-row">
+                    <input class="input" value="40" style="width:80px"/>
+                    <span class="pill warn">auto-learned: 35/min (since yesterday)</span>
+                  </div>
+                </div>
+              </div>
+            </section>
+
+            <!-- Priority -->
+            <section class="section">
+              <h3 class="section-title">Priority across providers</h3>
+              <p class="section-desc">Drag to reorder. The preview shows how this episode would be ranked with current weights.</p>
+
+              <div class="priority-list">
+                <div class="priority-row">
+                  <span class="priority-rank">#1</span>
+                  <span class="priority-handle">⋮⋮</span>
+                  <div class="priority-body">
+                    <span class="priority-name">OpenSubtitles</span>
+                    <span class="priority-note">current — +50 boost</span>
+                  </div>
+                  <span class="pill ok">healthy</span>
+                </div>
+                <div class="priority-row">
+                  <span class="priority-rank">#2</span>
+                  <span class="priority-handle">⋮⋮</span>
+                  <div class="priority-body">
+                    <span class="priority-name">SubDL</span>
+                    <span class="priority-note">+30 boost</span>
+                  </div>
+                  <span class="pill warn">1 fail last 1h</span>
+                </div>
+                <div class="priority-row">
+                  <span class="priority-rank">#3</span>
+                  <span class="priority-handle">⋮⋮</span>
+                  <div class="priority-body">
+                    <span class="priority-name">Animetosho</span>
+                    <span class="priority-note">+15 boost</span>
+                  </div>
+                  <span class="pill err">key pool exhausted</span>
+                </div>
+              </div>
+
+              <div style="margin-top:12px">
+                <button class="preview-btn">🔍 Preview ranking for "Attack on Titan S04E28 Bluray-1080p.mkv"</button>
+              </div>
+            </section>
+
+            <!-- Inheritance-aware field -->
+            <section class="section">
+              <h3 class="section-title">Cleanup foreign tracks</h3>
+              <p class="section-desc">After extract, strip non-target-language subtitle streams from the container.</p>
+
+              <div class="inherited-row">
+                <span>⤹</span>
+                <span class="from">Inherited from Global default</span>
+                <span>=</span>
+                <span class="eff">effective: Off</span>
+                <span class="override-btn">Override for all OpenSubtitles downloads →</span>
+              </div>
+            </section>
+
+          </div>
+        </div>
+
+        <!-- ─── Right rail: Health checklist ────────────────── -->
+        <aside class="rail">
+          <h3 class="rail-title">◉ Health checklist</h3>
+          <div class="rail-items">
+            <div class="rail-item err">
+              <span class="ic" style="color:var(--error)">✕</span>
+              <div>
+                <div class="head">Animetosho key pool exhausted</div>
+                <div class="body">All keys are 429-cooling or deleted. Add a new pool row to resume queries.</div>
+                <a class="fix">Fix → Providers › Animetosho</a>
+              </div>
+            </div>
+            <div class="rail-item warn">
+              <span class="ic" style="color:var(--warning)">!</span>
+              <div>
+                <div class="head">No backup destination configured</div>
+                <div class="body">Auto-backups are running locally but not copied off-box.</div>
+                <a class="fix">Fix → System › Backups</a>
+              </div>
+            </div>
+            <div class="rail-item warn">
+              <span class="ic" style="color:var(--warning)">!</span>
+              <div>
+                <div class="head">Ollama not reachable</div>
+                <div class="body">Translation is enabled but the configured endpoint failed health check 2× in a row.</div>
+                <a class="fix">Fix → Processing › Translation</a>
+              </div>
+            </div>
+            <div class="rail-item">
+              <span class="ic" style="color:var(--success)">✓</span>
+              <div>
+                <div class="head">Sonarr + Radarr healthy</div>
+                <div class="body">Both clients responding, tags sync ok.</div>
+              </div>
+            </div>
+          </div>
+        </aside>
+      </div>
+
+      <!-- ─── Annotations ──────────────────────────────────── -->
+      <div class="annot">
+        <strong>Mockup map</strong> — diese Page demonstriert in einem Screen die 8 Codex-Prinzipien:
+        <ol>
+          <li><strong>8 Top-Level-Kategorien</strong> — linke innere Sidebar, workflow-sortiert (Core → Control → Operations).</li>
+          <li><strong>Cmd+K Fuzzy-Search</strong> — Suchleiste oben, Overlay klicken um zu sehen.</li>
+          <li><strong>Master-Detail</strong> — Provider-Liste links, OpenSubtitles-Editor rechts.</li>
+          <li><strong>3-Ebenen Progressive Disclosure</strong> — Standard (Connection, Budget, Priority), Advanced (eingeklappt, `▸ Advanced · 4 options`), Expert Mode (globaler Toggle links unten).</li>
+          <li><strong>API-Key mit Test-Connection</strong> — Button + "last validated 2 min ago" + detektierte Scopes.</li>
+          <li><strong>Budget live</strong> — Progress-Bar + 4 Metriken (remaining, last 24h, reset, hard-stop).</li>
+          <li><strong>Priorität Drag-Drop + Preview-Ranking</strong> — mit "preview for this episode"-Button.</li>
+          <li><strong>Override-Inheritance</strong> — "Inherited from Global • effective: Off • Override →".</li>
+          <li><strong>Health-Checklist-Rail</strong> — rechts, zeigt was kaputt ist MIT Fix-Link (nicht nur Hint).</li>
+          <li><strong>Save-State Pill</strong> — oben rechts, "All changes saved" (operativ: immer explicit, keine Autosave-Mischung).</li>
+        </ol>
+      </div>
+    </section>
+  </div>
+</div>
+
+<!-- ─── Cmd+K overlay (hidden by default, click search bar to show) ── -->
+<div class="kbar-backdrop" id="kbar" style="display:none" onclick="if(event.target===this)this.style.display='none'">
+  <div class="kbar">
+    <input class="kbar-input" placeholder="Search — type 'daily budget', 'cron', 'opensubtitles' …" value="daily budget"/>
+    <div class="kbar-list">
+      <div class="kbar-group">Providers · 3 matches</div>
+      <div class="kbar-hit active">
+        <div>
+          <div class="label">Daily quota — OpenSubtitles</div>
+          <div class="path">Settings › Providers › OpenSubtitles › Budget</div>
+        </div>
+        <div class="tags"><span class="tag">provider</span><span class="tag">budget</span></div>
+      </div>
+      <div class="kbar-hit">
+        <div>
+          <div class="label">Daily quota — SubDL</div>
+          <div class="path">Settings › Providers › SubDL › Budget</div>
+        </div>
+        <div class="tags"><span class="tag">provider</span><span class="tag">budget</span></div>
+      </div>
+      <div class="kbar-hit">
+        <div>
+          <div class="label">Daily quota — Animetosho</div>
+          <div class="path">Settings › Providers › Animetosho › Budget</div>
+        </div>
+        <div class="tags"><span class="tag">provider</span><span class="tag">budget</span><span class="tag">advanced</span></div>
+      </div>
+
+      <div class="kbar-group">Automation · 1 match</div>
+      <div class="kbar-hit">
+        <div>
+          <div class="label">Global budget cap (all providers)</div>
+          <div class="path">Settings › Automation › API budgets</div>
+        </div>
+        <div class="tags"><span class="tag">automation</span><span class="tag">budget</span></div>
+      </div>
+
+      <div class="kbar-group">System · 1 match</div>
+      <div class="kbar-hit">
+        <div>
+          <div class="label">Budget hard-stop behavior</div>
+          <div class="path">Settings › System › Rate limits · <em style="color:var(--warning)">expert</em></div>
+        </div>
+        <div class="tags"><span class="tag">system</span><span class="tag">expert</span></div>
+      </div>
+    </div>
+    <div class="kbar-footer">
+      <span><span class="kbd">↵</span> open · <span class="kbd">⇧↵</span> reveal in sidebar</span>
+      <span><span class="kbd">esc</span> close</span>
+    </div>
+  </div>
+</div>
+
+</body>
+</html>
