@@ -1,16 +1,49 @@
 import { useTranslation } from 'react-i18next'
 import { useScannerStatus, useWantedSummary, useRefreshWanted } from '@/hooks/useWantedApi'
 import { useStats } from '@/hooks/useSystemApi'
+import { useSchedulerJobs } from '@/hooks/useSchedulerJobs'
 import { formatRelativeTime } from '@/lib/utils'
+
+type AutomationState = 'active' | 'idle' | 'paused'
 
 export function StatusStripe() {
   const { t } = useTranslation('dashboard')
   const { data: scannerStatus } = useScannerStatus()
+  const { data: scheduler } = useSchedulerJobs()
   const { data: stats } = useStats()
   const { data: wantedSummary } = useWantedSummary()
   const refreshWanted = useRefreshWanted()
 
-  const isActive = Boolean(scannerStatus?.is_scanning || scannerStatus?.is_searching)
+  // 3-state: 'active' = scan/search running now, 'paused' = user paused BOTH
+  // scheduler jobs, 'idle' = armed and waiting for the next scheduled run.
+  // Paused requires BOTH jobs paused — a single-pause still counts as active
+  // automation (the other job keeps the pipeline alive).
+  const isRunning = Boolean(scannerStatus?.is_scanning || scannerStatus?.is_searching)
+  const jobs = scheduler?.jobs ?? []
+  const scannerJob = jobs.find((j) => j.id === 'wanted_scanner')
+  const searchJob = jobs.find((j) => j.id === 'wanted_search')
+  const bothPaused =
+    scannerJob !== undefined &&
+    searchJob !== undefined &&
+    scannerJob.paused &&
+    searchJob.paused
+
+  const state: AutomationState = isRunning ? 'active' : bothPaused ? 'paused' : 'idle'
+
+  const stateColor =
+    state === 'active'
+      ? 'var(--success)'
+      : state === 'paused'
+        ? 'var(--warning)'
+        : 'var(--text-muted)'
+
+  const stateLabel =
+    state === 'active'
+      ? t('statusStripe.active')
+      : state === 'paused'
+        ? t('statusStripe.paused')
+        : t('statusStripe.idle')
+
   const lastActivity = scannerStatus?.last_scan_at ?? scannerStatus?.last_search_at ?? null
   const lastText = lastActivity
     ? `${t('statusStripe.lastScan')}: ${formatRelativeTime(lastActivity)}`
@@ -33,16 +66,21 @@ export function StatusStripe() {
       }}
     >
       {/* Status dot + label */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+      <div
+        style={{ display: 'flex', alignItems: 'center', gap: '8px' }}
+        aria-live="polite"
+        aria-label={t('statusStripe.ariaLabel', { state: stateLabel, lastText })}
+      >
         <span
           data-testid="status-dot"
-          className={isActive ? 'automation-pulse' : undefined}
+          data-state={state}
+          className={state === 'active' ? 'automation-pulse' : undefined}
           style={{
             width: 7,
             height: 7,
             borderRadius: '50%',
             flexShrink: 0,
-            backgroundColor: isActive ? 'var(--success)' : 'var(--text-muted)',
+            backgroundColor: stateColor,
           }}
         />
         <span
@@ -51,10 +89,10 @@ export function StatusStripe() {
             fontSize: '11px',
             fontWeight: 700,
             letterSpacing: '0.5px',
-            color: isActive ? 'var(--success)' : 'var(--text-muted)',
+            color: stateColor,
           }}
         >
-          {isActive ? t('statusStripe.active') : t('statusStripe.paused')}
+          {stateLabel}
         </span>
       </div>
 

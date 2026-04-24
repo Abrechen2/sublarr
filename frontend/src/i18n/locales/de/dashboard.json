@@ -107,7 +107,9 @@
   },
   "statusStripe": {
     "active": "AUTOMATION AKTIV",
+    "idle": "BEREIT",
     "paused": "PAUSIERT",
+    "ariaLabel": "Automation-Status: {{state}}, {{lastText}}",
     "lastScan": "Zuletzt",
     "neverScanned": "Noch nie gescannt",
     "subtitles": "Untertitel",
