@@ -202,8 +202,7 @@ def _scheduled_oneshot_tick(oneshot_id: str) -> None:
             if registry_entry is not None:
                 app, spec = registry_entry
                 logger.info(
-                    "scheduler: oneshot %s recovered from _tick_registry "
-                    "(post-restart fallback)",
+                    "scheduler: oneshot %s recovered from _tick_registry (post-restart fallback)",
                     oneshot_id,
                 )
         if app is None or spec is None:
@@ -238,8 +237,7 @@ def _tick_wrapper(
         job_lock = _get_job_run_lock(spec.id)
         if not job_lock.acquire(blocking=False):
             logger.info(
-                "scheduler: %s skipped — previous tick still running "
-                "(triggered_by=%s)",
+                "scheduler: %s skipped — previous tick still running (triggered_by=%s)",
                 spec.id,
                 triggered_by,
             )
@@ -811,7 +809,9 @@ def _build_default_jobs() -> list[JobSpec]:
             id="wanted_scanner",
             func=wanted_scanner_tick,
             default_trigger=IntervalTrigger(hours=scan_interval_hours),
-            timeout_s=600,
+            # Full-scan can exceed 10 min on large libraries (2979 items → 37 min observed
+            # on prod 2026-04-24). Raised to 1 h to avoid false-positive timeout alarms.
+            timeout_s=3600,
             owner_module="services.wanted_scanner",
             description="Scan Sonarr/Radarr/standalone for episodes missing subtitles.",
         ),

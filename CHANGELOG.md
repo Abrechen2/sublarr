@@ -5,6 +5,12 @@ All notable changes to Sublarr are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.71.1-beta] - 2026-04-24
+
+### Fixed
+- **Subtitle Automation migration is now idempotent.** The 0.71.0 `subtitle_automation_schema` Alembic migration used unguarded `CREATE TABLE` / `ADD COLUMN` statements that failed on re-runs against a partially-upgraded database. Added `IF NOT EXISTS` guards on table creation plus column-existence checks via `inspector.get_columns()` before the `ALTER TABLE ... ADD COLUMN` so the migration can be re-applied safely.
+- **Wanted-scanner soft-timeout false alarms on large libraries.** Full library scans on ~3000-item libraries routinely run 30+ min and tripped the 600 s monitoring timeout even though the scan itself completed successfully (observed 2026-04-24 on prod: full scan completed in 2246 s with +4 added, ~2967 updated, -10 removed — but `scheduler_job_runs` recorded a spurious `timeout` status 27 min earlier). The `wanted_scanner` job timeout has been raised from 600 s to 3600 s. No functional change to the scan itself — this only stops the monitoring layer from flagging successful long scans as failures.
+
 ## [0.71.0-beta] - 2026-04-21
 
 ### Added
