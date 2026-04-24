@@ -24,3 +24,10 @@ export type { ApiKeyFieldProps, ApiKeyTestResult } from './ApiKeyField'
 
 export { HealthRail } from './HealthRail'
 export type { HealthRailProps, HealthItem, HealthSeverity } from './HealthRail'
+
+export { ConnectionTest } from './ConnectionTest'
+export type {
+  ConnectionTestProps,
+  ConnectionTestResult,
+  ConnectionTestState,
+} from './ConnectionTest'

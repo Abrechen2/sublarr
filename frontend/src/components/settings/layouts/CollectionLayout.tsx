@@ -20,10 +20,19 @@ export interface CollectionLayoutProps<T> {
   readonly getItemId: (item: T) => string
   readonly renderListItem: (item: T, isActive: boolean) => ReactNode
   readonly renderDetail: (item: T | null) => ReactNode
-  readonly onSelect: (id: string) => void
-  readonly listTitle?: string
-  readonly onAdd?: () => void
-  readonly addLabel?: string
+  /**
+   * Fires when the user picks a row. `null` means "deselect / show empty
+   * state" — emitted when a delete bubbles up or the list becomes empty
+   * after a filter change. Callers MUST handle the null case.
+   */
+  readonly onSelect: (id: string | null) => void
+  /**
+   * Full-width header slot above the list — render a title, counter, filter
+   * chips, an "+ Add" button, or all of the above. Replaces the previous
+   * listTitle / onAdd / addLabel triple so callers control the composition
+   * instead of the primitive forcing a title-plus-button layout.
+   */
+  readonly listHeader?: ReactNode
   readonly emptyState?: ReactNode
   readonly healthRail?: ReactNode
   readonly listWidth?: number
@@ -40,9 +49,7 @@ export function CollectionLayout<T>({
   renderListItem,
   renderDetail,
   onSelect,
-  listTitle,
-  onAdd,
-  addLabel = '+ Add',
+  listHeader,
   emptyState,
   healthRail,
   listWidth = DEFAULT_LIST_WIDTH,
@@ -66,23 +73,9 @@ export function CollectionLayout<T>({
         data-testid="collection-list"
         className="border-r border-[var(--border)] p-3 flex flex-col gap-1 overflow-y-auto"
       >
-        {(listTitle || onAdd) && (
-          <div className="flex items-center justify-between px-2 pt-1 pb-2">
-            {listTitle && (
-              <span className="text-[10px] font-bold uppercase tracking-wider text-muted">
-                {listTitle}
-              </span>
-            )}
-            {onAdd && (
-              <button
-                type="button"
-                onClick={onAdd}
-                data-testid="collection-add"
-                className="text-[11px] text-[var(--accent)] hover:text-[var(--accent-dim)]"
-              >
-                {addLabel}
-              </button>
-            )}
+        {listHeader && (
+          <div data-testid="collection-list-header" className="px-2 pt-1 pb-2">
+            {listHeader}
           </div>
         )}
 

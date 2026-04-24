@@ -1,4 +1,5 @@
 import type { ReactNode } from 'react'
+import { useTranslation } from 'react-i18next'
 
 /**
  * FormLayout — Settings Template B (Scroll-form + right TOC).
@@ -17,7 +18,13 @@ import type { ReactNode } from 'react'
 
 export interface FormSectionDef {
   readonly id: string
-  readonly title: string
+  /**
+   * i18n key for the section title. Resolved by FormLayout via
+   * useTranslation(ns). This is the ONLY contract — do not pass raw
+   * display strings. The ns defaults to 'settings' but can be overridden
+   * per-layout via FormLayoutProps.i18nNamespace.
+   */
+  readonly titleKey: string
   readonly advancedCount?: number
   readonly expertOnly?: boolean
 }
@@ -31,10 +38,19 @@ export interface FormLayoutProps {
   readonly healthRail?: ReactNode
   /** Currently-active section id for scroll-spy highlight. Caller-managed. */
   readonly activeSectionId?: string | null
+  /**
+   * Fired when the user clicks a TOC entry. Callers use this to push the
+   * anchor to the URL (#section-id) and/or scroll with their own smoothing
+   * policy. If omitted, the <a href="#id"> fallback handles navigation
+   * natively.
+   */
+  readonly onSectionChange?: (id: string) => void
   /** True when the user has enabled Expert Mode globally. */
   readonly expertMode?: boolean
   /** Maximum visible sections before a split-page warning is logged to console. */
   readonly sectionCap?: number
+  /** i18n namespace used to resolve FormSectionDef.titleKey. Default 'settings'. */
+  readonly i18nNamespace?: string
   readonly tocWidth?: number
 }
 
@@ -46,10 +62,13 @@ export function FormLayout({
   sections,
   healthRail,
   activeSectionId = null,
+  onSectionChange,
   expertMode = false,
   sectionCap = DEFAULT_SECTION_CAP,
+  i18nNamespace = 'settings',
   tocWidth = DEFAULT_TOC_WIDTH,
 }: FormLayoutProps) {
+  const { t } = useTranslation(i18nNamespace)
   const visibleSections = expertMode
     ? sections
     : sections.filter((s) => !s.expertOnly)
@@ -96,13 +115,19 @@ export function FormLayout({
                   href={`#${s.id}`}
                   data-testid="form-toc-item"
                   data-active={s.id === activeSectionId ? 'true' : 'false'}
+                  onClick={(e) => {
+                    if (onSectionChange) {
+                      e.preventDefault()
+                      onSectionChange(s.id)
+                    }
+                  }}
                   className={`flex items-center justify-between text-[11px] px-2 py-1 rounded no-underline ${
                     s.id === activeSectionId
                       ? 'bg-[var(--accent-bg)] text-[var(--accent)] font-semibold border-l-2 border-l-[var(--accent)] pl-1.5'
                       : 'text-secondary hover:bg-[var(--bg-elevated)]'
                   }`}
                 >
-                  <span>{s.title}</span>
+                  <span>{t(s.titleKey)}</span>
                   {s.advancedCount !== undefined && s.advancedCount > 0 && (
                     <span className="text-[9px] text-muted">{s.advancedCount}</span>
                   )}

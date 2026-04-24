@@ -13,6 +13,12 @@ import { FormLayout } from '../FormLayout'
 import type { FormSectionDef } from '../FormLayout'
 import { RulesLayout } from '../RulesLayout'
 
+vi.mock('react-i18next', () => ({
+  useTranslation: () => ({
+    t: (key: string) => key, // tests use keys directly
+  }),
+}))
+
 // ─── A: CollectionLayout ────────────────────────────────────────────────
 
 describe('CollectionLayout', () => {
@@ -49,6 +55,14 @@ describe('CollectionLayout', () => {
     expect(onSelect).toHaveBeenCalledWith('b')
   })
 
+  it("allows onSelect to accept null (deselect contract)", () => {
+    // TypeScript-level guarantee: onSelect can now be invoked with null.
+    const onSelect = vi.fn<(id: string | null) => void>()
+    render(<CollectionLayout {...baseProps} onSelect={onSelect} />)
+    onSelect(null)
+    expect(onSelect).toHaveBeenCalledWith(null)
+  })
+
   it('hides the health rail slot when no healthRail prop is given', () => {
     render(<CollectionLayout {...baseProps} />)
     expect(screen.queryByTestId('collection-rail')).toBeNull()
@@ -78,11 +92,22 @@ describe('CollectionLayout', () => {
     expect(screen.queryAllByTestId('collection-item')).toHaveLength(0)
   })
 
-  it('fires onAdd when the Add button is clicked', () => {
-    const onAdd = vi.fn()
-    render(<CollectionLayout {...baseProps} onAdd={onAdd} />)
-    fireEvent.click(screen.getByTestId('collection-add'))
-    expect(onAdd).toHaveBeenCalled()
+  it('renders the listHeader slot when provided', () => {
+    render(
+      <CollectionLayout
+        {...baseProps}
+        listHeader={
+          <div data-testid="header-payload">
+            <span>Providers (10)</span>
+            <button data-testid="header-add">+ Add</button>
+          </div>
+        }
+      />,
+    )
+    expect(screen.getByTestId('collection-list-header')).toBeInTheDocument()
+    expect(screen.getByTestId('header-payload')).toBeInTheDocument()
+    // Caller composes the header — no built-in listTitle/onAdd surface anymore.
+    expect(screen.getByTestId('header-add')).toBeInTheDocument()
   })
 })
 
@@ -90,9 +115,9 @@ describe('CollectionLayout', () => {
 
 describe('FormLayout', () => {
   const sections: FormSectionDef[] = [
-    { id: 's1', title: 'One' },
-    { id: 's2', title: 'Two', advancedCount: 2 },
-    { id: 's3', title: 'Expert only', expertOnly: true },
+    { id: 's1', titleKey: 'settings.test.one' },
+    { id: 's2', titleKey: 'settings.test.two', advancedCount: 2 },
+    { id: 's3', titleKey: 'settings.test.expert', expertOnly: true },
   ]
 
   it('renders children + TOC entries for non-expert sections by default', () => {
@@ -104,8 +129,9 @@ describe('FormLayout', () => {
     )
     const tocItems = screen.getAllByTestId('form-toc-item')
     expect(tocItems).toHaveLength(2) // expert hidden
-    expect(tocItems[0].textContent).toContain('One')
-    expect(tocItems[1].textContent).toContain('Two')
+    // Mock t() returns the key verbatim, so titleKey strings appear in TOC text.
+    expect(tocItems[0].textContent).toContain('settings.test.one')
+    expect(tocItems[1].textContent).toContain('settings.test.two')
     expect(screen.getByText('One body')).toBeInTheDocument()
   })
 
@@ -148,6 +174,28 @@ describe('FormLayout', () => {
       </FormLayout>,
     )
     expect(screen.getByTestId('form-rail')).toBeInTheDocument()
+  })
+
+  it('calls onSectionChange and suppresses default nav when a TOC link is clicked', () => {
+    const onSectionChange = vi.fn()
+    render(
+      <FormLayout sections={sections} onSectionChange={onSectionChange}>
+        <section id="s1">body</section>
+      </FormLayout>,
+    )
+    const link = screen.getAllByTestId('form-toc-item')[1]
+    fireEvent.click(link)
+    expect(onSectionChange).toHaveBeenCalledWith('s2')
+  })
+
+  it('falls back to native anchor navigation when onSectionChange is omitted', () => {
+    render(
+      <FormLayout sections={sections}>
+        <section id="s1">body</section>
+      </FormLayout>,
+    )
+    const link = screen.getAllByTestId('form-toc-item')[0]
+    expect(link.getAttribute('href')).toBe('#s1')
   })
 })
 
