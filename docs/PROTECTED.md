@@ -51,9 +51,9 @@ Diese Datei muss vor jeder UI-Änderung geprüft werden.
 
 ---
 
-### [2026-03-21] SeriesDetailPage
+### [2026-03-21 / überarbeitet 2026-04-24] SeriesDetailPage
 
-**Status:** Bestätigt als korrekt (Mockup-konform)
+**Status:** Bestätigt als korrekt (Mockup-konform) — letzte Änderung 2026-04-24 für 0.71.1-beta bewusst durch den User genehmigt.
 **Dateien:**
 - `frontend/src/pages/SeriesDetail.tsx`
 - `frontend/src/components/series/SeriesHero.tsx`
@@ -64,10 +64,11 @@ Diese Datei muss vor jeder UI-Änderung geprüft werden.
 - Hero-Bereich (Poster, Metadaten, 3 Action-Buttons)
 - Season-Tabs
 - Episode-Grid/Rows
-- SeriesSettingsPanel (Sprach-/Untertitel-Einstellungen pro Serie)
+- SeriesSettingsPanel (Sprach-/Untertitel-Einstellungen pro Serie) — inkl. Three-State `cleanup_foreign_tracks`-Toggle in der Subtitles-Section (hinzugefügt 0.71.1-beta, 2026-04-24, expliziter User-OK nach Konflikt-Diskussion Codex/FE/UX/Architect).
 - Gesamtes Layout und Design der Seite
 
-**Darf nicht verändert werden ohne Rückfrage:** Layout, Komponenten-Struktur, Design, bestehende Props
+**Darf nicht verändert werden ohne Rückfrage:** Layout, Komponenten-Struktur, Design, bestehende Props + `onSetCleanupForeignTracks` Callback-Interface. Änderungshistorie:
+- 2026-04-24 (Commit `aa2df5d`): Three-State-Select (Inherit/Always/Never) für `cleanup_foreign_tracks_override` eingebaut. Liest `SeriesDetail.cleanup_foreign_tracks_effective` für den „Inherit (on|off)"-Hint. PATCH via `/api/v1/series/<id>/settings`.
 
 ---
 
@@ -106,4 +107,4 @@ Diese Bereiche sind im Plan, aber noch nicht implementiert/bestätigt:
 
 ---
 
-*Letzte Aktualisierung: 2026-03-21*
+*Letzte Aktualisierung: 2026-04-24*
