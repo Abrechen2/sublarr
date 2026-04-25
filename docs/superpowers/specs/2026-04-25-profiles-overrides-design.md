@@ -145,22 +145,37 @@ returned in full so the UI can show every step, not just the winner.
 ```
 
 `INHERITABLE_FIELDS` registry table (declared once, referenced by resolver,
-API schemas and FE):
+API schemas and FE) — keys verified against actual `backend/config_settings.py`
+and `backend/db/models/core.py` field names:
 
-| display_name | profile_attr | series/movie override col | global config key |
+| display_name | profile attr (LanguageProfile) | series/movie override col | global config key |
 |---|---|---|---|
-| `cleanup_foreign_tracks` | — | `cleanup_foreign_tracks` | `cleanup_foreign_tracks_default` |
-| `forced_preference` | `forced_preference` | `forced_preference_override` | `forced_preference_default` |
-| `hi_preference` | `hi_preference` | `hi_preference_override` | `hi_preference_default` |
-| `forced_scoring` | `forced_scoring` | `forced_scoring_override` | `forced_scoring_default` |
-| `target_languages` | `target_languages_json` | `target_languages_override` | `target_languages_default` |
-| `cutoff_language` | `cutoff_language` | `cutoff_language_override` | — |
-| `must_contain` | `must_contain_json` | `must_contain_override` | — |
-| `must_not_contain` | `must_not_contain_json` | `must_not_contain_override` | — |
-| `audio_exclude_languages` | `audio_exclude_languages_json` | `audio_exclude_languages_override` | — |
-| `preferred_audio_track_index` | — | `preferred_audio_track_index` | — |
-| `priority_override` | — | `priority_override` | `priority_default` |
-| `min_attempts_per_day` | — | `min_attempts_per_day` | — |
+| `cleanup_foreign_tracks` | — (skip profile step) | `cleanup_foreign_tracks` | `cleanup_foreign_tracks_default` |
+| `forced_preference` | `forced_preference` | `forced_preference_override` | `forced_preference` |
+| `hi_preference` | `hi_preference` | `hi_preference_override` | `hi_preference` |
+| `forced_scoring` | `forced_scoring` | `forced_scoring_override` | — (profile-level only — chain is Profile → Series) |
+| `target_languages` | `target_languages_json` | `target_languages_override` | — (profile-level only) |
+| `cutoff_language` | `cutoff_language` | `cutoff_language_override` | — (profile-level only) |
+| `must_contain` | `must_contain_json` | `must_contain_override` | — (profile-level only) |
+| `must_not_contain` | `must_not_contain_json` | `must_not_contain_override` | — (profile-level only) |
+| `audio_exclude_languages` | `audio_exclude_languages_json` | `audio_exclude_languages_override` | — (profile-level only) |
+| `preferred_audio_track_index` | — | `preferred_audio_track_index` | — (no global default — chain is Series-only) |
+| `priority_override` | — | `priority_override` | `provider_priorities` (different shape — comma-list, see resolver note) |
+| `min_attempts_per_day` | — | `min_attempts_per_day` | — (chain is Series-only — absolute value, not inheritance-NULL) |
+
+**Resolver notes:**
+- Fields with `—` in the global column have no Global step in the chain.
+  The chain becomes `Profile → Series` (or `Series` only if also no profile
+  attr). UI renders missing steps with a `null`-value row labeled
+  *"no default at this scope"*.
+- `priority_override` is a free-form provider-priority string at the
+  series level; its global counterpart `provider_priorities` is a
+  comma-separated list with the same string shape — resolver returns it
+  as-is. Profile-level not currently supported.
+- Fields without `_default` suffix on the global config (e.g.
+  `forced_preference`, `hi_preference`) are intentional — these were the
+  original config keys before LanguageProfile was introduced. We do not
+  rename them in this work.
 
 ## Backend Schema
 
