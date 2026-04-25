@@ -369,7 +369,68 @@ class SeriesSettings(db.Model):
     cleanup_foreign_tracks: Mapped[bool | None] = mapped_column(
         Boolean, nullable=True, default=None
     )
+    # 0.73.0: per-series overrides for LanguageProfile fields.
+    # NULL = inherit from assigned profile (which inherits from global).
+    forced_preference_override: Mapped[str | None] = mapped_column(
+        Text, nullable=True, default=None
+    )
+    hi_preference_override: Mapped[str | None] = mapped_column(
+        Text, nullable=True, default=None
+    )
+    forced_scoring_override: Mapped[str | None] = mapped_column(
+        Text, nullable=True, default=None
+    )
+    target_languages_override: Mapped[str | None] = mapped_column(
+        Text, nullable=True, default=None
+    )  # JSON array string
+    cutoff_language_override: Mapped[str | None] = mapped_column(
+        Text, nullable=True, default=None
+    )
+    must_contain_override: Mapped[str | None] = mapped_column(
+        Text, nullable=True, default=None
+    )  # JSON array string
+    must_not_contain_override: Mapped[str | None] = mapped_column(
+        Text, nullable=True, default=None
+    )  # JSON array string
+    audio_exclude_languages_override: Mapped[str | None] = mapped_column(
+        Text, nullable=True, default=None
+    )  # JSON array string
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+
+
+class MovieSettings(db.Model):
+    """Per-movie configuration mirror of SeriesSettings (minus
+    absolute_order which is anime-specific).
+
+    Primary key is radarr_movie_id for O(1) lookup. NULL on override
+    columns = inherit from the assigned LanguageProfile which inherits
+    from global config. See services.inheritance_resolver.
+    """
+
+    __tablename__ = "movie_settings"
+
+    radarr_movie_id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    preferred_audio_track_index: Mapped[int | None] = mapped_column(
+        Integer, nullable=True, default=None
+    )
+    cleanup_foreign_tracks: Mapped[bool | None] = mapped_column(
+        Boolean, nullable=True, default=None
+    )
+    priority_override: Mapped[str | None] = mapped_column(String(20), nullable=True)
+    min_attempts_per_day: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    forced_preference_override: Mapped[str | None] = mapped_column(Text, nullable=True)
+    hi_preference_override: Mapped[str | None] = mapped_column(Text, nullable=True)
+    forced_scoring_override: Mapped[str | None] = mapped_column(Text, nullable=True)
+    target_languages_override: Mapped[str | None] = mapped_column(Text, nullable=True)
+    cutoff_language_override: Mapped[str | None] = mapped_column(Text, nullable=True)
+    must_contain_override: Mapped[str | None] = mapped_column(Text, nullable=True)
+    must_not_contain_override: Mapped[str | None] = mapped_column(Text, nullable=True)
+    audio_exclude_languages_override: Mapped[str | None] = mapped_column(Text, nullable=True)
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+
+    def __init__(self, **kwargs: object) -> None:
+        kwargs.setdefault("min_attempts_per_day", 0)
+        super().__init__(**kwargs)
 
 
 class SubtitleAutomationQueueEntry(db.Model):
@@ -495,6 +556,7 @@ __all__ = [
     "FilterPreset",
     "AnidbAbsoluteMapping",
     "SeriesSettings",
+    "MovieSettings",
     "SubtitleAutomationQueueEntry",
     "FansubPreference",
     "ProviderLearnedLimit",

@@ -31,3 +31,6 @@ export type {
   ConnectionTestResult,
   ConnectionTestState,
 } from './ConnectionTest'
+
+export { TriStateToggle } from './TriStateToggle'
+export type { TriStateToggleProps } from './TriStateToggle'

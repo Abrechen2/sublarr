@@ -261,6 +261,58 @@
     "auto_disabled": "Automatisch deaktiviert",
     "rate_limited": "Rate-limitiert"
   },
+  "profiles_overrides": {
+    "title": "Profile & Overrides",
+    "subtitle": "Globale Defaults → Sprach-Profile → Series/Movie-Overrides — was greift wo.",
+    "scope": {
+      "global": "Globaler Default"
+    },
+    "section": {
+      "series_no_profile": "Series (kein Profil)",
+      "movies_no_profile": "Filme (kein Profil)"
+    },
+    "menu": {
+      "edit": "Bearbeiten",
+      "delete": "Löschen",
+      "set_default": "Als Standard setzen"
+    },
+    "action": {
+      "add_profile": "+ Profil",
+      "override": "Override →",
+      "close": "Schließen",
+      "reset_all": "Alle Overrides zurücksetzen"
+    },
+    "widget": {
+      "inherit": "Erben",
+      "off": "Aus",
+      "on": "An",
+      "tag_input": "Komma-getrennt, Enter zum Hinzufügen"
+    },
+    "field": {
+      "cleanup_foreign_tracks": "Fremdsprachen-Untertitel-Spuren entfernen",
+      "forced_preference": "Forced-Untertitel",
+      "hi_preference": "Hörgeschädigten-Untertitel (HI)",
+      "forced_scoring": "Forced-Scoring",
+      "target_languages": "Zielsprachen",
+      "cutoff_language": "Cutoff-Sprache",
+      "must_contain": "Muss enthalten",
+      "must_not_contain": "Darf nicht enthalten",
+      "audio_exclude_languages": "Audio-Sprachen ausschließen",
+      "preferred_audio_track_index": "Bevorzugter Audio-Track",
+      "priority_override": "Provider-Priorität",
+      "min_attempts_per_day": "Minimale Versuche pro Tag"
+    },
+    "dialog": {
+      "add_title": "Profil anlegen",
+      "edit_title": "Profil bearbeiten",
+      "delete_title": "Profil löschen",
+      "name_label": "Name",
+      "delete_impact": "Löschen wird {{count_series}} Series und {{count_movies}} Filme ohne Profil zurücklassen.",
+      "save": "Speichern",
+      "cancel": "Abbrechen",
+      "confirm_delete": "Endgültig löschen"
+    }
+  },
   "config_export": {
     "title": "Konfigurationsverwaltung",
     "export": "Konfiguration exportieren",
@@ -1254,6 +1306,7 @@
     }
   },
   "nav": {
+    "profiles_overrides": "Profile & Overrides",
     "subtitle_automation": "Untertitel-Automation"
   }
 }
