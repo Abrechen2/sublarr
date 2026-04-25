@@ -174,3 +174,39 @@ def test_resolve_returns_all_twelve_fields():
         series=_mk_series(), profile=None, global_cfg=_mk_global()
     )
     assert len(result) == 12
+
+
+# ---------------------------------------------------------------------------
+# resolve_for_movie tests (Task 6)
+# ---------------------------------------------------------------------------
+from services.inheritance_resolver import resolve_for_movie
+
+
+def _mk_movie(**overrides):
+    from db.models.core import MovieSettings
+    ms = MovieSettings(radarr_movie_id=99, updated_at=datetime.now(timezone.utc))
+    for k, v in overrides.items():
+        setattr(ms, k, v)
+    return ms
+
+
+def test_resolve_movie_uses_movie_value():
+    result = resolve_for_movie(
+        movie=_mk_movie(cleanup_foreign_tracks=True),
+        profile=None,
+        global_cfg=_mk_global(cleanup_foreign_tracks_default=False),
+    )
+    r = result["cleanup_foreign_tracks"]
+    assert r["effective"] is True
+    assert r["source"] == "movie"
+
+
+def test_resolve_movie_chain_uses_movie_label():
+    result = resolve_for_movie(
+        movie=_mk_movie(forced_preference_override="exclude"),
+        profile=_mk_profile(),
+        global_cfg=_mk_global(),
+    )
+    scopes = [step["scope"] for step in result["forced_preference"]["chain"]]
+    assert "movie" in scopes
+    assert "series" not in scopes

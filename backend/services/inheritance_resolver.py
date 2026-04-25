@@ -16,7 +16,7 @@ from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any, Literal, NotRequired, TypedDict
 
 if TYPE_CHECKING:
-    from db.models.core import LanguageProfile, SeriesSettings
+    from db.models.core import LanguageProfile, MovieSettings, SeriesSettings
 
 
 ScopeKind = Literal["global", "profile", "series", "movie"]
@@ -144,6 +144,62 @@ def resolve_for_series(
                 source = step["scope"]
                 break
         # If everything was None, fall back to first chain step's value
+        if effective is None and chain:
+            effective = chain[0]["value"]
+            source = chain[0]["scope"]
+
+        result[field.display_name] = {
+            "effective": effective,
+            "source": source,
+            "chain": chain,
+        }
+    return result
+
+
+def resolve_for_movie(
+    *,
+    movie: "MovieSettings | None",
+    profile: "LanguageProfile | None",
+    global_cfg: Any,
+) -> dict[str, ResolvedSetting]:
+    """Mirror of resolve_for_series for movies. Uses 'movie' scope label
+    in chain instead of 'series'."""
+    result: dict[str, ResolvedSetting] = {}
+    profile_label = profile.name if profile else None
+
+    for field in INHERITABLE_FIELDS:
+        chain: list[ChainStep] = []
+
+        if field.global_key is not None:
+            raw_global = getattr(global_cfg, field.global_key, None)
+            chain.append({
+                "scope": "global",
+                "value": _decode(raw_global, field.value_kind),
+                "label": "Global default",
+            })
+
+        if field.profile_attr is not None and profile is not None:
+            raw_profile = getattr(profile, field.profile_attr, None)
+            chain.append({
+                "scope": "profile",
+                "value": _decode(raw_profile, field.value_kind),
+                "label": profile_label or "Profile",
+            })
+
+        raw_movie = getattr(movie, field.override_col, None) if movie else None
+        chain.append({
+            "scope": "movie",
+            "value": _decode(raw_movie, field.value_kind),
+            "label": "This movie",
+        })
+
+        effective = None
+        source: ScopeKind = "global"
+        for step in reversed(chain):
+            if step["value"] is not None:
+                effective = step["value"]
+                source = step["scope"]
+                break
         if effective is None and chain:
             effective = chain[0]["value"]
             source = chain[0]["scope"]
