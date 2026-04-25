@@ -88,3 +88,34 @@ def test_get_scopes_groups_series_under_profile(client, sample_profiles_data):
     assert len(data["profiles"]) >= 1
     profile = data["profiles"][0]
     assert "series" in profile
+
+
+def test_get_resolved_global(client, sample_profiles_data):
+    resp = client.get("/api/v1/profiles-overrides/resolved/global")
+    assert resp.status_code == 200
+    data = resp.get_json()
+    assert data["scope"]["type"] == "global"
+    assert "settings" in data
+    # All 12 fields present
+    assert len(data["settings"]) == 12
+
+
+def test_get_resolved_profile(client, sample_profiles_data):
+    resp = client.get("/api/v1/profiles-overrides/resolved/profile/1")
+    assert resp.status_code == 200
+    data = resp.get_json()
+    assert data["scope"]["type"] == "profile"
+    assert data["scope"]["id"] == 1
+
+
+def test_get_resolved_series(client, sample_profiles_data):
+    resp = client.get("/api/v1/profiles-overrides/resolved/series/1")
+    assert resp.status_code == 200
+    data = resp.get_json()
+    assert data["scope"]["type"] == "series"
+    assert "cleanup_foreign_tracks" in data["settings"]
+
+
+def test_get_resolved_unknown_series_returns_404(client, sample_profiles_data):
+    resp = client.get("/api/v1/profiles-overrides/resolved/series/99999")
+    assert resp.status_code == 404
