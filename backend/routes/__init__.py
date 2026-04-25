@@ -29,6 +29,7 @@ def register_blueprints(app):
     from routes.plugins import bp as plugins_bp
     from routes.post_processing import bp as post_processing_bp
     from routes.profiles import bp as profiles_bp
+    from routes.profiles_overrides import bp as profiles_overrides_bp
     from routes.providers import bp as providers_bp
     from routes.providers_keys import bp as providers_keys_bp
     from routes.remux import bp as remux_bp
@@ -68,6 +69,7 @@ def register_blueprints(app):
         system_bp,
         scheduler_admin_bp,
         profiles_bp,
+        profiles_overrides_bp,
         blacklist_bp,
         plugins_bp,
         mediaservers_bp,
