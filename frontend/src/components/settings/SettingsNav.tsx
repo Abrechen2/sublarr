@@ -73,6 +73,12 @@ function useNavGroups(translationEnabled: boolean): readonly NavGroup[] {
 
   groups.push(
     {
+      label: t('settings.categories.profiles.title', 'Profile & Overrides'),
+      pages: [
+        { label: t('settings.nav.profiles_overrides', 'Profile & Overrides'), href: '/settings/profiles' },
+      ],
+    },
+    {
       label: t('settings.categories.notifications.title', 'Benachrichtigungen'),
       pages: [
         { label: t('settings.nav.channels_templates', 'Kanäle & Vorlagen'), href: '/settings/notifications' },

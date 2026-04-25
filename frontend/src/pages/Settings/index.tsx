@@ -21,6 +21,7 @@
  * /settings/system                        → SystemSettings
  * /settings/system/hooks                  → SystemHooksPage
  * /settings/system/scheduler              → SchedulerPage
+ * /settings/profiles                       → ProfilesOverridesPage
  * /settings/hooks                         → redirect → /settings/system/hooks
  * /settings/webhooks                      → redirect → /settings/system/hooks
  */
@@ -111,6 +112,9 @@ const AboutSettings = lazy(() =>
 const CleanupSettings = lazy(() =>
   import('./CleanupSettings').then((m) => ({ default: m.CleanupSettings })),
 )
+const ProfilesOverridesPage = lazy(() =>
+  import('./ProfilesOverridesPage').then((m) => ({ default: m.ProfilesOverridesPage })),
+)
 
 export function SettingsPage() {
   return (
@@ -157,6 +161,7 @@ export function SettingsPage() {
             <Route path="system/sync-engines" element={<SyncEnginesTab />} />
             <Route path="about" element={<AboutSettings />} />
             <Route path="cleanup" element={<Suspense fallback={<FormSkeleton />}><CleanupSettings /></Suspense>} />
+            <Route path="profiles" element={<ProfilesOverridesPage />} />
             <Route path="hooks" element={<Navigate to="/settings/system/hooks" replace />} />
             <Route path="webhooks" element={<Navigate to="/settings/system/hooks" replace />} />
           </Routes>

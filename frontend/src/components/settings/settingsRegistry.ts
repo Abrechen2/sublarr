@@ -52,6 +52,9 @@ export const SETTINGS_REGISTRY: readonly SettingsEntry[] = [
   { id: 'glossary', label: 'Global Glossary', keywords: ['glossary', 'term', 'dictionary', 'translation'], category: 'Translation', route: '/settings/translation' },
   { id: 'whisper', label: 'Whisper (Speech-to-Text)', keywords: ['whisper', 'speech', 'stt', 'transcribe', 'audio'], category: 'Translation', route: '/settings/translation' },
 
+  // Profiles & Overrides
+  { id: 'profiles-overrides', label: 'Profiles & Overrides', keywords: ['profile', 'override', 'inherit', 'scope', 'language', 'series', 'movie'], category: 'Profiles', route: '/settings/profiles' },
+
   // Notifications
   { id: 'notification-channels', label: 'Notification Channels', keywords: ['notification', 'channel', 'webhook', 'discord', 'telegram'], category: 'Notifications', route: '/settings/notifications' },
   { id: 'events-hooks', label: 'Events & Hooks', keywords: ['event', 'hook', 'trigger', 'webhook', 'callback'], category: 'Notifications', route: '/settings/notifications' },

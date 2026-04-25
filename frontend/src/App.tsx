@@ -31,7 +31,6 @@ const NotFoundPage = lazy(() => import('@/pages/NotFound').then(m => ({ default:
 const Onboarding = lazy(() => import('@/pages/Onboarding'))
 const SetupPage = lazy(() => import('@/pages/Setup').then(m => ({ default: m.SetupPage })))
 const LoginPage = lazy(() => import('@/pages/Login').then(m => ({ default: m.LoginPage })))
-const LanguageProfilesPage = lazy(() => import('@/pages/LanguageProfiles').then(m => ({ default: m.LanguageProfilesPage })))
 const MovieDetailPage = lazy(() => import('@/pages/MovieDetail').then(m => ({ default: m.MovieDetailPage })))
 const WantedPage = lazy(() => import('@/pages/Wanted').then(m => ({ default: m.WantedPage })))
 const TrashPage = lazy(() => import('@/pages/Trash').then(m => ({ default: m.TrashPage })))
@@ -75,7 +74,7 @@ function AnimatedRoutes() {
           <Route path="/history" element={<Navigate to="/activity?tab=history" replace />} />
           <Route path="/blacklist" element={<Navigate to="/activity?tab=blacklist" replace />} />
           <Route path="/settings/*" element={<ErrorBoundary><Suspense fallback={<FormSkeleton />}><SettingsPage /></Suspense></ErrorBoundary>} />
-          <Route path="/settings/language-profiles" element={<ErrorBoundary><Suspense fallback={<FormSkeleton />}><LanguageProfilesPage /></Suspense></ErrorBoundary>} />
+          <Route path="/language-profiles" element={<Navigate to="/settings/profiles" replace />} />
           <Route path="/movies/:id" element={<Suspense fallback={<FormSkeleton />}><MovieDetailPage /></Suspense>} />
           {/* Redirect old standalone pages into settings sub-routes */}
           <Route path="/statistics" element={<Navigate to="/settings/system" replace />} />
