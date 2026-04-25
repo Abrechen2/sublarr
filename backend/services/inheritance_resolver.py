@@ -11,8 +11,12 @@ must update this registry.
 """
 from __future__ import annotations
 
+import json
 from dataclasses import dataclass
-from typing import Any, Literal, NotRequired, TypedDict
+from typing import TYPE_CHECKING, Any, Literal, NotRequired, TypedDict
+
+if TYPE_CHECKING:
+    from db.models.core import LanguageProfile, SeriesSettings
 
 
 ScopeKind = Literal["global", "profile", "series", "movie"]
@@ -67,3 +71,86 @@ INHERITABLE_FIELDS: tuple[InheritableField, ...] = (
     InheritableField("priority_override", None, "priority_override", "provider_priorities"),
     InheritableField("min_attempts_per_day", None, "min_attempts_per_day", None),
 )
+
+
+def _decode(value: Any, kind: Literal["scalar", "json_array"]) -> Any:
+    """Decode a raw stored value according to its kind.
+
+    Exported at module level so Task 9 (movie resolver) can reuse it.
+    """
+    if value is None:
+        return None
+    if kind == "json_array":
+        if isinstance(value, str):
+            try:
+                return json.loads(value)
+            except json.JSONDecodeError:
+                return None
+        return value
+    return value
+
+
+def resolve_for_series(
+    *,
+    series: "SeriesSettings | None",
+    profile: "LanguageProfile | None",
+    global_cfg: Any,
+) -> dict[str, ResolvedSetting]:
+    """Walk Global → Profile → Series for each inheritable field.
+
+    Returns dict keyed by display_name; each value is a ResolvedSetting
+    with `effective`, `source`, and full `chain`. The chain only contains
+    steps that exist for the field — e.g. fields without `profile_attr`
+    omit the profile step; fields without `global_key` omit the global step.
+    """
+    result: dict[str, ResolvedSetting] = {}
+    profile_label = profile.name if profile else None
+
+    for field in INHERITABLE_FIELDS:
+        chain: list[ChainStep] = []
+
+        # 1. Global step
+        if field.global_key is not None:
+            raw_global = getattr(global_cfg, field.global_key, None)
+            chain.append({
+                "scope": "global",
+                "value": _decode(raw_global, field.value_kind),
+                "label": "Global default",
+            })
+
+        # 2. Profile step
+        if field.profile_attr is not None and profile is not None:
+            raw_profile = getattr(profile, field.profile_attr, None)
+            chain.append({
+                "scope": "profile",
+                "value": _decode(raw_profile, field.value_kind),
+                "label": profile_label or "Profile",
+            })
+
+        # 3. Series step
+        raw_series = getattr(series, field.override_col, None) if series else None
+        chain.append({
+            "scope": "series",
+            "value": _decode(raw_series, field.value_kind),
+            "label": "This series",
+        })
+
+        # Walk chain bottom-up: last non-None wins (most specific scope).
+        effective = None
+        source: ScopeKind = "global"
+        for step in reversed(chain):
+            if step["value"] is not None:
+                effective = step["value"]
+                source = step["scope"]
+                break
+        # If everything was None, fall back to first chain step's value
+        if effective is None and chain:
+            effective = chain[0]["value"]
+            source = chain[0]["scope"]
+
+        result[field.display_name] = {
+            "effective": effective,
+            "source": source,
+            "chain": chain,
+        }
+    return result
