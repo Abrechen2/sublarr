@@ -1103,6 +1103,58 @@
     "circuit_breaker_threshold": "Circuit Breaker Threshold",
     "circuit_breaker_cooldown": "Circuit Breaker Cooldown (s)"
   },
+  "profiles_overrides": {
+    "title": "Profiles & Overrides",
+    "subtitle": "Browse and override the Global → Profile → Series/Movie inheritance chain.",
+    "scope": {
+      "global": "Global default"
+    },
+    "section": {
+      "series_no_profile": "Series (no profile)",
+      "movies_no_profile": "Movies (no profile)"
+    },
+    "menu": {
+      "edit": "Edit",
+      "delete": "Delete",
+      "set_default": "Set as default"
+    },
+    "action": {
+      "add_profile": "+ Profile",
+      "override": "Override →",
+      "close": "Close",
+      "reset_all": "Reset all overrides"
+    },
+    "widget": {
+      "inherit": "Inherit",
+      "off": "Off",
+      "on": "On",
+      "tag_input": "comma-separated, press Enter"
+    },
+    "field": {
+      "cleanup_foreign_tracks": "Strip foreign-language subtitle tracks",
+      "forced_preference": "Forced subtitles",
+      "hi_preference": "Hearing-impaired subtitles (HI)",
+      "forced_scoring": "Forced scoring",
+      "target_languages": "Target languages",
+      "cutoff_language": "Cutoff language",
+      "must_contain": "Must contain",
+      "must_not_contain": "Must not contain",
+      "audio_exclude_languages": "Exclude audio languages",
+      "preferred_audio_track_index": "Preferred audio track",
+      "priority_override": "Provider priority",
+      "min_attempts_per_day": "Min attempts per day"
+    },
+    "dialog": {
+      "add_title": "Add profile",
+      "edit_title": "Edit profile",
+      "delete_title": "Delete profile",
+      "name_label": "Name",
+      "delete_impact": "Deleting will leave {{count_series}} series and {{count_movies}} movies without a profile.",
+      "save": "Save",
+      "cancel": "Cancel",
+      "confirm_delete": "Delete permanently"
+    }
+  },
   "glossary_page": {
     "title": "Glossary",
     "max_terms": "Max Glossary Terms",
@@ -1254,6 +1306,7 @@
     }
   },
   "nav": {
+    "profiles_overrides": "Profiles & Overrides",
     "subtitle_automation": "Subtitle Automation"
   }
 }
