@@ -1,4 +1,5 @@
 """Tests for Pydantic schemas of the profiles-overrides API."""
+
 from __future__ import annotations
 
 import pytest
@@ -38,16 +39,19 @@ def test_override_patch_validates_language_array():
 
 
 def test_resolved_response_shape():
-    resp = ResolvedSettingsResponse.model_validate({
-        "scope": {"type": "series", "id": 42, "name": "Frieren"},
-        "settings": {
-            "cleanup_foreign_tracks": {
-                "effective": True, "source": "series",
-                "chain": [
-                    {"scope": "global", "value": False, "label": "Global default"},
-                    {"scope": "series", "value": True, "label": "This series"},
-                ],
-            }
+    resp = ResolvedSettingsResponse.model_validate(
+        {
+            "scope": {"type": "series", "id": 42, "name": "Frieren"},
+            "settings": {
+                "cleanup_foreign_tracks": {
+                    "effective": True,
+                    "source": "series",
+                    "chain": [
+                        {"scope": "global", "value": False, "label": "Global default"},
+                        {"scope": "series", "value": True, "label": "This series"},
+                    ],
+                }
+            },
         }
-    })
+    )
     assert resp.scope.type == "series"

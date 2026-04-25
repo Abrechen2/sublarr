@@ -1,5 +1,6 @@
 """Tests that the profiles_overrides_phase1 migration is idempotent and
 produces the expected schema."""
+
 from __future__ import annotations
 
 import os
@@ -8,7 +9,6 @@ import pytest
 from alembic import command
 from alembic.config import Config
 from sqlalchemy import inspect, text
-
 
 # The revision immediately before the profiles-overrides migration.
 # The fixture stamps at this revision after create_all(), then upgrades to head.
@@ -39,9 +39,7 @@ def _make_minimal_app(db_path: str):
 
 
 def _make_alembic_cfg(db_path: str) -> Config:
-    cfg = Config(
-        os.path.join(os.path.dirname(__file__), "..", "db", "migrations", "alembic.ini")
-    )
+    cfg = Config(os.path.join(os.path.dirname(__file__), "..", "db", "migrations", "alembic.ini"))
     cfg.set_main_option(
         "script_location",
         os.path.join(os.path.dirname(__file__), "..", "db", "migrations"),

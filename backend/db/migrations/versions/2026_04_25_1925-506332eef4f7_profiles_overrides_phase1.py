@@ -10,11 +10,11 @@ guarded with inspector-based IF-NOT-EXISTS checks so the migration is
 safe to re-run on databases that were partially migrated or bootstrapped
 via create_all().
 """
+
 from __future__ import annotations
 
 import sqlalchemy as sa
 from alembic import op
-
 
 # revision identifiers, used by Alembic.
 revision = "506332eef4f7"
@@ -67,9 +67,7 @@ def upgrade() -> None:
             sa.Column("audio_exclude_languages_override", sa.Text, nullable=True),
             sa.Column("updated_at", sa.DateTime(timezone=True), nullable=False),
         )
-        op.create_index(
-            "ix_movie_settings_updated", "movie_settings", ["updated_at"]
-        )
+        op.create_index("ix_movie_settings_updated", "movie_settings", ["updated_at"])
 
 
 def downgrade() -> None:

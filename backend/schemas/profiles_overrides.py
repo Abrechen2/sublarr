@@ -1,10 +1,10 @@
 """Pydantic v2 schemas for the profiles-overrides API."""
+
 from __future__ import annotations
 
 from typing import Any, Literal
 
 from pydantic import BaseModel, ConfigDict, model_validator
-
 
 # Whitelist of allowed override fields and their per-field validation rules.
 _ENUM_FIELDS: dict[str, set[str]] = {
@@ -29,8 +29,23 @@ ALL_OVERRIDE_FIELDS: set[str] = (
 
 # ISO-639-1 + a few common 3-letter codes Sublarr uses
 _ALLOWED_LANG_CODES = {
-    "de", "en", "fr", "es", "it", "pt", "nl", "ja", "ko", "zh",
-    "ru", "pl", "tr", "ar", "und", "und1", "und2",  # plus undefined sentinels
+    "de",
+    "en",
+    "fr",
+    "es",
+    "it",
+    "pt",
+    "nl",
+    "ja",
+    "ko",
+    "zh",
+    "ru",
+    "pl",
+    "tr",
+    "ar",
+    "und",
+    "und1",
+    "und2",  # plus undefined sentinels
 }
 
 
@@ -52,7 +67,7 @@ class OverridePatch(BaseModel):
         return {"changes": data}
 
     @model_validator(mode="after")
-    def _validate_each(self) -> "OverridePatch":
+    def _validate_each(self) -> OverridePatch:
         for key, value in self.changes.items():
             if key not in ALL_OVERRIDE_FIELDS:
                 raise ValueError(f"unknown override field: {key}")

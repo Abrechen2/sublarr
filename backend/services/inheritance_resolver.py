@@ -9,11 +9,12 @@ Field registry is the single source of truth — referenced by the API
 blueprint and the frontend metadata builder. Renaming or adding a field
 must update this registry.
 """
+
 from __future__ import annotations
 
 import json
 from dataclasses import dataclass
-from typing import TYPE_CHECKING, Any, Literal, NotRequired, TypedDict
+from typing import TYPE_CHECKING, Any, Literal, TypedDict
 
 if TYPE_CHECKING:
     from db.models.core import LanguageProfile, MovieSettings, SeriesSettings
@@ -58,15 +59,31 @@ class InheritableField:
 
 
 INHERITABLE_FIELDS: tuple[InheritableField, ...] = (
-    InheritableField("cleanup_foreign_tracks", None, "cleanup_foreign_tracks", "cleanup_foreign_tracks_default"),
-    InheritableField("forced_preference", "forced_preference", "forced_preference_override", "forced_preference"),
+    InheritableField(
+        "cleanup_foreign_tracks", None, "cleanup_foreign_tracks", "cleanup_foreign_tracks_default"
+    ),
+    InheritableField(
+        "forced_preference", "forced_preference", "forced_preference_override", "forced_preference"
+    ),
     InheritableField("hi_preference", "hi_preference", "hi_preference_override", "hi_preference"),
     InheritableField("forced_scoring", "forced_scoring", "forced_scoring_override", None),
-    InheritableField("target_languages", "target_languages_json", "target_languages_override", None, "json_array"),
+    InheritableField(
+        "target_languages", "target_languages_json", "target_languages_override", None, "json_array"
+    ),
     InheritableField("cutoff_language", "cutoff_language", "cutoff_language_override", None),
-    InheritableField("must_contain", "must_contain_json", "must_contain_override", None, "json_array"),
-    InheritableField("must_not_contain", "must_not_contain_json", "must_not_contain_override", None, "json_array"),
-    InheritableField("audio_exclude_languages", "audio_exclude_languages_json", "audio_exclude_languages_override", None, "json_array"),
+    InheritableField(
+        "must_contain", "must_contain_json", "must_contain_override", None, "json_array"
+    ),
+    InheritableField(
+        "must_not_contain", "must_not_contain_json", "must_not_contain_override", None, "json_array"
+    ),
+    InheritableField(
+        "audio_exclude_languages",
+        "audio_exclude_languages_json",
+        "audio_exclude_languages_override",
+        None,
+        "json_array",
+    ),
     InheritableField("preferred_audio_track_index", None, "preferred_audio_track_index", None),
     InheritableField("priority_override", None, "priority_override", "provider_priorities"),
     InheritableField("min_attempts_per_day", None, "min_attempts_per_day", None),
@@ -92,8 +109,8 @@ def _decode(value: Any, kind: Literal["scalar", "json_array"]) -> Any:
 
 def resolve_for_series(
     *,
-    series: "SeriesSettings | None",
-    profile: "LanguageProfile | None",
+    series: SeriesSettings | None,
+    profile: LanguageProfile | None,
     global_cfg: Any,
 ) -> dict[str, ResolvedSetting]:
     """Walk Global → Profile → Series for each inheritable field.
@@ -112,28 +129,34 @@ def resolve_for_series(
         # 1. Global step
         if field.global_key is not None:
             raw_global = getattr(global_cfg, field.global_key, None)
-            chain.append({
-                "scope": "global",
-                "value": _decode(raw_global, field.value_kind),
-                "label": "Global default",
-            })
+            chain.append(
+                {
+                    "scope": "global",
+                    "value": _decode(raw_global, field.value_kind),
+                    "label": "Global default",
+                }
+            )
 
         # 2. Profile step
         if field.profile_attr is not None and profile is not None:
             raw_profile = getattr(profile, field.profile_attr, None)
-            chain.append({
-                "scope": "profile",
-                "value": _decode(raw_profile, field.value_kind),
-                "label": profile_label or "Profile",
-            })
+            chain.append(
+                {
+                    "scope": "profile",
+                    "value": _decode(raw_profile, field.value_kind),
+                    "label": profile_label or "Profile",
+                }
+            )
 
         # 3. Series step
         raw_series = getattr(series, field.override_col, None) if series else None
-        chain.append({
-            "scope": "series",
-            "value": _decode(raw_series, field.value_kind),
-            "label": "This series",
-        })
+        chain.append(
+            {
+                "scope": "series",
+                "value": _decode(raw_series, field.value_kind),
+                "label": "This series",
+            }
+        )
 
         # Walk chain bottom-up: last non-None wins (most specific scope).
         effective = None
@@ -158,8 +181,8 @@ def resolve_for_series(
 
 def resolve_for_movie(
     *,
-    movie: "MovieSettings | None",
-    profile: "LanguageProfile | None",
+    movie: MovieSettings | None,
+    profile: LanguageProfile | None,
     global_cfg: Any,
 ) -> dict[str, ResolvedSetting]:
     """Mirror of resolve_for_series for movies. Uses 'movie' scope label
@@ -172,26 +195,32 @@ def resolve_for_movie(
 
         if field.global_key is not None:
             raw_global = getattr(global_cfg, field.global_key, None)
-            chain.append({
-                "scope": "global",
-                "value": _decode(raw_global, field.value_kind),
-                "label": "Global default",
-            })
+            chain.append(
+                {
+                    "scope": "global",
+                    "value": _decode(raw_global, field.value_kind),
+                    "label": "Global default",
+                }
+            )
 
         if field.profile_attr is not None and profile is not None:
             raw_profile = getattr(profile, field.profile_attr, None)
-            chain.append({
-                "scope": "profile",
-                "value": _decode(raw_profile, field.value_kind),
-                "label": profile_label or "Profile",
-            })
+            chain.append(
+                {
+                    "scope": "profile",
+                    "value": _decode(raw_profile, field.value_kind),
+                    "label": profile_label or "Profile",
+                }
+            )
 
         raw_movie = getattr(movie, field.override_col, None) if movie else None
-        chain.append({
-            "scope": "movie",
-            "value": _decode(raw_movie, field.value_kind),
-            "label": "This movie",
-        })
+        chain.append(
+            {
+                "scope": "movie",
+                "value": _decode(raw_movie, field.value_kind),
+                "label": "This movie",
+            }
+        )
 
         effective = None
         source: ScopeKind = "global"

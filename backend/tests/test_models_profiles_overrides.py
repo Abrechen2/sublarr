@@ -1,15 +1,16 @@
 """ORM-level tests for the new override fields."""
+
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime, timezone
 
-from db.models.core import SeriesSettings, MovieSettings
+from db.models.core import MovieSettings, SeriesSettings
 
 
 def test_series_settings_has_override_attrs():
     ss = SeriesSettings(
         sonarr_series_id=1,
-        updated_at=datetime.now(timezone.utc),
+        updated_at=datetime.now(UTC),
     )
     assert hasattr(ss, "forced_preference_override")
     assert ss.forced_preference_override is None
@@ -20,7 +21,7 @@ def test_series_settings_has_override_attrs():
 def test_movie_settings_constructible():
     ms = MovieSettings(
         radarr_movie_id=42,
-        updated_at=datetime.now(timezone.utc),
+        updated_at=datetime.now(UTC),
     )
     assert ms.radarr_movie_id == 42
     assert ms.cleanup_foreign_tracks is None
@@ -30,4 +31,5 @@ def test_movie_settings_constructible():
 
 def test_movie_settings_in_models_all():
     from db.models import core
+
     assert "MovieSettings" in core.__all__

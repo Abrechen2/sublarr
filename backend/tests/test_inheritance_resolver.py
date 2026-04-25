@@ -1,4 +1,5 @@
 """Tests for the inheritance resolver service."""
+
 from __future__ import annotations
 
 import pytest
@@ -52,7 +53,7 @@ def test_resolved_setting_typed_dict_shape():
 # ---------------------------------------------------------------------------
 # resolve_for_series tests (Task 5)
 # ---------------------------------------------------------------------------
-from datetime import datetime, timezone
+from datetime import UTC, datetime, timezone
 from unittest.mock import MagicMock
 
 from services.inheritance_resolver import resolve_for_series
@@ -74,9 +75,10 @@ def _mk_global(**overrides):
 
 def _mk_series(**overrides):
     from db.models.core import SeriesSettings
+
     ss = SeriesSettings(
         sonarr_series_id=1,
-        updated_at=datetime.now(timezone.utc),
+        updated_at=datetime.now(UTC),
     )
     for k, v in overrides.items():
         setattr(ss, k, v)
@@ -85,11 +87,17 @@ def _mk_series(**overrides):
 
 def _mk_profile(**overrides):
     from db.models.core import LanguageProfile
+
     lp = LanguageProfile(
-        id=10, name="Anime DE", source_language="en", source_language_name="English",
-        target_languages_json='["de"]', target_language_names_json='["German"]',
-        is_default=0, created_at=datetime.now(timezone.utc),
-        updated_at=datetime.now(timezone.utc),
+        id=10,
+        name="Anime DE",
+        source_language="en",
+        source_language_name="English",
+        target_languages_json='["de"]',
+        target_language_names_json='["German"]',
+        is_default=0,
+        created_at=datetime.now(UTC),
+        updated_at=datetime.now(UTC),
     )
     for k, v in overrides.items():
         setattr(lp, k, v)
@@ -170,9 +178,7 @@ def test_resolve_series_json_array_decoded():
 
 
 def test_resolve_returns_all_twelve_fields():
-    result = resolve_for_series(
-        series=_mk_series(), profile=None, global_cfg=_mk_global()
-    )
+    result = resolve_for_series(series=_mk_series(), profile=None, global_cfg=_mk_global())
     assert len(result) == 12
 
 
@@ -184,7 +190,8 @@ from services.inheritance_resolver import resolve_for_movie
 
 def _mk_movie(**overrides):
     from db.models.core import MovieSettings
-    ms = MovieSettings(radarr_movie_id=99, updated_at=datetime.now(timezone.utc))
+
+    ms = MovieSettings(radarr_movie_id=99, updated_at=datetime.now(UTC))
     for k, v in overrides.items():
         setattr(ms, k, v)
     return ms
