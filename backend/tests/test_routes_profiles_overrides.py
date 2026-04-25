@@ -1,4 +1,5 @@
 """Integration tests for the profiles-overrides API blueprint."""
+
 from __future__ import annotations
 
 import os
@@ -50,7 +51,7 @@ def client(app):
 @pytest.fixture()
 def sample_profiles_data(app):
     """Seed one LanguageProfile with one mapped series."""
-    from datetime import datetime, timezone
+    from datetime import UTC, datetime
 
     from db.models.core import LanguageProfile, SeriesLanguageProfile
 
@@ -61,8 +62,8 @@ def sample_profiles_data(app):
         target_languages_json='["de"]',
         target_language_names_json='["German"]',
         is_default=1,
-        created_at=datetime.now(timezone.utc),
-        updated_at=datetime.now(timezone.utc),
+        created_at=datetime.now(UTC),
+        updated_at=datetime.now(UTC),
     )
     sa_db.session.add(p)
     sa_db.session.flush()
@@ -119,3 +120,43 @@ def test_get_resolved_series(client, sample_profiles_data):
 def test_get_resolved_unknown_series_returns_404(client, sample_profiles_data):
     resp = client.get("/api/v1/profiles-overrides/resolved/series/99999")
     assert resp.status_code == 404
+
+
+def test_patch_series_sets_override(client, sample_profiles_data):
+    resp = client.patch(
+        "/api/v1/profiles-overrides/series/1",
+        json={"forced_preference": "prefer"},
+    )
+    assert resp.status_code == 200
+    # follow-up GET reflects the change
+    data = client.get("/api/v1/profiles-overrides/resolved/series/1").get_json()
+    assert data["settings"]["forced_preference"]["effective"] == "prefer"
+    assert data["settings"]["forced_preference"]["source"] == "series"
+
+
+def test_patch_series_null_clears_override(client, sample_profiles_data):
+    client.patch("/api/v1/profiles-overrides/series/1", json={"forced_preference": "prefer"})
+    resp = client.patch("/api/v1/profiles-overrides/series/1", json={"forced_preference": None})
+    assert resp.status_code == 200
+    data = client.get("/api/v1/profiles-overrides/resolved/series/1").get_json()
+    assert data["settings"]["forced_preference"]["source"] != "series"
+
+
+def test_patch_series_invalid_field_returns_422(client, sample_profiles_data):
+    resp = client.patch("/api/v1/profiles-overrides/series/1", json={"random_field": 1})
+    assert resp.status_code == 422
+
+
+def test_patch_series_invalid_enum_returns_422(client, sample_profiles_data):
+    resp = client.patch("/api/v1/profiles-overrides/series/1", json={"hi_preference": "bad"})
+    assert resp.status_code == 422
+
+
+def test_post_reset_clears_all_series_overrides(client, sample_profiles_data):
+    client.patch("/api/v1/profiles-overrides/series/1", json={"forced_preference": "prefer"})
+    client.patch("/api/v1/profiles-overrides/series/1", json={"hi_preference": "exclude"})
+    resp = client.post("/api/v1/profiles-overrides/series/1/reset")
+    assert resp.status_code == 200
+    data = client.get("/api/v1/profiles-overrides/resolved/series/1").get_json()
+    assert data["settings"]["forced_preference"]["source"] != "series"
+    assert data["settings"]["hi_preference"]["source"] != "series"

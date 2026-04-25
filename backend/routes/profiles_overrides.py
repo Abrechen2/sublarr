@@ -2,9 +2,13 @@
 
 See docs/superpowers/specs/2026-04-25-profiles-overrides-design.md.
 """
+
 from __future__ import annotations
 
-from flask import Blueprint, jsonify
+from datetime import UTC, datetime
+
+from flask import Blueprint, jsonify, request
+from pydantic import ValidationError
 
 from auth import require_api_key
 from config import get_settings
@@ -16,6 +20,7 @@ from db.models.core import (
     SeriesSettings,
 )
 from extensions import db
+from schemas.profiles_overrides import OverridePatch
 from services.inheritance_resolver import (
     INHERITABLE_FIELDS,
     _decode,
@@ -58,16 +63,12 @@ def get_scopes():
     from sqlalchemy import text
 
     try:
-        title_rows = db.session.execute(
-            text("SELECT sonarr_series_id, title FROM series")
-        ).all()
+        title_rows = db.session.execute(text("SELECT sonarr_series_id, title FROM series")).all()
         series_titles = {r[0]: r[1] for r in title_rows}
     except Exception:
         series_titles = {}  # series table absent (fresh install / test)
     try:
-        movie_rows = db.session.execute(
-            text("SELECT radarr_movie_id, title FROM movies")
-        ).all()
+        movie_rows = db.session.execute(text("SELECT radarr_movie_id, title FROM movies")).all()
         movie_titles = {r[0]: r[1] for r in movie_rows}
     except Exception:
         movie_titles = {}  # movies table absent (fresh install / test)
@@ -151,18 +152,22 @@ def get_resolved_profile(profile_id: int):
         chain: list[dict] = []
         if field.global_key is not None:
             raw_global = getattr(cfg, field.global_key, None)
-            chain.append({
-                "scope": "global",
-                "value": _decode(raw_global, field.value_kind),
-                "label": "Global default",
-            })
+            chain.append(
+                {
+                    "scope": "global",
+                    "value": _decode(raw_global, field.value_kind),
+                    "label": "Global default",
+                }
+            )
         if field.profile_attr is not None:
             raw_profile = getattr(profile, field.profile_attr, None)
-            chain.append({
-                "scope": "profile",
-                "value": _decode(raw_profile, field.value_kind),
-                "label": profile.name,
-            })
+            chain.append(
+                {
+                    "scope": "profile",
+                    "value": _decode(raw_profile, field.value_kind),
+                    "label": profile.name,
+                }
+            )
         effective = None
         source = "global"
         for step in reversed(chain):
@@ -229,3 +234,111 @@ def get_resolved_movie(movie_id: int):
     cfg = get_settings()
     settings = resolve_for_movie(movie=movie, profile=profile, global_cfg=cfg)
     return jsonify(_resolved_response("movie", movie_id, title, settings))
+
+
+# ─── PATCH /series/<id> ─────────────────────────────────────────────────────
+_SERIES_ONLY_FIELDS = {
+    "cleanup_foreign_tracks",
+    "preferred_audio_track_index",
+    "priority_override",
+    "min_attempts_per_day",
+}
+
+
+def _column_name_for_field(display_name: str) -> str:
+    """Map display_name to the actual override column name."""
+    for field in INHERITABLE_FIELDS:
+        if field.display_name == display_name:
+            return field.override_col
+    raise KeyError(display_name)
+
+
+def _serialize_for_storage(field: str, value) -> object:
+    """JSON-encode list values, return scalars as-is."""
+    if value is None:
+        return None
+    if isinstance(value, list):
+        import json
+
+        return json.dumps(value)
+    return value
+
+
+@bp.route("/series/<int:series_id>", methods=["PATCH"])
+@require_api_key
+def patch_series(series_id: int):
+    try:
+        patch = OverridePatch.model_validate(request.get_json() or {})
+    except ValidationError as e:
+        return jsonify(
+            {"error": "validation failed", "details": e.errors(include_context=False)}
+        ), 422
+
+    ss = SeriesSettings.query.get(series_id)
+    if ss is None:
+        ss = SeriesSettings(
+            sonarr_series_id=series_id,
+            updated_at=datetime.now(UTC),
+        )
+        db.session.add(ss)
+
+    for field_name, value in patch.changes.items():
+        col = _column_name_for_field(field_name)
+        setattr(ss, col, _serialize_for_storage(field_name, value))
+    ss.updated_at = datetime.now(UTC)
+    db.session.commit()
+    return jsonify({"ok": True})
+
+
+@bp.route("/movie/<int:movie_id>", methods=["PATCH"])
+@require_api_key
+def patch_movie(movie_id: int):
+    try:
+        patch = OverridePatch.model_validate(request.get_json() or {})
+    except ValidationError as e:
+        return jsonify(
+            {"error": "validation failed", "details": e.errors(include_context=False)}
+        ), 422
+
+    ms = MovieSettings.query.get(movie_id)
+    if ms is None:
+        ms = MovieSettings(
+            radarr_movie_id=movie_id,
+            updated_at=datetime.now(UTC),
+        )
+        db.session.add(ms)
+
+    for field_name, value in patch.changes.items():
+        col = _column_name_for_field(field_name)
+        setattr(ms, col, _serialize_for_storage(field_name, value))
+    ms.updated_at = datetime.now(UTC)
+    db.session.commit()
+    return jsonify({"ok": True})
+
+
+@bp.route("/series/<int:series_id>/reset", methods=["POST"])
+@require_api_key
+def reset_series(series_id: int):
+    ss = SeriesSettings.query.get(series_id)
+    if ss is None:
+        return jsonify({"ok": True})  # nothing to reset
+    for field in INHERITABLE_FIELDS:
+        if hasattr(ss, field.override_col) and field.display_name not in {"min_attempts_per_day"}:
+            setattr(ss, field.override_col, None)
+    ss.updated_at = datetime.now(UTC)
+    db.session.commit()
+    return jsonify({"ok": True})
+
+
+@bp.route("/movie/<int:movie_id>/reset", methods=["POST"])
+@require_api_key
+def reset_movie(movie_id: int):
+    ms = MovieSettings.query.get(movie_id)
+    if ms is None:
+        return jsonify({"ok": True})
+    for field in INHERITABLE_FIELDS:
+        if hasattr(ms, field.override_col) and field.display_name not in {"min_attempts_per_day"}:
+            setattr(ms, field.override_col, None)
+    ms.updated_at = datetime.now(UTC)
+    db.session.commit()
+    return jsonify({"ok": True})
