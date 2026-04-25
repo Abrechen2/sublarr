@@ -75,7 +75,11 @@ def downgrade() -> None:
     inspector = sa.inspect(bind)
 
     if "movie_settings" in inspector.get_table_names():
-        op.drop_index("ix_movie_settings_updated", table_name="movie_settings")
+        # Index may not exist if upgrade() ran on a DB that already had the
+        # table (idempotent guard skipped index creation) — drop only if present.
+        existing_indexes = {ix["name"] for ix in inspector.get_indexes("movie_settings")}
+        if "ix_movie_settings_updated" in existing_indexes:
+            op.drop_index("ix_movie_settings_updated", table_name="movie_settings")
         op.drop_table("movie_settings")
 
     existing_series_cols = {c["name"] for c in inspector.get_columns("series_settings")}
