@@ -1,5 +1,14 @@
 import type { ProviderInfo } from '@/lib/types'
 
+/** Reorder a provider priority list — returns a new array (immutable). */
+export function reorderProviders(items: string[], fromIndex: number, toIndex: number): string[] {
+  if (fromIndex === toIndex) return [...items]
+  const next = [...items]
+  const [moved] = next.splice(fromIndex, 1)
+  next.splice(toIndex, 0, moved)
+  return next
+}
+
 export function getStatusColor(provider: ProviderInfo): string {
   if (!provider.enabled) return 'var(--text-muted)'
   if (provider.stats?.auto_disabled) return 'var(--warning)'

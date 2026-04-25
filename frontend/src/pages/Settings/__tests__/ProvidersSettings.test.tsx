@@ -100,6 +100,10 @@ vi.mock('@/hooks/useApi', () => ({
   useRefreshMarketplaceBrowse: () => ({ mutate: vi.fn(), isPending: false }),
 }))
 
+vi.mock('@/hooks/useProvidersApi', () => ({
+  useProviderHealth: () => ({ data: undefined, isLoading: false }),
+}))
+
 // ─── Toast ────────────────────────────────────────────────────────────────────
 const mockToast = vi.fn()
 vi.mock('@/components/shared/Toast', () => ({
@@ -141,9 +145,15 @@ describe('ProvidersSettings', () => {
     expect(screen.getByTestId('providers-installed-content')).toBeInTheDocument()
   })
 
-  it('renders section title "Installed Providers"', () => {
+  it('renders the CollectionLayout master-detail scaffold for the provider list', () => {
     renderPage()
-    expect(screen.getByText('Installed Providers')).toBeInTheDocument()
+    expect(screen.getByTestId('settings.providers.collection-view')).toBeInTheDocument()
+    expect(screen.getByTestId('collection-layout')).toBeInTheDocument()
+  })
+
+  it('renders section title "Global provider settings"', () => {
+    renderPage()
+    expect(screen.getByText('Global provider settings')).toBeInTheDocument()
   })
 
   it('renders the marketplace section', () => {
@@ -245,9 +255,10 @@ describe('ProvidersSettings', () => {
     expect(settingsLink).toHaveAttribute('href', '/settings')
   })
 
-  it('renders all four sections', () => {
+  it('renders all main page slots', () => {
     renderPage()
     expect(screen.getByTestId('providers-installed-content')).toBeInTheDocument()
+    expect(screen.getByTestId('providers-global-section')).toBeInTheDocument()
     expect(screen.getByTestId('providers-marketplace-content')).toBeInTheDocument()
     expect(screen.getByTestId('providers-anticaptcha-content')).toBeInTheDocument()
     expect(screen.getByTestId('providers-cache-content')).toBeInTheDocument()

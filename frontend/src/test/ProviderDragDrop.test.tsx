@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { reorderProviders } from '../pages/Settings/ProvidersTab'
+import { reorderProviders } from '../pages/Settings/providers/providerUtils'
 
 describe('reorderProviders utility', () => {
   it('moves item from index 0 to index 2', () => {

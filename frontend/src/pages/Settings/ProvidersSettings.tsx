@@ -1,5 +1,5 @@
 import { useTranslation } from 'react-i18next'
-import { Globe, Store, ShieldAlert, Trash2, Settings2, Download } from 'lucide-react'
+import { Store, ShieldAlert, Trash2, Settings2, Download } from 'lucide-react'
 import { SettingsDetailLayout } from '@/components/settings/SettingsDetailLayout'
 import { SettingsSection } from '@/components/settings/SettingsSection'
 import { FormGroup } from '@/components/settings/FormGroup'
@@ -7,7 +7,7 @@ import { Toggle } from '@/components/shared/Toggle'
 import { useConfig, useUpdateConfig } from '@/hooks/useApi'
 import { useClearProviderCache } from '@/hooks/useApi'
 import { toast } from '@/components/shared/Toast'
-import { ProvidersTab } from './ProvidersTab'
+import { ProvidersCollectionView } from './providers/ProvidersCollectionView'
 import { MarketplaceTab } from './providers/MarketplaceTab'
 import { strVal, boolVal } from '@/lib/configUtils'
 import { settingsInputStyle } from '@/styles/settingsShared'
@@ -59,138 +59,140 @@ export function ProvidersSettings() {
         'Manage subtitle providers, marketplace plugins, and captcha settings',
       )}
     >
-      {/* Installed Providers */}
+      {/* Provider list — Codex Settings Template A (CollectionLayout) */}
+      <div data-testid="providers-installed-content">
+        <ProvidersCollectionView
+          values={values}
+          onFieldChange={handleFieldChange}
+          onSave={handleSave}
+        />
+      </div>
+
+      {/* Global provider settings — apply to all providers, not per-instance */}
+      <div data-testid="providers-global-section">
       <SettingsSection
-        data-testid="providers-installed-section"
-        title={t('settings.providers.installed.title', 'Installed Providers')}
+        title={t('settings.providers.global.title', 'Global provider settings')}
         description={t(
-          'settings.providers.installed.description',
-          'Configure and prioritise active subtitle providers. Drag to reorder.',
+          'settings.providers.global.description',
+          'Apply across every configured subtitle provider — hidden list, dedup, prioritisation, rate limits, timeouts and cache TTL.',
         )}
-        icon={<Globe size={16} style={{ color: 'var(--accent)' }} />}
+        icon={<Settings2 size={16} style={{ color: 'var(--accent)' }} />}
       >
-        <div className="py-4 space-y-0" data-testid="providers-installed-content">
-          <ProvidersTab
-            values={values}
-            onFieldChange={handleFieldChange}
-            onSave={handleSave}
-          />
+        <div className="py-4 space-y-0">
+          <FormGroup
+            label={ts('providers_page.hidden_providers')}
+            hint="Comma-separated provider IDs to hide from the list (e.g. opensubtitles,kitsunekko)."
+            htmlFor="providers-hidden"
+            data-testid="form-group-providers-hidden"
+          >
+            <input
+              id="providers-hidden"
+              type="text"
+              data-testid="input-providers-hidden"
+              style={inputStyle}
+              value={strVal(configData, 'providers_hidden')}
+              onChange={(e) => save({ providers_hidden: e.target.value })}
+              placeholder="opensubtitles,kitsunekko"
+            />
+          </FormGroup>
 
-          <div className="mt-6 space-y-0">
-            <FormGroup
-              label={ts('providers_page.hidden_providers')}
-              hint="Comma-separated provider IDs to hide from the grid (e.g. opensubtitles,kitsunekko)."
-              htmlFor="providers-hidden"
-              data-testid="form-group-providers-hidden"
-            >
-              <input
-                id="providers-hidden"
-                type="text"
-                data-testid="input-providers-hidden"
-                style={inputStyle}
-                value={strVal(configData, 'providers_hidden')}
-                onChange={(e) => save({ providers_hidden: e.target.value })}
-                placeholder="opensubtitles,kitsunekko"
+          <FormGroup
+            label={ts('providers_page.dedup_on_download')}
+            hint="Skip downloading a subtitle if an identical file is already present."
+            data-testid="form-group-dedup-on-download"
+          >
+            <div data-testid="toggle-dedup-on-download">
+              <Toggle
+                checked={boolVal(configData, 'dedup_on_download')}
+                onChange={(v) => save({ dedup_on_download: v })}
               />
-            </FormGroup>
+            </div>
+          </FormGroup>
 
-            <FormGroup
-              label={ts('providers_page.dedup_on_download')}
-              hint="Skip downloading a subtitle if an identical file is already present."
-              data-testid="form-group-dedup-on-download"
-            >
-              <div data-testid="toggle-dedup-on-download">
-                <Toggle
-                  checked={boolVal(configData, 'dedup_on_download')}
-                  onChange={(v) => save({ dedup_on_download: v })}
-                />
-              </div>
-            </FormGroup>
-
-            <FormGroup
-              label={ts('providers_page.auto_prioritize')}
-              hint="Automatically sort providers by recent success rate."
-              data-testid="form-group-provider-auto-prioritize"
-            >
-              <div data-testid="toggle-provider-auto-prioritize">
-                <Toggle
-                  checked={boolVal(configData, 'provider_auto_prioritize')}
-                  onChange={(v) => save({ provider_auto_prioritize: v })}
-                />
-              </div>
-            </FormGroup>
-
-            <FormGroup
-              label={ts('providers_page.rate_limiting')}
-              hint="Enforce per-provider request rate limits to avoid bans."
-              data-testid="form-group-provider-rate-limit-enabled"
-            >
-              <div data-testid="toggle-provider-rate-limit-enabled">
-                <Toggle
-                  checked={boolVal(configData, 'provider_rate_limit_enabled')}
-                  onChange={(v) => save({ provider_rate_limit_enabled: v })}
-                />
-              </div>
-            </FormGroup>
-
-            <FormGroup
-              label={ts('providers_page.search_timeout')}
-              hint="Seconds before a provider search request times out."
-              htmlFor="provider-search-timeout"
-              data-testid="form-group-provider-search-timeout"
-            >
-              <input
-                id="provider-search-timeout"
-                type="number"
-                data-testid="input-provider-search-timeout"
-                style={{ ...inputStyle, maxWidth: '120px' }}
-                value={strVal(configData, 'provider_search_timeout', '30')}
-                onChange={(e) => save({ provider_search_timeout: Number(e.target.value) })}
-                min={1}
-                placeholder="30"
+          <FormGroup
+            label={ts('providers_page.auto_prioritize')}
+            hint="Automatically sort providers by recent success rate."
+            data-testid="form-group-provider-auto-prioritize"
+          >
+            <div data-testid="toggle-provider-auto-prioritize">
+              <Toggle
+                checked={boolVal(configData, 'provider_auto_prioritize')}
+                onChange={(v) => save({ provider_auto_prioritize: v })}
               />
-            </FormGroup>
+            </div>
+          </FormGroup>
 
-            <FormGroup
-              label={ts('providers_page.cache_ttl')}
-              hint="How long to cache provider search results before expiring."
-              htmlFor="provider-cache-ttl-minutes"
-              data-testid="form-group-provider-cache-ttl-minutes"
-            >
-              <input
-                id="provider-cache-ttl-minutes"
-                type="number"
-                data-testid="input-provider-cache-ttl-minutes"
-                style={{ ...inputStyle, maxWidth: '120px' }}
-                value={strVal(configData, 'provider_cache_ttl_minutes', '60')}
-                onChange={(e) => save({ provider_cache_ttl_minutes: Number(e.target.value) })}
-                min={0}
-                placeholder="60"
+          <FormGroup
+            label={ts('providers_page.rate_limiting')}
+            hint="Enforce per-provider request rate limits to avoid bans."
+            data-testid="form-group-provider-rate-limit-enabled"
+          >
+            <div data-testid="toggle-provider-rate-limit-enabled">
+              <Toggle
+                checked={boolVal(configData, 'provider_rate_limit_enabled')}
+                onChange={(v) => save({ provider_rate_limit_enabled: v })}
               />
-            </FormGroup>
+            </div>
+          </FormGroup>
 
-            <FormGroup
-              label={ts('providers_page.auto_disable_cooldown')}
-              hint="Minutes a provider stays disabled after repeated failures."
-              htmlFor="provider-auto-disable-cooldown-minutes"
-              data-testid="form-group-provider-auto-disable-cooldown-minutes"
-            >
-              <input
-                id="provider-auto-disable-cooldown-minutes"
-                type="number"
-                data-testid="input-provider-auto-disable-cooldown-minutes"
-                style={{ ...inputStyle, maxWidth: '120px' }}
-                value={strVal(configData, 'provider_auto_disable_cooldown_minutes', '30')}
-                onChange={(e) =>
-                  save({ provider_auto_disable_cooldown_minutes: Number(e.target.value) })
-                }
-                min={0}
-                placeholder="30"
-              />
-            </FormGroup>
-          </div>
+          <FormGroup
+            label={ts('providers_page.search_timeout')}
+            hint="Seconds before a provider search request times out."
+            htmlFor="provider-search-timeout"
+            data-testid="form-group-provider-search-timeout"
+          >
+            <input
+              id="provider-search-timeout"
+              type="number"
+              data-testid="input-provider-search-timeout"
+              style={{ ...inputStyle, maxWidth: '120px' }}
+              value={strVal(configData, 'provider_search_timeout', '30')}
+              onChange={(e) => save({ provider_search_timeout: Number(e.target.value) })}
+              min={1}
+              placeholder="30"
+            />
+          </FormGroup>
+
+          <FormGroup
+            label={ts('providers_page.cache_ttl')}
+            hint="How long to cache provider search results before expiring."
+            htmlFor="provider-cache-ttl-minutes"
+            data-testid="form-group-provider-cache-ttl-minutes"
+          >
+            <input
+              id="provider-cache-ttl-minutes"
+              type="number"
+              data-testid="input-provider-cache-ttl-minutes"
+              style={{ ...inputStyle, maxWidth: '120px' }}
+              value={strVal(configData, 'provider_cache_ttl_minutes', '60')}
+              onChange={(e) => save({ provider_cache_ttl_minutes: Number(e.target.value) })}
+              min={0}
+              placeholder="60"
+            />
+          </FormGroup>
+
+          <FormGroup
+            label={ts('providers_page.auto_disable_cooldown')}
+            hint="Minutes a provider stays disabled after repeated failures."
+            htmlFor="provider-auto-disable-cooldown-minutes"
+            data-testid="form-group-provider-auto-disable-cooldown-minutes"
+          >
+            <input
+              id="provider-auto-disable-cooldown-minutes"
+              type="number"
+              data-testid="input-provider-auto-disable-cooldown-minutes"
+              style={{ ...inputStyle, maxWidth: '120px' }}
+              value={strVal(configData, 'provider_auto_disable_cooldown_minutes', '30')}
+              onChange={(e) =>
+                save({ provider_auto_disable_cooldown_minutes: Number(e.target.value) })
+              }
+              min={0}
+              placeholder="30"
+            />
+          </FormGroup>
         </div>
       </SettingsSection>
+      </div>
 
       {/* Marketplace */}
       <SettingsSection
