@@ -21,6 +21,10 @@ from db.models.core import (
 )
 from extensions import db
 from schemas.profiles_overrides import OverridePatch
+from services.arr_title_cache import (
+    get_radarr_movie_titles,
+    get_sonarr_series_titles,
+)
 from services.inheritance_resolver import (
     INHERITABLE_FIELDS,
     _decode,
@@ -94,6 +98,15 @@ def get_scopes():
     for row in _safe_query("SELECT id, title FROM standalone_series"):
         sid, title = int(row[0]), str(row[1] or "")
         series_id_titles.setdefault(sid, title or f"#{sid}")
+    # Sonarr/Radarr fallback for IDs that have no title in our caches yet
+    # (e.g. items added to the override tree purely via the SeriesDetail
+    # button before any search ever ran). Only invoked when there are gaps.
+    missing_series_ids = {sid for sid in eligible_series_ids if sid not in series_id_titles}
+    if missing_series_ids:
+        sonarr_titles = get_sonarr_series_titles()
+        for sid in missing_series_ids:
+            if sid in sonarr_titles:
+                series_id_titles[sid] = sonarr_titles[sid]
     # Ensure every eligible series has at least a placeholder title.
     for sid in eligible_series_ids:
         series_id_titles.setdefault(sid, f"#{sid}")
@@ -106,6 +119,12 @@ def get_scopes():
     for row in _safe_query("SELECT id, title FROM standalone_movies"):
         mid, title = int(row[0]), str(row[1] or "")
         movie_id_titles[mid] = title or f"#{mid}"
+    missing_movie_ids = {mid for mid in eligible_movie_ids if mid not in movie_id_titles}
+    if missing_movie_ids:
+        radarr_titles = get_radarr_movie_titles()
+        for mid in missing_movie_ids:
+            if mid in radarr_titles:
+                movie_id_titles[mid] = radarr_titles[mid]
     for mid in eligible_movie_ids:
         movie_id_titles.setdefault(mid, f"#{mid}")
     movie_titles = {
@@ -244,7 +263,8 @@ def _series_known_to_sublarr(series_id: int) -> bool:
 
 
 def _series_title(series_id: int) -> str:
-    """Best-effort title lookup across the same sources /scopes uses."""
+    """Best-effort title lookup across the same sources /scopes uses,
+    plus a Sonarr API fallback for items that exist only in series_settings."""
     from sqlalchemy import text
 
     for sql in (
@@ -258,6 +278,10 @@ def _series_title(series_id: int) -> str:
                 return title.split(" — ")[0] if " — " in title else title
         except Exception:
             continue
+    # Sonarr fallback (cached, swallows errors).
+    sonarr_title = get_sonarr_series_titles().get(series_id)
+    if sonarr_title:
+        return sonarr_title
     return f"#{series_id}"
 
 
@@ -307,6 +331,9 @@ def _movie_title(movie_id: int) -> str:
             return str(row[0])
     except Exception:
         pass
+    radarr_title = get_radarr_movie_titles().get(movie_id)
+    if radarr_title:
+        return radarr_title
     return f"#{movie_id}"
 
 
