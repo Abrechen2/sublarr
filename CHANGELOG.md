@@ -5,6 +5,12 @@ All notable changes to Sublarr are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.73.1-beta] - 2026-04-26
+
+### Fixed
+- **Profiles & Overrides scope tree was empty.** `GET /api/v1/profiles-overrides/scopes` queried a non-existent `series` / `movies` master table and silently returned an empty list, so the new page only showed Global + Profile nodes — every Series/Movie scope was unreachable. Sublarr does not own that table (Sonarr/Radarr do), so the endpoint now aggregates series and movie IDs from `search_series`, `standalone_series` / `standalone_movies`, `wanted_items`, `series_settings` / `movie_settings` and the profile-mapping tables, falling back to `#<id>` when no cached title is available.
+- **"overridden" pill made no sense at Global scope.** Every row at the Global scope was tagged `overridden`, which is contradictory — Global is the default, not an override. The `InheritanceRow` primitive now supports five honest states (`default`, `set`, `inherited`, `overridden`, `n/a`) and the Profiles & Overrides detail pane picks the right one per (scope, field): Global rows are tagged `default`, profile-only fields show `set here` instead of `overridden`, and series-only fields viewed at Profile scope are tagged `n/a` and greyed out (no Override button).
+
 ## [0.73.0-beta] - 2026-04-26
 
 ### Added
