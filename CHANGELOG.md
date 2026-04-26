@@ -5,6 +5,11 @@ All notable changes to Sublarr are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.76.6-beta] - 2026-04-26
+
+### Changed
+- **Profiles & Overrides UI rolled back.** The new dedicated Profiles & Overrides settings page has been removed in favor of the previous Language Profiles tab under Settings → Subtitles → Languages. The per-series and per-movie profile selectors as well as bulk profile assignment in the Library remain intact. The backend overrides API and database schema are kept untouched, so the feature can be revisited with a redesigned UI later without another migration.
+
 ## [0.76.5-beta] - 2026-04-26
 
 ### Fixed
