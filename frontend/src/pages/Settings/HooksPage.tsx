@@ -3,6 +3,14 @@ import { Webhook, History } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import { SettingsDetailLayout } from '@/components/settings/SettingsDetailLayout'
 import { SettingsSection } from '@/components/settings/SettingsSection'
+import { FormLayout } from '@/components/settings/layouts'
+import type { FormSectionDef } from '@/components/settings/layouts'
+
+// Settings Template B (FormLayout). Two sections, well under the 6-cap.
+const SECTIONS: readonly FormSectionDef[] = [
+  { id: 'outgoing', titleKey: 'hooks_page.outgoing_section' },
+  { id: 'logs',     titleKey: 'hooks_page.logs_section' },
+]
 import {
   useHookConfigs, useCreateHook, useUpdateHook, useDeleteHook, useTestHook,
   useHookLogs, useClearHookLogs, useEventCatalog,
@@ -390,29 +398,35 @@ export function HooksPage() {
       title={t('settings.hooks.title', 'Hooks')}
       subtitle={t('settings.hooks.description', 'Manage outgoing hooks that run scripts or call webhooks on system events.')}
     >
-      <div data-testid="section-outgoing-hooks">
-        <SettingsSection
-          title={t('settings.hooks.outgoing.title', 'Outgoing Hooks')}
-          description={t('settings.hooks.outgoing.description', 'Run local scripts when events occur.')}
-          icon={<Webhook size={16} style={{ color: 'var(--accent)' }} />}
-        >
-          <Suspense fallback={<SectionSkeleton />}>
-            <OutgoingHooksSection />
-          </Suspense>
-        </SettingsSection>
-      </div>
+      <FormLayout sections={SECTIONS}>
+        <section id="outgoing" data-testid="settings.hooks.section-outgoing">
+          <div data-testid="section-outgoing-hooks">
+            <SettingsSection
+              title={t('hooks_page.outgoing_section')}
+              description={t('settings.hooks.outgoing.description', 'Run local scripts when events occur.')}
+              icon={<Webhook size={16} style={{ color: 'var(--accent)' }} />}
+            >
+              <Suspense fallback={<SectionSkeleton />}>
+                <OutgoingHooksSection />
+              </Suspense>
+            </SettingsSection>
+          </div>
+        </section>
 
-      <div data-testid="section-hook-logs">
-        <SettingsSection
-          title={t('settings.hooks.logs.title', 'Hook Logs')}
-          description={t('settings.hooks.logs.description', 'Execution history for all outgoing hooks.')}
-          icon={<History size={16} style={{ color: 'var(--accent)' }} />}
-        >
-          <Suspense fallback={<SectionSkeleton />}>
-            <HookLogsSection />
-          </Suspense>
-        </SettingsSection>
-      </div>
+        <section id="logs" data-testid="settings.hooks.section-logs">
+          <div data-testid="section-hook-logs">
+            <SettingsSection
+              title={t('hooks_page.logs_section')}
+              description={t('settings.hooks.logs.description', 'Execution history for all outgoing hooks.')}
+              icon={<History size={16} style={{ color: 'var(--accent)' }} />}
+            >
+              <Suspense fallback={<SectionSkeleton />}>
+                <HookLogsSection />
+              </Suspense>
+            </SettingsSection>
+          </div>
+        </section>
+      </FormLayout>
     </SettingsDetailLayout>
   )
 }

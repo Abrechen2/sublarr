@@ -953,6 +953,11 @@
     "scan_filters_section": "Scan Filters",
     "embedded_extraction_section": "Embedded Extraction"
   },
+  "hooks_page": {
+    "outgoing_section": "Outgoing Hooks",
+    "logs_section": "Hook Logs",
+    "webhooks_section": "Incoming Webhooks"
+  },
   "post_processing": {
     "enabled_hint": "Enable the post-processing pipeline. When disabled, no automatic fixes are applied after download.",
     "auto_sync_hint": "Automatically synchronize subtitle timing to the video after download.",

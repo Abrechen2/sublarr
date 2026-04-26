@@ -1014,6 +1014,11 @@
     "scan_filters_section": "Scan-Filter",
     "embedded_extraction_section": "Eingebettete Extraktion"
   },
+  "hooks_page": {
+    "outgoing_section": "Ausgehende Hooks",
+    "logs_section": "Hook-Logs",
+    "webhooks_section": "Eingehende Webhooks"
+  },
   "system_hooks_page": {
     "title": "Hooks & Webhooks",
     "subtitle": "Shell-Hooks und eingehende Webhook-Endpunkte für Sonarr, Radarr und Jellyfin",

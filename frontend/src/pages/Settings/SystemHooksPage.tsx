@@ -3,6 +3,8 @@ import { Copy, Webhook, History } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import { SettingsDetailLayout } from '@/components/settings/SettingsDetailLayout'
 import { SettingsSection } from '@/components/settings/SettingsSection'
+import { FormLayout } from '@/components/settings/layouts'
+import type { FormSectionDef } from '@/components/settings/layouts'
 import { SettingRow } from '@/components/shared/SettingRow'
 import { toast } from '@/components/shared/Toast'
 import {
@@ -438,6 +440,17 @@ function WebhooksSection() {
 
 // ─── SystemHooksPage ──────────────────────────────────────────────────────────
 
+// Settings Template B (FormLayout). Three TOC groups; the Webhooks group
+// internally renders one card per service (Sonarr / Radarr / Jellyfin) but
+// shows up as a SINGLE TOC entry — that's how users think of it ("the
+// webhooks part of the page"), so a 3-card sub-list under one anchor is
+// correct UX.
+const SECTIONS: readonly FormSectionDef[] = [
+  { id: 'webhooks', titleKey: 'hooks_page.webhooks_section' },
+  { id: 'outgoing', titleKey: 'hooks_page.outgoing_section' },
+  { id: 'logs',     titleKey: 'hooks_page.logs_section' },
+]
+
 export function SystemHooksPage() {
   const { t } = useTranslation('settings')
   const { t: tCommon } = useTranslation('common')
@@ -447,34 +460,44 @@ export function SystemHooksPage() {
       title={t('system_hooks_page.title')}
       subtitle={t('system_hooks_page.subtitle')}
     >
-      {/* 1. Webhooks (incoming integrations) */}
-      <WebhooksSection />
+      <FormLayout sections={SECTIONS}>
 
-      {/* 2. Shell Hooks (outgoing) */}
-      <div data-testid="section-outgoing-hooks">
-        <SettingsSection
-          title={tCommon('settings.hooks.outgoing.title', 'Outgoing Hooks')}
-          description={tCommon('settings.hooks.outgoing.description', 'Run local scripts when events occur.')}
-          icon={<Webhook size={16} style={{ color: 'var(--accent)' }} />}
-        >
-          <Suspense fallback={<SectionSkeleton />}>
-            <OutgoingHooksSection />
-          </Suspense>
-        </SettingsSection>
-      </div>
+        {/* 1. Webhooks (incoming integrations) — three service cards under one anchor */}
+        <section id="webhooks" data-testid="settings.system-hooks.section-webhooks">
+          <WebhooksSection />
+        </section>
 
-      {/* 3. Execution Log */}
-      <div data-testid="section-hook-logs">
-        <SettingsSection
-          title={tCommon('settings.hooks.logs.title', 'Hook Logs')}
-          description={tCommon('settings.hooks.logs.description', 'Execution history for all outgoing hooks.')}
-          icon={<History size={16} style={{ color: 'var(--accent)' }} />}
-        >
-          <Suspense fallback={<SectionSkeleton />}>
-            <HookLogsSection />
-          </Suspense>
-        </SettingsSection>
-      </div>
+        {/* 2. Shell Hooks (outgoing) */}
+        <section id="outgoing" data-testid="settings.system-hooks.section-outgoing">
+          <div data-testid="section-outgoing-hooks">
+            <SettingsSection
+              title={tCommon('settings.hooks.outgoing.title', 'Outgoing Hooks')}
+              description={tCommon('settings.hooks.outgoing.description', 'Run local scripts when events occur.')}
+              icon={<Webhook size={16} style={{ color: 'var(--accent)' }} />}
+            >
+              <Suspense fallback={<SectionSkeleton />}>
+                <OutgoingHooksSection />
+              </Suspense>
+            </SettingsSection>
+          </div>
+        </section>
+
+        {/* 3. Execution Log */}
+        <section id="logs" data-testid="settings.system-hooks.section-logs">
+          <div data-testid="section-hook-logs">
+            <SettingsSection
+              title={tCommon('settings.hooks.logs.title', 'Hook Logs')}
+              description={tCommon('settings.hooks.logs.description', 'Execution history for all outgoing hooks.')}
+              icon={<History size={16} style={{ color: 'var(--accent)' }} />}
+            >
+              <Suspense fallback={<SectionSkeleton />}>
+                <HookLogsSection />
+              </Suspense>
+            </SettingsSection>
+          </div>
+        </section>
+
+      </FormLayout>
     </SettingsDetailLayout>
   )
 }
