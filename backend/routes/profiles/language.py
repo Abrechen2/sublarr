@@ -302,6 +302,76 @@ def assign_profile():
     return jsonify(result)
 
 
+@bp.route("/language-profiles/assign-bulk", methods=["PUT"])
+def assign_profile_bulk():
+    """Bulk assign a language profile to multiple series or movies.
+
+    Body: { type: "series"|"movie", arr_ids: [int], profile_id: int }
+    Returns: { assigned: int, failed: [{arr_id, error}] }
+    ---
+    put:
+      security:
+        - apiKeyAuth: []
+      tags:
+        - Profiles
+      summary: Bulk assign a language profile
+      description: Assigns a language profile to multiple series or movies in one call.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - type
+                - arr_ids
+                - profile_id
+              properties:
+                type:
+                  type: string
+                  enum: [series, movie]
+                arr_ids:
+                  type: array
+                  items:
+                    type: integer
+                profile_id:
+                  type: integer
+      responses:
+        200:
+          description: Result with per-item success/failure counts
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  assigned:
+                    type: integer
+                  failed:
+                    type: array
+                    items:
+                      type: object
+        400:
+          description: Missing or invalid required fields
+    """
+    data = request.get_json() or {}
+    item_type = data.get("type")
+    arr_ids = data.get("arr_ids")
+    profile_id = data.get("profile_id")
+
+    if item_type not in {"series", "movie"} or not isinstance(arr_ids, list) or profile_id is None:
+        return jsonify({"error": "type, arr_ids, profile_id are required (type ∈ {series, movie})"}), 400
+
+    assigned = 0
+    failed: list[dict] = []
+    for arr_id in arr_ids:
+        try:
+            assign_profile_to_item({"type": item_type, "arr_id": arr_id, "profile_id": profile_id})
+            assigned += 1
+        except (ProfileValidationError, ProfileNotFoundError) as exc:
+            failed.append({"arr_id": arr_id, "error": str(exc)})
+    return jsonify({"assigned": assigned, "failed": failed})
+
+
 @bp.route("/language-profiles/<int:profile_id>/set-as-default-for-all", methods=["POST"])
 def set_profile_as_default_for_all_endpoint(profile_id):
     """Set a profile as the global default and remove all explicit item assignments.

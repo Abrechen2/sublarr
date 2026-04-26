@@ -1,6 +1,6 @@
 import { useState, useMemo, useCallback } from 'react'
 import { useTranslation } from 'react-i18next'
-import { useLibrary, useLanguageProfiles, useAssignProfile } from '@/hooks/useApi'
+import { useLibrary, useLanguageProfiles, useAssignProfile, useBulkAssignProfile } from '@/hooks/useApi'
 import { FilterPresetMenu } from '@/components/filters/FilterPresetMenu'
 import type { SeriesInfo, MovieInfo, SyncBatchProgress, SyncBatchComplete, FilterGroup } from '@/lib/types'
 import { Tv, Film, Loader2, Settings, ChevronLeft, ChevronRight, Search, RefreshCw, X, LayoutGrid, List } from 'lucide-react'
@@ -274,6 +274,7 @@ export function LibraryPage() {
   const { data: library, isLoading } = useLibrary()
   const { data: profiles } = useLanguageProfiles()
   const assignProfile = useAssignProfile()
+  const bulkAssign = useBulkAssignProfile()
   const [activeTab, setActiveTab] = useState<Tab>('series')
   const [gridPage, setGridPage] = useState(1)
   const [searchQuery, setSearchQuery] = useState('')
@@ -412,6 +413,7 @@ export function LibraryPage() {
     setGridPage(1)
     setSearchQuery('')
     setActiveChip('all')
+    setSelectedSeries(new Set())
   }
 
   const handleRowClick = (id: number) => {
@@ -621,10 +623,11 @@ export function LibraryPage() {
         <>
           {activeTab === 'series' && selectedSeries.size > 0 && (
             <div
-              className="flex items-center gap-2 px-4 py-2 rounded-lg mb-3 bg-elevated border border-accent-dim"
+              data-testid="library-bulk-toolbar"
+              className="flex items-center gap-3 px-4 py-2 rounded-lg mb-3 bg-elevated border border-accent-dim"
             >
               <span className="text-xs font-medium text-accent">
-                {selectedSeries.size} series selected
+                {t('bulk.selected', '{{count}} ausgewählt', { count: selectedSeries.size })}
               </span>
               <button
                 onClick={async () => {
@@ -633,19 +636,52 @@ export function LibraryPage() {
                     toast('Batch search queued')
                     clearSelection()
                   } catch (err) {
-                    console.error('Batch search failed:', err)
-                    toast('Batch search failed', 'error')
+                    const msg = err instanceof Error ? err.message : 'Batch search failed'
+                    toast(msg, 'error')
                   }
                 }}
                 className="px-3 py-1.5 rounded text-xs font-medium bg-accent-bg text-accent border border-accent-dim"
               >
                 Search All Missing
               </button>
+              {profiles && profiles.length > 0 && (
+                <select
+                  data-testid="library-bulk-profile-select"
+                  value=""
+                  onChange={(e) => {
+                    const profileId = Number(e.target.value)
+                    if (!Number.isFinite(profileId) || profileId === 0) return
+                    bulkAssign.mutate(
+                      { type: 'series', arrIds: Array.from(selectedSeries), profileId },
+                      {
+                        onSuccess: (result) => {
+                          clearSelection()
+                          if (result.failed.length > 0) {
+                            toast(`${result.assigned} zugewiesen, ${result.failed.length} fehlgeschlagen`, 'error')
+                          } else {
+                            toast(`${result.assigned} Profil(e) zugewiesen`)
+                          }
+                        },
+                      },
+                    )
+                  }}
+                  disabled={bulkAssign.isPending}
+                  className="px-2 py-1.5 rounded text-xs cursor-pointer bg-page border border-border text-secondary"
+                >
+                  <option value="">{t('bulk.set_profile', 'Profil setzen…')}</option>
+                  {profiles.map((p) => (
+                    <option key={p.id} value={p.id}>
+                      {p.name}{p.is_default ? ' ★' : ''}
+                    </option>
+                  ))}
+                </select>
+              )}
               <button
+                data-testid="library-bulk-clear"
                 onClick={clearSelection}
-                className="ml-auto px-2 py-1 rounded text-xs text-muted"
+                className="ml-auto px-2 py-1 rounded text-xs text-muted hover:text-accent"
               >
-                Clear
+                {t('bulk.clear', 'Auswahl aufheben')}
               </button>
             </div>
           )}
@@ -658,6 +694,8 @@ export function LibraryPage() {
                     item={item}
                     onClick={() => handleRowClick(item.id)}
                     style={{ animationDelay: `${Math.min(i * 30, 300)}ms` }}
+                    selected={activeTab === 'series' ? selectedSeries.has(item.id) : undefined}
+                    onToggleSelected={activeTab === 'series' ? () => toggleSeries(item.id) : undefined}
                   />
                 ))}
               </div>

@@ -45,13 +45,21 @@ const mockMovies = [
   },
 ]
 
+const mockBulkMutate = vi.fn()
+
 vi.mock('@/hooks/useApi', () => ({
   useLibrary: () => ({
     data: { series: mockSeries, movies: mockMovies },
     isLoading: false,
   }),
-  useLanguageProfiles: () => ({ data: [] }),
+  useLanguageProfiles: () => ({
+    data: [
+      { id: 1, name: 'Default', is_default: true },
+      { id: 2, name: 'English Only', is_default: false },
+    ],
+  }),
   useAssignProfile: () => ({ mutate: vi.fn() }),
+  useBulkAssignProfile: () => ({ mutate: mockBulkMutate, isPending: false }),
 }))
 
 // ─── Routing ──────────────────────────────────────────────────────────────────
@@ -85,10 +93,26 @@ vi.mock('@/components/library/LibraryCard', () => ({
 }))
 
 vi.mock('@/components/library/VirtualLibraryTable', () => ({
-  VirtualLibraryTable: ({ items }: { items: Array<{ title: string }> }) => (
+  VirtualLibraryTable: ({
+    items,
+    selectedSeries,
+    onToggleSeries,
+  }: {
+    items: Array<{ id: number; title: string }>
+    selectedSeries: Set<number>
+    onToggleSeries: (id: number) => void
+  }) => (
     <div data-testid="virtual-table">
       {items.map((i) => (
-        <div key={i.title}>{i.title}</div>
+        <div key={i.title}>
+          {i.title}
+          <input
+            type="checkbox"
+            data-testid={`row-checkbox-${i.id}`}
+            checked={selectedSeries.has(i.id)}
+            onChange={() => onToggleSeries(i.id)}
+          />
+        </div>
       ))}
     </div>
   ),
@@ -148,5 +172,50 @@ describe('LibraryPage', () => {
     renderLibrary()
     expect(screen.getByTestId('library-view-table')).toBeInTheDocument()
     expect(screen.getByTestId('library-view-grid')).toBeInTheDocument()
+  })
+
+  it('bulk toolbar is hidden when no series selected', () => {
+    renderLibrary()
+    // Switch to table view so checkboxes are accessible
+    fireEvent.click(screen.getByTestId('library-view-table'))
+    expect(screen.queryByTestId('library-bulk-toolbar')).not.toBeInTheDocument()
+  })
+
+  it('bulk toolbar appears after selecting a row in table view', () => {
+    renderLibrary()
+    fireEvent.click(screen.getByTestId('library-view-table'))
+    const checkbox = screen.getByTestId('row-checkbox-1')
+    fireEvent.click(checkbox)
+    expect(screen.getByTestId('library-bulk-toolbar')).toBeInTheDocument()
+  })
+
+  it('bulk toolbar disappears after clicking clear', () => {
+    renderLibrary()
+    fireEvent.click(screen.getByTestId('library-view-table'))
+    fireEvent.click(screen.getByTestId('row-checkbox-1'))
+    expect(screen.getByTestId('library-bulk-toolbar')).toBeInTheDocument()
+    fireEvent.click(screen.getByTestId('library-bulk-clear'))
+    expect(screen.queryByTestId('library-bulk-toolbar')).not.toBeInTheDocument()
+  })
+
+  it('bulk toolbar disappears on tab switch', () => {
+    renderLibrary()
+    fireEvent.click(screen.getByTestId('library-view-table'))
+    fireEvent.click(screen.getByTestId('row-checkbox-1'))
+    expect(screen.getByTestId('library-bulk-toolbar')).toBeInTheDocument()
+    fireEvent.click(screen.getByTestId('tab-movies'))
+    expect(screen.queryByTestId('library-bulk-toolbar')).not.toBeInTheDocument()
+  })
+
+  it('bulk-assign mutation fires with correct payload on profile select', () => {
+    renderLibrary()
+    fireEvent.click(screen.getByTestId('library-view-table'))
+    fireEvent.click(screen.getByTestId('row-checkbox-1'))
+    const select = screen.getByTestId('library-bulk-profile-select')
+    fireEvent.change(select, { target: { value: '2' } })
+    expect(mockBulkMutate).toHaveBeenCalledWith(
+      { type: 'series', arrIds: [1], profileId: 2 },
+      expect.any(Object),
+    )
   })
 })

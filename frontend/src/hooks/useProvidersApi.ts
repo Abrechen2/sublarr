@@ -7,7 +7,7 @@ import {
   getPenaltyRules, updatePenaltyRule,
   getBlacklist, addToBlacklist, removeFromBlacklist, clearBlacklist,
   getLanguageProfiles, createLanguageProfile, updateLanguageProfile,
-  deleteLanguageProfile, assignProfile, setProfileAsDefaultForAll,
+  deleteLanguageProfile, assignProfile, bulkAssignProfile, setProfileAsDefaultForAll,
   getHistory, getHistoryStats,
   episodeSearch, episodeHistory,
   searchInteractive, searchInteractiveEpisode,
@@ -220,6 +220,25 @@ export function useAssignProfile() {
       } else {
         void queryClient.invalidateQueries({ queryKey: ['movie', arrId] })
       }
+    },
+  })
+}
+
+export function useBulkAssignProfile() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: ({
+      type,
+      arrIds,
+      profileId,
+    }: {
+      type: 'series' | 'movie'
+      arrIds: number[]
+      profileId: number
+    }) => bulkAssignProfile(type, arrIds, profileId),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: ['library'] })
+      void queryClient.invalidateQueries({ queryKey: ['profiles-overrides', 'scopes'] })
     },
   })
 }

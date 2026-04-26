@@ -312,6 +312,11 @@
     "convert_format": "In anderes Format konvertieren",
     "converting_ellipsis": "Konvertieren…"
   },
+  "bulk": {
+    "selected": "{{count}} ausgewählt",
+    "set_profile": "Profil setzen…",
+    "clear": "Auswahl aufheben"
+  },
   "bulk_sync": {
     "bulk_auto_sync": "Bulk Auto-Sync",
     "start_bulk_sync": "Bulk-Sync starten",

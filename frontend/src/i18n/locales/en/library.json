@@ -312,6 +312,11 @@
     "convert_format": "Convert to different format",
     "converting_ellipsis": "Converting…"
   },
+  "bulk": {
+    "selected": "{{count}} selected",
+    "set_profile": "Set profile…",
+    "clear": "Clear selection"
+  },
   "bulk_sync": {
     "bulk_auto_sync": "Bulk Auto-Sync",
     "start_bulk_sync": "Start Bulk Sync",

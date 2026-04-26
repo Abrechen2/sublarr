@@ -54,6 +54,19 @@ export async function assignProfile(type: 'series' | 'movie', arrId: number, pro
   await api.put('/language-profiles/assign', { type, arr_id: arrId, profile_id: profileId })
 }
 
+export async function bulkAssignProfile(
+  type: 'series' | 'movie',
+  arrIds: number[],
+  profileId: number,
+): Promise<{ assigned: number; failed: Array<{ arr_id: number; error: string }> }> {
+  const { data } = await api.put('/language-profiles/assign-bulk', {
+    type,
+    arr_ids: arrIds,
+    profile_id: profileId,
+  })
+  return data
+}
+
 export async function setProfileAsDefaultForAll(id: number): Promise<LanguageProfile> {
   const { data } = await api.post(`/language-profiles/${id}/set-as-default-for-all`)
   return data.profile

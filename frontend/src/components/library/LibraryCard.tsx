@@ -9,6 +9,8 @@ interface LibraryCardProps {
   onClick: () => void
   style?: React.CSSProperties
   className?: string
+  selected?: boolean
+  onToggleSelected?: () => void
 }
 
 function isSeries(item: SeriesInfo | MovieInfo): item is SeriesInfo {
@@ -23,7 +25,7 @@ function computeScore(item: SeriesInfo | MovieInfo): number | null {
   return Math.round((episodes_with_files / episodes) * 100)
 }
 
-export function LibraryCard({ item, onClick, style, className }: LibraryCardProps) {
+export function LibraryCard({ item, onClick, style, className, selected, onToggleSelected }: LibraryCardProps) {
   const series = isSeries(item) ? item : null
   const missingCount = series?.missing_count ?? 0
   const score = computeScore(item)
@@ -90,6 +92,25 @@ export function LibraryCard({ item, onClick, style, className }: LibraryCardProp
           className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-150 pointer-events-none"
           style={{ backgroundColor: 'rgba(0,0,0,0.25)' }}
         />
+
+        {/* Selection checkbox — top-left (series only) */}
+        {onToggleSelected !== undefined && (
+          <div
+            className="absolute z-10"
+            style={{ top: '6px', left: '6px' }}
+            onClick={(e) => { e.stopPropagation(); onToggleSelected() }}
+          >
+            <input
+              type="checkbox"
+              data-testid="library-card-checkbox"
+              checked={selected ?? false}
+              onChange={onToggleSelected}
+              onClick={(e) => e.stopPropagation()}
+              className="rounded"
+              style={{ accentColor: 'var(--accent)', width: '14px', height: '14px', cursor: 'pointer' }}
+            />
+          </div>
+        )}
 
         {/* Missing count badge — top-right */}
         {missingCount > 0 && (

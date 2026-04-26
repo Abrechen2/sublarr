@@ -286,3 +286,48 @@ class TestAssignProfile:
         assert resp.status_code == 404
         data = resp.get_json()
         assert "not found" in data["error"].lower()
+
+
+# ---------------------------------------------------------------------------
+# TestAssignProfileBulk — PUT /api/v1/language-profiles/assign-bulk
+# ---------------------------------------------------------------------------
+
+
+class TestAssignProfileBulk:
+    """Tests for PUT /api/v1/language-profiles/assign-bulk."""
+
+    def test_assigns_all_when_profile_exists(self, client):
+        mock_assign_series = MagicMock()
+        with (
+            patch("db.profiles.get_language_profile", return_value=SAMPLE_PROFILE),
+            patch("db.profiles.assign_series_profile", mock_assign_series),
+        ):
+            resp = client.put(
+                "/api/v1/language-profiles/assign-bulk",
+                json={"type": "series", "arr_ids": [10, 20, 30], "profile_id": 1},
+            )
+        assert resp.status_code == 200
+        data = resp.get_json()
+        assert data["assigned"] == 3
+        assert data["failed"] == []
+        assert mock_assign_series.call_count == 3
+
+    def test_partial_failure_when_profile_not_found(self, client):
+        with patch("db.profiles.get_language_profile", return_value=None):
+            resp = client.put(
+                "/api/v1/language-profiles/assign-bulk",
+                json={"type": "series", "arr_ids": [10, 20], "profile_id": 99999},
+            )
+        assert resp.status_code == 200
+        data = resp.get_json()
+        assert data["assigned"] == 0
+        assert len(data["failed"]) == 2
+
+    def test_400_on_missing_required_fields(self, client):
+        resp = client.put(
+            "/api/v1/language-profiles/assign-bulk",
+            json={"type": "series"},
+        )
+        assert resp.status_code == 400
+        data = resp.get_json()
+        assert "error" in data
