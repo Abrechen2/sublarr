@@ -5,6 +5,11 @@ All notable changes to Sublarr are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.73.2-beta] - 2026-04-26
+
+### Fixed
+- **Clicking a series in the Profiles & Overrides tree 404'd.** The `/resolved/series/<id>` endpoint required a `SeriesLanguageProfile` mapping or a `SeriesSettings` row to consider a series "known", but `/scopes` (after the 0.73.1 fix) lists every series that exists in `search_series`, `wanted_items` or `standalone_series` even without a mapping or settings row — so the tree showed series you couldn't open. Both `/resolved/series/<id>` and `/resolved/movie/<id>` now check the same broader source set as `/scopes` and look up titles from `search_series` / `standalone_series` / `standalone_movies` instead of the non-existent master tables.
+
 ## [0.73.1-beta] - 2026-04-26
 
 ### Fixed
