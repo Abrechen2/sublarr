@@ -5,6 +5,27 @@ All notable changes to Sublarr are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.73.0-beta] - 2026-04-26
+
+### Added
+- **Profiles & Overrides Settings page.** New top-level `/settings/profiles` route renders the Codex Template C (RulesLayout) scope tree (Global → LanguageProfile → Series/Movie). Browse what each setting resolves to at every scope, override per-series and per-movie inline. Twelve inheritable settings are exposed: `cleanup_foreign_tracks`, `forced_preference`, `hi_preference`, `forced_scoring`, `target_languages`, `cutoff_language`, `must_contain`, `must_not_contain`, `audio_exclude_languages`, `preferred_audio_track_index`, `priority_override` and `min_attempts_per_day`.
+- **Per-movie override table.** New `movie_settings` table mirrors `series_settings` (minus the anime-specific `absolute_order`). Movies can now override the same twelve fields as series — previously only Sonarr-managed series had any overrides.
+- **Eight new `series_settings` override columns.** `forced_preference_override`, `hi_preference_override`, `forced_scoring_override`, `target_languages_override`, `cutoff_language_override`, `must_contain_override`, `must_not_contain_override`, `audio_exclude_languages_override`. NULL means inherit from the assigned LanguageProfile (which inherits from the global config).
+- **`/api/v1/profiles-overrides/` blueprint.** Eight endpoints: `GET /scopes` (full tree), `GET /resolved/<type>/<id>` (4 variants for global/profile/series/movie), `PATCH /series/<id>` and `PATCH /movie/<id>` to set or clear an override, plus matching `POST .../reset` endpoints to wipe all overrides at once. PATCH bodies are Pydantic-validated against per-field whitelists (enums, ISO-2 language codes, JSON arrays).
+- **Settings template trio complete.** General is now the FormLayout reference, Providers the CollectionLayout reference, Profiles & Overrides the RulesLayout reference. Three Codex layout templates plus shared primitives (InheritanceRow, BudgetBar, ApiKeyField, ConnectionTest, HealthRail, TriStateToggle) are ready for every future Settings page migration via the Hybrid-Ratchet rule (any new or touched page MUST use a template).
+
+### Changed
+- **General Settings → FormLayout.** Refactored as the first Template B reference page with section anchors and scroll-spy navigation. No behaviour change.
+- **Providers Settings → CollectionLayout.** Master-list of providers on the left, inline detail editor on the right, optional health rail derived from `useProviderHealth`. Replaces the legacy tile-grid + modal-on-click flow. Drag-drop reorder still works; selection is URL-addressable via `?id=`. Global provider tuning (Marketplace, Anti-Captcha, Cache, Download Limits, Engine) keeps its existing layout below the new collection view for now.
+- **Profile CRUD absorbed into the new page.** Add/Edit/Delete profile actions live in the scope-tree header menu of the Profiles & Overrides page. The old standalone `/language-profiles` route 301-redirects to `/settings/profiles`, and the `LanguageProfilesTab` inside Subtitles-Settings has been removed.
+
+### Fixed
+- **Latent crash on providers without `config_fields`.** Defensive null-fallback added to the new inline provider editor; the bug was masked by the legacy modal-on-click pattern, but matters now that the inline detail renders on every page-load.
+
+### Tests
+- 36 new backend tests across resolver, schemas, routes, models and migration files.
+- ~24 new frontend tests across hooks, primitives, widgets and the new page.
+
 ## [0.72.0-beta] - 2026-04-24
 
 ### Added
