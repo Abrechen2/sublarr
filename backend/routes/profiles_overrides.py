@@ -71,6 +71,17 @@ def get_scopes():
         except Exception:
             return []
 
+    # Collect IDs that are eligible to appear in the scope tree:
+    # ONLY series/movies that have an explicit settings row OR a profile mapping.
+    # search_series / wanted_items / standalone_* are NOT ID sources for the tree
+    # (they would make the list too noisy). They are still used for title lookup.
+    settings_series_ids: set[int] = {int(ss.sonarr_series_id) for ss in SeriesSettings.query.all()}
+    settings_movie_ids: set[int] = {int(ms.radarr_movie_id) for ms in MovieSettings.query.all()}
+    eligible_series_ids: set[int] = assigned_series_ids | settings_series_ids
+    eligible_movie_ids: set[int] = assigned_movie_ids | settings_movie_ids
+
+    # Title lookup map: prefer search_series / standalone_* for pretty names,
+    # but scope membership is governed by eligible_*_ids above.
     series_id_titles: dict[int, str] = {}
     # search_series: id is the sonarr_series_id, populated whenever a search
     # for an episode of that series ran. Title is the cached display name.
@@ -78,40 +89,28 @@ def get_scopes():
         sid, title = int(row[0]), str(row[1] or "")
         # Strip episode-tail like " — S01E01 [DE]" if present.
         clean = title.split(" — ")[0] if " — " in title else title
-        series_id_titles.setdefault(sid, clean or f"#{sid}")
+        series_id_titles[sid] = clean or f"#{sid}"
     # standalone_series: manual library entries with their own id + title.
     for row in _safe_query("SELECT id, title FROM standalone_series"):
         sid, title = int(row[0]), str(row[1] or "")
         series_id_titles.setdefault(sid, title or f"#{sid}")
-    # Pure-id sources — no title, only existence. Used to surface series that
-    # have settings or wanted items even if no search ever ran.
-    for sql in (
-        "SELECT DISTINCT sonarr_series_id FROM wanted_items WHERE sonarr_series_id IS NOT NULL",
-        "SELECT DISTINCT sonarr_series_id FROM series_settings",
-    ):
-        for row in _safe_query(sql):
-            sid = int(row[0])
-            series_id_titles.setdefault(sid, f"#{sid}")
-    # Mapping table itself — make sure assigned IDs always show up.
-    for sid in assigned_series_ids:
+    # Ensure every eligible series has at least a placeholder title.
+    for sid in eligible_series_ids:
         series_id_titles.setdefault(sid, f"#{sid}")
+    # Restrict to only eligible IDs — drop any title-only entries.
+    series_titles = {
+        sid: series_id_titles[sid] for sid in eligible_series_ids if sid in series_id_titles
+    }
 
     movie_id_titles: dict[int, str] = {}
     for row in _safe_query("SELECT id, title FROM standalone_movies"):
         mid, title = int(row[0]), str(row[1] or "")
-        movie_id_titles.setdefault(mid, title or f"#{mid}")
-    for sql in (
-        "SELECT DISTINCT radarr_movie_id FROM wanted_items WHERE radarr_movie_id IS NOT NULL",
-        "SELECT DISTINCT radarr_movie_id FROM movie_settings",
-    ):
-        for row in _safe_query(sql):
-            mid = int(row[0])
-            movie_id_titles.setdefault(mid, f"#{mid}")
-    for mid in assigned_movie_ids:
+        movie_id_titles[mid] = title or f"#{mid}"
+    for mid in eligible_movie_ids:
         movie_id_titles.setdefault(mid, f"#{mid}")
-
-    series_titles = series_id_titles
-    movie_titles = movie_id_titles
+    movie_titles = {
+        mid: movie_id_titles[mid] for mid in eligible_movie_ids if mid in movie_id_titles
+    }
 
     def _entries(ids: list[int], titles: dict[int, str]) -> list[dict]:
         return [{"id": i, "title": titles.get(i, f"#{i}")} for i in ids]
@@ -129,11 +128,11 @@ def get_scopes():
         )
 
     unassigned_series = _entries(
-        [sid for sid in series_titles if sid not in assigned_series_ids],
+        [sid for sid in eligible_series_ids if sid not in assigned_series_ids],
         series_titles,
     )
     unassigned_movies = _entries(
-        [mid for mid in movie_titles if mid not in assigned_movie_ids],
+        [mid for mid in eligible_movie_ids if mid not in assigned_movie_ids],
         movie_titles,
     )
 
@@ -432,3 +431,64 @@ def reset_movie(movie_id: int):
     ms.updated_at = datetime.now(UTC)
     db.session.commit()
     return jsonify({"ok": True})
+
+
+# ─── CREATE / DELETE override rows ───────────────────────────────────────────
+
+
+@bp.route("/series/<int:series_id>/create-override", methods=["POST"])
+@require_api_key
+def create_override_series(series_id: int):
+    """Idempotent INSERT of an empty series_settings row.
+
+    Returns 201 if a new row was created, 200 if one already existed.
+    """
+    existed = SeriesSettings.query.get(series_id) is not None
+    if not existed:
+        ss = SeriesSettings(
+            sonarr_series_id=series_id,
+            updated_at=datetime.now(UTC),
+        )
+        db.session.add(ss)
+        db.session.commit()
+    return jsonify({"created": not existed}), 201 if not existed else 200
+
+
+@bp.route("/series/<int:series_id>", methods=["DELETE"])
+@require_api_key
+def delete_series_settings(series_id: int):
+    """Drop the series_settings row for *series_id* (idempotent)."""
+    ss = SeriesSettings.query.get(series_id)
+    if ss is not None:
+        db.session.delete(ss)
+        db.session.commit()
+    return jsonify({"deleted": ss is not None})
+
+
+@bp.route("/movie/<int:movie_id>/create-override", methods=["POST"])
+@require_api_key
+def create_override_movie(movie_id: int):
+    """Idempotent INSERT of an empty movie_settings row.
+
+    Returns 201 if a new row was created, 200 if one already existed.
+    """
+    existed = MovieSettings.query.get(movie_id) is not None
+    if not existed:
+        ms = MovieSettings(
+            radarr_movie_id=movie_id,
+            updated_at=datetime.now(UTC),
+        )
+        db.session.add(ms)
+        db.session.commit()
+    return jsonify({"created": not existed}), 201 if not existed else 200
+
+
+@bp.route("/movie/<int:movie_id>", methods=["DELETE"])
+@require_api_key
+def delete_movie_settings(movie_id: int):
+    """Drop the movie_settings row for *movie_id* (idempotent)."""
+    ms = MovieSettings.query.get(movie_id)
+    if ms is not None:
+        db.session.delete(ms)
+        db.session.commit()
+    return jsonify({"deleted": ms is not None})

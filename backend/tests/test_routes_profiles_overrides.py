@@ -160,3 +160,79 @@ def test_post_reset_clears_all_series_overrides(client, sample_profiles_data):
     data = client.get("/api/v1/profiles-overrides/resolved/series/1").get_json()
     assert data["settings"]["forced_preference"]["source"] != "series"
     assert data["settings"]["hi_preference"]["source"] != "series"
+
+
+# ─── Phase A: scope filter + create/delete override endpoints ────────────────
+
+
+def test_get_scopes_excludes_series_without_settings_or_mapping(client, sample_profiles_data):
+    """A series that only exists in search_series (no settings, no mapping) must NOT appear in /scopes."""
+    from sqlalchemy import text
+
+    from extensions import db
+
+    try:
+        db.session.execute(
+            text("CREATE TABLE IF NOT EXISTS search_series (id INTEGER PRIMARY KEY, title TEXT)")
+        )
+        db.session.execute(
+            text("INSERT INTO search_series (id, title) VALUES (9999, 'Phantom Series')")
+        )
+        db.session.commit()
+    except Exception:
+        pytest.skip("search_series table cannot be created in test DB")
+    resp = client.get("/api/v1/profiles-overrides/scopes")
+    data = resp.get_json()
+    all_series_ids = []
+    for p in data["profiles"]:
+        all_series_ids.extend(s["id"] for s in p["series"])
+    all_series_ids.extend(s["id"] for s in data["unassigned_series"])
+    assert 9999 not in all_series_ids
+
+
+def test_post_create_override_series_inserts_empty_row(client, sample_profiles_data):
+    from db.models.core import SeriesSettings
+
+    assert SeriesSettings.query.get(7777) is None
+    resp = client.post("/api/v1/profiles-overrides/series/7777/create-override")
+    assert resp.status_code in (200, 201)
+    assert SeriesSettings.query.get(7777) is not None
+
+
+def test_post_create_override_series_is_idempotent(client, sample_profiles_data):
+    client.post("/api/v1/profiles-overrides/series/7777/create-override")
+    resp = client.post("/api/v1/profiles-overrides/series/7777/create-override")
+    assert resp.status_code in (200, 201)
+
+
+def test_delete_series_drops_settings_row(client, sample_profiles_data):
+    client.post("/api/v1/profiles-overrides/series/8888/create-override")
+    from db.models.core import SeriesSettings
+
+    assert SeriesSettings.query.get(8888) is not None
+    resp = client.delete("/api/v1/profiles-overrides/series/8888")
+    assert resp.status_code == 200
+    assert SeriesSettings.query.get(8888) is None
+
+
+def test_delete_series_idempotent_on_missing(client, sample_profiles_data):
+    resp = client.delete("/api/v1/profiles-overrides/series/12345")
+    assert resp.status_code == 200
+
+
+def test_post_create_override_movie_inserts_empty_row(client, sample_profiles_data):
+    from db.models.core import MovieSettings
+
+    assert MovieSettings.query.get(6666) is None
+    resp = client.post("/api/v1/profiles-overrides/movie/6666/create-override")
+    assert resp.status_code in (200, 201)
+    assert MovieSettings.query.get(6666) is not None
+
+
+def test_delete_movie_drops_settings_row(client, sample_profiles_data):
+    client.post("/api/v1/profiles-overrides/movie/3333/create-override")
+    resp = client.delete("/api/v1/profiles-overrides/movie/3333")
+    assert resp.status_code == 200
+    from db.models.core import MovieSettings
+
+    assert MovieSettings.query.get(3333) is None
