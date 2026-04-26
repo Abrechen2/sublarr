@@ -12,6 +12,8 @@ import { Tag, Filter, Film } from 'lucide-react'
 import { SettingsDetailLayout } from '@/components/settings/SettingsDetailLayout'
 import { SettingsSection } from '@/components/settings/SettingsSection'
 import { FormGroup } from '@/components/settings/FormGroup'
+import { FormLayout } from '@/components/settings/layouts'
+import type { FormSectionDef } from '@/components/settings/layouts'
 import { Toggle } from '@/components/shared/Toggle'
 import { toast } from '@/components/shared/Toast'
 import { useConfig, useUpdateConfig } from '@/hooks/useApi'
@@ -307,6 +309,13 @@ function EmbeddedExtractionContent() {
 
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
+// Settings Template B (FormLayout). Three sections, well under the 6-cap.
+const SECTIONS: readonly FormSectionDef[] = [
+  { id: 'naming',              titleKey: 'subtitles_format_page.naming_section' },
+  { id: 'scan-filters',        titleKey: 'subtitles_format_page.scan_filters_section' },
+  { id: 'embedded-extraction', titleKey: 'subtitles_format_page.embedded_extraction_section' },
+]
+
 export function SubtitlesFormatPage() {
   const { t } = useTranslation('settings')
 
@@ -318,32 +327,39 @@ export function SubtitlesFormatPage() {
         'Subtitle format preferences, file naming conventions, scan filters, and embedded track extraction.',
       )}
     >
+      <FormLayout sections={SECTIONS}>
+
       {/* 1. Subtitle Naming */}
+      <section id="naming" data-testid="settings.subtitles-format.section-naming">
       <div data-testid="section-subtitle-naming">
         <SettingsSection
-          title={t('settings.subtitles.subtitleNaming.title')}
+          title={t('subtitles_format_page.naming_section')}
           description={t('settings.subtitles.subtitleNaming.description')}
           icon={<Tag size={16} style={{ color: 'var(--accent)' }} />}
         >
           <SubtitleNamingContent />
         </SettingsSection>
       </div>
+      </section>
 
-      {/* 3. Scan Filters */}
+      {/* 2. Scan Filters */}
+      <section id="scan-filters" data-testid="settings.subtitles-format.section-scan-filters">
       <div data-testid="section-scan-filters">
         <SettingsSection
-          title={t('settings.subtitles.scanFilters.title')}
+          title={t('subtitles_format_page.scan_filters_section')}
           description={t('settings.subtitles.scanFilters.description')}
           icon={<Filter size={16} style={{ color: 'var(--accent)' }} />}
         >
           <ScanFiltersContent />
         </SettingsSection>
       </div>
+      </section>
 
-      {/* 4. Embedded Extraction (advanced — collapsed by default) */}
+      {/* 3. Embedded Extraction (advanced — collapsed by default) */}
+      <section id="embedded-extraction" data-testid="settings.subtitles-format.section-embedded-extraction">
       <div data-testid="section-embedded-extraction">
         <SettingsSection
-          title={t('settings.subtitles.embeddedExtraction.title', 'Embedded Extraction')}
+          title={t('subtitles_format_page.embedded_extraction_section')}
           description={t(
             'settings.subtitles.embeddedExtraction.description',
             'Extract subtitle tracks embedded directly in video files.',
@@ -362,6 +378,9 @@ export function SubtitlesFormatPage() {
           </p>
         </SettingsSection>
       </div>
+      </section>
+
+      </FormLayout>
     </SettingsDetailLayout>
   )
 }

@@ -12,10 +12,19 @@ import { Star, Sliders, Heart } from 'lucide-react'
 import { SettingsDetailLayout } from '@/components/settings/SettingsDetailLayout'
 import { SettingsSection } from '@/components/settings/SettingsSection'
 import { FormGroup } from '@/components/settings/FormGroup'
+import { FormLayout } from '@/components/settings/layouts'
+import type { FormSectionDef } from '@/components/settings/layouts'
 
 import { useConfig, useUpdateConfig } from '@/hooks/useApi'
 import { strVal, numVal } from '@/lib/configUtils'
 import { settingsInputStyle } from '@/styles/settingsShared'
+
+// Settings Template B (FormLayout). Three sections, well under the 6-cap.
+const SECTIONS: readonly FormSectionDef[] = [
+  { id: 'scoring',      titleKey: 'subtitles_scoring_page.scoring_section' },
+  { id: 'per-language', titleKey: 'subtitles_scoring_page.per_language_section' },
+  { id: 'fansub',       titleKey: 'subtitles_scoring_page.fansub_section' },
+]
 
 // ─── Lazy sub-tabs ────────────────────────────────────────────────────────────
 
@@ -168,10 +177,13 @@ export function SubtitlesScoringPage() {
         'Configure how subtitles are ranked and selected — weights, presets, release groups, and per-language thresholds.',
       )}
     >
+      <FormLayout sections={SECTIONS}>
+
       {/* 1. Scoring */}
+      <section id="scoring" data-testid="settings.subtitles-scoring.section-scoring">
       <div data-testid="section-scoring">
         <SettingsSection
-          title={t('settings.subtitles.scoring.title', 'Scoring')}
+          title={t('subtitles_scoring_page.scoring_section')}
           description={t(
             'settings.subtitles.scoring.description',
             'Configure how subtitles are ranked and selected from providers.',
@@ -185,22 +197,26 @@ export function SubtitlesScoringPage() {
           </div>
         </SettingsSection>
       </div>
+      </section>
 
       {/* 2. Per-Language Score Thresholds */}
+      <section id="per-language" data-testid="settings.subtitles-scoring.section-per-language">
       <div data-testid="section-per-language-scores">
         <SettingsSection
-          title={t('settings.subtitles.perLanguageScores.title')}
+          title={t('subtitles_scoring_page.per_language_section')}
           description={t('settings.subtitles.perLanguageScores.description')}
           icon={<Sliders size={16} style={{ color: 'var(--accent)' }} />}
         >
           <PerLanguageScoresContent />
         </SettingsSection>
       </div>
+      </section>
 
       {/* 3. Fansub Preferences (advanced — collapsed by default) */}
+      <section id="fansub" data-testid="settings.subtitles-scoring.section-fansub">
       <div data-testid="section-fansub-preferences">
         <SettingsSection
-          title={t('settings.subtitles.fansubPreferences.title', 'Fansub Preferences')}
+          title={t('subtitles_scoring_page.fansub_section')}
           description={t(
             'settings.subtitles.fansubPreferences.description',
             'Set global fansub group preferences applied across all library items.',
@@ -219,6 +235,9 @@ export function SubtitlesScoringPage() {
           </p>
         </SettingsSection>
       </div>
+      </section>
+
+      </FormLayout>
     </SettingsDetailLayout>
   )
 }

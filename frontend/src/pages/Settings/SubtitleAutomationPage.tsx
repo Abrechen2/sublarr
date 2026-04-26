@@ -2,11 +2,24 @@ import { useTranslation } from 'react-i18next'
 
 import { SettingsDetailLayout } from '@/components/settings/SettingsDetailLayout'
 import { SettingsSection } from '@/components/settings/SettingsSection'
+import { FormLayout } from '@/components/settings/layouts'
+import type { FormSectionDef } from '@/components/settings/layouts'
 import { SettingRow } from '@/components/shared/SettingRow'
 import { Toggle } from '@/components/shared/Toggle'
 import { toast } from '@/components/shared/Toast'
 import { useConfig, useUpdateConfig } from '@/hooks/useSystemApi'
 import { useAutomationStatus, useRunAutomationNow } from '@/hooks/useWantedApi'
+
+// Settings Template B (FormLayout). Five sections, under the 6-cap.
+// titleKeys reuse existing subtitle_automation_page.<group>.title strings
+// so TOC + section headings stay in sync (single source of truth).
+const SECTIONS: readonly FormSectionDef[] = [
+  { id: 'master',  titleKey: 'subtitle_automation_page.master.title' },
+  { id: 'queue',   titleKey: 'subtitle_automation_page.queue.title' },
+  { id: 'sdh',     titleKey: 'subtitle_automation_page.sdh.title' },
+  { id: 'cleanup', titleKey: 'subtitle_automation_page.cleanup.title' },
+  { id: 'status',  titleKey: 'subtitle_automation_page.status.title' },
+]
 
 // 0.71.0 — one settings page, one master toggle, three granular sub-toggles,
 // plus a live status card. Uses the existing grouped ScanningSettings view so
@@ -57,7 +70,10 @@ export function SubtitleAutomationPage() {
         'One-click pipeline for embedded extract, SDH handling, and foreign-track cleanup'
       )}
     >
+      <FormLayout sections={SECTIONS}>
+
       {/* Master toggle */}
+      <section id="master" data-testid="settings.subtitle-automation.section-master">
       <SettingsSection
         title={t('subtitle_automation_page.master.title', 'Automation')}
         description={t(
@@ -78,8 +94,10 @@ export function SubtitleAutomationPage() {
           />
         </SettingRow>
       </SettingsSection>
+      </section>
 
       {/* Queue drain */}
+      <section id="queue" data-testid="settings.subtitle-automation.section-queue">
       <SettingsSection
         title={t('subtitle_automation_page.queue.title', 'Auto-Extract Queue')}
         description={t(
@@ -126,8 +144,10 @@ export function SubtitleAutomationPage() {
           />
         </SettingRow>
       </SettingsSection>
+      </section>
 
       {/* SDH */}
+      <section id="sdh" data-testid="settings.subtitle-automation.section-sdh">
       <SettingsSection
         title={t('subtitle_automation_page.sdh.title', 'SDH Tolerance')}
         description={t(
@@ -174,8 +194,10 @@ export function SubtitleAutomationPage() {
           />
         </SettingRow>
       </SettingsSection>
+      </section>
 
       {/* Foreign track cleanup */}
+      <section id="cleanup" data-testid="settings.subtitle-automation.section-cleanup">
       <SettingsSection
         title={t('subtitle_automation_page.cleanup.title', 'Foreign-Track Cleanup')}
         description={t(
@@ -208,8 +230,10 @@ export function SubtitleAutomationPage() {
           />
         </SettingRow>
       </SettingsSection>
+      </section>
 
       {/* Live status card */}
+      <section id="status" data-testid="settings.subtitle-automation.section-status">
       <SettingsSection
         title={t('subtitle_automation_page.status.title', 'Live Status')}
         description={t(
@@ -290,6 +314,9 @@ export function SubtitleAutomationPage() {
           </div>
         ) : null}
       </SettingsSection>
+      </section>
+
+      </FormLayout>
     </SettingsDetailLayout>
   )
 }

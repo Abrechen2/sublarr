@@ -1004,6 +1004,16 @@
     "sync_section": "Sync-Engine",
     "episode_context_section": "Episoden-Kontext"
   },
+  "subtitles_scoring_page": {
+    "scoring_section": "Scoring",
+    "per_language_section": "Sprach-spezifische Scores",
+    "fansub_section": "Fansub-Präferenzen"
+  },
+  "subtitles_format_page": {
+    "naming_section": "Untertitel-Benennung",
+    "scan_filters_section": "Scan-Filter",
+    "embedded_extraction_section": "Eingebettete Extraktion"
+  },
   "system_hooks_page": {
     "title": "Hooks & Webhooks",
     "subtitle": "Shell-Hooks und eingehende Webhook-Endpunkte für Sonarr, Radarr und Jellyfin",
