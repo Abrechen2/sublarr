@@ -139,14 +139,17 @@ export function ProfilesOverridesPage() {
     })
   }
 
-  // Empty state: tree loaded but no series/movies have explicit overrides
-  const treeEmpty =
+  // Tree-empty hint: when no series/movies have explicit overrides yet, show
+  // a small contextual banner ABOVE the detail panel. The detail itself stays
+  // visible — Global and Profile always have settings to view/edit, and hiding
+  // them was a regression that confused users into thinking the page was
+  // broken (see 0.76.3-beta CHANGELOG).
+  const showOverridesHint =
     tree &&
     tree.profiles.every((p) => !p.series.length && !p.movies.length) &&
     !tree.unassigned_series.length &&
-    !tree.unassigned_movies.length
-
-  const showEmptyState = treeEmpty && (selected.type === 'global' || selected.type === 'profile')
+    !tree.unassigned_movies.length &&
+    (selected.type === 'global' || selected.type === 'profile')
 
   return (
     <SettingsDetailLayout
@@ -177,37 +180,40 @@ export function ProfilesOverridesPage() {
           </div>
         }
         overrideWidget={
-          showEmptyState ? (
-            <div
-              data-testid="profiles-overrides-empty-state"
-              className="flex flex-col gap-2 p-4 rounded bg-[var(--bg-elevated)] border border-[var(--border)] text-center"
-            >
-              <p className="text-sm font-semibold text-[var(--text-primary)]">
-                {t('profiles_overrides.empty_state.title', 'No overrides yet')}
-              </p>
-              <p className="text-xs text-[var(--text-muted)]">
-                {t(
-                  'profiles_overrides.empty_state.body',
-                  'Open a series in the library and click "Subtitle settings" to create your first override.',
-                )}
-              </p>
+          resolved ? (
+            <div className="flex flex-col gap-3">
+              {showOverridesHint && (
+                <div
+                  data-testid="profiles-overrides-empty-hint"
+                  className="flex items-start gap-2 p-3 rounded bg-[var(--bg-elevated)] border border-[var(--border)]"
+                >
+                  <span className="text-[10px] uppercase tracking-wider text-[var(--accent)] px-1.5 py-0.5 rounded bg-[var(--accent-bg)] mt-0.5">
+                    {t('profiles_overrides.empty_state.title', 'No overrides yet')}
+                  </span>
+                  <p className="text-xs text-[var(--text-muted)] m-0">
+                    {t(
+                      'profiles_overrides.empty_state.body',
+                      'Open a series or movie in the library and click "Subtitle settings" to create your first override.',
+                    )}
+                  </p>
+                </div>
+              )}
+              <ScopeDetail
+                resolved={resolved}
+                onChange={handleOverride}
+                onReset={() => resetMut.mutate()}
+                onRemove={
+                  (selected.type === 'series' || selected.type === 'movie')
+                    ? handleRemove
+                    : undefined
+                }
+                backHref={
+                  (selected.type === 'series' || selected.type === 'movie') && fromParam
+                    ? fromParam
+                    : undefined
+                }
+              />
             </div>
-          ) : resolved ? (
-            <ScopeDetail
-              resolved={resolved}
-              onChange={handleOverride}
-              onReset={() => resetMut.mutate()}
-              onRemove={
-                (selected.type === 'series' || selected.type === 'movie')
-                  ? handleRemove
-                  : undefined
-              }
-              backHref={
-                (selected.type === 'series' || selected.type === 'movie') && fromParam
-                  ? fromParam
-                  : undefined
-              }
-            />
           ) : (
             <div />
           )
