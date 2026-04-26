@@ -60,7 +60,7 @@ export function BottomNav() {
                 {showBadge && wantedCount > 0 && (
                   <span
                     data-testid="bottom-nav-wanted-badge"
-                    className="absolute -top-1 -right-2 text-[9px] font-semibold px-1 min-w-[14px] text-center rounded-full"
+                    className="absolute -top-1 left-full text-[9px] font-semibold leading-tight px-1 min-w-[14px] max-w-[28px] text-center rounded-full -translate-x-1/2 pointer-events-none"
                     style={{
                       backgroundColor: 'var(--warning-bg)',
                       color: 'var(--warning)',
