@@ -5,6 +5,21 @@ All notable changes to Sublarr are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.76.2-beta] - 2026-04-26
+
+### Added
+- **Section TOC navigation on every migrated Settings page** — sticky right-side navigation jumps between sections inside General, About, Automation, Connections, Notifications, Translation, Providers, Subtitles (Scoring/Format/Automation), Hooks, System Hooks, and System.
+- **New `/settings/system/diagnostics` sub-page** — observability + maintenance tools (Log Viewer, Disk Monitoring, Cache Management, Integrations, Migration) split out from the main System page so each side stays focused. Cross-link on `/settings/system` points to it.
+- **Tooltips on truncated tree items** in Profiles & Overrides — long series/movie/profile names are now readable on hover.
+
+### Changed
+- **15 Settings pages migrated to the template scaffold** — every major Settings page now uses one of the three Codex-blessed layouts (FormLayout with section TOC, CollectionLayout for master-detail lists, or RulesLayout for inheritance pages). The right-side TOC enforces a 6-section cap per page; pages that exceed it are split into sub-pages (System, Translation).
+- **EN copy in Profiles & Overrides clarified** — "Remove overrides" reads cleaner than the prior "Remove from overrides", confirm text disambiguates series-vs-movie, empty-state mentions both.
+- **Dead Events & Hooks redirect deleted from `/settings/system`** — was a stub left over from a Q1 reorganization that just linked to `/settings/notifications`. The actual events have always lived there.
+
+### Tests
+- Settings page test mocks upgraded to real-i18n lookup so titleKey-based assertions resolve through the actual `en/settings.json` instead of returning raw keys.
+
 ## [0.76.1-beta] - 2026-04-26
 
 ### Fixed
