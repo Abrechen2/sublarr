@@ -1,18 +1,36 @@
 /**
- * SystemSettings.test.tsx — Tests for the System settings page.
+ * SystemSettings.test.tsx — Tests for the System settings page (setup half).
  *
- * Covers:
- * - Renders the page via SettingsDetailLayout
- * - All 7 sections are present (data-testid attributes)
- * - Sections 5-7 (Integrations, Migration, API Keys) use the `advanced` prop and are collapsed by default
- * - Events & Hooks section contains a redirect link to /settings/notifications
+ * On 2026-04-26 the page was split: Log Viewer / Disk Monitoring /
+ * Cache Management / Integrations / Migration moved to the new
+ * SystemDiagnosticsPage (see its dedicated test file). The dead
+ * "Events & Hooks" redirect placeholder was deleted as part of the
+ * same refactor. This file now covers only what remains:
+ *
+ *   - Security
+ *   - Backup & Restore (+ Auto Backup controls)
+ *   - API Keys
+ *   - Settings Export / Import
+ *   - AniDB nav-tile / Remux nav-tile / Diagnostics cross-link
+ *   - Extended Security (covered through SecurityTab mock)
  */
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { render, screen, fireEvent } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'
 import { SystemSettings } from '../SystemSettings'
+import enSettings from '../../../i18n/locales/en/settings.json'
 
 // ─── Mocks ───────────────────────────────────────────────────────────────────
+
+function lookupKey(ns: Record<string, unknown>, key: string): string | undefined {
+  const parts = key.split('.')
+  let v: unknown = ns
+  for (const p of parts) {
+    if (typeof v !== 'object' || v === null) return undefined
+    v = (v as Record<string, unknown>)[p]
+  }
+  return typeof v === 'string' ? v : undefined
+}
 
 vi.mock('react-i18next', () => ({
   useTranslation: () => ({
@@ -20,7 +38,7 @@ vi.mock('react-i18next', () => ({
       if (typeof opts === 'string') return opts
       if (opts !== undefined && typeof opts === 'object' && 'count' in opts)
         return `${key}:${String(opts.count)}`
-      return key
+      return lookupKey(enSettings, key) ?? key.split('.').pop() ?? key
     },
   }),
 }))
@@ -53,32 +71,8 @@ vi.mock('../AdvancedTab', () => ({
   BackupTab: () => <div data-testid="backup-tab">BackupTab</div>,
 }))
 
-vi.mock('../ProtokollTab', () => ({
-  ProtokollTab: () => <div data-testid="protokoll-tab">ProtokollTab</div>,
-}))
-
-vi.mock('../IntegrationsTab', () => ({
-  IntegrationsTab: () => <div data-testid="integrations-tab">IntegrationsTab</div>,
-}))
-
-vi.mock('../MigrationTab', () => ({
-  MigrationTab: () => <div data-testid="migration-tab">MigrationTab</div>,
-}))
-
 vi.mock('../ApiKeysTab', () => ({
   ApiKeysTab: () => <div data-testid="api-keys-tab">ApiKeysTab</div>,
-}))
-
-vi.mock('../AnidbTab', () => ({
-  AnidbTab: () => <div data-testid="anidb-tab">AnidbTab</div>,
-}))
-
-vi.mock('../RemuxTab', () => ({
-  RemuxTab: () => <div data-testid="remux-tab">RemuxTab</div>,
-}))
-
-vi.mock('../CacheTab', () => ({
-  CacheTab: () => <div data-testid="cache-tab">CacheTab</div>,
 }))
 
 vi.mock('../ConfigExportImportTab', () => ({
@@ -94,9 +88,7 @@ vi.mock('@/hooks/useApi', () => ({
       backup_auto_interval_hours: 24,
       backup_auto_on_startup: 'false',
       backup_notify_on_failure: 'true',
-      disk_warning_threshold_percent: 90,
-      disk_warning_notify: 'true',
-      // Extended Security (Step 46)
+      // Extended Security
       session_timeout_minutes: 0,
       max_login_attempts: 20,
       lockout_duration_minutes: 60,
@@ -153,37 +145,27 @@ describe('SystemSettings', () => {
     expect(screen.getByTestId('section-backup-restore')).toBeInTheDocument()
   })
 
-  it('renders the Events & Hooks section', () => {
-    renderPage()
-    expect(screen.getByTestId('section-events-hooks')).toBeInTheDocument()
-  })
-
-  it('renders the Log Viewer section', () => {
-    renderPage()
-    expect(screen.getByTestId('section-log-viewer')).toBeInTheDocument()
-  })
-
-  it('renders the Integrations section', () => {
-    renderPage()
-    expect(screen.getByTestId('section-integrations')).toBeInTheDocument()
-  })
-
-  it('renders the Migration section', () => {
-    renderPage()
-    expect(screen.getByTestId('section-migration')).toBeInTheDocument()
-  })
-
   it('renders the API Keys section', () => {
     renderPage()
     expect(screen.getByTestId('section-api-keys')).toBeInTheDocument()
   })
 
+  it('renders the Settings Export / Import section', () => {
+    renderPage()
+    expect(screen.getByTestId('section-config-export-import')).toBeInTheDocument()
+  })
+
+  it('Events & Hooks redirect placeholder is gone (moved to /settings/notifications)', () => {
+    renderPage()
+    expect(screen.queryByTestId('section-events-hooks')).toBeNull()
+  })
+
   // ── All sections ──────────────────────────────────────────────────────────
 
-  it('renders exactly 10 settings sections', () => {
+  it('renders exactly 4 settings sections (after the diagnostics split)', () => {
     renderPage()
     const sections = screen.getAllByTestId('settings-section')
-    expect(sections).toHaveLength(10)
+    expect(sections).toHaveLength(4)
   })
 
   // ── Section titles ────────────────────────────────────────────────────────
@@ -202,34 +184,6 @@ describe('SystemSettings', () => {
     expect(title).toHaveTextContent('Backup & Restore')
   })
 
-  it('shows "Events & Hooks" section title', () => {
-    renderPage()
-    const wrapper = screen.getByTestId('section-events-hooks')
-    const title = wrapper.querySelector('[data-testid="settings-section-title"]')
-    expect(title).toHaveTextContent('Events & Hooks')
-  })
-
-  it('shows "Log Viewer" section title', () => {
-    renderPage()
-    const wrapper = screen.getByTestId('section-log-viewer')
-    const title = wrapper.querySelector('[data-testid="settings-section-title"]')
-    expect(title).toHaveTextContent('Log Viewer')
-  })
-
-  it('shows "Integrations" section title', () => {
-    renderPage()
-    const wrapper = screen.getByTestId('section-integrations')
-    const title = wrapper.querySelector('[data-testid="settings-section-title"]')
-    expect(title).toHaveTextContent('Integrations')
-  })
-
-  it('shows "Migration" section title', () => {
-    renderPage()
-    const wrapper = screen.getByTestId('section-migration')
-    const title = wrapper.querySelector('[data-testid="settings-section-title"]')
-    expect(title).toHaveTextContent('Migration')
-  })
-
   it('shows "API Keys" section title', () => {
     renderPage()
     const wrapper = screen.getByTestId('section-api-keys')
@@ -238,22 +192,6 @@ describe('SystemSettings', () => {
   })
 
   // ── Advanced sections collapsed by default ────────────────────────────────
-
-  it('Integrations advanced content is collapsed by default', () => {
-    renderPage()
-    const wrapper = screen.getByTestId('section-integrations')
-    const toggle = wrapper.querySelector('[data-testid="settings-section-advanced-toggle"]')
-    expect(toggle).toBeInTheDocument()
-    expect(wrapper.querySelector('[data-testid="settings-section-advanced-content"]')).toBeNull()
-  })
-
-  it('Migration advanced content is collapsed by default', () => {
-    renderPage()
-    const wrapper = screen.getByTestId('section-migration')
-    const toggle = wrapper.querySelector('[data-testid="settings-section-advanced-toggle"]')
-    expect(toggle).toBeInTheDocument()
-    expect(wrapper.querySelector('[data-testid="settings-section-advanced-content"]')).toBeNull()
-  })
 
   it('API Keys advanced content is collapsed by default', () => {
     renderPage()
@@ -281,47 +219,7 @@ describe('SystemSettings', () => {
     ).toBeNull()
   })
 
-  it('Events & Hooks section does not have an advanced toggle', () => {
-    renderPage()
-    const wrapper = screen.getByTestId('section-events-hooks')
-    expect(
-      wrapper.querySelector('[data-testid="settings-section-advanced-toggle"]'),
-    ).toBeNull()
-  })
-
-  it('Log Viewer section does not have an advanced toggle', () => {
-    renderPage()
-    const wrapper = screen.getByTestId('section-log-viewer')
-    expect(
-      wrapper.querySelector('[data-testid="settings-section-advanced-toggle"]'),
-    ).toBeNull()
-  })
-
   // ── Expanding advanced sections ───────────────────────────────────────────
-
-  it('Integrations expands and shows content after clicking toggle', () => {
-    renderPage()
-    const wrapper = screen.getByTestId('section-integrations')
-    const toggle = wrapper.querySelector(
-      '[data-testid="settings-section-advanced-toggle"]',
-    ) as HTMLElement
-    fireEvent.click(toggle)
-    expect(
-      wrapper.querySelector('[data-testid="settings-section-advanced-content"]'),
-    ).toBeInTheDocument()
-  })
-
-  it('Migration expands and shows content after clicking toggle', () => {
-    renderPage()
-    const wrapper = screen.getByTestId('section-migration')
-    const toggle = wrapper.querySelector(
-      '[data-testid="settings-section-advanced-toggle"]',
-    ) as HTMLElement
-    fireEvent.click(toggle)
-    expect(
-      wrapper.querySelector('[data-testid="settings-section-advanced-content"]'),
-    ).toBeInTheDocument()
-  })
 
   it('API Keys expands and shows content after clicking toggle', () => {
     renderPage()
@@ -335,26 +233,19 @@ describe('SystemSettings', () => {
     ).toBeInTheDocument()
   })
 
-  // ── Events & Hooks redirect link ─────────────────────────────────────────
+  // ── Cross-link tile + nav tiles ──────────────────────────────────────────
 
-  it('renders a link to /settings/notifications in the Events & Hooks section', () => {
+  it('renders the Diagnostics cross-link', () => {
     renderPage()
-    const link = screen.getByTestId('events-hooks-link')
-    expect(link).toBeInTheDocument()
-    expect(link).toHaveAttribute('href', '/settings/notifications')
+    expect(screen.getByTestId('section-diagnostics-link')).toBeInTheDocument()
   })
 
-  it('Events & Hooks section contains redirect text', () => {
+  it('Diagnostics link points to /settings/system/diagnostics', () => {
     renderPage()
-    expect(screen.getByTestId('events-hooks-redirect')).toBeInTheDocument()
+    const wrapper = screen.getByTestId('section-diagnostics-link')
+    const link = wrapper.querySelector('a')
+    expect(link).toHaveAttribute('href', '/settings/system/diagnostics')
   })
-
-  it('Events & Hooks link text says "Notifications settings"', () => {
-    renderPage()
-    expect(screen.getByTestId('events-hooks-link')).toHaveTextContent('Notifications settings')
-  })
-
-  // ── New sections (Steps 29–31) ────────────────────────────────────────────
 
   it('renders the AniDB section', () => {
     renderPage()
@@ -380,30 +271,19 @@ describe('SystemSettings', () => {
 
   // ── Summary text for advanced sections ───────────────────────────────────
 
-  it('shows a summary description inside the Integrations section', () => {
-    renderPage()
-    expect(screen.getByTestId('integrations-summary')).toBeInTheDocument()
-  })
-
-  it('shows a summary description inside the Migration section', () => {
-    renderPage()
-    expect(screen.getByTestId('migration-summary')).toBeInTheDocument()
-  })
-
   it('shows a summary description inside the API Keys section', () => {
     renderPage()
     expect(screen.getByTestId('api-keys-summary')).toBeInTheDocument()
   })
 })
 
-// ─── Auto Backup section (Step 40) ───────────────────────────────────────────
+// ─── Auto Backup section ────────────────────────────────────────────────────
 
 describe('Auto Backup section', () => {
   beforeEach(() => { vi.clearAllMocks() })
 
   it('toggle-backup-auto-enabled renders unchecked by default', () => {
     renderPage()
-    // Toggle is inside backup-auto-controls which is inside backup-restore section
     expect(screen.getByTestId('backup-auto-controls')).toBeInTheDocument()
     const togBtn = screen.getByTestId('input-backup-auto-interval-hours')
     expect(togBtn).toBeInTheDocument()
@@ -417,57 +297,19 @@ describe('Auto Backup section', () => {
 
   it('toggle-backup-notify-on-failure renders checked by default (default true)', () => {
     renderPage()
-    // toggle-backup-notify-on-failure renders in backup-auto-controls
     expect(screen.getByTestId('backup-auto-controls')).toBeInTheDocument()
   })
 
   it('toggling backup_auto_enabled calls updateConfig with { backup_auto_enabled: "true" }', () => {
     renderPage()
-    // The Toggle for backup_auto_enabled is a button role=switch inside backup-auto-controls
     const controls = screen.getByTestId('backup-auto-controls')
     const switches = controls.querySelectorAll('[role="switch"]')
-    // First switch is backup_auto_enabled
     fireEvent.click(switches[0])
     expect(mockSaveConfig).toHaveBeenCalledWith({ backup_auto_enabled: 'true' })
   })
 })
 
-// ─── Disk Monitoring section (Step 41) ───────────────────────────────────────
-
-describe('Disk Monitoring section', () => {
-  beforeEach(() => { vi.clearAllMocks() })
-
-  it('renders heading "Disk Monitoring"', () => {
-    renderPage()
-    const wrapper = screen.getByTestId('section-disk-monitoring')
-    const title = wrapper.querySelector('[data-testid="settings-section-title"]')
-    expect(title).toHaveTextContent('system_tab.disk_monitoring_title')
-  })
-
-  it('input-disk-warning-threshold-percent renders with value 90', () => {
-    renderPage()
-    const input = screen.getByTestId('input-disk-warning-threshold-percent') as HTMLInputElement
-    expect(Number(input.value)).toBe(90)
-  })
-
-  it('toggle-disk-warning-notify renders checked by default', () => {
-    renderPage()
-    expect(screen.getByTestId('section-disk-monitoring')).toBeInTheDocument()
-    // The Toggle for disk_warning_notify (default true)
-    const controls = screen.getByTestId('disk-monitoring-controls')
-    const switches = controls.querySelectorAll('[role="switch"]')
-    expect(switches[0]).toHaveAttribute('aria-checked', 'true')
-  })
-
-  it('changing threshold calls updateConfig with { disk_warning_threshold_percent: 85 }', () => {
-    renderPage()
-    const input = screen.getByTestId('input-disk-warning-threshold-percent')
-    fireEvent.change(input, { target: { value: '85' } })
-    expect(mockSaveConfig).toHaveBeenCalledWith({ disk_warning_threshold_percent: 85 })
-  })
-})
-
-// ─── Extended Security section (Step 46) ─────────────────────────────────────
+// ─── Extended Security section (covered through SecurityTab mock) ───────────
 
 describe('Extended Security section (SecurityTab)', () => {
   beforeEach(() => { vi.clearAllMocks() })

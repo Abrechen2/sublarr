@@ -1019,6 +1019,26 @@
     "logs_section": "Hook-Logs",
     "webhooks_section": "Eingehende Webhooks"
   },
+  "system_setup_page": {
+    "security_section": "Sicherheit",
+    "backup_restore_section": "Backup & Wiederherstellung",
+    "api_keys_section": "API-Schlüssel",
+    "config_export_section": "Einstellungen exportieren / importieren"
+  },
+  "system_diagnostics_page": {
+    "title": "Diagnose",
+    "subtitle": "Logs, Festplatten-Monitoring, Cache-Verwaltung, Integrationen und Migrations-Tools",
+    "log_viewer_section": "Log-Viewer",
+    "log_viewer_desc": "Anwendungs-Logs anzeigen und Support-Bundles herunterladen.",
+    "disk_monitoring_section": "Festplatten-Monitoring",
+    "cache_section": "Cache-Verwaltung",
+    "integrations_section": "Integrationen",
+    "integrations_desc": "Bazarr-Migration, Kompatibilitäts-Checks, Diagnose und Datenexport.",
+    "integrations_summary": "Erweiterte Integrations-Tools inklusive Bazarr-Kompatibilitäts-Checks, Diagnose und Export-Utilities.",
+    "migration_section": "Migration",
+    "migration_desc": "Daten aus Bazarr und anderen Untertitel-Managern importieren.",
+    "migration_summary": "Bestehende Untertitel-Datenbank und Einstellungen aus Bazarr oder anderen kompatiblen Managern migrieren."
+  },
   "system_hooks_page": {
     "title": "Hooks & Webhooks",
     "subtitle": "Shell-Hooks und eingehende Webhook-Endpunkte für Sonarr, Radarr und Jellyfin",

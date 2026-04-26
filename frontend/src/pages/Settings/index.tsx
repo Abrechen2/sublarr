@@ -18,7 +18,8 @@
  * /settings/translation/cost-memory        → CostMemoryPage
  * /settings/translation/queue              → QueueDashboard
  * /settings/notifications                 → NotificationsSettings
- * /settings/system                        → SystemSettings
+ * /settings/system                        → SystemSettings (setup half)
+ * /settings/system/diagnostics            → SystemDiagnosticsPage (logs + monitoring + tools)
  * /settings/system/hooks                  → SystemHooksPage
  * /settings/system/scheduler              → SchedulerPage
  * /settings/profiles                       → ProfilesOverridesPage
@@ -92,6 +93,9 @@ const NotificationsSettings = lazy(() =>
 const SystemSettings = lazy(() =>
   import('./SystemSettings').then((m) => ({ default: m.SystemSettings })),
 )
+const SystemDiagnosticsPage = lazy(() =>
+  import('./SystemDiagnosticsPage').then((m) => ({ default: m.SystemDiagnosticsPage })),
+)
 const SystemHooksPage = lazy(() =>
   import('./SystemHooksPage').then((m) => ({ default: m.SystemHooksPage })),
 )
@@ -156,6 +160,7 @@ export function SettingsPage() {
             />
             <Route path="notifications" element={<NotificationsSettings />} />
             <Route path="system" element={<SystemSettings />} />
+            <Route path="system/diagnostics" element={<SystemDiagnosticsPage />} />
             <Route path="system/hooks" element={<SystemHooksPage />} />
             <Route path="system/scheduler" element={<SchedulerPage />} />
             <Route path="system/sync-engines" element={<SyncEnginesTab />} />

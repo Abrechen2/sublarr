@@ -958,6 +958,26 @@
     "logs_section": "Hook Logs",
     "webhooks_section": "Incoming Webhooks"
   },
+  "system_setup_page": {
+    "security_section": "Security",
+    "backup_restore_section": "Backup & Restore",
+    "api_keys_section": "API Keys",
+    "config_export_section": "Settings Export / Import"
+  },
+  "system_diagnostics_page": {
+    "title": "Diagnostics",
+    "subtitle": "Logs, disk monitoring, cache management, integrations, and migration tools",
+    "log_viewer_section": "Log Viewer",
+    "log_viewer_desc": "View application logs and download support bundles.",
+    "disk_monitoring_section": "Disk Monitoring",
+    "cache_section": "Cache Management",
+    "integrations_section": "Integrations",
+    "integrations_desc": "Bazarr migration, compatibility checks, diagnostics, and data export.",
+    "integrations_summary": "Advanced integration tools including Bazarr compatibility checks, diagnostics, and export utilities.",
+    "migration_section": "Migration",
+    "migration_desc": "Import data from Bazarr and other subtitle managers.",
+    "migration_summary": "Migrate your existing subtitle database and settings from Bazarr or other compatible managers."
+  },
   "post_processing": {
     "enabled_hint": "Enable the post-processing pipeline. When disabled, no automatic fixes are applied after download.",
     "auto_sync_hint": "Automatically synchronize subtitle timing to the video after download.",
