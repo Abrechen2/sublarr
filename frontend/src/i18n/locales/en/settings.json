@@ -1101,7 +1101,13 @@
     "dyn_timeout_min": "Dynamic Timeout Min (s)",
     "dyn_timeout_max": "Dynamic Timeout Max (s)",
     "circuit_breaker_threshold": "Circuit Breaker Threshold",
-    "circuit_breaker_cooldown": "Circuit Breaker Cooldown (s)"
+    "circuit_breaker_cooldown": "Circuit Breaker Cooldown (s)",
+    "global_section": "Global provider settings",
+    "marketplace_section": "Marketplace",
+    "anticaptcha_section": "Anti-Captcha",
+    "cache_section": "Cache management",
+    "download_limits_section": "Download limits",
+    "advanced_section": "Provider engine"
   },
   "profiles_overrides": {
     "title": "Profiles & Overrides",

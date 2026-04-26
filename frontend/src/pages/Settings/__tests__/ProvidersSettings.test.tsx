@@ -153,7 +153,12 @@ describe('ProvidersSettings', () => {
 
   it('renders section title "Global provider settings"', () => {
     renderPage()
-    expect(screen.getByText('Global provider settings')).toBeInTheDocument()
+    // FormLayout TOC also lists this title — pick the section heading by testid
+    const headings = screen.getAllByText('Global provider settings')
+    const sectionHeading = headings.find(
+      (el) => el.getAttribute('data-testid') === 'settings-section-title',
+    )
+    expect(sectionHeading).toBeInTheDocument()
   })
 
   it('renders the marketplace section', () => {

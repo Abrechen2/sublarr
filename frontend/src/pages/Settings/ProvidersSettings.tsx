@@ -3,6 +3,8 @@ import { Store, ShieldAlert, Trash2, Settings2, Download } from 'lucide-react'
 import { SettingsDetailLayout } from '@/components/settings/SettingsDetailLayout'
 import { SettingsSection } from '@/components/settings/SettingsSection'
 import { FormGroup } from '@/components/settings/FormGroup'
+import { FormLayout } from '@/components/settings/layouts'
+import type { FormSectionDef } from '@/components/settings/layouts'
 import { Toggle } from '@/components/shared/Toggle'
 import { useConfig, useUpdateConfig } from '@/hooks/useApi'
 import { useClearProviderCache } from '@/hooks/useApi'
@@ -18,6 +20,19 @@ function parseNum(v: string | undefined, fallback: number): number {
 }
 
 const inputStyle: React.CSSProperties = { ...settingsInputStyle, width: '220px', outline: 'none' }
+
+// Settings Template B (FormLayout) wraps the 6 global-provider sections below
+// the Template A CollectionView. Order matches scroll order; titleKey resolves
+// via useTranslation('settings'). Section count is exactly at the 6-section
+// cap — adding a 7th MUST be split into a sub-page (Codex blueprint).
+const SECTIONS: readonly FormSectionDef[] = [
+  { id: 'global',          titleKey: 'providers_page.global_section' },
+  { id: 'marketplace',     titleKey: 'providers_page.marketplace_section' },
+  { id: 'anticaptcha',     titleKey: 'providers_page.anticaptcha_section' },
+  { id: 'cache',           titleKey: 'providers_page.cache_section' },
+  { id: 'download-limits', titleKey: 'providers_page.download_limits_section' },
+  { id: 'advanced',        titleKey: 'providers_page.advanced_section', advancedCount: 11 },
+]
 
 export function ProvidersSettings() {
   const { t } = useTranslation('settings')
@@ -68,7 +83,12 @@ export function ProvidersSettings() {
         />
       </div>
 
-      {/* Global provider settings — apply to all providers, not per-instance */}
+      {/* Global provider settings — Codex Settings Template B (FormLayout)
+          wraps the six sections below the CollectionView. Each <section id>
+          resolves a TOC anchor in the right rail. */}
+      <FormLayout sections={SECTIONS}>
+
+      <section id="global" data-testid="settings.providers.section-global">
       <div data-testid="providers-global-section">
       <SettingsSection
         title={t('settings.providers.global.title', 'Global provider settings')}
@@ -193,8 +213,10 @@ export function ProvidersSettings() {
         </div>
       </SettingsSection>
       </div>
+      </section>
 
       {/* Marketplace */}
+      <section id="marketplace" data-testid="settings.providers.section-marketplace">
       <SettingsSection
         data-testid="providers-marketplace-section"
         title={t('settings.providers.marketplace.title', 'Marketplace')}
@@ -258,8 +280,10 @@ export function ProvidersSettings() {
           </div>
         </div>
       </SettingsSection>
+      </section>
 
       {/* Anti-Captcha Config */}
+      <section id="anticaptcha" data-testid="settings.providers.section-anticaptcha">
       <SettingsSection
         data-testid="providers-anticaptcha-section"
         title={t('settings.providers.anticaptcha.title', 'Anti-Captcha')}
@@ -312,8 +336,10 @@ export function ProvidersSettings() {
           )}
         </div>
       </SettingsSection>
+      </section>
 
       {/* Cache Management */}
+      <section id="cache" data-testid="settings.providers.section-cache">
       <SettingsSection
         data-testid="providers-cache-section"
         title={t('settings.providers.cache.title', 'Cache Management')}
@@ -340,8 +366,10 @@ export function ProvidersSettings() {
           </button>
         </div>
       </SettingsSection>
+      </section>
 
       {/* Download Limits (Step 44) */}
+      <section id="download-limits" data-testid="settings.providers.section-download-limits">
       <div data-testid="section-download-limits">
         <SettingsSection
           title={t('settings.providers.downloadLimits.title', 'Download Limits')}
@@ -423,8 +451,10 @@ export function ProvidersSettings() {
           </div>
         </SettingsSection>
       </div>
+      </section>
 
       {/* Advanced — Provider Engine */}
+      <section id="advanced" data-testid="settings.providers.section-advanced">
       <div data-testid="providers-advanced-section">
         <SettingsSection
           title={t('settings.providers.advanced.title', 'Provider Engine')}
@@ -653,6 +683,9 @@ export function ProvidersSettings() {
           <span />
         </SettingsSection>
       </div>
+      </section>
+
+      </FormLayout>
     </SettingsDetailLayout>
   )
 }

@@ -1162,7 +1162,13 @@
     "dyn_timeout_min": "Dyn. Timeout min. (s)",
     "dyn_timeout_max": "Dyn. Timeout max. (s)",
     "circuit_breaker_threshold": "Circuit-Breaker Schwelle",
-    "circuit_breaker_cooldown": "Circuit-Breaker Cooldown (s)"
+    "circuit_breaker_cooldown": "Circuit-Breaker Cooldown (s)",
+    "global_section": "Globale Provider-Einstellungen",
+    "marketplace_section": "Marketplace",
+    "anticaptcha_section": "Anti-Captcha",
+    "cache_section": "Cache-Verwaltung",
+    "download_limits_section": "Download-Limits",
+    "advanced_section": "Provider-Engine"
   },
   "glossary_page": {
     "title": "Glossar",
