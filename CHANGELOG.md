@@ -5,6 +5,11 @@ All notable changes to Sublarr are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.76.1-beta] - 2026-04-26
+
+### Fixed
+- **Series and movies created via the `Subtitle settings →` button no longer show as `#<id>` placeholders in the Profiles & Overrides tree.** They previously had no row in `search_series` / `wanted_items` / `standalone_series`, so the title-lookup fell through to a placeholder. The endpoint now consults a cached Sonarr `/api/v3/series` map (and Radarr `/api/v3/movie` for movies) for any eligible-but-titleless ID — one HTTP call per Arr instance per 5 min, errors swallowed silently so reachability problems never break the tree. Same fallback applied to `/resolved/series/<id>` and `/resolved/movie/<id>` detail-pane headers.
+
 ## [0.76.0-beta] - 2026-04-26
 
 ### Added
