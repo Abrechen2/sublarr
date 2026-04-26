@@ -5,6 +5,17 @@ All notable changes to Sublarr are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.76.4-beta] - 2026-04-26
+
+### Fixed
+- **Mojibake repair in en/de UI strings** — the Trash page expand/collapse arrows now show ▼ / ▲ instead of `â–¼` / `â–²`. Same root cause fixed for the horizontal-ellipsis (…), em-dash (—), right-arrow (→), and the math `≥` glyph in 7 strings per language.
+- **Wanted page no longer leaks raw i18n keys** — the `wanted` and `wanted_extra` namespaces never existed in `activity.json`. 47 wanted.* keys + 3 wanted_extra.* keys added in en + de so column headers, status labels, action buttons, and the legend localize correctly.
+- **Settings sidebar finally honours the language switcher** — 19 missing `settings.nav.*` keys plus `settings.categories.profiles.title` were falling through to inline German fallbacks. Defined the full set in en + de so labels like "App & Oberfläche", "Bereinigung", and "Untertitel-Automation" properly translate.
+- **Activity sidebar label** — was "Translations" in EN, confusing because the page is multi-tab (Queue / Translations / History / Blacklist). Renamed to "Activity" to match the page's own title.
+- **`wanted_search_complete` event** is now registered in `events.catalog` so the recurring `emit_event called with unknown event` warning in prod logs goes away and the SocketIO bridge propagates the event to connected clients.
+- **Bottom-nav "99+" badge no longer overlaps adjacent items** — re-anchored the Wanted-tab badge to the icon corner via `left-full -translate-x-1/2`, with `max-w-[28px]` and `pointer-events-none` so it can't bleed into the next slot or steal taps.
+- **Default profile renamed in production DB** from "Standart" → "Standard". One-shot SQL fix on Cardinal; fresh installs already used "Default" so no seed change needed.
+
 ## [0.76.3-beta] - 2026-04-26
 
 ### Fixed
