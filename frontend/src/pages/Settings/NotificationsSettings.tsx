@@ -13,6 +13,18 @@ import { useConfig, useUpdateConfig } from '@/hooks/useApi'
 import { SettingsDetailLayout } from '@/components/settings/SettingsDetailLayout'
 import { SettingsSection } from '@/components/settings/SettingsSection'
 import { FormGroup } from '@/components/settings/FormGroup'
+import { FormLayout } from '@/components/settings/layouts'
+import type { FormSectionDef } from '@/components/settings/layouts'
+
+// Settings Template B (FormLayout). Four sections — well under the cap.
+// Quiet Hours stays advanced-collapsed; the TOC entry still appears so the
+// section is discoverable for users who want to enable it.
+const SECTIONS: readonly FormSectionDef[] = [
+  { id: 'channels',     titleKey: 'notifications_page.channels_section' },
+  { id: 'events-hooks', titleKey: 'notifications_page.events_hooks_section' },
+  { id: 'history',      titleKey: 'notifications_page.history_section' },
+  { id: 'quiet-hours',  titleKey: 'notifications_page.quiet_hours_section' },
+]
 
 // ─── Lazy sub-tabs ───────────────────────────────────────────────────────────
 
@@ -221,10 +233,13 @@ export function NotificationsSettings() {
         'Channels, events, hooks, and quiet hours settings',
       )}
     >
+      <FormLayout sections={SECTIONS}>
+
       {/* 1. Notification Channels */}
+      <section id="channels" data-testid="settings.notifications.section-channels">
       <div data-testid="section-notification-channels">
         <SettingsSection
-          title={t('settings.notifications.channels.title', 'Notification Channels')}
+          title={t('notifications_page.channels_section')}
           description={t(
             'settings.notifications.channels.description',
             'Configure notification toggles, webhook channels, and message templates.',
@@ -238,11 +253,13 @@ export function NotificationsSettings() {
           </div>
         </SettingsSection>
       </div>
+      </section>
 
       {/* 2. Events & Hooks */}
+      <section id="events-hooks" data-testid="settings.notifications.section-events-hooks">
       <div data-testid="section-events-hooks">
         <SettingsSection
-          title={t('settings.notifications.eventsHooks.title', 'Events & Hooks')}
+          title={t('notifications_page.events_hooks_section')}
           description={t(
             'settings.notifications.eventsHooks.description',
             'Manage event catalog, hooks, webhooks, and hook execution logs.',
@@ -256,11 +273,13 @@ export function NotificationsSettings() {
           </div>
         </SettingsSection>
       </div>
+      </section>
 
       {/* 3. Notification History */}
+      <section id="history" data-testid="settings.notifications.section-history">
       <div data-testid="section-notification-history">
         <SettingsSection
-          title={t('settings.notifications.history.title', 'Notification History')}
+          title={t('notifications_page.history_section')}
           description={t(
             'settings.notifications.history.description',
             'Recent notifications sent, with resend capability.',
@@ -274,11 +293,13 @@ export function NotificationsSettings() {
           </div>
         </SettingsSection>
       </div>
+      </section>
 
       {/* 4. Quiet Hours (advanced — collapsed by default) */}
+      <section id="quiet-hours" data-testid="settings.notifications.section-quiet-hours">
       <div data-testid="section-quiet-hours">
         <SettingsSection
-          title={t('settings.notifications.quietHours.title', 'Quiet Hours')}
+          title={t('notifications_page.quiet_hours_section')}
           description={t(
             'settings.notifications.quietHours.description',
             'Suppress notifications during specific time periods.',
@@ -297,6 +318,9 @@ export function NotificationsSettings() {
           </p>
         </SettingsSection>
       </div>
+      </section>
+
+      </FormLayout>
     </SettingsDetailLayout>
   )
 }

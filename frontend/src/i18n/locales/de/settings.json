@@ -990,6 +990,12 @@
     "title": "Post-Processing",
     "subtitle": "Automatisch Fixes, Sync und Bereinigung nach dem Untertitel-Download"
   },
+  "notifications_page": {
+    "channels_section": "Benachrichtigungs-Kanäle",
+    "events_hooks_section": "Events & Hooks",
+    "history_section": "Benachrichtigungs-Verlauf",
+    "quiet_hours_section": "Ruhezeiten"
+  },
   "system_hooks_page": {
     "title": "Hooks & Webhooks",
     "subtitle": "Shell-Hooks und eingehende Webhook-Endpunkte für Sonarr, Radarr und Jellyfin",

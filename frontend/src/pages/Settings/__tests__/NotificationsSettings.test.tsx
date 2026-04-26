@@ -12,6 +12,7 @@ import { render, screen, fireEvent, waitFor } from '@testing-library/react'
 import { BrowserRouter } from 'react-router-dom'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { NotificationsSettings } from '../NotificationsSettings'
+import enSettings from '../../../i18n/locales/en/settings.json'
 
 // ─── Mocks ───────────────────────────────────────────────────────────────────
 
@@ -25,13 +26,23 @@ vi.mock('../EventsTab', () => ({
   EventsHooksTab: () => <div data-testid="events-hooks-tab">EventsHooksTab</div>,
 }))
 
+function lookupKey(ns: Record<string, unknown>, key: string): string | undefined {
+  const parts = key.split('.')
+  let v: unknown = ns
+  for (const p of parts) {
+    if (typeof v !== 'object' || v === null) return undefined
+    v = (v as Record<string, unknown>)[p]
+  }
+  return typeof v === 'string' ? v : undefined
+}
+
 vi.mock('react-i18next', () => ({
   useTranslation: () => ({
     t: (key: string, opts?: string | Record<string, unknown>) => {
       if (typeof opts === 'string') return opts
       if (opts !== undefined && typeof opts === 'object' && 'count' in opts)
         return `${key}:${String(opts.count)}`
-      return key
+      return lookupKey(enSettings, key) ?? key.split('.').pop() ?? key
     },
   }),
 }))

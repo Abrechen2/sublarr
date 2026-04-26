@@ -929,6 +929,12 @@
     "title": "Post-Processing",
     "subtitle": "Automatically apply fixes, sync and cleanup after subtitle download"
   },
+  "notifications_page": {
+    "channels_section": "Notification Channels",
+    "events_hooks_section": "Events & Hooks",
+    "history_section": "Notification History",
+    "quiet_hours_section": "Quiet Hours"
+  },
   "post_processing": {
     "enabled_hint": "Enable the post-processing pipeline. When disabled, no automatic fixes are applied after download.",
     "auto_sync_hint": "Automatically synchronize subtitle timing to the video after download.",
