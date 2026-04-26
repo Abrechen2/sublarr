@@ -3,7 +3,18 @@ import { useQuery } from '@tanstack/react-query'
 import { useTranslation } from 'react-i18next'
 import { SettingsDetailLayout } from '@/components/settings/SettingsDetailLayout'
 import { SettingsSection } from '@/components/settings/SettingsSection'
+import { FormLayout } from '@/components/settings/layouts'
+import type { FormSectionDef } from '@/components/settings/layouts'
 import { getHealth } from '@/api/client'
+
+// Settings Template B (FormLayout) — Codex-named reference for an info-heavy
+// page. titleKeys reuse the existing about_page.*_title strings (the
+// section heading and the TOC entry should always read the same).
+const SECTIONS: readonly FormSectionDef[] = [
+  { id: 'version',   titleKey: 'about_page.version_title' },
+  { id: 'support',   titleKey: 'about_page.support_title' },
+  { id: 'community', titleKey: 'about_page.community_title' },
+]
 
 // ─── Component ────────────────────────────────────────────────────────────────
 
@@ -22,9 +33,11 @@ export function AboutSettings() {
       title={t('about_page.title')}
       subtitle={t('about_page.subtitle')}
     >
-      <div data-testid="about-settings" className="space-y-4">
+      <div data-testid="about-settings">
+        <FormLayout sections={SECTIONS}>
 
         {/* ── Version ───────────────────────────────────────────────────── */}
+        <section id="version" data-testid="settings.about.section-version">
         <div data-testid="section-version">
           <SettingsSection
             title={t('about_page.version_title')}
@@ -58,8 +71,10 @@ export function AboutSettings() {
             </div>
           </SettingsSection>
         </div>
+        </section>
 
         {/* ── Links ─────────────────────────────────────────────────────── */}
+        <section id="support" data-testid="settings.about.section-support">
         <div data-testid="section-links">
           <SettingsSection
             title={t('about_page.support_title')}
@@ -166,8 +181,10 @@ export function AboutSettings() {
             </div>
           </SettingsSection>
         </div>
+        </section>
 
         {/* ── Community ─────────────────────────────────────────────────── */}
+        <section id="community" data-testid="settings.about.section-community">
         <div data-testid="section-community">
           <SettingsSection
             title={t('about_page.community_title')}
@@ -246,7 +263,9 @@ export function AboutSettings() {
             </div>
           </SettingsSection>
         </div>
+        </section>
 
+        </FormLayout>
       </div>
     </SettingsDetailLayout>
   )
