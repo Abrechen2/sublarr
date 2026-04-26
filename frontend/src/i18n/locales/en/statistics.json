@@ -22,7 +22,9 @@
     "count": "Count",
     "avg_score": "Avg Score",
     "success": "Success",
-    "issues": "Issues"
+    "issues": "Issues",
+    "quality_trend": "Subtitle Quality Trend",
+    "series_quality": "Series Subtitle Quality"
   },
   "no_data": "No data for the selected period. Run subtitle searches or translations to populate statistics.",
   "exported": "Statistics exported as {{format}}",

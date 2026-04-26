@@ -44,7 +44,8 @@
     "ignored": "Ignored",
     "not_configured": "Not configured",
     "skipped": "Skipped",
-    "forced": "Forced"
+    "forced": "Forced",
+    "scanning": "Scanning..."
   },
   "actions": {
     "save": "Save",
@@ -177,7 +178,10 @@
     "allowed_langs": "Allowed Languages",
     "format_pref": "Format Preference",
     "schedule": "Schedule",
-    "preview": "Preview"
+    "preview": "Preview",
+    "run_success": "Ausgeführt",
+    "run_error": "Fehler beim Ausführen",
+    "preview_error": "Vorschau fehlgeschlagen"
   },
   "health": {
     "running": "Running health checks...",
@@ -421,6 +425,37 @@
       "translation_backends": "Backends & Glossary",
       "translation_cost": "Cost & Memory",
       "translation_queue": "Queue"
+    },
+    "automation": {
+      "searchScan": {
+        "interval": "Wanted Search Interval (hours)",
+        "intervalHint": "How often (in hours) Sublarr searches for missing subtitles.",
+        "searchOnStartup": "Search on Startup",
+        "searchOnStartupHint": "Run a wanted search every time Sublarr starts.",
+        "description": "Configure how often Sublarr searches for missing subtitles and scans the library."
+      },
+      "upgradeRules": {
+        "checkInterval": "Upgrade Scan Interval (hours)",
+        "checkIntervalHint": "How often (in hours) existing subtitles are checked for upgrade candidates.",
+        "enabled": "Auto-Upgrade Enabled",
+        "enabledHint": "Automatically replace existing subtitles when a higher-scoring one is found.",
+        "threshold": "Minimum Score Delta",
+        "thresholdHint": "Minimum score improvement required before replacing an existing subtitle.",
+        "description": "Define when and how existing subtitles should be replaced with better ones."
+      },
+      "scheduledTasks": {
+        "hint": "Scheduled task details and run history can be viewed on the Tasks page.",
+        "description": "Overview of background tasks managed by Sublarr.",
+        "summary": "Background tasks such as wanted searches and upgrade checks run on configurable intervals."
+      }
+    },
+    "hooks": {
+      "outgoing": {
+        "title": "Outgoing Hooks"
+      },
+      "logs": {
+        "title": "Hook Logs"
+      }
     }
   },
   "common": {

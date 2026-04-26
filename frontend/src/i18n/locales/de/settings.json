@@ -437,6 +437,10 @@
         "label": "DB-Bereinigung",
         "desc": "Entfernt DB-Einträge ohne Datei auf Disk"
       }
+    },
+    "page": {
+      "title": "Bereinigung",
+      "subtitle": "Automatisierte Bereinigung von Sidecar-Dateien und Datenbankeinträgen"
     }
   },
   "integrations": {
@@ -1375,5 +1379,145 @@
   "nav": {
     "profiles_overrides": "Profile & Overrides",
     "subtitle_automation": "Untertitel-Automation"
+  },
+  "settings": {
+    "automation": {
+      "pipeline": {
+        "autoTranslate": "Auto-Übersetzen",
+        "autoTranslateHint": "Heruntergeladene Untertitel automatisch in die Zielsprache übersetzen.",
+        "autoSync": "Auto-Sync",
+        "autoSyncHint": "Untertitel automatisch ans Video-Timing synchronisieren nach dem Download.",
+        "autoCleanup": "Auto-Bereinigung",
+        "autoCleanupHint": "Doppelte und überflüssige Untertitel-Dateien automatisch nach dem Extract entfernen.",
+        "title": "Verarbeitungs-Pipeline",
+        "description": "Steuere Post-Download-Verarbeitung: Übersetzung, Synchronisation und Bereinigung."
+      }
+    },
+    "breadcrumb": {
+      "settings": "Einstellungen"
+    },
+    "hooks": {
+      "title": "Hooks",
+      "description": "Verwalte ausgehende Hooks, die Skripte ausführen oder Webhooks bei System-Events aufrufen.",
+      "outgoing": {
+        "description": "Lokale Skripte ausführen, wenn Events eintreten."
+      },
+      "logs": {
+        "description": "Ausführungs-Verlauf aller ausgehenden Hooks."
+      }
+    },
+    "notifications": {
+      "quietHours": {
+        "stubBanner": "Konfiguriere das Zeitfenster, in dem Benachrichtigungen unterdrückt werden.",
+        "enabled": "Ruhezeiten aktiv",
+        "enabledHint": "Alle Benachrichtigungen während des konfigurierten Zeitfensters unterdrücken.",
+        "start": "Startzeit",
+        "startHint": "Zeit, ab der die Ruhezeit beginnt (HH:MM)",
+        "end": "Endzeit",
+        "endHint": "Zeit, ab der die Ruhezeit endet (HH:MM)",
+        "timezone": "Zeitzone",
+        "timezoneHint": "Zeitzone für das Ruhezeit-Fenster",
+        "description": "Benachrichtigungen während bestimmter Zeitfenster unterdrücken.",
+        "summary": "Definiere Zeitfenster, in denen alle Benachrichtigungs-Zustellung pausiert wird."
+      },
+      "channels": {
+        "description": "Konfiguriere Benachrichtigungs-Toggles, Webhook-Kanäle und Nachrichten-Vorlagen."
+      },
+      "eventsHooks": {
+        "description": "Verwalte Event-Katalog, Hooks, Webhooks und Hook-Ausführungs-Logs."
+      },
+      "history": {
+        "description": "Kürzlich gesendete Benachrichtigungen mit Resend-Möglichkeit."
+      }
+    },
+    "providers": {
+      "cache_cleared": "Alle Provider-Caches geleert",
+      "cache_clear_failed": "Cache-Leerung fehlgeschlagen",
+      "title": "Provider",
+      "subtitle": "Untertitel-Provider, Marketplace-Plugins und Captcha-Einstellungen verwalten",
+      "global": {
+        "title": "Globale Provider-Einstellungen",
+        "description": "Gilt über alle konfigurierten Untertitel-Provider — Hidden-Liste, Dedup, Priorisierung, Rate-Limits, Timeouts und Cache-TTL."
+      },
+      "marketplace": {
+        "title": "Marketplace",
+        "description": "Community- und offizielle Untertitel-Provider-Plugins durchsuchen und installieren."
+      },
+      "anticaptcha": {
+        "title": "Anti-Captcha",
+        "description": "Captcha-Challenges von Providern wie Kitsunekko automatisch lösen. Unterstützt Anti-Captcha.com und CapMonster.",
+        "disabled": "Deaktiviert",
+        "api_key_placeholder": "Dein API-Schlüssel"
+      },
+      "cache": {
+        "title": "Cache-Verwaltung",
+        "description": "Gecachte Untertitel-Suchergebnisse leeren. Pro-Provider-Caches können von der Provider-Karte aus geleert werden.",
+        "clear_all": "Alle Provider-Caches leeren"
+      },
+      "downloadLimits": {
+        "title": "Download-Limits",
+        "description": "Concurrency- und Größen-Limits für Untertitel-Provider-Downloads."
+      },
+      "advanced": {
+        "title": "Provider-Engine",
+        "description": "Feinabstimmung von Provider-Reranking, dynamischen Timeouts und Circuit Breaker."
+      }
+    },
+    "subtitles": {
+      "fansubPreferences": {
+        "hint": "Globale Fansub-Gruppen-Präferenzen gelten für alle Bibliotheks-Einträge. Per-Series-Overrides können auf jeder Series-Detail-Seite gesetzt werden.",
+        "creditThreshold": "Credit-Schwelle (Sekunden)",
+        "creditThresholdHint": "Dauer in Sekunden zur Erkennung von Credit/OP/ED-Segmenten beim Untertitel-Processing.",
+        "opWindow": "OP/ED-Fenster (Sekunden)",
+        "opWindowHint": "Sekunden vom Datei-Start/Ende, die als Opening/Ending-Fenster gelten."
+      }
+    },
+    "system": {
+      "security": {
+        "description": "Authentifizierungs-Einstellungen und Passwort-Verwaltung."
+      },
+      "backupRestore": {
+        "description": "Vollständige Anwendungs-Backups erstellen, herunterladen und wiederherstellen."
+      },
+      "apiKeys": {
+        "description": "API-Schlüssel für externen Zugriff auf die Sublarr-API verwalten.",
+        "summary": "API-Schlüssel anlegen und widerrufen, die externe Tools und Skripte für Sublarr-API-Zugriff nutzen."
+      },
+      "configExportImport": {
+        "description": "Alle Einstellungen als JSON exportieren oder aus einer Backup-Datei importieren."
+      }
+    },
+    "translation": {
+      "backends": {
+        "description": "Übersetzungs-Engines und Provider zum Übersetzen von Untertiteln konfigurieren."
+      },
+      "promptPresets": {
+        "description": "Wiederverwendbare Prompt-Vorlagen für Übersetzungs-Backends verwalten."
+      },
+      "globalGlossary": {
+        "description": "Begriffspaare definieren, die konsistent über alle Übersetzungen angewendet werden."
+      },
+      "contextQuality": {
+        "description": "Feinabstimmung von Kontext-Fenstergröße, Qualitäts-Schwellen und Translation-Memory.",
+        "summary": "Stelle ein, wie viel Kontext um den Satz herum bei der Übersetzung verwendet wird, und konfiguriere Qualitäts-Kontrollen."
+      },
+      "syncEngine": {
+        "description": "Standard-Sync-Engine wählen und automatisches Sync-Verhalten konfigurieren.",
+        "summary": "Steuert, welche Untertitel-Sync-Engine verwendet wird und wann Auto-Sync läuft."
+      },
+      "episodeContext": {
+        "description": "Vorherige Episoden-Untertitel als Übersetzungs-Kontext nutzen und Per-Series-Glossare aufbauen."
+      }
+    }
+  },
+  "common": {
+    "loading": "Laden…",
+    "close": "Schließen",
+    "cancel": "Abbrechen",
+    "saving": "Speichern…",
+    "save": "Speichern"
+  },
+  "ui": {
+    "loading": "Laden…"
   }
 }

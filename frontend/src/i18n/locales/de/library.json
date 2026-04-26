@@ -154,7 +154,12 @@
     "tooltip_export_zip": "Alle Sidecar-Untertitel dieser Serie als ZIP-Datei herunterladen — praktisch als Backup oder zur Weitergabe.",
     "tooltip_extract_embedded": "Eingebettete Untertitel-Streams aus allen Episoden als Sidecar-Dateien speichern und aus dem Videocontainer entfernen.",
     "tooltip_cleanup": "Sidecar-Untertitel nach Sprache oder Format filtern und in den Papierkorb verschieben (wiederherstellbar).",
-    "tooltip_fansub": "Bevorzugten Fansub-Anbieter für diese Serie festlegen. Überschreibt die globale Anbieter-Priorität."
+    "tooltip_fansub": "Bevorzugten Fansub-Anbieter für diese Serie festlegen. Überschreibt die globale Anbieter-Priorität.",
+    "tooltip_cleanup_foreign_tracks": "Nach dem Extract: Nicht-Zielsprache-Untertitel-Streams aus dem MKV entfernen.",
+    "cleanup_foreign_tracks_label": "Fremde Tracks bereinigen:",
+    "cleanup_inherit": "Erben",
+    "cleanup_always": "Immer",
+    "cleanup_never": "Nie"
   },
   "interactive_search": {
     "title": "Interaktive Suche",
@@ -200,7 +205,8 @@
     "search": "Suchen",
     "skip": "Überspringen",
     "re_enable": "Aktivieren",
-    "searches": "Suchen"
+    "searches": "Suchen",
+    "existing_subtitles": "Vorhandene Untertitel"
   },
   "series_detail": {
     "back_to_library": "Zurück zur Bibliothek",

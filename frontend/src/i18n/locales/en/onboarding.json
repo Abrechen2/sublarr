@@ -49,6 +49,19 @@
     "jimaku_api_key": "Jimaku API Key",
     "subdl_api_key": "SubDL API Key"
   },
+  "language_step": {
+    "target_language": "Target language",
+    "source_language": "Source language",
+    "help": "Subtitles are searched in the target language. Source language is used when Sublarr needs to translate or transcribe."
+  },
+  "automation_step": {
+    "auto_search_label": "Search for missing subtitles automatically",
+    "auto_search_description": "Sublarr periodically scans the library and searches providers for missing subtitles in your target language.",
+    "interval_label": "How often to search",
+    "upgrade_label": "Upgrade existing subtitles when better matches are found",
+    "upgrade_description": "Re-runs scoring on existing subtitles and replaces them when a higher-scoring candidate is available.",
+    "settings_hint": "All of these can be changed later in Settings → Automation."
+  },
   "ollama_step": {
     "description": "Set up the LLM translation backend.",
     "url": "Ollama URL",

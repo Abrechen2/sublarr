@@ -154,7 +154,12 @@
     "tooltip_export_zip": "Download all sidecar subtitles for this series as a ZIP file — useful as backup or for sharing.",
     "tooltip_extract_embedded": "Save embedded subtitle streams from all episodes as sidecar files and remove them from the video container.",
     "tooltip_cleanup": "Filter sidecar subtitles by language or format and move them to trash (recoverable).",
-    "tooltip_fansub": "Set preferred fansub provider for this series. Overrides global provider priority."
+    "tooltip_fansub": "Set preferred fansub provider for this series. Overrides global provider priority.",
+    "tooltip_cleanup_foreign_tracks": "After extraction: strip non-target-language subtitle streams from the MKV. ",
+    "cleanup_foreign_tracks_label": "Cleanup foreign tracks:",
+    "cleanup_inherit": "Inherit",
+    "cleanup_always": "Always",
+    "cleanup_never": "Never"
   },
   "interactive_search": {
     "title": "Interactive Search",
@@ -200,7 +205,8 @@
     "search": "Search",
     "skip": "Skip",
     "re_enable": "Re-enable",
-    "searches": "searches"
+    "searches": "searches",
+    "existing_subtitles": "Vorhandene Untertitel"
   },
   "series_detail": {
     "back_to_library": "Back to Library",

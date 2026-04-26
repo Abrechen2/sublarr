@@ -205,5 +205,8 @@
     "col_format": "Format",
     "col_score": "Score",
     "col_release": "Release"
+  },
+  "activity": {
+    "loading": "Laden…"
   }
 }

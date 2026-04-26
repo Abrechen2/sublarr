@@ -22,7 +22,9 @@
     "count": "Anzahl",
     "avg_score": "Durchschn. Score",
     "success": "Erfolgreich",
-    "issues": "Probleme"
+    "issues": "Probleme",
+    "quality_trend": "Untertitel-Qualitäts-Trend",
+    "series_quality": "Serien-Untertitel-Qualität"
   },
   "no_data": "Noch keine Daten für den gewählten Zeitraum. Starte Untertitel-Suchen oder Übersetzungen.",
   "exported": "Statistiken als {{format}} exportiert",

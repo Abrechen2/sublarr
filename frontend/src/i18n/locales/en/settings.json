@@ -376,6 +376,10 @@
         "label": "DB Cleanup",
         "desc": "Removes DB entries with no file on disk"
       }
+    },
+    "page": {
+      "title": "Bereinigung",
+      "subtitle": "Automatisierte Bereinigung von Sidecar-Dateien und Datenbankeinträgen"
     }
   },
   "integrations": {
@@ -1375,5 +1379,145 @@
   "nav": {
     "profiles_overrides": "Profiles & Overrides",
     "subtitle_automation": "Subtitle Automation"
+  },
+  "settings": {
+    "automation": {
+      "pipeline": {
+        "autoTranslate": "Auto-Translate",
+        "autoTranslateHint": "Automatically translate downloaded subtitles to the target language.",
+        "autoSync": "Auto-Sync",
+        "autoSyncHint": "Automatically synchronise subtitles to video timing after download.",
+        "autoCleanup": "Auto-Cleanup",
+        "autoCleanupHint": "Remove duplicate and redundant subtitle files automatically after extract.",
+        "title": "Processing Pipeline",
+        "description": "Control post-download processing: translation, synchronisation, and cleanup."
+      }
+    },
+    "breadcrumb": {
+      "settings": "Settings"
+    },
+    "hooks": {
+      "title": "Hooks",
+      "description": "Manage outgoing hooks that run scripts or call webhooks on system events.",
+      "outgoing": {
+        "description": "Run local scripts when events occur."
+      },
+      "logs": {
+        "description": "Execution history for all outgoing hooks."
+      }
+    },
+    "notifications": {
+      "quietHours": {
+        "stubBanner": "Configure the time window during which notifications are suppressed.",
+        "enabled": "Enable Quiet Hours",
+        "enabledHint": "Suppress all notifications during the configured window.",
+        "start": "Start Time",
+        "startHint": "Time when quiet hours begin (HH:MM)",
+        "end": "End Time",
+        "endHint": "Time when quiet hours end (HH:MM)",
+        "timezone": "Timezone",
+        "timezoneHint": "Timezone for quiet hours window",
+        "description": "Suppress notifications during specific time periods.",
+        "summary": "Define time windows during which all notification delivery is paused."
+      },
+      "channels": {
+        "description": "Configure notification toggles, webhook channels, and message templates."
+      },
+      "eventsHooks": {
+        "description": "Manage event catalog, hooks, webhooks, and hook execution logs."
+      },
+      "history": {
+        "description": "Recent notifications sent, with resend capability."
+      }
+    },
+    "providers": {
+      "cache_cleared": "All provider caches cleared",
+      "cache_clear_failed": "Failed to clear cache",
+      "title": "Providers",
+      "subtitle": "Manage subtitle providers, marketplace plugins, and captcha settings",
+      "global": {
+        "title": "Global provider settings",
+        "description": "Apply across every configured subtitle provider — hidden list, dedup, prioritisation, rate limits, timeouts and cache TTL."
+      },
+      "marketplace": {
+        "title": "Marketplace",
+        "description": "Browse and install community and official subtitle provider plugins."
+      },
+      "anticaptcha": {
+        "title": "Anti-Captcha",
+        "description": "Automatically solve captcha challenges from providers like Kitsunekko. Supports Anti-Captcha.com and CapMonster.",
+        "disabled": "Disabled",
+        "api_key_placeholder": "Your API key"
+      },
+      "cache": {
+        "title": "Cache Management",
+        "description": "Clear cached subtitle search results. Individual provider caches can be cleared from the provider card.",
+        "clear_all": "Clear All Provider Caches"
+      },
+      "downloadLimits": {
+        "title": "Download Limits",
+        "description": "Concurrency and size limits for subtitle provider downloads."
+      },
+      "advanced": {
+        "title": "Provider Engine",
+        "description": "Fine-tune provider reranking, dynamic timeouts, and the circuit breaker."
+      }
+    },
+    "subtitles": {
+      "fansubPreferences": {
+        "hint": "Global fansub group preferences apply to all library items. Per-series overrides can be set on each series detail page.",
+        "creditThreshold": "Credit Threshold (seconds)",
+        "creditThresholdHint": "Duration in seconds used to detect credit/OP/ED segments during subtitle processing.",
+        "opWindow": "OP/ED Window (seconds)",
+        "opWindowHint": "Seconds from the start/end of the file considered as the opening/ending window."
+      }
+    },
+    "system": {
+      "security": {
+        "description": "Authentication settings and password management."
+      },
+      "backupRestore": {
+        "description": "Create, download, and restore full application backups."
+      },
+      "apiKeys": {
+        "description": "Manage API keys for external access to the Sublarr API.",
+        "summary": "Create and revoke API keys used by external tools and scripts to access the Sublarr API."
+      },
+      "configExportImport": {
+        "description": "Export all settings as JSON or import from a backup file."
+      }
+    },
+    "translation": {
+      "backends": {
+        "description": "Configure translation engines and providers used to translate subtitles."
+      },
+      "promptPresets": {
+        "description": "Manage reusable prompt templates for translation backends."
+      },
+      "globalGlossary": {
+        "description": "Define term pairs that are applied consistently across all translations."
+      },
+      "contextQuality": {
+        "description": "Fine-tune context window size, quality thresholds, and translation memory.",
+        "summary": "Adjust how much surrounding context is used during translation and configure quality controls."
+      },
+      "syncEngine": {
+        "description": "Choose the default synchronisation engine and configure automatic sync behaviour.",
+        "summary": "Controls which subtitle synchronisation engine is used and when automatic sync runs."
+      },
+      "episodeContext": {
+        "description": "Use prior episode subtitles as translation context and build per-series glossaries."
+      }
+    }
+  },
+  "common": {
+    "loading": "Loading...",
+    "close": "Close",
+    "cancel": "Cancel",
+    "saving": "Saving…",
+    "save": "Save"
+  },
+  "ui": {
+    "loading": "Loading…"
   }
 }

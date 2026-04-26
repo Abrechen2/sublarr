@@ -44,7 +44,8 @@
     "ignored": "Ignoriert",
     "not_configured": "Nicht konfiguriert",
     "skipped": "Übersprungen",
-    "forced": "Erzwungen"
+    "forced": "Erzwungen",
+    "scanning": "Scannen…"
   },
   "actions": {
     "save": "Speichern",
@@ -177,7 +178,10 @@
     "allowed_langs": "Erlaubte Sprachen",
     "format_pref": "Format-Präferenz",
     "schedule": "Zeitplan",
-    "preview": "Vorschau"
+    "preview": "Vorschau",
+    "run_success": "Ausgeführt",
+    "run_error": "Fehler beim Ausführen",
+    "preview_error": "Vorschau fehlgeschlagen"
   },
   "health": {
     "running": "Systemprüfung läuft...",
@@ -421,6 +425,37 @@
       "translation_backends": "Backends & Glossar",
       "translation_cost": "Kosten & Memory",
       "translation_queue": "Queue"
+    },
+    "automation": {
+      "searchScan": {
+        "interval": "Wanted-Such-Intervall (Stunden)",
+        "intervalHint": "Wie oft (in Stunden) Sublarr nach fehlenden Untertiteln sucht.",
+        "searchOnStartup": "Bei Start suchen",
+        "searchOnStartupHint": "Bei jedem Sublarr-Start eine Wanted-Suche ausführen.",
+        "description": "Konfiguriere, wie oft Sublarr nach fehlenden Untertiteln sucht und die Bibliothek scannt."
+      },
+      "upgradeRules": {
+        "checkInterval": "Upgrade-Scan-Intervall (Stunden)",
+        "checkIntervalHint": "Wie oft (in Stunden) vorhandene Untertitel auf Upgrade-Kandidaten geprüft werden.",
+        "enabled": "Auto-Upgrade aktiv",
+        "enabledHint": "Vorhandene Untertitel automatisch ersetzen, wenn ein höher bewerteter gefunden wird.",
+        "threshold": "Mindest-Score-Differenz",
+        "thresholdHint": "Minimale Score-Verbesserung, bevor ein vorhandener Untertitel ersetzt wird.",
+        "description": "Definiere, wann und wie vorhandene Untertitel durch bessere ersetzt werden."
+      },
+      "scheduledTasks": {
+        "hint": "Details und Run-History geplanter Aufgaben sind auf der Tasks-Seite verfügbar.",
+        "description": "Übersicht der von Sublarr verwalteten Hintergrund-Aufgaben.",
+        "summary": "Hintergrund-Aufgaben wie Wanted-Suchen und Upgrade-Checks laufen in konfigurierbaren Intervallen."
+      }
+    },
+    "hooks": {
+      "outgoing": {
+        "title": "Ausgehende Hooks"
+      },
+      "logs": {
+        "title": "Hook-Logs"
+      }
     }
   },
   "common": {
