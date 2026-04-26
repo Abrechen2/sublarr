@@ -5,6 +5,14 @@ All notable changes to Sublarr are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.75.0-beta] - 2026-04-26
+
+### Added
+- **LanguageProfile selector on every Series and Movie detail page (Phase B).** The previously read-only profile pill in `SeriesSettingsPanel` is now an interactive `<select>` dropdown listing every configured language profile (the default profile is suffixed with ★). Picking a different profile fires `PUT /api/v1/language-profiles/assign` and the page refetches. The Phase A `Subtitle settings` card on `MovieDetailPage` gains the same selector above the navigation button. Backend now exposes `profile_id` alongside `profile_name` in both the standalone-series and Sonarr-managed series API responses, and in the movie detail response.
+
+### Changed
+- **`useAssignProfile` invalidations widened** so the source page actually re-renders after a profile change (previously only the `/scopes` tree refetched, leaving the dropdown out-of-sync until a manual reload).
+
 ## [0.74.0-beta] - 2026-04-26
 
 ### Changed
