@@ -5,6 +5,15 @@ All notable changes to Sublarr are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.76.0-beta] - 2026-04-26
+
+### Added
+- **Bulk LanguageProfile assignment in the Library page (Phase C).** The Library table and grid now support multi-select via checkboxes; once one or more series are selected, a sticky toolbar appears with a profile dropdown ("Set profile…") that bulk-assigns the chosen profile to every selected item in one round-trip. Selection resets automatically when switching between the Series and Movies tabs. Backend: new `PUT /api/v1/language-profiles/assign-bulk` endpoint (`{type, arr_ids, profile_id}` → `{assigned, failed[]}`) loops the existing single-assign helper so the client can surface partial failures. Reuses the existing `selectedSeries` state already in place from the batch-search flow — no parallel selection model.
+- **Tab-switch clears bulk selection** so the Series-tab IDs don't leak into a Movies-bulk-action.
+
+### Changed
+- **Library batch-search error path** now surfaces a toast instead of `console.error`-only, matching the rest of the file's UX style.
+
 ## [0.75.0-beta] - 2026-04-26
 
 ### Added
