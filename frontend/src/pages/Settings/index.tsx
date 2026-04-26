@@ -5,8 +5,7 @@
  * /settings/general                       → GeneralSettings
  * /settings/connections                   → ConnectionsSettings
  * /settings/connections/metadata          → ConnectionsMetadataPage
- * /settings/subtitles                     → redirect → /settings/subtitles/languages
- * /settings/subtitles/languages           → SubtitlesLanguagesPage
+ * /settings/subtitles                     → redirect → /settings/subtitles/scoring
  * /settings/subtitles/scoring             → SubtitlesScoringPage
  * /settings/subtitles/format              → SubtitlesFormatPage
  * /settings/subtitles/stream-management   → SubtitlesStreamManagementPage
@@ -45,9 +44,6 @@ const ConnectionsSettings = lazy(() =>
 )
 const ConnectionsMetadataPage = lazy(() =>
   import('./ConnectionsMetadataPage').then((m) => ({ default: m.ConnectionsMetadataPage })),
-)
-const SubtitlesLanguagesPage = lazy(() =>
-  import('./SubtitlesLanguagesPage').then((m) => ({ default: m.SubtitlesLanguagesPage })),
 )
 const SubtitlesScoringPage = lazy(() =>
   import('./SubtitlesScoringPage').then((m) => ({ default: m.SubtitlesScoringPage })),
@@ -130,8 +126,11 @@ export function SettingsPage() {
             <Route path="general" element={<GeneralSettings />} />
             <Route path="connections" element={<ConnectionsSettings />} />
             <Route path="connections/metadata" element={<ConnectionsMetadataPage />} />
-            <Route path="subtitles" element={<Navigate to="/settings/subtitles/languages" replace />} />
-            <Route path="subtitles/languages" element={<SubtitlesLanguagesPage />} />
+            <Route path="subtitles" element={<Navigate to="/settings/subtitles/scoring" replace />} />
+            <Route
+              path="subtitles/languages"
+              element={<Navigate to="/settings/profiles" replace />}
+            />
             <Route path="subtitles/scoring" element={<SubtitlesScoringPage />} />
             <Route path="subtitles/format" element={<SubtitlesFormatPage />} />
             <Route path="subtitles/stream-management" element={<SubtitlesStreamManagementPage />} />

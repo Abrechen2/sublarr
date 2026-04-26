@@ -36,7 +36,6 @@ function useNavGroups(translationEnabled: boolean): readonly NavGroup[] {
     {
       label: t('settings.categories.subtitles.title', 'Untertitel'),
       pages: [
-        { label: t('settings.nav.languages_profiles', 'Sprachen & Profile'), href: '/settings/subtitles/languages' },
         { label: t('settings.nav.scoring', 'Scoring'), href: '/settings/subtitles/scoring' },
         { label: t('settings.nav.format_naming', 'Format & Benennung'), href: '/settings/subtitles/format' },
         { label: t('settings.nav.cleanup', 'Bereinigung'), href: '/settings/cleanup' },
