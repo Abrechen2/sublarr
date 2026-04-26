@@ -23,6 +23,7 @@ translation_failed = sublarr_signals.signal("translation_failed")
 provider_search_complete = sublarr_signals.signal("provider_search_complete")
 provider_failed = sublarr_signals.signal("provider_failed")
 wanted_scan_complete = sublarr_signals.signal("wanted_scan_complete")
+wanted_search_complete = sublarr_signals.signal("wanted_search_complete")
 wanted_item_processed = sublarr_signals.signal("wanted_item_processed")
 upgrade_complete = sublarr_signals.signal("upgrade_complete")
 batch_complete = sublarr_signals.signal("batch_complete")
@@ -122,6 +123,18 @@ EVENT_CATALOG: dict[str, dict] = {
             "new_items",
             "removed_items",
             "duration_ms",
+        ],
+    },
+    "wanted_search_complete": {
+        "signal": wanted_search_complete,
+        "label": "Wanted Search Complete",
+        "description": "The wanted-search runner finished one cycle (different from scan: search hits providers for missing items, scan rebuilds the wanted list from the library).",
+        "payload_keys": [
+            "processed",
+            "total",
+            "found",
+            "failed",
+            "duration_seconds",
         ],
     },
     "wanted_item_processed": {
