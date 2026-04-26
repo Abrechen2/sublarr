@@ -1,11 +1,8 @@
 import type React from 'react'
 import type { SeriesDetail } from '@/lib/types'
 import { useTranslation } from 'react-i18next'
-import { useNavigate } from 'react-router-dom'
 import { Tooltip } from '@/components/shared/Tooltip'
-import { useCreateOverride } from '@/pages/Settings/profilesOverrides/useProfilesOverrides'
 import { useLanguageProfiles, useAssignProfile } from '@/hooks/useApi'
-import { profilesScopeUrl, seriesDetailUrl } from '@/lib/routes'
 
 interface SeriesSettingsPanelProps {
   readonly series: SeriesDetail
@@ -61,17 +58,9 @@ export function SeriesSettingsPanel({
   refreshPending,
 }: SeriesSettingsPanelProps) {
   const { t } = useTranslation('library')
-  const { t: tSettings } = useTranslation('settings')
-  const navigate = useNavigate()
-  const createOverride = useCreateOverride('series')
   const { data: profilesData } = useLanguageProfiles()
   const assignProfile = useAssignProfile()
   const profiles = profilesData ?? []
-
-  const handleSubtitleSettings = async () => {
-    await createOverride.mutateAsync(seriesId)
-    navigate(profilesScopeUrl({ type: 'series', id: seriesId }, { from: seriesDetailUrl(seriesId) }))
-  }
 
   return (
     <div
@@ -91,7 +80,7 @@ export function SeriesSettingsPanel({
         <div style={sectionLabelStyle}>{t('series_settings_panel.section_language')}</div>
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px', alignItems: 'center' }}>
           <select
-            aria-label={tSettings('profiles_overrides.action.select_profile', 'Select profile…')}
+            aria-label={t('series_settings_panel.select_profile_aria', 'Select language profile')}
             data-testid="series-profile-select"
             disabled={assignProfile.isPending}
             value={series.profile_id ?? ''}
@@ -360,25 +349,6 @@ export function SeriesSettingsPanel({
         </div>
       </div>
 
-      {/* Subtitle settings link — navigates to Profiles & Overrides scoped to this series */}
-      <div style={{ borderTop: '1px solid var(--border)', paddingTop: '12px' }}>
-        <button
-          type="button"
-          onClick={() => { void handleSubtitleSettings() }}
-          disabled={createOverride.isPending}
-          data-testid="series-subtitle-settings-link"
-          style={{
-            ...buttonBaseStyle,
-            backgroundColor: 'var(--bg-elevated)',
-            color: 'var(--accent)',
-            border: '1px solid var(--accent-dim)',
-            opacity: createOverride.isPending ? 0.6 : 1,
-            cursor: createOverride.isPending ? 'default' : 'pointer',
-          }}
-        >
-          {tSettings('profiles_overrides.action.subtitle_settings', 'Subtitle settings →')}
-        </button>
-      </div>
     </div>
   )
 }

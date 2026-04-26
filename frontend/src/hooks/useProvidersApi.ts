@@ -238,7 +238,6 @@ export function useBulkAssignProfile() {
     }) => bulkAssignProfile(type, arrIds, profileId),
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: ['library'] })
-      void queryClient.invalidateQueries({ queryKey: ['profiles-overrides', 'scopes'] })
     },
   })
 }

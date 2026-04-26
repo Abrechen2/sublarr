@@ -159,7 +159,8 @@
     "cleanup_foreign_tracks_label": "Cleanup foreign tracks:",
     "cleanup_inherit": "Inherit",
     "cleanup_always": "Always",
-    "cleanup_never": "Never"
+    "cleanup_never": "Never",
+    "select_profile_aria": "Select language profile"
   },
   "interactive_search": {
     "title": "Interactive Search",
@@ -206,7 +207,9 @@
     "skip": "Skip",
     "re_enable": "Re-enable",
     "searches": "searches",
-    "existing_subtitles": "Vorhandene Untertitel"
+    "existing_subtitles": "Vorhandene Untertitel",
+    "profile_label": "Profile",
+    "profile_select_aria": "Select language profile"
   },
   "series_detail": {
     "back_to_library": "Back to Library",

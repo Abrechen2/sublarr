@@ -74,7 +74,7 @@ function AnimatedRoutes() {
           <Route path="/history" element={<Navigate to="/activity?tab=history" replace />} />
           <Route path="/blacklist" element={<Navigate to="/activity?tab=blacklist" replace />} />
           <Route path="/settings/*" element={<ErrorBoundary><Suspense fallback={<FormSkeleton />}><SettingsPage /></Suspense></ErrorBoundary>} />
-          <Route path="/language-profiles" element={<Navigate to="/settings/profiles" replace />} />
+          <Route path="/language-profiles" element={<Navigate to="/settings/subtitles/languages" replace />} />
           <Route path="/movies/:id" element={<Suspense fallback={<FormSkeleton />}><MovieDetailPage /></Suspense>} />
           {/* Redirect old standalone pages into settings sub-routes */}
           <Route path="/statistics" element={<Navigate to="/settings/system" replace />} />

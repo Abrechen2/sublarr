@@ -36,6 +36,7 @@ function useNavGroups(translationEnabled: boolean): readonly NavGroup[] {
     {
       label: t('settings.categories.subtitles.title', 'Untertitel'),
       pages: [
+        { label: t('settings.nav.languages', 'Sprachen & Profile'), href: '/settings/subtitles/languages' },
         { label: t('settings.nav.scoring', 'Scoring'), href: '/settings/subtitles/scoring' },
         { label: t('settings.nav.format_naming', 'Format & Benennung'), href: '/settings/subtitles/format' },
         { label: t('settings.nav.cleanup', 'Bereinigung'), href: '/settings/cleanup' },
@@ -71,12 +72,6 @@ function useNavGroups(translationEnabled: boolean): readonly NavGroup[] {
   }
 
   groups.push(
-    {
-      label: t('settings.categories.profiles.title', 'Profile & Overrides'),
-      pages: [
-        { label: t('settings.nav.profiles_overrides', 'Profile & Overrides'), href: '/settings/profiles' },
-      ],
-    },
     {
       label: t('settings.categories.notifications.title', 'Benachrichtigungen'),
       pages: [

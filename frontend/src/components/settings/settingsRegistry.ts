@@ -32,7 +32,7 @@ export const SETTINGS_REGISTRY: readonly SettingsEntry[] = [
   { id: 'format', label: 'Subtitle Format', keywords: ['format', 'ass', 'srt', 'vtt', 'convert'], category: 'Subtitles', route: '/settings/subtitles' },
   { id: 'cleanup', label: 'Subtitle Cleanup', keywords: ['cleanup', 'clean', 'deduplicate', 'orphan', 'remove'], category: 'Subtitles', route: '/settings/subtitles' },
   { id: 'embedded', label: 'Embedded Extraction', keywords: ['embedded', 'extract', 'mkv', 'video', 'track'], category: 'Subtitles', route: '/settings/subtitles' },
-  { id: 'language-profiles', label: 'Language Profiles', keywords: ['language', 'profile', 'target', 'source'], category: 'Subtitles', route: '/settings/subtitles' },
+  { id: 'language-profiles', label: 'Language Profiles', keywords: ['language', 'profile', 'target', 'source'], category: 'Subtitles', route: '/settings/subtitles/languages' },
   { id: 'fansub', label: 'Fansub Preferences', keywords: ['fansub', 'group', 'prefer', 'exclude'], category: 'Subtitles', route: '/settings/subtitles' },
 
   // Providers
@@ -51,9 +51,6 @@ export const SETTINGS_REGISTRY: readonly SettingsEntry[] = [
   { id: 'prompts', label: 'Prompt Presets', keywords: ['prompt', 'preset', 'template', 'instruction'], category: 'Translation', route: '/settings/translation' },
   { id: 'glossary', label: 'Global Glossary', keywords: ['glossary', 'term', 'dictionary', 'translation'], category: 'Translation', route: '/settings/translation' },
   { id: 'whisper', label: 'Whisper (Speech-to-Text)', keywords: ['whisper', 'speech', 'stt', 'transcribe', 'audio'], category: 'Translation', route: '/settings/translation' },
-
-  // Profiles & Overrides
-  { id: 'profiles-overrides', label: 'Profiles & Overrides', keywords: ['profile', 'override', 'inherit', 'scope', 'language', 'series', 'movie'], category: 'Profiles', route: '/settings/profiles' },
 
   // Notifications
   { id: 'notification-channels', label: 'Notification Channels', keywords: ['notification', 'channel', 'webhook', 'discord', 'telegram'], category: 'Notifications', route: '/settings/notifications' },

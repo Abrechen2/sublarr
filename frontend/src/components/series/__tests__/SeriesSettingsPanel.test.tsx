@@ -1,19 +1,12 @@
 /**
  * SeriesSettingsPanel — unit tests for the 0.71.1 cleanup_foreign_tracks
- * three-state toggle added to the subtitles section, and Phase A
- * "Subtitle settings →" navigation button.
+ * three-state toggle and the per-series profile selector.
  */
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { render, screen, fireEvent, waitFor } from '@testing-library/react'
+import { render, screen, fireEvent } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'
 import { SeriesSettingsPanel } from '../SeriesSettingsPanel'
 import type { SeriesDetail } from '@/lib/types'
-
-const mockNavigate = vi.fn()
-vi.mock('react-router-dom', async (importOriginal) => {
-  const actual = await importOriginal<typeof import('react-router-dom')>()
-  return { ...actual, useNavigate: () => mockNavigate }
-})
 
 vi.mock('react-i18next', () => ({
   useTranslation: () => ({
@@ -23,11 +16,6 @@ vi.mock('react-i18next', () => ({
 
 vi.mock('@/components/shared/Tooltip', () => ({
   Tooltip: ({ children }: { children: React.ReactNode }) => <>{children}</>,
-}))
-
-const mockMutateAsync = vi.fn().mockResolvedValue({ created: true })
-vi.mock('@/pages/Settings/profilesOverrides/useProfilesOverrides', () => ({
-  useCreateOverride: () => ({ mutateAsync: mockMutateAsync, isPending: false }),
 }))
 
 const mockAssignMutate = vi.fn()
@@ -216,35 +204,3 @@ describe('SeriesSettingsPanel — profile selector (Phase B)', () => {
   })
 })
 
-describe('SeriesSettingsPanel — subtitle settings button (Phase A)', () => {
-  beforeEach(() => {
-    mockNavigate.mockClear()
-    mockMutateAsync.mockClear()
-  })
-
-  it('renders the subtitle settings button', () => {
-    const series = makeSeries()
-    render(
-      <MemoryRouter>
-        <SeriesSettingsPanel {...baseProps} series={series} />
-      </MemoryRouter>,
-    )
-    expect(screen.getByTestId('series-subtitle-settings-link')).toBeInTheDocument()
-  })
-
-  it('calls createOverride and navigates to profiles page on click', async () => {
-    const series = makeSeries()
-    render(
-      <MemoryRouter>
-        <SeriesSettingsPanel {...baseProps} seriesId={42} series={series} />
-      </MemoryRouter>,
-    )
-    fireEvent.click(screen.getByTestId('series-subtitle-settings-link'))
-    await waitFor(() => expect(mockMutateAsync).toHaveBeenCalledWith(42))
-    await waitFor(() =>
-      expect(mockNavigate).toHaveBeenCalledWith(
-        expect.stringContaining('scope=series%3A42'),
-      )
-    )
-  })
-})

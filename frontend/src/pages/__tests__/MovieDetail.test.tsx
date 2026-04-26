@@ -55,10 +55,6 @@ vi.mock('@/hooks/useLibraryApi', () => ({
   useMovieSubtitles: () => ({ data: { subtitles: [], video_path: '' }, isLoading: false, refetch: vi.fn() }),
 }))
 
-vi.mock('@/pages/Settings/profilesOverrides/useProfilesOverrides', () => ({
-  useCreateOverride: () => ({ mutateAsync: vi.fn().mockResolvedValue({ created: true }), isPending: false }),
-}))
-
 vi.mock('@/components/shared/Breadcrumb', () => ({
   Breadcrumb: ({ items }: { items: { label: string; to?: string }[] }) => (
     <nav>{items.map((i) => <span key={i.label}>{i.label}</span>)}</nav>
@@ -137,10 +133,10 @@ describe('MovieDetailPage', () => {
     expect(screen.getByText('Library')).toBeInTheDocument()
   })
 
-  it('renders the subtitle settings card (Phase A testid survives Phase B)', () => {
+  it('renders the profile selector card', () => {
     mockUseMovieDetail.mockReturnValue({ data: movieFixture, isLoading: false, error: null })
     renderPage()
-    expect(screen.getByTestId('movie-subtitle-settings-link')).toBeInTheDocument()
+    expect(screen.getByTestId('movie-profile-selector-card')).toBeInTheDocument()
   })
 })
 
@@ -153,7 +149,7 @@ describe('MovieDetailPage — profile selector (Phase B)', () => {
     mockUseMovieDetail.mockReturnValue({ data: movieFixture, isLoading: false, error: null })
   })
 
-  it('renders profile select inside the subtitle settings card', () => {
+  it('renders profile select inside the profile selector card', () => {
     renderPage()
     expect(screen.getByTestId('movie-profile-select')).toBeInTheDocument()
   })

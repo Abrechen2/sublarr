@@ -21,7 +21,8 @@
  * /settings/system/diagnostics            → SystemDiagnosticsPage (logs + monitoring + tools)
  * /settings/system/hooks                  → SystemHooksPage
  * /settings/system/scheduler              → SchedulerPage
- * /settings/profiles                       → ProfilesOverridesPage
+ * /settings/subtitles/languages           → SubtitlesLanguagesPage (Language Profiles tab)
+ * /settings/profiles                      → redirect → /settings/subtitles/languages
  * /settings/hooks                         → redirect → /settings/system/hooks
  * /settings/webhooks                      → redirect → /settings/system/hooks
  */
@@ -112,8 +113,8 @@ const AboutSettings = lazy(() =>
 const CleanupSettings = lazy(() =>
   import('./CleanupSettings').then((m) => ({ default: m.CleanupSettings })),
 )
-const ProfilesOverridesPage = lazy(() =>
-  import('./ProfilesOverridesPage').then((m) => ({ default: m.ProfilesOverridesPage })),
+const SubtitlesLanguagesPage = lazy(() =>
+  import('./SubtitlesLanguagesPage').then((m) => ({ default: m.SubtitlesLanguagesPage })),
 )
 
 export function SettingsPage() {
@@ -127,10 +128,7 @@ export function SettingsPage() {
             <Route path="connections" element={<ConnectionsSettings />} />
             <Route path="connections/metadata" element={<ConnectionsMetadataPage />} />
             <Route path="subtitles" element={<Navigate to="/settings/subtitles/scoring" replace />} />
-            <Route
-              path="subtitles/languages"
-              element={<Navigate to="/settings/profiles" replace />}
-            />
+            <Route path="subtitles/languages" element={<SubtitlesLanguagesPage />} />
             <Route path="subtitles/scoring" element={<SubtitlesScoringPage />} />
             <Route path="subtitles/format" element={<SubtitlesFormatPage />} />
             <Route path="subtitles/stream-management" element={<SubtitlesStreamManagementPage />} />
@@ -165,7 +163,7 @@ export function SettingsPage() {
             <Route path="system/sync-engines" element={<SyncEnginesTab />} />
             <Route path="about" element={<AboutSettings />} />
             <Route path="cleanup" element={<Suspense fallback={<FormSkeleton />}><CleanupSettings /></Suspense>} />
-            <Route path="profiles" element={<ProfilesOverridesPage />} />
+            <Route path="profiles" element={<Navigate to="/settings/subtitles/languages" replace />} />
             <Route path="hooks" element={<Navigate to="/settings/system/hooks" replace />} />
             <Route path="webhooks" element={<Navigate to="/settings/system/hooks" replace />} />
           </Routes>
