@@ -5,6 +5,22 @@ All notable changes to Sublarr are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.74.0-beta] - 2026-04-26
+
+### Changed
+- **Profiles & Overrides UX inverted: SeriesDetail and MovieDetail are now the entry-point for creating per-series/movie overrides.** Previously `/settings/profiles` listed every series Sublarr knew about (~288 on a typical install) which made the tree noisy and the "where do I configure?" answer unclear. Now the page only shows series and movies that have been explicitly added — either via a profile assignment or via a settings row created from the new entry-point. Each SeriesDetail page gains a `Subtitle settings →` button (in `SeriesSettingsPanel`); each MovieDetail page gains a matching card-button. Clicking it idempotently POSTs `/api/v1/profiles-overrides/<type>/<id>/create-override` and navigates to the Settings page with `?scope=<type>:<id>&from=/library/series/<id>` (or `/movies/<id>`). The Settings page renders a `← Back to <name>` link at the top of the detail pane when `from` is present.
+- **`/api/v1/profiles-overrides/scopes` filtered to explicit overrides only.** Series IDs now come exclusively from `series_settings` rows and `series_language_profiles` mappings (not `search_series`, `wanted_items` or `standalone_series`); same for movies. Title lookup still uses the broader cache so display names are pretty.
+
+### Added
+- **`POST /api/v1/profiles-overrides/<type>/<id>/create-override`** — idempotent. Inserts an empty `series_settings` / `movie_settings` row so the scope appears in the tree without setting any values.
+- **`DELETE /api/v1/profiles-overrides/<type>/<id>`** — drops the entire settings row (the inverse of create-override). Surfaced in the UI as the new `Remove series from overrides` button at the footer of the detail pane (alongside the existing `Reset all overrides` which only NULLs the override columns but keeps the row).
+- **Empty-state hint** on `/settings/profiles` when no series/movies have explicit overrides yet — guides the user to open a Library entry and use the new entry-point.
+- **Centralised navigation helpers** in `frontend/src/lib/routes.ts` (`profilesScopeUrl`, `seriesDetailUrl`, `movieDetailUrl`) so future Settings-route restructuring touches one file.
+
+### Deferred to Phase B / C (separate releases)
+- LanguageProfile selector inside SeriesDetail / MovieDetail ("which profile does this series use").
+- Bulk profile-assignment in the Library / Movies list (multi-select toolbar action).
+
 ## [0.73.2-beta] - 2026-04-26
 
 ### Fixed
