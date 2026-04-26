@@ -15,8 +15,19 @@ import userEvent from '@testing-library/user-event'
 import { BrowserRouter } from 'react-router-dom'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { AutomationSettings } from '../AutomationSettings'
+import enSettings from '../../../i18n/locales/en/settings.json'
 
 // ─── Mocks ───────────────────────────────────────────────────────────────────
+
+function lookupKey(ns: Record<string, unknown>, key: string): string | undefined {
+  const parts = key.split('.')
+  let v: unknown = ns
+  for (const p of parts) {
+    if (typeof v !== 'object' || v === null) return undefined
+    v = (v as Record<string, unknown>)[p]
+  }
+  return typeof v === 'string' ? v : undefined
+}
 
 vi.mock('react-i18next', () => ({
   useTranslation: () => ({
@@ -24,7 +35,7 @@ vi.mock('react-i18next', () => ({
       if (typeof opts === 'string') return opts
       if (opts !== undefined && typeof opts === 'object' && 'count' in opts)
         return `${key}:${String(opts.count)}`
-      return key
+      return lookupKey(enSettings, key) ?? key.split('.').pop() ?? key
     },
   }),
 }))
@@ -501,16 +512,16 @@ describe('AutomationSettings', () => {
   // ── Search & Scan — sub-group headings ────────────────────────────────────
 
   describe('Search & Scan — sub-group headings', () => {
-    it('renders "Bibliotheks-Scan" sub-group heading inside section-search-scan', () => {
+    it('renders "Library Scan" sub-group heading inside section-search-scan', () => {
       renderPage()
       const section = screen.getByTestId('section-search-scan')
-      expect(section).toHaveTextContent('automation_page.subheading_library_scan')
+      expect(section).toHaveTextContent('Library Scan')
     })
 
-    it('renders "Untertitel-Suche" sub-group heading inside section-search-scan', () => {
+    it('renders "Subtitle Search" sub-group heading inside section-search-scan', () => {
       renderPage()
       const section = screen.getByTestId('section-search-scan')
-      expect(section).toHaveTextContent('automation_page.subheading_subtitle_search')
+      expect(section).toHaveTextContent('Subtitle Search')
     })
 
     it('"Bibliotheks-Scan" heading appears before "Untertitel-Suche" heading in the DOM', () => {

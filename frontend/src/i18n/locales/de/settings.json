@@ -702,7 +702,10 @@
     },
     "ffmpeg_timeout": "FFmpeg-Timeout (Sekunden)",
     "metadata_engine": "Metadaten-Engine",
-    "metadata_worker": "Metadaten-Worker"
+    "metadata_worker": "Metadaten-Worker",
+    "search_scan_section": "Suchen & Scannen",
+    "upgrade_rules_section": "Upgrade-Regeln",
+    "scheduled_tasks_section": "Geplante Aufgaben"
   },
   "scoring_tab": {
     "presets_title": "Schnellstart: Preset anwenden",

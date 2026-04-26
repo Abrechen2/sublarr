@@ -14,12 +14,27 @@ import { Search, ArrowUpCircle, Clock, Zap } from 'lucide-react'
 import { SettingsDetailLayout } from '@/components/settings/SettingsDetailLayout'
 import { SettingsSection } from '@/components/settings/SettingsSection'
 import { FormGroup } from '@/components/settings/FormGroup'
+import { FormLayout } from '@/components/settings/layouts'
+import type { FormSectionDef } from '@/components/settings/layouts'
 import { Toggle } from '@/components/shared/Toggle'
 import { useConfig, useUpdateConfig } from '@/hooks/useApi'
 import { strVal, boolVal } from '@/lib/configUtils'
 import { settingsInputStyle } from '@/styles/settingsShared'
 
 const inputStyle: React.CSSProperties = { ...settingsInputStyle, width: '220px', outline: 'none' }
+
+// Settings Template B (FormLayout). Six sections — exactly at the cap.
+// post-processing + cleanup are link-tiles to dedicated sub-pages, not
+// SettingsSections, but they appear in the TOC for navigation parity so
+// users have a single mental map of what lives on this page.
+const SECTIONS: readonly FormSectionDef[] = [
+  { id: 'search-scan',      titleKey: 'automation_page.search_scan_section',     advancedCount: 9 },
+  { id: 'upgrade-rules',    titleKey: 'automation_page.upgrade_rules_section',   advancedCount: 1 },
+  { id: 'webhook',          titleKey: 'automation_page.webhook_section' },
+  { id: 'post-processing',  titleKey: 'post_processing_page.title' },
+  { id: 'cleanup',          titleKey: 'automation_page.cleanup_section' },
+  { id: 'scheduled-tasks',  titleKey: 'automation_page.scheduled_tasks_section' },
+]
 
 const SCAN_ENGINES = ['auto', 'ffprobe', 'mediainfo'] as const
 
@@ -654,10 +669,13 @@ export function AutomationSettings() {
         'Search scheduling, upgrade rules, pipeline, and sidecar settings',
       )}
     >
+      <FormLayout sections={SECTIONS}>
+
       {/* 1. Search & Scan */}
+      <section id="search-scan" data-testid="settings.automation.section-search-scan">
       <div data-testid="section-search-scan">
         <SettingsSection
-          title={t('settings.automation.searchScan.title', 'Search & Scan')}
+          title={t('automation_page.search_scan_section')}
           description={t(
             'settings.automation.searchScan.description',
             'Configure how often Sublarr searches for missing subtitles and scans the library.',
@@ -669,11 +687,13 @@ export function AutomationSettings() {
           <SearchScanContent />
         </SettingsSection>
       </div>
+      </section>
 
       {/* 2. Upgrade Rules */}
+      <section id="upgrade-rules" data-testid="settings.automation.section-upgrade-rules">
       <div data-testid="section-upgrade-rules">
         <SettingsSection
-          title={t('settings.automation.upgradeRules.title', 'Upgrade Rules')}
+          title={t('automation_page.upgrade_rules_section')}
           description={t(
             'settings.automation.upgradeRules.description',
             'Define when and how existing subtitles should be replaced with better ones.',
@@ -685,8 +705,10 @@ export function AutomationSettings() {
           <UpgradeRulesContent />
         </SettingsSection>
       </div>
+      </section>
 
       {/* 3. Webhook */}
+      <section id="webhook" data-testid="settings.automation.section-webhook">
       <div data-testid="section-webhook">
         <SettingsSection
           title={tS('automation_page.webhook_section')}
@@ -696,8 +718,10 @@ export function AutomationSettings() {
           <WebhookContent />
         </SettingsSection>
       </div>
+      </section>
 
       {/* 4. Processing Pipeline — navigates to dedicated page */}
+      <section id="post-processing" data-testid="settings.automation.section-post-processing">
       <div
         data-testid="section-processing-pipeline"
         style={{
@@ -725,8 +749,10 @@ export function AutomationSettings() {
           Configure →
         </Link>
       </div>
+      </section>
 
       {/* 5. Cleanup — navigates to dedicated cleanup page */}
+      <section id="cleanup" data-testid="settings.automation.section-cleanup">
       <div
         data-testid="section-cleanup"
         style={{
@@ -754,11 +780,13 @@ export function AutomationSettings() {
           Configure →
         </Link>
       </div>
+      </section>
 
       {/* 6. Scheduled Tasks (advanced — collapsed by default) */}
+      <section id="scheduled-tasks" data-testid="settings.automation.section-scheduled-tasks">
       <div data-testid="section-scheduled-tasks">
         <SettingsSection
-          title={t('settings.automation.scheduledTasks.title', 'Scheduled Tasks')}
+          title={t('automation_page.scheduled_tasks_section')}
           description={t(
             'settings.automation.scheduledTasks.description',
             'Overview of background tasks managed by Sublarr.',
@@ -777,6 +805,9 @@ export function AutomationSettings() {
           </p>
         </SettingsSection>
       </div>
+      </section>
+
+      </FormLayout>
     </SettingsDetailLayout>
   )
 }
