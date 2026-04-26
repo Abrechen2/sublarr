@@ -64,11 +64,13 @@ describe('ProfilesOverridesPage', () => {
     await waitFor(() => expect(screen.getAllByText(/global default/i).length).toBeGreaterThan(0))
   })
 
-  it('shows empty-state when tree has no series or movies', async () => {
-    // Default mock already returns empty tree (no series/movies in profiles or unassigned)
+  it('shows empty-state hint banner above the detail panel when tree has no series or movies', async () => {
+    // Default mock returns empty tree. Since 0.76.3-beta the empty-state is a
+    // small banner ABOVE the ScopeDetail rather than a panel-replacement, so
+    // both should be present (the hint AND the detail with global default).
     renderPage()
     await waitFor(() =>
-      expect(screen.getByTestId('profiles-overrides-empty-state')).toBeInTheDocument()
+      expect(screen.getByTestId('profiles-overrides-empty-hint')).toBeInTheDocument()
     )
   })
 })
