@@ -996,6 +996,14 @@
     "history_section": "Benachrichtigungs-Verlauf",
     "quiet_hours_section": "Ruhezeiten"
   },
+  "translation_page": {
+    "backends_section": "Übersetzungs-Backends",
+    "prompts_section": "Prompt-Vorlagen",
+    "glossary_section": "Globales Glossar",
+    "context_quality_section": "Kontext & Qualität",
+    "sync_section": "Sync-Engine",
+    "episode_context_section": "Episoden-Kontext"
+  },
   "system_hooks_page": {
     "title": "Hooks & Webhooks",
     "subtitle": "Shell-Hooks und eingehende Webhook-Endpunkte für Sonarr, Radarr und Jellyfin",

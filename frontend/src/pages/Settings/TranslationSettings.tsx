@@ -18,6 +18,28 @@ import { Server, MessageSquare, BookOpen, Settings2, RefreshCw, Layers, FlaskCon
 import { SettingsDetailLayout } from '@/components/settings/SettingsDetailLayout'
 import { SettingsSection } from '@/components/settings/SettingsSection'
 import { FormGroup } from '@/components/settings/FormGroup'
+import { FormLayout } from '@/components/settings/layouts'
+import type { FormSectionDef } from '@/components/settings/layouts'
+
+// Settings Template B (FormLayout). Six sections — exactly at the cap.
+//
+// The Whisper link-tile is rendered between Sync Engine and Episode Context
+// but DELIBERATELY excluded from the TOC: it's a navigation cross-link to
+// the dedicated Transcription page, not a TranslationSettings section. The
+// Beta-banner (top) and Danger Zone (bottom) are page-chrome, not sections,
+// so they also live outside the FormLayout grid.
+//
+// If a 7th real section ever needs to land here, the page MUST split into
+// a sub-page (e.g. /settings/translation/quality for Context+Sync+Episode)
+// — adding it inline would trip the dev-mode 6-section warn.
+const SECTIONS: readonly FormSectionDef[] = [
+  { id: 'backends',        titleKey: 'translation_page.backends_section' },
+  { id: 'prompts',         titleKey: 'translation_page.prompts_section' },
+  { id: 'glossary',        titleKey: 'translation_page.glossary_section' },
+  { id: 'context-quality', titleKey: 'translation_page.context_quality_section' },
+  { id: 'sync',            titleKey: 'translation_page.sync_section' },
+  { id: 'episode-context', titleKey: 'translation_page.episode_context_section' },
+]
 import { EpisodeContextSection } from './TranslationTab'
 import { useConfig, useUpdateConfig, useDisableTranslation } from '@/hooks/useApi'
 import { strVal } from '@/lib/configUtils'
@@ -116,10 +138,13 @@ export function TranslationSettings() {
         </div>
       </div>
 
+      <FormLayout sections={SECTIONS}>
+
       {/* 1. Translation Backends */}
+      <section id="backends" data-testid="settings.translation.section-backends">
       <div data-testid="section-translation-backends">
         <SettingsSection
-          title={t('settings.translation.backends.title', 'Translation Backends')}
+          title={t('translation_page.backends_section')}
           description={t(
             'settings.translation.backends.description',
             'Configure translation engines and providers used to translate subtitles.',
@@ -133,11 +158,13 @@ export function TranslationSettings() {
           </div>
         </SettingsSection>
       </div>
+      </section>
 
       {/* 2. Prompt Presets */}
+      <section id="prompts" data-testid="settings.translation.section-prompts">
       <div data-testid="section-prompt-presets">
         <SettingsSection
-          title={t('settings.translation.promptPresets.title', 'Prompt Presets')}
+          title={t('translation_page.prompts_section')}
           description={t(
             'settings.translation.promptPresets.description',
             'Manage reusable prompt templates for translation backends.',
@@ -151,11 +178,13 @@ export function TranslationSettings() {
           </div>
         </SettingsSection>
       </div>
+      </section>
 
       {/* 3. Global Glossary */}
+      <section id="glossary" data-testid="settings.translation.section-glossary">
       <div data-testid="section-global-glossary">
         <SettingsSection
-          title={t('settings.translation.globalGlossary.title', 'Global Glossary')}
+          title={t('translation_page.glossary_section')}
           description={t(
             'settings.translation.globalGlossary.description',
             'Define term pairs that are applied consistently across all translations.',
@@ -169,11 +198,13 @@ export function TranslationSettings() {
           </div>
         </SettingsSection>
       </div>
+      </section>
 
       {/* 4. Context & Quality (advanced — collapsed by default) */}
+      <section id="context-quality" data-testid="settings.translation.section-context-quality">
       <div data-testid="section-context-quality">
         <SettingsSection
-          title={t('settings.translation.contextQuality.title', 'Context & Quality')}
+          title={t('translation_page.context_quality_section')}
           description={t(
             'settings.translation.contextQuality.description',
             'Fine-tune context window size, quality thresholds, and translation memory.',
@@ -214,11 +245,13 @@ export function TranslationSettings() {
           </p>
         </SettingsSection>
       </div>
+      </section>
 
       {/* 5. Sync Engine (advanced — collapsed by default) */}
+      <section id="sync" data-testid="settings.translation.section-sync">
       <div data-testid="section-sync-engine">
         <SettingsSection
-          title={t('settings.translation.syncEngine.title', 'Sync Engine')}
+          title={t('translation_page.sync_section')}
           description={t(
             'settings.translation.syncEngine.description',
             'Choose the default synchronisation engine and configure automatic sync behaviour.',
@@ -242,8 +275,13 @@ export function TranslationSettings() {
           </p>
         </SettingsSection>
       </div>
+      </section>
 
-      {/* 6. Whisper — navigates to dedicated Transcription page */}
+      {/* Whisper — navigation cross-link to dedicated Transcription page.
+          Intentionally NOT in the FormLayout TOC: it's a cross-page link,
+          not a TranslationSettings section. Rendered inside the form
+          column so it sits visually between Sync Engine and Episode
+          Context where it belongs. */}
       <div
         data-testid="section-whisper"
         style={{
@@ -271,10 +309,11 @@ export function TranslationSettings() {
           Configure →
         </Link>
       </div>
-      {/* 7. Episode Context (Step 45) */}
+      {/* 6. Episode Context (Step 45) */}
+      <section id="episode-context" data-testid="settings.translation.section-episode-context">
       <div data-testid="section-translation-context-wrapper">
         <SettingsSection
-          title={t('settings.translation.episodeContext.title', 'Episode Context')}
+          title={t('translation_page.episode_context_section')}
           description={t(
             'settings.translation.episodeContext.description',
             'Use prior episode subtitles as translation context and build per-series glossaries.',
@@ -286,6 +325,10 @@ export function TranslationSettings() {
           </div>
         </SettingsSection>
       </div>
+      </section>
+
+      </FormLayout>
+
       {/* Danger Zone — Disable Translation */}
       <div
         data-testid="section-disable-translation"

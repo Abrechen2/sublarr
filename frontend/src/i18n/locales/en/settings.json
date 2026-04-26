@@ -935,6 +935,14 @@
     "history_section": "Notification History",
     "quiet_hours_section": "Quiet Hours"
   },
+  "translation_page": {
+    "backends_section": "Translation Backends",
+    "prompts_section": "Prompt Presets",
+    "glossary_section": "Global Glossary",
+    "context_quality_section": "Context & Quality",
+    "sync_section": "Sync Engine",
+    "episode_context_section": "Episode Context"
+  },
   "post_processing": {
     "enabled_hint": "Enable the post-processing pipeline. When disabled, no automatic fixes are applied after download.",
     "auto_sync_hint": "Automatically synchronize subtitle timing to the video after download.",
