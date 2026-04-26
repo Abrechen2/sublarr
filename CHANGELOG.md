@@ -5,6 +5,14 @@ All notable changes to Sublarr are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.76.3-beta] - 2026-04-26
+
+### Fixed
+- **Profiles & Overrides — Global default and Profile selections now show their settings.** A regression in the empty-state guard hid the detail panel whenever no series or movie had explicit overrides yet, even though Global and Profile scopes always have settings to view and edit. The "No overrides yet" hint is now a small banner above the detail panel rather than a panel-replacement.
+
+### Removed
+- **Empty Languages settings page** (`/settings/subtitles/languages`). The page rendered a blank shell since the 0.73 inheritance refactor moved language profiles + per-language defaults to `/settings/profiles`. Sidebar entry "Sprachen & Profile" is gone, the Cmd+K search index drops the orphan, and `/settings/subtitles/languages` now redirects to `/settings/profiles` so any external bookmark still lands somewhere useful.
+
 ## [0.76.2-beta] - 2026-04-26
 
 ### Added
