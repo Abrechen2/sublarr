@@ -99,6 +99,8 @@ export interface StandaloneMovie {
   wanted?: boolean
   created_at: string
   updated_at: string
+  profile_name?: string
+  profile_id?: number | null
 }
 
 export interface MovieDetail extends StandaloneMovie {

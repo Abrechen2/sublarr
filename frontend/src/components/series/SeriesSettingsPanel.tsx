@@ -4,6 +4,7 @@ import { useTranslation } from 'react-i18next'
 import { useNavigate } from 'react-router-dom'
 import { Tooltip } from '@/components/shared/Tooltip'
 import { useCreateOverride } from '@/pages/Settings/profilesOverrides/useProfilesOverrides'
+import { useLanguageProfiles, useAssignProfile } from '@/hooks/useApi'
 import { profilesScopeUrl, seriesDetailUrl } from '@/lib/routes'
 
 interface SeriesSettingsPanelProps {
@@ -63,6 +64,9 @@ export function SeriesSettingsPanel({
   const { t: tSettings } = useTranslation('settings')
   const navigate = useNavigate()
   const createOverride = useCreateOverride('series')
+  const { data: profilesData } = useLanguageProfiles()
+  const assignProfile = useAssignProfile()
+  const profiles = profilesData ?? []
 
   const handleSubtitleSettings = async () => {
     await createOverride.mutateAsync(seriesId)
@@ -86,21 +90,38 @@ export function SeriesSettingsPanel({
       <div>
         <div style={sectionLabelStyle}>{t('series_settings_panel.section_language')}</div>
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px', alignItems: 'center' }}>
-          {series.profile_name && (
-            <span
-              style={{
-                padding: '3px 8px',
-                borderRadius: '4px',
-                fontSize: '11px',
-                backgroundColor: 'var(--accent-bg)',
-                color: 'var(--accent)',
-                border: '1px solid var(--accent)',
-                fontWeight: 600,
-              }}
-            >
-              {series.profile_name}
-            </span>
-          )}
+          <select
+            aria-label={tSettings('profiles_overrides.action.select_profile', 'Select profile…')}
+            data-testid="series-profile-select"
+            disabled={assignProfile.isPending}
+            value={series.profile_id ?? ''}
+            onChange={(e) => {
+              const id = Number(e.target.value)
+              if (!isNaN(id) && id > 0) {
+                assignProfile.mutate({ type: 'series', arrId: seriesId, profileId: id })
+              }
+            }}
+            style={{
+              padding: '3px 8px',
+              borderRadius: '4px',
+              fontSize: '11px',
+              backgroundColor: 'var(--accent-bg)',
+              color: 'var(--accent)',
+              border: '1px solid var(--accent)',
+              fontWeight: 600,
+              cursor: assignProfile.isPending ? 'default' : 'pointer',
+              opacity: assignProfile.isPending ? 0.6 : 1,
+            }}
+          >
+            {profiles.length === 0 && (
+              <option value="">{series.profile_name || 'Default'}</option>
+            )}
+            {profiles.map((p) => (
+              <option key={p.id} value={p.id}>
+                {p.name}{p.is_default ? ' ★' : ''}
+              </option>
+            ))}
+          </select>
           {series.target_language_names?.map((name: string) => (
             <span
               key={name}

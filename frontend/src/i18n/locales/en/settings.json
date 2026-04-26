@@ -1124,6 +1124,7 @@
       "close": "Close",
       "reset_all": "Reset all overrides",
       "subtitle_settings": "Subtitle settings →",
+      "select_profile": "Select profile…",
       "remove_overrides": "Remove from overrides",
       "remove_overrides_confirm": "Remove all overrides for this series/movie? It will disappear from the tree.",
       "back_to": "← Back to"

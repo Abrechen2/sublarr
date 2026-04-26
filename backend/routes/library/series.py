@@ -41,6 +41,7 @@ def _get_standalone_series_detail(series_id: int, settings) -> dict | None:
         else [settings.target_language_name]
     )
     profile_name = profile.get("name", "Default") if profile else "Default"
+    profile_id = profile.get("id") if profile else None
 
     db = get_db()
     rows = db.execute(
@@ -169,6 +170,7 @@ def _get_standalone_series_detail(series_id: int, settings) -> dict | None:
         "episode_file_count": len(episodes),
         "tags": [],
         "profile_name": profile_name,
+        "profile_id": profile_id,
         "target_languages": target_languages,
         "target_language_names": target_language_names,
         "source_language": settings.source_language,
@@ -270,6 +272,7 @@ def get_series_detail(series_id):
         else [settings.target_language_name]
     )
     profile_name = profile.get("name", "Default") if profile else "Default"
+    profile_id = profile.get("id") if profile else None
 
     # Get all episodes + episode files in parallel
     # /episode?seriesId=X does NOT include episodeFile details in Sonarr v3,
@@ -483,6 +486,7 @@ def get_series_detail(series_id):
             "episode_file_count": _episode_file_count,
             "tags": tags,
             "profile_name": profile_name,
+            "profile_id": profile_id,
             "target_languages": target_languages,
             "target_language_names": target_language_names,
             "source_language": settings.source_language,

@@ -206,8 +206,9 @@ def enrich_movie_list(movies: list[dict]) -> list[dict]:
 
 
 def enrich_movie_detail(movie: dict, movie_id: int) -> dict:
-    """Add wanted_count to a single movie dict."""
+    """Add wanted_count, profile_name, and profile_id to a single movie dict."""
     from db import get_db
+    from db.profiles import get_default_profile, get_movie_profile
 
     db = get_db()
     row = db.execute(
@@ -217,6 +218,13 @@ def enrich_movie_detail(movie: dict, movie_id: int) -> dict:
         {"mid": movie_id},
     ).fetchone()
     movie["wanted_count"] = row[0] if row else 0
+
+    profile = get_movie_profile(movie_id)
+    if not profile:
+        profile = get_default_profile()
+    movie["profile_name"] = profile.get("name", "Default") if profile else "Default"
+    movie["profile_id"] = profile.get("id") if profile else None
+
     return movie
 
 

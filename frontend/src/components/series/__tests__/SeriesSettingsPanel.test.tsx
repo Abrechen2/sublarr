@@ -30,6 +30,17 @@ vi.mock('@/pages/Settings/profilesOverrides/useProfilesOverrides', () => ({
   useCreateOverride: () => ({ mutateAsync: mockMutateAsync, isPending: false }),
 }))
 
+const mockAssignMutate = vi.fn()
+vi.mock('@/hooks/useApi', () => ({
+  useLanguageProfiles: () => ({
+    data: [
+      { id: 1, name: 'Default', is_default: true },
+      { id: 2, name: 'German Only', is_default: false },
+    ],
+  }),
+  useAssignProfile: () => ({ mutate: mockAssignMutate, isPending: false }),
+}))
+
 function makeSeries(overrides: Partial<SeriesDetail> = {}): SeriesDetail {
   return {
     id: 1,
@@ -45,6 +56,7 @@ function makeSeries(overrides: Partial<SeriesDetail> = {}): SeriesDetail {
     episode_file_count: 0,
     tags: [],
     profile_name: 'Default',
+    profile_id: 1,
     target_languages: ['de'],
     target_language_names: ['German'],
     source_language: 'en',
@@ -168,6 +180,39 @@ describe('SeriesSettingsPanel — cleanup_foreign_tracks three-state toggle', ()
 
     const select = screen.getByRole('combobox', { name: /cleanup foreign tracks/i })
     expect((select as HTMLSelectElement).disabled).toBe(true)
+  })
+})
+
+describe('SeriesSettingsPanel — profile selector (Phase B)', () => {
+  beforeEach(() => {
+    mockAssignMutate.mockClear()
+  })
+
+  it('renders a profile select dropdown', () => {
+    const series = makeSeries({ profile_id: 1, profile_name: 'Default' })
+    render(<MemoryRouter><SeriesSettingsPanel {...baseProps} series={series} /></MemoryRouter>)
+    expect(screen.getByTestId('series-profile-select')).toBeInTheDocument()
+  })
+
+  it('pre-selects the current profile_id', () => {
+    const series = makeSeries({ profile_id: 2, profile_name: 'German Only' })
+    render(<MemoryRouter><SeriesSettingsPanel {...baseProps} series={series} /></MemoryRouter>)
+    const select = screen.getByTestId('series-profile-select') as HTMLSelectElement
+    expect(select.value).toBe('2')
+  })
+
+  it('renders default profile with star suffix', () => {
+    const series = makeSeries({ profile_id: 1 })
+    render(<MemoryRouter><SeriesSettingsPanel {...baseProps} series={series} /></MemoryRouter>)
+    expect(screen.getByText('Default ★')).toBeInTheDocument()
+  })
+
+  it('calls useAssignProfile.mutate with correct args on change', () => {
+    const series = makeSeries({ profile_id: 1 })
+    render(<MemoryRouter><SeriesSettingsPanel {...baseProps} seriesId={7} series={series} /></MemoryRouter>)
+    const select = screen.getByTestId('series-profile-select')
+    fireEvent.change(select, { target: { value: '2' } })
+    expect(mockAssignMutate).toHaveBeenCalledWith({ type: 'series', arrId: 7, profileId: 2 })
   })
 })
 

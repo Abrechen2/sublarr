@@ -30,6 +30,7 @@ export interface SeriesInfo {
   missing_count: number
 }
 
+
 export interface MovieInfo {
   id: number
   title: string
@@ -68,6 +69,7 @@ export interface SeriesDetail {
   episode_file_count: number
   tags: string[]
   profile_name: string
+  profile_id: number | null
   target_languages: string[]
   target_language_names: string[]
   source_language: string

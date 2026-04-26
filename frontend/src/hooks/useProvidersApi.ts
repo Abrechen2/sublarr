@@ -211,9 +211,15 @@ export function useAssignProfile() {
   return useMutation({
     mutationFn: ({ type, arrId, profileId }: { type: 'series' | 'movie'; arrId: number; profileId: number }) =>
       assignProfile(type, arrId, profileId),
-    onSuccess: () => {
+    onSuccess: (_data, { type, arrId }) => {
       queryClient.invalidateQueries({ queryKey: ['library'] })
       queryClient.invalidateQueries({ queryKey: ['language-profiles'] })
+      // Refresh the detail page so profile_id/profile_name re-fetches
+      if (type === 'series') {
+        void queryClient.invalidateQueries({ queryKey: ['series', arrId] })
+      } else {
+        void queryClient.invalidateQueries({ queryKey: ['movie', arrId] })
+      }
     },
   })
 }

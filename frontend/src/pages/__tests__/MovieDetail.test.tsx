@@ -42,10 +42,21 @@ vi.mock('@/hooks/useApi', () => ({
   useWantedItems: (...args: unknown[]) => mockUseWantedItems(...args),
   useSearchWantedItem: () => mockUseSearchWantedItem(),
   useUpdateWantedStatus: () => mockUseUpdateWantedStatus(),
+  useLanguageProfiles: () => ({
+    data: [
+      { id: 1, name: 'Default', is_default: true },
+      { id: 2, name: 'German Only', is_default: false },
+    ],
+  }),
+  useAssignProfile: () => ({ mutate: vi.fn(), isPending: false }),
 }))
 
 vi.mock('@/hooks/useLibraryApi', () => ({
   useMovieSubtitles: () => ({ data: { subtitles: [], video_path: '' }, isLoading: false, refetch: vi.fn() }),
+}))
+
+vi.mock('@/pages/Settings/profilesOverrides/useProfilesOverrides', () => ({
+  useCreateOverride: () => ({ mutateAsync: vi.fn().mockResolvedValue({ created: true }), isPending: false }),
 }))
 
 vi.mock('@/components/shared/Breadcrumb', () => ({
@@ -53,6 +64,28 @@ vi.mock('@/components/shared/Breadcrumb', () => ({
     <nav>{items.map((i) => <span key={i.label}>{i.label}</span>)}</nav>
   ),
 }))
+
+vi.mock('@/components/processing/SubtitleActionsMenu', () => ({
+  SubtitleActionsMenu: () => null,
+}))
+
+// ─── Fixtures ─────────────────────────────────────────────────────────────────
+
+const movieFixture = {
+  id: 42,
+  title: 'My Test Movie',
+  year: 2023,
+  file_path: '/media/movie.mkv',
+  wanted_count: 0,
+  poster_url: '',
+  tmdb_id: null,
+  imdb_id: '',
+  metadata_source: '',
+  created_at: '2024-01-01T00:00:00Z',
+  updated_at: '2024-01-01T00:00:00Z',
+  profile_name: 'Default',
+  profile_id: 1,
+}
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
@@ -93,34 +126,46 @@ describe('MovieDetailPage', () => {
   })
 
   it('renders movie title when loaded', () => {
-    mockUseMovieDetail.mockReturnValue({
-      data: {
-        id: 42,
-        title: 'My Test Movie',
-        year: 2023,
-        file_path: '/media/movie.mkv',
-        wanted_count: 1,
-        poster_url: '',
-        tmdb_id: null,
-        imdb_id: '',
-        metadata_source: '',
-        created_at: '2024-01-01T00:00:00Z',
-        updated_at: '2024-01-01T00:00:00Z',
-      },
-      isLoading: false,
-      error: null,
-    })
+    mockUseMovieDetail.mockReturnValue({ data: movieFixture, isLoading: false, error: null })
     renderPage()
     expect(screen.getAllByText('My Test Movie').length).toBeGreaterThan(0)
   })
 
   it('renders breadcrumb with Library link', () => {
-    mockUseMovieDetail.mockReturnValue({
-      data: { id: 42, title: 'Test', year: 2023, file_path: '/media/m.mkv', poster_url: '', tmdb_id: null, imdb_id: '', metadata_source: '', created_at: '', updated_at: '' },
-      isLoading: false,
-      error: null,
-    })
+    mockUseMovieDetail.mockReturnValue({ data: movieFixture, isLoading: false, error: null })
     renderPage()
     expect(screen.getByText('Library')).toBeInTheDocument()
+  })
+
+  it('renders the subtitle settings card (Phase A testid survives Phase B)', () => {
+    mockUseMovieDetail.mockReturnValue({ data: movieFixture, isLoading: false, error: null })
+    renderPage()
+    expect(screen.getByTestId('movie-subtitle-settings-link')).toBeInTheDocument()
+  })
+})
+
+describe('MovieDetailPage — profile selector (Phase B)', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+    mockUseWantedItems.mockReturnValue({ data: { data: [], total: 0, page: 1, per_page: 50 }, isLoading: false })
+    mockUseSearchWantedItem.mockReturnValue({ mutate: vi.fn(), isPending: false })
+    mockUseUpdateWantedStatus.mockReturnValue({ mutate: vi.fn(), isPending: false })
+    mockUseMovieDetail.mockReturnValue({ data: movieFixture, isLoading: false, error: null })
+  })
+
+  it('renders profile select inside the subtitle settings card', () => {
+    renderPage()
+    expect(screen.getByTestId('movie-profile-select')).toBeInTheDocument()
+  })
+
+  it('pre-selects the current profile_id', () => {
+    renderPage()
+    const select = screen.getByTestId('movie-profile-select') as HTMLSelectElement
+    expect(select.value).toBe('1')
+  })
+
+  it('renders default profile with star suffix in options', () => {
+    renderPage()
+    expect(screen.getByText('Default ★')).toBeInTheDocument()
   })
 })
