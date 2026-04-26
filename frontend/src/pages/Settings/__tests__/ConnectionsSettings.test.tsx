@@ -132,7 +132,12 @@ describe('ConnectionsSettings', () => {
 
   it('renders the Standalone Mode section', () => {
     renderWithProviders(<ConnectionsSettings />)
-    expect(screen.getByText('Standalone Mode')).toBeInTheDocument()
+    // FormLayout TOC also renders "Standalone Mode" — pick the section heading
+    const headings = screen.getAllByText('Standalone Mode')
+    const sectionHeading = headings.find(
+      (el) => el.getAttribute('data-testid') === 'settings-section-title',
+    )
+    expect(sectionHeading).toBeInTheDocument()
     expect(screen.getByText('Scan library now')).toBeInTheDocument()
   })
 })
