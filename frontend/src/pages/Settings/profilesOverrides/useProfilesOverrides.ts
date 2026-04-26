@@ -1,6 +1,8 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import {
   getScopesTree, getResolved, patchOverride, resetOverrides,
+  createSeriesOverride, createMovieOverride,
+  deleteSeriesScope, deleteMovieScope,
   type ScopesTree, type ResolvedSettings,
 } from '@/api/profilesOverrides'
 
@@ -44,6 +46,28 @@ export function useResetMutation(scopeType: 'series' | 'movie', scopeId: number)
     mutationFn: () => resetOverrides(scopeType, scopeId),
     onSuccess: () => {
       void qc.invalidateQueries({ queryKey: ['profiles-overrides', 'resolved', scopeType, scopeId] })
+    },
+  })
+}
+
+export function useCreateOverride(scopeType: 'series' | 'movie') {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (scopeId: number) =>
+      scopeType === 'series' ? createSeriesOverride(scopeId) : createMovieOverride(scopeId),
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: ['profiles-overrides', 'scopes'] })
+    },
+  })
+}
+
+export function useDeleteOverride(scopeType: 'series' | 'movie') {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (scopeId: number) =>
+      scopeType === 'series' ? deleteSeriesScope(scopeId) : deleteMovieScope(scopeId),
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: ['profiles-overrides', 'scopes'] })
     },
   })
 }

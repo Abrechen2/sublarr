@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { Link } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import {
   InheritanceRow,
@@ -12,6 +13,10 @@ export interface ScopeDetailProps {
   readonly resolved: ResolvedSettings
   readonly onChange: (fieldKey: string, value: unknown) => void
   readonly onReset: () => void
+  /** When defined, shows a destructive "Remove from overrides" button at footer. */
+  readonly onRemove?: () => void
+  /** When defined, shows a back-link at the top of the detail pane. */
+  readonly backHref?: string
 }
 
 type ScopeKind = 'global' | 'profile' | 'series' | 'movie'
@@ -36,7 +41,7 @@ function pillSource(scope: ScopeKind, setting: ResolvedSetting): InheritanceSour
   return 'inherited'
 }
 
-export function ScopeDetail({ resolved, onChange, onReset }: ScopeDetailProps) {
+export function ScopeDetail({ resolved, onChange, onReset, onRemove, backHref }: ScopeDetailProps) {
   const { t } = useTranslation('settings')
   const [openOverride, setOpenOverride] = useState<string | null>(null)
 
@@ -50,8 +55,31 @@ export function ScopeDetail({ resolved, onChange, onReset }: ScopeDetailProps) {
     return String(value)
   }
 
+  const handleRemove = () => {
+    const confirmed = window.confirm(
+      t(
+        'profiles_overrides.action.remove_overrides_confirm',
+        'Remove all overrides for this series/movie? It will disappear from the tree.',
+      ),
+    )
+    if (confirmed) onRemove?.()
+  }
+
   return (
     <div className="flex flex-col gap-3">
+      {/* Back link — shown when navigated from series/movie detail page */}
+      {backHref && (
+        <div className="pb-1">
+          <Link
+            to={backHref}
+            data-testid="scope-detail-back-link"
+            className="text-xs text-[var(--accent)] hover:underline flex items-center gap-1"
+          >
+            {t('profiles_overrides.action.back_to', '← Back to')} {resolved.scope.name}
+          </Link>
+        </div>
+      )}
+
       {/* Header strip */}
       <div className="flex items-center gap-2 pb-2 border-b border-[var(--border)]">
         <h2 className="text-sm font-semibold m-0">{resolved.scope.name}</h2>
@@ -98,9 +126,23 @@ export function ScopeDetail({ resolved, onChange, onReset }: ScopeDetailProps) {
         })}
       </div>
 
-      {/* Reset button */}
+      {/* Footer actions — Reset + Remove */}
       {isOverridable && (
-        <div className="flex justify-end pt-2 border-t border-[var(--border)]">
+        <div className="flex items-center justify-between pt-2 border-t border-[var(--border)]">
+          {/* Remove override row — destructive, distinct from Reset */}
+          {onRemove ? (
+            <button
+              type="button"
+              onClick={handleRemove}
+              data-testid="scope-detail-remove-btn"
+              className="px-2.5 py-1 text-xs rounded bg-[var(--bg-primary)] border border-[var(--error)] text-[var(--error)] hover:bg-[var(--error)] hover:text-white"
+            >
+              {t('profiles_overrides.action.remove_overrides', 'Remove from overrides')}
+            </button>
+          ) : (
+            <span />
+          )}
+
           <button
             type="button"
             onClick={onReset}

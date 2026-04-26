@@ -1122,7 +1122,11 @@
       "add_profile": "+ Profile",
       "override": "Override →",
       "close": "Close",
-      "reset_all": "Reset all overrides"
+      "reset_all": "Reset all overrides",
+      "subtitle_settings": "Subtitle settings →",
+      "remove_overrides": "Remove from overrides",
+      "remove_overrides_confirm": "Remove all overrides for this series/movie? It will disappear from the tree.",
+      "back_to": "← Back to"
     },
     "widget": {
       "inherit": "Inherit",
@@ -1153,6 +1157,10 @@
       "save": "Save",
       "cancel": "Cancel",
       "confirm_delete": "Delete permanently"
+    },
+    "empty_state": {
+      "title": "No overrides yet",
+      "body": "Open a series in the library and click \"Subtitle settings\" to create your first override."
     }
   },
   "glossary_page": {

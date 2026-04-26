@@ -80,3 +80,23 @@ export async function resetOverrides(
   const { data } = await api.post(`${BASE}/${scopeType}/${scopeId}/reset`, {})
   return data
 }
+
+export async function createSeriesOverride(seriesId: number): Promise<{ created: boolean }> {
+  const { data } = await api.post(`${BASE}/series/${seriesId}/create-override`, {})
+  return data
+}
+
+export async function createMovieOverride(movieId: number): Promise<{ created: boolean }> {
+  const { data } = await api.post(`${BASE}/movie/${movieId}/create-override`, {})
+  return data
+}
+
+export async function deleteSeriesScope(seriesId: number): Promise<{ deleted: boolean }> {
+  const { data } = await api.delete(`${BASE}/series/${seriesId}`)
+  return data
+}
+
+export async function deleteMovieScope(movieId: number): Promise<{ deleted: boolean }> {
+  const { data } = await api.delete(`${BASE}/movie/${movieId}`)
+  return data
+}

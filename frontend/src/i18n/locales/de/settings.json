@@ -280,7 +280,11 @@
       "add_profile": "+ Profil",
       "override": "Override →",
       "close": "Schließen",
-      "reset_all": "Alle Overrides zurücksetzen"
+      "reset_all": "Alle Overrides zurücksetzen",
+      "subtitle_settings": "Untertitel-Einstellungen →",
+      "remove_overrides": "Aus Overrides entfernen",
+      "remove_overrides_confirm": "Alle Overrides für diese Serie/Film entfernen? Die Serie/der Film verschwindet aus dem Tree.",
+      "back_to": "← Zurück zu"
     },
     "widget": {
       "inherit": "Erben",
@@ -311,6 +315,10 @@
       "save": "Speichern",
       "cancel": "Abbrechen",
       "confirm_delete": "Endgültig löschen"
+    },
+    "empty_state": {
+      "title": "Noch keine Overrides",
+      "body": "Öffne eine Serie in der Bibliothek und klicke \"Untertitel-Einstellungen\" um eine erste Override anzulegen."
     }
   },
   "config_export": {

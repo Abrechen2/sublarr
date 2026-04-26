@@ -1,7 +1,10 @@
 import type React from 'react'
 import type { SeriesDetail } from '@/lib/types'
 import { useTranslation } from 'react-i18next'
+import { useNavigate } from 'react-router-dom'
 import { Tooltip } from '@/components/shared/Tooltip'
+import { useCreateOverride } from '@/pages/Settings/profilesOverrides/useProfilesOverrides'
+import { profilesScopeUrl, seriesDetailUrl } from '@/lib/routes'
 
 interface SeriesSettingsPanelProps {
   readonly series: SeriesDetail
@@ -40,6 +43,7 @@ const buttonBaseStyle: React.CSSProperties = {
 
 export function SeriesSettingsPanel({
   series,
+  seriesId,
   showGlossary,
   hasFansubOverride,
   isExtracting,
@@ -56,6 +60,14 @@ export function SeriesSettingsPanel({
   refreshPending,
 }: SeriesSettingsPanelProps) {
   const { t } = useTranslation('library')
+  const { t: tSettings } = useTranslation('settings')
+  const navigate = useNavigate()
+  const createOverride = useCreateOverride('series')
+
+  const handleSubtitleSettings = async () => {
+    await createOverride.mutateAsync(seriesId)
+    navigate(profilesScopeUrl({ type: 'series', id: seriesId }, { from: seriesDetailUrl(seriesId) }))
+  }
 
   return (
     <div
@@ -325,6 +337,26 @@ export function SeriesSettingsPanel({
             </button>
           </Tooltip>
         </div>
+      </div>
+
+      {/* Subtitle settings link — navigates to Profiles & Overrides scoped to this series */}
+      <div style={{ borderTop: '1px solid var(--border)', paddingTop: '12px' }}>
+        <button
+          type="button"
+          onClick={() => { void handleSubtitleSettings() }}
+          disabled={createOverride.isPending}
+          data-testid="series-subtitle-settings-link"
+          style={{
+            ...buttonBaseStyle,
+            backgroundColor: 'var(--bg-elevated)',
+            color: 'var(--accent)',
+            border: '1px solid var(--accent-dim)',
+            opacity: createOverride.isPending ? 0.6 : 1,
+            cursor: createOverride.isPending ? 'default' : 'pointer',
+          }}
+        >
+          {tSettings('profiles_overrides.action.subtitle_settings', 'Subtitle settings →')}
+        </button>
       </div>
     </div>
   )

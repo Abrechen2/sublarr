@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { useSearchParams } from 'react-router-dom'
+import { useNavigate, useSearchParams } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { RulesLayout } from '@/components/settings/layouts'
 import { SettingsDetailLayout } from '@/components/settings/SettingsDetailLayout'
@@ -8,6 +8,7 @@ import {
   useResolved,
   useOverrideMutation,
   useResetMutation,
+  useDeleteOverride,
 } from './profilesOverrides/useProfilesOverrides'
 import { ScopeTree, type ScopeRef, type ProfileAction } from './profilesOverrides/ScopeTree'
 import { ScopeDetail } from './profilesOverrides/ScopeDetail'
@@ -18,6 +19,7 @@ import {
   deleteLanguageProfile,
   setProfileAsDefaultForAll,
 } from '@/api/settings'
+import { SETTINGS_PROFILES_PATH } from '@/lib/routes'
 
 // ─── URL helpers ──────────────────────────────────────────────────────────────
 
@@ -48,8 +50,10 @@ type DialogState =
 
 export function ProfilesOverridesPage() {
   const { t } = useTranslation('settings')
+  const navigate = useNavigate()
   const [searchParams, setSearchParams] = useSearchParams()
   const selected = useMemo(() => parseScopeFromUrl(searchParams.get('scope')), [searchParams])
+  const fromParam = searchParams.get('from') ?? undefined
 
   const [dialog, setDialog] = useState<DialogState | null>(null)
 
@@ -69,6 +73,9 @@ export function ProfilesOverridesPage() {
     selected.type === 'series' ? 'series' : 'movie',
     selected.type === 'series' || selected.type === 'movie' ? selected.id : -1,
   )
+  const deleteMut = useDeleteOverride(
+    selected.type === 'series' ? 'series' : 'movie',
+  )
 
   // Focus detail panel on scope change for screen-reader announcement
   const detailHeaderRef = useRef<HTMLDivElement>(null)
@@ -79,6 +86,8 @@ export function ProfilesOverridesPage() {
   const handleSelect = (scope: ScopeRef) => {
     const next = new URLSearchParams(searchParams)
     next.set('scope', scopeToUrlValue(scope))
+    // Clear from param when manually selecting a scope
+    next.delete('from')
     setSearchParams(next, { replace: true })
   }
 
@@ -121,6 +130,24 @@ export function ProfilesOverridesPage() {
     overrideMut.mutate({ [fieldKey]: value })
   }
 
+  const handleRemove = () => {
+    if (selected.type !== 'series' && selected.type !== 'movie') return
+    deleteMut.mutate(selected.id, {
+      onSuccess: () => {
+        navigate(fromParam ?? SETTINGS_PROFILES_PATH, { replace: true })
+      },
+    })
+  }
+
+  // Empty state: tree loaded but no series/movies have explicit overrides
+  const treeEmpty =
+    tree &&
+    tree.profiles.every((p) => !p.series.length && !p.movies.length) &&
+    !tree.unassigned_series.length &&
+    !tree.unassigned_movies.length
+
+  const showEmptyState = treeEmpty && (selected.type === 'global' || selected.type === 'profile')
+
   return (
     <SettingsDetailLayout
       title={t('profiles_overrides.title', 'Profiles & Overrides')}
@@ -150,11 +177,36 @@ export function ProfilesOverridesPage() {
           </div>
         }
         overrideWidget={
-          resolved ? (
+          showEmptyState ? (
+            <div
+              data-testid="profiles-overrides-empty-state"
+              className="flex flex-col gap-2 p-4 rounded bg-[var(--bg-elevated)] border border-[var(--border)] text-center"
+            >
+              <p className="text-sm font-semibold text-[var(--text-primary)]">
+                {t('profiles_overrides.empty_state.title', 'No overrides yet')}
+              </p>
+              <p className="text-xs text-[var(--text-muted)]">
+                {t(
+                  'profiles_overrides.empty_state.body',
+                  'Open a series in the library and click "Subtitle settings" to create your first override.',
+                )}
+              </p>
+            </div>
+          ) : resolved ? (
             <ScopeDetail
               resolved={resolved}
               onChange={handleOverride}
               onReset={() => resetMut.mutate()}
+              onRemove={
+                (selected.type === 'series' || selected.type === 'movie')
+                  ? handleRemove
+                  : undefined
+              }
+              backHref={
+                (selected.type === 'series' || selected.type === 'movie') && fromParam
+                  ? fromParam
+                  : undefined
+              }
             />
           ) : (
             <div />

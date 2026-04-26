@@ -31,6 +31,10 @@ vi.mock('@/api/profilesOverrides', () => ({
   }),
   patchOverride: vi.fn().mockResolvedValue({ ok: true }),
   resetOverrides: vi.fn().mockResolvedValue({ ok: true }),
+  createSeriesOverride: vi.fn().mockResolvedValue({ created: true }),
+  createMovieOverride: vi.fn().mockResolvedValue({ created: true }),
+  deleteSeriesScope: vi.fn().mockResolvedValue({ deleted: true }),
+  deleteMovieScope: vi.fn().mockResolvedValue({ deleted: true }),
 }))
 
 function renderPage() {
@@ -58,5 +62,13 @@ describe('ProfilesOverridesPage', () => {
   it('shows global scope detail by default', async () => {
     renderPage()
     await waitFor(() => expect(screen.getAllByText(/global default/i).length).toBeGreaterThan(0))
+  })
+
+  it('shows empty-state when tree has no series or movies', async () => {
+    // Default mock already returns empty tree (no series/movies in profiles or unassigned)
+    renderPage()
+    await waitFor(() =>
+      expect(screen.getByTestId('profiles-overrides-empty-state')).toBeInTheDocument()
+    )
   })
 })
