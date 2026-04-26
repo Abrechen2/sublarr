@@ -145,7 +145,7 @@
   "login": {
     "subtitle": "Passwort eingeben um fortzufahren",
     "password_placeholder": "Passwort",
-    "logging_in": "Anmeldenâ€¦",
+    "logging_in": "Anmelden…",
     "log_in": "Anmelden",
     "invalid_password": "Falsches Passwort",
     "hide_password": "Passwort ausblenden",
@@ -225,11 +225,11 @@
   },
   "trash": {
     "page_title": "Papierkorb",
-    "loading": "Wird geladenâ€¦",
+    "loading": "Wird geladen…",
     "empty": "Papierkorb ist leer",
     "mkv_restore_title": "Video-Backup wiederherstellen",
     "mkv_restore_desc": "Die remuxte Video-Datei wird durch die Sicherung ersetzt (atomarer Tausch).",
-    "mkv_no_video": "Original-Video nicht mehr auf Disk gefunden â€” Pfad kann nicht aufgelöst werden.",
+    "mkv_no_video": "Original-Video nicht mehr auf Disk gefunden — Pfad kann nicht aufgelöst werden.",
     "delete_sidecars_label": "Passende Sidecar-Batches ebenfalls löschen",
     "cancel": "Abbrechen",
     "restore": "Wiederherstellen",
@@ -241,8 +241,8 @@
     "restore_btn": "Wiederherstellen",
     "delete_btn": "Löschen",
     "delete_confirm": "Endgültig löschen",
-    "show_files": "{{count}} Dateien anzeigen â–¼",
-    "hide_files": "Dateien ausblenden â–²",
+    "show_files": "{{count}} Dateien anzeigen ▼",
+    "hide_files": "Dateien ausblenden ▲",
     "subtitle_sidecars": "Untertitel-Sidecars",
     "video_backups": "Video-Backups (Remux)",
     "original_not_found": "Original nicht gefunden",
@@ -265,7 +265,7 @@
   "close_player": "Player schließen",
   "update": {
     "available": "verfügbar",
-    "view_release": "Jetzt auf GitHub ansehen â†’"
+    "view_release": "Jetzt auf GitHub ansehen →"
   },
   "settings": {
     "overview": {
@@ -333,7 +333,7 @@
         "description": "Den globalen Mindest-Score für bestimmte Sprachen überschreiben.",
         "label": "Score-Schwellwerte (JSON)",
         "hint": "JSON-Objekt mit ISO-639-1-Code als Schlüssel und Mindest-Score als Wert. Leeres Objekt verwendet den globalen Schwellwert.",
-        "example": "Beispiel: {\"de\": 80, \"fr\": 70} â€” Deutsche Untertitel erfordern Score â‰¥ 80, Französische â‰¥ 70.",
+        "example": "Beispiel: {\"de\": 80, \"fr\": 70} — Deutsche Untertitel erfordern Score ≥ 80, Französische ≥ 70.",
         "fallback": "Leer lassen {} um den globalen Schwellwert für alle Sprachen zu verwenden."
       },
       "languagesPage": {
@@ -386,6 +386,10 @@
         "title": "System",
         "description": "Sicherheit, Backup, Logs"
       },
+      "profiles": {
+        "title": "Profile & Overrides",
+        "description": "Vererbungs-Kette für Sprach-Einstellungen"
+      },
       "cleanup": {
         "title": "Bereinigung",
         "description": "Sprachfilter, Format-Upgrades, Waisendateien"
@@ -396,9 +400,27 @@
       }
     },
     "nav": {
+      "app_interface": "App & Oberfläche",
+      "arr_media": "Sonarr, Radarr & Medienserver",
+      "metadata": "Metadaten",
       "scoring": "Scoring",
       "format_naming": "Format & Benennung",
-      "scheduler": "Scheduler"
+      "cleanup": "Bereinigung",
+      "stream_management": "Stream-Verwaltung",
+      "providers_list": "Provider & Zugangsdaten",
+      "transcription": "Transkription",
+      "search_scan": "Suche, Scan & Upgrades",
+      "post_processing": "Post-Processing",
+      "subtitle_automation": "Untertitel-Automation",
+      "profiles_overrides": "Profile & Overrides",
+      "channels_templates": "Kanäle & Vorlagen",
+      "security_backup": "Sicherheit, Backup & Logs",
+      "hooks_webhooks": "Hooks & Webhooks",
+      "scheduler": "Scheduler",
+      "sync_engines": "Sync-Engines",
+      "translation_backends": "Backends & Glossar",
+      "translation_cost": "Kosten & Memory",
+      "translation_queue": "Queue"
     }
   },
   "common": {

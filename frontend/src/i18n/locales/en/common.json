@@ -3,7 +3,7 @@
     "dashboard": "Dashboard",
     "library": "Library",
     "wanted": "Wanted",
-    "activity": "Translations",
+    "activity": "Activity",
     "queue": "Queue",
     "history": "Downloads",
     "blacklist": "Blacklist",
@@ -145,7 +145,7 @@
   "login": {
     "subtitle": "Enter your password to continue",
     "password_placeholder": "Password",
-    "logging_in": "Logging inâ€¦",
+    "logging_in": "Logging in…",
     "log_in": "Log In",
     "invalid_password": "Invalid password",
     "hide_password": "Hide password",
@@ -225,11 +225,11 @@
   },
   "trash": {
     "page_title": "Trash",
-    "loading": "Loadingâ€¦",
+    "loading": "Loading…",
     "empty": "Trash is empty",
     "mkv_restore_title": "Restore Video Backup",
     "mkv_restore_desc": "The remuxed video file will be replaced by the backup (atomic swap).",
-    "mkv_no_video": "Original video no longer found on disk â€” path cannot be resolved.",
+    "mkv_no_video": "Original video no longer found on disk — path cannot be resolved.",
     "delete_sidecars_label": "Also delete matching sidecar batches",
     "cancel": "Cancel",
     "restore": "Restore",
@@ -241,8 +241,8 @@
     "restore_btn": "Restore",
     "delete_btn": "Delete",
     "delete_confirm": "Delete permanently",
-    "show_files": "Show {{count}} files â–¼",
-    "hide_files": "Hide files â–²",
+    "show_files": "Show {{count}} files ▼",
+    "hide_files": "Hide files ▲",
     "subtitle_sidecars": "Subtitle Sidecars",
     "video_backups": "Video Backups (Remux)",
     "original_not_found": "Original not found",
@@ -265,7 +265,7 @@
   "close_player": "Close player",
   "update": {
     "available": "available",
-    "view_release": "View on GitHub â†’"
+    "view_release": "View on GitHub →"
   },
   "settings": {
     "overview": {
@@ -333,7 +333,7 @@
         "description": "Override the global minimum score for specific languages.",
         "label": "Score Thresholds (JSON)",
         "hint": "JSON object mapping ISO-639-1 code to minimum score. Empty object uses global threshold for all languages.",
-        "example": "Example: {\"de\": 80, \"fr\": 70} â€” German subtitles require score â‰¥ 80, French â‰¥ 70.",
+        "example": "Example: {\"de\": 80, \"fr\": 70} — German subtitles require score ≥ 80, French ≥ 70.",
         "fallback": "Leave as {} to use the global threshold for all languages."
       },
       "languagesPage": {
@@ -386,6 +386,10 @@
         "title": "System",
         "description": "Security, backup, logs"
       },
+      "profiles": {
+        "title": "Profiles & Overrides",
+        "description": "Inheritance chain for language settings"
+      },
       "cleanup": {
         "title": "Cleanup",
         "description": "Language filters, format upgrades, orphan removal"
@@ -396,9 +400,27 @@
       }
     },
     "nav": {
+      "app_interface": "App & Interface",
+      "arr_media": "Sonarr, Radarr & Media Servers",
+      "metadata": "Metadata",
       "scoring": "Scoring",
       "format_naming": "Format & Naming",
-      "scheduler": "Scheduler"
+      "cleanup": "Cleanup",
+      "stream_management": "Stream Management",
+      "providers_list": "Providers & Credentials",
+      "transcription": "Transcription",
+      "search_scan": "Search, Scan & Upgrades",
+      "post_processing": "Post-Processing",
+      "subtitle_automation": "Subtitle Automation",
+      "profiles_overrides": "Profiles & Overrides",
+      "channels_templates": "Channels & Templates",
+      "security_backup": "Security, Backup & Logs",
+      "hooks_webhooks": "Hooks & Webhooks",
+      "scheduler": "Scheduler",
+      "sync_engines": "Sync Engines",
+      "translation_backends": "Backends & Glossary",
+      "translation_cost": "Cost & Memory",
+      "translation_queue": "Queue"
     }
   },
   "common": {
