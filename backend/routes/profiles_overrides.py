@@ -57,21 +57,61 @@ def get_scopes():
         movie_by_profile.setdefault(m.profile_id, []).append(m.radarr_movie_id)
         assigned_movie_ids.add(m.radarr_movie_id)
 
-    # Resolve series/movie titles via the existing library tables.
-    # Both tables are populated by Sonarr/Radarr sync and may be absent on
-    # fresh installs or in test environments — degrade gracefully.
+    # Sublarr does not maintain a master `series` / `movies` table — Sonarr
+    # and Radarr own that. We aggregate every series/movie that has *any*
+    # touchpoint in Sublarr's own DB: cached searches, wanted items,
+    # per-series/movie settings, profile mappings, or standalone library
+    # entries. For titles we prefer search_series.title / standalone_*.title
+    # when present, otherwise we fall back to a `#<id>` placeholder.
     from sqlalchemy import text
 
-    try:
-        title_rows = db.session.execute(text("SELECT sonarr_series_id, title FROM series")).all()
-        series_titles = {r[0]: r[1] for r in title_rows}
-    except Exception:
-        series_titles = {}  # series table absent (fresh install / test)
-    try:
-        movie_rows = db.session.execute(text("SELECT radarr_movie_id, title FROM movies")).all()
-        movie_titles = {r[0]: r[1] for r in movie_rows}
-    except Exception:
-        movie_titles = {}  # movies table absent (fresh install / test)
+    def _safe_query(sql: str) -> list:
+        try:
+            return list(db.session.execute(text(sql)).all())
+        except Exception:
+            return []
+
+    series_id_titles: dict[int, str] = {}
+    # search_series: id is the sonarr_series_id, populated whenever a search
+    # for an episode of that series ran. Title is the cached display name.
+    for row in _safe_query("SELECT id, title FROM search_series"):
+        sid, title = int(row[0]), str(row[1] or "")
+        # Strip episode-tail like " — S01E01 [DE]" if present.
+        clean = title.split(" — ")[0] if " — " in title else title
+        series_id_titles.setdefault(sid, clean or f"#{sid}")
+    # standalone_series: manual library entries with their own id + title.
+    for row in _safe_query("SELECT id, title FROM standalone_series"):
+        sid, title = int(row[0]), str(row[1] or "")
+        series_id_titles.setdefault(sid, title or f"#{sid}")
+    # Pure-id sources — no title, only existence. Used to surface series that
+    # have settings or wanted items even if no search ever ran.
+    for sql in (
+        "SELECT DISTINCT sonarr_series_id FROM wanted_items WHERE sonarr_series_id IS NOT NULL",
+        "SELECT DISTINCT sonarr_series_id FROM series_settings",
+    ):
+        for row in _safe_query(sql):
+            sid = int(row[0])
+            series_id_titles.setdefault(sid, f"#{sid}")
+    # Mapping table itself — make sure assigned IDs always show up.
+    for sid in assigned_series_ids:
+        series_id_titles.setdefault(sid, f"#{sid}")
+
+    movie_id_titles: dict[int, str] = {}
+    for row in _safe_query("SELECT id, title FROM standalone_movies"):
+        mid, title = int(row[0]), str(row[1] or "")
+        movie_id_titles.setdefault(mid, title or f"#{mid}")
+    for sql in (
+        "SELECT DISTINCT radarr_movie_id FROM wanted_items WHERE radarr_movie_id IS NOT NULL",
+        "SELECT DISTINCT radarr_movie_id FROM movie_settings",
+    ):
+        for row in _safe_query(sql):
+            mid = int(row[0])
+            movie_id_titles.setdefault(mid, f"#{mid}")
+    for mid in assigned_movie_ids:
+        movie_id_titles.setdefault(mid, f"#{mid}")
+
+    series_titles = series_id_titles
+    movie_titles = movie_id_titles
 
     def _entries(ids: list[int], titles: dict[int, str]) -> list[dict]:
         return [{"id": i, "title": titles.get(i, f"#{i}")} for i in ids]
