@@ -222,54 +222,104 @@ def get_resolved_profile(profile_id: int):
     return jsonify(_resolved_response("profile", profile_id, profile.name, out))
 
 
+def _series_known_to_sublarr(series_id: int) -> bool:
+    """Series is 'known' if any of: profile mapping, settings row, search-cache
+    row, wanted-item row, or standalone-library row exists for it."""
+    from sqlalchemy import text
+
+    if SeriesLanguageProfile.query.filter_by(sonarr_series_id=series_id).first():
+        return True
+    if SeriesSettings.query.get(series_id) is not None:
+        return True
+    for sql in (
+        "SELECT 1 FROM search_series WHERE id = :id LIMIT 1",
+        "SELECT 1 FROM wanted_items WHERE sonarr_series_id = :id LIMIT 1",
+        "SELECT 1 FROM standalone_series WHERE id = :id LIMIT 1",
+    ):
+        try:
+            if db.session.execute(text(sql), {"id": series_id}).fetchone():
+                return True
+        except Exception:
+            continue
+    return False
+
+
+def _series_title(series_id: int) -> str:
+    """Best-effort title lookup across the same sources /scopes uses."""
+    from sqlalchemy import text
+
+    for sql in (
+        "SELECT title FROM search_series WHERE id = :id LIMIT 1",
+        "SELECT title FROM standalone_series WHERE id = :id LIMIT 1",
+    ):
+        try:
+            row = db.session.execute(text(sql), {"id": series_id}).fetchone()
+            if row and row[0]:
+                title = str(row[0])
+                return title.split(" — ")[0] if " — " in title else title
+        except Exception:
+            continue
+    return f"#{series_id}"
+
+
 @bp.route("/resolved/series/<int:series_id>", methods=["GET"])
 @require_api_key
 def get_resolved_series(series_id: int):
-    # Require at least a profile mapping or series settings row to prove the
-    # series is known to Sublarr. A missing `series` table row (title lookup)
-    # is tolerated — Sonarr sync may not have run yet.
-    mapping = SeriesLanguageProfile.query.filter_by(sonarr_series_id=series_id).first()
-    series = SeriesSettings.query.get(series_id)
-    if mapping is None and series is None:
+    if not _series_known_to_sublarr(series_id):
         return jsonify({"error": "series not found"}), 404
 
-    # Best-effort title resolution; degrade to "#<id>" when table absent.
-    from sqlalchemy import text
-
-    try:
-        title_row = db.session.execute(
-            text("SELECT title FROM series WHERE sonarr_series_id = :id"),
-            {"id": series_id},
-        ).fetchone()
-        title = title_row[0] if title_row else f"#{series_id}"
-    except Exception:
-        title = f"#{series_id}"
-
+    title = _series_title(series_id)
+    mapping = SeriesLanguageProfile.query.filter_by(sonarr_series_id=series_id).first()
+    series = SeriesSettings.query.get(series_id)
     profile = LanguageProfile.query.get(mapping.profile_id) if mapping else None
     cfg = get_settings()
     settings = resolve_for_series(series=series, profile=profile, global_cfg=cfg)
     return jsonify(_resolved_response("series", series_id, title, settings))
 
 
-@bp.route("/resolved/movie/<int:movie_id>", methods=["GET"])
-@require_api_key
-def get_resolved_movie(movie_id: int):
-    mapping = MovieLanguageProfile.query.filter_by(radarr_movie_id=movie_id).first()
-    movie = MovieSettings.query.get(movie_id)
-    if mapping is None and movie is None:
-        return jsonify({"error": "movie not found"}), 404
+def _movie_known_to_sublarr(movie_id: int) -> bool:
+    from sqlalchemy import text
 
+    if MovieLanguageProfile.query.filter_by(radarr_movie_id=movie_id).first():
+        return True
+    if MovieSettings.query.get(movie_id) is not None:
+        return True
+    for sql in (
+        "SELECT 1 FROM wanted_items WHERE radarr_movie_id = :id LIMIT 1",
+        "SELECT 1 FROM standalone_movies WHERE id = :id LIMIT 1",
+    ):
+        try:
+            if db.session.execute(text(sql), {"id": movie_id}).fetchone():
+                return True
+        except Exception:
+            continue
+    return False
+
+
+def _movie_title(movie_id: int) -> str:
     from sqlalchemy import text
 
     try:
-        title_row = db.session.execute(
-            text("SELECT title FROM movies WHERE radarr_movie_id = :id"),
+        row = db.session.execute(
+            text("SELECT title FROM standalone_movies WHERE id = :id LIMIT 1"),
             {"id": movie_id},
         ).fetchone()
-        title = title_row[0] if title_row else f"#{movie_id}"
+        if row and row[0]:
+            return str(row[0])
     except Exception:
-        title = f"#{movie_id}"
+        pass
+    return f"#{movie_id}"
 
+
+@bp.route("/resolved/movie/<int:movie_id>", methods=["GET"])
+@require_api_key
+def get_resolved_movie(movie_id: int):
+    if not _movie_known_to_sublarr(movie_id):
+        return jsonify({"error": "movie not found"}), 404
+
+    title = _movie_title(movie_id)
+    mapping = MovieLanguageProfile.query.filter_by(radarr_movie_id=movie_id).first()
+    movie = MovieSettings.query.get(movie_id)
     profile = LanguageProfile.query.get(mapping.profile_id) if mapping else None
     cfg = get_settings()
     settings = resolve_for_movie(movie=movie, profile=profile, global_cfg=cfg)
