@@ -3,12 +3,14 @@
  * Shows poster, metadata, and subtitle wanted items.
  */
 import { useParams, useNavigate } from 'react-router-dom'
-import { Loader2, FileVideo, ArrowLeft, Film, Search, SkipForward, RotateCcw } from 'lucide-react'
+import { Loader2, FileVideo, ArrowLeft, Film, Search, SkipForward, RotateCcw, Sliders } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import { useMovieDetail, useWantedItems, useSearchWantedItem, useUpdateWantedStatus } from '@/hooks/useApi'
 import { useMovieSubtitles } from '@/hooks/useLibraryApi'
 import { Breadcrumb } from '@/components/shared/Breadcrumb'
 import { SubtitleActionsMenu } from '@/components/processing/SubtitleActionsMenu'
+import { useCreateOverride } from '@/pages/Settings/profilesOverrides/useProfilesOverrides'
+import { profilesScopeUrl, movieDetailUrl } from '@/lib/routes'
 import type { MovieDetail, WantedItem } from '@/lib/types'
 import type { SidecarSubtitle } from '@/types/library'
 
@@ -286,11 +288,59 @@ export function MovieDetailPage() {
         </div>
       </div>
 
+      {/* Subtitle settings entry-point */}
+      <MovieSubtitleSettingsButton movieId={movie.id} />
+
       {/* Existing subtitle files */}
       <MovieSubtitlesSection movieId={movie.id} />
 
       {/* Missing subtitles / wanted items */}
       <MovieWantedSection movieId={movie.id} />
+    </div>
+  )
+}
+
+// ─── MovieSubtitleSettingsButton ──────────────────────────────────────────────
+
+function MovieSubtitleSettingsButton({ movieId }: { movieId: number }) {
+  const { t } = useTranslation('settings')
+  const navigate = useNavigate()
+  const createOverride = useCreateOverride('movie')
+
+  const handleClick = async () => {
+    await createOverride.mutateAsync(movieId)
+    navigate(profilesScopeUrl({ type: 'movie', id: movieId }, { from: movieDetailUrl(movieId) }))
+  }
+
+  return (
+    <div
+      className="rounded-lg p-5 flex items-center justify-between"
+      style={{ backgroundColor: 'var(--bg-surface)', border: '1px solid var(--border)' }}
+      data-testid="movie-subtitle-settings-card"
+    >
+      <div>
+        <h2 className="text-sm font-semibold m-0" style={{ color: 'var(--text-primary)' }}>
+          {t('profiles_overrides.field.cleanup_foreign_tracks', 'Subtitle settings')}
+        </h2>
+        <p className="text-xs mt-1" style={{ color: 'var(--text-muted)' }}>
+          {t('profiles_overrides.empty_state.body',
+             'Configure per-movie overrides for the inheritance chain (Global → Profile → Movie).')}
+        </p>
+      </div>
+      <button
+        type="button"
+        onClick={handleClick}
+        disabled={createOverride.isPending}
+        data-testid="movie-subtitle-settings-link"
+        className="flex items-center gap-1.5 px-3 py-1.5 text-xs rounded transition-all hover:opacity-80 disabled:opacity-50"
+        style={{
+          backgroundColor: 'var(--accent)',
+          color: 'var(--bg-primary)',
+        }}
+      >
+        <Sliders size={12} />
+        {t('profiles_overrides.action.subtitle_settings', 'Subtitle settings →')}
+      </button>
     </div>
   )
 }

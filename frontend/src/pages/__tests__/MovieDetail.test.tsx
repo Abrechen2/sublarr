@@ -4,6 +4,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { render, screen } from '@testing-library/react'
 import { MemoryRouter, Route, Routes } from 'react-router-dom'
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { MovieDetailPage } from '../MovieDetail'
 
 // ─── Mocks ───────────────────────────────────────────────────────────────────
@@ -56,12 +57,15 @@ vi.mock('@/components/shared/Breadcrumb', () => ({
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
 function renderPage(id = '42') {
+  const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } })
   return render(
-    <MemoryRouter initialEntries={[`/movies/${id}`]}>
-      <Routes>
-        <Route path="/movies/:id" element={<MovieDetailPage />} />
-      </Routes>
-    </MemoryRouter>,
+    <QueryClientProvider client={qc}>
+      <MemoryRouter initialEntries={[`/movies/${id}`]}>
+        <Routes>
+          <Route path="/movies/:id" element={<MovieDetailPage />} />
+        </Routes>
+      </MemoryRouter>
+    </QueryClientProvider>,
   )
 }
 
