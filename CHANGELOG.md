@@ -5,6 +5,11 @@ All notable changes to Sublarr are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.76.5-beta] - 2026-04-26
+
+### Fixed
+- **i18n full-coverage pass.** A static audit caught 111 keys referenced by code but never defined in any locale file. 9 of them leaked raw keys to the UI in EN+DE (the FirstRun wizard's `language_step.*` and `automation_step.*` labels) and are now fully localized in `onboarding.json`. The other 102 fallback-pattern keys (English fallback that never translated to German) are now defined in en + de across `common`, `settings`, `library`, `statistics`, and `activity` namespaces — covers `common.{close, cancel, save, saving, loading}`, `status.scanning`, `cleanup_detail.*`, the entire `settings.X.Y` description / summary tree (providers / hooks / notifications.quietHours / system / translation / subtitles.fansubPreferences / automation.pipeline), `series_settings_panel.cleanup_*`, chart titles, and more. EN/DE parity verified at 100% across all 10 namespace files (2611 defined keys total).
+
 ## [0.76.4-beta] - 2026-04-26
 
 ### Fixed
