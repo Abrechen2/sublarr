@@ -80,7 +80,7 @@ export function ScopeTree({ tree, selected, onSelect, onProfileAction }: ScopeTr
                 onClick={() => onSelect({ type: 'profile', id: p.id })}
               >
                 <span className="text-[var(--text-muted)]">◐</span>
-                <span className="flex-1 truncate">{p.name}</span>
+                <span className="flex-1 truncate" title={p.name}>{p.name}</span>
                 {p.is_default && <Star size={10} className="text-[var(--warning)]" />}
               </div>
               <button
@@ -138,7 +138,7 @@ export function ScopeTree({ tree, selected, onSelect, onProfileAction }: ScopeTr
                     onClick={() => onSelect({ type: 'series', id: s.id })}
                   >
                     <span className="text-[var(--text-muted)]">▦</span>
-                    <span className="truncate">{s.title}</span>
+                    <span className="truncate" title={s.title}>{s.title}</span>
                   </div>
                 ))}
                 {p.movies.map((m) => (
@@ -149,7 +149,7 @@ export function ScopeTree({ tree, selected, onSelect, onProfileAction }: ScopeTr
                     onClick={() => onSelect({ type: 'movie', id: m.id })}
                   >
                     <span className="text-[var(--text-muted)]">◎</span>
-                    <span className="truncate">{m.title}</span>
+                    <span className="truncate" title={m.title}>{m.title}</span>
                   </div>
                 ))}
               </div>
@@ -172,7 +172,7 @@ export function ScopeTree({ tree, selected, onSelect, onProfileAction }: ScopeTr
               onClick={() => onSelect({ type: 'series', id: s.id })}
             >
               <span className="text-[var(--text-muted)]">▦</span>
-              <span className="truncate">{s.title}</span>
+              <span className="truncate" title={s.title}>{s.title}</span>
             </div>
           ))}
         </>
@@ -192,7 +192,7 @@ export function ScopeTree({ tree, selected, onSelect, onProfileAction }: ScopeTr
               onClick={() => onSelect({ type: 'movie', id: m.id })}
             >
               <span className="text-[var(--text-muted)]">◎</span>
-              <span className="truncate">{m.title}</span>
+              <span className="truncate" title={m.title}>{m.title}</span>
             </div>
           ))}
         </>
