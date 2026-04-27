@@ -48,12 +48,23 @@ def _apply_backlog_reserve_gate(
 
 
 def _filter_eligible(items: list[dict], settings) -> list[dict]:
-    """Filter items by adaptive backoff or fixed cooldown."""
+    """Filter items by adaptive backoff, fixed cooldown, and search-count cap.
+
+    Eligibility rules:
+      1. ``retry_after`` (when set) governs the backoff window; items in the
+         future are skipped.
+      2. The ``search_count`` cap (``wanted_max_search_attempts``) hard-stops
+         items unless they carry the explicit ``failure_kind='no_result_slow'``
+         marker AND their ``retry_after`` window has elapsed. Slow-mode is the
+         intentional bypass: once an item exhausted its budget, it gets
+         re-tried roughly once per 30 days instead of being frozen forever.
+    """
     eligible = []
     now = datetime.now(UTC)
     adaptive_enabled = getattr(settings, "wanted_adaptive_backoff_enabled", True)
 
     for item in items:
+        retry_at: datetime | None = None
         if adaptive_enabled:
             retry_after_str = item.get("retry_after")
             if retry_after_str:
@@ -64,7 +75,7 @@ def _filter_eligible(items: list[dict], settings) -> list[dict]:
                     if now < retry_at:
                         continue
                 except (ValueError, TypeError):
-                    pass
+                    retry_at = None
         else:
             last_str = item.get("last_search_at")
             if last_str:
@@ -78,6 +89,13 @@ def _filter_eligible(items: list[dict], settings) -> list[dict]:
                     pass
 
         if item["search_count"] < settings.wanted_max_search_attempts:
+            eligible.append(item)
+            continue
+
+        # Slow-mode bypass: at-or-above the cap, but the recorder explicitly
+        # marked this item for periodic retries. retry_at must already be set
+        # (and elapsed — checked above), otherwise the cap stands.
+        if item.get("failure_kind") == "no_result_slow" and retry_at is not None:
             eligible.append(item)
 
     return eligible
