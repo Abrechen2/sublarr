@@ -5,6 +5,11 @@ All notable changes to Sublarr are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.76.7-beta] - 2026-04-27
+
+### Fixed
+- **Slow-mode bypass in wanted search filter** — Items that exhausted `wanted_max_search_attempts` should re-enter the search rotation roughly once every 30 days via the `no_result_slow` slow-mode contract that `record_search_outcome` already sets, but the eligibility filter `_filter_eligible` kept the hard `search_count < max` cap and silently dropped them. The filter now honours items at or above the cap when their `failure_kind == 'no_result_slow'` AND their `retry_after` window has elapsed; other failure kinds (provider_error etc.) still respect the cap. A new Alembic migration `f3d8e9c2a4b1` retroactively promotes legacy frozen items (search_count >= 3, failure_kind NULL, retry_after NULL) into the slow-mode contract, spreading the retry instants over the next 30 days via `id % 30` so the resurrected items don't all hit the providers in one tick. 2032 stuck items on Cardinal will rejoin the rotation. Eleven new tests pin the contract on both the legacy and adaptive paths.
+
 ## [0.76.6-beta] - 2026-04-26
 
 ### Changed
