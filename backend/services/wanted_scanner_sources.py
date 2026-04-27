@@ -40,9 +40,7 @@ def _lookup_target_language(item_id: int) -> str | None:
         return None
 
 
-def _enqueue_automation(
-    *, wanted_item_id: int, file_path: str, target_language: str
-) -> None:
+def _enqueue_automation(*, wanted_item_id: int, file_path: str, target_language: str) -> None:
     """Wrapper around the queue repository so tests can stub it cheaply."""
     from db.repositories.subtitle_automation_queue import (
         SubtitleAutomationQueueRepository,

@@ -58,6 +58,11 @@ test-media/
 # Build artifacts
 *.tar.gz
 
+# Local debug captures (manual API/curl exports — never commit)
+/history.json
+/jobs.json
+/backend/anime-list.xml
+
 # Test & coverage artifacts
 .coverage
 coverage.xml

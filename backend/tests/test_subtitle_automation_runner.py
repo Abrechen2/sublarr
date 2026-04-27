@@ -70,9 +70,7 @@ class TestProcessOne:
         assert runner.process_one() is False
 
     def test_success_marks_done(self, repo, runner):
-        repo.enqueue(
-            wanted_item_id=1, file_path="/m/a.mkv", target_language="ger"
-        )
+        repo.enqueue(wanted_item_id=1, file_path="/m/a.mkv", target_language="ger")
         with patch(
             "services.subtitle_automation_runner._extract_embedded_sub",
             return_value={"status": "ok", "output_path": "/m/a.ger.srt"},
@@ -85,9 +83,7 @@ class TestProcessOne:
         assert e["last_finished_at"] is not None
 
     def test_failure_marks_failed_with_backoff(self, repo, runner):
-        repo.enqueue(
-            wanted_item_id=2, file_path="/m/b.mkv", target_language="ger"
-        )
+        repo.enqueue(wanted_item_id=2, file_path="/m/b.mkv", target_language="ger")
         with patch(
             "services.subtitle_automation_runner._extract_embedded_sub",
             side_effect=LookupError("No suitable subtitle stream"),
@@ -102,9 +98,7 @@ class TestProcessOne:
 
     def test_missing_file_does_not_retry_infinitely(self, repo, runner):
         """A FileNotFoundError means the media file is gone — no retry."""
-        repo.enqueue(
-            wanted_item_id=3, file_path="/m/gone.mkv", target_language="ger"
-        )
+        repo.enqueue(wanted_item_id=3, file_path="/m/gone.mkv", target_language="ger")
         with patch(
             "services.subtitle_automation_runner._extract_embedded_sub",
             side_effect=FileNotFoundError("Media file not found"),
@@ -153,9 +147,7 @@ class TestDrain:
         assert counts["pending"] == 17
 
     def test_drain_stops_on_empty_queue(self, repo, runner, automation_on):
-        repo.enqueue(
-            wanted_item_id=300, file_path="/m/a.mkv", target_language="ger"
-        )
+        repo.enqueue(wanted_item_id=300, file_path="/m/a.mkv", target_language="ger")
         with patch(
             "services.subtitle_automation_runner._extract_embedded_sub",
             return_value={"status": "ok", "output_path": "/m/x.ger.srt"},
@@ -166,15 +158,9 @@ class TestDrain:
 
     def test_drain_continues_past_single_failure(self, repo, runner, automation_on):
         """One item failing shouldn't abort the whole drain."""
-        repo.enqueue(
-            wanted_item_id=400, file_path="/m/a.mkv", target_language="ger"
-        )
-        repo.enqueue(
-            wanted_item_id=401, file_path="/m/b.mkv", target_language="ger"
-        )
-        repo.enqueue(
-            wanted_item_id=402, file_path="/m/c.mkv", target_language="ger"
-        )
+        repo.enqueue(wanted_item_id=400, file_path="/m/a.mkv", target_language="ger")
+        repo.enqueue(wanted_item_id=401, file_path="/m/b.mkv", target_language="ger")
+        repo.enqueue(wanted_item_id=402, file_path="/m/c.mkv", target_language="ger")
 
         call_count = {"n": 0}
 
@@ -200,13 +186,9 @@ class TestMasterToggleGate:
     def test_runner_noop_when_master_toggle_off(self, repo, runner):
         """If subtitle_automation_enabled is False, drain should do nothing
         even with pending rows — user hasn't opted in."""
-        repo.enqueue(
-            wanted_item_id=500, file_path="/m/a.mkv", target_language="ger"
-        )
+        repo.enqueue(wanted_item_id=500, file_path="/m/a.mkv", target_language="ger")
         with (
-            patch(
-                "services.subtitle_automation_runner._extract_embedded_sub"
-            ) as extract_mock,
+            patch("services.subtitle_automation_runner._extract_embedded_sub") as extract_mock,
             patch(
                 "services.subtitle_automation_runner._automation_enabled",
                 return_value=False,

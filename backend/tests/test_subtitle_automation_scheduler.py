@@ -52,9 +52,7 @@ class TestTickCallable:
         assert restored is subtitle_automation_tick
 
     def test_tick_invokes_runner_drain(self):
-        with patch(
-            "services.subtitle_automation_runner.SubtitleAutomationRunner"
-        ) as cls:
+        with patch("services.subtitle_automation_runner.SubtitleAutomationRunner") as cls:
             instance = cls.return_value
             instance.drain.return_value = 0
             subtitle_automation_tick()

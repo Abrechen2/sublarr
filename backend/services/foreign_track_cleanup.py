@@ -23,9 +23,7 @@ from config_language_data import normalize_language_code
 logger = logging.getLogger(__name__)
 
 
-def should_cleanup_foreign_tracks(
-    *, series_override: bool | None, global_default: bool
-) -> bool:
+def should_cleanup_foreign_tracks(*, series_override: bool | None, global_default: bool) -> bool:
     """Return the effective per-item cleanup policy.
 
     Contract:
@@ -84,18 +82,14 @@ def maybe_run_foreign_track_cleanup(
 
     if target_languages is None:
         target_languages = {
-            normalize_language_code(lang)
-            for lang in (item.get("missing_languages") or [])
-            if lang
+            normalize_language_code(lang) for lang in (item.get("missing_languages") or []) if lang
         }
         tgt = item.get("target_language")
         if tgt:
             target_languages.add(normalize_language_code(tgt))
     target_languages = {t for t in target_languages if t}
     if not target_languages:
-        logger.debug(
-            "foreign-track cleanup: no target languages resolved for %s", file_path
-        )
+        logger.debug("foreign-track cleanup: no target languages resolved for %s", file_path)
         return
 
     try:
@@ -108,8 +102,7 @@ def maybe_run_foreign_track_cleanup(
         )
         if backup:
             logger.info(
-                "foreign-track cleanup: stripped non-target subs from %s "
-                "(backup at %s)",
+                "foreign-track cleanup: stripped non-target subs from %s (backup at %s)",
                 file_path,
                 backup,
             )

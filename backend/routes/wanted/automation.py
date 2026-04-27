@@ -50,18 +50,14 @@ def automation_status():
 
         last_row = (
             db.session.query(SubtitleAutomationQueueEntry)
-            .filter(
-                SubtitleAutomationQueueEntry.last_finished_at.isnot(None)
-            )
+            .filter(SubtitleAutomationQueueEntry.last_finished_at.isnot(None))
             .order_by(SubtitleAutomationQueueEntry.last_finished_at.desc())
             .limit(1)
             .one_or_none()
         )
         if last_row is not None:
             last_run_at = (
-                last_row.last_finished_at.isoformat()
-                if last_row.last_finished_at
-                else None
+                last_row.last_finished_at.isoformat() if last_row.last_finished_at else None
             )
             last_run_status = last_row.state
             last_error = last_row.last_error

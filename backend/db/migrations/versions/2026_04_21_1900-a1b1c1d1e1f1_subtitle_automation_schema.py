@@ -46,9 +46,7 @@ def upgrade() -> None:
     #    (common in test envs that run create_all + alembic).
     if not _has_column(bind, "series_settings", "cleanup_foreign_tracks"):
         with op.batch_alter_table("series_settings") as batch_op:
-            batch_op.add_column(
-                sa.Column("cleanup_foreign_tracks", sa.Boolean(), nullable=True)
-            )
+            batch_op.add_column(sa.Column("cleanup_foreign_tracks", sa.Boolean(), nullable=True))
 
     # 2) Persistent drain queue for auto-extract. Idempotent for the same
     #    create_all+alembic scenario.
@@ -65,9 +63,7 @@ def upgrade() -> None:
                 nullable=False,
                 server_default="pending",
             ),
-            sa.Column(
-                "attempt_count", sa.Integer(), nullable=False, server_default="0"
-            ),
+            sa.Column("attempt_count", sa.Integer(), nullable=False, server_default="0"),
             sa.Column("next_retry_at", sa.DateTime(timezone=True), nullable=True),
             sa.Column("last_error", sa.Text(), nullable=True),
             sa.Column("last_started_at", sa.DateTime(timezone=True), nullable=True),
@@ -75,9 +71,7 @@ def upgrade() -> None:
             sa.Column("created_at", sa.DateTime(timezone=True), nullable=False),
             sa.Column("updated_at", sa.DateTime(timezone=True), nullable=False),
         )
-    if not _has_index(
-        bind, "subtitle_automation_queue", "idx_subtitle_automation_queue_drain"
-    ):
+    if not _has_index(bind, "subtitle_automation_queue", "idx_subtitle_automation_queue_drain"):
         op.create_index(
             "idx_subtitle_automation_queue_drain",
             "subtitle_automation_queue",
@@ -87,9 +81,7 @@ def upgrade() -> None:
 
 def downgrade() -> None:
     bind = op.get_bind()
-    if _has_index(
-        bind, "subtitle_automation_queue", "idx_subtitle_automation_queue_drain"
-    ):
+    if _has_index(bind, "subtitle_automation_queue", "idx_subtitle_automation_queue_drain"):
         op.drop_index(
             "idx_subtitle_automation_queue_drain",
             table_name="subtitle_automation_queue",

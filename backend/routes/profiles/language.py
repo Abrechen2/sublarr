@@ -359,7 +359,9 @@ def assign_profile_bulk():
     profile_id = data.get("profile_id")
 
     if item_type not in {"series", "movie"} or not isinstance(arr_ids, list) or profile_id is None:
-        return jsonify({"error": "type, arr_ids, profile_id are required (type ∈ {series, movie})"}), 400
+        return jsonify(
+            {"error": "type, arr_ids, profile_id are required (type ∈ {series, movie})"}
+        ), 400
 
     assigned = 0
     failed: list[dict] = []

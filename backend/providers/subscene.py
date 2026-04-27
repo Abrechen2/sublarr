@@ -317,7 +317,8 @@ class SubsceneProvider(SubtitleProvider):
                 self.session,
                 dl_url,
                 timeout=self.timeout,
-                headers={"Referer": detail_url}, provider_name=self.name,
+                headers={"Referer": detail_url},
+                provider_name=self.name,
             )
         except Exception as e:
             raise RuntimeError(f"Subscene download failed: {e}") from e

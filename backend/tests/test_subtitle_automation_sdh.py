@@ -144,9 +144,7 @@ class TestEmbeddedProviderScoring:
 
         media = tmp_path / "x.mkv"
         media.write_bytes(b"fake")  # only existence matters
-        monkeypatch.setattr(
-            "providers.embedded.get_media_streams", lambda *a, **kw: base_probe
-        )
+        monkeypatch.setattr("providers.embedded.get_media_streams", lambda *a, **kw: base_probe)
         fake = Settings(embedded_allow_sdh=True, embedded_sdh_penalty=7)
         with patch("providers.embedded.get_settings", return_value=fake):
             results = EmbeddedSubtitlesProvider().search(
@@ -170,9 +168,7 @@ class TestEmbeddedProviderScoring:
 
         media = tmp_path / "x.mkv"
         media.write_bytes(b"fake")
-        monkeypatch.setattr(
-            "providers.embedded.get_media_streams", lambda *a, **kw: base_probe
-        )
+        monkeypatch.setattr("providers.embedded.get_media_streams", lambda *a, **kw: base_probe)
         fake = Settings(embedded_allow_sdh=False, embedded_sdh_penalty=5)
         with patch("providers.embedded.get_settings", return_value=fake):
             results = EmbeddedSubtitlesProvider().search(

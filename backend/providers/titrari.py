@@ -402,7 +402,9 @@ class TitrariProvider(SubtitleProvider):
 
         try:
             # P5: 50 MB streaming cap
-            content = _stream_download(self.session, url, timeout=self.timeout, provider_name=self.name)
+            content = _stream_download(
+                self.session, url, timeout=self.timeout, provider_name=self.name
+            )
         except Exception as e:
             raise RuntimeError(f"Titrari download failed: {e}") from e
 

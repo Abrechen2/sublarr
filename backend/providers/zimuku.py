@@ -225,7 +225,8 @@ class ZimukuProvider(SubtitleProvider):
                 self.session,
                 result.download_url,
                 timeout=self.timeout,
-                headers={"Referer": referer}, provider_name=self.name,
+                headers={"Referer": referer},
+                provider_name=self.name,
             )
         except RuntimeError:
             raise

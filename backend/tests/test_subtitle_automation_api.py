@@ -41,12 +41,8 @@ class TestStatusEndpoint:
 
         with api.application.app_context():
             repo = SubtitleAutomationQueueRepository()
-            repo.enqueue(
-                wanted_item_id=2001, file_path="/m/a.mkv", target_language="ger"
-            )
-            repo.enqueue(
-                wanted_item_id=2002, file_path="/m/b.mkv", target_language="ger"
-            )
+            repo.enqueue(wanted_item_id=2001, file_path="/m/a.mkv", target_language="ger")
+            repo.enqueue(wanted_item_id=2002, file_path="/m/b.mkv", target_language="ger")
         r = api.get("/api/v1/wanted/automation/status")
         payload = r.get_json()
         assert payload["queue"]["pending"] == 2

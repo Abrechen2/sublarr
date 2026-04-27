@@ -710,9 +710,7 @@ class TestTurkcealtyaziZipFormatDetection:
             provider_data={"detail_url": "https://turkcealtyazi.org/alt/1"},
         )
         with (
-            patch.object(
-                p, "_get_download_url", return_value="https://turkcealtyazi.org/indir/1"
-            ),
+            patch.object(p, "_get_download_url", return_value="https://turkcealtyazi.org/indir/1"),
             patch("providers.turkcealtyazi._stream_download", return_value=zip_bytes),
         ):
             p.download(r)
@@ -738,9 +736,7 @@ class TestTurkcealtyaziZipFormatDetection:
             provider_data={"detail_url": "https://turkcealtyazi.org/alt/2"},
         )
         with (
-            patch.object(
-                p, "_get_download_url", return_value="https://turkcealtyazi.org/indir/2"
-            ),
+            patch.object(p, "_get_download_url", return_value="https://turkcealtyazi.org/indir/2"),
             patch("providers.turkcealtyazi._stream_download", return_value=zip_bytes),
         ):
             p.download(r)

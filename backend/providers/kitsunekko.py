@@ -337,7 +337,9 @@ class KitsunekkoProvider(SubtitleProvider):
 
         try:
             # P5: 50 MB streaming cap
-            content = _stream_download(self.session, url, timeout=self.timeout, provider_name=self.name)
+            content = _stream_download(
+                self.session, url, timeout=self.timeout, provider_name=self.name
+            )
         except ProviderError:
             raise
         except Exception as e:

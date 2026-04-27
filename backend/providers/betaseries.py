@@ -233,7 +233,9 @@ class BetaSeriesProvider(SubtitleProvider):
             raise ProviderError(f"BetaSeries download URL rejected: {url_err}")
         try:
             # P5: 50 MB streaming cap
-            content = _stream_download(self.session, result.download_url, timeout=self.timeout, provider_name=self.name)
+            content = _stream_download(
+                self.session, result.download_url, timeout=self.timeout, provider_name=self.name
+            )
         except ProviderError:
             raise
         except Exception as e:

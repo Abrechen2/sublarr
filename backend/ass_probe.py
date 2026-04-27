@@ -37,11 +37,12 @@ def is_sdh_stream(stream: dict) -> bool:
     if not stream:
         return False
     tags = stream.get("tags") or {}
-    title = (tags.get("title") or "")
+    title = tags.get("title") or ""
     if _SDH_TITLE_RE.search(title):
         return True
     disposition = stream.get("disposition") or {}
     return bool(disposition.get("hearing_impaired"))
+
 
 logger = logging.getLogger(__name__)
 

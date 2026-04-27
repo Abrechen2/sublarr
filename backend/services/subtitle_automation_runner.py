@@ -103,15 +103,12 @@ class SubtitleAutomationRunner:
             delay = compute_backoff(attempt=prior_attempt + 1)
             retry_at = datetime.now(UTC) + delay
             logger.warning(
-                "subtitle_automation: extract failed for wanted_item=%s: %s — "
-                "retry in %s",
+                "subtitle_automation: extract failed for wanted_item=%s: %s — retry in %s",
                 wanted_item_id,
                 exc,
                 delay,
             )
-            self._repo.mark_failed(
-                entry_id, error=str(exc), next_retry_at=retry_at
-            )
+            self._repo.mark_failed(entry_id, error=str(exc), next_retry_at=retry_at)
             return True
         self._repo.mark_done(entry_id)
         return True

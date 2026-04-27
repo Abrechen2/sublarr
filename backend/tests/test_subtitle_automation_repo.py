@@ -141,9 +141,7 @@ class TestMarkFailed:
         repo.mark_failed(claim1["id"], error="x", next_retry_at=past)
         claim2 = repo.claim_next(now=now)
         assert claim2 is not None
-        repo.mark_failed(
-            claim2["id"], error="y", next_retry_at=now + timedelta(minutes=5)
-        )
+        repo.mark_failed(claim2["id"], error="y", next_retry_at=now + timedelta(minutes=5))
         e = repo.get_by_wanted_item(702)
         assert e["attempt_count"] == 2
 

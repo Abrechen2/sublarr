@@ -199,7 +199,9 @@ class SubsourceProvider(SubtitleProvider):
 
         try:
             # P5: 50 MB streaming cap
-            archive_content = _stream_download(self.session, dl_url, timeout=self.timeout, provider_name=self.name)
+            archive_content = _stream_download(
+                self.session, dl_url, timeout=self.timeout, provider_name=self.name
+            )
         except RuntimeError:
             raise
         except Exception as e:

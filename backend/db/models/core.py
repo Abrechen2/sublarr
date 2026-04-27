@@ -374,18 +374,12 @@ class SeriesSettings(db.Model):
     forced_preference_override: Mapped[str | None] = mapped_column(
         Text, nullable=True, default=None
     )
-    hi_preference_override: Mapped[str | None] = mapped_column(
-        Text, nullable=True, default=None
-    )
-    forced_scoring_override: Mapped[str | None] = mapped_column(
-        Text, nullable=True, default=None
-    )
+    hi_preference_override: Mapped[str | None] = mapped_column(Text, nullable=True, default=None)
+    forced_scoring_override: Mapped[str | None] = mapped_column(Text, nullable=True, default=None)
     target_languages_override: Mapped[str | None] = mapped_column(
         Text, nullable=True, default=None
     )  # JSON array string
-    cutoff_language_override: Mapped[str | None] = mapped_column(
-        Text, nullable=True, default=None
-    )
+    cutoff_language_override: Mapped[str | None] = mapped_column(Text, nullable=True, default=None)
     must_contain_override: Mapped[str | None] = mapped_column(
         Text, nullable=True, default=None
     )  # JSON array string
@@ -453,13 +447,9 @@ class SubtitleAutomationQueueEntry(db.Model):
     target_language: Mapped[str] = mapped_column(String(8), nullable=False)
     state: Mapped[str] = mapped_column(String(10), nullable=False, default="pending")
     attempt_count: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
-    next_retry_at: Mapped[datetime | None] = mapped_column(
-        DateTime(timezone=True), nullable=True
-    )
+    next_retry_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     last_error: Mapped[str | None] = mapped_column(Text, nullable=True)
-    last_started_at: Mapped[datetime | None] = mapped_column(
-        DateTime(timezone=True), nullable=True
-    )
+    last_started_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     last_finished_at: Mapped[datetime | None] = mapped_column(
         DateTime(timezone=True), nullable=True
     )

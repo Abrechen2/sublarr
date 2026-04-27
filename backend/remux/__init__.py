@@ -432,9 +432,7 @@ def remove_foreign_subtitle_streams(
         sub_only_idx += 1
 
     if not streams_to_remove:
-        logger.debug(
-            "remove_foreign_subtitle_streams: no foreign tracks in %s", video_path
-        )
+        logger.debug("remove_foreign_subtitle_streams: no foreign tracks in %s", video_path)
         return None
 
     logger.info(

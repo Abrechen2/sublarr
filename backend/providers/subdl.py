@@ -392,7 +392,9 @@ class SubDLProvider(SubtitleProvider):
 
         try:
             # P5: 50 MB streaming cap
-            archive_content = _stream_download(self.session, url, timeout=self.timeout, provider_name=self.name)
+            archive_content = _stream_download(
+                self.session, url, timeout=self.timeout, provider_name=self.name
+            )
         except Exception as e:
             raise RuntimeError(f"SubDL download failed: {e}") from e
 

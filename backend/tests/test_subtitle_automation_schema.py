@@ -104,9 +104,9 @@ class TestSubtitleAutomationQueue:
         next_retry_at <= now ORDER BY next_retry_at` — needs composite index."""
         table = SubtitleAutomationQueueEntry.__table__
         index_cols_sets = [tuple(c.name for c in idx.columns) for idx in table.indexes]
-        assert any(
-            "state" in cols and "next_retry_at" in cols for cols in index_cols_sets
-        ), f"No (state, next_retry_at) composite index found; got {index_cols_sets}"
+        assert any("state" in cols and "next_retry_at" in cols for cols in index_cols_sets), (
+            f"No (state, next_retry_at) composite index found; got {index_cols_sets}"
+        )
 
     def test_all_queue_columns_present(self):
         """Spec columns per 0.71.0 design."""

@@ -67,8 +67,7 @@ def _stream_download(
                 hop_ok, hop_err = validate_download_url(hop, provider_name)
                 if not hop_ok:
                     raise RuntimeError(
-                        f"Subtitle download blocked at redirect hop "
-                        f"{hop!r}: {hop_err}"
+                        f"Subtitle download blocked at redirect hop {hop!r}: {hop_err}"
                     )
 
         # Preflight: reject oversized files advertised via Content-Length

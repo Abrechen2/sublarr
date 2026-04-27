@@ -80,9 +80,7 @@ class TestTranslateWithManager:
             output, tr = _translate_with_manager(["Hello", "World"], "en", "de")
 
         assert output == ["Hallo", "Welt"]
-        mock_store_cache.assert_called_once_with(
-            ["World"], ["Welt"], "en", "de", backend="ollama"
-        )
+        mock_store_cache.assert_called_once_with(["World"], ["Welt"], "en", "de", backend="ollama")
 
     @patch("translator.manager._load_glossary_entries", return_value=None)
     @patch("translator.manager._apply_translation_cache")

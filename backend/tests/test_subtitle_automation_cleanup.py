@@ -19,42 +19,22 @@ class TestShouldCleanupForeignTracks:
     def test_override_true_wins_over_global_false(self):
         from services.foreign_track_cleanup import should_cleanup_foreign_tracks
 
-        assert (
-            should_cleanup_foreign_tracks(
-                series_override=True, global_default=False
-            )
-            is True
-        )
+        assert should_cleanup_foreign_tracks(series_override=True, global_default=False) is True
 
     def test_override_false_wins_over_global_true(self):
         from services.foreign_track_cleanup import should_cleanup_foreign_tracks
 
-        assert (
-            should_cleanup_foreign_tracks(
-                series_override=False, global_default=True
-            )
-            is False
-        )
+        assert should_cleanup_foreign_tracks(series_override=False, global_default=True) is False
 
     def test_override_none_falls_through_to_global_true(self):
         from services.foreign_track_cleanup import should_cleanup_foreign_tracks
 
-        assert (
-            should_cleanup_foreign_tracks(
-                series_override=None, global_default=True
-            )
-            is True
-        )
+        assert should_cleanup_foreign_tracks(series_override=None, global_default=True) is True
 
     def test_override_none_falls_through_to_global_false(self):
         from services.foreign_track_cleanup import should_cleanup_foreign_tracks
 
-        assert (
-            should_cleanup_foreign_tracks(
-                series_override=None, global_default=False
-            )
-            is False
-        )
+        assert should_cleanup_foreign_tracks(series_override=None, global_default=False) is False
 
 
 class TestForeignTrackRemoval:

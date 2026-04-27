@@ -71,9 +71,7 @@ class TestStandaloneEmbeddedFallback:
             "embedded tracks, matching the Sonarr path"
         )
 
-    def test_filesystem_sidecar_still_wins_over_embedded_fallback(
-        self, api, tmp_path, monkeypatch
-    ):
+    def test_filesystem_sidecar_still_wins_over_embedded_fallback(self, api, tmp_path, monkeypatch):
         """If the filesystem sidecar exists, it is the ground truth and wins
         over any embedded_srt fallback."""
         # detect_existing_target_for_lang returns 'srt' → filesystem says yes.

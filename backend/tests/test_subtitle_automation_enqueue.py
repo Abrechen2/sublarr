@@ -54,9 +54,7 @@ class TestMasterToggleEnqueue:
                 "services.wanted_scanner_sources._lookup_target_language",
                 return_value="ger",
             ),
-            patch(
-                "routes.wanted.extract._extract_embedded_sub"
-            ) as extract_mock,
+            patch("routes.wanted.extract._extract_embedded_sub") as extract_mock,
         ):
             sources._maybe_auto_extract(1001, "/media/Anime/ep.mkv")
         # No inline extract.
@@ -80,26 +78,20 @@ class TestMasterToggleEnqueue:
                 "services.wanted_scanner_sources.get_settings",
                 return_value=fake_settings,
             ),
-            patch(
-                "services.wanted_scanner_sources._extract_embedded_sub"
-            ) as extract_mock,
+            patch("services.wanted_scanner_sources._extract_embedded_sub") as extract_mock,
         ):
             sources._maybe_auto_extract(1002, "/media/x.mkv")
         extract_mock.assert_called_once()
 
     def test_noop_when_both_off(self, repo, monkeypatch):
         sources = _make_sources()
-        fake_settings = Settings(
-            subtitle_automation_enabled=False, wanted_auto_extract=False
-        )
+        fake_settings = Settings(subtitle_automation_enabled=False, wanted_auto_extract=False)
         with (
             patch(
                 "services.wanted_scanner_sources.get_settings",
                 return_value=fake_settings,
             ),
-            patch(
-                "services.wanted_scanner_sources._extract_embedded_sub"
-            ) as extract_mock,
+            patch("services.wanted_scanner_sources._extract_embedded_sub") as extract_mock,
         ):
             sources._maybe_auto_extract(1003, "/media/y.mkv")
         extract_mock.assert_not_called()
@@ -115,9 +107,7 @@ class TestSafety:
                 "services.wanted_scanner_sources.get_settings",
                 return_value=fake_settings,
             ),
-            patch(
-                "services.wanted_scanner_sources._enqueue_automation"
-            ) as enqueue_mock,
+            patch("services.wanted_scanner_sources._enqueue_automation") as enqueue_mock,
         ):
             sources._maybe_auto_extract(None, "/media/x.mkv")
         enqueue_mock.assert_not_called()
@@ -148,9 +138,7 @@ class TestSafety:
         (can't route without knowing the desired language) and fall through
         to the legacy path if enabled."""
         sources = _make_sources()
-        fake_settings = Settings(
-            subtitle_automation_enabled=True, wanted_auto_extract=True
-        )
+        fake_settings = Settings(subtitle_automation_enabled=True, wanted_auto_extract=True)
         with (
             patch(
                 "services.wanted_scanner_sources.get_settings",
@@ -160,9 +148,7 @@ class TestSafety:
                 "services.wanted_scanner_sources._lookup_target_language",
                 return_value=None,
             ),
-            patch(
-                "services.wanted_scanner_sources._extract_embedded_sub"
-            ) as extract_mock,
+            patch("services.wanted_scanner_sources._extract_embedded_sub") as extract_mock,
         ):
             sources._maybe_auto_extract(1005, "/media/a.mkv")
         # Fell back to legacy because enqueue would have been undefined.
