@@ -19,6 +19,7 @@ EXPECTED_URL_RULES = {
     ("/api/v1/language-profiles/<int:profile_id>", "PUT"),
     ("/api/v1/language-profiles/<int:profile_id>", "DELETE"),
     ("/api/v1/language-profiles/assign", "PUT"),
+    ("/api/v1/language-profiles/assign-bulk", "PUT"),
     ("/api/v1/language-profiles/<int:profile_id>/set-as-default-for-all", "POST"),
     # Glossary
     ("/api/v1/glossary", "GET"),

@@ -422,10 +422,12 @@ class TestZimukuProvider:
             download_url="https://zimuku.net/x",
             provider_data={"detail_url": "https://zimuku.net/subs/123"},
         )
-        with patch("providers.zimuku._stream_download", return_value=rar_bytes):
-            # Should attempt RAR extraction and raise RuntimeError on invalid RAR
-            with pytest.raises((RuntimeError, Exception)):
-                p.download(r)
+        # Should attempt RAR extraction and raise RuntimeError on invalid RAR
+        with (
+            patch("providers.zimuku._stream_download", return_value=rar_bytes),
+            pytest.raises((RuntimeError, Exception)),
+        ):
+            p.download(r)
 
     def test_download_success_returns_content(self):
         from providers.base import SubtitleFormat, SubtitleResult
