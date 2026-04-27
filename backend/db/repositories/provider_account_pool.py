@@ -88,6 +88,24 @@ class ProviderAccountPoolRepository(BaseRepository):
         )
         return [self._row_to_dict(r) for r in rows]
 
+    def get_enabled_grouped(self) -> dict[str, list[dict]]:
+        """Return ``{provider_name: [pool_dict, ...]}`` for all enabled keys.
+
+        One query instead of N. Providers without any enabled keys are
+        absent from the dict — callers must use ``.get(name, [])``.
+        """
+        rows = (
+            self.session.execute(
+                select(ProviderAccountPool).where(ProviderAccountPool.enabled.is_(True))
+            )
+            .scalars()
+            .all()
+        )
+        out: dict[str, list[dict]] = {}
+        for r in rows:
+            out.setdefault(r.provider_name, []).append(self._row_to_dict(r))
+        return out
+
     def get_all_for(self, provider: str) -> list[dict]:
         rows = (
             self.session.execute(

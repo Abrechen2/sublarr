@@ -93,13 +93,11 @@ def get_budget_state():
         logger.warning("learned-limits lookup failed (non-blocking): %s", exc)
 
     providers_out = []
+    pools_by_provider = ProviderAccountPoolRepository().get_enabled_grouped()
     for name in sorted(mgr._providers.keys()):
         provider = mgr._providers[name]
         rate_limits = getattr(type(provider), "rate_limits", None) or {}
-        # TODO: batch into a single `SELECT * FROM provider_account_pools
-        # WHERE enabled=true` grouped client-side if this endpoint becomes
-        # poll-heavy (Phase 4a is dashboard-only, N=~10 acceptable).
-        pool_rows = ProviderAccountPoolRepository().get_enabled_for(name)
+        pool_rows = pools_by_provider.get(name, [])
         per_key = budget.get_usage_per_key(name)
         # NOTE: outer `tier` is the HIGHEST enabled key's tier (for the badge).
         # `limits` is the SUM across all keys (including lower-tier ones). UI

@@ -321,6 +321,32 @@ class WantedRepository(BaseRepository, _WantedUpsertMixin, _WantedUpdatesMixin):
         )
         return [self._row_to_wanted(r) for r in rows]
 
+    def get_wanted_by_series_bulk(
+        self, sonarr_series_ids: list[int]
+    ) -> dict[int, list[dict]]:
+        """Bulk variant of get_wanted_by_series.
+
+        One ``WHERE sonarr_series_id IN (...)`` query instead of N. Returned
+        dict has every requested id as key (empty list for series with no
+        wanted items) so callers do not need a `.get(sid, [])` fallback.
+        """
+        out: dict[int, list[dict]] = {sid: [] for sid in sonarr_series_ids}
+        if not sonarr_series_ids:
+            return out
+        rows = (
+            self.session.execute(
+                select(WantedItem).where(
+                    WantedItem.status == "wanted",
+                    WantedItem.sonarr_series_id.in_(sonarr_series_ids),
+                )
+            )
+            .scalars()
+            .all()
+        )
+        for r in rows:
+            out[r.sonarr_series_id].append(self._row_to_wanted(r))
+        return out
+
     def get_wanted_for_movie(self, radarr_movie_id: int) -> list:
         """Get all wanted items for a specific movie."""
         stmt = select(WantedItem).where(WantedItem.radarr_movie_id == radarr_movie_id)

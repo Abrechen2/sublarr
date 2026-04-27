@@ -73,8 +73,9 @@ def _series_searches_today(series_ids: list[int]) -> dict[int, int]:
     # events. With `last_search_at` overwritten per attempt, a 2nd tick within
     # the same day re-counts the item as "already done". Safe direction:
     # under-counts attempts, so the prefix errs on the side of more searches,
-    # not fewer — the quota guarantee is preserved. TODO: revisit if a
-    # search_event log table is introduced in Phase 4b.
+    # not fewer — the quota guarantee is preserved. A discrete-event log
+    # would let us count attempts exactly, but the under-counting bias here
+    # is acceptable until that need materialises.
     from sqlalchemy import func as _func
     from sqlalchemy import select as _select
 
@@ -109,18 +110,14 @@ def _wanted_items_by_series(series_ids: list[int]) -> dict[int, list[dict]]:
     if not series_ids:
         return {}
     repo = WantedRepository()
-    out: dict[int, list[dict]] = {}
-    # TODO: batch into a single WHERE sonarr_series_id IN (...) query if
-    # series_ids grows materially (e.g. Radarr collections).
-    for sid in series_ids:
-        items = repo.get_wanted_by_series(sid)
-        items.sort(
+    out = repo.get_wanted_by_series_bulk(series_ids)
+    for sid in out:
+        out[sid].sort(
             key=lambda it: (
                 it.get("last_search_at") or "",  # NULLs first
                 it.get("search_count", 0),
             )
         )
-        out[sid] = items
     return out
 
 
