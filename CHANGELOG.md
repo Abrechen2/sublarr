@@ -5,6 +5,11 @@ All notable changes to Sublarr are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.76.9-beta] - 2026-04-28
+
+### Fixed
+- **`Sprachen & Profile` leaking into EN-mode Settings sidebar** — `SettingsNav.tsx` resolves `t('settings.nav.languages', 'Sprachen & Profile')` for the Subtitles → Languages & Profiles entry. The 0.76.4 i18n full-coverage pass added 19 of the 20 nav keys used by the component but missed this specific one, so EN users saw the German inline-default fallback between otherwise-translated siblings. Adds `settings.nav.languages` to both `en/common.json` ("Languages & Profiles") and `de/common.json` ("Sprachen & Profile"). Caught during post-deploy Playwright UAT against Cardinal.
+
 ## [0.76.8-beta] - 2026-04-28
 
 ### Changed
