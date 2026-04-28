@@ -30,45 +30,96 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
-  # ─── 1. Validate ───────────────────────────────────────────────────────────
-  validate:
-    name: Validate version
+  # ─── 0. Gate ───────────────────────────────────────────────────────────────
+  # Decides whether the workflow should run at all. Skips on:
+  #   • RC tags (vX.Y.Z-...-rc.N) — the deploy skill handles RC build/push/release
+  #     manually; CI rebuilding here would diverge from the bytes the human tested.
+  #   • Final tags whose Docker image ALREADY exists on GHCR — the deploy skill's
+  #     promote step (`imagetools create`) retags the RC bytes as :VERSION/:latest/
+  #     :stable. Letting CI rebuild on the subsequent tag push would clobber those
+  #     promoted bytes with a fresh CI build, breaking the "no rebuild for
+  #     promotion" guarantee.
+  # workflow_dispatch always runs (manual emergency path).
+  gate:
+    name: Gate
     runs-on: ubuntu-latest
     outputs:
-      version: ${{ steps.ver.outputs.version }}
-      tag:     ${{ steps.ver.outputs.tag }}
-      prerelease: ${{ steps.ver.outputs.prerelease }}
-
+      should_run: ${{ steps.decide.outputs.should_run }}
+      reason:     ${{ steps.decide.outputs.reason }}
+      version:    ${{ steps.decide.outputs.version }}
+      tag:        ${{ steps.decide.outputs.tag }}
+      prerelease: ${{ steps.decide.outputs.prerelease }}
     steps:
-      - uses: actions/checkout@v6
-
-      - name: Resolve version & tag
-        id: ver
+      - name: Decide
+        id: decide
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
+          set -e
           if [[ "${{ github.event_name }}" == "push" ]]; then
-            TAG="${{ github.ref_name }}"          # e.g. v0.12.1-beta
-            VERSION="${TAG#v}"                     # strip leading v
+            TAG="${{ github.ref_name }}"
+            VERSION="${TAG#v}"
           else
             VERSION="${{ inputs.version }}"
             TAG="v${VERSION}"
           fi
-
           echo "version=$VERSION" >> "$GITHUB_OUTPUT"
           echo "tag=$TAG"         >> "$GITHUB_OUTPUT"
-
-          # Mark as pre-release if version contains alpha/beta/rc
           if [[ "$VERSION" =~ (alpha|beta|rc) ]]; then
             echo "prerelease=true" >> "$GITHUB_OUTPUT"
           else
             echo "prerelease=false" >> "$GITHUB_OUTPUT"
           fi
 
-          echo "Releasing: $TAG (prerelease=$VERSION)"
+          # workflow_dispatch always runs — operator chose this explicitly.
+          if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
+            echo "should_run=true" >> "$GITHUB_OUTPUT"
+            echo "reason=workflow_dispatch" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          # Skip RC tags — deploy skill handles them manually.
+          if [[ "$TAG" =~ -rc\.[0-9]+$ ]]; then
+            echo "should_run=false" >> "$GITHUB_OUTPUT"
+            echo "reason=rc-tag (deploy skill handles RC build/push/release)" >> "$GITHUB_OUTPUT"
+            echo "ℹ️  Skipping: $TAG is an RC tag — deploy skill owns RC artefacts"
+            exit 0
+          fi
+
+          # Skip if the GHCR Docker tag already exists — deploy skill already
+          # promoted bytes; CI rebuild would silently clobber the tested image.
+          IMAGE_LC="ghcr.io/$(echo '${{ github.repository }}' | tr '[:upper:]' '[:lower:]')"
+          if docker manifest inspect "$IMAGE_LC:$VERSION" >/dev/null 2>&1; then
+            echo "should_run=false" >> "$GITHUB_OUTPUT"
+            echo "reason=image-already-on-ghcr (deploy skill already promoted RC bytes)" >> "$GITHUB_OUTPUT"
+            echo "ℹ️  Skipping: $IMAGE_LC:$VERSION already exists on GHCR"
+            echo "    Rebuilding here would clobber the RC-tested bytes."
+            echo "    Use workflow_dispatch if a deliberate rebuild is required."
+            exit 0
+          fi
+
+          echo "should_run=true" >> "$GITHUB_OUTPUT"
+          echo "reason=tag-push, image not yet on GHCR" >> "$GITHUB_OUTPUT"
+          echo "✅  Proceeding: image will be built fresh"
+
+  # ─── 1. Validate ───────────────────────────────────────────────────────────
+  validate:
+    name: Validate version
+    needs: gate
+    if: needs.gate.outputs.should_run == 'true'
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ needs.gate.outputs.version }}
+      tag:     ${{ needs.gate.outputs.tag }}
+      prerelease: ${{ needs.gate.outputs.prerelease }}
+
+    steps:
+      - uses: actions/checkout@v6
 
       - name: Verify backend/VERSION matches
         run: |
           CURRENT=$(tr -d '[:space:]' < backend/VERSION)
-          EXPECTED="${{ steps.ver.outputs.version }}"
+          EXPECTED="${{ needs.gate.outputs.version }}"
           if [[ "$CURRENT" != "$EXPECTED" ]]; then
             echo "❌  backend/VERSION is '$CURRENT', expected '$EXPECTED'"
             echo "    Bump the version in backend/VERSION and push a new commit first."
@@ -80,7 +131,7 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          TAG="${{ steps.ver.outputs.tag }}"
+          TAG="${{ needs.gate.outputs.tag }}"
           if gh release view "$TAG" &>/dev/null 2>&1; then
             echo "❌  Release $TAG already exists. Aborting."
             exit 1
