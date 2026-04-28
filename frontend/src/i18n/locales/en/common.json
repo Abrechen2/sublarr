@@ -417,6 +417,7 @@
       "post_processing": "Post-Processing",
       "subtitle_automation": "Subtitle Automation",
       "profiles_overrides": "Profiles & Overrides",
+      "languages": "Languages & Profiles",
       "channels_templates": "Channels & Templates",
       "security_backup": "Security, Backup & Logs",
       "hooks_webhooks": "Hooks & Webhooks",
