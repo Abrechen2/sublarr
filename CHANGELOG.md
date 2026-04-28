@@ -5,6 +5,18 @@ All notable changes to Sublarr are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.76.8-beta] - 2026-04-28
+
+### Changed
+- **Faster wanted-search ticks on large libraries** — Two N+1 query hot paths now use single batched queries: the per-series wanted-items lookup used by the min-attempts prefix in every wanted-search tick (`WantedRepository.get_wanted_by_series_bulk`), and the per-provider account-pool fetch behind `GET /api/v1/system/budget` (`ProviderAccountPoolRepository.get_enabled_grouped`). Both collapse from one-query-per-X to one-query-total; no behaviour change, just better scaling on large libraries and provider-pool counts.
+
+### Fixed
+- **Caplog test pollution from Alembic env.py** — `backend/db/migrations/env.py` now passes `disable_existing_loggers=False` to `fileConfig()`. Previously the default `True` silently disabled pytest's caplog handler for every test that ran alphabetically after a migration test, masking nine assertions in the full suite. Pure CI hygiene — no runtime impact.
+- **Three V1 test-suite gaps** — Collapsed a nested `with` in `test_new_providers_batch2.py` (Ruff SIM117), added `PUT /api/v1/language-profiles/assign-bulk` to the route-safety guard, wrapped `SchedulerPage.test.tsx` in `QueryClientProvider`. Full backend suite now 4546 passed, 4 skipped, 0 failed.
+
+### Docs
+- **20 settings gaps closed in the Wiki** — `wiki_audit_settings.py` now reports 212/212 fields documented (was 192/212). Coverage added for the V1 budget manager, v0.71 embedded-SDH gating + foreign-track cleanup, Phase A4 translation context window, the Subtitle Automation queue, and wanted-search pacing. New `Settings → Scheduler & Automation` page in both EN and DE locales. Fixed `providers.md` prose typo: "16 native" → "22 native" (29 total stays correct).
+
 ## [0.76.7-beta] - 2026-04-27
 
 ### Fixed
