@@ -5,6 +5,18 @@ All notable changes to Sublarr are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.77.1-beta] - 2026-04-29
+
+### Fixed
+- **Orphan webhook settings page** — `WebhooksPage.tsx` was unreachable duplicate code; the same content already lived inline inside the rendered `SystemHooksPage`. Extracted that section into a shared `WebhooksSection` component, deleted the orphan, migrated its test.
+- **Webhook pipeline died silently on uncaught exceptions** — The daemon thread spawned by `_spawn_pipeline` had no top-level error handling, so import errors / DB failures / SocketIO crashes silently killed the worker and the UI never learned the pipeline aborted. Added a wrapping try/except that logs the traceback and emits a new `webhook_failed` SocketIO event so the frontend can react.
+
+### Changed
+- **Per-route rate limit on incoming webhooks** — Sonarr / Radarr / Jellyfin webhook endpoints now enforce `30 requests/minute` per source IP. A misconfigured Sonarr hot-loop (or a leaked API key) would otherwise spawn unbounded daemon threads, each sleeping for the full `webhook_delay_minutes`. 30/min comfortably absorbs legitimate traffic on heavy libraries while killing pathological loops.
+
+### Tests
+- Webhook test that mocked `threading.Thread` globally now patches the spawn helper directly instead — the global `Thread` patch collided with `flask_limiter`'s use of `threading.Timer` for in-memory expiry.
+
 ## [0.77.0-beta] - 2026-04-29
 
 ### Added
