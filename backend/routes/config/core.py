@@ -291,6 +291,55 @@ def update_config():
     except Exception as exc:
         logger.warning("Media server reload failed after config update: %s", exc)
 
+    # Hot-restart the standalone manager when its config or any arr-instance
+    # config changed (auto-activation logic depends on arr presence). Without
+    # this, toggling standalone_enabled or changing debounce requires a
+    # container restart.
+    _standalone_keys = {
+        "standalone_enabled",
+        "standalone_debounce_seconds",
+        "standalone_skip_extras",
+    }
+    _standalone_relevant = any(k in _standalone_keys for k in saved_keys) or any(
+        k.startswith("sonarr_") or k.startswith("radarr_") for k in saved_keys
+    )
+    if _standalone_relevant:
+        try:
+            from flask import current_app as _capp
+
+            from extensions import socketio as _sock
+            from standalone import reload_standalone_manager
+
+            reload_standalone_manager(socketio=_sock, app=_capp._get_current_object())
+        except Exception as exc:
+            logger.warning("Standalone manager reload failed: %s", exc)
+
+    # Push standalone_scan_interval_hours through APScheduler so the
+    # standalone_scan job's trigger picks up the new value (or pauses on 0).
+    if "standalone_scan_interval_hours" in saved_keys:
+        try:
+            from apscheduler.triggers.interval import IntervalTrigger
+            from flask import current_app as _capp
+
+            _scheduler = _capp.extensions.get("scheduler")
+            if _scheduler is not None:
+                _new_h = int(getattr(settings, "standalone_scan_interval_hours", 0) or 0)
+                if _new_h <= 0:
+                    try:
+                        _scheduler.pause_job("standalone_scan")
+                    except Exception:
+                        logger.debug("standalone_scan: pause_job failed", exc_info=True)
+                else:
+                    _scheduler.modify_trigger(
+                        "standalone_scan", IntervalTrigger(hours=max(1, _new_h))
+                    )
+                    try:
+                        _scheduler.resume_job("standalone_scan")
+                    except Exception:
+                        pass
+        except Exception as exc:
+            logger.warning("standalone_scan trigger update failed: %s", exc)
+
     logger.info("Config updated: %s — settings reloaded", saved_keys)
 
     emit_event("config_updated", {"updated_keys": saved_keys})

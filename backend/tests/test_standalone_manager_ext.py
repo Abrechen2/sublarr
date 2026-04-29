@@ -316,24 +316,36 @@ def test_get_standalone_status_success():
 # ---------------------------------------------------------------------------
 
 
-def test_scan_series_or_fallback_uses_manager(app_ctx):
-    """When standalone manager has scan_series, calls it."""
+def test_scan_series_or_fallback_uses_scanner(app_ctx):
+    """Calls StandaloneScanner.scan_series and returns its summary."""
     from services.standalone_manager import scan_series_or_fallback
 
-    mock_manager = MagicMock()
-    mock_manager.scan_series = MagicMock()
-    with patch("standalone.get_standalone_manager", return_value=mock_manager):
-        scan_series_or_fallback(1)
-    mock_manager.scan_series.assert_called_once_with(1)
+    expected = {"series_id": 1, "wanted_added": 3, "series_found": 1, "movies_found": 0}
+    mock_scanner = MagicMock()
+    mock_scanner.scan_series.return_value = expected
+    with patch("standalone.scanner.StandaloneScanner", return_value=mock_scanner):
+        result = scan_series_or_fallback(1)
+    mock_scanner.scan_series.assert_called_once_with(1)
+    assert result == expected
 
 
 def test_scan_series_or_fallback_db_fallback(app_ctx):
-    """When standalone manager unavailable, falls back to DB update."""
+    """When standalone scanner module unavailable, falls back to DB update."""
+    import sys
+
     from services.standalone_manager import scan_series_or_fallback
 
-    with patch("standalone.get_standalone_manager", side_effect=ImportError("not available")):
-        # Should not raise -- falls back to DB update
-        scan_series_or_fallback(1)
+    # Hide standalone.scanner from the import system to force the ImportError
+    # branch. Restore on cleanup.
+    saved = sys.modules.pop("standalone.scanner", None)
+    try:
+        with patch.dict(sys.modules, {"standalone.scanner": None}):
+            # Should not raise — falls back to DB update; returns None.
+            result = scan_series_or_fallback(1)
+        assert result is None
+    finally:
+        if saved is not None:
+            sys.modules["standalone.scanner"] = saved
 
 
 # ---------------------------------------------------------------------------

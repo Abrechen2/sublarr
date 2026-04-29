@@ -115,19 +115,22 @@ def delete_series_cascade(series_id: int) -> None:
     delete_standalone_series(series_id)
 
 
-def scan_series_or_fallback(series_id: int) -> None:
-    """Try the standalone manager scan, fall back to refreshing wanted items."""
+def scan_series_or_fallback(series_id: int) -> dict | None:
+    """Re-scan a single standalone series via StandaloneScanner.
+
+    Falls back to a status-refresh UPDATE only when the scanner module
+    cannot be imported (e.g. test environments without watchdog/guessit).
+    Returns the scanner's summary dict on success, ``None`` when the
+    fallback path was used.
+    """
     try:
-        from standalone import get_standalone_manager
+        from standalone.scanner import StandaloneScanner
 
-        manager = get_standalone_manager()
-        if hasattr(manager, "scan_series"):
-            manager.scan_series(series_id)
-            return
-    except (ImportError, AttributeError):
-        pass
+        scanner = StandaloneScanner()
+        return scanner.scan_series(series_id)
+    except ImportError as e:
+        logger.warning("scan_series: scanner unavailable, using DB fallback: %s", e)
 
-    # Fallback: refresh wanted items for this series
     from db import get_db
 
     db = get_db()
@@ -139,6 +142,7 @@ def scan_series_or_fallback(series_id: int) -> None:
         {"sid": series_id},
     )
     db.commit()
+    return None
 
 
 def refresh_series_metadata_sync(series_id: int) -> dict | None:

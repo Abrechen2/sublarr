@@ -77,6 +77,13 @@ vi.mock('@/hooks/useApi', () => ({
   useUpdateConfig: () => ({ mutate: mockMutate, isPending: false }),
   useTestSonarrInstance: () => ({ mutate: mockTestSonarr, isPending: false }),
   useTestRadarrInstance: () => ({ mutate: mockTestRadarr, isPending: false }),
+  useWatchedFolders: () => ({ data: [], isLoading: false }),
+  useSaveWatchedFolder: () => ({ mutate: vi.fn(), isPending: false }),
+  useDeleteWatchedFolder: () => ({ mutate: vi.fn(), isPending: false }),
+  useTriggerStandaloneFolderScan: () => ({ mutate: vi.fn(), isPending: false, variables: undefined }),
+  useStandaloneStatus: () => ({
+    data: { enabled: false, watcher_running: false, folders_count: 0, scanner_scanning: false, arr_configured: false, auto_activated: false },
+  }),
 }))
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────

@@ -34,12 +34,59 @@ def get_standalone_manager() -> "StandaloneManager":
 
 
 def invalidate_standalone_manager() -> None:
-    """Stop and reset the StandaloneManager singleton (e.g. after config change)."""
+    """Stop and reset the StandaloneManager singleton (e.g. after config change).
+
+    Next call to ``get_standalone_manager()`` rebuilds with current config —
+    this is the live-reload path used by ``routes/config`` and watched-folder
+    CRUD so that toggling ``standalone_enabled``, changing
+    ``standalone_debounce_seconds`` or adding/removing folders takes effect
+    without a container restart.
+    """
     global _manager
     with _manager_lock:
         if _manager is not None:
             _manager.stop()
         _manager = None
+
+
+def reload_standalone_manager(socketio=None, app=None) -> None:
+    """Invalidate the singleton and immediately restart it.
+
+    Used by config-save paths that need a hot-restart (folder added,
+    debounce changed, …). If standalone mode is currently disabled and
+    no arr fallback applies, ``start()`` becomes a no-op.
+    """
+    invalidate_standalone_manager()
+    try:
+        get_standalone_manager().start(socketio=socketio, app=app)
+    except Exception as e:
+        logger.warning("reload_standalone_manager: start failed: %s", e)
+
+
+def standalone_scan_tick() -> None:
+    """APScheduler tick — runs a full standalone folder scan.
+
+    Module-level + picklable so SQLAlchemyJobStore can persist it.
+    No-ops when standalone mode is inactive or no folders are configured.
+    """
+    try:
+        from config import is_standalone_mode
+
+        if not is_standalone_mode():
+            logger.debug("standalone_scan_tick: skipped (mode inactive)")
+            return
+    except Exception:
+        logger.debug("standalone_scan_tick: is_standalone_mode unavailable", exc_info=True)
+        return
+
+    try:
+        from standalone.scanner import StandaloneScanner
+
+        scanner = StandaloneScanner()
+        summary = scanner.scan_all_folders()
+        logger.info("standalone_scan_tick: %s", summary)
+    except Exception as e:
+        logger.error("standalone_scan_tick failed: %s", e, exc_info=True)
 
 
 class StandaloneManager:

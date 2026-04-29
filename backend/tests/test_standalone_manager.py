@@ -61,3 +61,116 @@ def test_launch_folder_scan_returns_404_for_missing_folder(monkeypatch):
     monkeypatch.setattr("services.standalone_manager.get_watched_folder", lambda fid: None)
     result = validate_folder_exists_for_scan(folder_id=999)
     assert result is None
+
+
+# ---------------------------------------------------------------------------
+# standalone_scan_tick — module-level APScheduler tick (picklable)
+# ---------------------------------------------------------------------------
+
+
+def test_standalone_scan_tick_skips_when_mode_inactive(monkeypatch):
+    """Tick is a no-op when is_standalone_mode() returns False."""
+    import standalone
+
+    monkeypatch.setattr("config.is_standalone_mode", lambda: False)
+
+    called = {"scan": False}
+
+    class _FakeScanner:
+        def scan_all_folders(self):
+            called["scan"] = True
+            return {}
+
+    monkeypatch.setattr("standalone.scanner.StandaloneScanner", _FakeScanner)
+    standalone.standalone_scan_tick()
+    assert called["scan"] is False
+
+
+def test_standalone_scan_tick_runs_full_scan_when_active(monkeypatch):
+    """Tick delegates to StandaloneScanner.scan_all_folders when mode is active."""
+    import standalone
+
+    monkeypatch.setattr("config.is_standalone_mode", lambda: True)
+
+    called = {"scan": False, "summary": None}
+
+    class _FakeScanner:
+        def scan_all_folders(self):
+            called["scan"] = True
+            return {"folders_scanned": 1, "wanted_added": 2}
+
+    monkeypatch.setattr("standalone.scanner.StandaloneScanner", _FakeScanner)
+    standalone.standalone_scan_tick()
+    assert called["scan"] is True
+
+
+def test_standalone_scan_tick_swallows_scanner_exceptions(monkeypatch):
+    """Scanner failure inside tick must not propagate to APScheduler."""
+    import standalone
+
+    monkeypatch.setattr("config.is_standalone_mode", lambda: True)
+
+    class _FailingScanner:
+        def scan_all_folders(self):
+            raise RuntimeError("boom")
+
+    monkeypatch.setattr("standalone.scanner.StandaloneScanner", _FailingScanner)
+    standalone.standalone_scan_tick()  # must not raise
+
+
+# ---------------------------------------------------------------------------
+# reload_standalone_manager — invalidate + start
+# ---------------------------------------------------------------------------
+
+
+def test_reload_standalone_manager_invalidates_then_starts(monkeypatch):
+    """Reload calls invalidate, then start() on a fresh singleton."""
+    import standalone
+
+    invalidated = {"v": False}
+    started = {"v": False}
+
+    def _fake_invalidate():
+        invalidated["v"] = True
+
+    fake_mgr = MagicMock()
+    fake_mgr.start = MagicMock(side_effect=lambda **kw: started.update({"v": True}))
+
+    monkeypatch.setattr(standalone, "invalidate_standalone_manager", _fake_invalidate)
+    monkeypatch.setattr(standalone, "get_standalone_manager", lambda: fake_mgr)
+
+    standalone.reload_standalone_manager(socketio=None, app=None)
+
+    assert invalidated["v"] is True
+    assert started["v"] is True
+
+
+def test_reload_standalone_manager_swallows_start_failure(monkeypatch):
+    """If start() raises, reload still returns cleanly."""
+    import standalone
+
+    monkeypatch.setattr(standalone, "invalidate_standalone_manager", lambda: None)
+
+    fake_mgr = MagicMock()
+    fake_mgr.start.side_effect = RuntimeError("watchdog boom")
+    monkeypatch.setattr(standalone, "get_standalone_manager", lambda: fake_mgr)
+
+    # Must not raise
+    standalone.reload_standalone_manager(socketio=None, app=None)
+
+
+# ---------------------------------------------------------------------------
+# update_watched_folder_last_scan — DB wrapper used by scanner end-of-folder
+# ---------------------------------------------------------------------------
+
+
+def test_update_watched_folder_last_scan_calls_repo(monkeypatch):
+    """The wrapper delegates to StandaloneRepository.update_last_scan."""
+    from db import standalone as db_standalone
+
+    fake_repo = MagicMock()
+    monkeypatch.setattr(db_standalone, "_get_repo", lambda: fake_repo)
+
+    db_standalone.update_watched_folder_last_scan(42)
+
+    fake_repo.update_last_scan.assert_called_once_with(42)

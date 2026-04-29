@@ -55,6 +55,15 @@ def delete_watched_folder(folder_id: int) -> bool:
     return _get_repo().delete_watched_folder(folder_id)
 
 
+def update_watched_folder_last_scan(folder_id: int) -> None:
+    """Set the watched_folders.last_scan_at timestamp to now (UTC).
+
+    Called by the scanner after each per-folder scan so the UI can show
+    the actual last-scan time instead of a permanent dash.
+    """
+    _get_repo().update_last_scan(folder_id)
+
+
 # ---- Standalone Series ----
 
 

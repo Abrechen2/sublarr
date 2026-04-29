@@ -175,6 +175,51 @@ class StandaloneScanner(_StandaloneProcessMixin):
             self._scanning = False
             self._scan_lock.release()
 
+    def scan_series(self, series_id: int) -> dict:
+        """Re-scan a single standalone series folder.
+
+        Walks the series' ``folder_path`` (recursive), runs the parser, and
+        re-creates wanted_items for any episodes missing target-language
+        subtitles. Idempotent — uses the same upsert path as the full scan.
+
+        Returns:
+            Summary dict with keys: series_id, files_found, wanted_added, error.
+        """
+        try:
+            from db.standalone import get_standalone_series
+        except Exception as e:
+            return {"error": f"db unavailable: {e}", "series_id": series_id}
+
+        series = get_standalone_series(series_id)
+        if not series:
+            return {"error": "series_not_found", "series_id": series_id}
+
+        folder_path = series.get("folder_path", "")
+        if not folder_path or not os.path.isdir(folder_path):
+            return {
+                "error": "folder_missing",
+                "series_id": series_id,
+                "folder_path": folder_path,
+            }
+
+        synthetic_folder = {
+            "path": folder_path,
+            "label": series.get("title", ""),
+            "media_type": "tv",
+            "enabled": True,
+        }
+        try:
+            s_count, m_count, w_count = self._scan_folder(synthetic_folder)
+            return {
+                "series_id": series_id,
+                "series_found": s_count,
+                "movies_found": m_count,
+                "wanted_added": w_count,
+            }
+        except Exception as e:
+            logger.error("scan_series(%d) failed: %s", series_id, e, exc_info=True)
+            return {"error": str(e), "series_id": series_id}
+
     def _scan_folder(self, folder: dict) -> tuple:
         """Scan a single watched folder.
 
@@ -188,6 +233,19 @@ class StandaloneScanner(_StandaloneProcessMixin):
         from standalone.parser import group_files_by_series, is_video_file, parse_media_file
 
         folder_path = folder["path"]
+        folder_id = folder.get("id")
+
+        def _stamp() -> None:
+            """Update last_scan_at if the folder is real (has an id)."""
+            if not folder_id:
+                return
+            try:
+                from db.standalone import update_watched_folder_last_scan
+
+                update_watched_folder_last_scan(int(folder_id))
+            except Exception as e:
+                logger.debug("Failed to update last_scan_at for folder %s: %s", folder_id, e)
+
         if not os.path.isdir(folder_path):
             logger.warning("Watched folder does not exist: %s", folder_path)
             return (0, 0, 0)
@@ -204,6 +262,7 @@ class StandaloneScanner(_StandaloneProcessMixin):
 
         if not video_files:
             logger.debug("No video files in %s", folder_path)
+            _stamp()
             return (0, 0, 0)
 
         logger.info("Found %d video files in %s", len(video_files), folder_path)
@@ -249,6 +308,7 @@ class StandaloneScanner(_StandaloneProcessMixin):
             except Exception as e:
                 logger.error("Error processing movie '%s': %s", file_path, e)
 
+        _stamp()
         return (series_count, movie_count, wanted_count)
 
     # -----------------------------------------------------------------------
@@ -258,7 +318,11 @@ class StandaloneScanner(_StandaloneProcessMixin):
     def _get_target_languages(self) -> list[str]:
         """Get target languages from the default language profile.
 
-        Falls back to the global target_language setting.
+        Falls back to the global target_language setting when the default
+        profile has no target_languages configured. Logs a warning in that
+        case so users can spot a misconfigured profile (the standalone
+        scanner has no per-file profile binding — it always uses the
+        default).
 
         Returns:
             List of target language codes.
@@ -271,8 +335,14 @@ class StandaloneScanner(_StandaloneProcessMixin):
                 langs = profile.get("target_languages", [])
                 if langs:
                     return langs
+                logger.warning(
+                    "Standalone: default profile %r has no target_languages — "
+                    "falling back to settings.target_language. Configure the "
+                    "default profile to silence this warning.",
+                    profile.get("name", "?"),
+                )
         except Exception:
-            pass
+            logger.debug("Standalone: failed to read default profile", exc_info=True)
 
         # Fallback to global config
         try:

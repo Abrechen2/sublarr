@@ -39,6 +39,11 @@ export async function triggerStandaloneScan(): Promise<{ message: string }> {
   return data
 }
 
+export async function triggerStandaloneFolderScan(folderId: number): Promise<{ message: string }> {
+  const { data } = await api.post(`/standalone/scan/${folderId}`)
+  return data
+}
+
 export async function getStandaloneStatus(): Promise<StandaloneStatus> {
   const { data } = await api.get('/standalone/status')
   return data

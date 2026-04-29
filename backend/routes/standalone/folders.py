@@ -5,11 +5,24 @@ from __future__ import annotations
 import logging
 import os
 
-from flask import jsonify, request
+from flask import current_app, jsonify, request
 
 from routes.standalone import bp
 
 logger = logging.getLogger(__name__)
+
+
+def _hot_reload_standalone() -> None:
+    """Hot-restart the StandaloneManager so the watcher picks up the new
+    folder list immediately. Failures are logged but never block the
+    HTTP response — the folder change is already persisted in the DB."""
+    try:
+        from extensions import socketio as _sock
+        from standalone import reload_standalone_manager
+
+        reload_standalone_manager(socketio=_sock, app=current_app._get_current_object())
+    except Exception as exc:
+        logger.warning("Standalone manager hot-reload failed: %s", exc)
 
 
 @bp.route("/folders", methods=["GET"])
@@ -111,6 +124,11 @@ def add_folder():
     if not os.path.isdir(path):
         return jsonify({"error": f"Directory does not exist: {path}"}), 400
 
+    # Normalize symlinks to their real target so the scanner walks the
+    # canonical path (avoids surprises like "I added /media but it's a
+    # symlink to /mnt/raid" — both UI list and scanner agree).
+    path = os.path.realpath(path)
+
     label = data.get("label", "")
     media_type = data.get("media_type", "auto")
 
@@ -122,6 +140,7 @@ def add_folder():
             path=path, label=label, media_type=media_type, enabled=True
         )
         folder = get_watched_folder(folder_id)
+        _hot_reload_standalone()
         return jsonify(folder), 201
     except Exception as e:
         logger.error("Failed to add watched folder '%s': %s", path, e)
@@ -193,12 +212,17 @@ def update_folder(folder_id):
     if media_type not in ("auto", "tv", "movie"):
         return jsonify({"error": "media_type must be one of: auto, tv, movie"}), 400
 
-    if path != folder["path"] and not os.path.isdir(path):
-        return jsonify({"error": f"Directory does not exist: {path}"}), 400
+    if path != folder["path"]:
+        if not os.path.isdir(path):
+            return jsonify({"error": f"Directory does not exist: {path}"}), 400
+        # Same realpath normalization as POST so an updated symlinked
+        # path becomes the canonical target.
+        path = os.path.realpath(path)
 
     try:
         upsert_watched_folder(path=path, label=label, media_type=media_type, enabled=enabled)
         updated = get_watched_folder(folder_id)
+        _hot_reload_standalone()
         return jsonify(updated)
     except Exception as e:
         logger.error("Failed to update watched folder %d: %s", folder_id, e)
@@ -245,6 +269,7 @@ def delete_folder(folder_id):
 
     try:
         delete_watched_folder(folder_id)
+        _hot_reload_standalone()
         return jsonify({"success": True})
     except Exception as e:
         logger.error("Failed to delete watched folder %d: %s", folder_id, e)

@@ -9,7 +9,7 @@ import {
   retryJob,
   exportConfig, importConfig,
   getWatchedFolders, saveWatchedFolder, deleteWatchedFolder,
-  getStandaloneSeries, getStandaloneMovies, triggerStandaloneScan,
+  getStandaloneSeries, getStandaloneMovies, triggerStandaloneScan, triggerStandaloneFolderScan,
   getStandaloneStatus, refreshSeriesMetadata,
   getStatistics, exportStatistics,
   createFullBackup, listFullBackups, restoreFullBackup,
@@ -292,6 +292,18 @@ export function useTriggerStandaloneScan() {
     onSuccess: () => {
       void qc.invalidateQueries({ queryKey: ['standaloneSeries'] })
       void qc.invalidateQueries({ queryKey: ['standaloneMovies'] })
+    },
+  })
+}
+
+export function useTriggerStandaloneFolderScan() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (folderId: number) => triggerStandaloneFolderScan(folderId),
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: ['standaloneSeries'] })
+      void qc.invalidateQueries({ queryKey: ['standaloneMovies'] })
+      void qc.invalidateQueries({ queryKey: ['watchedFolders'] })
     },
   })
 }

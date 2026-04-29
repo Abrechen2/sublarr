@@ -161,7 +161,10 @@
     "folder_removed": "Folder removed",
     "folder_remove_failed": "Failed to remove folder",
     "scan_started": "Scan started",
-    "scan_failed": "Failed to start scan"
+    "scan_failed": "Failed to start scan",
+    "folder_scan_started": "Folder scan started",
+    "folder_scan_failed": "Failed to start folder scan",
+    "standalone_auto_activated_hint": "Standalone mode is auto-activated (no Sonarr/Radarr configured)."
   },
   "notifications": {
     "on_download": "Notify on Download",
@@ -1218,6 +1221,7 @@
   },
   "library_sources_tab": {
     "scan_all": "Scan all folders",
+    "scan_folder": "Scan this folder",
     "movie": "Movie",
     "edit_folder": "Edit folder",
     "remove_folder": "Remove folder",

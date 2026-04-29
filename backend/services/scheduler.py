@@ -725,6 +725,7 @@ def _build_default_jobs() -> list[JobSpec]:
         wanted_scanner_tick,
         wanted_search_tick,
     )
+    from standalone import standalone_scan_tick
     from upgrade_scheduler import upgrade_tick
     from utils.scheduler_retention import delete_old_job_runs
     from utils.scheduler_retention_translation import delete_old_translation_events
@@ -735,6 +736,7 @@ def _build_default_jobs() -> list[JobSpec]:
     scan_interval_hours = 6
     search_interval_hours = 24
     upgrade_interval_hours = 168  # trigger floor; adapter pauses when 0
+    standalone_interval_hours = 6  # trigger floor; adapter pauses when 0
     automation_drain_minutes = 2
     try:
         from config import get_settings
@@ -745,6 +747,9 @@ def _build_default_jobs() -> list[JobSpec]:
         upgrade_cfg = int(getattr(settings, "upgrade_scan_interval_hours", 0) or 0)
         if upgrade_cfg > 0:
             upgrade_interval_hours = upgrade_cfg
+        standalone_cfg = int(getattr(settings, "standalone_scan_interval_hours", 0) or 0)
+        if standalone_cfg > 0:
+            standalone_interval_hours = standalone_cfg
         automation_drain_minutes = max(
             1, int(getattr(settings, "subtitle_automation_drain_interval_minutes", 2) or 2)
         )
@@ -833,6 +838,19 @@ def _build_default_jobs() -> list[JobSpec]:
                 "Drain the subtitle_automation_queue: extract pending embedded "
                 "subtitles into sidecars. No-op when the master toggle "
                 "(subtitle_automation_enabled) is off."
+            ),
+        ),
+        JobSpec(
+            id="standalone_scan",
+            func=standalone_scan_tick,
+            default_trigger=IntervalTrigger(hours=max(1, standalone_interval_hours)),
+            timeout_s=3600,
+            owner_module="standalone",
+            description=(
+                "Scan all watched folders in standalone mode. Paused when "
+                "standalone_scan_interval_hours=0; otherwise drives independent "
+                "filesystem rediscovery cadence (the wanted_scanner still covers "
+                "standalone when this job is paused, for backwards compat)."
             ),
         ),
     ]

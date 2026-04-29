@@ -96,7 +96,12 @@ def get_status():
       tags:
         - Standalone
       summary: Get standalone mode status
-      description: Returns the current standalone mode status including enabled state, watcher status, and counts.
+      description: >
+        Returns the current standalone mode runtime status: whether the
+        mode is active, whether the filesystem watcher is running, the
+        number of enabled watched folders, whether a scan is currently
+        running, whether any Sonarr/Radarr instance is configured, and
+        whether the mode is auto-activated (no arr configured).
       responses:
         200:
           description: Standalone status
@@ -107,12 +112,24 @@ def get_status():
                 properties:
                   enabled:
                     type: boolean
-                  watched_folders:
+                    description: True when standalone mode is active (manual or auto).
+                  watcher_running:
+                    type: boolean
+                    description: True when the filesystem watcher thread is live.
+                  folders_count:
                     type: integer
-                  series_count:
-                    type: integer
-                  movie_count:
-                    type: integer
+                    description: Number of enabled watched folders.
+                  scanner_scanning:
+                    type: boolean
+                    description: True while a folder scan is in progress.
+                  arr_configured:
+                    type: boolean
+                    description: True when at least one Sonarr or Radarr instance is configured.
+                  auto_activated:
+                    type: boolean
+                    description: True when standalone is implicitly active because no arr is configured.
+        501:
+          description: StandaloneManager not yet implemented
         500:
           description: Server error
     """

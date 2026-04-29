@@ -173,6 +173,24 @@ class TestGetTargetLanguages:
             result = scanner._get_target_languages()
             assert result == ["ja"]
 
+    def test_profile_empty_logs_warning(self, caplog):
+        """F5: empty default profile must emit a warning so the
+        misconfiguration is visible without changing behavior."""
+        import logging
+
+        scanner = StandaloneScanner()
+        mock_profile = {"name": "Default", "target_languages": []}
+        mock_settings = MagicMock()
+        mock_settings.target_language = "de"
+        with (
+            patch("db.profiles.get_default_profile", return_value=mock_profile),
+            patch("config.get_settings", return_value=mock_settings),
+            caplog.at_level(logging.WARNING, logger="standalone.scanner"),
+        ):
+            scanner._get_target_languages()
+        joined = " ".join(rec.message for rec in caplog.records)
+        assert "no target_languages" in joined
+
     def test_no_profile_falls_back_to_config(self):
         scanner = StandaloneScanner()
         mock_settings = MagicMock()
@@ -357,6 +375,38 @@ class TestScanFolder:
             s, m, w = scanner._scan_folder(folder)
             assert s == 1
             assert w == 3
+
+    def test_scan_folder_updates_last_scan_at(self, tmp_path):
+        """T4: _scan_folder must call update_watched_folder_last_scan(folder.id)
+        so the UI can show the actual last-scan timestamp instead of '—'."""
+        scanner = StandaloneScanner()
+        folder = {"id": 7, "path": str(tmp_path), "label": "x", "media_type": "auto"}
+        mock_settings = MagicMock()
+        mock_settings.standalone_skip_extras = True
+
+        with (
+            patch("config.get_settings", return_value=mock_settings),
+            patch("db.standalone.update_watched_folder_last_scan") as mock_upd,
+        ):
+            scanner._scan_folder(folder)
+
+        mock_upd.assert_called_once_with(7)
+
+    def test_scan_folder_without_id_skips_last_scan_update(self, tmp_path):
+        """If the synthetic folder dict has no id (e.g. scan_series fallback),
+        the writer is skipped silently — no AttributeError."""
+        scanner = StandaloneScanner()
+        folder = {"path": str(tmp_path), "label": "synthetic"}
+        mock_settings = MagicMock()
+        mock_settings.standalone_skip_extras = True
+
+        with (
+            patch("config.get_settings", return_value=mock_settings),
+            patch("db.standalone.update_watched_folder_last_scan") as mock_upd,
+        ):
+            scanner._scan_folder(folder)
+
+        mock_upd.assert_not_called()
 
     def test_extras_skipped_when_setting_enabled(self, tmp_path):
         """Trailer files are excluded when standalone_skip_extras is True."""

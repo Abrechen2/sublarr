@@ -112,6 +112,35 @@ class TestAddFolder:
         assert resp.status_code == 201
         assert resp.get_json()["id"] == 1
 
+    def test_201_normalizes_symlink_to_realpath(self, client, tmp_path, monkeypatch):
+        """POST silently resolves symlinks to their realpath so the scanner
+        walks the canonical target. Verifies F1 — folder-add normalization."""
+        target = str(tmp_path)
+        symlinked_input = "/some/symlinked/alias"
+        # The route validates os.path.isdir(path) BEFORE realpath; the user
+        # gives a symlink → both isdir and realpath need to be patched.
+        monkeypatch.setattr("routes.standalone.folders.os.path.isdir", lambda p: True)
+        monkeypatch.setattr(
+            "routes.standalone.folders.os.path.realpath",
+            lambda p: target if p == symlinked_input else p,
+        )
+        folder_record = {
+            "id": 9,
+            "path": target,
+            "label": "",
+            "media_type": "auto",
+            "enabled": True,
+        }
+        with (
+            patch(f"{DB_STANDALONE}.upsert_watched_folder", return_value=9) as mock_upsert,
+            patch(f"{DB_STANDALONE}.get_watched_folder", return_value=folder_record),
+        ):
+            resp = client.post("/api/v1/standalone/folders", json={"path": symlinked_input})
+        assert resp.status_code == 201
+        # The path passed to upsert_watched_folder must be the realpath, not the symlink.
+        _, kwargs = mock_upsert.call_args
+        assert kwargs["path"] == target
+
     def test_201_defaults_media_type_to_auto(self, client, tmp_path):
         folder_record = {
             "id": 2,
@@ -440,13 +469,29 @@ class TestScanSeries:
 
     def test_200_on_success(self, client):
         series = {"id": 1, "title": "Naruto"}
+        summary = {"series_id": 1, "wanted_added": 2, "series_found": 1, "movies_found": 0}
         with (
             patch(f"{DB_STANDALONE}.get_standalone_series", return_value=series),
-            patch(f"{SVC_STANDALONE}.scan_series_or_fallback"),
+            patch(f"{SVC_STANDALONE}.scan_series_or_fallback", return_value=summary),
         ):
             resp = client.post("/api/v1/standalone/series/1/scan")
         assert resp.status_code == 200
-        assert resp.get_json()["series_id"] == 1
+        body = resp.get_json()
+        assert body["series_id"] == 1
+        assert body["summary"]["wanted_added"] == 2
+
+    def test_200_on_db_fallback_returns_no_summary(self, client):
+        """When scanner module unavailable, fallback returns None — route still succeeds."""
+        series = {"id": 1, "title": "Naruto"}
+        with (
+            patch(f"{DB_STANDALONE}.get_standalone_series", return_value=series),
+            patch(f"{SVC_STANDALONE}.scan_series_or_fallback", return_value=None),
+        ):
+            resp = client.post("/api/v1/standalone/series/1/scan")
+        assert resp.status_code == 200
+        body = resp.get_json()
+        assert body["series_id"] == 1
+        assert "summary" not in body
 
     def test_500_on_scan_error(self, client):
         series = {"id": 1, "title": "Naruto"}
@@ -504,3 +549,61 @@ class TestRefreshMetadata:
             resp = client.post("/api/v1/standalone/series/1/refresh-metadata")
         assert resp.status_code == 500
         assert "not available" in resp.get_json()["error"].lower()
+
+
+# ---------------------------------------------------------------------------
+# TestHotReloadOnFolderCRUD — folder add/update/delete invalidates StandaloneManager
+# ---------------------------------------------------------------------------
+
+ROUTES_FOLDERS = "routes.standalone.folders"
+
+
+class TestHotReloadOnFolderCRUD:
+    """Folder-add/update/delete must call _hot_reload_standalone so the
+    watcher picks up the new folder list without a container restart."""
+
+    def test_add_triggers_hot_reload(self, client, tmp_path):
+        folder_record = {
+            "id": 1,
+            "path": str(tmp_path),
+            "label": "",
+            "media_type": "auto",
+            "enabled": True,
+        }
+        with (
+            patch(f"{DB_STANDALONE}.upsert_watched_folder", return_value=1),
+            patch(f"{DB_STANDALONE}.get_watched_folder", return_value=folder_record),
+            patch(f"{ROUTES_FOLDERS}._hot_reload_standalone") as mock_reload,
+        ):
+            resp = client.post("/api/v1/standalone/folders", json={"path": str(tmp_path)})
+        assert resp.status_code == 201
+        mock_reload.assert_called_once()
+
+    def test_update_triggers_hot_reload(self, client, tmp_path):
+        existing = {
+            "id": 1,
+            "path": str(tmp_path),
+            "label": "",
+            "media_type": "tv",
+            "enabled": 1,
+        }
+        updated = {**existing, "label": "Updated"}
+        with (
+            patch(f"{DB_STANDALONE}.get_watched_folder", side_effect=[existing, updated]),
+            patch(f"{DB_STANDALONE}.upsert_watched_folder"),
+            patch(f"{ROUTES_FOLDERS}._hot_reload_standalone") as mock_reload,
+        ):
+            resp = client.put("/api/v1/standalone/folders/1", json={"label": "Updated"})
+        assert resp.status_code == 200
+        mock_reload.assert_called_once()
+
+    def test_delete_triggers_hot_reload(self, client):
+        existing = {"id": 1, "path": "/media/anime"}
+        with (
+            patch(f"{DB_STANDALONE}.get_watched_folder", return_value=existing),
+            patch(f"{DB_STANDALONE}.delete_watched_folder"),
+            patch(f"{ROUTES_FOLDERS}._hot_reload_standalone") as mock_reload,
+        ):
+            resp = client.delete("/api/v1/standalone/folders/1")
+        assert resp.status_code == 200
+        mock_reload.assert_called_once()

@@ -18,6 +18,9 @@ import { SettingsSection } from '@/components/settings/SettingsSection'
 // ─── Lazy imports for heavier sub-tabs ───────────────────────────────────────
 const MediaServersTab = lazy(() => import('../MediaServersTab').then(m => ({ default: m.MediaServersTab })))
 const StandaloneSettingsTab = lazy(() => import('../StandaloneSettingsTab').then(m => ({ default: m.StandaloneSettingsTab })))
+const StandaloneFolderManager = lazy(() =>
+  import('./StandaloneFolderManager').then(m => ({ default: m.StandaloneFolderManager })),
+)
 
 function TabSkeleton() {
   return (
@@ -577,6 +580,10 @@ function StandaloneSection() {
           ? t('connections.standalone.desc_active')
           : t('connections.standalone.desc_inactive')}
       </p>
+
+      <Suspense fallback={<TabSkeleton />}>
+        <StandaloneFolderManager />
+      </Suspense>
     </div>
   )
 }

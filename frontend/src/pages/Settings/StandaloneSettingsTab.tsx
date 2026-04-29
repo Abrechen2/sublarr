@@ -15,7 +15,9 @@ export function StandaloneSettingsTab() {
   const { data: config } = useConfig()
   const updateConfig = useUpdateConfig()
 
-  const skipExtras = boolVal(config, 'standalone_skip_extras', false)
+  // Backend default is True — keep frontend default in sync to avoid
+  // showing OFF on first load when the setting has never been saved.
+  const skipExtras = boolVal(config, 'standalone_skip_extras', true)
   const [localScanInterval, setLocalScanInterval] = useState<string>('24')
   const [localDebounce, setLocalDebounce] = useState<string>('30')
 

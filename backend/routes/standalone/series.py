@@ -207,8 +207,11 @@ def scan_series(series_id):
         return jsonify({"error": "Series not found"}), 404
 
     try:
-        scan_series_or_fallback(series_id)
-        return jsonify({"message": "Scan started", "series_id": series_id})
+        summary = scan_series_or_fallback(series_id)
+        response = {"message": "Scan completed", "series_id": series_id}
+        if summary:
+            response["summary"] = summary
+        return jsonify(response)
     except Exception as e:
         logger.error("Failed to scan series %d: %s", series_id, e)
         return jsonify({"error": str(e)}), 500

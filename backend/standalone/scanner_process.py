@@ -283,7 +283,11 @@ class _StandaloneProcessMixin:
                 resolver = self._get_resolver()
                 meta = resolver.resolve_series(title, year=year, is_anime=is_anime)
 
-                series_folder = os.path.dirname(file_path)
+                # Use the same season-folder normalization as the group path
+                # (_process_series_group → _find_common_parent) so that single
+                # episodes detected by the watcher don't create a duplicate
+                # standalone_series entry rooted at the season subfolder.
+                series_folder = self._find_common_parent([file_path])
                 series_id = upsert_standalone_series(
                     title=meta.get("title", title),
                     folder_path=series_folder,
