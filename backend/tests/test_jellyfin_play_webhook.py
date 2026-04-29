@@ -229,8 +229,10 @@ class TestJellyfinWebhookRoute:
             patch("config.get_settings") as mock_settings,
             patch("mediaserver.get_media_server_manager") as mock_mgr,
             patch("security_utils.is_safe_path", return_value=True),
-            patch("routes.webhooks._webhook_auto_pipeline"),
-            patch("threading.Thread") as mock_thread,
+            # Patch the spawn helper directly — avoids colliding with flask-limiter's
+            # internal use of threading.Timer (subclass of Thread) when the per-route
+            # rate limit fires its in-memory expiry timer.
+            patch("routes.webhooks.jellyfin._spawn_pipeline") as mock_spawn,
         ):
             s = MagicMock()
             s.jellyfin_play_translate_enabled = True
@@ -241,8 +243,6 @@ class TestJellyfinWebhookRoute:
             mgr = MagicMock()
             mgr.get_item_path_from_jellyfin.return_value = "/media/show/ep01.mkv"
             mock_mgr.return_value = mgr
-
-            mock_thread.return_value = MagicMock()
 
             resp = client.post(
                 "/api/v1/webhook/jellyfin",
@@ -260,6 +260,11 @@ class TestJellyfinWebhookRoute:
         assert data["status"] == "queued"
         assert data["file_path"] == "/media/show/ep01.mkv"
         assert "My Show" in data["title"]
+        # _spawn_pipeline was invoked exactly once with the resolved path/title.
+        mock_spawn.assert_called_once()
+        spawn_args, _ = mock_spawn.call_args
+        assert spawn_args[0] == "/media/show/ep01.mkv"
+        assert "My Show" in spawn_args[1]
 
     def test_rejects_request_without_api_key(self, client):
         """Webhook must return 401 when no API key header is provided."""

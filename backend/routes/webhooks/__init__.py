@@ -42,12 +42,27 @@ def _spawn_pipeline(
     an explicit context inside the worker thread. Without this every DB call
     in the pipeline raises `Working outside of application context` and the
     whole auto-download flow silently fails.
+
+    Wraps the worker body in a top-level try/except so any uncaught failure
+    is logged and surfaced to the frontend via a `webhook_failed` SocketIO
+    event. Without this wrapper the daemon thread dies silently on import
+    errors, DB outages, etc., and the UI never learns the pipeline aborted.
     """
     app = current_app._get_current_object()
 
     def _run():
         with app.app_context():
-            _webhook_auto_pipeline(file_path, title, series_id, movie_id)
+            try:
+                _webhook_auto_pipeline(file_path, title, series_id, movie_id)
+            except Exception as exc:
+                logger.exception("Webhook pipeline crashed for %s: %s", file_path, exc)
+                try:
+                    socketio.emit(
+                        "webhook_failed",
+                        {"file_path": file_path, "title": title, "error": str(exc)},
+                    )
+                except Exception:
+                    logger.debug("webhook_failed emit failed", exc_info=True)
 
     threading.Thread(target=_run, daemon=True).start()
 

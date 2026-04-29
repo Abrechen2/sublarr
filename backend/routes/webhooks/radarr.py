@@ -4,10 +4,12 @@ import hmac
 
 from flask import jsonify, request
 
+from extensions import limiter
 from routes.webhooks import _spawn_pipeline, bp, logger
 
 
 @bp.route("/webhook/radarr", methods=["POST"])
+@limiter.limit("30/minute")
 def webhook_radarr():
     """Handle Radarr webhook (OnDownload and MovieFileDelete events).
     ---

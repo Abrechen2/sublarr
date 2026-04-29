@@ -1,6 +1,5 @@
 import { render, screen, fireEvent } from '@testing-library/react'
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { BrowserRouter } from 'react-router-dom'
 
 // ─── Mocks ───────────────────────────────────────────────────────────────────
 
@@ -22,16 +21,6 @@ vi.mock('@/components/shared/Toast', () => ({
   toast: (...args: unknown[]) => mockToast(...args),
 }))
 
-vi.mock('@/components/settings/SettingsDetailLayout', () => ({
-  SettingsDetailLayout: ({ title, subtitle, children }: { title: string; subtitle: string; children: React.ReactNode }) => (
-    <div>
-      <h1>{title}</h1>
-      <p>{subtitle}</p>
-      {children}
-    </div>
-  ),
-}))
-
 vi.mock('@/components/settings/SettingsSection', () => ({
   SettingsSection: ({ title, children }: { title: string; children: React.ReactNode }) => (
     <div>
@@ -50,24 +39,16 @@ vi.mock('@/components/shared/SettingRow', () => ({
   ),
 }))
 
-vi.mock('@/contexts/AdvancedSettingsContext', () => ({
-  AdvancedSettingsProvider: ({ children }: { children: React.ReactNode }) => <>{children}</>,
-}))
-
 // ─── Tests ───────────────────────────────────────────────────────────────────
 
 import React from 'react'
-import { WebhooksPage } from '../WebhooksPage'
+import { WebhooksSection } from '../connections/WebhooksSection'
 
-function renderPage() {
-  return render(
-    <BrowserRouter>
-      <WebhooksPage />
-    </BrowserRouter>
-  )
+function renderSection() {
+  return render(<WebhooksSection />)
 }
 
-describe('WebhooksPage (Step 65)', () => {
+describe('WebhooksSection', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     Object.defineProperty(navigator, 'clipboard', {
@@ -77,25 +58,25 @@ describe('WebhooksPage (Step 65)', () => {
   })
 
   it('renders webhook URL for sonarr', () => {
-    renderPage()
+    renderSection()
     const el = screen.getByTestId('webhook-url-sonarr')
     expect(el.textContent).toContain('/api/v1/webhook/sonarr')
   })
 
   it('renders webhook URL for radarr', () => {
-    renderPage()
+    renderSection()
     const el = screen.getByTestId('webhook-url-radarr')
     expect(el.textContent).toContain('/api/v1/webhook/radarr')
   })
 
   it('renders webhook URL for jellyfin', () => {
-    renderPage()
+    renderSection()
     const el = screen.getByTestId('webhook-url-jellyfin')
     expect(el.textContent).toContain('/api/v1/webhook/jellyfin')
   })
 
   it('copies URL and shows toast when copy button clicked', () => {
-    renderPage()
+    renderSection()
     fireEvent.click(screen.getByTestId('webhook-copy-sonarr'))
     expect(mockClipboardWrite).toHaveBeenCalledWith(expect.stringContaining('/api/v1/webhook/sonarr'))
     expect(mockToast).toHaveBeenCalledWith('webhooks_page.copied')

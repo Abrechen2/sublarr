@@ -4,10 +4,12 @@ import hmac
 
 from flask import jsonify, request
 
+from extensions import limiter
 from routes.webhooks import _spawn_pipeline, bp, logger
 
 
 @bp.route("/webhook/jellyfin", methods=["POST"])
+@limiter.limit("30/minute")
 def webhook_jellyfin():
     """Handle Jellyfin Webhook Plugin notifications (PlaybackStart).
     ---

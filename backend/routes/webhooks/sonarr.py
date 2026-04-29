@@ -4,10 +4,12 @@ import hmac
 
 from flask import jsonify, request
 
+from extensions import limiter
 from routes.webhooks import _spawn_pipeline, bp, logger
 
 
 @bp.route("/webhook/sonarr", methods=["POST"])
+@limiter.limit("30/minute")
 def webhook_sonarr():
     """Handle Sonarr webhook (OnDownload event).
     ---
