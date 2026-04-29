@@ -26,6 +26,10 @@ vi.mock('../EventsTab', () => ({
   EventsHooksTab: () => <div data-testid="events-hooks-tab">EventsHooksTab</div>,
 }))
 
+vi.mock('../NotificationHistoryTab', () => ({
+  NotificationHistoryTab: () => <div data-testid="notification-history-tab">NotificationHistoryTab</div>,
+}))
+
 function lookupKey(ns: Record<string, unknown>, key: string): string | undefined {
   const parts = key.split('.')
   let v: unknown = ns
@@ -47,19 +51,23 @@ vi.mock('react-i18next', () => ({
   }),
 }))
 
-const mockUpdateConfigMutate = vi.fn()
+const mockCreateQuietHoursMutate = vi.fn()
+const mockUpdateQuietHoursMutate = vi.fn()
+let mockQuietHoursConfigs: Array<{
+  id: number
+  name: string
+  start_time: string
+  end_time: string
+  enabled: number
+}> = []
 
-vi.mock('@/hooks/useApi', () => ({
-  useConfig: () => ({
-    data: {
-      quiet_hours_enabled: 'false',
-      quiet_hours_start: '23:00',
-      quiet_hours_end: '07:00',
-      quiet_hours_timezone: 'Europe/Berlin',
-    },
-  }),
-  useUpdateConfig: () => ({ mutate: mockUpdateConfigMutate, isPending: false }),
+vi.mock('@/hooks/useSystemApi', () => ({
+  useQuietHours: () => ({ data: mockQuietHoursConfigs, isLoading: false }),
+  useCreateQuietHours: () => ({ mutate: mockCreateQuietHoursMutate, isPending: false }),
+  useUpdateQuietHours: () => ({ mutate: mockUpdateQuietHoursMutate, isPending: false }),
 }))
+
+vi.mock('@/components/shared/Toast', () => ({ toast: vi.fn() }))
 
 // ─── Test Helpers ─────────────────────────────────────────────────────────────
 
@@ -230,7 +238,7 @@ describe('NotificationsSettings — Quiet Hours stub (Step 24)', () => {
     expect(screen.getByTestId('quiet-hours-stub-banner')).toBeInTheDocument()
   })
 
-  it('renders all four quiet hours inputs after expanding', () => {
+  it('renders the three live quiet hours inputs after expanding', () => {
     renderPage()
     const wrapper = screen.getByTestId('section-quiet-hours')
     fireEvent.click(
@@ -239,10 +247,12 @@ describe('NotificationsSettings — Quiet Hours stub (Step 24)', () => {
     expect(screen.getByTestId('quiet-hours-enabled-toggle')).toBeInTheDocument()
     expect(screen.getByTestId('quiet-hours-start-input')).toBeInTheDocument()
     expect(screen.getByTestId('quiet-hours-end-input')).toBeInTheDocument()
-    expect(screen.getByTestId('quiet-hours-timezone-input')).toBeInTheDocument()
+    // timezone input was removed — backend has no timezone column.
+    expect(screen.queryByTestId('quiet-hours-timezone-input')).toBeNull()
   })
 
-  it('start input reads from config', () => {
+  it('start input falls back to default when no config exists', () => {
+    mockQuietHoursConfigs = []
     renderPage()
     const wrapper = screen.getByTestId('section-quiet-hours')
     fireEvent.click(
@@ -251,7 +261,8 @@ describe('NotificationsSettings — Quiet Hours stub (Step 24)', () => {
     expect(screen.getByTestId('quiet-hours-start-input')).toHaveValue('23:00')
   })
 
-  it('save button calls updateConfig with all four keys', async () => {
+  it('save button creates a new quiet-hours config when none exists', async () => {
+    mockQuietHoursConfigs = []
     renderPage()
     const wrapper = screen.getByTestId('section-quiet-hours')
     fireEvent.click(
@@ -259,18 +270,39 @@ describe('NotificationsSettings — Quiet Hours stub (Step 24)', () => {
     )
     fireEvent.click(screen.getByTestId('quiet-hours-save-btn'))
     await waitFor(() => {
-      expect(mockUpdateConfigMutate).toHaveBeenCalledWith(
-        expect.objectContaining({
-          quiet_hours_enabled: 'false',
-          quiet_hours_start: '23:00',
-          quiet_hours_end: '07:00',
-          quiet_hours_timezone: 'Europe/Berlin',
-        }),
-      )
+      expect(mockCreateQuietHoursMutate).toHaveBeenCalled()
+    })
+    const [payload] = mockCreateQuietHoursMutate.mock.calls[0]
+    expect(payload).toMatchObject({
+      name: 'Quiet Hours',
+      start_time: '23:00',
+      end_time: '07:00',
+      enabled: 0,
     })
   })
 
-  it('toggle button flips enabled state', () => {
+  it('save button updates the existing quiet-hours config when one exists', async () => {
+    mockQuietHoursConfigs = [
+      { id: 1, name: 'Quiet Hours', start_time: '22:00', end_time: '08:00', enabled: 1 },
+    ]
+    renderPage()
+    const wrapper = screen.getByTestId('section-quiet-hours')
+    fireEvent.click(
+      wrapper.querySelector('[data-testid="settings-section-advanced-toggle"]') as HTMLElement
+    )
+    fireEvent.click(screen.getByTestId('quiet-hours-save-btn'))
+    await waitFor(() => {
+      expect(mockUpdateQuietHoursMutate).toHaveBeenCalled()
+    })
+    const [payload] = mockUpdateQuietHoursMutate.mock.calls[0]
+    expect(payload).toMatchObject({
+      id: 1,
+      data: expect.objectContaining({ start_time: '22:00', end_time: '08:00', enabled: 1 }),
+    })
+  })
+
+  it('toggle button flips enabled state and triggers a CRUD call', () => {
+    mockQuietHoursConfigs = []
     renderPage()
     const wrapper = screen.getByTestId('section-quiet-hours')
     fireEvent.click(
@@ -280,6 +312,7 @@ describe('NotificationsSettings — Quiet Hours stub (Step 24)', () => {
     expect(toggle).toHaveAttribute('aria-checked', 'false')
     fireEvent.click(toggle)
     expect(toggle).toHaveAttribute('aria-checked', 'true')
+    expect(mockCreateQuietHoursMutate).toHaveBeenCalled()
   })
 })
 
@@ -308,7 +341,8 @@ describe('Quiet Hours section (Step 39)', () => {
     expect(innerBtn).toHaveAttribute('aria-checked', 'false')
   })
 
-  it('toggling calls updateConfig with { quiet_hours_enabled: "true" }', () => {
+  it('toggling calls the quiet-hours mutation (create when no config exists)', () => {
+    mockQuietHoursConfigs = []
     renderPage()
     const wrapper = screen.getByTestId('section-quiet-hours')
     fireEvent.click(
@@ -316,6 +350,8 @@ describe('Quiet Hours section (Step 39)', () => {
     )
     const btn = screen.getByTestId('quiet-hours-enabled-toggle')
     fireEvent.click(btn)
-    expect(mockUpdateConfigMutate).toHaveBeenCalledWith({ quiet_hours_enabled: 'true' })
+    expect(mockCreateQuietHoursMutate).toHaveBeenCalled()
+    const [payload] = mockCreateQuietHoursMutate.mock.calls[0]
+    expect(payload).toMatchObject({ enabled: 1 })
   })
 })

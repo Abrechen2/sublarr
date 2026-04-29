@@ -202,6 +202,60 @@ def get_sample_payload(event_type: str) -> dict:
     return {key: sample_values.get(key, f"sample_{key}") for key in payload_keys}
 
 
+def _is_event_filtered(event_type: str) -> bool:
+    """Check user-defined include/exclude event filters.
+
+    Reads `notification_filter_include_events` and
+    `notification_filter_exclude_events` from `config_entries` (set by
+    the Filters UI in NotificationTemplatesTab). Returns True when the
+    notification should be suppressed.
+
+    Semantics:
+      - If `include_events` is non-empty, the event MUST appear in it.
+      - If the event appears in `exclude_events`, suppress.
+      - If both lists are empty, do not suppress.
+
+    `notification_filter_content_filters` is intentionally NOT enforced
+    here — the API persists arbitrary `{field, operator, value}` shapes
+    but no UI ever creates one and the operator semantics are
+    undefined. Wiring it without a UI contract risks shipping
+    half-defined behaviour. Tracked as Tier-2.
+    """
+    try:
+        from db.repositories.config import ConfigRepository
+
+        cfg_repo = ConfigRepository()
+
+        include_raw = cfg_repo.get_config_entry("notification_filter_include_events")
+        if include_raw:
+            try:
+                include_list = json.loads(include_raw)
+            except (json.JSONDecodeError, TypeError):
+                include_list = []
+            if include_list and event_type not in include_list:
+                logger.debug(
+                    "Notification suppressed by include filter: %s not in %s",
+                    event_type,
+                    include_list,
+                )
+                return True
+
+        exclude_raw = cfg_repo.get_config_entry("notification_filter_exclude_events")
+        if exclude_raw:
+            try:
+                exclude_list = json.loads(exclude_raw)
+            except (json.JSONDecodeError, TypeError):
+                exclude_list = []
+            if event_type in exclude_list:
+                logger.debug("Notification suppressed by exclude filter: %s", event_type)
+                return True
+    except Exception as e:
+        # Filter check failures must not block notification delivery.
+        logger.warning("Notification filter check failed: %s", e)
+
+    return False
+
+
 def send_notification(title: str, body: str, event_type: str, is_manual: bool = False):
     """Send a notification if the event type is enabled.
 
@@ -232,6 +286,14 @@ def send_notification(title: str, body: str, event_type: str, is_manual: bool = 
 
     if not event_toggles.get(event_type, False):
         logger.debug("Notification suppressed for event_type=%s", event_type)
+        return
+
+    # Apply user-defined event filters (include/exclude lists from the
+    # Filters UI, persisted as `notification_filter_*` config_entries).
+    # Without this block the filter UI is purely cosmetic — the user sets
+    # filters, sees them saved, and notifications fire as if no filter
+    # existed. Failures here must not block notification delivery.
+    if _is_event_filtered(event_type):
         return
 
     # Check quiet hours

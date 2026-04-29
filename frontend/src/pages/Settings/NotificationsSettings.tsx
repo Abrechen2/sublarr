@@ -6,10 +6,15 @@
  * 2. Events & Hooks        – event catalog, hooks, webhooks, and hook logs
  * 3. Quiet Hours (advanced – collapsed by default) – suppress notifications during time periods
  */
-import { lazy, Suspense, useState } from 'react'
+import { lazy, Suspense, useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Bell, Webhook, Moon, History } from 'lucide-react'
-import { useConfig, useUpdateConfig } from '@/hooks/useApi'
+import { Bell, Webhook, Moon, History, Loader2 } from 'lucide-react'
+import {
+  useQuietHours,
+  useCreateQuietHours,
+  useUpdateQuietHours,
+} from '@/hooks/useSystemApi'
+import { toast } from '@/components/shared/Toast'
 import { SettingsDetailLayout } from '@/components/settings/SettingsDetailLayout'
 import { SettingsSection } from '@/components/settings/SettingsSection'
 import { FormGroup } from '@/components/settings/FormGroup'
@@ -71,36 +76,91 @@ const quietInputStyle: React.CSSProperties = {
 }
 
 // ─── Quiet Hours Config ───────────────────────────────────────────────────────
+//
+// Single-window UI that talks directly to the `/api/v1/notifications/quiet-hours`
+// table CRUD (the only storage `notifier.is_quiet_hours()` actually reads).
+// Earlier this stub wrote flat `quiet_hours_*` config_entries that the
+// dispatcher never consumed — toggling it had no effect on notification
+// delivery. The table backs multi-window configs; power users can hit the
+// API directly. The UI keeps the simple "one window, on/off, start/end"
+// flow most users want.
+
+const QH_DEFAULTS = {
+  start: '23:00',
+  end: '07:00',
+  name: 'Quiet Hours',
+  days_of_week: '[0,1,2,3,4,5,6]',
+  exception_events: '["error"]',
+}
 
 function QuietHoursConfigStub() {
   const { t } = useTranslation('settings')
-  const { data: configData } = useConfig()
-  const updateConfig = useUpdateConfig()
+  const { data: configs, isLoading } = useQuietHours()
+  const createMut = useCreateQuietHours()
+  const updateMut = useUpdateQuietHours()
 
-  const cfg = configData as Record<string, unknown> | undefined
+  const existing = configs && configs.length > 0 ? configs[0] : null
+  const existingId = existing?.id ?? null
 
-  const [enabled, setEnabled] = useState(
-    () => String(cfg?.quiet_hours_enabled ?? 'false') === 'true'
-  )
-  const [start, setStart]       = useState(() => String(cfg?.quiet_hours_start ?? '23:00'))
-  const [end, setEnd]           = useState(() => String(cfg?.quiet_hours_end ?? '07:00'))
-  const [timezone, setTimezone] = useState(() => String(cfg?.quiet_hours_timezone ?? 'UTC'))
+  const [enabled, setEnabled] = useState(false)
+  const [start, setStart] = useState(QH_DEFAULTS.start)
+  const [end, setEnd] = useState(QH_DEFAULTS.end)
+
+  // Hydrate local state when the server config arrives or changes.
+  useEffect(() => {
+    if (existing) {
+      // `enabled` from the API is an integer (1/0) per the backend model.
+      setEnabled(Number(existing.enabled) === 1)
+      setStart(existing.start_time || QH_DEFAULTS.start)
+      setEnd(existing.end_time || QH_DEFAULTS.end)
+    }
+  }, [existing])
+
+  const persist = (next: { enabled?: boolean; start?: string; end?: string }) => {
+    const payload = {
+      name: existing?.name ?? QH_DEFAULTS.name,
+      start_time: next.start ?? start,
+      end_time: next.end ?? end,
+      enabled: (next.enabled ?? enabled) ? 1 : 0,
+      days_of_week: QH_DEFAULTS.days_of_week,
+      exception_events: QH_DEFAULTS.exception_events,
+    }
+    if (existingId !== null) {
+      updateMut.mutate(
+        { id: existingId, data: payload },
+        {
+          onSuccess: () => toast(t('actions.saved', 'Saved')),
+          onError: () => toast(t('actions.save_failed', 'Save failed'), 'error'),
+        },
+      )
+    } else {
+      createMut.mutate(payload, {
+        onSuccess: () => toast(t('actions.saved', 'Saved')),
+        onError: () => toast(t('actions.save_failed', 'Save failed'), 'error'),
+      })
+    }
+  }
+
+  const handleToggle = () => {
+    const next = !enabled
+    setEnabled(next)
+    persist({ enabled: next })
+  }
 
   const handleSave = () => {
-    updateConfig.mutate({
-      quiet_hours_enabled:  String(enabled),
-      quiet_hours_start:    start,
-      quiet_hours_end:      end,
-      quiet_hours_timezone: timezone,
-    })
+    persist({})
+  }
+
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center py-4">
+        <Loader2 size={16} className="animate-spin" style={{ color: 'var(--accent)' }} />
+      </div>
+    )
   }
 
   return (
-    <div
-      data-testid="quiet-hours-config-stub"
-      className="space-y-4"
-    >
-      {/* Info banner */}
+    <div data-testid="quiet-hours-config-stub" className="space-y-4">
       <div
         data-testid="quiet-hours-stub-banner"
         className="flex items-start gap-2 px-3 py-2 rounded-md text-[12px]"
@@ -119,7 +179,6 @@ function QuietHoursConfigStub() {
         </span>
       </div>
 
-      {/* quiet_hours_enabled — Toggle */}
       <FormGroup
         label={t('settings.notifications.quietHours.enabled', 'Enable Quiet Hours')}
         hint={t(
@@ -128,17 +187,14 @@ function QuietHoursConfigStub() {
         )}
         data-testid="form-group-quiet-hours-enabled"
       >
-        {/* Wrapper carries both legacy testid (aria-checked flip) and new Step 39 testid */}
         <div data-testid="toggle-quiet-hours-enabled">
           <button
             data-testid="quiet-hours-enabled-toggle"
             type="button"
             role="switch"
             aria-checked={enabled}
-            onClick={() => {
-              setEnabled((v) => !v)
-              updateConfig.mutate({ quiet_hours_enabled: String(!enabled) })
-            }}
+            onClick={handleToggle}
+            disabled={createMut.isPending || updateMut.isPending}
             className="relative inline-flex h-5 w-9 flex-shrink-0 rounded-full transition-colors duration-200"
             style={{ backgroundColor: enabled ? 'var(--accent)' : 'var(--border)' }}
           >
@@ -150,7 +206,6 @@ function QuietHoursConfigStub() {
         </div>
       </FormGroup>
 
-      {/* quiet_hours_start */}
       <FormGroup
         label={t('settings.notifications.quietHours.start', 'Start Time')}
         hint={t('settings.notifications.quietHours.startHint', 'Time when quiet hours begin (HH:MM)')}
@@ -168,7 +223,6 @@ function QuietHoursConfigStub() {
         />
       </FormGroup>
 
-      {/* quiet_hours_end */}
       <FormGroup
         label={t('settings.notifications.quietHours.end', 'End Time')}
         hint={t('settings.notifications.quietHours.endHint', 'Time when quiet hours end (HH:MM)')}
@@ -186,33 +240,18 @@ function QuietHoursConfigStub() {
         />
       </FormGroup>
 
-      {/* quiet_hours_timezone */}
-      <FormGroup
-        label={t('settings.notifications.quietHours.timezone', 'Timezone')}
-        hint={t('settings.notifications.quietHours.timezoneHint', 'Timezone for quiet hours window')}
-        htmlFor="quiet-hours-timezone"
-        data-testid="form-group-quiet-hours-timezone"
-      >
-        <input
-          id="quiet-hours-timezone"
-          data-testid="quiet-hours-timezone-input"
-          type="text"
-          value={timezone}
-          onChange={(e) => setTimezone(e.target.value)}
-          placeholder="UTC"
-          style={{ ...quietInputStyle, width: '160px' }}
-        />
-      </FormGroup>
-
-      {/* Save */}
       <div className="flex justify-end pt-1">
         <button
           data-testid="quiet-hours-save-btn"
           type="button"
           onClick={handleSave}
+          disabled={createMut.isPending || updateMut.isPending}
           className="flex items-center gap-1.5 px-3 py-1.5 rounded text-xs font-medium text-white"
           style={{ backgroundColor: 'var(--accent)' }}
         >
+          {createMut.isPending || updateMut.isPending ? (
+            <Loader2 size={12} className="animate-spin" />
+          ) : null}
           {t('actions.save', 'Save')}
         </button>
       </div>

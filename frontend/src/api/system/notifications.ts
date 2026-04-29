@@ -35,9 +35,12 @@ export async function getTemplateVariables(eventType?: string): Promise<{ variab
   return data
 }
 
-export async function getQuietHours(): Promise<{ configs: QuietHoursConfig[] }> {
+export async function getQuietHours(): Promise<QuietHoursConfig[]> {
+  // Backend returns a flat array of configs. (Earlier this client expected
+  // `{ configs: [...] }` but that envelope was never produced — caused the
+  // useQuietHours hook to silently return undefined for all callers.)
   const { data } = await api.get('/notifications/quiet-hours')
-  return data
+  return Array.isArray(data) ? data : []
 }
 
 export async function createQuietHours(config: Partial<QuietHoursConfig>): Promise<QuietHoursConfig> {
