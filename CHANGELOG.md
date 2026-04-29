@@ -31,6 +31,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Internal
 - CI release gate is now RC-aware (prevents accidental `:latest`/`:stable`/`X.Y.Z` publication when an RC build is in flight).
+- **i18n cleanup (caught in RC UAT)** — `connections.standalone.desc_auto`/`desc_inactive` no longer point users to the now-deleted `Advanced → Library Sources` tab; they now refer to the folder manager rendered directly below the description.
 
 ## [0.76.9-beta] - 2026-04-28
 

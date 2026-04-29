@@ -904,9 +904,9 @@
       "scanning": "Scanning…",
       "scan_started": "Scan started",
       "scan_failed": "Could not start scan",
-      "desc_auto": "No Sonarr/Radarr configured — standalone mode is running automatically. Configure watched folders under Settings → Advanced → Library Sources.",
+      "desc_auto": "No Sonarr/Radarr configured — standalone mode is running automatically. Configure watched folders below.",
       "desc_active": "Standalone mode is manually enabled.",
-      "desc_inactive": "Sonarr/Radarr configured — standalone mode is inactive. Can be manually enabled under Advanced → Library Sources.",
+      "desc_inactive": "Sonarr/Radarr configured — standalone mode is inactive. Toggle it on below to scan watched folders directly.",
       "section_title": "Standalone Mode",
       "section_desc": "Manage library without Sonarr/Radarr"
     },

@@ -904,9 +904,9 @@
       "scanning": "Scannt…",
       "scan_started": "Scan gestartet",
       "scan_failed": "Scan konnte nicht gestartet werden",
-      "desc_auto": "Kein Sonarr/Radarr konfiguriert — Standalone-Modus läuft automatisch. Watched Folders unter Einstellungen → Advanced → Library Sources konfigurieren.",
+      "desc_auto": "Kein Sonarr/Radarr konfiguriert — Standalone-Modus läuft automatisch. Überwachte Ordner werden unten konfiguriert.",
       "desc_active": "Standalone-Modus ist manuell aktiviert.",
-      "desc_inactive": "Sonarr/Radarr konfiguriert — Standalone-Modus ist inaktiv. Kann unter Advanced → Library Sources manuell aktiviert werden.",
+      "desc_inactive": "Sonarr/Radarr konfiguriert — Standalone-Modus ist inaktiv. Unten aktivieren, um überwachte Ordner direkt zu scannen.",
       "section_title": "Standalone-Modus",
       "section_desc": "Bibliothek ohne Sonarr/Radarr verwalten"
     },
