@@ -5,6 +5,33 @@ All notable changes to Sublarr are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.77.0-beta] - 2026-04-29
+
+### Added
+- **Standalone Folder Manager in Connections** — Enable toggle, watched-folder list, add/edit/delete actions, and a per-folder scan trigger now live directly in Settings → Connections → Standalone-Modus. Previously the toggle and folder list lived in an orphan tab that was never rendered, leaving standalone mode unconfigurable through the UI.
+- **Per-folder scan trigger** — A new `▶` button on each watched folder runs a one-off scan of just that folder via `POST /api/v1/standalone/folders/<id>/scan`, instead of forcing a full library sweep.
+
+### Changed
+- **Standalone scan interval is now scheduler-driven** — A new `standalone_scan` APScheduler job replaces the previous threading-based interval. Setting `standalone_scan_interval_hours = 0` pauses the job cleanly without leaking timers.
+- **Live reload on folder/config changes** — Adding, editing, or deleting a watched folder reloads the StandaloneManager immediately; saving any `standalone_*` / `sonarr_*` / `radarr_*` setting reconfigures the watcher and reschedules the scan job in place. No server restart needed for either path.
+- **Symlink paths are normalised on save** — POSTing or PATCHing a watched folder now stores the canonical `realpath`, so symlink/junction targets are recorded consistently regardless of which alias the user typed.
+- **Better series root detection** — The scanner now uses common-parent detection instead of `os.path.dirname`, so season-foldered shows pin to the series directory rather than to a season subfolder.
+
+### Fixed
+- **`scan_series` actually rescans the series** — The manager-level fallback no longer hits a broken `hasattr` branch; both the API and the manager call the real `StandaloneScanner.scan_series` implementation.
+- **`last_scan_at` is always stamped** — The timestamp now updates on both the empty-folder early-return and the end of a normal scan, so the UI reflects scan activity even when nothing changed.
+- **Empty default-profile `target_languages` logged** — The scanner emits a warning instead of silently skipping language seeding when the default profile has no target languages configured.
+- **`standalone_skip_extras` default mismatch** — The frontend toggle default is now aligned with the backend default (true), so first-load no longer shows the toggle as OFF before any save has happened.
+
+### Tests
+- +6 backend tests for the picklable scheduler tick, hot-reload of the StandaloneManager, and the `update_watched_folder_last_scan` repository wrapper.
+- +3 backend tests for `realpath` normalisation, the new `scan_series` return shape, and folder hot-reload triggers on CRUD.
+- +3 backend tests for the empty-profile warning and `last_scan_at` stamping on both empty and populated folders.
+- Frontend `ConnectionsSettings.test.tsx` extended with `useApi` hook mocks for the folder manager.
+
+### Internal
+- CI release gate is now RC-aware (prevents accidental `:latest`/`:stable`/`X.Y.Z` publication when an RC build is in flight).
+
 ## [0.76.9-beta] - 2026-04-28
 
 ### Fixed
