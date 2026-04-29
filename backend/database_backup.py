@@ -290,56 +290,134 @@ class DatabaseBackup(_PostgresBackupMixin):
 _scheduler_thread: threading.Thread | None = None
 _scheduler_stop = threading.Event()
 
+# Polling cadence used while auto-backup is disabled. Short enough that
+# toggling `backup_auto_enabled` ON in the UI takes effect promptly without
+# a restart, long enough to avoid wasted wakeups.
+_DISABLED_POLL_SECS = 60
+
+
+def _label_for(now: datetime) -> str:
+    """Pick the rotation bucket for *now* (1st of month → monthly; Monday → weekly)."""
+    if now.day == 1:
+        return "monthly"
+    if now.weekday() == 0:
+        return "weekly"
+    return "daily"
+
+
+def _read_auto_backup_settings() -> tuple[bool, int, bool, bool]:
+    """Read the four `backup_auto_*` config fields with safe defaults.
+
+    Returns (enabled, interval_hours, on_startup, notify_on_failure).
+    Default fallbacks match config_settings.Settings.
+    """
+    try:
+        from config import get_settings
+
+        s = get_settings()
+        enabled = bool(getattr(s, "backup_auto_enabled", False))
+        interval = max(1, int(getattr(s, "backup_auto_interval_hours", 24) or 24))
+        on_startup = bool(getattr(s, "backup_auto_on_startup", False))
+        notify = bool(getattr(s, "backup_notify_on_failure", True))
+        return enabled, interval, on_startup, notify
+    except Exception:
+        # Settings unavailable (e.g. import-time race): pretend disabled.
+        logger.debug("backup scheduler: settings unavailable", exc_info=True)
+        return False, 24, False, True
+
+
+def _emit_backup_failure_notification(exc: Exception) -> None:
+    """Best-effort send of an `error` event to Apprise. Never raises."""
+    try:
+        from notifier import send_notification
+
+        send_notification(
+            title="Sublarr backup failed",
+            body=f"Scheduled database backup failed: {exc}",
+            event_type="error",
+        )
+    except Exception:
+        logger.debug("backup scheduler: notify-on-failure emit failed", exc_info=True)
+
+
+def _run_one_backup(backup: "DatabaseBackup", notify_on_failure: bool) -> None:
+    """Run a single backup + rotation. Captures failures locally."""
+    try:
+        backup.create_backup(label=_label_for(datetime.now(UTC)))
+        backup.rotate()
+    except Exception as exc:
+        logger.error("Scheduled backup failed: %s", exc, exc_info=True)
+        if notify_on_failure:
+            _emit_backup_failure_notification(exc)
+
 
 def start_backup_scheduler(
     db_path: str,
     backup_dir: str = "/config/backups",
-    interval_hours: int = 24,
-    hour: int = 3,
+    app=None,
 ) -> None:
-    """Start a daemon thread that creates daily backups with rotation.
+    """Start a daemon thread that runs auto-backups when configured.
 
-    The first backup runs at the next occurrence of *hour*:00 UTC,
-    then repeats every *interval_hours*.
+    Honours four config fields (writable from the UI):
+      - `backup_auto_enabled`        — if False, the loop polls and skips runs
+      - `backup_auto_interval_hours` — sleep duration between runs (>=1)
+      - `backup_auto_on_startup`     — run one backup immediately on start
+      - `backup_notify_on_failure`   — emit an `error` notification when
+                                       create_backup raises
+
+    `app` is the Flask app; needed because `notifier.send_notification`
+    writes to `notification_history` and other DB-touching helpers
+    require an app context.
     """
     global _scheduler_thread
     if _scheduler_thread and _scheduler_thread.is_alive():
-        return  # Already running
+        return
 
     _scheduler_stop.clear()
 
     def _loop() -> None:
         backup = DatabaseBackup(db_path, backup_dir)
+        ran_startup = False
+
         while not _scheduler_stop.is_set():
-            # Sleep until the next scheduled hour
-            now = datetime.now(UTC)
-            target = now.replace(hour=hour, minute=0, second=0, microsecond=0)
-            if target <= now:
-                from datetime import timedelta
+            enabled, interval_hours, on_startup, notify_on_failure = _read_auto_backup_settings()
 
-                target += timedelta(days=1)
-            wait_secs = (target - now).total_seconds()
-            if _scheduler_stop.wait(timeout=wait_secs):
-                break  # Stopped
+            if not enabled:
+                # Auto-backup turned off — poll the toggle without burning
+                # CPU. Reset on_startup tracking so re-enabling re-fires.
+                ran_startup = False
+                if _scheduler_stop.wait(timeout=_DISABLED_POLL_SECS):
+                    break
+                continue
 
-            try:
-                # Determine label
-                day = datetime.now(UTC)
-                if day.day == 1:
-                    label = "monthly"
-                elif day.weekday() == 0:  # Monday
-                    label = "weekly"
+            if on_startup and not ran_startup:
+                ran_startup = True
+                if app is not None:
+                    with app.app_context():
+                        _run_one_backup(backup, notify_on_failure)
                 else:
-                    label = "daily"
+                    _run_one_backup(backup, notify_on_failure)
+                # Fall through into the regular interval wait.
 
-                backup.create_backup(label=label)
-                backup.rotate()
-            except Exception as exc:
-                logger.error("Scheduled backup failed: %s", exc)
+            wait_secs = max(1, interval_hours) * 3600
+            if _scheduler_stop.wait(timeout=wait_secs):
+                break
+
+            # Re-read the gate *after* the long sleep so a user who turned
+            # auto-backup OFF mid-sleep doesn't get one final stale run.
+            enabled, _interval_hours, _on_startup, notify_on_failure = _read_auto_backup_settings()
+            if not enabled:
+                continue
+
+            if app is not None:
+                with app.app_context():
+                    _run_one_backup(backup, notify_on_failure)
+            else:
+                _run_one_backup(backup, notify_on_failure)
 
     _scheduler_thread = threading.Thread(target=_loop, daemon=True, name="backup-scheduler")
     _scheduler_thread.start()
-    logger.info("Backup scheduler started (daily at %02d:00 UTC)", hour)
+    logger.info("Backup scheduler started (config-driven)")
 
 
 def stop_backup_scheduler() -> None:

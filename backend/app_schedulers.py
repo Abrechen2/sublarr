@@ -41,6 +41,7 @@ def _start_schedulers(settings, app=None):
     start_backup_scheduler(
         db_path=settings.db_path,
         backup_dir=settings.backup_dir,
+        app=app,
     )
 
     from config import is_standalone_mode
