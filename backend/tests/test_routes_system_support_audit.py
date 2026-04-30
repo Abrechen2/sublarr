@@ -11,6 +11,12 @@ Pins:
   stored, so a SQLAlchemy ``failed to connect to postgresql://user:pass@…``
   (or any provider error containing an IP/API-key) cannot leak into the
   ``diagnostic-report.md`` / ``db-stats.json`` payloads.
+- /support-export and /support-preview now share a single
+  ``_is_support_caller_authorized`` helper that considers BOTH api_key
+  AND ui_auth_enabled. Pre-fix-2 each endpoint had its own copy of
+  ``_key_ok or _session_ok or not _api_key`` which leaked the bundle
+  to unauthenticated probes when api_key="" but UI auth was on (same
+  auth-layer-composition bug as /auth/bootstrap and /health).
 """
 
 from __future__ import annotations
@@ -211,3 +217,43 @@ class TestExtractTopErrorsAnonymizes:
         for entry in errors:
             assert "abcdef1234567890ABCDEFXYZ987654321" not in entry["message"]
             assert "***REDACTED***" in entry["message"]
+
+
+# ---------------------------------------------------------------------------
+# Auth-layer composition fix (drift sweep after /auth/bootstrap + /health)
+# ---------------------------------------------------------------------------
+
+
+class TestSupportCallerAuthGate:
+    """Pre-fix /support-export and /support-preview each had their own
+    copy of ``not (key_ok or session_ok or not api_key)``. Two copies of
+    the same broken rule — the "not api_key" fallback ignored
+    ``ui_auth_enabled``. With api_key="" but UI auth on, an
+    unauthenticated probe could download the entire support bundle.
+    Now both routes share ``_is_support_caller_authorized`` which
+    consults BOTH layers."""
+
+    def test_export_blocked_when_ui_auth_on_no_api_key_no_session(self, client):
+        with patch("ui_auth.is_ui_auth_enabled", return_value=True):
+            resp = client.get("/api/v1/logs/support-export")
+        assert resp.status_code == 401, resp.data[:200]
+
+    def test_preview_blocked_when_ui_auth_on_no_api_key_no_session(self, client):
+        with patch("ui_auth.is_ui_auth_enabled", return_value=True):
+            resp = client.get("/api/v1/logs/support-preview")
+        assert resp.status_code == 401, resp.data[:200]
+
+    def test_export_allowed_with_session_when_ui_auth_on(self, client):
+        with client.session_transaction() as sess:
+            sess["ui_authenticated"] = True
+        with patch("ui_auth.is_ui_auth_enabled", return_value=True):
+            resp = client.get("/api/v1/logs/support-export")
+        assert resp.status_code == 200
+
+    def test_export_allowed_when_no_auth_at_all(self, client):
+        """Truly-open deployment (api_key="" AND ui_auth=False) keeps
+        the original "API is open anyway" semantic — bundle still
+        downloadable so docker-attached debugging tools keep working."""
+        with patch("ui_auth.is_ui_auth_enabled", return_value=False):
+            resp = client.get("/api/v1/logs/support-export")
+        assert resp.status_code == 200

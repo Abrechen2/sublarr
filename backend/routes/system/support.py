@@ -256,6 +256,39 @@ def _build_diagnostic() -> dict:
 # ─── Endpoints ────────────────────────────────────────────────────────────────
 
 
+def _is_support_caller_authorized() -> bool:
+    """Allow API-key holders, valid UI sessions, or fully-open deployments.
+
+    Centralised so /support-export and /support-preview can't drift apart.
+    The "fully-open" branch requires BOTH api_key AND ui_auth_enabled to
+    be unset — when either is configured, the caller must authenticate.
+    Pre-2026-04-30 the checks ignored ui_auth_enabled, leaking the
+    support bundle to unauthenticated probes when api_key="" but UI auth
+    was on (same auth-layer-composition bug as /auth/bootstrap and
+    /health). See `project_2026_04_30_health_audit.md`.
+    """
+    import hmac as _hmac
+
+    from flask import session as _session
+
+    import ui_auth as _ui_auth
+    from config import get_settings
+
+    s = get_settings()
+    api_key = getattr(s, "api_key", None)
+    provided = request.headers.get("X-Api-Key") or request.args.get("apikey", "")
+    if api_key and _hmac.compare_digest(provided, api_key):
+        return True
+    if _session.get("ui_authenticated"):
+        return True
+    try:
+        ui_auth_on = _ui_auth.is_ui_auth_enabled()
+    except Exception:
+        ui_auth_on = False
+    # Fully-open deployment: nothing protects /api/v1/* anyway.
+    return not api_key and not ui_auth_on
+
+
 @bp.route("/logs/support-export", methods=["GET"])
 def support_export():
     """Download an anonymized support bundle (log files + system info) as a ZIP.
@@ -276,25 +309,18 @@ def support_export():
         200:
           description: ZIP file with anonymized logs and system info
     """
-    import hmac as _hmac
     import json as _json
     import platform
     import zipfile as _zipfile
     from datetime import UTC, datetime
 
-    from flask import session as _session
-
     from config import get_settings
     from version import __version__
 
-    _s = get_settings()
-    _api_key = getattr(_s, "api_key", None)
-    _provided = request.headers.get("X-Api-Key") or request.args.get("apikey", "")
-    _key_ok = bool(_api_key and _hmac.compare_digest(_provided, _api_key))
-    _session_ok = bool(_session.get("ui_authenticated"))
-    if not (_key_ok or _session_ok or not _api_key):
+    if not _is_support_caller_authorized():
         return jsonify({"error": "Unauthorized"}), 401
 
+    _s = get_settings()
     log_path = getattr(_s, "log_file", "log/sublarr.log")
     candidates = [log_path] + [f"{log_path}.{i}" for i in range(1, 4)]
     ts = datetime.now(UTC).strftime("%Y-%m-%dT%H-%M-%SZ")
@@ -405,20 +431,13 @@ def support_preview():
           description: Preview data for the support export modal
     """
     import collections
-    import hmac as _hmac
-
-    from flask import session as _session
 
     from config import get_settings
 
-    _s = get_settings()
-    _api_key = getattr(_s, "api_key", None)
-    _provided = request.headers.get("X-Api-Key") or request.args.get("apikey", "")
-    _key_ok = bool(_api_key and _hmac.compare_digest(_provided, _api_key))
-    _session_ok = bool(_session.get("ui_authenticated"))
-    if not (_key_ok or _session_ok or not _api_key):
+    if not _is_support_caller_authorized():
         return jsonify({"error": "Unauthorized"}), 401
 
+    _s = get_settings()
     diagnostic = _build_diagnostic()
 
     log_path = getattr(_s, "log_file", "log/sublarr.log")
