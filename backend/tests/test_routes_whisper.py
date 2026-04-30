@@ -99,6 +99,7 @@ class TestTranscribe:
             patch("config.get_settings") as mock_gs,
             patch("whisper.get_whisper_manager", return_value=mock_manager),
             patch("routes.whisper._get_queue", return_value=mock_queue),
+            patch("translator._helpers._is_whisper_enabled", return_value=True),
         ):
             mock_gs.return_value = MagicMock(media_path=str(tmp_path), source_language="ja")
             resp = client.post(
@@ -110,6 +111,29 @@ class TestTranscribe:
         assert "job_id" in data
         assert data["status"] == "queued"
         mock_queue.submit.assert_called_once()
+
+    def test_503_when_whisper_disabled(self, client, tmp_path):
+        """Manual transcribe endpoint must honour the whisper_enabled toggle.
+
+        The translator's whisper-as-fallback path already gates on this flag;
+        without the matching gate here, the UI button bypassed the user's
+        explicit "off" setting.
+        """
+        video = tmp_path / "video.mkv"
+        video.write_text("fake video content")
+        video_str = str(video)
+        with (
+            patch("config.map_path", return_value=video_str),
+            patch("config.get_settings") as mock_gs,
+            patch("translator._helpers._is_whisper_enabled", return_value=False),
+        ):
+            mock_gs.return_value = MagicMock(media_path=str(tmp_path), source_language="ja")
+            resp = client.post(
+                "/api/v1/whisper/transcribe",
+                json={"file_path": video_str},
+            )
+        assert resp.status_code == 503
+        assert "disabled" in resp.get_json()["error"].lower()
 
 
 # ---------------------------------------------------------------------------
@@ -176,6 +200,7 @@ class TestDeleteJob:
     def test_cancel_queued_job(self, client):
         job = {"job_id": "abc", "status": "queued"}
         mock_queue = MagicMock()
+        mock_queue.cancel_job.return_value = True
         with (
             patch("db.whisper.get_whisper_job", return_value=job),
             patch("routes.whisper._get_queue", return_value=mock_queue),
@@ -184,6 +209,27 @@ class TestDeleteJob:
         assert resp.status_code == 200
         assert resp.get_json()["action"] == "cancelled"
         mock_queue.cancel_job.assert_called_once_with("abc")
+
+    def test_cancel_orphan_queued_job_marks_db_directly(self, client):
+        """DB row says 'queued' but the in-memory queue dropped the job
+        (e.g. service restart cleared the worker pool). The route must
+        still terminate the orphan instead of returning a misleading
+        success while leaving the row in 'queued' forever.
+        """
+        job = {"job_id": "orphan", "status": "queued"}
+        mock_queue = MagicMock()
+        mock_queue.cancel_job.return_value = False  # not in memory
+        with (
+            patch("db.whisper.get_whisper_job", return_value=job),
+            patch("routes.whisper._get_queue", return_value=mock_queue),
+            patch("db.whisper.update_whisper_job") as mock_update,
+        ):
+            resp = client.delete("/api/v1/whisper/jobs/orphan")
+        assert resp.status_code == 200
+        data = resp.get_json()
+        assert data["action"] == "cancelled"
+        assert data.get("orphan") is True
+        mock_update.assert_called_once_with("orphan", status="cancelled")
 
     def test_delete_completed_job(self, client):
         job = {"job_id": "abc", "status": "completed"}
@@ -436,6 +482,30 @@ class TestSaveWhisperConfig:
                 json={"max_concurrent_whisper": 4},
             )
         assert whisper_mod._queue is None  # reset after concurrency change
+
+    def test_400_when_max_concurrent_is_zero_or_negative(self, client):
+        """max_concurrent < 1 would create a Semaphore that blocks every job
+        forever, silently breaking the queue. Reject up-front."""
+        for bad in (0, -1):
+            resp = client.put(
+                "/api/v1/whisper/config",
+                json={"max_concurrent_whisper": bad},
+            )
+            assert resp.status_code == 400, f"expected 400 for {bad}, got {resp.status_code}"
+
+    def test_400_when_max_concurrent_above_cap(self, client):
+        resp = client.put(
+            "/api/v1/whisper/config",
+            json={"max_concurrent_whisper": 100},
+        )
+        assert resp.status_code == 400
+
+    def test_400_when_max_concurrent_not_integer(self, client):
+        resp = client.put(
+            "/api/v1/whisper/config",
+            json={"max_concurrent_whisper": "abc"},
+        )
+        assert resp.status_code == 400
 
 
 # ---------------------------------------------------------------------------

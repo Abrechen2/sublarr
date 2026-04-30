@@ -98,6 +98,19 @@ def save_whisper_config():
         "whisper_enabled",
         "whisper_fallback_min_score",
     }
+
+    # Validate max_concurrent_whisper before persisting anything: a 0 or
+    # negative value would create a Semaphore that blocks every job
+    # forever, and a non-int would crash the next _get_queue() call.
+    if "max_concurrent_whisper" in data:
+        try:
+            n = int(data["max_concurrent_whisper"])
+        except (TypeError, ValueError):
+            return jsonify({"error": "max_concurrent_whisper must be an integer"}), 400
+        if n < 1 or n > 16:
+            return jsonify({"error": "max_concurrent_whisper must be between 1 and 16"}), 400
+        data["max_concurrent_whisper"] = n
+
     for key, value in data.items():
         if key not in allowed_keys:
             continue

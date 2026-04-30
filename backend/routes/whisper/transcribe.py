@@ -64,6 +64,7 @@ def transcribe():
     # it up on the package namespace at call time rather than binding at import.
     from config import get_settings, map_path
     from routes.whisper import _get_queue
+    from translator._helpers import _is_whisper_enabled
     from whisper import get_whisper_manager
 
     data = request.get_json() or {}
@@ -88,6 +89,13 @@ def transcribe():
             return jsonify(
                 {"error": "audio_track_index must be a non-negative integer or null"}
             ), 400
+
+    # Gate after input validation so a bad request gets the most useful 4xx
+    # rather than a generic 503. The translator pipeline's Whisper-as-fallback
+    # path already honours this flag — without the gate here, the manual UI
+    # transcribe button bypassed the user-facing toggle.
+    if not _is_whisper_enabled():
+        return jsonify({"error": "Whisper is disabled in configuration"}), 503
 
     job_id = uuid.uuid4().hex
     manager = get_whisper_manager()

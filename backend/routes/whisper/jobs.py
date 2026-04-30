@@ -129,7 +129,7 @@ def delete_job(job_id):
           description: Cannot delete job in progress
     """
     # Function-local import: tests monkey-patch routes.whisper._get_queue.
-    from db.whisper import delete_whisper_job, get_whisper_job
+    from db.whisper import delete_whisper_job, get_whisper_job, update_whisper_job
     from routes.whisper import _get_queue
 
     job = get_whisper_job(job_id)
@@ -141,8 +141,14 @@ def delete_job(job_id):
     # If queued, try to cancel via queue
     if status == "queued":
         queue = _get_queue()
-        queue.cancel_job(job_id)
-        return jsonify({"success": True, "action": "cancelled"})
+        if queue.cancel_job(job_id):
+            return jsonify({"success": True, "action": "cancelled"})
+        # Job persists in the DB but the in-memory queue has dropped it
+        # (typically after a service restart cleared the worker pool). Treat
+        # the DB row as authoritative and mark it cancelled directly so the
+        # orphan does not stay "queued" forever.
+        update_whisper_job(job_id, status="cancelled")
+        return jsonify({"success": True, "action": "cancelled", "orphan": True})
 
     # If terminal state, delete from DB
     if status in ("completed", "failed", "cancelled"):

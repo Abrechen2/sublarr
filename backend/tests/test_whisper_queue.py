@@ -344,6 +344,7 @@ class TestTranscribeEndpoint:
                 patch("config.map_path", return_value=tmp_path),
                 patch("whisper.get_whisper_manager", return_value=mock_manager),
                 patch("routes.whisper._get_queue", return_value=mock_queue),
+                patch("translator._helpers._is_whisper_enabled", return_value=True),
             ):
                 resp = client.post(
                     "/api/v1/whisper/transcribe",

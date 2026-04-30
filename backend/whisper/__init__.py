@@ -152,9 +152,15 @@ class WhisperManager:
             )
 
     def invalidate_backend(self) -> None:
-        """Clear cached backend instance (for config changes)."""
+        """Clear cached backend instance (for config changes).
+
+        Also drops the circuit breaker so accumulated failure counts from
+        the previous backend don't carry over and prematurely OPEN the
+        breaker for the freshly-selected one.
+        """
         self._backend = None
         self._backend_name = None
+        self._circuit_breaker = None
         logger.info("Invalidated whisper backend instance")
 
     def _load_backend_config(self, name: str) -> dict:
