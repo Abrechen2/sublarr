@@ -96,6 +96,51 @@ def extract_subtitles_from_zip(
         return []
 
 
+def safe_read_zip_member(
+    zf: zipfile.ZipFile,
+    name: str,
+    max_bytes: int = _MAX_EXTRACTED_BYTES,
+) -> bytes:
+    """Read a single named entry from an open ZipFile with bomb protection.
+
+    Use when callers know which entries they want (e.g. ``config.json``)
+    and need to avoid loading a multi-GB decompressed payload into memory.
+    The caller has already validated the outer archive size; this guards
+    each individual entry against a single oversized member.
+
+    Args:
+        zf: Open ``zipfile.ZipFile`` instance.
+        name: Entry name to read.
+        max_bytes: Cap on the entry's uncompressed size (default 50 MB,
+            shared with ``extract_subtitles_from_zip``).
+
+    Returns:
+        Decompressed entry bytes.
+
+    Raises:
+        KeyError: If ``name`` is not in the archive.
+        ValueError: If the uncompressed size or compression ratio
+            exceeds the configured limits.
+    """
+    info = zf.getinfo(name)  # raises KeyError if missing
+
+    if info.file_size > max_bytes:
+        raise ValueError(
+            f"ZIP entry '{name}' too large: {info.file_size // (1024 * 1024)} MB > "
+            f"{max_bytes // (1024 * 1024)} MB limit"
+        )
+
+    if info.compress_size > 0:
+        ratio = info.file_size / info.compress_size
+        if ratio > _MAX_COMPRESSION_RATIO:
+            raise ValueError(
+                f"ZIP bomb detected on '{name}': ratio {ratio:.0f}:1 exceeds "
+                f"{_MAX_COMPRESSION_RATIO}:1 limit"
+            )
+
+    return zf.read(name)
+
+
 def extract_subtitles_from_rar(
     data: bytes,
     subtitle_exts: frozenset[str] = _SUBTITLE_EXTENSIONS,

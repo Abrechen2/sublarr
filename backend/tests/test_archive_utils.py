@@ -5,7 +5,12 @@ import zipfile
 
 import pytest
 
-from archive_utils import _MAX_ARCHIVE_BYTES, extract_subtitles_from_zip
+from archive_utils import (
+    _MAX_ARCHIVE_BYTES,
+    _MAX_EXTRACTED_BYTES,
+    extract_subtitles_from_zip,
+    safe_read_zip_member,
+)
 
 
 def _make_zip(files: dict[str, bytes]) -> bytes:
@@ -103,3 +108,51 @@ class TestMalformedInput:
         data = buf.getvalue()
         results = extract_subtitles_from_zip(data)
         assert results == []
+
+
+class TestSafeReadZipMember:
+    """``safe_read_zip_member`` — generic per-entry bomb guard used by the
+    /api/v1/api-keys/import endpoints (audit 2026-04-30). The endpoints
+    were calling ``zf.read(name)`` directly; a 16 MB ZIP can decompress
+    into multi-GB memory if a single entry has >1000:1 ratio."""
+
+    def test_normal_member_round_trips(self):
+        data = _make_zip({"config.json": b'{"hello": "world"}'})
+        with zipfile.ZipFile(io.BytesIO(data)) as zf:
+            assert safe_read_zip_member(zf, "config.json") == b'{"hello": "world"}'
+
+    def test_missing_member_raises_keyerror(self):
+        data = _make_zip({"config.json": b"{}"})
+        with zipfile.ZipFile(io.BytesIO(data)) as zf, pytest.raises(KeyError):
+            safe_read_zip_member(zf, "missing.json")
+
+    def test_bomb_ratio_member_raises(self):
+        """A single oversized-by-ratio entry must be refused."""
+        zeros = b"\x00" * (200 * 1024)  # 200 KB of zeros — compresses ~0%
+        data = _make_zip({"bomb.json": zeros})
+        with (
+            zipfile.ZipFile(io.BytesIO(data)) as zf,
+            pytest.raises(ValueError, match="ZIP bomb"),
+        ):
+            safe_read_zip_member(zf, "bomb.json")
+
+    def test_oversized_uncompressed_member_raises(self):
+        """An entry whose declared uncompressed size exceeds the cap is
+        refused without ever reading the body. We synthesise the case by
+        passing a custom ``max_bytes`` to assert the boundary."""
+        data = _make_zip({"big.json": b"x" * (500 * 1024)})  # 500 KB
+        with (
+            zipfile.ZipFile(io.BytesIO(data)) as zf,
+            pytest.raises(ValueError, match="too large"),
+        ):
+            safe_read_zip_member(zf, "big.json", max_bytes=100 * 1024)
+
+    def test_uses_default_cap_of_50mb(self):
+        """The default cap matches ``_MAX_EXTRACTED_BYTES`` (50 MB)."""
+        # Verify the default cap by passing a small entry and confirming it
+        # passes when no max_bytes override is given.
+        data = _make_zip({"small.json": b"{}"})
+        with zipfile.ZipFile(io.BytesIO(data)) as zf:
+            assert safe_read_zip_member(zf, "small.json") == b"{}"
+        # The default value is exposed as the module constant.
+        assert _MAX_EXTRACTED_BYTES == 50 * 1024 * 1024

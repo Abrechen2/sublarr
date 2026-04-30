@@ -154,6 +154,7 @@ def import_keys():
 
 def _import_zip(uploaded) -> tuple:
     """Import from a Sublarr ZIP export."""
+    from archive_utils import safe_read_zip_member
     from config import Settings, reload_settings
     from db.config import get_all_config_entries, save_config_entry
 
@@ -164,9 +165,19 @@ def _import_zip(uploaded) -> tuple:
 
     result = {"config_imported": 0, "profiles_imported": 0, "glossary_imported": 0, "skipped": []}
 
-    # Import config.json
+    # Each ``zf.read(name)`` decompresses the named entry into memory.
+    # ``MAX_CONTENT_LENGTH=16 MB`` already caps the upload, but a 16 MB
+    # ZIP can decompress to gigabytes (>1000:1 ratio is trivial with
+    # repeated content). ``safe_read_zip_member`` enforces a 50 MB
+    # uncompressed cap and a 100:1 ratio limit per entry — same rules as
+    # the rest of the archive pipeline (archive_utils.py).
     if "config.json" in zf.namelist():
-        config_data = json.loads(zf.read("config.json"))
+        try:
+            config_data = json.loads(safe_read_zip_member(zf, "config.json"))
+        except ValueError as exc:
+            return jsonify({"error": str(exc)}), 400
+        if not isinstance(config_data, dict):
+            return jsonify({"error": "config.json must be a JSON object"}), 400
         valid_keys = (
             set(Settings.model_fields.keys()) if hasattr(Settings, "model_fields") else set()
         )
@@ -185,8 +196,16 @@ def _import_zip(uploaded) -> tuple:
         try:
             from db.profiles import create_language_profile
 
-            profiles_data = json.loads(zf.read("profiles.json"))
+            try:
+                profiles_data = json.loads(safe_read_zip_member(zf, "profiles.json"))
+            except ValueError as exc:
+                return jsonify({"error": str(exc)}), 400
+            if not isinstance(profiles_data, list):
+                logger.warning("profiles.json must be a JSON list — skipping")
+                profiles_data = []
             for p in profiles_data:
+                if not isinstance(p, dict):
+                    continue
                 try:
                     create_language_profile(
                         name=p.get("name", "Imported"),
@@ -209,8 +228,16 @@ def _import_zip(uploaded) -> tuple:
         try:
             from db.repositories import add_glossary_entry
 
-            glossary_data = json.loads(zf.read("glossary.json"))
+            try:
+                glossary_data = json.loads(safe_read_zip_member(zf, "glossary.json"))
+            except ValueError as exc:
+                return jsonify({"error": str(exc)}), 400
+            if not isinstance(glossary_data, list):
+                logger.warning("glossary.json must be a JSON list — skipping")
+                glossary_data = []
             for g in glossary_data:
+                if not isinstance(g, dict):
+                    continue
                 try:
                     add_glossary_entry(
                         series_id=g.get("series_id", 0),
@@ -239,11 +266,23 @@ def _import_csv(uploaded) -> tuple:
     content = uploaded.read().decode("utf-8", errors="replace")
     reader = csv.reader(io.StringIO(content))
 
+    # Defense in depth: MAX_CONTENT_LENGTH already caps the upload at 16 MB,
+    # but each row triggers a save_config_entry DB write. Cap iteration so a
+    # malformed (e.g. binary-as-CSV) upload that decodes to thousands of
+    # ambiguous rows can't pin a worker.
+    _MAX_CSV_ROWS = 10000
+
     imported = 0
     skipped = []
     errors = []
 
     for row_num, row in enumerate(reader, start=1):
+        if row_num > _MAX_CSV_ROWS:
+            errors.append(
+                f"CSV truncated: stopped after {_MAX_CSV_ROWS} rows "
+                f"(file contains more — split it before retrying)"
+            )
+            break
         if len(row) < 3:
             errors.append(f"Row {row_num}: expected 3 columns, got {len(row)}")
             continue
@@ -339,12 +378,18 @@ def import_bazarr():
 
     # Handle ZIP archive of Bazarr config directory
     if filename.endswith(".zip") or content[:4] == b"PK\x03\x04":
+        from archive_utils import safe_read_zip_member
+
         try:
             zf = zipfile.ZipFile(io.BytesIO(content))
             for name in zf.namelist():
                 basename = name.rsplit("/", 1)[-1] if "/" in name else name
                 if basename in ("config.yaml", "config.yml", "config.ini"):
-                    file_content = zf.read(name).decode("utf-8", errors="replace")
+                    try:
+                        raw = safe_read_zip_member(zf, name)
+                    except ValueError as exc:
+                        return jsonify({"error": str(exc)}), 400
+                    file_content = raw.decode("utf-8", errors="replace")
                     parsed = parse_bazarr_config(file_content, basename)
                     config_data.update(parsed)
                 elif basename.endswith(".db"):
@@ -352,8 +397,12 @@ def import_bazarr():
                     import os
                     import tempfile
 
+                    try:
+                        db_bytes = safe_read_zip_member(zf, name)
+                    except ValueError as exc:
+                        return jsonify({"error": str(exc)}), 400
                     with tempfile.NamedTemporaryFile(delete=False, suffix=".db") as tmp:
-                        tmp.write(zf.read(name))
+                        tmp.write(db_bytes)
                         tmp_path = tmp.name
                     try:
                         db_data = migrate_bazarr_db(tmp_path)
