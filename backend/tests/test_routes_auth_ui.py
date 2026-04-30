@@ -112,6 +112,22 @@ def test_logout_clears_session(app, monkeypatch):
             assert not sess.get("ui_authenticated")
 
 
+def test_logout_clears_entire_session(app, monkeypatch):
+    """Audit 2026-04-30: logout should ``session.clear()`` rather than only
+    pop ``ui_authenticated`` so unrelated session keys (CSRF token, last-
+    seen markers, future additions) are wiped together — defense in depth.
+    """
+    with app.test_client() as client:
+        with client.session_transaction() as sess:
+            sess["ui_authenticated"] = True
+            sess["unrelated_key"] = "stays-around-pre-fix"
+        r = client.post("/api/v1/auth/logout")
+        assert r.status_code == 200
+        with client.session_transaction() as sess:
+            assert sess.get("ui_authenticated") is None
+            assert sess.get("unrelated_key") is None
+
+
 def test_change_password_correct(app, monkeypatch):
     pw_hash = ui_auth.hash_password("old")
     monkeypatch.setattr(
@@ -169,12 +185,14 @@ def test_bootstrap_local_access_always_allowed(app, monkeypatch):
         assert r.get_json()["api_key"] == "test-key-123"
 
 
-def test_bootstrap_lan_allowed_when_auth_disabled(app, monkeypatch):
-    """LAN access is allowed when UI auth is disabled (API is open anyway)."""
+def test_bootstrap_lan_allowed_when_no_auth_at_all(app, monkeypatch):
+    """LAN access allowed only when no authentication is configured at all
+    (no api_key, no UI auth) — the api_key is just an empty string in that
+    case, so there is nothing to leak."""
     monkeypatch.setattr(ui_auth, "is_ui_auth_enabled", lambda: False)
 
     class _FakeSettings:
-        api_key = "open-key"
+        api_key = ""  # no API auth either
 
     import config
 
@@ -182,7 +200,42 @@ def test_bootstrap_lan_allowed_when_auth_disabled(app, monkeypatch):
     with app.test_client() as client:
         r = client.get("/api/v1/auth/bootstrap", environ_base={"REMOTE_ADDR": "192.168.1.10"})
         assert r.status_code == 200
-        assert r.get_json()["api_key"] == "open-key"
+        assert r.get_json()["api_key"] == ""
+
+
+def test_bootstrap_lan_blocked_when_api_key_set_no_ui_auth(app, monkeypatch):
+    """The audit fix: with api_key set but UI auth disabled, the api_key
+    IS a credential gating /api/v1/* — bootstrap must not hand it out to
+    non-local unauthenticated callers. Pre-fix this returned 200 + the
+    api_key, defeating the entire X-Api-Key gate from any LAN host."""
+    monkeypatch.setattr(ui_auth, "is_ui_auth_enabled", lambda: False)
+
+    class _FakeSettings:
+        api_key = "secret-key-must-not-leak"
+
+    import config
+
+    monkeypatch.setattr(config, "get_settings", lambda: _FakeSettings())
+    with app.test_client() as client:
+        r = client.get("/api/v1/auth/bootstrap", environ_base={"REMOTE_ADDR": "192.168.1.10"})
+        assert r.status_code == 403
+
+
+def test_bootstrap_local_allowed_when_api_key_set_no_ui_auth(app, monkeypatch):
+    """Same config as the audit-fix case but from localhost — still allowed
+    (the SPA on the same host needs to bootstrap)."""
+    monkeypatch.setattr(ui_auth, "is_ui_auth_enabled", lambda: False)
+
+    class _FakeSettings:
+        api_key = "local-key"
+
+    import config
+
+    monkeypatch.setattr(config, "get_settings", lambda: _FakeSettings())
+    with app.test_client() as client:
+        r = client.get("/api/v1/auth/bootstrap", environ_base={"REMOTE_ADDR": "127.0.0.1"})
+        assert r.status_code == 200
+        assert r.get_json()["api_key"] == "local-key"
 
 
 def test_bootstrap_lan_blocked_when_auth_enabled_no_session(app, monkeypatch):

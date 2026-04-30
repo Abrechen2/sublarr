@@ -69,18 +69,23 @@ def bootstrap():
     """
     from config import get_settings
 
+    settings = get_settings()
     remote = request.remote_addr or ""
     is_local = remote in ("127.0.0.1", "::1", "localhost")
     is_session_auth = _is_session_authenticated()
-    auth_enabled = ui_auth.is_ui_auth_enabled()
 
-    # Block non-local unauthenticated requests only when UI auth is active.
-    # When auth is disabled the API is already open to the network, so the
-    # API key is not a secret worth protecting via this gate.
-    if not is_local and not is_session_auth and auth_enabled:
+    # If ANY authentication is configured — either an API key (gates
+    # /api/v1/* via init_auth) or UI auth (gates /api/v1/* via
+    # init_ui_auth) — then the api_key is a credential that must not be
+    # handed out to non-local unauthenticated callers. Pre-2026-04-30
+    # this gate only checked ui_auth_enabled, so a deployment with
+    # api_key set but UI auth off would happily return the key to any
+    # caller on the LAN. The "API is open anyway" premise was wrong:
+    # when api_key is set, the API is NOT open — bootstrap was the leak.
+    auth_required = bool(settings.api_key) or ui_auth.is_ui_auth_enabled()
+    if auth_required and not is_local and not is_session_auth:
         return jsonify({"error": "Forbidden"}), 403
 
-    settings = get_settings()
     return jsonify({"api_key": settings.api_key})
 
 
@@ -227,7 +232,10 @@ def logout():
                     type: string
                     example: ok
     """
-    session.pop("ui_authenticated", None)
+    # session.clear() rather than pop("ui_authenticated") so any future
+    # session keys (e.g. CSRF token, last-seen flags) get wiped on
+    # logout too — defense in depth.
+    session.clear()
     return jsonify({"status": "ok"})
 
 
