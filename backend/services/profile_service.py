@@ -10,7 +10,17 @@ from __future__ import annotations
 import io
 import logging
 
+from sqlalchemy.exc import IntegrityError
+
 logger = logging.getLogger(__name__)
+
+
+# Defense in depth: bulk-assign accepts a list of arr_ids and runs N DB
+# round-trips. Without an upper bound a single request could pin a worker
+# for minutes; cap at 1000 (matches /wanted/batch-action's existing 500-cap
+# logic, slightly higher because profile assignment is cheaper than wanted
+# bulk actions).
+_MAX_BULK_ASSIGN = 1000
 
 # ─── Valid enum values ───────────────────────────────────────────────────────
 
@@ -115,8 +125,16 @@ def create_profile(data: dict) -> dict:
 
     try:
         profile_id = create_language_profile(**kwargs)
+    except IntegrityError as exc:
+        # Cross-DB UNIQUE-conflict detection. The previous string-match on
+        # "UNIQUE constraint" only worked on SQLite — PostgreSQL raises
+        # "duplicate key value violates unique constraint", so the same
+        # request 500'd on PG instead of returning a clean 409.
+        raise ProfileConflictError(f"Profile name '{kwargs['name']}' already exists") from exc
     except Exception as exc:
-        if "UNIQUE constraint" in str(exc):
+        # Legacy fallback: some test seams still raise plain Exception with
+        # the SQLite phrasing. Once those are migrated this branch can go.
+        if "UNIQUE constraint" in str(exc) or "unique constraint" in str(exc).lower():
             raise ProfileConflictError(f"Profile name '{kwargs['name']}' already exists") from exc
         raise
 
@@ -167,8 +185,10 @@ def update_profile(profile_id: int, data: dict) -> dict:
 
     try:
         update_language_profile(profile_id, **fields)
+    except IntegrityError as exc:
+        raise ProfileConflictError(f"Profile name '{data.get('name')}' already exists") from exc
     except Exception as exc:
-        if "UNIQUE constraint" in str(exc):
+        if "UNIQUE constraint" in str(exc) or "unique constraint" in str(exc).lower():
             raise ProfileConflictError(f"Profile name '{data.get('name')}' already exists") from exc
         raise
 
@@ -203,16 +223,27 @@ def assign_profile_to_item(data: dict) -> dict:
     if not item_type or arr_id is None or profile_id is None:
         raise ProfileValidationError("type, arr_id, and profile_id are required")
 
+    # Validate item_type up front so a typo doesn't run through a profile
+    # lookup before failing.
+    if item_type not in ("series", "movie"):
+        raise ProfileValidationError("type must be 'series' or 'movie'")
+
+    # Validate ID types before any DB lookup. Previously a string arr_id
+    # ("abc") sailed through the truthiness check and surfaced as a 500
+    # from the underlying driver.
+    if not isinstance(arr_id, int) or isinstance(arr_id, bool) or arr_id < 1:
+        raise ProfileValidationError("arr_id must be a positive integer")
+    if not isinstance(profile_id, int) or isinstance(profile_id, bool) or profile_id < 1:
+        raise ProfileValidationError("profile_id must be a positive integer")
+
     profile = get_language_profile(profile_id)
     if not profile:
         raise ProfileNotFoundError("Profile not found")
 
     if item_type == "series":
         assign_series_profile(arr_id, profile_id)
-    elif item_type == "movie":
+    else:  # validated to be "movie" above
         assign_movie_profile(arr_id, profile_id)
-    else:
-        raise ProfileValidationError("type must be 'series' or 'movie'")
 
     return {"status": "assigned", "type": item_type, "arr_id": arr_id, "profile_id": profile_id}
 
@@ -309,6 +340,15 @@ def export_glossary_as_tsv(series_id: int | None) -> tuple[str, str]:
     """Build a TSV string from glossary entries.
 
     Returns ``(tsv_content, filename)``.
+
+    Hardening (audit 2026-04-30):
+    - Newlines / carriage returns inside values are replaced with spaces,
+      otherwise they would break the row-per-line TSV invariant on the
+      consumer side (Excel / Sheets / pandas all assume one row per line).
+    - Cells beginning with ``= + - @ \\t`` are prefixed with ``'`` so
+      Excel/Sheets won't interpret them as formulas (CSV-injection,
+      OWASP-recommended mitigation). The leading apostrophe is stripped
+      automatically by spreadsheet UIs on display.
     """
     from db.translation import get_glossary_entries
 
@@ -317,10 +357,10 @@ def export_glossary_as_tsv(series_id: int | None) -> tuple[str, str]:
     output = io.StringIO()
     output.write("source_term\ttarget_term\tterm_type\tnotes\n")
     for entry in entries:
-        source_term = (entry.get("source_term") or "").replace("\t", " ")
-        target_term = (entry.get("target_term") or "").replace("\t", " ")
-        term_type = (entry.get("term_type") or "").replace("\t", " ")
-        notes = (entry.get("notes") or "").replace("\t", " ")
+        source_term = _tsv_safe(entry.get("source_term"))
+        target_term = _tsv_safe(entry.get("target_term"))
+        term_type = _tsv_safe(entry.get("term_type"))
+        notes = _tsv_safe(entry.get("notes"))
         output.write(f"{source_term}\t{target_term}\t{term_type}\t{notes}\n")
 
     tsv_content = output.getvalue()
@@ -328,6 +368,19 @@ def export_glossary_as_tsv(series_id: int | None) -> tuple[str, str]:
         f"glossary_series_{series_id}.tsv" if series_id is not None else "glossary_global.tsv"
     )
     return tsv_content, filename
+
+
+def _tsv_safe(value: str | None) -> str:
+    """Sanitise a value for TSV output: strip control chars + neutralise CSV injection."""
+    if value is None:
+        return ""
+    # Collapse tabs / newlines / CRs — preserve row-per-line invariant.
+    cleaned = str(value).replace("\t", " ").replace("\r", " ").replace("\n", " ")
+    # CSV-injection: prefix dangerous leading chars with ``'`` so spreadsheet
+    # apps render them as text rather than executing as formulas.
+    if cleaned and cleaned[0] in ("=", "+", "-", "@"):
+        cleaned = "'" + cleaned
+    return cleaned
 
 
 # ─── Prompt Preset Logic ─────────────────────────────────────────────────────

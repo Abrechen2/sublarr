@@ -363,6 +363,16 @@ def assign_profile_bulk():
             {"error": "type, arr_ids, profile_id are required (type ∈ {series, movie})"}
         ), 400
 
+    # Defense in depth: each arr_id triggers a profile lookup + DB write.
+    # Without a cap a single request could pin a worker; matches the
+    # ``_MAX_BULK_ASSIGN`` constant in services/profile_service.py.
+    from services.profile_service import _MAX_BULK_ASSIGN
+
+    if len(arr_ids) > _MAX_BULK_ASSIGN:
+        return jsonify(
+            {"error": f"Maximum {_MAX_BULK_ASSIGN} arr_ids per bulk-assign request"}
+        ), 400
+
     assigned = 0
     failed: list[dict] = []
     for arr_id in arr_ids:
