@@ -111,6 +111,13 @@ def complete_setup():
     """
     data = request.get_json(silent=True) or {}
     profile = data.get("profile", "")
+    # ``profile`` flows from a JSON body so the client could send any
+    # value type. ``apply_profile()`` does ``profile not in PROFILES``
+    # which raises TypeError for unhashable values (list, dict) — that
+    # used to fall through to the generic 500 handler. A type check up
+    # front returns a clean 400 with the same shape ValueError uses.
+    if not isinstance(profile, str):
+        return jsonify({"error": "profile must be a string"}), 400
     try:
         settings_to_apply = apply_profile(profile)
     except ValueError as e:

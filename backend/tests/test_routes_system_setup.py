@@ -44,6 +44,19 @@ def test_complete_rejects_unknown_profile(client):
     assert "unknown scheduler profile" in resp.get_json()["error"]
 
 
+def test_complete_rejects_non_string_profile(client):
+    """Audit 2026-04-30: ``profile`` flows from the JSON body so the
+    client can send any type. ``apply_profile`` does ``profile not in
+    PROFILES`` which raises TypeError for unhashable values (list,
+    dict). Pre-fix this hit the generic Exception handler and returned
+    a 500. Now caught up front with a 400 + clean message."""
+    for bad in [["light"], {"name": "light"}, 42, None]:
+        resp = client.post("/api/v1/system/setup/complete", json={"profile": bad})
+        assert resp.status_code == 400, (bad, resp.data[:200])
+        body = resp.get_json()
+        assert "string" in body["error"] or "profile" in body["error"]
+
+
 def test_complete_custom_profile_applies_no_settings(client):
     resp = client.post("/api/v1/system/setup/complete", json={"profile": "custom"})
     assert resp.status_code == 200
