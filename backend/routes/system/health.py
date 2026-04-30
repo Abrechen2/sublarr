@@ -10,6 +10,7 @@ from contextlib import nullcontext as _nullcontext
 
 from flask import current_app, jsonify, request
 
+from extensions import limiter
 from routes.system import bp
 from version import __version__
 
@@ -125,6 +126,7 @@ def _health_check_media_servers():
 
 
 @bp.route("/health", methods=["GET"])
+@limiter.limit("60/minute")
 def health():
     """Health check endpoint (no auth required).
     ---
@@ -184,11 +186,23 @@ def health():
     status_code = 200 if healthy else 503
 
     # Include version and service detail only for authenticated callers.
-    # Unauthenticated probes (uptime monitors, scanners) receive only the status.
+    # Unauthenticated probes (uptime monitors, scanners) receive only the
+    # status code (200/503) and the {"status": ...} field — enough for a
+    # liveness check, not enough to fingerprint the deployment or learn
+    # internal service URLs (e.g. "Cannot connect to Sonarr at
+    # http://192.168.1.10:8989" leaks into service_status when Sonarr
+    # is down).
+    #
+    # The "treat caller as authenticated when no api_key configured" path
+    # used to ignore ui_auth_enabled — the same auth-layer-composition
+    # bug as /auth/bootstrap (audit 2026-04-30). Now exposes details only
+    # when no auth is configured at all (api_key="" AND ui_auth=False),
+    # matching the truly-open deployment.
     import hmac as _hmac
 
     from flask import session as _session
 
+    import ui_auth as _ui_auth
     from config import get_settings as _get_settings
 
     _settings = _get_settings()
@@ -196,7 +210,12 @@ def health():
     _provided = request.headers.get("X-Api-Key") or request.args.get("apikey", "")
     _key_ok = bool(_api_key and _hmac.compare_digest(_provided, _api_key))
     _session_ok = bool(_session.get("ui_authenticated"))
-    _authenticated = _key_ok or _session_ok or not _api_key
+    try:
+        _ui_auth_on = _ui_auth.is_ui_auth_enabled()
+    except Exception:
+        _ui_auth_on = False
+    _no_auth_configured = not _api_key and not _ui_auth_on
+    _authenticated = _key_ok or _session_ok or _no_auth_configured
 
     body: dict = {"status": "healthy" if healthy else "unhealthy"}
     if _authenticated:
@@ -207,6 +226,7 @@ def health():
 
 
 @bp.route("/update", methods=["GET"])
+@limiter.limit("10/minute")
 def check_update():
     """Check GitHub for a newer stable release.
 
