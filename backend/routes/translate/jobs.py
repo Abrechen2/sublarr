@@ -7,7 +7,7 @@ import threading
 from flask import current_app, jsonify, request
 
 from routes.translate import bp
-from routes.translate._helpers import _run_job
+from routes.translate._helpers import _is_translation_enabled, _run_job
 from security_utils import is_safe_path
 
 logger = logging.getLogger(__name__)
@@ -181,6 +181,9 @@ def retry_job(job_id):
     # Security: ensure file_path is under the configured media_path
     if not is_safe_path(file_path, get_settings().media_path):
         return jsonify({"error": "file_path must be under the configured media_path"}), 403
+
+    if not _is_translation_enabled():
+        return jsonify({"error": "Translation is disabled in configuration"}), 503
 
     new_job = create_job(file_path, force=True, arr_context=job.get("arr_context"))
     _app = current_app._get_current_object()

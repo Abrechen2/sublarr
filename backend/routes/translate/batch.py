@@ -15,6 +15,7 @@ from extensions import socketio
 from routes.batch_state import batch_lock, batch_state
 from routes.translate import bp
 from routes.translate._helpers import (
+    _is_translation_enabled,
     _send_callback,
     _update_stats,
     _validate_callback_url,
@@ -143,6 +144,12 @@ def batch_start():
                 ],
             }
         )
+
+    # Gate AFTER the dry_run branch so users can still preview what would
+    # be translated even with the feature disabled, but never start a real
+    # batch run that consumes provider/LLM budget.
+    if not _is_translation_enabled():
+        return jsonify({"error": "Translation is disabled in configuration"}), 503
 
     with batch_lock:
         if batch_state["running"]:

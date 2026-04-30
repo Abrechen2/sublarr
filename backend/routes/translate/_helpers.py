@@ -109,6 +109,33 @@ BACKEND_TEMPLATES = [
 ]
 
 
+def _is_translation_enabled() -> bool:
+    """Return True iff the translation feature is enabled in config.
+
+    The dual /translate/disable + ``translation_enabled`` config flag had a
+    silent gap: clicking Disable cancelled queued jobs and toggled the
+    flag, but every translation-initiating endpoint still ran on new
+    requests because nothing on the read side honoured the flag. Each
+    initiating route now calls this helper after input validation and
+    returns 503 when it returns False — same vocabulary as the Whisper
+    feature gate (see translator._helpers._is_whisper_enabled).
+    """
+    try:
+        from db.config import get_config_entry
+
+        value = get_config_entry("translation_enabled")
+        if value is None:
+            # No DB override → fall back to the Pydantic default.
+            from config import get_settings
+
+            return bool(getattr(get_settings(), "translation_enabled", False))
+        return value.lower() in ("true", "1", "yes")
+    except Exception:
+        # On any lookup failure default to False so a corrupt config never
+        # silently re-enables a feature the user explicitly disabled.
+        return False
+
+
 def _update_stats(result):
     """Update stats from a translation result (thread-safe)."""
     from db.jobs import record_stat

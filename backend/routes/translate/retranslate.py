@@ -9,7 +9,7 @@ from flask import current_app, jsonify
 from events import emit_event
 from extensions import socketio
 from routes.translate import bp
-from routes.translate._helpers import _run_job
+from routes.translate._helpers import _is_translation_enabled, _run_job
 from security_utils import is_safe_path
 
 logger = logging.getLogger(__name__)
@@ -116,6 +116,9 @@ def retranslate_single(job_id):
     if not is_safe_path(file_path, get_settings().media_path):
         return jsonify({"error": "file_path must be under the configured media_path"}), 403
 
+    if not _is_translation_enabled():
+        return jsonify({"error": "Translation is disabled in configuration"}), 503
+
     # Delete existing translated subtitle
     s = get_settings()
     base = os.path.splitext(file_path)[0]
@@ -193,6 +196,9 @@ def retranslate_batch():
     from config import get_settings
     from db.jobs import get_outdated_jobs
     from translator import translate_file
+
+    if not _is_translation_enabled():
+        return jsonify({"error": "Translation is disabled in configuration"}), 503
 
     s = get_settings()
     current_hash = s.get_translation_config_hash()

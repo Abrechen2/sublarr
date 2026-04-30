@@ -173,6 +173,10 @@ def test_translate_async_success(client, temp_dir, monkeypatch):
     with (
         patch("db.jobs.create_job", return_value=fake_job),
         patch("routes.translate.core._run_job"),
+        # Default config has translation_enabled=False — bypass the feature
+        # gate added 2026-04-30 so this happy-path test still exercises the
+        # success branch instead of hitting the 503.
+        patch("routes.translate.core._is_translation_enabled", return_value=True),
     ):
         resp = client.post("/api/v1/translate", json={"file_path": sub_file})
 

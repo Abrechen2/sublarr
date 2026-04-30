@@ -10,7 +10,12 @@ import os
 from flask import current_app, jsonify, request
 
 from routes.translate import bp
-from routes.translate._helpers import _build_arr_context, _run_job, _update_stats
+from routes.translate._helpers import (
+    _build_arr_context,
+    _is_translation_enabled,
+    _run_job,
+    _update_stats,
+)
 from security_utils import is_safe_path
 
 logger = logging.getLogger(__name__)
@@ -86,6 +91,13 @@ def translate_async():
     # Security: ensure file_path is under the configured media_path
     if not is_safe_path(file_path, get_settings().media_path):
         return jsonify({"error": "file_path must be under the configured media_path"}), 403
+
+    # Feature gate: refuse to enqueue when the user has disabled the
+    # translation feature. Without this, /translate/disable was cosmetic
+    # for any caller who skipped the UI (webhooks, scripted callers,
+    # retried jobs).
+    if not _is_translation_enabled():
+        return jsonify({"error": "Translation is disabled in configuration"}), 503
 
     arr_context = _build_arr_context(data)
     job = create_job(file_path, force, arr_context)
@@ -187,6 +199,9 @@ def translate_sync():
     # Security: ensure file_path is under the configured media_path
     if not is_safe_path(file_path, get_settings().media_path):
         return jsonify({"error": "file_path must be under the configured media_path"}), 403
+
+    if not _is_translation_enabled():
+        return jsonify({"error": "Translation is disabled in configuration"}), 503
 
     arr_context = _build_arr_context(data)
     queue = getattr(current_app, "job_queue", None)
