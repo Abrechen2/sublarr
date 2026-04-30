@@ -202,3 +202,59 @@ def test_scan_event_logs_without_file_path(app_ctx):
     assert row is not None
     assert row.file_path is None
     assert row.status == "success"
+
+
+# ---------------------------------------------------------------------------
+# Audit 2026-04-30
+# ---------------------------------------------------------------------------
+
+
+def test_activity_endpoint_accepts_search_filter(client):
+    """``EVENT_SEARCH`` rows are written by wanted_search_runner.log_activity
+    but the route's VALID_EVENT_TYPES set was missing ``"search"``, so users
+    saw search rows in the unfiltered list and got a 400 trying to filter
+    for them. The audit fix added it."""
+    from db.activity import log_activity
+    from db.models.activity import EVENT_SEARCH
+
+    with client.application.app_context():
+        log_activity(EVENT_SEARCH, status="success", details={"matches": 7})
+
+    resp = client.get("/api/v1/activity?type=search")
+    assert resp.status_code == 200, resp.data[:200]
+    body = resp.get_json()
+    for entry in body["data"]:
+        assert entry["event_type"] == "search"
+
+
+def test_get_activity_orders_by_id_desc(app_ctx):
+    """Audit 2026-04-30: ``idx_activity_log_created_at`` was dropped in
+    migration h1i2j3k4l5m6 (2026-04-14, "0 scans" measured BEFORE the
+    activity page was restored on 2026-04-05). The repository now orders
+    by the auto-indexed PK — semantically equivalent because log_event
+    is the only writer and stamps ``created_at=datetime.now(UTC)`` just
+    before the INSERT, but it doesn't trigger a full sort on every page
+    load any more.
+
+    The behavioral pin: rows come back in id-descending (= newest-first)
+    order regardless of created_at skew."""
+    from db.activity import get_activity, log_activity
+    from db.models.activity import EVENT_DOWNLOAD, ActivityLog
+    from extensions import db
+
+    log_activity(EVENT_DOWNLOAD, file_path="/m/a.mkv", status="success")
+    log_activity(EVENT_DOWNLOAD, file_path="/m/b.mkv", status="success")
+    log_activity(EVENT_DOWNLOAD, file_path="/m/c.mkv", status="success")
+
+    result = get_activity(page=1, per_page=10)
+    assert len(result["data"]) >= 3
+
+    # The IDs in the response must be strictly decreasing — that is
+    # what the new ORDER BY id DESC guarantees, and it agrees with
+    # newest-first because log_event is the only writer.
+    ids = [entry["id"] for entry in result["data"]]
+    assert ids == sorted(ids, reverse=True), ids
+
+    # And the row matched-by-newest is the last one we just inserted.
+    last_inserted = db.session.query(ActivityLog).order_by(ActivityLog.id.desc()).first()
+    assert result["data"][0]["id"] == last_inserted.id

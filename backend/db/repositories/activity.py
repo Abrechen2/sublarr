@@ -4,8 +4,6 @@ import json
 import logging
 from datetime import UTC, datetime
 
-from sqlalchemy import desc
-
 from db.models.activity import ActivityLog
 from extensions import db
 
@@ -47,8 +45,16 @@ class ActivityLogRepository:
         if event_type:
             query = query.filter(ActivityLog.event_type == event_type)
         total = query.count()
+        # Order by the PK rather than created_at: log_event() is the only
+        # writer and stamps ``created_at=datetime.now(UTC)`` immediately
+        # before the INSERT, so id-desc and created_at-desc agree to within
+        # microseconds. The PK is automatically indexed; the dedicated
+        # ``idx_activity_log_created_at`` was dropped in migration
+        # h1i2j3k4l5m6 (2026-04-14, "0 scans" — measured BEFORE the
+        # activity page was restored on 2026-04-05). On a busy install
+        # the un-indexed ORDER BY became a full sort on every page load.
         rows = (
-            query.order_by(desc(ActivityLog.created_at))
+            query.order_by(ActivityLog.id.desc())
             .offset((page - 1) * per_page)
             .limit(per_page)
             .all()

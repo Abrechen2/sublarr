@@ -10,7 +10,11 @@ bp = Blueprint("activity", __name__, url_prefix="/api/v1")
 logger = logging.getLogger(__name__)
 
 _MAX_PER_PAGE = 200
-VALID_EVENT_TYPES = frozenset({"download", "extract", "delete", "scan"})
+# Mirror db.models.activity event constants. ``search`` was missing here
+# even though wanted_search_runner.log_activity(EVENT_SEARCH, ...) writes
+# rows of that type — users could see them in the unfiltered list but
+# the API returned 400 on ?type=search.
+VALID_EVENT_TYPES = frozenset({"download", "extract", "delete", "scan", "search"})
 
 
 @bp.route("/activity", methods=["GET"])
