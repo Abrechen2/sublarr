@@ -39,6 +39,13 @@ def set_fansub_prefs(series_id: int):
     if not isinstance(bonus, int):
         return jsonify({"error": "bonus must be an integer"}), 400
 
+    # Strip whitespace and drop empty entries — an empty string in either
+    # list breaks scoring at runtime (``"" in info`` is always True, so the
+    # whole search either gets uniformly bonused or uniformly killed). Catch
+    # at the boundary before bad data lands in the JSON column.
+    preferred = [g.strip() for g in preferred if g and g.strip()]
+    excluded = [g.strip() for g in excluded if g and g.strip()]
+
     FansubPreferenceRepository().set_fansub_prefs(
         series_id=series_id,
         preferred=preferred,

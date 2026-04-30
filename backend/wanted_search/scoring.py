@@ -27,15 +27,21 @@ def _apply_fansub_rules(
     Performs case-insensitive substring matching against result["release_info"].
     Preferred group match: +bonus points.
     Excluded group match: -999 points (effectively removes from selection).
+
+    Empty/whitespace-only entries are filtered out: ``"" in info`` is always
+    True, so a single blank entry (trailing comma in the UI, copy-pasted
+    newline, historical bad data in the JSON column) would silently match
+    every result — killing the entire search if it landed in ``excluded``,
+    or granting the bonus to every candidate if in ``preferred``.
     """
-    preferred_lower = [g.lower() for g in preferred]
-    excluded_lower = [g.lower() for g in excluded]
+    preferred_lower = [g.strip().lower() for g in preferred if g and g.strip()]
+    excluded_lower = [g.strip().lower() for g in excluded if g and g.strip()]
 
     for result in results:
         info = result.get("release_info", "").lower()
-        if any(g in info for g in excluded_lower):
+        if excluded_lower and any(g in info for g in excluded_lower):
             result["score"] -= 999
-        elif any(g in info for g in preferred_lower):
+        elif preferred_lower and any(g in info for g in preferred_lower):
             result["score"] += bonus
 
 

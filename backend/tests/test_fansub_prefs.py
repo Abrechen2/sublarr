@@ -115,3 +115,64 @@ class TestFansubPrefsRoutes:
         assert r.status_code == 200
         r2 = client.get("/api/v1/series/46/fansub-prefs")
         assert r2.get_json()["preferred_groups"] == []
+
+    def test_put_strips_empty_entries_from_groups(self, client):
+        """Audit 2026-04-30: empty/whitespace strings in either list make
+        ``"" in info`` always-True in _apply_fansub_rules, killing every
+        result (excluded) or bonusing every result (preferred). The route
+        now strips/drops them before persisting."""
+        r = client.put(
+            "/api/v1/series/47/fansub-prefs",
+            json={
+                "preferred_groups": ["SubsPlease", "", "  ", "Erai-raws"],
+                "excluded_groups": ["", "HorribleSubs", " "],
+                "bonus": 20,
+            },
+        )
+        assert r.status_code == 200
+        data = r.get_json()
+        assert data["preferred_groups"] == ["SubsPlease", "Erai-raws"]
+        assert data["excluded_groups"] == ["HorribleSubs"]
+
+
+class TestFansubRulesEmptyStringSafety:
+    """Direct unit tests for _apply_fansub_rules — the runtime side of the
+    same audit fix. Even if bad data slipped past the route validation
+    (historical entries, direct DB writes, JSON-blob migrations), the
+    scoring loop now ignores empty/whitespace-only strings instead of
+    silently bonusing or killing every candidate."""
+
+    @staticmethod
+    def _run(preferred, excluded, info, bonus=20):
+        from wanted_search.scoring import _apply_fansub_rules
+
+        results = [{"score": 100, "release_info": info}]
+        _apply_fansub_rules(results, preferred, excluded, bonus)
+        return results[0]["score"]
+
+    def test_empty_string_in_excluded_does_not_kill_all(self):
+        # Pre-fix: "" in info always True → score becomes 100-999 = -899.
+        score = self._run(preferred=[], excluded=[""], info="GroupX 1080p")
+        assert score == 100, "empty excluded entry must be a no-op"
+
+    def test_whitespace_only_excluded_does_not_kill_all(self):
+        score = self._run(preferred=[], excluded=["   "], info="GroupX 1080p")
+        assert score == 100
+
+    def test_empty_string_in_preferred_does_not_universally_bonus(self):
+        # Pre-fix: "" in info always True → score becomes 100+20 = 120.
+        score = self._run(preferred=[""], excluded=[], info="GroupX 1080p", bonus=20)
+        assert score == 100, "empty preferred entry must be a no-op"
+
+    def test_real_excluded_still_kills(self):
+        score = self._run(preferred=[], excluded=["", "HorribleSubs"], info="HorribleSubs 1080p")
+        assert score == 100 - 999
+
+    def test_real_preferred_still_bonuses(self):
+        score = self._run(
+            preferred=["SubsPlease", ""],
+            excluded=[],
+            info="SubsPlease 1080p",
+            bonus=20,
+        )
+        assert score == 120
