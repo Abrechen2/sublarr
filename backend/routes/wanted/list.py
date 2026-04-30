@@ -226,12 +226,23 @@ def refresh_wanted():
     app = current_app._get_current_object()
 
     def _run_scan():
-        with app.app_context():
-            if series_id:
-                result = scanner.scan_series(series_id)
-            else:
-                result = scanner.scan_all()
-            emit_event("wanted_scan_complete", result)
+        try:
+            with app.app_context():
+                if series_id:
+                    result = scanner.scan_series(series_id)
+                else:
+                    result = scanner.scan_all()
+                emit_event("wanted_scan_complete", result)
+        except Exception as exc:
+            logger.exception("wanted_scan worker crashed (series_id=%s)", series_id)
+            try:
+                with app.app_context():
+                    emit_event(
+                        "wanted_scan_complete",
+                        {"error": str(exc), "series_id": series_id},
+                    )
+            except Exception:
+                logger.debug("emit wanted_scan_complete itself failed", exc_info=True)
 
     thread = threading.Thread(target=_run_scan, daemon=True)
     thread.start()

@@ -3,12 +3,43 @@
 import logging
 import threading
 
-from flask import jsonify, request
+from flask import current_app, jsonify, request
 
+from events import emit_event
 from extensions import socketio
 from routes.wanted import bp
 
 logger = logging.getLogger(__name__)
+
+
+def _spawn_search_worker(*, include_upgrades: bool) -> None:
+    """Spawn a daemon thread that runs the wanted-search with full Flask context.
+
+    Captures ``current_app`` synchronously so the worker doesn't depend on the
+    scanner's cached ``_app`` reference (which can be stale or unset during
+    early lifecycle). Wraps the call in try/except so a worker crash emits a
+    ``wanted_search_failed`` event instead of dying silently.
+    """
+    app = current_app._get_current_object()
+
+    def _run_search() -> None:
+        try:
+            with app.app_context():
+                from services.wanted_scanner import get_scanner
+
+                get_scanner().search_all(socketio=socketio, include_upgrades=include_upgrades)
+        except Exception as exc:
+            logger.exception("wanted_search worker crashed (include_upgrades=%s)", include_upgrades)
+            try:
+                with app.app_context():
+                    emit_event(
+                        "wanted_search_failed",
+                        {"error": str(exc), "include_upgrades": include_upgrades},
+                    )
+            except Exception:
+                logger.debug("emit wanted_search_failed itself failed", exc_info=True)
+
+    threading.Thread(target=_run_search, daemon=True).start()
 
 
 @bp.route("/wanted/search-all", methods=["POST"])
@@ -37,15 +68,10 @@ def wanted_search_all():
     """
     from services.wanted_scanner import get_scanner
 
-    scanner = get_scanner()
-    if scanner.is_searching:
+    if get_scanner().is_searching:
         return jsonify({"error": "Search already running"}), 409
 
-    def _run_search():
-        scanner._run_search_with_context(socketio=socketio)
-
-    thread = threading.Thread(target=_run_search, daemon=True)
-    thread.start()
+    _spawn_search_worker(include_upgrades=False)
 
     return jsonify({"status": "search_started"}), 202
 
@@ -71,15 +97,10 @@ def wanted_search_upgrades():
     """
     from services.wanted_scanner import get_scanner
 
-    scanner = get_scanner()
-    if scanner.is_searching:
+    if get_scanner().is_searching:
         return jsonify({"error": "Search already running"}), 409
 
-    def _run_search():
-        scanner._run_search_with_context(socketio=socketio, include_upgrades=True)
-
-    thread = threading.Thread(target=_run_search, daemon=True)
-    thread.start()
+    _spawn_search_worker(include_upgrades=True)
 
     return jsonify({"status": "search_started"}), 202
 

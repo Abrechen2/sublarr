@@ -375,3 +375,82 @@ def test_batch_probe_status(client):
     data = resp.get_json()
     assert resp.status_code == 200
     assert "running" in data
+
+
+# ---------------------------------------------------------------------------
+# POST /api/v1/wanted/search-all — daemon-thread safety
+# ---------------------------------------------------------------------------
+
+
+def test_search_all_returns_409_when_searching(client, monkeypatch):
+    mock_scanner = MagicMock()
+    mock_scanner.is_searching = True
+    monkeypatch.setattr("services.wanted_scanner.get_scanner", lambda: mock_scanner)
+    resp = client.post("/api/v1/wanted/search-all")
+    assert resp.status_code == 409
+
+
+def test_search_all_emits_failure_event_when_worker_crashes(client, monkeypatch):
+    """Regression: the daemon thread that runs ``search_all`` must NOT die
+    silently. A worker exception should surface as a ``wanted_search_failed``
+    event so the UI can react and operators see something in the activity log.
+    """
+    mock_scanner = MagicMock()
+    mock_scanner.is_searching = False
+    mock_scanner.search_all.side_effect = RuntimeError("boom")
+    monkeypatch.setattr("services.wanted_scanner.get_scanner", lambda: mock_scanner)
+
+    captured: list[tuple[str, dict]] = []
+
+    def _emit(event_name, payload):
+        captured.append((event_name, payload))
+
+    monkeypatch.setattr("routes.wanted.bulk_actions.emit_event", _emit)
+
+    # Run the worker synchronously by patching threading.Thread to invoke
+    # ``target`` immediately instead of spawning a background thread.
+    class _SyncThread:
+        def __init__(self, target=None, daemon=None, **_kwargs):
+            self._target = target
+
+        def start(self):
+            self._target()
+
+    monkeypatch.setattr("routes.wanted.bulk_actions.threading.Thread", _SyncThread)
+
+    resp = client.post("/api/v1/wanted/search-all")
+    assert resp.status_code == 202
+
+    failure_events = [e for e in captured if e[0] == "wanted_search_failed"]
+    assert failure_events, f"expected wanted_search_failed event, got {captured}"
+    assert "boom" in failure_events[0][1]["error"]
+    assert failure_events[0][1]["include_upgrades"] is False
+
+
+def test_search_upgrades_emits_failure_event_when_worker_crashes(client, monkeypatch):
+    mock_scanner = MagicMock()
+    mock_scanner.is_searching = False
+    mock_scanner.search_all.side_effect = RuntimeError("upgrade fail")
+    monkeypatch.setattr("services.wanted_scanner.get_scanner", lambda: mock_scanner)
+
+    captured: list[tuple[str, dict]] = []
+    monkeypatch.setattr(
+        "routes.wanted.bulk_actions.emit_event",
+        lambda evt, payload: captured.append((evt, payload)),
+    )
+
+    class _SyncThread:
+        def __init__(self, target=None, daemon=None, **_kwargs):
+            self._target = target
+
+        def start(self):
+            self._target()
+
+    monkeypatch.setattr("routes.wanted.bulk_actions.threading.Thread", _SyncThread)
+
+    resp = client.post("/api/v1/wanted/search-upgrades")
+    assert resp.status_code == 202
+
+    failure_events = [e for e in captured if e[0] == "wanted_search_failed"]
+    assert failure_events
+    assert failure_events[0][1]["include_upgrades"] is True

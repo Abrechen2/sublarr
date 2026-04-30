@@ -32,18 +32,22 @@ class _WantedSchedulerMixin:
     functions can pick them up via ``get_scanner()`` at fire time.
     """
 
-    def start_scheduler(self, socketio=None, app=None):
+    def start_scheduler(self, socketio=None, app=None, *, on_startup: bool = False):
         """Idempotent adapter.
 
-        Called by app_schedulers._start_schedulers and by the settings-save
-        paths in routes/config. Caches the app+socketio references on the
-        scanner instance (so tick functions can reach them) and updates the
-        APScheduler triggers for the ``wanted_scanner`` and
-        ``wanted_search`` JobSpecs.
+        Called by app_schedulers._start_schedulers (with ``on_startup=True``)
+        and by the settings-save / config-import paths in routes/config
+        (with ``on_startup=False``, the default). Caches the app+socketio
+        references on the scanner instance (so tick functions can reach
+        them) and updates the APScheduler triggers for the
+        ``wanted_scanner`` and ``wanted_search`` JobSpecs.
 
-        Also honours the one-shot ``wanted_scan_on_startup`` /
-        ``wanted_search_on_startup`` flags by spawning daemon threads that
-        run once on startup — this matches the legacy behaviour.
+        Only when ``on_startup=True`` honours the one-shot
+        ``wanted_scan_on_startup`` / ``wanted_search_on_startup`` flags by
+        spawning daemon threads. Without this guard, every settings save
+        re-triggered a full wanted_search (default flag is True), bypassing
+        adaptive backoff, slow-mode, the backlog reserve gate, and fair
+        ordering — burning provider budget invisibly.
         """
         self._socketio = socketio
         self._app = app
@@ -52,7 +56,7 @@ class _WantedSchedulerMixin:
 
         scan_interval = settings.wanted_scan_interval_hours
         if scan_interval > 0:
-            if settings.wanted_scan_on_startup:
+            if on_startup and settings.wanted_scan_on_startup:
                 thread = threading.Thread(target=self._run_scan_with_context, daemon=True)
                 thread.start()
             logger.info("Wanted scan scheduler adapter (every %dh)", scan_interval)
@@ -61,7 +65,7 @@ class _WantedSchedulerMixin:
 
         search_interval = settings.wanted_search_interval_hours
         if search_interval > 0:
-            if settings.wanted_search_on_startup:
+            if on_startup and settings.wanted_search_on_startup:
                 thread = threading.Thread(
                     target=self._run_search_with_context,
                     args=(socketio,),

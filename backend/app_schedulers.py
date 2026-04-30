@@ -34,7 +34,7 @@ def _start_schedulers(settings, app=None):
     from services.wanted_scanner import get_scanner
 
     scanner = get_scanner()
-    scanner.start_scheduler(socketio=socketio, app=app)
+    scanner.start_scheduler(socketio=socketio, app=app, on_startup=True)
 
     from database_backup import start_backup_scheduler
 
