@@ -222,17 +222,14 @@ def _export_json_format(include_secrets: bool = False) -> dict:
     warnings = []
     config = _get_config_entries(warnings)
 
-    # Mask secrets unless explicitly requested
+    # Mask secrets unless explicitly requested. Use the central rule set
+    # (mirrors `Settings.get_safe_config()`) so DB-loaded entries get the
+    # same protection as Pydantic dumps. The earlier keyword-only heuristic
+    # missed Apprise notification URLs (Discord/Slack/Telegram tokens
+    # embedded in the URL itself), database_url / redis_url DSNs, and the
+    # nested API keys inside *_instances_json blobs.
     if not include_secrets:
-        secret_keywords = {"api_key", "password", "apikey", "token", "secret"}
-        masked_config = {}
-        for key, value in config.items():
-            is_secret = any(kw in key.lower() for kw in secret_keywords)
-            if is_secret and value:
-                masked_config[key] = _mask_secret(str(value))
-            else:
-                masked_config[key] = value
-        config = masked_config
+        config = _mask_config_secrets(config)
 
     # Language profiles
     profiles = _get_language_profiles(warnings)
@@ -272,6 +269,61 @@ def _mask_secret(value: str) -> str:
     if len(value) <= 8:
         return "***"
     return value[:4] + "***" + value[-4:]
+
+
+# Sensitive-key heuristics — mirrors `Settings.get_safe_config()` in
+# config_settings.py so the export pipeline cannot drift from the
+# in-process safe-view used elsewhere (e.g. config endpoint, support bundle).
+# Update both together when adding a new credential-bearing field.
+_SENSITIVE_PARTS = {"password", "pin", "secret", "token", "api_key"}
+_EXPLICIT_MASKED = {"database_url", "redis_url"}
+_JSON_BLOB_FIELDS = {
+    "sonarr_instances_json",
+    "radarr_instances_json",
+    "media_servers_json",
+}
+_CREDENTIAL_SUBKEYS = {"api_key", "apiKey", "password", "token", "secret", "pin"}
+
+
+def _mask_config_secrets(data: dict) -> dict:
+    """Apply Sublarr's central masking rules to an arbitrary config dict.
+
+    The DB-loaded `config_entries` table is just key/value strings — it has
+    no awareness of which keys are credentials. Apply the same rules
+    `Settings.get_safe_config()` uses for Pydantic dumps so both data
+    sources export with identical protection. Returns a new dict.
+    """
+    import json as _json
+
+    masked = dict(data)
+    for key in list(masked.keys()):
+        value = masked[key]
+        is_sensitive_name = (
+            key in _EXPLICIT_MASKED
+            or "api_key" in key
+            or "key" in key.split("_")
+            or any(s in key for s in _SENSITIVE_PARTS)
+        )
+        if is_sensitive_name:
+            if value:
+                masked[key] = _mask_secret(str(value))
+        elif key == "notification_urls_json" and value:
+            # Apprise URLs (discord://…/token, slack://…/secret, tgram://bot_token/…)
+            # carry the secret in the URL itself — keyword-based masking misses them.
+            masked[key] = "***configured***"
+        elif key in _JSON_BLOB_FIELDS and value:
+            try:
+                parsed = _json.loads(value) if isinstance(value, str) else value
+                if isinstance(parsed, list):
+                    for item in parsed:
+                        if isinstance(item, dict):
+                            for sub in _CREDENTIAL_SUBKEYS:
+                                if sub in item and item[sub]:
+                                    item[sub] = _mask_secret(str(item[sub]))
+                masked[key] = _json.dumps(parsed) if isinstance(value, str) else parsed
+            except Exception:
+                masked[key] = "***configured***"
+    return masked
 
 
 def _get_version() -> str:
