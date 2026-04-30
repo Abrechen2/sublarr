@@ -239,3 +239,74 @@ class TestSearchAndDownloadBest:
             ret = search_and_download_best(search_fn, download_fn, stats_fn, "query")
 
         assert ret == result
+
+
+class TestSearchAndDownloadBestHashBlacklist:
+    """Plan B3 regression: a blacklisted content hash must be honoured at
+    download-time even though the (provider, subtitle_id) pre-filter passed.
+
+    Pre-2026-04-30 the blacklist's `file_hash` column existed end-to-end
+    (migration, repository, route, frontend column) but no production call
+    site ever consulted it — adding a hash via the API was a no-op.
+    """
+
+    def test_blacklisted_hash_is_skipped_and_next_result_returned(self):
+        result1 = MagicMock(provider_name="p1", score=90, subtitle_id="s1")
+        result2 = MagicMock(provider_name="p2", score=80, subtitle_id="s2")
+
+        search_fn = MagicMock(return_value=[result1, result2])
+        download_fn = MagicMock(side_effect=[b"banned-bytes", b"good-bytes"])
+        stats_fn = MagicMock()
+
+        # Only the first result's content hash is blacklisted.
+        import hashlib
+
+        bad_hash = hashlib.sha256(b"banned-bytes").hexdigest()
+
+        def fake_check(provider, content_hash):
+            return provider == "p1" and content_hash == bad_hash
+
+        with (
+            patch("db.blacklist.is_blacklisted_by_hash", side_effect=fake_check),
+            patch("providers.reranker.apply_auto_reranking"),
+        ):
+            ret = search_and_download_best(search_fn, download_fn, stats_fn, "query")
+
+        assert ret == result2
+        # First result downloaded but skipped — stats NOT recorded as success
+        # for p1 (it isn't a usable result). Second is the real success.
+        stats_fn.assert_called_once_with("p2", success=True, score=80)
+
+    def test_blacklisted_hash_with_no_fallback_returns_none(self):
+        """Single result, hash blacklisted -> caller gets None."""
+        result = MagicMock(provider_name="p1", score=90, subtitle_id="s1")
+        search_fn = MagicMock(return_value=[result])
+        download_fn = MagicMock(return_value=b"banned")
+        stats_fn = MagicMock()
+
+        with patch("db.blacklist.is_blacklisted_by_hash", return_value=True):
+            ret = search_and_download_best(search_fn, download_fn, stats_fn, "query")
+
+        assert ret is None
+        # No success/failure stats recorded — provider behaved fine, we
+        # refused on policy grounds.
+        stats_fn.assert_not_called()
+
+    def test_hash_check_failure_does_not_block_download(self):
+        """If the blacklist check itself raises, the download must still proceed."""
+        result = MagicMock(provider_name="p1", score=90, subtitle_id="s1")
+        search_fn = MagicMock(return_value=[result])
+        download_fn = MagicMock(return_value=b"content")
+        stats_fn = MagicMock()
+
+        with (
+            patch(
+                "db.blacklist.is_blacklisted_by_hash",
+                side_effect=RuntimeError("DB unavailable"),
+            ),
+            patch("providers.reranker.apply_auto_reranking"),
+        ):
+            ret = search_and_download_best(search_fn, download_fn, stats_fn, "query")
+
+        assert ret == result
+        stats_fn.assert_called_once_with("p1", success=True, score=90)

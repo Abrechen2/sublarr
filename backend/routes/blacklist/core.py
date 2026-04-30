@@ -125,6 +125,12 @@ def add_to_blacklist():
     if not provider_name or not subtitle_id:
         return jsonify({"error": "provider_name and subtitle_id are required"}), 400
 
+    # Defense in depth: the DB column is VARCHAR(64). PostgreSQL would 500 on
+    # an oversized value; on SQLite it would silently store the long string
+    # and the partial UNIQUE index would behave unexpectedly across backends.
+    if file_hash is not None and (not isinstance(file_hash, str) or len(file_hash) > 64):
+        return jsonify({"error": "file_hash must be a string of at most 64 characters"}), 400
+
     entry_id = add_blacklist_entry(
         provider_name=provider_name,
         subtitle_id=subtitle_id,

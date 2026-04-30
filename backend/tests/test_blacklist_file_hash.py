@@ -136,3 +136,46 @@ def test_blacklist_list_returns_file_hash(client):
     assert any(e.get("file_hash") == "e" * 64 for e in entries), (
         "Expected the seeded entry's file_hash to appear in the list"
     )
+
+
+# ---------------------------------------------------------------------------
+# Audit 2026-04-30 — pagination clamp regression
+# ---------------------------------------------------------------------------
+
+
+def test_get_blacklist_entries_clamps_zero_page(app_ctx):
+    """page=0 must be clamped to 1 (negative OFFSET would 500 on PG)."""
+    from db.repositories.blacklist import BlacklistRepository
+
+    repo = BlacklistRepository()
+    # Seed one entry so pagination has something to return.
+    entry_id = repo.add_blacklist_entry(
+        provider_name="paginated",
+        subtitle_id="clamp_test",
+    )
+    try:
+        result = repo.get_blacklist_entries(page=0, per_page=50)
+        assert result["page"] == 1
+        assert result["per_page"] == 50
+    finally:
+        repo.remove_blacklist_entry(entry_id)
+
+
+def test_get_blacklist_entries_clamps_negative_page(app_ctx):
+    """page=-5 must be clamped to 1."""
+    from db.repositories.blacklist import BlacklistRepository
+
+    repo = BlacklistRepository()
+    result = repo.get_blacklist_entries(page=-5, per_page=50)
+    assert result["page"] == 1
+
+
+def test_get_blacklist_entries_clamps_per_page(app_ctx):
+    """per_page is clamped to [1, 200] regardless of route-level cap."""
+    from db.repositories.blacklist import BlacklistRepository
+
+    repo = BlacklistRepository()
+    res_low = repo.get_blacklist_entries(page=1, per_page=0)
+    res_high = repo.get_blacklist_entries(page=1, per_page=999)
+    assert res_low["per_page"] == 1
+    assert res_high["per_page"] == 200

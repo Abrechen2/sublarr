@@ -110,4 +110,13 @@ def blacklist_subtitle_sidecar(subtitle_path: str) -> None:
                 reason="Deleted from library",
             )
     except Exception as exc:
-        logger.debug("Could not add blacklist entry for %s: %s", subtitle_path, exc)
+        # Bumped from DEBUG to WARNING (2026-04-30 audit): the "Delete +
+        # Blacklist" UX silently no-ops when the subtitle_downloads lookup
+        # fails (e.g. unfamiliar filename layout), and the user has no way
+        # to tell. WARNING with exc_info gives ops a path to investigate.
+        logger.warning(
+            "Could not blacklist sidecar %s (provider/id lookup failed): %s",
+            subtitle_path,
+            exc,
+            exc_info=True,
+        )

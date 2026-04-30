@@ -71,3 +71,51 @@ class TestBlacklistCount:
         assert resp.status_code == 200
         data = resp.get_json()
         assert "count" in data
+
+
+class TestAddBlacklistFileHashValidation:
+    """Audit 2026-04-30: file_hash is VARCHAR(64) and must be validated at
+    the route boundary. Without this, a PostgreSQL deployment 500s on
+    oversized values; SQLite silently stores them and breaks the partial
+    UNIQUE index assumption."""
+
+    def test_oversized_file_hash_returns_400(self, client):
+        resp = client.post(
+            "/api/v1/blacklist",
+            json={
+                "provider_name": "opensubtitles",
+                "subtitle_id": "abc",
+                "file_hash": "a" * 65,  # 65 chars — one over the column limit
+            },
+        )
+        assert resp.status_code == 400
+        assert "file_hash" in resp.get_json()["error"]
+
+    def test_non_string_file_hash_returns_400(self, client):
+        resp = client.post(
+            "/api/v1/blacklist",
+            json={
+                "provider_name": "opensubtitles",
+                "subtitle_id": "abc",
+                "file_hash": 12345,
+            },
+        )
+        assert resp.status_code == 400
+
+    def test_exactly_64_char_file_hash_is_accepted(self, client):
+        resp = client.post(
+            "/api/v1/blacklist",
+            json={
+                "provider_name": "opensubtitles",
+                "subtitle_id": "exact_len",
+                "file_hash": "a" * 64,
+            },
+        )
+        assert resp.status_code == 201
+
+    def test_omitted_file_hash_still_works(self, client):
+        resp = client.post(
+            "/api/v1/blacklist",
+            json={"provider_name": "opensubtitles", "subtitle_id": "no_hash"},
+        )
+        assert resp.status_code == 201

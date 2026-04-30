@@ -179,6 +179,20 @@ def search_and_download_best(
         try:
             content = download_fn(result)
             if content is not None:
+                # Plan B3 — granular blacklist by content hash. The (provider,
+                # subtitle_id) filter runs pre-download in _finalise_search_results,
+                # but the same provider can serve byte-identical content under
+                # rotating IDs. Recompute SHA-256 here so a blacklisted hash is
+                # honoured even when the ID changes between sessions. Without
+                # this, the entire `file_hash` column on `blacklist_entries` is
+                # unreachable at runtime (caught by the 2026-04-30 audit).
+                if _is_content_hash_blacklisted(result.provider_name, content):
+                    logger.info(
+                        "Skipping %s/%s: content hash is blacklisted",
+                        result.provider_name,
+                        result.subtitle_id,
+                    )
+                    continue
                 update_stats_fn(result.provider_name, success=True, score=result.score)
                 try:
                     from providers.reranker import apply_auto_reranking
@@ -194,6 +208,25 @@ def search_and_download_best(
             update_stats_fn(result.provider_name, success=False, score=0)
 
     return None
+
+
+def _is_content_hash_blacklisted(provider_name: str, content: bytes) -> bool:
+    """Return True if SHA-256(content) is on the blacklist for this provider.
+
+    Failures are swallowed (logged at DEBUG): the blacklist table or the DB
+    session may be unavailable in unit tests / startup paths, and a check
+    failure must never block an otherwise-valid download.
+    """
+    try:
+        import hashlib
+
+        from db.blacklist import is_blacklisted_by_hash
+
+        content_hash = hashlib.sha256(content).hexdigest()
+        return bool(is_blacklisted_by_hash(provider_name, content_hash))
+    except Exception as exc:  # noqa: BLE001
+        logger.debug("Hash blacklist check skipped for %s: %s", provider_name, exc)
+        return False
 
 
 def save_subtitle(

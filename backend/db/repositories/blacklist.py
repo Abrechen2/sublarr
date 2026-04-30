@@ -141,6 +141,11 @@ class BlacklistRepository(BaseRepository):
         Returns:
             Dict with 'data', 'page', 'per_page', 'total', 'total_pages' keys.
         """
+        # Clamp inputs: route-level cap is 200, but defensive callers may
+        # invoke this directly. Negative/zero ``page`` would yield a negative
+        # OFFSET — silently returns page 1 on SQLite, raises on PostgreSQL.
+        page = max(1, page)
+        per_page = max(1, min(200, per_page))
         offset = (page - 1) * per_page
 
         count = self.session.execute(select(func.count()).select_from(BlacklistEntry)).scalar() or 0
