@@ -128,6 +128,16 @@ def _extract_top_errors(max_errors: int = 10) -> list[dict]:
     counts: _coll.Counter = _coll.Counter()
     last_seen: dict[str, str] = {}
 
+    # Anonymize the message before counting/storing — these messages ship
+    # into diagnostic-report.md and db-stats.json verbatim, so any leaked
+    # DSN/API-key in a SQLAlchemy or provider error would otherwise survive
+    # the support bundle unredacted.
+    hostname: str | None = None
+    try:
+        hostname = _socket.gethostname()
+    except Exception:
+        hostname = None
+
     candidates = [log_path] + [f"{log_path}.{i}" for i in range(1, 4)]
     for path in candidates:
         try:
@@ -145,7 +155,8 @@ def _extract_top_errors(max_errors: int = 10) -> list[dict]:
                     msg_m = _msg_re.match(line)
                     if not msg_m:
                         continue
-                    key = msg_m.group(1)[:80]
+                    raw_msg = msg_m.group(1)[:80]
+                    key = _anonymize(raw_msg, hostname=hostname)
                     counts[key] += 1
                     last_seen[key] = m.group(1)[11:16]  # HH:MM local time
         except FileNotFoundError:
@@ -351,14 +362,15 @@ def support_export():
             ),
         )
 
-        # 4. Config snapshot — redact secret fields by name
-        _SECRET_TOKENS = {"key", "token", "password", "secret", "credential"}
-        raw_cfg = _s.model_dump()
-        safe_cfg = {
-            k: "***REDACTED***" if any(t in k.lower() for t in _SECRET_TOKENS) else v
-            for k, v in raw_cfg.items()
-        }
-        zf.writestr("config-snapshot.json", _json.dumps(safe_cfg, indent=2, default=str))
+        # 4. Config snapshot — delegate to Settings.get_safe_config() so the
+        #    bundle inherits the same masking rules used by /config (and the
+        #    /export endpoint). A previous keyword-only loop here missed
+        #    notification_urls_json (Apprise tokens), database_url / redis_url
+        #    (DSN-embedded creds), and *_instances_json (nested api_keys).
+        zf.writestr(
+            "config-snapshot.json",
+            _json.dumps(_s.get_safe_config(), indent=2, default=str),
+        )
 
         # 5. System info
         zf.writestr(

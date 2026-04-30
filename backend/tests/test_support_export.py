@@ -200,5 +200,8 @@ class TestSupportExportEndpoint:
         resp = client.get("/api/v1/logs/support-export", headers=self._headers())
         z = zipfile.ZipFile(io.BytesIO(resp.data))
         cfg = json.loads(z.read("config-snapshot.json"))
-        # api_key field must be redacted
-        assert cfg.get("api_key") == "***REDACTED***"
+        # api_key field must be redacted — the snapshot now delegates to
+        # Settings.get_safe_config() which uses the ``***configured***``
+        # marker (was ``***REDACTED***`` before audit 2026-04-30).
+        if cfg.get("api_key"):
+            assert cfg["api_key"] == "***configured***"
