@@ -43,10 +43,16 @@ def _validate_file_path(file_path: str) -> tuple:
 def _create_backup(file_path: str) -> str:
     """Create a .bak backup of a file before modifying it.
 
+    Idempotent: if a backup already exists for this file we keep it instead
+    of overwriting. Otherwise the second tool run on the same file would
+    rotate the .bak to "result of the first op", and the user could no
+    longer recover the original via GET /tools/backup.
+
     Returns:
         Path to the backup file.
     """
     base, ext = os.path.splitext(file_path)
     bak_path = f"{base}.bak{ext}"
-    shutil.copy2(file_path, bak_path)
+    if not os.path.exists(bak_path):
+        shutil.copy2(file_path, bak_path)
     return bak_path

@@ -779,6 +779,79 @@ class TestCommonFixes:
         assert rv.status_code == 400
         assert "Invalid" in rv.get_json()["error"]
 
+    def test_common_fixes_whitespace_only_preserves_non_utf8_bytes(self, client):
+        """Regression: a Latin-1 file run through whitespace-only fix used to be
+        re-written as UTF-8 with errors=replace, silently mangling every non-ASCII
+        byte. Source encoding is now detected via chardet and preserved for
+        non-encoding fixes."""
+        srt_path = os.path.join(_TEMP_DIR, "test_fixes_latin1.srt")
+        # Latin-1 content with characters that are NOT valid UTF-8 when the
+        # round-trip is broken: ä=0xE4, ö=0xF6, ü=0xFC, ß=0xDF
+        latin1_text = (
+            "1\r\n00:00:01,000 --> 00:00:03,000\r\nGrüß Gott   \r\n\r\n"
+            "2\r\n00:00:04,000 --> 00:00:06,000\r\nKräuter und Rösti   \r\n"
+        )
+        with open(srt_path, "w", encoding="latin-1", newline="") as f:
+            f.write(latin1_text)
+        try:
+            rv = client.post(
+                "/api/v1/tools/common-fixes",
+                json={"file_path": srt_path, "fixes": ["whitespace"]},
+            )
+            assert rv.status_code == 200
+
+            # File must still decode as Latin-1; UTF-8 decode would either fail
+            # or produce mojibake on the bytes 0xE4/0xF6/0xFC/0xDF.
+            with open(srt_path, "rb") as f:
+                raw = f.read()
+            decoded = raw.decode("latin-1")
+            assert "Grüß Gott" in decoded
+            assert "Kräuter und Rösti" in decoded
+            # Trailing whitespace per line is gone (the fix that was requested)
+            for line in decoded.split("\n"):
+                assert line == line.rstrip()
+        finally:
+            _cleanup(srt_path)
+
+
+# ==============================================================================
+# Backup helper idempotence (regression for _create_backup)
+# ==============================================================================
+
+
+class TestBackupIdempotence:
+    """Regression tests for routes/tools/_helpers.py::_create_backup."""
+
+    def test_two_remove_hi_runs_keep_original_in_backup(self, client):
+        """If a user runs a tool twice, the .bak must still hold the ORIGINAL
+        file content, not the result of the first run. Otherwise the user can
+        no longer recover the source via GET /tools/backup."""
+        srt = _make_srt(
+            "test_backup_idempotence.srt",
+            content="1\n00:00:01,000 --> 00:00:03,000\n[music] Hello\n",
+        )
+        bak = srt.replace(".srt", ".bak.srt")
+        try:
+            with patch("hi_remover.remove_hi_from_srt", return_value="FIRST_RUN_OUTPUT"):
+                rv1 = client.post("/api/v1/tools/remove-hi", json={"file_path": srt})
+            assert rv1.status_code == 200
+            assert os.path.exists(bak)
+            with open(bak, encoding="utf-8") as f:
+                bak_after_first = f.read()
+            assert "[music] Hello" in bak_after_first
+
+            with patch("hi_remover.remove_hi_from_srt", return_value="SECOND_RUN_OUTPUT"):
+                rv2 = client.post("/api/v1/tools/remove-hi", json={"file_path": srt})
+            assert rv2.status_code == 200
+
+            with open(bak, encoding="utf-8") as f:
+                bak_after_second = f.read()
+            # Backup must STILL be the pre-first-run content, not "FIRST_RUN_OUTPUT".
+            assert bak_after_second == bak_after_first
+            assert "FIRST_RUN_OUTPUT" not in bak_after_second
+        finally:
+            _cleanup(srt)
+
 
 # ==============================================================================
 # Helper function unit tests

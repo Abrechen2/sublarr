@@ -87,23 +87,21 @@ def common_fixes():
     abs_path = result
 
     try:
-        # Read file content
-        content = None
+        # Always detect the source encoding so non-UTF-8 files (Shift_JIS,
+        # Latin-1, …) survive a "whitespace only" fix. Without this, the
+        # legacy code read every file as UTF-8 with errors=replace and then
+        # wrote the result back as UTF-8 — silently mangling the content
+        # whenever the user only asked for a non-encoding fix.
+        source_encoding = "utf-8"
+        try:
+            import chardet
 
-        if "encoding" in fixes:
-            # Try chardet detection if available
-            try:
-                import chardet
-
-                with open(abs_path, "rb") as f:
-                    raw = f.read()
-                detected = chardet.detect(raw)
-                encoding = detected.get("encoding", "utf-8") or "utf-8"
-                content = raw.decode(encoding, errors="replace")
-            except ImportError:
-                with open(abs_path, encoding="utf-8", errors="replace") as f:
-                    content = f.read()
-        else:
+            with open(abs_path, "rb") as f:
+                raw = f.read()
+            detected = chardet.detect(raw)
+            source_encoding = detected.get("encoding", "utf-8") or "utf-8"
+            content = raw.decode(source_encoding, errors="replace")
+        except ImportError:
             with open(abs_path, encoding="utf-8", errors="replace") as f:
                 content = f.read()
 
@@ -164,9 +162,20 @@ def common_fixes():
         # Create backup before modifying
         _create_backup(abs_path)
 
-        # Always write as UTF-8
-        with open(abs_path, "w", encoding="utf-8", newline="") as f:
-            f.write(content)
+        # Write back: UTF-8 if the user explicitly asked to fix the encoding,
+        # otherwise preserve the source encoding so a non-encoding fix is a
+        # genuine no-op for byte-equivalent content.
+        write_encoding = "utf-8" if "encoding" in fixes else source_encoding
+        try:
+            with open(abs_path, "w", encoding=write_encoding, newline="") as f:
+                f.write(content)
+        except (LookupError, UnicodeEncodeError):
+            # Detected encoding can't round-trip the (now-modified) text —
+            # fall back to UTF-8 so we never leave the file in a broken state.
+            with open(abs_path, "w", encoding="utf-8", newline="") as f:
+                f.write(content)
+            if "encoding" not in applied:
+                applied.append("encoding")
 
         logger.info(
             "Common fixes applied to %s: %s (%d -> %d lines)",

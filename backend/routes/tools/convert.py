@@ -74,14 +74,18 @@ def spell_check():
     except Exception as e:
         return jsonify({"error": f"Hunspell not available for {language}: {e}"}), 503
 
-    subs = pysubs2.load(abs_path)
-    errors = []
-    word_re = re.compile(r"\b[a-zA-ZäöüÄÖÜß]+\b")
-    for cue in subs:
-        clean = re.sub(r"\{[^}]+\}", "", cue.text)  # strip ASS override tags
-        for word in word_re.findall(clean):
-            if not hobj.spell(word):
-                errors.append({"word": word, "start_ms": cue.start, "text": cue.text})
+    try:
+        subs = pysubs2.load(abs_path)
+        errors = []
+        word_re = re.compile(r"\b[a-zA-ZäöüÄÖÜß]+\b")
+        for cue in subs:
+            clean = re.sub(r"\{[^}]+\}", "", cue.text)  # strip ASS override tags
+            for word in word_re.findall(clean):
+                if not hobj.spell(word):
+                    errors.append({"word": word, "start_ms": cue.start, "text": cue.text})
+    except Exception as exc:
+        logger.error("spell-check failed for %s: %s", abs_path, exc)
+        return jsonify({"error": f"spell-check failed: {exc}"}), 500
 
     logger.info("spell-check: %d errors in %s", len(errors), abs_path)
     return jsonify({"errors": errors, "total": len(errors)})
@@ -138,7 +142,8 @@ def convert_format():
     """
     import pysubs2
 
-    from config import map_path
+    from config import get_settings, map_path
+    from security_utils import is_safe_path
 
     data = request.get_json(force=True, silent=True) or {}
     target_format = data.get("target_format", "").lower()
@@ -149,6 +154,7 @@ def convert_format():
     if target_format not in SUPPORTED_FORMATS:
         return jsonify({"error": f"target_format must be one of {sorted(SUPPORTED_FORMATS)}"}), 400
 
+    media_path = get_settings().media_path
     cleanup_source = False
 
     if track_index is not None:
@@ -156,6 +162,8 @@ def convert_format():
         if not video_path:
             return jsonify({"error": "video_path required when track_index is set"}), 400
         video_path = map_path(video_path)
+        if not is_safe_path(video_path, media_path):
+            return jsonify({"error": "video_path must be under the configured media_path"}), 403
         if not os.path.exists(video_path):
             return jsonify({"error": f"Video not found: {video_path}"}), 404
 
@@ -181,6 +189,8 @@ def convert_format():
         if not file_path:
             return jsonify({"error": "file_path or track_index required"}), 400
         source_path = map_path(file_path)
+        if not is_safe_path(source_path, media_path):
+            return jsonify({"error": "file_path must be under the configured media_path"}), 403
         if not os.path.exists(source_path):
             return jsonify({"error": f"File not found: {source_path}"}), 404
         base_output = os.path.splitext(source_path)[0]
