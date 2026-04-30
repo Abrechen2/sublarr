@@ -155,6 +155,11 @@ def uninstall_marketplace_plugin():
         500:
           description: Uninstallation error
     """
+    from db.models.plugins import InstalledPlugin
+    from extensions import db as sa_db
+    from providers import invalidate_manager
+    from providers.plugins import get_plugin_manager
+
     data = request.get_json(silent=True) or {}
     plugin_name = data.get("plugin_name")
 
@@ -167,6 +172,19 @@ def uninstall_marketplace_plugin():
 
         marketplace = get_marketplace()
         result = marketplace.uninstall_plugin(plugin_name, plugins_dir)
+
+        # Symmetry with install: drop the InstalledPlugin DB row and
+        # hot-reload so the manager forgets the now-missing module.
+        # Pre-fix: install persisted + reloaded but uninstall did neither —
+        # GET /marketplace/installed kept showing the ghost row, and the
+        # provider stayed live in memory until a server restart.
+        InstalledPlugin.query.filter_by(name=plugin_name).delete()
+        sa_db.session.commit()
+
+        manager = get_plugin_manager()
+        if manager:
+            manager.reload()
+            invalidate_manager()
 
         return jsonify(result), 200
     except RuntimeError as e:

@@ -130,7 +130,10 @@ def start_plugin_watcher(plugin_manager, plugins_dir: str) -> Observer:
     """
     handler = PluginFileWatcher(plugin_manager)
     observer = Observer()
-    observer.schedule(handler, plugins_dir, recursive=False)
+    # recursive=True so edits inside marketplace-installed plugin packages
+    # (plugins_dir/<name>/provider.py) also trigger hot-reload — matches the
+    # subdirectory layout the loader now scans.
+    observer.schedule(handler, plugins_dir, recursive=True)
     observer.daemon = True
     observer.start()
     logger.info("Plugin file watcher started on: %s", plugins_dir)

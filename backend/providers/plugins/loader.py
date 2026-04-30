@@ -23,10 +23,16 @@ def discover_plugins(
 ) -> tuple[dict[str, type], list[dict]]:
     """Scan a directory for plugin provider Python files.
 
-    For each .py file (skipping files starting with '_' or '.'):
-    1. Load the module using importlib
-    2. Inspect members for SubtitleProvider subclasses
-    3. Validate each discovered class
+    Two layouts are supported:
+
+    1. Flat: top-level ``<plugin_name>.py`` files in ``plugins_dir``.
+    2. Package: ``plugins_dir/<plugin_name>/provider.py`` (or
+       ``__init__.py`` as fallback) — this is the layout the marketplace
+       install code creates from a downloaded ZIP.
+
+    Files / dirs starting with ``_`` or ``.`` are skipped. For each
+    candidate, we load the module via importlib and walk its members for
+    ``SubtitleProvider`` subclasses, validating each one.
 
     Args:
         plugins_dir: Absolute path to the plugins directory.
@@ -44,25 +50,37 @@ def discover_plugins(
         logger.debug("Plugins directory does not exist: %s", plugins_dir)
         return discovered, errors
 
-    # Collect .py files
-    py_files = []
-    for filename in sorted(os.listdir(plugins_dir)):
-        if filename.startswith("_") or filename.startswith("."):
+    # Each entry: (display_label, absolute_filepath, module_name)
+    candidates: list[tuple[str, str, str]] = []
+    for entry in sorted(os.listdir(plugins_dir)):
+        if entry.startswith("_") or entry.startswith("."):
             continue
-        if not filename.endswith(".py"):
-            continue
-        py_files.append(filename)
+        full = os.path.join(plugins_dir, entry)
 
-    if not py_files:
+        # Layout 1: flat <name>.py
+        if os.path.isfile(full) and entry.endswith(".py"):
+            candidates.append((entry, full, f"sublarr_plugin_{entry[:-3]}"))
+            continue
+
+        # Layout 2: package directory — prefer provider.py, fall back to
+        # __init__.py. Marketplace ZIP installs land here, so without this
+        # branch every successful install was silently invisible to the
+        # plugin manager (regression caught by the 2026-04-30 audit).
+        if os.path.isdir(full):
+            provider_py = os.path.join(full, "provider.py")
+            init_py = os.path.join(full, "__init__.py")
+            if os.path.isfile(provider_py):
+                candidates.append((f"{entry}/provider.py", provider_py, f"sublarr_plugin_{entry}"))
+            elif os.path.isfile(init_py):
+                candidates.append((f"{entry}/__init__.py", init_py, f"sublarr_plugin_{entry}"))
+
+    if not candidates:
         logger.debug("No plugin files found in %s", plugins_dir)
         return discovered, errors
 
-    logger.info("Scanning %d plugin file(s) in %s", len(py_files), plugins_dir)
+    logger.info("Scanning %d plugin candidate(s) in %s", len(candidates), plugins_dir)
 
-    for filename in py_files:
-        filepath = os.path.join(plugins_dir, filename)
-        module_name = f"sublarr_plugin_{filename[:-3]}"
-
+    for filename, filepath, module_name in candidates:
         try:
             # Load module using importlib
             spec = importlib.util.spec_from_file_location(module_name, filepath)
