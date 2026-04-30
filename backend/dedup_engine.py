@@ -243,6 +243,19 @@ def delete_duplicates(file_paths: list[str], keep_path: str) -> dict:
 
     media_path = get_settings().media_path
 
+    # Safety guard: keep_path must be inside media_path. Each `fp` in
+    # file_paths is gated below — but without this check on keep_path the
+    # caller could probe arbitrary paths on the host and learn whether a
+    # file exists by reading "keep_path does not exist" vs "in deletion
+    # list" from the response. Reject early with the same vocabulary the
+    # per-file check uses.
+    if not is_safe_path(keep_path, media_path):
+        return {
+            "deleted": 0,
+            "bytes_freed": 0,
+            "errors": ["SAFETY: keep_path is outside media_path -- refusing to proceed"],
+        }
+
     # Safety guard: keep_path must NOT be in deletion list
     if keep_path in file_paths:
         return {

@@ -799,3 +799,56 @@ class TestPreviewCleanup:
             content_type="application/json",
         )
         assert rv.status_code == 400
+
+
+# ---- TestNonTargetSubs ---------------------------------------------------------
+
+
+class TestNonTargetSubs:
+    """POST /api/v1/cleanup/non-target-subs"""
+
+    def test_body_media_path_override_is_ignored(self, client, tmp_path, monkeypatch):
+        """Regression: the route used to honour ``data.get("media_path")`` as
+        an override for settings.media_path with no security gate. A caller
+        with an API key could walk arbitrary directories and trash sidecars
+        outside the configured library. The override is now stripped — only
+        the configured settings.media_path is walked."""
+        import os
+
+        # Settings media_path points to one tmpdir; the body asks for another.
+        configured = tmp_path / "configured_media"
+        configured.mkdir()
+        attacker_target = tmp_path / "should_not_walk_here"
+        attacker_target.mkdir()
+        monkeypatch.setenv("SUBLARR_MEDIA_PATH", str(configured))
+        from config import reload_settings
+
+        reload_settings()
+        try:
+            # Sentinel: a stray .mkv under attacker_target. If the override
+            # were honoured, the route would walk it (scanned_files > 0).
+            (attacker_target / "victim.mkv").write_bytes(b"\x00")
+
+            rv = client.post(
+                "/api/v1/cleanup/non-target-subs",
+                json={"dry_run": True, "media_path": str(attacker_target)},
+                content_type="application/json",
+            )
+            # The route either returns 200 with scanned_files=0 (configured
+            # media is empty) or 400 if no profiles exist. Either way it must
+            # NOT have walked attacker_target.
+            if rv.status_code == 200:
+                body = rv.get_json()
+                # Walking attacker_target would have produced scanned_files >= 1
+                # because of the sentinel .mkv file we wrote there.
+                assert body["scanned_files"] == 0, (
+                    "Body media_path override is still being honoured — "
+                    "this is the regression we just fixed."
+                )
+            else:
+                # No profiles → 400 / 500. Either way, the override path was
+                # never walked: make sure nothing got moved.
+                assert (attacker_target / "victim.mkv").exists()
+        finally:
+            os.environ.pop("SUBLARR_MEDIA_PATH", None)
+            reload_settings()

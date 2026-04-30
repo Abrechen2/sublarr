@@ -297,6 +297,38 @@ class TestDeleteDuplicates:
         mock_repo = MagicMock()
         return mock_settings, mock_repo
 
+    def test_refuse_when_keep_path_outside_media_path(self, tmp_path):
+        """Regression: without this gate the caller could probe arbitrary
+        host paths (different errors for "exists" vs "in delete list" vs
+        "doesn't exist") AND ask the engine to keep a file outside the
+        configured library. Both surfaces are closed by an early
+        is_safe_path check on keep_path."""
+        # keep_path is OUTSIDE media_path
+        outside_keep = str(tmp_path.parent / "outside_keep.srt")
+        _write_file(Path(outside_keep), "keep")
+        dup = _write_file(tmp_path / "dup.srt", "dup")
+
+        mock_settings, mock_repo = self._setup_mocks(tmp_path)
+
+        with (
+            patch("config.get_settings", return_value=mock_settings),
+            patch("db.repositories.cleanup.CleanupRepository", return_value=mock_repo),
+        ):
+            result = delete_duplicates([str(dup)], outside_keep)
+
+        assert result["deleted"] == 0
+        assert any(
+            "SAFETY" in e and "outside media_path" in e and "keep_path" in e
+            for e in result["errors"]
+        )
+        # The duplicate must NOT have been deleted because the engine
+        # rejected the request before iterating file_paths.
+        assert dup.exists()
+        # The outside file must also still be intact (the engine never
+        # touches keep_path; this assertion just guards against future
+        # regressions where someone moves the rm into the early path).
+        assert Path(outside_keep).exists()
+
     def test_refuse_when_keep_path_in_deletion_list(self, tmp_path):
         keep = str(tmp_path / "keep.srt")
         _write_file(Path(keep), "keep")

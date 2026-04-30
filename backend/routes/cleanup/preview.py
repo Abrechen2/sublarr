@@ -87,7 +87,6 @@ def cleanup_non_target_subs():
     Body (JSON, all optional):
       - dry_run: bool (default True) — when True, only counts/samples and
                  leaves the filesystem untouched.
-      - media_path: str — override of settings.media_path.
 
     Returns:
       {
@@ -116,7 +115,10 @@ def cleanup_non_target_subs():
 
     data = request.get_json(silent=True) or {}
     dry_run = bool(data.get("dry_run", True))
-    media_path = data.get("media_path") or get_settings().media_path
+    # Always read media_path from settings — never from the request body.
+    # An accepted override would let any API-key holder walk arbitrary
+    # directories and trash sidecars outside the configured library.
+    media_path = get_settings().media_path
     if not media_path or not os.path.isdir(media_path):
         return jsonify({"error": "media_path not configured or not a directory"}), 400
 
