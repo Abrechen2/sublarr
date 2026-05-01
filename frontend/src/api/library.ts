@@ -1,5 +1,8 @@
 import { api } from './core'
-import type { LibraryInfo, SeriesDetail, MovieDetail, EpisodeHistoryEntry, WantedSearchResponse } from '@/lib/types'
+import type {
+  LibraryInfo, SeriesDetail, MovieDetail, EpisodeHistoryEntry, WantedSearchResponse,
+  SubtitleBackupListResponse, SubtitleBackupCleanupRequest, SubtitleBackupCleanupResponse,
+} from '@/lib/types'
 
 // ─── Library ─────────────────────────────────────────────────────────────────
 
@@ -203,6 +206,22 @@ export async function updateSeriesSettings(
 ): Promise<{ success: boolean }> {
   const response = await api.put(`/library/series/${seriesId}/settings`, settings)
   return response.data
+}
+
+// ─── Subtitle Backups (`.bak.<ext>` lifecycle) ──────────────────────────────
+
+export async function listSubtitleBackups(
+  opts: { series_path?: string } = {},
+): Promise<SubtitleBackupListResponse> {
+  const { data } = await api.get('/library/subtitle-backups', { params: opts })
+  return data
+}
+
+export async function cleanupSubtitleBackups(
+  body: SubtitleBackupCleanupRequest,
+): Promise<SubtitleBackupCleanupResponse> {
+  const { data } = await api.post('/library/subtitle-backups/cleanup', body)
+  return data
 }
 
 export async function batchExtractAllTracks(seriesId: number): Promise<{ status: string }> {

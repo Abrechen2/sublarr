@@ -17,9 +17,11 @@ import {
   getMovieDetail,
   removeTrackFromContainer,
 } from '@/api/client'
-import { listMovieSubtitles } from '@/api/library'
+import {
+  listMovieSubtitles, listSubtitleBackups, cleanupSubtitleBackups,
+} from '@/api/library'
 import { toast } from '@/components/shared/Toast'
-import type { BatchAction } from '@/lib/types'
+import type { BatchAction, SubtitleBackupCleanupRequest } from '@/lib/types'
 
 // ─── Library ─────────────────────────────────────────────────────────────────
 
@@ -351,5 +353,34 @@ export function useRemoveTrackFromContainer() {
     }) => removeTrackFromContainer(epId, trackIndex, subtitleTrackIndex),
     onSuccess: (r) => toast(`Remux job started: ${r.job_id}`),
     onError: () => toast('Failed to start remux job', 'error'),
+  })
+}
+
+
+// ─── Subtitle Backups (`.bak.<ext>` lifecycle) ──────────────────────────────
+
+export function useSubtitleBackups(opts: { seriesPath?: string } = {}) {
+  return useQuery({
+    queryKey: ['subtitleBackups', opts.seriesPath ?? 'all'],
+    queryFn: () => listSubtitleBackups(
+      opts.seriesPath ? { series_path: opts.seriesPath } : {}
+    ),
+    staleTime: 30_000,
+  })
+}
+
+export function useCleanupSubtitleBackups() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (body: SubtitleBackupCleanupRequest) => cleanupSubtitleBackups(body),
+    onSuccess: (result, variables) => {
+      // Skip toast on dry runs — caller renders the preview directly
+      if (variables.dry_run) return
+      const deleted = result.deleted.length
+      const orphans = result.orphans_purged
+      toast(`${deleted} Backups gelöscht (${orphans} Orphans)`, 'success')
+      qc.invalidateQueries({ queryKey: ['subtitleBackups'] })
+    },
+    onError: () => toast('Bereinigung fehlgeschlagen', 'error'),
   })
 }

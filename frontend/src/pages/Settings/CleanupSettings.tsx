@@ -7,7 +7,8 @@
  */
 import { useState, useCallback, useEffect } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Loader2, Globe, ArrowUpCircle, FileX, Database, Archive, Layers, FileWarning } from 'lucide-react'
+import { Loader2, Globe, ArrowUpCircle, FileX, Database, Archive, Layers, FileWarning, ArrowRight } from 'lucide-react'
+import { Link } from 'react-router-dom'
 import { PageHeader } from '@/components/layout/PageHeader'
 import { DiskSpaceWidget } from '@/components/cleanup/DiskSpaceWidget'
 import { CleanupOpCard, type OpMeta } from '@/components/cleanup/CleanupOpCard'
@@ -436,6 +437,32 @@ export function CleanupSettings() {
 
       {/* ── History ── */}
       <HistorySection />
+
+      {/* ── Footer: Manual tools ── */}
+      <div
+        className="rounded-xl px-5 py-4 flex items-center justify-between"
+        style={{ background: 'var(--bg-surface)', border: '1px solid var(--border)' }}
+      >
+        <div>
+          <div className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>
+            {t('cleanup.footer.subtitle_backups.title', 'Untertitel-Backup-Verwaltung')}
+          </div>
+          <div className="text-xs mt-0.5" style={{ color: 'var(--text-muted)' }}>
+            {t(
+              'cleanup.footer.subtitle_backups.description',
+              'Manuelle Übersicht aller .bak-Dateien — Wiederherstellen, Orphans löschen, Trockenlauf.',
+            )}
+          </div>
+        </div>
+        <Link
+          to="/settings/cleanup/subtitle-backups"
+          className="inline-flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium flex-shrink-0"
+          style={{ border: '1px solid var(--border)', color: 'var(--text-secondary)' }}
+        >
+          {t('cleanup.footer.subtitle_backups.open', 'Öffnen')}
+          <ArrowRight size={13} />
+        </Link>
+      </div>
     </div>
   )
 }

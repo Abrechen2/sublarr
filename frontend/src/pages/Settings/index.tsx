@@ -113,6 +113,9 @@ const AboutSettings = lazy(() =>
 const CleanupSettings = lazy(() =>
   import('./CleanupSettings').then((m) => ({ default: m.CleanupSettings })),
 )
+const SubtitleBackupsPage = lazy(() =>
+  import('./SubtitleBackupsPage').then((m) => ({ default: m.SubtitleBackupsPage })),
+)
 const SubtitlesLanguagesPage = lazy(() =>
   import('./SubtitlesLanguagesPage').then((m) => ({ default: m.SubtitlesLanguagesPage })),
 )
@@ -163,6 +166,7 @@ export function SettingsPage() {
             <Route path="system/sync-engines" element={<SyncEnginesTab />} />
             <Route path="about" element={<AboutSettings />} />
             <Route path="cleanup" element={<Suspense fallback={<FormSkeleton />}><CleanupSettings /></Suspense>} />
+            <Route path="cleanup/subtitle-backups" element={<Suspense fallback={<FormSkeleton />}><SubtitleBackupsPage /></Suspense>} />
             <Route path="profiles" element={<Navigate to="/settings/subtitles/languages" replace />} />
             <Route path="hooks" element={<Navigate to="/settings/system/hooks" replace />} />
             <Route path="webhooks" element={<Navigate to="/settings/system/hooks" replace />} />
