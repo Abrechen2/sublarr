@@ -153,6 +153,9 @@ def _execute_scan() -> dict:
 
     try:
         settings = get_settings()
+        if not getattr(settings, "upgrade_enabled", True):
+            logger.info("upgrade_scan: upgrade_enabled=False — skipping scan")
+            return {"queued": 0, "skipped": 0}
         window_days = settings.upgrade_window_days
         interval_h = settings.upgrade_scan_interval_hours
 
