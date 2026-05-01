@@ -1,14 +1,13 @@
 import { useEffect, useState } from 'react'
-import { useTranslation } from 'react-i18next'
 import {
   ChevronDown, Scissors, Wrench, RotateCcw, Clock,
   Eye, Pencil, Download, FileCode,
+  RefreshCw, Clapperboard, ShieldCheck,
 } from 'lucide-react'
 import {
   checkBakExists, processSubtitle, undoProcessSubtitle,
   getSubtitleDownloadUrl, exportSubtitleNfo,
 } from '@/api/client'
-import { advancedSync } from '@/api/system/tasks'
 import type { ProcessingChange } from '@/api/client'
 import { ProcessingPreviewPanel } from './ProcessingPreviewPanel'
 import { toast } from '@/components/shared/Toast'
@@ -20,18 +19,26 @@ interface Props {
   onPreview?: (path: string) => void
   /** Open the inline editor for this sub. Omit to hide the entry. */
   onEdit?: (path: string) => void
+  /** Open the full timing-sync modal (offset + speed + framerate + chapter). */
+  onSync?: (path: string) => void
+  /** Run auto-sync against the parent video. Omit to hide. */
+  onAutoSync?: (path: string) => void
+  /** Run video-sync against the parent video. Omit to hide. */
+  onVideoSync?: (path: string) => void
+  /** Run health-check on this sub. Omit to hide. */
+  onHealthCheck?: (path: string) => void
 }
 
-type ActivePanel = 'hi_removal' | 'common_fixes' | 'timing' | null
+type ActivePanel = 'hi_removal' | 'common_fixes' | null
 
-export function SubtitleActionsMenu({ subtitlePath, onRefresh, onPreview, onEdit }: Props) {
-  const { t: tc } = useTranslation('common')
+export function SubtitleActionsMenu({
+  subtitlePath, onRefresh, onPreview, onEdit, onSync, onAutoSync, onVideoSync, onHealthCheck,
+}: Props) {
   const [open, setOpen] = useState(false)
   const [hasBak, setHasBak] = useState(false)
   const [activePanel, setActivePanel] = useState<ActivePanel>(null)
   const [previewChanges, setPreviewChanges] = useState<ProcessingChange[]>([])
   const [loading, setLoading] = useState(false)
-  const [timingOffset, setTimingOffset] = useState(0)
 
   useEffect(() => {
     setHasBak(false)
@@ -60,7 +67,7 @@ export function SubtitleActionsMenu({ subtitlePath, onRefresh, onPreview, onEdit
   }
 
   async function confirmApply() {
-    if (!activePanel || activePanel === 'timing') return
+    if (!activePanel) return
     setLoading(true)
     try {
       await processSubtitle(subtitlePath, [{ mod: activePanel }], false)
@@ -69,22 +76,6 @@ export function SubtitleActionsMenu({ subtitlePath, onRefresh, onPreview, onEdit
       onRefresh?.()
     } catch (e: unknown) {
       toast(e instanceof Error ? e.message : 'Anwenden fehlgeschlagen', 'error')
-    } finally {
-      setLoading(false)
-    }
-  }
-
-  async function applyTiming() {
-    if (timingOffset === 0) return
-    setLoading(true)
-    try {
-      await advancedSync(subtitlePath, 'offset', { offset_ms: timingOffset })
-      toast(`Timing um ${timingOffset > 0 ? '+' : ''}${timingOffset} ms verschoben`, 'success')
-      setActivePanel(null)
-      setTimingOffset(0)
-      onRefresh?.()
-    } catch (e: unknown) {
-      toast(e instanceof Error ? e.message : 'Timing-Anpassung fehlgeschlagen', 'error')
     } finally {
       setLoading(false)
     }
@@ -160,12 +151,38 @@ export function SubtitleActionsMenu({ subtitlePath, onRefresh, onPreview, onEdit
           >
             <Wrench size={14} /> Common Fixes
           </button>
-          <button
-            onClick={() => { setOpen(false); setActivePanel('timing') }}
-            className="flex items-center gap-2 w-full px-3 py-2 text-sm hover:bg-zinc-800 text-left"
-          >
-            <Clock size={14} /> Timing verschieben
-          </button>
+          {onSync && (
+            <button
+              onClick={() => { setOpen(false); onSync(subtitlePath) }}
+              className="flex items-center gap-2 w-full px-3 py-2 text-sm hover:bg-zinc-800 text-left"
+            >
+              <Clock size={14} /> Timing anpassen
+            </button>
+          )}
+          {onAutoSync && (
+            <button
+              onClick={() => { setOpen(false); onAutoSync(subtitlePath) }}
+              className="flex items-center gap-2 w-full px-3 py-2 text-sm hover:bg-zinc-800 text-left"
+            >
+              <RefreshCw size={14} /> Auto-Sync
+            </button>
+          )}
+          {onVideoSync && (
+            <button
+              onClick={() => { setOpen(false); onVideoSync(subtitlePath) }}
+              className="flex items-center gap-2 w-full px-3 py-2 text-sm hover:bg-zinc-800 text-left"
+            >
+              <Clapperboard size={14} /> Video-Sync
+            </button>
+          )}
+          {onHealthCheck && (
+            <button
+              onClick={() => { setOpen(false); onHealthCheck(subtitlePath) }}
+              className="flex items-center gap-2 w-full px-3 py-2 text-sm hover:bg-zinc-800 text-left"
+            >
+              <ShieldCheck size={14} /> Health-Check
+            </button>
+          )}
           {hasBak && (
             <button
               onClick={handleUndo}
@@ -174,39 +191,6 @@ export function SubtitleActionsMenu({ subtitlePath, onRefresh, onPreview, onEdit
               <RotateCcw size={14} /> Backup wiederherstellen
             </button>
           )}
-        </div>
-      )}
-
-      {activePanel === 'timing' && (
-        <div className="absolute right-0 z-30 mt-1 border border-zinc-700 rounded-lg bg-zinc-900 p-4 space-y-3 w-64">
-          <div className="text-sm font-medium text-zinc-300">{tc('ui.timing_shift')}</div>
-          <div className="flex items-center gap-2">
-            <input
-              type="number"
-              value={timingOffset}
-              onChange={(e) => setTimingOffset(parseInt(e.target.value) || 0)}
-              className="w-28 px-2 py-1.5 rounded text-sm text-center bg-zinc-800 border border-zinc-600 text-zinc-100"
-              placeholder="0"
-            />
-            <span className="text-xs text-zinc-400">
-              ms {timingOffset > 0 ? '(verzögern)' : timingOffset < 0 ? '(vorverlegen)' : ''}
-            </span>
-          </div>
-          <div className="flex gap-2">
-            <button
-              onClick={applyTiming}
-              disabled={loading || timingOffset === 0}
-              className="px-3 py-1.5 text-sm bg-blue-600 hover:bg-blue-500 text-white rounded disabled:opacity-50"
-            >
-              {loading ? 'Wird angewendet…' : 'Übernehmen'}
-            </button>
-            <button
-              onClick={() => { setActivePanel(null); setTimingOffset(0) }}
-              className="px-3 py-1.5 text-sm bg-zinc-700 hover:bg-zinc-600 text-white rounded"
-            >
-              Abbrechen
-            </button>
-          </div>
         </div>
       )}
 

@@ -191,13 +191,7 @@ export function SeasonGroup({
                 status === 'low-score' ? 'var(--warning)' :
                 'var(--text-secondary)'
 
-              // Compute firstSubPath and hasMultipleSubs for EpisodeActionMenu
-              const firstEntry = ep.has_file
-                ? Object.entries(ep.subtitles).find(([, f]) => f === 'ass' || f === 'srt')
-                : null
-              const firstSubPath = firstEntry
-                ? deriveSubtitlePath(ep.file_path, firstEntry[0], firstEntry[1])
-                : null
+              // hasMultipleSubs gates the Compare entry in EpisodeActionMenu.
               const hasMultipleSubs = ep.has_file
                 ? Object.values(ep.subtitles).filter((f) => f === 'ass' || f === 'srt').length >= 2
                 : false
@@ -328,6 +322,10 @@ export function SeasonGroup({
                                       onRefresh={onRefreshSidecars}
                                       onPreview={onPreviewSub}
                                       onEdit={onEditSub}
+                                      onSync={onSync}
+                                      onAutoSync={(p) => onAutoSync(p, ep.file_path)}
+                                      onVideoSync={(p) => onVideoSync(ep, p)}
+                                      onHealthCheck={onHealthCheck}
                                     />
                                   </>
                                 )}
@@ -497,15 +495,9 @@ export function SeasonGroup({
                         mode={mode}
                         searchLoading={searchLoading}
                         historyLoading={historyLoading}
-                        firstSubPath={firstSubPath}
                         hasMultipleSubs={hasMultipleSubs}
                         onSearch={() => onSearch(ep)}
-                        onPreviewSub={onPreviewSub}
                         onCompare={() => onCompare(ep)}
-                        onSync={onSync}
-                        onAutoSync={onAutoSync}
-                        onVideoSync={(subtitlePath) => onVideoSync(ep, subtitlePath)}
-                        onHealthCheck={onHealthCheck}
                         onTracks={() => _onTracks(ep)}
                         onInteractiveSearch={() => onInteractiveSearch(ep)}
                         onHistory={() => _onHistory(ep)}

@@ -1,8 +1,7 @@
 import { useState, useRef, useEffect } from 'react'
 import { useTranslation } from 'react-i18next'
 import {
-  Search, MoreHorizontal, Eye, Columns2, Timer,
-  RefreshCw, Clapperboard, ShieldCheck, Database, ScanSearch, Clock, Loader2, ChevronUp,
+  Search, MoreHorizontal, Columns2, Database, ScanSearch, Clock, Loader2, ChevronUp,
 } from 'lucide-react'
 import type { EpisodeInfo } from '@/lib/types'
 
@@ -12,17 +11,10 @@ interface EpisodeActionMenuProps {
   mode: string | undefined
   searchLoading: boolean
   historyLoading: boolean
-  /** Path of first available subtitle (ass/srt), or null */
-  firstSubPath: string | null
-  /** True if at least 2 subtitle files exist */
+  /** True if at least 2 subtitle files exist (gates the Compare entry) */
   hasMultipleSubs: boolean
   onSearch: () => void
-  onPreviewSub: (filePath: string) => void
   onCompare: () => void
-  onSync: (filePath: string) => void
-  onAutoSync: (subtitlePath: string, videoPath: string) => void
-  onVideoSync: (subtitlePath: string) => void
-  onHealthCheck: (filePath: string) => void
   onTracks: () => void
   onInteractiveSearch: () => void
   onHistory: () => void
@@ -35,15 +27,9 @@ export function EpisodeActionMenu({
   mode,
   searchLoading,
   historyLoading,
-  firstSubPath,
   hasMultipleSubs,
   onSearch,
-  onPreviewSub,
   onCompare,
-  onSync,
-  onAutoSync,
-  onVideoSync,
-  onHealthCheck,
   onTracks,
   onInteractiveSearch,
   onHistory,
@@ -69,8 +55,6 @@ export function EpisodeActionMenu({
   const muted = 'var(--text-muted)'
   const accent = 'var(--accent)'
   const accentBg = 'var(--accent-subtle)'
-
-  const hasAnySub = ep.has_file && firstSubPath !== null
 
   return (
     <div className="flex items-center gap-0.5">
@@ -109,7 +93,7 @@ export function EpisodeActionMenu({
         <span>{t('series_detail.search_subtitles')}</span>
       </button>
 
-      {/* More dropdown */}
+      {/* More dropdown — episode-scope only (per-sidecar actions live on the language pill) */}
       <div className="relative" ref={dropdownRef}>
         <button
           data-testid="episode-actions-menu"
@@ -128,16 +112,7 @@ export function EpisodeActionMenu({
             className="absolute right-0 top-7 z-50 rounded-lg shadow-lg py-1 min-w-44"
             style={{ backgroundColor: 'var(--bg-surface)', border: '1px solid var(--border)' }}
           >
-            {/* Preview */}
-            {firstSubPath && (
-              <DropdownItem
-                icon={<Eye size={13} />}
-                label={t('episode_actions.preview_subtitle')}
-                onClick={() => { onPreviewSub(firstSubPath); setDropdownOpen(false) }}
-              />
-            )}
-
-            {/* Compare */}
+            {/* Compare — needs 2+ sidecars */}
             {hasMultipleSubs && (
               <DropdownItem
                 icon={<Columns2 size={13} />}
@@ -146,60 +121,25 @@ export function EpisodeActionMenu({
               />
             )}
 
-            {/* Divider: Timing group */}
-            {hasAnySub && firstSubPath && (
-              <>
-                <DropdownDivider label={t('episode_action_menu.timing')} />
-                <DropdownItem
-                  icon={<Timer size={13} />}
-                  label={t('episode_actions.sync_timing')}
-                  onClick={() => { onSync(firstSubPath); setDropdownOpen(false) }}
-                />
-                <DropdownItem
-                  icon={<RefreshCw size={13} />}
-                  label={t('episode_actions.auto_sync')}
-                  onClick={() => { onAutoSync(firstSubPath, ep.file_path); setDropdownOpen(false) }}
-                />
-                <DropdownItem
-                  icon={<Clapperboard size={13} />}
-                  label={t('episode_actions.video_sync')}
-                  onClick={() => { onVideoSync(firstSubPath); setDropdownOpen(false) }}
-                />
-              </>
-            )}
-
-            {/* Divider: Analysis group */}
+            {/* Embedded Tracks — container-level inspection */}
             {ep.has_file && (
-              <>
-                <DropdownDivider label={t('episode_action_menu.analyse')} />
-                {hasAnySub && firstSubPath && (
-                  <DropdownItem
-                    icon={<ShieldCheck size={13} />}
-                    label={t('episode_actions.health_check')}
-                    onClick={() => { onHealthCheck(firstSubPath); setDropdownOpen(false) }}
-                  />
-                )}
-                <DropdownItem
-                  icon={<Database size={13} />}
-                  label={t('episode_actions.embedded_tracks')}
-                  onClick={() => { onTracks(); setDropdownOpen(false) }}
-                />
-              </>
+              <DropdownItem
+                icon={<Database size={13} />}
+                label={t('episode_actions.embedded_tracks')}
+                onClick={() => { onTracks(); setDropdownOpen(false) }}
+              />
             )}
 
-            {/* Interactive Search */}
+            {/* Interactive Search — episode-level provider lookup */}
             {ep.has_file && (
-              <>
-                <DropdownDivider />
-                <DropdownItem
-                  icon={<ScanSearch size={13} />}
-                  label={t('episode_actions.interactive_search')}
-                  onClick={() => { onInteractiveSearch(); setDropdownOpen(false) }}
-                />
-              </>
+              <DropdownItem
+                icon={<ScanSearch size={13} />}
+                label={t('episode_actions.interactive_search')}
+                onClick={() => { onInteractiveSearch(); setDropdownOpen(false) }}
+              />
             )}
 
-            {/* History */}
+            {/* History — episode-level history */}
             {ep.has_file && (
               <DropdownItem
                 icon={historyLoading && isExpanded && mode === 'history' ? <Loader2 size={13} className="animate-spin" /> : <Clock size={13} />}
@@ -237,23 +177,5 @@ function DropdownItem({
       {icon}
       {label}
     </button>
-  )
-}
-
-function DropdownDivider({ label }: { label?: string }) {
-  return (
-    <div
-      className="mx-3 my-1 flex items-center gap-2"
-      style={{ borderTop: '1px solid var(--border)' }}
-    >
-      {label && (
-        <span
-          className="text-[10px] uppercase tracking-wider pt-1"
-          style={{ color: 'var(--text-muted)' }}
-        >
-          {label}
-        </span>
-      )}
-    </div>
   )
 }
