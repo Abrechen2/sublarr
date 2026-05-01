@@ -322,6 +322,9 @@ class TestDailyStats:
         assert "total_subtitles" in summary
         assert "average_score" in summary
         assert "low_score_count" in summary
+        assert "downloads_today" in summary
+        # 2 translated / (2 translated + 1 failed) = 66.7%; skipped excluded.
+        assert summary["success_rate"] == round(200 / 3, 1)
 
     def test_get_stats_summary_empty(self, repo):
         """get_stats_summary with no stats returns zeroes."""
@@ -330,6 +333,9 @@ class TestDailyStats:
         assert summary["total_failed"] == 0
         assert summary["today_translated"] == 0
         assert summary["daily"] == []
+        # No translation attempts yet → success_rate is None (renders "—" in UI).
+        assert summary["success_rate"] is None
+        assert summary["downloads_today"] == 0
 
     def test_get_stats_summary_no_subtitle_data(self, repo):
         """get_stats_summary with no subtitle downloads returns safe defaults."""
@@ -337,6 +343,7 @@ class TestDailyStats:
         assert summary["total_subtitles"] == 0
         assert summary["average_score"] is None
         assert summary["low_score_count"] == 0
+        assert summary["downloads_today"] == 0
 
 
 # ---------------------------------------------------------------------------

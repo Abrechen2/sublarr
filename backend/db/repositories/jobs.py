@@ -287,6 +287,23 @@ class JobRepository(BaseRepository):
             or 0
         )
 
+        # Dashboard StatusStripe + MetricsRow read these. The legacy summary
+        # only exposed translation counts (today_translated etc.), so the
+        # subtitle-side widgets stayed at "—" and "+0" even on busy installs.
+        today_start = datetime.combine(date.today(), datetime.min.time(), tzinfo=UTC)
+        downloads_today = (
+            self.session.execute(
+                select(func.count())
+                .select_from(SubtitleDownload)
+                .where(SubtitleDownload.downloaded_at >= today_start)
+            ).scalar()
+            or 0
+        )
+        attempts_30d = total_translated + total_failed
+        success_rate = (
+            round(total_translated * 100 / attempts_30d, 1) if attempts_30d > 0 else None
+        )
+
         return {
             "total_translated": total_translated,
             "total_failed": total_failed,
@@ -296,6 +313,8 @@ class JobRepository(BaseRepository):
             "by_source": by_source_total,
             "daily": daily,
             "total_subtitles": total_subtitles,
+            "downloads_today": downloads_today,
+            "success_rate": success_rate,
             "average_score": average_score,
             "low_score_count": low_score_count,
         }
