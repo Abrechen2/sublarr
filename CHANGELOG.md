@@ -5,6 +5,12 @@ All notable changes to Sublarr are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.82.0-beta] - 2026-05-01
+
+### Added
+- **Anonymous OpenAPI discovery** — `GET /api/docs` (Swagger UI) and `GET /api/v1/openapi.json` are now exempt from the X-Api-Key gate, so power users can browse the full API surface without manually injecting a header. The Swagger UI still requires the key for "Try it out" calls via the standard Authorize flow, so authenticated endpoints remain protected.
+- **Reusable Pydantic components** — `backend/schemas/api_components.py` introduces the first five domain models (`ErrorResponse`, `WantedItem`, `LanguageProfile`, `CleanupRule`, `SubtitleSidecar`) and registers each one in the OpenAPI spec under `#/components/schemas/<ClassName>` via `pydantic.model_json_schema()`. Routes can now reference shared shapes via `$ref` instead of inlining them, and the same models become the foundation for upcoming request-validation decorators and frontend codegen.
+
 ## [0.81.2-beta] - 2026-05-01
 
 ### Fixed
