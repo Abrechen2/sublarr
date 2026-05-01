@@ -5,6 +5,11 @@ All notable changes to Sublarr are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.78.0-beta] - 2026-05-01
+
+### Added
+- **Auto-extract now keeps only wanted languages** — The scheduler-driven embedded-subtitle extraction (drained every ~2 min for items in the Wanted list) now extracts every text-based subtitle stream the container offers and trashes any sidecar whose language is not in the active profile's `target_languages` (plus `source_language` when auto-translation is enabled). Previously it only picked one "best" stream and never cleaned up non-target sidecars, so users with `wanted_auto_extract=true` saw the bare one-stream behaviour even though their profile said "keep de+en, trash the rest". The auto path and the UI Batch-Probe action now share a single `services.embedded_extractor` pipeline. Trash semantics are recoverable: both the container backup and trashed sidecars land under `remux_trash_dir` (`.sublarr/trash`), nothing is hard-deleted.
+
 ## [0.77.3-beta] - 2026-05-01
 
 ### Fixed
