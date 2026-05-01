@@ -5,6 +5,12 @@ All notable changes to Sublarr are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.81.0-beta] - 2026-05-01
+
+### Changed
+- **Clean episode/pill action split** — The per-episode `⋯` dropdown stopped duplicating sidecar-bound actions that the per-pill `⋯` already covered. Vorschau, Timing anpassen, Auto-Sync, Video-Sync and Health-Check now live exclusively on the language pill (no more `firstSubPath` heuristic that picked an arbitrary sub for the user). The episode menu keeps only genuinely episode-scoped actions: Vergleichen, Embedded Tracks, Interactive Search, History.
+- **Pill timing opens the full sync modal** — The pill's "Timing anpassen" entry now opens the four-tab `SyncControls` modal (offset + speed + framerate + chapter) instead of the offset-only inline panel. Single timing entry point, full feature surface.
+
 ## [0.80.0-beta] - 2026-05-01
 
 ### Added
