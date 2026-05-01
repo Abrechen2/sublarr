@@ -3,7 +3,7 @@
 Covers:
 - `is_sdh_stream()` helper: recognizes 'SDH', 'CC', 'HI', 'hearing_impaired'
   markers in either the title or disposition flags.
-- `_collect_subtitle_streams`: respects `embedded_allow_sdh`. When False,
+- `collect_subtitle_streams`: respects `embedded_allow_sdh`. When False,
   SDH streams are filtered out entirely. When True (default), they are
   collected normally.
 - `embedded.py` provider: applies `embedded_sdh_penalty` to score_bonus so
@@ -16,7 +16,7 @@ import pytest
 
 from ass_probe import is_sdh_stream
 from config_settings import Settings
-from routes.wanted.batch_probe import _collect_subtitle_streams
+from services.embedded_extractor import collect_subtitle_streams
 
 
 class TestIsSdhStream:
@@ -80,15 +80,15 @@ class TestCollectSubtitleStreamsRespectsToggle:
     def test_keeps_both_when_allow_sdh_true(self):
         probe = self._probe_with_eng_sdh_and_eng_plain()
         fake = Settings(embedded_allow_sdh=True)
-        with patch("routes.wanted.batch_probe.get_settings", return_value=fake):
-            streams = _collect_subtitle_streams(probe)
+        with patch("services.embedded_extractor.get_settings", return_value=fake):
+            streams = collect_subtitle_streams(probe)
         assert len(streams) == 2
 
     def test_drops_sdh_when_allow_sdh_false(self):
         probe = self._probe_with_eng_sdh_and_eng_plain()
         fake = Settings(embedded_allow_sdh=False)
-        with patch("routes.wanted.batch_probe.get_settings", return_value=fake):
-            streams = _collect_subtitle_streams(probe)
+        with patch("services.embedded_extractor.get_settings", return_value=fake):
+            streams = collect_subtitle_streams(probe)
         assert len(streams) == 1
         # The one kept is the plain English track.
         assert streams[0]["stream_index"] == 3
@@ -107,8 +107,8 @@ class TestCollectSubtitleStreamsRespectsToggle:
             ]
         }
         fake = Settings(embedded_allow_sdh=True)
-        with patch("routes.wanted.batch_probe.get_settings", return_value=fake):
-            streams = _collect_subtitle_streams(probe)
+        with patch("services.embedded_extractor.get_settings", return_value=fake):
+            streams = collect_subtitle_streams(probe)
         assert len(streams) == 1
 
 

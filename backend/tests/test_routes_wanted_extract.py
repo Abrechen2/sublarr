@@ -58,7 +58,15 @@ P_SOCKETIO_BE = f"{_M_BE}.socketio"
 _M_BP = "routes.wanted.batch_probe"
 P_EMIT_EVENT_BP = f"{_M_BP}.emit_event"
 P_SOCKETIO_BP = f"{_M_BP}.socketio"
-P_REMOVE_STREAMS_BP = f"{_M_BP}.remove_subtitle_streams"
+
+# After the 2026-05-01 refactor the actual remux helpers live in the shared
+# services.embedded_extractor module — both the auto path
+# (_extract_embedded_sub) and the UI batch-probe path call into it.
+# Patches on top-level imports must target this module.
+_M_SVC = "services.embedded_extractor"
+P_REMOVE_STREAMS_BP = f"{_M_SVC}.remove_subtitle_streams"
+P_REMOVE_STREAMS_SVC = f"{_M_SVC}.remove_subtitle_streams"
+P_TRASH_SIDECARS_SVC = f"{_M_SVC}.trash_non_target_sidecars"
 
 # ---------------------------------------------------------------------------
 # Helpers
@@ -690,22 +698,42 @@ class TestExtractEmbeddedSubHelper:
             _extract_embedded_sub(1, str(mkv))
 
     def test_successful_extraction(self, app_client, tmp_path):
+        """Extracting a single English ASS stream succeeds via the shared
+        embedded_extractor pipeline.
+
+        After the 2026-05-01 refactor the auto path no longer calls
+        ``select_best_subtitle_stream`` — instead it walks every text
+        stream returned by ffprobe, extracts each one to its
+        per-language sidecar, then picks the primary based on
+        ``target_language``. The probe data therefore needs at least
+        one real subtitle stream entry.
+        """
         app, _ = app_client
         from routes.wanted.extract import _extract_embedded_sub
 
         mkv = tmp_path / "video.mkv"
         mkv.write_bytes(b"\x1a\x45\xdf\xa3")
 
-        stream_info = {"sub_index": 0, "stream_index": 2, "format": "ass", "language": "eng"}
+        sidecar_path = tmp_path / "video.eng.ass"
+        probe_data = {
+            "streams": [
+                {
+                    "codec_type": "subtitle",
+                    "codec_name": "ass",
+                    "index": 2,
+                    "tags": {"language": "eng"},
+                }
+            ]
+        }
 
         with (
             app.app_context(),
             patch(P_GET_WANTED_ITEM, return_value={"id": 1, "target_language": "de"}),
-            patch(P_GET_MEDIA, return_value={"streams": []}),
-            patch(P_SELECT_BEST, return_value=stream_info),
-            patch(P_OUTPUT_FOR_LANG, return_value="/out/video.de.ass"),
+            patch(P_GET_MEDIA, return_value=probe_data),
+            patch(P_GET_SUB_OUT_PATH, return_value=str(sidecar_path)),
             patch(P_EXTRACT_STREAM),
-            patch(P_REMOVE_STREAM, return_value="/bak"),
+            patch(P_REMOVE_STREAMS_SVC, return_value="/bak"),
+            patch(P_TRASH_SIDECARS_SVC, return_value=[]),
             patch(P_UPDATE_EXISTING_SUB),
             patch(P_UPDATE_STATUS),
             patch(P_EMIT_EVENT),
@@ -715,7 +743,7 @@ class TestExtractEmbeddedSubHelper:
 
         assert result["status"] == "extracted"
         assert result["format"] == "ass"
-        assert result["output_path"] == "/out/video.de.ass"
+        assert result["output_path"] == str(sidecar_path)
 
     def test_auto_translate_srt(self, app_client, tmp_path):
         """auto_translate=True starts a background translation thread for SRT."""
@@ -725,16 +753,26 @@ class TestExtractEmbeddedSubHelper:
         mkv = tmp_path / "video.mkv"
         mkv.write_bytes(b"\x1a\x45\xdf\xa3")
 
-        stream_info = {"sub_index": 0, "stream_index": 2, "format": "srt", "language": "eng"}
+        sidecar_path = tmp_path / "video.eng.srt"
+        probe_data = {
+            "streams": [
+                {
+                    "codec_type": "subtitle",
+                    "codec_name": "subrip",
+                    "index": 2,
+                    "tags": {"language": "eng"},
+                }
+            ]
+        }
 
         with (
             app.app_context(),
             patch(P_GET_WANTED_ITEM, return_value={"id": 1, "target_language": "de"}),
-            patch(P_GET_MEDIA, return_value={"streams": []}),
-            patch(P_SELECT_BEST, return_value=stream_info),
-            patch(P_OUTPUT_FOR_LANG, return_value="/out/video.de.srt"),
+            patch(P_GET_MEDIA, return_value=probe_data),
+            patch(P_GET_SUB_OUT_PATH, return_value=str(sidecar_path)),
             patch(P_EXTRACT_STREAM),
-            patch(P_REMOVE_STREAM, return_value="/bak"),
+            patch(P_REMOVE_STREAMS_SVC, return_value="/bak"),
+            patch(P_TRASH_SIDECARS_SVC, return_value=[]),
             patch(P_UPDATE_EXISTING_SUB),
             patch(P_UPDATE_STATUS),
             patch(P_EMIT_EVENT),
@@ -756,16 +794,26 @@ class TestExtractEmbeddedSubHelper:
         mkv = tmp_path / "video.mkv"
         mkv.write_bytes(b"\x1a\x45\xdf\xa3")
 
-        stream_info = {"sub_index": 0, "stream_index": 2, "format": "ass", "language": "eng"}
+        sidecar_path = tmp_path / "video.eng.ass"
+        probe_data = {
+            "streams": [
+                {
+                    "codec_type": "subtitle",
+                    "codec_name": "ass",
+                    "index": 2,
+                    "tags": {"language": "eng"},
+                }
+            ]
+        }
 
         with (
             app.app_context(),
             patch(P_GET_WANTED_ITEM, return_value={"id": 1, "target_language": "de"}),
-            patch(P_GET_MEDIA, return_value={"streams": []}),
-            patch(P_SELECT_BEST, return_value=stream_info),
-            patch(P_OUTPUT_FOR_LANG, return_value="/out/video.de.ass"),
+            patch(P_GET_MEDIA, return_value=probe_data),
+            patch(P_GET_SUB_OUT_PATH, return_value=str(sidecar_path)),
             patch(P_EXTRACT_STREAM),
-            patch(P_REMOVE_STREAM, return_value="/bak"),
+            patch(P_REMOVE_STREAMS_SVC, return_value="/bak"),
+            patch(P_TRASH_SIDECARS_SVC, return_value=[]),
             patch(P_UPDATE_EXISTING_SUB),
             patch(P_UPDATE_STATUS),
             patch(P_EMIT_EVENT),

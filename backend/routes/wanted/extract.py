@@ -48,21 +48,39 @@ def _remove_stream_from_container(file_path: str, stream_info: dict) -> None:
 
 
 def _extract_embedded_sub(item_id: int, file_path: str, auto_translate: bool = False) -> dict:
-    """Standalone helper: extract embedded subtitle for a wanted item.
+    """Standalone helper: extract embedded subtitles for a wanted item.
 
     Callable from outside a Flask request context (e.g. from the scanner).
     Returns a result dict with keys: status, output_path, format, language.
     Raises on hard errors; caller is responsible for exception handling.
 
+    Behaviour (rev. with shared embedded_extractor pipeline):
+      - Extracts EVERY text-based subtitle stream the container offers,
+        not just the "best" one. Image subtitles (PGS/VobSub) are skipped.
+      - Removes all extracted streams from the container in a single
+        mkvmerge pass with a backup in ``remux_trash_dir`` (recoverable).
+      - Trashes any sidecar whose language is not in the wanted item's
+        profile target_languages — also into ``remux_trash_dir``.
+      - Returns the "primary" sidecar (the target-lang match, falling
+        back to the first extracted file) so existing callers keep
+        receiving a single output_path/format/language.
+
     Args:
         item_id: ID of the wanted item.
         file_path: Absolute path to the media file.
-        auto_translate: If True, trigger translation after extraction.
+        auto_translate: If True, trigger translation of the primary
+            extracted SRT after extraction. Translation is a Beta-gated
+            feature in production; the scheduler-driven drain passes
+            False so it stays manual.
     """
-    from ass_utils import extract_subtitle_stream, get_media_streams, select_best_subtitle_stream
+    from ass_utils import get_media_streams
     from config import get_settings
     from db.wanted import get_wanted_item, update_existing_sub, update_wanted_status
-    from translator import get_output_path_for_lang
+    from services.embedded_extractor import (
+        compute_keep_langs,
+        extract_and_cleanup,
+        resolve_profile_for_item,
+    )
 
     settings = get_settings()
 
@@ -78,19 +96,30 @@ def _extract_embedded_sub(item_id: int, file_path: str, auto_translate: bool = F
 
     target_language = item.get("target_language") or settings.target_language
 
-    # Get media stream metadata
+    # Resolve which languages the per-series / per-movie profile asks
+    # us to keep. Sidecars in other languages get moved to the trash dir
+    # after the extract pass so the user only retains what they want —
+    # everything is recoverable via the trash UI.
+    profile = resolve_profile_for_item(item, settings)
+    keep_langs = compute_keep_langs(profile, settings)
+
     probe_data = get_media_streams(file_path, use_cache=True)
 
-    # Auto-select best subtitle stream for target language
-    stream_info = select_best_subtitle_stream(probe_data)
-    if not stream_info:
+    result = extract_and_cleanup(
+        file_path=file_path,
+        probe_data=probe_data,
+        keep_langs=keep_langs,
+        target_language=target_language,
+        log_label=f"auto-extract item {item_id}",
+    )
+
+    if not result.any_extracted or result.primary_output_path is None:
         raise LookupError(f"No suitable subtitle stream found in {file_path}")
 
-    # Determine output path and extract
-    output_path = get_output_path_for_lang(file_path, stream_info["format"], target_language)
-    extract_subtitle_stream(file_path, stream_info, output_path)
+    output_path = result.primary_output_path
+    primary_format = result.primary_format or "srt"
 
-    # Plan B5 — run repair on the extracted track (opt-outable).
+    # Plan B5 — run repair on the primary extracted track (opt-outable).
     # Fixes BOM, newlines, invalid decimals, overlapping cues, encoding
     # mis-detection. Must never abort extraction — fall through on any error.
     try:
@@ -111,11 +140,8 @@ def _extract_embedded_sub(item_id: int, file_path: str, auto_translate: bool = F
             _repair_err,
         )
 
-    # Remove the extracted stream from the video container
-    _remove_stream_from_container(file_path, stream_info)
-
     # Mark item as extracted — keep visible in Wanted for user-initiated cleanup/translate
-    update_existing_sub(item_id, stream_info["format"])
+    update_existing_sub(item_id, primary_format)
     update_wanted_status(item_id, "extracted")
     emit_event(
         "wanted_item_processed",
@@ -124,6 +150,8 @@ def _extract_embedded_sub(item_id: int, file_path: str, auto_translate: bool = F
             "status": "extracted",
             "output_path": output_path,
             "source": "embedded",
+            "extracted_count": len(result.extracted),
+            "sidecars_trashed": result.sidecars_trashed,
         },
     )
 
@@ -131,11 +159,17 @@ def _extract_embedded_sub(item_id: int, file_path: str, auto_translate: bool = F
         EVENT_EXTRACT,
         file_path=str(file_path),
         status="success",
-        details={"format": stream_info["format"], "output_path": output_path, "wanted_id": item_id},
+        details={
+            "format": primary_format,
+            "output_path": output_path,
+            "wanted_id": item_id,
+            "extracted_count": len(result.extracted),
+            "sidecars_trashed": result.sidecars_trashed,
+        },
     )
 
-    if auto_translate and stream_info["format"] == "srt":
-        # Trigger translation of the extracted SRT in a background thread
+    if auto_translate and primary_format == "srt":
+        # Trigger translation of the primary extracted SRT in a background thread
         try:
             from translator import Translator
 
@@ -155,8 +189,10 @@ def _extract_embedded_sub(item_id: int, file_path: str, auto_translate: bool = F
     return {
         "status": "extracted",
         "output_path": output_path,
-        "format": stream_info["format"],
-        "language": stream_info.get("language", ""),
+        "format": primary_format,
+        "language": result.primary_language or "",
+        "extracted_count": len(result.extracted),
+        "sidecars_trashed": result.sidecars_trashed,
     }
 
 
