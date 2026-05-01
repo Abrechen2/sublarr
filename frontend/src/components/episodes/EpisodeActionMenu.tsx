@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect } from 'react'
 import { useTranslation } from 'react-i18next'
 import {
-  Search, Pencil, MoreHorizontal, Eye, Columns2, Timer,
+  Search, MoreHorizontal, Eye, Columns2, Timer,
   RefreshCw, Clapperboard, ShieldCheck, Database, ScanSearch, Clock, Loader2, ChevronUp,
 } from 'lucide-react'
 import type { EpisodeInfo } from '@/lib/types'
@@ -17,7 +17,6 @@ interface EpisodeActionMenuProps {
   /** True if at least 2 subtitle files exist */
   hasMultipleSubs: boolean
   onSearch: () => void
-  onEditSub: (filePath: string) => void
   onPreviewSub: (filePath: string) => void
   onCompare: () => void
   onSync: (filePath: string) => void
@@ -30,15 +29,6 @@ interface EpisodeActionMenuProps {
   onClose: () => void
 }
 
-function deriveFirstEditPath(ep: EpisodeInfo): string | null {
-  const entry = Object.entries(ep.subtitles).find(([, f]) => f === 'ass' || f === 'srt')
-  if (!entry) return null
-  const [lang, format] = entry
-  const lastDot = ep.file_path.lastIndexOf('.')
-  const base = lastDot > 0 ? ep.file_path.substring(0, lastDot) : ep.file_path
-  return `${base}.${lang}.${format}`
-}
-
 export function EpisodeActionMenu({
   ep,
   isExpanded,
@@ -48,7 +38,6 @@ export function EpisodeActionMenu({
   firstSubPath,
   hasMultipleSubs,
   onSearch,
-  onEditSub,
   onPreviewSub,
   onCompare,
   onSync,
@@ -82,7 +71,6 @@ export function EpisodeActionMenu({
   const accentBg = 'var(--accent-subtle)'
 
   const hasAnySub = ep.has_file && firstSubPath !== null
-  const editPath = hasAnySub ? deriveFirstEditPath(ep) : null
 
   return (
     <div className="flex items-center gap-0.5">
@@ -120,21 +108,6 @@ export function EpisodeActionMenu({
         )}
         <span>{t('series_detail.search_subtitles')}</span>
       </button>
-
-      {/* Primary: Edit (only when subtitle exists) */}
-      {editPath && (
-        <button
-          onClick={() => onEditSub(editPath)}
-          className={`${iconBtn} flex items-center gap-1 px-2 text-xs font-medium`}
-          style={{ color: muted }}
-          title={t('episode_actions.edit_subtitle')}
-          onMouseEnter={(e) => { e.currentTarget.style.color = accent; e.currentTarget.style.backgroundColor = accentBg }}
-          onMouseLeave={(e) => { e.currentTarget.style.color = muted; e.currentTarget.style.backgroundColor = '' }}
-        >
-          <Pencil size={13} />
-          <span>{t('episode_actions.edit_subtitle')}</span>
-        </button>
-      )}
 
       {/* More dropdown */}
       <div className="relative" ref={dropdownRef}>

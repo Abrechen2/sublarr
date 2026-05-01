@@ -500,7 +500,6 @@ export function SeasonGroup({
                         firstSubPath={firstSubPath}
                         hasMultipleSubs={hasMultipleSubs}
                         onSearch={() => onSearch(ep)}
-                        onEditSub={onEditSub}
                         onPreviewSub={onPreviewSub}
                         onCompare={() => onCompare(ep)}
                         onSync={onSync}
