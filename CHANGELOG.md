@@ -5,6 +5,11 @@ All notable changes to Sublarr are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.81.2-beta] - 2026-05-01
+
+### Fixed
+- **Single-item extract mislabeled stream language** — `POST /api/v1/wanted/<id>/extract` was reimplementing the legacy single-stream extractor inline and named the output sidecar after the wanted item's `target_language` (e.g. `de`) instead of the actual source stream's language. An English embedded stream landed at `*.de.ass` even though it contained English content. The route now delegates to the same `services.embedded_extractor` pipeline that the auto-extract drain and batch-probe use, so every text-based stream gets extracted and labelled by its own source language, off-target sidecars get trashed, and the response includes the same `extracted_count` / `sidecars_trashed` counters as the auto path. Legacy `stream_index` and `target_language` request fields are silently accepted for backward compat but no longer alter behaviour.
+
 ## [0.81.1-beta] - 2026-05-01
 
 ### Fixed
