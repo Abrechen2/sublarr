@@ -5,6 +5,13 @@ All notable changes to Sublarr are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.82.2-beta] - 2026-05-01
+
+### Fixed
+- **Provider settings page health rail dominated by disabled providers** — `/settings/providers` rendered an "unhealthy" badge with a red X for every configured-but-disabled provider, so 18 off providers crowded out signals from the 9 active ones. The right rail now skips disabled providers entirely; only real conditions on active providers (rate-limited, circuit-open, unhealthy) appear there.
+- **Provider detail pane duplicated the on/off state** — the toggle button already shows "Aktiviert" / "Deaktiviert", but the row directly below repeated the same state in a status pill. Hide that pill when the provider is plainly disabled with nothing else to report (no auto-disable, no test result, no error message), so the toggle is the single source of truth.
+- **"Provider hinzufügen" button competed with the detail title** — the long button label squeezed into the narrow list-column header next to the detail's "Subf2m" title. Switched to an icon-only `+` button (24×24) with the original aria-label / title preserved for accessibility.
+
 ## [0.82.1-beta] - 2026-05-01
 
 ### Fixed
