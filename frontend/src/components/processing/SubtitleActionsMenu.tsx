@@ -1,7 +1,13 @@
 import { useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { ChevronDown, Scissors, Wrench, RotateCcw, Clock } from 'lucide-react'
-import { checkBakExists, processSubtitle, undoProcessSubtitle } from '@/api/client'
+import {
+  ChevronDown, Scissors, Wrench, RotateCcw, Clock,
+  Eye, Pencil, Download, FileCode,
+} from 'lucide-react'
+import {
+  checkBakExists, processSubtitle, undoProcessSubtitle,
+  getSubtitleDownloadUrl, exportSubtitleNfo,
+} from '@/api/client'
 import { advancedSync } from '@/api/system/tasks'
 import type { ProcessingChange } from '@/api/client'
 import { ProcessingPreviewPanel } from './ProcessingPreviewPanel'
@@ -10,11 +16,15 @@ import { toast } from '@/components/shared/Toast'
 interface Props {
   subtitlePath: string
   onRefresh?: () => void
+  /** Open the preview modal for this sub. Omit to hide the entry. */
+  onPreview?: (path: string) => void
+  /** Open the inline editor for this sub. Omit to hide the entry. */
+  onEdit?: (path: string) => void
 }
 
 type ActivePanel = 'hi_removal' | 'common_fixes' | 'timing' | null
 
-export function SubtitleActionsMenu({ subtitlePath, onRefresh }: Props) {
+export function SubtitleActionsMenu({ subtitlePath, onRefresh, onPreview, onEdit }: Props) {
   const { t: tc } = useTranslation('common')
   const [open, setOpen] = useState(false)
   const [hasBak, setHasBak] = useState(false)
@@ -102,6 +112,42 @@ export function SubtitleActionsMenu({ subtitlePath, onRefresh }: Props) {
 
       {open && (
         <div className="absolute right-0 z-20 mt-1 w-52 bg-zinc-900 border border-zinc-700 rounded shadow-lg">
+          {onPreview && (
+            <button
+              onClick={() => { setOpen(false); onPreview(subtitlePath) }}
+              className="flex items-center gap-2 w-full px-3 py-2 text-sm hover:bg-zinc-800 text-left"
+            >
+              <Eye size={14} /> Vorschau
+            </button>
+          )}
+          {onEdit && (
+            <button
+              onClick={() => { setOpen(false); onEdit(subtitlePath) }}
+              className="flex items-center gap-2 w-full px-3 py-2 text-sm hover:bg-zinc-800 text-left"
+            >
+              <Pencil size={14} /> Editor
+            </button>
+          )}
+          <a
+            href={getSubtitleDownloadUrl(subtitlePath)}
+            download
+            onClick={() => setOpen(false)}
+            className="flex items-center gap-2 w-full px-3 py-2 text-sm hover:bg-zinc-800 text-left"
+          >
+            <Download size={14} /> Download
+          </a>
+          <button
+            onClick={() => {
+              setOpen(false)
+              exportSubtitleNfo(subtitlePath)
+                .then(() => toast('NFO exportiert', 'success'))
+                .catch(() => toast('NFO-Export fehlgeschlagen', 'error'))
+            }}
+            className="flex items-center gap-2 w-full px-3 py-2 text-sm hover:bg-zinc-800 text-left"
+          >
+            <FileCode size={14} /> NFO exportieren
+          </button>
+          <div className="border-t border-zinc-700 my-1" />
           <button
             onClick={() => { setOpen(false); openPreview('hi_removal') }}
             className="flex items-center gap-2 w-full px-3 py-2 text-sm hover:bg-zinc-800 text-left"

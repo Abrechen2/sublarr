@@ -1,5 +1,5 @@
 import { useState, useMemo, useCallback, Fragment } from 'react'
-import { ChevronDown, ChevronRight, Play, Eye, Pencil, X, FileCode, Download, Loader2 } from 'lucide-react'
+import { ChevronDown, ChevronRight, Play, X, Download, Loader2 } from 'lucide-react'
 import { getRowStatus } from '@/components/library/EpisodeRow'
 import { EpisodeSearchPanel } from './EpisodeSearchPanel'
 import { EpisodeHistoryPanel } from './EpisodeHistoryPanel'
@@ -10,8 +10,7 @@ import { HealthBadge } from '@/components/health/HealthBadge'
 import { EpisodeActionMenu } from '@/components/episodes/EpisodeActionMenu'
 import { SubtitleActionsMenu } from '@/components/processing/SubtitleActionsMenu'
 import { useBatchTranslate } from '@/hooks/useTranslationApi'
-import { startWantedBatchSearch, exportSubtitleNfo, getSubtitleDownloadUrl } from '@/api/client'
-import { toast } from '@/components/shared/Toast'
+import { startWantedBatchSearch, getSubtitleDownloadUrl } from '@/api/client'
 import { useTranscribeEpisode, useDetectOpeningEnding } from '@/hooks/useTranslationApi'
 import { Mic, Tv2 } from 'lucide-react'
 import type { EpisodeInfo, WantedSearchResponse, EpisodeHistoryEntry, SidecarSubtitle } from '@/lib/types'
@@ -311,6 +310,9 @@ export function SeasonGroup({
                               <Fragment key={lang}>
                               <span className="inline-flex items-center gap-0.5">
                                 <SubBadge lang={lang} format={subFormat} />
+                                {subPath && (
+                                  <HealthBadge score={healthScores[subPath] ?? null} size="sm" />
+                                )}
                                 {matchingSidecar && (
                                   <>
                                     <button
@@ -321,58 +323,12 @@ export function SeasonGroup({
                                     >
                                       <X size={9} />
                                     </button>
-                                    <a
-                                      href={getSubtitleDownloadUrl(matchingSidecar.path)}
-                                      download
-                                      title={`Download ${matchingSidecar.language} ${matchingSidecar.format}`}
-                                      className="p-0.5"
-                                      style={{ color: 'var(--text-muted)', lineHeight: 1 }}
-                                      onClick={(e) => e.stopPropagation()}
-                                    >
-                                      <Download size={10} />
-                                    </a>
-                                    <button
-                                      onClick={(e) => {
-                                        e.stopPropagation()
-                                        exportSubtitleNfo(matchingSidecar.path)
-                                          .then(() => toast('NFO exported', 'success'))
-                                          .catch(() => toast('NFO export failed', 'error'))
-                                      }}
-                                      className="p-0.5 rounded transition-colors"
-                                      style={{ color: 'var(--text-muted)', lineHeight: 1 }}
-                                      title={t('episode_ui.export_nfo')}
-                                    >
-                                      <FileCode size={10} />
-                                    </button>
                                     <SubtitleActionsMenu
                                       subtitlePath={matchingSidecar.path}
                                       onRefresh={onRefreshSidecars}
+                                      onPreview={onPreviewSub}
+                                      onEdit={onEditSub}
                                     />
-                                  </>
-                                )}
-                                {subPath && (
-                                  <>
-                                    <HealthBadge score={healthScores[subPath] ?? null} size="sm" />
-                                    <button
-                                      onClick={() => onPreviewSub(subPath)}
-                                      className="p-0.5 rounded transition-colors"
-                                      style={{ color: 'var(--text-muted)' }}
-                                      title={t('episode_ui.preview_subtitle')}
-                                      onMouseEnter={(e) => { e.currentTarget.style.color = 'var(--accent)' }}
-                                      onMouseLeave={(e) => { e.currentTarget.style.color = 'var(--text-muted)' }}
-                                    >
-                                      <Eye size={12} />
-                                    </button>
-                                    <button
-                                      onClick={() => onEditSub(subPath)}
-                                      className="p-0.5 rounded transition-colors"
-                                      style={{ color: 'var(--text-muted)' }}
-                                      title={t('episode_ui.edit_subtitle')}
-                                      onMouseEnter={(e) => { e.currentTarget.style.color = 'var(--accent)' }}
-                                      onMouseLeave={(e) => { e.currentTarget.style.color = 'var(--text-muted)' }}
-                                    >
-                                      <Pencil size={12} />
-                                    </button>
                                   </>
                                 )}
                               </span>
