@@ -96,8 +96,8 @@ def batch_start():
     directory = data.get("directory")
     force = data.get("force", False)
     dry_run = data.get("dry_run", False)
-    page = data.get("page", 1)
-    per_page = min(data.get("per_page", 100), 500)
+    page = max(1, int(data.get("page", 1) or 1))
+    per_page = max(1, min(int(data.get("per_page", 100) or 100), 500))
     callback_url = data.get("callback_url")
 
     if not directory:

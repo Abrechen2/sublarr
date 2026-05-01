@@ -84,6 +84,8 @@ class JobRepository(BaseRepository):
 
     def get_jobs(self, page: int = 1, per_page: int = 50, status: str = None) -> dict:
         """Get paginated job list."""
+        page = max(1, page)
+        per_page = max(1, min(200, per_page))
         offset = (page - 1) * per_page
 
         # Count query

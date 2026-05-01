@@ -14,7 +14,7 @@ from flask import Blueprint, current_app, jsonify, request
 from pydantic import ValidationError
 
 from db.models.scheduler import JobRun
-from extensions import db
+from extensions import db, limiter
 from routes.system.scheduler_serializers import (
     CronTriggerModel,
     IntervalTriggerModel,
@@ -46,6 +46,33 @@ def _scheduler_down_response():
         ),
         503,
     )
+
+
+def _scheduler_initialising_response():
+    return (
+        jsonify(
+            {
+                "error": "Scheduler is starting up, please retry shortly.",
+                "error_type": "SchedulerInitialisingError",
+            }
+        ),
+        503,
+    )
+
+
+def _scheduler_globally_paused(scheduler) -> bool:
+    """True iff the underlying APScheduler is in STATE_PAUSED globally.
+
+    During the brief startup window between start_registered_jobs(paused=True)
+    and start(), every job's next_run_time is None — using that as the
+    individual-pause indicator would 409 a UI pause/resume click incorrectly.
+    """
+    try:
+        from apscheduler.schedulers.base import STATE_PAUSED
+    except Exception:
+        return False
+    aps = getattr(scheduler, "_scheduler", None)
+    return aps is not None and getattr(aps, "state", None) == STATE_PAUSED
 
 
 def _stats_7d_all() -> dict[str, dict[str, int]]:
@@ -233,6 +260,7 @@ def _parse_trigger_model(data: dict):
 
 
 @bp.route("/jobs/<job_id>/run-now", methods=["POST"])
+@limiter.limit("30 per minute")
 def run_now(job_id: str):
     s = _get_scheduler()
     if s is None:
@@ -264,6 +292,7 @@ def run_now(job_id: str):
 
 
 @bp.route("/jobs/<job_id>/pause", methods=["POST"])
+@limiter.limit("30 per minute")
 def pause(job_id: str):
     s = _get_scheduler()
     if s is None:
@@ -278,6 +307,8 @@ def pause(job_id: str):
             ),
             404,
         )
+    if _scheduler_globally_paused(s):
+        return _scheduler_initialising_response()
     job = s._scheduler.get_job(job_id)
     if job is not None and job.next_run_time is None:
         return (
@@ -295,6 +326,7 @@ def pause(job_id: str):
 
 
 @bp.route("/jobs/<job_id>/resume", methods=["POST"])
+@limiter.limit("30 per minute")
 def resume(job_id: str):
     s = _get_scheduler()
     if s is None:
@@ -309,6 +341,8 @@ def resume(job_id: str):
             ),
             404,
         )
+    if _scheduler_globally_paused(s):
+        return _scheduler_initialising_response()
     job = s._scheduler.get_job(job_id)
     if job is not None and job.next_run_time is not None:
         return (
@@ -326,6 +360,7 @@ def resume(job_id: str):
 
 
 @bp.route("/jobs/<job_id>", methods=["PATCH"])
+@limiter.limit("10 per minute")
 def modify(job_id: str):
     s = _get_scheduler()
     if s is None:
@@ -371,6 +406,7 @@ def modify(job_id: str):
 
 
 @bp.route("/jobs/<job_id>/reset-default", methods=["POST"])
+@limiter.limit("10 per minute")
 def reset_default(job_id: str):
     s = _get_scheduler()
     if s is None:

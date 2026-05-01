@@ -5,6 +5,7 @@ import logging
 from flask import jsonify, request
 
 from cache_response import cached_get
+from extensions import limiter
 from routes.providers import bp
 
 logger = logging.getLogger(__name__)
@@ -51,6 +52,7 @@ def list_providers():
 
 
 @bp.route("/providers/test/<provider_name>", methods=["POST"])
+@limiter.limit("10 per minute")
 def test_provider(provider_name):
     """Test a specific provider's connectivity and optionally perform a search.
     ---

@@ -47,6 +47,8 @@ class LibraryRepository(BaseRepository):
         Returns:
             Dict with 'data', 'page', 'per_page', 'total', 'total_pages' keys.
         """
+        page = max(1, page)
+        per_page = max(1, min(200, per_page))
         offset = (page - 1) * per_page
 
         # Build filter conditions

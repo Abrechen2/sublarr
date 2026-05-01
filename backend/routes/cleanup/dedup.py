@@ -166,8 +166,8 @@ def get_duplicates():
     """
     from db.repositories.cleanup import CleanupRepository
 
-    page = request.args.get("page", 1, type=int)
-    per_page = min(request.args.get("per_page", 50, type=int), 200)
+    page = max(1, request.args.get("page", 1, type=int))
+    per_page = max(1, min(request.args.get("per_page", 50, type=int), 200))
 
     repo = CleanupRepository()
     all_groups = repo.get_duplicate_groups()

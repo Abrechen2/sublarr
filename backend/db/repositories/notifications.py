@@ -191,6 +191,8 @@ class NotificationRepository(BaseRepository):
         Returns:
             Dict with items, total, page, per_page.
         """
+        page = max(1, page)
+        per_page = max(1, min(200, per_page))
         count_stmt = select(func.count(NotificationHistory.id))
         query_stmt = select(NotificationHistory).order_by(NotificationHistory.sent_at.desc())
 
