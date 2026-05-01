@@ -129,6 +129,13 @@ def init_auth(app):
         if path == "/api/v1/health":
             return None
 
+        # Skip auth for OpenAPI discovery — the spec + Swagger UI need to be
+        # browsable without an API key, otherwise nobody can find out *that*
+        # an API key is required. The "Try it out" button in Swagger UI then
+        # injects the key per-request via the standard `Authorize` flow.
+        if path == "/api/v1/openapi.json" or path.startswith("/api/docs"):
+            return None
+
         # Skip auth for webhook endpoints — each handler performs its own
         # HMAC-based auth (see routes/webhooks.py). IMPORTANT: any new webhook
         # route added under /api/v1/webhook/ MUST implement auth manually;

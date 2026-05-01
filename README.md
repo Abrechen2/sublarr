@@ -371,6 +371,17 @@ cd frontend && npm run lint && npx tsc --noEmit
 
 Full documentation lives at **[wiki.sublarr.de](https://wiki.sublarr.de)**.
 
+### Live API discovery
+
+Every Sublarr instance ships its own interactive API reference:
+
+| Endpoint | Purpose |
+|---|---|
+| `GET /api/docs` | Swagger UI — browse + try-it-out (anonymous-readable; click "Authorize" to inject your `X-Api-Key` for authenticated endpoints) |
+| `GET /api/v1/openapi.json` | Raw OpenAPI 3.0.3 spec — feed into Postman / Insomnia / Bruno or generate a TypeScript client via `openapi-typescript` / `orval` |
+
+
+
 | Topic | Wiki Page |
 |---|---|
 | Installation | [Getting Started → Installation](https://wiki.sublarr.de/getting-started/installation) |

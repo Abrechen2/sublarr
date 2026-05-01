@@ -36,6 +36,29 @@ spec.components.security_scheme(
 )
 
 
+def _register_pydantic_components() -> int:
+    """Surface every Pydantic model in ``schemas.api_components`` as an
+    OpenAPI component schema. Idempotent: re-calls of
+    ``spec.components.schema()`` with the same name raise, so we only
+    register names that aren't already present.
+    """
+    from schemas.api_components import REGISTERED_COMPONENTS
+
+    existing = set(spec.to_dict().get("components", {}).get("schemas", {}).keys())
+    registered = 0
+    for model in REGISTERED_COMPONENTS:
+        name = model.__name__
+        if name in existing:
+            continue
+        try:
+            schema = model.model_json_schema(ref_template="#/components/schemas/{model}")
+            spec.components.schema(name, schema)
+            registered += 1
+        except Exception as exc:
+            logger.warning("OpenAPI: could not register component %s: %s", name, exc)
+    return registered
+
+
 def register_all_paths(app):
     """Register all Flask view functions with YAML docstrings into the spec.
 
@@ -43,6 +66,10 @@ def register_all_paths(app):
     views are discoverable. Silently skips views without ``---`` markers or
     that fail parsing.
     """
+    component_count = _register_pydantic_components()
+    if component_count:
+        logger.info("OpenAPI: registered %d Pydantic components", component_count)
+
     registered = 0
     skipped = 0
 
