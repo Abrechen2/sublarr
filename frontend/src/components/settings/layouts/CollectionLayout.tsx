@@ -58,66 +58,75 @@ export function CollectionLayout<T>({
   const selected = items.find((it) => getItemId(it) === selectedId) ?? null
   const hasRail = Boolean(healthRail)
 
-  const gridTemplate = hasRail
-    ? `${listWidth}px 1fr ${railWidth}px`
-    : `${listWidth}px 1fr`
+  // Outer container is a flex column so the optional health rail can sit BELOW
+  // the list+detail grid as a full-width strip — gives the rail more horizontal
+  // breathing room than the old 240px sidebar slot. `railWidth` stays in the
+  // signature for binary compatibility but is no longer applied.
+  void railWidth
+
+  const gridTemplate = `${listWidth}px 1fr`
 
   return (
     <div
       data-testid="collection-layout"
-      className="grid bg-[var(--bg-surface)] border border-[var(--border)] rounded-lg overflow-hidden"
-      style={{ gridTemplateColumns: gridTemplate, minHeight: '520px' }}
+      className="flex flex-col bg-[var(--bg-surface)] border border-[var(--border)] rounded-lg overflow-hidden"
+      style={{ minHeight: '520px' }}
     >
-      {/* Master list */}
-      <aside
-        data-testid="collection-list"
-        className="border-r border-[var(--border)] p-3 flex flex-col gap-1 overflow-y-auto"
+      <div
+        className="grid"
+        style={{ gridTemplateColumns: gridTemplate }}
       >
-        {listHeader && (
-          <div data-testid="collection-list-header" className="px-2 pt-1 pb-2">
-            {listHeader}
-          </div>
-        )}
+        {/* Master list */}
+        <aside
+          data-testid="collection-list"
+          className="border-r border-[var(--border)] p-3 flex flex-col gap-1 overflow-y-auto"
+        >
+          {listHeader && (
+            <div data-testid="collection-list-header" className="px-2 pt-1 pb-2">
+              {listHeader}
+            </div>
+          )}
 
-        {items.length === 0
-          ? emptyState ?? (
-              <div className="text-[11px] text-muted px-3 py-2">No items yet.</div>
-            )
-          : items.map((item) => {
-              const id = getItemId(item)
-              const isActive = id === selectedId
-              return (
-                <button
-                  key={id}
-                  type="button"
-                  onClick={() => onSelect(id)}
-                  data-testid="collection-item"
-                  data-active={isActive ? 'true' : 'false'}
-                  className={`text-left rounded px-2 py-1 ${
-                    isActive
-                      ? 'bg-[var(--accent-bg)] border border-[var(--accent-dim)]'
-                      : 'border border-transparent hover:bg-[var(--bg-elevated)]'
-                  }`}
-                >
-                  {renderListItem(item, isActive)}
-                </button>
+          {items.length === 0
+            ? emptyState ?? (
+                <div className="text-[11px] text-muted px-3 py-2">No items yet.</div>
               )
-            })}
-      </aside>
+            : items.map((item) => {
+                const id = getItemId(item)
+                const isActive = id === selectedId
+                return (
+                  <button
+                    key={id}
+                    type="button"
+                    onClick={() => onSelect(id)}
+                    data-testid="collection-item"
+                    data-active={isActive ? 'true' : 'false'}
+                    className={`text-left rounded px-2 py-1 ${
+                      isActive
+                        ? 'bg-[var(--accent-bg)] border border-[var(--accent-dim)]'
+                        : 'border border-transparent hover:bg-[var(--bg-elevated)]'
+                    }`}
+                  >
+                    {renderListItem(item, isActive)}
+                  </button>
+                )
+              })}
+        </aside>
 
-      {/* Detail editor */}
-      <section
-        data-testid="collection-detail"
-        className="p-6 overflow-y-auto"
-      >
-        {renderDetail(selected)}
-      </section>
+        {/* Detail editor */}
+        <section
+          data-testid="collection-detail"
+          className="p-6 overflow-y-auto"
+        >
+          {renderDetail(selected)}
+        </section>
+      </div>
 
-      {/* Optional health rail */}
+      {/* Optional health rail — full-width strip beneath the list+detail row. */}
       {hasRail && (
         <aside
           data-testid="collection-rail"
-          className="border-l border-[var(--border)] p-4 overflow-y-auto"
+          className="border-t border-[var(--border)] p-4 overflow-y-auto"
         >
           {healthRail}
         </aside>

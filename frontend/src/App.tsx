@@ -179,7 +179,7 @@ function AppInner({
           <main
             id="main-content"
             className="flex-1 min-w-0 min-h-screen main-content-area"
-            style={{ padding: '24px 32px 60px', maxWidth: '1380px' }}
+            style={{ padding: '24px 32px 60px', maxWidth: '1680px' }}
           >
             <AnimatedRoutes />
           </main>

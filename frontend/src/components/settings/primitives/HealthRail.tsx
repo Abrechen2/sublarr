@@ -56,7 +56,7 @@ export function HealthRail({
         ◉ {title}
       </h3>
 
-      <div className="flex flex-col gap-1.5">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-1.5">
         {problems.map((item) => {
           const style = severityStyle[item.severity]
           return (

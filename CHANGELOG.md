@@ -5,6 +5,11 @@ All notable changes to Sublarr are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.82.3-beta] - 2026-05-01
+
+### Changed
+- **Settings page width and Health rail position** — the global content max-width was 1380 px which left wide monitors with large empty margins. Bumped to 1680 px so the list-detail-rail layouts have room to breathe. The `CollectionLayout` health rail moved from a 240-px sidebar column into a full-width strip beneath the list+detail row, and `HealthRail` itself now lays its cards out in a responsive 1/2/3/4-column grid (depending on viewport) instead of a single vertical stack. Net effect on `/settings/providers`: the detail pane gets the full available width, and the health items spread horizontally instead of piling up in a narrow column on the right.
+
 ## [0.82.2-beta] - 2026-05-01
 
 ### Fixed
