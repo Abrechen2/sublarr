@@ -77,6 +77,97 @@ def test_library_sonarr_raises_returns_empty_series(client, monkeypatch):
     assert data["series"] == []
 
 
+def test_library_mixed_mode_sonarr_plus_standalone_movies(client, monkeypatch):
+    """Sonarr-managed series + standalone movies → both must appear.
+
+    Regression: previously the standalone fallback only fired when BOTH
+    Sonarr AND Radarr returned empty, silently dropping standalone movies
+    in mixed deployments.
+    """
+    mock_sonarr = MagicMock()
+    mock_sonarr.get_library_info.return_value = [{"id": 1, "title": "Managed Series", "tags": []}]
+    monkeypatch.setattr("sonarr_client.get_sonarr_client", lambda *a, **kw: mock_sonarr)
+    monkeypatch.setattr("radarr_client.get_radarr_client", lambda *a, **kw: None)
+    monkeypatch.setattr("config.is_standalone_mode", lambda: True)
+    monkeypatch.setattr(
+        "db.standalone.get_standalone_movies",
+        lambda *a, **kw: [
+            {
+                "id": 99,
+                "title": "Standalone Movie",
+                "year": 2024,
+                "file_path": "/media/movies/Standalone Movie (2024)/movie.mkv",
+                "poster_url": "",
+            }
+        ],
+    )
+    monkeypatch.setattr("db.standalone.get_standalone_series", lambda *a, **kw: [])
+
+    resp = client.get("/api/v1/library")
+    data = resp.get_json()
+    assert resp.status_code == 200
+    assert any(s["title"] == "Managed Series" for s in data["series"])
+    assert any(m["title"] == "Standalone Movie" for m in data["movies"])
+
+
+def test_library_standalone_movie_titled_sample_in_real_path_kept(client, monkeypatch):
+    """Real movie literally titled "Sample" — path heuristic must not drop it.
+
+    Regression: previous title-blacklist rejected real titles "Sample" /
+    "Movie" / "Trailer". Path-based heuristic only excludes when the file
+    actually lives under an extras folder.
+    """
+    monkeypatch.setattr("sonarr_client.get_sonarr_client", lambda *a, **kw: None)
+    monkeypatch.setattr("radarr_client.get_radarr_client", lambda *a, **kw: None)
+    monkeypatch.setattr("config.is_standalone_mode", lambda: True)
+    monkeypatch.setattr("db.standalone.get_standalone_series", lambda *a, **kw: [])
+    monkeypatch.setattr(
+        "db.standalone.get_standalone_movies",
+        lambda *a, **kw: [
+            {
+                "id": 1,
+                "title": "Sample",
+                "year": 2008,
+                "file_path": "/media/movies/Sample (2008)/Sample.mkv",
+                "poster_url": "",
+            },
+        ],
+    )
+
+    resp = client.get("/api/v1/library")
+    data = resp.get_json()
+    assert resp.status_code == 200
+    assert any(m["title"] == "Sample" for m in data["movies"])
+
+
+def test_library_standalone_movie_under_sample_dir_excluded(client, monkeypatch):
+    """File path under an extras dir must be excluded even with a real-looking title."""
+    monkeypatch.setattr("sonarr_client.get_sonarr_client", lambda *a, **kw: None)
+    monkeypatch.setattr("radarr_client.get_radarr_client", lambda *a, **kw: None)
+    monkeypatch.setattr("config.is_standalone_mode", lambda: True)
+    monkeypatch.setattr("db.standalone.get_standalone_series", lambda *a, **kw: [])
+    monkeypatch.setattr(
+        "db.standalone.get_standalone_movies",
+        lambda *a, **kw: [
+            {
+                "id": 1,
+                "title": "Inception",
+                "year": 2010,
+                "file_path": "/media/movies/Inception (2010)/Sample/sample.mkv",
+                "poster_url": "",
+            },
+        ],
+    )
+
+    resp = client.get("/api/v1/library")
+    data = resp.get_json()
+    assert resp.status_code == 200
+    assert all(
+        not m["path"].lower().replace("\\", "/").split("/").__contains__("sample")
+        for m in data["movies"]
+    )
+
+
 # ---------------------------------------------------------------------------
 # GET /api/v1/library/series/<series_id> — series detail
 # ---------------------------------------------------------------------------
