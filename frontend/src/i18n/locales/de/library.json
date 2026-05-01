@@ -135,7 +135,6 @@
   "engine_default": "Standard-Engine",
   "episode_actions": {
     "preview_subtitle": "Untertitel-Vorschau",
-    "edit_subtitle": "Untertitel bearbeiten",
     "compare_subtitles": "Untertitel vergleichen",
     "sync_timing": "Timing synchronisieren",
     "auto_sync": "Auto-Sync (alass/ffsubsync)",
@@ -272,9 +271,7 @@
     "season_select_all": "Alle Episoden dieser Staffel auswählen",
     "no_subtitle_found": "Kein Untertitel gefunden",
     "no_file": "Keine Datei",
-    "export_nfo": "NFO-Sidecar exportieren",
     "preview_subtitle": "Untertitel-Vorschau",
-    "edit_subtitle": "Untertitel bearbeiten",
     "preview_in_player": "Im Player ansehen",
     "transcribe_whisper": "Audio via Whisper transkribieren",
     "detect_op_ed": "OP/ED-Segmente erkennen",

@@ -273,6 +273,13 @@
     "import_success": "Config imported successfully"
   },
   "cleanup": {
+    "footer": {
+      "subtitle_backups": {
+        "title": "Subtitle Backup Management",
+        "description": "Manual overview of all .bak files — restore, purge orphans, dry run.",
+        "open": "Open"
+      }
+    },
     "dedup": {
       "title": "Deduplication",
       "scanButton": "Scan for Duplicates",
@@ -1462,5 +1469,47 @@
   },
   "ui": {
     "loading": "Loading…"
+  },
+  "subtitle_backups": {
+    "title": "Subtitle Backups",
+    "subtitle": "Backups (.bak.srt/.bak.ass) created by HI removal, common fixes, and editor edits",
+    "back_to_cleanup": "Back to Cleanup",
+    "stat": {
+      "total": "Total",
+      "orphans": "Orphans",
+      "size": "Size"
+    },
+    "bulk": {
+      "label": "Bulk Actions",
+      "purge_orphans": "Purge orphans ({{count}})",
+      "purge_aged": "Purge older than {{days}}d",
+      "retention_disabled": "Retention disabled",
+      "dry_run": "Dry run"
+    },
+    "list": {
+      "label": "Backup List"
+    },
+    "filter": {
+      "all": "All",
+      "orphans": "Orphans"
+    },
+    "column": {
+      "language": "Language",
+      "path": "Path",
+      "size": "Size",
+      "age": "Age",
+      "status": "Status"
+    },
+    "tooltip": {
+      "orphan": "No active subtitle and no parent video remain"
+    },
+    "empty": {
+      "all": "No backups found.",
+      "orphans": "No orphaned backups found."
+    },
+    "action": {
+      "restore": "Restore",
+      "delete": "Delete"
+    }
   }
 }

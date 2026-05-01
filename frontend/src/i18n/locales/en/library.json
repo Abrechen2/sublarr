@@ -135,7 +135,6 @@
   "engine_default": "Default engine",
   "episode_actions": {
     "preview_subtitle": "Preview Subtitle",
-    "edit_subtitle": "Edit Subtitle",
     "compare_subtitles": "Compare Subtitles",
     "sync_timing": "Sync Timing",
     "auto_sync": "Auto-Sync (alass/ffsubsync)",
@@ -272,9 +271,7 @@
     "season_select_all": "Select all episodes in this season",
     "no_subtitle_found": "No subtitle found",
     "no_file": "No file",
-    "export_nfo": "Export NFO sidecar",
     "preview_subtitle": "Preview subtitle",
-    "edit_subtitle": "Edit subtitle",
     "preview_in_player": "Preview in player",
     "transcribe_whisper": "Transcribe audio to subtitles via Whisper",
     "detect_op_ed": "Detect OP/ED segments",

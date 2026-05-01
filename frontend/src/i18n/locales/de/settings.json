@@ -273,6 +273,13 @@
     "import_success": "Konfiguration erfolgreich importiert"
   },
   "cleanup": {
+    "footer": {
+      "subtitle_backups": {
+        "title": "Untertitel-Backup-Verwaltung",
+        "description": "Manuelle Übersicht aller .bak-Dateien — Wiederherstellen, Orphans löschen, Trockenlauf.",
+        "open": "Öffnen"
+      }
+    },
     "dedup": {
       "title": "Deduplizierung",
       "scanButton": "Nach Duplikaten suchen",
@@ -1462,5 +1469,47 @@
   },
   "ui": {
     "loading": "Laden…"
+  },
+  "subtitle_backups": {
+    "title": "Untertitel-Backups",
+    "subtitle": "Backups (.bak.srt/.bak.ass) aus HI-Entfernung, Common-Fixes und Editor-Bearbeitungen",
+    "back_to_cleanup": "Zurück zur Bereinigung",
+    "stat": {
+      "total": "Gesamt",
+      "orphans": "Orphans",
+      "size": "Speicher"
+    },
+    "bulk": {
+      "label": "Bulk-Aktionen",
+      "purge_orphans": "Orphans löschen ({{count}})",
+      "purge_aged": "Älter als {{days}}d löschen",
+      "retention_disabled": "Aufbewahrung deaktiviert",
+      "dry_run": "Trockenlauf"
+    },
+    "list": {
+      "label": "Backup-Liste"
+    },
+    "filter": {
+      "all": "Alle",
+      "orphans": "Orphans"
+    },
+    "column": {
+      "language": "Sprache",
+      "path": "Pfad",
+      "size": "Größe",
+      "age": "Alter",
+      "status": "Status"
+    },
+    "tooltip": {
+      "orphan": "Weder aktiver Sub noch Video vorhanden"
+    },
+    "empty": {
+      "all": "Keine Backups gefunden.",
+      "orphans": "Keine verwaisten Backups gefunden."
+    },
+    "action": {
+      "restore": "Wiederherstellen",
+      "delete": "Löschen"
+    }
   }
 }
