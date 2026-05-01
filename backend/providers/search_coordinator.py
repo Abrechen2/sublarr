@@ -204,14 +204,17 @@ class SearchCoordinatorMixin:
                 rate_limits = getattr(
                     type(provider), "rate_limits", getattr(provider, "rate_limits", None)
                 )
+                rate_limits_dict = rate_limits if isinstance(rate_limits, dict) else {}
                 limits = {}
-                if isinstance(rate_limits, dict):
-                    limits = rate_limits.get(tier) or rate_limits.get("free") or {}
+                if rate_limits_dict:
+                    limits = rate_limits_dict.get(tier) or rate_limits_dict.get("free") or {}
                 if not limits:
                     # Provider did not declare rate_limits (or none for this
-                    # tier). Fall through so the provider runs unthrottled —
-                    # but WARN once per provider so the missing metadata is
-                    # visible in logs instead of silently disabled.
+                    # tier). The provider runs unthrottled — but the multi-key
+                    # pool MUST still be consulted, otherwise enabling pool
+                    # rows for a provider that lacks rate_limits silently
+                    # falls back to singleton creds. WARN once so the missing
+                    # metadata is visible.
                     if name not in _warned_missing_limits:
                         _warned_missing_limits.add(name)
                         logger.warning(
@@ -221,6 +224,12 @@ class SearchCoordinatorMixin:
                             name,
                             tier,
                         )
+                    selected = get_key_selector().pick(
+                        name, provider_rate_limits=rate_limits_dict
+                    )
+                    if selected is not None:
+                        key = selected
+                        budget.consume(name, key_id=key["id"])
                 else:
                     decision = budget.check(name, limits)
                     if not decision.allow:
@@ -235,7 +244,7 @@ class SearchCoordinatorMixin:
                     # Phase 4a: pick a key from the pool before we commit the call.
                     key = get_key_selector().pick(
                         name,
-                        provider_rate_limits=rate_limits if isinstance(rate_limits, dict) else {},
+                        provider_rate_limits=rate_limits_dict,
                     )
                     if key is None:
                         logger.warning(
@@ -269,7 +278,11 @@ class SearchCoordinatorMixin:
                 logger.warning("submit failed for %s: %s -- refunding budget", name, exc)
                 if getattr(self.settings, "provider_budget_enabled", True):
                     try:
-                        get_budget_manager().refund(name)
+                        # Pass key_id so the per-key dimension is also rolled
+                        # back; otherwise repeated submit failures drift the
+                        # per-key counter while the aggregate stays correct.
+                        refund_key_id = key["id"] if key is not None else None
+                        get_budget_manager().refund(name, key_id=refund_key_id)
                     except Exception as refund_exc:  # noqa: BLE001
                         logger.debug("Budget refund failed for %s: %s", name, refund_exc)
                 continue

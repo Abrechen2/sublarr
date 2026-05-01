@@ -114,6 +114,22 @@ class _BudgetCounterStoreMixin:
             except Exception as exc:  # noqa: BLE001
                 logger.debug("Redis decr failed for %s/%s: %s", provider, window.value, exc)
 
+    def _decrement_per_key(
+        self,
+        provider: str,
+        key_id: int,
+        window,
+        now: datetime,
+    ) -> None:
+        from services.provider_budget import window_start_for
+
+        start = window_start_for(window, now)
+        key = (provider, key_id, window.value, start)
+        with self._lock:
+            current = self._in_memory_counts_per_key.get(key, 0)
+            if current > 0:
+                self._in_memory_counts_per_key[key] = current - 1
+
     @staticmethod
     def _seconds_until_next_window(window, now: datetime) -> int:
         from services.provider_budget import BudgetWindow

@@ -219,16 +219,29 @@ class ProviderBudgetManager(
                 self._increment_per_key(provider, key_id, window, now)
         self._emit_update(provider, now)
 
-    def refund(self, provider: str, now: datetime | None = None) -> None:
+    def refund(
+        self,
+        provider: str,
+        now: datetime | None = None,
+        *,
+        key_id: int | None = None,
+    ) -> None:
         """Undo one call against ``provider`` — decrements all three windows.
 
         Used by the search coordinator when submit() fails synchronously after
         consume(), so quota does not leak for calls that never actually happened.
+        If ``key_id`` is provided, also decrements per-key counters; without it
+        the per-key counter would drift by +1 on every failed submit after a
+        per-key consume (because ``consume(key_id=...)`` increments both
+        aggregate AND per-key, but ``refund()`` previously only decremented the
+        aggregate dimension).
         """
         if now is None:
             now = datetime.now(UTC)
         for window in BudgetWindow:
             self._decrement(provider, window, now)
+            if key_id is not None:
+                self._decrement_per_key(provider, key_id, window, now)
         self._emit_update(provider, now)
 
     def get_usage(self, provider: str, now: datetime | None = None) -> dict[str, int]:

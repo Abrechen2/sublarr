@@ -4,6 +4,7 @@ import logging
 
 from flask import jsonify, request
 
+from extensions import limiter
 from routes.providers import bp
 
 logger = logging.getLogger(__name__)
@@ -27,14 +28,17 @@ def get_rerank_preview():
 
 
 @bp.route("/rerank", methods=["POST"])
+@limiter.limit("10 per minute")
 def trigger_rerank():
     """POST /api/v1/providers/rerank — manually trigger provider re-ranking.
 
     Body (optional JSON):
-        force: bool  — bypass hourly throttle (default: true for manual trigger)
+        force: bool  — bypass hourly throttle (default: false). Repeated
+                       force=true requests churn scoring_modifier rows on
+                       every call; reserved for explicit user opt-in.
     """
     data = request.get_json(silent=True) or {}
-    force = data.get("force", True)
+    force = bool(data.get("force", False))
 
     from providers.reranker import apply_auto_reranking
 
