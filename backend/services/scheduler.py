@@ -241,6 +241,27 @@ def _tick_wrapper(
                 spec.id,
                 triggered_by,
             )
+            # Persist the skip so the user can see in /scheduler/jobs/<id>/runs
+            # that their manual run-now (or a scheduled fire) collided with an
+            # in-flight tick. APScheduler's MaxInstancesReachedError covers
+            # scheduled-vs-scheduled overlap, but manual oneshots have a
+            # distinct APS job id, so only the per-job lock catches that case.
+            now = datetime.now(UTC)
+            try:
+                with app.app_context():
+                    _write_job_run(
+                        job_id=spec.id,
+                        started_at=now,
+                        finished_at=now,
+                        status="skipped_overlap",
+                        triggered_by=triggered_by,
+                    )
+            except Exception:
+                logger.error(
+                    "scheduler: failed to record skipped_overlap row for %s",
+                    spec.id,
+                    exc_info=True,
+                )
             return
 
         started_at = datetime.now(UTC)

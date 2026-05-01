@@ -163,3 +163,29 @@ def test_prometheus_histogram_observed(flask_app, db_session):
     _tick_wrapper(flask_app, spec, triggered_by="schedule")()
     after_count = h._sum.get()
     assert after_count > before_count
+
+
+def test_overlapping_tick_writes_skipped_row(flask_app, db_session):
+    """When the per-job lock is already held, a colliding tick must persist a
+    skipped_overlap row so manual run-now collisions stay visible in history.
+
+    Regression for the silent-skip path: APScheduler's MaxInstancesReachedError
+    only covers scheduled-vs-scheduled overlap; a manual oneshot has a distinct
+    APScheduler job id, so only the per-job lock catches that case.
+    """
+    from db.models.scheduler import JobRun
+    from services.scheduler import _get_job_run_lock
+
+    spec = _make_spec(lambda: None)
+    held = _get_job_run_lock(spec.id)
+    assert held.acquire(blocking=False), "test setup: lock must be free"
+    try:
+        _tick_wrapper(flask_app, spec, triggered_by="manual")()
+    finally:
+        held.release()
+
+    rows = db_session.query(JobRun).filter_by(job_id="test_job").all()
+    assert len(rows) == 1
+    assert rows[0].status == "skipped_overlap"
+    assert rows[0].triggered_by == "manual"
+    assert rows[0].finished_at is not None
