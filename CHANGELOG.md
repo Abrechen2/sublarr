@@ -5,6 +5,15 @@ All notable changes to Sublarr are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.79.0-beta] - 2026-05-01
+
+### Added
+- **Subtitle backup (`.bak`) lifecycle** — Full management for the `.bak.srt`/`.bak.ass` files left behind by HI removal, common-fixes, and credit-removal in `subtitle_processor.apply_mods`. Backups no longer leak into the active sidecar list, a new `old_subtitle_baks` cleanup rule purges orphans (no parent video AND no active sub) immediately and TTL-aged backups after `subtitle_bak_retention_days` (default 30d). New `GET/POST /api/v1/library/subtitle-backups[/cleanup]` endpoints expose the same data to the UI.
+- **Subtitle modifier badges** — Series and movie views now render small `HI`/`FORCED`/`SDH`/`CC` badges next to language sidecars so the user can see at a glance which variants exist for each track. The unmodified sidecar is always preferred as the "primary" entry.
+
+### Changed
+- **Single source-of-truth filename parser** — `subtitle_filename.py` replaces the per-call regexes that previously parsed sidecar names in `dedup_engine` and `scan_subtitle_sidecars`. The new suffix-stripper correctly handles nested modifiers like `ep.en.hi.bak.srt` (previously parsed as language="bak").
+
 ## [0.78.0-beta] - 2026-05-01
 
 ### Added
