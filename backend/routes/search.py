@@ -3,6 +3,7 @@
 from flask import Blueprint, jsonify, request
 
 from db.search import rebuild_search_index, search_all
+from extensions import limiter
 
 bp = Blueprint("search", __name__, url_prefix="/api/v1")
 
@@ -54,7 +55,9 @@ def global_search():
                       type: object
     """
     q = request.args.get("q", "").strip()
-    limit = min(int(request.args.get("limit", 20)), 50)
+    # type=int silently coerces — bad input returns the default (20) rather
+    # than crashing 500 on ?limit=abc.
+    limit = max(1, min(request.args.get("limit", 20, type=int) or 20, 50))
     if not q or len(q) < 2:
         return jsonify({"series": [], "episodes": [], "subtitles": [], "query": q})
     results = search_all(q, limit=limit)
@@ -63,6 +66,7 @@ def global_search():
 
 
 @bp.route("/search/rebuild-index", methods=["POST"])
+@limiter.limit("3 per minute")
 def rebuild_index():
     """Rebuild FTS5 search index from current DB state.
     ---
