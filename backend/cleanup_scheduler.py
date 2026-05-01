@@ -314,6 +314,44 @@ def _execute_cleanup():
                         retention_days,
                     )
 
+                elif rule_type == "old_subtitle_baks":
+                    # Auto-purge subtitle .bak files from
+                    # subtitle_processor.apply_mods. Two-pronged: orphans
+                    # (no parent video AND no active sub) go immediately
+                    # regardless of age; non-orphans go after retention.
+                    # See services.subtitle_backups for the policy
+                    # rationale.
+                    from services.subtitle_backups import cleanup_subtitle_baks
+
+                    media_roots: list[str] = []
+                    if getattr(settings, "media_path", ""):
+                        media_roots.append(settings.media_path)
+                    extra = getattr(settings, "extra_media_paths", "")
+                    if extra:
+                        media_roots.extend(p.strip() for p in extra.split(",") if p.strip())
+
+                    retention_days = int(getattr(settings, "subtitle_bak_retention_days", 30) or 0)
+                    result = cleanup_subtitle_baks(
+                        media_roots,
+                        older_than_days=retention_days,
+                        orphans_only=False,
+                    )
+                    deleted_count = len(result.get("deleted", []))
+                    orphan_count = result.get("orphans_purged", 0)
+
+                    repo.update_rule_last_run(rule_id)
+                    repo.log_cleanup(
+                        action_type="scheduled_subtitle_bak_cleanup",
+                        files_deleted=deleted_count,
+                        rule_id=rule_id,
+                    )
+                    logger.info(
+                        "Scheduled subtitle .bak cleanup: %d deleted (%d orphans, retention=%dd)",
+                        deleted_count,
+                        orphan_count,
+                        retention_days,
+                    )
+
                 else:
                     logger.warning("Unknown rule type in scheduler: %s", rule_type)
 

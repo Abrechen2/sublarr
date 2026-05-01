@@ -224,9 +224,7 @@ class SearchCoordinatorMixin:
                             name,
                             tier,
                         )
-                    selected = get_key_selector().pick(
-                        name, provider_rate_limits=rate_limits_dict
-                    )
+                    selected = get_key_selector().pick(name, provider_rate_limits=rate_limits_dict)
                     if selected is not None:
                         key = selected
                         budget.consume(name, key_id=key["id"])

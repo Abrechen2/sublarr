@@ -346,6 +346,12 @@ class Settings(BaseSettings):
     remux_use_reflink: bool = True  # CoW reflink on Btrfs/XFS for zero-cost backups
     remux_arr_pause_enabled: bool = True  # Pause Sonarr/Radarr during remux
 
+    # Subtitle backup files (.bak.srt/.bak.ass) — created by
+    # subtitle_processor.apply_mods before HI-removal/common-fixes/credit-removal
+    # and restored via /api/v1/tools/process/undo. Live next to the active
+    # sub in the series folder (NOT in remux_trash_dir).
+    subtitle_bak_retention_days: int = 30  # 0 = keep forever
+
     # Circuit Breaker
     circuit_breaker_failure_threshold: int = 5  # Consecutive failures before opening
     circuit_breaker_cooldown_seconds: int = 300  # Seconds in OPEN before HALF_OPEN probe

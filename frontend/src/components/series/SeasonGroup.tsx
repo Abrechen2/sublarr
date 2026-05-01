@@ -1,4 +1,4 @@
-import { useState, useMemo, useCallback } from 'react'
+import { useState, useMemo, useCallback, Fragment } from 'react'
 import { ChevronDown, ChevronRight, Play, Eye, Pencil, X, FileCode, Download, Loader2 } from 'lucide-react'
 import { getRowStatus } from '@/components/library/EpisodeRow'
 import { EpisodeSearchPanel } from './EpisodeSearchPanel'
@@ -283,14 +283,33 @@ export function SeasonGroup({
                           {targetLanguages.length > 0 ? targetLanguages.map((lang) => {
                             const subFormat = ep.subtitles[lang] || ''
                             const epSidecars = sidecarMap[String(ep.id)] ?? []
+                            // Prefer the unmodified sidecar (no .hi/.forced/.sdh/.cc) over modifier
+                            // variants — the active subtitle for the language is always the plain one.
                             const matchingSidecar = (subFormat === 'ass' || subFormat === 'srt')
-                              ? epSidecars.find((s) => normLang(s.language) === normLang(lang) && s.format === subFormat)
+                              ? (() => {
+                                  const candidates = epSidecars.filter(
+                                    (s) => normLang(s.language) === normLang(lang) && s.format === subFormat,
+                                  )
+                                  return candidates.find((s) => !s.modifier) ?? candidates[0] ?? null
+                                })()
                               : null
+                            // Modifier siblings (same lang+format, with .hi/.forced/.sdh/.cc) shown
+                            // alongside the primary so the user can see HI/forced variants exist.
+                            const modifierSiblings = (subFormat === 'ass' || subFormat === 'srt')
+                              ? epSidecars.filter(
+                                  (s) =>
+                                    normLang(s.language) === normLang(lang) &&
+                                    s.format === subFormat &&
+                                    s.modifier &&
+                                    s.path !== matchingSidecar?.path,
+                                )
+                              : []
                             const subPath = (subFormat === 'ass' || subFormat === 'srt')
                               ? deriveSubtitlePath(ep.file_path, lang, subFormat)
                               : null
                             return (
-                              <span key={lang} className="inline-flex items-center gap-0.5">
+                              <Fragment key={lang}>
+                              <span className="inline-flex items-center gap-0.5">
                                 <SubBadge lang={lang} format={subFormat} />
                                 {matchingSidecar && (
                                   <>
@@ -357,6 +376,41 @@ export function SeasonGroup({
                                   </>
                                 )}
                               </span>
+                              {modifierSiblings.map((sib) => (
+                                <span
+                                  key={sib.path}
+                                  className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[10px] font-bold uppercase"
+                                  style={{
+                                    backgroundColor: 'var(--warning-bg, #5a3d10)',
+                                    color: 'var(--warning, #ffb84d)',
+                                    border: '1px solid var(--warning, #ffb84d)',
+                                  }}
+                                  title={`${sib.language.toUpperCase()} ${(sib.modifier ?? '').toUpperCase()} variant — ${sib.path}`}
+                                >
+                                  {sib.language.toUpperCase()}
+                                  <span style={{ opacity: 0.85 }}>{(sib.modifier ?? '').toUpperCase()}</span>
+                                  <button
+                                    onClick={(e) => { e.stopPropagation(); void onDeleteSidecar(sib.path) }}
+                                    className="ml-0.5 rounded hover:opacity-80"
+                                    style={{ color: 'var(--error)', lineHeight: 1 }}
+                                    title={`Delete: ${sib.path}`}
+                                  >
+                                    <X size={9} />
+                                  </button>
+                                  <a
+                                    href={getSubtitleDownloadUrl(sib.path)}
+                                    download
+                                    title={`Download ${sib.language} ${sib.modifier} ${sib.format}`}
+                                    className="p-0.5"
+                                    style={{ color: 'inherit', lineHeight: 1 }}
+                                    onClick={(e) => e.stopPropagation()}
+                                  >
+                                    <Download size={10} />
+                                  </a>
+                                  <SubtitleActionsMenu subtitlePath={sib.path} onRefresh={onRefreshSidecars} />
+                                </span>
+                              ))}
+                              </Fragment>
                             )
                           }) : <span style={{ fontSize: '10px', color: 'var(--text-muted)' }}>—</span>}
 
@@ -371,9 +425,14 @@ export function SeasonGroup({
                                 key={s.path}
                                 className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[10px] font-semibold uppercase"
                                 style={{ backgroundColor: 'var(--bg-surface)', color: 'var(--text-muted)', border: '1px solid var(--border)' }}
-                                title={`${s.language.toUpperCase()} ${s.format.toUpperCase()} — extra sidecar`}
+                                title={`${s.language.toUpperCase()}${s.modifier ? ' ' + s.modifier.toUpperCase() : ''} ${s.format.toUpperCase()} — extra sidecar`}
                               >
                                 {s.language.toUpperCase()}
+                                {s.modifier && (
+                                  <span style={{ color: 'var(--warning, #ffb84d)', fontWeight: 700 }}>
+                                    {s.modifier.toUpperCase()}
+                                  </span>
+                                )}
                                 <span style={{ opacity: 0.6, fontSize: '9px' }}>{s.format}</span>
                                 <button
                                   onClick={(e) => { e.stopPropagation(); void onDeleteSidecar(s.path) }}

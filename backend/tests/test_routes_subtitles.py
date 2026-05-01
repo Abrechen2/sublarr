@@ -91,6 +91,79 @@ def test_scan_subtitle_sidecars_nonexistent_video(temp_dir):
 
 
 # ---------------------------------------------------------------------------
+# scan_subtitle_sidecars — modifier handling (.bak, .hi, .forced, .sdh, .cc)
+# ---------------------------------------------------------------------------
+
+
+def test_scan_excludes_bak_backup_files(temp_dir):
+    """Backup .bak.srt files belong to the backup-management UI, not the
+    active sidecar list. They must NOT appear in scan_subtitle_sidecars
+    output even though they sit next to the video file."""
+    from routes.subtitles import scan_subtitle_sidecars
+
+    video = os.path.join(temp_dir, "episode.mkv")
+    Path(video).touch()
+    _make_sub(temp_dir, "episode.en.srt")
+    _make_sub(temp_dir, "episode.en.bak.srt")  # subtitle_processor backup
+
+    result = scan_subtitle_sidecars(video)
+    assert len(result) == 1
+    assert result[0]["language"] == "en"
+    # The backup file path must not leak into the active list under any field
+    assert all("bak" not in r.get("path", "") or not r["path"].endswith(".bak.srt") for r in result)
+
+
+def test_scan_returns_modifier_for_hi_variant(temp_dir):
+    """Hearing-Impaired variants keep their underlying language and
+    surface ``modifier='hi'`` so the UI can render a small badge."""
+    from routes.subtitles import scan_subtitle_sidecars
+
+    video = os.path.join(temp_dir, "episode.mkv")
+    Path(video).touch()
+    _make_sub(temp_dir, "episode.en.srt")
+    _make_sub(temp_dir, "episode.en.hi.srt")
+
+    result = scan_subtitle_sidecars(video)
+    assert len(result) == 2
+
+    plain = next(r for r in result if "modifier" not in r)
+    hi = next(r for r in result if r.get("modifier") == "hi")
+    assert plain["language"] == "en"
+    assert hi["language"] == "en"
+    assert hi["modifier"] == "hi"
+
+
+def test_scan_returns_modifier_for_forced_sdh_cc(temp_dir):
+    from routes.subtitles import scan_subtitle_sidecars
+
+    video = os.path.join(temp_dir, "episode.mkv")
+    Path(video).touch()
+    _make_sub(temp_dir, "episode.en.forced.srt")
+    _make_sub(temp_dir, "episode.de.sdh.srt")
+    _make_sub(temp_dir, "episode.fr.cc.srt")
+
+    result = scan_subtitle_sidecars(video)
+    by_lang = {r["language"]: r for r in result}
+    assert by_lang["en"]["modifier"] == "forced"
+    assert by_lang["de"]["modifier"] == "sdh"
+    assert by_lang["fr"]["modifier"] == "cc"
+
+
+def test_scan_modifier_field_omitted_for_plain_subs(temp_dir):
+    """Active subs without any modifier suffix must not have a
+    ``modifier`` key at all (UI relies on its absence to skip the badge)."""
+    from routes.subtitles import scan_subtitle_sidecars
+
+    video = os.path.join(temp_dir, "episode.mkv")
+    Path(video).touch()
+    _make_sub(temp_dir, "episode.de.srt")
+
+    result = scan_subtitle_sidecars(video)
+    assert len(result) == 1
+    assert "modifier" not in result[0]
+
+
+# ---------------------------------------------------------------------------
 # GET /api/v1/subtitles/download — path-based download
 # ---------------------------------------------------------------------------
 

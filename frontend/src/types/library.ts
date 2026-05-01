@@ -95,12 +95,62 @@ export interface EpisodeHistoryEntry {
 
 // ─── Subtitle Sidecar Management ─────────────────────────────────────────────
 
+export type SubtitleModifier = 'hi' | 'forced' | 'sdh' | 'cc'
+
 export interface SidecarSubtitle {
   path: string
   language: string      // e.g. "de", "en", "ja"
   format: string        // "ass" | "srt" | "vtt" | "ssa"
   size_bytes: number
   modified_at: number   // Unix timestamp (seconds)
+  // Optional secondary tag from the filename (e.g. "ep.en.hi.srt" -> "hi").
+  // Backend strips "bak" before reaching the UI; only user-visible modifiers
+  // (hi/forced/sdh/cc) appear here.
+  modifier?: SubtitleModifier
+}
+
+// ─── Subtitle Backups (`.bak.<ext>` files) ───────────────────────────────────
+
+export interface SubtitleBackup {
+  path: string
+  language: string
+  format: string
+  // Full modifier stack from the filename, e.g. ["bak"], ["hi", "bak"].
+  modifiers: string[]
+  size_bytes: number
+  modified_at: number
+  // Where the file would land if the user restores it (active sidecar path).
+  restore_path: string
+  // Parent video path (resolves .mkv/.mp4/...) or null if the video is gone.
+  video_path: string | null
+  // True when neither active sidecar nor parent video exists — safe to purge.
+  is_orphan: boolean
+  // ISO8601 — when retention-based auto-purge would remove this file.
+  // Null when retention=0 (purge disabled).
+  expires_at: string | null
+}
+
+export interface SubtitleBackupListResponse {
+  backups: SubtitleBackup[]
+  count: number
+  orphan_count: number
+  retention_days: number
+}
+
+export interface SubtitleBackupCleanupRequest {
+  older_than_days?: number
+  orphans_only?: boolean
+  dry_run?: boolean
+  series_path?: string
+}
+
+export interface SubtitleBackupCleanupResponse {
+  deleted: string[]
+  orphans_purged: number
+  skipped: number
+  errors: string[]
+  dry_run: boolean
+  note?: string
 }
 
 // ─── Track Manifest ───────────────────────────────────────────────────────────

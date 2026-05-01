@@ -390,6 +390,15 @@ function MovieSubtitlesSection({ movieId }: { movieId: number }) {
               >
                 {sub.format.toUpperCase()}
               </span>
+              {sub.modifier && (
+                <span
+                  className="text-[10px] font-bold px-1.5 py-0.5 rounded shrink-0 uppercase tracking-wide"
+                  style={{ backgroundColor: 'var(--warning-bg, #5a3d10)', color: 'var(--warning, #ffb84d)' }}
+                  title={`Variant: ${sub.modifier.toUpperCase()}`}
+                >
+                  {sub.modifier}
+                </span>
+              )}
               <span className="text-xs truncate" style={{ color: 'var(--text-muted)', fontFamily: 'var(--font-mono)' }}>
                 {sub.path.split(/[/\\]/).pop()}
               </span>

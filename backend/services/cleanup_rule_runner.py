@@ -79,6 +79,23 @@ def execute_rule(rule_id: int, *, socketio=None) -> dict:
             "deleted": deleted_count,
             "bytes_freed": 0,
         }
+    elif rule_type == "old_subtitle_baks":
+        result = _run_old_subtitle_baks(rule, config)
+        deleted_count = len(result.get("deleted", []) or [])
+        repo.update_rule_last_run(rule_id)
+        repo.log_cleanup(
+            action_type=rule_type,
+            rule_id=rule_id,
+            files_deleted=deleted_count,
+            bytes_freed=0,
+        )
+        return {
+            "status": "completed",
+            "rule": rule["name"],
+            "deleted": deleted_count,
+            "orphans_purged": result.get("orphans_purged", 0),
+            "bytes_freed": 0,
+        }
     else:
         raise ValueError(f"Unknown rule type: {rule_type}")
 
@@ -162,6 +179,35 @@ def _run_old_backups(rule, config):
 
     retention_days = int(config.get("retention_days", 7))
     return cleanup_old_backups(_trash_paths(), retention_days)
+
+
+def _run_old_subtitle_baks(rule, config):
+    """Execute old_subtitle_baks cleanup.
+
+    Walks media roots for ``<file>.<lang>.bak.<ext>`` produced by the
+    subtitle processor. Always orphan-purges (regardless of age) and
+    deletes non-orphans older than ``config.retention_days`` (defaults
+    to ``settings.subtitle_bak_retention_days``).
+    """
+    from config import get_settings
+    from services.subtitle_backups import cleanup_subtitle_baks
+
+    settings = get_settings()
+    default_retention = int(getattr(settings, "subtitle_bak_retention_days", 30) or 0)
+    retention_days = int(config.get("retention_days", default_retention))
+
+    media_roots: list[str] = []
+    if getattr(settings, "media_path", ""):
+        media_roots.append(settings.media_path)
+    extra = getattr(settings, "extra_media_paths", "")
+    if extra:
+        media_roots.extend(p.strip() for p in extra.split(",") if p.strip())
+
+    return cleanup_subtitle_baks(
+        media_roots,
+        older_than_days=retention_days,
+        orphans_only=False,
+    )
 
 
 def _preview_dedup() -> dict:

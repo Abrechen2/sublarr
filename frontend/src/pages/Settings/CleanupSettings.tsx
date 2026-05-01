@@ -7,7 +7,7 @@
  */
 import { useState, useCallback, useEffect } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Loader2, Globe, ArrowUpCircle, FileX, Database, Archive, Layers } from 'lucide-react'
+import { Loader2, Globe, ArrowUpCircle, FileX, Database, Archive, Layers, FileWarning } from 'lucide-react'
 import { PageHeader } from '@/components/layout/PageHeader'
 import { DiskSpaceWidget } from '@/components/cleanup/DiskSpaceWidget'
 import { CleanupOpCard, type OpMeta } from '@/components/cleanup/CleanupOpCard'
@@ -75,6 +75,16 @@ const OPERATIONS: OpMeta[] = [
     title: 'Alte Backups',
     description: 'Löscht Remux-Backup-Dateien nach Ablauf der Aufbewahrungsfrist',
     defaultName: 'Alte Backups',
+  },
+  {
+    ruleType: 'old_subtitle_baks',
+    Icon: FileWarning,
+    iconColor: 'var(--warning, #f59e0b)',
+    iconBg: 'rgba(245,158,11,.12)',
+    title: 'Alte Untertitel-Backups (.bak)',
+    description:
+      'Verwaiste .bak.srt/.bak.ass werden sofort entfernt; übrige nach Aufbewahrungsfrist (0 = nie)',
+    defaultName: 'Alte Untertitel-Backups',
   },
 ]
 

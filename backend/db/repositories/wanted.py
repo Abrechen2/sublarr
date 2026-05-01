@@ -321,9 +321,7 @@ class WantedRepository(BaseRepository, _WantedUpsertMixin, _WantedUpdatesMixin):
         )
         return [self._row_to_wanted(r) for r in rows]
 
-    def get_wanted_by_series_bulk(
-        self, sonarr_series_ids: list[int]
-    ) -> dict[int, list[dict]]:
+    def get_wanted_by_series_bulk(self, sonarr_series_ids: list[int]) -> dict[int, list[dict]]:
         """Bulk variant of get_wanted_by_series.
 
         One ``WHERE sonarr_series_id IN (...)`` query instead of N. Returned

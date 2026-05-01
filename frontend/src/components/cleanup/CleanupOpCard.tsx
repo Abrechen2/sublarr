@@ -439,6 +439,35 @@ export function CleanupOpCard({ meta, rule, onToggle, onUpdate }: CleanupOpCardP
               </div>
             )}
 
+            {meta.ruleType === 'old_subtitle_baks' && (
+              <div className="flex-1 min-w-[160px]">
+                <div
+                  className="text-[10px] font-semibold uppercase tracking-wider mb-3"
+                  style={{ color: 'var(--text-muted)' }}
+                >
+                  Aufbewahrung (Tage)
+                </div>
+                <input
+                  type="number"
+                  min={0}
+                  value={(config.retention_days as number) ?? 30}
+                  onChange={(e) =>
+                    updateConfig({
+                      retention_days: Math.max(0, parseInt(e.target.value, 10) || 30),
+                    })
+                  }
+                  className="px-3 py-2 rounded-lg text-sm focus:outline-none"
+                  style={{
+                    width: 110,
+                    background: 'var(--bg-surface)',
+                    border: '1px solid var(--border)',
+                    color: 'var(--text-primary)',
+                  }}
+                  title="0 = keep forever (orphans still purged immediately)"
+                />
+              </div>
+            )}
+
             {/* Schedule — always shown */}
             <div className="flex-1 min-w-[220px]">
               <div
@@ -459,15 +488,17 @@ export function CleanupOpCard({ meta, rule, onToggle, onUpdate }: CleanupOpCardP
             className="flex items-center gap-3 mt-5 pt-5"
             style={{ borderTop: '1px solid var(--border)' }}
           >
-            <button
-              onClick={handlePreview}
-              disabled={!rule || rulePreview.isPending}
-              className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium disabled:opacity-40 transition-opacity"
-              style={{ border: '1px solid var(--border)', color: 'var(--text-secondary)' }}
-            >
-              <Eye size={13} />
-              {rulePreview.isPending ? 'Lädt…' : 'Vorschau'}
-            </button>
+            {meta.ruleType !== 'old_subtitle_baks' && meta.ruleType !== 'old_backups' && (
+              <button
+                onClick={handlePreview}
+                disabled={!rule || rulePreview.isPending}
+                className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium disabled:opacity-40 transition-opacity"
+                style={{ border: '1px solid var(--border)', color: 'var(--text-secondary)' }}
+              >
+                <Eye size={13} />
+                {rulePreview.isPending ? 'Lädt…' : 'Vorschau'}
+              </button>
+            )}
 
             <button
               onClick={handleRun}

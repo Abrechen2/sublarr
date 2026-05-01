@@ -401,9 +401,9 @@ def test_standalone_series_detail_returns_subtitle_scores(client, monkeypatch):
     must surface on the per-episode payload now that the query uses an
     expanding bindparam.
     """
-    from extensions import db as ext_db
-    from db.models.providers import SubtitleDownload
     from db.models.core import WantedItem
+    from db.models.providers import SubtitleDownload
+    from extensions import db as ext_db
 
     monkeypatch.setattr("sonarr_client.get_sonarr_client", lambda *a, **kw: None)
 

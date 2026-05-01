@@ -8,6 +8,8 @@ PUT  /api/v1/tools/process/interjections  — replace interjections list
 POST /api/v1/library/series/<id>/process  — trigger series processing (background)
 POST /api/v1/library/process-all          — trigger full library batch (background)
 PATCH /api/v1/library/series/<id>/processing-config — save per-series override
+GET  /api/v1/library/subtitle-backups     — list all subtitle .bak files
+POST /api/v1/library/subtitle-backups/cleanup — bulk delete (TTL + orphans)
 """
 
 import json
@@ -421,3 +423,99 @@ def _batch_process_library(filter_mode: str) -> None:
             if row and row.processing_config is not None:
                 continue  # already has processing config, skip
         _batch_process_series(series_id)
+
+
+# ─── Subtitle-backup management ───────────────────────────────────────────────
+
+
+def _media_roots_for_baks() -> list[str]:
+    """Resolve the media directories the bak walker should scan.
+
+    Reads ``media_path`` and ``extra_media_paths`` from settings, the
+    same shape as ``routes.remux._media_paths`` — kept inline to avoid
+    cross-route imports just for this two-line helper.
+    """
+    s = get_settings()
+    paths: list[str] = []
+    media = getattr(s, "media_path", "")
+    if media:
+        paths.append(media)
+    extra = getattr(s, "extra_media_paths", "")
+    if extra:
+        paths.extend(p.strip() for p in extra.split(",") if p.strip())
+    return paths
+
+
+@bp.route("/library/subtitle-backups", methods=["GET"])
+def list_subtitle_backups():
+    """Return every subtitle ``.bak`` file Sublarr knows about.
+
+    Query parameters
+    ----------------
+    series_path : optional path prefix
+        When provided, only baks whose path begins with this prefix are
+        returned. The frontend uses the Sonarr series.path as the
+        filter so the management UI can scope to one show.
+    """
+    from services.subtitle_backups import list_subtitle_baks
+
+    s = get_settings()
+    retention = int(getattr(s, "subtitle_bak_retention_days", 30) or 0)
+    series_path = request.args.get("series_path") or None
+
+    if series_path:
+        # Defence-in-depth: never let the caller scan arbitrary paths.
+        # The filter is a path prefix, not the actual scan root, so a
+        # malicious value would just narrow results to nothing — but
+        # we still validate it lies under media_path.
+        roots = _media_roots_for_baks()
+        if not any(is_safe_path(series_path, r) for r in roots):
+            return jsonify({"error": "series_path is outside the configured media directory"}), 403
+
+    baks = list_subtitle_baks(
+        _media_roots_for_baks(),
+        retention_days=retention,
+        series_path_filter=series_path,
+    )
+    orphan_count = sum(1 for b in baks if b["is_orphan"])
+    return jsonify(
+        {
+            "backups": baks,
+            "count": len(baks),
+            "orphan_count": orphan_count,
+            "retention_days": retention,
+        }
+    ), 200
+
+
+@bp.route("/library/subtitle-backups/cleanup", methods=["POST"])
+def cleanup_subtitle_backups():
+    """Bulk-delete subtitle backup files.
+
+    Body
+    ----
+    older_than_days : int (optional, default = configured retention)
+        Delete baks older than this many days. ``0`` disables the age
+        check — combine with ``orphans_only=true`` for orphan-only mode.
+    orphans_only : bool (optional, default false)
+        Skip the age check entirely and only purge orphans.
+    dry_run : bool (optional, default false)
+        Preview without touching disk. Returns the same shape with the
+        ``dry_run`` flag set.
+    """
+    from services.subtitle_backups import cleanup_subtitle_baks
+
+    body = request.get_json(force=True, silent=True) or {}
+    s = get_settings()
+    default_retention = int(getattr(s, "subtitle_bak_retention_days", 30) or 0)
+    older_than_days = int(body.get("older_than_days", default_retention))
+    orphans_only = bool(body.get("orphans_only", False))
+    dry_run = bool(body.get("dry_run", False))
+
+    result = cleanup_subtitle_baks(
+        _media_roots_for_baks(),
+        older_than_days=older_than_days,
+        orphans_only=orphans_only,
+        dry_run=dry_run,
+    )
+    return jsonify(result), 200

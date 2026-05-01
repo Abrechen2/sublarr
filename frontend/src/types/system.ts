@@ -380,7 +380,7 @@ export interface DuplicateGroup {
 export interface CleanupRule {
   id: number
   name: string
-  rule_type: 'dedup' | 'orphaned' | 'old_backups' | 'language_filter' | 'format_upgrade' | 'orphan_files' | 'orphan_db'
+  rule_type: 'dedup' | 'orphaned' | 'old_backups' | 'old_subtitle_baks' | 'language_filter' | 'format_upgrade' | 'orphan_files' | 'orphan_db'
   config_json: Record<string, unknown>
   enabled: boolean
   schedule: 'manual' | 'daily' | 'weekly' | 'after_scan'

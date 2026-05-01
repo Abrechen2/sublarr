@@ -210,9 +210,7 @@ def save_instances():
         if url:
             ok, reason = validate_service_url(url)
             if not ok:
-                return jsonify(
-                    {"error": f"Entry at index {idx}: invalid url — {reason}"}
-                ), 400
+                return jsonify({"error": f"Entry at index {idx}: invalid url — {reason}"}), 400
         # Re-merge masked secrets: if the UI sent ``***abcd`` (the mask GET
         # returns), drop the field so we keep the stored value instead of
         # overwriting with garbage.

@@ -38,10 +38,7 @@ def _looks_like_extras(file_path: str) -> bool:
     if not file_path:
         return False
     normalised = file_path.replace("\\", "/").lower()
-    for segment in normalised.split("/"):
-        if segment.strip() in _EXTRAS_PATH_MARKERS:
-            return True
-    return False
+    return any(segment.strip() in _EXTRAS_PATH_MARKERS for segment in normalised.split("/"))
 
 
 @bp.route("/library", methods=["GET"])

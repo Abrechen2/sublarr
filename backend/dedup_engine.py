@@ -12,24 +12,18 @@ import hashlib
 import json
 import logging
 import os
-import re
 from concurrent.futures import ThreadPoolExecutor, as_completed
 
 from security_utils import is_safe_path
+from subtitle_filename import parse_subtitle_filename
 
 logger = logging.getLogger(__name__)
 
-# Subtitle file extensions to scan
+# Subtitle file extensions to scan. Kept as a dot-prefixed set for the
+# many call-sites in this file that compare against ``os.path.splitext``
+# results — backend.subtitle_filename.SUBTITLE_EXTS is the canonical
+# bare-extension version.
 SUBTITLE_EXTENSIONS = {".srt", ".ass", ".ssa"}
-
-# Language pattern in subtitle filenames: .en.srt, .de.ass, .ja.ssa, .en.hi.srt, .en.bak.srt
-# Anchored to known subtitle extensions to avoid false matches on dots in titles
-# (e.g., "Mr. Saturday" or "Father. Brother" should NOT match as language tags).
-_SUB_EXT = "|".join(e.lstrip(".") for e in SUBTITLE_EXTENSIONS)  # "srt|ass|ssa"
-_LANG_PATTERN = re.compile(
-    rf"\.([a-z]{{2,3}})(?:\.(?:hi|bak|forced|sdh|cc))?\.(?:{_SUB_EXT})$",
-    re.IGNORECASE,
-)
 
 # Common media file extensions
 MEDIA_EXTENSIONS = {".mkv", ".mp4", ".avi", ".m4v", ".wmv", ".flv", ".webm", ".ts"}
@@ -69,11 +63,11 @@ def compute_subtitle_hash(file_path: str) -> dict:
     ext = os.path.splitext(file_path)[1].lower()
     format_name = ext.lstrip(".")  # "srt", "ass", "ssa"
 
-    # Extract language from filename pattern (e.g., .en.srt -> "en")
-    language = None
-    lang_match = _LANG_PATTERN.search(os.path.basename(file_path))
-    if lang_match:
-        language = lang_match.group(1).lower()
+    # Extract language via the shared parser. ``language`` stays None for
+    # unparseable filenames (no language slot, alien extensions, etc.) —
+    # matches the previous behaviour where the regex simply did not match.
+    parsed = parse_subtitle_filename(file_path)
+    language = parsed.language if parsed else None
 
     line_count = len(normalized.splitlines())
 
@@ -364,15 +358,18 @@ def scan_orphaned_subtitles(media_path: str) -> list[dict]:
             if ext not in SUBTITLE_EXTENSIONS:
                 continue
 
-            # Strip subtitle extensions and language tags to get base name
-            # e.g., "Episode.01.en.srt" -> "Episode.01"
-            # Apply regex to full filename so it anchors on known subtitle extensions
-            lang_stripped = _LANG_PATTERN.sub("", filename)
-            if lang_stripped == filename:
-                # Regex didn't match (no language tag) — just strip subtitle extension
-                base_name = os.path.splitext(filename)[0]
+            # Strip subtitle extensions, modifier suffixes and language
+            # tags to get the underlying media base name.
+            #   "Episode.01.en.srt"        -> "Episode.01"
+            #   "Episode.01.en.hi.bak.srt" -> "Episode.01"
+            parsed_sub = parse_subtitle_filename(filename)
+            if parsed_sub is not None:
+                base_name = parsed_sub.base
             else:
-                base_name = lang_stripped
+                # Filename didn't match the <base>.<lang>(.mod)*.<ext> shape —
+                # fall back to plain extension stripping for legacy/alien
+                # naming so the orphan check still works on weird files.
+                base_name = os.path.splitext(filename)[0]
 
             # Check if any media file matches this base
             if base_name.lower() not in media_bases:

@@ -302,9 +302,7 @@ class JobRepository(BaseRepository):
             or 0
         )
         attempts_30d = total_translated + total_failed
-        success_rate = (
-            round(total_translated * 100 / attempts_30d, 1) if attempts_30d > 0 else None
-        )
+        success_rate = round(total_translated * 100 / attempts_30d, 1) if attempts_30d > 0 else None
 
         return {
             "total_translated": total_translated,

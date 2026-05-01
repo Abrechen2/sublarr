@@ -17,10 +17,12 @@ import uuid
 from datetime import UTC, datetime
 
 from security_utils import is_safe_path
+from subtitle_filename import SUBTITLE_EXTS, parse_subtitle_filename
 
 logger = logging.getLogger(__name__)
 
-_SUBTITLE_EXTS = {"ass", "srt", "vtt", "ssa"}
+# Backwards-compat alias — older code in this module imported the local set
+_SUBTITLE_EXTS = SUBTITLE_EXTS
 
 
 # ─── Filesystem helpers ────────────────────────────────────────────────────────
@@ -29,9 +31,12 @@ _SUBTITLE_EXTS = {"ass", "srt", "vtt", "ssa"}
 def scan_subtitle_sidecars(video_path: str) -> list[dict]:
     """Scan filesystem for all subtitle sidecar files next to video_path.
 
-    Returns a list of dicts with path, language, format, size_bytes, modified_at.
-    Files must match the pattern: <base>.<lang>.<ext> where ext is a subtitle extension.
-    The video file itself is excluded.
+    Returns a list of dicts with path, language, format, modifier (optional),
+    size_bytes, modified_at. Backup files (``.bak``) are excluded — they are
+    restore artefacts produced by ``subtitle_processor.apply_mods`` and are
+    not playable subs. Modifier-suffixed files (``.hi``, ``.forced``,
+    ``.sdh``, ``.cc``) keep their underlying language and surface the
+    modifier in the response so the UI can render a small badge.
     """
     base, _ = os.path.splitext(video_path)
     result = []
@@ -39,30 +44,28 @@ def scan_subtitle_sidecars(video_path: str) -> list[dict]:
         for fpath in _glob.glob(_glob.escape(base) + ".*"):
             if fpath == video_path:
                 continue
-            parts = os.path.basename(fpath).split(".")
-            # Need at least: basename.lang.ext (3 parts)
-            if len(parts) < 3:
+            parsed = parse_subtitle_filename(fpath)
+            if parsed is None:
                 continue
-            ext = parts[-1].lower()
-            if ext not in _SUBTITLE_EXTS:
-                continue
-            lang = parts[-2]
-            # Reject obviously invalid language codes (quality, backup, etc.)
-            if not lang or len(lang) > 8 or "." in lang:
+            if parsed.is_backup:
+                # .bak files belong to the backup-management UI, not the
+                # active sidecar list.
                 continue
             try:
                 stat = os.stat(fpath)
             except OSError:
                 continue
-            result.append(
-                {
-                    "path": fpath,
-                    "language": lang,
-                    "format": ext,
-                    "size_bytes": stat.st_size,
-                    "modified_at": stat.st_mtime,
-                }
-            )
+            entry: dict = {
+                "path": fpath,
+                "language": parsed.language,
+                "format": parsed.extension,
+                "size_bytes": stat.st_size,
+                "modified_at": stat.st_mtime,
+            }
+            primary = parsed.primary_modifier
+            if primary is not None:
+                entry["modifier"] = primary
+            result.append(entry)
     except Exception as exc:
         logger.warning("scan_subtitle_sidecars failed for %s: %s", video_path, exc)
     return result

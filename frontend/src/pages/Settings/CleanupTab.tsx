@@ -406,6 +406,7 @@ export function CleanupTab() {
                 <option value="dedup">{t('cleanup.rules.types.dedup', 'Deduplication')}</option>
                 <option value="orphaned">{t('cleanup.rules.types.orphaned', 'Orphaned Files')}</option>
                 <option value="old_backups">{t('cleanup.rules.types.old_backups', 'Old Backups')}</option>
+                <option value="old_subtitle_baks">{t('cleanup.rules.types.old_subtitle_baks', 'Old Subtitle Backups (.bak)')}</option>
               </select>
               <label className="flex items-center gap-1.5 text-xs cursor-pointer" style={{ color: 'var(--text-secondary)' }}>
                 <input
