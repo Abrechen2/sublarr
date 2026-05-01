@@ -5,6 +5,18 @@ All notable changes to Sublarr are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.80.0-beta] - 2026-05-01
+
+### Added
+- **Subtitle backup management page** — Dedicated `/settings/cleanup/subtitle-backups` view, reachable from a footer link on the Cleanup settings page. Lists every `.bak.<ext>` file with language pill, modifier badges (HI/FORCED/SDH/CC), parent video, file size, age, and orphan status. Supports filtering (All / Orphans), per-row Restore (atomic swap-rename, never destructive) and Delete, plus bulk actions for purging orphans, purging aged backups (using `subtitle_bak_retention_days`) and a dry-run preview.
+- **Compact per-pill action menu** — The dense per-language sidecar row in the series view is now `[Lang][Health][×][⋯]` (~8 controls instead of ~22). All static actions (Vorschau, Editor, Download, NFO exportieren, HI entfernen, Common Fixes, Timing, Restore) live in the per-pill `⋯` dropdown, so the row stays readable when an episode has many languages or modifier variants.
+
+### Fixed
+- **Atomic swap-rename for `/tools/process/undo`** — Restore previously did a destructive `move(bak → active)`, overwriting the post-process active sidecar with no way to redo. The endpoint now performs a 3-step atomic swap (`active → tmp`, `bak → active`, `tmp → bak`) using `os.replace`, with rollback on failure. The `.bak` file then holds the prior active state, so a second undo is a free re-undo with no data loss. When no active sidecar exists, falls back to a single rename.
+
+### Changed
+- **Removed redundant "Untertitel bearbeiten" from episode action row** — The legacy stand-alone Edit-link picked the first sidecar by deterministic order and duplicated the per-pill `Editor` action that now lives in every sidecar's `⋯` dropdown. Dropping the redundant link removes a confusing hot-spot from the episode header.
+
 ## [0.79.0-beta] - 2026-05-01
 
 ### Added
