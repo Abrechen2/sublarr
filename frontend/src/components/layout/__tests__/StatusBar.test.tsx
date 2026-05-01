@@ -22,7 +22,7 @@ vi.mock('@/hooks/useWantedApi', () => ({
 }))
 
 vi.mock('@/hooks/useProvidersApi', () => ({
-  useProviderHealth: vi.fn(() => ({ data: {} })),
+  useProviderHealth: vi.fn(() => ({ data: { providers: [] } })),
 }))
 
 import { StatusBar } from '../StatusBar'
@@ -86,9 +86,56 @@ describe('StatusBar', () => {
   it('shows throttled providers warning', () => {
     vi.mocked(useProviderHealth).mockReturnValue({
       data: {
-        opensubtitles: { healthy: false, circuit_state: 'open', rate_limited: false },
-        addic7ed: { healthy: false, circuit_state: 'closed', rate_limited: true },
-        jimaku: { healthy: true, circuit_state: 'closed', rate_limited: false },
+        providers: [
+          {
+            name: 'opensubtitles',
+            healthy: false,
+            enabled: true,
+            initialized: true,
+            success_rate: 0,
+            avg_response_time_ms: 0,
+            last_response_time_ms: 0,
+            auto_disabled: false,
+            disabled_until: '',
+            consecutive_failures: 5,
+            total_searches: 10,
+            circuit_breaker_state: 'open',
+            throttled_until: null,
+            throttle_reason: null,
+          },
+          {
+            name: 'addic7ed',
+            healthy: false,
+            enabled: true,
+            initialized: true,
+            success_rate: 0,
+            avg_response_time_ms: 0,
+            last_response_time_ms: 0,
+            auto_disabled: false,
+            disabled_until: '',
+            consecutive_failures: 0,
+            total_searches: 5,
+            circuit_breaker_state: 'closed',
+            throttled_until: '2099-01-01T00:00:00Z',
+            throttle_reason: 'rate_limited',
+          },
+          {
+            name: 'jimaku',
+            healthy: true,
+            enabled: true,
+            initialized: true,
+            success_rate: 1,
+            avg_response_time_ms: 100,
+            last_response_time_ms: 100,
+            auto_disabled: false,
+            disabled_until: '',
+            consecutive_failures: 0,
+            total_searches: 20,
+            circuit_breaker_state: 'closed',
+            throttled_until: null,
+            throttle_reason: null,
+          },
+        ],
       },
     })
     render(<StatusBar />)
@@ -100,10 +147,56 @@ describe('StatusBar', () => {
   it('hides throttled warning when no providers are throttled', () => {
     vi.mocked(useProviderHealth).mockReturnValue({
       data: {
-        opensubtitles: { healthy: true, circuit_state: 'closed', rate_limited: false },
+        providers: [
+          {
+            name: 'opensubtitles',
+            healthy: true,
+            enabled: true,
+            initialized: true,
+            success_rate: 1,
+            avg_response_time_ms: 100,
+            last_response_time_ms: 100,
+            auto_disabled: false,
+            disabled_until: '',
+            consecutive_failures: 0,
+            total_searches: 30,
+            circuit_breaker_state: 'closed',
+            throttled_until: null,
+            throttle_reason: null,
+          },
+        ],
       },
     })
     render(<StatusBar />)
     expect(screen.queryByTestId('status-bar-throttled')).not.toBeInTheDocument()
+  })
+
+  it('treats auto_disabled providers as throttled', () => {
+    vi.mocked(useProviderHealth).mockReturnValue({
+      data: {
+        providers: [
+          {
+            name: 'opensubtitles',
+            healthy: false,
+            enabled: true,
+            initialized: true,
+            success_rate: 0,
+            avg_response_time_ms: 0,
+            last_response_time_ms: 0,
+            auto_disabled: true,
+            disabled_until: '2099-01-01T00:00:00Z',
+            consecutive_failures: 10,
+            total_searches: 10,
+            circuit_breaker_state: 'closed',
+            throttled_until: null,
+            throttle_reason: null,
+          },
+        ],
+      },
+    })
+    render(<StatusBar />)
+    const throttled = screen.getByTestId('status-bar-throttled')
+    expect(throttled).toBeInTheDocument()
+    expect(throttled).toHaveAttribute('title', 'opensubtitles')
   })
 })

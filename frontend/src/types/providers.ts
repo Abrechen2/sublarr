@@ -36,6 +36,23 @@ export interface ProviderInfo {
   stats: ProviderHealthStats
 }
 
+export interface ProviderHealthItem {
+  name: string
+  healthy: boolean
+  enabled: boolean
+  initialized: boolean
+  success_rate: number
+  avg_response_time_ms: number
+  last_response_time_ms: number
+  auto_disabled: boolean
+  disabled_until: string
+  consecutive_failures: number
+  total_searches: number
+  circuit_breaker_state: string
+  throttled_until: string | null
+  throttle_reason: string | null
+}
+
 export interface ProviderStats {
   cache: Record<string, { total: number; active: number }>
   downloads: Record<string, { total: number; by_format: Record<string, number> }>

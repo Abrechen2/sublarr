@@ -200,32 +200,40 @@ export function ProvidersCollectionView({
   const handleDragEnd = () => { setDragFrom(null); setDragOver(null) }
 
   // ── HealthRail items derived from useProviderHealth ────────────────────────
+  const healthByName = useMemo(() => {
+    const map = new Map<string, NonNullable<typeof healthData>['providers'][number]>()
+    for (const h of healthData?.providers ?? []) map.set(h.name, h)
+    return map
+  }, [healthData])
+
   const healthItems = useMemo<HealthItem[]>(() => {
     if (!healthData) return []
     const items: HealthItem[] = []
     for (const p of shownProviders) {
-      const h = healthData[p.name]
+      const h = healthByName.get(p.name)
       if (!h) continue
+      const cbState = h.circuit_breaker_state ?? 'closed'
+      const isRateLimited = h.throttle_reason === 'rate_limited'
       if (!h.healthy) {
         items.push({
           id: `provider-${p.name}-unhealthy`,
           severity: 'err',
           title: `${p.name.replace(/_/g, ' ')} unhealthy`,
-          body: h.circuit_state !== 'closed' ? `Circuit: ${h.circuit_state}` : undefined,
+          body: cbState !== 'closed' ? `Circuit: ${cbState}` : undefined,
           fix: { onClick: () => setSelectedId(p.name), label: 'Inspect →' },
         })
-      } else if (h.rate_limited) {
+      } else if (isRateLimited) {
         items.push({
           id: `provider-${p.name}-rate-limited`,
           severity: 'warn',
           title: `${p.name.replace(/_/g, ' ')} rate limited`,
           fix: { onClick: () => setSelectedId(p.name), label: 'Inspect →' },
         })
-      } else if (h.circuit_state !== 'closed') {
+      } else if (cbState !== 'closed') {
         items.push({
           id: `provider-${p.name}-circuit`,
           severity: 'warn',
-          title: `${p.name.replace(/_/g, ' ')} circuit ${h.circuit_state}`,
+          title: `${p.name.replace(/_/g, ' ')} circuit ${cbState}`,
           fix: { onClick: () => setSelectedId(p.name), label: 'Inspect →' },
         })
       } else {
@@ -238,7 +246,7 @@ export function ProvidersCollectionView({
     }
     return items
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [healthData, shownProviders])
+  }, [healthData, healthByName, shownProviders])
 
   if (providersLoading) {
     return (

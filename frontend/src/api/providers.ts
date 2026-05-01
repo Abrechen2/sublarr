@@ -1,5 +1,5 @@
 import { api } from './core'
-import type { ProviderInfo, ProviderStats } from '@/lib/types'
+import type { ProviderInfo, ProviderStats, ProviderHealthItem } from '@/lib/types'
 
 // ─── Providers ───────────────────────────────────────────────────────────────
 
@@ -22,7 +22,7 @@ export async function getProviderStats(): Promise<ProviderStats> {
   return data
 }
 
-export async function getProviderHealth(): Promise<Record<string, { healthy: boolean; circuit_state: string; rate_limited: boolean; last_error?: string }>> {
+export async function getProviderHealth(): Promise<{ providers: ProviderHealthItem[] }> {
   const { data } = await api.get('/providers/health')
   return data
 }

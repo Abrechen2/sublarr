@@ -24,10 +24,15 @@ export function StatusBar() {
   const hasUpdate = updateInfo?.available === true
 
   const throttledProviders = useMemo(() => {
-    if (!providerHealth) return []
-    return Object.entries(providerHealth)
-      .filter(([, v]) => v.circuit_state === 'open' || v.rate_limited)
-      .map(([name]) => name)
+    const items = providerHealth?.providers ?? []
+    return items
+      .filter(
+        (p) =>
+          p.circuit_breaker_state === 'open' ||
+          p.throttle_reason === 'rate_limited' ||
+          p.auto_disabled,
+      )
+      .map((p) => p.name)
   }, [providerHealth])
 
   const automationLabel = isAutomationActive
