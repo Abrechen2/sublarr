@@ -5,6 +5,11 @@ All notable changes to Sublarr are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.81.1-beta] - 2026-05-01
+
+### Fixed
+- **"API Key needed" on subtitle process/undo/restore actions** — Eight helpers in `api/system/tools.ts` (`processSubtitle`, `undoProcessSubtitle`, `checkBakExists`, `getInterjections`, `putInterjections`, `processSeries`, `processLibraryAll`, `updateSeriesProcessingConfig`) called bare `fetch()` against `/api/v1/...`, bypassing the axios request interceptor that injects the `X-Api-Key` header. With API-key auth enabled the per-pill HI removal / Common Fixes / Restore actions and the series/library batch-process buttons all returned 401 "API key required". All eight now route through the shared `api` axios instance, so the auth header is attached consistently.
+
 ## [0.81.0-beta] - 2026-05-01
 
 ### Changed
