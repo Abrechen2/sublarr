@@ -351,67 +351,43 @@ export async function processSubtitle(
   mods: ModConfig[],
   dry_run = false
 ): Promise<ProcessingResult> {
-  const res = await fetch('/api/v1/tools/process', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ path, mods, dry_run }),
-  })
-  if (!res.ok) throw new Error((await res.json()).error ?? res.statusText)
-  return res.json()
+  const { data } = await api.post('/tools/process', { path, mods, dry_run })
+  return data
 }
 
 export async function undoProcessSubtitle(path: string): Promise<void> {
-  const res = await fetch('/api/v1/tools/process/undo', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ path }),
-  })
-  if (!res.ok) throw new Error((await res.json()).error ?? res.statusText)
+  await api.post('/tools/process/undo', { path })
 }
 
 export async function checkBakExists(path: string): Promise<boolean> {
-  const res = await fetch(`/api/v1/tools/process/bak-exists?path=${encodeURIComponent(path)}`)
-  if (!res.ok) return false
-  return (await res.json()).exists as boolean
+  try {
+    const { data } = await api.get('/tools/process/bak-exists', { params: { path } })
+    return data.exists as boolean
+  } catch {
+    return false
+  }
 }
 
 export async function getInterjections(): Promise<{ items: string[]; is_custom: boolean }> {
-  const res = await fetch('/api/v1/tools/process/interjections')
-  if (!res.ok) throw new Error((await res.json()).error ?? res.statusText)
-  return res.json()
+  const { data } = await api.get('/tools/process/interjections')
+  return data
 }
 
 export async function putInterjections(items: string[]): Promise<void> {
-  const res = await fetch('/api/v1/tools/process/interjections', {
-    method: 'PUT',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ items }),
-  })
-  if (!res.ok) throw new Error((await res.json()).error ?? res.statusText)
+  await api.put('/tools/process/interjections', { items })
 }
 
 export async function processSeries(series_id: number): Promise<void> {
-  const res = await fetch(`/api/v1/library/series/${series_id}/process`, { method: 'POST' })
-  if (!res.ok) throw new Error((await res.json()).error ?? res.statusText)
+  await api.post(`/library/series/${series_id}/process`)
 }
 
 export async function processLibraryAll(filter: 'all' | 'unprocessed' = 'all'): Promise<void> {
-  const res = await fetch('/api/v1/library/process-all', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ filter }),
-  })
-  if (!res.ok) throw new Error((await res.json()).error ?? res.statusText)
+  await api.post('/library/process-all', { filter })
 }
 
 export async function updateSeriesProcessingConfig(
   series_id: number,
   config: Record<string, boolean | null>
 ): Promise<void> {
-  const res = await fetch(`/api/v1/library/series/${series_id}/processing-config`, {
-    method: 'PATCH',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(config),
-  })
-  if (!res.ok) throw new Error(res.statusText)
+  await api.patch(`/library/series/${series_id}/processing-config`, config)
 }
