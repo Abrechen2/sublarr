@@ -4,7 +4,7 @@ import logging
 import os
 import threading
 
-from flask import jsonify, request
+from flask import jsonify
 
 from db.activity import log_activity
 from db.models.activity import EVENT_EXTRACT
@@ -248,12 +248,7 @@ def extract_embedded_sub(item_id):
         404:
           description: Item, file, or subtitle stream not found
     """
-    from ass_utils import extract_subtitle_stream, get_media_streams, select_best_subtitle_stream
-    from config import get_settings
-    from db.wanted import get_wanted_item, update_existing_sub, update_wanted_status
-    from translator import get_output_path_for_lang
-
-    settings = get_settings()
+    from db.wanted import get_wanted_item
 
     item = get_wanted_item(item_id)
     if not item:
@@ -266,78 +261,20 @@ def extract_embedded_sub(item_id):
     if not file_path.lower().endswith((".mkv", ".mp4", ".m4v")):
         return jsonify({"error": "File is not a video container (MKV/MP4)"}), 400
 
-    data = request.get_json(silent=True) or {}
-    target_language = (
-        data.get("target_language") or item.get("target_language") or settings.target_language
-    )
-
+    # Delegate to the shared embedded_extractor pipeline so the single-item
+    # route, the auto-extract drain, and the batch-probe pipeline all share
+    # the same extract-everything-then-trash-non-target semantics. The legacy
+    # request fields (`stream_index`, `target_language`) are silently ignored:
+    # the new pipeline extracts every text-based stream and labels each
+    # sidecar by the stream's actual language, not by the wanted item's
+    # target — picking a single stream is no longer a meaningful operation.
     try:
-        # Get media stream metadata
-        probe_data = get_media_streams(file_path, use_cache=True)
+        result = _extract_embedded_sub(item_id, file_path, auto_translate=False)
+    except FileNotFoundError as exc:
+        return jsonify({"error": str(exc)}), 404
+    except LookupError as exc:
+        return jsonify({"error": str(exc)}), 404
+    except ValueError as exc:
+        return jsonify({"error": str(exc)}), 400
 
-        # Select stream
-        stream_info = None
-        if data.get("stream_index") is not None:
-            # Use specific stream index
-            stream_index = data["stream_index"]
-            streams = probe_data.get("streams", [])
-            subtitle_streams = [s for s in streams if s.get("codec_type") == "subtitle"]
-            if stream_index < len(subtitle_streams):
-                stream = subtitle_streams[stream_index]
-                stream_info = {
-                    "sub_index": stream_index,
-                    "stream_index": stream.get("index"),
-                    "format": "ass"
-                    if stream.get("codec_name", "").lower() in ("ass", "ssa")
-                    else "srt",
-                    "language": stream.get("tags", {}).get("language", ""),
-                }
-        else:
-            # Auto-select best stream for target language
-            stream_info = select_best_subtitle_stream(probe_data)
-
-        if not stream_info:
-            return jsonify({"error": "No suitable subtitle stream found"}), 404
-
-        # Determine output path
-        output_path = get_output_path_for_lang(file_path, stream_info["format"], target_language)
-
-        # Extract sidecar and remove stream from container
-        extract_subtitle_stream(file_path, stream_info, output_path)
-        _remove_stream_from_container(file_path, stream_info)
-
-        # Mark item as extracted — keep visible in Wanted for user-initiated cleanup/translate
-        update_existing_sub(item_id, stream_info["format"])
-        update_wanted_status(item_id, "extracted")
-        emit_event(
-            "wanted_item_processed",
-            {
-                "wanted_id": item_id,
-                "status": "extracted",
-                "output_path": output_path,
-                "source": "embedded",
-            },
-        )
-
-        log_activity(
-            EVENT_EXTRACT,
-            file_path=str(file_path),
-            status="success",
-            details={
-                "format": stream_info["format"],
-                "output_path": output_path,
-                "wanted_id": item_id,
-            },
-        )
-
-        return jsonify(
-            {
-                "status": "extracted",
-                "output_path": output_path,
-                "format": stream_info["format"],
-                "language": stream_info.get("language", ""),
-            }
-        )
-
-    except Exception:
-        raise  # Handled by global error handler
+    return jsonify(result)

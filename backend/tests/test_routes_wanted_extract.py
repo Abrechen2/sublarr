@@ -161,168 +161,68 @@ class TestExtractEmbeddedSubEndpoint:
         assert "not a video container" in resp.get_json()["error"]
 
     def test_no_subtitle_stream_found(self, app_client, tmp_path):
+        """Helper raises LookupError → route returns 404 with the exception text."""
         mkv = tmp_path / "video.mkv"
         mkv.write_bytes(b"\x1a\x45\xdf\xa3")
         app, client = app_client
         item_id = _insert_wanted(app, file_path=str(mkv))
 
-        with (
-            patch(P_GET_MEDIA, return_value={"streams": []}),
-            patch(P_SELECT_BEST, return_value=None),
+        with patch(
+            f"{_M}._extract_embedded_sub",
+            side_effect=LookupError(f"No suitable subtitle stream found in {mkv}"),
         ):
             resp = client.post(f"/api/v1/wanted/{item_id}/extract")
         assert resp.status_code == 404
         assert "No suitable subtitle stream" in resp.get_json()["error"]
 
-    def test_successful_extraction_auto_select(self, app_client, tmp_path):
+    def test_successful_extraction_delegates_to_helper(self, app_client, tmp_path):
+        """Route is a thin wrapper around _extract_embedded_sub; verify pass-through."""
         mkv = tmp_path / "video.mkv"
         mkv.write_bytes(b"\x1a\x45\xdf\xa3")
         app, client = app_client
         item_id = _insert_wanted(app, file_path=str(mkv))
 
-        stream_info = {
-            "sub_index": 0,
-            "stream_index": 2,
+        helper_result = {
+            "status": "extracted",
+            "output_path": "/media/show/ep01.eng.ass",
             "format": "ass",
             "language": "eng",
+            "extracted_count": 2,
+            "sidecars_trashed": 1,
         }
-        probe_data = {"streams": [{"codec_type": "subtitle", "codec_name": "ass", "index": 2}]}
-
-        with (
-            patch(P_GET_MEDIA, return_value=probe_data),
-            patch(P_SELECT_BEST, return_value=stream_info),
-            patch(P_EXTRACT_STREAM) as mock_extract,
-            patch(P_OUTPUT_FOR_LANG, return_value="/out/video.de.ass"),
-            patch(P_REMOVE_STREAM, return_value="/bak"),
-            patch(P_UPDATE_EXISTING_SUB) as mock_update_sub,
-            patch(P_UPDATE_STATUS) as mock_update_status,
-            patch(P_EMIT_EVENT) as mock_emit,
-            patch(P_LOG_ACTIVITY) as mock_log,
-        ):
+        with patch(f"{_M}._extract_embedded_sub", return_value=helper_result) as mock_helper:
             resp = client.post(f"/api/v1/wanted/{item_id}/extract")
 
         assert resp.status_code == 200
-        data = resp.get_json()
-        assert data["status"] == "extracted"
-        assert data["format"] == "ass"
-        assert data["output_path"] == "/out/video.de.ass"
-        assert data["language"] == "eng"
+        assert resp.get_json() == helper_result
+        mock_helper.assert_called_once_with(item_id, str(mkv), auto_translate=False)
 
-        mock_extract.assert_called_once()
-        mock_update_sub.assert_called_once_with(item_id, "ass")
-        mock_update_status.assert_called_once_with(item_id, "extracted")
-        mock_emit.assert_called_once()
-        mock_log.assert_called_once()
-
-    def test_extraction_with_specific_stream_index(self, app_client, tmp_path):
+    def test_legacy_request_params_silently_ignored(self, app_client, tmp_path):
+        """`stream_index` and `target_language` are accepted for backward compat
+        but no longer alter behaviour — the new pipeline always extracts every
+        text-based stream and labels each by its actual source language."""
         mkv = tmp_path / "video.mkv"
         mkv.write_bytes(b"\x1a\x45\xdf\xa3")
         app, client = app_client
         item_id = _insert_wanted(app, file_path=str(mkv))
 
-        probe_data = {
-            "streams": [
-                {"codec_type": "video", "index": 0},
-                {"codec_type": "audio", "index": 1},
-                {
-                    "codec_type": "subtitle",
-                    "codec_name": "subrip",
-                    "index": 2,
-                    "tags": {"language": "jpn"},
-                },
-                {
-                    "codec_type": "subtitle",
-                    "codec_name": "ass",
-                    "index": 3,
-                    "tags": {"language": "eng"},
-                },
-            ]
+        helper_result = {
+            "status": "extracted",
+            "output_path": "/media/show/ep01.jpn.srt",
+            "format": "srt",
+            "language": "jpn",
+            "extracted_count": 1,
+            "sidecars_trashed": 0,
         }
-
-        with (
-            patch(P_GET_MEDIA, return_value=probe_data),
-            patch(P_EXTRACT_STREAM),
-            patch(P_OUTPUT_FOR_LANG, return_value="/out/video.de.ass"),
-            patch(P_REMOVE_STREAM, return_value="/bak"),
-            patch(P_UPDATE_EXISTING_SUB),
-            patch(P_UPDATE_STATUS),
-            patch(P_EMIT_EVENT),
-            patch(P_LOG_ACTIVITY),
-        ):
+        with patch(f"{_M}._extract_embedded_sub", return_value=helper_result) as mock_helper:
             resp = client.post(
                 f"/api/v1/wanted/{item_id}/extract",
-                json={"stream_index": 1},  # second subtitle stream (index 1)
+                json={"stream_index": 1, "target_language": "en"},
             )
 
         assert resp.status_code == 200
-        data = resp.get_json()
-        assert data["format"] == "ass"  # second subtitle is ASS
-        assert data["language"] == "eng"
-
-    def test_extraction_with_stream_index_srt_codec(self, app_client, tmp_path):
-        """Verify SRT-family codecs resolve to format='srt'."""
-        mkv = tmp_path / "video.mkv"
-        mkv.write_bytes(b"\x1a\x45\xdf\xa3")
-        app, client = app_client
-        item_id = _insert_wanted(app, file_path=str(mkv))
-
-        probe_data = {
-            "streams": [
-                {
-                    "codec_type": "subtitle",
-                    "codec_name": "subrip",
-                    "index": 2,
-                    "tags": {"language": "eng"},
-                },
-            ]
-        }
-
-        with (
-            patch(P_GET_MEDIA, return_value=probe_data),
-            patch(P_EXTRACT_STREAM),
-            patch(P_OUTPUT_FOR_LANG, return_value="/out/video.de.srt"),
-            patch(P_REMOVE_STREAM, return_value="/bak"),
-            patch(P_UPDATE_EXISTING_SUB),
-            patch(P_UPDATE_STATUS),
-            patch(P_EMIT_EVENT),
-            patch(P_LOG_ACTIVITY),
-        ):
-            resp = client.post(
-                f"/api/v1/wanted/{item_id}/extract",
-                json={"stream_index": 0},
-            )
-
-        assert resp.status_code == 200
-        assert resp.get_json()["format"] == "srt"
-
-    def test_extraction_with_target_language_override(self, app_client, tmp_path):
-        mkv = tmp_path / "video.mkv"
-        mkv.write_bytes(b"\x1a\x45\xdf\xa3")
-        app, client = app_client
-        item_id = _insert_wanted(app, file_path=str(mkv))
-
-        stream_info = {"sub_index": 0, "stream_index": 2, "format": "srt", "language": "jpn"}
-
-        with (
-            patch(P_GET_MEDIA, return_value={"streams": []}),
-            patch(P_SELECT_BEST, return_value=stream_info),
-            patch(P_EXTRACT_STREAM),
-            patch(P_OUTPUT_FOR_LANG, return_value="/out/vid.en.srt") as mock_out,
-            patch(P_REMOVE_STREAM, return_value="/bak"),
-            patch(P_UPDATE_EXISTING_SUB),
-            patch(P_UPDATE_STATUS),
-            patch(P_EMIT_EVENT),
-            patch(P_LOG_ACTIVITY),
-        ):
-            resp = client.post(
-                f"/api/v1/wanted/{item_id}/extract",
-                json={"target_language": "en"},
-            )
-
-        assert resp.status_code == 200
-        # get_output_path_for_lang should have been called with the overridden language
-        call_args = mock_out.call_args
-        assert call_args[0][2] == "en"
+        # Request fields don't reach the helper — call shape is fixed.
+        mock_helper.assert_called_once_with(item_id, str(mkv), auto_translate=False)
 
     def test_empty_file_path(self, app_client):
         """Item with empty file_path returns 404."""
