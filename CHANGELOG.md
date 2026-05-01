@@ -5,6 +5,38 @@ All notable changes to Sublarr are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.77.2-beta] - 2026-05-01
+
+### Fixed
+- **Notifications — filters + quiet hours actually applied** — Filter rules and quiet-hours blocks were read from settings but the gate functions returned the unfiltered result; both now short-circuit delivery as configured.
+- **Backup — auto-backup settings wired into scheduler** — `backup_auto_enabled`, `backup_auto_interval_hours`, `backup_auto_retention_count`, `backup_auto_destination` were ignored by `start_backup_scheduler`; the scheduler now reads all four and runs the configured cadence.
+- **Wanted scanner — no longer relaunches on every settings save** — Each save spawned an unscheduled daemon that bypassed slow-mode and backlog-reserve gating.
+- **Whisper — four silent gaps** — Enabled toggle now honoured at the queue boundary; orphan jobs are DELETEd; the breaker no longer holds stale state across restarts; a `Semaphore(0)` deadlock on shutdown is gone.
+- **Subtitle Tools — `/tools/convert` path-traversal gap** — Endpoint now goes through `is_safe_path` before touching the filesystem.
+- **Cleanup — two path-traversal holes + 367 LOC orphan code dropped** — `/cleanup/non-target-subs` no longer accepts a body `media_path` override that bypasses the security gate.
+- **Translation — `translation_enabled` flag now respected** — Six endpoints read the flag for responses but never gated submission; the flag is now enforced before queueing.
+- **Marketplace — installed plugins actually load** — ZIP installs landed at `<name>/provider.py` but the loader only scanned the top level; loader now walks the package directory and DB sync mirrors uninstall.
+- **Blacklist — Plan B3 hash dimension wired in** — The hash-blacklist code was implemented but unreachable; SHA-256 now computed and inserted on every successful download.
+- **Integrations export — last secret-leak gaps closed** — JSON export keyword-only mask leaked Discord/Slack tokens, DB/Redis DSN, instance api_keys; mask now consults the canonical secret list.
+- **Profiles + glossary + presets — four hardening fixes** — Cross-DB UNIQUE detection, TSV CSV-injection guard on import, type coercion on profile fields, bulk-import row cap.
+- **API keys — three hardening fixes** — ZIP-bomb guard on `/import`, 400 instead of 500 on bad-shape config, CSV row cap.
+- **System logs / support export — drifted secret mask** — DB DSN, Apprise URLs, `*_instances_json` were leaking through the support-export path; replaced with the canonical mask.
+- **Authentication — `/auth/bootstrap` api_key leak** — With `ui_auth` disabled and `api_key` set, the endpoint returned the key. Bootstrap now returns the safe shape.
+- **Onboarding — non-string profile crashes `/system/setup/complete`** — Non-dict / non-string payloads triggered an unhashable `TypeError` → 500; endpoint now returns a clean 400.
+- **Health / diagnostics — auth-exempt endpoints rate-limited** — `/health` and `/update` were unauthenticated and uncapped; both now have rate caps and `/health` no longer leaks detail when `api_key` is unset.
+- **Scoring — empty fansub group entries** — `"" in some_string` is True, so an empty preferred/excluded entry matched every release; entries are now filtered before comparison.
+- **Activity / history — search events visible + indexed PK ordering** — `VALID_EVENT_TYPES` was missing `"search"` so `?type=search` returned 400 even though rows existed; `ORDER BY` now uses the indexed primary key `id DESC` instead of a dropped index.
+- **Subtitle providers — `/providers/health` envelope mismatch** — Backend returned `{providers: [...]}` but frontend declared `Record<name, {circuit_state, rate_limited}>`; the StatusBar throttled warning and ProvidersCollectionView health rail were dead. Types and consumers now match the real backend shape.
+- **Scheduler — manual run-now overlap silently dropped** — When a manual `/run-now` collided with a scheduled tick, the per-job lock returned without writing history, leaving "Run Now" toasts for executions that never happened. The collision now records a `skipped_overlap` row.
+- **Dashboard / stats — `success_rate` + `downloads_today`** — StatusStripe's success-rate widget rendered "—" forever and the today widget rendered "+0" forever; the repo never set either field. `/stats` now returns both.
+- **Library views — series-detail score lookups under SQLAlchemy 2.x** — Three subtitle/wanted lookups built `?`-placeholder queries with positional lists, which SQLAlchemy 2.x rejects on every backend; debug-level catch-alls hid the failure. Migrated to `text() + bindparam(expanding=True)` and promoted catches to WARN.
+- **Audit follow-ups: rate-limits + pagination + scheduler init-pause** — `/providers/test/<provider>` and scheduler admin endpoints (run-now / pause / resume / PATCH / reset-default) get Flask-Limiter caps; pagination guards clamp `page>=1` and `per_page<=200` so `?page=0` no longer returns SQLite garbage / Postgres 500; `pause`/`resume` returns 503 `SchedulerInitialisingError` during the brief startup-paused window instead of a misleading 409.
+- **Audit follow-ups: rerank throttle + budget refund + multi-key fallthrough** — `/rerank` defaults `force=false` so the 1h throttle is respected; `ProviderBudgetManager.refund()` accepts `key_id` and decrements the per-key counter; providers without a `rate_limits` ClassVar but with pool rows now consult `KeySelector.pick()` instead of falling through to singleton creds.
+- **Audit follow-ups: `/library` mixed-mode + path-based extras filter** — Standalone fallback augments per-side instead of all-or-nothing, so Sonarr-managed series + standalone-scanned movies no longer drop the standalone half. Title-blacklist replaced with a path-segment heuristic — real movies titled "Sample" kept; sidecar files inside Sample/, Trailer/, Featurette/ folders filtered out.
+
+### Tests
+- +9 regression tests across the audit cycle: stats summary (`downloads_today` / `success_rate`), `/providers/health` envelope shape, scheduler `skipped_overlap` on overlap, subtitle-score expanding-bindparams query, mixed-mode standalone fallback, path-based extras filter (3 cases).
+
 ## [0.77.1-beta] - 2026-04-29
 
 ### Fixed
