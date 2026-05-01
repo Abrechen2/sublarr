@@ -303,6 +303,81 @@ def test_standalone_series_detail_cleanup_foreign_tracks_inherits_global(client,
     assert data["cleanup_foreign_tracks_effective"] is True
 
 
+def test_standalone_series_detail_returns_subtitle_scores(client, monkeypatch):
+    """Regression: the subtitle_downloads → standalone series query used `?`
+    placeholders + a positional list, which SQLAlchemy 2.x rejects on every
+    backend (the route's catch-all hid it as a debug log). Score and provider
+    must surface on the per-episode payload now that the query uses an
+    expanding bindparam.
+    """
+    from extensions import db as ext_db
+    from db.models.providers import SubtitleDownload
+    from db.models.core import WantedItem
+
+    monkeypatch.setattr("sonarr_client.get_sonarr_client", lambda *a, **kw: None)
+
+    fake_series = {
+        "id": 99,
+        "title": "Score Test",
+        "year": 2024,
+        "folder_path": "/media/standalone/score",
+        "status": "continuing",
+        "season_count": 1,
+        "poster_url": None,
+    }
+
+    class _S:
+        cleanup_foreign_tracks_default = False
+        target_language = "de"
+        target_language_name = "German"
+        source_language = "en"
+        source_language_name = "English"
+
+    monkeypatch.setattr("config.get_settings", lambda: _S())
+
+    # Seed one wanted_items + one subtitle_downloads row that the query
+    # should resolve. Use a real session — the bug was specifically that the
+    # f-string SQL fails on SQLAlchemy session.execute.
+    with client.application.app_context():
+        now = datetime.now(UTC)
+        ext_db.session.add(
+            WantedItem(
+                item_type="episode",
+                file_path="/media/standalone/score/ep1.mkv",
+                target_language="de",
+                standalone_series_id=99,
+                season_episode="S01E01",
+                title="Episode 1",
+                status="wanted",
+                added_at=now,
+                updated_at=now,
+            )
+        )
+        ext_db.session.add(
+            SubtitleDownload(
+                file_path="/media/standalone/score/ep1.mkv",
+                language="de",
+                format="ass",
+                score=420,
+                provider_name="opensubtitles",
+                subtitle_id="osub-1",
+                downloaded_at=datetime.now(UTC),
+            )
+        )
+        ext_db.session.commit()
+
+    with patch("db.standalone.get_standalone_series", return_value=fake_series):
+        resp = client.get("/api/v1/library/series/99")
+
+    assert resp.status_code == 200
+    data = resp.get_json()
+    assert data["source"] == "standalone"
+    assert len(data["episodes"]) == 1
+    ep = data["episodes"][0]
+    assert ep["subtitle_scores"]["de"] == 420
+    assert ep["subtitle_providers"]["de"] == "opensubtitles"
+
+
 # ---------------------------------------------------------------------------
 # PUT /api/v1/library/series/<series_id>/settings
 # ---------------------------------------------------------------------------
