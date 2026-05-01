@@ -5,6 +5,18 @@ All notable changes to Sublarr are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.77.3-beta] - 2026-05-01
+
+### Fixed
+- **Path-traversal in `/api/v1/remux/backups/{restore,delete}`** — Both endpoints called `is_safe_path` with the arguments reversed, so the gate asked "is the trash dir inside the user-supplied path?" instead of the other way round. With `backup_path=/` (or any prefix of a trash dir) the check passed, then `os.replace("/", video_path)` would attempt to move the entire filesystem root. Switched all four sites to the standard `is_safe_path(candidate, base)` order, matching every other call in the codebase.
+- **Symlink bypass in `/tools/video-sync` / `/tools/auto-sync` / `/tools/auto-sync/bulk`** — Manual `os.path.abspath().startswith(media_prefix)` checks did not resolve symlinks, so a symlinked file inside `media_path` that targeted `/etc/passwd` would pass the gate. All three endpoints now use `is_safe_path` (which calls `realpath`), and `auto-sync/bulk` additionally validates Sonarr-supplied paths so a compromised Sonarr can't advertise paths outside the configured library root.
+- **Media-server PUT clobbered stored secrets** — `GET /mediaservers/instances` masks `api_key` / `token` / `password` as `***abcd`; the `PUT` endpoint used to write that masked string back as the new secret. The endpoint now detects the mask format and re-merges with the previously stored value so a UI round-trip no longer destroys credentials.
+- **Media-server SSRF surface** — `url` field on both `/mediaservers/test` and `PUT /mediaservers/instances` now goes through `validate_service_url`, rejecting `file://`, `ftp://`, link-local IPs, and cloud-metadata IPs at the boundary.
+- **Media-server arbitrary kwargs into server class** — `cls(**config)` accepted any JSON keys; `/mediaservers/test` now whitelists kwargs against the type's declared `config_fields[].key` set so callers cannot smuggle debug or admin attributes into the constructor.
+- **Media-server limits** — 10/min Flask-Limiter cap on `/mediaservers/test`; cap of 32 instances per `PUT`.
+- **`/api/v1/search?limit=abc` 500 → graceful fallback** — Route did `int(request.args.get("limit", 20))` without try/except; switched to `type=int` (silently coerces invalid input back to the default) and added a `max(1, ...)` floor so negative limits don't drift into SQLite "limit -5" territory.
+- **`/search/rebuild-index` rate-limited** — Index rebuild walks every series/episode/subtitle row; now capped at 3/min in addition to authentication.
+
 ## [0.77.2-beta] - 2026-05-01
 
 ### Fixed
