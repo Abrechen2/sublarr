@@ -162,25 +162,117 @@ class TestUndoProcess:
         assert resp.status_code == 404
         assert "backup" in resp.get_json()["error"].lower()
 
-    def test_200_restores_from_backup(self, client, tmp_path):
+    def test_swap_when_active_exists(self, client, tmp_path):
+        """Swap-rename: bak content lands as active, prior active becomes new bak.
+
+        This is the no-data-loss path — if the user re-downloaded between
+        the original mod and the restore, that download is preserved as
+        the new bak so they can re-undo.
+        """
         srt = _make_subtitle(tmp_path, "test.srt", "Modified content\n")
-        # Create the .bak file
         bak_path = str(tmp_path / "test.bak.srt")
         with open(bak_path, "w") as f:
             f.write("Original content\n")
 
-        resp = client.post(
-            "/api/v1/tools/process/undo",
-            json={"path": srt},
-        )
+        resp = client.post("/api/v1/tools/process/undo", json={"path": srt})
+
         assert resp.status_code == 200
         data = resp.get_json()
         assert data["status"] == "restored"
-        # The bak file should have been moved
-        assert not os.path.exists(bak_path)
-        # The srt file should have original content
+        assert data["swapped"] is True
+
+        # Active now holds the original (restored) content
         with open(srt) as f:
             assert f.read() == "Original content\n"
+        # Bak still exists — but now holds what was previously active
+        assert os.path.exists(bak_path)
+        with open(bak_path) as f:
+            assert f.read() == "Modified content\n"
+
+    def test_simple_rename_when_active_missing(self, client, tmp_path):
+        """User deleted the active sub by hand, only bak survives — single rename."""
+        # No active srt — only the bak exists
+        active_path = str(tmp_path / "test.srt")
+        bak_path = str(tmp_path / "test.bak.srt")
+        with open(bak_path, "w") as f:
+            f.write("Backup content\n")
+
+        resp = client.post("/api/v1/tools/process/undo", json={"path": active_path})
+
+        assert resp.status_code == 200
+        data = resp.get_json()
+        assert data["status"] == "restored"
+        assert data["swapped"] is False  # nothing to swap, just renamed
+
+        # Active now exists with the bak's content; bak gone
+        assert os.path.exists(active_path)
+        with open(active_path) as f:
+            assert f.read() == "Backup content\n"
+        assert not os.path.exists(bak_path)
+
+    def test_re_undo_round_trip(self, client, tmp_path):
+        """After restore + restore again, we end up at the modified state again.
+
+        Verifies the symmetric swap is reversible — the user can flip-flop
+        between the two states by hitting Restore repeatedly. This is the
+        guarantee the swap design buys us over the old shutil.move.
+        """
+        srt = _make_subtitle(tmp_path, "test.srt", "B\n")
+        bak_path = str(tmp_path / "test.bak.srt")
+        with open(bak_path, "w") as f:
+            f.write("A\n")
+
+        # First restore: A active, B bak
+        client.post("/api/v1/tools/process/undo", json={"path": srt})
+        with open(srt) as f:
+            assert f.read() == "A\n"
+        with open(bak_path) as f:
+            assert f.read() == "B\n"
+
+        # Second restore: B active, A bak (back to start)
+        client.post("/api/v1/tools/process/undo", json={"path": srt})
+        with open(srt) as f:
+            assert f.read() == "B\n"
+        with open(bak_path) as f:
+            assert f.read() == "A\n"
+
+    def test_rollback_when_step_two_fails(self, client, tmp_path, monkeypatch):
+        """If bak->active rename fails mid-swap, the original active is restored.
+
+        Simulates a filesystem error after step 1 (active->tmp). Step 2 must
+        roll back so the user does not end up with a missing active sub.
+        """
+        srt = _make_subtitle(tmp_path, "test.srt", "Modified\n")
+        bak_path = str(tmp_path / "test.bak.srt")
+        with open(bak_path, "w") as f:
+            f.write("Original\n")
+
+        # Patch os.replace to fail on the bak->active call (step 2). The
+        # implementation calls os.replace 3x; let the 1st succeed (active->tmp),
+        # fail the 2nd (bak->active), and let the rollback (3rd call:
+        # tmp->active) succeed.
+        import os as _os
+
+        real_replace = _os.replace
+        call_state = {"n": 0}
+
+        def fake_replace(src, dst):
+            call_state["n"] += 1
+            if call_state["n"] == 2:
+                raise OSError("simulated bak->active failure")
+            return real_replace(src, dst)
+
+        monkeypatch.setattr("routes.subtitle_processor.os.replace", fake_replace)
+
+        resp = client.post("/api/v1/tools/process/undo", json={"path": srt})
+
+        assert resp.status_code == 409
+        # Active sub restored to its pre-swap state (the modified content)
+        with open(srt) as f:
+            assert f.read() == "Modified\n"
+        # Bak still holds the original — user can retry
+        with open(bak_path) as f:
+            assert f.read() == "Original\n"
 
 
 # ---------------------------------------------------------------------------

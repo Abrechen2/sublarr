@@ -15,7 +15,6 @@ POST /api/v1/library/subtitle-backups/cleanup — bulk delete (TTL + orphans)
 import json
 import logging
 import os
-import shutil
 import threading
 from datetime import UTC, datetime
 
@@ -100,27 +99,70 @@ def process_subtitle():
 
 @bp.route("/tools/process/undo", methods=["POST"])
 def undo_process():
-    """Restore a subtitle file from its .bak backup."""
+    """Restore a subtitle file from its .bak backup.
+
+    When the active sidecar still exists, performs an atomic 3-rename swap:
+    the current active becomes the new bak, the bak becomes the active. This
+    guarantees no data loss if the user has re-downloaded or hand-edited the
+    active sub between the original backup and this restore — they can simply
+    invoke restore again to flip back. When the active is missing (deleted
+    by hand), falls back to a single rename.
+    """
     data = request.get_json(force=True, silent=True) or {}
     path = data.get("path", "")
 
-    err, abs_path = _validate_path(path)
-    if err:
-        msg, code = err
-        return jsonify({"error": msg}), code
+    if not path:
+        return jsonify({"error": "path is required"}), 400
+    mapped = map_path(path)
+    s = get_settings()
+    if not is_safe_path(mapped, s.media_path):
+        return jsonify({"error": "path must be under media_path"}), 403
+    abs_path = os.path.realpath(mapped)
+    ext = os.path.splitext(abs_path)[1].lower()
+    if ext not in (".srt", ".ass", ".ssa"):
+        return jsonify({"error": "Only .srt, .ass, and .ssa files are supported"}), 400
 
-    base, ext = os.path.splitext(abs_path)
-    bak_path = f"{base}.bak{ext}"
+    base, ext_with_dot = os.path.splitext(abs_path)
+    bak_path = f"{base}.bak{ext_with_dot}"
 
     if not os.path.exists(bak_path):
         return jsonify({"error": "No backup found for this file"}), 404
 
-    try:
-        shutil.move(bak_path, abs_path)
-    except OSError as e:
-        return jsonify({"error": f"Could not restore backup: {e}"}), 409
+    if not os.path.exists(abs_path):
+        # Active sub gone — simple rename, nothing to swap.
+        try:
+            os.replace(bak_path, abs_path)
+        except OSError as e:
+            return jsonify({"error": f"Could not restore backup: {e}"}), 409
+        return jsonify({"status": "restored", "path": abs_path, "swapped": False}), 200
 
-    return jsonify({"status": "restored", "path": abs_path}), 200
+    # Atomic swap via temp path. If step 2 or 3 fails we roll back step 1.
+    tmp_path = f"{bak_path}.swap-tmp"
+    try:
+        os.replace(abs_path, tmp_path)  # step 1: active -> tmp
+    except OSError as e:
+        return jsonify({"error": f"Could not stage active file: {e}"}), 409
+    try:
+        os.replace(bak_path, abs_path)  # step 2: bak -> active
+    except OSError as e:
+        try:
+            os.replace(tmp_path, abs_path)  # rollback step 1
+        except OSError:
+            logger.error(
+                "undo: rollback failed; left tmp at %s, active gone", tmp_path, exc_info=True
+            )
+        return jsonify({"error": f"Could not restore backup: {e}"}), 409
+    try:
+        os.replace(tmp_path, bak_path)  # step 3: tmp -> bak (new bak holds old active)
+    except OSError as e:
+        # Active is restored but new bak failed to land. Active state is
+        # correct; surface the partial outcome so the caller can decide.
+        logger.warning("undo: swap completed but new bak rename failed: %s", e)
+        return jsonify(
+            {"status": "restored", "path": abs_path, "swapped": False, "warning": str(e)}
+        ), 200
+
+    return jsonify({"status": "restored", "path": abs_path, "swapped": True}), 200
 
 
 @bp.route("/tools/process/bak-exists", methods=["GET"])
