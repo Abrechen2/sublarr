@@ -210,6 +210,9 @@ export function ProvidersCollectionView({
     if (!healthData) return []
     const items: HealthItem[] = []
     for (const p of shownProviders) {
+      // Skip disabled providers — they don't run, so an "unhealthy" badge
+      // for every off provider would dominate the rail and hide real issues.
+      if (!p.enabled) continue
       const h = healthByName.get(p.name)
       if (!h) continue
       const cbState = h.circuit_breaker_state ?? 'closed'
@@ -266,7 +269,7 @@ export function ProvidersCollectionView({
         <button
           onClick={() => setShowAddModal(true)}
           data-testid="settings.providers.add"
-          className="flex items-center gap-1 px-2 py-1 rounded text-[11px] font-medium transition-all hover:opacity-80"
+          className="flex items-center justify-center w-6 h-6 rounded transition-all hover:opacity-80"
           style={{
             border: '1px solid var(--border)',
             color: 'var(--text-secondary)',
@@ -274,8 +277,9 @@ export function ProvidersCollectionView({
           }}
           disabled={hiddenProviders.length === 0}
           aria-label={tc('ui.add_provider')}
+          title={tc('ui.add_provider')}
         >
-          <Plus size={11} /> {tc('ui.add_provider')}
+          <Plus size={12} />
         </button>
         <button
           onClick={() => handleClearCache()}

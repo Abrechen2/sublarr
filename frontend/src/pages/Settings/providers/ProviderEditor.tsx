@@ -78,6 +78,13 @@ export function ProviderEditor({
   const statusLabel = getStatusLabel(provider)
   const statusBg = getStatusBg(provider)
   const hasStats = provider.stats && provider.stats.total_searches > 0
+  // The status pill row duplicates the toggle button when the provider is
+  // plainly disabled with nothing else to report. Hide it in that case so the
+  // detail pane has exactly one source of truth for the on/off state.
+  const hasMessage =
+    !!provider.message && provider.message !== 'OK' && provider.message !== 'Not initialized'
+  const showStatusRow =
+    provider.enabled || provider.stats?.auto_disabled || !!testResult || hasMessage
 
   return (
     <div data-testid={`provider-editor-${provider.name}`} className="flex flex-col">
@@ -113,35 +120,37 @@ export function ProviderEditor({
         </SettingRow>
 
         {/* ── Status + Fehlermeldung ── */}
-        <div className="py-3" style={{ borderBottom: '1px solid var(--border)' }}>
-          <div className="flex items-center gap-2 flex-wrap">
-            <span
-              className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded text-xs font-medium"
-              style={{ backgroundColor: statusBg, color: statusColor }}
-            >
-              <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ backgroundColor: statusColor }} />
-              {statusLabel}
-            </span>
-            {testResult && testResult !== 'testing' && (
+        {showStatusRow && (
+          <div className="py-3" style={{ borderBottom: '1px solid var(--border)' }}>
+            <div className="flex items-center gap-2 flex-wrap">
               <span
-                className="text-xs"
-                style={{ color: testResult.healthy ? 'var(--success)' : 'var(--error)' }}
+                className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded text-xs font-medium"
+                style={{ backgroundColor: statusBg, color: statusColor }}
               >
-                Test: {testResult.message}
+                <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ backgroundColor: statusColor }} />
+                {statusLabel}
               </span>
-            )}
-            {testResult === 'testing' && (
-              <span className="flex items-center gap-1 text-xs" style={{ color: 'var(--text-muted)' }}>
-                <Loader2 size={12} className="animate-spin" /> Teste…
-              </span>
+              {testResult && testResult !== 'testing' && (
+                <span
+                  className="text-xs"
+                  style={{ color: testResult.healthy ? 'var(--success)' : 'var(--error)' }}
+                >
+                  Test: {testResult.message}
+                </span>
+              )}
+              {testResult === 'testing' && (
+                <span className="flex items-center gap-1 text-xs" style={{ color: 'var(--text-muted)' }}>
+                  <Loader2 size={12} className="animate-spin" /> Teste…
+                </span>
+              )}
+            </div>
+            {hasMessage && (
+              <p className="text-xs mt-1.5" style={{ color: 'var(--text-muted)' }}>
+                {provider.message}
+              </p>
             )}
           </div>
-          {provider.message && provider.message !== 'OK' && provider.message !== 'Not initialized' && (
-            <p className="text-xs mt-1.5" style={{ color: 'var(--text-muted)' }}>
-              {provider.message}
-            </p>
-          )}
-        </div>
+        )}
 
         {/* ── Health Stats ── */}
         {provider.enabled && hasStats && (
