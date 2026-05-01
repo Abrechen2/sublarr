@@ -269,14 +269,17 @@ def restore_backup():
     if not backup_path or not video_path:
         return jsonify({"error": "backup_path and video_path are required"}), 400
 
-    # Security: backup must be inside a known trash dir
+    # Security: backup must be inside a known trash dir.
+    # is_safe_path(file_path, base_dir) — user-supplied path is the candidate,
+    # trusted dirs are the base. Reversed args used to silently pass when
+    # backup_path was set to "/" or any prefix of a trash dir.
     trash_dirs = _trash_paths()
-    if not any(is_safe_path(td, backup_path) for td in trash_dirs):
+    if not any(is_safe_path(backup_path, td) for td in trash_dirs):
         return jsonify({"error": "backup_path is outside the configured trash directory"}), 403
 
-    # Security: restore target must be inside a known media path
+    # Security: restore target must be inside a known media path.
     media_dirs = _media_paths()
-    if not any(is_safe_path(md, video_path) for md in media_dirs):
+    if not any(is_safe_path(video_path, md) for md in media_dirs):
         return jsonify({"error": "video_path is outside the configured media directory"}), 403
 
     if not os.path.exists(backup_path):
@@ -318,7 +321,7 @@ def delete_backup():
         return jsonify({"error": "backup_path is required"}), 400
 
     trash_dirs = _trash_paths()
-    if not any(is_safe_path(td, backup_path) for td in trash_dirs):
+    if not any(is_safe_path(backup_path, td) for td in trash_dirs):
         return jsonify({"error": "backup_path is outside the configured trash directory"}), 403
 
     if not os.path.exists(backup_path):

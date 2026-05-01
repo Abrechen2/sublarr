@@ -100,15 +100,15 @@ def start_sync():
     if not os.path.exists(subtitle_path):
         return jsonify({"error": f"Subtitle file not found: {subtitle_path}"}), 404
 
-    # Security: ensure paths are under media_path
+    # Security: ensure paths are under media_path. Use is_safe_path which
+    # resolves symlinks via realpath — manual abspath/startswith does not.
     from config import get_settings
+    from security_utils import is_safe_path
 
     _s = get_settings()
-    _media_path = os.path.abspath(_s.media_path)
-    _media_prefix = _media_path.rstrip(os.sep) + os.sep
-    if not os.path.abspath(subtitle_path).startswith(_media_prefix):
+    if not is_safe_path(subtitle_path, _s.media_path):
         return jsonify({"error": "file_path must be under the configured media_path"}), 403
-    if video_path and not os.path.abspath(video_path).startswith(_media_prefix):
+    if video_path and not is_safe_path(video_path, _s.media_path):
         return jsonify({"error": "video_path must be under the configured media_path"}), 403
 
     if engine == "ffsubsync":
@@ -190,13 +190,12 @@ def auto_sync():
         return jsonify({"error": f"Video file not found: {video_path}"}), 404
 
     from config import get_settings
+    from security_utils import is_safe_path
 
     _s = get_settings()
-    _media_path = os.path.abspath(_s.media_path)
-    _media_prefix = _media_path.rstrip(os.sep) + os.sep
-    if not os.path.abspath(subtitle_path).startswith(_media_prefix):
+    if not is_safe_path(subtitle_path, _s.media_path):
         return jsonify({"error": "file_path must be under the configured media_path"}), 403
-    if not os.path.abspath(video_path).startswith(_media_prefix):
+    if not is_safe_path(video_path, _s.media_path):
         return jsonify({"error": "video_path must be under the configured media_path"}), 403
 
     job_id = str(uuid.uuid4())
@@ -233,12 +232,21 @@ def auto_sync_bulk():
     else:
         return jsonify({"error": "scope must be 'series' (with series_id) or 'library'"}), 400
 
+    from config import get_settings
+    from security_utils import is_safe_path
+
+    media_path = get_settings().media_path
     queued = 0
     for file_info in (episode_files or {}).values():
         raw_path = file_info.get("path")
         if not raw_path:
             continue
         video_path = map_path(raw_path)
+        # Reject paths that resolve outside media_path — Sonarr could be
+        # compromised or misconfigured to advertise paths outside the
+        # configured library root.
+        if not is_safe_path(video_path, media_path):
+            continue
         if not os.path.exists(video_path):
             continue
         # Find first subtitle sidecar
@@ -248,6 +256,8 @@ def auto_sync_bulk():
         if not sidecars:
             continue
         subtitle_path = sidecars[0]["path"]
+        if not is_safe_path(subtitle_path, media_path):
+            continue
         job_id = str(uuid.uuid4())
         _update_job(job_id, "queued")
         _executor.submit(_run_sync, job_id, engine, subtitle_path, video_path, None, None)

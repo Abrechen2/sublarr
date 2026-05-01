@@ -5,8 +5,28 @@ import logging
 
 from flask import Blueprint, jsonify, request
 
+from extensions import limiter
+from security_utils import validate_service_url
+
 bp = Blueprint("mediaservers", __name__, url_prefix="/api/v1")
 logger = logging.getLogger(__name__)
+
+# Sensitive fields that GET returns masked. PUT treats values matching the
+# mask format as "keep existing" so a GET-edit-PUT round-trip does not
+# overwrite a real secret with the displayed mask.
+_SENSITIVE_FIELDS = ("api_key", "token", "password")
+_MASK_PREFIX = "***"
+# Cap the number of media-server instances we accept in a single PUT to
+# bound memory + DB write churn. Plex/Jellyfin/Kodi: a handful is the
+# realistic ceiling.
+_MAX_INSTANCES = 32
+
+
+def _is_masked(value: str) -> bool:
+    """True iff value looks like a mask returned from GET (``***abcd`` / ``***``)."""
+    if not isinstance(value, str):
+        return False
+    return value == _MASK_PREFIX or (value.startswith(_MASK_PREFIX) and len(value) <= 7)
 
 
 @bp.route("/mediaservers/types", methods=["GET"])
@@ -150,12 +170,33 @@ def save_instances():
         400:
           description: Validation error
     """
-    from db.config import save_config_entry
+    from db.config import get_config_entry, save_config_entry
     from mediaserver import get_media_server_manager, invalidate_media_server_manager
 
     body = request.get_json()
     if not isinstance(body, list):
         return jsonify({"error": "Expected a JSON array"}), 400
+    if len(body) > _MAX_INSTANCES:
+        return jsonify(
+            {"error": f"Too many instances (max {_MAX_INSTANCES}, got {len(body)})"}
+        ), 400
+
+    # Load currently stored config so we can re-merge masked secret fields
+    # the UI sent back unchanged.
+    raw_existing = get_config_entry("media_servers_json")
+    try:
+        existing_entries = json.loads(raw_existing) if raw_existing else []
+        if not isinstance(existing_entries, list):
+            existing_entries = []
+    except (json.JSONDecodeError, TypeError):
+        existing_entries = []
+
+    # Index existing by (type, name) — same compound key the manager uses
+    # downstream when looking up an instance.
+    existing_by_key = {}
+    for prev in existing_entries:
+        if isinstance(prev, dict) and prev.get("type") and prev.get("name"):
+            existing_by_key[(prev["type"], prev["name"])] = prev
 
     # Validate entries
     for idx, entry in enumerate(body):
@@ -165,6 +206,24 @@ def save_instances():
             return jsonify({"error": f"Entry at index {idx} missing 'type'"}), 400
         if not entry.get("name"):
             return jsonify({"error": f"Entry at index {idx} missing 'name'"}), 400
+        url = entry.get("url") or entry.get("base_url")
+        if url:
+            ok, reason = validate_service_url(url)
+            if not ok:
+                return jsonify(
+                    {"error": f"Entry at index {idx}: invalid url — {reason}"}
+                ), 400
+        # Re-merge masked secrets: if the UI sent ``***abcd`` (the mask GET
+        # returns), drop the field so we keep the stored value instead of
+        # overwriting with garbage.
+        prev = existing_by_key.get((entry["type"], entry["name"]))
+        for sensitive in _SENSITIVE_FIELDS:
+            value = entry.get(sensitive)
+            if value and _is_masked(value):
+                if prev and prev.get(sensitive):
+                    entry[sensitive] = prev[sensitive]
+                else:
+                    entry.pop(sensitive, None)
 
     save_config_entry("media_servers_json", json.dumps(body))
 
@@ -178,6 +237,7 @@ def save_instances():
 
 
 @bp.route("/mediaservers/test", methods=["POST"])
+@limiter.limit("10 per minute")
 def test_instance():
     """Test a single media server instance.
 
@@ -233,8 +293,20 @@ def test_instance():
     if server_type not in types:
         return jsonify({"error": f"Unknown server type: {server_type}"}), 400
 
-    # Create a temporary instance with the provided config
-    config = {k: v for k, v in data.items() if k not in ("type",)}
+    # SSRF guard on user-supplied URL — rejects file://, ftp://, link-local,
+    # cloud-metadata IPs etc. Test-button can otherwise be used to probe the
+    # internal network from outside.
+    url = data.get("url") or data.get("base_url")
+    if url:
+        ok, reason = validate_service_url(url)
+        if not ok:
+            return jsonify({"error": f"Invalid url: {reason}"}), 400
+
+    # Whitelist constructor kwargs against the type's declared config_fields.
+    # Stops a caller from passing arbitrary kwargs into the server class.
+    type_def = types[server_type]
+    allowed_keys = {f["key"] for f in type_def.get("config_fields", [])}
+    config = {k: v for k, v in data.items() if k != "type" and k in allowed_keys}
 
     try:
         cls = manager._server_classes[server_type]
