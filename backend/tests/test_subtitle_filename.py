@@ -1,12 +1,21 @@
 """Tests for backend.subtitle_filename — the suffix-stripper parser."""
 
+import os
+
 import pytest
 
 from subtitle_filename import (
+    BAK_HIDDEN_DIR,
+    BAK_SUBDIR,
     MODIFIERS,
     SUBTITLE_EXTS,
+    active_path_for_bak,
+    bak_dir_for,
+    bak_path_for,
+    find_existing_bak,
     is_backup_subtitle,
     is_subtitle_sidecar,
+    legacy_bak_path_for,
     parse_subtitle_filename,
 )
 
@@ -136,3 +145,76 @@ class TestConvenienceWrappers:
 
     def test_is_backup_subtitle_false_for_non_sidecar(self):
         assert is_backup_subtitle("/m/Show.mkv") is False
+
+
+class TestBakPathHelpers:
+    """Helpers that translate between active sub paths and their backup
+    locations. Backups live in ``<dir>/.sublarr/backups/`` since
+    2026-05-02 — anything writing to or reading from a backup must go
+    through these helpers, never inline ``f"{base}.bak{ext}"`` strings."""
+
+    def test_bak_dir_for_uses_hidden_subdir(self):
+        result = bak_dir_for("/m/Show/ep.en.srt")
+        assert result == os.path.join("/m/Show", BAK_HIDDEN_DIR, BAK_SUBDIR)
+
+    def test_bak_path_for_simple(self):
+        result = bak_path_for("/m/Show/ep.en.srt")
+        assert result == os.path.join("/m/Show", BAK_HIDDEN_DIR, BAK_SUBDIR, "ep.en.bak.srt")
+
+    def test_bak_path_for_preserves_modifier_chain(self, tmp_path):
+        """An HI sub's backup keeps the HI modifier in the basename so
+        the restore path round-trips back to the HI sidecar."""
+        active = str(tmp_path / "Show" / "ep.en.hi.srt")
+        bak = bak_path_for(active)
+        assert bak.endswith("ep.en.hi.bak.srt")
+        # And reverse must round-trip
+        assert active_path_for_bak(bak) == active
+
+    def test_legacy_bak_path_for_returns_sibling(self, tmp_path):
+        """The legacy helper produces the pre-2026-05-02 sibling path
+        so readers can fall back when the canonical location is empty."""
+        active = str(tmp_path / "ep.en.srt")
+        expected = str(tmp_path / "ep.en.bak.srt")
+        assert legacy_bak_path_for(active) == expected
+
+    def test_active_path_for_bak_canonical_layout(self, tmp_path):
+        series = tmp_path / "Show"
+        bak = series / BAK_HIDDEN_DIR / BAK_SUBDIR / "ep.en.bak.srt"
+        assert active_path_for_bak(str(bak)) == str(series / "ep.en.srt")
+
+    def test_active_path_for_bak_legacy_layout(self, tmp_path):
+        """Pre-migration sibling-located bak still resolves correctly —
+        critical for the transition window during which both layouts
+        coexist on disk."""
+        series = tmp_path / "Show"
+        bak = series / "ep.en.bak.srt"
+        assert active_path_for_bak(str(bak)) == str(series / "ep.en.srt")
+
+    def test_active_path_for_bak_returns_none_for_active(self):
+        assert active_path_for_bak("/m/Show/ep.en.srt") is None
+
+    def test_find_existing_bak_prefers_canonical(self, tmp_path):
+        """When both layouts have a bak on disk, find_existing_bak
+        returns the canonical hidden one — that's the location the
+        new write path uses, so it must win."""
+        active = tmp_path / "ep.en.srt"
+        active.write_text("active")
+        legacy = tmp_path / "ep.en.bak.srt"
+        legacy.write_text("legacy")
+        canonical_dir = tmp_path / BAK_HIDDEN_DIR / BAK_SUBDIR
+        canonical_dir.mkdir(parents=True)
+        canonical = canonical_dir / "ep.en.bak.srt"
+        canonical.write_text("canonical")
+        assert find_existing_bak(str(active)) == str(canonical)
+
+    def test_find_existing_bak_falls_back_to_legacy(self, tmp_path):
+        active = tmp_path / "ep.en.srt"
+        active.write_text("active")
+        legacy = tmp_path / "ep.en.bak.srt"
+        legacy.write_text("legacy")
+        assert find_existing_bak(str(active)) == str(legacy)
+
+    def test_find_existing_bak_returns_none_when_absent(self, tmp_path):
+        active = tmp_path / "ep.en.srt"
+        active.write_text("active")
+        assert find_existing_bak(str(active)) is None

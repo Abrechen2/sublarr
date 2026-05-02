@@ -25,6 +25,15 @@ def _touch(directory: Path, name: str, content: str = "x") -> Path:
     return p
 
 
+def _touch_canonical_bak(series_dir: Path, name: str, content: str = "x") -> Path:
+    """Drop a bak in the canonical hidden layout (.sublarr/backups/)."""
+    bak_dir = series_dir / ".sublarr" / "backups"
+    bak_dir.mkdir(parents=True, exist_ok=True)
+    p = bak_dir / name
+    p.write_text(content, encoding="utf-8")
+    return p
+
+
 # ---------------------------------------------------------------------------
 # Path derivation
 # ---------------------------------------------------------------------------
@@ -42,6 +51,27 @@ class TestDeriveActiveSubPath:
         bak = tmp_path / "ep.en.hi.bak.srt"
         active = derive_active_sub_path(str(bak))
         assert active == str(tmp_path / "ep.en.hi.srt")
+
+    def test_canonical_bak_resolves_to_series_dir(self, tmp_path):
+        """A bak in <series>/.sublarr/backups/ must resolve back to the
+        series dir — not to the hidden subdir — so the active sub is
+        found beside the video, not next to the backup."""
+        series = tmp_path / "Show"
+        series.mkdir()
+        bak = series / ".sublarr" / "backups" / "ep.en.bak.srt"
+        bak.parent.mkdir(parents=True)
+        bak.write_text("x")
+        active = derive_active_sub_path(str(bak))
+        assert active == str(series / "ep.en.srt")
+
+    def test_canonical_bak_preserves_modifiers(self, tmp_path):
+        series = tmp_path / "Show"
+        series.mkdir()
+        bak = series / ".sublarr" / "backups" / "ep.en.hi.bak.srt"
+        bak.parent.mkdir(parents=True)
+        bak.write_text("x")
+        active = derive_active_sub_path(str(bak))
+        assert active == str(series / "ep.en.hi.srt")
 
     def test_non_bak_returns_none(self, tmp_path):
         plain = tmp_path / "ep.en.srt"
@@ -62,6 +92,18 @@ class TestDeriveVideoPath:
         _touch(tmp_path, "ep.mp4")
         bak = tmp_path / "ep.en.bak.srt"
         assert derive_video_path(str(bak)) == str(tmp_path / "ep.mp4")
+
+    def test_canonical_bak_locates_video_in_series_dir(self, tmp_path):
+        """Video lookup for a hidden-layout bak must check the series
+        folder (where videos live), not the hidden ``.sublarr/backups/``
+        subdir. Otherwise every canonical bak would be flagged orphan."""
+        series = tmp_path / "Show"
+        series.mkdir()
+        _touch(series, "ep.mkv")
+        bak = series / ".sublarr" / "backups" / "ep.en.bak.srt"
+        bak.parent.mkdir(parents=True)
+        bak.write_text("x")
+        assert derive_video_path(str(bak)) == str(series / "ep.mkv")
 
 
 # ---------------------------------------------------------------------------
@@ -101,13 +143,52 @@ class TestIterSubtitleBaks:
         result = list(iter_subtitle_baks([str(tmp_path)]))
         assert result == [str(bak)]
 
-    def test_skips_hidden_dirs(self, tmp_path):
-        """Trash dirs (.sublarr, .sublarr_trash) start with `.` and must
-        be pruned during the walk, otherwise the cleanup pipeline would
-        nuke files the remux module is keeping deliberately."""
-        hidden = tmp_path / ".sublarr"
-        hidden.mkdir()
-        _touch(hidden, "x.en.bak.srt")  # should NOT appear
+    def test_yields_canonical_hidden_baks(self, tmp_path):
+        """Baks in <dir>/.sublarr/backups/ — the canonical layout
+        introduced 2026-05-02 — must be discovered by the walker so
+        cleanup + listing endpoints see them."""
+        series_dir = tmp_path / "Show"
+        series_dir.mkdir()
+        canonical = _touch_canonical_bak(series_dir, "ep.en.bak.srt")
+
+        result = list(iter_subtitle_baks([str(tmp_path)]))
+        assert result == [str(canonical)]
+
+    def test_yields_both_layouts_during_migration(self, tmp_path):
+        """Mixed tree (legacy sibling + canonical hidden) — all baks
+        must appear so retention/orphan cleanup catches them all even
+        before the migration script has run."""
+        series_dir = tmp_path / "Show"
+        series_dir.mkdir()
+        legacy = _touch(series_dir, "ep1.en.bak.srt")
+        canonical = _touch_canonical_bak(series_dir, "ep2.en.bak.srt")
+
+        result = sorted(iter_subtitle_baks([str(tmp_path)]))
+        assert result == sorted([str(legacy), str(canonical)])
+
+    def test_skips_sublarr_trash_subdir(self, tmp_path):
+        """``.sublarr/trash/`` holds container backups owned by the
+        remux pipeline. The walker must descend into ``.sublarr`` to
+        reach ``backups/`` but must NOT descend into ``trash/``."""
+        series_dir = tmp_path / "Show"
+        series_dir.mkdir()
+        trash = series_dir / ".sublarr" / "trash"
+        trash.mkdir(parents=True)
+        _touch(trash, "movie.mkv.123.bak")  # remux container backup
+        _touch(trash, "x.en.bak.srt")  # Stray subtitle in trash — leave alone
+        canonical = _touch_canonical_bak(series_dir, "ep.en.bak.srt")
+
+        result = list(iter_subtitle_baks([str(tmp_path)]))
+        assert result == [str(canonical)]
+
+    def test_skips_other_hidden_dirs(self, tmp_path):
+        """Hidden dirs that are not ``.sublarr`` (.git, .DS_Store-like
+        system noise) must be pruned outright. Only ``.sublarr`` is
+        descended into, and only for its ``backups`` child."""
+        for hidden in (".git", ".sublarr_trash", ".cache"):
+            d = tmp_path / hidden
+            d.mkdir()
+            _touch(d, "x.en.bak.srt")  # must not surface
 
         visible = tmp_path / "Show"
         visible.mkdir()

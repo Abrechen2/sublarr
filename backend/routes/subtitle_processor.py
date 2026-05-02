@@ -22,6 +22,7 @@ from flask import Blueprint, current_app, jsonify, request
 
 from config import get_settings, map_path
 from security_utils import is_safe_path
+from subtitle_filename import bak_path_for, find_existing_bak
 
 bp = Blueprint("subtitle_processor", __name__, url_prefix="/api/v1")
 logger = logging.getLogger(__name__)
@@ -122,11 +123,16 @@ def undo_process():
     if ext not in (".srt", ".ass", ".ssa"):
         return jsonify({"error": "Only .srt, .ass, and .ssa files are supported"}), 400
 
-    base, ext_with_dot = os.path.splitext(abs_path)
-    bak_path = f"{base}.bak{ext_with_dot}"
-
-    if not os.path.exists(bak_path):
+    # Resolve where the bak actually lives. find_existing_bak checks the
+    # canonical hidden location first, then the legacy sibling location
+    # so pre-migration backups still restore correctly.
+    bak_path = find_existing_bak(abs_path)
+    if bak_path is None:
         return jsonify({"error": "No backup found for this file"}), 404
+
+    # Where new baks must land going forward — different from bak_path
+    # when we're restoring a legacy sibling-located backup.
+    canonical_bak_path = bak_path_for(abs_path)
 
     if not os.path.exists(abs_path):
         # Active sub gone — simple rename, nothing to swap.
@@ -137,6 +143,10 @@ def undo_process():
         return jsonify({"status": "restored", "path": abs_path, "swapped": False}), 200
 
     # Atomic swap via temp path. If step 2 or 3 fails we roll back step 1.
+    # Step 3 always lands the new bak in the canonical hidden location,
+    # even when the source bak was a legacy sibling — every restore
+    # opportunistically migrates the layout.
+    os.makedirs(os.path.dirname(canonical_bak_path), exist_ok=True)
     tmp_path = f"{bak_path}.swap-tmp"
     try:
         os.replace(abs_path, tmp_path)  # step 1: active -> tmp
@@ -153,7 +163,7 @@ def undo_process():
             )
         return jsonify({"error": f"Could not restore backup: {e}"}), 409
     try:
-        os.replace(tmp_path, bak_path)  # step 3: tmp -> bak (new bak holds old active)
+        os.replace(tmp_path, canonical_bak_path)  # step 3: tmp -> canonical bak
     except OSError as e:
         # Active is restored but new bak failed to land. Active state is
         # correct; surface the partial outcome so the caller can decide.
@@ -167,14 +177,17 @@ def undo_process():
 
 @bp.route("/tools/process/bak-exists", methods=["GET"])
 def bak_exists():
-    """Check whether a .bak file exists for a given subtitle path."""
+    """Check whether a .bak file exists for a given subtitle path.
+
+    Looks in both the canonical hidden location and the legacy sibling
+    location so pre-migration backups are still reported as available.
+    """
     path = request.args.get("path", "")
     err, abs_path = _validate_path(path)
     if err:
         msg, code = err
         return jsonify({"error": msg}), code
-    base, ext = os.path.splitext(abs_path)
-    exists = os.path.exists(f"{base}.bak{ext}")
+    exists = find_existing_bak(abs_path) is not None
     return jsonify({"exists": exists}), 200
 
 

@@ -42,8 +42,16 @@ class ProcessingResult:
 
 
 def _make_bak_path(path: str) -> str:
-    base, ext = os.path.splitext(path)
-    return f"{base}.bak{ext}"
+    """Return the canonical backup path for ``path``.
+
+    Thin wrapper around :func:`subtitle_filename.bak_path_for` so callers
+    inside this module keep their familiar import. The bak target lives
+    under ``<dir>/.sublarr/backups/`` to stay invisible to media servers
+    that would otherwise misparse ``bak`` as the Bashkir ISO-639 code.
+    """
+    from subtitle_filename import bak_path_for
+
+    return bak_path_for(path)
 
 
 def apply_mods(path: str, mods: list[ModConfig], dry_run: bool = False) -> ProcessingResult:
@@ -77,6 +85,7 @@ def apply_mods(path: str, mods: list[ModConfig], dry_run: bool = False) -> Proce
     if not dry_run and all_changes:
         bak_path = _make_bak_path(path)
         if not os.path.exists(bak_path):
+            os.makedirs(os.path.dirname(bak_path), exist_ok=True)
             shutil.copy2(path, bak_path)
             backed_up = True
         subs.save(path, format_=fmt, encoding="utf-8")

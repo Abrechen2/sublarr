@@ -168,11 +168,18 @@ class TestUndoProcess:
         This is the no-data-loss path — if the user re-downloaded between
         the original mod and the restore, that download is preserved as
         the new bak so they can re-undo.
+
+        The new bak always lands in the canonical hidden location even
+        when the source was legacy-sibling — every restore opportunistically
+        migrates the layout (one less file for the migration script).
         """
+        from subtitle_filename import bak_path_for
+
         srt = _make_subtitle(tmp_path, "test.srt", "Modified content\n")
-        bak_path = str(tmp_path / "test.bak.srt")
-        with open(bak_path, "w") as f:
+        legacy_bak = str(tmp_path / "test.bak.srt")
+        with open(legacy_bak, "w") as f:
             f.write("Original content\n")
+        canonical_bak = bak_path_for(srt)
 
         resp = client.post("/api/v1/tools/process/undo", json={"path": srt})
 
@@ -184,9 +191,11 @@ class TestUndoProcess:
         # Active now holds the original (restored) content
         with open(srt) as f:
             assert f.read() == "Original content\n"
-        # Bak still exists — but now holds what was previously active
-        assert os.path.exists(bak_path)
-        with open(bak_path) as f:
+        # The new bak lives at the canonical location, holds what was
+        # previously active. Legacy sibling is gone — the swap consumed it.
+        assert not os.path.exists(legacy_bak)
+        assert os.path.exists(canonical_bak)
+        with open(canonical_bak) as f:
             assert f.read() == "Modified content\n"
 
     def test_simple_rename_when_active_missing(self, client, tmp_path):
@@ -215,25 +224,31 @@ class TestUndoProcess:
 
         Verifies the symmetric swap is reversible — the user can flip-flop
         between the two states by hitting Restore repeatedly. This is the
-        guarantee the swap design buys us over the old shutil.move.
+        guarantee the swap design buys us over the old shutil.move. The
+        first restore consumes the legacy sibling; subsequent swaps work
+        entirely in the canonical hidden location.
         """
-        srt = _make_subtitle(tmp_path, "test.srt", "B\n")
-        bak_path = str(tmp_path / "test.bak.srt")
-        with open(bak_path, "w") as f:
-            f.write("A\n")
+        from subtitle_filename import bak_path_for
 
-        # First restore: A active, B bak
+        srt = _make_subtitle(tmp_path, "test.srt", "B\n")
+        legacy_bak = str(tmp_path / "test.bak.srt")
+        with open(legacy_bak, "w") as f:
+            f.write("A\n")
+        canonical_bak = bak_path_for(srt)
+
+        # First restore: A active, B bak (canonical), legacy gone
         client.post("/api/v1/tools/process/undo", json={"path": srt})
         with open(srt) as f:
             assert f.read() == "A\n"
-        with open(bak_path) as f:
+        with open(canonical_bak) as f:
             assert f.read() == "B\n"
+        assert not os.path.exists(legacy_bak)
 
         # Second restore: B active, A bak (back to start)
         client.post("/api/v1/tools/process/undo", json={"path": srt})
         with open(srt) as f:
             assert f.read() == "B\n"
-        with open(bak_path) as f:
+        with open(canonical_bak) as f:
             assert f.read() == "A\n"
 
     def test_rollback_when_step_two_fails(self, client, tmp_path, monkeypatch):

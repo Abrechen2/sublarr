@@ -33,26 +33,29 @@ def test_dry_run_does_not_write_file(create_test_subtitle):
 
 
 def test_backup_created_on_first_run(create_test_subtitle):
+    from subtitle_filename import bak_path_for
     from subtitle_processor import ModConfig, ModName, apply_mods
 
     path = create_test_subtitle(fmt="srt", lines=["Downloaded from opensubtitles.org"])
-    base, ext = os.path.splitext(path)
-    bak_path = f"{base}.bak{ext}"
+    bak_path = bak_path_for(path)
 
     result = apply_mods(
         path, [ModConfig(mod=ModName.COMMON_FIXES, options={"watermark_removal": True})]
     )
 
     assert result.backed_up is True
+    # Bak lives in the canonical hidden subdir, not as a sibling — keeps
+    # mediaservers from picking it up as a Bashkir subtitle track.
     assert os.path.exists(bak_path)
+    assert ".sublarr" in bak_path
 
 
 def test_backup_not_overwritten_on_second_run(create_test_subtitle):
+    from subtitle_filename import bak_path_for
     from subtitle_processor import ModConfig, ModName, apply_mods
 
     path = create_test_subtitle(fmt="srt", lines=["Downloaded from opensubtitles.org"])
-    base, ext = os.path.splitext(path)
-    bak_path = f"{base}.bak{ext}"
+    bak_path = bak_path_for(path)
 
     apply_mods(path, [ModConfig(mod=ModName.COMMON_FIXES, options={"watermark_removal": True})])
     bak_mtime = os.path.getmtime(bak_path)
