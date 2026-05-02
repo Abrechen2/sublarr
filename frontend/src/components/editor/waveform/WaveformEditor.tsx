@@ -2,14 +2,17 @@
  * WaveformEditor — editable waveform surface for the SubtitleEditorModal.
  *
  * Plan B8 Task 3 entry point. Replaces the read-only WaveformTab.
- * Subsequent tasks (4–10) layer snap, click-map, keyboard shortcuts,
- * spectrogram and scene-markers on top of this scaffold.
+ * Plan B8 Task 4 wires snap targets (keyframes via /api/v1/audio/keyframes)
+ * and the Aegisub L/R click-map into the hook.
+ *
+ * Subsequent tasks (5–10) layer keyboard shortcuts, auto-scroll, zoom,
+ * spectrogram and scene-markers on top.
  */
 
 import { useRef, useState, useEffect, useMemo, useCallback } from 'react'
 import { Loader2, Play, Pause, Lock, Unlock } from 'lucide-react'
 
-import { useSubtitleParse } from '@/hooks/useApi'
+import { useSubtitleParse, useKeyframes } from '@/hooks/useApi'
 import { extractWaveform } from '@/api/client'
 
 import { useWaveformRegions, type CuePatch, type WaveformCue } from './useWaveformRegions'
@@ -25,9 +28,23 @@ interface WaveformEditorProps {
    * existing call-sites keep working without breakage.
    */
   onCueChange?: (id: string, patch: CuePatch) => void
+  /**
+   * Currently selected cue index in the parent list (B8 Task 4). When
+   * provided + edit-mode is on, L/R clicks on the waveform body set the
+   * snapped start / end of this cue. `null` disables click-set.
+   */
+  selectedCueIdx?: number | null
 }
 
-export function WaveformEditor({ subtitlePath, videoPath, onCueChange }: WaveformEditorProps) {
+/** Minimum cue duration enforced by the snap helper, in ms. */
+const DEFAULT_MIN_GAP_MS = 80
+
+export function WaveformEditor({
+  subtitlePath,
+  videoPath,
+  onCueChange,
+  selectedCueIdx = null,
+}: WaveformEditorProps) {
   const containerRef = useRef<HTMLDivElement>(null)
   const [audioUrl, setAudioUrl] = useState<string | null>(null)
   const [extractError, setExtractError] = useState<string | null>(null)
@@ -35,6 +52,7 @@ export function WaveformEditor({ subtitlePath, videoPath, onCueChange }: Wavefor
   const [editingEnabled, setEditingEnabled] = useState<boolean>(Boolean(onCueChange))
 
   const { data: parseData } = useSubtitleParse(subtitlePath)
+  const { data: keyframesData } = useKeyframes(videoPath || null)
 
   // Convert parsed cues -> stable WaveformCue array for the hook
   const cues = useMemo<WaveformCue[]>(
@@ -47,6 +65,14 @@ export function WaveformEditor({ subtitlePath, videoPath, onCueChange }: Wavefor
     [parseData],
   )
 
+  // Keyframes come from the backend in seconds; the hook works in ms.
+  const keyframesMs = useMemo<number[]>(
+    () => (keyframesData?.keyframes ?? []).map((s) => s * 1000),
+    [keyframesData],
+  )
+
+  const selectedCueId = selectedCueIdx === null ? null : String(selectedCueIdx)
+
   // Default no-op — when caller doesn't pass onCueChange, drag is disabled
   // anyway, but the hook still wants a function.
   const noopCueChange = useCallback(() => {}, [])
@@ -57,6 +83,9 @@ export function WaveformEditor({ subtitlePath, videoPath, onCueChange }: Wavefor
     cues,
     onCueChange: onCueChange ?? noopCueChange,
     enableDrag: editingEnabled && Boolean(onCueChange),
+    selectedCueId,
+    keyframesMs,
+    minGapMs: DEFAULT_MIN_GAP_MS,
   })
 
   // Trigger backend audio extraction once per video
@@ -136,6 +165,12 @@ export function WaveformEditor({ subtitlePath, videoPath, onCueChange }: Wavefor
           {parseData && (
             <span className="text-xs text-muted">
               {parseData.cue_count} Cues · {parseData.format.toUpperCase()}
+            </span>
+          )}
+
+          {editingEnabled && selectedCueIdx !== null && keyframesData && (
+            <span className="text-xs text-muted">
+              Snap: {keyframesData.keyframes.length} keyframes
             </span>
           )}
         </div>
