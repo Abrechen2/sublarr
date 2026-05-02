@@ -5,6 +5,14 @@ All notable changes to Sublarr are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.83.1-beta] - 2026-05-02
+
+### Fixed
+- **Waveform tab unreachable from SeriesDetail** — Three regressions blocked Plan B8's Waveform Editor end-to-end on the per-pill action menu, so 0.83.0's gold-standard timing surface was inaccessible in practice. Fixed in one commit:
+  - `SeriesDetail.tsx` never threaded `videoPath` into `SubtitleEditorModal`, so the modal's `MODE_TABS` always suppressed the Waveform tab. `videoPath` now flows through `onPreviewSub` / `onEditSub` from `SeasonGroup`, carrying `ep.file_path` to the modal.
+  - `ffmpeg` refused libopus at 22 050 Hz — Opus only accepts 8/12/16/24/48 kHz. Switched the waveform extract to 24 kHz so audio extraction stops failing on every real-world video. CI never caught this because tests mocked `subprocess.run`.
+  - WaveSurfer.js issues its own internal fetch for the audio URL, bypassing our axios interceptor, so `/api/v1/tools/waveform-audio/` returned 401 forever. That single GET is now auth-exempt — the route already constrains lookups to a `.opus` file under `tempfile.gettempdir()` with high-entropy filenames, matching the existing OpenAPI / webhook exemptions.
+
 ## [0.83.0-beta] - 2026-05-02
 
 ### Added
