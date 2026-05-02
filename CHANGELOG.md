@@ -5,6 +5,11 @@ All notable changes to Sublarr are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.82.4-beta] - 2026-05-02
+
+### Fixed
+- **Phantom subtitle tracks in Plex/Emby/Jellyfin** — Repair backups produced by the subtitle processor were written next to the active sub as `<base>.<lang>.bak.<ext>`. Media servers parse the segment immediately preceding `.srt` as a language code, and `bak` is the ISO-639-2/3 code for Bashkir, so every backup surfaced as a phantom "Bashkir (SRT)" track in the player UI. Backups now land in a hidden `<dir>/.sublarr/backups/` subdir media servers don't index. Pre-existing sibling-located backups remain readable via a fallback path resolver, so undo and bak-exists endpoints keep working until migration. Each successful restore opportunistically migrates the layout (one less file for the migration script). Adds `backend/scripts/migrate_subtitle_baks.py` for idempotent, dry-run-capable bulk migration.
+
 ## [0.82.3-beta] - 2026-05-01
 
 ### Changed
