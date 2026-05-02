@@ -16,7 +16,7 @@
 
 ---
 
-**[Quick Start](#-quick-start)** · **[Configuration](#️-configuration)** · **[Integrations](#-integrations)** · **[Docs](#-documentation)** · **[Website](https://sublarr.de)** · **[Wiki](https://wiki.sublarr.de)**
+**[Quick Start](#-quick-start)** · **[Configuration](#️-configuration)** · **[Integrations](#-integrations)** · **[Website](https://sublarr.de)** · **[Docs](https://sublarr.de/docs/)**
 
 **Community:** [Discord](https://discord.gg/WjatsKzHXz) · [Reddit r/Sublarr](https://www.reddit.com/r/Sublarr/) · [GitHub Issues](https://github.com/Abrechen2/sublarr/issues)
 
@@ -271,7 +271,7 @@ If your Sonarr/Radarr runs on a different host and uses different paths than Sub
 SUBLARR_PATH_MAPPING=/data/media=/mnt/media
 ```
 
-See [wiki.sublarr.de/getting-started/environment-variables](https://wiki.sublarr.de/getting-started/environment-variables) for the complete variable reference.
+See [sublarr.de/docs/getting-started/environment-variables](https://sublarr.de/docs/getting-started/environment-variables/) for the complete variable reference.
 
 ---
 
@@ -369,7 +369,7 @@ cd frontend && npm run lint && npx tsc --noEmit
 
 ## 📚 Documentation
 
-Full documentation lives at **[wiki.sublarr.de](https://wiki.sublarr.de)**.
+Full documentation lives at **[sublarr.de/docs](https://sublarr.de/docs/)**.
 
 ### Live API discovery
 
@@ -382,26 +382,26 @@ Every Sublarr instance ships its own interactive API reference:
 
 
 
-| Topic | Wiki Page |
+| Topic | Doc Page |
 |---|---|
-| Installation | [Getting Started → Installation](https://wiki.sublarr.de/getting-started/installation) |
-| Configuration reference | [Getting Started → Environment Variables](https://wiki.sublarr.de/getting-started/environment-variables) |
-| Upgrade guide | [Getting Started → Upgrade Guide](https://wiki.sublarr.de/getting-started/upgrade-guide) |
-| FAQ | [Getting Started → FAQ](https://wiki.sublarr.de/getting-started/faq) |
-| Sonarr/Radarr/Jellyfin setup | [User Guide → Integrations](https://wiki.sublarr.de/user-guide/integrations) |
-| Language profiles | [User Guide → Language Profiles](https://wiki.sublarr.de/user-guide/language-profiles) |
-| LLM translation (beta) | [User Guide → Translation & LLM](https://wiki.sublarr.de/user-guide/translation-llm) |
-| Standalone mode | [User Guide → Standalone Mode](https://wiki.sublarr.de/user-guide/standalone) |
-| Subtitle scoring algorithm | [Development → Scoring](https://wiki.sublarr.de/development/scoring) |
-| Provider system | [Development → Providers](https://wiki.sublarr.de/development/providers) |
-| REST API reference | [Development → API Reference](https://wiki.sublarr.de/development/api-reference) |
-| Architecture & data flow | [Development → Architecture](https://wiki.sublarr.de/development/architecture) |
-| Plugin development | [Development → Plugin Development](https://wiki.sublarr.de/development/plugin-development) |
-| Contributing & PR workflow | [Development → Contributing](https://wiki.sublarr.de/development/contributing) |
-| Database schema | [Development → Database Schema](https://wiki.sublarr.de/development/database-schema) |
-| Reverse proxy setup | [Troubleshooting → Reverse Proxy](https://wiki.sublarr.de/troubleshooting/reverse-proxy) |
-| Performance tuning | [Troubleshooting → Performance Tuning](https://wiki.sublarr.de/troubleshooting/performance-tuning) |
-| Troubleshooting | [Troubleshooting → General](https://wiki.sublarr.de/troubleshooting/general) |
+| Installation | [Getting Started → Installation](https://sublarr.de/docs/getting-started/installation/) |
+| Configuration reference | [Getting Started → Environment Variables](https://sublarr.de/docs/getting-started/environment-variables/) |
+| Upgrade guide | [Getting Started → Upgrade Guide](https://sublarr.de/docs/getting-started/upgrade-guide/) |
+| FAQ | [Getting Started → FAQ](https://sublarr.de/docs/getting-started/faq/) |
+| Sonarr/Radarr/Jellyfin setup | [User Guide → Integrations](https://sublarr.de/docs/user-guide/integrations/) |
+| Language profiles | [User Guide → Language Profiles](https://sublarr.de/docs/user-guide/language-profiles/) |
+| LLM translation (beta) | [User Guide → Translation & LLM](https://sublarr.de/docs/user-guide/translation-llm/) |
+| Standalone mode | [Getting Started → Installation (Scenario 2)](https://sublarr.de/docs/getting-started/installation/) |
+| Subtitle scoring algorithm | [User Guide → Settings → Providers (Scoring)](https://sublarr.de/docs/user-guide/settings/providers/#subtitle-scoring) |
+| Provider system | [User Guide → Settings → Providers](https://sublarr.de/docs/user-guide/settings/providers/) |
+| REST API reference | [Development → API Reference](https://sublarr.de/docs/development/api-reference/) |
+| Architecture & data flow | [Development → Architecture](https://sublarr.de/docs/development/architecture/) |
+| Plugin development | [Development → Plugin Development](https://sublarr.de/docs/development/plugin-development/) |
+| Contributing & PR workflow | [Development → Contributing](https://sublarr.de/docs/development/contributing/) |
+| Database schema | [Development → Database Schema](https://sublarr.de/docs/development/database-schema/) |
+| Reverse proxy setup | [Troubleshooting → Reverse Proxy](https://sublarr.de/docs/troubleshooting/reverse-proxy/) |
+| Performance tuning | [Troubleshooting → Performance Tuning](https://sublarr.de/docs/troubleshooting/performance-tuning/) |
+| Troubleshooting | [Troubleshooting → General](https://sublarr.de/docs/troubleshooting/general/) |
 | [ROADMAP.md](ROADMAP.md) | Feature roadmap and version planning |
 | [CHANGELOG.md](CHANGELOG.md) | Release notes |
 | [.env.example](.env.example) | Minimal deployment template |
@@ -414,7 +414,7 @@ Contributions are welcome — bug reports, feature requests, and pull requests.
 
 1. **Bug reports** → open a GitHub Issue with your log output and config
 2. **Feature requests** → open a Discussion so we can talk through the approach first
-3. **Pull requests** → see [wiki.sublarr.de/development/contributing](https://wiki.sublarr.de/development/contributing) for code style, testing requirements, and commit format
+3. **Pull requests** → see [sublarr.de/docs/development/contributing](https://sublarr.de/docs/development/contributing/) for code style, testing requirements, and commit format
 
 ## 💬 Community
 

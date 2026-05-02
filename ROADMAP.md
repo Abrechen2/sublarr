@@ -442,4 +442,4 @@ Requirements for stable release:
 
 ## How to Contribute
 
-See [wiki.sublarr.de/development/contributing](https://wiki.sublarr.de/development/contributing) for how to submit features, bug reports, and pull requests.
+See [sublarr.de/docs/development/contributing](https://sublarr.de/docs/development/contributing/) for how to submit features, bug reports, and pull requests.
