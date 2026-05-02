@@ -291,6 +291,31 @@ export async function extractWaveform(videoPath: string): Promise<{ audio_url: s
   return data as { audio_url: string; duration_s: number }
 }
 
+// ─── Audio Tracks (Plan B8) ───────────────────────────────────────────────────
+
+export interface AudioTrack {
+  index: number
+  codec_type: 'audio'
+  codec: string
+  channels: number
+  language: string
+  title: string
+  default: boolean
+  forced: boolean
+}
+
+export interface AudioTracksResponse {
+  tracks: AudioTrack[]
+  video_path: string
+}
+
+export async function fetchAudioTracks(videoPath: string): Promise<AudioTracksResponse> {
+  const { data } = await api.get<AudioTracksResponse>('/audio/tracks', {
+    params: { file_path: videoPath },
+  })
+  return data
+}
+
 // ─── Subtitle Diff ────────────────────────────────────────────────────────────
 
 export async function computeSubtitleDiff(

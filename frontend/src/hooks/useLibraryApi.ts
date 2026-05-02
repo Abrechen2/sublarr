@@ -91,6 +91,20 @@ export function useSubtitleParse(filePath: string | null) {
   })
 }
 
+// Plan B8 — audio-track listing for the WaveformEditor track picker.
+// Tracks rarely change for a given file; cache aggressively.
+export function useAudioTracks(videoPath: string | null) {
+  return useQuery({
+    queryKey: ['audio-tracks', videoPath],
+    queryFn: async () => {
+      const { fetchAudioTracks } = await import('@/api/system/tools')
+      return fetchAudioTracks(videoPath!)
+    },
+    enabled: !!videoPath,
+    staleTime: 60 * 60 * 1000,  // 1h — audio streams don't change for a file
+  })
+}
+
 export function useSubtitleBackup(filePath: string | null) {
   return useQuery({
     queryKey: ['subtitle-backup', filePath],

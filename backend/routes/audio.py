@@ -11,6 +11,7 @@ from services.audio_visualizer import (
     extract_audio_track,
     generate_waveform_json,
     get_audio_duration,
+    list_audio_tracks,
 )
 
 bp = Blueprint("audio", __name__, url_prefix="/api/v1")
@@ -210,4 +211,79 @@ def extract_audio():
         return jsonify({"error": str(e)}), 500
     except Exception:
         logger.exception("Unexpected error extracting audio")
+        return jsonify({"error": "Internal server error"}), 500
+
+
+@bp.route("/audio/tracks", methods=["GET"])
+def get_audio_tracks():
+    """List the audio streams of a video file (WaveformEditor track picker).
+    ---
+    get:
+      tags:
+        - Audio
+      summary: List audio tracks
+      description: Returns the audio streams embedded in a video file with
+        their language/title/channel layout, used by the WaveformEditor's
+        audio-track picker.
+      security:
+        - apiKeyAuth: []
+      parameters:
+        - in: query
+          name: file_path
+          required: true
+          schema:
+            type: string
+          description: Path to video file (must be inside media_path)
+      responses:
+        200:
+          description: Audio track list
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  tracks:
+                    type: array
+                    items:
+                      type: object
+                  video_path:
+                    type: string
+        400:
+          description: Missing file_path
+        403:
+          description: Path outside media root
+        404:
+          description: File not found
+        500:
+          description: Probe error
+    """
+    file_path = request.args.get("file_path")
+    if not file_path:
+        return jsonify({"error": "file_path parameter is required"}), 400
+
+    settings = get_settings()
+    mapped_path = file_path
+    if hasattr(settings, "media_path_mapping") and settings.media_path_mapping:
+        for mapping in settings.media_path_mapping:
+            if file_path.startswith(mapping.get("from", "")):
+                mapped_path = file_path.replace(
+                    mapping["from"],
+                    mapping.get("to", file_path),
+                    1,
+                )
+                break
+
+    if not is_safe_path(mapped_path, settings.media_path):
+        return jsonify({"error": "Access denied"}), 403
+    if not os.path.exists(mapped_path):
+        return jsonify({"error": "File not found"}), 404
+
+    try:
+        tracks = list_audio_tracks(mapped_path)
+        return jsonify({"tracks": tracks, "video_path": mapped_path}), 200
+    except RuntimeError as e:
+        logger.error("Audio-track probe failed: %s", e)
+        return jsonify({"error": str(e)}), 500
+    except Exception:
+        logger.exception("Unexpected error probing audio tracks")
         return jsonify({"error": "Internal server error"}), 500

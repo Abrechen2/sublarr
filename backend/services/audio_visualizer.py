@@ -4,13 +4,53 @@ Generates waveform data points from video/audio files for frontend visualization
 Inspired by SubtitleEdit's waveform feature.
 """
 
+from __future__ import annotations
+
 import json
 import logging
 import os
 import subprocess
 import tempfile
 
+# Re-export the unified probe so unit tests can patch this module directly
+# instead of reaching into ass_utils internals.
+from ass_utils import get_media_streams  # noqa: F401
+
 logger = logging.getLogger(__name__)
+
+
+def list_audio_tracks(video_path: str) -> list[dict]:
+    """Return the audio streams of `video_path` in WaveformEditor shape.
+
+    Each entry has stable, frontend-friendly keys:
+        index, codec_type ("audio"), codec, channels, language, title,
+        default, forced.
+
+    Returns an empty list if the probe fails or the file has no audio.
+    Raises RuntimeError on hard probe errors so callers can decide between
+    404 (file gone) and 500 (probe blew up).
+    """
+    probe = get_media_streams(video_path)
+    streams = probe.get("streams") or []
+    tracks: list[dict] = []
+    for stream in streams:
+        if (stream.get("codec_type") or "").lower() != "audio":
+            continue
+        tags = stream.get("tags") or {}
+        disposition = stream.get("disposition") or {}
+        tracks.append(
+            {
+                "index": stream.get("index"),
+                "codec_type": "audio",
+                "codec": stream.get("codec_name") or "",
+                "channels": stream.get("channels") or 0,
+                "language": tags.get("language") or tags.get("lang") or "",
+                "title": tags.get("title") or tags.get("handler_name") or "",
+                "default": bool(disposition.get("default")),
+                "forced": bool(disposition.get("forced")),
+            }
+        )
+    return tracks
 
 
 def extract_audio_track(
