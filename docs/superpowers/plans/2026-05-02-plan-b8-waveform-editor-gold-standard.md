@@ -4,6 +4,32 @@
 > superpowers:subagent-driven-development to implement this plan
 > task-by-task.
 
+## Status — 2026-05-02
+
+| Task | Status | Notes |
+|------|--------|-------|
+| Pre-1, Pre-2 | ✅ done | `docs/THIRD-PARTY-LICENSES.md`, license-checker pre-deploy gate |
+| Task 1 — Audio-track listing | ✅ done | `list_audio_tracks` + `/audio/tracks` |
+| Task 2 — Keyframes + scenes | ✅ done | `/audio/keyframes`, `/audio/scenes`, lazy PySceneDetect |
+| Task 3 — Drag/resize regions | ✅ done | `useWaveformRegions` + `WaveformEditor` scaffold |
+| Task 4 — Snap + L/R click-map | ✅ done | pure `snap.ts`, drag-end snap, click handlers |
+| Task 5 — Keymap + help overlay | ✅ done | `keymap.ts`, `WaveformHotkeys`, `WaveformShortcutHelp`, EN+DE i18n |
+| Task 6 — Zoom + auto-center + tracks | ✅ done | toolbar slider + checkbox + `<select>`; `track_index` in extract route |
+| Task 7 — Spectrogram | ✅ done | opt-in plugin, `localStorage` persistence |
+| Task 8 — Scrub on drag | ✅ done | throttled 30 Hz, direction-aware, opt-in |
+| Task 9 — ASS karaoke overlay | ⏸️ deferred | Tier 2 — display-only feature, follow-up release |
+| Task 10 — Scene markers | ✅ done | thin amber lines on the wrapper, percent-positioned |
+| Task 11 — Modal wire-back | ✅ done | `applyCueTiming(SRT/ASS)`, `SubtitleEditorModal` swapped |
+| Task 12 — Docs + release | 🟡 in flight | CHANGELOG entry written; deploy + user-guide page next |
+
+**Test surface added by this plan: 67 frontend unit tests + 14 backend tests, all green at commit `a8efc27b`.**
+
+**Carry-over for B8.x or B9 prep:**
+1. Snap-to-scene (extend `snap.ts` to also snap against scenes; tolerance ~200 ms).
+2. CodeMirror undo-history integration (drag commits should enter the same undo stack as text edits).
+3. ASS karaoke overlay (Task 9, Tier 2).
+4. E2E Playwright spec for the waveform editor (Task 11 Step 3 — relies on a fixture episode in CI).
+
 **Spec:** `docs/superpowers/specs/2026-05-02-gold-standard-editor-sync-design.md`
 **Prior:** B7 shipped as 0.70.0-beta — multi-engine sync orchestrator.
 **Baseline:** 0.82.4-beta → 0.83.0-beta (minor bump, new user-facing surface).
