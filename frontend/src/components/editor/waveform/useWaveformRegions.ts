@@ -71,6 +71,15 @@ export interface UseWaveformRegionsResult {
   play: () => void
   pause: () => void
   playPause: () => void
+  /**
+   * Snap-and-set the selected cue's start to the current playhead. Used by
+   * the keyboard `S` hotkey (Aegisub convention).
+   */
+  setStartAtPlayhead: () => void
+  /** Snap-and-set the selected cue's end to the current playhead (`D` key). */
+  setEndAtPlayhead: () => void
+  /** Seek the playhead by `deltaSec` seconds; negative means back. */
+  seekBy: (deltaSec: number) => void
 }
 
 const DEFAULT_REGION_COLOR = 'rgba(20, 184, 166, 0.18)' // teal-500 @ 18 %
@@ -252,6 +261,54 @@ export function useWaveformRegions({
     })
   }, [cues, isReady, enableDrag, regionColor])
 
+  // Snap + clamp + commit a new start for the currently selected cue.
+  // Stable identity (no deps) — both the click-map effect and the hook
+  // consumer (keyboard S key) drive this through the same gate.
+  const applySetStart = useCallback((timeMs: number) => {
+    const cueId = selectedCueIdRef.current
+    if (!cueId) return
+    const cue = cuesRef.current.find((c) => c.id === cueId)
+    if (!cue) return
+
+    const opts: SnapOptions = {
+      keyframesMs: keyframesMsRef.current ?? [],
+      neighborsMs: deriveNeighborsMs(cuesRef.current, cueId),
+      minGapMs: minGapMsRef.current ?? 0,
+      keyframeToleranceMs: keyframeTolRef.current,
+      neighborToleranceMs: neighborTolRef.current,
+    }
+    const snappedMs = snap(timeMs, opts).value
+    const newStart = snappedMs / 1000
+    // Reject moves that would invert/collapse the cue. minGap is the
+    // floor for usable duration; default to a tiny epsilon so ms-level
+    // collisions still get rejected when minGap is 0.
+    const minDur = Math.max((minGapMsRef.current ?? 0) / 1000, EDGE_EPSILON_S)
+    if (newStart >= cue.end - minDur) return
+
+    onCueChangeRef.current(cueId, { start: newStart, end: cue.end })
+  }, [])
+
+  const applySetEnd = useCallback((timeMs: number) => {
+    const cueId = selectedCueIdRef.current
+    if (!cueId) return
+    const cue = cuesRef.current.find((c) => c.id === cueId)
+    if (!cue) return
+
+    const opts: SnapOptions = {
+      keyframesMs: keyframesMsRef.current ?? [],
+      neighborsMs: deriveNeighborsMs(cuesRef.current, cueId),
+      minGapMs: minGapMsRef.current ?? 0,
+      keyframeToleranceMs: keyframeTolRef.current,
+      neighborToleranceMs: neighborTolRef.current,
+    }
+    const snappedMs = snap(timeMs, opts).value
+    const newEnd = snappedMs / 1000
+    const minDur = Math.max((minGapMsRef.current ?? 0) / 1000, EDGE_EPSILON_S)
+    if (newEnd <= cue.start + minDur) return
+
+    onCueChangeRef.current(cueId, { start: cue.start, end: newEnd })
+  }, [])
+
   // L/R click-map (Aegisub convention): only active when a cue is selected
   // AND the editor is unlocked. Listeners read latest cues/keyframes/etc
   // from refs so they don't need to re-attach.
@@ -268,39 +325,6 @@ export function useWaveformRegions({
       const dur = ws.getDuration()
       if (!Number.isFinite(dur) || dur <= 0) return null
       return ratio * dur * 1000
-    }
-
-    const applySetStart = (timeMs: number) => {
-      const cueId = selectedCueIdRef.current
-      if (!cueId) return
-      const cue = cuesRef.current.find((c) => c.id === cueId)
-      if (!cue) return
-
-      const opts = buildSnapOpts(cueId)
-      const snappedMs = snap(timeMs, opts).value
-      const newStart = snappedMs / 1000
-      // Reject clicks that would invert/collapse the cue. minGap is the
-      // floor for usable duration; default to a tiny epsilon so ms-level
-      // collisions still get rejected when minGap is 0.
-      const minDur = Math.max((minGapMsRef.current ?? 0) / 1000, EDGE_EPSILON_S)
-      if (newStart >= cue.end - minDur) return
-
-      onCueChangeRef.current(cueId, { start: newStart, end: cue.end })
-    }
-
-    const applySetEnd = (timeMs: number) => {
-      const cueId = selectedCueIdRef.current
-      if (!cueId) return
-      const cue = cuesRef.current.find((c) => c.id === cueId)
-      if (!cue) return
-
-      const opts = buildSnapOpts(cueId)
-      const snappedMs = snap(timeMs, opts).value
-      const newEnd = snappedMs / 1000
-      const minDur = Math.max((minGapMsRef.current ?? 0) / 1000, EDGE_EPSILON_S)
-      if (newEnd <= cue.start + minDur) return
-
-      onCueChangeRef.current(cueId, { start: cue.start, end: newEnd })
     }
 
     const onPointerDown = (e: PointerEvent) => {
@@ -328,7 +352,7 @@ export function useWaveformRegions({
       el.removeEventListener('pointerdown', onPointerDown)
       el.removeEventListener('contextmenu', onContextMenu)
     }
-  }, [container, isReady, enableDrag, buildSnapOpts])
+  }, [container, isReady, enableDrag, applySetStart, applySetEnd])
 
   const play = useCallback(() => {
     void wsRef.current?.play()
@@ -340,6 +364,34 @@ export function useWaveformRegions({
     void wsRef.current?.playPause()
   }, [])
 
+  /** Set the start of the currently selected cue at the playhead position. */
+  const setStartAtPlayhead = useCallback(() => {
+    const ws = wsRef.current
+    if (!ws) return
+    const t = ws.getCurrentTime()
+    if (!Number.isFinite(t) || t < 0) return
+    applySetStart(t * 1000)
+  }, [applySetStart])
+
+  /** Set the end of the currently selected cue at the playhead position. */
+  const setEndAtPlayhead = useCallback(() => {
+    const ws = wsRef.current
+    if (!ws) return
+    const t = ws.getCurrentTime()
+    if (!Number.isFinite(t) || t < 0) return
+    applySetEnd(t * 1000)
+  }, [applySetEnd])
+
+  /** Seek the playhead by `deltaSec` (negative = back). Clamped to [0, dur]. */
+  const seekBy = useCallback((deltaSec: number) => {
+    const ws = wsRef.current
+    if (!ws) return
+    const dur = ws.getDuration()
+    if (!Number.isFinite(dur) || dur <= 0) return
+    const next = Math.max(0, Math.min(dur, ws.getCurrentTime() + deltaSec))
+    ws.setTime(next)
+  }, [])
+
   return {
     ws: wsRef.current,
     regions: regionsRef.current,
@@ -348,5 +400,8 @@ export function useWaveformRegions({
     play,
     pause,
     playPause,
+    setStartAtPlayhead,
+    setEndAtPlayhead,
+    seekBy,
   }
 }

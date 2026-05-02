@@ -61,6 +61,35 @@
     "load_failed": "Failed to load waveform",
     "no_data": "No waveform data available"
   },
+  "waveform": {
+    "shortcut": {
+      "title": "Keyboard shortcuts",
+      "subtitle": "Aegisub-style waveform editing",
+      "playPause": "Play / pause",
+      "setStart": "Set start of selected cue at playhead",
+      "setEnd": "Set end of selected cue at playhead",
+      "splitAtCursor": "Split selected cue at playhead",
+      "mergeWithNext": "Merge selected cue with next",
+      "seekBack100ms": "Seek back 100 ms",
+      "seekFwd100ms": "Seek forward 100 ms",
+      "seekBack1s": "Seek back 1 s",
+      "seekFwd1s": "Seek forward 1 s",
+      "prevCue": "Previous cue",
+      "nextCue": "Next cue",
+      "zoomIn": "Zoom in",
+      "zoomOut": "Zoom out",
+      "showHelp": "Show this help"
+    },
+    "shortcut_group": {
+      "playback": "Playback",
+      "timing": "Timing",
+      "navigation": "Navigation",
+      "zoom": "Zoom",
+      "help": "Help"
+    },
+    "shortcut_help_button": "Shortcuts",
+    "shortcut_close": "Close"
+  },
   "sync_preview": {
     "before_start": "Before Start",
     "before_end": "Before End",

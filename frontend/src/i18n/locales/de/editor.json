@@ -61,6 +61,35 @@
     "load_failed": "Waveform konnte nicht geladen werden",
     "no_data": "Keine Waveform-Daten verfügbar"
   },
+  "waveform": {
+    "shortcut": {
+      "title": "Tastenkürzel",
+      "subtitle": "Wellenform-Editing im Aegisub-Stil",
+      "playPause": "Wiedergabe / Pause",
+      "setStart": "Startzeit der ausgewählten Zeile am Cursor setzen",
+      "setEnd": "Endzeit der ausgewählten Zeile am Cursor setzen",
+      "splitAtCursor": "Ausgewählte Zeile am Cursor teilen",
+      "mergeWithNext": "Mit nächster Zeile verbinden",
+      "seekBack100ms": "100 ms zurück",
+      "seekFwd100ms": "100 ms vor",
+      "seekBack1s": "1 s zurück",
+      "seekFwd1s": "1 s vor",
+      "prevCue": "Vorherige Zeile",
+      "nextCue": "Nächste Zeile",
+      "zoomIn": "Vergrößern",
+      "zoomOut": "Verkleinern",
+      "showHelp": "Diese Hilfe anzeigen"
+    },
+    "shortcut_group": {
+      "playback": "Wiedergabe",
+      "timing": "Timing",
+      "navigation": "Navigation",
+      "zoom": "Zoom",
+      "help": "Hilfe"
+    },
+    "shortcut_help_button": "Tastenkürzel",
+    "shortcut_close": "Schließen"
+  },
   "sync_preview": {
     "before_start": "Vor Start",
     "before_end": "Vor Ende",
