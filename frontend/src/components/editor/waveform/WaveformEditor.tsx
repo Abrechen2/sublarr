@@ -16,7 +16,7 @@ import { useRef, useState, useEffect, useMemo, useCallback } from 'react'
 import { Loader2, Play, Pause, Lock, Unlock, Keyboard, Activity, Headphones } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 
-import { useSubtitleParse, useKeyframes, useAudioTracks } from '@/hooks/useApi'
+import { useSubtitleParse, useKeyframes, useAudioTracks, useScenes } from '@/hooks/useApi'
 import { extractWaveform } from '@/api/client'
 
 import { useWaveformRegions, type CuePatch, type WaveformCue } from './useWaveformRegions'
@@ -144,6 +144,7 @@ export function WaveformEditor({
   const { data: parseData } = useSubtitleParse(subtitlePath)
   const { data: keyframesData } = useKeyframes(videoPath || null)
   const { data: audioTracksData } = useAudioTracks(videoPath || null)
+  const { data: scenesData } = useScenes(videoPath || null)
   const audioTracks = audioTracksData?.tracks ?? []
 
   // Convert parsed cues -> stable WaveformCue array for the hook
@@ -161,6 +162,14 @@ export function WaveformEditor({
   const keyframesMs = useMemo<number[]>(
     () => (keyframesData?.keyframes ?? []).map((s) => s * 1000),
     [keyframesData],
+  )
+
+  // Scene-detection markers (Plan B8 Task 10). Backend may report
+  // `available: false` when PySceneDetect isn't installed — we just
+  // see an empty list there, so no further guard is needed.
+  const sceneMarkersMs = useMemo<number[]>(
+    () => (scenesData?.scenes ?? []).map((s) => s * 1000),
+    [scenesData],
   )
 
   const selectedCueId = selectedCueIdx === null ? null : String(selectedCueIdx)
@@ -190,6 +199,7 @@ export function WaveformEditor({
     autoCenter,
     spectrogramEnabled,
     scrubOnDrag,
+    sceneMarkersMs,
   })
 
   // Multiplicative zoom step, clamped to the slider bounds. Used by the
@@ -432,6 +442,12 @@ export function WaveformEditor({
           {editingEnabled && selectedCueIdx !== null && keyframesData && (
             <span className="text-xs text-muted">
               Snap: {keyframesData.keyframes.length} keyframes
+            </span>
+          )}
+
+          {scenesData && scenesData.available && sceneMarkersMs.length > 0 && (
+            <span className="text-xs text-muted">
+              {sceneMarkersMs.length} scene cuts
             </span>
           )}
         </div>

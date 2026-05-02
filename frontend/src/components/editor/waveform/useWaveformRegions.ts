@@ -89,6 +89,12 @@ export interface UseWaveformRegionsArgs {
   scrubOnDrag?: boolean
   /** Length of the scrub-playback window in seconds. Default 0.2. */
   scrubWindowSec?: number
+  /**
+   * PySceneDetect scene-cut markers in milliseconds (Plan B8 Task 10).
+   * Rendered as thin vertical lines on the waveform wrapper. When empty
+   * or undefined, no markers are drawn.
+   */
+  sceneMarkersMs?: number[]
 }
 
 export interface UseWaveformRegionsResult {
@@ -148,6 +154,7 @@ export function useWaveformRegions({
   spectrogramFftSamples = 512,
   scrubOnDrag = false,
   scrubWindowSec = 0.2,
+  sceneMarkersMs,
 }: UseWaveformRegionsArgs): UseWaveformRegionsResult {
   const wsRef = useRef<WaveSurfer | null>(null)
   const regionsRef = useRef<RegionsPlugin | null>(null)
@@ -322,6 +329,57 @@ export function useWaveformRegions({
     if (autoCenter === undefined) return
     wsRef.current?.setOptions({ autoCenter })
   }, [isReady, autoCenter])
+
+  // Plan B8 Task 10 — paint thin vertical lines on the wrapper at each
+  // scene-cut. Markers are positioned with percentage left-offsets so
+  // they automatically scale with WaveSurfer's zoom (the wrapper width
+  // grows linearly with px-per-sec, percent stays constant per timestamp).
+  useEffect(() => {
+    if (!isReady) return
+    const ws = wsRef.current
+    if (!ws) return
+    if (!sceneMarkersMs || sceneMarkersMs.length === 0) return
+
+    let wrapper: HTMLElement | null = null
+    try {
+      wrapper = ws.getWrapper()
+    } catch {
+      return
+    }
+    if (!wrapper) return
+
+    const dur = ws.getDuration()
+    if (!Number.isFinite(dur) || dur <= 0) return
+
+    // Anchor styling on the wrapper so the lines paint INSIDE the canvas
+    // viewport — without this, position:absolute would resolve against the
+    // nearest positioned ancestor, which may be the page <body>.
+    const prevPosition = wrapper.style.position
+    if (!prevPosition) wrapper.style.position = 'relative'
+
+    const created: HTMLDivElement[] = []
+    for (const ms of sceneMarkersMs) {
+      const sec = ms / 1000
+      if (sec < 0 || sec > dur) continue
+      const el = document.createElement('div')
+      el.dataset.sublarrSceneMarker = '1'
+      el.style.position = 'absolute'
+      el.style.top = '0'
+      el.style.bottom = '0'
+      el.style.left = `${(sec / dur) * 100}%`
+      el.style.width = '1px'
+      el.style.background = 'rgba(245, 158, 11, 0.55)' // amber-500 @ 55 %
+      el.style.pointerEvents = 'none'
+      el.style.zIndex = '4'
+      wrapper.appendChild(el)
+      created.push(el)
+    }
+
+    return () => {
+      for (const el of created) el.remove()
+      if (!prevPosition) wrapper!.style.position = ''
+    }
+  }, [isReady, sceneMarkersMs])
 
   // Plan B8 Task 7 — register/unregister the spectrogram plugin in
   // response to the toggle. Done outside the WaveSurfer-create effect so

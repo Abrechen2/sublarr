@@ -56,7 +56,17 @@ const fakeWs = {
   setOptions: vi.fn(),
   registerPlugin: vi.fn(() => fakeSpectrogramPlugin),
   unregisterPlugin: vi.fn(),
+  // Provide a real DOM node so the scene-markers effect can append children
+  getWrapper: vi.fn(() => fakeWsWrapperEl),
 }
+
+// Tests inspect this wrapper for inserted scene-marker children.
+const fakeWsWrapperEl: HTMLDivElement = (() => {
+  const el = (typeof document !== 'undefined' ? document.createElement('div') : null) as
+    | HTMLDivElement
+    | null
+  return el ?? ({} as HTMLDivElement)
+})()
 
 vi.mock('wavesurfer.js', () => ({
   default: {
@@ -107,6 +117,7 @@ interface HarnessProps {
   autoCenter?: boolean
   spectrogramEnabled?: boolean
   scrubOnDrag?: boolean
+  sceneMarkersMs?: number[]
 }
 
 function Harness({
@@ -123,6 +134,7 @@ function Harness({
   autoCenter,
   spectrogramEnabled,
   scrubOnDrag,
+  sceneMarkersMs,
 }: HarnessProps) {
   const containerRef = useRef<HTMLDivElement>(null)
   useWaveformRegions({
@@ -140,6 +152,7 @@ function Harness({
     autoCenter,
     spectrogramEnabled,
     scrubOnDrag,
+    sceneMarkersMs,
   })
   return <div ref={containerRef} data-testid="waveform-host" />
 }
@@ -677,6 +690,109 @@ describe('useWaveformRegions', () => {
       })
 
       expect(fakeWs.play).toHaveBeenCalledTimes(1)
+    })
+  })
+
+  // ─── B8.10: scene-detection markers ───────────────────────────────────
+
+  describe('scene markers', () => {
+    function clearWrapper() {
+      while (fakeWsWrapperEl.firstChild) fakeWsWrapperEl.removeChild(fakeWsWrapperEl.firstChild)
+    }
+
+    it('paints one marker element per provided timestamp', () => {
+      clearWrapper()
+      const onCueChange = vi.fn()
+      // duration mock returns 10 s; positions: 1s -> 10%, 5s -> 50%, 9s -> 90%
+      render(
+        <Harness
+          cues={SAMPLE_CUES}
+          onCueChange={onCueChange}
+          sceneMarkersMs={[1000, 5000, 9000]}
+        />,
+      )
+
+      act(() => {
+        fireWs('ready')
+      })
+
+      const markers = fakeWsWrapperEl.querySelectorAll('[data-sublarr-scene-marker="1"]')
+      expect(markers).toHaveLength(3)
+    })
+
+    it('positions markers using percentage of duration', () => {
+      clearWrapper()
+      const onCueChange = vi.fn()
+      render(
+        <Harness cues={SAMPLE_CUES} onCueChange={onCueChange} sceneMarkersMs={[5000]} />,
+      )
+
+      act(() => {
+        fireWs('ready')
+      })
+
+      const marker = fakeWsWrapperEl.querySelector(
+        '[data-sublarr-scene-marker="1"]',
+      ) as HTMLElement
+      // 5 s of a 10 s duration -> 50%
+      expect(marker.style.left).toBe('50%')
+    })
+
+    it('skips markers that fall outside the audio duration', () => {
+      clearWrapper()
+      const onCueChange = vi.fn()
+      // 100 s is well past the mocked 10 s duration -> excluded
+      render(
+        <Harness
+          cues={SAMPLE_CUES}
+          onCueChange={onCueChange}
+          sceneMarkersMs={[1000, 100_000]}
+        />,
+      )
+
+      act(() => {
+        fireWs('ready')
+      })
+
+      expect(fakeWsWrapperEl.querySelectorAll('[data-sublarr-scene-marker="1"]')).toHaveLength(1)
+    })
+
+    it('removes existing markers when the list changes', () => {
+      clearWrapper()
+      const onCueChange = vi.fn()
+      const { rerender } = render(
+        <Harness
+          cues={SAMPLE_CUES}
+          onCueChange={onCueChange}
+          sceneMarkersMs={[1000, 5000]}
+        />,
+      )
+
+      act(() => {
+        fireWs('ready')
+      })
+      expect(fakeWsWrapperEl.querySelectorAll('[data-sublarr-scene-marker="1"]')).toHaveLength(2)
+
+      // Switch to a single-marker list — old markers should be cleared first
+      rerender(
+        <Harness cues={SAMPLE_CUES} onCueChange={onCueChange} sceneMarkersMs={[3000]} />,
+      )
+
+      const markers = fakeWsWrapperEl.querySelectorAll('[data-sublarr-scene-marker="1"]')
+      expect(markers).toHaveLength(1)
+      expect((markers[0] as HTMLElement).style.left).toBe('30%')
+    })
+
+    it('does nothing when the list is empty', () => {
+      clearWrapper()
+      const onCueChange = vi.fn()
+      render(<Harness cues={SAMPLE_CUES} onCueChange={onCueChange} sceneMarkersMs={[]} />)
+
+      act(() => {
+        fireWs('ready')
+      })
+
+      expect(fakeWsWrapperEl.querySelectorAll('[data-sublarr-scene-marker="1"]')).toHaveLength(0)
     })
   })
 })
