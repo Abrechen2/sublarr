@@ -1,7 +1,7 @@
 # Profiles & Overrides — Design Spec
 
 **Status:** Approved (brainstorming, 2026-04-25)
-**Author:** Claude / Dennis
+**Author:** Claude / maintainer
 **Codex Template:** Settings Template C — `RulesLayout`
 **Target Release:** 0.73.0-beta (or 0.72.x patch series)
 
