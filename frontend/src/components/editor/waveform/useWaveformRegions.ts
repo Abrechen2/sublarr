@@ -19,8 +19,10 @@ import { useEffect, useRef, useState, useCallback } from 'react'
 import WaveSurfer from 'wavesurfer.js'
 import RegionsPlugin from 'wavesurfer.js/plugins/regions'
 import SpectrogramPlugin from 'wavesurfer.js/plugins/spectrogram'
+import TimelinePlugin from 'wavesurfer.js/plugins/timeline'
 
 import { snap, type SnapOptions } from './snap'
+import { detectGapsAndOverlaps } from './gapOverlap'
 
 export interface WaveformCue {
   /** Stable identifier — typically the cue index in the parent list. */
@@ -29,6 +31,13 @@ export interface WaveformCue {
   start: number
   /** End time in seconds. */
   end: number
+  /**
+   * Optional short label drawn directly on the region (Plan B8 follow-up).
+   * The parent should pre-format with `formatCueTextForRegion` so override
+   * tags + line breaks are stripped. When undefined, the region renders
+   * as a colored rectangle with no text.
+   */
+  label?: string
 }
 
 export type CuePatch = Pick<WaveformCue, 'start' | 'end'>
@@ -98,6 +107,37 @@ export interface UseWaveformRegionsArgs {
   sceneMarkersMs?: number[]
   /** Snap range around a scene cut, in ms. Default 200. */
   sceneToleranceMs?: number
+  /**
+   * When true, paint thin teal vertical lines at each keyframe so the
+   * editor can see the snap targets they're aligning to. Default off
+   * because keyframes are dense (~one per 0.5 s) and clutter the wave.
+   * The keyframes themselves are passed via `keyframesMs` regardless;
+   * this flag only controls the visual overlay.
+   */
+  showKeyframeMarkers?: boolean
+  /**
+   * Vertical amplitude zoom (`barHeight`). Scales the waveform peaks
+   * so quiet dialogue is editable. Default 1 (no scaling); 5 is the
+   * practical upper bound before the waveform clips.
+   */
+  ampZoom?: number
+  /**
+   * Audio playback rate. Wired to `ws.setPlaybackRate(rate, true)` so
+   * pitch is preserved (Web Audio `preservesPitch`). Default 1.0.
+   */
+  playbackRate?: number
+  /**
+   * Render thin amber bars for tight inter-cue gaps and red bars for
+   * overlaps. Default true — these are quality signals the editor wants
+   * to see permanently. Pure visualisation; no behavioural side-effect.
+   */
+  showGapOverlapMarkers?: boolean
+  /**
+   * Tolerance in ms below which an inter-cue gap is "tight". Default 80.
+   * Matches `minGapMs` so the editor sees the line they're trying to
+   * stay above.
+   */
+  gapToleranceMs?: number
 }
 
 export interface UseWaveformRegionsResult {
@@ -159,6 +199,11 @@ export function useWaveformRegions({
   scrubWindowSec = 0.2,
   sceneMarkersMs,
   sceneToleranceMs,
+  showKeyframeMarkers = false,
+  ampZoom,
+  playbackRate,
+  showGapOverlapMarkers = true,
+  gapToleranceMs = 80,
 }: UseWaveformRegionsArgs): UseWaveformRegionsResult {
   const wsRef = useRef<WaveSurfer | null>(null)
   const regionsRef = useRef<RegionsPlugin | null>(null)
@@ -219,12 +264,24 @@ export function useWaveformRegions({
     const regionsPlugin = RegionsPlugin.create()
     regionsRef.current = regionsPlugin
 
+    // Sticky time-axis above the waveform (gold-standard follow-up).
+    // Pinned via insertPosition='beforebegin' so it sits above the
+    // canvas and stays in sync as the user zooms.
+    const timelinePlugin = TimelinePlugin.create({
+      height: 18,
+      insertPosition: 'beforebegin',
+      timeInterval: 1,
+      primaryLabelInterval: 5,
+      secondaryLabelInterval: 1,
+      style: { fontSize: '10px', color: 'rgba(148, 163, 184, 0.85)' },
+    })
+
     const ws = WaveSurfer.create({
       container: container.current,
       waveColor,
       progressColor,
       height,
-      plugins: [regionsPlugin],
+      plugins: [regionsPlugin, timelinePlugin],
     })
     wsRef.current = ws
 
@@ -343,6 +400,23 @@ export function useWaveformRegions({
     wsRef.current?.setOptions({ autoCenter })
   }, [isReady, autoCenter])
 
+  // Vertical amplitude zoom — drives WaveSurfer's barHeight so quiet
+  // dialogue scenes get usable visual peaks. setOptions hot-applies
+  // without re-decoding the audio.
+  useEffect(() => {
+    if (!isReady) return
+    if (ampZoom === undefined) return
+    wsRef.current?.setOptions({ barHeight: ampZoom })
+  }, [isReady, ampZoom])
+
+  // Playback-rate slider — pitch is preserved (`preservesPitch=true`),
+  // matching Aegisub's slow-mo audition workflow.
+  useEffect(() => {
+    if (!isReady) return
+    if (playbackRate === undefined) return
+    wsRef.current?.setPlaybackRate(playbackRate, true)
+  }, [isReady, playbackRate])
+
   // Plan B8 Task 10 — paint thin vertical lines on the wrapper at each
   // scene-cut. Markers are positioned with percentage left-offsets so
   // they automatically scale with WaveSurfer's zoom (the wrapper width
@@ -394,6 +468,151 @@ export function useWaveformRegions({
     }
   }, [isReady, sceneMarkersMs])
 
+  // Keyframe markers (gold-standard follow-up). Same DOM-overlay pattern
+  // as scene markers but tinted teal at lower opacity so the dense cluster
+  // (~one per 0.5 s) doesn't dominate the waveform. Off by default;
+  // toggle via the toolbar.
+  useEffect(() => {
+    if (!isReady) return
+    if (!showKeyframeMarkers) return
+    const ws = wsRef.current
+    if (!ws) return
+    const kf = keyframesMs
+    if (!kf || kf.length === 0) return
+
+    let wrapper: HTMLElement | null = null
+    try {
+      wrapper = ws.getWrapper()
+    } catch {
+      return
+    }
+    if (!wrapper) return
+
+    const dur = ws.getDuration()
+    if (!Number.isFinite(dur) || dur <= 0) return
+
+    const prevPosition = wrapper.style.position
+    if (!prevPosition) wrapper.style.position = 'relative'
+
+    const created: HTMLDivElement[] = []
+    for (const ms of kf) {
+      const sec = ms / 1000
+      if (sec < 0 || sec > dur) continue
+      const el = document.createElement('div')
+      el.dataset.sublarrKeyframeMarker = '1'
+      el.style.position = 'absolute'
+      el.style.top = '0'
+      el.style.bottom = '0'
+      el.style.left = `${(sec / dur) * 100}%`
+      el.style.width = '1px'
+      el.style.background = 'rgba(20, 184, 166, 0.28)' // teal-500 @ 28 %
+      el.style.pointerEvents = 'none'
+      el.style.zIndex = '3' // below scene markers (z-index:4)
+      wrapper.appendChild(el)
+      created.push(el)
+    }
+
+    return () => {
+      for (const el of created) el.remove()
+      if (!prevPosition) wrapper!.style.position = ''
+    }
+  }, [isReady, showKeyframeMarkers, keyframesMs])
+
+  // Gap/overlap quality markers (gold-standard follow-up). Tight gaps
+  // paint amber, overlaps paint red. Both are intervals (not zero-width
+  // lines) drawn at the bottom 6 px of the waveform so they don't
+  // obscure the regions themselves.
+  useEffect(() => {
+    if (!isReady) return
+    if (!showGapOverlapMarkers) return
+    const ws = wsRef.current
+    if (!ws) return
+
+    const { overlaps, tightGaps } = detectGapsAndOverlaps(cues, { gapToleranceMs })
+    if (overlaps.length === 0 && tightGaps.length === 0) return
+
+    let wrapper: HTMLElement | null = null
+    try {
+      wrapper = ws.getWrapper()
+    } catch {
+      return
+    }
+    if (!wrapper) return
+
+    const dur = ws.getDuration()
+    if (!Number.isFinite(dur) || dur <= 0) return
+
+    const prevPosition = wrapper.style.position
+    if (!prevPosition) wrapper.style.position = 'relative'
+
+    const created: HTMLDivElement[] = []
+    const paint = (
+      start: number,
+      end: number,
+      bg: string,
+      tooltip: string,
+      kind: 'overlap' | 'tightGap',
+    ) => {
+      const safeStart = Math.max(0, start)
+      const safeEnd = Math.min(dur, end)
+      if (safeEnd <= safeStart) {
+        // Zero-width interval (touching cues): paint a 2 px tick instead
+        // so it's visible.
+        const el = document.createElement('div')
+        el.dataset.sublarrGapOverlap = kind
+        el.title = tooltip
+        el.style.position = 'absolute'
+        el.style.bottom = '0'
+        el.style.height = '6px'
+        el.style.left = `${(safeStart / dur) * 100}%`
+        el.style.width = '2px'
+        el.style.background = bg
+        el.style.pointerEvents = 'none'
+        el.style.zIndex = '5'
+        wrapper!.appendChild(el)
+        created.push(el)
+        return
+      }
+      const el = document.createElement('div')
+      el.dataset.sublarrGapOverlap = kind
+      el.title = tooltip
+      el.style.position = 'absolute'
+      el.style.bottom = '0'
+      el.style.height = '6px'
+      el.style.left = `${(safeStart / dur) * 100}%`
+      el.style.width = `${((safeEnd - safeStart) / dur) * 100}%`
+      el.style.background = bg
+      el.style.pointerEvents = 'none'
+      el.style.zIndex = '5'
+      wrapper!.appendChild(el)
+      created.push(el)
+    }
+
+    for (const ov of overlaps) {
+      paint(
+        ov.start,
+        ov.end,
+        'rgba(239, 68, 68, 0.55)', // red-500 @ 55 %
+        `Overlap: cues ${ov.prevId} ↔ ${ov.nextId}`,
+        'overlap',
+      )
+    }
+    for (const tg of tightGaps) {
+      paint(
+        tg.start,
+        tg.end,
+        'rgba(245, 158, 11, 0.55)', // amber-500 @ 55 %
+        `Tight gap (<${gapToleranceMs} ms): cues ${tg.prevId} → ${tg.nextId}`,
+        'tightGap',
+      )
+    }
+
+    return () => {
+      for (const el of created) el.remove()
+      if (!prevPosition) wrapper!.style.position = ''
+    }
+  }, [isReady, cues, showGapOverlapMarkers, gapToleranceMs])
+
   // Plan B8 Task 7 — register/unregister the spectrogram plugin in
   // response to the toggle. Done outside the WaveSurfer-create effect so
   // toggling doesn't tear down the audio buffer or active regions.
@@ -443,6 +662,10 @@ export function useWaveformRegions({
         color: regionColor,
         drag: enableDrag,
         resize: enableDrag,
+        // WaveSurfer Regions v7 renders `content` as a label inside the
+        // region. We pass the pre-formatted single-line label so every
+        // region carries its cue text on the wave.
+        content: cue.label,
       })
     })
   }, [cues, isReady, enableDrag, regionColor])

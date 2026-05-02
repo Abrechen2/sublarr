@@ -54,6 +54,7 @@ const fakeWs = {
   setTime: vi.fn(),
   zoom: vi.fn(),
   setOptions: vi.fn(),
+  setPlaybackRate: vi.fn(),
   registerPlugin: vi.fn(() => fakeSpectrogramPlugin),
   unregisterPlugin: vi.fn(),
   // Provide a real DOM node so the scene-markers effect can append children
@@ -71,6 +72,12 @@ const fakeWsWrapperEl: HTMLDivElement = (() => {
 vi.mock('wavesurfer.js', () => ({
   default: {
     create: vi.fn(() => fakeWs),
+  },
+}))
+
+vi.mock('wavesurfer.js/plugins/timeline', () => ({
+  default: {
+    create: vi.fn(() => ({ destroy: vi.fn() })),
   },
 }))
 
@@ -183,6 +190,32 @@ describe('useWaveformRegions', () => {
     expect(fakeRegionsApi.addRegion).toHaveBeenNthCalledWith(1, expect.objectContaining({
       id: '0', start: 0.5, end: 1.5, drag: true, resize: true,
     }))
+  })
+
+  it('forwards `label` as the region `content` field', () => {
+    const cuesWithLabels: WaveformCue[] = [
+      { id: '0', start: 0.5, end: 1.5, label: 'Hallo' },
+      { id: '1', start: 2.5, end: 3.5, label: 'Welt' },
+      { id: '2', start: 4.5, end: 5.5 }, // intentionally no label
+    ]
+    render(<Harness cues={cuesWithLabels} onCueChange={vi.fn()} />)
+
+    act(() => {
+      fireWs('ready')
+    })
+
+    expect(fakeRegionsApi.addRegion).toHaveBeenNthCalledWith(
+      1,
+      expect.objectContaining({ id: '0', content: 'Hallo' }),
+    )
+    expect(fakeRegionsApi.addRegion).toHaveBeenNthCalledWith(
+      2,
+      expect.objectContaining({ id: '1', content: 'Welt' }),
+    )
+    expect(fakeRegionsApi.addRegion).toHaveBeenNthCalledWith(
+      3,
+      expect.objectContaining({ id: '2', content: undefined }),
+    )
   })
 
   it('respects enableDrag=false (read-only mode)', () => {

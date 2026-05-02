@@ -13,7 +13,18 @@
  */
 
 import { useRef, useState, useEffect, useMemo, useCallback } from 'react'
-import { Loader2, Play, Pause, Lock, Unlock, Keyboard, Activity, Headphones } from 'lucide-react'
+import {
+  Loader2,
+  Play,
+  Pause,
+  Lock,
+  Unlock,
+  Keyboard,
+  Activity,
+  Headphones,
+  Film,
+  Gauge,
+} from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 
 import { useSubtitleParse, useKeyframes, useAudioTracks, useScenes } from '@/hooks/useApi'
@@ -24,6 +35,8 @@ import { WaveformHotkeys } from './WaveformHotkeys'
 import { WaveformShortcutHelp } from './WaveformShortcutHelp'
 import { WaveformAudioTrackPicker } from './WaveformAudioTrackPicker'
 import { AssKaraokeOverlay } from './AssKaraokeOverlay'
+import { WaveformActiveCueBar } from './WaveformActiveCueBar'
+import { formatCueTextForRegion } from './cueTextDisplay'
 import type { WaveformAction } from './keymap'
 
 interface WaveformEditorProps {
@@ -77,6 +90,41 @@ const ZOOM_STEP_FACTOR = 1.5
 /** localStorage keys for persisted toolbar prefs. */
 const SPECTROGRAM_LS_KEY = 'sublarr.waveform.spectrogram'
 const SCRUB_LS_KEY = 'sublarr.waveform.scrub'
+const KEYFRAMES_LS_KEY = 'sublarr.waveform.keyframes'
+const AMP_ZOOM_LS_KEY = 'sublarr.waveform.ampZoom'
+const PLAYBACK_RATE_LS_KEY = 'sublarr.waveform.playbackRate'
+
+/** Vertical amplitude (bar-height) zoom — 1× default, up to 5× for quiet audio. */
+const AMP_MIN = 1
+const AMP_MAX = 5
+const AMP_DEFAULT = 1
+
+/** Playback rate slider — 0.5× to 2.0×, default 1.0×. */
+const RATE_MIN = 0.5
+const RATE_MAX = 2.0
+const RATE_DEFAULT = 1.0
+
+function readNumberPref(key: string, fallback: number, min: number, max: number): number {
+  if (typeof window === 'undefined') return fallback
+  try {
+    const v = window.localStorage.getItem(key)
+    if (v === null) return fallback
+    const n = Number(v)
+    if (!Number.isFinite(n)) return fallback
+    return Math.max(min, Math.min(max, n))
+  } catch {
+    return fallback
+  }
+}
+
+function writeNumberPref(key: string, value: number): void {
+  if (typeof window === 'undefined') return
+  try {
+    window.localStorage.setItem(key, String(value))
+  } catch {
+    // Quota / privacy mode — silently fall back to in-memory only.
+  }
+}
 
 function readBoolPref(key: string, fallback: boolean): boolean {
   if (typeof window === 'undefined') return fallback
@@ -123,6 +171,15 @@ export function WaveformEditor({
   const [scrubOnDrag, setScrubOnDrag] = useState<boolean>(() =>
     readBoolPref(SCRUB_LS_KEY, false),
   )
+  const [showKeyframeMarkers, setShowKeyframeMarkers] = useState<boolean>(() =>
+    readBoolPref(KEYFRAMES_LS_KEY, false),
+  )
+  const [ampZoom, setAmpZoom] = useState<number>(() =>
+    readNumberPref(AMP_ZOOM_LS_KEY, AMP_DEFAULT, AMP_MIN, AMP_MAX),
+  )
+  const [playbackRate, setPlaybackRate] = useState<number>(() =>
+    readNumberPref(PLAYBACK_RATE_LS_KEY, RATE_DEFAULT, RATE_MIN, RATE_MAX),
+  )
   // 0-based audio-position to extract; the backend route picks `0:a:<idx>`.
   const [selectedAudioIdx, setSelectedAudioIdx] = useState<number>(0)
 
@@ -142,19 +199,39 @@ export function WaveformEditor({
     })
   }, [])
 
+  const toggleKeyframeMarkers = useCallback(() => {
+    setShowKeyframeMarkers((cur) => {
+      const next = !cur
+      writeBoolPref(KEYFRAMES_LS_KEY, next)
+      return next
+    })
+  }, [])
+
+  const updateAmpZoom = useCallback((value: number) => {
+    setAmpZoom(value)
+    writeNumberPref(AMP_ZOOM_LS_KEY, value)
+  }, [])
+
+  const updatePlaybackRate = useCallback((value: number) => {
+    setPlaybackRate(value)
+    writeNumberPref(PLAYBACK_RATE_LS_KEY, value)
+  }, [])
+
   const { data: parseData } = useSubtitleParse(subtitlePath)
   const { data: keyframesData } = useKeyframes(videoPath || null)
   const { data: audioTracksData } = useAudioTracks(videoPath || null)
   const { data: scenesData } = useScenes(videoPath || null)
   const audioTracks = audioTracksData?.tracks ?? []
 
-  // Convert parsed cues -> stable WaveformCue array for the hook
+  // Convert parsed cues -> stable WaveformCue array for the hook.
+  // `label` powers the in-region text overlay (Plan B8 follow-up).
   const cues = useMemo<WaveformCue[]>(
     () =>
       (parseData?.cues ?? []).map((cue, idx) => ({
         id: String(idx),
         start: cue.start,
         end: cue.end,
+        label: formatCueTextForRegion(cue.text),
       })),
     [parseData],
   )
@@ -201,6 +278,9 @@ export function WaveformEditor({
     spectrogramEnabled,
     scrubOnDrag,
     sceneMarkersMs,
+    showKeyframeMarkers,
+    ampZoom,
+    playbackRate,
   })
 
   // Multiplicative zoom step, clamped to the slider bounds. Used by the
@@ -330,6 +410,26 @@ export function WaveformEditor({
         </div>
       )}
 
+      <WaveformActiveCueBar
+        cueIndex={selectedCueIdx}
+        cueCount={parseData?.cue_count ?? 0}
+        startSec={
+          selectedCueIdx !== null && parseData?.cues[selectedCueIdx]
+            ? parseData.cues[selectedCueIdx].start
+            : 0
+        }
+        endSec={
+          selectedCueIdx !== null && parseData?.cues[selectedCueIdx]
+            ? parseData.cues[selectedCueIdx].end
+            : 0
+        }
+        text={
+          selectedCueIdx !== null && parseData?.cues[selectedCueIdx]
+            ? parseData.cues[selectedCueIdx].text
+            : ''
+        }
+      />
+
       <div className="relative rounded overflow-hidden bg-primary border border-border">
         <div ref={containerRef} />
         {parseData?.format === 'ass' &&
@@ -412,6 +512,21 @@ export function WaveformEditor({
             Scrub
           </button>
 
+          <button
+            type="button"
+            onClick={toggleKeyframeMarkers}
+            aria-pressed={showKeyframeMarkers}
+            className={`flex items-center gap-1.5 px-3 py-1.5 rounded text-xs font-medium transition-colors border ${
+              showKeyframeMarkers
+                ? 'bg-accent-bg text-accent border-accent-dim'
+                : 'bg-surface text-primary border-border'
+            }`}
+            title="Keyframe-Marker einblenden"
+          >
+            <Film size={12} />
+            Keyframes
+          </button>
+
           <label className="flex items-center gap-1.5 text-xs text-muted">
             <span aria-hidden="true">−</span>
             <input
@@ -426,6 +541,42 @@ export function WaveformEditor({
             />
             <span aria-hidden="true">+</span>
             <span className="tabular-nums w-9 text-right">{zoomPxPerSec}</span>
+          </label>
+
+          <label
+            className="flex items-center gap-1.5 text-xs text-muted"
+            title="Vertikale Amplituden-Lupe (1×–5×) — für leise Dialoge"
+          >
+            <Activity size={12} aria-hidden="true" />
+            <input
+              type="range"
+              min={AMP_MIN}
+              max={AMP_MAX}
+              step={0.1}
+              value={ampZoom}
+              onChange={(e) => updateAmpZoom(Number(e.target.value))}
+              aria-label="Amplitude zoom"
+              className="w-20 accent-accent"
+            />
+            <span className="tabular-nums w-10 text-right">{ampZoom.toFixed(1)}×</span>
+          </label>
+
+          <label
+            className="flex items-center gap-1.5 text-xs text-muted"
+            title="Wiedergabe-Geschwindigkeit (Tonhöhe bleibt erhalten)"
+          >
+            <Gauge size={12} aria-hidden="true" />
+            <input
+              type="range"
+              min={RATE_MIN}
+              max={RATE_MAX}
+              step={0.05}
+              value={playbackRate}
+              onChange={(e) => updatePlaybackRate(Number(e.target.value))}
+              aria-label="Playback rate"
+              className="w-20 accent-accent"
+            />
+            <span className="tabular-nums w-12 text-right">{playbackRate.toFixed(2)}×</span>
           </label>
 
           <label className="flex items-center gap-1.5 text-xs text-muted">
