@@ -215,6 +215,19 @@ def parse_cues():
     try:
         subs = pysubs2.load(abs_path)
 
+        ext = os.path.splitext(abs_path)[1].lower()
+        fmt = "ass" if ext in (".ass", ".ssa") else "srt"
+
+        # Plan B8 Task 9: when the file is ASS, also expose per-cue karaoke
+        # syllable timings so the WaveformEditor can paint syllable ticks.
+        # SRT has no karaoke surface, so we skip the parse for it.
+        karaoke_parser = None
+        if fmt == "ass":
+            try:
+                from services.ass_karaoke import parse_ass_syllables as karaoke_parser
+            except ImportError:
+                karaoke_parser = None
+
         cues = []
         max_end = 0.0
         for event in subs.events:
@@ -224,17 +237,18 @@ def parse_cues():
             end_sec = event.end / 1000.0
             if end_sec > max_end:
                 max_end = end_sec
-            cues.append(
-                {
-                    "start": start_sec,
-                    "end": end_sec,
-                    "text": event.plaintext,
-                    "style": event.style,
-                }
-            )
-
-        ext = os.path.splitext(abs_path)[1].lower()
-        fmt = "ass" if ext in (".ass", ".ssa") else "srt"
+            cue = {
+                "start": start_sec,
+                "end": end_sec,
+                "text": event.plaintext,
+                "style": event.style,
+            }
+            if karaoke_parser is not None:
+                # `event.text` retains override tags; `event.plaintext` strips them.
+                syllables = karaoke_parser(event.text or "")
+                if syllables:
+                    cue["syllables"] = syllables
+            cues.append(cue)
 
         # Style classification for ASS files
         styles = None

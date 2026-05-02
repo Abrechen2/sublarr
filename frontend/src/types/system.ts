@@ -222,12 +222,23 @@ export interface SubtitleValidation {
   warnings: string[]
 }
 
+export interface SubtitleCueSyllable {
+  /** Visible syllable text. */
+  text: string
+  /** Offset from cue start, in seconds. */
+  start: number
+  /** Offset from cue start, in seconds (= start + duration). */
+  end: number
+}
+
 export interface SubtitleCue {
   start: number
   end: number
   text: string
   style: string
   quality_score?: number
+  /** ASS karaoke syllable timings (Plan B8 Task 9). Absent for SRT. */
+  syllables?: SubtitleCueSyllable[]
 }
 
 export interface SubtitleParseResult {

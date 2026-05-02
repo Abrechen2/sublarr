@@ -23,6 +23,7 @@ import { useWaveformRegions, type CuePatch, type WaveformCue } from './useWavefo
 import { WaveformHotkeys } from './WaveformHotkeys'
 import { WaveformShortcutHelp } from './WaveformShortcutHelp'
 import { WaveformAudioTrackPicker } from './WaveformAudioTrackPicker'
+import { AssKaraokeOverlay } from './AssKaraokeOverlay'
 import type { WaveformAction } from './keymap'
 
 interface WaveformEditorProps {
@@ -329,10 +330,20 @@ export function WaveformEditor({
         </div>
       )}
 
-      <div
-        ref={containerRef}
-        className="rounded overflow-hidden bg-primary border border-border"
-      />
+      <div className="relative rounded overflow-hidden bg-primary border border-border">
+        <div ref={containerRef} />
+        {parseData?.format === 'ass' &&
+          selectedCueIdx !== null &&
+          parseData.cues[selectedCueIdx]?.syllables &&
+          parseData.cues[selectedCueIdx].syllables!.length > 0 &&
+          parseData.total_duration > 0 && (
+            <AssKaraokeOverlay
+              syllables={parseData.cues[selectedCueIdx].syllables!}
+              cueStartSec={parseData.cues[selectedCueIdx].start}
+              durationSec={parseData.total_duration}
+            />
+          )}
+      </div>
 
       {!showSpinner && (
         <div className="flex items-center gap-3 flex-wrap">
