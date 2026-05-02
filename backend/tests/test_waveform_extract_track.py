@@ -14,7 +14,7 @@ audio for the waveform. We exercise the route at the boundary level:
 from __future__ import annotations
 
 import os
-from unittest.mock import patch, MagicMock
+from unittest.mock import MagicMock, patch
 
 
 def _make_video(tmp_path):
@@ -92,9 +92,7 @@ class TestWaveformExtractTrackIndex:
         # No explicit `-map` => let ffmpeg pick the default audio track.
         assert "-map" not in cmd
 
-    def test_different_track_indices_produce_independent_cache_entries(
-        self, client, tmp_path
-    ):
+    def test_different_track_indices_produce_independent_cache_entries(self, client, tmp_path):
         video = _make_video(tmp_path)
         run_mock = _ok_subprocess()
 

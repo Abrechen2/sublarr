@@ -136,6 +136,16 @@ def init_auth(app):
         if path == "/api/v1/openapi.json" or path.startswith("/api/docs"):
             return None
 
+        # Skip auth for extracted waveform audio. WaveSurfer.js issues its
+        # own internal fetch that bypasses our axios interceptor, so we
+        # can't inject the X-Api-Key header on the audio URL. The route
+        # itself constrains lookups to a `.opus` temp file under
+        # `tempfile.gettempdir()` (no path traversal, no other suffixes),
+        # and tmp filenames carry enough entropy that they aren't
+        # enumerable. Plan B8 Task 12.
+        if path.startswith("/api/v1/tools/waveform-audio/"):
+            return None
+
         # Skip auth for webhook endpoints — each handler performs its own
         # HMAC-based auth (see routes/webhooks.py). IMPORTANT: any new webhook
         # route added under /api/v1/webhook/ MUST implement auth manually;

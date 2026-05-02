@@ -74,8 +74,10 @@ export function SeriesDetailPage() {
   const [searchResults, setSearchResults] = useState<Record<number, WantedSearchResponse>>({})
   const [historyEntries, setHistoryEntries] = useState<Record<number, EpisodeHistoryEntry[]>>({})
 
-  // Subtitle editor modal state
+  // Subtitle editor modal state — tracks both the subtitle and the source
+  // video so the modal can show the Waveform tab (Plan B8).
   const [editorFilePath, setEditorFilePath] = useState<string | null>(null)
+  const [editorVideoPath, setEditorVideoPath] = useState<string | null>(null)
   const [editorMode, setEditorMode] = useState<'preview' | 'edit'>('preview')
 
   // Web player state
@@ -691,8 +693,16 @@ export function SeriesDetailPage() {
             historyEntries={expandedEp ? historyEntries[expandedEp.id] ?? [] : []}
             historyLoading={expandedEp?.mode === 'history' && !(expandedEp.id in historyEntries)}
             onProcess={handleProcess}
-            onPreviewSub={(path) => { setEditorFilePath(path); setEditorMode('preview') }}
-            onEditSub={(path) => { setEditorFilePath(path); setEditorMode('edit') }}
+            onPreviewSub={(path, videoPath) => {
+              setEditorFilePath(path)
+              setEditorVideoPath(videoPath)
+              setEditorMode('preview')
+            }}
+            onEditSub={(path, videoPath) => {
+              setEditorFilePath(path)
+              setEditorVideoPath(videoPath)
+              setEditorMode('edit')
+            }}
             onCompare={handleCompare}
             onSync={handleSync}
             onAutoSync={handleAutoSync}
@@ -810,8 +820,12 @@ export function SeriesDetailPage() {
       {editorFilePath && (
         <SubtitleEditorModal
           filePath={editorFilePath}
+          videoPath={editorVideoPath ?? undefined}
           initialMode={editorMode}
-          onClose={() => setEditorFilePath(null)}
+          onClose={() => {
+            setEditorFilePath(null)
+            setEditorVideoPath(null)
+          }}
           onSeekRequest={playerState ? (seconds) => seekFnRef.current?.(seconds) : undefined}
         />
       )}

@@ -290,7 +290,10 @@ def waveform_extract():
         audio_path = WAVEFORM_CACHE[cache_key]
         logger.debug("Waveform cache hit: %s", audio_path)
     else:
-        # Extract audio as Opus (mono, 22 kHz — sufficient for waveform display)
+        # Extract audio as Opus (mono, 24 kHz — sufficient for waveform display).
+        # libopus only accepts 8000/12000/16000/24000/48000 Hz; 24 kHz is
+        # the cheapest rate that still keeps voice intelligible for the
+        # scrub-on-drag preview.
         tmp = tempfile.NamedTemporaryFile(suffix=".opus", delete=False)
         tmp.close()
         cmd: list[str] = ["ffmpeg", "-y", "-i", video_path]
@@ -303,7 +306,7 @@ def waveform_extract():
             "-ac",
             "1",
             "-ar",
-            "22050",
+            "24000",
             "-c:a",
             "libopus",
             "-b:a",

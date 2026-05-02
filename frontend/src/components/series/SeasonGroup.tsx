@@ -75,8 +75,8 @@ export interface SeasonGroupProps {
   readonly historyEntries: EpisodeHistoryEntry[]
   readonly historyLoading: boolean
   readonly onProcess: (wantedId: number) => void
-  readonly onPreviewSub: (filePath: string) => void
-  readonly onEditSub: (filePath: string) => void
+  readonly onPreviewSub: (filePath: string, videoPath: string) => void
+  readonly onEditSub: (filePath: string, videoPath: string) => void
   readonly onCompare: (ep: EpisodeInfo) => void
   readonly onSync: (filePath: string) => void
   readonly onAutoSync: (subtitlePath: string, videoPath: string) => void
@@ -320,8 +320,8 @@ export function SeasonGroup({
                                     <SubtitleActionsMenu
                                       subtitlePath={matchingSidecar.path}
                                       onRefresh={onRefreshSidecars}
-                                      onPreview={onPreviewSub}
-                                      onEdit={onEditSub}
+                                      onPreview={(p) => onPreviewSub(p, ep.file_path)}
+                                      onEdit={(p) => onEditSub(p, ep.file_path)}
                                       onSync={onSync}
                                       onAutoSync={(p) => onAutoSync(p, ep.file_path)}
                                       onVideoSync={(p) => onVideoSync(ep, p)}
