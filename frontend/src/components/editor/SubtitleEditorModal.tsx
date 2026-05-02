@@ -15,6 +15,10 @@ import { autoSyncFile, overlapFix, timingNormalize, mergeLines, splitLines, spel
 import { useConvertSubtitleFormat } from '@/hooks/useTranslationApi'
 import { toast } from '@/components/shared/Toast'
 import { useTranslation } from 'react-i18next'
+import {
+  applyCueTiming,
+  UnsupportedFormatError,
+} from '@/components/editor/waveform/applyCueTiming'
 
 // Lazy-loaded editor components -- CodeMirror stays in separate chunks
 const SubtitlePreview = lazy(() => import('@/components/editor/SubtitlePreview'))
@@ -24,8 +28,8 @@ const SubtitleEditor = lazy(() =>
 const SubtitleDiff = lazy(() =>
   import('@/components/editor/SubtitleDiff')
 )
-const WaveformTab = lazy(() =>
-  import('@/components/editor/WaveformTab').then(m => ({ default: m.WaveformTab }))
+const WaveformEditor = lazy(() =>
+  import('@/components/editor/waveform/WaveformEditor').then(m => ({ default: m.WaveformEditor }))
 )
 
 type EditorMode = 'preview' | 'edit' | 'diff' | 'waveform'
@@ -65,6 +69,10 @@ export default function SubtitleEditorModal({
   const overlayRef = useRef<HTMLDivElement>(null)
   const [convertTarget, setConvertTarget] = useState<'ass' | 'srt' | 'vtt'>('srt')
   const convertMut = useConvertSubtitleFormat()
+  // Plan B8 Task 11: track which cue is selected from the WaveformEditor's
+  // perspective. `null` = nothing focused, so L/R click-set + S/D hotkeys
+  // become no-ops until the user picks a cue.
+  const [selectedCueIdx, setSelectedCueIdx] = useState<number | null>(null)
 
   // Reset state when filePath or initialMode changes — "adjust during render" pattern
   // avoids a double-render cycle that useEffect would cause for prop-derived state
@@ -78,7 +86,53 @@ export default function SubtitleEditorModal({
     setLastModified(null)
     setFormat(null)
     setHasUnsavedChanges(false)
+    setSelectedCueIdx(null)
   }
+
+  // Plan B8 Task 11: WaveformEditor drag-end / click-set / S/D hotkey
+  // commits land here. We rewrite the cue's timing inside the in-memory
+  // text buffer so the user sees the change immediately in the CodeMirror
+  // edit tab and can save it via the normal Save button. ASS/SRT only;
+  // VTT and unknown formats are silently ignored (the editor falls back
+  // to read-only behaviour for those — covered by useEffect below).
+  const handleCueTimingChange = useCallback(
+    (id: string, patch: { start: number; end: number }) => {
+      const idx = Number.parseInt(id, 10)
+      if (Number.isNaN(idx) || !content || !format) return
+      try {
+        const next = applyCueTiming({
+          content,
+          format,
+          cueIndex: idx,
+          start: patch.start,
+          end: patch.end,
+        })
+        if (next === content) return
+        setContent(next)
+        setHasUnsavedChanges(true)
+      } catch (err) {
+        if (err instanceof UnsupportedFormatError) {
+          toast.warning(`Wellenform-Edit für Format "${format}" noch nicht unterstützt.`)
+          return
+        }
+        // Index-out-of-range or malformed input — surface a polite toast and
+        // leave content untouched.
+        const msg = err instanceof Error ? err.message : 'Cue konnte nicht aktualisiert werden.'
+        toast.error(msg)
+      }
+    },
+    [content, format],
+  )
+
+  /** Move the WaveformEditor's selection by one cue (Up/Down hotkeys). */
+  const handleSelectAdjacentCue = useCallback((direction: 'prev' | 'next') => {
+    setSelectedCueIdx((cur) => {
+      const base = cur ?? 0
+      return direction === 'prev' ? Math.max(0, base - 1) : base + 1
+      // Upper bound is enforced inside the WaveformEditor when it looks
+      // up the cue by id; selecting past the end becomes a no-op.
+    })
+  }, [])
 
   // Load subtitle content
   const { data: contentData } = useSubtitleContent(filePath)
@@ -444,9 +498,12 @@ export default function SubtitleEditorModal({
             )}
 
             {mode === 'waveform' && videoPath && filePath && (
-              <WaveformTab
+              <WaveformEditor
                 subtitlePath={filePath}
                 videoPath={videoPath}
+                onCueChange={handleCueTimingChange}
+                selectedCueIdx={selectedCueIdx}
+                onSelectAdjacentCue={handleSelectAdjacentCue}
               />
             )}
           </Suspense>
