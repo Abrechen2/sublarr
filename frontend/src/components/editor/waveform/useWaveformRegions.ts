@@ -2,15 +2,24 @@
  * useWaveformRegions — owns the WaveSurfer + Regions-plugin lifecycle.
  *
  * Plan B8 Task 3 — promotes the read-only WaveformTab into an editing
- * surface. The hook exposes drag/resize-able regions and commits cue
- * changes to the parent only on drag-END (not per-frame), with a
- * `dragging` ref that freezes incoming prop-driven region rewrites
+ * surface. Drag-end commits cue changes to the parent (not per-frame),
+ * with a `dragging` ref that freezes incoming prop-driven region rewrites
  * mid-drag so React state updates don't snap regions back.
+ *
+ * Plan B8 Task 4 — adds Aegisub-style snap and L/R click-map:
+ *   - On `region-updated` (drag-end): the moved boundary is snapped to
+ *     the closest in-range keyframe or neighbor cue. Whole-region drags
+ *     preserve duration (snap start, slide end).
+ *   - L-click on the waveform body sets the snapped start of the
+ *     currently selected cue; R-click sets the end. Clamped against
+ *     `minGapMs` so the cue cannot invert or collapse.
  */
 
 import { useEffect, useRef, useState, useCallback } from 'react'
 import WaveSurfer from 'wavesurfer.js'
 import RegionsPlugin from 'wavesurfer.js/plugins/regions'
+
+import { snap, type SnapOptions } from './snap'
 
 export interface WaveformCue {
   /** Stable identifier — typically the cue index in the parent list. */
@@ -30,6 +39,20 @@ export interface UseWaveformRegionsArgs {
   onCueChange: (id: string, patch: CuePatch) => void
   /** When false, regions render but cannot be moved (read-only mode). */
   enableDrag?: boolean
+  /**
+   * Currently selected cue. When set + `enableDrag` is true, L-click on the
+   * waveform body sets that cue's snapped start, R-click sets its snapped
+   * end. When null/undefined, clicks fall through to WaveSurfer defaults.
+   */
+  selectedCueId?: string | null
+  /** Keyframe positions in milliseconds. Default: empty. */
+  keyframesMs?: number[]
+  /** Minimum gap to a neighbor cue after snap, in ms. Default: 0 (off). */
+  minGapMs?: number
+  /** Snap range around a keyframe, in ms. Default: 150. */
+  keyframeToleranceMs?: number
+  /** Snap range around a neighbor, in ms. Default: 80. */
+  neighborToleranceMs?: number
   /** Color for region fill (default teal-low-opacity). */
   regionColor?: string
   /** Wave color (default zinc-600). */
@@ -54,12 +77,30 @@ const DEFAULT_REGION_COLOR = 'rgba(20, 184, 166, 0.18)' // teal-500 @ 18 %
 const DEFAULT_WAVE_COLOR = '#52525b' // zinc-600
 const DEFAULT_PROGRESS_COLOR = '#14b8a6' // teal-500
 
+/** Tolerance for "did this boundary actually move?" — 1 ms in seconds. */
+const EDGE_EPSILON_S = 1e-3
+
+/** All neighbor-boundary positions in ms, excluding the cue we're editing. */
+function deriveNeighborsMs(cues: WaveformCue[], excludingId: string | null | undefined): number[] {
+  const out: number[] = []
+  for (const cue of cues) {
+    if (cue.id === excludingId) continue
+    out.push(cue.start * 1000, cue.end * 1000)
+  }
+  return out
+}
+
 export function useWaveformRegions({
   container,
   audioUrl,
   cues,
   onCueChange,
   enableDrag = true,
+  selectedCueId = null,
+  keyframesMs,
+  minGapMs,
+  keyframeToleranceMs,
+  neighborToleranceMs,
   regionColor = DEFAULT_REGION_COLOR,
   waveColor = DEFAULT_WAVE_COLOR,
   progressColor = DEFAULT_PROGRESS_COLOR,
@@ -68,12 +109,38 @@ export function useWaveformRegions({
   const wsRef = useRef<WaveSurfer | null>(null)
   const regionsRef = useRef<RegionsPlugin | null>(null)
   const draggingRef = useRef<boolean>(false)
+
+  // Keep latest values without re-running the WaveSurfer effect on every
+  // render. The drag-end commit + click-map handlers read from these refs
+  // so listeners stay attached for the WaveSurfer lifetime.
   const onCueChangeRef = useRef(onCueChange)
-  // Keep latest callback without re-running the WaveSurfer effect on every render
   onCueChangeRef.current = onCueChange
+  const cuesRef = useRef(cues)
+  cuesRef.current = cues
+  const keyframesMsRef = useRef(keyframesMs)
+  keyframesMsRef.current = keyframesMs
+  const minGapMsRef = useRef(minGapMs)
+  minGapMsRef.current = minGapMs
+  const keyframeTolRef = useRef(keyframeToleranceMs)
+  keyframeTolRef.current = keyframeToleranceMs
+  const neighborTolRef = useRef(neighborToleranceMs)
+  neighborTolRef.current = neighborToleranceMs
+  const selectedCueIdRef = useRef(selectedCueId)
+  selectedCueIdRef.current = selectedCueId
 
   const [isReady, setIsReady] = useState(false)
   const [isPlaying, setIsPlaying] = useState(false)
+
+  /** Build SnapOptions for a given cue id (excluded from neighbors). */
+  const buildSnapOpts = useCallback((excludingId: string | null | undefined): SnapOptions => {
+    return {
+      keyframesMs: keyframesMsRef.current ?? [],
+      neighborsMs: deriveNeighborsMs(cuesRef.current, excludingId),
+      minGapMs: minGapMsRef.current ?? 0,
+      keyframeToleranceMs: keyframeTolRef.current,
+      neighborToleranceMs: neighborTolRef.current,
+    }
+  }, [])
 
   // Lifecycle: create WaveSurfer when the audio source is ready.
   useEffect(() => {
@@ -107,10 +174,41 @@ export function useWaveformRegions({
       void region
       draggingRef.current = true
     }
-    // region-update-end fires on mouseup; commit the change and unfreeze
+    // region-updated fires on mouseup; snap, commit, unfreeze.
     const onRegionUpdateEnd = (region: { id: string; start: number; end: number }) => {
       draggingRef.current = false
-      onCueChangeRef.current(region.id, { start: region.start, end: region.end })
+
+      const prev = cuesRef.current.find((c) => c.id === region.id)
+      // No previous state to compare against — commit raw values.
+      if (!prev) {
+        onCueChangeRef.current(region.id, { start: region.start, end: region.end })
+        return
+      }
+
+      const startMoved = Math.abs(region.start - prev.start) > EDGE_EPSILON_S
+      const endMoved = Math.abs(region.end - prev.end) > EDGE_EPSILON_S
+      if (!startMoved && !endMoved) return
+
+      const opts = buildSnapOpts(region.id)
+      const startDelta = region.start - prev.start
+      const endDelta = region.end - prev.end
+      const wholeDrag = startMoved && endMoved && Math.abs(startDelta - endDelta) < EDGE_EPSILON_S
+
+      let newStart = region.start
+      let newEnd = region.end
+
+      if (wholeDrag) {
+        // Snap the start, slide the end so the duration is preserved.
+        const snappedStartMs = snap(region.start * 1000, opts).value
+        const dur = prev.end - prev.start
+        newStart = snappedStartMs / 1000
+        newEnd = newStart + dur
+      } else {
+        if (startMoved) newStart = snap(region.start * 1000, opts).value / 1000
+        if (endMoved) newEnd = snap(region.end * 1000, opts).value / 1000
+      }
+
+      onCueChangeRef.current(region.id, { start: newStart, end: newEnd })
     }
 
     regionsPlugin.on('region-update', onRegionUpdate)
@@ -131,7 +229,7 @@ export function useWaveformRegions({
       setIsReady(false)
       setIsPlaying(false)
     }
-  }, [container, audioUrl, waveColor, progressColor, height])
+  }, [container, audioUrl, waveColor, progressColor, height, buildSnapOpts])
 
   // Sync cues -> regions whenever the cue list changes, BUT only when
   // we're not in the middle of a drag. Mid-drag rewrites would snap the
@@ -153,6 +251,84 @@ export function useWaveformRegions({
       })
     })
   }, [cues, isReady, enableDrag, regionColor])
+
+  // L/R click-map (Aegisub convention): only active when a cue is selected
+  // AND the editor is unlocked. Listeners read latest cues/keyframes/etc
+  // from refs so they don't need to re-attach.
+  useEffect(() => {
+    const ws = wsRef.current
+    const el = container.current
+    if (!ws || !el || !isReady || !enableDrag) return
+
+    /** Compute clicked time in ms; null if container has no width. */
+    const timeMsAtClient = (clientX: number): number | null => {
+      const rect = el.getBoundingClientRect()
+      if (rect.width <= 0) return null
+      const ratio = Math.max(0, Math.min(1, (clientX - rect.left) / rect.width))
+      const dur = ws.getDuration()
+      if (!Number.isFinite(dur) || dur <= 0) return null
+      return ratio * dur * 1000
+    }
+
+    const applySetStart = (timeMs: number) => {
+      const cueId = selectedCueIdRef.current
+      if (!cueId) return
+      const cue = cuesRef.current.find((c) => c.id === cueId)
+      if (!cue) return
+
+      const opts = buildSnapOpts(cueId)
+      const snappedMs = snap(timeMs, opts).value
+      const newStart = snappedMs / 1000
+      // Reject clicks that would invert/collapse the cue. minGap is the
+      // floor for usable duration; default to a tiny epsilon so ms-level
+      // collisions still get rejected when minGap is 0.
+      const minDur = Math.max((minGapMsRef.current ?? 0) / 1000, EDGE_EPSILON_S)
+      if (newStart >= cue.end - minDur) return
+
+      onCueChangeRef.current(cueId, { start: newStart, end: cue.end })
+    }
+
+    const applySetEnd = (timeMs: number) => {
+      const cueId = selectedCueIdRef.current
+      if (!cueId) return
+      const cue = cuesRef.current.find((c) => c.id === cueId)
+      if (!cue) return
+
+      const opts = buildSnapOpts(cueId)
+      const snappedMs = snap(timeMs, opts).value
+      const newEnd = snappedMs / 1000
+      const minDur = Math.max((minGapMsRef.current ?? 0) / 1000, EDGE_EPSILON_S)
+      if (newEnd <= cue.start + minDur) return
+
+      onCueChangeRef.current(cueId, { start: cue.start, end: newEnd })
+    }
+
+    const onPointerDown = (e: PointerEvent) => {
+      if (e.button !== 0) return // primary button only
+      if (!selectedCueIdRef.current) return
+      const t = timeMsAtClient(e.clientX)
+      if (t === null) return
+      applySetStart(t)
+    }
+
+    const onContextMenu = (e: MouseEvent) => {
+      // Always swallow the browser menu when the editor is unlocked, so
+      // users don't see a flicker even if no cue is selected yet.
+      e.preventDefault()
+      if (!selectedCueIdRef.current) return
+      const t = timeMsAtClient(e.clientX)
+      if (t === null) return
+      applySetEnd(t)
+    }
+
+    el.addEventListener('pointerdown', onPointerDown)
+    el.addEventListener('contextmenu', onContextMenu)
+
+    return () => {
+      el.removeEventListener('pointerdown', onPointerDown)
+      el.removeEventListener('contextmenu', onContextMenu)
+    }
+  }, [container, isReady, enableDrag, buildSnapOpts])
 
   const play = useCallback(() => {
     void wsRef.current?.play()

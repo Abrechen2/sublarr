@@ -46,6 +46,8 @@ const fakeWs = {
   play: vi.fn(),
   pause: vi.fn(),
   playPause: vi.fn(),
+  // Tests stub a known duration so click-map ratio math is deterministic
+  getDuration: vi.fn(() => 10),
 }
 
 vi.mock('wavesurfer.js', () => ({
@@ -81,11 +83,37 @@ interface HarnessProps {
   onCueChange: (id: string, patch: CuePatch) => void
   audioUrl?: string | null
   enableDrag?: boolean
+  selectedCueId?: string | null
+  keyframesMs?: number[]
+  minGapMs?: number
+  keyframeToleranceMs?: number
+  neighborToleranceMs?: number
 }
 
-function Harness({ cues, onCueChange, audioUrl = '/fake.wav', enableDrag = true }: HarnessProps) {
+function Harness({
+  cues,
+  onCueChange,
+  audioUrl = '/fake.wav',
+  enableDrag = true,
+  selectedCueId,
+  keyframesMs,
+  minGapMs,
+  keyframeToleranceMs,
+  neighborToleranceMs,
+}: HarnessProps) {
   const containerRef = useRef<HTMLDivElement>(null)
-  useWaveformRegions({ container: containerRef, audioUrl, cues, onCueChange, enableDrag })
+  useWaveformRegions({
+    container: containerRef,
+    audioUrl,
+    cues,
+    onCueChange,
+    enableDrag,
+    selectedCueId,
+    keyframesMs,
+    minGapMs,
+    keyframeToleranceMs,
+    neighborToleranceMs,
+  })
   return <div ref={containerRef} data-testid="waveform-host" />
 }
 
@@ -187,5 +215,254 @@ describe('useWaveformRegions', () => {
 
     expect(fakeWs.load).not.toHaveBeenCalled()
     expect(fakeRegionsApi.addRegion).not.toHaveBeenCalled()
+  })
+
+  // ─── B8.4 Step 2: drag-end snap ───────────────────────────────────────
+
+  describe('drag-end snap', () => {
+    it('snaps the start when only the left edge moved', () => {
+      const onCueChange = vi.fn()
+      render(
+        <Harness
+          cues={SAMPLE_CUES}
+          onCueChange={onCueChange}
+          // 2050 ms is within 80 ms of 2000 -> snap there. cue '1' was 2.0-3.5s,
+          // user dragged left edge to 2.05; we expect snap back to 2.0
+          keyframesMs={[2000]}
+          keyframeToleranceMs={150}
+        />,
+      )
+
+      act(() => {
+        fireWs('ready')
+        fireRegions('region-updated', { id: '1', start: 2.05, end: 3.5 })
+      })
+
+      expect(onCueChange).toHaveBeenCalledWith('1', { start: 2.0, end: 3.5 })
+    })
+
+    it('snaps the end when only the right edge moved', () => {
+      const onCueChange = vi.fn()
+      render(
+        <Harness
+          cues={SAMPLE_CUES}
+          onCueChange={onCueChange}
+          keyframesMs={[3600]}
+          keyframeToleranceMs={150}
+        />,
+      )
+
+      act(() => {
+        fireWs('ready')
+        // cue '1' was 2.0-3.5s; user dragged right edge to 3.55. Snap to 3.6
+        fireRegions('region-updated', { id: '1', start: 2.0, end: 3.55 })
+      })
+
+      expect(onCueChange).toHaveBeenCalledWith('1', { start: 2.0, end: 3.6 })
+    })
+
+    it('preserves duration on whole-region drag (snaps start, slides end)', () => {
+      const onCueChange = vi.fn()
+      render(
+        <Harness
+          cues={SAMPLE_CUES}
+          onCueChange={onCueChange}
+          // cue '1' is 2.0-3.5 (1500 ms wide). Drag both edges +0.08 to 2.08-3.58.
+          // Keyframe at 2100 -> snap start to 2.1, end becomes 2.1 + 1.5 = 3.6
+          keyframesMs={[2100]}
+          keyframeToleranceMs={150}
+        />,
+      )
+
+      act(() => {
+        fireWs('ready')
+        fireRegions('region-updated', { id: '1', start: 2.08, end: 3.58 })
+      })
+
+      expect(onCueChange).toHaveBeenCalledWith('1', { start: 2.1, end: 3.6 })
+    })
+
+    it('commits raw values when no snap targets are in range', () => {
+      const onCueChange = vi.fn()
+      render(<Harness cues={SAMPLE_CUES} onCueChange={onCueChange} />)
+
+      act(() => {
+        fireWs('ready')
+        fireRegions('region-updated', { id: '1', start: 2.4, end: 3.9 })
+      })
+
+      expect(onCueChange).toHaveBeenCalledWith('1', { start: 2.4, end: 3.9 })
+    })
+  })
+
+  // ─── B8.4 Step 3: Aegisub L/R click-map ───────────────────────────────
+
+  describe('L/R click-map', () => {
+    function stubRect(host: HTMLElement) {
+      // jsdom returns an all-zero DOMRect by default; stub a 1000-px wide host
+      // so click ratios are easy to reason about (1 px = 10 ms at duration 10 s)
+      host.getBoundingClientRect = () =>
+        ({ left: 0, top: 0, right: 1000, bottom: 100, width: 1000, height: 100, x: 0, y: 0, toJSON: () => '' }) as DOMRect
+    }
+
+    it('L-click on body sets snapped start of selected cue', () => {
+      const onCueChange = vi.fn()
+      const { getByTestId } = render(
+        <Harness
+          cues={SAMPLE_CUES}
+          onCueChange={onCueChange}
+          selectedCueId="1"
+          keyframesMs={[2100]}
+          keyframeToleranceMs={150}
+        />,
+      )
+      const host = getByTestId('waveform-host')
+      stubRect(host)
+
+      act(() => {
+        fireWs('ready')
+      })
+
+      // Click at x=205 -> 20.5% of 10 s = 2.05 s = 2050 ms.
+      // Keyframe at 2100 within 150 -> snap start to 2.1; end stays at 3.5.
+      act(() => {
+        host.dispatchEvent(
+          new MouseEvent('pointerdown', { bubbles: true, button: 0, clientX: 205, clientY: 50 }),
+        )
+      })
+
+      expect(onCueChange).toHaveBeenCalledWith('1', { start: 2.1, end: 3.5 })
+    })
+
+    it('R-click on body sets snapped end of selected cue', () => {
+      const onCueChange = vi.fn()
+      const { getByTestId } = render(
+        <Harness
+          cues={SAMPLE_CUES}
+          onCueChange={onCueChange}
+          selectedCueId="1"
+          keyframesMs={[3600]}
+          keyframeToleranceMs={150}
+        />,
+      )
+      const host = getByTestId('waveform-host')
+      stubRect(host)
+
+      act(() => {
+        fireWs('ready')
+      })
+
+      // Click at x=355 -> 3550 ms; snap to 3600 ms = 3.6 s
+      act(() => {
+        const e = new MouseEvent('contextmenu', { bubbles: true, cancelable: true, clientX: 355, clientY: 50 })
+        host.dispatchEvent(e)
+      })
+
+      expect(onCueChange).toHaveBeenCalledWith('1', { start: 2.0, end: 3.6 })
+    })
+
+    it('does not fire when no cue is selected', () => {
+      const onCueChange = vi.fn()
+      const { getByTestId } = render(
+        <Harness cues={SAMPLE_CUES} onCueChange={onCueChange} selectedCueId={null} />,
+      )
+      const host = getByTestId('waveform-host')
+      stubRect(host)
+
+      act(() => {
+        fireWs('ready')
+      })
+
+      act(() => {
+        host.dispatchEvent(
+          new MouseEvent('pointerdown', { bubbles: true, button: 0, clientX: 205, clientY: 50 }),
+        )
+      })
+
+      expect(onCueChange).not.toHaveBeenCalled()
+    })
+
+    it('does not fire in read-only mode (enableDrag=false)', () => {
+      const onCueChange = vi.fn()
+      const { getByTestId } = render(
+        <Harness
+          cues={SAMPLE_CUES}
+          onCueChange={onCueChange}
+          enableDrag={false}
+          selectedCueId="1"
+        />,
+      )
+      const host = getByTestId('waveform-host')
+      stubRect(host)
+
+      act(() => {
+        fireWs('ready')
+      })
+
+      act(() => {
+        host.dispatchEvent(
+          new MouseEvent('pointerdown', { bubbles: true, button: 0, clientX: 205, clientY: 50 }),
+        )
+        host.dispatchEvent(
+          new MouseEvent('contextmenu', { bubbles: true, cancelable: true, clientX: 355, clientY: 50 }),
+        )
+      })
+
+      expect(onCueChange).not.toHaveBeenCalled()
+    })
+
+    it('clamps L-click so start cannot collapse onto the end', () => {
+      const onCueChange = vi.fn()
+      const { getByTestId } = render(
+        <Harness
+          cues={SAMPLE_CUES}
+          onCueChange={onCueChange}
+          selectedCueId="1"
+          minGapMs={100}
+        />,
+      )
+      const host = getByTestId('waveform-host')
+      stubRect(host)
+
+      act(() => {
+        fireWs('ready')
+      })
+
+      // Click at x=400 -> 4000 ms = 4.0 s. cue '1' end is 3.5 s, so clamp must
+      // keep at least 100 ms duration. Result rejected (no commit) since the
+      // requested start would invert the cue.
+      act(() => {
+        host.dispatchEvent(
+          new MouseEvent('pointerdown', { bubbles: true, button: 0, clientX: 400, clientY: 50 }),
+        )
+      })
+
+      expect(onCueChange).not.toHaveBeenCalled()
+    })
+
+    it('right-click prevents default browser context menu', () => {
+      const onCueChange = vi.fn()
+      const { getByTestId } = render(
+        <Harness cues={SAMPLE_CUES} onCueChange={onCueChange} selectedCueId="1" />,
+      )
+      const host = getByTestId('waveform-host')
+      stubRect(host)
+
+      act(() => {
+        fireWs('ready')
+      })
+
+      const e = new MouseEvent('contextmenu', {
+        bubbles: true,
+        cancelable: true,
+        clientX: 300,
+        clientY: 50,
+      })
+      act(() => {
+        host.dispatchEvent(e)
+      })
+
+      expect(e.defaultPrevented).toBe(true)
+    })
   })
 })
