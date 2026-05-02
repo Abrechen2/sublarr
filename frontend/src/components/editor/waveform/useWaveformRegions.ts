@@ -61,6 +61,17 @@ export interface UseWaveformRegionsArgs {
   progressColor?: string
   /** Height in pixels (default 96). */
   height?: number
+  /**
+   * Pixels-per-second zoom level (Plan B8 Task 6). When set, the value is
+   * applied via `ws.zoom()` once WaveSurfer is ready and again on every
+   * subsequent change, driving the toolbar slider + `+/-` shortcuts.
+   */
+  zoomPxPerSec?: number
+  /**
+   * Forwarded to WaveSurfer's `autoCenter` option (Plan B8 Task 6). When
+   * true, the waveform pans to keep the playhead centered while playing.
+   */
+  autoCenter?: boolean
 }
 
 export interface UseWaveformRegionsResult {
@@ -114,6 +125,8 @@ export function useWaveformRegions({
   waveColor = DEFAULT_WAVE_COLOR,
   progressColor = DEFAULT_PROGRESS_COLOR,
   height = 96,
+  zoomPxPerSec,
+  autoCenter,
 }: UseWaveformRegionsArgs): UseWaveformRegionsResult {
   const wsRef = useRef<WaveSurfer | null>(null)
   const regionsRef = useRef<RegionsPlugin | null>(null)
@@ -239,6 +252,23 @@ export function useWaveformRegions({
       setIsPlaying(false)
     }
   }, [container, audioUrl, waveColor, progressColor, height, buildSnapOpts])
+
+  // Apply zoom level (px/s) once WaveSurfer is ready and on subsequent
+  // changes. Skipped silently when undefined so the WaveSurfer default
+  // stays in effect.
+  useEffect(() => {
+    if (!isReady) return
+    if (zoomPxPerSec === undefined) return
+    wsRef.current?.zoom(zoomPxPerSec)
+  }, [isReady, zoomPxPerSec])
+
+  // Forward autoCenter changes via setOptions (cheaper than re-creating
+  // the WaveSurfer instance for what is just a runtime flag).
+  useEffect(() => {
+    if (!isReady) return
+    if (autoCenter === undefined) return
+    wsRef.current?.setOptions({ autoCenter })
+  }, [isReady, autoCenter])
 
   // Sync cues -> regions whenever the cue list changes, BUT only when
   // we're not in the middle of a drag. Mid-drag rewrites would snap the

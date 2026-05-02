@@ -48,6 +48,10 @@ const fakeWs = {
   playPause: vi.fn(),
   // Tests stub a known duration so click-map ratio math is deterministic
   getDuration: vi.fn(() => 10),
+  getCurrentTime: vi.fn(() => 0),
+  setTime: vi.fn(),
+  zoom: vi.fn(),
+  setOptions: vi.fn(),
 }
 
 vi.mock('wavesurfer.js', () => ({
@@ -88,6 +92,8 @@ interface HarnessProps {
   minGapMs?: number
   keyframeToleranceMs?: number
   neighborToleranceMs?: number
+  zoomPxPerSec?: number
+  autoCenter?: boolean
 }
 
 function Harness({
@@ -100,6 +106,8 @@ function Harness({
   minGapMs,
   keyframeToleranceMs,
   neighborToleranceMs,
+  zoomPxPerSec,
+  autoCenter,
 }: HarnessProps) {
   const containerRef = useRef<HTMLDivElement>(null)
   useWaveformRegions({
@@ -113,6 +121,8 @@ function Harness({
     minGapMs,
     keyframeToleranceMs,
     neighborToleranceMs,
+    zoomPxPerSec,
+    autoCenter,
   })
   return <div ref={containerRef} data-testid="waveform-host" />
 }
@@ -463,6 +473,57 @@ describe('useWaveformRegions', () => {
       })
 
       expect(e.defaultPrevented).toBe(true)
+    })
+  })
+
+  // ─── B8.6 Step 1+2: zoom + auto-center ────────────────────────────────
+
+  describe('zoom + auto-center', () => {
+    it('calls ws.zoom() when zoomPxPerSec changes after ready', () => {
+      const onCueChange = vi.fn()
+      const { rerender } = render(
+        <Harness cues={SAMPLE_CUES} onCueChange={onCueChange} zoomPxPerSec={10} />,
+      )
+
+      act(() => {
+        fireWs('ready')
+      })
+
+      // First call applies the initial zoom value once isReady flips
+      expect(fakeWs.zoom).toHaveBeenLastCalledWith(10)
+
+      rerender(<Harness cues={SAMPLE_CUES} onCueChange={onCueChange} zoomPxPerSec={42} />)
+      expect(fakeWs.zoom).toHaveBeenLastCalledWith(42)
+    })
+
+    it('does not call ws.zoom() before WaveSurfer signals ready', () => {
+      const onCueChange = vi.fn()
+      render(<Harness cues={SAMPLE_CUES} onCueChange={onCueChange} zoomPxPerSec={20} />)
+
+      // Without firing 'ready', the zoom call must not have happened
+      expect(fakeWs.zoom).not.toHaveBeenCalled()
+    })
+
+    it('forwards autoCenter changes via ws.setOptions', () => {
+      const onCueChange = vi.fn()
+      const { rerender } = render(
+        <Harness cues={SAMPLE_CUES} onCueChange={onCueChange} autoCenter={true} />,
+      )
+
+      act(() => {
+        fireWs('ready')
+      })
+
+      expect(fakeWs.setOptions).toHaveBeenCalledWith(
+        expect.objectContaining({ autoCenter: true }),
+      )
+
+      fakeWs.setOptions.mockClear()
+      rerender(<Harness cues={SAMPLE_CUES} onCueChange={onCueChange} autoCenter={false} />)
+
+      expect(fakeWs.setOptions).toHaveBeenCalledWith(
+        expect.objectContaining({ autoCenter: false }),
+      )
     })
   })
 })

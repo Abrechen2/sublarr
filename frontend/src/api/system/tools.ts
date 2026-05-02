@@ -286,8 +286,13 @@ export async function convertSubtitle(params: {
 
 // ─── Waveform Extraction ──────────────────────────────────────────────────────
 
-export async function extractWaveform(videoPath: string): Promise<{ audio_url: string; duration_s: number }> {
-  const { data } = await api.post('/tools/waveform-extract', { video_path: videoPath })
+export async function extractWaveform(
+  videoPath: string,
+  trackIndex?: number,
+): Promise<{ audio_url: string; duration_s: number }> {
+  const body: { video_path: string; track_index?: number } = { video_path: videoPath }
+  if (trackIndex !== undefined) body.track_index = trackIndex
+  const { data } = await api.post('/tools/waveform-extract', body)
   return data as { audio_url: string; duration_s: number }
 }
 

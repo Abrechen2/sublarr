@@ -16,12 +16,13 @@ import { useRef, useState, useEffect, useMemo, useCallback } from 'react'
 import { Loader2, Play, Pause, Lock, Unlock, Keyboard } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 
-import { useSubtitleParse, useKeyframes } from '@/hooks/useApi'
+import { useSubtitleParse, useKeyframes, useAudioTracks } from '@/hooks/useApi'
 import { extractWaveform } from '@/api/client'
 
 import { useWaveformRegions, type CuePatch, type WaveformCue } from './useWaveformRegions'
 import { WaveformHotkeys } from './WaveformHotkeys'
 import { WaveformShortcutHelp } from './WaveformShortcutHelp'
+import { WaveformAudioTrackPicker } from './WaveformAudioTrackPicker'
 import type { WaveformAction } from './keymap'
 
 interface WaveformEditorProps {
@@ -65,6 +66,13 @@ const DEFAULT_MIN_GAP_MS = 80
 const SMALL_NUDGE_S = 0.1
 const LARGE_NUDGE_S = 1.0
 
+/** Zoom slider bounds in pixels-per-second (Plan B8 Task 6). */
+const ZOOM_MIN_PX_PER_SEC = 1
+const ZOOM_MAX_PX_PER_SEC = 50
+const ZOOM_DEFAULT_PX_PER_SEC = 10
+/** Multiplicative step for `+/-` keyboard nudges. */
+const ZOOM_STEP_FACTOR = 1.5
+
 export function WaveformEditor({
   subtitlePath,
   videoPath,
@@ -82,9 +90,15 @@ export function WaveformEditor({
   const [extractLoading, setExtractLoading] = useState(true)
   const [editingEnabled, setEditingEnabled] = useState<boolean>(Boolean(onCueChange))
   const [helpOpen, setHelpOpen] = useState(false)
+  const [zoomPxPerSec, setZoomPxPerSec] = useState<number>(ZOOM_DEFAULT_PX_PER_SEC)
+  const [autoCenter, setAutoCenter] = useState<boolean>(true)
+  // 0-based audio-position to extract; the backend route picks `0:a:<idx>`.
+  const [selectedAudioIdx, setSelectedAudioIdx] = useState<number>(0)
 
   const { data: parseData } = useSubtitleParse(subtitlePath)
   const { data: keyframesData } = useKeyframes(videoPath || null)
+  const { data: audioTracksData } = useAudioTracks(videoPath || null)
+  const audioTracks = audioTracksData?.tracks ?? []
 
   // Convert parsed cues -> stable WaveformCue array for the hook
   const cues = useMemo<WaveformCue[]>(
@@ -126,15 +140,33 @@ export function WaveformEditor({
     selectedCueId,
     keyframesMs,
     minGapMs: DEFAULT_MIN_GAP_MS,
+    zoomPxPerSec,
+    autoCenter,
   })
 
-  // Trigger backend audio extraction once per video
+  // Multiplicative zoom step, clamped to the slider bounds. Used by the
+  // `+/-` keyboard shortcuts so the zoom-in/out feel matches Aegisub's
+  // exponential scale rather than a linear nudge.
+  const stepZoom = useCallback((dir: 'in' | 'out') => {
+    setZoomPxPerSec((cur) => {
+      const next = dir === 'in' ? cur * ZOOM_STEP_FACTOR : cur / ZOOM_STEP_FACTOR
+      return Math.max(ZOOM_MIN_PX_PER_SEC, Math.min(ZOOM_MAX_PX_PER_SEC, next))
+    })
+  }, [])
+
+  // Trigger backend audio extraction whenever the video or selected audio
+  // track changes. The backend caches per (path, mtime, track_index) so
+  // round-trips are cheap once each track has been extracted at least once.
   useEffect(() => {
     if (!videoPath) return
     let cancelled = false
     setExtractLoading(true)
     setExtractError(null)
-    extractWaveform(videoPath)
+    // Only pass track_index when more than one track is known — the
+    // single-track case lets ffmpeg pick its default audio stream and
+    // keeps cache keys aligned with pre-Task-6 entries.
+    const trackArg = audioTracks.length > 1 ? selectedAudioIdx : undefined
+    extractWaveform(videoPath, trackArg)
       .then(({ audio_url }) => {
         if (cancelled) return
         setAudioUrl(audio_url)
@@ -149,7 +181,7 @@ export function WaveformEditor({
     return () => {
       cancelled = true
     }
-  }, [videoPath])
+  }, [videoPath, selectedAudioIdx, audioTracks.length])
 
   // Keyboard dispatcher (Plan B8 Task 5) — central place to wire each
   // hotkey id onto a concrete behavior. Stay defensive: each branch
@@ -196,8 +228,10 @@ export function WaveformEditor({
           onSelectAdjacentCue?.('next')
           return
         case 'zoomIn':
+          stepZoom('in')
+          return
         case 'zoomOut':
-          // Wired in B8 Task 6 (zoom). No-op for now.
+          stepZoom('out')
           return
         case 'showHelp':
           setHelpOpen(true)
@@ -214,6 +248,7 @@ export function WaveformEditor({
       onSplitCue,
       onMergeWithNext,
       onSelectAdjacentCue,
+      stepZoom,
     ],
   )
 
@@ -277,6 +312,38 @@ export function WaveformEditor({
             <Keyboard size={12} />
             {t('waveform.shortcut_help_button')}
           </button>
+
+          <label className="flex items-center gap-1.5 text-xs text-muted">
+            <span aria-hidden="true">−</span>
+            <input
+              type="range"
+              min={ZOOM_MIN_PX_PER_SEC}
+              max={ZOOM_MAX_PX_PER_SEC}
+              step={1}
+              value={zoomPxPerSec}
+              onChange={(e) => setZoomPxPerSec(Number(e.target.value))}
+              aria-label="Zoom"
+              className="w-24 accent-accent"
+            />
+            <span aria-hidden="true">+</span>
+            <span className="tabular-nums w-9 text-right">{zoomPxPerSec}</span>
+          </label>
+
+          <label className="flex items-center gap-1.5 text-xs text-muted">
+            <input
+              type="checkbox"
+              checked={autoCenter}
+              onChange={(e) => setAutoCenter(e.target.checked)}
+              className="accent-accent"
+            />
+            Auto-center
+          </label>
+
+          <WaveformAudioTrackPicker
+            tracks={audioTracks}
+            selectedAudioIdx={selectedAudioIdx}
+            onChange={setSelectedAudioIdx}
+          />
 
           {parseData && (
             <span className="text-xs text-muted">

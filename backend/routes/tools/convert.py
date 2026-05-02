@@ -253,9 +253,19 @@ def waveform_extract():
     """
     data = request.get_json(force=True, silent=True) or {}
     video_path = data.get("video_path", "")
+    raw_track = data.get("track_index")
 
     if not video_path:
         return jsonify({"error": "video_path is required"}), 400
+
+    # Plan B8 Task 6: optional track_index lets the user pick a non-default
+    # audio stream from the file (e.g. JPN dialog vs. EN dub). Validate at
+    # the boundary; bools are a Python-isinstance-int gotcha that we forbid.
+    track_index: int | None = None
+    if raw_track is not None:
+        if isinstance(raw_track, bool) or not isinstance(raw_track, int) or raw_track < 0:
+            return jsonify({"error": "track_index must be a non-negative integer"}), 400
+        track_index = raw_track
 
     from config import get_settings, map_path
 
@@ -272,7 +282,9 @@ def waveform_extract():
         return jsonify({"error": f"Video not found: {video_path}"}), 404
 
     mtime = os.path.getmtime(video_path)
-    cache_key = (video_path, mtime)
+    # track_index participates in the cache key so per-track extracts don't
+    # clobber each other when the user switches between audio streams.
+    cache_key = (video_path, mtime, track_index)
 
     if cache_key in WAVEFORM_CACHE and os.path.exists(WAVEFORM_CACHE[cache_key]):
         audio_path = WAVEFORM_CACHE[cache_key]
@@ -281,11 +293,12 @@ def waveform_extract():
         # Extract audio as Opus (mono, 22 kHz — sufficient for waveform display)
         tmp = tempfile.NamedTemporaryFile(suffix=".opus", delete=False)
         tmp.close()
-        cmd = [
-            "ffmpeg",
-            "-y",
-            "-i",
-            video_path,
+        cmd: list[str] = ["ffmpeg", "-y", "-i", video_path]
+        if track_index is not None:
+            # `0:a:N` means "Nth audio stream of input 0" — robust against
+            # video / subtitle indices interleaving the absolute stream order.
+            cmd += ["-map", f"0:a:{track_index}"]
+        cmd += [
             "-vn",
             "-ac",
             "1",
