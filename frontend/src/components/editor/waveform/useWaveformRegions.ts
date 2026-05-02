@@ -91,10 +91,13 @@ export interface UseWaveformRegionsArgs {
   scrubWindowSec?: number
   /**
    * PySceneDetect scene-cut markers in milliseconds (Plan B8 Task 10).
-   * Rendered as thin vertical lines on the waveform wrapper. When empty
-   * or undefined, no markers are drawn.
+   * Rendered as thin vertical lines on the waveform wrapper AND used as a
+   * snap target (B8 follow-up). When empty or undefined, no markers are
+   * drawn and snap-to-scene is disabled.
    */
   sceneMarkersMs?: number[]
+  /** Snap range around a scene cut, in ms. Default 200. */
+  sceneToleranceMs?: number
 }
 
 export interface UseWaveformRegionsResult {
@@ -155,6 +158,7 @@ export function useWaveformRegions({
   scrubOnDrag = false,
   scrubWindowSec = 0.2,
   sceneMarkersMs,
+  sceneToleranceMs,
 }: UseWaveformRegionsArgs): UseWaveformRegionsResult {
   const wsRef = useRef<WaveSurfer | null>(null)
   const regionsRef = useRef<RegionsPlugin | null>(null)
@@ -175,6 +179,13 @@ export function useWaveformRegions({
   keyframeTolRef.current = keyframeToleranceMs
   const neighborTolRef = useRef(neighborToleranceMs)
   neighborTolRef.current = neighborToleranceMs
+  // Scene markers are also a snap target (scene-snap follow-up). Same ref
+  // pattern as the other tolerance/data refs so the long-lived listeners
+  // pick up the latest value without re-attaching.
+  const scenesMsRef = useRef(sceneMarkersMs)
+  scenesMsRef.current = sceneMarkersMs
+  const sceneTolRef = useRef(sceneToleranceMs)
+  sceneTolRef.current = sceneToleranceMs
   const selectedCueIdRef = useRef(selectedCueId)
   selectedCueIdRef.current = selectedCueId
   // Scrub-on-drag inputs read inside the long-lived region-update listener
@@ -193,9 +204,11 @@ export function useWaveformRegions({
     return {
       keyframesMs: keyframesMsRef.current ?? [],
       neighborsMs: deriveNeighborsMs(cuesRef.current, excludingId),
+      scenesMs: scenesMsRef.current ?? [],
       minGapMs: minGapMsRef.current ?? 0,
       keyframeToleranceMs: keyframeTolRef.current,
       neighborToleranceMs: neighborTolRef.current,
+      sceneToleranceMs: sceneTolRef.current,
     }
   }, [])
 
@@ -446,9 +459,11 @@ export function useWaveformRegions({
     const opts: SnapOptions = {
       keyframesMs: keyframesMsRef.current ?? [],
       neighborsMs: deriveNeighborsMs(cuesRef.current, cueId),
+      scenesMs: scenesMsRef.current ?? [],
       minGapMs: minGapMsRef.current ?? 0,
       keyframeToleranceMs: keyframeTolRef.current,
       neighborToleranceMs: neighborTolRef.current,
+      sceneToleranceMs: sceneTolRef.current,
     }
     const snappedMs = snap(timeMs, opts).value
     const newStart = snappedMs / 1000
@@ -470,9 +485,11 @@ export function useWaveformRegions({
     const opts: SnapOptions = {
       keyframesMs: keyframesMsRef.current ?? [],
       neighborsMs: deriveNeighborsMs(cuesRef.current, cueId),
+      scenesMs: scenesMsRef.current ?? [],
       minGapMs: minGapMsRef.current ?? 0,
       keyframeToleranceMs: keyframeTolRef.current,
       neighborToleranceMs: neighborTolRef.current,
+      sceneToleranceMs: sceneTolRef.current,
     }
     const snappedMs = snap(timeMs, opts).value
     const newEnd = snappedMs / 1000

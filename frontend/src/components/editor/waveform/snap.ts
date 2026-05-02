@@ -1,21 +1,23 @@
 /**
- * Pure snap helper (Plan B8 Task 4).
+ * Pure snap helper (Plan B8 Task 4 + scene-snap follow-up).
  *
  * Used by drag-end commits and the Aegisub-style L/R click-map to decide
  * where a cue boundary lands on the waveform. Three rules:
  *
- *   1. Snap to the closer of (nearest keyframe within keyframe tolerance,
- *      nearest neighbor within neighbor tolerance). Ties go to the keyframe
- *      (Aegisub convention — keyframes are stronger anchors than neighbor
- *      cues).
- *   2. If neither is within range, return the input unchanged.
+ *   1. Snap to the closest in-range target across three pools — keyframes
+ *      (default tol 150 ms), scene cuts (default tol 200 ms), and
+ *      neighbor cue boundaries (default tol 80 ms). When two pools are
+ *      tied on distance, preference order is: keyframe > scene > neighbor
+ *      (Aegisub convention — keyframes are the strongest anchor; scene
+ *      cuts are stronger than neighbor cues since they reflect the
+ *      underlying media, not other subtitle edits).
+ *   2. If no pool hits, return the input unchanged.
  *   3. After snapping, if the result would land closer than `minGapMs` to
  *      any neighbor cue, push the value away from that neighbor by exactly
  *      `minGapMs`. This guarantees no two cues end up overlapping after a
  *      snap-driven adjustment.
  *
- * All inputs are in milliseconds. Tolerances default to 150 ms (keyframe)
- * and 80 ms (neighbor) — matching SubtitleEdit's defaults.
+ * All inputs are in milliseconds.
  */
 
 export interface SnapOptions {
@@ -23,21 +25,26 @@ export interface SnapOptions {
   keyframesMs: number[]
   /** Sorted-or-not neighbor cue boundaries in ms. */
   neighborsMs: number[]
+  /** Optional scene-cut boundaries in ms (Plan B8 follow-up). */
+  scenesMs?: number[]
   /** Minimum gap to any neighbor after snap. 0 disables the gap-check. */
   minGapMs: number
   /** Snap range around a keyframe; default 150 ms. */
   keyframeToleranceMs?: number
   /** Snap range around a neighbor; default 80 ms. */
   neighborToleranceMs?: number
+  /** Snap range around a scene cut; default 200 ms. */
+  sceneToleranceMs?: number
 }
 
 export interface SnapResult {
   value: number
-  snappedTo: 'keyframe' | 'neighbor' | 'none'
+  snappedTo: 'keyframe' | 'scene' | 'neighbor' | 'none'
 }
 
 const DEFAULT_KEYFRAME_TOLERANCE_MS = 150
 const DEFAULT_NEIGHBOR_TOLERANCE_MS = 80
+const DEFAULT_SCENE_TOLERANCE_MS = 200
 
 /**
  * Find the closest target to `target` from `candidates`. Returns null if no
@@ -57,31 +64,37 @@ function closestWithin(
   return best
 }
 
+/** Tie-break priority — lower wins. Keyframe(0) > Scene(1) > Neighbor(2). */
+const PRIORITY = { keyframe: 0, scene: 1, neighbor: 2 } as const
+
 export function snap(targetMs: number, opts: SnapOptions): SnapResult {
   const keyframeTol = opts.keyframeToleranceMs ?? DEFAULT_KEYFRAME_TOLERANCE_MS
   const neighborTol = opts.neighborToleranceMs ?? DEFAULT_NEIGHBOR_TOLERANCE_MS
+  const sceneTol = opts.sceneToleranceMs ?? DEFAULT_SCENE_TOLERANCE_MS
 
   const kfHit = closestWithin(targetMs, opts.keyframesMs, keyframeTol)
+  const scHit = closestWithin(targetMs, opts.scenesMs ?? [], sceneTol)
   const nbHit = closestWithin(targetMs, opts.neighborsMs, neighborTol)
+
+  type Hit = { value: number; distance: number; kind: SnapResult['snappedTo'] }
+  const hits: Hit[] = []
+  if (kfHit) hits.push({ ...kfHit, kind: 'keyframe' })
+  if (scHit) hits.push({ ...scHit, kind: 'scene' })
+  if (nbHit) hits.push({ ...nbHit, kind: 'neighbor' })
 
   let value = targetMs
   let snappedTo: SnapResult['snappedTo'] = 'none'
 
-  if (kfHit && nbHit) {
-    // Tie -> prefer keyframe. Strict less-than for neighbor wins.
-    if (nbHit.distance < kfHit.distance) {
-      value = nbHit.value
-      snappedTo = 'neighbor'
-    } else {
-      value = kfHit.value
-      snappedTo = 'keyframe'
-    }
-  } else if (kfHit) {
-    value = kfHit.value
-    snappedTo = 'keyframe'
-  } else if (nbHit) {
-    value = nbHit.value
-    snappedTo = 'neighbor'
+  if (hits.length > 0) {
+    // Sort by (distance asc, priority asc) — closest wins; ties broken by
+    // priority, where keyframe(0) < scene(1) < neighbor(2).
+    hits.sort((a, b) => {
+      if (a.distance !== b.distance) return a.distance - b.distance
+      return PRIORITY[a.kind as 'keyframe' | 'scene' | 'neighbor']
+        - PRIORITY[b.kind as 'keyframe' | 'scene' | 'neighbor']
+    })
+    value = hits[0].value
+    snappedTo = hits[0].kind
   }
 
   // Min-gap enforcement: nudge away from the nearest neighbor if the result

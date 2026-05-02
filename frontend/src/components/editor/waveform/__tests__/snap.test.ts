@@ -115,4 +115,69 @@ describe('snap()', () => {
     expect(r.value).toBe(1000)
     expect(r.snappedTo).toBe('keyframe')
   })
+
+  // ─── B8 follow-up: snap-to-scene ─────────────────────────────────────
+
+  it('snaps to a scene-cut within tolerance', () => {
+    const r = snap(1000, {
+      keyframesMs: [],
+      neighborsMs: [],
+      scenesMs: [1100],
+      minGapMs: 0,
+      sceneToleranceMs: 200,
+    })
+    expect(r.value).toBe(1100)
+    expect(r.snappedTo).toBe('scene')
+  })
+
+  it('does not snap to a scene-cut outside tolerance', () => {
+    const r = snap(1000, {
+      keyframesMs: [],
+      neighborsMs: [],
+      scenesMs: [1500],
+      minGapMs: 0,
+      sceneToleranceMs: 200,
+    })
+    expect(r.value).toBe(1000)
+    expect(r.snappedTo).toBe('none')
+  })
+
+  it('prefers a closer scene over a farther keyframe within tolerance', () => {
+    const r = snap(1000, {
+      keyframesMs: [880], // 120 ms away
+      neighborsMs: [],
+      scenesMs: [1020], // 20 ms away — closer
+      minGapMs: 0,
+      keyframeToleranceMs: 150,
+      sceneToleranceMs: 200,
+    })
+    expect(r.value).toBe(1020)
+    expect(r.snappedTo).toBe('scene')
+  })
+
+  it('breaks tie keyframe-vs-scene in favour of the keyframe', () => {
+    const r = snap(1000, {
+      keyframesMs: [950], // 50 ms away
+      neighborsMs: [],
+      scenesMs: [1050], // 50 ms away
+      minGapMs: 0,
+      keyframeToleranceMs: 80,
+      sceneToleranceMs: 80,
+    })
+    expect(r.value).toBe(950)
+    expect(r.snappedTo).toBe('keyframe')
+  })
+
+  it('breaks tie scene-vs-neighbor in favour of the scene', () => {
+    const r = snap(1000, {
+      keyframesMs: [],
+      neighborsMs: [950],
+      scenesMs: [1050],
+      minGapMs: 0,
+      neighborToleranceMs: 80,
+      sceneToleranceMs: 80,
+    })
+    expect(r.value).toBe(1050)
+    expect(r.snappedTo).toBe('scene')
+  })
 })
