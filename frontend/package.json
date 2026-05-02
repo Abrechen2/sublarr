@@ -1,7 +1,8 @@
 {
-  "name": "frontend",
+  "name": "sublarr-frontend",
   "private": true,
   "version": "0.0.0",
+  "license": "GPL-3.0-or-later",
   "type": "module",
   "scripts": {
     "dev": "vite",
@@ -18,7 +19,8 @@
     "test:e2e": "playwright test",
     "test:e2e:ui": "playwright test --ui",
     "test:e2e:debug": "playwright test --debug",
-    "lhci": "lhci autorun"
+    "lhci": "lhci autorun",
+    "license-check": "license-checker --production --excludePrivatePackages --onlyAllow=\"MIT;BSD-2-Clause;BSD-3-Clause;Apache-2.0;ISC;LGPL-2.1-or-later;LGPL-3.0-or-later;GPL-3.0-or-later;MPL-2.0;0BSD;Unlicense;CC-BY-4.0;CC0-1.0;BSD;MIT AND ISC;Apache-2.0 AND MIT;LGPL-2.1-or-later AND (FTL OR GPL-2.0-or-later) AND MIT AND MIT-Modern-Variant AND ISC AND NTP AND Zlib AND BSL-1.0\""
   },
   "dependencies": {
     "@codemirror/commands": "^6.10.3",
