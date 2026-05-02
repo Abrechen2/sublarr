@@ -5,6 +5,21 @@ All notable changes to Sublarr are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.84.0-beta] - 2026-05-03
+
+### Added
+- **Waveform editor — Gold-Standard Edition** — seven UX upgrades that turn the Waveform tab from "draggable rectangles on audio" into a real Aegisub-class timing editor:
+  - **Active-cue text bar** above the wave shows the currently selected cue's `Cue N / total`, start/end timecodes (`HH:MM:SS.mmm`), duration, and the cue text rendered multiline with ASS override tags stripped and `\N` converted to real newlines. When no cue is selected, hint copy invites the editor to pick one — no more tab-switching to know what you're aligning.
+  - **Per-region text labels** — every region now carries a one-line label (truncated to 60 chars, override tags stripped, line breaks collapsed) drawn directly inside the region. Drag commits move the label with the region.
+  - **Visible keyframe markers** — new toolbar pill ("Keyframes") paints thin teal vertical lines at every keyframe so the snap targets are no longer invisible. Default off because keyframes are dense (~one per 0.5 s); persisted in `localStorage`. Aside, the toolbar status now shows `Snap: N keyframes` when the toggle is on.
+  - **Vertical amplitude zoom (1×–5×)** — toolbar slider drives WaveSurfer's `barHeight`, scaling the wave's visual amplitude so quiet dialogue (whispers, ambient narration) becomes editable without re-encoding. Persisted.
+  - **Pitch-preserving playback rate (0.5×–2×)** — toolbar slider wired to `setPlaybackRate(rate, true)` (`preservesPitch=true`). Aegisub-style slow-mo audition for fast dialogue. Persisted.
+  - **Gap/overlap quality markers** — pure helper `gapOverlap.detectGapsAndOverlaps()` scans adjacent cue pairs and paints red bars along the bottom for overlaps (`next.start < prev.end`) and amber bars for tight gaps (`< 80 ms`). Always-on by default; tooltips name the offending cue pair. On Archer S01E01 with 797 cues this surfaces 587 quality signals — exactly the kind of thing the editor wants flagged.
+  - **Sticky time-axis ruler** — `TimelinePlugin` pinned above the canvas with primary labels every 5 s and secondary every 1 s. Stays in sync with horizontal zoom; removes the "where am I in the episode" friction during long zoom-in sessions.
+
+### Tests
+- 32 new unit tests across 4 new test files: `cueTextDisplay.test.ts` (16), `WaveformActiveCueBar.test.tsx` (7), `gapOverlap.test.ts` (8), `useWaveformRegions` (1 added for label propagation). 111 total in the waveform module — 0 regressions.
+
 ## [0.83.1-beta] - 2026-05-02
 
 ### Fixed
