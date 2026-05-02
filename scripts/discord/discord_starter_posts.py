@@ -81,7 +81,7 @@ Welcome to the official Sublarr community. This server is for:
 
 **Where to find what**
 • Code: <https://github.com/abrechen2/sublarr>
-• Wiki: <https://wiki.sublarr.de>
+• Docs: <https://sublarr.de/docs/>
 • Website: <https://sublarr.de>
 • Reddit: <https://www.reddit.com/r/Sublarr/>
 
@@ -220,7 +220,7 @@ Questions → ping here. PRs welcome!"""
 PLUGIN_DEV = """**Writing a custom provider or post-processor?**
 
 **Full API reference:**
-<https://wiki.sublarr.de/development/plugin-development>
+<https://sublarr.de/docs/development/plugin-development/>
 
 **Minimum provider skeleton** (Python):
 ```python

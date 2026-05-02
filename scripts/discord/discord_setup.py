@@ -67,7 +67,7 @@ CATEGORIES = ["INFO", "COMMUNITY", "SUPPORT", "DEV", "BETA", "STAFF", "VOICE"]
 TEXT_CHANNELS = [
     # (name, category, topic, private_role_name_or_None)
     ("welcome", "INFO",
-     "Welcome to Sublarr! GitHub: github.com/abrechen2/sublarr · Wiki: wiki.sublarr.de · Website: sublarr.de. Read #rules before posting.",
+     "Welcome to Sublarr! GitHub: github.com/abrechen2/sublarr · Docs: sublarr.de/docs · Website: sublarr.de. Read #rules before posting.",
      None),
     ("announcements", "INFO",
      "Official announcements from the maintainer team. Releases, breaking changes, security notices.",
@@ -97,7 +97,7 @@ TEXT_CHANNELS = [
      None),
 
     ("plugin-dev", "DEV",
-     "Custom providers, post-processing hooks, webhook integrations. API reference: wiki.sublarr.de/development/plugin-development",
+     "Custom providers, post-processing hooks, webhook integrations. API reference: sublarr.de/docs/development/plugin-development",
      None),
     ("contributing", "DEV",
      "How-to-PR, coding conventions, test setup. Read CLAUDE.md first.",
@@ -259,7 +259,7 @@ def run():
         "ASS → SRT downgrade), resilient provider usage, per-series fine-tuning.\n\n"
         "**🔗 Quick Links**\n"
         "• GitHub: <https://github.com/abrechen2/sublarr>\n"
-        "• Wiki: <https://wiki.sublarr.de>\n"
+        "• Docs: <https://sublarr.de/docs/>\n"
         "• Website: <https://sublarr.de>\n"
         "• Reddit: <https://www.reddit.com/r/Sublarr/>\n\n"
         "**🚀 Get Started**\n"
