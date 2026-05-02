@@ -50,3 +50,8 @@ chardet>=5.2.0
 dogpile.cache>=1.3.0
 pysrt>=1.1.2
 stevedore>=5.2.0
+
+# Plan B8 — optional scene detection for the WaveformEditor's scene markers.
+# BSD-3-Clause; lazy-imported in services/scene_detector.py so the dep is
+# strictly optional at runtime (graceful degradation if not installed).
+scenedetect>=0.6.6,<1.0

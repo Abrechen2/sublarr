@@ -85,9 +85,9 @@ Anything outside this set fails CI and triggers a manual review.
 
 ### Optional / lazy imports added in Plan B8
 
-| Package | License | SPDX | Compat |
-|---|---|---|---|
-| scenedetect | BSD-3-Clause | `BSD-3-Clause` | ✅ |
+| Package | Version | License | SPDX | Compat |
+|---|---|---|---|---|
+| scenedetect | ≥0.6.6,<1.0 | BSD-3-Clause | `BSD-3-Clause` | ✅ Lazy-imported in `services/scene_detector.py` — graceful degradation if absent. Added in 0.83.0-beta cycle (Task 2). |
 
 ### Optional / lazy imports added in Plan B9
 

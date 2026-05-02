@@ -19,6 +19,58 @@ from ass_utils import get_media_streams  # noqa: F401
 logger = logging.getLogger(__name__)
 
 
+def _run_ffprobe_keyframes(video_path: str) -> str:
+    """Run ffprobe and return its CSV stdout for video keyframe packets.
+
+    Output format per line: ``pts_time,flags`` where ``flags`` includes
+    ``K_`` for a keyframe packet. Split out so unit tests can patch this
+    boundary instead of the whole subprocess plumbing.
+    """
+    cmd = [
+        "ffprobe",
+        "-v",
+        "error",
+        "-select_streams",
+        "v:0",
+        "-show_entries",
+        "packet=pts_time,flags",
+        "-of",
+        "csv=p=0",
+        video_path,
+    ]
+    try:
+        result = subprocess.run(cmd, capture_output=True, text=True, timeout=120)
+    except subprocess.TimeoutExpired as exc:
+        raise RuntimeError(f"ffprobe keyframe scan timed out: {video_path}") from exc
+    except FileNotFoundError as exc:
+        raise RuntimeError("ffprobe not found. Install ffmpeg/ffprobe.") from exc
+    if result.returncode != 0:
+        raise RuntimeError(f"ffprobe failed: {result.stderr.strip()}")
+    return result.stdout
+
+
+def list_keyframes(video_path: str) -> list[float]:
+    """Return keyframe timestamps (seconds) of the first video stream.
+
+    Used by the WaveformEditor's snap-to-keyframe target. Returns an empty
+    list if the file has no video stream or no keyframes.
+    """
+    out = _run_ffprobe_keyframes(video_path)
+    keyframes: list[float] = []
+    for line in out.splitlines():
+        parts = line.split(",")
+        if len(parts) < 2:
+            continue
+        ts_str, flags = parts[0].strip(), parts[1].strip()
+        if not ts_str or "K" not in flags:
+            continue
+        try:
+            keyframes.append(float(ts_str))
+        except ValueError:
+            continue
+    return keyframes
+
+
 def list_audio_tracks(video_path: str) -> list[dict]:
     """Return the audio streams of `video_path` in WaveformEditor shape.
 

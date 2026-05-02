@@ -105,6 +105,32 @@ export function useAudioTracks(videoPath: string | null) {
   })
 }
 
+// Plan B8 — keyframes (snap targets) and scene boundaries (markers).
+// Both can take seconds on long videos, so cache for 1h per file.
+export function useKeyframes(videoPath: string | null) {
+  return useQuery({
+    queryKey: ['keyframes', videoPath],
+    queryFn: async () => {
+      const { fetchKeyframes } = await import('@/api/system/tools')
+      return fetchKeyframes(videoPath!)
+    },
+    enabled: !!videoPath,
+    staleTime: 60 * 60 * 1000,
+  })
+}
+
+export function useScenes(videoPath: string | null) {
+  return useQuery({
+    queryKey: ['scenes', videoPath],
+    queryFn: async () => {
+      const { fetchScenes } = await import('@/api/system/tools')
+      return fetchScenes(videoPath!)
+    },
+    enabled: !!videoPath,
+    staleTime: 60 * 60 * 1000,
+  })
+}
+
 export function useSubtitleBackup(filePath: string | null) {
   return useQuery({
     queryKey: ['subtitle-backup', filePath],

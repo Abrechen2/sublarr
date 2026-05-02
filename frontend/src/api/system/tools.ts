@@ -316,6 +316,30 @@ export async function fetchAudioTracks(videoPath: string): Promise<AudioTracksRe
   return data
 }
 
+export interface KeyframesResponse {
+  keyframes: number[]
+  video_path: string
+}
+
+export async function fetchKeyframes(videoPath: string): Promise<KeyframesResponse> {
+  const { data } = await api.get<KeyframesResponse>('/audio/keyframes', {
+    params: { file_path: videoPath },
+  })
+  return data
+}
+
+export interface ScenesResponse {
+  scenes: number[]
+  available: boolean
+}
+
+export async function fetchScenes(videoPath: string): Promise<ScenesResponse> {
+  const { data } = await api.get<ScenesResponse>('/audio/scenes', {
+    params: { file_path: videoPath },
+  })
+  return data
+}
+
 // ─── Subtitle Diff ────────────────────────────────────────────────────────────
 
 export async function computeSubtitleDiff(

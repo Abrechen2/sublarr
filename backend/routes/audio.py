@@ -12,7 +12,9 @@ from services.audio_visualizer import (
     generate_waveform_json,
     get_audio_duration,
     list_audio_tracks,
+    list_keyframes,
 )
+from services.scene_detector import detect_scenes
 
 bp = Blueprint("audio", __name__, url_prefix="/api/v1")
 logger = logging.getLogger(__name__)
@@ -287,3 +289,117 @@ def get_audio_tracks():
     except Exception:
         logger.exception("Unexpected error probing audio tracks")
         return jsonify({"error": "Internal server error"}), 500
+
+
+def _resolve_media_path(file_path: str | None):
+    """Common media-path-mapping + safety check for B8 audio sub-routes.
+
+    Returns ``(mapped_path, response, status)``. On failure, ``mapped_path``
+    is None and ``(response, status)`` is the error to return immediately.
+    """
+    if not file_path:
+        return None, jsonify({"error": "file_path parameter is required"}), 400
+    settings = get_settings()
+    mapped_path = file_path
+    if hasattr(settings, "media_path_mapping") and settings.media_path_mapping:
+        for mapping in settings.media_path_mapping:
+            if file_path.startswith(mapping.get("from", "")):
+                mapped_path = file_path.replace(mapping["from"], mapping.get("to", file_path), 1)
+                break
+    if not is_safe_path(mapped_path, settings.media_path):
+        return None, jsonify({"error": "Access denied"}), 403
+    if not os.path.exists(mapped_path):
+        return None, jsonify({"error": "File not found"}), 404
+    return mapped_path, None, 200
+
+
+@bp.route("/audio/keyframes", methods=["GET"])
+def get_audio_keyframes():
+    """Return keyframe timestamps of the first video stream (snap targets).
+    ---
+    get:
+      tags:
+        - Audio
+      summary: List video keyframes
+      description: Returns the keyframe timestamps (seconds) of the first
+        video stream — used by the WaveformEditor's snap-to-keyframe
+        feature so cue boundaries can land on shot cuts.
+      security:
+        - apiKeyAuth: []
+      parameters:
+        - in: query
+          name: file_path
+          required: true
+          schema:
+            type: string
+      responses:
+        200:
+          description: Keyframe list
+        400:
+          description: Missing file_path
+        403:
+          description: Path outside media root
+        404:
+          description: File not found
+        500:
+          description: ffprobe error
+    """
+    mapped_path, err, status = _resolve_media_path(request.args.get("file_path"))
+    if mapped_path is None:
+        return err, status
+    try:
+        keyframes = list_keyframes(mapped_path)
+        return jsonify({"keyframes": keyframes, "video_path": mapped_path}), 200
+    except RuntimeError as e:
+        logger.error("Keyframe scan failed: %s", e)
+        return jsonify({"error": str(e)}), 500
+    except Exception:
+        logger.exception("Unexpected error scanning keyframes")
+        return jsonify({"error": "Internal server error"}), 500
+
+
+@bp.route("/audio/scenes", methods=["GET"])
+def get_audio_scenes():
+    """Return scene-cut timestamps via PySceneDetect (optional dep).
+    ---
+    get:
+      tags:
+        - Audio
+      summary: List scene-cut boundaries
+      description: PySceneDetect is an optional dependency. When the lib is
+        absent the response is ``{"scenes": [], "available": false}`` so
+        the WaveformEditor gracefully omits scene markers.
+      security:
+        - apiKeyAuth: []
+      parameters:
+        - in: query
+          name: file_path
+          required: true
+          schema:
+            type: string
+      responses:
+        200:
+          description: Scene-boundary list (possibly empty)
+        400:
+          description: Missing file_path
+        403:
+          description: Path outside media root
+        404:
+          description: File not found
+    """
+    mapped_path, err, status = _resolve_media_path(request.args.get("file_path"))
+    if mapped_path is None:
+        return err, status
+    try:
+        scenes = detect_scenes(mapped_path)
+    except Exception:
+        logger.exception("Unexpected error detecting scenes")
+        return jsonify({"error": "Internal server error"}), 500
+    available = True
+    try:
+        from services.scene_detector import _import_scenedetect
+
+        _import_scenedetect()
+    except ImportError:
+        available = False
+    return jsonify({"scenes": scenes, "available": available}), 200
