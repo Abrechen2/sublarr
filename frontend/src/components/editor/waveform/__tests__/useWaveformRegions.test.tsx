@@ -32,6 +32,8 @@ const fakeRegionsApi = {
   clearRegions: vi.fn(),
 }
 
+const fakeSpectrogramPlugin = { destroy: vi.fn(), id: 'spec' }
+
 const fakeWs = {
   on: vi.fn((event: string, fn: Listener) => {
     if (!wsListeners.has(event)) wsListeners.set(event, [])
@@ -52,6 +54,8 @@ const fakeWs = {
   setTime: vi.fn(),
   zoom: vi.fn(),
   setOptions: vi.fn(),
+  registerPlugin: vi.fn(() => fakeSpectrogramPlugin),
+  unregisterPlugin: vi.fn(),
 }
 
 vi.mock('wavesurfer.js', () => ({
@@ -63,6 +67,13 @@ vi.mock('wavesurfer.js', () => ({
 vi.mock('wavesurfer.js/plugins/regions', () => ({
   default: {
     create: vi.fn(() => fakeRegionsApi),
+  },
+}))
+
+const fakeSpectrogramApi = { id: 'spec' }
+vi.mock('wavesurfer.js/plugins/spectrogram', () => ({
+  default: {
+    create: vi.fn(() => fakeSpectrogramApi),
   },
 }))
 
@@ -94,6 +105,7 @@ interface HarnessProps {
   neighborToleranceMs?: number
   zoomPxPerSec?: number
   autoCenter?: boolean
+  spectrogramEnabled?: boolean
 }
 
 function Harness({
@@ -108,6 +120,7 @@ function Harness({
   neighborToleranceMs,
   zoomPxPerSec,
   autoCenter,
+  spectrogramEnabled,
 }: HarnessProps) {
   const containerRef = useRef<HTMLDivElement>(null)
   useWaveformRegions({
@@ -123,6 +136,7 @@ function Harness({
     neighborToleranceMs,
     zoomPxPerSec,
     autoCenter,
+    spectrogramEnabled,
   })
   return <div ref={containerRef} data-testid="waveform-host" />
 }
@@ -524,6 +538,62 @@ describe('useWaveformRegions', () => {
       expect(fakeWs.setOptions).toHaveBeenCalledWith(
         expect.objectContaining({ autoCenter: false }),
       )
+    })
+  })
+
+  // ─── B8.7: spectrogram toggle ─────────────────────────────────────────
+
+  describe('spectrogram toggle', () => {
+    it('does not register the plugin when disabled', () => {
+      const onCueChange = vi.fn()
+      render(
+        <Harness cues={SAMPLE_CUES} onCueChange={onCueChange} spectrogramEnabled={false} />,
+      )
+
+      act(() => {
+        fireWs('ready')
+      })
+
+      expect(fakeWs.registerPlugin).not.toHaveBeenCalled()
+    })
+
+    it('registers the plugin once enabled after ready', () => {
+      const onCueChange = vi.fn()
+      const { rerender } = render(
+        <Harness cues={SAMPLE_CUES} onCueChange={onCueChange} spectrogramEnabled={false} />,
+      )
+
+      act(() => {
+        fireWs('ready')
+      })
+
+      rerender(
+        <Harness cues={SAMPLE_CUES} onCueChange={onCueChange} spectrogramEnabled={true} />,
+      )
+
+      expect(fakeWs.registerPlugin).toHaveBeenCalledTimes(1)
+    })
+
+    it('unregisters the plugin when toggled off', () => {
+      const onCueChange = vi.fn()
+      const { rerender } = render(
+        <Harness cues={SAMPLE_CUES} onCueChange={onCueChange} spectrogramEnabled={true} />,
+      )
+
+      act(() => {
+        fireWs('ready')
+      })
+      expect(fakeWs.registerPlugin).toHaveBeenCalledTimes(1)
+
+      rerender(
+        <Harness cues={SAMPLE_CUES} onCueChange={onCueChange} spectrogramEnabled={false} />,
+      )
+
+      // Either unregisterPlugin OR plugin.destroy must have run.
+      const cleaned =
+        fakeWs.unregisterPlugin.mock.calls.length > 0 ||
+        fakeSpectrogramPlugin.destroy.mock.calls.length > 0
+      expect(cleaned).toBe(true)
     })
   })
 })

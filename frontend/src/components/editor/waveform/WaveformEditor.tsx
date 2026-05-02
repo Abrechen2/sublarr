@@ -13,7 +13,7 @@
  */
 
 import { useRef, useState, useEffect, useMemo, useCallback } from 'react'
-import { Loader2, Play, Pause, Lock, Unlock, Keyboard } from 'lucide-react'
+import { Loader2, Play, Pause, Lock, Unlock, Keyboard, Activity } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 
 import { useSubtitleParse, useKeyframes, useAudioTracks } from '@/hooks/useApi'
@@ -73,6 +73,27 @@ const ZOOM_DEFAULT_PX_PER_SEC = 10
 /** Multiplicative step for `+/-` keyboard nudges. */
 const ZOOM_STEP_FACTOR = 1.5
 
+/** localStorage key for the spectrogram-enabled flag (Plan B8 Task 7). */
+const SPECTROGRAM_LS_KEY = 'sublarr.waveform.spectrogram'
+
+function readSpectrogramPref(): boolean {
+  if (typeof window === 'undefined') return false
+  try {
+    return window.localStorage.getItem(SPECTROGRAM_LS_KEY) === '1'
+  } catch {
+    return false
+  }
+}
+
+function writeSpectrogramPref(enabled: boolean): void {
+  if (typeof window === 'undefined') return
+  try {
+    window.localStorage.setItem(SPECTROGRAM_LS_KEY, enabled ? '1' : '0')
+  } catch {
+    // Quota / privacy mode — silently fall back to in-memory only.
+  }
+}
+
 export function WaveformEditor({
   subtitlePath,
   videoPath,
@@ -92,8 +113,17 @@ export function WaveformEditor({
   const [helpOpen, setHelpOpen] = useState(false)
   const [zoomPxPerSec, setZoomPxPerSec] = useState<number>(ZOOM_DEFAULT_PX_PER_SEC)
   const [autoCenter, setAutoCenter] = useState<boolean>(true)
+  const [spectrogramEnabled, setSpectrogramEnabled] = useState<boolean>(readSpectrogramPref)
   // 0-based audio-position to extract; the backend route picks `0:a:<idx>`.
   const [selectedAudioIdx, setSelectedAudioIdx] = useState<number>(0)
+
+  const toggleSpectrogram = useCallback(() => {
+    setSpectrogramEnabled((cur) => {
+      const next = !cur
+      writeSpectrogramPref(next)
+      return next
+    })
+  }, [])
 
   const { data: parseData } = useSubtitleParse(subtitlePath)
   const { data: keyframesData } = useKeyframes(videoPath || null)
@@ -142,6 +172,7 @@ export function WaveformEditor({
     minGapMs: DEFAULT_MIN_GAP_MS,
     zoomPxPerSec,
     autoCenter,
+    spectrogramEnabled,
   })
 
   // Multiplicative zoom step, clamped to the slider bounds. Used by the
@@ -311,6 +342,21 @@ export function WaveformEditor({
           >
             <Keyboard size={12} />
             {t('waveform.shortcut_help_button')}
+          </button>
+
+          <button
+            type="button"
+            onClick={toggleSpectrogram}
+            aria-pressed={spectrogramEnabled}
+            className={`flex items-center gap-1.5 px-3 py-1.5 rounded text-xs font-medium transition-colors border ${
+              spectrogramEnabled
+                ? 'bg-accent-bg text-accent border-accent-dim'
+                : 'bg-surface text-primary border-border'
+            }`}
+            title="Spectrogram"
+          >
+            <Activity size={12} />
+            Spectrogram
           </button>
 
           <label className="flex items-center gap-1.5 text-xs text-muted">

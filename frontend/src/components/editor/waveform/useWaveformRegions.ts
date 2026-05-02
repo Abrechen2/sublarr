@@ -18,6 +18,7 @@
 import { useEffect, useRef, useState, useCallback } from 'react'
 import WaveSurfer from 'wavesurfer.js'
 import RegionsPlugin from 'wavesurfer.js/plugins/regions'
+import SpectrogramPlugin from 'wavesurfer.js/plugins/spectrogram'
 
 import { snap, type SnapOptions } from './snap'
 
@@ -72,6 +73,14 @@ export interface UseWaveformRegionsArgs {
    * true, the waveform pans to keep the playhead centered while playing.
    */
   autoCenter?: boolean
+  /**
+   * Show a spectrogram overlay (Plan B8 Task 7). The plugin registers
+   * lazily when the flag flips true and unregisters when it flips back.
+   * Default fft size is 512 (cheap enough for live editing).
+   */
+  spectrogramEnabled?: boolean
+  /** FFT size for the spectrogram. Must be a power of 2. Default 512. */
+  spectrogramFftSamples?: number
 }
 
 export interface UseWaveformRegionsResult {
@@ -127,6 +136,8 @@ export function useWaveformRegions({
   height = 96,
   zoomPxPerSec,
   autoCenter,
+  spectrogramEnabled = false,
+  spectrogramFftSamples = 512,
 }: UseWaveformRegionsArgs): UseWaveformRegionsResult {
   const wsRef = useRef<WaveSurfer | null>(null)
   const regionsRef = useRef<RegionsPlugin | null>(null)
@@ -269,6 +280,38 @@ export function useWaveformRegions({
     if (autoCenter === undefined) return
     wsRef.current?.setOptions({ autoCenter })
   }, [isReady, autoCenter])
+
+  // Plan B8 Task 7 — register/unregister the spectrogram plugin in
+  // response to the toggle. Done outside the WaveSurfer-create effect so
+  // toggling doesn't tear down the audio buffer or active regions.
+  useEffect(() => {
+    if (!isReady) return
+    const ws = wsRef.current
+    if (!ws) return
+
+    if (!spectrogramEnabled) return
+
+    const plugin = SpectrogramPlugin.create({
+      fftSamples: spectrogramFftSamples,
+      labels: true,
+      labelsBackground: 'rgba(0,0,0,0.5)',
+      height: 80,
+      // Mel scale tracks human perception better than linear; matches the
+      // default Audacity/SubtitleEdit feel.
+      scale: 'mel',
+    })
+    ws.registerPlugin(plugin)
+
+    return () => {
+      // Prefer the explicit unregister API; fall back to the plugin's
+      // own destroy in case unregister is missing on the runtime build.
+      try {
+        ws.unregisterPlugin(plugin)
+      } catch {
+        plugin.destroy?.()
+      }
+    }
+  }, [isReady, spectrogramEnabled, spectrogramFftSamples])
 
   // Sync cues -> regions whenever the cue list changes, BUT only when
   // we're not in the middle of a drag. Mid-drag rewrites would snap the
