@@ -81,6 +81,14 @@ export interface UseWaveformRegionsArgs {
   spectrogramEnabled?: boolean
   /** FFT size for the spectrogram. Must be a power of 2. Default 512. */
   spectrogramFftSamples?: number
+  /**
+   * When true, dragging a region edge plays a short audio window at the
+   * moving boundary so the user can hear what they're aligning to (Plan
+   * B8 Task 8). Throttled internally to ~30 Hz.
+   */
+  scrubOnDrag?: boolean
+  /** Length of the scrub-playback window in seconds. Default 0.2. */
+  scrubWindowSec?: number
 }
 
 export interface UseWaveformRegionsResult {
@@ -138,6 +146,8 @@ export function useWaveformRegions({
   autoCenter,
   spectrogramEnabled = false,
   spectrogramFftSamples = 512,
+  scrubOnDrag = false,
+  scrubWindowSec = 0.2,
 }: UseWaveformRegionsArgs): UseWaveformRegionsResult {
   const wsRef = useRef<WaveSurfer | null>(null)
   const regionsRef = useRef<RegionsPlugin | null>(null)
@@ -160,6 +170,13 @@ export function useWaveformRegions({
   neighborTolRef.current = neighborToleranceMs
   const selectedCueIdRef = useRef(selectedCueId)
   selectedCueIdRef.current = selectedCueId
+  // Scrub-on-drag inputs read inside the long-lived region-update listener
+  const scrubOnDragRef = useRef(scrubOnDrag)
+  scrubOnDragRef.current = scrubOnDrag
+  const scrubWindowSecRef = useRef(scrubWindowSec)
+  scrubWindowSecRef.current = scrubWindowSec
+  // Last scrub timestamp (ms epoch); used by the throttle gate.
+  const lastScrubAtRef = useRef<number>(0)
 
   const [isReady, setIsReady] = useState(false)
   const [isPlaying, setIsPlaying] = useState(false)
@@ -203,9 +220,34 @@ export function useWaveformRegions({
 
     // region-update fires per-frame during drag; flip the freeze flag
     // so the prop-sync effect doesn't overwrite the in-progress drag
-    const onRegionUpdate = (region: { id: string }) => {
-      void region
+    const onRegionUpdate = (region: { id: string; start: number; end: number }) => {
       draggingRef.current = true
+
+      // Plan B8 Task 8 — scrub-playback gate. Skipped silently when
+      // disabled or when the throttle window hasn't elapsed.
+      if (!scrubOnDragRef.current) return
+
+      const now = Date.now()
+      const SCRUB_THROTTLE_MS = 33 // ~30 Hz
+      if (now - lastScrubAtRef.current < SCRUB_THROTTLE_MS) return
+      lastScrubAtRef.current = now
+
+      // Determine which boundary moved so we play around the edge the
+      // user is currently dragging — not the cue's other side.
+      const prev = cuesRef.current.find((c) => c.id === region.id)
+      const win = scrubWindowSecRef.current
+
+      let from = region.start
+      let to = region.start + win
+      if (prev) {
+        const startMoved = Math.abs(region.start - prev.start) > EDGE_EPSILON_S
+        const endMoved = Math.abs(region.end - prev.end) > EDGE_EPSILON_S
+        if (endMoved && !startMoved) {
+          from = Math.max(0, region.end - win)
+          to = region.end
+        }
+      }
+      void wsRef.current?.play(from, to)
     }
     // region-updated fires on mouseup; snap, commit, unfreeze.
     const onRegionUpdateEnd = (region: { id: string; start: number; end: number }) => {

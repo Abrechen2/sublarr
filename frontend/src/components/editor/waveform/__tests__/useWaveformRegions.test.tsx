@@ -106,6 +106,7 @@ interface HarnessProps {
   zoomPxPerSec?: number
   autoCenter?: boolean
   spectrogramEnabled?: boolean
+  scrubOnDrag?: boolean
 }
 
 function Harness({
@@ -121,6 +122,7 @@ function Harness({
   zoomPxPerSec,
   autoCenter,
   spectrogramEnabled,
+  scrubOnDrag,
 }: HarnessProps) {
   const containerRef = useRef<HTMLDivElement>(null)
   useWaveformRegions({
@@ -137,6 +139,7 @@ function Harness({
     zoomPxPerSec,
     autoCenter,
     spectrogramEnabled,
+    scrubOnDrag,
   })
   return <div ref={containerRef} data-testid="waveform-host" />
 }
@@ -594,6 +597,86 @@ describe('useWaveformRegions', () => {
         fakeWs.unregisterPlugin.mock.calls.length > 0 ||
         fakeSpectrogramPlugin.destroy.mock.calls.length > 0
       expect(cleaned).toBe(true)
+    })
+  })
+
+  // ─── B8.8: audio scrubbing while dragging ─────────────────────────────
+
+  describe('scrub on drag', () => {
+    it('does not play when scrubOnDrag is false', () => {
+      const onCueChange = vi.fn()
+      render(
+        <Harness cues={SAMPLE_CUES} onCueChange={onCueChange} scrubOnDrag={false} />,
+      )
+
+      act(() => {
+        fireWs('ready')
+        fireRegions('region-update', { id: '1', start: 2.1, end: 3.5 })
+      })
+
+      expect(fakeWs.play).not.toHaveBeenCalled()
+    })
+
+    it('plays a 200 ms window at the moving start edge', () => {
+      const onCueChange = vi.fn()
+      render(
+        <Harness cues={SAMPLE_CUES} onCueChange={onCueChange} scrubOnDrag={true} />,
+      )
+
+      act(() => {
+        fireWs('ready')
+        // cue '1' was 2.0-3.5; user dragged left edge to 2.1.
+        fireRegions('region-update', { id: '1', start: 2.1, end: 3.5 })
+      })
+
+      // ws.play(start, start + 0.2)
+      expect(fakeWs.play).toHaveBeenCalledTimes(1)
+      const [from, to] = fakeWs.play.mock.calls[0] as [number, number]
+      expect(from).toBeCloseTo(2.1, 5)
+      expect(to).toBeCloseTo(2.3, 5)
+    })
+
+    it('plays a 200 ms window at the moving end edge', () => {
+      const onCueChange = vi.fn()
+      render(
+        <Harness cues={SAMPLE_CUES} onCueChange={onCueChange} scrubOnDrag={true} />,
+      )
+
+      act(() => {
+        fireWs('ready')
+        // cue '1' was 2.0-3.5; user dragged right edge to 3.6.
+        fireRegions('region-update', { id: '1', start: 2.0, end: 3.6 })
+      })
+
+      expect(fakeWs.play).toHaveBeenCalledTimes(1)
+      const [from, to] = fakeWs.play.mock.calls[0] as [number, number]
+      expect(from).toBeCloseTo(3.4, 5)
+      expect(to).toBeCloseTo(3.6, 5)
+    })
+
+    it('throttles to ~30 Hz: rapid back-to-back updates collapse', () => {
+      const onCueChange = vi.fn()
+      render(
+        <Harness cues={SAMPLE_CUES} onCueChange={onCueChange} scrubOnDrag={true} />,
+      )
+
+      act(() => {
+        fireWs('ready')
+      })
+
+      // Fire 5 updates within the same JS tick — all share Date.now(), so
+      // the throttle gate must collapse them into a single play call.
+      act(() => {
+        for (let i = 0; i < 5; i++) {
+          fireRegions('region-update', {
+            id: '1',
+            start: 2.0 + i * 0.005,
+            end: 3.5,
+          })
+        }
+      })
+
+      expect(fakeWs.play).toHaveBeenCalledTimes(1)
     })
   })
 })

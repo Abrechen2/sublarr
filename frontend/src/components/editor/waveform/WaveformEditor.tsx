@@ -13,7 +13,7 @@
  */
 
 import { useRef, useState, useEffect, useMemo, useCallback } from 'react'
-import { Loader2, Play, Pause, Lock, Unlock, Keyboard, Activity } from 'lucide-react'
+import { Loader2, Play, Pause, Lock, Unlock, Keyboard, Activity, Headphones } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 
 import { useSubtitleParse, useKeyframes, useAudioTracks } from '@/hooks/useApi'
@@ -73,22 +73,25 @@ const ZOOM_DEFAULT_PX_PER_SEC = 10
 /** Multiplicative step for `+/-` keyboard nudges. */
 const ZOOM_STEP_FACTOR = 1.5
 
-/** localStorage key for the spectrogram-enabled flag (Plan B8 Task 7). */
+/** localStorage keys for persisted toolbar prefs. */
 const SPECTROGRAM_LS_KEY = 'sublarr.waveform.spectrogram'
+const SCRUB_LS_KEY = 'sublarr.waveform.scrub'
 
-function readSpectrogramPref(): boolean {
-  if (typeof window === 'undefined') return false
+function readBoolPref(key: string, fallback: boolean): boolean {
+  if (typeof window === 'undefined') return fallback
   try {
-    return window.localStorage.getItem(SPECTROGRAM_LS_KEY) === '1'
+    const v = window.localStorage.getItem(key)
+    if (v === null) return fallback
+    return v === '1'
   } catch {
-    return false
+    return fallback
   }
 }
 
-function writeSpectrogramPref(enabled: boolean): void {
+function writeBoolPref(key: string, value: boolean): void {
   if (typeof window === 'undefined') return
   try {
-    window.localStorage.setItem(SPECTROGRAM_LS_KEY, enabled ? '1' : '0')
+    window.localStorage.setItem(key, value ? '1' : '0')
   } catch {
     // Quota / privacy mode — silently fall back to in-memory only.
   }
@@ -113,14 +116,27 @@ export function WaveformEditor({
   const [helpOpen, setHelpOpen] = useState(false)
   const [zoomPxPerSec, setZoomPxPerSec] = useState<number>(ZOOM_DEFAULT_PX_PER_SEC)
   const [autoCenter, setAutoCenter] = useState<boolean>(true)
-  const [spectrogramEnabled, setSpectrogramEnabled] = useState<boolean>(readSpectrogramPref)
+  const [spectrogramEnabled, setSpectrogramEnabled] = useState<boolean>(() =>
+    readBoolPref(SPECTROGRAM_LS_KEY, false),
+  )
+  const [scrubOnDrag, setScrubOnDrag] = useState<boolean>(() =>
+    readBoolPref(SCRUB_LS_KEY, false),
+  )
   // 0-based audio-position to extract; the backend route picks `0:a:<idx>`.
   const [selectedAudioIdx, setSelectedAudioIdx] = useState<number>(0)
 
   const toggleSpectrogram = useCallback(() => {
     setSpectrogramEnabled((cur) => {
       const next = !cur
-      writeSpectrogramPref(next)
+      writeBoolPref(SPECTROGRAM_LS_KEY, next)
+      return next
+    })
+  }, [])
+
+  const toggleScrub = useCallback(() => {
+    setScrubOnDrag((cur) => {
+      const next = !cur
+      writeBoolPref(SCRUB_LS_KEY, next)
       return next
     })
   }, [])
@@ -173,6 +189,7 @@ export function WaveformEditor({
     zoomPxPerSec,
     autoCenter,
     spectrogramEnabled,
+    scrubOnDrag,
   })
 
   // Multiplicative zoom step, clamped to the slider bounds. Used by the
@@ -357,6 +374,21 @@ export function WaveformEditor({
           >
             <Activity size={12} />
             Spectrogram
+          </button>
+
+          <button
+            type="button"
+            onClick={toggleScrub}
+            aria-pressed={scrubOnDrag}
+            className={`flex items-center gap-1.5 px-3 py-1.5 rounded text-xs font-medium transition-colors border ${
+              scrubOnDrag
+                ? 'bg-accent-bg text-accent border-accent-dim'
+                : 'bg-surface text-primary border-border'
+            }`}
+            title="Audio scrubbing while dragging"
+          >
+            <Headphones size={12} />
+            Scrub
           </button>
 
           <label className="flex items-center gap-1.5 text-xs text-muted">
