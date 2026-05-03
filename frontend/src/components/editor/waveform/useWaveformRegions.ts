@@ -290,32 +290,14 @@ export function useWaveformRegions({
     const onFinish = () => setIsPlaying(false)
     const onReady = () => {
       setIsReady(true)
-      // Seed visibleRange so the cue list has a viewport to highlight even
-      // before the user has scrolled. WaveSurfer hasn't fired `scroll` yet
-      // at this point, so we read the current viewport off the wrapper.
-      const wsi = wsRef.current
-      if (!wsi) return
-      try {
-        const dur = wsi.getDuration()
-        if (!Number.isFinite(dur) || dur <= 0) return
-        const wrapper = wsi.getWrapper()
-        const scroller = (wrapper?.parentElement ?? wrapper) as HTMLElement | null
-        if (!scroller) return
-        const totalWidth = wrapper?.clientWidth ?? 0
-        if (totalWidth <= 0) return
-        const visibleW = scroller.clientWidth
-        const scrollLeft = scroller.scrollLeft
-        const startSec = (scrollLeft / totalWidth) * dur
-        const endSec = ((scrollLeft + visibleW) / totalWidth) * dur
-        setVisibleRange([startSec, endSec])
-      } catch {
-        // Best-effort; the scroll listener will populate it on first scroll.
-      }
     }
-    // WaveSurfer v7 emits `scroll` on the audio's visible-range change,
-    // including programmatic seeks while playing. Signature varies between
-    // builds — we accept (startSec, endSec) when present and fall back to
-    // recomputing from the wrapper otherwise.
+    // WaveSurfer v7's `scroll` event is unreliable: it does not fire when
+    // `ws.zoom()` is applied programmatically (no user interaction), so
+    // the viewport stays at full-audio after the post-ready zoom kicks in.
+    // We therefore compute the visible range ourselves from the scroller's
+    // current scrollLeft + clientWidth, and trigger recomputes from native
+    // scroll events + zoom + resize. Always returns a meaningful subset
+    // window; never leaks `[0, duration]` after zoom takes effect.
     const onScroll = (...args: unknown[]) => {
       const [a, b] = args
       if (typeof a === 'number' && typeof b === 'number' && Number.isFinite(a) && Number.isFinite(b)) {
@@ -426,6 +408,54 @@ export function useWaveformRegions({
     if (!isReady) return
     if (zoomPxPerSec === undefined) return
     wsRef.current?.zoom(zoomPxPerSec)
+  }, [isReady, zoomPxPerSec])
+
+  // Compute + maintain `visibleRange` from the scroller's actual layout.
+  // We wait one animation frame after every trigger so the post-zoom
+  // wrapper resize has flushed before we measure. Triggers: ready, zoom,
+  // native scroll, ResizeObserver (window resize / modal grow).
+  useEffect(() => {
+    if (!isReady) return
+    const ws = wsRef.current
+    if (!ws) return
+    let wrapper: HTMLElement | null = null
+    let scroller: HTMLElement | null = null
+    try {
+      wrapper = ws.getWrapper()
+      scroller = (wrapper?.parentElement ?? wrapper) as HTMLElement | null
+    } catch {
+      return
+    }
+    if (!wrapper || !scroller) return
+
+    const recompute = () => {
+      const dur = ws.getDuration()
+      if (!Number.isFinite(dur) || dur <= 0) return
+      const totalWidth = wrapper!.clientWidth
+      const visibleW = scroller!.clientWidth
+      if (totalWidth <= 0 || visibleW <= 0) return
+      const scrollLeft = scroller!.scrollLeft
+      const startSec = (scrollLeft / totalWidth) * dur
+      const endSec = ((scrollLeft + visibleW) / totalWidth) * dur
+      setVisibleRange([startSec, endSec])
+    }
+    const scheduleRecompute = () => {
+      requestAnimationFrame(recompute)
+    }
+
+    scroller.addEventListener('scroll', scheduleRecompute, { passive: true })
+    const ro = typeof ResizeObserver !== 'undefined' ? new ResizeObserver(scheduleRecompute) : null
+    ro?.observe(wrapper)
+    ro?.observe(scroller)
+
+    // Initial compute after the current frame; covers post-ready + zoom
+    // changes that re-trigger this effect.
+    scheduleRecompute()
+
+    return () => {
+      scroller!.removeEventListener('scroll', scheduleRecompute)
+      ro?.disconnect()
+    }
   }, [isReady, zoomPxPerSec])
 
   // Forward autoCenter changes via setOptions (cheaper than re-creating

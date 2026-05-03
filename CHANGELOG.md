@@ -5,6 +5,11 @@ All notable changes to Sublarr are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.86.1-beta] - 2026-05-03
+
+### Fixed
+- **Sync-scroll highlight flagged ALL cues as "in viewport"** — 0.86.0's WaveSurfer `scroll`-event subscription only fires on user-initiated scrolls, not on programmatic `ws.zoom()` calls. The seed-on-ready fallback measured the wrapper width BEFORE the post-ready zoom had applied (when the wave still fits the full audio in the container width), so `visibleRange` degenerated to `[0, total_duration]` — every cue passed the intersection test, the entire list lit up as "visible", and the feature looked like a no-op. Replaced the seed with a real scroller-bound effect: native `scroll` event + `ResizeObserver` on both wrapper and scroller, recomputed after every zoom change inside a `requestAnimationFrame` so layout has flushed. Verified in prod with E01 of Witch Hat Atelier (285 cues, 23 min audio): `inViewportCount` now reflects the actual ~10–25 cues currently on screen instead of all 285.
+
 ## [0.86.0-beta] - 2026-05-03
 
 ### Added
