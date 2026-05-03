@@ -5,6 +5,11 @@ All notable changes to Sublarr are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.86.3-beta] - 2026-05-03
+
+### Changed
+- **Waveform sync-scroll: cyan-tinted band + active-row ring** — 0.86.2's `bg-elevated` switch made the in-viewport rows technically distinguishable, but the ~14-RGB-unit difference vs the dark cue-list container was still too subtle to read at a glance against the spectrogram-lit modal. Replaced with explicit cyan-tinted backgrounds via Tailwind v4 arbitrary values (`bg-[rgba(29,184,212,0.06)]` for in-viewport, hover `0.14`) plus a `border-l-[var(--accent-dim)]` stripe — guaranteed-visible regardless of any token-resolution edge cases. Active selection also gains a `ring-2 ring-inset ring-[var(--accent)]` so the bright cyan now-selected cue is unambiguous. Now-playing keeps its amber band.
+
 ## [0.86.2-beta] - 2026-05-03
 
 ### Changed

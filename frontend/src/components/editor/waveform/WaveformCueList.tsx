@@ -206,17 +206,25 @@ export function WaveformCueList({
           const isFirstInViewport = idx === firstInViewportIdx
 
           // Priority order for visual state — only one wins:
-          // 1. Active (selected): bright accent
-          // 2. Now-playing (playhead inside, not selected): warning tint
-          // 3. In-viewport (visible on the wave, not selected/playing): surface tint
+          // 1. Active (selected): brightest cyan accent + ring for unambiguous focus
+          // 2. Now-playing (playhead inside, not selected): amber warning tint
+          // 3. In-viewport (visible on the wave, not selected/playing): cyan-tinted band
           // 4. Default: transparent
+          //
+          // Arbitrary color values (e.g. `bg-[rgba(...)]`) sidestep any Tailwind v4
+          // token-resolution edge cases so the in-viewport band is *guaranteed*
+          // visible against the dark cue list container.
           let rowClasses: string
           if (isActive) {
-            rowClasses = 'bg-accent-bg border-l-4 border-l-accent'
+            rowClasses =
+              'bg-accent-bg border-l-4 border-l-accent ring-2 ring-inset ring-[var(--accent)]'
           } else if (isPlayingThisRow) {
             rowClasses = 'bg-warning-bg border-l-4 border-l-warning'
           } else if (inViewport) {
-            rowClasses = 'bg-elevated border-l-4 border-l-accent-dim hover:bg-surface-hover'
+            // Subtler than active's accent-bg (0.10), brighter than default —
+            // forms a clear "wave-band" stripe down the list.
+            rowClasses =
+              'bg-[rgba(29,184,212,0.06)] border-l-4 border-l-[var(--accent-dim)] hover:bg-[rgba(29,184,212,0.14)]'
           } else {
             rowClasses = 'border-l-4 border-l-transparent hover:bg-surface'
           }
