@@ -24,6 +24,7 @@ import {
   Headphones,
   Film,
   Gauge,
+  List as ListIcon,
 } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 
@@ -36,6 +37,7 @@ import { WaveformShortcutHelp } from './WaveformShortcutHelp'
 import { WaveformAudioTrackPicker } from './WaveformAudioTrackPicker'
 import { AssKaraokeOverlay } from './AssKaraokeOverlay'
 import { WaveformActiveCueBar } from './WaveformActiveCueBar'
+import { WaveformCueList, type SelectionOrigin } from './WaveformCueList'
 import { formatCueTextForRegion } from './cueTextDisplay'
 import type { WaveformAction } from './keymap'
 
@@ -62,6 +64,12 @@ interface WaveformEditorProps {
    * relative to the current list and emits it back via `selectedCueIdx`.
    */
   onSelectAdjacentCue?: (direction: 'prev' | 'next') => void
+  /**
+   * Set the absolute selection from inside the editor (Stacked-Lanes
+   * cue-list click). When omitted, list rows still highlight visually
+   * but clicks become no-ops.
+   */
+  onSelectCue?: (idx: number) => void
   /**
    * Split the selected cue at `splitTimeSec` (B8 Task 5 — `F` key).
    * Implementation lives in the modal; the editor only forwards the time.
@@ -93,6 +101,7 @@ const SCRUB_LS_KEY = 'sublarr.waveform.scrub'
 const KEYFRAMES_LS_KEY = 'sublarr.waveform.keyframes'
 const AMP_ZOOM_LS_KEY = 'sublarr.waveform.ampZoom'
 const PLAYBACK_RATE_LS_KEY = 'sublarr.waveform.playbackRate'
+const CUE_LIST_COLLAPSED_LS_KEY = 'sublarr.waveform.cueListCollapsed'
 
 /** Vertical amplitude (bar-height) zoom — 1× default, up to 5× for quiet audio. */
 const AMP_MIN = 1
@@ -152,6 +161,7 @@ export function WaveformEditor({
   onCueChange,
   selectedCueIdx = null,
   onSelectAdjacentCue,
+  onSelectCue,
   onSplitCue,
   onMergeWithNext,
 }: WaveformEditorProps) {
@@ -182,6 +192,37 @@ export function WaveformEditor({
   )
   // 0-based audio-position to extract; the backend route picks `0:a:<idx>`.
   const [selectedAudioIdx, setSelectedAudioIdx] = useState<number>(0)
+  // Stacked-Lanes layout: persisted collapse for the cue list under the wave.
+  const [cueListCollapsed, setCueListCollapsed] = useState<boolean>(() =>
+    readBoolPref(CUE_LIST_COLLAPSED_LS_KEY, false),
+  )
+  // Origin flag for bidirectional selection sync (Gemini + Codex consensus).
+  // Reset to null after a tick so the NEXT selection change auto-scrolls.
+  const [selectionOrigin, setSelectionOrigin] = useState<SelectionOrigin>(null)
+
+  const toggleCueListCollapsed = useCallback(() => {
+    setCueListCollapsed((cur) => {
+      const next = !cur
+      writeBoolPref(CUE_LIST_COLLAPSED_LS_KEY, next)
+      return next
+    })
+  }, [])
+
+  const handleListSelect = useCallback(
+    (idx: number) => {
+      setSelectionOrigin('list')
+      onSelectCue?.(idx)
+    },
+    [onSelectCue],
+  )
+
+  // Reset origin so the next external selection change (keyboard / wave) is
+  // treated as origin=null and the list auto-scrolls again.
+  useEffect(() => {
+    if (selectionOrigin === null) return
+    const t = setTimeout(() => setSelectionOrigin(null), 200)
+    return () => clearTimeout(t)
+  }, [selectionOrigin])
 
   const toggleSpectrogram = useCallback(() => {
     setSpectrogramEnabled((cur) => {
@@ -391,6 +432,19 @@ export function WaveformEditor({
     ],
   )
 
+  // Project parsed cues to the read-only shape the cue list expects.
+  // Memoised here (BEFORE any conditional return) so the hook order stays
+  // stable across renders.
+  const cueListRows = useMemo(
+    () =>
+      (parseData?.cues ?? []).map((c) => ({
+        start: c.start,
+        end: c.end,
+        text: c.text,
+      })),
+    [parseData],
+  )
+
   if (extractError) {
     return (
       <div className="flex items-center justify-center h-full">
@@ -401,6 +455,196 @@ export function WaveformEditor({
 
   const showSpinner = extractLoading || (audioUrl !== null && !isReady)
 
+  // Stacked-Lanes layout (gold-standard follow-up): toolbar lives above the
+  // active-cue card so the bottom half of the modal is the actual editing
+  // zone (Welle + Cue-Liste). Toolbar JSX is extracted into a local var so
+  // the spinner-gate is the only branch and there are no DOM order surprises
+  // between renders.
+  const toolbar = (
+    <div className="flex items-center gap-3 flex-wrap">
+      <button
+        type="button"
+        onClick={playPause}
+        className="flex items-center gap-1.5 px-3 py-1.5 rounded text-xs font-medium transition-colors bg-accent-bg text-accent border border-accent-dim"
+      >
+        {isPlaying ? <Pause size={12} /> : <Play size={12} />}
+        {isPlaying ? 'Pause' : 'Play'}
+      </button>
+
+      {onCueChange && (
+        <button
+          type="button"
+          onClick={() => setEditingEnabled((v) => !v)}
+          className="flex items-center gap-1.5 px-3 py-1.5 rounded text-xs font-medium transition-colors bg-surface text-primary border border-border"
+          title={
+            editingEnabled
+              ? 'Editing — drag region edges to retime cues'
+              : 'Read-only — toggle to enable drag-edit'
+          }
+        >
+          {editingEnabled ? <Unlock size={12} /> : <Lock size={12} />}
+          {editingEnabled ? 'Edit' : 'Locked'}
+        </button>
+      )}
+
+      <button
+        type="button"
+        onClick={() => setHelpOpen(true)}
+        className="flex items-center gap-1.5 px-3 py-1.5 rounded text-xs font-medium transition-colors bg-surface text-primary border border-border"
+        title={t('waveform.shortcut.title')}
+      >
+        <Keyboard size={12} />
+        {t('waveform.shortcut_help_button')}
+      </button>
+
+      <button
+        type="button"
+        onClick={toggleSpectrogram}
+        aria-pressed={spectrogramEnabled}
+        className={`flex items-center gap-1.5 px-3 py-1.5 rounded text-xs font-medium transition-colors border ${
+          spectrogramEnabled
+            ? 'bg-accent-bg text-accent border-accent-dim'
+            : 'bg-surface text-primary border-border'
+        }`}
+        title="Spectrogram"
+      >
+        <Activity size={12} />
+        Spectrogram
+      </button>
+
+      <button
+        type="button"
+        onClick={toggleScrub}
+        aria-pressed={scrubOnDrag}
+        className={`flex items-center gap-1.5 px-3 py-1.5 rounded text-xs font-medium transition-colors border ${
+          scrubOnDrag
+            ? 'bg-accent-bg text-accent border-accent-dim'
+            : 'bg-surface text-primary border-border'
+        }`}
+        title="Audio scrubbing while dragging"
+      >
+        <Headphones size={12} />
+        Scrub
+      </button>
+
+      <button
+        type="button"
+        onClick={toggleKeyframeMarkers}
+        aria-pressed={showKeyframeMarkers}
+        className={`flex items-center gap-1.5 px-3 py-1.5 rounded text-xs font-medium transition-colors border ${
+          showKeyframeMarkers
+            ? 'bg-accent-bg text-accent border-accent-dim'
+            : 'bg-surface text-primary border-border'
+        }`}
+        title="Keyframe-Marker einblenden"
+      >
+        <Film size={12} />
+        Keyframes
+      </button>
+
+      <button
+        type="button"
+        onClick={toggleCueListCollapsed}
+        aria-pressed={!cueListCollapsed}
+        className={`flex items-center gap-1.5 px-3 py-1.5 rounded text-xs font-medium transition-colors border ${
+          !cueListCollapsed
+            ? 'bg-accent-bg text-accent border-accent-dim'
+            : 'bg-surface text-primary border-border'
+        }`}
+        title={cueListCollapsed ? 'Cue-Liste einblenden' : 'Cue-Liste einklappen — mehr Welle'}
+      >
+        <ListIcon size={12} />
+        Liste
+      </button>
+
+      <label className="flex items-center gap-1.5 text-xs text-muted">
+        <span aria-hidden="true">−</span>
+        <input
+          type="range"
+          min={ZOOM_MIN_PX_PER_SEC}
+          max={ZOOM_MAX_PX_PER_SEC}
+          step={1}
+          value={zoomPxPerSec}
+          onChange={(e) => setZoomPxPerSec(Number(e.target.value))}
+          aria-label="Zoom"
+          className="w-24 accent-accent"
+        />
+        <span aria-hidden="true">+</span>
+        <span className="tabular-nums w-9 text-right">{zoomPxPerSec}</span>
+      </label>
+
+      <label
+        className="flex items-center gap-1.5 text-xs text-muted"
+        title="Vertikale Amplituden-Lupe (1×–5×) — für leise Dialoge"
+      >
+        <Activity size={12} aria-hidden="true" />
+        <input
+          type="range"
+          min={AMP_MIN}
+          max={AMP_MAX}
+          step={0.1}
+          value={ampZoom}
+          onChange={(e) => updateAmpZoom(Number(e.target.value))}
+          aria-label="Amplitude zoom"
+          className="w-20 accent-accent"
+        />
+        <span className="tabular-nums w-10 text-right">{ampZoom.toFixed(1)}×</span>
+      </label>
+
+      <label
+        className="flex items-center gap-1.5 text-xs text-muted"
+        title="Wiedergabe-Geschwindigkeit (Tonhöhe bleibt erhalten)"
+      >
+        <Gauge size={12} aria-hidden="true" />
+        <input
+          type="range"
+          min={RATE_MIN}
+          max={RATE_MAX}
+          step={0.05}
+          value={playbackRate}
+          onChange={(e) => updatePlaybackRate(Number(e.target.value))}
+          aria-label="Playback rate"
+          className="w-20 accent-accent"
+        />
+        <span className="tabular-nums w-12 text-right">{playbackRate.toFixed(2)}×</span>
+      </label>
+
+      <label className="flex items-center gap-1.5 text-xs text-muted">
+        <input
+          type="checkbox"
+          checked={autoCenter}
+          onChange={(e) => setAutoCenter(e.target.checked)}
+          className="accent-accent"
+        />
+        Auto-center
+      </label>
+
+      <WaveformAudioTrackPicker
+        tracks={audioTracks}
+        selectedAudioIdx={selectedAudioIdx}
+        onChange={setSelectedAudioIdx}
+      />
+
+      {parseData && (
+        <span className="text-xs text-muted">
+          {parseData.cue_count} Cues · {parseData.format.toUpperCase()}
+        </span>
+      )}
+
+      {editingEnabled && selectedCueIdx !== null && keyframesData && (
+        <span className="text-xs text-muted">
+          Snap: {keyframesData.keyframes.length} keyframes
+        </span>
+      )}
+
+      {scenesData && scenesData.available && sceneMarkersMs.length > 0 && (
+        <span className="text-xs text-muted">
+          {sceneMarkersMs.length} scene cuts
+        </span>
+      )}
+    </div>
+  )
+
   return (
     <div className="flex flex-col gap-3 p-4">
       {showSpinner && (
@@ -409,6 +653,8 @@ export function WaveformEditor({
           {extractLoading ? 'Audio wird extrahiert…' : 'Wellenform wird gezeichnet…'}
         </div>
       )}
+
+      {!showSpinner && toolbar}
 
       <WaveformActiveCueBar
         cueIndex={selectedCueIdx}
@@ -445,174 +691,15 @@ export function WaveformEditor({
           )}
       </div>
 
-      {!showSpinner && (
-        <div className="flex items-center gap-3 flex-wrap">
-          <button
-            type="button"
-            onClick={playPause}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded text-xs font-medium transition-colors bg-accent-bg text-accent border border-accent-dim"
-          >
-            {isPlaying ? <Pause size={12} /> : <Play size={12} />}
-            {isPlaying ? 'Pause' : 'Play'}
-          </button>
-
-          {onCueChange && (
-            <button
-              type="button"
-              onClick={() => setEditingEnabled((v) => !v)}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded text-xs font-medium transition-colors bg-surface text-primary border border-border"
-              title={
-                editingEnabled
-                  ? 'Editing — drag region edges to retime cues'
-                  : 'Read-only — toggle to enable drag-edit'
-              }
-            >
-              {editingEnabled ? <Unlock size={12} /> : <Lock size={12} />}
-              {editingEnabled ? 'Edit' : 'Locked'}
-            </button>
-          )}
-
-          <button
-            type="button"
-            onClick={() => setHelpOpen(true)}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded text-xs font-medium transition-colors bg-surface text-primary border border-border"
-            title={t('waveform.shortcut.title')}
-          >
-            <Keyboard size={12} />
-            {t('waveform.shortcut_help_button')}
-          </button>
-
-          <button
-            type="button"
-            onClick={toggleSpectrogram}
-            aria-pressed={spectrogramEnabled}
-            className={`flex items-center gap-1.5 px-3 py-1.5 rounded text-xs font-medium transition-colors border ${
-              spectrogramEnabled
-                ? 'bg-accent-bg text-accent border-accent-dim'
-                : 'bg-surface text-primary border-border'
-            }`}
-            title="Spectrogram"
-          >
-            <Activity size={12} />
-            Spectrogram
-          </button>
-
-          <button
-            type="button"
-            onClick={toggleScrub}
-            aria-pressed={scrubOnDrag}
-            className={`flex items-center gap-1.5 px-3 py-1.5 rounded text-xs font-medium transition-colors border ${
-              scrubOnDrag
-                ? 'bg-accent-bg text-accent border-accent-dim'
-                : 'bg-surface text-primary border-border'
-            }`}
-            title="Audio scrubbing while dragging"
-          >
-            <Headphones size={12} />
-            Scrub
-          </button>
-
-          <button
-            type="button"
-            onClick={toggleKeyframeMarkers}
-            aria-pressed={showKeyframeMarkers}
-            className={`flex items-center gap-1.5 px-3 py-1.5 rounded text-xs font-medium transition-colors border ${
-              showKeyframeMarkers
-                ? 'bg-accent-bg text-accent border-accent-dim'
-                : 'bg-surface text-primary border-border'
-            }`}
-            title="Keyframe-Marker einblenden"
-          >
-            <Film size={12} />
-            Keyframes
-          </button>
-
-          <label className="flex items-center gap-1.5 text-xs text-muted">
-            <span aria-hidden="true">−</span>
-            <input
-              type="range"
-              min={ZOOM_MIN_PX_PER_SEC}
-              max={ZOOM_MAX_PX_PER_SEC}
-              step={1}
-              value={zoomPxPerSec}
-              onChange={(e) => setZoomPxPerSec(Number(e.target.value))}
-              aria-label="Zoom"
-              className="w-24 accent-accent"
-            />
-            <span aria-hidden="true">+</span>
-            <span className="tabular-nums w-9 text-right">{zoomPxPerSec}</span>
-          </label>
-
-          <label
-            className="flex items-center gap-1.5 text-xs text-muted"
-            title="Vertikale Amplituden-Lupe (1×–5×) — für leise Dialoge"
-          >
-            <Activity size={12} aria-hidden="true" />
-            <input
-              type="range"
-              min={AMP_MIN}
-              max={AMP_MAX}
-              step={0.1}
-              value={ampZoom}
-              onChange={(e) => updateAmpZoom(Number(e.target.value))}
-              aria-label="Amplitude zoom"
-              className="w-20 accent-accent"
-            />
-            <span className="tabular-nums w-10 text-right">{ampZoom.toFixed(1)}×</span>
-          </label>
-
-          <label
-            className="flex items-center gap-1.5 text-xs text-muted"
-            title="Wiedergabe-Geschwindigkeit (Tonhöhe bleibt erhalten)"
-          >
-            <Gauge size={12} aria-hidden="true" />
-            <input
-              type="range"
-              min={RATE_MIN}
-              max={RATE_MAX}
-              step={0.05}
-              value={playbackRate}
-              onChange={(e) => updatePlaybackRate(Number(e.target.value))}
-              aria-label="Playback rate"
-              className="w-20 accent-accent"
-            />
-            <span className="tabular-nums w-12 text-right">{playbackRate.toFixed(2)}×</span>
-          </label>
-
-          <label className="flex items-center gap-1.5 text-xs text-muted">
-            <input
-              type="checkbox"
-              checked={autoCenter}
-              onChange={(e) => setAutoCenter(e.target.checked)}
-              className="accent-accent"
-            />
-            Auto-center
-          </label>
-
-          <WaveformAudioTrackPicker
-            tracks={audioTracks}
-            selectedAudioIdx={selectedAudioIdx}
-            onChange={setSelectedAudioIdx}
-          />
-
-          {parseData && (
-            <span className="text-xs text-muted">
-              {parseData.cue_count} Cues · {parseData.format.toUpperCase()}
-            </span>
-          )}
-
-          {editingEnabled && selectedCueIdx !== null && keyframesData && (
-            <span className="text-xs text-muted">
-              Snap: {keyframesData.keyframes.length} keyframes
-            </span>
-          )}
-
-          {scenesData && scenesData.available && sceneMarkersMs.length > 0 && (
-            <span className="text-xs text-muted">
-              {sceneMarkersMs.length} scene cuts
-            </span>
-          )}
-        </div>
+      {parseData && (
+        <WaveformCueList
+          cues={cueListRows}
+          selectedCueIdx={selectedCueIdx}
+          selectionOrigin={selectionOrigin}
+          onSelectCue={handleListSelect}
+          collapsed={cueListCollapsed}
+          visibleRows={5}
+        />
       )}
 
       <WaveformHotkeys enabled={isReady && !helpOpen} onAction={handleAction} />
@@ -620,3 +707,4 @@ export function WaveformEditor({
     </div>
   )
 }
+

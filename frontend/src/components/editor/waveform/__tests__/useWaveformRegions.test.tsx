@@ -192,7 +192,7 @@ describe('useWaveformRegions', () => {
     }))
   })
 
-  it('forwards `label` as the region `content` field', () => {
+  it('forwards `label` as a dimmed <span> in the region `content` field', () => {
     const cuesWithLabels: WaveformCue[] = [
       { id: '0', start: 0.5, end: 1.5, label: 'Hallo' },
       { id: '1', start: 2.5, end: 3.5, label: 'Welt' },
@@ -204,18 +204,20 @@ describe('useWaveformRegions', () => {
       fireWs('ready')
     })
 
-    expect(fakeRegionsApi.addRegion).toHaveBeenNthCalledWith(
-      1,
-      expect.objectContaining({ id: '0', content: 'Hallo' }),
-    )
-    expect(fakeRegionsApi.addRegion).toHaveBeenNthCalledWith(
-      2,
-      expect.objectContaining({ id: '1', content: 'Welt' }),
-    )
-    expect(fakeRegionsApi.addRegion).toHaveBeenNthCalledWith(
-      3,
-      expect.objectContaining({ id: '2', content: undefined }),
-    )
+    // Stacked-Lanes layout dims region labels to ~0.55 alpha so the cue
+    // list under the wave is the primary reading surface. We assert on
+    // the resulting DOM element (span with the cue text + dim color).
+    const calls = fakeRegionsApi.addRegion.mock.calls
+    expect(calls[0][0].id).toBe('0')
+    expect(calls[0][0].content).toBeInstanceOf(HTMLSpanElement)
+    expect((calls[0][0].content as HTMLSpanElement).textContent).toBe('Hallo')
+    expect((calls[0][0].content as HTMLSpanElement).style.color).toContain('0.55')
+
+    expect(calls[1][0].id).toBe('1')
+    expect((calls[1][0].content as HTMLSpanElement).textContent).toBe('Welt')
+
+    expect(calls[2][0].id).toBe('2')
+    expect(calls[2][0].content).toBeUndefined()
   })
 
   it('respects enableDrag=false (read-only mode)', () => {

@@ -504,6 +504,7 @@ export default function SubtitleEditorModal({
                 onCueChange={handleCueTimingChange}
                 selectedCueIdx={selectedCueIdx}
                 onSelectAdjacentCue={handleSelectAdjacentCue}
+                onSelectCue={setSelectedCueIdx}
               />
             )}
           </Suspense>

@@ -663,9 +663,12 @@ export function useWaveformRegions({
         drag: enableDrag,
         resize: enableDrag,
         // WaveSurfer Regions v7 renders `content` as a label inside the
-        // region. We pass the pre-formatted single-line label so every
-        // region carries its cue text on the wave.
-        content: cue.label,
+        // region. With the Stacked-Lanes layout the wave is no longer the
+        // primary text surface (the cue list under it is) — region labels
+        // serve only as navigation anchors during a drag, so we paint
+        // them dimmed. A plain span carries the styling with no extra
+        // listener overhead.
+        content: cue.label !== undefined ? buildDimmedLabel(cue.label) : undefined,
       })
     })
   }, [cues, isReady, enableDrag, regionColor])
@@ -817,4 +820,23 @@ export function useWaveformRegions({
     setEndAtPlayhead,
     seekBy,
   }
+}
+
+/**
+ * Build a dimmed-text span for a region's inline label.
+ *
+ * Stacked-Lanes layout: the cue list under the wave is now the primary
+ * text-reading surface, so the labels overlaid on the wave should sit in
+ * the background as a navigation hint instead of competing with the audio
+ * for attention. We build a real DOM node so callers can pass it directly
+ * via WaveSurfer Regions v7's `content` slot — no global CSS rule needed.
+ */
+function buildDimmedLabel(text: string): HTMLSpanElement {
+  const el = document.createElement('span')
+  el.textContent = text
+  el.style.color = 'rgba(224, 228, 236, 0.55)'
+  el.style.fontSize = '10px'
+  el.style.fontWeight = '400'
+  el.style.pointerEvents = 'none'
+  return el
 }

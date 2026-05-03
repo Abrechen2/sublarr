@@ -1,0 +1,190 @@
+/**
+ * WaveformCueList — synchronized read-only cue list under the waveform.
+ *
+ * Stacked-Lanes layout follow-up: gives the editor a quiet text lane for
+ * reading prev/next dialogue while the wave handles audio. First pass is
+ * read-only — selection only. Inline text editing, add/delete, split/merge
+ * are layered in subsequent steps.
+ *
+ * Bidirectional-selection guard: the `selectionOrigin` prop tells us whether
+ * the current selection came from a wave click ("wave"), a keyboard nudge
+ * ("keyboard"), or a row click on this list ("list"). We auto-scroll the
+ * active row into view ONLY when origin !== "list" — otherwise we'd fight
+ * the user's own scroll position right after they clicked a row.
+ */
+import { useEffect, useMemo, useRef } from 'react'
+import { detectGapsAndOverlaps } from './gapOverlap'
+import { formatCueTextForDisplay } from './cueTextDisplay'
+
+export interface CueListRow {
+  start: number
+  end: number
+  text: string
+}
+
+export type SelectionOrigin = 'wave' | 'list' | 'keyboard' | null
+
+interface WaveformCueListProps {
+  cues: CueListRow[]
+  selectedCueIdx: number | null
+  selectionOrigin?: SelectionOrigin
+  onSelectCue: (idx: number, origin: 'list') => void
+  collapsed?: boolean
+  gapToleranceMs?: number
+  visibleRows?: number
+}
+
+function formatTimecode(sec: number): string {
+  if (!Number.isFinite(sec) || sec < 0) sec = 0
+  const totalMs = Math.round(sec * 1000)
+  const ms = totalMs % 1000
+  const totalSec = Math.floor(totalMs / 1000)
+  const s = totalSec % 60
+  const totalMin = Math.floor(totalSec / 60)
+  const m = totalMin % 60
+  const h = Math.floor(totalMin / 60)
+  const pad2 = (n: number) => n.toString().padStart(2, '0')
+  const pad3 = (n: number) => n.toString().padStart(3, '0')
+  return `${pad2(h)}:${pad2(m)}:${pad2(s)}.${pad3(ms)}`
+}
+
+/** Approximate row height (px) used to size the scroll viewport.
+ * Two timecode lines + multi-line text comfortably fit in 56 px. */
+const ROW_PX = 56
+
+export function WaveformCueList({
+  cues,
+  selectedCueIdx,
+  selectionOrigin = null,
+  onSelectCue,
+  collapsed = false,
+  gapToleranceMs = 80,
+  visibleRows = 5,
+}: WaveformCueListProps) {
+  const listRef = useRef<HTMLDivElement>(null)
+  const activeRowRef = useRef<HTMLDivElement>(null)
+
+  // Quality-dot sets keyed by the index of the EARLIER cue in the pair.
+  // We render the dot on that row because the defect lives "between this
+  // cue and the next one" — placing it on the earlier row matches the
+  // reading order.
+  const { gapIndices, overlapIndices } = useMemo(() => {
+    const ranges = cues.map((c, idx) => ({
+      id: String(idx),
+      start: c.start,
+      end: c.end,
+    }))
+    const { tightGaps, overlaps } = detectGapsAndOverlaps(ranges, {
+      gapToleranceMs,
+    })
+    const gap = new Set<number>(tightGaps.map((g) => Number(g.prevId)))
+    const overlap = new Set<number>(overlaps.map((o) => Number(o.prevId)))
+    return { gapIndices: gap, overlapIndices: overlap }
+  }, [cues, gapToleranceMs])
+
+  // Auto-scroll: only when the selection arrived from somewhere OTHER than
+  // a click on this list. Wave click + keyboard nudges should center the
+  // active row; a list click already put the row where the user wants it.
+  useEffect(() => {
+    if (selectedCueIdx === null) return
+    if (selectionOrigin === 'list') return
+    const el = activeRowRef.current
+    if (!el) return
+    el.scrollIntoView({ block: 'center', behavior: 'smooth' })
+  }, [selectedCueIdx, selectionOrigin])
+
+  if (collapsed) {
+    return (
+      <div
+        className="px-3 py-2 text-xs text-muted text-center border border-border bg-surface rounded-md"
+        role="status"
+        aria-live="polite"
+      >
+        Cue-Liste eingeklappt — über die Toolbar wieder einblenden
+      </div>
+    )
+  }
+
+  if (cues.length === 0) {
+    return (
+      <div
+        className="px-3 py-4 text-sm text-muted text-center border border-border bg-surface rounded-md"
+        role="status"
+      >
+        Keine Cues / no cues
+      </div>
+    )
+  }
+
+  return (
+    <div className="rounded-md border border-border overflow-hidden">
+      <div className="px-3 py-2 flex items-center justify-between bg-surface border-b border-border">
+        <div className="text-xs text-muted">
+          <span className="text-primary font-medium">Cue-Liste</span>
+          {' · '}
+          <span>{cues.length} Cues — folgt der Welle</span>
+        </div>
+      </div>
+      <div
+        ref={listRef}
+        role="listbox"
+        aria-label="Untertitel-Cues"
+        className="overflow-y-auto bg-primary"
+        style={{ maxHeight: `${visibleRows * ROW_PX}px` }}
+      >
+        {cues.map((cue, idx) => {
+          const isActive = idx === selectedCueIdx
+          const lines = formatCueTextForDisplay(cue.text).split('\n')
+          const hasGap = gapIndices.has(idx)
+          const hasOverlap = overlapIndices.has(idx)
+
+          return (
+            <div
+              key={idx}
+              ref={isActive ? activeRowRef : null}
+              role="option"
+              aria-selected={isActive}
+              tabIndex={-1}
+              onClick={() => onSelectCue(idx, 'list')}
+              className={`grid gap-3 px-3 py-2 border-b border-border cursor-pointer text-sm leading-snug transition-colors ${
+                isActive
+                  ? 'bg-accent-bg border-l-4 border-l-accent'
+                  : 'border-l-4 border-l-transparent hover:bg-surface'
+              }`}
+              style={{ gridTemplateColumns: '40px 110px 1fr 60px' }}
+            >
+              <div className="text-xs text-muted tabular-nums pt-0.5">{idx + 1}</div>
+              <div className="text-xs text-muted tabular-nums leading-tight">
+                <div>{formatTimecode(cue.start)}</div>
+                <div>→ {formatTimecode(cue.end)}</div>
+              </div>
+              <div className="text-primary">
+                {lines.length === 0 || (lines.length === 1 && lines[0] === '') ? (
+                  <span className="italic text-muted">(leerer Cue / empty)</span>
+                ) : (
+                  lines.map((line, i) => <div key={i}>{line}</div>)
+                )}
+              </div>
+              <div className="flex items-start justify-end gap-1.5 pt-1">
+                {hasGap && (
+                  <span
+                    data-testid={`quality-dot-gap-${idx}`}
+                    title="Tight gap (< 80 ms) to next cue"
+                    className="inline-block w-2 h-2 rounded-full bg-warning"
+                  />
+                )}
+                {hasOverlap && (
+                  <span
+                    data-testid={`quality-dot-overlap-${idx}`}
+                    title="Overlap with next cue"
+                    className="inline-block w-2 h-2 rounded-full bg-error"
+                  />
+                )}
+              </div>
+            </div>
+          )
+        })}
+      </div>
+    </div>
+  )
+}
