@@ -5,6 +5,11 @@ All notable changes to Sublarr are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.86.5-beta] - 2026-05-03
+
+### Fixed
+- **Waveform sync-scroll: arbitrary-property border-left-color** — 0.86.4's `border-l-[#hex]` arbitrary VALUE syntax also failed to override `border-border`'s shorthand color in Tailwind v4 (computed `borderLeftColor` stayed at the gray `--border` token even though the class string carried the hex). Switched to arbitrary PROPERTY syntax `[border-left-color:#hex]` which emits the CSS rule directly and is no longer subject to shorthand overrides. The colored left stripes (cyan for in-viewport / active, amber for now-playing) should now render reliably.
+
 ## [0.86.4-beta] - 2026-05-03
 
 ### Fixed

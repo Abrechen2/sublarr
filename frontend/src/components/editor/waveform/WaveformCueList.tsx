@@ -215,18 +215,21 @@ export function WaveformCueList({
           // token-resolution edge cases so the in-viewport band is *guaranteed*
           // visible against the dark cue list container.
           let rowClasses: string
+          // Tailwind v4 quirk: `border-l-[#hex]` and `border-l-[var(--…)]`
+          // arbitrary VALUES did not emit `border-left-color` reliably on prod,
+          // so we use arbitrary PROPERTY syntax (`[border-left-color:#hex]`)
+          // which writes the CSS rule directly and never gets overridden by
+          // `border-border`'s shorthand color.
           if (isActive) {
             rowClasses =
-              'bg-accent-bg border-l-4 border-l-[#1DB8D4] ring-2 ring-inset ring-[#1DB8D4]'
+              'bg-accent-bg border-l-4 [border-left-color:#1DB8D4] ring-2 ring-inset ring-[#1DB8D4]'
           } else if (isPlayingThisRow) {
-            rowClasses = 'bg-warning-bg border-l-4 border-l-[#f59e0b]'
+            rowClasses = 'bg-warning-bg border-l-4 [border-left-color:#f59e0b]'
           } else if (inViewport) {
             // Subtler than active's accent-bg (0.10), brighter than default —
-            // forms a clear "wave-band" stripe down the list. Hex literals
-            // sidestep Tailwind v4's arbitrary-value-with-var() edge case
-            // that left the border gray on prod.
+            // forms a clear "wave-band" stripe down the list.
             rowClasses =
-              'bg-[rgba(29,184,212,0.06)] border-l-4 border-l-[#0a7089] hover:bg-[rgba(29,184,212,0.14)]'
+              'bg-[rgba(29,184,212,0.06)] border-l-4 [border-left-color:#0a7089] hover:bg-[rgba(29,184,212,0.14)]'
           } else {
             rowClasses = 'border-l-4 border-l-transparent hover:bg-surface'
           }
