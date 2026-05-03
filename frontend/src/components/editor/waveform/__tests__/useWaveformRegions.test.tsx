@@ -192,32 +192,24 @@ describe('useWaveformRegions', () => {
     }))
   })
 
-  it('forwards `label` as a dimmed <span> in the region `content` field', () => {
-    const cuesWithLabels: WaveformCue[] = [
-      { id: '0', start: 0.5, end: 1.5, label: 'Hallo' },
-      { id: '1', start: 2.5, end: 3.5, label: 'Welt' },
-      { id: '2', start: 4.5, end: 5.5 }, // intentionally no label
+  it('does not paint cue text inside the wave region (text lives in the cue list)', () => {
+    // Stacked-Lanes follow-up: regions are pure timing rectangles. The
+    // cue text moved to the WaveformCueList lane below the wave because
+    // overlaying labels on tightly-packed cues turned the wave into an
+    // unreadable wall of letters.
+    const cues: WaveformCue[] = [
+      { id: '0', start: 0.5, end: 1.5 },
+      { id: '1', start: 2.5, end: 3.5 },
     ]
-    render(<Harness cues={cuesWithLabels} onCueChange={vi.fn()} />)
+    render(<Harness cues={cues} onCueChange={vi.fn()} />)
 
     act(() => {
       fireWs('ready')
     })
 
-    // Stacked-Lanes layout dims region labels to ~0.55 alpha so the cue
-    // list under the wave is the primary reading surface. We assert on
-    // the resulting DOM element (span with the cue text + dim color).
     const calls = fakeRegionsApi.addRegion.mock.calls
-    expect(calls[0][0].id).toBe('0')
-    expect(calls[0][0].content).toBeInstanceOf(HTMLSpanElement)
-    expect((calls[0][0].content as HTMLSpanElement).textContent).toBe('Hallo')
-    expect((calls[0][0].content as HTMLSpanElement).style.color).toContain('0.55')
-
-    expect(calls[1][0].id).toBe('1')
-    expect((calls[1][0].content as HTMLSpanElement).textContent).toBe('Welt')
-
-    expect(calls[2][0].id).toBe('2')
-    expect(calls[2][0].content).toBeUndefined()
+    expect(calls[0][0].content).toBeUndefined()
+    expect(calls[1][0].content).toBeUndefined()
   })
 
   it('respects enableDrag=false (read-only mode)', () => {

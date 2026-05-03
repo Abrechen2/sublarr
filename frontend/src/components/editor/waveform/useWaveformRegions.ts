@@ -31,13 +31,6 @@ export interface WaveformCue {
   start: number
   /** End time in seconds. */
   end: number
-  /**
-   * Optional short label drawn directly on the region (Plan B8 follow-up).
-   * The parent should pre-format with `formatCueTextForRegion` so override
-   * tags + line breaks are stripped. When undefined, the region renders
-   * as a colored rectangle with no text.
-   */
-  label?: string
 }
 
 export type CuePatch = Pick<WaveformCue, 'start' | 'end'>
@@ -157,6 +150,12 @@ export interface UseWaveformRegionsResult {
   setEndAtPlayhead: () => void
   /** Seek the playhead by `deltaSec` seconds; negative means back. */
   seekBy: (deltaSec: number) => void
+  /**
+   * Currently visible [startSec, endSec] of the wave viewport. `null` until
+   * WaveSurfer fires its first scroll event after `ready`. The cue list uses
+   * this for its sync-highlight band.
+   */
+  visibleRange: [number, number] | null
 }
 
 const DEFAULT_REGION_COLOR = 'rgba(20, 184, 166, 0.18)' // teal-500 @ 18 %
@@ -243,6 +242,7 @@ export function useWaveformRegions({
 
   const [isReady, setIsReady] = useState(false)
   const [isPlaying, setIsPlaying] = useState(false)
+  const [visibleRange, setVisibleRange] = useState<[number, number] | null>(null)
 
   /** Build SnapOptions for a given cue id (excluded from neighbors). */
   const buildSnapOpts = useCallback((excludingId: string | null | undefined): SnapOptions => {
@@ -288,12 +288,46 @@ export function useWaveformRegions({
     const onPlay = () => setIsPlaying(true)
     const onPause = () => setIsPlaying(false)
     const onFinish = () => setIsPlaying(false)
-    const onReady = () => setIsReady(true)
+    const onReady = () => {
+      setIsReady(true)
+      // Seed visibleRange so the cue list has a viewport to highlight even
+      // before the user has scrolled. WaveSurfer hasn't fired `scroll` yet
+      // at this point, so we read the current viewport off the wrapper.
+      const wsi = wsRef.current
+      if (!wsi) return
+      try {
+        const dur = wsi.getDuration()
+        if (!Number.isFinite(dur) || dur <= 0) return
+        const wrapper = wsi.getWrapper()
+        const scroller = (wrapper?.parentElement ?? wrapper) as HTMLElement | null
+        if (!scroller) return
+        const totalWidth = wrapper?.clientWidth ?? 0
+        if (totalWidth <= 0) return
+        const visibleW = scroller.clientWidth
+        const scrollLeft = scroller.scrollLeft
+        const startSec = (scrollLeft / totalWidth) * dur
+        const endSec = ((scrollLeft + visibleW) / totalWidth) * dur
+        setVisibleRange([startSec, endSec])
+      } catch {
+        // Best-effort; the scroll listener will populate it on first scroll.
+      }
+    }
+    // WaveSurfer v7 emits `scroll` on the audio's visible-range change,
+    // including programmatic seeks while playing. Signature varies between
+    // builds — we accept (startSec, endSec) when present and fall back to
+    // recomputing from the wrapper otherwise.
+    const onScroll = (...args: unknown[]) => {
+      const [a, b] = args
+      if (typeof a === 'number' && typeof b === 'number' && Number.isFinite(a) && Number.isFinite(b)) {
+        setVisibleRange([a, b])
+      }
+    }
 
     ws.on('play', onPlay)
     ws.on('pause', onPause)
     ws.on('finish', onFinish)
     ws.on('ready', onReady)
+    ws.on('scroll', onScroll)
 
     // region-update fires per-frame during drag; flip the freeze flag
     // so the prop-sync effect doesn't overwrite the in-progress drag
@@ -373,6 +407,7 @@ export function useWaveformRegions({
       ws.un('pause', onPause)
       ws.un('finish', onFinish)
       ws.un('ready', onReady)
+      ws.un('scroll', onScroll)
       regionsPlugin.un('region-update', onRegionUpdate)
       regionsPlugin.un('region-updated', onRegionUpdateEnd)
       ws.destroy()
@@ -380,6 +415,7 @@ export function useWaveformRegions({
       regionsRef.current = null
       setIsReady(false)
       setIsPlaying(false)
+      setVisibleRange(null)
     }
   }, [container, audioUrl, waveColor, progressColor, height, buildSnapOpts])
 
@@ -662,13 +698,6 @@ export function useWaveformRegions({
         color: regionColor,
         drag: enableDrag,
         resize: enableDrag,
-        // WaveSurfer Regions v7 renders `content` as a label inside the
-        // region. With the Stacked-Lanes layout the wave is no longer the
-        // primary text surface (the cue list under it is) — region labels
-        // serve only as navigation anchors during a drag, so we paint
-        // them dimmed. A plain span carries the styling with no extra
-        // listener overhead.
-        content: cue.label !== undefined ? buildDimmedLabel(cue.label) : undefined,
       })
     })
   }, [cues, isReady, enableDrag, regionColor])
@@ -819,24 +848,6 @@ export function useWaveformRegions({
     setStartAtPlayhead,
     setEndAtPlayhead,
     seekBy,
+    visibleRange,
   }
-}
-
-/**
- * Build a dimmed-text span for a region's inline label.
- *
- * Stacked-Lanes layout: the cue list under the wave is now the primary
- * text-reading surface, so the labels overlaid on the wave should sit in
- * the background as a navigation hint instead of competing with the audio
- * for attention. We build a real DOM node so callers can pass it directly
- * via WaveSurfer Regions v7's `content` slot — no global CSS rule needed.
- */
-function buildDimmedLabel(text: string): HTMLSpanElement {
-  const el = document.createElement('span')
-  el.textContent = text
-  el.style.color = 'rgba(224, 228, 236, 0.55)'
-  el.style.fontSize = '10px'
-  el.style.fontWeight = '400'
-  el.style.pointerEvents = 'none'
-  return el
 }

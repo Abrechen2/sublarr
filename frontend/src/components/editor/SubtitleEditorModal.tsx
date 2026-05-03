@@ -10,7 +10,7 @@ import { lazy, Suspense, useState, useEffect, useCallback, useRef } from 'react'
 import { createPortal } from 'react-dom'
 import { Loader2, X, Eye, Pencil, GitCompare, RefreshCw, Activity } from 'lucide-react'
 import { useQueryClient } from '@tanstack/react-query'
-import { useSubtitleContent } from '@/hooks/useApi'
+import { useSubtitleContent, useSaveSubtitle } from '@/hooks/useApi'
 import { autoSyncFile, overlapFix, timingNormalize, mergeLines, splitLines, spellCheck, removeCredits, detectOpeningEnding } from '@/api/client'
 import { useConvertSubtitleFormat } from '@/hooks/useTranslationApi'
 import { toast } from '@/components/shared/Toast'
@@ -69,10 +69,17 @@ export default function SubtitleEditorModal({
   const overlayRef = useRef<HTMLDivElement>(null)
   const [convertTarget, setConvertTarget] = useState<'ass' | 'srt' | 'vtt'>('srt')
   const convertMut = useConvertSubtitleFormat()
+  const saveMut = useSaveSubtitle()
   // Plan B8 Task 11: track which cue is selected from the WaveformEditor's
   // perspective. `null` = nothing focused, so L/R click-set + S/D hotkeys
   // become no-ops until the user picks a cue.
   const [selectedCueIdx, setSelectedCueIdx] = useState<number | null>(null)
+  // Waveform-tab undo/redo: each entry holds the content as it was BEFORE
+  // a cue-timing edit. Pop -> restore, push current to the opposite stack.
+  // Stays separate from the CodeMirror editor's internal undo stack — they
+  // are different surfaces with different edit semantics.
+  const [waveformUndoStack, setWaveformUndoStack] = useState<string[]>([])
+  const [waveformRedoStack, setWaveformRedoStack] = useState<string[]>([])
 
   // Reset state when filePath or initialMode changes — "adjust during render" pattern
   // avoids a double-render cycle that useEffect would cause for prop-derived state
@@ -87,6 +94,8 @@ export default function SubtitleEditorModal({
     setFormat(null)
     setHasUnsavedChanges(false)
     setSelectedCueIdx(null)
+    setWaveformUndoStack([])
+    setWaveformRedoStack([])
   }
 
   // Plan B8 Task 11: WaveformEditor drag-end / click-set / S/D hotkey
@@ -108,6 +117,10 @@ export default function SubtitleEditorModal({
           end: patch.end,
         })
         if (next === content) return
+        // Push the PRE-edit content onto the undo stack; clear redo so
+        // the user can't fork timelines after a fresh edit.
+        setWaveformUndoStack((stack) => [...stack, content])
+        setWaveformRedoStack([])
         setContent(next)
         setHasUnsavedChanges(true)
       } catch (err) {
@@ -123,6 +136,44 @@ export default function SubtitleEditorModal({
     },
     [content, format],
   )
+
+  const handleWaveformUndo = useCallback(() => {
+    if (waveformUndoStack.length === 0 || content === null) return
+    const prev = waveformUndoStack[waveformUndoStack.length - 1]
+    setWaveformUndoStack((stack) => stack.slice(0, -1))
+    setWaveformRedoStack((stack) => [...stack, content])
+    setContent(prev)
+    setHasUnsavedChanges(true)
+  }, [waveformUndoStack, content])
+
+  const handleWaveformRedo = useCallback(() => {
+    if (waveformRedoStack.length === 0 || content === null) return
+    const next = waveformRedoStack[waveformRedoStack.length - 1]
+    setWaveformRedoStack((stack) => stack.slice(0, -1))
+    setWaveformUndoStack((stack) => [...stack, content])
+    setContent(next)
+    setHasUnsavedChanges(true)
+  }, [waveformRedoStack, content])
+
+  const handleWaveformSave = useCallback(() => {
+    if (!filePath || content === null || lastModified === null) return
+    saveMut.mutate(
+      { filePath, content, lastModified },
+      {
+        onSuccess: (result) => {
+          setLastModified(result.new_mtime)
+          setHasUnsavedChanges(false)
+          // Save resets the dirty-state but keeps the undo stack so the
+          // user can still roll back even after persisting.
+          toast('Gespeichert')
+        },
+        onError: (err: unknown) => {
+          const msg = err instanceof Error ? err.message : 'Speichern fehlgeschlagen'
+          toast(msg, 'error')
+        },
+      },
+    )
+  }, [filePath, content, lastModified, saveMut])
 
   /** Move the WaveformEditor's selection by one cue (Up/Down hotkeys). */
   const handleSelectAdjacentCue = useCallback((direction: 'prev' | 'next') => {
@@ -505,6 +556,13 @@ export default function SubtitleEditorModal({
                 selectedCueIdx={selectedCueIdx}
                 onSelectAdjacentCue={handleSelectAdjacentCue}
                 onSelectCue={setSelectedCueIdx}
+                onUndo={handleWaveformUndo}
+                onRedo={handleWaveformRedo}
+                canUndo={waveformUndoStack.length > 0}
+                canRedo={waveformRedoStack.length > 0}
+                onSave={handleWaveformSave}
+                hasUnsavedChanges={hasUnsavedChanges}
+                saveInFlight={saveMut.isPending}
               />
             )}
           </Suspense>

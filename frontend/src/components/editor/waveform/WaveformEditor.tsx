@@ -25,6 +25,9 @@ import {
   Film,
   Gauge,
   List as ListIcon,
+  Undo2,
+  Redo2,
+  Save,
 } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 
@@ -38,7 +41,6 @@ import { WaveformAudioTrackPicker } from './WaveformAudioTrackPicker'
 import { AssKaraokeOverlay } from './AssKaraokeOverlay'
 import { WaveformActiveCueBar } from './WaveformActiveCueBar'
 import { WaveformCueList, type SelectionOrigin } from './WaveformCueList'
-import { formatCueTextForRegion } from './cueTextDisplay'
 import type { WaveformAction } from './keymap'
 
 interface WaveformEditorProps {
@@ -79,6 +81,29 @@ interface WaveformEditorProps {
    * Merge the selected cue with the next one (B8 Task 5 — `G` key).
    */
   onMergeWithNext?: (idx: number) => void
+  /**
+   * Pop the most recent waveform-driven cue-timing edit and restore the
+   * previous content. Toolbar shows the Undo button only when this is set.
+   */
+  onUndo?: () => void
+  /**
+   * Re-apply an undone edit. Toolbar shows the Redo button only when this
+   * is set.
+   */
+  onRedo?: () => void
+  /** True when the undo stack is non-empty. Disables the toolbar button. */
+  canUndo?: boolean
+  /** True when the redo stack is non-empty. Disables the toolbar button. */
+  canRedo?: boolean
+  /**
+   * Persist the current content to disk. Toolbar shows the Save button only
+   * when this is set; it stays disabled while `hasUnsavedChanges` is false.
+   */
+  onSave?: () => void
+  /** Drives the Save button's enabled state and the "unsaved" pill. */
+  hasUnsavedChanges?: boolean
+  /** Spinner indicator while a save round-trip is in flight. */
+  saveInFlight?: boolean
 }
 
 /** Minimum cue duration enforced by the snap helper, in ms. */
@@ -164,6 +189,13 @@ export function WaveformEditor({
   onSelectCue,
   onSplitCue,
   onMergeWithNext,
+  onUndo,
+  onRedo,
+  canUndo = false,
+  canRedo = false,
+  onSave,
+  hasUnsavedChanges = false,
+  saveInFlight = false,
 }: WaveformEditorProps) {
   const { t } = useTranslation('editor')
 
@@ -171,7 +203,11 @@ export function WaveformEditor({
   const [audioUrl, setAudioUrl] = useState<string | null>(null)
   const [extractError, setExtractError] = useState<string | null>(null)
   const [extractLoading, setExtractLoading] = useState(true)
-  const [editingEnabled, setEditingEnabled] = useState<boolean>(Boolean(onCueChange))
+  // Locked-by-default safety: even when the parent allows edits, the
+  // editor opens read-only so the user can't accidentally retime a cue
+  // by brushing against a region. They have to click "Sperre lösen" to
+  // unlock dragging, click-set, S/D hotkeys.
+  const [editingEnabled, setEditingEnabled] = useState<boolean>(false)
   const [helpOpen, setHelpOpen] = useState(false)
   const [zoomPxPerSec, setZoomPxPerSec] = useState<number>(ZOOM_DEFAULT_PX_PER_SEC)
   const [autoCenter, setAutoCenter] = useState<boolean>(true)
@@ -265,14 +301,14 @@ export function WaveformEditor({
   const audioTracks = audioTracksData?.tracks ?? []
 
   // Convert parsed cues -> stable WaveformCue array for the hook.
-  // `label` powers the in-region text overlay (Plan B8 follow-up).
+  // Stacked-Lanes follow-up: regions are pure timing rectangles now;
+  // cue text lives only in the WaveformCueList lane below the wave.
   const cues = useMemo<WaveformCue[]>(
     () =>
       (parseData?.cues ?? []).map((cue, idx) => ({
         id: String(idx),
         start: cue.start,
         end: cue.end,
-        label: formatCueTextForRegion(cue.text),
       })),
     [parseData],
   )
@@ -305,6 +341,7 @@ export function WaveformEditor({
     setStartAtPlayhead,
     setEndAtPlayhead,
     seekBy,
+    visibleRange,
   } = useWaveformRegions({
     container: containerRef,
     audioUrl,
@@ -475,15 +512,63 @@ export function WaveformEditor({
         <button
           type="button"
           onClick={() => setEditingEnabled((v) => !v)}
-          className="flex items-center gap-1.5 px-3 py-1.5 rounded text-xs font-medium transition-colors bg-surface text-primary border border-border"
+          aria-pressed={editingEnabled}
+          className={`flex items-center gap-1.5 px-3 py-1.5 rounded text-xs font-medium transition-colors border ${
+            editingEnabled
+              ? 'bg-warning-bg text-warning border-warning-dim'
+              : 'bg-surface text-primary border-border'
+          }`}
           title={
             editingEnabled
-              ? 'Editing — drag region edges to retime cues'
-              : 'Read-only — toggle to enable drag-edit'
+              ? 'Entsperrt — Regionen lassen sich verschieben/skalieren. Klicken zum Sperren.'
+              : 'Gesperrt — Schutz vor versehentlichem Bearbeiten. Klicken zum Entsperren.'
           }
         >
           {editingEnabled ? <Unlock size={12} /> : <Lock size={12} />}
-          {editingEnabled ? 'Edit' : 'Locked'}
+          {editingEnabled ? 'Entsperrt' : 'Gesperrt'}
+        </button>
+      )}
+
+      {onUndo && (
+        <button
+          type="button"
+          onClick={onUndo}
+          disabled={!canUndo}
+          className="flex items-center gap-1.5 px-3 py-1.5 rounded text-xs font-medium transition-colors bg-surface text-primary border border-border disabled:opacity-40 disabled:cursor-not-allowed"
+          title="Letzte Cue-Timing-Änderung rückgängig (Ctrl+Z)"
+        >
+          <Undo2 size={12} />
+          Undo
+        </button>
+      )}
+
+      {onRedo && (
+        <button
+          type="button"
+          onClick={onRedo}
+          disabled={!canRedo}
+          className="flex items-center gap-1.5 px-3 py-1.5 rounded text-xs font-medium transition-colors bg-surface text-primary border border-border disabled:opacity-40 disabled:cursor-not-allowed"
+          title="Wiederherstellen (Ctrl+Y)"
+        >
+          <Redo2 size={12} />
+          Redo
+        </button>
+      )}
+
+      {onSave && (
+        <button
+          type="button"
+          onClick={onSave}
+          disabled={!hasUnsavedChanges || saveInFlight}
+          className={`flex items-center gap-1.5 px-3 py-1.5 rounded text-xs font-medium transition-colors border ${
+            hasUnsavedChanges && !saveInFlight
+              ? 'bg-accent-bg text-accent border-accent-dim'
+              : 'bg-surface text-primary border-border'
+          } disabled:opacity-40 disabled:cursor-not-allowed`}
+          title={hasUnsavedChanges ? 'Änderungen speichern (Ctrl+S)' : 'Keine Änderungen zu speichern'}
+        >
+          {saveInFlight ? <Loader2 size={12} className="animate-spin" /> : <Save size={12} />}
+          {saveInFlight ? 'Speichern…' : 'Speichern'}
         </button>
       )}
 
@@ -646,7 +731,7 @@ export function WaveformEditor({
   )
 
   return (
-    <div className="flex flex-col gap-3 p-4">
+    <div className="flex flex-col gap-3 p-4 h-full min-h-0">
       {showSpinner && (
         <div className="flex items-center gap-2 text-sm text-muted">
           <Loader2 size={14} className="animate-spin" />
@@ -676,7 +761,7 @@ export function WaveformEditor({
         }
       />
 
-      <div className="relative rounded overflow-hidden bg-primary border border-border">
+      <div className="relative rounded overflow-hidden bg-primary border border-border flex-shrink-0">
         <div ref={containerRef} />
         {parseData?.format === 'ass' &&
           selectedCueIdx !== null &&
@@ -698,7 +783,7 @@ export function WaveformEditor({
           selectionOrigin={selectionOrigin}
           onSelectCue={handleListSelect}
           collapsed={cueListCollapsed}
-          visibleRows={5}
+          visibleRange={visibleRange}
         />
       )}
 

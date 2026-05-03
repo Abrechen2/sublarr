@@ -11,6 +11,7 @@ const stableContentData = { content: 'test content', last_modified: '2026-01-01'
 
 vi.mock('@/hooks/useLibraryApi', () => ({
   useSubtitleContent: () => ({ data: stableContentData }),
+  useSaveSubtitle: () => ({ mutate: vi.fn(), isPending: false }),
 }))
 
 vi.mock('@/api/client', () => ({

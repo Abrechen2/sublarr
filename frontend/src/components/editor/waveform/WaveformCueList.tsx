@@ -31,7 +31,12 @@ interface WaveformCueListProps {
   onSelectCue: (idx: number, origin: 'list') => void
   collapsed?: boolean
   gapToleranceMs?: number
-  visibleRows?: number
+  /**
+   * Optional [startSec, endSec] visible window of the wave. Cues whose
+   * [start, end] intersect this range are softly highlighted so the editor
+   * can see what's currently in view without losing the active selection.
+   */
+  visibleRange?: [number, number] | null
 }
 
 function formatTimecode(sec: number): string {
@@ -48,10 +53,6 @@ function formatTimecode(sec: number): string {
   return `${pad2(h)}:${pad2(m)}:${pad2(s)}.${pad3(ms)}`
 }
 
-/** Approximate row height (px) used to size the scroll viewport.
- * Two timecode lines + multi-line text comfortably fit in 56 px. */
-const ROW_PX = 56
-
 export function WaveformCueList({
   cues,
   selectedCueIdx,
@@ -59,7 +60,7 @@ export function WaveformCueList({
   onSelectCue,
   collapsed = false,
   gapToleranceMs = 80,
-  visibleRows = 5,
+  visibleRange = null,
 }: WaveformCueListProps) {
   const listRef = useRef<HTMLDivElement>(null)
   const activeRowRef = useRef<HTMLDivElement>(null)
@@ -117,8 +118,8 @@ export function WaveformCueList({
   }
 
   return (
-    <div className="rounded-md border border-border overflow-hidden">
-      <div className="px-3 py-2 flex items-center justify-between bg-surface border-b border-border">
+    <div className="rounded-md border border-border overflow-hidden flex flex-col flex-1 min-h-0">
+      <div className="px-3 py-2 flex items-center justify-between bg-surface border-b border-border flex-shrink-0">
         <div className="text-xs text-muted">
           <span className="text-primary font-medium">Cue-Liste</span>
           {' · '}
@@ -129,14 +130,29 @@ export function WaveformCueList({
         ref={listRef}
         role="listbox"
         aria-label="Untertitel-Cues"
-        className="overflow-y-auto bg-primary"
-        style={{ maxHeight: `${visibleRows * ROW_PX}px` }}
+        className="overflow-y-auto bg-primary flex-1 min-h-0"
       >
         {cues.map((cue, idx) => {
           const isActive = idx === selectedCueIdx
           const lines = formatCueTextForDisplay(cue.text).split('\n')
           const hasGap = gapIndices.has(idx)
           const hasOverlap = overlapIndices.has(idx)
+          // Sync-scroll highlight: cues that currently intersect the wave
+          // viewport get a soft surface tint, so the editor can see what's
+          // visually on screen without losing track of the active selection.
+          const inViewport =
+            visibleRange !== null &&
+            cue.end >= visibleRange[0] &&
+            cue.start <= visibleRange[1]
+
+          let rowClasses: string
+          if (isActive) {
+            rowClasses = 'bg-accent-bg border-l-4 border-l-accent'
+          } else if (inViewport) {
+            rowClasses = 'bg-surface/60 border-l-4 border-l-border hover:bg-surface'
+          } else {
+            rowClasses = 'border-l-4 border-l-transparent hover:bg-surface'
+          }
 
           return (
             <div
@@ -144,13 +160,10 @@ export function WaveformCueList({
               ref={isActive ? activeRowRef : null}
               role="option"
               aria-selected={isActive}
+              data-in-viewport={inViewport ? '1' : undefined}
               tabIndex={-1}
               onClick={() => onSelectCue(idx, 'list')}
-              className={`grid gap-3 px-3 py-2 border-b border-border cursor-pointer text-sm leading-snug transition-colors ${
-                isActive
-                  ? 'bg-accent-bg border-l-4 border-l-accent'
-                  : 'border-l-4 border-l-transparent hover:bg-surface'
-              }`}
+              className={`grid gap-3 px-3 py-2 border-b border-border cursor-pointer text-sm leading-snug transition-colors ${rowClasses}`}
               style={{ gridTemplateColumns: '40px 110px 1fr 60px' }}
             >
               <div className="text-xs text-muted tabular-nums pt-0.5">{idx + 1}</div>

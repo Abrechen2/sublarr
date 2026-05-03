@@ -5,6 +5,19 @@ All notable changes to Sublarr are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.86.0-beta] - 2026-05-03
+
+### Added
+- **Waveform editor — clean wave + lock-by-default + Undo/Redo/Save + full-height list + sync-scroll** — five interlocking refinements that turn the Stacked-Lanes layout from "draggable rectangles plus a list" into a real production-ready timing surface:
+  - **Region labels removed from the wave.** With 285+ cues per episode, dimmed labels overlaid on tightly-packed regions still produced an unreadable wall of letters. Cue text now lives only in the list lane below the wave; regions are pure timing rectangles. The wave is for audio reading, the list is for text reading — separate surfaces, separate jobs.
+  - **Locked by default.** The Waveform tab opens read-only — drag, resize, L/R click-set and S/D hotkeys are inert until the editor explicitly clicks the **Gesperrt → Entsperrt** toolbar toggle. Protects against the "I just wanted to scroll, I didn't want to retime cue 47" footgun. The unlock state visualises with a warning-tinted button so the editor can see at a glance whether they're in look-mode or touch-mode.
+  - **Undo / Redo / Save buttons in the toolbar.** Each waveform-driven cue-timing edit now pushes the previous content onto a per-modal undo stack; Undo pops back, Redo reapplies. Clear-on-fresh-edit semantics, so the user can't fork timelines. Save POSTs the dirty content to `/tools/content` directly from the Waveform tab — no more tab-hop to CodeMirror to persist a region drag. Save button stays disabled while there are no unsaved changes and shows an inline spinner during the round-trip.
+  - **Cue list fills the full remaining height.** The 5-row visible cap is gone; the list now grows with the modal via `flex-1 min-h-0`. Toolbar / active-cue card / wave keep their fixed heights at the top, the list lane absorbs everything below — typically ~25 rows visible on a 1080p screen vs 5 before.
+  - **Sync-scroll highlight.** WaveSurfer's `scroll` event drives a `visibleRange: [startSec, endSec]` state that flows into the cue list. Rows whose `[start, end]` intersect the current wave viewport pick up a soft `bg-surface/60` tint and a faint left-border, so the editor can see at a glance which cues are visible on the wave right now without losing the active selection's accent highlight. Click on a row still seeks the wave to that cue's start (origin guard prevents the fight-the-user auto-scroll).
+
+### Tests
+- 1 `useWaveformRegions` test rewritten to assert no `content` is painted on regions; 1 modal-suite mock extended to cover `useSaveSubtitle`. Total frontend suite: 1023 tests, all green.
+
 ## [0.85.0-beta] - 2026-05-03
 
 ### Added
