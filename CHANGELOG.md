@@ -5,6 +5,14 @@ All notable changes to Sublarr are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.86.2-beta] - 2026-05-03
+
+### Changed
+- **Waveform sync-scroll: visible tint + list-follows-wave + playhead highlight** — 0.86.0–.1's "subtle" `bg-surface/60` tint was effectively invisible against the dark `bg-primary` cue list, so editors couldn't see the in-viewport flag the wave was actually computing for them. Three concrete upgrades:
+  - **Visible in-viewport tint.** Switched from `bg-surface/60` to `bg-elevated` plus a 4 px `border-l-accent-dim` stripe — the rows currently visible on the wave now form a clear band in the list. Active selection keeps its bright `border-l-accent` so it stays the unambiguous focus.
+  - **Auto-follow when the wave scrolls.** When the wave's visible window changes (zoom, manual scroll, programmatic seek), the list auto-scrolls so the first in-viewport cue lands at the top of the list lane. Suppressed for ~3 seconds after any user wheel/pointerdown on the list itself, so reading ahead isn't yanked away whenever the wave moves.
+  - **Now-playing highlight** while audio plays. New `playheadSec` state, exposed by `useWaveformRegions` via WaveSurfer's `timeupdate` event (throttled to 10 Hz so playback doesn't trigger 60 list re-renders per second). The cue containing the playhead picks up a warning-tinted `bg-warning-bg + border-l-warning` band — visually distinct from both the active selection and the in-viewport set, so editors can audit what they're hearing right now even when no cue is selected.
+
 ## [0.86.1-beta] - 2026-05-03
 
 ### Fixed

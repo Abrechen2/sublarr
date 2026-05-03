@@ -33,10 +33,18 @@ interface WaveformCueListProps {
   gapToleranceMs?: number
   /**
    * Optional [startSec, endSec] visible window of the wave. Cues whose
-   * [start, end] intersect this range are softly highlighted so the editor
-   * can see what's currently in view without losing the active selection.
+   * [start, end] intersect this range get a visible tint and — unless the
+   * editor recently scrolled the list manually — the list auto-follows the
+   * wave by scrolling so the first in-viewport cue lands at the top.
    */
   visibleRange?: [number, number] | null
+  /**
+   * Current playhead time in seconds. The cue containing the playhead gets
+   * a distinct "now-playing" highlight while audio is playing.
+   */
+  playheadSec?: number
+  /** Drives whether the now-playing highlight is shown. */
+  isPlaying?: boolean
 }
 
 function formatTimecode(sec: number): string {
@@ -61,9 +69,16 @@ export function WaveformCueList({
   collapsed = false,
   gapToleranceMs = 80,
   visibleRange = null,
+  playheadSec = 0,
+  isPlaying = false,
 }: WaveformCueListProps) {
   const listRef = useRef<HTMLDivElement>(null)
   const activeRowRef = useRef<HTMLDivElement>(null)
+  const firstInViewportRowRef = useRef<HTMLDivElement>(null)
+  // Suppress wave→list auto-follow for ~3 s after the editor manually
+  // scrolled the list. Without this, the list would yank itself away
+  // from where they're reading every time the wave's viewport changes.
+  const userScrolledAtRef = useRef<number>(0)
 
   // Quality-dot sets keyed by the index of the EARLIER cue in the pair.
   // We render the dot on that row because the defect lives "between this
@@ -83,6 +98,31 @@ export function WaveformCueList({
     return { gapIndices: gap, overlapIndices: overlap }
   }, [cues, gapToleranceMs])
 
+  // Currently-playing cue: first cue whose [start, end) contains the
+  // playhead. Recomputes on every prop change but we cap the search via
+  // an early exit because cues are time-sorted in practice.
+  const playingIdx = useMemo<number | null>(() => {
+    if (!isPlaying || playheadSec <= 0 || cues.length === 0) return null
+    for (let i = 0; i < cues.length; i++) {
+      const c = cues[i]
+      if (playheadSec >= c.start && playheadSec < c.end) return i
+      if (c.start > playheadSec) break
+    }
+    return null
+  }, [cues, playheadSec, isPlaying])
+
+  // First cue whose [start, end] intersects the wave viewport. Used as
+  // the auto-follow scroll anchor when the wave scrolls horizontally.
+  const firstInViewportIdx = useMemo<number | null>(() => {
+    if (!visibleRange) return null
+    const [from, to] = visibleRange
+    for (let i = 0; i < cues.length; i++) {
+      const c = cues[i]
+      if (c.end >= from && c.start <= to) return i
+    }
+    return null
+  }, [cues, visibleRange])
+
   // Auto-scroll: only when the selection arrived from somewhere OTHER than
   // a click on this list. Wave click + keyboard nudges should center the
   // active row; a list click already put the row where the user wants it.
@@ -93,6 +133,18 @@ export function WaveformCueList({
     if (!el) return
     el.scrollIntoView({ block: 'center', behavior: 'smooth' })
   }, [selectedCueIdx, selectionOrigin])
+
+  // Wave→list auto-follow: when the wave scrolls horizontally and changes
+  // its visible window, scroll the list so the first in-viewport cue
+  // lands at the top — UNLESS the editor scrolled the list themselves in
+  // the last 3 s (then we respect their intent and don't yank it back).
+  useEffect(() => {
+    if (firstInViewportIdx === null) return
+    if (Date.now() - userScrolledAtRef.current < 3000) return
+    const row = firstInViewportRowRef.current
+    if (!row) return
+    row.scrollIntoView({ block: 'start', behavior: 'smooth' })
+  }, [firstInViewportIdx])
 
   if (collapsed) {
     return (
@@ -131,36 +183,61 @@ export function WaveformCueList({
         role="listbox"
         aria-label="Untertitel-Cues"
         className="overflow-y-auto bg-primary flex-1 min-h-0"
+        onWheel={() => {
+          userScrolledAtRef.current = Date.now()
+        }}
+        onPointerDown={() => {
+          userScrolledAtRef.current = Date.now()
+        }}
       >
         {cues.map((cue, idx) => {
           const isActive = idx === selectedCueIdx
+          const isPlayingThisRow = idx === playingIdx
           const lines = formatCueTextForDisplay(cue.text).split('\n')
           const hasGap = gapIndices.has(idx)
           const hasOverlap = overlapIndices.has(idx)
           // Sync-scroll highlight: cues that currently intersect the wave
-          // viewport get a soft surface tint, so the editor can see what's
-          // visually on screen without losing track of the active selection.
+          // viewport get a visible surface tint, so the editor can see what
+          // is currently on screen without losing the active selection.
           const inViewport =
             visibleRange !== null &&
             cue.end >= visibleRange[0] &&
             cue.start <= visibleRange[1]
+          const isFirstInViewport = idx === firstInViewportIdx
 
+          // Priority order for visual state — only one wins:
+          // 1. Active (selected): bright accent
+          // 2. Now-playing (playhead inside, not selected): warning tint
+          // 3. In-viewport (visible on the wave, not selected/playing): surface tint
+          // 4. Default: transparent
           let rowClasses: string
           if (isActive) {
             rowClasses = 'bg-accent-bg border-l-4 border-l-accent'
+          } else if (isPlayingThisRow) {
+            rowClasses = 'bg-warning-bg border-l-4 border-l-warning'
           } else if (inViewport) {
-            rowClasses = 'bg-surface/60 border-l-4 border-l-border hover:bg-surface'
+            rowClasses = 'bg-elevated border-l-4 border-l-accent-dim hover:bg-surface-hover'
           } else {
             rowClasses = 'border-l-4 border-l-transparent hover:bg-surface'
           }
 
+          // Pin the row ref. Two refs may target the same element (the
+          // active row may also be the first-in-viewport row); we prefer
+          // the active ref since auto-scroll on selection takes priority.
+          const refForRow = isActive
+            ? activeRowRef
+            : isFirstInViewport
+              ? firstInViewportRowRef
+              : null
+
           return (
             <div
               key={idx}
-              ref={isActive ? activeRowRef : null}
+              ref={refForRow}
               role="option"
               aria-selected={isActive}
               data-in-viewport={inViewport ? '1' : undefined}
+              data-now-playing={isPlayingThisRow ? '1' : undefined}
               tabIndex={-1}
               onClick={() => onSelectCue(idx, 'list')}
               className={`grid gap-3 px-3 py-2 border-b border-border cursor-pointer text-sm leading-snug transition-colors ${rowClasses}`}

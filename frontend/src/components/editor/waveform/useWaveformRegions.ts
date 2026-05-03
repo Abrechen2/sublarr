@@ -156,6 +156,12 @@ export interface UseWaveformRegionsResult {
    * this for its sync-highlight band.
    */
   visibleRange: [number, number] | null
+  /**
+   * Current playhead position in seconds. Throttled to ~10 Hz via
+   * `ws.on('timeupdate', ...)`. Used by the cue list to highlight the cue
+   * being played and (when auto-follow is on) to scroll it into view.
+   */
+  playheadSec: number
 }
 
 const DEFAULT_REGION_COLOR = 'rgba(20, 184, 166, 0.18)' // teal-500 @ 18 %
@@ -243,6 +249,7 @@ export function useWaveformRegions({
   const [isReady, setIsReady] = useState(false)
   const [isPlaying, setIsPlaying] = useState(false)
   const [visibleRange, setVisibleRange] = useState<[number, number] | null>(null)
+  const [playheadSec, setPlayheadSec] = useState<number>(0)
 
   /** Build SnapOptions for a given cue id (excluded from neighbors). */
   const buildSnapOpts = useCallback((excludingId: string | null | undefined): SnapOptions => {
@@ -305,11 +312,25 @@ export function useWaveformRegions({
       }
     }
 
+    // Throttle timeupdate to ~10 Hz so React doesn't re-render the cue
+    // list 60 times per second during playback. The user can't perceive
+    // a 100 ms delay on a row highlight; the saved frames matter.
+    let lastTimeUpdateAt = 0
+    const onTimeUpdate = (t: unknown) => {
+      const now = Date.now()
+      if (now - lastTimeUpdateAt < 100) return
+      lastTimeUpdateAt = now
+      if (typeof t === 'number' && Number.isFinite(t)) {
+        setPlayheadSec(t)
+      }
+    }
+
     ws.on('play', onPlay)
     ws.on('pause', onPause)
     ws.on('finish', onFinish)
     ws.on('ready', onReady)
     ws.on('scroll', onScroll)
+    ws.on('timeupdate', onTimeUpdate)
 
     // region-update fires per-frame during drag; flip the freeze flag
     // so the prop-sync effect doesn't overwrite the in-progress drag
@@ -390,6 +411,7 @@ export function useWaveformRegions({
       ws.un('finish', onFinish)
       ws.un('ready', onReady)
       ws.un('scroll', onScroll)
+      ws.un('timeupdate', onTimeUpdate)
       regionsPlugin.un('region-update', onRegionUpdate)
       regionsPlugin.un('region-updated', onRegionUpdateEnd)
       ws.destroy()
@@ -398,6 +420,7 @@ export function useWaveformRegions({
       setIsReady(false)
       setIsPlaying(false)
       setVisibleRange(null)
+      setPlayheadSec(0)
     }
   }, [container, audioUrl, waveColor, progressColor, height, buildSnapOpts])
 
@@ -879,5 +902,6 @@ export function useWaveformRegions({
     setEndAtPlayhead,
     seekBy,
     visibleRange,
+    playheadSec,
   }
 }

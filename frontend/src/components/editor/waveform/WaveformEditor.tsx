@@ -342,6 +342,7 @@ export function WaveformEditor({
     setEndAtPlayhead,
     seekBy,
     visibleRange,
+    playheadSec,
   } = useWaveformRegions({
     container: containerRef,
     audioUrl,
@@ -784,6 +785,8 @@ export function WaveformEditor({
           onSelectCue={handleListSelect}
           collapsed={cueListCollapsed}
           visibleRange={visibleRange}
+          playheadSec={playheadSec}
+          isPlaying={isPlaying}
         />
       )}
 
