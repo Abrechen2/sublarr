@@ -5,6 +5,20 @@ All notable changes to Sublarr are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.87.0-beta] - 2026-05-03
+
+### Added
+- **Inline cue-text editing in the Waveform tab** — promised in 0.85.0 as a "subsequent step". Double-click the text cell of a row in the synchronized cue list (only when the editor is unlocked) to open an inline textarea; Enter commits, Shift+Enter inserts a newline, Esc cancels, blur commits. Each commit pushes the pre-edit content onto the same waveform undo stack used by timing edits, so the toolbar Undo/Redo/Save buttons work uniformly across both edit kinds. ASS cues that contain override tags (`{\b1}`, positioning, fades, etc.) are refused with an info toast pointing the user to the source-tab — silently overwriting them would destroy styling the user can't see in the cue-list view.
+
+### Fixed
+- **Waveform: undo back to disk-state now clears the dirty flag** — `hasUnsavedChanges` was a flag that only flipped one way (set to `true` on every edit, `false` only on save). Undoing every edit back to the originally-loaded content left "Unsaved" pinned and the Save button enabled even though the in-memory content matched what was on disk. Replaced the flag with a derived `content !== baselineContent` comparison; `baselineContent` updates on initial load and after every successful save (both waveform-Save and CodeMirror-Save paths), so the UI now reflects the true dirty state.
+- **Waveform: requestAnimationFrame leak on modal close** — the visible-range recompute effect scheduled a `requestAnimationFrame` callback on every native scroll / resize / zoom event, but the cleanup path didn't `cancelAnimationFrame`. If the user closed the modal while a recompute was in flight, the queued callback would call `ws.getDuration()` on an already-destroyed WaveSurfer instance. Added a `cancelled` flag plus a `wsRef.current === ws` identity check inside the callback, and `cancelAnimationFrame` in the cleanup so the queue is drained before WaveSurfer gets destroyed.
+- **Waveform: Save button no longer triggers whole-tree re-renders during save** — `handleWaveformSave` had the entire React Query mutation object in its `useCallback` dep array. Every `isPending` tick from React Query re-created the callback identity, which propagated through `WaveformEditor` and forced its sub-tree to re-render on every state change of the in-flight save. Destructured to `{ mutate, isPending }` so the callback identity stays stable across the save flight.
+
+### Changed
+- **Waveform: removed the dead WaveSurfer `scroll` event listener** — the comment already said WaveSurfer v7's `scroll` event is unreliable (doesn't fire on programmatic `ws.zoom()`), and the visible-range recompute is owned entirely by the native scroller listener + `ResizeObserver`. The `ws.on('scroll', ...)` subscription was just dead weight; removed.
+- **Toast call-site cleanup** — three `toast.warning(...)` / `toast.error(...)` calls in the modal would have thrown a runtime `TypeError: toast.warning is not a function` because the toast helper is a single function with a `(message, type)` signature, not an object with named methods. Replaced with the supported `toast(msg, 'info'|'error')` form.
+
 ## [0.86.6-beta] - 2026-05-03
 
 ### Fixed
