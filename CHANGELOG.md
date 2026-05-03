@@ -5,6 +5,11 @@ All notable changes to Sublarr are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.86.4-beta] - 2026-05-03
+
+### Fixed
+- **Waveform sync-scroll: visible left-border stripe** — 0.86.3's `border-l-[var(--accent-dim)]` arbitrary value didn't resolve through Tailwind v4 (computed border stayed at the default gray `--border` token), so the left-stripe distinction between in-viewport and out-of-viewport rows was missing. Switched to hex literals (`#0a7089` for in-viewport stripe, `#1DB8D4` for active selection, `#f59e0b` for now-playing) so the borders are guaranteed to render. The cyan-tinted background already landed correctly in 0.86.3.
+
 ## [0.86.3-beta] - 2026-05-03
 
 ### Changed

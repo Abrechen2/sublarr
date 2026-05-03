@@ -217,14 +217,16 @@ export function WaveformCueList({
           let rowClasses: string
           if (isActive) {
             rowClasses =
-              'bg-accent-bg border-l-4 border-l-accent ring-2 ring-inset ring-[var(--accent)]'
+              'bg-accent-bg border-l-4 border-l-[#1DB8D4] ring-2 ring-inset ring-[#1DB8D4]'
           } else if (isPlayingThisRow) {
-            rowClasses = 'bg-warning-bg border-l-4 border-l-warning'
+            rowClasses = 'bg-warning-bg border-l-4 border-l-[#f59e0b]'
           } else if (inViewport) {
             // Subtler than active's accent-bg (0.10), brighter than default —
-            // forms a clear "wave-band" stripe down the list.
+            // forms a clear "wave-band" stripe down the list. Hex literals
+            // sidestep Tailwind v4's arbitrary-value-with-var() edge case
+            // that left the border gray on prod.
             rowClasses =
-              'bg-[rgba(29,184,212,0.06)] border-l-4 border-l-[var(--accent-dim)] hover:bg-[rgba(29,184,212,0.14)]'
+              'bg-[rgba(29,184,212,0.06)] border-l-4 border-l-[#0a7089] hover:bg-[rgba(29,184,212,0.14)]'
           } else {
             rowClasses = 'border-l-4 border-l-transparent hover:bg-surface'
           }
