@@ -120,7 +120,11 @@ def create_app(testing=False):
         response.headers.setdefault("Referrer-Policy", "same-origin")
         response.headers.setdefault("Cross-Origin-Opener-Policy", "same-origin")
         response.headers.setdefault("Cross-Origin-Embedder-Policy", "credentialless")
-        # CSP: allow self + inline styles/scripts (SPA requirement) + ws/wss for SocketIO
+        # CSP: allow self + inline styles/scripts (SPA requirement) + ws/wss for SocketIO.
+        # media-src needs blob: because the Waveform editor (WaveSurfer.js) fetches the
+        # extracted audio from /api/v1/tools/waveform-audio/, wraps it in URL.createObjectURL(),
+        # and feeds it into an internal <audio> element — which the browser charges against
+        # media-src, not connect-src.
         response.headers.setdefault(
             "Content-Security-Policy",
             (
@@ -128,6 +132,7 @@ def create_app(testing=False):
                 "script-src 'self' 'unsafe-inline' 'wasm-unsafe-eval'; "
                 "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; "
                 "img-src 'self' data: https:; "
+                "media-src 'self' blob:; "
                 "connect-src 'self' ws: wss:; "
                 "font-src 'self' data: https://fonts.gstatic.com; "
                 "frame-ancestors 'none'"
