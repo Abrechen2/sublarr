@@ -5,6 +5,14 @@ All notable changes to Sublarr are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.85.0-beta] - 2026-05-03
+
+### Added
+- **Waveform Stacked-Lanes layout** — restructures the Waveform tab from a "dashboard" layout (active-cue card above the wave + 12-control toolbar wedged below the wave) to a "control → focus → context" linear workflow. The toolbar now sits at the top (DAW convention; the editing zone — wave + list — stays together at the bottom for short mouse-travel), the active-cue card stays directly above the wave for "what am I timing right now" focus, and a new synchronized 5-row `WaveformCueList` lane appears underneath. Region labels overlaid on the wave dim from ~0.95 to ~0.55 alpha — the wave is no longer the primary text-reading surface, so labels remain only as faint navigation anchors during a drag. The new "Liste" toolbar toggle collapses the list when the editor wants the full ~250 px wave height back; preference persists in `localStorage` alongside the other waveform prefs. Cue list rows auto-scroll the active row into view on selection-change with an origin flag that suppresses the scroll when the user just clicked a row themselves — avoids the classic scroll-fight from bidirectional selection feedback loops. Read-only first pass; inline text editing, add/delete/split/merge UI affordances are layered in subsequent steps.
+
+### Tests
+- 11 new tests for `WaveformCueList` covering render / select / scroll / quality-dot semantics; 1 existing `useWaveformRegions` test updated to match the new dimmed-span content contract. Total waveform suite: 122 tests, all green.
+
 ## [0.84.1-beta] - 2026-05-03
 
 ### Fixed
