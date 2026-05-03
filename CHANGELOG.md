@@ -5,6 +5,11 @@ All notable changes to Sublarr are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.86.6-beta] - 2026-05-03
+
+### Fixed
+- **Waveform sync-scroll: borderLeftColor via inline-style** — Tailwind v4 kept overriding the left-border colour through the `border-border` shorthand on this row, regardless of whether we used `border-l-{token}`, `border-l-[#hex]`, or `[border-left-color:#hex]` arbitrary-property syntax. The class string carried the right utility, but the computed style stayed at the gray `--border` token. Worked around with an inline `style={{ borderLeftColor }}` — CSS specificity rules guarantee inline-style beats any class selector, so the cyan/amber stripes now actually render. Permitted by the project's "Tailwind-can't-reach" inline-style escape hatch.
+
 ## [0.86.5-beta] - 2026-05-03
 
 ### Fixed

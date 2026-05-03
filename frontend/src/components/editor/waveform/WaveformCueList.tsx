@@ -215,23 +215,27 @@ export function WaveformCueList({
           // token-resolution edge cases so the in-viewport band is *guaranteed*
           // visible against the dark cue list container.
           let rowClasses: string
-          // Tailwind v4 quirk: `border-l-[#hex]` and `border-l-[var(--…)]`
-          // arbitrary VALUES did not emit `border-left-color` reliably on prod,
-          // so we use arbitrary PROPERTY syntax (`[border-left-color:#hex]`)
-          // which writes the CSS rule directly and never gets overridden by
-          // `border-border`'s shorthand color.
+          // Tailwind v4 keeps overriding the left-border colour through the
+          // `border-border` shorthand even when arbitrary value/property
+          // utilities are present. We keep the bg-tint via Tailwind (it
+          // works fine) and force the left-stripe colour via inline-style,
+          // which CSS specificity rules guarantee will win.
+          let stripeColor: string | undefined
           if (isActive) {
-            rowClasses =
-              'bg-accent-bg border-l-4 [border-left-color:#1DB8D4] ring-2 ring-inset ring-[#1DB8D4]'
+            rowClasses = 'bg-accent-bg border-l-4 ring-2 ring-inset ring-[#1DB8D4]'
+            stripeColor = '#1DB8D4' // bright cyan — active selection
           } else if (isPlayingThisRow) {
-            rowClasses = 'bg-warning-bg border-l-4 [border-left-color:#f59e0b]'
+            rowClasses = 'bg-warning-bg border-l-4'
+            stripeColor = '#f59e0b' // amber — now playing
           } else if (inViewport) {
             // Subtler than active's accent-bg (0.10), brighter than default —
             // forms a clear "wave-band" stripe down the list.
             rowClasses =
-              'bg-[rgba(29,184,212,0.06)] border-l-4 [border-left-color:#0a7089] hover:bg-[rgba(29,184,212,0.14)]'
+              'bg-[rgba(29,184,212,0.06)] border-l-4 hover:bg-[rgba(29,184,212,0.14)]'
+            stripeColor = '#0a7089' // dim cyan — visible on the wave
           } else {
-            rowClasses = 'border-l-4 border-l-transparent hover:bg-surface'
+            rowClasses = 'border-l-4 hover:bg-surface'
+            stripeColor = 'transparent'
           }
 
           // Pin the row ref. Two refs may target the same element (the
@@ -254,7 +258,10 @@ export function WaveformCueList({
               tabIndex={-1}
               onClick={() => onSelectCue(idx, 'list')}
               className={`grid gap-3 px-3 py-2 border-b border-border cursor-pointer text-sm leading-snug transition-colors ${rowClasses}`}
-              style={{ gridTemplateColumns: '40px 110px 1fr 60px' }}
+              style={{
+                gridTemplateColumns: '40px 110px 1fr 60px',
+                borderLeftColor: stripeColor,
+              }}
             >
               <div className="text-xs text-muted tabular-nums pt-0.5">{idx + 1}</div>
               <div className="text-xs text-muted tabular-nums leading-tight">
