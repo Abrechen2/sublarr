@@ -8,7 +8,7 @@
 
 *arr-compatible · Self-hosted · Open Source · LLM translation (⚠️ beta, experimental)
 
-[![Version](https://img.shields.io/badge/version-0.36.0--beta-teal.svg)](https://github.com/Abrechen2/sublarr/releases)
+[![Version](https://img.shields.io/badge/version-0.84.0--beta-teal.svg)](https://github.com/Abrechen2/sublarr/releases)
 [![License: GPL-3.0](https://img.shields.io/badge/License-GPL--3.0-blue.svg)](LICENSE)
 [![Python 3.12+](https://img.shields.io/badge/Python-3.12+-3776ab.svg)](https://www.python.org/)
 [![React 19](https://img.shields.io/badge/React-19-61dafb.svg)](https://react.dev/)
@@ -39,7 +39,7 @@ It follows the *arr-suite design philosophy: connect it to Sonarr/Radarr, set up
 
 | Feature | Status |
 |---------|--------|
-| Subtitle search & download (21+ providers) | Core — most-tested path |
+| Subtitle search & download (22 providers) | Core — most-tested path |
 | ASS-first scoring, deduplication, trust scoring | Core — most-tested path |
 | Sonarr/Radarr webhook integration | Core — most-tested path |
 | Standalone mode (no *arr required) | Core — filesystem watching + NFO metadata |
@@ -50,7 +50,7 @@ It follows the *arr-suite design philosophy: connect it to Sonarr/Radarr, set up
 | Fine-tuned anime model (anime-translator-v6) | **⚠️ Experimental — BLEU benchmark only, real-world YMMV** |
 
 ### 🔍 Subtitle Search & Download
-- **21+ providers** — AnimeTosho, Jimaku, OpenSubtitles, SubDL, Subscene, Subf2m, Subsource, SubsDump, Addic7ed, BetaSeries, Titlovi, Titrari, TVSubtitles, Gestdown, Kitsunekko, Napisy24, Podnapisi, YIFY, Zimuku, LegendasDivX, TurkceAltyazi + embedded
+- **22 providers** — AnimeTosho, Jimaku, OpenSubtitles, SubDL, Subscene, Subf2m, Subsource, SubsDump, Addic7ed, BetaSeries, Titlovi, Titrari, TVSubtitles, Gestdown, Kitsunekko, Napisy24, Podnapisi, YIFY, Zimuku, LegendasDivX, TurkceAltyazi + embedded extraction
 - **ASS-first scoring** — ASS/SSA gets +50 bonus over SRT; format, dialect, sync quality, and uploader reputation scored
 - **Smart deduplication** — avoids re-downloading identical files via SHA-256 hashing
 - **Machine translation detection** — flags OpenSubtitles mt/ai-tagged uploads with an orange badge
@@ -77,7 +77,7 @@ It follows the *arr-suite design philosophy: connect it to Sonarr/Radarr, set up
 - **Symlink support** — follows symlinked directories during scan
 
 ### 🔧 Subtitle Tools
-- **Waveform editor** — wavesurfer.js audio visualization with per-cue region markers
+- **Waveform editor (Aegisub-class)** — drag region edges to retime cues, click-set start/end (`S` / `D` keys), snap to keyframes / scene cuts / neighbour cues with priority-tied tie-breaking, gap & overlap quality markers, vertical amplitude zoom (1×–5×), pitch-preserving playback rate (0.5×–2×), sticky time-axis ruler, optional spectrogram overlay, optional audio-scrub-while-dragging, multi-audio-track picker, ASS karaoke syllable overlay
 - **CodeMirror editor** — syntax-highlighted ASS/SRT editing with diff view
 - **Video sync** — ffsubsync & alass integration for automatic timing correction (install directly from the UI)
 - **Format conversion** — convert between ASS, SRT, VTT, SSA via pysubs2
@@ -89,7 +89,8 @@ It follows the *arr-suite design philosophy: connect it to Sonarr/Radarr, set up
 
 ### 🖥️ Wanted & Automation
 - **Wanted scanner** — detects all episodes/movies missing subtitles in your library
-- **Scheduled scanning** — configurable interval (default: every 6 hours)
+- **Event-driven by default** — webhooks, manual triggers, and the file-watcher kick scans; periodic fallback only when `SUBLARR_WANTED_SCAN_INTERVAL_HOURS` > 0
+- **Scheduler admin** — *Settings → System → Scheduler* lists every background job (wanted scanner, search, cleanup, upgrade scan, AniDB sync, history pruning) with run-now / pause / resume / edit-trigger controls. Backed by **APScheduler** with `SQLAlchemyJobStore` — jobs persist across restarts with next-fire-time intact.
 - **Failure details** — failed items show inline error reason, attempt count, and next retry countdown
 - **Subtitle upgrade system** — automatically replaces low-quality subs when a better version appears
 - **Batch search** — run searches across all wanted items with live progress bar
@@ -111,6 +112,7 @@ It follows the *arr-suite design philosophy: connect it to Sonarr/Radarr, set up
 - *arr-style dark theme with teal accent — feels at home next to Sonarr, Radarr, Prowlarr
 - Fully redesigned Settings UI — grouped cards, advanced toggles, inline field descriptions, unsaved-changes guard
 - Customizable dashboard with draggable widgets and automation status widget
+- **Plugin marketplace** — `/plugins` page lets you install community subtitle providers from a Git URL allowlist; ships with circuit breakers + rate-limit wiring identical to first-party providers
 - Global search (`Ctrl+K`) across all pages
 - Real-time updates via WebSocket (activity feed, job progress)
 - Onboarding wizard for first-time setup (language, automation, connections)
@@ -144,7 +146,7 @@ Open **http://localhost:5765** — that's it.
 ```yaml
 services:
   sublarr:
-    image: ghcr.io/abrechen2/sublarr:0.36.0-beta
+    image: ghcr.io/abrechen2/sublarr:0.84.0-beta
     container_name: sublarr
     ports:
       - "5765:5765"
@@ -165,7 +167,7 @@ The image runs as a non-root user with `cap_drop: ALL` and no new privileges. A 
 ```yaml
 services:
   sublarr:
-    image: ghcr.io/abrechen2/sublarr:0.36.0-beta
+    image: ghcr.io/abrechen2/sublarr:0.84.0-beta
     container_name: sublarr
     ports:
       - "5765:5765"
@@ -236,7 +238,7 @@ All settings use the `SUBLARR_` prefix. They can be set via environment variable
 | Variable | Default | Description |
 |---|---|---|
 | `SUBLARR_WANTED_AUTO_TRANSLATE` | `false` | Auto-translate after subtitle download in wanted scanner |
-| `SUBLARR_WEBHOOK_AUTO_TRANSLATE` | `false` | Auto-translate after webhook-triggered download |
+| `SUBLARR_WEBHOOK_AUTO_TRANSLATE` | `true` | Auto-translate after webhook-triggered download (gated by master `translation_enabled`) |
 | `SUBLARR_OLLAMA_URL` | `http://localhost:11434` | Ollama base URL |
 | `SUBLARR_OLLAMA_MODEL` | `qwen2.5:14b-instruct` | Model for translation |
 | `SUBLARR_SOURCE_LANGUAGE` | `en` | Source subtitle language |
@@ -258,8 +260,9 @@ AnimeTosho, Subscene, Subf2m, Subsource, Kitsunekko, and most other providers wo
 
 | Variable | Default | Description |
 |---|---|---|
-| `SUBLARR_WANTED_SCAN_INTERVAL_HOURS` | `6` | How often to scan for missing subs |
-| `SUBLARR_WANTED_SCAN_ON_STARTUP` | `true` | Run scan when container starts |
+| `SUBLARR_WANTED_SCAN_INTERVAL_HOURS` | `0` | Periodic scan interval. `0` = disabled — scan is event-driven (webhook / manual / file-watcher). Set > 0 for a periodic fallback. |
+| `SUBLARR_WANTED_SEARCH_INTERVAL_HOURS` | `24` | How often the search loop revisits unresolved wanted items |
+| `SUBLARR_WANTED_SCAN_ON_STARTUP` | `false` | Run a full scan when the container starts |
 | `SUBLARR_WANTED_ANIME_ONLY` | `true` | Only scan anime series |
 | `SUBLARR_UPGRADE_ENABLED` | `true` | Replace low-quality subs with better versions |
 
@@ -336,13 +339,15 @@ Set `SUBLARR_OLLAMA_URL` to your Ollama host. For Docker, use `http://host.docke
 | **Activity** | Real-time event feed |
 | **History** | Past operations with timestamps and results |
 | **Statistics** | Charts — provider success rates, language distribution, quality trends |
+| **Plugins** | Community plugin marketplace — install custom subtitle providers from an allowlisted Git URL |
 | **Settings** | Grouped cards — Connections, Languages & Subtitles, Providers, Automation, System |
+| **Settings → System → Scheduler** | APScheduler admin — list, run-now, pause/resume, edit-trigger, view history per background job |
 
 The subtitle editor (accessible from Library/Series Detail) includes:
 - **Preview** — formatted subtitle preview with cue navigation
 - **Editor** — CodeMirror syntax-highlighted ASS/SRT editing
 - **Diff** — side-by-side comparison with the saved version
-- **Waveform** — audio visualization with per-cue region markers
+- **Waveform** — Aegisub-class timing surface (drag to retime, snap to keyframes / scenes / neighbours, gap & overlap markers, amplitude + pitch-preserving rate, S/D hotkeys, optional spectrogram + scrub-on-drag)
 
 ---
 
