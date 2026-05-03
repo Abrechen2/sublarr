@@ -19,6 +19,10 @@ import {
   applyCueTiming,
   UnsupportedFormatError,
 } from '@/components/editor/waveform/applyCueTiming'
+import {
+  applyCueText,
+  CueTextHasStylingError,
+} from '@/components/editor/waveform/applyCueText'
 
 // Lazy-loaded editor components -- CodeMirror stays in separate chunks
 const SubtitlePreview = lazy(() => import('@/components/editor/SubtitlePreview'))
@@ -64,12 +68,16 @@ export default function SubtitleEditorModal({
   const [content, setContent] = useState<string | null>(null)
   const [lastModified, setLastModified] = useState<number | null>(null)
   const [format, setFormat] = useState<'ass' | 'srt' | null>(null)
-  const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false)
+  // The on-disk content as we last knew it: updated on load + save success.
+  // `hasUnsavedChanges` is derived from `content !== baselineContent` so an
+  // undo back to the saved baseline correctly clears the dirty flag.
+  const [baselineContent, setBaselineContent] = useState<string | null>(null)
+  const hasUnsavedChanges = content !== null && content !== baselineContent
   const [syncLoading, setSyncLoading] = useState(false)
   const overlayRef = useRef<HTMLDivElement>(null)
   const [convertTarget, setConvertTarget] = useState<'ass' | 'srt' | 'vtt'>('srt')
   const convertMut = useConvertSubtitleFormat()
-  const saveMut = useSaveSubtitle()
+  const { mutate: saveMutate, isPending: saveInFlight } = useSaveSubtitle()
   // Plan B8 Task 11: track which cue is selected from the WaveformEditor's
   // perspective. `null` = nothing focused, so L/R click-set + S/D hotkeys
   // become no-ops until the user picks a cue.
@@ -92,7 +100,7 @@ export default function SubtitleEditorModal({
     setContent(null)
     setLastModified(null)
     setFormat(null)
-    setHasUnsavedChanges(false)
+    setBaselineContent(null)
     setSelectedCueIdx(null)
     setWaveformUndoStack([])
     setWaveformRedoStack([])
@@ -122,16 +130,43 @@ export default function SubtitleEditorModal({
         setWaveformUndoStack((stack) => [...stack, content])
         setWaveformRedoStack([])
         setContent(next)
-        setHasUnsavedChanges(true)
       } catch (err) {
         if (err instanceof UnsupportedFormatError) {
-          toast.warning(`Wellenform-Edit für Format "${format}" noch nicht unterstützt.`)
+          toast(`Wellenform-Edit für Format "${format}" noch nicht unterstützt.`, 'info')
           return
         }
         // Index-out-of-range or malformed input — surface a polite toast and
         // leave content untouched.
         const msg = err instanceof Error ? err.message : 'Cue konnte nicht aktualisiert werden.'
-        toast.error(msg)
+        toast(msg, 'error')
+      }
+    },
+    [content, format],
+  )
+
+  // Inline cue-text edit from the WaveformCueList. Same undo/redo
+  // contract as the timing-edit path: snapshot the pre-edit content,
+  // clear redo, then write the patched content back.
+  const handleCueTextChange = useCallback(
+    (idx: number, text: string) => {
+      if (!content || !format) return
+      try {
+        const next = applyCueText({ content, format, cueIndex: idx, text })
+        if (next === content) return
+        setWaveformUndoStack((stack) => [...stack, content])
+        setWaveformRedoStack([])
+        setContent(next)
+      } catch (err) {
+        if (err instanceof UnsupportedFormatError) {
+          toast(`Wellenform-Edit für Format "${format}" noch nicht unterstützt.`, 'info')
+          return
+        }
+        if (err instanceof CueTextHasStylingError) {
+          toast('Cue enthält Stil-Tags — bitte im Quelltext-Tab bearbeiten.', 'info')
+          return
+        }
+        const msg = err instanceof Error ? err.message : 'Cue konnte nicht aktualisiert werden.'
+        toast(msg, 'error')
       }
     },
     [content, format],
@@ -143,7 +178,6 @@ export default function SubtitleEditorModal({
     setWaveformUndoStack((stack) => stack.slice(0, -1))
     setWaveformRedoStack((stack) => [...stack, content])
     setContent(prev)
-    setHasUnsavedChanges(true)
   }, [waveformUndoStack, content])
 
   const handleWaveformRedo = useCallback(() => {
@@ -152,17 +186,20 @@ export default function SubtitleEditorModal({
     setWaveformRedoStack((stack) => stack.slice(0, -1))
     setWaveformUndoStack((stack) => [...stack, content])
     setContent(next)
-    setHasUnsavedChanges(true)
   }, [waveformRedoStack, content])
 
   const handleWaveformSave = useCallback(() => {
     if (!filePath || content === null || lastModified === null) return
-    saveMut.mutate(
-      { filePath, content, lastModified },
+    const snapshot = content
+    saveMutate(
+      { filePath, content: snapshot, lastModified },
       {
         onSuccess: (result) => {
           setLastModified(result.new_mtime)
-          setHasUnsavedChanges(false)
+          // Bump the baseline to what we just persisted so the dirty
+          // flag (derived from content !== baselineContent) clears even
+          // if `content` mutated again during the request.
+          setBaselineContent(snapshot)
           // Save resets the dirty-state but keeps the undo stack so the
           // user can still roll back even after persisting.
           toast('Gespeichert')
@@ -173,7 +210,7 @@ export default function SubtitleEditorModal({
         },
       },
     )
-  }, [filePath, content, lastModified, saveMut])
+  }, [filePath, content, lastModified, saveMutate])
 
   /** Move the WaveformEditor's selection by one cue (Up/Down hotkeys). */
   const handleSelectAdjacentCue = useCallback((direction: 'prev' | 'next') => {
@@ -194,6 +231,7 @@ export default function SubtitleEditorModal({
     setPrevContentData(contentData)
     if (contentData) {
       setContent(contentData.content)
+      setBaselineContent(contentData.content)
       setLastModified(contentData.last_modified)
       setFormat(contentData.format)
     }
@@ -502,7 +540,10 @@ export default function SubtitleEditorModal({
                 lastModified={lastModified}
                 onSave={(newMtime) => {
                   setLastModified(newMtime)
-                  setHasUnsavedChanges(false)
+                  // Lift the baseline to the just-saved content so the
+                  // dirty-flag (derived from content !== baselineContent)
+                  // clears for the WaveformEditor too.
+                  setBaselineContent(content)
                 }}
                 onClose={handleClose}
                 onDiffView={() => setMode('diff')}
@@ -556,13 +597,14 @@ export default function SubtitleEditorModal({
                 selectedCueIdx={selectedCueIdx}
                 onSelectAdjacentCue={handleSelectAdjacentCue}
                 onSelectCue={setSelectedCueIdx}
+                onCueTextChange={handleCueTextChange}
                 onUndo={handleWaveformUndo}
                 onRedo={handleWaveformRedo}
                 canUndo={waveformUndoStack.length > 0}
                 canRedo={waveformRedoStack.length > 0}
                 onSave={handleWaveformSave}
                 hasUnsavedChanges={hasUnsavedChanges}
-                saveInFlight={saveMut.isPending}
+                saveInFlight={saveInFlight}
               />
             )}
           </Suspense>

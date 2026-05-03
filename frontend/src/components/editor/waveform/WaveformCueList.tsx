@@ -12,7 +12,7 @@
  * active row into view ONLY when origin !== "list" — otherwise we'd fight
  * the user's own scroll position right after they clicked a row.
  */
-import { useEffect, useMemo, useRef } from 'react'
+import { useEffect, useMemo, useRef, useState, useCallback } from 'react'
 import { detectGapsAndOverlaps } from './gapOverlap'
 import { formatCueTextForDisplay } from './cueTextDisplay'
 
@@ -45,6 +45,12 @@ interface WaveformCueListProps {
   playheadSec?: number
   /** Drives whether the now-playing highlight is shown. */
   isPlaying?: boolean
+  /**
+   * Inline text-edit commit. When omitted, rows are read-only (current
+   * behaviour for locked surfaces). When provided, double-click on the
+   * text cell opens a textarea; Enter (without Shift) commits, Esc cancels.
+   */
+  onTextChange?: (idx: number, text: string) => void
 }
 
 function formatTimecode(sec: number): string {
@@ -71,10 +77,55 @@ export function WaveformCueList({
   visibleRange = null,
   playheadSec = 0,
   isPlaying = false,
+  onTextChange,
 }: WaveformCueListProps) {
   const listRef = useRef<HTMLDivElement>(null)
   const activeRowRef = useRef<HTMLDivElement>(null)
   const firstInViewportRowRef = useRef<HTMLDivElement>(null)
+  // Inline-edit local state. `null` = no row in edit mode. We only allow
+  // ONE row at a time so the user can't fork edits across cues.
+  const [editingIdx, setEditingIdx] = useState<number | null>(null)
+  const [editingDraft, setEditingDraft] = useState<string>('')
+  const textareaRef = useRef<HTMLTextAreaElement>(null)
+
+  const beginEdit = useCallback((idx: number, displayText: string) => {
+    setEditingIdx(idx)
+    setEditingDraft(displayText)
+  }, [])
+
+  const commitEdit = useCallback(() => {
+    if (editingIdx === null) return
+    const idx = editingIdx
+    const draft = editingDraft
+    setEditingIdx(null)
+    setEditingDraft('')
+    onTextChange?.(idx, draft)
+  }, [editingIdx, editingDraft, onTextChange])
+
+  const cancelEdit = useCallback(() => {
+    setEditingIdx(null)
+    setEditingDraft('')
+  }, [])
+
+  // Auto-focus + select-all when entering edit mode.
+  useEffect(() => {
+    if (editingIdx === null) return
+    const el = textareaRef.current
+    if (!el) return
+    el.focus()
+    el.select()
+  }, [editingIdx])
+
+  // Cancel pending edit when the underlying cues array changes (e.g. an
+  // undo lands while the user is mid-typing). Without this guard the
+  // textarea would commit stale text against the wrong row.
+  useEffect(() => {
+    if (editingIdx === null) return
+    if (editingIdx >= cues.length) {
+      setEditingIdx(null)
+      setEditingDraft('')
+    }
+  }, [cues.length, editingIdx])
   // Suppress wave→list auto-follow for ~3 s after the editor manually
   // scrolled the list. Without this, the list would yank itself away
   // from where they're reading every time the wave's viewport changes.
@@ -193,7 +244,9 @@ export function WaveformCueList({
         {cues.map((cue, idx) => {
           const isActive = idx === selectedCueIdx
           const isPlayingThisRow = idx === playingIdx
-          const lines = formatCueTextForDisplay(cue.text).split('\n')
+          const displayText = formatCueTextForDisplay(cue.text)
+          const lines = displayText.split('\n')
+          const isEditingThisRow = editingIdx === idx
           const hasGap = gapIndices.has(idx)
           const hasOverlap = overlapIndices.has(idx)
           // Sync-scroll highlight: cues that currently intersect the wave
@@ -268,11 +321,42 @@ export function WaveformCueList({
                 <div>{formatTimecode(cue.start)}</div>
                 <div>→ {formatTimecode(cue.end)}</div>
               </div>
-              <div className="text-primary">
-                {lines.length === 0 || (lines.length === 1 && lines[0] === '') ? (
+              <div
+                className="text-primary"
+                onDoubleClick={(ev) => {
+                  if (!onTextChange) return
+                  ev.stopPropagation()
+                  beginEdit(idx, displayText)
+                }}
+                title={onTextChange ? 'Doppelklick zum Bearbeiten' : undefined}
+              >
+                {isEditingThisRow ? (
+                  <textarea
+                    ref={textareaRef}
+                    value={editingDraft}
+                    onChange={(ev) => setEditingDraft(ev.target.value)}
+                    onClick={(ev) => ev.stopPropagation()}
+                    onKeyDown={(ev) => {
+                      if (ev.key === 'Enter' && !ev.shiftKey) {
+                        ev.preventDefault()
+                        commitEdit()
+                        return
+                      }
+                      if (ev.key === 'Escape') {
+                        ev.preventDefault()
+                        cancelEdit()
+                      }
+                    }}
+                    onBlur={commitEdit}
+                    rows={Math.max(2, editingDraft.split('\n').length)}
+                    className="w-full bg-surface text-primary border border-border rounded p-1 text-sm leading-snug focus:outline-none focus:ring-2 focus:ring-[#1DB8D4] resize-none"
+                    aria-label={`Cue ${idx + 1} bearbeiten`}
+                    data-testid={`cue-text-editor-${idx}`}
+                  />
+                ) : lines.length === 0 || (lines.length === 1 && lines[0] === '') ? (
                   <span className="italic text-muted">(leerer Cue / empty)</span>
                 ) : (
-                  lines.map((line, i) => <div key={i}>{line}</div>)
+                  lines.map((line, i) => <div key={`${idx}-${i}`}>{line}</div>)
                 )}
               </div>
               <div className="flex items-start justify-end gap-1.5 pt-1">

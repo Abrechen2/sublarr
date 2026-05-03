@@ -298,20 +298,6 @@ export function useWaveformRegions({
     const onReady = () => {
       setIsReady(true)
     }
-    // WaveSurfer v7's `scroll` event is unreliable: it does not fire when
-    // `ws.zoom()` is applied programmatically (no user interaction), so
-    // the viewport stays at full-audio after the post-ready zoom kicks in.
-    // We therefore compute the visible range ourselves from the scroller's
-    // current scrollLeft + clientWidth, and trigger recomputes from native
-    // scroll events + zoom + resize. Always returns a meaningful subset
-    // window; never leaks `[0, duration]` after zoom takes effect.
-    const onScroll = (...args: unknown[]) => {
-      const [a, b] = args
-      if (typeof a === 'number' && typeof b === 'number' && Number.isFinite(a) && Number.isFinite(b)) {
-        setVisibleRange([a, b])
-      }
-    }
-
     // Throttle timeupdate to ~10 Hz so React doesn't re-render the cue
     // list 60 times per second during playback. The user can't perceive
     // a 100 ms delay on a row highlight; the saved frames matter.
@@ -329,7 +315,10 @@ export function useWaveformRegions({
     ws.on('pause', onPause)
     ws.on('finish', onFinish)
     ws.on('ready', onReady)
-    ws.on('scroll', onScroll)
+    // NOTE: WaveSurfer v7's `scroll` event is unreliable -- it does not fire
+    // when `ws.zoom()` is applied programmatically. The visible range is
+    // computed from the native scroller's scrollLeft + ResizeObserver in a
+    // separate effect below; we deliberately do NOT subscribe to ws.on('scroll').
     ws.on('timeupdate', onTimeUpdate)
 
     // region-update fires per-frame during drag; flip the freeze flag
@@ -410,7 +399,6 @@ export function useWaveformRegions({
       ws.un('pause', onPause)
       ws.un('finish', onFinish)
       ws.un('ready', onReady)
-      ws.un('scroll', onScroll)
       ws.un('timeupdate', onTimeUpdate)
       regionsPlugin.un('region-update', onRegionUpdate)
       regionsPlugin.un('region-updated', onRegionUpdateEnd)
@@ -451,8 +439,17 @@ export function useWaveformRegions({
     }
     if (!wrapper || !scroller) return
 
+    let cancelled = false
+    let rafHandle = 0
     const recompute = () => {
-      const dur = ws.getDuration()
+      // Guard: WS may have been destroyed between RAF schedule + fire.
+      if (cancelled || wsRef.current !== ws) return
+      let dur: number
+      try {
+        dur = ws.getDuration()
+      } catch {
+        return
+      }
       if (!Number.isFinite(dur) || dur <= 0) return
       const totalWidth = wrapper!.clientWidth
       const visibleW = scroller!.clientWidth
@@ -463,7 +460,9 @@ export function useWaveformRegions({
       setVisibleRange([startSec, endSec])
     }
     const scheduleRecompute = () => {
-      requestAnimationFrame(recompute)
+      if (cancelled) return
+      cancelAnimationFrame(rafHandle)
+      rafHandle = requestAnimationFrame(recompute)
     }
 
     scroller.addEventListener('scroll', scheduleRecompute, { passive: true })
@@ -476,6 +475,8 @@ export function useWaveformRegions({
     scheduleRecompute()
 
     return () => {
+      cancelled = true
+      cancelAnimationFrame(rafHandle)
       scroller!.removeEventListener('scroll', scheduleRecompute)
       ro?.disconnect()
     }

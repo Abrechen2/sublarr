@@ -82,6 +82,13 @@ interface WaveformEditorProps {
    */
   onMergeWithNext?: (idx: number) => void
   /**
+   * Inline cue-text edit. Receives the cue index and the new plain text
+   * (with real `\n` line breaks; ASS conversion is handled downstream in
+   * `applyCueText`). Only invoked when the editor is unlocked AND this
+   * prop is provided.
+   */
+  onCueTextChange?: (idx: number, text: string) => void
+  /**
    * Pop the most recent waveform-driven cue-timing edit and restore the
    * previous content. Toolbar shows the Undo button only when this is set.
    */
@@ -189,6 +196,7 @@ export function WaveformEditor({
   onSelectCue,
   onSplitCue,
   onMergeWithNext,
+  onCueTextChange,
   onUndo,
   onRedo,
   canUndo = false,
@@ -787,6 +795,7 @@ export function WaveformEditor({
           visibleRange={visibleRange}
           playheadSec={playheadSec}
           isPlaying={isPlaying}
+          onTextChange={editingEnabled ? onCueTextChange : undefined}
         />
       )}
 
