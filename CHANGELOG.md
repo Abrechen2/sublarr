@@ -5,6 +5,11 @@ All notable changes to Sublarr are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.84.1-beta] - 2026-05-03
+
+### Fixed
+- **Waveform audio blocked by CSP in production** — The Content-Security-Policy header had no `media-src` directive, so it fell back to `default-src 'self'` and blocked every `blob:` URL. WaveSurfer fetches the extracted audio from `/api/v1/tools/waveform-audio/`, wraps it in `URL.createObjectURL()`, and feeds the resulting blob into an internal `<audio>` element — which the browser charges against `media-src`, not `connect-src`. The Waveform tab in the subtitle editor was therefore unusable on prod; only the local Vite dev server, which emits no CSP, hid the bug. Added `media-src 'self' blob:` to the CSP. Verified locally with a same-origin blob: probe on `<audio>.src` — `loadstart` fires, console clean.
+
 ## [0.84.0-beta] - 2026-05-03
 
 ### Added
