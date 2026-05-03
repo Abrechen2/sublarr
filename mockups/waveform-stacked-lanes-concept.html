@@ -1,0 +1,369 @@
+<!doctype html>
+<html lang="de">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Sublarr · Waveform — Stacked-Lanes Konzept</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    :root {
+      --bg-page: #1a1d23;
+      --bg-surface: #1f2228;
+      --bg-elevated: #282c35;
+      --border: #2a2e38;
+      --border-hover: #3a3f4d;
+      --text-primary: #e0e4ec;
+      --text-secondary: #848b9e;
+      --text-muted: #4a5168;
+      --accent: #0f9bb5;
+      --accent-dim: #0a7089;
+      --accent-bg: rgba(15, 155, 181, 0.12);
+      --accent-strong: rgba(15, 155, 181, 0.28);
+      --warn: #f59e0b;
+      --warn-bg: rgba(245, 158, 11, 0.18);
+      --error: #ef4444;
+      --error-bg: rgba(239, 68, 68, 0.22);
+      --keyframe: rgba(15, 155, 181, 0.4);
+      --scene: rgba(245, 158, 11, 0.5);
+    }
+    body { background: var(--bg-page); color: var(--text-primary); font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
+    .surface { background: var(--bg-surface); border: 1px solid var(--border); }
+    .elevated { background: var(--bg-elevated); border: 1px solid var(--border); }
+    .accent-card { background: var(--accent-bg); border: 1px solid var(--accent-strong); }
+    .pill { background: var(--bg-elevated); border: 1px solid var(--border); border-radius: 6px; padding: 6px 10px; font-size: 12px; color: var(--text-primary); }
+    .pill.on { background: var(--accent-bg); border-color: var(--accent-strong); color: var(--accent); }
+    .pill .label { color: var(--text-secondary); margin-left: 4px; font-variant-numeric: tabular-nums; }
+    .divider { height: 1px; background: var(--border); }
+    .timeline-tick { background: var(--text-muted); }
+    .timeline-tick.major { background: var(--text-secondary); }
+    .scrollbar::-webkit-scrollbar { height: 10px; width: 10px; }
+    .scrollbar::-webkit-scrollbar-thumb { background: var(--border-hover); border-radius: 6px; }
+    .scrollbar::-webkit-scrollbar-track { background: transparent; }
+
+    /* Mock waveform — fake amplitude bars */
+    .wave {
+      position: relative;
+      height: 120px;
+      background:
+        repeating-linear-gradient(
+          to right,
+          rgba(15, 155, 181, 0.55) 0 1px,
+          transparent 1px 4px
+        ),
+        linear-gradient(180deg, rgba(15, 155, 181, 0.10) 0%, rgba(15, 155, 181, 0.02) 100%);
+      border-radius: 6px;
+      overflow: hidden;
+    }
+    .wave::before {
+      content: "";
+      position: absolute; inset: 0;
+      background: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 1200 120' preserveAspectRatio='none'><path d='M0 60 Q 30 20 60 60 T 120 60 T 180 30 T 240 80 T 300 50 T 360 70 T 420 40 T 480 60 T 540 25 T 600 75 T 660 50 T 720 60 T 780 35 T 840 70 T 900 55 T 960 60 T 1020 30 T 1080 75 T 1140 50 T 1200 60' stroke='%230f9bb5' stroke-width='1.5' fill='none' opacity='0.7'/></svg>") center / 100% 100% no-repeat;
+    }
+    .region {
+      position: absolute; top: 8px; bottom: 8px;
+      background: rgba(15, 155, 181, 0.15);
+      border: 1px solid rgba(15, 155, 181, 0.5);
+      border-radius: 4px;
+      box-sizing: border-box;
+    }
+    .region.active {
+      background: rgba(15, 155, 181, 0.32);
+      border-color: var(--accent);
+      box-shadow: 0 0 0 1px var(--accent);
+    }
+    /* per-region inline label — Gemini said keep but reduce visual weight */
+    .region-label {
+      position: absolute; top: 4px; left: 6px; right: 6px;
+      font-size: 10px; line-height: 1.1;
+      color: rgba(224, 228, 236, 0.55);
+      white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+      pointer-events: none;
+    }
+    .region.active .region-label { color: rgba(255,255,255,0.95); font-weight: 500; }
+
+    .playhead {
+      position: absolute; top: 0; bottom: 0; width: 2px;
+      background: #fff; box-shadow: 0 0 6px rgba(255,255,255,0.6);
+    }
+    .keyframe-marker {
+      position: absolute; top: 0; bottom: 0; width: 1px;
+      background: var(--keyframe);
+    }
+    .scene-marker {
+      position: absolute; top: 0; bottom: 0; width: 1px;
+      background: var(--scene);
+    }
+    .gap-marker {
+      position: absolute; bottom: 0; height: 6px;
+      background: var(--warn-bg); border-top: 1px solid var(--warn);
+    }
+    .overlap-marker {
+      position: absolute; bottom: 0; height: 6px;
+      background: var(--error-bg); border-top: 1px solid var(--error);
+    }
+
+    .timeline {
+      position: relative; height: 18px;
+      border-bottom: 1px solid var(--border);
+      background: var(--bg-elevated);
+      font-size: 10px; color: var(--text-secondary);
+      font-variant-numeric: tabular-nums;
+    }
+    .timeline .tick { position: absolute; top: 8px; bottom: 0; width: 1px; background: var(--text-muted); }
+    .timeline .tick.major { background: var(--text-secondary); top: 4px; }
+    .timeline .label { position: absolute; top: 1px; transform: translateX(-50%); }
+
+    /* Cue list rows */
+    .cue-row {
+      display: grid;
+      grid-template-columns: 56px 110px 1fr 76px;
+      gap: 12px;
+      padding: 8px 12px;
+      border-left: 3px solid transparent;
+      border-bottom: 1px solid var(--border);
+      cursor: pointer;
+      align-items: start;
+    }
+    .cue-row:hover { background: var(--bg-elevated); }
+    .cue-row.active {
+      background: var(--accent-bg);
+      border-left-color: var(--accent);
+    }
+    .cue-row .idx { color: var(--text-secondary); font-size: 11px; font-variant-numeric: tabular-nums; padding-top: 2px; }
+    .cue-row .time { color: var(--text-secondary); font-size: 11px; font-variant-numeric: tabular-nums; line-height: 1.4; }
+    .cue-row .text { color: var(--text-primary); font-size: 13px; line-height: 1.45; }
+    .cue-row .quality { display: flex; gap: 4px; justify-content: flex-end; align-items: flex-start; padding-top: 2px; }
+    .quality .dot { width: 8px; height: 8px; border-radius: 50%; }
+    .dot.gap { background: var(--warn); }
+    .dot.overlap { background: var(--error); }
+
+    .badge { font-size: 10px; padding: 2px 6px; border-radius: 4px; }
+    .badge.gap { background: var(--warn-bg); color: var(--warn); border: 1px solid rgba(245,158,11,0.5); }
+    .badge.overlap { background: var(--error-bg); color: var(--error); border: 1px solid rgba(239,68,68,0.6); }
+
+    h1 small { color: var(--text-secondary); font-weight: 400; }
+    .annotation {
+      background: rgba(15, 155, 181, 0.08);
+      border-left: 3px solid var(--accent);
+      padding: 10px 14px;
+      border-radius: 0 6px 6px 0;
+      font-size: 13px;
+      color: var(--text-primary);
+    }
+    .annotation .tag { color: var(--accent); font-weight: 600; font-size: 11px; text-transform: uppercase; letter-spacing: 0.05em; margin-right: 8px; }
+  </style>
+</head>
+<body class="min-h-screen p-6">
+  <header class="max-w-6xl mx-auto mb-6">
+    <h1 class="text-2xl font-semibold">Waveform-Tab — Stacked-Lanes Konzept
+      <small class="text-base ml-2">/ Sublarr 0.84.2-beta Vorschlag</small>
+    </h1>
+    <p class="text-sm mt-1" style="color: var(--text-secondary);">
+      Toolbar oben → Active-Cue-Card → Welle (mit gedimmten Region-Labels) → synchronisierte Cue-Liste unten.
+      Layout-Prinzip: <strong>Control → Focus → Context</strong>.
+    </p>
+  </header>
+
+  <div class="max-w-6xl mx-auto surface rounded-lg overflow-hidden">
+
+    <!-- 1) TOOLBAR — top -->
+    <div class="px-4 py-3 flex items-center gap-2 flex-wrap" style="background: var(--bg-elevated); border-bottom: 1px solid var(--border);">
+      <button class="pill on flex items-center gap-1.5">▶ Play</button>
+      <button class="pill flex items-center gap-1.5">🔓 Edit</button>
+      <button class="pill flex items-center gap-1.5">⌨ Help</button>
+      <span class="divider w-px h-5 mx-1"></span>
+      <button class="pill flex items-center gap-1.5">▒ Spectrogram</button>
+      <button class="pill flex items-center gap-1.5">🎧 Scrub</button>
+      <button class="pill on flex items-center gap-1.5">▌ Keyframes</button>
+      <span class="divider w-px h-5 mx-1"></span>
+      <label class="pill flex items-center gap-2"><span>−</span><input type="range" min="1" max="50" value="14" class="w-20 accent-cyan-500" /><span>+</span><span class="label">14</span></label>
+      <label class="pill flex items-center gap-2">Amp<input type="range" min="1" max="5" step="0.1" value="1.6" class="w-16 accent-cyan-500" /><span class="label">1.6×</span></label>
+      <label class="pill flex items-center gap-2">Rate<input type="range" min="0.5" max="2" step="0.05" value="1.0" class="w-16 accent-cyan-500" /><span class="label">1.00×</span></label>
+      <label class="pill flex items-center gap-2"><input type="checkbox" checked />Auto-center</label>
+      <select class="pill"><option>Audio 0 · jpn (default)</option><option>Audio 1 · eng (dub)</option></select>
+      <span class="ml-auto text-xs" style="color: var(--text-secondary);">797 Cues · ASS</span>
+      <button class="pill flex items-center gap-1.5" title="Cue-Liste ein-/ausblenden">▭ List</button>
+    </div>
+
+    <!-- 2) ACTIVE-CUE CARD -->
+    <div class="px-4 pt-4">
+      <div class="accent-card rounded-md px-4 py-3">
+        <div class="flex items-baseline gap-3 mb-1.5 flex-wrap text-xs" style="color: var(--text-secondary);">
+          <span style="color: var(--accent); font-weight: 500;">Cue 142 / 797</span>
+          <span class="tabular-nums">00:08:43.250</span>
+          <span aria-hidden="true">→</span>
+          <span class="tabular-nums">00:08:46.083</span>
+          <span style="color: var(--text-muted);">(2.833 s)</span>
+          <span class="badge gap ml-2">Gap → next: 42 ms</span>
+        </div>
+        <div class="text-base leading-snug">
+          <div>Wenn der Wind über die Eichen fährt,</div>
+          <div>denken sie an das, was sie verloren haben.</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 3) WAVEFORM — sticky timeline + canvas -->
+    <div class="px-4 pt-3">
+      <div class="rounded-md overflow-hidden" style="border: 1px solid var(--border);">
+        <!-- Sticky timeline ruler -->
+        <div class="timeline">
+          <span class="tick major" style="left: 0%;"></span><span class="label" style="left: 0%;">8:35</span>
+          <span class="tick" style="left: 12.5%;"></span>
+          <span class="tick major" style="left: 25%;"></span><span class="label" style="left: 25%;">8:40</span>
+          <span class="tick" style="left: 37.5%;"></span>
+          <span class="tick major" style="left: 50%;"></span><span class="label" style="left: 50%;">8:45</span>
+          <span class="tick" style="left: 62.5%;"></span>
+          <span class="tick major" style="left: 75%;"></span><span class="label" style="left: 75%;">8:50</span>
+          <span class="tick" style="left: 87.5%;"></span>
+          <span class="tick major" style="left: 100%;"></span>
+        </div>
+
+        <div class="wave">
+          <!-- Keyframes (dim teal verticals) -->
+          <span class="keyframe-marker" style="left: 7%;"></span>
+          <span class="keyframe-marker" style="left: 13%;"></span>
+          <span class="keyframe-marker" style="left: 22%;"></span>
+          <span class="keyframe-marker" style="left: 31%;"></span>
+          <span class="keyframe-marker" style="left: 39%;"></span>
+          <span class="keyframe-marker" style="left: 48%;"></span>
+          <span class="keyframe-marker" style="left: 57%;"></span>
+          <span class="keyframe-marker" style="left: 66%;"></span>
+          <span class="keyframe-marker" style="left: 74%;"></span>
+          <span class="keyframe-marker" style="left: 83%;"></span>
+          <span class="keyframe-marker" style="left: 91%;"></span>
+
+          <!-- Scene cuts (amber verticals) -->
+          <span class="scene-marker" style="left: 31%;"></span>
+          <span class="scene-marker" style="left: 74%;"></span>
+
+          <!-- Cue regions with reduced-opacity inline labels -->
+          <div class="region" style="left: 5%; width: 14%;">
+            <span class="region-label">Sie sah ihn an, ohne ein Wort zu sagen.</span>
+          </div>
+          <div class="region" style="left: 20%; width: 11%;">
+            <span class="region-label">"Geh nicht. Bitte."</span>
+          </div>
+          <div class="region active" style="left: 35%; width: 22%;">
+            <span class="region-label">Wenn der Wind über die Eichen fährt, denken sie an das…</span>
+          </div>
+          <div class="region" style="left: 58%; width: 13%;">
+            <span class="region-label">Er drehte sich um.</span>
+          </div>
+          <div class="region" style="left: 73%; width: 18%;">
+            <span class="region-label">"Es ist zu spät, Anna. Wir können nicht zurück."</span>
+          </div>
+
+          <!-- Playhead -->
+          <span class="playhead" style="left: 47%;"></span>
+
+          <!-- Quality markers along the bottom -->
+          <span class="gap-marker" style="left: 56.5%; width: 1.5%;" title="Tight gap 42 ms"></span>
+          <span class="overlap-marker" style="left: 71.5%; width: 1.5%;" title="Overlap 80 ms"></span>
+        </div>
+      </div>
+
+      <div class="text-xs flex items-center gap-4 mt-2 px-1" style="color: var(--text-secondary);">
+        <span>Snap: 87 keyframes · 6 scene cuts</span>
+        <span class="flex items-center gap-1.5"><span class="dot gap" style="width: 8px; height: 8px; border-radius: 50%; background: var(--warn);"></span> 3 enge Gaps</span>
+        <span class="flex items-center gap-1.5"><span class="dot overlap" style="width: 8px; height: 8px; border-radius: 50%; background: var(--error);"></span> 1 Overlap</span>
+        <span class="ml-auto">Snap-Toleranz: 80 ms · Min Gap: 80 ms</span>
+      </div>
+    </div>
+
+    <!-- 4) CUE LIST — synchronized context, 5 rows visible, scrollable, active centered -->
+    <div class="mt-4 mx-4 mb-4 rounded-md overflow-hidden" style="border: 1px solid var(--border);">
+      <div class="px-3 py-2 flex items-center justify-between" style="background: var(--bg-elevated); border-bottom: 1px solid var(--border);">
+        <div class="text-xs" style="color: var(--text-secondary);">
+          <span style="color: var(--text-primary); font-weight: 500;">Cue-Liste</span>
+          · Folge der Welle (Auto-scroll an)
+        </div>
+        <div class="flex items-center gap-2 text-xs" style="color: var(--text-secondary);">
+          <label class="flex items-center gap-1.5"><input type="checkbox" checked /> Auto-scroll</label>
+          <button class="pill" title="Liste einklappen — mehr Welle">▾ 5 Zeilen</button>
+        </div>
+      </div>
+      <div class="scrollbar overflow-y-auto" style="max-height: 240px;">
+        <div class="cue-row">
+          <div class="idx">140</div>
+          <div class="time">00:08:35.120<br>→ 00:08:38.005</div>
+          <div class="text">Sie sah ihn an, ohne ein Wort zu sagen.</div>
+          <div class="quality"></div>
+        </div>
+        <div class="cue-row">
+          <div class="idx">141</div>
+          <div class="time">00:08:38.500<br>→ 00:08:41.910</div>
+          <div class="text">"Geh nicht. Bitte."</div>
+          <div class="quality"></div>
+        </div>
+        <div class="cue-row active">
+          <div class="idx">142</div>
+          <div class="time">00:08:43.250<br>→ 00:08:46.083</div>
+          <div class="text">
+            Wenn der Wind über die Eichen fährt,<br>
+            denken sie an das, was sie verloren haben.
+          </div>
+          <div class="quality"><span class="dot gap" title="Tight gap → next"></span></div>
+        </div>
+        <div class="cue-row">
+          <div class="idx">143</div>
+          <div class="time">00:08:46.125<br>→ 00:08:48.420</div>
+          <div class="text">Er drehte sich um.</div>
+          <div class="quality"></div>
+        </div>
+        <div class="cue-row">
+          <div class="idx">144</div>
+          <div class="time">00:08:48.340<br>→ 00:08:51.950</div>
+          <div class="text">"Es ist zu spät, Anna. Wir können nicht zurück."</div>
+          <div class="quality"><span class="dot overlap" title="Overlap with prev cue"></span></div>
+        </div>
+        <div class="cue-row">
+          <div class="idx">145</div>
+          <div class="time">00:08:52.300<br>→ 00:08:55.110</div>
+          <div class="text">Stille. Nur die Eichen rauschten weiter.</div>
+          <div class="quality"></div>
+        </div>
+        <div class="cue-row">
+          <div class="idx">146</div>
+          <div class="time">00:08:55.700<br>→ 00:08:58.660</div>
+          <div class="text">Sie ging, ohne sich noch einmal umzudrehen.</div>
+          <div class="quality"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- DIFF / RATIONALE -->
+  <section class="max-w-6xl mx-auto mt-8 grid md:grid-cols-2 gap-4 text-sm">
+    <div class="surface rounded-lg p-4">
+      <h2 class="font-semibold mb-2" style="color: var(--accent);">Was sich gegenüber 0.84.1 ändert</h2>
+      <ul class="space-y-2" style="color: var(--text-primary);">
+        <li><strong>Toolbar nach oben:</strong> Standard-DAW-Konvention, kürzere Maus-Wege im Editier-Modus (Welle + Liste bleiben unten beieinander).</li>
+        <li><strong>Region-Labels behalten, aber gedimmt:</strong> bleiben als Navigations-Anker (man sieht beim Drag, was man verschiebt), erschlagen aber nicht mehr die Welle.</li>
+        <li><strong>Neue Cue-Liste unten:</strong> 5 Zeilen sichtbar, scrollend, aktive Zeile auto-zentriert, klickbare Selektion, inline Quality-Punkte (Gap / Overlap) statt Marker im Wave.</li>
+        <li><strong>Active-Cue-Card behält ihren Platz:</strong> bleibt direkt über der Welle für den "was timt der gerade"-Fokus.</li>
+        <li><strong>Liste einklappbar:</strong> "▭ List"-Toggle in der Toolbar gibt Power-Usern die volle Wellen-Höhe zurück (~250 px → ~490 px).</li>
+      </ul>
+    </div>
+    <div class="surface rounded-lg p-4">
+      <h2 class="font-semibold mb-2" style="color: var(--accent);">Warum nicht Side-Panel?</h2>
+      <ul class="space-y-2" style="color: var(--text-primary);">
+        <li><strong>Bilingualer Text wickelt aggressiv:</strong> DE+EN-Kombinationen fressen jede sinnvolle Spaltenbreite und blasen die Listen-Höhe trotzdem auf.</li>
+        <li><strong>Welle braucht horizontale Sicht:</strong> Side-Panel klaut Look-Ahead-Distanz, die für präzises Timing wichtiger ist als vertikale Wellen-Höhe.</li>
+        <li><strong>Modal ist breiter als hoch:</strong> stacked unten nutzt das natürliche Seitenverhältnis besser.</li>
+      </ul>
+      <h3 class="font-semibold mt-4 mb-2" style="color: var(--accent);">Migrations-Plan (Code-seitig)</h3>
+      <ul class="space-y-2" style="color: var(--text-primary);">
+        <li>Toolbar-DOM-Reihenfolge in <code class="text-xs px-1.5 py-0.5 rounded" style="background: var(--bg-elevated);">WaveformEditor.tsx</code> nach oben verschieben (kein Logik-Change).</li>
+        <li>Neue Komponente <code class="text-xs px-1.5 py-0.5 rounded" style="background: var(--bg-elevated);">WaveformCueList.tsx</code> — wiederverwendet <code class="text-xs px-1.5 py-0.5 rounded" style="background: var(--bg-elevated);">parseData.cues</code>, ruft <code class="text-xs px-1.5 py-0.5 rounded" style="background: var(--bg-elevated);">onSelectAdjacentCue</code>-Callback auf Klick.</li>
+        <li>Region-Label-Opazität in <code class="text-xs px-1.5 py-0.5 rounded" style="background: var(--bg-elevated);">useWaveformRegions.ts</code> von ~0.95 auf ~0.55 senken (active bleibt voll).</li>
+        <li>Persist <code class="text-xs px-1.5 py-0.5 rounded" style="background: var(--bg-elevated);">cueListCollapsed</code> in <code class="text-xs px-1.5 py-0.5 rounded" style="background: var(--bg-elevated);">localStorage</code> analog zu den anderen Toolbar-Prefs.</li>
+      </ul>
+    </div>
+  </section>
+
+  <footer class="max-w-6xl mx-auto mt-6 mb-10 text-xs" style="color: var(--text-muted);">
+    Mockup nur — keine echten Cue-Daten, keine echte Audio-Quelle. Farben aus <code>frontend/src/index.css</code> (Dark-Theme).
+  </footer>
+</body>
+</html>
