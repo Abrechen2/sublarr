@@ -5,6 +5,15 @@ All notable changes to Sublarr are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.88.0-beta] - 2026-05-04
+
+### Changed
+- **UI-first configuration convention (semi-breaking for `.env` users)** — `Settings` is now a composite of `BootSettings` (a `pydantic_settings.BaseSettings` with exactly 11 fields: `port`, `api_key`, `media_path`, `config_dir`, `db_path`, `database_url`, `redis_url`, `log_level`, `log_file`, `log_format`, `cors_origins`) and `UISettings` (a plain `pydantic.BaseModel` with all 200+ other fields). `BaseModel` cannot load environment variables by language design, so every legacy `SUBLARR_<ui_field>` env var is now silently dropped at startup. `reload_settings(overrides=...)` writes only to UI fields; boot fields stay env-only. The composite class keeps full backwards-compat across ~370 existing call sites via a `__getattr__` forwarder, so `settings.target_language`, `settings.opensubtitles_api_key`, `settings.get_safe_config()` etc. all still work unchanged. See the [Upgrade Guide → 0.88.0-beta](https://sublarr.de/docs/getting-started/upgrade-guide/) for the migration map (legacy env-var group → new Settings UI page).
+
+### Added
+- **Loud per-key startup warnings for ignored env vars** — `create_app()` calls `warn_on_ignored_env_vars()` after settings + logging are wired. Every `SUBLARR_<ui_field>` found in `os.environ` produces a discoverable `WARNING config_settings: Ignoring SUBLARR_X — UI field, not env-loadable since v0.88.0-beta. Move to Settings UI.` line. Boot-field env vars (the 11 above) stay silent; unrelated env vars without the `SUBLARR_` prefix are ignored. Two regression tests assert the per-field log line and the ignored-list return value.
+- **CI linter enforcing the UI-first contract (`tools/lint_no_new_env_fields.py`)** — AST walker over `backend/config_settings.py` that asserts: (1) `_ALLOWED_BOOT_FIELDS` frozenset is the source of truth; (2) `BootSettings` declares exactly those fields — no more, no less; (3) `UISettings` does NOT subclass `BaseSettings` (otherwise env loading would silently come back); (4) no other class in the file subclasses `BaseSettings`. Self-test in `tools/test_lint_no_new_env_fields.py` exercises 6 cases (1 happy + 5 violation paths). Wired into CI between the existing `is_safe_path` linter and mypy. Refuses any future PR that tries to add a new env-loadable field outside the curated 11-entry allowlist.
+
 ## [0.87.1-beta] - 2026-05-04
 
 ### Security
