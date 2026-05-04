@@ -8,29 +8,36 @@ from config import _get_language_tags, get_settings, reload_settings
 
 
 def test_default_settings(monkeypatch):
-    """Test that settings fields are applied from env vars correctly."""
-    # Force known values via env (overrides both .env file and local env)
-    monkeypatch.setenv("SUBLARR_PORT", "5765")
-    monkeypatch.setenv("SUBLARR_SOURCE_LANGUAGE", "en")
-    monkeypatch.setenv("SUBLARR_TARGET_LANGUAGE", "de")
-    monkeypatch.setenv("SUBLARR_OLLAMA_URL", "http://localhost:11434")
+    """Boot-field env vars take effect; UI-field env vars are ignored.
+
+    Since v0.88.0-beta the env-loadable surface is the curated BootSettings
+    set (port, log_level, paths, …). UI fields (source/target language,
+    ollama_url, etc.) come from the DB / direct kwargs only.
+    """
+    monkeypatch.setenv("SUBLARR_PORT", "5765")  # boot — applies
+    monkeypatch.setenv("SUBLARR_SOURCE_LANGUAGE", "en")  # ui — ignored
+    monkeypatch.setenv("SUBLARR_TARGET_LANGUAGE", "de")  # ui — ignored
+    monkeypatch.setenv("SUBLARR_OLLAMA_URL", "http://localhost:11434")  # ui — ignored
     settings = reload_settings()
-    assert settings.port == 5765
+    assert settings.port == 5765  # boot field — env honoured
+    # UI fields stay at their defaults regardless of env (and the defaults
+    # happen to match the values above, so no assertion change is needed).
     assert settings.source_language == "en"
     assert settings.target_language == "de"
     assert settings.ollama_url == "http://localhost:11434"
 
 
 def test_env_prefix():
-    """Test that SUBLARR_ prefix works."""
-    os.environ["SUBLARR_PORT"] = "8080"
-    os.environ["SUBLARR_TARGET_LANGUAGE"] = "fr"
-    settings = reload_settings()
-    assert settings.port == 8080
-    assert settings.target_language == "fr"
-    # Cleanup
-    del os.environ["SUBLARR_PORT"]
-    del os.environ["SUBLARR_TARGET_LANGUAGE"]
+    """SUBLARR_ prefix works for boot fields; UI fields ignore env."""
+    os.environ["SUBLARR_PORT"] = "8080"  # boot — applies
+    os.environ["SUBLARR_TARGET_LANGUAGE"] = "fr"  # ui — ignored
+    try:
+        settings = reload_settings()
+        assert settings.port == 8080  # boot env honoured
+        assert settings.target_language == "de"  # ui default preserved
+    finally:
+        del os.environ["SUBLARR_PORT"]
+        del os.environ["SUBLARR_TARGET_LANGUAGE"]
 
 
 def test_language_tags():
@@ -88,8 +95,22 @@ def test_translation_enabled_default():
     assert settings.translation_enabled is False
 
 
-def test_translation_enabled_env_override(monkeypatch):
-    """SUBLARR_TRANSLATION_ENABLED=true activates the feature."""
+def test_translation_enabled_env_is_ignored(monkeypatch):
+    """``translation_enabled`` is a UI field — env vars are ignored.
+
+    Since v0.88.0-beta translation_enabled is configured exclusively via
+    the UI (Settings → Translation). Setting SUBLARR_TRANSLATION_ENABLED
+    has no effect; users must enable the feature through the UI.
+    """
     monkeypatch.setenv("SUBLARR_TRANSLATION_ENABLED", "true")
     settings = reload_settings()
+    # Default preserved despite env var being set.
+    assert settings.translation_enabled is False
+
+
+def test_translation_enabled_via_db_override():
+    """``translation_enabled`` is settable through the DB-override path."""
+    settings = reload_settings(overrides={"translation_enabled": "true"})
     assert settings.translation_enabled is True
+    # Reset for downstream tests
+    reload_settings()

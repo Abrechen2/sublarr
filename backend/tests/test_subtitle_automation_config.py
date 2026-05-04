@@ -56,23 +56,33 @@ class TestForeignTrackCleanup:
         assert s.cleanup_foreign_tracks_keep_und is False
 
 
-class TestEnvOverrides:
-    """All 7 keys must respect the SUBLARR_ env-var prefix."""
+class TestUIOverrides:
+    """All 7 keys are UI fields — settable via direct kwargs / DB overrides.
 
-    def test_master_toggle_env_override(self, monkeypatch):
-        monkeypatch.setenv("SUBLARR_SUBTITLE_AUTOMATION_ENABLED", "true")
-        s = Settings()
+    Since v0.88.0-beta these fields are no longer ENV-loadable. Setting the
+    SUBLARR_* env var has no effect (the env-loading surface is the curated
+    BootSettings allowlist). Tests construct Settings(...) directly to
+    exercise the new field values.
+    """
+
+    def test_master_toggle_kwargs_override(self):
+        s = Settings(subtitle_automation_enabled=True)
         assert s.subtitle_automation_enabled is True
 
-    def test_sdh_penalty_env_override(self, monkeypatch):
-        monkeypatch.setenv("SUBLARR_EMBEDDED_SDH_PENALTY", "15")
-        s = Settings()
+    def test_sdh_penalty_kwargs_override(self):
+        s = Settings(embedded_sdh_penalty=15)
         assert s.embedded_sdh_penalty == 15
 
-    def test_cleanup_default_env_override(self, monkeypatch):
-        monkeypatch.setenv("SUBLARR_CLEANUP_FOREIGN_TRACKS_DEFAULT", "true")
-        s = Settings()
+    def test_cleanup_default_kwargs_override(self):
+        s = Settings(cleanup_foreign_tracks_default=True)
         assert s.cleanup_foreign_tracks_default is True
+
+    def test_master_toggle_env_is_ignored(self, monkeypatch):
+        """Setting SUBLARR_SUBTITLE_AUTOMATION_ENABLED has no effect."""
+        monkeypatch.setenv("SUBLARR_SUBTITLE_AUTOMATION_ENABLED", "true")
+        s = Settings()
+        # Default preserved despite env var being set.
+        assert s.subtitle_automation_enabled is False
 
 
 class TestScanningSettingsViewExposure:

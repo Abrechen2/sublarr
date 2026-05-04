@@ -1,16 +1,22 @@
 """Process-wide singleton accessor for Settings.
 
-Other modules call `get_settings()` to retrieve the active Settings
-instance and `reload_settings(overrides=...)` to swap it (e.g. after the
-user saves config_entries via the UI).
+Other modules call ``get_settings()`` to retrieve the active Settings
+instance and ``reload_settings(overrides=...)`` to swap it (e.g. after
+the user saves config_entries via the UI).
 
-Importing rule: this module imports `Settings` from `config_settings` at
-top level — never the other way round.
+DB ``config_entries`` overrides are applied **only** to ``UISettings``
+fields. Boot fields (``BootSettings``) are read once from the environment
+at process start and stay fixed for the lifetime of the process —
+restart Sublarr to pick up new boot env values.
+
+Importing rule: this module imports ``Settings``/``BootSettings``/
+``UISettings`` from ``config_settings`` at top level — never the other
+way round.
 """
 
 import threading
 
-from config_settings import Settings
+from config_settings import BootSettings, Settings, UISettings
 
 _settings: Settings | None = None
 _settings_lock = threading.Lock()
@@ -31,23 +37,29 @@ def get_settings() -> Settings:
 def reload_settings(overrides: dict | None = None) -> Settings:
     """Force reload settings from environment/file, with optional DB overrides.
 
+    Boot fields are re-read from ENV/.env. UI fields start from defaults and
+    then have ``overrides`` (from DB ``config_entries``) overlaid on top.
+
     Args:
-        overrides: Dict of key-value pairs (from DB config_entries) to apply
-                   on top of the env/file settings.
+        overrides: Dict of UI field name → value (string-form coming from
+                   ``config_entries.value``). Boot-field keys in the dict
+                   are ignored — boot is ENV-only by design.
     """
     global _settings
-    base = Settings()
-    new_settings = base
+    boot = BootSettings()
+    ui = UISettings()
 
     if overrides:
-        # Build update dict with correct types
-        base_data = base.model_dump()
-        update = {}
+        ui_fields = UISettings.model_fields
+        ui_data = ui.model_dump()
+        update: dict = {}
         for key, value in overrides.items():
-            if key not in base_data:
+            if key not in ui_fields:
+                # Could be a boot-field key (ignored — boot is ENV-only) or
+                # an obsolete field from a downgraded install. Drop silently
+                # rather than fail loud — config_entries can outlive schema.
                 continue
-            # Convert string values from DB to the correct field type
-            expected_type = type(base_data[key])
+            expected_type = type(ui_data[key])
             try:
                 if expected_type is bool:
                     update[key] = (
@@ -65,7 +77,9 @@ def reload_settings(overrides: dict | None = None) -> Settings:
                 continue  # Skip invalid values
 
         if update:
-            new_settings = base.model_copy(update=update)
+            ui = ui.model_copy(update=update)
+
+    new_settings = Settings(boot=boot, ui=ui)
 
     with _settings_lock:
         _settings = new_settings

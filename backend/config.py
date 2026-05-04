@@ -1,7 +1,13 @@
 """Centralized configuration using Pydantic Settings.
 
-All settings can be overridden via environment variables with the SUBLARR_ prefix,
-or via a .env file. Example: SUBLARR_PORT=8080
+Sublarr is **UI-first** since v0.88.0-beta — only a small bootstrap set of
+settings (DB URL, mount paths, port, log level, …) is loaded from
+``SUBLARR_*`` environment variables. Everything else is configured through
+the Settings UI and persisted in the ``config_entries`` table.
+
+Boot fields live on ``BootSettings`` (env-loadable). UI fields live on
+``UISettings`` (no env loading — Pydantic ``BaseModel``). The ``Settings``
+class is a composite that forwards attribute access to either side.
 """
 # ruff: noqa: I001  # Imports are ordered by dependency layer, not alphabetically.
 
@@ -15,8 +21,13 @@ from config_views import (  # noqa: E402, F401
     _SettingsView,
 )
 
-# Settings class — re-exported via this module for backwards compatibility.
-from config_settings import Settings  # noqa: E402, F401
+# Settings classes — re-exported via this module for backwards compatibility.
+from config_settings import (  # noqa: E402, F401
+    BootSettings,
+    Settings,
+    UISettings,
+    warn_on_ignored_env_vars,
+)
 
 # Singleton accessors — re-exported via this module for backwards compatibility.
 from config_singleton import get_settings, reload_settings  # noqa: E402, F401

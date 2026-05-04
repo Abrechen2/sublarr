@@ -11,13 +11,15 @@ import pytest
 
 
 def test_settings_class_importable_from_config():
-    """Settings (the class) must be importable from `config`."""
-    from config import Settings
+    """Settings (the composite class) must be importable from `config`."""
+    from config import BootSettings, Settings, UISettings
 
     assert Settings is not None
-    # Sanity: it is the Pydantic model, not a re-export of something else.
-    assert hasattr(Settings, "model_config")
+    # Composite — model_dump is implemented (forwards to boot+ui).
     assert hasattr(Settings, "model_dump")
+    # Boot/UI sub-classes also re-exported for direct construction.
+    assert BootSettings is not None
+    assert UISettings is not None
 
 
 def test_settings_instantiable_without_env():
@@ -198,10 +200,16 @@ def test_reload_settings_replaces_singleton():
 
 
 def test_reload_settings_applies_overrides_with_type_coercion():
+    """DB overrides apply to UI fields with type coercion.
+
+    Boot fields (port, log_level, paths, …) are ENV-only since
+    v0.88.0-beta; reload_settings drops boot keys silently. Use UI fields
+    here to exercise the type-coercion path.
+    """
     from config import reload_settings
 
-    s = reload_settings(overrides={"port": "9999", "wanted_anime_only": "false"})
-    assert s.port == 9999  # str → int
+    s = reload_settings(overrides={"items_per_page": "75", "wanted_anime_only": "false"})
+    assert s.items_per_page == 75  # str → int
     assert s.wanted_anime_only is False  # str → bool
 
 
@@ -215,10 +223,10 @@ def test_reload_settings_ignores_unknown_keys():
 def test_reload_settings_skips_invalid_values():
     from config import reload_settings
 
-    # "abc" cannot be parsed into the int field `port` — must be silently skipped
-    # so the rest of the settings still load.
-    s = reload_settings(overrides={"port": "abc"})
-    assert s.port == 5765  # default preserved
+    # "abc" cannot be parsed into the int field `items_per_page` — must be
+    # silently skipped so the rest of the settings still load.
+    s = reload_settings(overrides={"items_per_page": "abc"})
+    assert s.items_per_page == 25  # default preserved
 
 
 def test_grouped_view_classes_importable_from_config():

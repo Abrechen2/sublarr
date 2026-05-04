@@ -1,19 +1,34 @@
-"""Sublarr application settings — Pydantic model.
+"""Sublarr application settings — Boot + UI split (since v0.88.0-beta).
 
-Holds the declarative field definitions, the 8 instance methods used by
-the rest of the app, and the 5 grouped-view property accessors.
+Structure:
+- ``BootSettings(BaseSettings)``  — env-loadable. Holds the small set of
+  fundamentals that have to be set before the database is reachable
+  (DB URL, mount paths, port, log level, …). Curated allowlist enforced
+  by ``tools/lint_no_new_env_fields.py``.
+- ``UISettings(BaseModel)``        — DB-only. Holds every other configurable
+  behaviour. ``BaseModel`` (not ``BaseSettings``) means Pydantic does NOT
+  auto-load env vars, so the UI is the sole writer.
+- ``Settings``                     — composite. Forwards attribute access to
+  ``boot`` or ``ui`` so existing call-sites (``settings.api_key``,
+  ``settings.opensubtitles_api_key``) keep working unchanged.
+
+UI-first convention (V1, decided 2026-05-04): every new setting lands in
+``UISettings``. The CI linter rejects new fields added to ``BootSettings``
+outside ``_ALLOWED_BOOT_FIELDS``.
 
 Importing rules:
-- This module imports `config_views` for the property accessor return
-  types — `config_views` does NOT import back (TYPE_CHECKING guard).
-- Singleton management lives in `config_singleton.py`; this module does
+- This module imports ``config_views`` for the property accessor return
+  types — ``config_views`` does NOT import back (TYPE_CHECKING guard).
+- Singleton management lives in ``config_singleton.py``; this module does
   NOT cache instances.
 """
 
 import hashlib
 import logging
+import os
+from typing import Any
 
-from pydantic import Field
+from pydantic import BaseModel, Field
 from pydantic_settings import BaseSettings
 
 from config_language_data import _get_language_tags
@@ -36,25 +51,80 @@ from config_views import (
 logger = logging.getLogger(__name__)
 
 
-class Settings(BaseSettings):
-    """Sublarr application settings.
+# Curated allowlist for env-loadable fields. Any new entry here must clear
+# the linter check (`tools/lint_no_new_env_fields.py`). Adding a UI feature?
+# Put the field on UISettings, not here.
+_ALLOWED_BOOT_FIELDS: frozenset[str] = frozenset(
+    {
+        "port",
+        "api_key",
+        "media_path",
+        "db_path",
+        "database_url",
+        "config_dir",
+        "log_level",
+        "log_file",
+        "log_format",
+        "cors_origins",
+        "redis_url",
+    }
+)
 
-    All fields can be overridden via SUBLARR_-prefixed env vars or a .env
-    file. See backend/config.py for the public re-export surface.
+
+class BootSettings(BaseSettings):
+    """Bootstrap settings — env-loadable, pre-DB.
+
+    Membership is gated by ``_ALLOWED_BOOT_FIELDS`` and enforced in CI by
+    ``tools/lint_no_new_env_fields.py``. Add a UI feature? Put the field
+    on ``UISettings`` instead.
     """
 
-    # General
+    # Server bind
     port: int = 5765
-    api_key: str = ""  # Empty = no auth required
-    log_level: str = "INFO"
-    log_file: str = (
-        "log/sublarr.log"  # In-Repo default; Docker: set SUBLARR_LOG_FILE=/config/sublarr.log
-    )
+
+    # Initial auth bootstrap (empty = no auth required)
+    api_key: str = ""
+
+    # Mount paths — Docker volume targets that must exist before any
+    # path-based code runs.
     media_path: str = "/media"
+    config_dir: str = "/config"
+
+    # Database — ``database_url`` (PG) wins over ``db_path`` (SQLite) at
+    # ``Settings.get_database_url()`` time.
     db_path: str = "/config/sublarr.db"
-    # Comma-separated allowed CORS/WebSocket origins (e.g. "https://app.example.com")
+    database_url: str = ""
+
+    # Redis (optional cache + queue backend)
+    redis_url: str = ""
+
+    # Logging — needed before any log line can land in the right format.
+    log_level: str = "INFO"
+    # In-Repo default; Docker: set SUBLARR_LOG_FILE=/config/sublarr.log
+    log_file: str = "log/sublarr.log"
+    log_format: str = "text"  # "text" or "json" (structured for log aggregation)
+
+    # Comma-separated allowed CORS/WebSocket origins (e.g. "https://app.example.com").
     # Defaults to localhost dev origins; set "*" only in fully trusted environments.
     cors_origins: str = "http://localhost:5173,http://localhost:5765"
+
+    model_config = {
+        "env_prefix": "SUBLARR_",
+        "env_file": ".env",
+        "env_file_encoding": "utf-8",
+        "extra": "ignore",
+    }
+
+
+class UISettings(BaseModel):
+    """UI-configured settings — DB-only.
+
+    ``BaseModel`` (not ``BaseSettings``) means Pydantic does NOT load env
+    vars for these fields. The UI writes them through ``config_entries``
+    and ``reload_settings()`` overlays them onto the defaults below.
+
+    UI-first convention: every new configurable behaviour lands here.
+    """
 
     # Ollama
     ollama_url: str = "http://localhost:11434"
@@ -76,9 +146,7 @@ class Settings(BaseSettings):
     # Subtitle Providers
     provider_priorities: str = "animetosho,jimaku,opensubtitles,subdl"
     providers_enabled: str = ""  # Empty = all registered providers enabled
-    providers_hidden: str = (
-        ""  # Comma-separated provider names hidden from the UI grid (truly removed)
-    )
+    providers_hidden: str = ""  # Comma-separated provider names hidden from UI grid
 
     # Addic7ed (TV subtitles — optional credentials increase download limit)
     addic7ed_username: str = ""
@@ -94,7 +162,7 @@ class Settings(BaseSettings):
     dedup_on_download: bool = True  # Skip download if identical content already exists (SHA-256)
     # Plan B5 — subtitle repair pass before saving. Set False to disable.
     enable_subtitle_repair: bool = True
-    github_token: str = ""  # Optional GitHub API token for higher rate limits (5000/h vs 60/h); env: SUBLARR_GITHUB_TOKEN
+    github_token: str = ""  # Optional GitHub API token for higher rate limits
 
     # Dynamic Provider Timeouts (Phase 3)
     provider_dynamic_timeout_enabled: bool = True
@@ -123,12 +191,12 @@ class Settings(BaseSettings):
     # Sonarr (optional)
     sonarr_url: str = ""
     sonarr_api_key: str = ""
-    sonarr_instances_json: str = ""  # JSON array of Sonarr instances: [{"name": "Main", "url": "...", "api_key": "...", "path_mapping": "..."}]
+    sonarr_instances_json: str = ""  # JSON array of Sonarr instances
 
     # Radarr (optional — for anime movies)
     radarr_url: str = ""
     radarr_api_key: str = ""
-    radarr_instances_json: str = ""  # JSON array of Radarr instances: [{"name": "Main", "url": "...", "api_key": "...", "path_mapping": "..."}]
+    radarr_instances_json: str = ""  # JSON array of Radarr instances
 
     # Jellyfin/Emby (optional — library refresh)
     jellyfin_url: str = ""
@@ -139,13 +207,11 @@ class Settings(BaseSettings):
 
     # Path Mapping (remote → local, for when *arr apps run on different host)
     # Format: "remote_prefix=local_prefix" (semicolon-separated for multiple)
-    # Example: "/data/media=Z:\Media;/anime=Z:\Anime"
+    # Example: "/data/media=Z:\\Media;/anime=Z:\\Anime"
     path_mapping: str = ""
 
     # ffmpeg / ffprobe
-    ffmpeg_timeout: int = (
-        120  # Seconds before ffmpeg subtitle-extraction is killed (SUBLARR_FFMPEG_TIMEOUT)
-    )
+    ffmpeg_timeout: int = 120  # Seconds before ffmpeg subtitle-extraction is killed
 
     # Scan Metadata Engine
     scan_metadata_engine: str = "auto"  # "ffprobe" | "mediainfo" | "auto"
@@ -155,56 +221,37 @@ class Settings(BaseSettings):
     translation_max_workers: int = 4  # Parallel workers in the job queue thread pool
 
     # Wanted System
-    wanted_scan_interval_hours: int = (
-        0  # 0 = disabled; scan is event-driven (webhook / manual / file-watcher)
-    )
+    wanted_scan_interval_hours: int = 0  # 0 = disabled; event-driven
     wanted_anime_only: bool = True
-    wanted_anime_movies_only: bool = (
-        False  # Filter Radarr movies by anime tag (separate from wanted_anime_only)
-    )
+    wanted_anime_movies_only: bool = False  # Filter Radarr movies by anime tag
     wanted_scan_on_startup: bool = False
     wanted_auto_extract: bool = False  # Auto-extract embedded subs during wanted scan
-    wanted_auto_translate: bool = False  # Auto-translate after auto-extract during wanted scan
+    wanted_auto_translate: bool = False  # Auto-translate after auto-extract
     wanted_max_search_attempts: int = 3
     use_embedded_subs: bool = True  # Check embedded subtitle streams in MKV files
-    scan_yield_ms: int = 0  # Sleep between series/movies (ms) to yield CPU to API threads
+    scan_yield_ms: int = 0  # Sleep between series/movies (ms) to yield CPU
 
     # 0.71.0 — Subtitle Automation (batteries-included extract/SDH/cleanup bundle)
-    #
-    # Master toggle off by default so upgrading users opt-in explicitly. When
-    # on, the three sub-toggles below (queue drain, SDH tolerance, foreign-track
-    # cleanup default) are honored. Individual sub-toggles can still be flipped
-    # independently by power users.
     subtitle_automation_enabled: bool = False
     subtitle_automation_queue_enabled: bool = True  # Drain worker for pending extracts
     subtitle_automation_drain_interval_minutes: int = 2  # Scheduler tick cadence
 
-    # SDH source tolerance. SDH tracks (Subtitles for Deaf / Hard-of-Hearing)
-    # are valid fallbacks by default — many Disney/Marvel rips ship EN only as
-    # SDH. A small scoring penalty ensures a non-SDH track wins when both are
-    # available for the same language.
+    # SDH source tolerance.
     embedded_allow_sdh: bool = True
     embedded_sdh_penalty: int = 5
 
-    # Foreign-track cleanup. Destructive (remuxes the MKV with backup-to-trash)
-    # so off by default. `keep_und` preserves language=undetermined streams
-    # even during cleanup — also off by default since `und` is usually a
-    # stray unwanted track from a bad rip.
+    # Foreign-track cleanup. Destructive (remuxes the MKV with backup-to-trash).
     cleanup_foreign_tracks_default: bool = False
     cleanup_foreign_tracks_keep_und: bool = False
 
     # Provider Re-ranking
-    provider_reranking_enabled: bool = False  # Auto-adjust score modifiers from download history
-    provider_reranking_min_downloads: int = (
-        20  # Min successful downloads before modifier is applied
-    )
+    provider_reranking_enabled: bool = False  # Auto-adjust score modifiers
+    provider_reranking_min_downloads: int = 20  # Min downloads before modifier applied
     provider_reranking_max_modifier: int = 50  # Absolute cap on computed modifier (±)
 
     # Release Group Filtering
-    release_group_prefer: str = (
-        ""  # Comma-separated preferred release groups (e.g. "SubsPlease,Erai-raws")
-    )
-    release_group_exclude: str = ""  # Comma-separated blocked release groups (e.g. "HorribleSubs")
+    release_group_prefer: str = ""  # Comma-separated preferred release groups
+    release_group_exclude: str = ""  # Comma-separated blocked release groups
     release_group_prefer_bonus: int = 20  # Score bonus for preferred release group matches
 
     # Upgrade System
@@ -219,8 +266,7 @@ class Settings(BaseSettings):
 
     # Staff Credit Filtering
     credit_threshold_sec: int = 90
-    """Seconds from end of subtitle file to treat as credits region.
-    Set via SUBLARR_CREDIT_THRESHOLD_SEC."""
+    """Seconds from end of subtitle file to treat as credits region."""
     op_window_sec: int = 300  # seconds from start/end of file to consider OP/ED window
 
     # Forced Subtitles
@@ -245,17 +291,15 @@ class Settings(BaseSettings):
     auto_process_sync_threshold: int = 60  # score below which auto-sync triggers
     auto_process_sync_fallback_engine: str = "ffsubsync"
 
-    # HI interjections list (newline-separated; empty = use backend/data/hi_interjections.txt)
+    # HI interjections list (newline-separated; empty = use bundled defaults)
     hi_interjections_list: str = ""
 
     # Post-download shell command
     post_download_command: str = ""  # Shell command to run after each subtitle download
-    post_processing_enabled: bool = (
-        False  # Must be explicitly enabled; gate for post_download_command
-    )
+    post_processing_enabled: bool = False  # Must be explicitly enabled
 
     # NFO Export
-    auto_nfo_export: bool = False  # Expert: write XML NFO sidecar after every download/translation
+    auto_nfo_export: bool = False  # Expert: write XML NFO sidecar after every download
 
     # Glossary
     glossary_enabled: bool = True  # Enable glossary injection during translation
@@ -269,33 +313,12 @@ class Settings(BaseSettings):
     wanted_search_on_startup: bool = True
     wanted_search_max_items_per_run: int = 500
     wanted_search_order: str = "fair"  # 'fair' | 'newest_first' | 'weighted'
-    # Prepend a priority rank (premium=0, standard=1, backlog=2) to the scheduler
-    # ORDER BY so premium items always win the first slice of the tick budget.
     wanted_scheduler_priority_weighting_enabled: bool = True
-    # Day-budget spent % above which backlog-priority items are deferred to the
-    # next tick. Ensures premium+standard items always get a fair slice.
     wanted_scheduler_backlog_reserve_pct: int = 50
-    # Master gate for the per-provider API-budget manager. When False, the
-    # search coordinator reverts to pre-V1 behaviour (no budget accounting).
     provider_budget_enabled: bool = True
-    # Pacing strategy for the budget manager:
-    #   'stretch' (default) — block calls once the current-hour pace exceeds
-    #       an evenly-paced share of the day's limit; prevents burning the
-    #       whole daily quota in the first hour.
-    #   'burst'  — raw window caps only for the first
-    #       ``provider_budget_burst_window_hours`` hours of the UTC day; after
-    #       that, the REMAINING day quota is paced across the REMAINING hours.
-    #       Use this for providers where the quota resets at midnight UTC and
-    #       you want to front-load the search queue.
-    #   'off'    — alias; use provider_budget_enabled=false to disable fully.
-    provider_budget_stretch_mode: str = "stretch"
-    # Burst window length in hours (UTC). Only applies when
-    # provider_budget_stretch_mode='burst'.
+    provider_budget_stretch_mode: str = "stretch"  # 'stretch' | 'burst' | 'off'
     provider_budget_burst_window_hours: int = 6
-    # Scheduler profile (mapped to preset values via services/scheduler_profile.py)
     scheduler_profile: str = "balanced"  # 'light' | 'balanced' | 'aggressive' | 'custom'
-    # Scheduler history retention — days of job_run rows kept before
-    # scheduler_history_cleanup cron deletes them.
     scheduler_history_retention_days: int = Field(
         default=30,
         ge=1,
@@ -305,16 +328,12 @@ class Settings(BaseSettings):
             "the scheduler_history_cleanup cron deletes old rows."
         ),
     )
-    # Translation telemetry retention — days of translation_events rows kept
-    # before the translation_events_cleanup cron deletes them.
     translation_events_retention_days: int = Field(
         default=90,
         ge=7,
         le=365,
         description="Keep translation_events rows for this many days.",
     )
-    # First-run wizard completion flag — persisted by the wizard endpoints so
-    # the UI shows the wizard at most once per installation.
     setup_wizard_completed: bool = False
 
     # Upgrade Scheduler
@@ -341,27 +360,21 @@ class Settings(BaseSettings):
     anti_captcha_api_key: str = ""
 
     # Remux / Stream Removal
-    remux_trash_dir: str = ".sublarr"  # Relative (to media_path) or absolute path for backup trash
+    remux_trash_dir: str = ".sublarr"  # Relative (to media_path) or absolute path
     remux_backup_retention_days: int = 7  # 0 = keep forever
     remux_use_reflink: bool = True  # CoW reflink on Btrfs/XFS for zero-cost backups
     remux_arr_pause_enabled: bool = True  # Pause Sonarr/Radarr during remux
 
-    # Subtitle backup files (.bak.srt/.bak.ass) — created by
-    # subtitle_processor.apply_mods before HI-removal/common-fixes/credit-removal
-    # and restored via /api/v1/tools/process/undo. Live next to the active
-    # sub in the series folder (NOT in remux_trash_dir).
+    # Subtitle backup files (.bak.srt/.bak.ass)
     subtitle_bak_retention_days: int = 30  # 0 = keep forever
 
     # Circuit Breaker
     circuit_breaker_failure_threshold: int = 5  # Consecutive failures before opening
     circuit_breaker_cooldown_seconds: int = 300  # Seconds in OPEN before HALF_OPEN probe
     provider_auto_disable_cooldown_minutes: int = (
-        30  # Minutes before auto-disabled provider is re-enabled
+        30  # Minutes before auto-disabled provider re-enables
     )
     provider_rate_limit_throttle_minutes: int = 60  # Extended throttle on HTTP 429
-
-    # Logging
-    log_format: str = "text"  # "text" or "json" (structured JSON for log aggregation)
 
     # Database Backup
     backup_dir: str = "/config/backups"
@@ -384,18 +397,12 @@ class Settings(BaseSettings):
     metadata_cache_ttl_days: int = 30
 
     # Sidecar Auto-Cleanup
-    auto_cleanup_after_extract: bool = False  # Delete extra-language sidecars after batch-extract
-    auto_cleanup_keep_languages: str = (
-        ""  # Comma-separated ISO-639-1 codes to keep (empty = nothing deleted)
-    )
-    auto_cleanup_keep_formats: str = (
-        "any"  # "ass" | "srt" | "any" — delete SRT when ASS exists for same lang
-    )
+    auto_cleanup_after_extract: bool = False
+    auto_cleanup_keep_languages: str = ""  # Comma-separated ISO-639-1 codes to keep
+    auto_cleanup_keep_formats: str = "any"  # "ass" | "srt" | "any"
 
     # Subtitle Trash / Soft-Delete
-    subtitle_trash_retention_days: int = (
-        30  # Days to keep trashed subtitle files before auto-purge (0 = keep forever)
-    )
+    subtitle_trash_retention_days: int = 30  # 0 = keep forever
 
     # AniDB Integration
     anidb_enabled: bool = True  # Enable AniDB ID resolution
@@ -403,16 +410,14 @@ class Settings(BaseSettings):
     anidb_custom_field_name: str = "anidb_id"  # Custom field name in Sonarr
     anidb_fallback_to_mapping: bool = True  # Use cache/mapping as fallback
 
-    # Database (PERF-01, PERF-02)
-    database_url: str = ""  # Empty = SQLite at db_path. Set to postgresql://... for PG.
+    # Database (PERF-01, PERF-02) — pool tuning, not connection (URL is in BootSettings)
     db_pool_size: int = 5  # SQLAlchemy pool_size (ignored for SQLite)
     db_pool_max_overflow: int = 10  # SQLAlchemy max_overflow (ignored for SQLite)
     db_pool_recycle: int = 3600  # Recycle connections after N seconds
 
-    # Redis (PERF-04, PERF-06)
-    redis_url: str = ""  # Empty = no Redis. e.g., redis://localhost:6379/0
-    redis_cache_enabled: bool = True  # Use Redis for provider cache (when redis_url set)
-    redis_queue_enabled: bool = True  # Use Redis+RQ for job queue (when redis_url set)
+    # Redis behaviour (URL is in BootSettings)
+    redis_cache_enabled: bool = True  # Use Redis for provider cache
+    redis_queue_enabled: bool = True  # Use Redis+RQ for job queue
 
     # Interface Preferences (Step 37)
     interface_language: str = "en"
@@ -456,9 +461,7 @@ class Settings(BaseSettings):
     max_subtitle_file_size_kb: int = 2048
     download_delay_between_providers_ms: int = 0
     gestdown_retry_delay_s: float = 1.0
-    """Wartezeit in Sekunden vor dem Retry nach HTTP 423 (Locked) von Gestdown.
-    Niedrigere Werte beschleunigen Batch-Scans; 0.0 deaktiviert das Warten.
-    Env: SUBLARR_GESTDOWN_RETRY_DELAY_S"""
+    """Wartezeit in Sekunden vor dem Retry nach HTTP 423 (Locked) von Gestdown."""
 
     # Translation Context (Step 45)
     translation_use_episode_context: bool = False
@@ -494,21 +497,107 @@ class Settings(BaseSettings):
     lockout_duration_minutes: int = 60
     allowed_ip_ranges: str = ""  # Comma-separated CIDR ranges; empty = allow all
 
-    model_config = {
-        "env_prefix": "SUBLARR_",
-        "env_file": ".env",
-        "env_file_encoding": "utf-8",
-        "extra": "ignore",
-    }
+    model_config = {"extra": "ignore"}
+
+
+def _split_kwargs_by_membership(
+    kwargs: dict[str, Any],
+) -> tuple[dict[str, Any], dict[str, Any]]:
+    """Route caller-supplied kwargs into the boot vs. ui buckets by field name."""
+    boot_kwargs: dict[str, Any] = {}
+    ui_kwargs: dict[str, Any] = {}
+    unknown: list[str] = []
+    for key, value in kwargs.items():
+        if key in BootSettings.model_fields:
+            boot_kwargs[key] = value
+        elif key in UISettings.model_fields:
+            ui_kwargs[key] = value
+        else:
+            unknown.append(key)
+    if unknown:
+        raise TypeError(
+            f"Settings(): unknown field(s) {sorted(unknown)!r}. "
+            "Add them to BootSettings (env-loadable) or UISettings (DB-only)."
+        )
+    return boot_kwargs, ui_kwargs
+
+
+class Settings:
+    """Composite Settings — boot fields from ENV, UI fields from DB.
+
+    Attribute access is forwarded to the right side automatically:
+        settings.api_key                  → boot
+        settings.opensubtitles_api_key    → ui
+    so the ~370 existing call-sites keep working unchanged.
+
+    Construction:
+        Settings()                        — defaults for everything
+        Settings(boot=..., ui=...)        — explicit composition
+        Settings(api_key="x", port=80, …) — auto-routed by field membership
+                                            (used by tests and reload_settings)
+    """
+
+    def __init__(
+        self,
+        boot: BootSettings | None = None,
+        ui: UISettings | None = None,
+        **kwargs: Any,
+    ) -> None:
+        if kwargs and (boot is not None or ui is not None):
+            raise TypeError("Settings(): pass either kwargs OR boot/ui, not both.")
+        if kwargs:
+            boot_kwargs, ui_kwargs = _split_kwargs_by_membership(kwargs)
+            self._boot = BootSettings(**boot_kwargs)
+            self._ui = UISettings(**ui_kwargs)
+        else:
+            self._boot = boot if boot is not None else BootSettings()
+            self._ui = ui if ui is not None else UISettings()
+
+    @property
+    def boot(self) -> BootSettings:
+        return self._boot
+
+    @property
+    def ui(self) -> UISettings:
+        return self._ui
+
+    def __getattr__(self, name: str) -> Any:
+        # __getattr__ is only invoked when normal attribute lookup fails,
+        # so this never recurses into _boot / _ui / boot / ui / methods.
+        if name.startswith("_"):
+            raise AttributeError(f"{type(self).__name__!r} object has no attribute {name!r}")
+        if name in BootSettings.model_fields:
+            return getattr(self._boot, name)
+        if name in UISettings.model_fields:
+            return getattr(self._ui, name)
+        raise AttributeError(f"{type(self).__name__!r} object has no attribute {name!r}")
+
+    def model_dump(self) -> dict[str, Any]:
+        """Flat dump merging boot + ui fields (backwards-compat surface)."""
+        return {**self._boot.model_dump(), **self._ui.model_dump()}
+
+    def model_copy(self, *, update: dict[str, Any] | None = None) -> "Settings":
+        """Return a copy. ``update`` is split across boot + ui by field membership."""
+        if not update:
+            return Settings(boot=self._boot.model_copy(), ui=self._ui.model_copy())
+        boot_update, ui_update = _split_kwargs_by_membership(update)
+        return Settings(
+            boot=self._boot.model_copy(update=boot_update)
+            if boot_update
+            else self._boot.model_copy(),
+            ui=self._ui.model_copy(update=ui_update) if ui_update else self._ui.model_copy(),
+        )
+
+    # --- Instance methods (preserved from pre-split Settings) ---
 
     def get_database_url(self) -> str:
         """Get the SQLAlchemy database URL.
 
         Returns database_url if set, otherwise constructs a SQLite URL from db_path.
         """
-        if self.database_url:
-            return self.database_url
-        return f"sqlite:///{self.db_path}"
+        if self._boot.database_url:
+            return self._boot.database_url
+        return f"sqlite:///{self._boot.db_path}"
 
     def get_prompt_template(self) -> str:
         """Get the translation prompt template.
@@ -518,28 +607,23 @@ class Settings(BaseSettings):
         2. prompt_template setting (if set)
         3. Auto-generated template
         """
-        # Try to get default preset from database
         try:
             from db.translation import get_default_prompt_preset
 
             preset = get_default_prompt_preset()
             if preset and preset.get("prompt_template"):
                 template = preset["prompt_template"]
-                # Substitute {source_language}/{target_language} placeholders
-                template = template.replace("{source_language}", self.source_language_name)
-                template = template.replace("{target_language}", self.target_language_name)
+                template = template.replace("{source_language}", self._ui.source_language_name)
+                template = template.replace("{target_language}", self._ui.target_language_name)
                 return template
         except Exception as exc:
-            # Database might not be initialized yet, fall through
             logger.debug("Could not load default prompt preset: %s", exc)
 
-        # Fall back to config setting
-        if self.prompt_template:
-            return self.prompt_template
+        if self._ui.prompt_template:
+            return self._ui.prompt_template
 
-        # Auto-generated template
         return (
-            f"Translate these anime subtitle lines from {self.source_language_name} to {self.target_language_name}.\n"
+            f"Translate these anime subtitle lines from {self._ui.source_language_name} to {self._ui.target_language_name}.\n"
             f"Return ONLY the translated lines, one per line, same count.\n"
             f"Preserve \\N exactly as \\N (hard line break).\n"
             f"Do NOT add numbering or prefixes to the output lines.\n\n"
@@ -547,39 +631,28 @@ class Settings(BaseSettings):
 
     def get_target_patterns(self, fmt: str = "ass") -> list[str]:
         """Get file patterns for detecting existing target language subtitles."""
-        lang = self.target_language
-        # Common language tags for the target language
-        lang_tags = _get_language_tags(lang)
+        lang_tags = _get_language_tags(self._ui.target_language)
         return [f".{tag}.{fmt}" for tag in lang_tags]
 
     def get_source_patterns(self, fmt: str = "ass") -> list[str]:
         """Get file patterns for detecting existing source language subtitles."""
-        lang = self.source_language
-        lang_tags = _get_language_tags(lang)
+        lang_tags = _get_language_tags(self._ui.source_language)
         return [f".{tag}.{fmt}" for tag in lang_tags]
 
     def get_target_lang_tags(self) -> set[str]:
         """Get all language tags for the target language."""
-        return _get_language_tags(self.target_language)
+        return _get_language_tags(self._ui.target_language)
 
     def get_source_lang_tags(self) -> set[str]:
         """Get all language tags for the source language."""
-        return _get_language_tags(self.source_language)
+        return _get_language_tags(self._ui.source_language)
 
     def get_translation_config_hash(self, backend_name: str = "ollama") -> str:
-        """SHA256 hash of backend+model+prompt+target_language (first 12 chars).
-
-        For Ollama backends, includes the model name and prompt template.
-        For non-Ollama backends (DeepL, Google, etc.), model is not relevant
-        so the hash is based on backend name and target language only.
-
-        Args:
-            backend_name: Translation backend name (default "ollama")
-        """
+        """SHA256 hash of backend+model+prompt+target_language (first 12 chars)."""
         if backend_name == "ollama":
-            content = f"{backend_name}|{self.ollama_model}|{self.get_prompt_template()[:50]}|{self.target_language}"
+            content = f"{backend_name}|{self._ui.ollama_model}|{self.get_prompt_template()[:50]}|{self._ui.target_language}"
         else:
-            content = f"{backend_name}||{self.target_language}"
+            content = f"{backend_name}||{self._ui.target_language}"
         return hashlib.sha256(content.encode()).hexdigest()[:12]
 
     def get_safe_config(self) -> dict:
@@ -651,4 +724,36 @@ class Settings(BaseSettings):
         return ScanningSettings(self)
 
 
-__all__ = ["Settings"]
+def warn_on_ignored_env_vars() -> list[str]:
+    """Scan os.environ for SUBLARR_<ui_field>=... and log a per-key warning.
+
+    UI-only fields silently dropped any env value before this function existed;
+    the warning makes the migration loud so users notice they need to move the
+    setting into the UI (Settings → ...). Boot fields are unaffected.
+
+    Returns the list of ignored env-var names (for tests / startup metrics).
+    """
+    ignored: list[str] = []
+    ui_fields = UISettings.model_fields
+    for env_name in os.environ:
+        if not env_name.startswith("SUBLARR_"):
+            continue
+        field_name = env_name.removeprefix("SUBLARR_").lower()
+        if field_name in ui_fields:
+            ignored.append(env_name)
+            logger.warning(
+                "%s is no longer ENV-configurable as of v0.88.0-beta. "
+                "Sublarr is now UI-first — set this in the Settings page. "
+                "The env value has been ignored.",
+                env_name,
+            )
+    return ignored
+
+
+__all__ = [
+    "BootSettings",
+    "Settings",
+    "UISettings",
+    "_ALLOWED_BOOT_FIELDS",
+    "warn_on_ignored_env_vars",
+]

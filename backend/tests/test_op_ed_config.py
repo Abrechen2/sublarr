@@ -9,17 +9,16 @@ def test_op_window_sec_default_is_300(temp_db):
     assert getattr(s, "op_window_sec", None) == 300
 
 
-def test_op_window_sec_env_override(monkeypatch, temp_db):
-    monkeypatch.setenv("SUBLARR_OP_WINDOW_SEC", "120")
+def test_op_window_sec_db_override(temp_db):
+    """``op_window_sec`` is a UI field — set via DB override, not env.
+
+    Since v0.88.0-beta the env-loadable surface is BootSettings only;
+    op_window_sec lives on UISettings and accepts only DB-driven overrides.
+    """
     from config import reload_settings
 
-    reload_settings()
     try:
-        from config import get_settings
-
-        s = get_settings()
+        s = reload_settings(overrides={"op_window_sec": "120"})
         assert getattr(s, "op_window_sec", None) == 120
     finally:
-        # Restore singleton after monkeypatch restores env var
-        monkeypatch.delenv("SUBLARR_OP_WINDOW_SEC", raising=False)
         reload_settings()

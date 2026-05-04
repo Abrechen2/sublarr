@@ -120,17 +120,21 @@ class TestToolsValidation:
         assert response.status_code == 403
 
     def test_preview_mapped_path_validated_correctly(self, client, tmp_path, monkeypatch):
-        """A remote path that map_path() translates into media_path resolves to 404 (found, not forbidden)."""
+        """A remote path that map_path() translates into media_path resolves to 404 (found, not forbidden).
+
+        ``media_path`` is a boot field (env-loadable), ``path_mapping`` is a
+        UI field (DB override only, since v0.88.0-beta).
+        """
         media = tmp_path / "media"
         media.mkdir()
         remote = "/remote/anime"
         local = str(media)
 
-        monkeypatch.setenv("SUBLARR_MEDIA_PATH", local)
-        monkeypatch.setenv("SUBLARR_PATH_MAPPING", f"{remote}={local}")
+        monkeypatch.setenv("SUBLARR_MEDIA_PATH", local)  # boot — env honoured
         from config import reload_settings
 
-        reload_settings()
+        # path_mapping is a UI field — must use the DB-override path.
+        reload_settings(overrides={"path_mapping": f"{remote}={local}"})
 
         # Remote path that maps into media — file doesn't exist yet so expect 404 not 403
         response = client.get(f"/api/v1/tools/content?file_path={remote}/episode.de.srt")

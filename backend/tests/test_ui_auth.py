@@ -152,14 +152,14 @@ def test_hook_allows_api_key_without_session(monkeypatch):
 
 
 def test_session_lifetime_uses_configured_timeout(monkeypatch):
-    """PERMANENT_SESSION_LIFETIME must respect session_timeout_minutes when set."""
-    # Mock get_settings to return timeout of 60 minutes
-    import os
+    """PERMANENT_SESSION_LIFETIME must respect session_timeout_minutes when set.
 
-    os.environ["SUBLARR_SESSION_TIMEOUT_MINUTES"] = "60"
+    ``session_timeout_minutes`` is a UI field since v0.88.0-beta — set via
+    DB override (the path the live UI takes), not via env.
+    """
     from config import reload_settings
 
-    reload_settings()
+    reload_settings(overrides={"session_timeout_minutes": "60"})
 
     app = Flask(__name__)
     app.config["TESTING"] = True
@@ -169,7 +169,6 @@ def test_session_lifetime_uses_configured_timeout(monkeypatch):
     assert app.config["PERMANENT_SESSION_LIFETIME"] == timedelta(minutes=60)
 
     # Cleanup
-    os.environ.pop("SUBLARR_SESSION_TIMEOUT_MINUTES", None)
     reload_settings()
 
 
