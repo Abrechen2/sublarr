@@ -2,6 +2,7 @@
 
 import logging
 import os
+import re
 import tempfile
 import threading
 
@@ -24,6 +25,27 @@ _CODEC_EXT = {
     "microdvd": "srt",
     "text": "srt",
 }
+
+# ISO 639 language tag — 2/3 letter primary, optional region/script subtag
+# (e.g. "de", "eng", "pt-BR", "zh-Hant"). Anything outside this shape is
+# rejected to prevent path-traversal via crafted language strings (the
+# language is interpolated into the sidecar output path).
+_LANG_RE = re.compile(r"^[a-zA-Z]{2,3}(-[A-Za-z]{2,4})?$")
+_LANG_FALLBACK = "und"
+
+
+def _safe_language(raw: object) -> str:
+    """Return raw if it matches ISO-639 shape, else 'und'.
+
+    Defends against attacker-controlled values like '../../etc/passwd'
+    being baked into output_path = base + '.' + language + '.' + ext.
+    """
+    if not raw or not isinstance(raw, str):
+        return _LANG_FALLBACK
+    raw = raw.strip()
+    if not raw or not _LANG_RE.match(raw):
+        return _LANG_FALLBACK
+    return raw
 
 
 def _get_video_path(ep_id):
@@ -123,10 +145,17 @@ def extract_track(ep_id, index):
         return jsonify({"error": "Track index " + str(index) + " not found"}), 404
     if track["codec_type"] != "subtitle":
         return jsonify({"error": "Only subtitle tracks can be extracted"}), 400
-    language = body.get("language") or track["language"] or "und"
+    language = _safe_language(body.get("language") or track["language"])
     ext = _CODEC_EXT.get(track["codec"], "ass")
     base, _ = os.path.splitext(video_path)
     output_path = base + "." + language + "." + ext
+    # Defence-in-depth: even with the language regex, ensure the resolved
+    # output path stays inside the same directory as the source video. This
+    # also catches a video_path that itself escapes media_path via symlink.
+    if os.path.realpath(os.path.dirname(output_path)) != os.path.realpath(
+        os.path.dirname(video_path)
+    ):
+        return jsonify({"error": "Output path resolved outside video directory"}), 403
     stream_info = {"sub_index": track["sub_index"], "format": ext}
     try:
         extract_subtitle_stream(video_path, stream_info, output_path)
@@ -160,7 +189,7 @@ def use_track_as_source(ep_id, index):
     if track["codec_type"] != "subtitle":
         return jsonify({"error": "Only subtitle tracks can be used as source"}), 400
     ext = _CODEC_EXT.get(track["codec"], "ass")
-    language = track["language"] or "und"
+    language = _safe_language(track["language"])
     stream_info = {"sub_index": track["sub_index"], "format": ext}
     tmp_path = None
     try:
@@ -389,10 +418,25 @@ def batch_extract_series_tracks(series_id):
                 file_extracted = 0
                 extracted_streams: list[tuple[int, int]] = []  # (global_index, sub_index)
                 for track in subtitle_tracks:
-                    lang = track["language"] or "und"
+                    # MKV "language" tag is container-controlled; sanitise the
+                    # same way as the single-track route to stop a crafted
+                    # tag from steering the sidecar write outside the video
+                    # directory.
+                    lang = _safe_language(track["language"])
                     ext = _CODEC_EXT.get(track["codec"], "ass")
                     base, _ = os.path.splitext(video_path)
                     output_path = f"{base}.{lang}.{ext}"
+
+                    if os.path.realpath(os.path.dirname(output_path)) != os.path.realpath(
+                        os.path.dirname(video_path)
+                    ):
+                        logger.warning(
+                            "[batch-extract-tracks] refusing to extract: %s lands outside %s",
+                            output_path,
+                            os.path.dirname(video_path),
+                        )
+                        skipped += 1
+                        continue
 
                     if os.path.exists(output_path):
                         skipped += 1

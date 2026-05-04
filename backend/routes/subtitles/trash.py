@@ -23,6 +23,7 @@ from routes.subtitles.helpers import (
     _write_manifest,
     scan_subtitle_sidecars,
 )
+from security_utils import is_safe_path
 
 logger = logging.getLogger(__name__)
 
@@ -263,10 +264,23 @@ def restore_trash_batch(batch_id: str):
     restored = 0
     failed = 0
 
+    # The manifest lives inside media_path (potentially a user-writable share)
+    # and could be poisoned to make us shutil.move() arbitrary system files.
+    # Both ends of every move must stay inside the trust boundary.
+    trash_root = _get_trash_root(media_path)
+
     for f in manifest.get("files", []):
         trashed = f.get("trashed")
         original = f.get("original")
         if not trashed or not original:
+            failed += 1
+            continue
+        if not is_safe_path(trashed, trash_root) or not is_safe_path(original, media_path):
+            logger.warning(
+                "restore: refusing path outside trust boundary (trashed=%s original=%s)",
+                trashed,
+                original,
+            )
             failed += 1
             continue
         if not os.path.exists(trashed):

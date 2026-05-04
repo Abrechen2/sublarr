@@ -164,64 +164,78 @@ class HookEngine:
         """
         hook_id = config.get("id")
 
+        # ThreadPoolExecutor workers have no Flask app context. Wrap the entire
+        # body so log_hook_execution / update_hook_trigger_stats / catalog
+        # signal handlers (which all touch the DB) succeed instead of silently
+        # failing with "Working outside of application context" — the catch-all
+        # below would otherwise just log them and lose every hook record.
+        if self._app is not None:
+            ctx = self._app.app_context()
+            ctx.push()
+        else:
+            ctx = None
         try:
-            result = self.execute_hook(config, event_name, event_data)
-
-            # Log execution to DB
-            from db.hooks import log_hook_execution, update_hook_trigger_stats
-
-            log_hook_execution(
-                hook_id=hook_id,
-                event_name=event_name,
-                hook_type="script",
-                success=result["success"],
-                exit_code=result.get("exit_code"),
-                stdout=result.get("stdout", ""),
-                stderr=result.get("stderr", ""),
-                error=result.get("error", ""),
-                duration_ms=result.get("duration_ms", 0),
-            )
-            update_hook_trigger_stats(hook_id, result["success"])
-
-            # Emit meta-event
-            from events.catalog import hook_executed
-
             try:
-                hook_executed.send(
-                    None,
-                    data={
-                        "hook_id": hook_id,
-                        "hook_type": "script",
-                        "event_name": event_name,
-                        "success": result["success"],
-                        "duration_ms": result.get("duration_ms", 0),
-                    },
-                )
-            except Exception:
-                pass  # Meta-event failure should not break hook execution
+                result = self.execute_hook(config, event_name, event_data)
 
-            if result["success"]:
-                logger.debug(
-                    "Hook '%s' executed for %s (%.0fms)",
+                # Log execution to DB
+                from db.hooks import log_hook_execution, update_hook_trigger_stats
+
+                log_hook_execution(
+                    hook_id=hook_id,
+                    event_name=event_name,
+                    hook_type="script",
+                    success=result["success"],
+                    exit_code=result.get("exit_code"),
+                    stdout=result.get("stdout", ""),
+                    stderr=result.get("stderr", ""),
+                    error=result.get("error", ""),
+                    duration_ms=result.get("duration_ms", 0),
+                )
+                update_hook_trigger_stats(hook_id, result["success"])
+
+                # Emit meta-event
+                from events.catalog import hook_executed
+
+                try:
+                    hook_executed.send(
+                        None,
+                        data={
+                            "hook_id": hook_id,
+                            "hook_type": "script",
+                            "event_name": event_name,
+                            "success": result["success"],
+                            "duration_ms": result.get("duration_ms", 0),
+                        },
+                    )
+                except Exception:
+                    pass  # Meta-event failure should not break hook execution
+
+                if result["success"]:
+                    logger.debug(
+                        "Hook '%s' executed for %s (%.0fms)",
+                        config.get("name", "?"),
+                        event_name,
+                        result.get("duration_ms", 0),
+                    )
+                else:
+                    logger.warning(
+                        "Hook '%s' failed for %s: %s",
+                        config.get("name", "?"),
+                        event_name,
+                        result.get("error", "unknown"),
+                    )
+
+            except Exception as e:
+                logger.error(
+                    "Unexpected error executing hook '%s' for %s: %s",
                     config.get("name", "?"),
                     event_name,
-                    result.get("duration_ms", 0),
+                    e,
                 )
-            else:
-                logger.warning(
-                    "Hook '%s' failed for %s: %s",
-                    config.get("name", "?"),
-                    event_name,
-                    result.get("error", "unknown"),
-                )
-
-        except Exception as e:
-            logger.error(
-                "Unexpected error executing hook '%s' for %s: %s",
-                config.get("name", "?"),
-                event_name,
-                e,
-            )
+        finally:
+            if ctx is not None:
+                ctx.pop()
 
     def shutdown(self) -> None:
         """Shutdown the thread pool gracefully."""

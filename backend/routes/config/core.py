@@ -1,5 +1,6 @@
 """Core config routes — GET /config, PUT /config, POST /settings/path-mapping/test."""
 
+import json
 import logging
 import os
 
@@ -8,9 +9,66 @@ from flask import jsonify, request
 from cache_response import cached_get, invalidate_response_cache
 from events import emit_event
 from routes.config import bp
-from security_utils import validate_service_url
+from security_utils import is_safe_path, validate_service_url
 
 logger = logging.getLogger(__name__)
+
+_MASK_SENTINEL = "***configured***"
+# Top-level config keys that hold a JSON-encoded array of instance dicts. Each
+# instance dict can carry secret-typed subkeys (api_key/token/password/secret)
+# that GET masks but the raw top-level scalar mask check would miss. We deep-
+# scan these blobs and merge masked subkeys with the stored instance.
+_INSTANCE_BLOB_KEYS = {
+    "sonarr_instances_json",
+    "radarr_instances_json",
+    "jellyfin_instances_json",
+    "emby_instances_json",
+    "plex_instances_json",
+    "kodi_instances_json",
+    "mediaservers_instances_json",
+}
+_SECRET_SUBKEYS = ("api_key", "apikey", "token", "password", "secret", "auth")
+
+
+def _deep_unmask_instance_blob(new_raw: str, key: str) -> str | None:
+    """Replace any masked secret subkeys in new_raw with the stored value.
+
+    Returns the unmasked JSON string, or None if the new payload is unparseable
+    (in which case the caller should reject the update with 400 — never persist
+    raw mask sentinels into a JSON blob).
+    """
+    from db.config import get_config_entry
+
+    try:
+        new_list = json.loads(new_raw) if new_raw else []
+    except (TypeError, ValueError):
+        return None
+    if not isinstance(new_list, list):
+        return None
+
+    stored_raw = get_config_entry(key) or "[]"
+    try:
+        stored_list = json.loads(stored_raw)
+    except (TypeError, ValueError):
+        stored_list = []
+    stored_by_id = {str(inst.get("id", "")): inst for inst in stored_list if isinstance(inst, dict)}
+
+    for inst in new_list:
+        if not isinstance(inst, dict):
+            continue
+        stored = stored_by_id.get(str(inst.get("id", "")))
+        for sub in list(inst.keys()):
+            if not any(sub.lower().endswith(s) or sub.lower() == s for s in _SECRET_SUBKEYS):
+                continue
+            v = inst.get(sub)
+            if isinstance(v, str) and v == _MASK_SENTINEL:
+                if stored and isinstance(stored.get(sub), str):
+                    inst[sub] = stored[sub]
+                else:
+                    # Mask sent for a secret with no stored value — drop it
+                    # rather than persist the literal mask.
+                    inst.pop(sub, None)
+    return json.dumps(new_list)
 
 
 @bp.route("/config", methods=["GET"])
@@ -89,20 +147,27 @@ def test_path_mapping():
         400:
           description: Missing remote_path
     """
-    from config import map_path
+    from config import get_settings, map_path
 
-    data = request.get_json() or {}
+    data = request.get_json(silent=True) or {}
+    if not isinstance(data, dict):
+        return jsonify({"error": "Payload must be a JSON object"}), 400
     remote_path = data.get("remote_path", "").strip()
 
     if not remote_path:
         return jsonify({"error": "remote_path is required"}), 400
 
     mapped = map_path(remote_path)
+    # Constrain the existence probe to media_path so an authenticated caller
+    # cannot use this endpoint to fingerprint the host filesystem (e.g.
+    # `/etc/shadow`, container paths, secret-file probing).
+    media_path = getattr(get_settings(), "media_path", "/media")
+    exists = bool(mapped) and is_safe_path(mapped, media_path) and os.path.exists(mapped)
     return jsonify(
         {
             "remote_path": remote_path,
             "mapped_path": mapped,
-            "exists": os.path.exists(mapped),
+            "exists": exists,
         }
     )
 
@@ -153,7 +218,10 @@ def update_config():
     from db.config import get_all_config_entries, save_config_entry
     from services.wanted_scanner import invalidate_scanner
 
-    data = request.get_json() or {}
+    data = request.get_json(silent=True) or {}
+    # A JSON list/scalar payload would crash .items() with AttributeError.
+    if not isinstance(data, dict):
+        return jsonify({"error": "Config payload must be a JSON object"}), 400
     if not data:
         return jsonify({"error": "No config values provided"}), 400
 
@@ -178,8 +246,16 @@ def update_config():
 
     for key, value in data.items():
         # Skip masked password values (user didn't change them)
-        if str(value) == "***configured***":
+        if str(value) == _MASK_SENTINEL:
             continue
+        # Deep-unmask JSON instance blobs: GET embeds the mask in subkeys
+        # (api_key, token, password, …); a naive top-level string compare
+        # misses those and persists the literal mask, wiping the credential.
+        if key in _INSTANCE_BLOB_KEYS and isinstance(value, str):
+            unmasked = _deep_unmask_instance_blob(value, key)
+            if unmasked is None:
+                return jsonify({"error": f"Invalid JSON payload for {key}"}), 400
+            value = unmasked
         # Validate enum fields
         if key in _ENUM_FIELDS and value not in _ENUM_FIELDS[key]:
             return jsonify(
