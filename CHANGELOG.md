@@ -5,6 +5,27 @@ All notable changes to Sublarr are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.87.1-beta] - 2026-05-04
+
+### Security
+- **Subtitle-track extraction path traversal (Tier-0)** — `/library/series/<id>/extract-tracks` and `/series/<id>/batch-extract-tracks` baked the user-supplied `language` body field straight into the sidecar output path. A value like `"../../etc/cron.d/evil"` could write extracted subtitle bytes to an arbitrary filesystem location. Added ISO-639 language-tag validation plus a post-resolution check that the output directory matches the source video directory. Same hole closed in the batch path where the language tag arrives via container metadata (also attacker-controlled).
+- **Config update wiped real secrets (Tier-0)** — `PUT /config` masked password roundtrips at the top-level scalar level, but JSON instance blobs (`sonarr_instances_json`, `radarr_instances_json`, mediaservers, …) embed `***configured***` as *subkey* values. A naive PUT-after-GET overwrote the real `api_key` with the literal mask string. Now deep-merges masked subkeys with the stored value before persistence; `test_path_mapping` is constrained to `media_path` via `is_safe_path`.
+- **Trash-restore manifest poisoning (Tier-0)** — `POST /subtitles/trash/restore` read `trashed`/`original` paths from `manifest.json` (which lives inside `media_path`, often a user-writable share) and `shutil.move()`'d them with no boundary check. A poisoned manifest could move arbitrary system files. Both ends of every move now pass `is_safe_path` against `trash_root` and `media_path` respectively.
+- **Hook executions silently dropped (Tier-0)** — `_execute_and_log` ran in a `ThreadPoolExecutor` worker without a Flask app context. Every DB call and the `hook_executed` signal handler raised `RuntimeError`, which the catch-all swallowed — every hook execution looked successful but logged nothing. Now wraps the whole body in `app.app_context()`.
+- **Webhook-secret roundtrip mask leak** — `PUT /hooks/webhooks/<id>` accepted a client-echoed `***configured***` as the new HMAC `secret`, overwriting the real signing key with the literal mask string on every GET-edit-PUT cycle. Now drops `secret` from the payload when the client sends back the sentinel.
+
+### Added
+- **`is_safe_path` arg-order linter** — `tools/lint_is_safe_path.py` walks every Python file in `backend/` and flags any `is_safe_path(base, candidate)` call with the arguments reversed. The reversed-args bug class has surfaced twice in the past (`routes/cleanup.py` audit + `routes/remux.py` commit `b03e305b`). Self-test in `tools/test_lint_is_safe_path.py` exercises 1 good file + 3 reversed patterns; CI step added between ruff format and mypy. Current scan: 0 findings.
+
+### Changed
+- **Rate limits + clamps on amplification routes (Tier-1)** — added `@limiter.limit(...)` to all heavy ffmpeg/Tesseract endpoints and bounded parameter ranges so a single request can't trigger multi-GB allocations: `audio.py` (5 endpoints, width [100, 8000], sample_rate [10, 1000]), `video.py` (4 endpoints, screenshot width [160, 3840], path-separator check on bare segment names), `ocr.py` (3 endpoints, Tesseract language regex `^[a-z]{3}(\+[a-z]{3})*$`, 256-entry LRU cap on `_ocr_jobs`), `nfo.py` (single + series), `spell.py` (locale-tag regex, 10000-entry custom-words cap).
+- **Webhook + scoring + log limits** — `retry_count` clamped to `[0..10]`, `timeout_seconds` to `[1..300]`, `hooks/logs.py` `?limit` capped at 1000, `hooks/scoring.py` provider name ≤ 64 chars and modifier clamped `[-100, 100]`, `subtitle_processor.py` `older_than_days` non-negative-int guard.
+- **Config import SSRF guard** — `POST /config/import` now validates URL fields through the same `_url_fields` set as `update_config`, plus a list-payload guard.
+- **Onboarding refire guard** — `/config/onboarding/complete` refuses to re-fire when already marked complete.
+
+### Tests
+- Refreshed two stale tests after upstream refactors: `test_process_undo_409_on_os_error` now patches `os.replace` (the new atomic-swap call after commit `3ce75d8c`) instead of the long-gone `shutil.move`; `test_accepts_audio_track_index` and `test_missing_index_defaults_to_none` now monkeypatch `_is_whisper_enabled` to true (gate added in `d4aa25ca`, tests never updated).
+
 ## [0.87.0-beta] - 2026-05-03
 
 ### Added
