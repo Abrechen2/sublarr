@@ -162,6 +162,8 @@ class TestWhisperTranscribeRoute:
         monkeypatch.setattr("routes.whisper._queue", FakeQueue())
         monkeypatch.setattr("routes.whisper.transcribe.is_safe_path", lambda *a: True)
         monkeypatch.setattr("routes.whisper.transcribe.os.path.exists", lambda p: True)
+        # Whisper-enabled gate added in d4aa25ca (2026-04-30 whisper audit).
+        monkeypatch.setattr("translator._helpers._is_whisper_enabled", lambda: True)
         r = client.post(
             "/api/v1/whisper/transcribe",
             json={"file_path": "/media/ep1.mkv", "audio_track_index": 2},
@@ -181,6 +183,7 @@ class TestWhisperTranscribeRoute:
         monkeypatch.setattr("routes.whisper._queue", FakeQueue())
         monkeypatch.setattr("routes.whisper.transcribe.is_safe_path", lambda *a: True)
         monkeypatch.setattr("routes.whisper.transcribe.os.path.exists", lambda p: True)
+        monkeypatch.setattr("translator._helpers._is_whisper_enabled", lambda: True)
         r = client.post(
             "/api/v1/whisper/transcribe",
             json={"file_path": "/media/ep1.mkv"},

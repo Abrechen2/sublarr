@@ -124,7 +124,10 @@ def test_process_undo_409_on_os_error(client, tmp_path, monkeypatch):
     bak = tmp_path / "ep.en.bak.srt"
     bak.write_text("original", encoding="utf-8")
 
-    with patch("shutil.move", side_effect=OSError("locked")):
+    # undo_process uses os.replace for the atomic swap-rename (commit 3ce75d8c).
+    # Patch the route-module reference so the OSError surfaces from step 1
+    # (active → tmp) and we hit the 409 branch.
+    with patch("routes.subtitle_processor.os.replace", side_effect=OSError("locked")):
         resp = client.post("/api/v1/tools/process/undo", json={"path": str(sub)})
     assert resp.status_code == 409
 
