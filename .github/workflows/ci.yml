@@ -67,6 +67,12 @@ jobs:
           python tools/test_lint_is_safe_path.py
           python tools/lint_is_safe_path.py
 
+      - name: Lint (no new env-loadable fields — UI-first convention)
+        working-directory: ./backend
+        run: |
+          python tools/test_lint_no_new_env_fields.py
+          python tools/lint_no_new_env_fields.py
+
       - name: Type check (mypy)
         working-directory: ./backend
         run: mypy . --config-file mypy.ini
