@@ -92,7 +92,7 @@ def create_app(testing=False):
     app.config["MAX_CONTENT_LENGTH"] = 16 * 1024 * 1024  # 16 MB — prevent request body DoS
 
     # Load config
-    from config import get_settings, reload_settings
+    from config import get_settings, reload_settings, warn_on_ignored_env_vars
 
     settings = get_settings()
 
@@ -100,6 +100,13 @@ def create_app(testing=False):
     _setup_logging(settings)
 
     logger = logging.getLogger(__name__)
+
+    # Warn (loudly, once per startup) about any SUBLARR_<ui_field> env vars
+    # the operator has set. Since v0.88.0-beta the env-loadable surface is
+    # the curated BootSettings allowlist; UI fields ignore env values
+    # silently otherwise — this loop turns that silence into a logged
+    # warning per ignored variable so the migration is visible.
+    warn_on_ignored_env_vars()
 
     # Initialize SocketIO with the app — restrict origins to configured allowlist
     _cors_origins_raw = getattr(

@@ -252,6 +252,56 @@ def test_grouped_view_classes_importable_from_config():
         assert len(cls._fields) > 0
 
 
+def test_warn_on_ignored_env_vars_warns_for_ui_fields(monkeypatch, caplog):
+    """SUBLARR_<ui_field> env vars trigger a per-key warning + are ignored.
+
+    Boot-field env vars stay silent. ``warn_on_ignored_env_vars`` returns
+    the list of ignored variable names so startup metrics / tests can
+    assert on the count.
+    """
+    import logging
+
+    from config import warn_on_ignored_env_vars
+
+    monkeypatch.setenv("SUBLARR_OPENSUBTITLES_API_KEY", "fake")  # ui — warned
+    monkeypatch.setenv("SUBLARR_TRANSLATION_ENABLED", "true")  # ui — warned
+    monkeypatch.setenv("SUBLARR_API_KEY", "boot-stays-silent")  # boot — silent
+    monkeypatch.setenv("SUBLARR_LOG_LEVEL", "DEBUG")  # boot — silent
+    monkeypatch.setenv("UNRELATED_VAR", "x")  # not SUBLARR_-prefixed
+
+    with caplog.at_level(logging.WARNING, logger="config_settings"):
+        ignored = warn_on_ignored_env_vars()
+
+    assert sorted(ignored) == [
+        "SUBLARR_OPENSUBTITLES_API_KEY",
+        "SUBLARR_TRANSLATION_ENABLED",
+    ]
+    # Each ignored var produced its own warning log line.
+    warning_messages = [r.getMessage() for r in caplog.records if r.levelname == "WARNING"]
+    assert any("SUBLARR_OPENSUBTITLES_API_KEY" in m for m in warning_messages)
+    assert any("SUBLARR_TRANSLATION_ENABLED" in m for m in warning_messages)
+    # Boot-field env vars must not surface in the warning stream.
+    assert not any("SUBLARR_API_KEY" in m for m in warning_messages)
+
+
+def test_warn_on_ignored_env_vars_returns_empty_when_clean(monkeypatch):
+    """No SUBLARR_<ui_field> env vars set → empty list, no warnings."""
+    from config import UISettings, warn_on_ignored_env_vars
+
+    # Clear any pre-existing UI-field SUBLARR_ env vars from the host shell.
+    for env_name in list(monkeypatch._setenv if hasattr(monkeypatch, "_setenv") else ()):
+        pass  # monkeypatch does its own cleanup at fixture teardown
+    import os
+
+    for env_name in [k for k in os.environ if k.startswith("SUBLARR_")]:
+        field_name = env_name.removeprefix("SUBLARR_").lower()
+        if field_name in UISettings.model_fields:
+            monkeypatch.delenv(env_name, raising=False)
+
+    ignored = warn_on_ignored_env_vars()
+    assert ignored == []
+
+
 def test_config_py_under_600_loc():
     """Pin B1 achievement: config.py must stay below 600 LOC.
 
