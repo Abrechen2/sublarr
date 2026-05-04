@@ -106,8 +106,13 @@ def create_webhook():
     event_name = data.get("event_name", "").strip()
     url = data.get("url", "").strip()
     secret = data.get("secret", "")
-    retry_count = int(data.get("retry_count", 3))
-    timeout_seconds = int(data.get("timeout_seconds", 10))
+    try:
+        retry_count = int(data.get("retry_count", 3))
+        timeout_seconds = int(data.get("timeout_seconds", 10))
+    except (TypeError, ValueError):
+        return jsonify({"error": "retry_count and timeout_seconds must be integers"}), 400
+    retry_count = max(0, min(retry_count, 10))
+    timeout_seconds = max(1, min(timeout_seconds, 300))
 
     if not name:
         return jsonify({"error": "name is required"}), 400
@@ -231,6 +236,19 @@ def update_webhook(webhook_id):
 
     if "enabled" in updates:
         updates["enabled"] = 1 if updates["enabled"] else 0
+
+    # Drop the secret if the client echoed back the GET-time mask sentinel —
+    # otherwise the round-trip overwrites the real HMAC secret with the
+    # literal string "***configured***".
+    if updates.get("secret") == "***configured***":
+        updates.pop("secret", None)
+
+    for int_key, lo, hi in (("retry_count", 0, 10), ("timeout_seconds", 1, 300)):
+        if int_key in updates:
+            try:
+                updates[int_key] = max(lo, min(int(updates[int_key]), hi))
+            except (TypeError, ValueError):
+                return jsonify({"error": f"{int_key} must be an integer"}), 400
 
     if "url" in updates:
         new_url = updates["url"]

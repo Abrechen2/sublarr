@@ -6,6 +6,7 @@ import os
 from flask import Blueprint, jsonify, request
 
 from config import get_settings
+from extensions import limiter
 from security_utils import is_safe_path
 from services.audio_visualizer import (
     extract_audio_track,
@@ -19,8 +20,38 @@ from services.scene_detector import detect_scenes
 bp = Blueprint("audio", __name__, url_prefix="/api/v1")
 logger = logging.getLogger(__name__)
 
+# Caps for waveform generation parameters. Width drives the per-pixel sample
+# count and sample_rate the per-second granularity — both are passed straight
+# into ffmpeg/numpy buffers, so an unbounded value can drive a multi-GB
+# allocation.
+_WAVEFORM_WIDTH_MAX = 8000
+_WAVEFORM_SAMPLE_RATE_MAX = 1000
+
+
+def _clamp(value: int, lo: int, hi: int) -> int:
+    return max(lo, min(value, hi))
+
+
+def _coerce_track_index(raw: object) -> int | None:
+    """Reject bool (Python's ``True is 1`` gotcha) and negative values.
+
+    Returns the validated index, or None if the input is missing/invalid
+    (callers fall back to "auto-pick").
+    """
+    if raw is None:
+        return None
+    if isinstance(raw, bool):
+        return None
+    if not isinstance(raw, int):
+        try:
+            raw = int(raw)
+        except (TypeError, ValueError):
+            return None
+    return raw if raw >= 0 else None
+
 
 @bp.route("/audio/waveform", methods=["GET"])
+@limiter.limit("10 per minute")
 def get_waveform():
     """Generate waveform data for a video file.
     ---
@@ -112,8 +143,12 @@ def get_waveform():
 
     try:
         audio_track_index = request.args.get("audio_track_index", type=int)
-        width = request.args.get("width", 2000, type=int)
-        sample_rate = request.args.get("sample_rate", 100, type=int)
+        width = _clamp(request.args.get("width", 2000, type=int) or 2000, 100, _WAVEFORM_WIDTH_MAX)
+        sample_rate = _clamp(
+            request.args.get("sample_rate", 100, type=int) or 100,
+            10,
+            _WAVEFORM_SAMPLE_RATE_MAX,
+        )
 
         waveform_data = generate_waveform_json(
             mapped_path,
@@ -132,6 +167,7 @@ def get_waveform():
 
 
 @bp.route("/audio/extract", methods=["POST"])
+@limiter.limit("5 per minute")
 def extract_audio():
     """Extract audio track from video file.
     ---
@@ -198,7 +234,7 @@ def extract_audio():
         return jsonify({"error": "File not found"}), 404
 
     try:
-        audio_track_index = data.get("audio_track_index")
+        audio_track_index = _coerce_track_index(data.get("audio_track_index"))
         audio_path = extract_audio_track(mapped_path, audio_track_index)
         duration = get_audio_duration(audio_path)
 
@@ -217,6 +253,7 @@ def extract_audio():
 
 
 @bp.route("/audio/tracks", methods=["GET"])
+@limiter.limit("30 per minute")
 def get_audio_tracks():
     """List the audio streams of a video file (WaveformEditor track picker).
     ---
@@ -314,6 +351,7 @@ def _resolve_media_path(file_path: str | None):
 
 
 @bp.route("/audio/keyframes", methods=["GET"])
+@limiter.limit("10 per minute")
 def get_audio_keyframes():
     """Return keyframe timestamps of the first video stream (snap targets).
     ---
@@ -359,6 +397,7 @@ def get_audio_keyframes():
 
 
 @bp.route("/audio/scenes", methods=["GET"])
+@limiter.limit("5 per minute")
 def get_audio_scenes():
     """Return scene-cut timestamps via PySceneDetect (optional dep).
     ---

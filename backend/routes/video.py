@@ -6,6 +6,7 @@ import os
 from flask import Blueprint, jsonify, request, send_file
 
 from config import get_settings
+from extensions import limiter
 from security_utils import is_safe_path
 from services.video_player import (
     convert_subtitle_to_webvtt,
@@ -16,8 +17,13 @@ from services.video_player import (
 bp = Blueprint("video", __name__, url_prefix="/api/v1")
 logger = logging.getLogger(__name__)
 
+# Screenshot generator allocates a frame buffer proportional to width;
+# unbounded values can drive multi-GB ffmpeg allocations.
+_SCREENSHOT_WIDTH_MAX = 3840
+
 
 @bp.route("/video/stream", methods=["GET"])
+@limiter.limit("10 per minute")
 def get_video_stream():
     """Generate HLS playlist for video streaming.
     ---
@@ -106,6 +112,7 @@ def get_video_stream():
 
 
 @bp.route("/video/segment", methods=["GET"])
+@limiter.exempt
 def get_video_segment():
     """Get HLS segment file.
     ---
@@ -145,6 +152,12 @@ def get_video_segment():
     if not file_path or not segment:
         return jsonify({"error": "file_path and segment are required"}), 400
 
+    # Defence-in-depth: even though is_safe_path catches a realpath escape,
+    # reject path separators in the bare segment name so we never have to
+    # reason about edge cases (e.g. NTFS reparse points, alternate streams).
+    if "/" in segment or "\\" in segment or segment.startswith("."):
+        return jsonify({"error": "Invalid segment name"}), 400
+
     try:
         settings = get_settings()
         cache_dir = os.path.join(getattr(settings, "config_dir", "/config"), "cache", "video")
@@ -162,6 +175,7 @@ def get_video_segment():
 
 
 @bp.route("/video/screenshot", methods=["POST"])
+@limiter.limit("10 per minute")
 def create_screenshot():
     """Generate screenshot from video.
     ---
@@ -202,10 +216,19 @@ def create_screenshot():
     data = request.get_json(silent=True) or {}
     file_path = data.get("file_path")
     timestamp = data.get("timestamp", 0)
-    width = data.get("width", 1920)
+    raw_width = data.get("width", 1920)
 
     if not file_path:
         return jsonify({"error": "file_path is required"}), 400
+
+    try:
+        width = max(160, min(int(raw_width), _SCREENSHOT_WIDTH_MAX))
+    except (TypeError, ValueError):
+        return jsonify({"error": "width must be an integer"}), 400
+    try:
+        timestamp = max(0.0, float(timestamp))
+    except (TypeError, ValueError):
+        return jsonify({"error": "timestamp must be a number"}), 400
 
     # Path mapping
     settings = get_settings()
@@ -246,6 +269,7 @@ def create_screenshot():
 
 
 @bp.route("/video/subtitles", methods=["GET"])
+@limiter.limit("60 per minute")
 def get_subtitle_webvtt():
     """Convert subtitle to WebVTT format.
     ---

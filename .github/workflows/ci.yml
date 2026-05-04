@@ -61,6 +61,12 @@ jobs:
         working-directory: ./backend
         run: ruff format --check .
 
+      - name: Lint (is_safe_path arg-order)
+        working-directory: ./backend
+        run: |
+          python tools/test_lint_is_safe_path.py
+          python tools/lint_is_safe_path.py
+
       - name: Type check (mypy)
         working-directory: ./backend
         run: mypy . --config-file mypy.ini

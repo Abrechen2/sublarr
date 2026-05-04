@@ -211,9 +211,20 @@ def update_modifiers():
     from providers.base import invalidate_scoring_cache
 
     data = request.get_json(silent=True) or {}
+    if not isinstance(data, dict):
+        return jsonify({"error": "Payload must be a JSON object"}), 400
 
+    # Cap key length so a long string can't DoS the scoring table; the
+    # int() cast must be guarded so a non-numeric value gets a 400 instead
+    # of crashing into a 500 inside the loop.
     for provider_name, modifier in data.items():
-        set_provider_modifier(provider_name, int(modifier))
+        if not isinstance(provider_name, str) or len(provider_name) > 64:
+            return jsonify({"error": "provider name must be a string ≤ 64 chars"}), 400
+        try:
+            mod_int = int(modifier)
+        except (TypeError, ValueError):
+            return jsonify({"error": f"modifier for {provider_name} must be an integer"}), 400
+        set_provider_modifier(provider_name, max(-100, min(mod_int, 100)))
 
     invalidate_scoring_cache()
 

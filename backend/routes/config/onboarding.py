@@ -79,7 +79,13 @@ def onboarding_complete():
                   status:
                     type: string
     """
-    from db.config import save_config_entry
+    from db.config import get_config_entry, save_config_entry
+
+    # Reject re-completion. Onboarding flips one-way; the wizard isn't meant
+    # to fire its completion side-effects (config defaults, scheduler kick)
+    # twice. Without this, anyone with valid auth can replay the call.
+    if get_config_entry("onboarding_completed") == "true":
+        return jsonify({"status": "already_completed"}), 200
 
     save_config_entry("onboarding_completed", "true")
     return jsonify({"status": "completed"})

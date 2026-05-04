@@ -91,7 +91,11 @@ def create_hook():
     name = data.get("name", "").strip()
     event_name = data.get("event_name", "").strip()
     script_path = data.get("script_path", "").strip()
-    timeout_seconds = int(data.get("timeout_seconds", 30))
+    try:
+        timeout_seconds = int(data.get("timeout_seconds", 30))
+    except (TypeError, ValueError):
+        return jsonify({"error": "timeout_seconds must be an integer"}), 400
+    timeout_seconds = max(1, min(timeout_seconds, 300))
 
     if not name:
         return jsonify({"error": "name is required"}), 400

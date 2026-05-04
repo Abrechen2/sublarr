@@ -2,10 +2,12 @@
 
 import logging
 import os
+import re
 
 from flask import Blueprint, jsonify, request
 
 from config import get_settings
+from extensions import limiter
 from security_utils import is_safe_path
 from services.spell_checker import (
     check_subtitle_file,
@@ -15,8 +17,14 @@ from services.spell_checker import (
 bp = Blueprint("spell", __name__, url_prefix="/api/v1")
 logger = logging.getLogger(__name__)
 
+# Locale tag for enchant — e.g. "en_US", "de_DE". Reject anything outside
+# this shape so a crafted value can't probe filesystem paths via the
+# pyenchant dictionary lookup.
+_LOCALE_RE = re.compile(r"^[a-z]{2,3}(_[A-Z]{2,3})?$")
+
 
 @bp.route("/spell/check", methods=["POST"])
+@limiter.limit("20 per minute")
 def check_spelling():
     """Check spelling in a subtitle file or text content.
     ---
@@ -89,6 +97,13 @@ def check_spelling():
 
     if not file_path and not content:
         return jsonify({"error": "file_path or content is required"}), 400
+
+    if not isinstance(language, str) or not _LOCALE_RE.match(language):
+        return jsonify({"error": "language must be a locale tag like en_US"}), 400
+    if not isinstance(custom_words, list) or not all(isinstance(w, str) for w in custom_words):
+        return jsonify({"error": "custom_words must be a list of strings"}), 400
+    if len(custom_words) > 10000:
+        return jsonify({"error": "custom_words exceeds 10000-entry cap"}), 400
 
     try:
         if file_path:

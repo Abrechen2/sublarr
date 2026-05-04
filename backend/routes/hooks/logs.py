@@ -48,7 +48,8 @@ def list_hook_logs():
 
     hook_id = request.args.get("hook_id", type=int)
     webhook_id = request.args.get("webhook_id", type=int)
-    limit = request.args.get("limit", 50, type=int)
+    # Hard upper cap — without it ?limit=999999 walks the whole table.
+    limit = max(1, min(request.args.get("limit", 50, type=int) or 50, 1000))
 
     logs = get_hook_logs(hook_id=hook_id, webhook_id=webhook_id, limit=limit)
     return jsonify(logs)

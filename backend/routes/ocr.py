@@ -2,13 +2,16 @@
 
 import logging
 import os
+import re
 import threading
 import uuid
+from collections import OrderedDict
 from concurrent.futures import ThreadPoolExecutor
 
 from flask import Blueprint, jsonify, request, send_file
 
 from config import get_settings
+from extensions import limiter
 from security_utils import is_safe_path
 from services.ocr_extractor import (
     TESSERACT_AVAILABLE,
@@ -20,12 +23,39 @@ from services.ocr_extractor import (
 bp = Blueprint("ocr", __name__, url_prefix="/api/v1")
 logger = logging.getLogger(__name__)
 
+# Tesseract language codes are 3-letter ISO 639-2 alpha-3, optionally chained
+# with "+" (e.g. "eng+deu"). Reject anything else — the value is passed to a
+# subprocess via tesseract --lang and although shell=False blocks injection,
+# a stray "../" could still break out of the tessdata search path.
+_TESS_LANG_RE = re.compile(r"^[a-z]{3}(\+[a-z]{3})*$")
+_TESS_LANG_DEFAULT = "eng"
+
+
+def _safe_tess_lang(raw: object) -> str:
+    if not raw or not isinstance(raw, str):
+        return _TESS_LANG_DEFAULT
+    raw = raw.strip().lower()
+    return raw if _TESS_LANG_RE.match(raw) else _TESS_LANG_DEFAULT
+
+
 _ocr_executor = ThreadPoolExecutor(max_workers=1, thread_name_prefix="batch-ocr")
-_ocr_jobs: dict = {}
+# Bounded LRU so a long-running deployment doesn't grow _ocr_jobs without
+# bound — every batch job adds an entry and nothing ever evicts.
+_OCR_JOB_CAP = 256
+_ocr_jobs: OrderedDict[str, dict] = OrderedDict()
 _ocr_lock = threading.Lock()
 
 
+def _record_job(jid: str, payload: dict) -> None:
+    with _ocr_lock:
+        _ocr_jobs[jid] = payload
+        _ocr_jobs.move_to_end(jid)
+        while len(_ocr_jobs) > _OCR_JOB_CAP:
+            _ocr_jobs.popitem(last=False)
+
+
 @bp.route("/ocr/extract", methods=["POST"])
+@limiter.limit("3 per minute")
 def extract_ocr():
     """Extract text from embedded image subtitle stream using OCR.
     ---
@@ -83,7 +113,7 @@ def extract_ocr():
     data = request.get_json(silent=True) or {}
     file_path = data.get("file_path")
     stream_index = data.get("stream_index", 0)
-    language = data.get("language", "eng")
+    language = _safe_tess_lang(data.get("language", "eng"))
     start_time = data.get("start_time")
     end_time = data.get("end_time")
     interval = data.get("interval", 1.0)
@@ -141,6 +171,7 @@ def extract_ocr():
 
 
 @bp.route("/ocr/preview", methods=["GET"])
+@limiter.limit("10 per minute")
 def preview_ocr():
     """Preview a frame for OCR extraction.
     ---
@@ -245,6 +276,7 @@ def preview_ocr():
 
 
 @bp.route("/ocr/batch-extract", methods=["POST"])
+@limiter.limit("3 per minute")
 def batch_extract():
     """Start an async batch OCR job for an entire PGS/VobSub subtitle track.
     ---
@@ -285,10 +317,16 @@ def batch_extract():
     data = request.get_json(force=True, silent=True) or {}
     video_path = data.get("video_path", "")
     stream_index = data.get("stream_index")
-    language = data.get("language", "eng")
+    language = _safe_tess_lang(data.get("language", "eng"))
 
     if not video_path or stream_index is None:
         return jsonify({"error": "video_path and stream_index are required"}), 400
+    try:
+        stream_index = int(stream_index)
+    except (TypeError, ValueError):
+        return jsonify({"error": "stream_index must be an integer"}), 400
+    if stream_index < 0:
+        return jsonify({"error": "stream_index must be non-negative"}), 400
 
     from config import map_path
 
@@ -304,20 +342,16 @@ def batch_extract():
         return jsonify({"error": "OCR not available (pytesseract not installed)"}), 500
 
     job_id = str(uuid.uuid4())
-    with _ocr_lock:
-        _ocr_jobs[job_id] = {"status": "queued"}
+    _record_job(job_id, {"status": "queued"})
 
     def _run(jid: str, vp: str, si: int, lang: str) -> None:
-        with _ocr_lock:
-            _ocr_jobs[jid]["status"] = "running"
+        _record_job(jid, {"status": "running"})
         try:
             cues = batch_ocr_track(vp, si, lang)
-            with _ocr_lock:
-                _ocr_jobs[jid] = {"status": "completed", "cues": cues}
+            _record_job(jid, {"status": "completed", "cues": cues})
         except Exception as e:
             logger.error("Batch OCR job %s failed: %s", jid, e)
-            with _ocr_lock:
-                _ocr_jobs[jid] = {"status": "failed", "error": str(e)}
+            _record_job(jid, {"status": "failed", "error": str(e)})
 
     _ocr_executor.submit(_run, job_id, video_path, stream_index, language)
     return jsonify({"job_id": job_id}), 202

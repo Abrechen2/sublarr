@@ -12,6 +12,7 @@ import os
 
 from flask import Blueprint, abort, jsonify, request
 
+from extensions import limiter
 from nfo_export import write_nfo
 from security_utils import is_safe_path
 
@@ -57,6 +58,7 @@ def _get_db_engine():
 
 
 @bp.route("/subtitles/export-nfo", methods=["POST"])
+@limiter.limit("60 per minute")
 def export_subtitle_nfo():
     """Write an NFO sidecar for a single subtitle file.
 
@@ -97,6 +99,7 @@ def export_subtitle_nfo():
 
 
 @bp.route("/series/<int:series_id>/subtitles/export-nfo", methods=["POST"])
+@limiter.limit("5 per minute")
 def export_series_nfo(series_id: int):
     """Write NFO sidecars for all subtitle files in a series.
 

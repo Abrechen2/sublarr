@@ -85,9 +85,13 @@ def import_config():
     """
     from config import Settings, reload_settings
     from db.config import get_all_config_entries, save_config_entry
+    from security_utils import validate_service_url
     from services.wanted_scanner import invalidate_scanner
 
-    data = request.get_json() or {}
+    data = request.get_json(silent=True) or {}
+    # A JSON list/scalar would crash the .items() loop with AttributeError.
+    if not isinstance(data, dict):
+        return jsonify({"error": "Import payload must be a JSON object"}), 400
     if not data:
         return jsonify({"error": "No config data provided"}), 400
 
@@ -119,6 +123,10 @@ def import_config():
 
     imported = []
     skipped_secrets = []
+    # Mirror update_config's URL-field set so an attacker can't smuggle
+    # file://, link-local IPs, or cloud-metadata endpoints in via the
+    # import path.
+    _url_fields = {"ollama_url", "sonarr_url", "radarr_url", "jellyfin_url"}
 
     for key, value in data.items():
         if key in secret_keys:
@@ -127,6 +135,10 @@ def import_config():
         if str(value) == "***configured***":
             continue
         if key in valid_keys:
+            if key in _url_fields and value:
+                ok, reason = validate_service_url(str(value))
+                if not ok:
+                    return jsonify({"error": f"Invalid URL for {key}: {reason}"}), 400
             save_config_entry(key, str(value))
             imported.append(key)
 
