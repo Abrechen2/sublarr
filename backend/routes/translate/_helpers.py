@@ -73,38 +73,53 @@ BACKEND_TEMPLATES = [
             "context_window": 8000,
         },
     },
-    # --- Community / Fine-tuned Models ---
+    # --- Recommended general-purpose local models ---
     {
-        "name": "anime_translator_v6",
-        "display_name": "Anime Translator V6",
+        "name": "qwen25_14b_instruct",
+        "display_name": "Qwen2.5 14B Instruct (local)",
         "backend_type": "ollama",
         "category": "community",
         "description": (
-            "Gemma-3-12B fine-tuned on 74k anime subtitle pairs (EN→DE). "
-            "Matches qwen2.5:14b quality at 7 GB — no API key, runs fully local via Ollama."
+            "Solid all-round instruction-tuned model. Runs fully local via "
+            "Ollama, no API key. ~9 GB — needs a machine with the RAM/VRAM "
+            "headroom to load it."
         ),
         "config_defaults": {
-            "model": "anime-translator-v6",
+            "model": "qwen2.5:14b-instruct",
             "temperature": "0.3",
         },
-        "hf_repo": "sublarr/anime-translator-v6-GGUF",
-        "hf_tag": "Q4_K_M",
-        "ollama_pull": "hf.co/sublarr/anime-translator-v6-GGUF:Q4_K_M",
+        "ollama_pull": "qwen2.5:14b-instruct",
         "install_hint": (
-            "# Pull directly via Ollama (requires Ollama ≥ 0.3):\n"
-            "ollama pull hf.co/sublarr/anime-translator-v6-GGUF:Q4_K_M\n\n"
+            "# Pull via Ollama:\n"
+            "ollama pull qwen2.5:14b-instruct\n\n"
             "# Or use the Install button above — Sublarr pulls it automatically."
         ),
-        "tags": ["fine-tuned", "anime", "en→de", "local", "7GB", "beta"],
-        "languages": ["en→de"],
-        "size_gb": 7.0,
-        "benchmark": {
-            "bleu1": 0.281,
-            "bleu2": 0.111,
-            "length_ratio": 1.02,
-            "test_set": "JJK S01E01 vs Crunchyroll DE (30 pairs)",
-            "vs_baseline": "beats qwen2.5:14b (0.264) and hunyuan-mt-7b (0.141)",
+        "tags": ["instruct", "general", "local", "9GB", "beta"],
+        "languages": ["multi"],
+        "size_gb": 9.0,
+    },
+    {
+        "name": "llama31_8b_instruct",
+        "display_name": "Llama 3.1 8B Instruct (local)",
+        "backend_type": "ollama",
+        "category": "community",
+        "description": (
+            "Lighter instruction-tuned alternative — fits in ~5 GB. "
+            "Runs fully local via Ollama, no API key."
+        ),
+        "config_defaults": {
+            "model": "llama3.1:8b-instruct",
+            "temperature": "0.3",
         },
+        "ollama_pull": "llama3.1:8b-instruct",
+        "install_hint": (
+            "# Pull via Ollama:\n"
+            "ollama pull llama3.1:8b-instruct\n\n"
+            "# Or use the Install button above — Sublarr pulls it automatically."
+        ),
+        "tags": ["instruct", "general", "local", "5GB", "beta"],
+        "languages": ["multi"],
+        "size_gb": 5.0,
     },
 ]
 

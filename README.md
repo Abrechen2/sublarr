@@ -47,7 +47,6 @@ It follows the *arr-suite design philosophy: connect it to Sonarr/Radarr, set up
 | Subtitle editor, waveform sync, format conversion | Core — functional, rough edges possible |
 | Post-download processing pipeline | Core — functional |
 | **LLM translation via Ollama / DeepL / Google** | **⚠️ Beta — experimental, quality varies** |
-| Fine-tuned anime model (anime-translator-v6) | **⚠️ Experimental — BLEU benchmark only, real-world YMMV** |
 
 ### 🔍 Subtitle Search & Download
 - **22 providers** — AnimeTosho, Jimaku, OpenSubtitles, SubDL, Subscene, Subf2m, Subsource, SubsDump, Addic7ed, BetaSeries, Titlovi, Titrari, TVSubtitles, Gestdown, Kitsunekko, Napisy24, Podnapisi, YIFY, Zimuku, LegendasDivX, TurkceAltyazi + embedded extraction
@@ -302,24 +301,21 @@ Point Sublarr at your media folder in *Settings → Library Sources*. It will wa
 ### Ollama (Local LLM — translation beta)
 
 > ⚠️ Translation quality is variable. Only enable if you need it.
+> The custom `anime-translator-*` GGUFs we previously published are
+> currently broken; do not use them. If a stable replacement ships,
+> this section will name it explicitly.
 
-Sublarr ships a **custom fine-tuned model** on HuggingFace, purpose-trained on 75k anime subtitle pairs for EN→DE translation:
+Use a general-purpose instruction-tuned model:
 
 ```bash
-# Recommended: Sublarr custom anime-subtitle model (EN→DE)
-ollama pull hf.co/Sublarr/anime-translator-v6-GGUF:Q4_K_M
+ollama pull qwen2.5:14b-instruct   # good all-rounder, ~9 GB
+ollama pull llama3.1:8b-instruct   # lighter, ~5 GB
 ```
 
 Then set in your `.env`:
 ```env
-SUBLARR_OLLAMA_MODEL=hf.co/Sublarr/anime-translator-v6-GGUF:Q4_K_M
+SUBLARR_OLLAMA_MODEL=qwen2.5:14b-instruct
 SUBLARR_WANTED_AUTO_TRANSLATE=true
-```
-
-Alternatively, any general-purpose instruction model works too:
-```bash
-ollama pull qwen2.5:14b-instruct   # good general model, 14B
-ollama pull qwen2.5:7b-instruct    # smaller, faster
 ```
 
 Set `SUBLARR_OLLAMA_URL` to your Ollama host. For Docker, use `http://host.docker.internal:11434`.

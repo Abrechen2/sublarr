@@ -283,7 +283,7 @@ def ollama_pull_model():
       summary: Pull an Ollama model
       description: >
         Triggers `ollama pull` for the given model name. Useful for installing
-        community models (e.g. anime-translator-v6) directly from the UI.
+        general-purpose local models (e.g. qwen2.5:14b-instruct) directly from the UI.
         The Ollama server must be reachable at the configured URL.
       security:
         - apiKeyAuth: []
@@ -297,7 +297,7 @@ def ollama_pull_model():
               properties:
                 model:
                   type: string
-                  example: "anime-translator-v6"
+                  example: "qwen2.5:14b-instruct"
       responses:
         200:
           description: Pull completed
