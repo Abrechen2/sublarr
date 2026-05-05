@@ -22,7 +22,7 @@ export interface ProviderEditorProps {
   onRemove?: () => void
   /** Optional content rendered in the header next to the title (e.g. modal close button). */
   headerExtra?: React.ReactNode
-  /** Optional content appended to the footer (right-aligned, e.g. modal "Schließen" button). */
+  /** Optional content appended to the footer (right-aligned, e.g. modal close button). */
   footerExtra?: React.ReactNode
   /** When true, the page-level title row is hidden — used inside ProviderEditModal which has its own title. */
   hideTitle?: boolean
@@ -41,12 +41,13 @@ export function ProviderEditor({
   headerExtra, footerExtra, hideTitle,
 }: ProviderEditorProps) {
   const { t: tc } = useTranslation('common')
+  const { t: ts } = useTranslation('settings')
   const [confirmRemove, setConfirmRemove] = useState(false)
   const [errors, setErrors] = useState<Record<string, string>>({})
 
   const validateField = (fieldKey: string, value: string, label: string) => {
     if (!value.trim()) {
-      setErrors(prev => ({ ...prev, [fieldKey]: `${label} is required` }))
+      setErrors(prev => ({ ...prev, [fieldKey]: ts('providers_tab.editor.field_required_error', { label }) }))
     } else {
       setErrors(prev => {
         const { [fieldKey]: _removed, ...rest } = prev
@@ -63,7 +64,7 @@ export function ProviderEditor({
       if (field.required) {
         const value = fieldValues[field.key] ?? ''
         if (value !== '***configured***' && !value.trim()) {
-          newErrors[field.key] = `${field.label} is required`
+          newErrors[field.key] = ts('providers_tab.editor.field_required_error', { label: field.label })
         }
       }
     }
@@ -75,7 +76,7 @@ export function ProviderEditor({
   }
 
   const statusColor = getStatusColor(provider)
-  const statusLabel = getStatusLabel(provider)
+  const statusLabel = getStatusLabel(provider, ts)
   const statusBg = getStatusBg(provider)
   const hasStats = provider.stats && provider.stats.total_searches > 0
   // The status pill row duplicates the toggle button when the provider is
@@ -100,10 +101,10 @@ export function ProviderEditor({
 
       {/* Body */}
       <div className="space-y-0">
-        {/* ── Aktiviert Toggle ── */}
+        {/* Enabled toggle */}
         <SettingRow
           label={tc('ui.enabled')}
-          description="Provider für die automatische Untertitel-Suche verwenden"
+          description={ts('providers_tab.editor.enable_hint')}
         >
           <button
             onClick={onToggle}
@@ -115,11 +116,11 @@ export function ProviderEditor({
               border: '1px solid ' + (provider.enabled ? 'var(--accent-dim)' : 'var(--border)'),
             }}
           >
-            {provider.enabled ? 'Aktiviert' : 'Deaktiviert'}
+            {provider.enabled ? ts('providers_tab.enabled') : ts('providers_tab.disabled')}
           </button>
         </SettingRow>
 
-        {/* ── Status + Fehlermeldung ── */}
+        {/* Status + error message */}
         {showStatusRow && (
           <div className="py-3" style={{ borderBottom: '1px solid var(--border)' }}>
             <div className="flex items-center gap-2 flex-wrap">
@@ -135,12 +136,12 @@ export function ProviderEditor({
                   className="text-xs"
                   style={{ color: testResult.healthy ? 'var(--success)' : 'var(--error)' }}
                 >
-                  Test: {testResult.message}
+                  {ts('providers_tab.editor.test_label')}: {testResult.message}
                 </span>
               )}
               {testResult === 'testing' && (
                 <span className="flex items-center gap-1 text-xs" style={{ color: 'var(--text-muted)' }}>
-                  <Loader2 size={12} className="animate-spin" /> Teste…
+                  <Loader2 size={12} className="animate-spin" /> {ts('providers_tab.editor.testing')}
                 </span>
               )}
             </div>
@@ -152,7 +153,7 @@ export function ProviderEditor({
           </div>
         )}
 
-        {/* ── Health Stats ── */}
+        {/* Health stats */}
         {provider.enabled && hasStats && (
           <div className="py-3 space-y-2" style={{ borderBottom: '1px solid var(--border)' }}>
             <div className="flex items-center gap-2">
@@ -174,11 +175,11 @@ export function ProviderEditor({
                 <span>Ø {Math.round(provider.stats.avg_response_time_ms)}ms</span>
               )}
               {provider.stats.last_response_time_ms > 0 && (
-                <span>Zuletzt: {Math.round(provider.stats.last_response_time_ms)}ms</span>
+                <span>{ts('providers_tab.editor.last_response')}: {Math.round(provider.stats.last_response_time_ms)}ms</span>
               )}
               {provider.stats.consecutive_failures > 0 && (
                 <span style={{ color: 'var(--warning)' }}>
-                  {provider.stats.consecutive_failures}× Fehler hintereinander
+                  {ts('providers_tab.editor.consecutive_failures', { count: provider.stats.consecutive_failures })}
                 </span>
               )}
             </div>
@@ -188,10 +189,10 @@ export function ProviderEditor({
                   className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium"
                   style={{ backgroundColor: 'color-mix(in srgb, var(--error) 12%, transparent)', color: 'var(--error)' }}
                 >
-                  Gesperrt bis{' '}
+                  {ts('providers_tab.editor.locked_until')}{' '}
                   {provider.stats.disabled_until
                     ? new Date(provider.stats.disabled_until).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-                    : 'unbekannt'}
+                    : ts('providers_tab.editor.unknown')}
                 </span>
                 <button
                   onClick={onReEnable}
@@ -202,26 +203,26 @@ export function ProviderEditor({
                     backgroundColor: 'var(--accent-bg)',
                   }}
                 >
-                  Reaktivieren
+                  {ts('providers_tab.re_enable')}
                 </button>
               </div>
             )}
           </div>
         )}
 
-        {/* ── Stats (Downloads + Cache) ── */}
+        {/* Stats: downloads + cache */}
         <div className="py-3 flex items-center gap-4" style={{ borderBottom: '1px solid var(--border)' }}>
           <span className="flex items-center gap-1.5 text-xs" style={{ color: 'var(--text-secondary)' }}>
             <Download size={12} />
-            {provider.downloads} Downloads
+            {ts('providers_tab.editor.downloads_count', { count: provider.downloads })}
           </span>
           <span className="flex items-center gap-1.5 text-xs" style={{ color: 'var(--text-secondary)' }}>
             <Database size={12} />
-            {cacheCount} gecacht
+            {ts('providers_tab.editor.cached_count', { count: cacheCount })}
           </span>
         </div>
 
-        {/* ── Zugangsdaten ── */}
+        {/* Credentials */}
         {configFields.length > 0 ? (
           <div className="pt-1">
             {configFields.map((field) => {
@@ -232,7 +233,7 @@ export function ProviderEditor({
                 <SettingRow
                   key={field.key}
                   label={field.label}
-                  description={getFieldDescription(field.key, field.label)}
+                  description={getFieldDescription(field.key, field.label, ts)}
                   htmlFor={inputId}
                 >
                   <div className="w-full">
@@ -248,10 +249,10 @@ export function ProviderEditor({
                       }}
                       placeholder={
                         fieldValues[field.key] === '***configured***'
-                          ? '(configured)'
+                          ? ts('providers_tab.editor.configured')
                           : field.required
-                            ? 'Required'
-                            : 'Optional'
+                            ? ts('providers_tab.editor.required_field')
+                            : ts('providers_tab.editor.optional_field')
                       }
                       aria-describedby={hasError ? errorId : undefined}
                       aria-invalid={hasError}
@@ -275,11 +276,11 @@ export function ProviderEditor({
           </div>
         ) : (
           <div className="py-3 text-xs" style={{ color: 'var(--text-muted)' }}>
-            Keine Zugangsdaten erforderlich
+            {ts('providers_tab.editor.no_credentials_required')}
           </div>
         )}
 
-        {/* ── API-Schlüssel (multi-key pool) ── */}
+        {/* Multi-key pool */}
         <ProviderKeysPool providerName={provider.name} />
       </div>
 
@@ -301,7 +302,7 @@ export function ProviderEditor({
               }}
             >
               <Trash2 size={12} />
-              Entfernen
+              {tc('ui.remove')}
             </button>
           )}
           {onRemove && confirmRemove && (
@@ -312,14 +313,14 @@ export function ProviderEditor({
                 className="px-2.5 py-1.5 rounded text-xs font-medium"
                 style={{ backgroundColor: 'var(--error)', color: 'white' }}
               >
-                Ja
+                {tc('confirm.yes')}
               </button>
               <button
                 onClick={() => setConfirmRemove(false)}
                 className="px-2.5 py-1.5 rounded text-xs font-medium"
                 style={{ border: '1px solid var(--border)', color: 'var(--text-muted)' }}
               >
-                Nein
+                {tc('confirm.no')}
               </button>
             </div>
           )}
@@ -334,7 +335,7 @@ export function ProviderEditor({
               }}
             >
               <Trash2 size={12} />
-              Cache ({cacheCount})
+              {ts('providers_tab.editor.cache')} ({cacheCount})
             </button>
           )}
         </div>
@@ -357,7 +358,7 @@ export function ProviderEditor({
             ) : (
               <TestTube size={12} />
             )}
-            Prüfen
+            {tc('actions.test')}
           </button>
           {footerExtra}
         </div>

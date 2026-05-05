@@ -62,7 +62,8 @@
     "import": "Importieren",
     "confirm": "Bestätigen",
     "back": "Zurück",
-    "enable": "Aktivieren"
+    "enable": "Aktivieren",
+    "disable": "Deaktivieren"
   },
   "theme": {
     "dark": "Dunkel",

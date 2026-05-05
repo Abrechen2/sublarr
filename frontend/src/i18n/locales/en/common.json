@@ -62,7 +62,8 @@
     "import": "Import",
     "confirm": "Confirm",
     "back": "Back",
-    "enable": "Enable"
+    "enable": "Enable",
+    "disable": "Disable"
   },
   "theme": {
     "dark": "Dark",

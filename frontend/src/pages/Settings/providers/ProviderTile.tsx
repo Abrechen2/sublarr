@@ -21,8 +21,9 @@ export function ProviderTile({
   onOpenEdit, onToggle, onRemove,
 }: ProviderTileProps) {
   const { t: tc } = useTranslation('common')
+  const { t: ts } = useTranslation('settings')
   const statusColor = getStatusColor(provider)
-  const statusLabel = getStatusLabel(provider)
+  const statusLabel = getStatusLabel(provider, ts)
   const statusBg = getStatusBg(provider)
   const borderColor = getStatusBorderColor(provider)
   const hasStats = provider.stats && provider.stats.total_searches > 0
@@ -104,7 +105,7 @@ export function ProviderTile({
         <button
           onClick={onToggle}
           className="p-1.5 rounded transition-colors"
-          title={provider.enabled ? 'Deaktivieren' : 'Aktivieren'}
+          title={provider.enabled ? tc('actions.disable') : tc('actions.enable')}
           style={{ backgroundColor: 'var(--bg-elevated)', color: provider.enabled ? 'var(--accent)' : 'var(--text-muted)' }}
           onMouseEnter={(e) => {
             e.currentTarget.style.color = provider.enabled ? 'var(--warning)' : 'var(--success)'

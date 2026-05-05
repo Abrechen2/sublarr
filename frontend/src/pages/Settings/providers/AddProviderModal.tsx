@@ -1,5 +1,6 @@
 import { useEffect } from 'react'
 import { X, ChevronRight, Key, User, Zap } from 'lucide-react'
+import { useTranslation } from 'react-i18next'
 import type { ProviderInfo } from '@/lib/types'
 import { getCredentialBadge, getProviderDescription, type CredentialType } from './providerUtils'
 
@@ -10,12 +11,13 @@ interface AddProviderModalProps {
 }
 
 function CredentialBadge({ type }: { type: CredentialType }) {
-  const config: Record<CredentialType, { label: string; color: string; Icon: typeof Zap }> = {
-    free: { label: 'Gratis', color: 'var(--success)', Icon: Zap },
-    api_key: { label: 'API Key', color: 'var(--warning)', Icon: Key },
-    login: { label: 'Login', color: 'var(--accent)', Icon: User },
+  const { t } = useTranslation('settings')
+  const config: Record<CredentialType, { labelKey: string; color: string; Icon: typeof Zap }> = {
+    free: { labelKey: 'providers_tab.add_modal.badge_free', color: 'var(--success)', Icon: Zap },
+    api_key: { labelKey: 'providers_tab.add_modal.badge_api_key', color: 'var(--warning)', Icon: Key },
+    login: { labelKey: 'providers_tab.add_modal.badge_login', color: 'var(--accent)', Icon: User },
   }
-  const { label, color, Icon } = config[type]
+  const { labelKey, color, Icon } = config[type]
 
   return (
     <span
@@ -26,12 +28,14 @@ function CredentialBadge({ type }: { type: CredentialType }) {
       }}
     >
       <Icon size={9} />
-      {label}
+      {t(labelKey)}
     </span>
   )
 }
 
 export function AddProviderModal({ availableProviders, onSelect, onClose }: AddProviderModalProps) {
+  const { t } = useTranslation('settings')
+
   useEffect(() => {
     const handleKey = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose() }
     document.addEventListener('keydown', handleKey)
@@ -62,10 +66,10 @@ export function AddProviderModal({ availableProviders, onSelect, onClose }: AddP
         >
           <div>
             <p className="text-[11px] font-medium mb-0.5" style={{ color: 'var(--text-muted)' }}>
-              Schritt 1 von 2
+              {t('providers_tab.add_modal.step_1_of_2')}
             </p>
             <h2 id="add-provider-title" className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>
-              Provider hinzufügen
+              {t('providers_tab.add_modal.title')}
             </h2>
           </div>
           <button
@@ -84,7 +88,7 @@ export function AddProviderModal({ availableProviders, onSelect, onClose }: AddP
         <div className="py-1 max-h-96 overflow-y-auto">
           {availableProviders.length === 0 ? (
             <p className="px-4 py-6 text-center text-sm" style={{ color: 'var(--text-muted)' }}>
-              Alle Provider sind bereits in der Liste.
+              {t('providers_tab.add_modal.all_added')}
             </p>
           ) : (
             availableProviders.map((provider) => (
@@ -104,7 +108,7 @@ export function AddProviderModal({ availableProviders, onSelect, onClose }: AddP
                     <CredentialBadge type={getCredentialBadge(provider.name)} />
                   </div>
                   <span className="text-[11px] block truncate" style={{ color: 'var(--text-muted)' }}>
-                    {getProviderDescription(provider.name)}
+                    {getProviderDescription(provider.name, t)}
                   </span>
                 </div>
                 <ChevronRight size={14} className="shrink-0" style={{ color: 'var(--text-muted)' }} />
