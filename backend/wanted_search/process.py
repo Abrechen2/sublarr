@@ -12,7 +12,6 @@ from db.wanted import (
     delete_wanted_item,
     get_wanted_item,
     update_existing_sub,
-    update_wanted_search,
     update_wanted_status,
 )
 from error_handler import DuplicateSubtitleError
@@ -701,7 +700,12 @@ def _fallback_translate_file(ctx: dict) -> dict:
         logger.debug(
             "Wanted %d: auto_translate disabled, no subtitle found without translation", item_id
         )
+        # Funnel no-result through record_search_outcome so failure_kind
+        # and retry_after are set — otherwise the item ends up legacy_frozen.
+        from services.wanted_search_runner import record_search_outcome
+
         update_wanted_status(item_id, "wanted")
+        record_search_outcome(item_id, kind="no_result")
         return {
             "wanted_id": item_id,
             "status": "not_found",
@@ -823,7 +827,9 @@ def process_wanted_item(item_id: int) -> dict:
         return skip
 
     update_wanted_status(item_id, "searching")
-    update_wanted_search(item_id)
+    # search_count + last_search_at are bumped at no-result exits via
+    # record_search_outcome — keeping it the single mutation point keeps
+    # failure_kind in sync with the count and avoids legacy_frozen rows.
 
     file_path = item["file_path"]
     if not os.path.exists(file_path):

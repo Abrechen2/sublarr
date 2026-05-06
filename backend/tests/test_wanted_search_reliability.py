@@ -85,12 +85,12 @@ class TestProviderErrorHandling:
     @patch("wanted_search.process.get_wanted_item")
     @patch("wanted_search.process.get_provider_manager")
     @patch("wanted_search.process.update_wanted_status")
-    @patch("wanted_search.process.update_wanted_search")
+    @patch("services.wanted_search_runner.record_search_outcome")
     @patch("wanted_search.process.build_query_from_wanted")
     def test_save_subtitle_failure_continues(
         self,
         mock_build_query,
-        mock_update_search,
+        mock_record_outcome,
         mock_update_status,
         mock_get_manager,
         mock_get_item,
@@ -287,12 +287,12 @@ class TestAutoTranslateGuard:
     @patch("wanted_search.process.get_wanted_item")
     @patch("wanted_search.process.get_provider_manager")
     @patch("wanted_search.process.update_wanted_status")
-    @patch("wanted_search.process.update_wanted_search")
+    @patch("services.wanted_search_runner.record_search_outcome")
     @patch("wanted_search.process.build_query_from_wanted")
     def test_no_translation_when_auto_translate_disabled(
         self,
         mock_build_query,
-        mock_update_search,
+        mock_record_outcome,
         mock_update_status,
         mock_get_manager,
         mock_get_item,
@@ -334,12 +334,10 @@ class TestAutoTranslateGuard:
     @patch("wanted_search.process.get_provider_manager")
     @patch("wanted_search.process.delete_wanted_item")
     @patch("wanted_search.process.update_wanted_status")
-    @patch("wanted_search.process.update_wanted_search")
     @patch("wanted_search.process.build_query_from_wanted")
     def test_direct_download_still_works_when_auto_translate_disabled(
         self,
         mock_build_query,
-        mock_update_search,
         mock_update_status,
         mock_delete_item,
         mock_get_manager,
