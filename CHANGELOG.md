@@ -5,6 +5,17 @@ All notable changes to Sublarr are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.89.0-beta] - 2026-05-06
+
+### Added
+- **Localized provider editor + add modal** — Provider editor and the new "Add Provider" modal are fully translated in DE/EN.
+
+### Fixed
+- **Legacy_frozen regression in wanted-search** — Items hitting `wanted_max_search_attempts` while `wanted_auto_translate` was disabled were left with `failure_kind=NULL` and `retry_after=NULL`, which caused `_filter_eligible` to drop them forever. The "no result" exit now funnels through `record_search_outcome` so the slow-mode contract is honoured (1 retry per ~30 days). Migration `a7f2e1c9d3b4` reapplies the 2026-04-27 resurrection UPDATE to the ~2005 rows that already slipped through.
+
+### Changed
+- **Translation backend recommendations** — Dropped the broken `anime-translator-v6` preset; the UI now suggests `qwen2.5:14b` / `llama3.1:8b` / cloud backends as general-purpose Ollama options that reliably produce DE output.
+
 ## [0.88.0-beta] - 2026-05-04
 
 ### Changed
