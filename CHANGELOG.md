@@ -5,6 +5,12 @@ All notable changes to Sublarr are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.90.0-beta] - 2026-05-07
+
+### Added
+- **Disk safety-valve for wanted_search** — When the `/config` device crosses the configured threshold (default 98 %), `wanted_search` now early-returns with `paused_reason="disk_critical"` instead of fetching the eligibility list, querying providers, or writing downloads. Configurable via the new UI setting `wanted_search_disk_pause_pct` (range 50.0–100.0; set to 100.0 to disable). Closes a V1 readiness gap surfaced by the 2026-05-07 audit: with Cardinal at 97 % usage, a single bulk run could push `/config` over the cliff and corrupt the application DB.
+- **Auto-mark-as-unsourceable** — A wanted item that fails through the configured number of slow-mode cycles (default `wanted_search_max_slow_cycles=3` — i.e. once `search_count` reaches `max_attempts + max_slow_cycles`) now moves to `status='unsourceable'` and drops out of the scheduler queue, instead of cycling indefinitely every 30 days. Existing slow-mode items escalate organically as they hit the threshold. New UI setting `wanted_search_max_slow_cycles` (range 0–999; set to 0 to skip slow-mode entirely, set high for legacy never-escalate behaviour). Eliminates the "2084 wanted, never shrinks" UX wart for items where the target language genuinely is not available at any provider.
+
 ## [0.89.0-beta] - 2026-05-06
 
 ### Added
