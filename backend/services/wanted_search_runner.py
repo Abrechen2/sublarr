@@ -173,6 +173,32 @@ def run_wanted_search(
 
     settings = get_settings()
 
+    # Disk safety-valve: refuse to run when /config is critically full. Downloads
+    # land next to the DB on the same volume in the default Cardinal layout,
+    # and a full /config corrupts the DB. Returning paused_reason rather than
+    # raising lets the scheduler record the run as ok and try again next tick.
+    from services.disk_safety import format_disk_status, is_disk_critical
+
+    _config_dir = getattr(settings, "config_dir", "/config")
+    _disk_threshold = float(getattr(settings, "wanted_search_disk_pause_pct", 98.0))
+    if is_disk_critical(_config_dir, _disk_threshold):
+        _disk_status = format_disk_status(_config_dir)
+        logger.warning(
+            "Wanted search paused — %s disk at %s (threshold %.1f%%)",
+            _config_dir,
+            _disk_status,
+            _disk_threshold,
+        )
+        return {
+            "total": 0,
+            "processed": 0,
+            "found": 0,
+            "failed": 0,
+            "skipped": 0,
+            "paused_reason": "disk_critical",
+            "disk_pct": _disk_status,
+        }
+
     # Phase 3: ramp learned factors toward 1.0 once per tick (daily in default config).
     try:
         from services.provider_budget import get_budget_manager

@@ -228,6 +228,18 @@ class UISettings(BaseModel):
     wanted_auto_extract: bool = False  # Auto-extract embedded subs during wanted scan
     wanted_auto_translate: bool = False  # Auto-translate after auto-extract
     wanted_max_search_attempts: int = 3
+    # After ``wanted_max_search_attempts`` slow-mode cycles also fail, escalate
+    # to status='unsourceable' so the row stops eating scheduler budget. Set
+    # to a very high value to keep slow-mode forever (legacy behaviour).
+    wanted_search_max_slow_cycles: int = Field(
+        default=3,
+        ge=0,
+        le=999,
+        description=(
+            "After this many slow-mode no_result cycles, mark the wanted item "
+            "as 'unsourceable' to remove it from the active scheduler queue."
+        ),
+    )
     use_embedded_subs: bool = True  # Check embedded subtitle streams in MKV files
     scan_yield_ms: int = 0  # Sleep between series/movies (ms) to yield CPU
 
@@ -346,6 +358,19 @@ class UISettings(BaseModel):
 
     # Wanted Early Exit
     wanted_skip_srt_on_no_ass: bool = True  # Skip SRT steps if no ASS found in steps 1+2
+
+    # Wanted Disk Safety-Valve — pause wanted_search when /config disk pressure is critical.
+    # /config holds the application DB and download cache; pushing it over the cliff
+    # corrupts both. Set to >=100.0 to disable the gate entirely.
+    wanted_search_disk_pause_pct: float = Field(
+        default=98.0,
+        ge=50.0,
+        le=100.0,
+        description=(
+            "Pause wanted_search when /config disk usage reaches this percentage. "
+            "Set to 100.0 to disable."
+        ),
+    )
 
     # Notifications (Apprise)
     notification_urls_json: str = ""  # JSON array or newline-separated Apprise URLs

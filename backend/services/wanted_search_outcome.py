@@ -126,10 +126,23 @@ def record_search_outcome(
             return
         new_count = item["search_count"]
         max_attempts = getattr(settings, "wanted_max_search_attempts", 3)
+        max_slow_cycles = getattr(settings, "wanted_search_max_slow_cycles", 3)
         base_h = getattr(settings, "wanted_backoff_base_hours", 1.0)
         cap_h = getattr(settings, "wanted_backoff_cap_hours", 168)
+        # Tri-state escalation: normal backoff → slow-mode → unsourceable.
+        # The terminal state moves the row out of the wanted queue entirely
+        # (status='unsourceable') so it stops eating scheduler budget. Reverse
+        # path is manual (admin re-queues, or a future provider-coverage event
+        # rehydrates the cohort).
+        if new_count >= max_attempts + max_slow_cycles:
+            update_wanted_search_outcome(
+                item_id,
+                status="unsourceable",
+                failure_kind="unsourceable",
+                retry_after=None,
+            )
+            return
         if new_count >= max_attempts:
-            # Slow-mode: one attempt per 30 days instead of freezing forever.
             retry_at = now + timedelta(days=30)
             failure_kind = "no_result_slow"
         else:
