@@ -153,19 +153,47 @@ export function ProviderEditor({
           </div>
         )}
 
-        {/* Health stats */}
+        {/* Health stats — two stacked bars (since 0.92.0-beta):
+            • Treffer-Quote (result_rate)   = Anteil Suchen mit Treffern vom Provider
+            • Download-Quote (download_rate) = Anteil Suchen wo wir den Treffer gewählt haben
+            success_rate is kept as a back-compat alias for download_rate so older
+            cached provider responses don't crash the UI. */}
         {provider.enabled && hasStats && (
           <div className="py-3 space-y-2" style={{ borderBottom: '1px solid var(--border)' }}>
             <div className="flex items-center gap-2">
               <span className="text-[11px] w-8 shrink-0" style={{ color: 'var(--text-muted)' }}>
-                {Math.round(provider.stats.success_rate * 100)}%
+                {Math.round((provider.stats.result_rate ?? 0) * 100)}%
               </span>
-              <div className="flex-1 h-1.5 rounded-full" style={{ backgroundColor: 'var(--bg-primary)' }}>
+              <div
+                className="flex-1 h-1.5 rounded-full"
+                style={{ backgroundColor: 'var(--bg-primary)' }}
+                title={`${ts('providers_tab.editor.result_rate', 'Treffer-Quote')}: ${Math.round((provider.stats.result_rate ?? 0) * 100)}%`}
+              >
                 <div
                   className="h-full rounded-full transition-all"
                   style={{
-                    width: `${provider.stats.success_rate * 100}%`,
-                    backgroundColor: getSuccessRateColor(provider.stats.success_rate),
+                    width: `${(provider.stats.result_rate ?? 0) * 100}%`,
+                    backgroundColor: 'var(--accent)',
+                  }}
+                />
+              </div>
+            </div>
+            <div className="flex items-center gap-2">
+              <span className="text-[11px] w-8 shrink-0" style={{ color: 'var(--text-muted)' }}>
+                {Math.round((provider.stats.download_rate ?? provider.stats.success_rate) * 100)}%
+              </span>
+              <div
+                className="flex-1 h-1.5 rounded-full"
+                style={{ backgroundColor: 'var(--bg-primary)' }}
+                title={`${ts('providers_tab.editor.download_rate', 'Download-Quote')}: ${Math.round((provider.stats.download_rate ?? provider.stats.success_rate) * 100)}%`}
+              >
+                <div
+                  className="h-full rounded-full transition-all"
+                  style={{
+                    width: `${(provider.stats.download_rate ?? provider.stats.success_rate) * 100}%`,
+                    backgroundColor: getSuccessRateColor(
+                      provider.stats.download_rate ?? provider.stats.success_rate,
+                    ),
                   }}
                 />
               </div>

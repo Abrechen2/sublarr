@@ -63,6 +63,7 @@ class ProviderStats(db.Model):
 
     provider_name: Mapped[str] = mapped_column(Text, primary_key=True)
     total_searches: Mapped[int | None] = mapped_column(Integer, default=0)
+    successful_searches: Mapped[int | None] = mapped_column(Integer, default=0)
     successful_downloads: Mapped[int | None] = mapped_column(Integer, default=0)
     failed_downloads: Mapped[int | None] = mapped_column(Integer, default=0)
     avg_score: Mapped[float | None] = mapped_column(Float, default=0)

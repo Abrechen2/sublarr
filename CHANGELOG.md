@@ -5,6 +5,18 @@ All notable changes to Sublarr are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.92.0-beta] - 2026-05-08
+
+### Added
+- **Provider result-rate metric (audit C1)** — Provider tiles + the editor drawer now show two stacked bars: the new **Treffer-Quote** (`result_rate` = providers that returned ≥1 hit / total searches, accent-coloured) above the existing **Download-Quote** (`download_rate` = sub actually downloaded from this provider / total searches, traffic-light coloured). The two metrics together make it obvious whether a provider with thousands of searches and 0 % downloads is dead (no hits at all) or merely outranked by a stronger competitor. New SQLAlchemy column `provider_stats.successful_searches` is incremented by `record_search(success=True)`; the API exposes the new fields as `successful_searches`, `result_rate`, and `download_rate`. The legacy `success_rate` field is kept as an explicit alias of `download_rate` so older clients continue to work.
+
+### Fixed
+- **Stale `auto_disabled` in `/providers/health` (audit B1)** — `manager_status_mixin.get_provider_status` previously sourced from `get_provider_stats()`, which returned the raw DB row and so kept a provider flagged as `auto_disabled=True` indefinitely once its `disabled_until` had passed (the actual search path called the cooldown-aware `is_provider_auto_disabled()` and re-enabled the provider transparently — but the UI never noticed). The status mixin now sources from the cooldown-aware `get_all_provider_stats_enriched()` mirror, so a provider whose cooldown has expired shows up immediately as healthy without waiting for the next search to write through. Concretely fixes the live `jimaku` row that had been showing `disabled_until=2026-04-15` 24 days into the past.
+- **`/tools/convert` UTF-8 decode failure on legacy SRTs (audit B2)** — `pysubs2.load(path)` defaults to UTF-8 and raised `UnicodeDecodeError: 'utf-8' codec can't decode byte 0xa3 in position 4` for any CP1252 / Latin-1 / MacRoman SRT. The endpoint now mirrors the `chardet` detection pattern already in use by `/tools/content`, `/tools/analysis`, and `/tools/common-fixes`, then passes the detected encoding to `pysubs2.load(path, encoding=…)` and falls back to a lenient `latin-1` decode if pysubs2 still raises. Conversion now succeeds on every legacy encoding without the user having to pre-transcode the file.
+
+### Tests
+- **+9 audit regression tests** (`tests/test_audit_2026_05_08.py`) — three for the cooldown-mirror (expired clears, active stays, status mixin agrees with the enriched view), three for the new `successful_searches` / `result_rate` / `download_rate` shape, three for the convert encoding path (default UTF-8 fails, explicit CP1252 succeeds, latin-1 fallback never raises). Refresh of `tests/test_providers_init_refactor_safety.py::_STATS_KEYS` to pin the new keys (`successful_searches`, `download_rate`, `result_rate`) into the public-API contract.
+
 ## [0.91.0-beta] - 2026-05-08
 
 ### Security

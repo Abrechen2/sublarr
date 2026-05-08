@@ -216,9 +216,12 @@ _STATUS_KEYS = frozenset(
 _STATS_KEYS = frozenset(
     {
         "total_searches",
+        "successful_searches",
         "successful_downloads",
         "failed_downloads",
         "success_rate",
+        "download_rate",
+        "result_rate",
         "avg_score",
         "consecutive_failures",
         "last_success_at",

@@ -11,9 +11,20 @@ export interface ProviderConfigField {
 
 export interface ProviderHealthStats {
   total_searches: number
+  /** Searches where the provider returned ≥1 usable result (since 0.92.0-beta). */
+  successful_searches: number
   successful_downloads: number
   failed_downloads: number
+  /**
+   * @deprecated Alias for download_rate (downloads / total_searches). Kept for
+   * backwards-compat with older clients; new code should read download_rate
+   * + result_rate instead.
+   */
   success_rate: number
+  /** successful_downloads / total_searches — what we actually picked. */
+  download_rate: number
+  /** successful_searches / total_searches — what providers offered (since 0.92.0-beta). */
+  result_rate: number
   avg_score: number
   consecutive_failures: number
   last_success_at: string | null
@@ -42,6 +53,8 @@ export interface ProviderHealthItem {
   enabled: boolean
   initialized: boolean
   success_rate: number
+  download_rate?: number
+  result_rate?: number
   avg_response_time_ms: number
   last_response_time_ms: number
   auto_disabled: boolean

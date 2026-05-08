@@ -215,6 +215,7 @@ class ProviderRepository(BaseRepository):
 
             if success:
                 existing.last_success_at = now
+                existing.successful_searches = (existing.successful_searches or 0) + 1
             else:
                 existing.failed_downloads = (existing.failed_downloads or 0) + 1
                 existing.last_failure_at = now
@@ -235,6 +236,7 @@ class ProviderRepository(BaseRepository):
             entry = ProviderStats(
                 provider_name=provider_name,
                 total_searches=1,
+                successful_searches=1 if success else 0,
                 successful_downloads=0,
                 failed_downloads=0 if success else 1,
                 avg_score=0,
@@ -467,7 +469,14 @@ class ProviderRepository(BaseRepository):
         for entry in entries:
             stats = self._row_to_stats(entry)
             total = entry.total_searches or 0
-            stats["success_rate"] = (entry.successful_downloads or 0) / total if total > 0 else 0.0
+            downloads = entry.successful_downloads or 0
+            results_with_hits = entry.successful_searches or 0
+            # Backwards-compatible: success_rate is the legacy
+            # downloads/searches ratio. download_rate is its new explicit
+            # alias; result_rate is the new "provider returned hits" ratio.
+            stats["download_rate"] = downloads / total if total > 0 else 0.0
+            stats["success_rate"] = stats["download_rate"]
+            stats["result_rate"] = results_with_hits / total if total > 0 else 0.0
             # Mirror is_auto_disabled() cooldown logic without DB write
             auto_disabled = bool(entry.auto_disabled)
             if auto_disabled and entry.disabled_until:

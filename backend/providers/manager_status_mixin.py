@@ -22,7 +22,7 @@ class StatusReportingMixin:
 
     def get_provider_status(self) -> list[dict]:
         """Get status of all providers (for API/UI) with priority, downloads, config_fields, and stats."""
-        from db.providers import get_provider_download_stats, get_provider_stats
+        from db.providers import get_all_provider_stats_enriched, get_provider_download_stats
 
         # Build priority order (use current priority list from _init_providers)
         priority_str = getattr(
@@ -39,9 +39,11 @@ class StatusReportingMixin:
 
         # Download stats from DB (single batch query)
         download_stats = get_provider_download_stats()
-        # Performance stats (single batch query — includes auto_disabled, disabled_until,
-        # consecutive_failures, successful_downloads, total_searches, etc.)
-        performance_stats = get_provider_stats()
+        # Performance stats — enriched form mirrors the auto_disabled cooldown
+        # expiry without an extra DB write, so a provider whose disabled_until
+        # has lapsed shows up as auto_disabled=False even before the next
+        # search re-enables it for real (B1 audit fix 2026-05-08).
+        performance_stats = get_all_provider_stats_enriched()
 
         statuses = []
         for name, cls in _PROVIDER_CLASSES.items():
@@ -49,21 +51,19 @@ class StatusReportingMixin:
             downloads = download_stats.get(name, {}).get("total", 0)
             config_fields = self._get_provider_config_fields(name)
 
-            # Read all stats from the already-fetched batch (no extra per-provider queries)
+            # Read all stats from the already-fetched batch (no extra per-provider queries).
+            # The enriched fetch pre-computes success_rate / download_rate / result_rate
+            # plus the cooldown-aware auto_disabled flag.
             perf_stats = performance_stats.get(name, {})
-            total_searches = perf_stats.get("total_searches", 0) or 0
-            successful_downloads = perf_stats.get("successful_downloads", 0) or 0
-            success_rate = successful_downloads / total_searches if total_searches > 0 else 0.0
-
-            # auto_disabled is stored as int (0/1) in the ORM model; cast to bool.
-            # Note: cooldown expiry side-effect (clearing the flag) runs on next actual
-            # is_auto_disabled() call; for the status view, the batch value is sufficient.
-            auto_disabled = bool(perf_stats.get("auto_disabled", 0))
+            auto_disabled = bool(perf_stats.get("auto_disabled", False))
             stats_dict = {
                 "total_searches": perf_stats.get("total_searches", 0),
+                "successful_searches": perf_stats.get("successful_searches", 0) or 0,
                 "successful_downloads": perf_stats.get("successful_downloads", 0),
                 "failed_downloads": perf_stats.get("failed_downloads", 0),
-                "success_rate": success_rate,
+                "success_rate": perf_stats.get("success_rate", 0.0) or 0.0,
+                "download_rate": perf_stats.get("download_rate", 0.0) or 0.0,
+                "result_rate": perf_stats.get("result_rate", 0.0) or 0.0,
                 "avg_score": perf_stats.get("avg_score", 0),
                 "consecutive_failures": perf_stats.get("consecutive_failures", 0),
                 "last_success_at": perf_stats.get("last_success_at"),

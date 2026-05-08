@@ -197,8 +197,29 @@ def convert_format():
 
     output_path = f"{base_output}.converted.{PYSUBS2_EXT[target_format]}"
 
+    # B2 (audit 2026-05-08): pysubs2.load() defaults to UTF-8 and explodes on
+    # CP1252/Latin-1 SRTs ("utf-8 codec can't decode byte 0xa3..."). Mirror the
+    # chardet-then-load pattern from /tools/content + /tools/analysis.
+    detected_encoding = "utf-8"
     try:
-        subs = pysubs2.load(source_path)
+        import chardet  # type: ignore[import-untyped]
+
+        with open(source_path, "rb") as _raw:
+            sample = _raw.read(32768)
+        det = chardet.detect(sample) if sample else {}
+        detected_encoding = (det.get("encoding") or "utf-8") if isinstance(det, dict) else "utf-8"
+    except ImportError:
+        detected_encoding = "utf-8"
+    except OSError:
+        detected_encoding = "utf-8"
+
+    try:
+        try:
+            subs = pysubs2.load(source_path, encoding=detected_encoding)
+        except (UnicodeDecodeError, LookupError):
+            # Fallback: lenient latin-1 decode never raises; pysubs2 will still
+            # parse cue timing correctly even with a wrong textual fallback.
+            subs = pysubs2.load(source_path, encoding="latin-1")
         subs.save(output_path, format_=target_format)
     except Exception as e:
         return jsonify({"error": f"Conversion failed: {e}"}), 500
