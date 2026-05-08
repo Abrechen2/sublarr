@@ -6,6 +6,7 @@ Covers:
 - TestFilenameSanitization: P2 provider filename sanitization
 - TestMagicByteValidation: P4 format validation after download
 - TestStreamingDownload: P5 download size cap
+- TestProviderFilenameBoundary: P2 boundary sanitization in wanted_search.search
 """
 
 import os
@@ -309,3 +310,64 @@ class TestStreamingDownload:
 
         with pytest.raises(Exception, match="too large"):
             _stream_download(mock_session, "https://example.com/huge.srt")
+
+
+# ---------------------------------------------------------------------------
+# TestProviderFilenameBoundary — P2 single-point sanitisation in search.py
+# ---------------------------------------------------------------------------
+
+
+class TestProviderFilenameBoundary:
+    """``_safe_provider_filename`` is the single point where attacker-controlled
+    provider-supplied filenames are scrubbed before reaching the API response."""
+
+    def test_traversal_sequence_stripped(self):
+        from wanted_search.search import _safe_provider_filename
+
+        result = _safe_provider_filename("../../etc/passwd.srt")
+        assert ".." not in result
+        assert "/" not in result
+
+    def test_null_byte_stripped(self):
+        from wanted_search.search import _safe_provider_filename
+
+        result = _safe_provider_filename("normal\x00hidden.srt")
+        assert "\x00" not in result
+
+    def test_normal_filename_preserved(self):
+        from wanted_search.search import _safe_provider_filename
+
+        # secure_filename strips spaces and special chars but keeps the core form
+        result = _safe_provider_filename("Attack.on.Titan.S01E01.srt")
+        assert result == "Attack.on.Titan.S01E01.srt"
+
+    def test_none_returns_empty(self):
+        from wanted_search.search import _safe_provider_filename
+
+        assert _safe_provider_filename(None) == ""
+
+    def test_empty_returns_empty(self):
+        from wanted_search.search import _safe_provider_filename
+
+        assert _safe_provider_filename("") == ""
+
+    def test_result_to_dict_uses_sanitiser(self):
+        from unittest.mock import MagicMock
+
+        from wanted_search.search import _result_to_dict
+
+        result = MagicMock()
+        result.provider_name = "subdl"
+        result.subtitle_id = "abc"
+        result.language = "de"
+        result.format.value = "srt"
+        result.filename = "../../escape.srt"
+        result.release_info = ""
+        result.score = 0
+        result.score_breakdown = {}
+        result.hearing_impaired = False
+        result.matches = []
+
+        out = _result_to_dict(result)
+        assert ".." not in out["filename"]
+        assert "/" not in out["filename"]

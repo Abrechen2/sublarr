@@ -20,6 +20,7 @@ from decimal import Decimal
 from translation.base import TranslationBackend, TranslationResult
 from translation.concurrency import ConcurrencyTimeoutError, get_concurrency
 from translation.cost_tracker import calculate_llm_cost_micro_usd
+from translation.prompt_safety import enforce_batch_size, escape_for_prompt
 from translator.events import write_translation_event
 
 logger = logging.getLogger(__name__)
@@ -130,6 +131,12 @@ class LLMBackend(TranslationBackend):
         error_msg: str | None = None
         resp: LLMResponse | None = None
         chars_in = sum(len(line) for line in lines)
+
+        # P3: cap batch size before any cost is incurred. A compromised
+        # subtitle provider that emits 100k lines or a 10MB single line
+        # is rejected here, surfaces as PromptBatchTooLargeError, and
+        # never reaches the model.
+        enforce_batch_size(lines)
 
         try:
             with get_concurrency().slot(self.name, timeout_s=self.timeout_s):
@@ -346,42 +353,55 @@ class LLMBackend(TranslationBackend):
         boundaries. The lines are explicitly marked as context-only — the
         model must not translate or repeat them.
         """
+        # P3: every untrusted field (subtitle lines, series_context,
+        # glossary terms from DB, lookback/lookahead context) goes through
+        # escape_for_prompt before reaching the model. Glossary terms get a
+        # tighter cap because they are configured by the operator but stored
+        # as DB rows, so we still treat them as untrusted at this boundary.
+        safe_lines = [escape_for_prompt(line) for line in lines]
+
         system_parts = [
             f"You translate subtitles from {source_lang} to {target_lang}.",
-            f"Translate exactly {len(lines)} lines, one per line, in the same order.",
+            f"Translate exactly {len(safe_lines)} lines, one per line, in the same order.",
         ]
         if series_context:
-            system_parts.append(f"Context: {series_context}")
+            system_parts.append(f"Context: {escape_for_prompt(series_context)}")
         if strict:
             system_parts.append(
                 "STRICT: your response MUST contain exactly "
-                f"{len(lines)} lines — no more, no fewer. "
+                f"{len(safe_lines)} lines — no more, no fewer. "
                 "Do NOT add commentary or numbering."
             )
         if glossary_entries:
             terms = ", ".join(
-                f"{e.get('source', e.get('source_term', ''))} -> "
-                f"{e.get('target', e.get('target_term', ''))}"
+                f"{escape_for_prompt(e.get('source', e.get('source_term', '')), max_chars=100)}"
+                f" -> "
+                f"{escape_for_prompt(e.get('target', e.get('target_term', '')), max_chars=100)}"
                 for e in glossary_entries
             )
             system_parts.append(f"Glossary: {terms}")
 
-        # Add context window (Phase A4) — for LLMs to see surrounding lines
+        # Add context window (Phase A4) for LLMs to see surrounding lines.
+        # Lookback/lookahead carry the same trust level as the lines being
+        # translated (same subtitle file, same provider) so they get the
+        # same per-line escape treatment.
         context_parts = []
         if lookback:
+            safe_lookback = [escape_for_prompt(line) for line in lookback]
             context_parts.append(
                 "Previous lines (for context only, do NOT translate or repeat):\n"
-                + "\n".join(lookback)
+                + "\n".join(safe_lookback)
             )
         if lookahead:
+            safe_lookahead = [escape_for_prompt(line) for line in lookahead]
             context_parts.append(
                 "Following lines (for context only, do NOT translate or repeat):\n"
-                + "\n".join(lookahead)
+                + "\n".join(safe_lookahead)
             )
         if context_parts:
             system_parts.append("\n\n".join(context_parts))
 
-        user_text = "\n".join(lines)
+        user_text = "\n".join(safe_lines)
 
         return [
             {"role": "system", "content": "\n\n".join(system_parts)},

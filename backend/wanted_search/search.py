@@ -12,6 +12,25 @@ from wanted_search.scoring import _apply_fansub_rules, _get_priority_key
 logger = logging.getLogger(__name__)
 
 
+def _safe_provider_filename(filename: str | None) -> str:
+    """Sanitise a provider-supplied filename before exposing it via the API (P2).
+
+    Many provider adapters set ``result.filename`` straight from the upstream
+    JSON/HTML response. The value is metadata only — the on-disk path is
+    constructed by the caller and gated by ``is_safe_path`` — but it still
+    leaves the backend through the search endpoints and is rendered by the
+    frontend. Path-traversal sequences and control bytes have no business
+    in that response, so we run every filename through werkzeug's
+    ``secure_filename`` at this single boundary instead of patching all 15+
+    provider adapters individually.
+    """
+    if not filename:
+        return ""
+    from werkzeug.utils import secure_filename
+
+    return secure_filename(filename) or ""
+
+
 def _result_to_dict(result) -> dict:
     """Convert a SubtitleResult to a JSON-serializable dict."""
     return {
@@ -19,7 +38,7 @@ def _result_to_dict(result) -> dict:
         "subtitle_id": result.subtitle_id,
         "language": result.language,
         "format": result.format.value,
-        "filename": result.filename,
+        "filename": _safe_provider_filename(result.filename),
         "release_info": result.release_info,
         "score": result.score,
         "score_breakdown": result.score_breakdown,
@@ -38,7 +57,7 @@ def _result_to_dict_interactive(result) -> dict:
         "subtitle_id": result.subtitle_id,
         "language": result.language,
         "format": result.format.value,
-        "filename": result.filename,
+        "filename": _safe_provider_filename(result.filename),
         "release_info": result.release_info,
         "score": result.score,
         "score_breakdown": result.score_breakdown,

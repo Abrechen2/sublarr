@@ -8,7 +8,12 @@ parsing, and CJK hallucination detection.
 import logging
 import re
 
+from translation.prompt_safety import MAX_LINE_CHARS, escape_for_prompt
+
 logger = logging.getLogger(__name__)
+
+# Back-compat alias — existing tests/callers import _MAX_LINE_LENGTH directly.
+_MAX_LINE_LENGTH = MAX_LINE_CHARS
 
 # CJK Unicode ranges for hallucination detection (Qwen2.5 sometimes drifts into Chinese)
 _CJK_RE = re.compile(
@@ -108,49 +113,15 @@ def parse_llm_response(response_text: str, expected_count: int) -> list[str] | N
     return None
 
 
-_MAX_LINE_LENGTH = 2000  # subtitle lines rarely exceed ~250 chars; 2000 is generous
-_ZERO_WIDTH = (
-    "\u200b"  # zero-width space
-    "\u200c"  # zero-width non-joiner
-    "\u200d"  # zero-width joiner
-    "\u2060"  # word joiner
-    "\ufeff"  # zero-width no-break space (BOM)
-    # Bidirectional-override / isolate chars. These are invisible to the user
-    # but can flip text direction AND hide adversarial instructions from a
-    # left-to-right reader, which is the classic Trojan Source (CVE-2021-42574)
-    # attack vector.
-    "\u202a"  # LRE — Left-to-Right Embedding
-    "\u202b"  # RLE — Right-to-Left Embedding
-    "\u202c"  # PDF — Pop Directional Formatting
-    "\u202d"  # LRO — Left-to-Right Override
-    "\u202e"  # RLO — Right-to-Left Override
-    "\u2066"  # LRI — Left-to-Right Isolate
-    "\u2067"  # RLI — Right-to-Left Isolate
-    "\u2068"  # FSI — First Strong Isolate
-    "\u2069"  # PDI — Pop Directional Isolate
-)
-
-
 def _escape_subtitle_line(line: str) -> str:
-    """Escape control characters in subtitle text to prevent prompt injection (P3).
+    """Back-compat shim — escape subtitle text for inclusion in an LLM prompt.
 
-    Defence surface:
-    - Escape newlines + carriage returns so they can't break the numbered
-      prompt format the LLM is trained on.
-    - Strip null bytes (\\x00) — LLMs should never see them and some
-      tokenisers treat them as string terminators.
-    - Strip zero-width Unicode (ZWSP/ZWJ/BOM) — these render as nothing
-      but let an attacker hide adversarial directives inside "normal" text.
-    - Cap to ``_MAX_LINE_LENGTH`` characters so a single malicious line
-      can't blow the model's context window or inflate cost.
+    Source of truth lives in :mod:`translation.prompt_safety`. New code should
+    import :func:`translation.prompt_safety.escape_for_prompt` directly; this
+    wrapper exists so legacy imports
+    (``from translation.llm_utils import _escape_subtitle_line``) keep working.
     """
-    escaped = line.replace("\r\n", "\\r\\n").replace("\r", "\\r").replace("\n", "\\n")
-    escaped = escaped.replace("\x00", "")
-    for zw in _ZERO_WIDTH:
-        escaped = escaped.replace(zw, "")
-    if len(escaped) > _MAX_LINE_LENGTH:
-        escaped = escaped[:_MAX_LINE_LENGTH]
-    return escaped
+    return escape_for_prompt(line, max_chars=_MAX_LINE_LENGTH)
 
 
 def _is_valid_glossary_entry(term: str) -> bool:
@@ -198,11 +169,20 @@ def build_prompt_with_glossary(
             and _is_valid_glossary_entry(e.get("target_term", ""))
         ]
 
-    # Build glossary prefix (V8-compatible comma-separated format, max 15 entries)
+    # Build glossary prefix (V8-compatible comma-separated format, max 15 entries).
+    # Even though _is_valid_glossary_entry already rejects newlines + over-long
+    # terms, run every term through escape_for_prompt as well so zero-width /
+    # bidi-override / Unicode-tag obfuscation attempts are stripped before
+    # they reach the model. Belt + braces \u2014 the entries are operator-curated
+    # but flow through DB rows (config_entries / glossary table) and are
+    # therefore treated as untrusted at this boundary.
     glossary_str = ""
     if approved_entries:
         pairs = ", ".join(
-            f"{e['source_term']} \u2192 {e['target_term']}" for e in approved_entries[:15]
+            f"{escape_for_prompt(e['source_term'], max_chars=100)} "
+            f"\u2192 "
+            f"{escape_for_prompt(e['target_term'], max_chars=100)}"
+            for e in approved_entries[:15]
         )
         glossary_str = f"Glossary: {pairs}\n\n"
 

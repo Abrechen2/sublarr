@@ -18,6 +18,7 @@ from decimal import Decimal
 from translation.llm_base import LLMBackend, LLMResponse
 from translation.llm_utils import build_translation_prompt
 from translation.price_sheet import get_llm_price
+from translation.prompt_safety import escape_for_prompt
 
 logger = logging.getLogger(__name__)
 
@@ -203,7 +204,10 @@ class OpenAICompatBackend(LLMBackend):
         """
         prompt = build_translation_prompt(lines, source_lang, target_lang, glossary_entries)
         if series_context:
-            prompt = f"Context: {series_context}\n\n{prompt}"
+            # P3: series_context comes from upstream metadata (Sonarr/Radarr
+            # `overview`), which is attacker-controllable. Escape before
+            # injecting into the prompt to deny prompt-injection / batch-break.
+            prompt = f"Context: {escape_for_prompt(series_context)}\n\n{prompt}"
         if strict:
             prompt = (
                 f"STRICT: return exactly {len(lines)} numbered lines, "
@@ -211,14 +215,16 @@ class OpenAICompatBackend(LLMBackend):
             )
         context_parts = []
         if lookback:
+            safe_lookback = [escape_for_prompt(line) for line in lookback]
             context_parts.append(
                 "Previous lines (for context only, do NOT translate or repeat):\n"
-                + "\n".join(lookback)
+                + "\n".join(safe_lookback)
             )
         if lookahead:
+            safe_lookahead = [escape_for_prompt(line) for line in lookahead]
             context_parts.append(
                 "Following lines (for context only, do NOT translate or repeat):\n"
-                + "\n".join(lookahead)
+                + "\n".join(safe_lookahead)
             )
         if context_parts:
             prompt = "\n\n".join(context_parts) + "\n\n" + prompt

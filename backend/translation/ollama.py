@@ -21,6 +21,7 @@ import requests
 
 from translation.llm_base import LLMBackend, LLMResponse
 from translation.llm_utils import build_translation_prompt, has_cjk_hallucination
+from translation.prompt_safety import escape_for_prompt
 
 logger = logging.getLogger(__name__)
 
@@ -200,11 +201,17 @@ class OllamaBackend(LLMBackend):
             "Verwende informelle Sprache (du-Form). Behalte Charakternamen und "
             "Eigennamen unverändert. Keine Erklärungen oder Kommentare — nur die Übersetzung."
         )
-        if not series_context:
+        # P3: escape series_context BEFORE substitution. series_context comes
+        # from upstream metadata (Sonarr/Radarr `overview` field) which is
+        # ultimately attacker-controllable. Substituting raw text into the
+        # system prompt would re-introduce the very vulnerability the
+        # llm_base/llm_utils escape pipeline closes for the user message.
+        safe_context = escape_for_prompt(series_context)
+        if not safe_context:
             return base.replace("{series_context}", "").strip()
         if "{series_context}" in base:
-            return base.replace("{series_context}", series_context)
-        return f"{base} {series_context}"
+            return base.replace("{series_context}", safe_context)
+        return f"{base} {safe_context}"
 
     # ------------------------------------------------------------------ #
     # LLMBackend hooks
