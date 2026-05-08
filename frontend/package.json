@@ -39,7 +39,7 @@
     "clsx": "^2.1.1",
     "cmdk": "^1.1.1",
     "cron-parser": "^5.5.0",
-    "i18next": "^25.8.18",
+    "i18next": "^26.0.10",
     "i18next-browser-languagedetector": "^8.2.1",
     "libass-wasm": "^4.1.0",
     "lucide-react": "^0.577.0",
