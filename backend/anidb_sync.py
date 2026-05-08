@@ -20,10 +20,13 @@ XML source:
 import logging
 import threading
 import time
-import xml.etree.ElementTree as ET
 from datetime import UTC
 
 import requests
+
+# defusedxml hardens against XXE / Billion-Laughs on the anime-list feed
+# (3rd-party GitHub-hosted XML). See PENTEST_FINDINGS.md R4-02.
+from defusedxml import ElementTree as ET
 
 logger = logging.getLogger(__name__)
 

@@ -92,17 +92,23 @@ _PODNAPISI_TO_LANG = {v: k for k, v in _LANG_TO_PODNAPISI.items()}
 def _parse_xml(content: bytes):
     """Parse XML content, preferring lxml for performance.
 
-    Falls back to stdlib xml.etree.ElementTree if lxml is not available.
+    Both branches use defusedxml wrappers to disable DOCTYPE / external-entity
+    / DTD processing — the Podnapisi search response is third-party XML and
+    must not pivot into XXE / Billion-Laughs (PENTEST_FINDINGS.md R4-02).
+    Falls back to defused stdlib xml.etree if lxml is not available.
     """
     try:
-        from lxml import etree
+        # defusedxml.lxml.fromstring forwards to lxml.etree.fromstring with
+        # a parser configured to reject DTD / external entities.
+        from defusedxml.lxml import fromstring as _lxml_fromstring
 
-        return etree.fromstring(content)
+        return _lxml_fromstring(content)
     except ImportError:
         logger.debug(
-            "Podnapisi: lxml not available, using stdlib xml.etree (performance may be degraded)"
+            "Podnapisi: lxml not available, using defused stdlib xml.etree "
+            "(performance may be degraded)"
         )
-        import xml.etree.ElementTree as ET
+        from defusedxml import ElementTree as ET
 
         return ET.fromstring(content)
 

@@ -9,6 +9,8 @@ hostnames bypassed the link-local-only check in
 import os
 import sys
 
+import pytest
+
 # Ensure backend root is importable when pytest's conftest does not handle it.
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
@@ -132,3 +134,70 @@ class TestValidateServiceUrlBypassResistance:
 
         ok, _ = validate_service_url("http://metadata.google.internal/")
         assert ok is False
+
+
+# ---------------------------------------------------------------------------
+# TestXxeProtection — pentest 2026-05-08 R4-02 follow-up
+# ---------------------------------------------------------------------------
+
+
+class TestXxeProtection:
+    """Every XML parser fed third-party / on-disk data uses defusedxml so a
+    compromised AniDB / anime-list / Podnapisi feed (or a malicious .nfo
+    planted alongside subtitle downloads) cannot pivot into XXE / Billion-
+    Laughs / DTD-based attacks.
+    """
+
+    XXE = b'<?xml version="1.0"?><!DOCTYPE r [<!ENTITY x "PWNED">]><r>&x;</r>'
+    BILLION_LAUGHS = (
+        b'<?xml version="1.0"?>'
+        b"<!DOCTYPE lolz ["
+        b'<!ENTITY lol "lol">'
+        b'<!ENTITY lol2 "&lol;&lol;&lol;&lol;&lol;&lol;&lol;&lol;&lol;&lol;">'
+        b"]><lolz>&lol2;</lolz>"
+    )
+
+    def test_anidb_mapper_blocks_xxe(self):
+        from defusedxml.common import EntitiesForbidden
+
+        import anidb_mapper
+
+        with pytest.raises(EntitiesForbidden):
+            anidb_mapper.ET.fromstring(self.XXE)
+
+    def test_anidb_sync_blocks_xxe(self):
+        from defusedxml.common import EntitiesForbidden
+
+        import anidb_sync
+
+        with pytest.raises(EntitiesForbidden):
+            anidb_sync.ET.fromstring(self.XXE)
+
+    def test_nfo_parser_blocks_xxe(self):
+        from defusedxml.common import EntitiesForbidden
+
+        from standalone import nfo_parser
+
+        with pytest.raises(EntitiesForbidden):
+            nfo_parser.ET.fromstring(self.XXE)
+
+    def test_podnapisi_blocks_xxe(self):
+        from providers.podnapisi import _parse_xml
+
+        # Either branch (lxml or stdlib) must reject the DTD-based payload.
+        with pytest.raises(Exception) as excinfo:
+            _parse_xml(self.XXE)
+        # defusedxml raises EntitiesForbidden; lxml in defused mode raises
+        # DTDForbidden / a subclass thereof. Both are acceptable.
+        msg = type(excinfo.value).__name__
+        assert "Forbidden" in msg or "Entities" in msg or "DTD" in msg, (
+            f"Expected a defusedxml block, got {msg}: {excinfo.value}"
+        )
+
+    def test_anidb_mapper_blocks_billion_laughs(self):
+        from defusedxml.common import EntitiesForbidden
+
+        import anidb_mapper
+
+        with pytest.raises(EntitiesForbidden):
+            anidb_mapper.ET.fromstring(self.BILLION_LAUGHS)

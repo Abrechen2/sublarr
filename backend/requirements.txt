@@ -29,6 +29,11 @@ beautifulsoup4>=4.12.0
 bcrypt==4.2.1
 click>=8.1,<9
 lxml>=5.1.0
+# defusedxml wraps stdlib + lxml parsers to disable DOCTYPE / entity / DTD
+# processing - used by every XML caller that consumes 3rd-party or on-disk
+# data (anidb_mapper, anidb_sync, providers/podnapisi, standalone/nfo_parser).
+# See PENTEST_FINDINGS.md R4-02.
+defusedxml>=0.7.1
 watchdog>=6.0.0
 guessit>=3.8.0
 psycopg2-binary==2.9.10  # Optional: PostgreSQL support

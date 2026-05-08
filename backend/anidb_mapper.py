@@ -16,9 +16,13 @@ import re
 import tempfile
 import threading
 import time
-import xml.etree.ElementTree as ET
 from difflib import SequenceMatcher
 from urllib.request import Request, urlopen
+
+# defusedxml hardens against XXE / Billion-Laughs / DTD-based attacks on
+# third-party XML feeds (AniDB title dump). Drop-in API replacement for
+# stdlib xml.etree.ElementTree. See PENTEST_FINDINGS.md R4-02.
+from defusedxml import ElementTree as ET
 
 from config import get_settings
 from db.cache import get_anidb_mapping, save_anidb_mapping

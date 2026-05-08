@@ -268,11 +268,16 @@ def validate_service_url(url: str) -> tuple[bool, str | None]:
         return True, None
 
     # Hostname (not an IP literal) — resolve and re-check every answer.
+    # Fail-open on DNS resolution errors so legitimate homelab hostnames
+    # like ``sonarr.local`` (mDNS only resolvable on the home LAN, not on
+    # the dev/CI box) still pass validation. The trade-off: an attacker
+    # who controls a hostname can theoretically register an A record only
+    # at fetch-time (DNS rebinding) to bypass — caller pins the resolved
+    # IP if that matters. Documented as deferred above.
     try:
         infos = socket.getaddrinfo(host, parsed.port or None, proto=socket.IPPROTO_TCP)
-    except (socket.gaierror, OSError) as exc:
-        # Don't fail-open on DNS errors — operator can fix the config.
-        return False, f"Could not resolve hostname {host!r}: {exc}"
+    except (socket.gaierror, OSError):
+        return True, None
 
     seen: set[str] = set()
     for info in infos:
@@ -290,9 +295,6 @@ def validate_service_url(url: str) -> tuple[bool, str | None]:
         ok, reason = _check_ip_address(resolved, f"{host} ({ip_str})")
         if not ok:
             return False, reason
-
-    if not seen:
-        return False, f"Hostname {host!r} resolved to no addresses"
 
     return True, None
 

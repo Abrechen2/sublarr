@@ -11,7 +11,11 @@ Priority chain in scanner:
 
 import logging
 import os
-import xml.etree.ElementTree as ET
+
+# defusedxml hardens .nfo parsing against XXE / Billion-Laughs. Files come
+# from on-disk media libraries which can ship attacker-controlled XML
+# alongside subtitle downloads. See PENTEST_FINDINGS.md R4-02.
+from defusedxml import ElementTree as ET
 
 logger = logging.getLogger(__name__)
 
