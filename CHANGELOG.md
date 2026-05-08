@@ -5,6 +5,11 @@ All notable changes to Sublarr are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.92.1-beta] - 2026-05-08
+
+### Fixed
+- **`/providers/health` exposes new metrics** — Follow-up to 0.92.0-beta: the dashboard-oriented `/providers/health` endpoint now mirrors the new `successful_searches`, `download_rate`, and `result_rate` fields from `/providers`, so any client consuming the health overview gets the same data shape as the full provider list. Without this, `download_rate` / `result_rate` rendered as `null` on this endpoint while showing correct values on `/providers`.
+
 ## [0.92.0-beta] - 2026-05-08
 
 ### Added
