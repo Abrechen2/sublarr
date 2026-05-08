@@ -7,6 +7,7 @@ All security-sensitive operations should use these helpers.
 
 import ipaddress
 import os
+import socket
 import urllib.parse
 import zipfile
 
@@ -175,11 +176,59 @@ def safe_zip_extract(zip_file: zipfile.ZipFile, dest_dir: str) -> None:
     zip_file.extractall(dest_dir)
 
 
+def _normalise_to_ip(host: str) -> "ipaddress.IPv4Address | ipaddress.IPv6Address | None":
+    """Coerce ``host`` into a canonical ``IPv4Address``/``IPv6Address`` if possible.
+
+    Handles bypass-prone forms that ``ipaddress.ip_address`` rejects out of
+    the box (pentest 2026-05-08 finding):
+    - Decimal-encoded IPv4: ``"2130706433"`` (= 127.0.0.1) and ``"2852039166"``
+      (= 169.254.169.254 / AWS metadata).
+    - Octal/hex IPv4: ``"0177.0.0.1"``, ``"0x7f.0.0.1"``.
+    - IPv4-mapped IPv6: ``"::ffff:127.0.0.1"`` is unwrapped to its v4 form so
+      loopback/link-local checks fire.
+
+    Returns ``None`` for true hostnames (DNS) — caller decides how to handle.
+    """
+    # First try canonical dotted-decimal / canonical IPv6.
+    try:
+        addr = ipaddress.ip_address(host)
+    except ValueError:
+        addr = None
+
+    if addr is None:
+        # Try non-canonical IPv4 forms (octal, hex, decimal int).
+        # socket.inet_aton accepts decimal int strings, octal "0177.0.0.1",
+        # and hex "0x7f.0.0.1". A pure host name still raises OSError.
+        try:
+            packed = socket.inet_aton(host)
+            addr = ipaddress.IPv4Address(packed)
+        except OSError:
+            return None
+
+    # Unwrap IPv4-mapped IPv6 ("::ffff:127.0.0.1" or "::ffff:7f00:1") so
+    # the loopback / metadata checks see the underlying IPv4.
+    if isinstance(addr, ipaddress.IPv6Address):
+        v4 = addr.ipv4_mapped
+        if v4 is not None:
+            return v4
+
+    return addr
+
+
 def validate_service_url(url: str) -> tuple[bool, str | None]:
     """Validate that a service/provider URL is safe (SSRF prevention).
 
-    Blocks dangerous schemes (file://, ftp://, gopher://, etc.) and
-    cloud metadata endpoints while allowing private LAN addresses.
+    Blocks dangerous schemes (file://, ftp://, gopher://, etc.), cloud
+    metadata endpoints, loopback addresses, link-local addresses, and the
+    unspecified address (0.0.0.0 / ::). Private LAN addresses (RFC 1918)
+    are allowed because Sublarr's primary use case is reaching homelab
+    Sonarr/Radarr/Ollama instances on 10/8, 172.16/12, 192.168/16.
+
+    Hostname resolution: when ``host`` is a DNS name we resolve it to all
+    A/AAAA records and re-run the IP checks against each — this catches
+    "localhost", "metadata.google.internal" pointing at metadata, etc.
+    DNS rebinding (validate-time vs fetch-time mismatch) is NOT prevented
+    here; the caller is expected to pin the resolved IP if that matters.
 
     Args:
         url: URL to validate (e.g. Sonarr, Radarr, Ollama endpoint).
@@ -203,24 +252,67 @@ def validate_service_url(url: str) -> tuple[bool, str | None]:
     if not host:
         return False, "URL has no hostname"
 
-    if host == "0.0.0.0":
-        return False, "0.0.0.0 is not a valid service host"
-
-    # Block cloud metadata hostnames
+    # Block cloud metadata hostnames before any IP coercion.
     if host.lower() in _BLOCKED_METADATA_HOSTS:
         return False, f"Blocked metadata host: {host!r}"
 
-    # Block dangerous IP addresses (urlparse strips brackets from IPv6 literals)
-    try:
-        addr = ipaddress.ip_address(host)
-        if addr.is_link_local:
-            return False, f"Link-local addresses are not allowed: {host!r}"
-        for network in _METADATA_NETWORKS:
-            if addr in network:
-                return False, f"Blocked metadata IP range: {host!r}"
-    except ValueError:
-        pass  # hostname, not an IP — allowed
+    # Try to coerce the host into an IP, including non-canonical forms
+    # (decimal/octal/hex IPv4, IPv4-mapped IPv6) that the original
+    # urlparse → ip_address pipeline silently allowed (pentest finding).
+    addr = _normalise_to_ip(host)
 
+    if addr is not None:
+        ok, reason = _check_ip_address(addr, host)
+        if not ok:
+            return False, reason
+        return True, None
+
+    # Hostname (not an IP literal) — resolve and re-check every answer.
+    try:
+        infos = socket.getaddrinfo(host, parsed.port or None, proto=socket.IPPROTO_TCP)
+    except (socket.gaierror, OSError) as exc:
+        # Don't fail-open on DNS errors — operator can fix the config.
+        return False, f"Could not resolve hostname {host!r}: {exc}"
+
+    seen: set[str] = set()
+    for info in infos:
+        sockaddr = info[4]
+        ip_str = sockaddr[0]
+        if ip_str in seen:
+            continue
+        seen.add(ip_str)
+        try:
+            resolved = ipaddress.ip_address(ip_str)
+        except ValueError:
+            continue
+        if isinstance(resolved, ipaddress.IPv6Address) and resolved.ipv4_mapped is not None:
+            resolved = resolved.ipv4_mapped
+        ok, reason = _check_ip_address(resolved, f"{host} ({ip_str})")
+        if not ok:
+            return False, reason
+
+    if not seen:
+        return False, f"Hostname {host!r} resolved to no addresses"
+
+    return True, None
+
+
+def _check_ip_address(addr, label: str) -> tuple[bool, str | None]:
+    """Return (False, reason) for any IP class we never want service URLs to point at.
+
+    Used by ``validate_service_url`` for both literal IPs and DNS-resolved
+    hostnames so the bypass surface is identical no matter how the host
+    was expressed in the URL.
+    """
+    if addr.is_unspecified:
+        return False, f"Unspecified address (0.0.0.0 / ::) is not a valid service host: {label!r}"
+    if addr.is_loopback:
+        return False, f"Loopback addresses are not allowed: {label!r}"
+    if addr.is_link_local:
+        return False, f"Link-local addresses are not allowed: {label!r}"
+    for network in _METADATA_NETWORKS:
+        if addr in network:
+            return False, f"Blocked metadata IP range: {label!r}"
     return True, None
 
 
