@@ -245,7 +245,6 @@ def test_process_wanted_item_does_not_skip_when_srt_exists_and_upgrade_enabled(t
         patch("wanted_search.process.get_wanted_item", return_value=item),
         patch("wanted_search.process.get_settings", return_value=settings),
         patch("wanted_search.process.update_wanted_status"),
-        patch("wanted_search.process.update_wanted_search"),
         patch(
             "wanted_search.process.get_provider_manager",
             side_effect=RuntimeError("reached provider — skip did not fire, as expected"),

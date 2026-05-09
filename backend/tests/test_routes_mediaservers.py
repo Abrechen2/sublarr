@@ -99,10 +99,12 @@ def test_connection_test_mocked_success(client):
     mock_cls.return_value = mock_instance
     mock_manager._server_classes = {"jellyfin": mock_cls}
 
+    # Use a public-looking URL — validate_service_url() (SSRF guard)
+    # rejects localhost / link-local addresses with 400.
     with patch("mediaserver.get_media_server_manager", return_value=mock_manager):
         resp = client.post(
             "/api/v1/mediaservers/test",
-            json={"type": "jellyfin", "url": "http://localhost:8096"},
+            json={"type": "jellyfin", "url": "http://media.example.com:8096"},
             content_type="application/json",
         )
 
