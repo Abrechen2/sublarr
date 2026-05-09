@@ -15,7 +15,11 @@ def test_language_filter_deletes_non_kept_languages(tmp_path):
     (tmp_path / "show.fr.ass").write_text("french sub")
     (tmp_path / "show.de.nfo").write_text("nfo file")  # never deleted
 
-    config = {"keep_languages": ["de"]}
+    # permanent_delete=True bypasses the trash-dir resolver, which on CI
+    # may fall outside tmp_path. The new audit tests in
+    # test_extract_cleanup_audit_2026_05_09.py cover the trash-by-default
+    # path with a patched media_path; this test covers the hard-delete path.
+    config = {"keep_languages": ["de"], "permanent_delete": True}
     result = execute_language_filter(str(tmp_path), config, dry_run=False)
 
     assert result["deleted"] == 2  # fr.ass + en.srt
@@ -35,7 +39,7 @@ def test_language_filter_keeps_language_variants(tmp_path):
     (tmp_path / "show.german.ass").write_text("german full")
     (tmp_path / "show.fr.ass").write_text("french sub")
 
-    config = {"keep_languages": ["de"]}
+    config = {"keep_languages": ["de"], "permanent_delete": True}
     result = execute_language_filter(str(tmp_path), config, dry_run=False)
 
     assert result["deleted"] == 1  # only fr.ass
@@ -66,7 +70,7 @@ def test_format_upgrade_removes_srt_when_ass_exists(tmp_path):
     (tmp_path / "show.de.srt").write_text("german srt")
     (tmp_path / "show.en.srt").write_text("english srt only")  # no ASS counterpart
 
-    config = {"keep_format": "ass"}
+    config = {"keep_format": "ass", "permanent_delete": True}
     result = execute_format_upgrade(str(tmp_path), config, dry_run=False)
 
     assert result["deleted"] == 1  # only de.srt
@@ -88,7 +92,7 @@ def test_orphan_files_deletes_subs_without_video(tmp_path):
     (paired_dir / "movie.mkv").write_text("video")
     (paired_dir / "movie.de.ass").write_text("paired sub")
 
-    result = execute_orphan_files(str(tmp_path), {}, dry_run=False)
+    result = execute_orphan_files(str(tmp_path), {"permanent_delete": True}, dry_run=False)
 
     assert result["deleted"] == 1
     assert not (subdir / "orphan.de.ass").exists()
