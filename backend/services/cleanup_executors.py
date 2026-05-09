@@ -4,10 +4,32 @@ Each executor takes (media_path, config, dry_run) and returns a result dict.
 NFO files (.nfo) are never deleted by any executor.
 
 Rule types:
-  language_filter  — delete sidecars in non-allowed languages
-  format_upgrade   — delete SRT when ASS exists for same episode+language
-  orphan_files     — delete subtitle sidecars with no matching video on disk
+  language_filter  — trash sidecars in non-allowed languages
+  format_upgrade   — trash SRT when ASS exists for same episode+language
+  orphan_files     — trash subtitle sidecars with no matching video on disk
   orphan_db        — remove DB entries whose file no longer exists
+
+Audit 2026-05-09 (extract+cleanup audit):
+  * C0-1 — every destructive path now goes through ``_trash_path`` so
+    deletions are recoverable via the same trash dir as the rest of the
+    system. Per-rule ``permanent_delete=true`` is honoured for the rare
+    case where a user explicitly wants ``os.remove`` semantics.
+  * C0-2 — ``execute_language_filter`` refuses an empty
+    ``keep_languages`` set (would otherwise nuke every recognised
+    sidecar).
+  * C0-3 — every executor probes ``media_path`` with ``os.stat`` first
+    and aborts on OSError to prevent NFS-blip mass deletes.
+  * C1-1 / C1-2 — language detection delegates to
+    ``remux._parse_sidecar_language`` (modifier-aware, base-anchored)
+    instead of the previous naive rsplit.
+  * C1-3 — orphan detection delegates to
+    ``dedup_engine.scan_orphaned_subtitles`` so the rule path matches
+    the manual UI scan exactly.
+  * C2-1 — directory walks track visited inodes and refuse to descend
+    into already-seen subtrees (symlink-cycle defence, mirrors the
+    standalone S0-3 fix).
+  * C2-2 — ``execute_orphan_db`` does a single batched delete instead
+    of one round-trip per missing path.
 """
 
 import logging
@@ -28,10 +50,72 @@ SUBTITLE_EXTENSIONS = {".ass", ".ssa", ".srt", ".vtt", ".sub"}
 VIDEO_EXTENSIONS = {".mkv", ".mp4", ".avi", ".mov", ".m4v", ".ts", ".wmv"}
 
 
+# ---------------------------------------------------------------------------
+# Pre-flight guards (audit C0-3)
+# ---------------------------------------------------------------------------
+
+
+def _media_path_reachable(media_path: str) -> bool:
+    """Return True if ``media_path`` responds to ``os.stat``.
+
+    Cleanup walks deduce "missing" from the absence of files, so a brief
+    NFS hiccup or share reload makes every path look gone and would
+    trigger a mass delete. Probing the root once up front converts that
+    failure mode into a logged abort.
+    """
+    if not media_path:
+        return False
+    try:
+        os.stat(media_path)
+        return True
+    except OSError as exc:
+        logger.warning(
+            "Cleanup probe: media_path %s unreachable (%s); aborting to prevent mass-delete",
+            media_path,
+            exc,
+        )
+        return False
+
+
+def _safe_walk(root: str):
+    """Yield ``(dirpath, filenames)`` from ``root`` without descending into
+    symlink cycles.
+
+    Mirrors the standalone S0-3 inode-tracker so cleanup paths inherit
+    the same defence: ``followlinks=True`` is preserved (homelab media
+    libraries lean on it heavily) but an already-visited
+    ``(st_dev, st_ino)`` short-circuits descent.
+    """
+    seen: set[tuple[int, int]] = set()
+    for dirpath, dirs, files in os.walk(root, followlinks=True):
+        try:
+            st = os.stat(dirpath)
+        except OSError:
+            dirs[:] = []
+            continue
+        key = (st.st_dev, st.st_ino)
+        if key in seen:
+            logger.warning("Symlink cycle detected at %s during cleanup walk; pruning", dirpath)
+            dirs[:] = []
+            continue
+        seen.add(key)
+        pruned = []
+        for d in dirs:
+            try:
+                child = os.stat(os.path.join(dirpath, d))
+            except OSError:
+                continue
+            if (child.st_dev, child.st_ino) in seen:
+                continue
+            pruned.append(d)
+        dirs[:] = pruned
+        yield dirpath, files
+
+
 def _subtitle_files(root: str) -> list[str]:
     """Walk root recursively, return paths of all subtitle files (never NFO)."""
     found = []
-    for dirpath, _, filenames in os.walk(root):
+    for dirpath, filenames in _safe_walk(root):
         for fname in filenames:
             ext = os.path.splitext(fname)[1].lower()
             if ext in SUBTITLE_EXTENSIONS:
@@ -39,34 +123,139 @@ def _subtitle_files(root: str) -> list[str]:
     return found
 
 
-def _parse_lang_from_filename(filename: str) -> str | None:
-    """Extract language tag from sidecar filename.
+# ---------------------------------------------------------------------------
+# Language helpers (audit C1-1 / C1-2)
+# ---------------------------------------------------------------------------
 
-    Expects pattern: <basename>.<lang>.<ext>
-    e.g. "Movie.de.ass" -> "de", "Show.S01E01.en.srt" -> "en"
-    Returns None if filename doesn't match the pattern.
+
+def _detect_sidecar_language(path: str) -> str | None:
+    """Return the language tag of a sidecar, or None if not classifiable.
+
+    Audit C1-1: ``Movie.S01E01.ass`` (no language tag) used to be parsed
+    as ``lang="s01e01"`` and treated as a foreign language by
+    ``execute_language_filter`` — silently deleting legitimate sidecars.
+    The detector now both (a) delegates the structural parse to
+    ``remux._parse_sidecar_language`` (modifier-aware, base-anchored)
+    AND (b) validates the result against ``config_language_data``'s
+    recognised tag set. Anything that doesn't resolve to a real
+    language code returns None and is treated as "do not delete".
     """
-    parts = filename.rsplit(".", 2)
-    if len(parts) == 3:
-        return parts[1].lower()
-    return None
+    from config_language_data import _REVERSE_LANGUAGE_TAGS
+    from remux import _parse_sidecar_language
+
+    base = os.path.splitext(path)[0]
+    parts = os.path.basename(base).rsplit(".", 1)
+    if len(parts) < 2:
+        return None
+    video_base = base.rsplit(".", 1)[0]
+    raw = _parse_sidecar_language(path, video_base)
+    if not raw:
+        return None
+    # ``_REVERSE_LANGUAGE_TAGS`` keys are every known tag (canonical
+    # ISO-639-1, ISO-639-2, full names, common variants). Anything not
+    # in that set is NOT a language — return None so callers treat it
+    # as "do not classify" instead of mis-deleting.
+    if raw.lower() not in _REVERSE_LANGUAGE_TAGS:
+        return None
+    return raw.lower()
+
+
+# ---------------------------------------------------------------------------
+# Trash plumbing (audit C0-1)
+# ---------------------------------------------------------------------------
+
+
+def _trash_path(path: str) -> bool:
+    """Move ``path`` into the configured trash dir for its media root.
+
+    Returns True on success, False on any failure (which is also logged
+    at WARNING level — the caller decides whether to still count this as
+    "deleted"). Mirrors the recovery semantics used by
+    ``embedded_extractor.trash_unwanted_sidecars`` and
+    ``cleanup_non_target_subs``.
+    """
+    import datetime
+    import shutil
+    import time as _time
+
+    try:
+        from config import get_settings
+        from remux import _resolve_trash_dir
+
+        settings = get_settings()
+        trash_setting = getattr(settings, "remux_trash_dir", ".sublarr") or ".sublarr"
+        resolved = _resolve_trash_dir(path, trash_setting)
+        date_str = datetime.date.today().isoformat()
+        dest_dir = os.path.join(resolved, "trash", date_str)
+        os.makedirs(dest_dir, exist_ok=True)
+        dest = os.path.join(dest_dir, os.path.basename(path))
+        if os.path.exists(dest):
+            stem, ext = os.path.splitext(dest)
+            dest = f"{stem}.{int(_time.time())}{ext}"
+        shutil.move(path, dest)
+        return True
+    except OSError as exc:
+        logger.warning("Cleanup: could not trash %s: %s", path, exc)
+        return False
+
+
+def _delete_or_trash(path: str, *, permanent: bool) -> bool:
+    """Trash by default; honour ``permanent_delete=true`` opt-in for
+    rule callers that explicitly want hard deletion."""
+    if permanent:
+        try:
+            os.remove(path)
+            return True
+        except OSError as exc:
+            logger.warning("Cleanup: hard-delete failed for %s: %s", path, exc)
+            return False
+    return _trash_path(path)
+
+
+# ---------------------------------------------------------------------------
+# Executors
+# ---------------------------------------------------------------------------
 
 
 def execute_language_filter(media_path: str, config: dict, dry_run: bool = False) -> dict:
-    """Delete subtitle sidecars in languages not in keep_languages list.
+    """Move subtitle sidecars in non-allowed languages to the trash.
 
     Args:
         media_path: Root directory to scan recursively.
-        config: {"keep_languages": ["de", "en"]}
-        dry_run: If True, return counts without deleting.
+        config: {"keep_languages": ["de", "en"], "permanent_delete": false}
+        dry_run: If True, return counts without touching the filesystem.
 
     Returns:
         {"deleted": int, "kept": int, "bytes_freed": int} or
-        {"would_delete": int, "would_keep": int} in dry_run mode.
+        {"would_delete": int, "would_keep": int, "examples": [...]} in
+        dry_run mode. Adds ``"aborted": "..."`` when guards fired.
     """
+    if not _media_path_reachable(media_path):
+        return {
+            "deleted": 0,
+            "kept": 0,
+            "bytes_freed": 0,
+            "aborted": "media_path unreachable",
+        }
+
     keep_languages: set[str] = set()
-    for lang in config.get("keep_languages", []):
+    for lang in config.get("keep_languages", []) or []:
         keep_languages.update(_get_language_tags(lang.lower()))
+    if not keep_languages:
+        # Audit C0-2: empty keep set would otherwise delete every
+        # recognised sidecar in the library.
+        logger.warning(
+            "execute_language_filter: empty keep_languages — aborting to prevent "
+            "library-wide deletion"
+        )
+        return {
+            "deleted": 0,
+            "kept": 0,
+            "bytes_freed": 0,
+            "aborted": "empty keep_languages",
+        }
+
+    permanent = bool(config.get("permanent_delete", False))
     deleted = 0
     kept = 0
     bytes_freed = 0
@@ -75,28 +264,37 @@ def execute_language_filter(media_path: str, config: dict, dry_run: bool = False
     examples: list[dict] = []
 
     for path in _subtitle_files(media_path):
-        fname = os.path.basename(path)
-        lang = _parse_lang_from_filename(fname)
-
-        if lang is None or lang in keep_languages:
+        lang = _detect_sidecar_language(path)
+        if lang is None:
+            # Audit C1-1: untagged sidecars are NOT classifiable; we
+            # never delete them — the user might rely on a custom
+            # naming scheme we don't recognise.
+            kept += 1
+            would_keep += 1
+            continue
+        if lang.lower() in keep_languages:
             kept += 1
             would_keep += 1
             continue
 
-        file_size = os.path.getsize(path)
+        try:
+            file_size = os.path.getsize(path)
+        except OSError:
+            continue
         if dry_run:
             would_delete += 1
             if len(examples) < 20:
                 examples.append({"path": path, "size_bytes": file_size, "reason": f"lang:{lang}"})
             logger.debug("Would delete (language_filter): %s", path)
         else:
-            try:
-                os.remove(path)
+            if _delete_or_trash(path, permanent=permanent):
                 deleted += 1
                 bytes_freed += file_size
-                logger.info("Deleted (language_filter): %s", path)
-            except OSError as e:
-                logger.warning("Failed to delete %s: %s", path, e)
+                logger.info(
+                    "%s (language_filter): %s",
+                    "Deleted" if permanent else "Trashed",
+                    path,
+                )
 
     if dry_run:
         return {"would_delete": would_delete, "would_keep": would_keep, "examples": examples}
@@ -104,20 +302,26 @@ def execute_language_filter(media_path: str, config: dict, dry_run: bool = False
 
 
 def execute_format_upgrade(media_path: str, config: dict, dry_run: bool = False) -> dict:
-    """Delete lower-quality format when higher-quality exists for same base+language.
+    """Trash lower-quality format when higher-quality exists for same base+language.
 
     Args:
         media_path: Root directory to scan recursively.
-        config: {"keep_format": "ass"} — "ass" deletes SRT when ASS exists;
-                "srt" vice versa; "any" is a no-op.
-        dry_run: If True, return counts without deleting.
+        config: {"keep_format": "ass", "permanent_delete": false} —
+                "ass" trashes SRT when ASS exists; "srt" vice versa;
+                "any" is a no-op.
+        dry_run: If True, return counts without touching the filesystem.
 
     Returns:
         {"deleted": int, "bytes_freed": int} or {"would_delete": int} in dry_run mode.
     """
-    keep_format = config.get("keep_format", "any").lower()
+    if not _media_path_reachable(media_path):
+        return {"deleted": 0, "bytes_freed": 0, "aborted": "media_path unreachable"}
+
+    keep_format = (config.get("keep_format") or "any").lower()
     if keep_format == "any":
         return {"deleted": 0, "bytes_freed": 0}
+
+    permanent = bool(config.get("permanent_delete", False))
 
     if keep_format == "ass":
         preferred_ext, inferior_ext = ".ass", ".srt"
@@ -146,28 +350,33 @@ def execute_format_upgrade(media_path: str, config: dict, dry_run: bool = False)
     for (dirpath, base), exts in index.items():
         if preferred_ext in exts and inferior_ext in exts:
             inferior_path = path_map.get((dirpath, base, inferior_ext))
-            if inferior_path:
+            if not inferior_path:
+                continue
+            try:
                 file_size = os.path.getsize(inferior_path)
-                if dry_run:
-                    would_delete += 1
-                    if len(examples) < 20:
-                        kept_path = path_map.get((dirpath, base, preferred_ext), "")
-                        examples.append(
-                            {
-                                "path": inferior_path,
-                                "size_bytes": file_size,
-                                "reason": f"replaced by {os.path.basename(kept_path)}",
-                            }
-                        )
-                    logger.debug("Would delete (format_upgrade): %s", inferior_path)
-                else:
-                    try:
-                        os.remove(inferior_path)
-                        deleted += 1
-                        bytes_freed += file_size
-                        logger.info("Deleted (format_upgrade): %s", inferior_path)
-                    except OSError as e:
-                        logger.warning("Failed to delete %s: %s", inferior_path, e)
+            except OSError:
+                continue
+            if dry_run:
+                would_delete += 1
+                if len(examples) < 20:
+                    kept_path = path_map.get((dirpath, base, preferred_ext), "")
+                    examples.append(
+                        {
+                            "path": inferior_path,
+                            "size_bytes": file_size,
+                            "reason": f"replaced by {os.path.basename(kept_path)}",
+                        }
+                    )
+                logger.debug("Would delete (format_upgrade): %s", inferior_path)
+            else:
+                if _delete_or_trash(inferior_path, permanent=permanent):
+                    deleted += 1
+                    bytes_freed += file_size
+                    logger.info(
+                        "%s (format_upgrade): %s",
+                        "Deleted" if permanent else "Trashed",
+                        inferior_path,
+                    )
 
     if dry_run:
         return {"would_delete": would_delete, "examples": examples}
@@ -175,47 +384,60 @@ def execute_format_upgrade(media_path: str, config: dict, dry_run: bool = False)
 
 
 def execute_orphan_files(media_path: str, config: dict, dry_run: bool = False) -> dict:
-    """Delete subtitle sidecars with no matching video file in the same directory.
+    """Trash subtitle sidecars with no matching video file (basename match).
 
-    A subtitle is considered orphaned when its directory contains no video files.
+    Audit C1-3: previously this used a "directory has no video" heuristic
+    that missed the typical orphan case (sidecar whose specific video
+    was deleted while siblings remain). The implementation now delegates
+    to ``dedup_engine.scan_orphaned_subtitles`` which matches by
+    basename — the same definition the manual UI scan uses, so the rule
+    path and the UI path always agree on what counts as an orphan.
 
     Args:
         media_path: Root directory to scan recursively.
-        config: {} (no configuration needed)
-        dry_run: If True, return counts without deleting.
+        config: {"permanent_delete": false}
+        dry_run: If True, return counts without touching the filesystem.
 
     Returns:
         {"deleted": int, "bytes_freed": int} or {"would_delete": int} in dry_run mode.
     """
+    if not _media_path_reachable(media_path):
+        return {"deleted": 0, "bytes_freed": 0, "aborted": "media_path unreachable"}
+
+    from dedup_engine import scan_orphaned_subtitles
+
+    permanent = bool(config.get("permanent_delete", False))
+    orphans = scan_orphaned_subtitles(media_path) or []
+
     deleted = 0
     bytes_freed = 0
     would_delete = 0
     examples: list[dict] = []
 
-    for path in _subtitle_files(media_path):
-        dirpath = os.path.dirname(path)
+    for entry in orphans:
+        path = entry.get("path") if isinstance(entry, dict) else entry
+        if not path:
+            continue
         try:
-            siblings = os.listdir(dirpath)
+            file_size = entry.get("size") if isinstance(entry, dict) else os.path.getsize(path)
         except OSError:
             continue
-        has_video = any(os.path.splitext(s)[1].lower() in VIDEO_EXTENSIONS for s in siblings)
-        if not has_video:
-            file_size = os.path.getsize(path)
-            if dry_run:
-                would_delete += 1
-                if len(examples) < 20:
-                    examples.append(
-                        {"path": path, "size_bytes": file_size, "reason": "no video in folder"}
-                    )
-                logger.debug("Would delete (orphan_files): %s", path)
-            else:
-                try:
-                    os.remove(path)
-                    deleted += 1
-                    bytes_freed += file_size
-                    logger.info("Deleted (orphan_files): %s", path)
-                except OSError as e:
-                    logger.warning("Failed to delete %s: %s", path, e)
+        if dry_run:
+            would_delete += 1
+            if len(examples) < 20:
+                examples.append(
+                    {"path": path, "size_bytes": file_size or 0, "reason": "no matching video"}
+                )
+            logger.debug("Would delete (orphan_files): %s", path)
+        else:
+            if _delete_or_trash(path, permanent=permanent):
+                deleted += 1
+                bytes_freed += file_size or 0
+                logger.info(
+                    "%s (orphan_files): %s",
+                    "Deleted" if permanent else "Trashed",
+                    path,
+                )
 
     if dry_run:
         return {"would_delete": would_delete, "examples": examples}
@@ -225,35 +447,61 @@ def execute_orphan_files(media_path: str, config: dict, dry_run: bool = False) -
 def execute_orphan_db(config: dict, dry_run: bool = False) -> dict:
     """Remove DB subtitle entries whose file no longer exists on disk.
 
+    Audit C0-3 + C2-2:
+      * Probes the configured ``media_path`` first; aborts on OSError
+        so a brief mount blip never wipes the DB.
+      * Performs a single batched ``delete_by_paths`` call instead of
+        the previous N+1 per-row loop.
+
     Args:
         config: {} (no configuration needed)
         dry_run: If True, return counts without deleting.
 
     Returns:
-        {"deleted": int} or {"would_delete": int} in dry_run mode.
+        {"deleted": int} or {"would_delete": int, "examples": [...]}.
     """
     import services.cleanup_executors as _self
 
+    try:
+        from config import get_settings
+
+        media_path = getattr(get_settings(), "media_path", "")
+    except Exception:
+        media_path = ""
+    if media_path and not _media_path_reachable(media_path):
+        return {"deleted": 0, "aborted": "media_path unreachable"}
+
     repo = _self.SubtitleRepository()
-    paths = repo.get_all_subtitle_paths()
-    deleted = 0
-    would_delete = 0
+    paths = repo.get_all_subtitle_paths() or []
+    missing: list[str] = []
     examples: list[dict] = []
 
     for path in paths:
-        if not os.path.exists(path):
-            if dry_run:
-                would_delete += 1
-                if len(examples) < 20:
-                    examples.append(
-                        {"path": path, "size_bytes": 0, "reason": "file missing on disk"}
-                    )
-                logger.debug("Would remove DB entry (orphan_db): %s", path)
-            else:
-                repo.delete_by_path(path)
-                deleted += 1
-                logger.info("Removed DB entry (orphan_db): %s", path)
+        try:
+            exists = os.path.exists(path)
+        except OSError:
+            continue
+        if not exists:
+            missing.append(path)
+            if len(examples) < 20:
+                examples.append({"path": path, "size_bytes": 0, "reason": "file missing on disk"})
 
     if dry_run:
-        return {"would_delete": would_delete, "examples": examples}
+        return {"would_delete": len(missing), "examples": examples}
+
+    deleted = 0
+    if missing:
+        try:
+            # Prefer batch helper when the repo exposes one.
+            if hasattr(repo, "delete_by_paths"):
+                deleted = int(repo.delete_by_paths(missing) or 0)
+            else:
+                for p in missing:
+                    repo.delete_by_path(p)
+                    deleted += 1
+        except Exception as exc:
+            logger.error("execute_orphan_db: batch delete failed: %s", exc)
+            return {"deleted": 0, "error": str(exc)}
+    if deleted:
+        logger.info("Removed %d DB orphan subtitle entries", deleted)
     return {"deleted": deleted}

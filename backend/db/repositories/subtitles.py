@@ -35,3 +35,26 @@ class SubtitleRepository(BaseRepository):
         """
         self.session.query(SubtitleDownload).filter_by(file_path=path).delete()
         self._commit()
+
+    def delete_by_paths(self, paths: list[str], chunk_size: int = 500) -> int:
+        """Bulk-delete every ``subtitle_downloads`` row whose file_path is in
+        ``paths``. Chunks the IN-clause to keep the query parameter count
+        bounded across SQLite (max 999) and Postgres.
+
+        Returns:
+            Total number of rows removed.
+        """
+        if not paths:
+            return 0
+        deleted = 0
+        for i in range(0, len(paths), chunk_size):
+            chunk = paths[i : i + chunk_size]
+            res = (
+                self.session.query(SubtitleDownload)
+                .filter(SubtitleDownload.file_path.in_(chunk))
+                .delete(synchronize_session=False)
+            )
+            if isinstance(res, int):
+                deleted += res
+        self._commit()
+        return deleted

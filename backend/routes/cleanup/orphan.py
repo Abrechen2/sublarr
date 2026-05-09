@@ -159,14 +159,24 @@ def delete_orphaned():
 
     from config import get_settings
     from db.repositories.cleanup import CleanupRepository
+    from services.cleanup_executors import _delete_or_trash, _media_path_reachable
 
     data = request.get_json() or {}
     file_paths = data.get("file_paths", [])
+    permanent = bool(data.get("permanent_delete", False))
 
     if not file_paths:
         return jsonify({"error": "file_paths array is required"}), 400
 
-    media_root = os.path.realpath(get_settings().media_path)
+    from security_utils import is_safe_path
+
+    media_root_setting = get_settings().media_path
+    if not _media_path_reachable(media_root_setting):
+        # Same defence as the executors: a brief mount blip would
+        # otherwise let the user trash every legitimate sidecar.
+        return jsonify({"error": "media_path unreachable; aborting"}), 503
+
+    media_root = os.path.realpath(media_root_setting)
 
     deleted = 0
     bytes_freed = 0
@@ -175,7 +185,15 @@ def delete_orphaned():
     for fp in file_paths:
         try:
             real_fp = os.path.realpath(fp)
-            if not real_fp.startswith(media_root + os.sep):
+            # Audit Gemini-2026-05-09 R6: replace the brittle
+            # ``startswith(media_root + os.sep)`` boundary check with the
+            # canonical ``is_safe_path`` helper. Same semantics on Linux,
+            # but ``is_safe_path`` handles Windows separator quirks and
+            # already-normalised inputs cleanly, and matches the policy
+            # used everywhere else in the codebase. Argument order is
+            # ``is_safe_path(file_path, base_dir)`` — same convention
+            # already used by ``_validate_extract_target``.
+            if not is_safe_path(real_fp, media_root):
                 errors.append(f"Rejected (outside media dir): {fp}")
                 continue
 
@@ -184,10 +202,22 @@ def delete_orphaned():
                 continue
 
             file_size = os.path.getsize(real_fp)
-            os.remove(real_fp)
+            # Audit E1-2: route now goes through the shared trash helper
+            # so deletions are recoverable by default. Setting
+            # ``permanent_delete=true`` in the request body keeps the
+            # legacy hard-delete behaviour for callers that explicitly
+            # want it.
+            if not _delete_or_trash(real_fp, permanent=permanent):
+                errors.append(f"Failed to {'delete' if permanent else 'trash'} {fp}")
+                continue
             deleted += 1
             bytes_freed += file_size
-            logger.info("Deleted orphaned subtitle: %s (%d bytes)", fp, file_size)
+            logger.info(
+                "%s orphaned subtitle: %s (%d bytes)",
+                "Deleted" if permanent else "Trashed",
+                fp,
+                file_size,
+            )
         except Exception as e:
             errors.append(f"Failed to delete {fp}: {e}")
 

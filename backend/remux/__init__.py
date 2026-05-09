@@ -32,10 +32,17 @@ class RemuxError(Exception):
 
 
 def _try_reflink(src: str, dst: str) -> bool:
-    """Attempt `cp --reflink=auto src dst`. Returns True on success."""
+    """Attempt `cp --reflink=auto -- src dst`. Returns True on success.
+
+    Audit Gemini-2026-05-09 R1: ``--`` separates cp's flags from positional
+    arguments. Without it, a leading ``-`` in src/dst (rare on a server
+    but possible with attacker-controlled basenames) would let cp
+    interpret them as flags. Same defence as ``_safe_arg_path`` provides
+    for ffmpeg/mkvmerge — applied here for parity.
+    """
     try:
         result = subprocess.run(
-            ["cp", "--reflink=auto", src, dst],
+            ["cp", "--reflink=auto", "--", src, dst],
             capture_output=True,
             timeout=120,
         )
@@ -44,15 +51,70 @@ def _try_reflink(src: str, dst: str) -> bool:
         return False
 
 
+# Forbidden absolute roots for ``trash_dir`` setting. A user-controlled path
+# in this list (or below it) would put recovery copies of subtitle/video data
+# in privileged areas of the container. Mirrors the standalone-folder
+# blocklist (audit S0-2) and applies to BOTH absolute and relative
+# trash_dir configurations once they are resolved against media_path.
+_FORBIDDEN_TRASH_ROOTS = (
+    "/",
+    "/etc",
+    "/proc",
+    "/sys",
+    "/dev",
+    "/run",
+    "/boot",
+    "/root",
+    "/var/log",
+    "/var/run",
+    "/var/lib",
+    "/usr",
+    "/lib",
+    "/lib64",
+    "/sbin",
+    "/bin",
+)
+
+
+def _is_forbidden_trash_root(path: str) -> bool:
+    """Return True when ``path`` is exactly a forbidden system root or a
+    direct descendant. Cross-platform — normalises Windows separators."""
+    norm = os.path.normpath(path).replace("\\", "/").rstrip("/") or "/"
+    for root in _FORBIDDEN_TRASH_ROOTS:
+        if norm == root:
+            return True
+        if root != "/" and norm.startswith(root + "/"):
+            return True
+    return False
+
+
 def _resolve_trash_dir(video_path: str, trash_dir_setting: str) -> str:
     """Return the absolute path to the trash directory for this video.
 
-    If `trash_dir_setting` is absolute, use it directly.
-    Otherwise treat it as relative to the media root (first watched-folder root
-    that is a parent of `video_path`, or the video's own directory).
+    Audit G3: an absolute ``trash_dir_setting`` used to be returned
+    unchecked, letting a config like ``remux_trash_dir=/etc/sublarr``
+    seed backups in privileged paths. The resolver now refuses absolute
+    paths that fall on / inside ``_FORBIDDEN_TRASH_ROOTS`` and silently
+    falls back to the standard ``.sublarr`` under ``media_path`` for
+    those cases.
+
+    Audit Gemini-2026-05-09 R2: relative settings used to be
+    ``os.path.join(media_root, setting)``-ed and returned unchecked. A
+    setting of ``../../../etc`` would then escape ``media_root``. We now
+    resolve the joined path and verify it stays inside ``media_root`` via
+    ``is_safe_path``; a traversal attempt falls back to ``.sublarr`` like
+    the absolute-forbidden-root case.
     """
     if os.path.isabs(trash_dir_setting):
-        return trash_dir_setting
+        if _is_forbidden_trash_root(trash_dir_setting):
+            logger.warning(
+                "remux_trash_dir=%s lands on a forbidden system root; falling back to "
+                "<media_path>/.sublarr",
+                trash_dir_setting,
+            )
+            trash_dir_setting = ".sublarr"
+        else:
+            return trash_dir_setting
 
     # Find longest watched-folder prefix
     try:
@@ -63,7 +125,25 @@ def _resolve_trash_dir(video_path: str, trash_dir_setting: str) -> str:
     except Exception:
         media_root = os.path.dirname(video_path)
 
-    return os.path.join(media_root, trash_dir_setting)
+    candidate = os.path.normpath(os.path.join(media_root, trash_dir_setting))
+    try:
+        from security_utils import is_safe_path
+
+        # is_safe_path(file_path, base_dir) — argument order matters:
+        # we want to verify ``candidate`` (the path) stays inside
+        # ``media_root`` (the base). A reversed call would silently
+        # let traversal slip through.
+        if media_root and not is_safe_path(candidate, media_root):
+            logger.warning(
+                "remux_trash_dir=%s escapes media_path (%s); falling back to <media_path>/.sublarr",
+                trash_dir_setting,
+                media_root,
+            )
+            return os.path.normpath(os.path.join(media_root, ".sublarr"))
+    except Exception:
+        # security_utils unavailable in unit-test harness — fall through
+        pass
+    return candidate
 
 
 def _make_backup(video_path: str, use_reflink: bool, trash_dir: str = "") -> str:
@@ -71,7 +151,12 @@ def _make_backup(video_path: str, use_reflink: bool, trash_dir: str = "") -> str
 
     Layout: <trash_dir>/trash/<YYYY-MM-DD>/<basename>.<timestamp>.bak
 
-    Falls back to a sibling .bak if the trash directory cannot be created.
+    Audit G7: we used to fall back to a sibling ``video_path + ".bak"``
+    when the trash dir could not be created. That hid a configuration
+    problem (read-only trash) AND created a "recovery copy next to the
+    original" UX surprise. Failure now raises ``RemuxError`` so the
+    caller treats it as a real backup failure and aborts the destructive
+    swap.
     """
     import time as _time
 
@@ -92,11 +177,7 @@ def _make_backup(video_path: str, use_reflink: bool, trash_dir: str = "") -> str
             logger.info("Remux: backup moved to trash: %s", bak_path)
         return bak_path
     except OSError as exc:
-        # Fallback: sibling .bak
-        logger.warning("Remux: could not use trash dir (%s), falling back to sibling .bak", exc)
-        bak_path = video_path + ".bak"
-        shutil.copy2(video_path, bak_path)
-        return bak_path
+        raise RemuxError(f"could not create backup in trash dir {dest_dir}: {exc}") from exc
 
 
 # ---------------------------------------------------------------------------
@@ -116,6 +197,25 @@ def _which(cmd: str) -> bool:
     return shutil.which(cmd) is not None
 
 
+def _safe_arg_path(path: str) -> str:
+    """Return ``path`` with a ``./`` prefix when its basename starts with ``-``.
+
+    Audit G8 — argv-injection defence. Subprocess.run with a list avoids
+    shell parsing, but the called binary still does its own getopt-style
+    flag parsing, so ``-evil.mkv`` reaches ffmpeg/mkvmerge as a flag.
+    Prepending ``./`` keeps the path semantically identical (relative to
+    cwd) while ensuring no ambiguity for downstream argv parsing.
+    """
+    if not path:
+        return path
+    if os.path.isabs(path):
+        return path
+    base = os.path.basename(path)
+    if base.startswith("-"):
+        return os.path.join(".", path)
+    return path
+
+
 # ---------------------------------------------------------------------------
 # mkvmerge backend
 # ---------------------------------------------------------------------------
@@ -129,13 +229,18 @@ def _remux_mkvmerge(video_path: str, stream_indices: list[int], output_path: str
     applies to the whole comma-separated list, not to each element).
     """
     exclusions = "!" + ",".join(str(idx) for idx in stream_indices)
+    # Audit G8: prepend "./" to filenames that begin with "-" so mkvmerge
+    # parses them as positional paths instead of flags. mkvmerge does not
+    # accept the "--" end-of-options marker for the input file.
+    safe_video = _safe_arg_path(video_path)
+    safe_output = _safe_arg_path(output_path)
     cmd = [
         "mkvmerge",
         "-o",
-        output_path,
+        safe_output,
         "--subtitle-tracks",
         exclusions,
-        video_path,
+        safe_video,
     ]
     logger.debug("Remux mkvmerge: %s", " ".join(cmd))
     result = subprocess.run(
@@ -158,11 +263,16 @@ def _remux_ffmpeg(video_path: str, stream_indices: list[int], output_path: str) 
     if not _which("ffmpeg"):
         raise RemuxError("ffmpeg not found")
 
-    # Map all streams, then un-map each target subtitle stream by global index
-    cmd = ["ffmpeg", "-y", "-i", video_path, "-map", "0"]
+    # Audit G8: ./-prefix paths whose basename begins with "-" so ffmpeg
+    # cannot parse them as flags. ffmpeg has no end-of-options marker
+    # before -i — relying on argv ordering alone is unsafe with attacker-
+    # controlled filenames.
+    safe_video = _safe_arg_path(video_path)
+    safe_output = _safe_arg_path(output_path)
+    cmd = ["ffmpeg", "-y", "-i", safe_video, "-map", "0"]
     for idx in stream_indices:
         cmd += ["-map", f"-0:{idx}"]
-    cmd += ["-c", "copy", output_path]
+    cmd += ["-c", "copy", safe_output]
 
     logger.debug("Remux ffmpeg: %s", " ".join(cmd))
     result = subprocess.run(
@@ -189,7 +299,7 @@ def _probe(path: str) -> dict:
         "json",
         "-show_streams",
         "-show_format",
-        path,
+        _safe_arg_path(path),
     ]
     result = subprocess.run(cmd, capture_output=True, text=True, timeout=60)
     if result.returncode != 0:

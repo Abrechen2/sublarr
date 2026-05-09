@@ -250,11 +250,13 @@ def run_rule(rule_id: int):
           description: Execution error
     """
     from extensions import socketio
-    from services.cleanup_rule_runner import execute_rule
+    from services.cleanup_rule_runner import CleanupBusyError, execute_rule
 
     try:
         result = execute_rule(rule_id, socketio=socketio)
         return jsonify(result)
+    except CleanupBusyError as e:
+        return jsonify({"error": str(e)}), 409
     except ValueError as e:
         code = 404 if "not found" in str(e) else 400
         return jsonify({"error": str(e)}), code

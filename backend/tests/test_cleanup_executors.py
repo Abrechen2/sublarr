@@ -96,7 +96,12 @@ def test_orphan_files_deletes_subs_without_video(tmp_path):
 
 
 def test_orphan_db_removes_stale_db_entries(tmp_path):
-    """DB rows pointing to non-existent files should be removed."""
+    """DB rows pointing to non-existent files should be batch-removed.
+
+    Audit C2-2: previously the executor called ``delete_by_path`` once
+    per missing row (N+1). It now collects every missing path and
+    issues a single ``delete_by_paths`` call.
+    """
     from services.cleanup_executors import execute_orphan_db
 
     existing = str(tmp_path / "exists.de.ass")
@@ -105,9 +110,18 @@ def test_orphan_db_removes_stale_db_entries(tmp_path):
 
     mock_repo = MagicMock()
     mock_repo.get_all_subtitle_paths.return_value = [existing, missing]
+    mock_repo.delete_by_paths.return_value = 1
 
-    with patch("services.cleanup_executors.SubtitleRepository", return_value=mock_repo):
+    # Pin media_path to tmp_path so the new mount-reachability probe
+    # passes during the unit test.
+    fake_settings = MagicMock()
+    fake_settings.media_path = str(tmp_path)
+
+    with (
+        patch("services.cleanup_executors.SubtitleRepository", return_value=mock_repo),
+        patch("config.get_settings", return_value=fake_settings),
+    ):
         result = execute_orphan_db({}, dry_run=False)
 
     assert result["deleted"] == 1
-    mock_repo.delete_by_path.assert_called_once_with(missing)
+    mock_repo.delete_by_paths.assert_called_once_with([missing])

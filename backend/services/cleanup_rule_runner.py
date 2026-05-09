@@ -6,18 +6,43 @@ cleanup_executors.py or a specialized handler.
 """
 
 import logging
+import threading
 
 from db.repositories.cleanup import CleanupRepository
 
 logger = logging.getLogger(__name__)
+
+# Audit C1-4: serialize rule execution. The scheduler can fire a rule at
+# the same instant a user clicks "Run Now" in the UI; without this lock
+# both runs walked the same file system simultaneously, both saw the
+# same files, and both queued them for deletion — racy double-deletes
+# and IntegrityError noise in the cleanup_history table. The lock is
+# non-blocking so a second concurrent attempt fails fast with a clear
+# error instead of stacking up.
+_rule_runner_lock = threading.Lock()
+
+
+class CleanupBusyError(RuntimeError):
+    """Raised when a cleanup rule is already executing."""
 
 
 def execute_rule(rule_id: int, *, socketio=None) -> dict:
     """Execute a cleanup rule by ID and log the result.
 
     Returns a dict with at least {"status": ..., "rule": ...}.
-    Raises ValueError for unknown rule types or missing rules.
+    Raises ValueError for unknown rule types or missing rules,
+    CleanupBusyError when another rule run is already in flight.
     """
+    if not _rule_runner_lock.acquire(blocking=False):
+        raise CleanupBusyError("Another cleanup rule is already running")
+    try:
+        return _execute_rule_locked(rule_id, socketio=socketio)
+    finally:
+        _rule_runner_lock.release()
+
+
+def _execute_rule_locked(rule_id: int, *, socketio=None) -> dict:
+    """Inner implementation, runs under ``_rule_runner_lock``."""
     from config import get_settings
     from dedup_engine import scan_for_duplicates, scan_orphaned_subtitles
     from services.cleanup_executors import (
@@ -188,8 +213,18 @@ def _run_old_subtitle_baks(rule, config):
     subtitle processor. Always orphan-purges (regardless of age) and
     deletes non-orphans older than ``config.retention_days`` (defaults
     to ``settings.subtitle_bak_retention_days``).
+
+    Audit C2-7: ``extra_media_paths`` is a free-form comma-separated
+    string from settings; previously every entry was walked verbatim. A
+    typo like ``extra_media_paths=/etc, /proc`` would steer the cleanup
+    walker into privileged paths. We now skip any entry that lands on
+    one of the standalone-S0-2 / G3 forbidden roots and require each
+    one to actually be a directory before walking.
     """
+    import os
+
     from config import get_settings
+    from remux import _is_forbidden_trash_root
     from services.subtitle_backups import cleanup_subtitle_baks
 
     settings = get_settings()
@@ -197,11 +232,28 @@ def _run_old_subtitle_baks(rule, config):
     retention_days = int(config.get("retention_days", default_retention))
 
     media_roots: list[str] = []
-    if getattr(settings, "media_path", ""):
-        media_roots.append(settings.media_path)
+    primary = getattr(settings, "media_path", "")
+    if primary and os.path.isdir(primary):
+        media_roots.append(primary)
     extra = getattr(settings, "extra_media_paths", "")
     if extra:
-        media_roots.extend(p.strip() for p in extra.split(",") if p.strip())
+        for raw in extra.split(","):
+            cand = raw.strip()
+            if not cand:
+                continue
+            if _is_forbidden_trash_root(cand):
+                logger.warning(
+                    "old_subtitle_baks: refusing extra_media_paths entry %s (forbidden root)",
+                    cand,
+                )
+                continue
+            if not os.path.isdir(cand):
+                logger.warning(
+                    "old_subtitle_baks: skipping extra_media_paths entry %s (not a directory)",
+                    cand,
+                )
+                continue
+            media_roots.append(cand)
 
     return cleanup_subtitle_baks(
         media_roots,

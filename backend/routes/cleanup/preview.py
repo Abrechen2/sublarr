@@ -112,6 +112,7 @@ def cleanup_non_target_subs():
     from db.profiles import get_default_profile
     from db.repositories.profiles import ProfileRepository
     from remux import _SIDECAR_EXTS, _parse_sidecar_language, _resolve_trash_dir
+    from services.cleanup_executors import _media_path_reachable, _safe_walk
 
     data = request.get_json(silent=True) or {}
     dry_run = bool(data.get("dry_run", True))
@@ -121,6 +122,11 @@ def cleanup_non_target_subs():
     media_path = get_settings().media_path
     if not media_path or not os.path.isdir(media_path):
         return jsonify({"error": "media_path not configured or not a directory"}), 400
+    # Audit C2-1 + C0-3: probe the root and use the inode-tracking walker
+    # so symlink cycles can't hang the scan and a transient mount blip
+    # can't make every file look "missing".
+    if not _media_path_reachable(media_path):
+        return jsonify({"error": "media_path unreachable; aborting"}), 503
 
     # Union target_languages across every profile (series, movies, default).
     # The idea: a file under a movie root might belong to a profile with
@@ -163,9 +169,12 @@ def cleanup_non_target_subs():
     scanned = 0
     trash_dir_setting = getattr(settings, "remux_trash_dir", ".sublarr")
 
-    for root, _dirs, files in os.walk(media_path):
+    for root, files in _safe_walk(media_path):
         # Skip our own trash folder to avoid re-trashing moved files.
-        if os.sep + ".sublarr" + os.sep in (root + os.sep):
+        # Use a robust separator-agnostic check that also catches a
+        # top-level ".sublarr" without a leading separator.
+        norm = root.replace("\\", "/")
+        if "/.sublarr/" in (norm + "/") or norm.endswith("/.sublarr"):
             continue
         for fname in files:
             if not fname.lower().endswith(video_exts):

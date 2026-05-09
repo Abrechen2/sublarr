@@ -92,8 +92,14 @@ def maybe_run_foreign_track_cleanup(
         logger.debug("foreign-track cleanup: no target languages resolved for %s", file_path)
         return
 
+    # Audit G13: previously every failure went through a single
+    # ``except Exception`` with a generic warning. That hid persistent
+    # configuration problems (mkvmerge missing, read-only mount, ENOSPC)
+    # behind one-line log entries that looked like transient blips.
+    # Distinguishing the failure classes lets ops see what's actually
+    # broken without having to crack open the traceback.
     try:
-        from remux import remove_foreign_subtitle_streams
+        from remux import RemuxError, remove_foreign_subtitle_streams
 
         backup = remove_foreign_subtitle_streams(
             video_path=file_path,
@@ -106,9 +112,37 @@ def maybe_run_foreign_track_cleanup(
                 file_path,
                 backup,
             )
-    except Exception as exc:
+    except FileNotFoundError as exc:
         logger.warning(
-            "foreign-track cleanup failed for %s: %s — file untouched",
+            "foreign-track cleanup: file vanished mid-run (%s): %s — file untouched",
+            file_path,
+            exc,
+        )
+    except PermissionError as exc:
+        logger.error(
+            "foreign-track cleanup: permission denied on %s (%s) — fix mount permissions",
+            file_path,
+            exc,
+        )
+    except OSError as exc:
+        # ENOSPC, ENOSYS, network errors — usually persistent until ops
+        # intervenes. Log at ERROR so it surfaces in monitoring.
+        logger.error(
+            "foreign-track cleanup: OS error on %s: %s — file untouched",
+            file_path,
+            exc,
+        )
+    except RemuxError as exc:
+        logger.warning(
+            "foreign-track cleanup: remux error on %s: %s — file untouched",
+            file_path,
+            exc,
+        )
+    except Exception as exc:
+        # Unexpected: include the type so ops can see what to look at.
+        logger.error(
+            "foreign-track cleanup: unexpected %s on %s: %s — file untouched",
+            type(exc).__name__,
             file_path,
             exc,
         )

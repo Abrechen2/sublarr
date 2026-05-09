@@ -12,9 +12,26 @@ from routes.wanted import bp
 
 logger = logging.getLogger(__name__)
 
+# Hard upper bound on a single batch. Audit C2-4: a caller-supplied
+# ``item_ids`` list used to be processed verbatim; a 100k-element POST
+# would tie up the worker thread + DB session for hours. The default
+# fallback path (no ``item_ids``) was already capped at 2000 via
+# ``per_page``; this number aligns the explicit-list path with the
+# ffprobe ``batch_probe`` cap of 5000 so users can still bulk-extract
+# very large libraries when they really mean it.
+_BATCH_EXTRACT_HARD_CAP = 5000
+
 
 def _run_batch_extract(item_ids, auto_translate, app):
-    """Background thread: extract embedded subs for each item, emit progress events."""
+    """Background thread: extract embedded subs for each item, emit progress events.
+
+    Audit Gemini-2026-05-09 R5: the route handler now sets
+    ``_batch_extract_state["running"] = True`` synchronously inside its
+    own lock block before spawning this thread. We still re-initialise
+    the counters here so each run starts with a clean snapshot, but the
+    ``running`` flag is already set — racing POSTs cannot both pass the
+    busy check.
+    """
     # Function-local import so tests that patch
     # ``routes.wanted.extract._extract_embedded_sub`` are observed here too.
     from db.wanted import get_wanted_item
@@ -134,7 +151,7 @@ def batch_extract():
         400:
           description: item_ids missing or empty
     """
-    from db.wanted import get_wanted_items
+    from db.wanted import get_wanted_item, get_wanted_items
 
     data = request.get_json(force=True, silent=True) or {}
     item_ids = data.get("item_ids", [])
@@ -158,12 +175,55 @@ def batch_extract():
             or not it.get("existing_sub")
         ]
 
+    # Audit C2-4: bound caller-supplied lists.
+    if len(item_ids) > _BATCH_EXTRACT_HARD_CAP:
+        return jsonify(
+            {
+                "error": (
+                    f"item_ids too large ({len(item_ids)}); max {_BATCH_EXTRACT_HARD_CAP} per batch"
+                )
+            }
+        ), 400
+
+    # Audit C2-5: skip items whose existing_sub is already a sidecar
+    # ('ass' / 'srt'). Re-extracting those wastes ffprobe + ffmpeg time
+    # and can race with provider downloads. The default-empty-list path
+    # already filtered, but an explicit item_ids list went through
+    # unfiltered.
+    if item_ids:
+        filtered: list[int] = []
+        skipped_existing = 0
+        for iid in item_ids:
+            try:
+                item = get_wanted_item(int(iid))
+            except Exception:
+                continue
+            if not item:
+                continue
+            if item.get("existing_sub") in ("ass", "srt"):
+                skipped_existing += 1
+                continue
+            filtered.append(int(iid))
+        if skipped_existing:
+            logger.info(
+                "[batch-extract] skipping %d item(s) that already have a sidecar",
+                skipped_existing,
+            )
+        item_ids = filtered
+
     if not item_ids:
         return jsonify({"error": "No eligible items found", "status": "nothing_to_do"}), 200
 
+    # Audit Gemini-2026-05-09 R5: TOCTOU race. The previous version
+    # checked ``running`` inside the lock but only set it inside the
+    # background thread, leaving a window where two concurrent POSTs
+    # could both pass the busy check and start two parallel extract
+    # threads. Setting ``running=True`` synchronously inside the same
+    # lock block closes the race.
     with _batch_extract_lock:
         if _batch_extract_state["running"]:
             return jsonify({"error": "Batch extraction already running"}), 409
+        _batch_extract_state["running"] = True
 
     app = current_app._get_current_object()
     threading.Thread(

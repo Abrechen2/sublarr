@@ -318,6 +318,12 @@ def run_ffprobe(file_path, use_cache=True):
     # are returned. Consumers filter by codec_type themselves. Previously this used
     # -select_streams s which caused has_target_language_audio() to never find
     # audio streams (bug fix).
+    #
+    # Audit Gemini-2026-05-09 R3: wrap ``file_path`` with ``_safe_arg_path``
+    # so a leading ``-`` in the basename can't be interpreted as a flag by
+    # ffprobe. Same defence ``extract_subtitle_stream`` already applied.
+    from remux import _safe_arg_path
+
     cmd = [
         "ffprobe",
         "-v",
@@ -325,7 +331,7 @@ def run_ffprobe(file_path, use_cache=True):
         "-print_format",
         "json",
         "-show_streams",
-        file_path,
+        _safe_arg_path(file_path),
     ]
     try:
         result = subprocess.run(cmd, capture_output=True, text=True, timeout=30)
@@ -426,7 +432,16 @@ def get_subtitle_stream_output_path(media_path: str, stream_info: dict) -> str:
 
 
 def extract_subtitle_stream(mkv_path, stream_info, output_path):
-    """Extract a subtitle stream (ASS or SRT) from an MKV file.
+    """Extract a subtitle stream (ASS or SRT) from an MKV file atomically.
+
+    Audit G5 + G12: previously passed ``output_path`` straight into
+    ``ffmpeg -y`` which writes incrementally to the destination. A crash,
+    timeout, or ENOSPC mid-write left a partial sidecar at the final
+    location that downstream code would treat as a complete file. The
+    extraction now writes to a same-directory tempfile and only
+    ``os.replace``s into place once ffmpeg exits zero. The temp file is
+    unlinked on every error path so partial bytes never appear under the
+    real name.
 
     Args:
         mkv_path: Path to the MKV file
@@ -434,33 +449,62 @@ def extract_subtitle_stream(mkv_path, stream_info, output_path):
         output_path: Path to write the extracted file
 
     Raises:
-        RuntimeError: If ffmpeg fails
+        RuntimeError: If ffmpeg fails. The destination is left untouched
+            in this case — any pre-existing sidecar at ``output_path``
+            stays intact.
     """
+    import tempfile as _tempfile
+
+    from remux import _safe_arg_path
+
     ext = os.path.splitext(output_path)[1].lower().lstrip(".")
     _encoder_map = {"srt": "srt", "ass": "ass", "ssa": "ass", "vtt": "webvtt"}
     encoder = _encoder_map.get(ext, "copy")
+
+    out_dir = os.path.dirname(output_path) or "."
+    out_suffix = os.path.splitext(output_path)[1] or ".tmp"
+    fd, tmp_path = _tempfile.mkstemp(suffix=out_suffix, dir=out_dir)
+    os.close(fd)
+
     cmd = [
         "ffmpeg",
         "-y",
         "-i",
-        mkv_path,
+        _safe_arg_path(mkv_path),
         "-map",
         f"0:s:{stream_info['sub_index']}",
         "-c:s",
         encoder,
-        output_path,
+        _safe_arg_path(tmp_path),
     ]
     _timeout = getattr(get_settings(), "ffmpeg_timeout", 300)
-    result = subprocess.run(
-        cmd,
-        capture_output=True,
-        text=True,
-        encoding="utf-8",
-        errors="replace",
-        timeout=_timeout,
-    )
-    if result.returncode != 0:
-        raise RuntimeError(f"ffmpeg extraction failed: {result.stderr}")
+    try:
+        result = subprocess.run(
+            cmd,
+            capture_output=True,
+            text=True,
+            encoding="utf-8",
+            errors="replace",
+            timeout=_timeout,
+        )
+        if result.returncode != 0:
+            raise RuntimeError(f"ffmpeg extraction failed: {result.stderr}")
+        # Refuse zero-byte output — ffmpeg sometimes returns 0 on no-data
+        # streams or when the disk filled mid-write but the buffer flushed
+        # cleanly enough to get a successful exit code.
+        if os.path.getsize(tmp_path) == 0:
+            raise RuntimeError(
+                "ffmpeg produced an empty sidecar (likely ENOSPC or unreadable stream)"
+            )
+        os.replace(tmp_path, output_path)
+        tmp_path = ""  # ownership transferred — skip cleanup
+    finally:
+        if tmp_path:
+            try:
+                os.unlink(tmp_path)
+            except OSError:
+                pass
+
     logger.info(
         "Extracted %s stream %d to %s",
         stream_info.get("format", "?"),

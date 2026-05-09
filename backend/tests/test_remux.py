@@ -443,18 +443,27 @@ def test_make_backup_creates_trash_dir(tmp_path):
     assert bak_path.endswith(".bak")
 
 
-def test_make_backup_fallback_on_permission_error(tmp_path):
-    """When trash dir cannot be created, falls back to sibling .bak."""
+def test_make_backup_raises_when_trash_dir_unavailable(tmp_path):
+    """Audit G7: trash-dir creation failure must raise RemuxError instead of
+    silently writing a sibling ``.bak`` next to the original.
+
+    The old fallback hid configuration problems (read-only trash mount,
+    permission misconfig) and produced "stray .bak files" support
+    questions. Failing loud is the right surface so the caller aborts
+    the destructive swap.
+    """
     from remux import _make_backup
 
     video = str(tmp_path / "show.mkv")
     with open(video, "wb") as f:
         f.write(b"x" * 100)
 
-    # Simulate os.makedirs failing with a permission error
-    with patch("os.makedirs", side_effect=OSError("Permission denied")):
-        bak_path = _make_backup(video, use_reflink=False, trash_dir=".sublarr")
+    with (
+        patch("os.makedirs", side_effect=OSError("Permission denied")),
+        pytest.raises(RemuxError, match="could not create backup"),
+    ):
+        _make_backup(video, use_reflink=False, trash_dir=".sublarr")
 
-    # Fallback: sibling .bak
-    assert bak_path == video + ".bak"
-    assert os.path.exists(bak_path)
+    # The sibling .bak that the legacy fallback would have produced
+    # must NOT exist now.
+    assert not os.path.exists(video + ".bak")
