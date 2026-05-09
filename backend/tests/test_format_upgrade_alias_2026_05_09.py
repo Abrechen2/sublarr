@@ -148,9 +148,7 @@ def test_format_upgrade_dry_run_keeps_files(tmp_path, app_ctx):
     from services.cleanup_executors import execute_format_upgrade
 
     _setup(tmp_path, ["v.de.ass", "v.ger.srt"])
-    result = execute_format_upgrade(
-        str(tmp_path), {"keep_format": "ass"}, dry_run=True
-    )
+    result = execute_format_upgrade(str(tmp_path), {"keep_format": "ass"}, dry_run=True)
 
     assert result["would_delete"] == 1
     assert _remaining(tmp_path) == {"v.de.ass", "v.ger.srt"}

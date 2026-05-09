@@ -118,8 +118,7 @@ class _WantedUpsertMixin:
 
         if deleted_ids:
             logger.info(
-                "upsert_wanted_item: pruned %d shadowed sibling row(s) for %s "
-                "(file: %s)",
+                "upsert_wanted_item: pruned %d shadowed sibling row(s) for %s (file: %s)",
                 len(deleted_ids),
                 target_language,
                 keep_file_path,

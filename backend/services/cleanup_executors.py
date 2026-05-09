@@ -409,9 +409,7 @@ def execute_format_upgrade(media_path: str, config: dict, dry_run: bool = False)
     # index: (video_base, canonical_lang, modifier) -> {ext: [paths]}
     # Multiple files with the same key + same ext are stored together
     # so we don't lose any candidate for the trash sweep.
-    index: dict[tuple[str, str, str], dict[str, list[str]]] = defaultdict(
-        lambda: defaultdict(list)
-    )
+    index: dict[tuple[str, str, str], dict[str, list[str]]] = defaultdict(lambda: defaultdict(list))
 
     for path in _subtitle_files(media_path):
         classification = _classify_sidecar(path)
