@@ -5,6 +5,14 @@ All notable changes to Sublarr are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.92.4-beta] - 2026-05-09
+
+### Fixed
+- **Sonarr/Radarr quality-upgrade duplicates in `wanted_items`** — When Sonarr swapped a file via a quality-upgrade (e.g. `Show.S01E01.WEBRip-1080p.mkv` → `Show.S01E01.WEBDL-1080p.mkv`), Sublarr's `upsert_wanted_item` matched on `file_path + target_language + subtitle_type` and therefore inserted a fresh row for the new path while the old row was left orphaned. The search pipeline later flagged the orphan with `error="File not found on disk"` and `status="failed"`, so the UI showed the same episode twice — one `Gesucht` row for the new file plus one `Fehlgeschlagen` row per language for the old file. `upsert_wanted_item` now sweeps shadowed siblings transactionally: any row with the same logical entity (Sonarr episode / Radarr movie / standalone series+S/E / standalone movie) and the same `(target_language, subtitle_type)` but a different `file_path` is deleted when its file no longer exists on disk. Mount-blip defence: the prune only runs when the freshly-upserted file actually exists, so a brief NFS reconnect or Unraid share-reload can't wrongly drop legacy rows.
+
+### Tests
+- 7 new regression tests in `test_wanted_upsert_prune_2026_05_09.py` covering the quality-upgrade case, target-language separation, sibling preservation when both files exist, mount-blip safety, Radarr movies, and the no-logical-identity short-circuit.
+
 ## [0.92.3-beta] - 2026-05-09
 
 ### Security

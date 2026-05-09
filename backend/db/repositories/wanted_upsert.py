@@ -5,6 +5,15 @@ Extracted from db/repositories/wanted.py. Holds the single large
 Behaviour is unchanged: matches on file_path + target_language +
 subtitle_type, respects the ``ignored`` status, races against concurrent
 inserts via IntegrityError handling.
+
+2026-05-09 (0.92.4-beta): adds a ``_prune_replaced_siblings`` step that
+removes wanted_items shadowed by a Sonarr/Radarr quality upgrade. The
+upsert match key is ``file_path + target_language + subtitle_type``;
+when Sonarr swaps ``WEBRip-1080p.mkv`` for ``WEBDL-1080p.mkv``, the new
+file lands as a fresh row while the old row is left orphaned with a
+file_path that no longer exists on disk. The sweep deletes such stale
+siblings transactionally so the UI stops showing duplicate
+``File not found on disk`` rows for the same episode.
 """
 
 import json
@@ -21,6 +30,102 @@ logger = logging.getLogger(__name__)
 
 class _WantedUpsertMixin:
     """``upsert_wanted_item`` method composed into WantedRepository."""
+
+    def _prune_replaced_siblings(
+        self,
+        *,
+        keep_id: int,
+        keep_file_path: str,
+        target_language: str,
+        subtitle_type: str,
+        sonarr_episode_id: int | None,
+        radarr_movie_id: int | None,
+        standalone_series_id: int | None,
+        standalone_movie_id: int | None,
+        season_episode: str,
+    ) -> int:
+        """Delete sibling wanted_items shadowed by ``keep_id``.
+
+        A sibling is any wanted_item with the same ``(target_language,
+        subtitle_type)`` and the same logical media entity (Sonarr
+        episode, Radarr movie, or standalone series+S/E / movie) but a
+        DIFFERENT ``file_path`` whose file no longer exists on disk.
+
+        Mount-blip defence: the sweep only runs when the freshly
+        upserted ``keep_file_path`` actually exists on disk. That is the
+        same posture the cleanup executors use (audit C0-3 / standalone
+        S0-1) — without proof the mount is reachable we never call
+        ``os.path.exists`` on legacy paths and risk wrongly pruning
+        rows for a temporarily-unavailable share.
+
+        Returns the number of rows deleted.
+        """
+        if not target_language:
+            # Without a target_language we can't identify siblings safely.
+            return 0
+        if not keep_file_path or not os.path.exists(keep_file_path):
+            # Mount unreachable or path empty — refuse to prune.
+            return 0
+
+        identity_filter = None
+        if sonarr_episode_id:
+            identity_filter = WantedItem.sonarr_episode_id == sonarr_episode_id
+        elif radarr_movie_id:
+            identity_filter = WantedItem.radarr_movie_id == radarr_movie_id
+        elif standalone_series_id and season_episode:
+            from sqlalchemy import and_
+
+            identity_filter = and_(
+                WantedItem.standalone_series_id == standalone_series_id,
+                WantedItem.season_episode == season_episode,
+            )
+        elif standalone_movie_id:
+            identity_filter = WantedItem.standalone_movie_id == standalone_movie_id
+        else:
+            # No reliable logical identity (e.g., orphaned legacy row) —
+            # skip the prune to avoid false-positives.
+            return 0
+
+        sibling_stmt = select(WantedItem).where(
+            WantedItem.id != keep_id,
+            WantedItem.target_language == target_language,
+            WantedItem.subtitle_type == subtitle_type,
+            identity_filter,
+        )
+        candidates = self.session.execute(sibling_stmt).scalars().all()
+
+        deleted_ids: list[int] = []
+        for sib in candidates:
+            sib_path = sib.file_path
+            if not sib_path:
+                # Path already empty — treat as stale.
+                self.session.delete(sib)
+                deleted_ids.append(sib.id)
+                continue
+            # Normalise both sides so a / vs \ mismatch never marks the
+            # current path as stale-by-string.
+            if os.path.normpath(sib_path) == os.path.normpath(keep_file_path):
+                continue
+            try:
+                exists = os.path.exists(sib_path)
+            except OSError:
+                # Mount went away mid-prune — bail; better to keep the
+                # row than to risk a wrongful delete.
+                continue
+            if not exists:
+                self.session.delete(sib)
+                deleted_ids.append(sib.id)
+
+        if deleted_ids:
+            logger.info(
+                "upsert_wanted_item: pruned %d shadowed sibling row(s) for %s "
+                "(file: %s)",
+                len(deleted_ids),
+                target_language,
+                keep_file_path,
+            )
+            self._commit()
+        return len(deleted_ids)
 
     def upsert_wanted_item(
         self,
@@ -120,6 +225,17 @@ class _WantedUpsertMixin:
                 existing.subtitle_type = subtitle_type
                 existing.updated_at = now
             self._commit()
+            self._prune_replaced_siblings(
+                keep_id=row_id,
+                keep_file_path=file_path,
+                target_language=target_language,
+                subtitle_type=subtitle_type,
+                sonarr_episode_id=sonarr_episode_id,
+                radarr_movie_id=radarr_movie_id,
+                standalone_series_id=standalone_series_id,
+                standalone_movie_id=standalone_movie_id,
+                season_episode=season_episode,
+            )
             return row_id, True
 
         item = WantedItem(
@@ -148,6 +264,17 @@ class _WantedUpsertMixin:
             self.session.add(item)
             self.session.flush()  # populate item.id even in batch mode (no-op _commit)
             self._commit()
+            self._prune_replaced_siblings(
+                keep_id=item.id,
+                keep_file_path=file_path,
+                target_language=target_language,
+                subtitle_type=subtitle_type,
+                sonarr_episode_id=sonarr_episode_id,
+                radarr_movie_id=radarr_movie_id,
+                standalone_series_id=standalone_series_id,
+                standalone_movie_id=standalone_movie_id,
+                season_episode=season_episode,
+            )
             return item.id, False
         except IntegrityError:
             # Concurrent insert won the race — roll back and fetch the winner
@@ -158,6 +285,17 @@ class _WantedUpsertMixin:
                     "Race condition on upsert for %s — returning existing %d",
                     file_path,
                     existing.id,
+                )
+                self._prune_replaced_siblings(
+                    keep_id=existing.id,
+                    keep_file_path=file_path,
+                    target_language=target_language,
+                    subtitle_type=subtitle_type,
+                    sonarr_episode_id=sonarr_episode_id,
+                    radarr_movie_id=radarr_movie_id,
+                    standalone_series_id=standalone_series_id,
+                    standalone_movie_id=standalone_movie_id,
+                    season_episode=season_episode,
                 )
                 return existing.id, True
             raise
