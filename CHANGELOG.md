@@ -5,6 +5,14 @@ All notable changes to Sublarr are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.92.5-beta] - 2026-05-09
+
+### Changed
+- **Scheduler settings page redesigned to match the rest of Sublarr** — `/settings/system/scheduler` now groups the nine background jobs into three `SettingsSection` cards (Scanning, Metadata sync, Maintenance) using the same icon + accent-bg + border + padding the other settings pages already use. Each job collapses from a five-button card into a compact row with a colour-coded status dot, friendly translated name plus the technical `job.id` as a mono chip, the trigger label, last/next run, and a 1px stacked health bar that visualises the 7-day ok/error/timeout/missed split at a glance. "Run now" stays as a single primary button; Pause/Resume, Edit trigger, History, and Reset to default move into a kebab menu (more-vertical icon) with click-outside + Escape close. Reduces visual noise by ~70% per row and lets the user scan all nine jobs at a glance.
+
+### Added
+- New i18n keys (DE + EN) for category names, per-job friendly names + descriptions, the actions menu label, and the 7d health summary string.
+
 ## [0.92.4-beta] - 2026-05-09
 
 ### Fixed
