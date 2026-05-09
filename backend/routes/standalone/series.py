@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import logging
 
-from flask import jsonify, redirect, send_file
+from flask import current_app, jsonify, redirect, send_file
 
 from routes.standalone import bp
 
@@ -219,17 +219,20 @@ def scan_series(series_id):
 
 @bp.route("/series/<int:series_id>/refresh-metadata", methods=["POST"])
 def refresh_series_metadata(series_id):
-    """Re-resolve metadata for a standalone series.
+    """Re-resolve metadata for a standalone series in the background.
 
-    Clears cache and re-fetches from TMDB/AniList/TVDB.
+    Schedules a TMDB/AniList/TVDB lookup off the request thread and
+    returns 202 immediately so the Flask worker pool stays free even
+    when external APIs are slow or rate-limiting. The UI polls the
+    series detail endpoint to pick up the refreshed data.
     ---
     post:
       security:
         - apiKeyAuth: []
       tags:
         - Standalone
-      summary: Refresh series metadata
-      description: Re-resolves metadata for a standalone series from external sources (TMDB, AniList, TVDB).
+      summary: Refresh series metadata (async)
+      description: Schedules an asynchronous metadata refresh for a standalone series. Returns 202 once accepted; the result lands on the next series detail fetch.
       parameters:
         - in: path
           name: series_id
@@ -237,8 +240,8 @@ def refresh_series_metadata(series_id):
           schema:
             type: integer
       responses:
-        200:
-          description: Metadata refreshed
+        202:
+          description: Refresh accepted
           content:
             application/json:
               schema:
@@ -246,28 +249,32 @@ def refresh_series_metadata(series_id):
                 properties:
                   success:
                     type: boolean
-                  series:
-                    type: object
+                  series_id:
+                    type: integer
+                  message:
+                    type: string
         404:
-          description: Series not found or no metadata found
+          description: Series not found
         500:
           description: Server error
     """
     from db.standalone import get_standalone_series
-    from services.standalone_manager import refresh_series_metadata_sync
+    from services.standalone_manager import refresh_series_metadata_async
 
     series = get_standalone_series(series_id)
     if not series:
         return jsonify({"error": "Series not found"}), 404
 
     try:
-        updated = refresh_series_metadata_sync(series_id)
-        if updated:
-            return jsonify({"success": True, "series": updated})
-        return jsonify({"success": False, "message": "No metadata found"}), 404
-    except ImportError as e:
-        logger.warning("Metadata resolver not available: %s", e)
-        return jsonify({"error": "Metadata resolver not available"}), 500
+        app = current_app._get_current_object()
+        refresh_series_metadata_async(app, series_id)
+        return jsonify(
+            {
+                "success": True,
+                "series_id": series_id,
+                "message": "Metadata refresh scheduled",
+            }
+        ), 202
     except Exception as e:
-        logger.error("Failed to refresh metadata for series %d: %s", series_id, e)
-        return jsonify({"error": "Failed to refresh metadata"}), 500
+        logger.error("Failed to schedule metadata refresh for series %d: %s", series_id, e)
+        return jsonify({"error": "Failed to schedule metadata refresh"}), 500

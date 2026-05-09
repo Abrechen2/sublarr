@@ -40,6 +40,36 @@ def _is_extra_file(path: str) -> bool:
     return stem in _EXTRA_STEMS or any(stem.endswith(s) for s in _EXTRA_SUFFIXES)
 
 
+# ---------------------------------------------------------------------------
+# Module-level scanner singleton
+# ---------------------------------------------------------------------------
+#
+# Multiple call paths (POST /scan, POST /scan/<id>, POST /series/<id>/scan,
+# scheduled `standalone_scan` job) used to instantiate a fresh
+# ``StandaloneScanner()`` each time. Because the per-instance ``_scan_lock``
+# only protects against re-entry on the *same* object, parallel requests
+# created independent scanners with independent locks and trampled each
+# other at the upsert layer. The singleton below funnels every code path
+# through the same instance so the lock actually serializes scans.
+
+_scanner_singleton: "StandaloneScanner | None" = None
+_scanner_singleton_lock = threading.Lock()
+
+
+def get_scanner() -> "StandaloneScanner":
+    """Return the process-wide ``StandaloneScanner`` instance, creating it lazily.
+
+    Module-level singleton intentionally — see comment above. Never
+    instantiate ``StandaloneScanner`` directly outside this module.
+    """
+    global _scanner_singleton
+    if _scanner_singleton is None:
+        with _scanner_singleton_lock:
+            if _scanner_singleton is None:
+                _scanner_singleton = StandaloneScanner()
+    return _scanner_singleton
+
+
 class StandaloneScanner(_StandaloneProcessMixin):
     """Scans watched folders for video files, resolves metadata, and populates wanted_items.
 
@@ -209,7 +239,7 @@ class StandaloneScanner(_StandaloneProcessMixin):
             "enabled": True,
         }
         try:
-            s_count, m_count, w_count = self._scan_folder(synthetic_folder)
+            s_count, m_count, w_count = self.scan_folder(synthetic_folder)
             return {
                 "series_id": series_id,
                 "series_found": s_count,
@@ -219,6 +249,30 @@ class StandaloneScanner(_StandaloneProcessMixin):
         except Exception as e:
             logger.error("scan_series(%d) failed: %s", series_id, e, exc_info=True)
             return {"error": str(e), "series_id": series_id}
+
+    def scan_folder(self, folder) -> tuple:
+        """Scan a single watched folder.
+
+        Accepts either a folder dict (from DB) or a folder-path string.
+        The string form is the public path used by ``launch_folder_scan``;
+        it builds a minimal synthetic dict so internal helpers always see
+        the same shape.
+
+        Args:
+            folder: Either a dict from DB (``path``, ``label``, ``media_type``,
+                ``id``…) or an absolute folder-path string.
+
+        Returns:
+            Tuple of (series_count, movie_count, wanted_count).
+        """
+        if isinstance(folder, str):
+            folder = {
+                "path": folder,
+                "label": "",
+                "media_type": "auto",
+                "enabled": True,
+            }
+        return self._scan_folder(folder)
 
     def _scan_folder(self, folder: dict) -> tuple:
         """Scan a single watched folder.
@@ -252,9 +306,50 @@ class StandaloneScanner(_StandaloneProcessMixin):
 
         skip_extras = getattr(get_settings(), "standalone_skip_extras", True)
 
-        # Collect all video files
+        # Collect all video files. ``followlinks=True`` is intentional —
+        # homelab media trees frequently use symlinks to flatten library
+        # layouts — but Python's os.walk does NOT detect cycles when
+        # following links, so a kreis-symlink (``/media/x → /media/``)
+        # would walk forever. We track every directory by its
+        # ``(st_dev, st_ino)`` tuple and prune subdirectories we've
+        # already entered. Short-circuits at first repeat so total
+        # traversal stays linear.
         video_files = []
-        for root, _dirs, files in os.walk(folder_path, followlinks=True):
+        seen_dirs: set[tuple[int, int]] = set()
+        for root, dirs, files in os.walk(folder_path, followlinks=True):
+            try:
+                root_stat = os.stat(root)
+            except OSError as e:
+                logger.warning("Skipping unreachable directory %s: %s", root, e)
+                dirs[:] = []
+                continue
+            root_key = (root_stat.st_dev, root_stat.st_ino)
+            if root_key in seen_dirs:
+                # Cycle detected — pruning prevents infinite descent.
+                logger.warning(
+                    "Symlink cycle detected at %s; pruning to avoid infinite walk",
+                    root,
+                )
+                dirs[:] = []
+                continue
+            seen_dirs.add(root_key)
+
+            # Filter children: drop any subdir whose inode we've already
+            # visited so we never descend into a cycle (the os.walk above
+            # would happily re-enter without this).
+            pruned: list[str] = []
+            for d in dirs:
+                child = os.path.join(root, d)
+                try:
+                    cstat = os.stat(child)
+                except OSError:
+                    continue
+                if (cstat.st_dev, cstat.st_ino) in seen_dirs:
+                    logger.debug("Pruning already-visited subdir: %s", child)
+                    continue
+                pruned.append(d)
+            dirs[:] = pruned
+
             for filename in files:
                 full_path = os.path.join(root, filename)
                 if is_video_file(full_path) and (not skip_extras or not _is_extra_file(full_path)):
@@ -408,16 +503,77 @@ class StandaloneScanner(_StandaloneProcessMixin):
 
         return common
 
+    @staticmethod
+    def _watched_roots_reachable() -> bool:
+        """Probe every enabled watched folder before destructive cleanup.
+
+        If ANY watched folder fails ``os.stat`` we treat the entire cleanup
+        pass as unsafe and abort. This catches the NFS-disconnect /
+        Unraid-share-reload class of failure where ``os.path.isdir`` /
+        ``os.path.exists`` would return False for files that are merely
+        temporarily unreachable, leading to mass-delete of correct rows.
+
+        Returns:
+            True if every enabled watched folder responds to ``os.stat``;
+            False (and logs a warning) if any one of them is unreachable
+            or no watched folders are configured. Empty-folder-list also
+            returns False because cleanup against an empty list would
+            wipe every standalone row in the DB.
+        """
+        try:
+            from db.standalone import get_watched_folders
+
+            folders = get_watched_folders(enabled_only=True)
+        except Exception as e:
+            logger.warning(
+                "Standalone cleanup probe: could not list watched folders (%s); "
+                "skipping to avoid mass-delete",
+                e,
+            )
+            return False
+
+        if not folders:
+            logger.debug(
+                "Standalone cleanup probe: no enabled watched folders — "
+                "skipping cleanup (would otherwise wipe every standalone row)",
+            )
+            return False
+
+        for f in folders:
+            path = f.get("path", "")
+            if not path:
+                continue
+            try:
+                os.stat(path)
+            except OSError as e:
+                logger.warning(
+                    "Standalone cleanup probe: watched folder %s unreachable (%s); "
+                    "aborting cleanup pass to prevent mass-delete on transient "
+                    "mount issue",
+                    path,
+                    e,
+                )
+                return False
+        return True
+
     def _cleanup_stale_series(self) -> int:
         """Remove standalone_series entries whose folder no longer exists or is
         a season subfolder (artefact of earlier scans before series-root
         normalization was enforced).
 
+        Cascades to ``wanted_items`` so that no orphan rows reference the
+        deleted series. Aborts (returns 0) when any watched root is
+        unreachable — see ``_watched_roots_reachable``.
+
         Returns:
             Number of series rows removed.
         """
+        if not self._watched_roots_reachable():
+            return 0
+
         try:
-            from db.standalone import delete_standalone_series, get_standalone_series
+            from db.standalone import get_standalone_series
+            from services.standalone_manager import delete_series_cascade
 
             all_series = get_standalone_series()
             if not all_series:
@@ -431,7 +587,12 @@ class StandaloneScanner(_StandaloneProcessMixin):
                     to_remove.append(s["id"])
 
             for sid in to_remove:
-                delete_standalone_series(sid)
+                # Cascade through services layer so wanted_items pointing to
+                # this series get removed in the same transaction. Without
+                # the cascade those rows would survive as orphans
+                # (standalone_series_id → non-existent row), which the UI
+                # rendered as "blank series" entries.
+                delete_series_cascade(sid)
 
             if to_remove:
                 logger.info(
@@ -448,9 +609,15 @@ class StandaloneScanner(_StandaloneProcessMixin):
     def _cleanup_stale_wanted(self) -> int:
         """Remove standalone wanted items whose files no longer exist on disk.
 
+        Aborts (returns 0) when any watched root is unreachable — see
+        ``_watched_roots_reachable``.
+
         Returns:
             Number of items removed.
         """
+        if not self._watched_roots_reachable():
+            return 0
+
         try:
             from config import get_settings
             from db import get_db

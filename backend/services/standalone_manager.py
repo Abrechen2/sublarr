@@ -124,9 +124,9 @@ def scan_series_or_fallback(series_id: int) -> dict | None:
     fallback path was used.
     """
     try:
-        from standalone.scanner import StandaloneScanner
+        from standalone.scanner import get_scanner
 
-        scanner = StandaloneScanner()
+        scanner = get_scanner()
         return scanner.scan_series(series_id)
     except ImportError as e:
         logger.warning("scan_series: scanner unavailable, using DB fallback: %s", e)
@@ -345,9 +345,9 @@ def launch_full_scan(app) -> None:
     def _run_scan():
         with app.app_context():
             try:
-                from standalone.scanner import StandaloneScanner
+                from standalone.scanner import get_scanner
 
-                scanner = StandaloneScanner()
+                scanner = get_scanner()
                 scanner.scan_all_folders()
             except Exception as e:
                 logger.error("Standalone scan failed: %s", e)
@@ -361,9 +361,9 @@ def launch_folder_scan(app, folder_id: int, folder_path: str) -> None:
     def _run_scan():
         with app.app_context():
             try:
-                from standalone.scanner import StandaloneScanner
+                from standalone.scanner import get_scanner
 
-                scanner = StandaloneScanner()
+                scanner = get_scanner()
                 scanner.scan_folder(folder_path)
             except Exception as e:
                 logger.error("Standalone scan for folder %d failed: %s", folder_id, e)

@@ -73,39 +73,57 @@ class TestLazyClients:
 
 
 class TestCache:
-    def test_get_cached_returns_none_when_db_raises(self, resolver):
-        """get_db raises -> _get_cached returns None silently."""
-        with patch("db.get_db", side_effect=RuntimeError("no db")):
+    """Resolver cache helpers — refactored 2026-05-09 to import the standalone
+    cache functions directly. The old ``db.standalone`` attribute access
+    against the SQLAlchemy session always evaluated False, so the cache
+    layer was effectively dead code. See audit S1-1 / S1-6.
+    """
+
+    def test_get_cached_returns_none_when_module_raises(self, resolver):
+        with patch("db.standalone.get_cached_metadata", side_effect=RuntimeError("no db")):
             assert resolver._get_cached("key") is None
 
-    def test_get_cached_returns_none_without_method(self, resolver):
-        """DB object lacks standalone.get_cached_metadata -> returns None."""
-        mock_db = MagicMock(spec=[])  # no 'standalone' attribute
-        with patch("db.get_db", return_value=mock_db):
+    def test_get_cached_returns_none_when_entry_missing(self, resolver):
+        with patch("db.standalone.get_cached_metadata", return_value=None):
             assert resolver._get_cached("key") is None
 
-    def test_get_cached_returns_data(self, resolver):
-        expected = {"title": "Cached"}
-        mock_standalone = MagicMock()
-        mock_standalone.get_cached_metadata.return_value = expected
-        mock_db = MagicMock()
-        mock_db.standalone = mock_standalone
-        with patch("db.get_db", return_value=mock_db):
-            result = resolver._get_cached("key")
-        assert result == expected
+    def test_get_cached_returns_parsed_data(self, resolver):
+        with patch(
+            "db.standalone.get_cached_metadata",
+            return_value={"response_json": '{"title": "Cached"}'},
+        ):
+            assert resolver._get_cached("key") == {"title": "Cached"}
 
     def test_set_cached_silently_ignores_errors(self, resolver):
-        """set_cached should not raise even if get_db explodes."""
-        with patch("db.get_db", side_effect=RuntimeError("no db")):
-            resolver._set_cached("key", {"data": 1})  # no exception
+        with patch("db.standalone.cache_metadata", side_effect=RuntimeError("no db")):
+            resolver._set_cached("key", {"data": 1, "metadata_source": "tmdb"})
 
-    def test_set_cached_writes_data(self, resolver):
-        mock_standalone = MagicMock()
-        mock_db = MagicMock()
-        mock_db.standalone = mock_standalone
-        with patch("db.get_db", return_value=mock_db):
-            resolver._set_cached("key", {"title": "Test"})
-        mock_standalone.cache_metadata.assert_called_once_with("key", {"title": "Test"})
+    def test_set_cached_writes_data_with_correct_arity(self, resolver):
+        """Must use the (cache_key, provider, response_json, ttl_days) signature
+        — the legacy two-arg form silently failed every cache write.
+        """
+        import json
+
+        with patch("db.standalone.cache_metadata") as cm:
+            resolver._set_cached("key", {"title": "Test", "metadata_source": "tmdb", "tmdb_id": 1})
+        cm.assert_called_once()
+        args, kwargs = cm.call_args
+        assert args[0] == "key"
+        assert kwargs["provider"] == "tmdb"
+        assert json.loads(kwargs["response_json"]) == {
+            "title": "Test",
+            "metadata_source": "tmdb",
+            "tmdb_id": 1,
+        }
+        assert kwargs["ttl_days"] == 30
+
+    def test_set_cached_skips_filename_stub(self, resolver):
+        """Transient API outage results (metadata_source='filename') must not
+        poison the cache — see audit S1-6.
+        """
+        with patch("db.standalone.cache_metadata") as cm:
+            resolver._set_cached("key", {"title": "X", "metadata_source": "filename"})
+        cm.assert_not_called()
 
 
 # ---------------------------------------------------------------------------

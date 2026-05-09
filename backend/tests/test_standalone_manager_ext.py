@@ -317,13 +317,14 @@ def test_get_standalone_status_success():
 
 
 def test_scan_series_or_fallback_uses_scanner(app_ctx):
-    """Calls StandaloneScanner.scan_series and returns its summary."""
+    """Calls scanner.scan_series via the get_scanner() singleton (audit S1-3)
+    and returns its summary."""
     from services.standalone_manager import scan_series_or_fallback
 
     expected = {"series_id": 1, "wanted_added": 3, "series_found": 1, "movies_found": 0}
     mock_scanner = MagicMock()
     mock_scanner.scan_series.return_value = expected
-    with patch("standalone.scanner.StandaloneScanner", return_value=mock_scanner):
+    with patch("standalone.scanner.get_scanner", return_value=mock_scanner):
         result = scan_series_or_fallback(1)
     mock_scanner.scan_series.assert_called_once_with(1)
     assert result == expected

@@ -9,11 +9,20 @@ import logging
 import os
 import time
 from collections.abc import Callable
+from concurrent.futures import ThreadPoolExecutor
 from typing import Optional
 
 from utils.debouncer import KeyedDebouncedCallback
 
 logger = logging.getLogger(__name__)
+
+# Bounded executor for the 2-second stability sleep + final on_new_file
+# callback. Without this, KeyedDebouncedCallback's per-key Timer threads
+# each ran the stability check directly, so a bulk import of N files
+# spawned N concurrent sleeping threads that then stormed the DB and
+# external APIs simultaneously. Capping at 4 keeps the watcher
+# responsive without flooding the metadata-resolver.
+_WATCHER_STABILITY_WORKERS = 4
 
 try:
     from watchdog.events import PatternMatchingEventHandler
@@ -60,9 +69,16 @@ class MediaFileWatcher(PatternMatchingEventHandler):
             )
         self.on_new_file = on_new_file
         self.debounce_seconds = debounce_seconds
+        # Submit stability checks to a bounded executor instead of running
+        # them inline in the debouncer's Timer thread (which would spawn
+        # one sleeping thread per file on bulk-imports — see audit G3).
+        self._stability_pool = ThreadPoolExecutor(
+            max_workers=_WATCHER_STABILITY_WORKERS,
+            thread_name_prefix="media-watcher-stability",
+        )
         self._debouncer = KeyedDebouncedCallback(
             delay_s=debounce_seconds,
-            callback=self._check_and_process,
+            callback=self._enqueue_stability_check,
             name="media_watcher",
         )
 
@@ -81,6 +97,20 @@ class MediaFileWatcher(PatternMatchingEventHandler):
         existing timer for the same path and starts a new one.
         """
         self._debouncer.trigger(path)
+
+    def _enqueue_stability_check(self, path: str) -> None:
+        """Hand the stability check off to the bounded thread pool.
+
+        Called by the debouncer when the per-key Timer fires; using the
+        executor keeps the Timer thread free to handle the next key
+        instead of sleeping for 2 seconds per file.
+        """
+        try:
+            self._stability_pool.submit(self._check_and_process, path)
+        except RuntimeError:
+            # Executor already shut down (e.g. during reload). Drop the
+            # event silently — the next full scan will catch the file.
+            logger.debug("Stability pool shut down; dropping watcher event for %s", path)
 
     def _check_and_process(self, path: str) -> None:
         """Check file stability and invoke callback if stable.
@@ -120,6 +150,7 @@ class MediaFileWatcher(PatternMatchingEventHandler):
         timers from firing after the process is tearing down.
         """
         self._debouncer.shutdown()
+        self._stability_pool.shutdown(wait=False, cancel_futures=True)
 
 
 # ---------------------------------------------------------------------------

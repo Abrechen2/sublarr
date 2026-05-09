@@ -272,34 +272,80 @@ class _StandaloneProcessMixin:
                     "wanted": wanted > 0,
                 }
             else:
-                # For a single episode file, create a minimal series group
+                # For a single episode file detected by the watcher, mirror the
+                # NFO-first flow used by the full-scan path (_process_series_group):
+                # parse tvshow.nfo first, fall back to MetadataResolver only when
+                # the NFO is missing or empty. Without this, a watcher-triggered
+                # upsert was overwriting NFO-sourced TVDB/TMDB IDs with whatever
+                # the resolver returned (often the filename-stub during transient
+                # API failures), so the same series ended up flapping between
+                # metadata_source="nfo" after a full scan and metadata_source=
+                # "filename" after a single watcher event. See audit S1-2.
                 from db.standalone import upsert_standalone_series
                 from db.wanted import upsert_wanted_item
+                from standalone.nfo_parser import find_local_poster, parse_series_nfo
 
                 title = parsed.get("title", "Unknown")
                 is_anime = parsed.get("is_anime", False)
                 year = parsed.get("year")
-
-                resolver = self._get_resolver()
-                meta = resolver.resolve_series(title, year=year, is_anime=is_anime)
 
                 # Use the same season-folder normalization as the group path
                 # (_process_series_group → _find_common_parent) so that single
                 # episodes detected by the watcher don't create a duplicate
                 # standalone_series entry rooted at the season subfolder.
                 series_folder = self._find_common_parent([file_path])
-                series_id = upsert_standalone_series(
-                    title=meta.get("title", title),
-                    folder_path=series_folder,
-                    year=meta.get("year"),
-                    tmdb_id=meta.get("tmdb_id"),
-                    tvdb_id=meta.get("tvdb_id"),
-                    anilist_id=meta.get("anilist_id"),
-                    imdb_id=meta.get("imdb_id", ""),
-                    poster_url=meta.get("poster_url", ""),
-                    is_anime=meta.get("is_anime", is_anime),
-                    metadata_source=meta.get("metadata_source", "filename"),
-                )
+
+                nfo = parse_series_nfo(series_folder)
+
+                if nfo and (nfo.get("title") or nfo.get("tvdb_id") or nfo.get("tmdb_id")):
+                    nfo_title = nfo.get("title") or title
+                    nfo_year = nfo.get("year") or year
+                    nfo_is_anime = nfo.get("is_anime", is_anime)
+
+                    if nfo.get("tvdb_id") or nfo.get("tmdb_id"):
+                        # NFO has IDs — no online lookup needed
+                        poster_url = nfo.get("local_poster") or ""
+                        meta: dict = {}
+                    else:
+                        # NFO has title but no IDs — enrich via resolver
+                        resolver = self._get_resolver()
+                        meta = resolver.resolve_series(
+                            nfo_title, year=nfo_year, is_anime=nfo_is_anime
+                        )
+                        poster_url = nfo.get("local_poster") or meta.get("poster_url", "")
+
+                    series_id = upsert_standalone_series(
+                        title=nfo_title,
+                        folder_path=series_folder,
+                        year=nfo_year,
+                        tmdb_id=nfo.get("tmdb_id") or meta.get("tmdb_id"),
+                        tvdb_id=nfo.get("tvdb_id") or meta.get("tvdb_id"),
+                        anilist_id=nfo.get("anilist_id") or meta.get("anilist_id"),
+                        imdb_id=nfo.get("imdb_id") or meta.get("imdb_id", ""),
+                        poster_url=poster_url,
+                        is_anime=nfo_is_anime,
+                        metadata_source="nfo",
+                    )
+                    resolved_title = nfo_title
+                else:
+                    resolver = self._get_resolver()
+                    meta = resolver.resolve_series(title, year=year, is_anime=is_anime)
+                    local_poster = find_local_poster(series_folder)
+                    poster_url = local_poster or meta.get("poster_url", "")
+
+                    series_id = upsert_standalone_series(
+                        title=meta.get("title", title),
+                        folder_path=series_folder,
+                        year=meta.get("year"),
+                        tmdb_id=meta.get("tmdb_id"),
+                        tvdb_id=meta.get("tvdb_id"),
+                        anilist_id=meta.get("anilist_id"),
+                        imdb_id=meta.get("imdb_id", ""),
+                        poster_url=poster_url,
+                        is_anime=meta.get("is_anime", is_anime),
+                        metadata_source=meta.get("metadata_source", "filename"),
+                    )
+                    resolved_title = meta.get("title", title)
 
                 # Check for missing subtitles
                 wanted = False
@@ -318,7 +364,7 @@ class _StandaloneProcessMixin:
                     if existing == "ass":
                         continue
 
-                    ep_title = meta.get("title", title)
+                    ep_title = resolved_title
                     if season_episode:
                         ep_title = f"{ep_title} -- {season_episode}"
 
@@ -337,7 +383,7 @@ class _StandaloneProcessMixin:
 
                 return {
                     "type": "episode",
-                    "title": meta.get("title", title),
+                    "title": resolved_title,
                     "wanted": wanted,
                 }
 

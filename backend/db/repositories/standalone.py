@@ -9,6 +9,7 @@ import logging
 from datetime import UTC, datetime, timedelta
 
 from sqlalchemy import delete, select
+from sqlalchemy.exc import IntegrityError
 
 from db.models.standalone import (
     AnidbMapping,
@@ -116,17 +117,18 @@ class StandaloneRepository(BaseRepository):
     ) -> dict:
         """Insert or update a standalone series by folder_path.
 
+        Race-safe: ``standalone_series.folder_path`` carries a UNIQUE
+        constraint, so a SELECT-then-INSERT pattern can collide when the
+        full-scan and watcher land on the same folder simultaneously. The
+        IntegrityError branch re-runs as an UPDATE.
+
         Returns:
             Dict representing the series.
         """
         now = self._now()
         is_anime_int = 1 if is_anime else 0
 
-        # Check for existing series by folder_path
-        stmt = select(StandaloneSeries).where(StandaloneSeries.folder_path == folder_path)
-        existing = self.session.execute(stmt).scalars().first()
-
-        if existing:
+        def _apply(existing: StandaloneSeries) -> None:
             existing.title = title
             existing.year = year
             existing.tmdb_id = tmdb_id
@@ -139,28 +141,47 @@ class StandaloneRepository(BaseRepository):
             existing.season_count = season_count
             existing.metadata_source = metadata_source
             existing.updated_at = now
+
+        # Check for existing series by folder_path
+        stmt = select(StandaloneSeries).where(StandaloneSeries.folder_path == folder_path)
+        existing = self.session.execute(stmt).scalars().first()
+
+        if existing:
+            _apply(existing)
             self._commit()
             return self._row_to_series(existing)
-        else:
-            series = StandaloneSeries(
-                title=title,
-                folder_path=folder_path,
-                year=year,
-                tmdb_id=tmdb_id,
-                tvdb_id=tvdb_id,
-                anilist_id=anilist_id,
-                imdb_id=imdb_id,
-                poster_url=poster_url,
-                is_anime=is_anime_int,
-                episode_count=episode_count,
-                season_count=season_count,
-                metadata_source=metadata_source,
-                created_at=now,
-                updated_at=now,
-            )
-            self.session.add(series)
+
+        series = StandaloneSeries(
+            title=title,
+            folder_path=folder_path,
+            year=year,
+            tmdb_id=tmdb_id,
+            tvdb_id=tvdb_id,
+            anilist_id=anilist_id,
+            imdb_id=imdb_id,
+            poster_url=poster_url,
+            is_anime=is_anime_int,
+            episode_count=episode_count,
+            season_count=season_count,
+            metadata_source=metadata_source,
+            created_at=now,
+            updated_at=now,
+        )
+        self.session.add(series)
+        try:
             self._commit()
             return self._row_to_series(series)
+        except IntegrityError:
+            # Concurrent writer beat us to it. Roll back, re-fetch, update.
+            self.session.rollback()
+            stmt = select(StandaloneSeries).where(StandaloneSeries.folder_path == folder_path)
+            existing = self.session.execute(stmt).scalars().first()
+            if existing is None:
+                # Should never happen — UNIQUE collision must mean a row exists.
+                raise
+            _apply(existing)
+            self._commit()
+            return self._row_to_series(existing)
 
     def get_standalone_series(self, series_id: int) -> dict | None:
         """Get a single standalone series by ID."""
@@ -206,16 +227,14 @@ class StandaloneRepository(BaseRepository):
     ) -> dict:
         """Insert or update a standalone movie by file_path.
 
+        Race-safe — see upsert_standalone_series.
+
         Returns:
             Dict representing the movie.
         """
         now = self._now()
 
-        # Check for existing movie by file_path
-        stmt = select(StandaloneMovie).where(StandaloneMovie.file_path == file_path)
-        existing = self.session.execute(stmt).scalars().first()
-
-        if existing:
+        def _apply(existing: StandaloneMovie) -> None:
             existing.title = title
             existing.year = year
             existing.tmdb_id = tmdb_id
@@ -223,23 +242,40 @@ class StandaloneRepository(BaseRepository):
             existing.poster_url = poster_url
             existing.metadata_source = metadata_source
             existing.updated_at = now
+
+        # Check for existing movie by file_path
+        stmt = select(StandaloneMovie).where(StandaloneMovie.file_path == file_path)
+        existing = self.session.execute(stmt).scalars().first()
+
+        if existing:
+            _apply(existing)
             self._commit()
             return self._row_to_movie(existing)
-        else:
-            movie = StandaloneMovie(
-                title=title,
-                file_path=file_path,
-                year=year,
-                tmdb_id=tmdb_id,
-                imdb_id=imdb_id,
-                poster_url=poster_url,
-                metadata_source=metadata_source,
-                created_at=now,
-                updated_at=now,
-            )
-            self.session.add(movie)
+
+        movie = StandaloneMovie(
+            title=title,
+            file_path=file_path,
+            year=year,
+            tmdb_id=tmdb_id,
+            imdb_id=imdb_id,
+            poster_url=poster_url,
+            metadata_source=metadata_source,
+            created_at=now,
+            updated_at=now,
+        )
+        self.session.add(movie)
+        try:
             self._commit()
             return self._row_to_movie(movie)
+        except IntegrityError:
+            self.session.rollback()
+            stmt = select(StandaloneMovie).where(StandaloneMovie.file_path == file_path)
+            existing = self.session.execute(stmt).scalars().first()
+            if existing is None:
+                raise
+            _apply(existing)
+            self._commit()
+            return self._row_to_movie(existing)
 
     def get_standalone_movie(self, movie_id: int) -> dict | None:
         """Get a single standalone movie by ID."""

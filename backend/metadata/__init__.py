@@ -5,6 +5,7 @@ caching via the metadata_cache DB table.
 """
 
 import contextlib
+import json
 import logging
 
 from metadata.anilist_client import AniListClient
@@ -14,6 +15,13 @@ from metadata.tvdb_client import TVDBClient
 logger = logging.getLogger(__name__)
 
 TMDB_POSTER_BASE = "https://image.tmdb.org/t/p/w500"
+
+# Stop a transient API outage from poisoning the cache for a full TTL.
+# Filename-stub results carry no provider IDs and arise specifically when
+# every upstream lookup failed (TMDB/TVDB/AniList all returned None or
+# raised). Caching one would force a 30-day window of stub-quality data
+# even after the upstream comes back online — instead we always re-try.
+_FILENAME_STUB_SOURCE = "filename"
 
 
 class MetadataResolver:
@@ -60,27 +68,53 @@ class MetadataResolver:
         return self._tvdb_instance
 
     def _get_cached(self, cache_key: str) -> dict | None:
-        """Try to get cached metadata from DB. Returns None if unavailable."""
-        try:
-            from db import get_db
+        """Try to get cached metadata from the ``metadata_cache`` table.
 
-            db = get_db()
-            if hasattr(db, "standalone") and hasattr(db.standalone, "get_cached_metadata"):
-                return db.standalone.get_cached_metadata(cache_key)
+        Returns the deserialised result dict, or ``None`` when the entry is
+        missing, expired, or the cache layer is unavailable. Silent on every
+        failure so a broken cache never blocks a lookup.
+        """
+        try:
+            from db.standalone import get_cached_metadata
+
+            entry = get_cached_metadata(cache_key)
         except Exception:
-            pass
-        return None
+            return None
+
+        if not entry:
+            return None
+        raw = entry.get("response_json")
+        if not raw:
+            return None
+        try:
+            return json.loads(raw)
+        except (TypeError, ValueError):
+            logger.debug("Cache entry for %s is not valid JSON; ignoring", cache_key)
+            return None
 
     def _set_cached(self, cache_key: str, data: dict) -> None:
-        """Try to cache metadata to DB. Silently ignores failures."""
-        try:
-            from db import get_db
+        """Persist a resolver result to ``metadata_cache``.
 
-            db = get_db()
-            if hasattr(db, "standalone") and hasattr(db.standalone, "cache_metadata"):
-                db.standalone.cache_metadata(cache_key, data)
+        Skips filename-stub results (see ``_FILENAME_STUB_SOURCE`` comment) so
+        a transient API outage cannot poison the cache for the full TTL. All
+        other failures (DB unreachable, JSON serialisation, etc.) are
+        swallowed — caching is best-effort, not load-bearing.
+        """
+        if not isinstance(data, dict):
+            return
+        if data.get("metadata_source") == _FILENAME_STUB_SOURCE:
+            return
+        try:
+            from db.standalone import cache_metadata
+
+            cache_metadata(
+                cache_key,
+                provider=data.get("metadata_source", "resolver"),
+                response_json=json.dumps(data, default=str),
+                ttl_days=30,
+            )
         except Exception:
-            pass
+            logger.debug("Cache write for %s failed; continuing without cache", cache_key)
 
     def resolve_series(self, title: str, year: int = None, is_anime: bool = False) -> dict:
         """Resolve metadata for a TV series using the lookup chain.

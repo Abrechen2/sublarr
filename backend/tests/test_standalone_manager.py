@@ -81,13 +81,16 @@ def test_standalone_scan_tick_skips_when_mode_inactive(monkeypatch):
             called["scan"] = True
             return {}
 
-    monkeypatch.setattr("standalone.scanner.StandaloneScanner", _FakeScanner)
+    # Patch the singleton-getter so the tick picks up our fake. Patching the
+    # class directly no longer works because every entry point now calls
+    # ``get_scanner()`` (audit S1-3).
+    monkeypatch.setattr("standalone.scanner.get_scanner", lambda: _FakeScanner())
     standalone.standalone_scan_tick()
     assert called["scan"] is False
 
 
 def test_standalone_scan_tick_runs_full_scan_when_active(monkeypatch):
-    """Tick delegates to StandaloneScanner.scan_all_folders when mode is active."""
+    """Tick delegates to scan_all_folders via the scanner singleton when mode is active."""
     import standalone
 
     monkeypatch.setattr("config.is_standalone_mode", lambda: True)
@@ -99,7 +102,7 @@ def test_standalone_scan_tick_runs_full_scan_when_active(monkeypatch):
             called["scan"] = True
             return {"folders_scanned": 1, "wanted_added": 2}
 
-    monkeypatch.setattr("standalone.scanner.StandaloneScanner", _FakeScanner)
+    monkeypatch.setattr("standalone.scanner.get_scanner", lambda: _FakeScanner())
     standalone.standalone_scan_tick()
     assert called["scan"] is True
 
@@ -114,7 +117,7 @@ def test_standalone_scan_tick_swallows_scanner_exceptions(monkeypatch):
         def scan_all_folders(self):
             raise RuntimeError("boom")
 
-    monkeypatch.setattr("standalone.scanner.StandaloneScanner", _FailingScanner)
+    monkeypatch.setattr("standalone.scanner.get_scanner", lambda: _FailingScanner())
     standalone.standalone_scan_tick()  # must not raise
 
 

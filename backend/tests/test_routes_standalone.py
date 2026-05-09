@@ -511,44 +511,42 @@ class TestScanSeries:
 
 
 class TestRefreshMetadata:
+    """``/refresh-metadata`` is async since 2026-05-09 (audit G4).
+
+    The route schedules a background refresh and returns 202 immediately.
+    Old tests that asserted 200/404/500 on the sync return value were
+    rewritten to verify the schedule-and-return-202 contract.
+    """
+
     def test_404_when_series_not_found(self, client):
         with patch(f"{DB_STANDALONE}.get_standalone_series", return_value=None):
             resp = client.post("/api/v1/standalone/series/999/refresh-metadata")
         assert resp.status_code == 404
 
-    def test_200_on_success(self, client):
-        series = {"id": 1, "title": "Naruto"}
-        updated = {**series, "tmdb_id": 12345}
-        with (
-            patch(f"{DB_STANDALONE}.get_standalone_series", return_value=series),
-            patch(f"{SVC_STANDALONE}.refresh_series_metadata_sync", return_value=updated),
-        ):
-            resp = client.post("/api/v1/standalone/series/1/refresh-metadata")
-        assert resp.status_code == 200
-        assert resp.get_json()["success"] is True
-
-    def test_404_when_no_metadata_found(self, client):
+    def test_202_when_series_exists(self, client):
         series = {"id": 1, "title": "Naruto"}
         with (
             patch(f"{DB_STANDALONE}.get_standalone_series", return_value=series),
-            patch(f"{SVC_STANDALONE}.refresh_series_metadata_sync", return_value=None),
+            patch(f"{SVC_STANDALONE}.refresh_series_metadata_async") as mock_async,
         ):
             resp = client.post("/api/v1/standalone/series/1/refresh-metadata")
-        assert resp.status_code == 404
-        assert resp.get_json()["success"] is False
+        assert resp.status_code == 202
+        body = resp.get_json()
+        assert body["success"] is True
+        assert body["series_id"] == 1
+        mock_async.assert_called_once()
 
-    def test_500_on_import_error(self, client):
+    def test_500_when_async_dispatch_raises(self, client):
         series = {"id": 1, "title": "Naruto"}
         with (
             patch(f"{DB_STANDALONE}.get_standalone_series", return_value=series),
             patch(
-                f"{SVC_STANDALONE}.refresh_series_metadata_sync",
-                side_effect=ImportError("no resolver"),
+                f"{SVC_STANDALONE}.refresh_series_metadata_async",
+                side_effect=RuntimeError("dispatch broken"),
             ),
         ):
             resp = client.post("/api/v1/standalone/series/1/refresh-metadata")
         assert resp.status_code == 500
-        assert "not available" in resp.get_json()["error"].lower()
 
 
 # ---------------------------------------------------------------------------

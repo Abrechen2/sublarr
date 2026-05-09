@@ -80,9 +80,9 @@ def standalone_scan_tick() -> None:
         return
 
     try:
-        from standalone.scanner import StandaloneScanner
+        from standalone.scanner import get_scanner
 
-        scanner = StandaloneScanner()
+        scanner = get_scanner()
         summary = scanner.scan_all_folders()
         logger.info("standalone_scan_tick: %s", summary)
     except Exception as e:
@@ -97,9 +97,12 @@ class StandaloneManager:
     """
 
     def __init__(self):
-        from standalone.scanner import StandaloneScanner
+        from standalone.scanner import get_scanner
 
-        self._scanner = StandaloneScanner()
+        # Use the module-level singleton so external entry points
+        # (POST /scan, /scan/<id>, /series/<id>/scan, scheduled tick) all
+        # share the same scanner — and therefore the same _scan_lock.
+        self._scanner = get_scanner()
         self._watcher_running = False
         self._socketio = None
         self._app = None

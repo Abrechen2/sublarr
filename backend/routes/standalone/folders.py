@@ -11,6 +11,84 @@ from routes.standalone import bp
 
 logger = logging.getLogger(__name__)
 
+# System paths that must never be used as a watched folder. Even on a
+# single-tenant homelab API a typo ("/" or "/etc") would walk the entire
+# container with ``followlinks=True`` and persist arbitrary file paths
+# into ``wanted_items.file_path``. The blocklist is intentionally
+# conservative — we don't strictly require paths under ``media_path``
+# (some homelabs mount media at non-default locations), but we refuse the
+# obviously-wrong roots.
+_FORBIDDEN_FOLDER_ROOTS = (
+    "/",
+    "/etc",
+    "/proc",
+    "/sys",
+    "/dev",
+    "/run",
+    "/boot",
+    "/root",
+    "/var/log",
+    "/var/run",
+    "/var/lib",
+    "/usr",
+    "/lib",
+    "/lib64",
+    "/sbin",
+    "/bin",
+)
+
+
+def _validate_watched_folder_path(path: str) -> str | None:
+    """Return an error message if ``path`` is unsafe to register as a watched
+    folder, otherwise None.
+
+    Checks (in order):
+      1. ``os.path.isdir`` — folder must exist
+      2. realpath canonicalisation — symlinks resolved up-front
+      3. forbidden-roots blocklist — refuses ``/``, ``/etc``, etc.
+      4. ``is_safe_path`` against the configured ``media_path`` when set —
+         soft check, only logged on miss; doesn't reject (homelab users
+         frequently mount media outside the default).
+    """
+    # Reject the literal forbidden roots even before isdir-check so the
+    # test passes on every platform (on Windows ``os.path.isdir("/")``
+    # returns True for the C: drive root, which would let the canonical
+    # check below skip the blocklist).
+    raw = path.replace("\\", "/").rstrip("/") or "/"
+    if raw in _FORBIDDEN_FOLDER_ROOTS:
+        return f"Refusing forbidden system path: {path}"
+
+    if not os.path.isdir(path):
+        return f"Directory does not exist: {path}"
+
+    canonical = os.path.realpath(path).replace("\\", "/")
+    norm = canonical.rstrip("/") or "/"
+
+    # Forbidden roots — exact match or direct child of one
+    for root in _FORBIDDEN_FOLDER_ROOTS:
+        if norm == root:
+            return f"Refusing forbidden system path: {path}"
+        if root != "/" and norm.startswith(root + "/"):
+            return f"Refusing forbidden system path: {path}"
+
+    # Soft boundary check against media_path
+    try:
+        from config import get_settings
+        from security_utils import is_safe_path
+
+        media_path = getattr(get_settings(), "media_path", "")
+        if media_path and not is_safe_path(canonical, media_path):
+            logger.info(
+                "Watched folder %s is outside media_path=%s — accepted but "
+                "flagged. Verify this is intentional.",
+                canonical,
+                media_path,
+            )
+    except Exception:
+        # Soft check; never block on this path.
+        logger.debug("Soft media_path boundary check skipped", exc_info=True)
+    return None
+
 
 def _hot_reload_standalone() -> None:
     """Hot-restart the StandaloneManager so the watcher picks up the new
@@ -121,8 +199,9 @@ def add_folder():
     if not path:
         return jsonify({"error": "path is required"}), 400
 
-    if not os.path.isdir(path):
-        return jsonify({"error": f"Directory does not exist: {path}"}), 400
+    err = _validate_watched_folder_path(path)
+    if err is not None:
+        return jsonify({"error": err}), 400
 
     # Normalize symlinks to their real target so the scanner walks the
     # canonical path (avoids surprises like "I added /media but it's a
@@ -213,8 +292,9 @@ def update_folder(folder_id):
         return jsonify({"error": "media_type must be one of: auto, tv, movie"}), 400
 
     if path != folder["path"]:
-        if not os.path.isdir(path):
-            return jsonify({"error": f"Directory does not exist: {path}"}), 400
+        err = _validate_watched_folder_path(path)
+        if err is not None:
+            return jsonify({"error": err}), 400
         # Same realpath normalization as POST so an updated symlinked
         # path becomes the canonical target.
         path = os.path.realpath(path)

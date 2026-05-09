@@ -870,6 +870,11 @@ class TestProcessSingleFile:
 
 
 class TestCleanupStaleSeries:
+    """Cleanup paths must (a) be guarded by _watched_roots_reachable so a
+    transient mount blip can't wipe the DB (audit S0-1) and (b) cascade
+    via services.standalone_manager.delete_series_cascade so wanted_items
+    pointing to the deleted series come along (audit S1-5)."""
+
     def test_removes_nonexistent_folders(self):
         scanner = StandaloneScanner()
         series_list = [
@@ -878,12 +883,13 @@ class TestCleanupStaleSeries:
         ]
 
         with (
+            patch.object(StandaloneScanner, "_watched_roots_reachable", return_value=True),
             patch("db.standalone.get_standalone_series", return_value=series_list),
-            patch("db.standalone.delete_standalone_series") as mock_delete,
+            patch("services.standalone_manager.delete_series_cascade") as mock_cascade,
         ):
             removed = scanner._cleanup_stale_series()
             assert removed == 2
-            assert mock_delete.call_count == 2
+            assert mock_cascade.call_count == 2
 
     def test_removes_season_subfolder_entries(self, tmp_path):
         """Series entries pointing to season subfolders should be cleaned up."""
@@ -896,12 +902,13 @@ class TestCleanupStaleSeries:
         ]
 
         with (
+            patch.object(StandaloneScanner, "_watched_roots_reachable", return_value=True),
             patch("db.standalone.get_standalone_series", return_value=series_list),
-            patch("db.standalone.delete_standalone_series") as mock_delete,
+            patch("services.standalone_manager.delete_series_cascade") as mock_cascade,
         ):
             removed = scanner._cleanup_stale_series()
             assert removed == 1
-            mock_delete.assert_called_once_with(1)
+            mock_cascade.assert_called_once_with(1)
 
     def test_keeps_valid_series(self, tmp_path):
         scanner = StandaloneScanner()
@@ -913,21 +920,28 @@ class TestCleanupStaleSeries:
         ]
 
         with (
+            patch.object(StandaloneScanner, "_watched_roots_reachable", return_value=True),
             patch("db.standalone.get_standalone_series", return_value=series_list),
-            patch("db.standalone.delete_standalone_series") as mock_delete,
+            patch("services.standalone_manager.delete_series_cascade") as mock_cascade,
         ):
             removed = scanner._cleanup_stale_series()
             assert removed == 0
-            mock_delete.assert_not_called()
+            mock_cascade.assert_not_called()
 
     def test_no_series_returns_zero(self):
         scanner = StandaloneScanner()
-        with patch("db.standalone.get_standalone_series", return_value=[]):
+        with (
+            patch.object(StandaloneScanner, "_watched_roots_reachable", return_value=True),
+            patch("db.standalone.get_standalone_series", return_value=[]),
+        ):
             assert scanner._cleanup_stale_series() == 0
 
     def test_exception_returns_zero(self):
         scanner = StandaloneScanner()
-        with patch("db.standalone.get_standalone_series", side_effect=RuntimeError("db")):
+        with (
+            patch.object(StandaloneScanner, "_watched_roots_reachable", return_value=True),
+            patch("db.standalone.get_standalone_series", side_effect=RuntimeError("db")),
+        ):
             assert scanner._cleanup_stale_series() == 0
 
 
@@ -937,6 +951,9 @@ class TestCleanupStaleSeries:
 
 
 class TestCleanupStaleWanted:
+    """Same guard as TestCleanupStaleSeries — abort when watched roots are
+    unreachable to prevent NFS-blip mass-delete (audit S0-1)."""
+
     def test_removes_missing_files(self, tmp_path):
         scanner = StandaloneScanner()
         mock_settings = MagicMock()
@@ -951,6 +968,7 @@ class TestCleanupStaleWanted:
         (tmp_path / "exists.mkv").write_bytes(b"\x00")
 
         with (
+            patch.object(StandaloneScanner, "_watched_roots_reachable", return_value=True),
             patch("config.get_settings", return_value=mock_settings),
             patch("db.get_db", return_value=mock_db),
             patch("db.wanted.delete_wanted_items_by_ids") as mock_delete,
@@ -973,6 +991,7 @@ class TestCleanupStaleWanted:
         ]
 
         with (
+            patch.object(StandaloneScanner, "_watched_roots_reachable", return_value=True),
             patch("config.get_settings", return_value=mock_settings),
             patch("db.get_db", return_value=mock_db),
             patch("db.wanted.delete_wanted_items_by_ids") as mock_delete,
@@ -995,6 +1014,7 @@ class TestCleanupStaleWanted:
         ]
 
         with (
+            patch.object(StandaloneScanner, "_watched_roots_reachable", return_value=True),
             patch("config.get_settings", return_value=mock_settings),
             patch("db.get_db", return_value=mock_db),
         ):
@@ -1003,7 +1023,10 @@ class TestCleanupStaleWanted:
 
     def test_exception_returns_zero(self):
         scanner = StandaloneScanner()
-        with patch("config.get_settings", side_effect=RuntimeError("fail")):
+        with (
+            patch.object(StandaloneScanner, "_watched_roots_reachable", return_value=True),
+            patch("config.get_settings", side_effect=RuntimeError("fail")),
+        ):
             assert scanner._cleanup_stale_wanted() == 0
 
 
