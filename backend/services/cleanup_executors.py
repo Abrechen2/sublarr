@@ -138,7 +138,7 @@ def _detect_sidecar_language(path: str) -> str | None:
     ``remux._parse_sidecar_language`` (modifier-aware, base-anchored)
     AND (b) validates the result against ``config_language_data``'s
     recognised tag set. Anything that doesn't resolve to a real
-    language code returns None and is treated as "do not delete".
+    language code returns None and is treated as "do not classify".
     """
     from config_language_data import _REVERSE_LANGUAGE_TAGS
     from remux import _parse_sidecar_language
@@ -158,6 +158,69 @@ def _detect_sidecar_language(path: str) -> str | None:
     if raw.lower() not in _REVERSE_LANGUAGE_TAGS:
         return None
     return raw.lower()
+
+
+def _classify_sidecar(path: str) -> tuple[str, str, str] | None:
+    """Decompose a sidecar path into (video_base, canonical_lang, modifier).
+
+    Used by ``execute_format_upgrade`` to pair sidecars across format
+    boundaries. Two files belong to the same logical track only if all
+    three components match.
+
+    Returns:
+      ``(video_base, canonical_lang, modifier)`` where:
+        * ``video_base`` is the absolute path stem without the lang /
+          modifier / format suffix (e.g. ``/dir/Show.S01E06``).
+        * ``canonical_lang`` is the ISO-639-1 code from
+          :func:`config_language_data.normalize_language_code`, so
+          ``de`` / ``ger`` / ``deu`` / ``german`` all collapse to ``de``.
+        * ``modifier`` is one of :data:`remux._SIDECAR_MODIFIERS`
+          (``forced``, ``sdh``, ``hi``, ``cc``, ``sign``, ``signs``)
+          or ``""`` for the unmodified main track.
+
+    Returns ``None`` for paths that aren't classifiable as a structured
+    ``<video_base>.<lang>[.<modifier>].<ext>`` sidecar (untagged files,
+    extensions outside :data:`remux._SIDECAR_EXTS`, lang tokens not in
+    :data:`_REVERSE_LANGUAGE_TAGS`). Unclassifiable files are never
+    paired by the format-upgrade rule.
+
+    Modifier-awareness (Gemini-2026-05-09 review): grouping ONLY by
+    ``(video_base, canonical_lang)`` would let ``de.forced.srt`` land
+    in the same bucket as ``de.ass`` and get trashed as inferior — but
+    a ``forced`` sub is a separate track from the main, not a
+    lower-quality version of it.
+    """
+    from config_language_data import _REVERSE_LANGUAGE_TAGS, normalize_language_code
+    from remux import _SIDECAR_EXTS, _SIDECAR_MODIFIERS
+
+    base_no_ext, ext = os.path.splitext(path)
+    if ext.lower() not in _SIDECAR_EXTS:
+        return None
+
+    parts = os.path.basename(base_no_ext).split(".")
+    if len(parts) < 2:
+        return None  # untagged sidecar — leave alone
+
+    # Reverse-walk: tail token may be a modifier or a lang.
+    tail = parts[-1].lower()
+    if tail in _SIDECAR_MODIFIERS:
+        if len(parts) < 3:
+            return None  # ``show.forced.srt`` — modifier without lang
+        modifier = tail
+        lang_token = parts[-2].lower()
+        video_base_parts = parts[:-2]
+    else:
+        modifier = ""
+        lang_token = tail
+        video_base_parts = parts[:-1]
+
+    if lang_token not in _REVERSE_LANGUAGE_TAGS:
+        return None  # last token isn't a recognised language
+
+    canonical_lang = normalize_language_code(lang_token)
+    dirpath = os.path.dirname(path)
+    video_base = os.path.join(dirpath, ".".join(video_base_parts))
+    return (video_base, canonical_lang, modifier)
 
 
 # ---------------------------------------------------------------------------
@@ -302,7 +365,20 @@ def execute_language_filter(media_path: str, config: dict, dry_run: bool = False
 
 
 def execute_format_upgrade(media_path: str, config: dict, dry_run: bool = False) -> dict:
-    """Trash lower-quality format when higher-quality exists for same base+language.
+    """Trash lower-quality format when higher-quality exists for same logical track.
+
+    A "logical track" is keyed by ``(video_base, canonical_lang, modifier)``.
+    Sidecars in the same dir for the same media file with the same
+    canonical language (``de`` collapses ``de`` / ``ger`` / ``deu`` /
+    ``german``) and the same modifier (``forced`` / ``sdh`` / ``hi`` /
+    ``cc`` / ``sign``/``signs`` or no modifier) are considered the
+    same track in different formats. Modifier-awareness prevents
+    ``Show.de.forced.srt`` from being trashed when ``Show.de.ass``
+    exists — they're different tracks, not different qualities.
+
+    Multiple inferior files for the same logical track are ALL trashed
+    when at least one preferred-format peer exists. Single sidecars
+    (no peer in the preferred format) are kept regardless of format.
 
     Args:
         media_path: Root directory to scan recursively.
@@ -330,28 +406,35 @@ def execute_format_upgrade(media_path: str, config: dict, dry_run: bool = False)
 
     from collections import defaultdict
 
-    # index: (dirpath, base_without_ext) -> set of extensions present
-    index: dict[tuple[str, str], set[str]] = defaultdict(set)
-    path_map: dict[tuple[str, str, str], str] = {}
+    # index: (video_base, canonical_lang, modifier) -> {ext: [paths]}
+    # Multiple files with the same key + same ext are stored together
+    # so we don't lose any candidate for the trash sweep.
+    index: dict[tuple[str, str, str], dict[str, list[str]]] = defaultdict(
+        lambda: defaultdict(list)
+    )
 
     for path in _subtitle_files(media_path):
-        dirpath = os.path.dirname(path)
-        fname = os.path.basename(path)
-        base, ext = os.path.splitext(fname)
-        key = (dirpath, base)
-        index[key].add(ext.lower())
-        path_map[(dirpath, base, ext.lower())] = path
+        classification = _classify_sidecar(path)
+        if classification is None:
+            # Untagged or unrecognised — never paired (audit C1-1 policy).
+            continue
+        ext = os.path.splitext(path)[1].lower()
+        index[classification][ext].append(path)
 
     deleted = 0
     bytes_freed = 0
     would_delete = 0
     examples: list[dict] = []
 
-    for (dirpath, base), exts in index.items():
-        if preferred_ext in exts and inferior_ext in exts:
-            inferior_path = path_map.get((dirpath, base, inferior_ext))
-            if not inferior_path:
-                continue
+    for key, ext_map in index.items():
+        preferred_paths = ext_map.get(preferred_ext) or []
+        inferior_paths = ext_map.get(inferior_ext) or []
+        if not preferred_paths or not inferior_paths:
+            continue
+        # Trash every inferior peer of this logical track. ``preferred_paths[0]``
+        # is the witness we surface in the dry-run example for context.
+        kept_witness = preferred_paths[0]
+        for inferior_path in inferior_paths:
             try:
                 file_size = os.path.getsize(inferior_path)
             except OSError:
@@ -359,12 +442,11 @@ def execute_format_upgrade(media_path: str, config: dict, dry_run: bool = False)
             if dry_run:
                 would_delete += 1
                 if len(examples) < 20:
-                    kept_path = path_map.get((dirpath, base, preferred_ext), "")
                     examples.append(
                         {
                             "path": inferior_path,
                             "size_bytes": file_size,
-                            "reason": f"replaced by {os.path.basename(kept_path)}",
+                            "reason": f"replaced by {os.path.basename(kept_witness)}",
                         }
                     )
                 logger.debug("Would delete (format_upgrade): %s", inferior_path)
