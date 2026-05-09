@@ -336,6 +336,16 @@ from apscheduler.schedulers.background import BackgroundScheduler  # noqa: E402
 class SublarrScheduler:
     """Facade wrapping a BackgroundScheduler bound to a SQLAlchemyJobStore."""
 
+    # WeakSet of all live instances. Used by the pytest sessionfinish
+    # hook to force-stop any APScheduler daemon threads that survived a
+    # test fixture's bounded shutdown — without this, leaked threads
+    # query a SQLite DB whose tmp_path was already cleaned up by pytest
+    # and hammer stderr with "no such table: apscheduler_jobs", which
+    # in CI stretched a 2-minute pytest run to 48 minutes.
+    import weakref as _weakref
+
+    _LIVE_INSTANCES: _weakref.WeakSet = _weakref.WeakSet()
+
     def __init__(self, db_url: str, autostart: bool = True) -> None:
         self._db_url = db_url
         self._autostart = autostart
@@ -344,6 +354,27 @@ class SublarrScheduler:
         self._shutting_down = False
         self._registered_ids: set[str] = set()
         self._specs: dict[str, JobSpec] = {}
+        SublarrScheduler._LIVE_INSTANCES.add(self)
+
+    @classmethod
+    def _force_stop_all_for_test_cleanup(cls) -> int:
+        """Best-effort hard-stop of every live SublarrScheduler.
+
+        Bypasses the ``_shutting_down`` guard so a previously
+        timed-out shutdown attempt doesn't lock further cleanup.
+        Returns the number of underlying APScheduler threads that
+        were stopped.
+        """
+        stopped = 0
+        for s in list(cls._LIVE_INSTANCES):
+            try:
+                scheduler = s._scheduler
+                if scheduler is not None and scheduler.running:
+                    scheduler.shutdown(wait=False)
+                    stopped += 1
+            except Exception:  # noqa: BLE001 — best-effort cleanup
+                pass
+        return stopped
 
     @property
     def running(self) -> bool:

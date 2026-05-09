@@ -15,6 +15,28 @@ from config import reload_settings
 from db import close_db, get_db, init_db
 
 
+def pytest_sessionfinish(session, exitstatus):
+    """Force-stop every leaked APScheduler daemon thread before pytest exits.
+
+    Some scheduler-fixture teardowns use an aggressive 2-second
+    ``shutdown(timeout_s=2)`` which can time out under CI load. APScheduler's
+    ``BackgroundScheduler`` then keeps polling the SQLAlchemyJobStore even
+    after pytest's ``tmp_path`` cleanup deletes the SQLite file — the daemon
+    thread retries forever, hammering stderr with
+    ``no such table: apscheduler_jobs`` and stretching a 2-minute pytest
+    process to 48+ minutes (the actual GitHub Actions failure on PR #135 /
+    Backend job 75162360308). This hook bypasses the per-instance
+    ``_shutting_down`` guard and force-shuts every live SublarrScheduler so
+    pytest exits cleanly.
+    """
+    try:
+        from services.scheduler import SublarrScheduler
+
+        SublarrScheduler._force_stop_all_for_test_cleanup()
+    except Exception:  # noqa: BLE001 — best-effort cleanup, never block exit
+        pass
+
+
 @pytest.fixture
 def temp_db():
     """Create a temporary database for testing."""
