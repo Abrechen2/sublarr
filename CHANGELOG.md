@@ -5,6 +5,14 @@ All notable changes to Sublarr are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.92.6-beta] - 2026-05-09
+
+### Fixed
+- **`format_upgrade` cleanup rule now resolves ISO language aliases (`ger` ↔ `de`, `deu` ↔ `de`, `german` ↔ `de`, etc.)** — Previously the rule indexed sidecars by `(dirpath, base_without_extension)`, so `Show.de.ass` and `Show.ger.srt` were treated as unrelated tracks even though both are German. The redundant `.ger.srt` stayed on disk forever. The rule now keys by `(video_base, canonical_lang, modifier)` and collapses every recognised tag-variant to its ISO-639-1 canonical via `normalize_language_code`. Modifier-aware: `forced`, `sdh`, `hi`, `cc`, `sign`/`signs` are part of the key so a `de.forced.srt` is never trashed in favour of a `de.ass` (different logical track, not a lower-quality version of the same one). Multiple inferior peers in the same logical-track bucket are all trashed at once. Same-format dedup within one canonical lang (e.g. two `.ass` files for `de` and `ger`) is intentionally out of scope — that's a future dedicated dedup rule. Cross-checked with Gemini cold-review.
+
+### Tests
+- 19 new regression cases in `test_format_upgrade_alias_2026_05_09.py` covering ISO alias resolution (`ger`/`deu`/`german`), modifier protection (`forced`/`sdh`/`hi`/`signs`), multi-peer trash, lone-inferior keep, untagged sidecar preservation, cross-language independence, `keep_format=srt` inverse pairing, dry-run safety, and the Akame ga Kill! S01E06 real-case (`de.ass` + `ger.srt` + `en.srt` → `ger.srt` trashed, others kept).
+
 ## [0.92.5-beta] - 2026-05-09
 
 ### Changed
