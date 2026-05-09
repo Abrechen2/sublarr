@@ -1152,7 +1152,61 @@
       "timeout": "Timeout",
       "missed": "Missed",
       "skipped_overlap": "Skipped"
-    }
+    },
+    "category": {
+      "scanning": {
+        "title": "Scanning",
+        "desc": "Library scans, wanted searches, and quality upgrades."
+      },
+      "metadata": {
+        "title": "Metadata sync",
+        "desc": "External catalogue refreshes (AniDB and friends)."
+      },
+      "maintenance": {
+        "title": "Maintenance",
+        "desc": "Cleanup rules and history pruning."
+      }
+    },
+    "jobs": {
+      "wanted_scanner": {
+        "name": "Library scanner",
+        "desc": "Walks the media library to find episodes missing subtitles."
+      },
+      "wanted_search": {
+        "name": "Wanted search",
+        "desc": "Searches subtitle providers for items in the wanted list."
+      },
+      "upgrade_scan": {
+        "name": "Upgrade scan",
+        "desc": "Re-scores existing subtitles and queues higher-quality replacements."
+      },
+      "standalone_scan": {
+        "name": "Standalone scan",
+        "desc": "Scans the standalone-mode watched folders."
+      },
+      "subtitle_automation": {
+        "name": "Subtitle automation",
+        "desc": "Drains the auto-process queue (extract, repair, sync, translate)."
+      },
+      "anidb_sync": {
+        "name": "AniDB sync",
+        "desc": "Refreshes anime metadata from the AniDB title dump."
+      },
+      "cleanup": {
+        "name": "Cleanup rules",
+        "desc": "Runs scheduled cleanup rules (orphans, deduplication, retention)."
+      },
+      "scheduler_history_cleanup": {
+        "name": "Scheduler log cleanup",
+        "desc": "Prunes scheduler_job_runs rows older than the retention window."
+      },
+      "translation_events_cleanup": {
+        "name": "Translation log cleanup",
+        "desc": "Prunes translation_events rows older than the retention window."
+      }
+    },
+    "actions_menu": "More actions",
+    "health_summary": "{{ok}} ok · {{err}} err (7d)"
   },
   "subtitles": {
     "primary_language": "Primary Language",

@@ -1141,7 +1141,61 @@
       "timeout": "Timeout",
       "missed": "Verpasst",
       "skipped_overlap": "Übersprungen"
-    }
+    },
+    "category": {
+      "scanning": {
+        "title": "Scannen",
+        "desc": "Bibliotheks-Scans, Wanted-Suchen und Quality-Upgrades."
+      },
+      "metadata": {
+        "title": "Metadaten-Sync",
+        "desc": "Externe Katalog-Updates (AniDB & Co.)."
+      },
+      "maintenance": {
+        "title": "Wartung",
+        "desc": "Aufräum-Regeln und Verlaufs-Bereinigung."
+      }
+    },
+    "jobs": {
+      "wanted_scanner": {
+        "name": "Bibliotheks-Scanner",
+        "desc": "Durchsucht die Bibliothek nach Folgen ohne Untertitel."
+      },
+      "wanted_search": {
+        "name": "Wanted-Suche",
+        "desc": "Sucht bei den Anbietern nach Untertiteln aus der Wanted-Liste."
+      },
+      "upgrade_scan": {
+        "name": "Upgrade-Scan",
+        "desc": "Bewertet bestehende Untertitel neu und stellt bessere Versionen in die Queue."
+      },
+      "standalone_scan": {
+        "name": "Standalone-Scan",
+        "desc": "Scannt die im Standalone-Modus überwachten Ordner."
+      },
+      "subtitle_automation": {
+        "name": "Untertitel-Automatik",
+        "desc": "Arbeitet die Auto-Process-Queue ab (Extract, Repair, Sync, Translate)."
+      },
+      "anidb_sync": {
+        "name": "AniDB-Sync",
+        "desc": "Aktualisiert die Anime-Metadaten aus dem AniDB-Title-Dump."
+      },
+      "cleanup": {
+        "name": "Aufräum-Regeln",
+        "desc": "Führt geplante Aufräum-Regeln aus (Verwaiste, Duplikate, Retention)."
+      },
+      "scheduler_history_cleanup": {
+        "name": "Scheduler-Verlauf bereinigen",
+        "desc": "Löscht scheduler_job_runs-Einträge außerhalb des Retention-Fensters."
+      },
+      "translation_events_cleanup": {
+        "name": "Übersetzungs-Verlauf bereinigen",
+        "desc": "Löscht translation_events-Einträge außerhalb des Retention-Fensters."
+      }
+    },
+    "actions_menu": "Weitere Aktionen",
+    "health_summary": "{{ok}} ok · {{err}} err (7T)"
   },
   "post_processing": {
     "enabled_hint": "Post-Processing-Pipeline aktivieren. Wenn deaktiviert, werden nach dem Download keine automatischen Korrekturen angewendet.",

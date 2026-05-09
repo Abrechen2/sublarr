@@ -1,4 +1,5 @@
 import { render, screen, waitFor } from '@testing-library/react'
+import userEvent from '@testing-library/user-event'
 import { describe, expect, it, vi } from 'vitest'
 import { MemoryRouter } from 'react-router-dom'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
@@ -58,31 +59,51 @@ function renderPage() {
   )
 }
 
-describe('SchedulerPage', () => {
-  it('renders job cards', async () => {
+describe('SchedulerPage (grouped redesign)', () => {
+  it('renders the job inside its category section', async () => {
     renderPage()
     await waitFor(() =>
-      expect(screen.getByText('scheduler_history_cleanup')).toBeInTheDocument(),
+      expect(
+        screen.getByTestId('scheduler-job-row-scheduler_history_cleanup'),
+      ).toBeInTheDocument(),
     )
+    // Maintenance group must exist (cleanup-class job).
+    expect(
+      screen.getByTestId('scheduler-group-maintenance'),
+    ).toBeInTheDocument()
   })
 
-  it('write actions are enabled; reset is disabled when trigger is default', async () => {
+  it('shows Run Now as a primary visible button', async () => {
     renderPage()
-    await waitFor(() => screen.getByText('scheduler_history_cleanup'))
-
-    // Phase 3 mutations are wired up — Run/Pause/Edit/History are interactive.
+    await waitFor(() =>
+      screen.getByTestId('scheduler-job-row-scheduler_history_cleanup'),
+    )
     const runBtn = screen.getByRole('button', { name: /scheduler\.run_now/i })
-    const pauseBtn = screen.getByRole('button', { name: /scheduler\.pause/i })
-    const editBtn = screen.getByRole('button', { name: /scheduler\.edit_trigger/i })
-    const historyBtn = screen.getByRole('button', { name: /scheduler\.history/i })
     expect(runBtn).not.toBeDisabled()
-    expect(pauseBtn).not.toBeDisabled()
-    expect(editBtn).not.toBeDisabled()
-    expect(historyBtn).not.toBeDisabled()
+  })
 
-    // Reset-default is disabled while the job still uses its default trigger
+  it('exposes Pause / Edit / History / Reset via the kebab menu', async () => {
+    const user = userEvent.setup()
+    renderPage()
+    await waitFor(() =>
+      screen.getByTestId('scheduler-job-row-scheduler_history_cleanup'),
+    )
+
+    // KebabMenu button uses defaultValue 'Actions' / 'More actions' for
+    // its aria-label, so the i18n mock returns that string directly.
+    const kebab = screen.getByRole('button', { name: /actions/i })
+    await user.click(kebab)
+
+    const pauseItem = screen.getByRole('menuitem', { name: /scheduler\.pause/i })
+    const editItem = screen.getByRole('menuitem', { name: /scheduler\.edit_trigger/i })
+    const historyItem = screen.getByRole('menuitem', { name: /scheduler\.history/i })
+    const resetItem = screen.getByRole('menuitem', { name: /scheduler\.reset_default/i })
+
+    expect(pauseItem).not.toBeDisabled()
+    expect(editItem).not.toBeDisabled()
+    expect(historyItem).not.toBeDisabled()
+    // Reset is disabled while the job still uses its default trigger
     // (mockJob.trigger_is_default === true).
-    const resetBtn = screen.getByRole('button', { name: /scheduler\.reset_default/i })
-    expect(resetBtn).toBeDisabled()
+    expect(resetItem).toBeDisabled()
   })
 })
