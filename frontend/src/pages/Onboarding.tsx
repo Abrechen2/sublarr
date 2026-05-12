@@ -1,9 +1,10 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { updateConfig, completeOnboarding, getHealth, getMediaServerTypes, saveMediaServerInstances, testMediaServer, saveWatchedFolder, triggerStandaloneScan } from '@/api/client'
+import { testSonarrInstance, testRadarrInstance, testApiKey } from '@/api/settings'
 import { toast } from '@/components/shared/Toast'
-import { Loader2, CheckCircle, ArrowRight, ArrowLeft, Server, Globe, Cpu, Search, Play, Monitor, Plus, TestTube, Trash2, Eye, EyeOff, FolderOpen, Languages, Zap } from 'lucide-react'
+import { Loader2, CheckCircle, ArrowRight, ArrowLeft, Server, Globe, Cpu, Search, Play, Monitor, Plus, TestTube, Trash2, Eye, EyeOff, FolderOpen, Languages, Zap, AlertCircle } from 'lucide-react'
 import type { MediaServerType, MediaServerInstance, MediaServerTestResult } from '@/lib/types'
 
 export const ALL_STEPS = [
@@ -40,13 +41,56 @@ const inputStyle = {
   fontSize: '13px',
 }
 
+// Single source of truth for the onboarding language dropdowns (N4).
+// Order matters — the first entry is the default offered to new users.
+const TARGET_LANG_CODES = ['de','en','fr','es','it','pt','nl','pl','zh','ja','ko','hr','sr','cs','hu','ro','tr','ru','ar','he','el'] as const
+const SOURCE_LANG_CODES = ['en','ja','ko','zh','de','fr','es'] as const
+
+// Module-level Field input (B1). Defining inputs inside the parent component
+// remounts the underlying <input> on every render, which drops keyboard focus
+// after every keystroke. Caller resolves value + onChange explicitly so this
+// component carries no closure over parent state.
+type FieldProps = {
+  label: string
+  type?: string
+  placeholder?: string
+  value: string
+  onChange: (next: string) => void
+  autoComplete?: string
+}
+
+function Field({ label, type = 'text', placeholder = '', value, onChange, autoComplete }: FieldProps) {
+  return (
+    <div className="space-y-1.5">
+      <label className="block text-sm font-medium" style={{ color: 'var(--text-primary)' }}>
+        {label}
+      </label>
+      <input
+        type={type}
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        placeholder={placeholder}
+        autoComplete={autoComplete ?? (type === 'password' ? 'new-password' : 'off')}
+        spellCheck={false}
+        className="w-full px-3 py-2 rounded-md text-sm focus:outline-none"
+        style={inputStyle}
+      />
+    </div>
+  )
+}
+
+let _uid = 0
+const nextUid = () => `ms-${++_uid}-${Date.now().toString(36)}`
+
 export default function Onboarding() {
   const { t } = useTranslation('onboarding')
   const { t: tc } = useTranslation('common')
   const navigate = useNavigate()
   const [step, setStep] = useState(0)
   const [saving, setSaving] = useState(false)
-  const [testing, setTesting] = useState(false)
+  // Tracks which connection test is in-flight ('sonarr' | 'radarr' | 'ollama' | null)
+  // so concurrent click on a different button doesn't show the wrong spinner.
+  const [testing, setTesting] = useState<string | null>(null)
   const [scanStarted, setScanStarted] = useState(false)
   const [setupMode, setSetupMode] = useState<'arr' | 'standalone' | null>(null)
 
@@ -79,48 +123,77 @@ export default function Onboarding() {
     upgrade_enabled: 'true',
   })
 
-  // Media server state
+  // Media server state.
+  // Stable per-instance ids decouple show-password / test-result state from the
+  // array index, so removing instance #1 doesn't shift visibility flags from #2
+  // onto the wrong row (N1). Two parallel arrays kept in sync via add/remove.
   const [msTypes, setMsTypes] = useState<MediaServerType[]>([])
   const [msInstances, setMsInstances] = useState<MediaServerInstance[]>([])
-  const [msTestResults, setMsTestResults] = useState<Record<number, MediaServerTestResult | 'testing'>>({})
+  const msInstanceIds = useRef<string[]>([])
+  const [msTestResults, setMsTestResults] = useState<Record<string, MediaServerTestResult | 'testing'>>({})
   const [msShowPasswords, setMsShowPasswords] = useState<Record<string, boolean>>({})
+  const [msTypesError, setMsTypesError] = useState(false)
 
-  // Load media server types when reaching that step
+  // Load media server types when reaching that step. On failure we surface a
+  // retry button (N3); the previous catch block ignored the error so users sat
+  // in front of an indefinite loading spinner.
+  const loadMsTypes = () => {
+    setMsTypesError(false)
+    getMediaServerTypes()
+      .then((ts) => setMsTypes(ts))
+      .catch(() => setMsTypesError(true))
+  }
+
   useEffect(() => {
-    if (currentStepDef.id === 'mediaservers' && msTypes.length === 0) {
-      getMediaServerTypes()
-        .then(setMsTypes)
-        .catch(() => { /* ignore -- types will just be empty */ })
+    if (currentStepDef.id === 'mediaservers' && msTypes.length === 0 && !msTypesError) {
+      loadMsTypes()
     }
-  }, [currentStepDef.id, msTypes.length])
+  }, [currentStepDef.id, msTypes.length, msTypesError])
 
   const set = (key: string, val: string) =>
     setValues((v) => ({ ...v, [key]: val }))
 
+  // Keys that only apply to one setup mode. saveAndNext filters by setupMode
+  // so a user who fills Sonarr credentials, goes back, and switches to
+  // standalone doesn't POST the stale Sonarr keys (B16).
+  const ARR_ONLY_KEYS = ['sonarr_url','sonarr_api_key','radarr_url','radarr_api_key','path_mapping'] as const
+  const STANDALONE_ONLY_KEYS = ['tmdb_api_key','tvdb_api_key'] as const
+
   const saveAndNext = async () => {
     setSaving(true)
     try {
-      // Only send non-empty values
+      // Build the payload, then drop keys that belong to the *other* setup mode.
       const toSave: Record<string, string> = {}
       for (const [k, v] of Object.entries(values)) {
         if (v) toSave[k] = v
       }
+      if (setupMode === 'arr') {
+        for (const k of STANDALONE_ONLY_KEYS) delete toSave[k]
+      } else if (setupMode === 'standalone') {
+        for (const k of ARR_ONLY_KEYS) delete toSave[k]
+      }
 
-      // If on standalone step, enable standalone mode and save folders
       if (currentStepDef.id === 'standalone') {
         toSave.standalone_enabled = 'true'
         await updateConfig(toSave)
-        // Save each folder
-        for (const folder of standaloneFolders) {
-          if (folder.path.trim()) {
-            await saveWatchedFolder({ path: folder.path.trim(), label: folder.label.trim(), media_type: 'auto', enabled: true })
-          }
+        // Save folders concurrently so one bad path doesn't block the rest (B11).
+        const folderPayloads = standaloneFolders
+          .filter((f) => f.path.trim())
+          .map((folder) => saveWatchedFolder({
+            path: folder.path.trim(),
+            label: folder.label.trim(),
+            media_type: 'auto',
+            enabled: true,
+          }))
+        const folderResults = await Promise.allSettled(folderPayloads)
+        const folderFailures = folderResults.filter((r) => r.status === 'rejected').length
+        if (folderFailures > 0) {
+          toast(t('errors.folder_save', { count: folderFailures }), 'error')
         }
       } else {
         await updateConfig(toSave)
       }
 
-      // If on media server step, also save instances
       if (currentStepDef.id === 'mediaservers' && msInstances.length > 0) {
         await saveMediaServerInstances(msInstances)
       }
@@ -134,7 +207,7 @@ export default function Onboarding() {
   }
 
   const testOllama = async () => {
-    setTesting(true)
+    setTesting('ollama')
     try {
       const health = await getHealth()
       if (health.services?.ollama && !health.services.ollama.includes('error')) {
@@ -145,19 +218,58 @@ export default function Onboarding() {
     } catch {
       toast(t('ollama_step.test_failed'), 'error')
     } finally {
-      setTesting(false)
+      setTesting(null)
+    }
+  }
+
+  // Inline connection test for arr-step credentials. Sonarr/Radarr have a
+  // dedicated `/instances/test` endpoint that accepts {url, api_key} so we can
+  // validate without persisting the value first.
+  const runConnectionTest = async (which: 'sonarr' | 'radarr') => {
+    const url = which === 'sonarr' ? values.sonarr_url : values.radarr_url
+    const api_key = which === 'sonarr' ? values.sonarr_api_key : values.radarr_api_key
+    if (!url || !api_key) return
+    setTesting(which)
+    try {
+      const fn = which === 'sonarr' ? testSonarrInstance : testRadarrInstance
+      const result = await fn({ url, api_key })
+      toast(`${which}: ${result.message || (result.healthy ? 'OK' : 'Error')}`, result.healthy ? 'success' : 'error')
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : String(err)
+      toast(`${which}: ${msg}`, 'error')
+    } finally {
+      setTesting(null)
+    }
+  }
+
+  // TMDB/TVDB tests require the key to be persisted first (the backend test_fn
+  // looks up the client from saved config). Persist then test.
+  const runApiKeyTest = async (service: 'tmdb' | 'tvdb') => {
+    const key = service === 'tmdb' ? values.tmdb_api_key : values.tvdb_api_key
+    if (!key) return
+    setTesting(service)
+    try {
+      await updateConfig({ [`${service}_api_key`]: key })
+      const result = await testApiKey(service)
+      toast(`${service}: ${result.message}`, result.success ? 'success' : 'error')
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : String(err)
+      toast(`${service}: ${msg}`, 'error')
+    } finally {
+      setTesting(null)
     }
   }
 
   const startScan = async () => {
-    setScanStarted(true)
     try {
       if (setupMode === 'standalone') {
         await triggerStandaloneScan()
+        setScanStarted(true)
         toast(t('scan_step.standalone_scan_started'))
       } else {
         const { refreshWanted } = await import('@/api/client')
         await refreshWanted()
+        setScanStarted(true)
         toast(t('scan_step.wanted_scan_started'))
       }
     } catch {
@@ -170,8 +282,35 @@ export default function Onboarding() {
       await completeOnboarding()
       navigate('/')
     } catch {
-      navigate('/')
+      // Don't swallow — user needs to know finalisation failed so they can retry (B6).
+      toast(t('errors.complete_failed'), 'error')
     }
+  }
+
+  // "Skip Setup" should still mark onboarding complete on the backend; otherwise
+  // the wizard is shown again on the next visit and any partially-saved config
+  // is left in limbo (N2).
+  const skipSetup = async () => {
+    try {
+      await completeOnboarding()
+    } catch {
+      // best-effort: navigation still happens so the user is unblocked.
+    }
+    navigate('/')
+  }
+
+  // Switching setup mode mid-flow used to leave stale credentials in `values`
+  // that would later be POSTed by saveAndNext (B16). Clear keys that no longer
+  // apply when the user picks a different mode card.
+  const chooseSetupMode = (mode: 'arr' | 'standalone') => {
+    setSetupMode(mode)
+    setStep(1)
+    setValues((v) => {
+      const next = { ...v }
+      const clearKeys = mode === 'arr' ? STANDALONE_ONLY_KEYS : ARR_ONLY_KEYS
+      for (const k of clearKeys) next[k as keyof typeof next] = ''
+      return next
+    })
   }
 
   // Media server helpers
@@ -184,6 +323,7 @@ export default function Onboarding() {
     for (const field of serverType.config_fields) {
       newInst[field.key] = field.default ?? ''
     }
+    msInstanceIds.current = [...msInstanceIds.current, nextUid()]
     setMsInstances((prev) => [...prev, newInst])
   }
 
@@ -196,43 +336,52 @@ export default function Onboarding() {
   }
 
   const removeMsInstance = (idx: number) => {
+    const removedId = msInstanceIds.current[idx]
+    msInstanceIds.current = msInstanceIds.current.filter((_, i) => i !== idx)
     setMsInstances((prev) => prev.filter((_, i) => i !== idx))
+    // Clean up companion state keyed by the removed uid so leftover entries
+    // don't bleed onto a future row with the same array index (N1).
+    if (removedId) {
+      setMsTestResults((prev) => {
+        const next = { ...prev }
+        delete next[removedId]
+        return next
+      })
+      setMsShowPasswords((prev) => {
+        const next: Record<string, boolean> = {}
+        for (const [k, v] of Object.entries(prev)) {
+          if (!k.startsWith(`${removedId}-`)) next[k] = v
+        }
+        return next
+      })
+    }
   }
 
   const testMsInstance = async (idx: number) => {
     const inst = msInstances[idx]
-    setMsTestResults((prev) => ({ ...prev, [idx]: 'testing' }))
+    const uid = msInstanceIds.current[idx]
+    if (!uid) return
+    setMsTestResults((prev) => ({ ...prev, [uid]: 'testing' }))
     try {
       const result = await testMediaServer(inst as Record<string, unknown>)
-      setMsTestResults((prev) => ({ ...prev, [idx]: result }))
+      setMsTestResults((prev) => ({ ...prev, [uid]: result }))
       if (result.healthy) {
         toast(`${inst.name}: ${t('mediaservers_step.connection_successful')}`)
       } else {
         toast(`${inst.name}: ${result.message}`, 'error')
       }
     } catch {
-      setMsTestResults((prev) => ({ ...prev, [idx]: { healthy: false, message: t('mediaservers_step.test_failed') } }))
+      setMsTestResults((prev) => ({ ...prev, [uid]: { healthy: false, message: t('mediaservers_step.test_failed') } }))
       toast(`${inst.name}: ${t('mediaservers_step.test_failed')}`, 'error')
     }
   }
 
-  const Field = ({ label, keyName, type = 'text', placeholder = '' }: {
-    label: string; keyName: string; type?: string; placeholder?: string
-  }) => (
-    <div className="space-y-1.5">
-      <label className="block text-sm font-medium" style={{ color: 'var(--text-primary)' }}>
-        {label}
-      </label>
-      <input
-        type={type}
-        value={values[keyName as keyof typeof values] ?? ''}
-        onChange={(e) => set(keyName, e.target.value)}
-        placeholder={placeholder}
-        className="w-full px-3 py-2 rounded-md text-sm focus:outline-none"
-        style={inputStyle}
-      />
-    </div>
-  )
+  // Helper that resolves a `values` key to a controlled-input prop pair, so
+  // each <Field /> only needs to know its target key once.
+  const fieldFor = (keyName: keyof typeof values) => ({
+    value: values[keyName] ?? '',
+    onChange: (v: string) => set(keyName, v),
+  })
 
   return (
     <div className="min-h-screen flex items-center justify-center p-6" style={{ backgroundColor: 'var(--bg-primary)' }}>
@@ -247,8 +396,15 @@ export default function Onboarding() {
           </p>
         </div>
 
-        {/* Progress */}
-        <div className="flex items-center gap-1">
+        {/* Progress (N5 — semantic progressbar for assistive tech) */}
+        <div
+          className="flex items-center gap-1"
+          role="progressbar"
+          aria-valuenow={step + 1}
+          aria-valuemin={1}
+          aria-valuemax={visibleSteps.length}
+          aria-label={t('step_info', { step: step + 1, total: visibleSteps.length })}
+        >
           {visibleSteps.map((s, i) => (
             <div key={s.id} className="flex-1 flex items-center gap-1">
               <div
@@ -286,7 +442,7 @@ export default function Onboarding() {
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 {/* Sonarr / Radarr Mode card */}
                 <button
-                  onClick={() => { setSetupMode('arr'); setStep(1) }}
+                  onClick={() => chooseSetupMode('arr')}
                   className="rounded-lg p-4 text-left space-y-2 transition-all duration-200"
                   style={{
                     backgroundColor: 'var(--bg-primary)',
@@ -309,7 +465,7 @@ export default function Onboarding() {
 
                 {/* Standalone Mode card */}
                 <button
-                  onClick={() => { setSetupMode('standalone'); setStep(1) }}
+                  onClick={() => chooseSetupMode('standalone')}
                   className="rounded-lg p-4 text-left space-y-2 transition-all duration-200"
                   style={{
                     backgroundColor: 'var(--bg-primary)',
@@ -335,17 +491,57 @@ export default function Onboarding() {
 
           {currentStepDef.id === 'arr' && (
             <div className="space-y-4">
-              <Field label={t('arr_step.sonarr_url')} keyName="sonarr_url" placeholder="http://localhost:8989" />
-              <Field label={t('arr_step.sonarr_api_key')} keyName="sonarr_api_key" type="password" />
-              <Field label={t('arr_step.radarr_url')} keyName="radarr_url" placeholder="http://localhost:7878" />
-              <Field label={t('arr_step.radarr_api_key')} keyName="radarr_api_key" type="password" />
+              <Field label={t('arr_step.sonarr_url')} placeholder="http://localhost:8989" {...fieldFor('sonarr_url')} />
+              <Field label={t('arr_step.sonarr_api_key')} type="password" {...fieldFor('sonarr_api_key')} />
+              <button
+                type="button"
+                onClick={() => runConnectionTest('sonarr')}
+                disabled={!values.sonarr_url || !values.sonarr_api_key || testing === 'sonarr'}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded text-xs font-medium transition-all duration-150 disabled:opacity-50"
+                style={{ border: '1px solid var(--border)', color: 'var(--text-secondary)', backgroundColor: 'var(--bg-primary)' }}
+              >
+                {testing === 'sonarr' ? <Loader2 size={12} className="animate-spin" /> : <TestTube size={12} />}
+                {t('arr_step.test_sonarr')}
+              </button>
+              <Field label={t('arr_step.radarr_url')} placeholder="http://localhost:7878" {...fieldFor('radarr_url')} />
+              <Field label={t('arr_step.radarr_api_key')} type="password" {...fieldFor('radarr_api_key')} />
+              <button
+                type="button"
+                onClick={() => runConnectionTest('radarr')}
+                disabled={!values.radarr_url || !values.radarr_api_key || testing === 'radarr'}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded text-xs font-medium transition-all duration-150 disabled:opacity-50"
+                style={{ border: '1px solid var(--border)', color: 'var(--text-secondary)', backgroundColor: 'var(--bg-primary)' }}
+              >
+                {testing === 'radarr' ? <Loader2 size={12} className="animate-spin" /> : <TestTube size={12} />}
+                {t('arr_step.test_radarr')}
+              </button>
             </div>
           )}
 
           {currentStepDef.id === 'standalone' && (
             <div className="space-y-4">
-              <Field label={t('standalone_step.tmdb_api_key')} keyName="tmdb_api_key" type="password" />
-              <Field label={t('standalone_step.tvdb_api_key')} keyName="tvdb_api_key" type="password" />
+              <Field label={t('standalone_step.tmdb_api_key')} type="password" {...fieldFor('tmdb_api_key')} />
+              <button
+                type="button"
+                onClick={() => runApiKeyTest('tmdb')}
+                disabled={!values.tmdb_api_key || testing === 'tmdb'}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded text-xs font-medium transition-all duration-150 disabled:opacity-50"
+                style={{ border: '1px solid var(--border)', color: 'var(--text-secondary)', backgroundColor: 'var(--bg-primary)' }}
+              >
+                {testing === 'tmdb' ? <Loader2 size={12} className="animate-spin" /> : <TestTube size={12} />}
+                {t('standalone_step.test_tmdb')}
+              </button>
+              <Field label={t('standalone_step.tvdb_api_key')} type="password" {...fieldFor('tvdb_api_key')} />
+              <button
+                type="button"
+                onClick={() => runApiKeyTest('tvdb')}
+                disabled={!values.tvdb_api_key || testing === 'tvdb'}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded text-xs font-medium transition-all duration-150 disabled:opacity-50"
+                style={{ border: '1px solid var(--border)', color: 'var(--text-secondary)', backgroundColor: 'var(--bg-primary)' }}
+              >
+                {testing === 'tvdb' ? <Loader2 size={12} className="animate-spin" /> : <TestTube size={12} />}
+                {t('standalone_step.test_tvdb')}
+              </button>
               <div className="space-y-2">
                 <label className="block text-sm font-medium" style={{ color: 'var(--text-primary)' }}>
                   {t('standalone_step.media_folders')}
@@ -413,8 +609,8 @@ export default function Onboarding() {
             <div className="space-y-4">
               <Field
                 label={t('pathmapping_step.label')}
-                keyName="path_mapping"
                 placeholder={t('pathmapping_step.placeholder')}
+                {...fieldFor('path_mapping')}
               />
               <p className="text-xs" style={{ color: 'var(--text-muted)' }}>
                 {t('pathmapping_step.help')}
@@ -430,11 +626,21 @@ export default function Onboarding() {
                 </label>
                 <select
                   value={values.target_language}
-                  onChange={(e) => set('target_language', e.target.value)}
+                  // Sync the display-name alongside the code (B3). The two were
+                  // independent state keys; if only the code changed the cached
+                  // name would drift (target_language='fr', name='German').
+                  onChange={(e) => {
+                    const code = e.target.value
+                    setValues((v) => ({
+                      ...v,
+                      target_language: code,
+                      target_language_name: tc(`language_names.${code}`).replace(/\s*\([a-z]+\)\s*$/, ''),
+                    }))
+                  }}
                   className="w-full px-3 py-2 rounded-md text-sm focus:outline-none"
                   style={inputStyle}
                 >
-                  {['de','en','fr','es','it','pt','nl','pl','zh','ja','ko','hr','sr','cs','hu','ro','tr','ru','ar','he','el'].map((code) => (
+                  {TARGET_LANG_CODES.map((code) => (
                     <option key={code} value={code}>{tc(`language_names.${code}`)}</option>
                   ))}
                 </select>
@@ -445,11 +651,18 @@ export default function Onboarding() {
                 </label>
                 <select
                   value={values.source_language}
-                  onChange={(e) => set('source_language', e.target.value)}
+                  onChange={(e) => {
+                    const code = e.target.value
+                    setValues((v) => ({
+                      ...v,
+                      source_language: code,
+                      source_language_name: tc(`language_names.${code}`).replace(/\s*\([a-z]+\)\s*$/, ''),
+                    }))
+                  }}
                   className="w-full px-3 py-2 rounded-md text-sm focus:outline-none"
                   style={inputStyle}
                 >
-                  {['en','ja','ko','zh','de','fr','es'].map((code) => (
+                  {SOURCE_LANG_CODES.map((code) => (
                     <option key={code} value={code}>{tc(`language_names.${code}`)}</option>
                   ))}
                 </select>
@@ -465,9 +678,9 @@ export default function Onboarding() {
               <p className="text-xs" style={{ color: 'var(--text-secondary)' }}>
                 {t('providers_step.info')}
               </p>
-              <Field label={t('providers_step.opensubtitles_api_key')} keyName="opensubtitles_api_key" type="password" />
-              <Field label={t('providers_step.jimaku_api_key')} keyName="jimaku_api_key" type="password" />
-              <Field label={t('providers_step.subdl_api_key')} keyName="subdl_api_key" type="password" />
+              <Field label={t('providers_step.opensubtitles_api_key')} type="password" {...fieldFor('opensubtitles_api_key')} />
+              <Field label={t('providers_step.jimaku_api_key')} type="password" {...fieldFor('jimaku_api_key')} />
+              <Field label={t('providers_step.subdl_api_key')} type="password" {...fieldFor('subdl_api_key')} />
             </div>
           )}
 
@@ -553,17 +766,14 @@ export default function Onboarding() {
 
           {currentStepDef.id === 'ollama' && (
             <div className="space-y-4">
-              <Field label={t('ollama_step.url')} keyName="ollama_url" placeholder="http://localhost:11434" />
-              <Field label={t('ollama_step.model')} keyName="ollama_model" placeholder="qwen2.5:14b-instruct" />
-              <div className="grid grid-cols-2 gap-3">
-                <Field label={t('ollama_step.source_language')} keyName="source_language" placeholder="en" />
-                <Field label={t('ollama_step.source_language_name')} keyName="source_language_name" placeholder={tc('language_names.name_en')} />
-                <Field label={t('ollama_step.target_language')} keyName="target_language" placeholder="de" />
-                <Field label={t('ollama_step.target_language_name')} keyName="target_language_name" placeholder={tc('language_names.name_de')} />
-              </div>
+              <Field label={t('ollama_step.url')} placeholder="http://localhost:11434" {...fieldFor('ollama_url')} />
+              <Field label={t('ollama_step.model')} placeholder="qwen2.5:14b-instruct" {...fieldFor('ollama_model')} />
+              <p className="text-xs" style={{ color: 'var(--text-muted)' }}>
+                {t('ollama_step.languages_hint', { source: values.source_language_name, target: values.target_language_name })}
+              </p>
               <button
                 onClick={testOllama}
-                disabled={testing}
+                disabled={testing === 'ollama'}
                 className="flex items-center gap-2 px-3 py-2 rounded-md text-sm font-medium transition-all duration-150"
                 style={{
                   border: '1px solid var(--border)',
@@ -571,7 +781,7 @@ export default function Onboarding() {
                   backgroundColor: 'var(--bg-primary)',
                 }}
               >
-                {testing ? <Loader2 size={14} className="animate-spin" /> : <Cpu size={14} />}
+                {testing === 'ollama' ? <Loader2 size={14} className="animate-spin" /> : <Cpu size={14} />}
                 {t('ollama_step.test_connection')}
               </button>
             </div>
@@ -605,11 +815,12 @@ export default function Onboarding() {
               {/* Configured instances */}
               {msInstances.map((inst, idx) => {
                 const typeInfo = msTypes.find((t) => t.name === inst.type)
-                const testResult = msTestResults[idx]
+                const uid = msInstanceIds.current[idx] ?? `idx-${idx}`
+                const testResult = msTestResults[uid]
 
                 return (
                   <div
-                    key={idx}
+                    key={uid}
                     className="rounded-lg p-4 space-y-3"
                     style={{ backgroundColor: 'var(--bg-primary)', border: '1px solid var(--border)' }}
                   >
@@ -645,32 +856,37 @@ export default function Onboarding() {
                     />
 
                     {/* Dynamic config fields */}
-                    {typeInfo?.config_fields.map((field) => (
-                      <div key={field.key} className="space-y-1">
-                        <label className="text-xs font-medium" style={{ color: 'var(--text-secondary)' }}>
-                          {field.label} {field.required && <span style={{ color: 'var(--error)' }}>*</span>}
-                        </label>
-                        <div className="flex items-center gap-1.5">
-                          <input
-                            type={field.type === 'password' && !msShowPasswords[`${idx}-${field.key}`] ? 'password' : 'text'}
-                            value={String(inst[field.key] ?? '')}
-                            onChange={(e) => updateMsField(idx, field.key, e.target.value)}
-                            placeholder={field.default || (field.required ? 'Required' : 'Optional')}
-                            className="flex-1 px-2.5 py-1.5 rounded text-sm focus:outline-none"
-                            style={inputStyle}
-                          />
-                          {field.type === 'password' && (
-                            <button
-                              onClick={() => setMsShowPasswords((p) => ({ ...p, [`${idx}-${field.key}`]: !p[`${idx}-${field.key}`] }))}
-                              className="p-1.5 rounded"
-                              style={{ border: '1px solid var(--border)', color: 'var(--text-muted)', backgroundColor: 'var(--bg-primary)' }}
-                            >
-                              {msShowPasswords[`${idx}-${field.key}`] ? <EyeOff size={12} /> : <Eye size={12} />}
-                            </button>
-                          )}
+                    {typeInfo?.config_fields.map((field) => {
+                      const pwKey = `${uid}-${field.key}`
+                      return (
+                        <div key={field.key} className="space-y-1">
+                          <label className="text-xs font-medium" style={{ color: 'var(--text-secondary)' }}>
+                            {field.label} {field.required && <span style={{ color: 'var(--error)' }}>*</span>}
+                          </label>
+                          <div className="flex items-center gap-1.5">
+                            <input
+                              type={field.type === 'password' && !msShowPasswords[pwKey] ? 'password' : 'text'}
+                              value={String(inst[field.key] ?? '')}
+                              onChange={(e) => updateMsField(idx, field.key, e.target.value)}
+                              placeholder={field.default || (field.required ? 'Required' : 'Optional')}
+                              autoComplete={field.type === 'password' ? 'new-password' : 'off'}
+                              spellCheck={false}
+                              className="flex-1 px-2.5 py-1.5 rounded text-sm focus:outline-none"
+                              style={inputStyle}
+                            />
+                            {field.type === 'password' && (
+                              <button
+                                onClick={() => setMsShowPasswords((p) => ({ ...p, [pwKey]: !p[pwKey] }))}
+                                className="p-1.5 rounded"
+                                style={{ border: '1px solid var(--border)', color: 'var(--text-muted)', backgroundColor: 'var(--bg-primary)' }}
+                              >
+                                {msShowPasswords[pwKey] ? <EyeOff size={12} /> : <Eye size={12} />}
+                              </button>
+                            )}
+                          </div>
                         </div>
-                      </div>
-                    ))}
+                      )
+                    })}
 
                     {/* Test button and result */}
                     <div className="flex items-center gap-2">
@@ -700,9 +916,28 @@ export default function Onboarding() {
                 )
               })}
 
-              {msInstances.length === 0 && msTypes.length === 0 && (
+              {msInstances.length === 0 && msTypes.length === 0 && !msTypesError && (
                 <div className="text-center py-4">
                   <Loader2 size={16} className="animate-spin mx-auto" style={{ color: 'var(--accent)' }} />
+                </div>
+              )}
+              {msTypesError && (
+                <div
+                  className="flex items-center gap-2 p-3 rounded-lg text-xs"
+                  style={{ backgroundColor: 'var(--error-bg, var(--bg-primary))', border: '1px solid var(--error)' }}
+                >
+                  <AlertCircle size={14} style={{ color: 'var(--error)' }} />
+                  <span className="flex-1" style={{ color: 'var(--text-primary)' }}>
+                    {t('mediaservers_step.types_load_failed')}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={loadMsTypes}
+                    className="px-2 py-1 rounded text-xs"
+                    style={{ border: '1px solid var(--border)', color: 'var(--text-primary)', backgroundColor: 'var(--bg-primary)' }}
+                  >
+                    {tc('actions.retry')}
+                  </button>
                 </div>
               )}
             </div>
@@ -735,7 +970,7 @@ export default function Onboarding() {
         {/* Navigation */}
         <div className="flex items-center justify-between">
           <button
-            onClick={() => step > 0 ? setStep((s) => s - 1) : navigate('/')}
+            onClick={() => step > 0 ? setStep((s) => s - 1) : skipSetup()}
             className="flex items-center gap-1.5 px-3 py-2 rounded-md text-sm"
             style={{ color: 'var(--text-muted)' }}
           >

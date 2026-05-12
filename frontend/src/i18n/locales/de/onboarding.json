@@ -27,14 +27,18 @@
     "sonarr_url": "Sonarr URL",
     "sonarr_api_key": "Sonarr API Key",
     "radarr_url": "Radarr URL (optional)",
-    "radarr_api_key": "Radarr API Key (optional)"
+    "radarr_api_key": "Radarr API Key (optional)",
+    "test_sonarr": "Sonarr-Verbindung testen",
+    "test_radarr": "Radarr-Verbindung testen"
   },
   "standalone_step": {
     "description": "Zeige Sublarr direkt auf deine Medienordner.",
     "tmdb_api_key": "TMDB API Key (für Metadaten erforderlich)",
     "tvdb_api_key": "TVDB API Key (optional)",
     "media_folders": "Medienordner",
-    "media_folders_help": "Füge Ordner mit deinen Mediendateien hinzu. Sublarr wird sie nach Serien und Filmen durchsuchen."
+    "media_folders_help": "Füge Ordner mit deinen Mediendateien hinzu. Sublarr wird sie nach Serien und Filmen durchsuchen.",
+    "test_tmdb": "TMDB-Key testen",
+    "test_tvdb": "TVDB-Key testen"
   },
   "pathmapping_step": {
     "description": "Ordne entfernte Pfade lokalen Pfaden zu (wenn *arr auf einem anderen Host läuft).",
@@ -66,10 +70,7 @@
     "description": "Richte das LLM-Übersetzungs-Backend ein.",
     "url": "Ollama URL",
     "model": "Ollama Modell",
-    "source_language": "Quellsprache",
-    "source_language_name": "Name der Quellsprache",
-    "target_language": "Zielsprache",
-    "target_language_name": "Name der Zielsprache",
+    "languages_hint": "Übersetzung: {{source}} → {{target}} (im Sprachen-Schritt änderbar).",
     "test_connection": "Ollama-Verbindung testen",
     "connection_successful": "Ollama-Verbindung erfolgreich!",
     "connection_failed": "Ollama nicht erreichbar",
@@ -80,7 +81,8 @@
     "info": "Füge Medienserver für automatische Bibliotheksaktualisierung nach Untertitel-Downloads hinzu. Du kannst dies überspringen und später in den Einstellungen konfigurieren.",
     "server_name": "Servername",
     "connection_successful": "Verbindung erfolgreich",
-    "test_failed": "Test fehlgeschlagen"
+    "test_failed": "Test fehlgeschlagen",
+    "types_load_failed": "Medienserver-Typen konnten nicht geladen werden."
   },
   "scan_step": {
     "description": "Führe deinen ersten Scan aus, um fehlende Untertitel zu finden.",
@@ -100,7 +102,10 @@
     "finish": "Einrichtung abschließen"
   },
   "errors": {
-    "save_failed": "Einstellungen konnten nicht gespeichert werden"
+    "save_failed": "Einstellungen konnten nicht gespeichert werden",
+    "complete_failed": "Onboarding konnte nicht abgeschlossen werden — bitte erneut versuchen oder Einstellungen öffnen.",
+    "folder_save": "{{count}} Ordner konnte nicht gespeichert werden",
+    "folder_save_plural": "{{count}} Ordner konnten nicht gespeichert werden"
   },
   "setup": {
     "title": "Willkommen bei Sublarr",
