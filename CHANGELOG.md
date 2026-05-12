@@ -5,6 +5,14 @@ All notable changes to Sublarr are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.92.7-beta] - 2026-05-12
+
+### Fixed
+- **Manual subtitle sync regained its audit trail and accurate `shift_ms` reporting** — Two regressions in the `/api/v1/tools/auto-sync` and `/video-sync` paths surfaced while re-syncing a series in prod. First, `_parse_ffsubsync_shift`'s regex no longer matched ffsubsync ≥0.4's `INFO     offset seconds: 22.960` output format (it still expected a trailing `s` literal that current ffsubsync no longer emits), so every API response reported `shift_ms=0` regardless of the real shift and `sync_job_runs.offset_ms` was stuck at 0 too. Second, the `ThreadPoolExecutor` worker that runs `sync_with_ffsubsync` / `sync_with_alass` had no Flask app context, so the audit-row write into `sync_job_runs` and the `post_processing.after_sync` trigger both logged "Working outside of application context" and swallowed silently — manual syncs left no audit trail and never fired post-processing hooks. The regex now handles legacy (`offset: 1.234s`, `estimated shift:`) and modern (`offset seconds: X.XXX`) formats; the worker is now wrapped in `app.app_context()` via a new `_submit_sync` helper that captures the live Flask app at submit time. Mirror fix in `services/sync_engines/ffsubsync_engine.py`.
+
+### Tests
+- 4 new regression cases in `test_video_sync.py`: modern ffsubsync output (positive/negative/zero), parser parity between the two duplicate implementations, worker `has_app_context()` assertion inside the patched executor scope, and route-level submit-receives-real-app check.
+
 ## [0.92.6-beta] - 2026-05-09
 
 ### Fixed
