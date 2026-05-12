@@ -5,7 +5,7 @@ import os
 
 from flask import Blueprint, jsonify, request
 
-from config import get_settings
+from config import get_settings, map_path
 from extensions import limiter
 from security_utils import is_safe_path
 from services.audio_visualizer import (
@@ -121,20 +121,9 @@ def get_waveform():
     if not file_path:
         return jsonify({"error": "file_path parameter is required"}), 400
 
-    # Path mapping (if media path mapping is configured)
+    # Path mapping via settings.path_mapping (see _resolve_media_path).
     settings = get_settings()
-    mapped_path = file_path
-    if hasattr(settings, "media_path_mapping") and settings.media_path_mapping:
-        # Apply path mapping if configured
-        for mapping in settings.media_path_mapping:
-            if file_path.startswith(mapping.get("from", "")):
-                mapped_path = file_path.replace(
-                    mapping["from"],
-                    mapping.get("to", file_path),
-                    1,
-                )
-                break
-
+    mapped_path = map_path(file_path)
     if not is_safe_path(mapped_path, settings.media_path):
         return jsonify({"error": "Access denied"}), 403
 
@@ -214,19 +203,9 @@ def extract_audio():
     if not file_path:
         return jsonify({"error": "file_path is required"}), 400
 
-    # Path mapping
+    # Path mapping via settings.path_mapping (see _resolve_media_path).
     settings = get_settings()
-    mapped_path = file_path
-    if hasattr(settings, "media_path_mapping") and settings.media_path_mapping:
-        for mapping in settings.media_path_mapping:
-            if file_path.startswith(mapping.get("from", "")):
-                mapped_path = file_path.replace(
-                    mapping["from"],
-                    mapping.get("to", file_path),
-                    1,
-                )
-                break
-
+    mapped_path = map_path(file_path)
     if not is_safe_path(mapped_path, settings.media_path):
         return jsonify({"error": "Access denied"}), 403
 
@@ -301,17 +280,7 @@ def get_audio_tracks():
         return jsonify({"error": "file_path parameter is required"}), 400
 
     settings = get_settings()
-    mapped_path = file_path
-    if hasattr(settings, "media_path_mapping") and settings.media_path_mapping:
-        for mapping in settings.media_path_mapping:
-            if file_path.startswith(mapping.get("from", "")):
-                mapped_path = file_path.replace(
-                    mapping["from"],
-                    mapping.get("to", file_path),
-                    1,
-                )
-                break
-
+    mapped_path = map_path(file_path)
     if not is_safe_path(mapped_path, settings.media_path):
         return jsonify({"error": "Access denied"}), 403
     if not os.path.exists(mapped_path):
@@ -329,20 +298,21 @@ def get_audio_tracks():
 
 
 def _resolve_media_path(file_path: str | None):
-    """Common media-path-mapping + safety check for B8 audio sub-routes.
+    """Common path-mapping + safety check for audio sub-routes.
 
     Returns ``(mapped_path, response, status)``. On failure, ``mapped_path``
     is None and ``(response, status)`` is the error to return immediately.
+
+    Uses ``config.map_path`` which reads ``settings.path_mapping`` (the actual
+    Pydantic field — see config_settings.py). An earlier version of this code
+    referenced ``settings.media_path_mapping``, a field that doesn't exist on
+    the settings model, so path mapping silently never applied — remote-mapped
+    paths fell through to ``is_safe_path`` and returned 403.
     """
     if not file_path:
         return None, jsonify({"error": "file_path parameter is required"}), 400
     settings = get_settings()
-    mapped_path = file_path
-    if hasattr(settings, "media_path_mapping") and settings.media_path_mapping:
-        for mapping in settings.media_path_mapping:
-            if file_path.startswith(mapping.get("from", "")):
-                mapped_path = file_path.replace(mapping["from"], mapping.get("to", file_path), 1)
-                break
+    mapped_path = map_path(file_path)
     if not is_safe_path(mapped_path, settings.media_path):
         return None, jsonify({"error": "Access denied"}), 403
     if not os.path.exists(mapped_path):

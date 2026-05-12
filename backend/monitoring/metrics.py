@@ -65,3 +65,28 @@ translation_concurrency_limit = Gauge(
     "Configured concurrency limit per backend.",
     labelnames=["backend"],
 )
+
+# Subtitle sync (ffsubsync / alass) — counters + duration histogram.
+# Wired into ``services.sync_engines.events.write_sync_job_run`` so every
+# sync_job_runs audit row also bumps the matching Prometheus series, giving
+# the bulk auto-sync workflow first-class observability without an
+# additional SQL query path.
+sync_jobs_total = Counter(
+    "sync_jobs_total",
+    "Total subtitle-sync jobs by engine and final status.",
+    labelnames=["engine", "status"],
+)
+
+sync_jobs_duration_seconds = Histogram(
+    "sync_jobs_duration_seconds",
+    "Subtitle-sync job execution duration in seconds.",
+    labelnames=["engine"],
+    buckets=(1, 5, 10, 30, 60, 120, 300, 600, 1200),
+)
+
+sync_jobs_offset_ms = Histogram(
+    "sync_jobs_offset_ms",
+    "Absolute shift detected by ffsubsync, in milliseconds (only OK jobs).",
+    labelnames=["engine"],
+    buckets=(0, 100, 250, 500, 1000, 2500, 5000, 10000, 30000, 60000, 120000),
+)

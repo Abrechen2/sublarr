@@ -10,7 +10,7 @@ from concurrent.futures import ThreadPoolExecutor
 
 from flask import Blueprint, jsonify, request, send_file
 
-from config import get_settings
+from config import get_settings, map_path
 from extensions import limiter
 from security_utils import is_safe_path
 from services.ocr_extractor import (
@@ -121,19 +121,11 @@ def extract_ocr():
     if not file_path:
         return jsonify({"error": "file_path is required"}), 400
 
-    # Path mapping
+    # Path mapping via settings.path_mapping (the actual Pydantic field).
+    # Earlier this read `settings.media_path_mapping`, which doesn't exist —
+    # the mapping never applied and remote-mapped paths returned 403.
     settings = get_settings()
-    mapped_path = file_path
-    if hasattr(settings, "media_path_mapping") and settings.media_path_mapping:
-        for mapping in settings.media_path_mapping:
-            if file_path.startswith(mapping.get("from", "")):
-                mapped_path = file_path.replace(
-                    mapping["from"],
-                    mapping.get("to", file_path),
-                    1,
-                )
-                break
-
+    mapped_path = map_path(file_path)
     if not is_safe_path(mapped_path, settings.media_path):
         return jsonify({"error": "Access denied"}), 403
 
@@ -226,19 +218,11 @@ def preview_ocr():
     if timestamp is None:
         return jsonify({"error": "timestamp is required"}), 400
 
-    # Path mapping
+    # Path mapping via settings.path_mapping (the actual Pydantic field).
+    # Earlier this read `settings.media_path_mapping`, which doesn't exist —
+    # the mapping never applied and remote-mapped paths returned 403.
     settings = get_settings()
-    mapped_path = file_path
-    if hasattr(settings, "media_path_mapping") and settings.media_path_mapping:
-        for mapping in settings.media_path_mapping:
-            if file_path.startswith(mapping.get("from", "")):
-                mapped_path = file_path.replace(
-                    mapping["from"],
-                    mapping.get("to", file_path),
-                    1,
-                )
-                break
-
+    mapped_path = map_path(file_path)
     if not is_safe_path(mapped_path, settings.media_path):
         return jsonify({"error": "Access denied"}), 403
 
@@ -327,8 +311,6 @@ def batch_extract():
         return jsonify({"error": "stream_index must be an integer"}), 400
     if stream_index < 0:
         return jsonify({"error": "stream_index must be non-negative"}), 400
-
-    from config import map_path
 
     settings = get_settings()
     video_path = map_path(video_path)
