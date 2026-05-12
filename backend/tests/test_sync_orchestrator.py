@@ -242,3 +242,26 @@ def test_api_list_runs_respects_limit_cap(client):
     assert resp.status_code == 200
     body = resp.get_json()
     assert "runs" in body
+
+
+def test_default_orchestrator_reads_threshold_from_settings():
+    """get_default_orchestrator must pull sync_sanity_threshold_ms from Settings.
+
+    Lowering the threshold catches ffsubsync mis-lock clusters (shifts that
+    sit just under the 60s ceiling but are clearly engine drift, not real
+    alignment). The orchestrator factory was previously hard-coded to
+    60_000; this regression test pins the new config-driven wiring.
+    """
+    from types import SimpleNamespace
+    from unittest.mock import patch
+
+    from services.sync_engines import orchestrator as orch_mod
+
+    fake_settings = SimpleNamespace(sync_sanity_threshold_ms=45_000)
+
+    orch_mod.reset_default_orchestrator()
+    with patch("config.get_settings", return_value=fake_settings):
+        orch = orch_mod.get_default_orchestrator()
+
+    assert orch.sanity_threshold_ms == 45_000
+    orch_mod.reset_default_orchestrator()  # don't poison neighbour tests

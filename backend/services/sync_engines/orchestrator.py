@@ -121,11 +121,23 @@ def get_default_orchestrator() -> SyncOrchestrator:
     global _default_orchestrator
     if _default_orchestrator is None:
         # Local imports avoid circular dependencies.
+        from config import get_settings
         from services.sync_engines.alass_engine import AlassEngine
         from services.sync_engines.ffsubsync_engine import FfsubsyncEngine
 
+        threshold = getattr(get_settings(), "sync_sanity_threshold_ms", 60_000)
         _default_orchestrator = SyncOrchestrator(
             engines=[FfsubsyncEngine(), AlassEngine()],
-            sanity_threshold_ms=60_000,
+            sanity_threshold_ms=threshold,
         )
     return _default_orchestrator
+
+
+def reset_default_orchestrator() -> None:
+    """Drop the cached orchestrator so the next call rereads sync_sanity_threshold_ms.
+
+    Called by the settings-change hook when the threshold is edited live; without
+    this, threshold changes would only take effect after a process restart.
+    """
+    global _default_orchestrator
+    _default_orchestrator = None

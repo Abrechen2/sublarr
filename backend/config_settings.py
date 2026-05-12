@@ -294,6 +294,12 @@ class UISettings(BaseModel):
     # Video Sync (ffsubsync / alass)
     auto_sync_after_download: bool = False  # Auto-sync subtitle against video after download
     auto_sync_engine: str = "ffsubsync"  # Engine for auto-sync: "ffsubsync" | "alass"
+    sync_sanity_threshold_ms: int = 60_000
+    """Reject engine results whose absolute shift exceeds this many ms; the
+    orchestrator then falls through to the next engine. ffsubsync's
+    speech-detection sometimes mis-locks onto a wrong reference (intro vs
+    cold-open), producing shifts clustered just under 60s with no real
+    alignment. Lower to 45000 if those mis-locks appear in sync_job_runs."""
 
     # Post-download subtitle processing pipeline
     auto_process_common_fixes: bool = False
