@@ -128,6 +128,140 @@ def test_start_sync_alass_with_reference_path(client, tmp_path):
     mock_exec.submit.assert_called_once()
 
 
+# ─── /auto-sync/bulk — scope branches + sidecar coverage ────────────────────
+
+
+def _bulk_make_video(tmp_path, name: str, langs=("de", "en")):
+    """Helper: create a fake video + one or more sidecars next to it. Returns the video path."""
+    video = tmp_path / f"{name}.mkv"
+    video.write_text("video")
+    for lang in langs:
+        (tmp_path / f"{name}.{lang}.srt").write_text(f"1\n00:00:01,000 --> 00:00:02,000\n{lang}\n")
+    return str(video)
+
+
+def test_bulk_rejects_unknown_scope(client):
+    """scope must be one of the documented values — anything else returns 400."""
+    resp = client.post("/api/v1/tools/auto-sync/bulk", json={"scope": "imaginary"})
+    assert resp.status_code == 400
+    assert "scope" in resp.get_json()["error"]
+
+
+def test_bulk_rejects_series_without_id(client):
+    """scope='series' requires series_id — otherwise the call is ambiguous."""
+    resp = client.post("/api/v1/tools/auto-sync/bulk", json={"scope": "series"})
+    assert resp.status_code == 400
+    assert "series_id" in resp.get_json()["error"]
+
+
+def test_bulk_queues_one_job_per_sidecar(client, tmp_path):
+    """The previous bulk implementation queued only the first sidecar per video.
+    Two-language episodes lost half the work. Lock in: every sidecar gets a job.
+    """
+    video_path = _bulk_make_video(tmp_path, "ep01", langs=("de", "en", "ja"))
+
+    with (
+        patch("routes.video_sync._bulk_videos_from_sonarr", return_value=[video_path]),
+        patch("routes.video_sync._submit_sync") as mock_submit,
+    ):
+        resp = client.post(
+            "/api/v1/tools/auto-sync/bulk", json={"scope": "library", "engine": "ffsubsync"}
+        )
+
+    assert resp.status_code == 202
+    data = resp.get_json()
+    assert data["queued"] == 3, "expected one job per sidecar (de + en + ja)"
+    assert mock_submit.call_count == 3
+    # Deduplication guard: same sub never queued twice within one bulk request.
+    submitted_subs = {call.args[3] for call in mock_submit.call_args_list}
+    assert len(submitted_subs) == 3
+
+
+def test_bulk_scope_radarr_uses_radarr_helper(client, tmp_path):
+    """scope='radarr' MUST source paths from the Radarr helper, not Sonarr."""
+    video_path = _bulk_make_video(tmp_path, "movie")
+
+    with (
+        patch(
+            "routes.video_sync._bulk_videos_from_radarr", return_value=[video_path]
+        ) as mock_radarr,
+        patch("routes.video_sync._bulk_videos_from_sonarr") as mock_sonarr,
+        patch("routes.video_sync._submit_sync"),
+    ):
+        resp = client.post("/api/v1/tools/auto-sync/bulk", json={"scope": "radarr"})
+
+    assert resp.status_code == 202
+    mock_radarr.assert_called_once()
+    mock_sonarr.assert_not_called()
+    assert resp.get_json()["videos_considered"] == {"radarr": 1}
+
+
+def test_bulk_scope_standalone_uses_standalone_helper(client, tmp_path):
+    """scope='standalone' walks standalone folders, not the *arr APIs."""
+    video_path = _bulk_make_video(tmp_path, "standalone_ep")
+
+    with (
+        patch(
+            "routes.video_sync._bulk_videos_from_standalone", return_value=[video_path]
+        ) as mock_sa,
+        patch("routes.video_sync._bulk_videos_from_sonarr") as mock_sonarr,
+        patch("routes.video_sync._bulk_videos_from_radarr") as mock_radarr,
+        patch("routes.video_sync._submit_sync"),
+    ):
+        resp = client.post("/api/v1/tools/auto-sync/bulk", json={"scope": "standalone"})
+
+    assert resp.status_code == 202
+    mock_sa.assert_called_once()
+    mock_sonarr.assert_not_called()
+    mock_radarr.assert_not_called()
+    assert resp.get_json()["videos_considered"] == {"standalone": 1}
+
+
+def test_bulk_scope_all_unions_all_three_sources(client, tmp_path):
+    """scope='all' must hit all three helpers and combine the video lists."""
+    v1 = _bulk_make_video(tmp_path, "sonarr_ep")
+    v2 = _bulk_make_video(tmp_path, "movie")
+    v3 = _bulk_make_video(tmp_path, "standalone_ep")
+
+    with (
+        patch("routes.video_sync._bulk_videos_from_sonarr", return_value=[v1]),
+        patch("routes.video_sync._bulk_videos_from_radarr", return_value=[v2]),
+        patch("routes.video_sync._bulk_videos_from_standalone", return_value=[v3]),
+        patch("routes.video_sync._submit_sync") as mock_submit,
+    ):
+        resp = client.post("/api/v1/tools/auto-sync/bulk", json={"scope": "all"})
+
+    assert resp.status_code == 202
+    data = resp.get_json()
+    assert data["videos_considered"] == {"sonarr": 1, "radarr": 1, "standalone": 1}
+    # 3 videos × 2 sidecars each (de + en defaults from _bulk_make_video).
+    assert data["queued"] == 6
+    assert mock_submit.call_count == 6
+
+
+def test_bulk_reports_skip_reasons(client, tmp_path):
+    """Skipped videos are tallied by reason so the user can diagnose drop-offs."""
+    real_video = _bulk_make_video(tmp_path, "real_ep")
+    missing_video = str(tmp_path / "nonexistent.mkv")
+    # No sidecars next to this one — should land in 'no_sidecar' bucket.
+    bare_video = str(tmp_path / "bare.mkv")
+    (tmp_path / "bare.mkv").write_text("x")
+
+    with (
+        patch(
+            "routes.video_sync._bulk_videos_from_sonarr",
+            return_value=[real_video, missing_video, bare_video],
+        ),
+        patch("routes.video_sync._submit_sync"),
+    ):
+        resp = client.post("/api/v1/tools/auto-sync/bulk", json={"scope": "library"})
+
+    data = resp.get_json()
+    assert data["skipped"]["missing_file"] == 1
+    assert data["skipped"]["no_sidecar"] == 1
+    assert data["queued"] == 2  # 2 sidecars on the real video
+
+
 # ─── app_context regression (worker thread DB writes + after_sync hooks) ────
 
 

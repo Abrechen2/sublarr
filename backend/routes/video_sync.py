@@ -232,9 +232,92 @@ def auto_sync():
     return jsonify({"job_id": job_id, "status": "started"}), 202
 
 
+_BULK_VIDEO_EXTENSIONS = {".mkv", ".mp4", ".avi", ".m4v", ".mov", ".wmv", ".flv", ".webm", ".ts"}
+
+
+def _bulk_videos_from_sonarr(series_id: int | None) -> list[str]:
+    """Return Sonarr-managed video paths (one series or the full library)."""
+    from sonarr_client import get_sonarr_client
+
+    client = get_sonarr_client()
+    if client is None:
+        return []
+    if series_id is not None:
+        files = client.get_episode_files_by_series(int(series_id)) or {}
+    else:
+        files = {}
+        for s in client.get_series() or []:
+            files.update(client.get_episode_files_by_series(s.get("id", 0)) or {})
+    return [fi.get("path") for fi in files.values() if fi.get("path")]
+
+
+def _bulk_videos_from_radarr() -> list[str]:
+    """Return Radarr-managed movie video paths for movies with a file on disk."""
+    from radarr_client import get_radarr_client
+
+    client = get_radarr_client()
+    if client is None:
+        return []
+    out: list[str] = []
+    for movie in client.get_movies() or []:
+        if not movie.get("hasFile"):
+            continue
+        # Radarr's /movie endpoint inlines the movie file; older API versions
+        # only carry the file id, so fall back to /moviefile lookup when the
+        # path field is missing from the inlined record.
+        movie_file = movie.get("movieFile") or {}
+        path = movie_file.get("path")
+        if not path and movie_file.get("id") and hasattr(client, "get_movie_file"):
+            try:
+                detail = client.get_movie_file(movie_file["id"]) or {}
+                path = detail.get("path")
+            except Exception:
+                path = None
+        if path:
+            out.append(path)
+    return out
+
+
+def _bulk_videos_from_standalone() -> list[str]:
+    """Walk standalone series + movie folders and yield concrete video files."""
+    from db.repositories.standalone import StandaloneRepository
+    from extensions import db
+
+    repo = StandaloneRepository(db.session)
+    folder_paths: list[str] = []
+    for s in repo.get_all_standalone_series() or []:
+        if s.get("folder_path"):
+            folder_paths.append(s["folder_path"])
+    for m in repo.get_all_standalone_movies() or []:
+        if m.get("folder_path"):
+            folder_paths.append(m["folder_path"])
+
+    videos: list[str] = []
+    for folder in folder_paths:
+        if not os.path.isdir(folder):
+            continue
+        for root, _dirs, files in os.walk(folder):
+            for name in files:
+                if os.path.splitext(name)[1].lower() in _BULK_VIDEO_EXTENSIONS:
+                    videos.append(os.path.join(root, name))
+    return videos
+
+
 @bp.route("/auto-sync/bulk", methods=["POST"])
 def auto_sync_bulk():
-    """Bulk auto-sync: queue ffsubsync jobs for all episodes in a series or the full library."""
+    """Bulk auto-sync: queue ffsubsync jobs for every sidecar of every video in scope.
+
+    Body:
+        scope: one of "series" (with series_id), "library" (Sonarr only,
+               legacy default), "radarr", "standalone", or "all"
+        series_id: integer Sonarr series id, required when scope="series"
+        engine: "ffsubsync" (default) or "alass"
+
+    Unlike the previous implementation this queues a job per *sidecar*, not
+    per video — a video with `.de.srt` + `.en.srt` queues two jobs, fixing
+    the gap where bulk runs only synced whichever sidecar `scan_subtitle_sidecars`
+    returned first.
+    """
     data = request.get_json(force=True, silent=True) or {}
     scope = data.get("scope", "series")
     series_id = data.get("series_id")
@@ -243,62 +326,81 @@ def auto_sync_bulk():
     if engine not in ("ffsubsync", "alass"):
         return jsonify({"error": f"Unknown engine: {engine!r}"}), 400
 
-    from config import map_path
-    from sonarr_client import get_sonarr_client
+    valid_scopes = {"series", "library", "radarr", "standalone", "all"}
+    if scope not in valid_scopes:
+        return jsonify({"error": f"scope must be one of {sorted(valid_scopes)}"}), 400
+    if scope == "series" and series_id is None:
+        return jsonify({"error": "scope='series' requires series_id"}), 400
 
-    client = get_sonarr_client()
-    if client is None:
-        return jsonify({"error": "Sonarr not configured"}), 503
-
-    if scope == "series" and series_id is not None:
-        episode_files = client.get_episode_files_by_series(int(series_id))
-    elif scope == "library":
-        episode_files = {}
-        for sid in client.get_series() or []:
-            episode_files.update(client.get_episode_files_by_series(sid.get("id", 0)) or {})
-    else:
-        return jsonify({"error": "scope must be 'series' (with series_id) or 'library'"}), 400
-
-    from config import get_settings
+    from config import get_settings, map_path
+    from routes.subtitles import scan_subtitle_sidecars
     from security_utils import is_safe_path
+
+    raw_paths: list[str] = []
+    sources: dict[str, int] = {}
+
+    if scope == "series":
+        raw_paths.extend(_bulk_videos_from_sonarr(series_id))
+        sources["sonarr"] = len(raw_paths)
+    if scope in ("library", "all"):
+        sonarr_paths = _bulk_videos_from_sonarr(None)
+        raw_paths.extend(sonarr_paths)
+        sources["sonarr"] = len(sonarr_paths)
+    if scope in ("radarr", "all"):
+        radarr_paths = _bulk_videos_from_radarr()
+        raw_paths.extend(radarr_paths)
+        sources["radarr"] = len(radarr_paths)
+    if scope in ("standalone", "all"):
+        standalone_paths = _bulk_videos_from_standalone()
+        raw_paths.extend(standalone_paths)
+        sources["standalone"] = len(standalone_paths)
 
     media_path = get_settings().media_path
     queued = 0
-    for file_info in (episode_files or {}).values():
-        raw_path = file_info.get("path")
-        if not raw_path:
-            continue
-        video_path = map_path(raw_path)
-        # Reject paths that resolve outside media_path — Sonarr could be
-        # compromised or misconfigured to advertise paths outside the
-        # configured library root.
+    skipped: dict[str, int] = {"unsafe_path": 0, "missing_file": 0, "no_sidecar": 0}
+    seen_subs: set[str] = set()
+
+    for raw in raw_paths:
+        video_path = map_path(raw)
         if not is_safe_path(video_path, media_path):
+            skipped["unsafe_path"] += 1
             continue
         if not os.path.exists(video_path):
+            skipped["missing_file"] += 1
             continue
-        # Find first subtitle sidecar
-        from routes.subtitles import scan_subtitle_sidecars
-
         sidecars = scan_subtitle_sidecars(video_path)
         if not sidecars:
+            skipped["no_sidecar"] += 1
             continue
-        subtitle_path = sidecars[0]["path"]
-        if not is_safe_path(subtitle_path, media_path):
-            continue
-        job_id = str(uuid.uuid4())
-        _update_job(job_id, "queued")
-        _submit_sync(
-            current_app._get_current_object(),
-            job_id,
-            engine,
-            subtitle_path,
-            video_path,
-            None,
-            None,
-        )
-        queued += 1
+        for entry in sidecars:
+            subtitle_path = entry.get("path")
+            if not subtitle_path or subtitle_path in seen_subs:
+                continue
+            if not is_safe_path(subtitle_path, media_path):
+                continue
+            seen_subs.add(subtitle_path)
+            job_id = str(uuid.uuid4())
+            _update_job(job_id, "queued")
+            _submit_sync(
+                current_app._get_current_object(),
+                job_id,
+                engine,
+                subtitle_path,
+                video_path,
+                None,
+                None,
+            )
+            queued += 1
 
-    return jsonify({"queued": queued, "engine": engine}), 202
+    return jsonify(
+        {
+            "queued": queued,
+            "engine": engine,
+            "scope": scope,
+            "videos_considered": sources,
+            "skipped": skipped,
+        }
+    ), 202
 
 
 @bp.route("/video-sync/<job_id>", methods=["GET"])
