@@ -5,6 +5,17 @@ All notable changes to Sublarr are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.93.0-beta] - 2026-05-12
+
+### Added
+- **Configurable sync sanity threshold** — Settings → Sync now exposes `sync_sanity_threshold_ms` (default 60000). Lower to 45000 to reject ffsubsync mis-locks where the engine catches the wrong reference section and reports a shift just under the previous hard-coded 60s ceiling. The orchestrator falls through to the next engine in the chain when the threshold is exceeded.
+- **Bulk auto-sync: Radarr + standalone library coverage** — `POST /api/v1/tools/auto-sync/bulk` now accepts `scope=radarr`, `scope=standalone`, and `scope=all` in addition to `series` and `library`. Per-video sidecar walk queues a job for every matching `.{lang}.srt|ass` next to the video (was previously only the first match), with deduplication so re-runs and overlapping scopes do not double-queue. Response surfaces `videos_considered` and a `skipped[]` list with reasons.
+- **Prometheus metrics for subtitle sync** — `sync_jobs_total`, `sync_jobs_duration_seconds`, and `sync_jobs_offset_ms` counters/histograms now bump alongside every `sync_job_runs` audit row. Scrape `/api/v1/metrics` for Grafana visibility into the bulk auto-sync flow.
+
+### Fixed
+- **Onboarding wizard: 12 bugs closed** — Form fields no longer lose focus on every keystroke (the inline `Field` component was re-mounting on each parent render). Language step now syncs `target_language_name` to the chosen language code. Progress bar exposes ARIA attributes for screen readers. Test buttons added under Sonarr / Radarr / TMDb / TVDB / Ollama. Switching between ARR-only and standalone setup modes no longer leaks orphan config keys into the saved payload. Mediaserver-instance UIDs are stable across re-renders so show-password toggles target the right row.
+- **Path mapping in audio + OCR routes** — `/audio/extract` and `/ocr/extract` previously checked `settings.media_path_mapping`, a Pydantic field that does not exist (the real field is `path_mapping`). The check silently always failed and remote→local path translation never applied to these two endpoints. Both routes now call `config.map_path()` directly so the mapping takes effect.
+
 ## [0.92.7-beta] - 2026-05-12
 
 ### Fixed
