@@ -321,8 +321,17 @@ def _safe_remove(path: str) -> None:
 
 
 def _parse_ffsubsync_shift(output: str) -> int:
-    """Extract timing offset in milliseconds from ffsubsync output. Returns 0 if not parseable."""
-    m = re.search(r"offset.*?([-\d.]+)\s*s", output, re.IGNORECASE)
+    """Extract timing offset in milliseconds from ffsubsync output. Returns 0 if not parseable.
+
+    Handles both legacy and current ffsubsync output formats:
+        legacy: ``offset: 1.234 s applied`` / ``Offset: -0.5 s``
+        modern (≥0.4.x): ``INFO     offset seconds: 22.960``
+    """
+    m = re.search(
+        r"offset(?:\s+seconds)?\s*:\s*(-?\d+(?:\.\d+)?)",
+        output,
+        re.IGNORECASE,
+    )
     if m:
         try:
             return int(float(m.group(1)) * 1000)

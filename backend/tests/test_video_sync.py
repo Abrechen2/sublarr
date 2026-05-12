@@ -128,6 +128,68 @@ def test_start_sync_alass_with_reference_path(client, tmp_path):
     mock_exec.submit.assert_called_once()
 
 
+# ─── app_context regression (worker thread DB writes + after_sync hooks) ────
+
+
+def test_submit_sync_wraps_worker_in_app_context(app_ctx):
+    """_submit_sync MUST push the Flask app context inside the worker thread,
+    otherwise sync_with_ffsubsync's write_sync_job_run and after_sync triggers
+    silently fail with "Working outside of application context"
+    (see feedback_flask_app_context_in_threads memory).
+    """
+    from flask import current_app, has_app_context
+
+    from routes import video_sync as vs
+
+    captured: dict = {"runner": None}
+
+    class _CapturingExecutor:
+        def submit(self, fn, *args, **kwargs):
+            captured["runner"] = (fn, args, kwargs)
+
+    seen: dict = {"has_ctx": False, "current_app_name": None}
+
+    def _fake_run_sync(*args, **kwargs):
+        seen["has_ctx"] = has_app_context()
+        seen["current_app_name"] = current_app.name
+
+    with (
+        patch.object(vs, "_executor", _CapturingExecutor()),
+        patch.object(vs, "_run_sync", _fake_run_sync),
+    ):
+        vs._submit_sync(app_ctx, "job-1", "ffsubsync", "/sub.srt", "/v.mkv", None, None)
+        # Executor was called with our generated wrapper
+        fn, _args, _kwargs = captured["runner"]
+        # Invoke the wrapper as the worker would — must be inside the patch
+        # scope so the fake _run_sync (which captures the context state) runs
+        fn()
+
+    assert seen["has_ctx"] is True, "worker ran outside app context — DB writes will fail"
+    assert seen["current_app_name"]
+
+
+def test_start_sync_uses_submit_sync_with_current_app(client, tmp_path):
+    """POST /video-sync routes through _submit_sync (not _executor.submit directly)
+    so the captured app is the live Flask app, not a None placeholder.
+    """
+    sub = tmp_path / "ep.de.srt"
+    sub.write_text("1\n00:00:01,000 --> 00:00:02,000\nHello\n")
+    video = tmp_path / "ep.mkv"
+
+    with patch("routes.video_sync._submit_sync") as mock_submit:
+        resp = client.post(
+            "/api/v1/tools/video-sync",
+            json={"file_path": str(sub), "video_path": str(video), "engine": "ffsubsync"},
+        )
+
+    assert resp.status_code == 202
+    mock_submit.assert_called_once()
+    # First positional arg is the app — must be a real Flask app, not None / a string
+    submitted_app = mock_submit.call_args[0][0]
+    assert submitted_app is not None
+    assert hasattr(submitted_app, "app_context")
+
+
 # ─── Status ──────────────────────────────────────────────────────────────────
 
 
@@ -198,12 +260,49 @@ def test_sync_unavailable_error_when_alass_missing(tmp_path):
 
 
 def test_parse_ffsubsync_shift():
-    """_parse_ffsubsync_shift extracts ms from ffsubsync output."""
+    """_parse_ffsubsync_shift extracts ms from ffsubsync output (legacy + modern)."""
     from services.video_sync import _parse_ffsubsync_shift
 
     assert _parse_ffsubsync_shift("offset: 1.234 s applied") == 1234
     assert _parse_ffsubsync_shift("no offset info") == 0
     assert _parse_ffsubsync_shift("Offset: -0.5 s") == -500
+    # ffsubsync ≥0.4 — rich-logger format with trailing source-location annotation
+    assert (
+        _parse_ffsubsync_shift(
+            "[13:51:53] INFO     offset seconds: 22.960                      ffsubsync.py:189"
+        )
+        == 22960
+    )
+    assert (
+        _parse_ffsubsync_shift(
+            "           INFO     offset seconds: -0.990                      ffsubsync.py:189"
+        )
+        == -990
+    )
+    assert _parse_ffsubsync_shift("offset seconds: 0.000") == 0
+
+
+def test_parse_ffsubsync_shift_engine_class():
+    """sync_engines.ffsubsync_engine._parse_ffsubsync_shift mirrors the legacy parser."""
+    from services.sync_engines.ffsubsync_engine import _parse_ffsubsync_shift
+
+    assert _parse_ffsubsync_shift("offset: 1.234 s applied") == 1234
+    assert _parse_ffsubsync_shift("no offset info") == 0
+    assert _parse_ffsubsync_shift("Offset: -0.5 s") == -500
+    assert _parse_ffsubsync_shift("estimated shift: 0.42s") == 420
+    assert (
+        _parse_ffsubsync_shift(
+            "[13:51:53] INFO     offset seconds: 22.960                      ffsubsync.py:189"
+        )
+        == 22960
+    )
+    assert (
+        _parse_ffsubsync_shift(
+            "           INFO     offset seconds: -0.990                      ffsubsync.py:189"
+        )
+        == -990
+    )
+    assert _parse_ffsubsync_shift("offset seconds: 0.000") == 0
 
 
 def test_get_available_engines_returns_bools():

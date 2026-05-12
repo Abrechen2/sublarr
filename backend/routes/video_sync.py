@@ -12,7 +12,7 @@ import threading
 import uuid
 from concurrent.futures import ThreadPoolExecutor
 
-from flask import Blueprint, jsonify, request
+from flask import Blueprint, current_app, jsonify, request
 
 bp = Blueprint("video_sync", __name__, url_prefix="/api/v1/tools")
 logger = logging.getLogger(__name__)
@@ -20,6 +20,25 @@ logger = logging.getLogger(__name__)
 _executor = ThreadPoolExecutor(max_workers=2, thread_name_prefix="video-sync")
 _jobs: dict = {}
 _jobs_lock = threading.Lock()
+
+
+def _submit_sync(app, *args) -> None:
+    """Submit a sync job, wrapping ``_run_sync`` in the Flask app context.
+
+    Worker threads spawned by ``ThreadPoolExecutor`` do NOT inherit the request
+    app context. ``sync_with_ffsubsync`` / ``sync_with_alass`` touch the DB via
+    ``write_sync_job_run`` and trigger ``post_processing.after_sync`` hooks —
+    both require an active app context. Without this wrapper both calls log
+    ``Working outside of application context`` and swallow silently, so the
+    ``sync_job_runs`` audit table never receives manual-sync rows and no
+    after_sync pipeline ever fires (see ``feedback_flask_app_context_in_threads``).
+    """
+
+    def _runner() -> None:
+        with app.app_context():
+            _run_sync(*args)
+
+    _executor.submit(_runner)
 
 
 def _update_job(job_id: str, status: str, result: dict = None, error: str = None) -> None:
@@ -153,8 +172,8 @@ def start_sync():
 
     job_id = str(uuid.uuid4())
     _update_job(job_id, "queued")
-    _executor.submit(
-        _run_sync,
+    _submit_sync(
+        current_app._get_current_object(),
         job_id,
         engine,
         subtitle_path,
@@ -200,7 +219,15 @@ def auto_sync():
 
     job_id = str(uuid.uuid4())
     _update_job(job_id, "queued")
-    _executor.submit(_run_sync, job_id, engine, subtitle_path, video_path, None, None)
+    _submit_sync(
+        current_app._get_current_object(),
+        job_id,
+        engine,
+        subtitle_path,
+        video_path,
+        None,
+        None,
+    )
 
     return jsonify({"job_id": job_id, "status": "started"}), 202
 
@@ -260,7 +287,15 @@ def auto_sync_bulk():
             continue
         job_id = str(uuid.uuid4())
         _update_job(job_id, "queued")
-        _executor.submit(_run_sync, job_id, engine, subtitle_path, video_path, None, None)
+        _submit_sync(
+            current_app._get_current_object(),
+            job_id,
+            engine,
+            subtitle_path,
+            video_path,
+            None,
+            None,
+        )
         queued += 1
 
     return jsonify({"queued": queued, "engine": engine}), 202

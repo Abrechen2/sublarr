@@ -26,9 +26,14 @@ def _check_module(name: str) -> bool:
 
 
 def _parse_ffsubsync_shift(output: str) -> int:
-    """Extract estimated shift in milliseconds from ffsubsync stdout/stderr."""
+    """Extract estimated shift in milliseconds from ffsubsync stdout/stderr.
+
+    Handles both legacy and current ffsubsync output formats:
+        legacy: ``estimated shift: 1.234s`` / ``offset: 1.234 s applied``
+        modern (≥0.4.x): ``INFO     offset seconds: 22.960``
+    """
     match = re.search(
-        r"(?:estimated shift|shift|offset)[^-\d]*(-?\d+(?:\.\d+)?)\s*s",
+        r"(?:estimated\s+shift|offset)(?:\s+seconds)?\s*:?\s*(-?\d+(?:\.\d+)?)",
         output,
         re.IGNORECASE,
     )
