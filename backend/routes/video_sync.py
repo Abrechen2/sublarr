@@ -281,9 +281,8 @@ def _bulk_videos_from_radarr() -> list[str]:
 def _bulk_videos_from_standalone() -> list[str]:
     """Walk standalone series + movie folders and yield concrete video files."""
     from db.repositories.standalone import StandaloneRepository
-    from extensions import db
 
-    repo = StandaloneRepository(db.session)
+    repo = StandaloneRepository()
     folder_paths: list[str] = []
     for s in repo.get_all_standalone_series() or []:
         if s.get("folder_path"):
