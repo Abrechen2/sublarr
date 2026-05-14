@@ -131,7 +131,13 @@ def sync_with_ffsubsync(subtitle_path: str, video_path: str) -> dict:
         _audit("error", None, (result.stderr or "").strip()[:64] or "non-zero exit")
         raise RuntimeError(f"ffsubsync failed: {result.stderr.strip()}")
 
-    shutil.move(out_path, subtitle_path)
+    # NOTE: shutil.move falls back to copy2 across filesystems and copy2's
+    # copystat raises PermissionError on bind-mounted /media owned by a
+    # different host user — leaving the destination already overwritten by
+    # copyfile but the call as a whole raising. Use copyfile + _safe_remove
+    # instead so we never touch utime/owner metadata.
+    shutil.copyfile(out_path, subtitle_path)
+    _safe_remove(out_path)
     shift_ms = _parse_ffsubsync_shift(result.stderr + result.stdout)
     logger.info("ffsubsync: done, estimated shift %dms", shift_ms)
     _audit("ok", shift_ms, "")
@@ -210,7 +216,10 @@ def sync_with_alass(subtitle_path: str, reference_path: str) -> dict:
         _audit("error", (result.stderr or "").strip()[:64] or "non-zero exit")
         raise RuntimeError(f"alass failed: {result.stderr.strip()}")
 
-    shutil.move(out_path, subtitle_path)
+    # See ffsubsync branch above for why this is copyfile + _safe_remove
+    # rather than shutil.move.
+    shutil.copyfile(out_path, subtitle_path)
+    _safe_remove(out_path)
     logger.info("alass: sync complete")
     _audit("ok", "")
 
