@@ -68,6 +68,16 @@ class SyncUnavailableError(Exception):
     """Raised when the requested sync engine is not installed."""
 
 
+class SyncSanityThresholdError(Exception):
+    """Raised when an engine returned a shift larger than ``sync_sanity_threshold_ms``.
+
+    Mirrors the gate the orchestrator applies in ``services.sync_engines``.
+    Legacy callers (route + bulk paths) should treat this as a soft failure
+    that signals "engine output is not trustworthy, leave the sidecar
+    untouched" — the destination file is never written when this is raised.
+    """
+
+
 def sync_with_ffsubsync(subtitle_path: str, video_path: str) -> dict:
     """Sync subtitle to video using ffsubsync (speech-detection based).
 
@@ -83,6 +93,8 @@ def sync_with_ffsubsync(subtitle_path: str, video_path: str) -> dict:
     Raises:
         SyncUnavailableError: ffsubsync is not installed
         RuntimeError: ffsubsync exited with a non-zero status
+        SyncSanityThresholdError: ffsubsync returned a shift larger
+            than ``sync_sanity_threshold_ms`` — sidecar is left untouched.
     """
     import time as _time
 
@@ -131,6 +143,32 @@ def sync_with_ffsubsync(subtitle_path: str, video_path: str) -> dict:
         _audit("error", None, (result.stderr or "").strip()[:64] or "non-zero exit")
         raise RuntimeError(f"ffsubsync failed: {result.stderr.strip()}")
 
+    # Parse shift BEFORE touching the destination so the sanity gate can
+    # reject mis-locks without overwriting the existing sidecar.
+    shift_ms = _parse_ffsubsync_shift(result.stderr + result.stdout)
+
+    # Sanity gate (matches services.sync_engines.orchestrator at line 70):
+    # ffsubsync's speech detection can lock onto the wrong reference
+    # section (cold-open vs main theme, intro vs scene) and return a
+    # large shift in a narrow band just under the previous hard-coded
+    # 60s ceiling. Reject anything beyond the configured threshold so the
+    # legacy / bulk callers get the same protection as orchestrator-based
+    # auto-sync.
+    from config import get_settings
+
+    threshold = getattr(get_settings(), "sync_sanity_threshold_ms", 60_000)
+    if abs(shift_ms) > threshold:
+        _safe_remove(out_path)
+        logger.warning(
+            "ffsubsync: insane shift %dms (>%dms threshold) — leaving sidecar untouched",
+            shift_ms,
+            threshold,
+        )
+        _audit("rejected", shift_ms, f"exceeds_sanity_threshold:{threshold}ms")
+        raise SyncSanityThresholdError(
+            f"ffsubsync shift {shift_ms}ms exceeds sanity threshold {threshold}ms"
+        )
+
     # NOTE: shutil.move falls back to copy2 across filesystems and copy2's
     # copystat raises PermissionError on bind-mounted /media owned by a
     # different host user — leaving the destination already overwritten by
@@ -138,7 +176,6 @@ def sync_with_ffsubsync(subtitle_path: str, video_path: str) -> dict:
     # instead so we never touch utime/owner metadata.
     shutil.copyfile(out_path, subtitle_path)
     _safe_remove(out_path)
-    shift_ms = _parse_ffsubsync_shift(result.stderr + result.stdout)
     logger.info("ffsubsync: done, estimated shift %dms", shift_ms)
     _audit("ok", shift_ms, "")
 

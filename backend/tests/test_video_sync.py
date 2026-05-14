@@ -393,6 +393,61 @@ def test_sync_unavailable_error_when_alass_missing(tmp_path):
             pass
 
 
+def test_ffsubsync_rejects_shift_above_sanity_threshold(tmp_path):
+    """sync_with_ffsubsync raises SyncSanityThresholdError when the engine
+    returns a shift larger than sync_sanity_threshold_ms — the destination
+    sidecar must be left untouched (bulk callers depend on this; mis-locks
+    in the ±56-60s band would otherwise corrupt the library at scale).
+
+    Mirrors the gate already enforced by
+    ``services.sync_engines.orchestrator.SyncOrchestrator``.
+    """
+    from services.video_sync import SyncSanityThresholdError, sync_with_ffsubsync
+
+    sub = tmp_path / "ep.srt"
+    original = "1\n00:00:01,000 --> 00:00:02,000\nHello\n"
+    sub.write_text(original)
+
+    # ffsubsync "succeeded" but with an insane 55.7s shift (in the ±56-60s
+    # mis-lock band) — threshold is 45_000 ms.
+    fake_result = MagicMock(returncode=0, stderr="INFO offset seconds: 55.720", stdout="")
+    fake_settings = MagicMock(sync_sanity_threshold_ms=45_000)
+
+    try:
+        with (
+            patch("services.video_sync.shutil.which", return_value="/usr/bin/ffsubsync"),
+            patch("services.video_sync.subprocess.run", return_value=fake_result),
+            patch("config.get_settings", return_value=fake_settings),
+        ):
+            sync_with_ffsubsync(str(sub), "/video.mkv")
+        raise AssertionError("Expected SyncSanityThresholdError")
+    except SyncSanityThresholdError as exc:
+        assert "55720" in str(exc) or "55,720" in str(exc)
+        assert "45000" in str(exc) or "45,000" in str(exc)
+
+    # Sidecar must not have been overwritten with the bad ffsubsync output.
+    assert sub.read_text() == original
+
+
+def test_ffsubsync_accepts_shift_below_sanity_threshold(tmp_path):
+    """sync_with_ffsubsync proceeds normally when shift is under the threshold."""
+    from services.video_sync import sync_with_ffsubsync
+
+    sub = tmp_path / "ep.srt"
+    sub.write_text("1\n00:00:01,000 --> 00:00:02,000\nHello\n")
+    fake_result = MagicMock(returncode=0, stderr="INFO offset seconds: 1.234", stdout="")
+    fake_settings = MagicMock(sync_sanity_threshold_ms=45_000)
+
+    with (
+        patch("services.video_sync.shutil.which", return_value="/usr/bin/ffsubsync"),
+        patch("services.video_sync.subprocess.run", return_value=fake_result),
+        patch("config.get_settings", return_value=fake_settings),
+    ):
+        result = sync_with_ffsubsync(str(sub), "/video.mkv")
+    assert result["shift_ms"] == 1234
+    assert result["engine"] == "ffsubsync"
+
+
 def test_parse_ffsubsync_shift():
     """_parse_ffsubsync_shift extracts ms from ffsubsync output (legacy + modern)."""
     from services.video_sync import _parse_ffsubsync_shift
