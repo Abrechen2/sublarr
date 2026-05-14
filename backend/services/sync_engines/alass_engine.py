@@ -66,12 +66,15 @@ class AlassEngine(BaseSyncEngine):
         except Exception:
             pass
 
+        from services.sync_engines.concurrency import nice_prefix, sync_subprocess_lock
+
         out_path = str(src)
-        cmd = ["alass", reference_path, subtitle_path, out_path]
+        cmd = [*nice_prefix(), "alass", reference_path, subtitle_path, out_path]
         logger.info("alass: syncing %s against %s", subtitle_path, reference_path)
 
         try:
-            proc = subprocess.run(cmd, capture_output=True, text=True, timeout=self.timeout_s)
+            with sync_subprocess_lock:
+                proc = subprocess.run(cmd, capture_output=True, text=True, timeout=self.timeout_s)
         except subprocess.TimeoutExpired:
             return SyncResult(
                 engine=self.name,

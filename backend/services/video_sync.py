@@ -130,9 +130,12 @@ def sync_with_ffsubsync(subtitle_path: str, video_path: str) -> dict:
     fd, out_path = tempfile.mkstemp(suffix=ext)
     os.close(fd)
 
-    cmd = ["ffsubsync", video_path, "-i", subtitle_path, "-o", out_path]
+    from services.sync_engines.concurrency import nice_prefix, sync_subprocess_lock
+
+    cmd = [*nice_prefix(), "ffsubsync", video_path, "-i", subtitle_path, "-o", out_path]
     try:
-        result = subprocess.run(cmd, capture_output=True, text=True, timeout=600)
+        with sync_subprocess_lock:
+            result = subprocess.run(cmd, capture_output=True, text=True, timeout=600)
     except subprocess.TimeoutExpired:
         _safe_remove(out_path)
         _audit("error", None, "timeout 600s")
@@ -240,9 +243,12 @@ def sync_with_alass(subtitle_path: str, reference_path: str) -> dict:
     fd, out_path = tempfile.mkstemp(suffix=ext)
     os.close(fd)
 
-    cmd = ["alass", reference_path, subtitle_path, out_path]
+    from services.sync_engines.concurrency import nice_prefix, sync_subprocess_lock
+
+    cmd = [*nice_prefix(), "alass", reference_path, subtitle_path, out_path]
     try:
-        result = subprocess.run(cmd, capture_output=True, text=True, timeout=300)
+        with sync_subprocess_lock:
+            result = subprocess.run(cmd, capture_output=True, text=True, timeout=300)
     except subprocess.TimeoutExpired:
         _safe_remove(out_path)
         _audit("error", "timeout 300s")

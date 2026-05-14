@@ -95,12 +95,15 @@ class FfsubsyncEngine(BaseSyncEngine):
         except Exception:
             pass
 
+        from services.sync_engines.concurrency import nice_prefix, sync_subprocess_lock
+
         out_path = str(src)
-        cmd = ["ffsubsync", video_path, "-i", subtitle_path, "-o", out_path]
+        cmd = [*nice_prefix(), "ffsubsync", video_path, "-i", subtitle_path, "-o", out_path]
         logger.info("ffsubsync: syncing %s against %s", subtitle_path, video_path)
 
         try:
-            proc = subprocess.run(cmd, capture_output=True, text=True, timeout=self.timeout_s)
+            with sync_subprocess_lock:
+                proc = subprocess.run(cmd, capture_output=True, text=True, timeout=self.timeout_s)
         except subprocess.TimeoutExpired:
             return SyncResult(
                 engine=self.name,
