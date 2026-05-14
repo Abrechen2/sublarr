@@ -5,6 +5,12 @@ All notable changes to Sublarr are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.93.1-beta] - 2026-05-14
+
+### Fixed
+- **Bulk auto-sync `scope=all` and `scope=standalone` returned HTTP 500** — `_bulk_videos_from_standalone` constructed `StandaloneRepository(db.session)` but `BaseRepository.__init__()` takes no positional arguments, so every call with these scopes raised `TypeError`. Workaround was `scope=library` (Sonarr only) or `scope=radarr` until this fix shipped.
+- **Sync silently overwrote sidecars without writing an audit row** — `shutil.move` from `/tmp` to a bind-mounted `/media` fell back to `copy2`, whose `copystat` raised `PermissionError` on hosts with mismatched user/group ownership. The destination was already overwritten by `copyfile` at that point, but the exception prevented `_audit("ok")` from ever running — every successful sync looked failed in logs, no `sync_job_runs` row was written, and `/tmp` leaked the temp output. Replaced with explicit `copyfile + _safe_remove` so metadata is never touched. Applies to both ffsubsync and alass code paths.
+
 ## [0.93.0-beta] - 2026-05-12
 
 ### Added
