@@ -5,6 +5,11 @@ All notable changes to Sublarr are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.93.2-beta] - 2026-05-14
+
+### Fixed
+- **`sync_sanity_threshold_ms` is now enforced in the legacy sync path too** — The threshold introduced in 0.93.0-beta was only wired into `services.sync_engines.orchestrator`. The legacy `services.video_sync.sync_with_ffsubsync` path, which powers `/video-sync`, `/auto-sync`, `/auto-sync/bulk`, `wanted_search` and the CLI sync command, parsed the ffsubsync shift only after overwriting the destination sidecar and never compared it against the threshold. Mis-locks in the ±56-60s band therefore wrote `sync_job_runs` rows with `status='ok'` and corrupted the destination subtitle. Now the shift is parsed before any file is touched; if `|shift| > sync_sanity_threshold_ms` the function audits `status='rejected'` with reason `exceeds_sanity_threshold:Nms`, raises a new `SyncSanityThresholdError`, and leaves the sidecar intact. Mirrors the gate enforced at `services/sync_engines/orchestrator.py:70`. Two regression tests added.
+
 ## [0.93.1-beta] - 2026-05-14
 
 ### Fixed
