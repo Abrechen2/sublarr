@@ -5,6 +5,13 @@ All notable changes to Sublarr are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.93.3-beta] - 2026-05-14
+
+### Changed
+- **Subtitle sync — throttled to one parallel job per process** — `ffsubsync` and `alass` previously ran two parallel from `/auto-sync/bulk` plus an inline auto-sync from every newly downloaded wanted-search subtitle. On a 24-core homeserver the combined CPU+IO spiked host load to 9+ and crowded out Plex / Home Assistant VM / qBittorrent. A module-level `BoundedSemaphore(1)` now serialises every sync subprocess across the Flask process so at most one engine runs at a time regardless of which route or worker called it (catches the UI bulk-sync, the legacy `wanted_search` auto-sync, and the new orchestrator path in one chokepoint). The command is prefixed with `nice -n 19` on Linux so the subprocess yields CPU to whatever else needs it. Bulk-sync wall-clock is longer but per-job duration is unchanged.
+
+---
+
 ## [0.93.2-beta] - 2026-05-14
 
 ### Fixed
