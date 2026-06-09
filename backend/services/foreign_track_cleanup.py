@@ -18,7 +18,7 @@ from __future__ import annotations
 
 import logging
 
-from config_language_data import normalize_language_code
+from config_language_data import _get_language_tags
 
 logger = logging.getLogger(__name__)
 
@@ -70,6 +70,7 @@ def maybe_run_foreign_track_cleanup(
         settings = get_settings()
         global_default = bool(getattr(settings, "cleanup_foreign_tracks_default", False))
         keep_und = bool(getattr(settings, "cleanup_foreign_tracks_keep_und", False))
+        always_keep = getattr(settings, "cleanup_foreign_tracks_keep_languages", None) or []
     except Exception:
         logger.debug("foreign-track cleanup: settings unavailable", exc_info=True)
         return
@@ -80,17 +81,33 @@ def maybe_run_foreign_track_cleanup(
     ):
         return
 
+    # Base keep-set: the item's wanted/target languages (resolved from the
+    # item when the caller didn't pass an explicit set) unioned with the
+    # configured always-keep languages, so a download target of just "de"
+    # still preserves English embedded tracks.
     if target_languages is None:
-        target_languages = {
-            normalize_language_code(lang) for lang in (item.get("missing_languages") or []) if lang
-        }
+        target_languages = set()
+        for lang in item.get("missing_languages") or []:
+            if lang:
+                target_languages.add(str(lang).lower())
         tgt = item.get("target_language")
         if tgt:
-            target_languages.add(normalize_language_code(tgt))
-    target_languages = {t for t in target_languages if t}
-    if not target_languages:
+            target_languages.add(str(tgt).lower())
+    base_codes = {str(t).lower() for t in target_languages if t}
+    base_codes |= {str(a).lower() for a in always_keep if a}
+
+    # Expand to every known tag (de -> {de, deu, ger, german}) because the
+    # remux strip compares the *raw* ffprobe language tag, which is usually
+    # ISO-639-2 ("ger"/"eng") — comparing against bare 2-letter codes would
+    # mis-classify the target language itself as foreign.
+    keep_tags: set[str] = set()
+    for code in base_codes:
+        keep_tags.update(_get_language_tags(code))
+    keep_tags = {t for t in keep_tags if t}
+    if not keep_tags:
         logger.debug("foreign-track cleanup: no target languages resolved for %s", file_path)
         return
+    target_languages = keep_tags
 
     # Audit G13: previously every failure went through a single
     # ``except Exception`` with a generic warning. That hid persistent

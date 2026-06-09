@@ -155,6 +155,7 @@ def _execute_cleanup():
     from db.repositories.cleanup import CleanupRepository
     from dedup_engine import scan_for_duplicates, scan_orphaned_subtitles
     from services.cleanup_executors import (
+        execute_foreign_tracks,
         execute_format_upgrade,
         execute_language_filter,
         execute_orphan_db,
@@ -245,6 +246,23 @@ def _execute_cleanup():
                     logger.info(
                         "Scheduled orphan_db: %d DB entries removed",
                         result.get("deleted", 0),
+                    )
+
+                elif rule_type == "foreign_tracks":
+                    result = execute_foreign_tracks(media_path, config, dry_run=False)
+                    repo.update_rule_last_run(rule_id)
+                    repo.log_cleanup(
+                        action_type="scheduled_foreign_tracks",
+                        files_deleted=result.get("stripped_files", 0),
+                        bytes_freed=result.get("bytes_freed", 0),
+                        rule_id=rule_id,
+                    )
+                    logger.info(
+                        "Scheduled foreign_tracks: %d files stripped, %d tracks removed, "
+                        "%d bytes freed",
+                        result.get("stripped_files", 0),
+                        result.get("tracks_removed", 0),
+                        result.get("bytes_freed", 0),
                     )
 
                 elif rule_type == "dedup":

@@ -87,6 +87,17 @@ const OPERATIONS: OpMeta[] = [
       'Verwaiste .bak.srt/.bak.ass werden sofort entfernt; übrige nach Aufbewahrungsfrist (0 = nie)',
     defaultName: 'Alte Untertitel-Backups',
   },
+  {
+    ruleType: 'foreign_tracks',
+    Icon: Layers,
+    iconColor: 'var(--accent)',
+    iconBg: 'rgba(34,211,238,.13)',
+    title: 'Fremdsprachen-Tracks entfernen',
+    description:
+      'Entfernt eingebettete Untertitel-Spuren aus den Videos, deren Sprache nicht in der Behalten-Liste steht (Original landet als Backup im Papierkorb)',
+    defaultName: 'Fremdsprachen-Tracks entfernen',
+    defaultConfig: { keep_languages: ['de', 'en'], keep_und: true },
+  },
 ]
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -250,7 +261,7 @@ export function CleanupSettings() {
           {
             name: meta.defaultName,
             rule_type: ruleType as CleanupRule['rule_type'],
-            config_json: {},
+            config_json: meta.defaultConfig ?? {},
             enabled,
             schedule: 'manual',
           },

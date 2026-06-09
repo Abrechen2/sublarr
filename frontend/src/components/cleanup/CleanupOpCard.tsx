@@ -19,13 +19,19 @@ import { toast } from '@/components/shared/Toast'
 
 interface PreviewExample {
   path: string
-  size_bytes: number
+  size_bytes?: number
   reason?: string
+  // foreign_tracks preview shape
+  tracks?: number
+  langs?: string[]
 }
 
 interface PreviewResult {
   would_delete?: number
   would_keep?: number
+  // foreign_tracks preview shape
+  would_strip_files?: number
+  would_strip_tracks?: number
   examples?: PreviewExample[]
 }
 
@@ -37,6 +43,8 @@ export interface OpMeta {
   title: string
   description: string
   defaultName: string
+  /** Seed config applied when the rule is first created (default: {}). */
+  defaultConfig?: Record<string, unknown>
 }
 
 interface CleanupOpCardProps {
@@ -64,11 +72,12 @@ function PreviewPanel({
   result: PreviewResult
   onClose: () => void
 }) {
-  const willDelete = result.would_delete ?? 0
+  const willDelete = result.would_delete ?? result.would_strip_files ?? 0
   const willKeep = result.would_keep
   const examples = result.examples ?? []
   const total = willDelete + (willKeep ?? 0)
   const pct = total > 0 ? Math.round((willDelete / total) * 100) : 0
+  const stripTracks = result.would_strip_tracks
 
   return (
     <div
@@ -117,7 +126,9 @@ function PreviewPanel({
               {willDelete}
             </div>
             <div className="text-xs mt-1.5" style={{ color: 'var(--text-muted)' }}>
-              würden gelöscht
+              {stripTracks !== undefined
+                ? `Dateien (${stripTracks} Spuren würden entfernt)`
+                : 'würden gelöscht'}
             </div>
           </div>
           {willKeep !== undefined && (
@@ -202,12 +213,24 @@ function PreviewPanel({
                       </div>
                     </div>
                     <div className="flex flex-col items-end gap-1 flex-shrink-0">
-                      {ex.size_bytes > 0 && (
+                      {(ex.size_bytes ?? 0) > 0 && (
                         <span
                           className="text-[11px] tabular-nums"
                           style={{ fontFamily: 'var(--font-mono)', color: 'var(--text-muted)' }}
                         >
-                          {formatBytes(ex.size_bytes)}
+                          {formatBytes(ex.size_bytes ?? 0)}
+                        </span>
+                      )}
+                      {ex.langs && ex.langs.length > 0 && (
+                        <span
+                          className="text-[10px] font-semibold uppercase tracking-wide px-2 py-0.5 rounded"
+                          style={{
+                            background: 'color-mix(in srgb, var(--error) 12%, transparent)',
+                            color: 'var(--error)',
+                          }}
+                        >
+                          {ex.langs.join(', ')}
+                          {ex.tracks ? ` (${ex.tracks})` : ''}
                         </span>
                       )}
                       {ex.reason && (
@@ -395,6 +418,32 @@ export function CleanupOpCard({ meta, rule, onToggle, onUpdate }: CleanupOpCardP
                   value={(config.keep_languages as string[]) ?? []}
                   onChange={(langs) => updateConfig({ keep_languages: langs })}
                 />
+              </div>
+            )}
+
+            {meta.ruleType === 'foreign_tracks' && (
+              <div className="flex-1 min-w-[220px]">
+                <div
+                  className="text-[10px] font-semibold uppercase tracking-wider mb-3"
+                  style={{ color: 'var(--text-muted)' }}
+                >
+                  Sprachen behalten
+                </div>
+                <LanguageFilterConfig
+                  value={(config.keep_languages as string[]) ?? ['de', 'en']}
+                  onChange={(langs) => updateConfig({ keep_languages: langs })}
+                />
+                <label
+                  className="flex items-center gap-2 mt-3 text-sm cursor-pointer"
+                  style={{ color: 'var(--text-secondary)' }}
+                >
+                  <input
+                    type="checkbox"
+                    checked={(config.keep_und as boolean) ?? true}
+                    onChange={(e) => updateConfig({ keep_und: e.target.checked })}
+                  />
+                  Unbestimmte Sprache (und) behalten
+                </label>
               </div>
             )}
 

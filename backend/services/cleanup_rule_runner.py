@@ -46,6 +46,7 @@ def _execute_rule_locked(rule_id: int, *, socketio=None) -> dict:
     from config import get_settings
     from dedup_engine import scan_for_duplicates, scan_orphaned_subtitles
     from services.cleanup_executors import (
+        execute_foreign_tracks,
         execute_format_upgrade,
         execute_language_filter,
         execute_orphan_db,
@@ -71,6 +72,16 @@ def _execute_rule_locked(rule_id: int, *, socketio=None) -> dict:
         result = execute_orphan_files(media_path, config, dry_run=False)
     elif rule_type == "orphan_db":
         result = execute_orphan_db(config, dry_run=False)
+    elif rule_type == "foreign_tracks":
+        result = execute_foreign_tracks(media_path, config, dry_run=False)
+        repo.update_rule_last_run(rule_id)
+        repo.log_cleanup(
+            action_type=rule_type,
+            rule_id=rule_id,
+            files_deleted=result.get("stripped_files", 0),
+            bytes_freed=result.get("bytes_freed", 0),
+        )
+        return {"status": "ok", "result": result}
     elif rule_type == "dedup":
         result = scan_for_duplicates(media_path, socketio=socketio)
         repo.update_rule_last_run(rule_id)
@@ -142,6 +153,7 @@ def preview_rule(rule_id: int) -> dict:
     """
     from config import get_settings
     from services.cleanup_executors import (
+        execute_foreign_tracks,
         execute_format_upgrade,
         execute_language_filter,
         execute_orphan_db,
@@ -166,6 +178,8 @@ def preview_rule(rule_id: int) -> dict:
         result = execute_orphan_files(media_path, config, dry_run=True)
     elif rule_type == "orphan_db":
         result = execute_orphan_db(config, dry_run=True)
+    elif rule_type == "foreign_tracks":
+        result = execute_foreign_tracks(media_path, config, dry_run=True)
     else:
         raise ValueError(f"Preview not supported for rule type: {rule_type}")
 

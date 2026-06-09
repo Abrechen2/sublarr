@@ -99,6 +99,7 @@ def create_rule():
         "format_upgrade",
         "orphan_files",
         "orphan_db",
+        "foreign_tracks",
     }
     if rule_type not in valid_types:
         return jsonify({"error": f"rule_type must be one of: {sorted(valid_types)}"}), 400
@@ -152,7 +153,7 @@ def update_rule(rule_id: int):
                   type: string
                 rule_type:
                   type: string
-                  enum: [dedup, orphaned, old_backups, language_filter, format_upgrade, orphan_files, orphan_db]
+                  enum: [dedup, orphaned, old_backups, language_filter, format_upgrade, orphan_files, orphan_db, foreign_tracks]
                 config_json:
                   type: string
                 enabled:

@@ -123,6 +123,24 @@ def _subtitle_files(root: str) -> list[str]:
     return found
 
 
+def _video_files(root: str) -> list[str]:
+    """Walk root recursively, return paths of all video files.
+
+    Skips the ``.sublarr`` trash/backup tree so we never probe or rewrite
+    our own backups (their ``.bak`` extension already excludes them, but
+    pruning the subtree avoids the wasted ffprobe calls).
+    """
+    found = []
+    for dirpath, filenames in _safe_walk(root):
+        norm = dirpath.replace("\\", "/")
+        if "/.sublarr" in norm or os.path.basename(dirpath) == ".sublarr":
+            continue
+        for fname in filenames:
+            if os.path.splitext(fname)[1].lower() in VIDEO_EXTENSIONS:
+                found.append(os.path.join(dirpath, fname))
+    return found
+
+
 # ---------------------------------------------------------------------------
 # Language helpers (audit C1-1 / C1-2)
 # ---------------------------------------------------------------------------
@@ -362,6 +380,150 @@ def execute_language_filter(media_path: str, config: dict, dry_run: bool = False
     if dry_run:
         return {"would_delete": would_delete, "would_keep": would_keep, "examples": examples}
     return {"deleted": deleted, "kept": kept, "bytes_freed": bytes_freed}
+
+
+def execute_foreign_tracks(media_path: str, config: dict, dry_run: bool = False) -> dict:
+    """Strip embedded subtitle tracks whose language is not in keep_languages.
+
+    Closes the gap where provider-downloaded episodes never had their
+    embedded foreign subtitle tracks removed (foreign-track cleanup only
+    fired on the *extract* path). Reuses
+    ``remux.remove_foreign_subtitle_streams`` so every rewritten video
+    leaves its original behind as a ``.bak`` in the media root's trash
+    dir — fully restorable, nothing hard-deleted.
+
+    Args:
+        media_path: Root directory to scan recursively.
+        config: ``{"keep_languages": ["de", "en"], "keep_und": true}``.
+            ``keep_languages`` is expanded to every known tag (so ``de``
+            also matches ``ger``/``deu`` as reported by ffprobe).
+        dry_run: If True, only probe and report; never rewrite a file.
+
+    Returns:
+        dry_run mode:
+            ``{"would_strip_files": int, "would_strip_tracks": int, "examples": [...]}``
+        execute mode:
+            ``{"stripped_files": int, "tracks_removed": int, "bytes_freed": int}``
+        Adds ``"aborted": "..."`` when a guard fires.
+    """
+    if not _media_path_reachable(media_path):
+        return {
+            "stripped_files": 0,
+            "tracks_removed": 0,
+            "bytes_freed": 0,
+            "aborted": "media_path unreachable",
+        }
+
+    keep_languages: set[str] = set()
+    for lang in config.get("keep_languages", []) or []:
+        keep_languages.update(_get_language_tags(lang.lower()))
+    if not keep_languages:
+        # Mirror the language_filter C0-2 guard: an empty keep set would
+        # strip every subtitle track in the library.
+        logger.warning(
+            "execute_foreign_tracks: empty keep_languages — aborting to prevent "
+            "stripping every embedded subtitle track"
+        )
+        return {
+            "stripped_files": 0,
+            "tracks_removed": 0,
+            "bytes_freed": 0,
+            "aborted": "empty keep_languages",
+        }
+
+    keep_und = bool(config.get("keep_und", True))
+
+    from remux import RemuxError, get_media_streams, remove_foreign_subtitle_streams
+
+    stripped_files = 0
+    tracks_removed = 0
+    bytes_freed = 0
+    would_strip_files = 0
+    would_strip_tracks = 0
+    examples: list[dict] = []
+
+    for video in _video_files(media_path):
+        try:
+            probe = get_media_streams(video)
+        except Exception as exc:  # noqa: BLE001 — one bad probe must not abort the batch
+            logger.debug("execute_foreign_tracks: probe failed for %s: %s", video, exc)
+            continue
+
+        foreign_langs: list[str] = []
+        for stream in probe.get("streams", []):
+            if stream.get("codec_type") != "subtitle":
+                continue
+            lang = (stream.get("tags", {}).get("language", "und") or "und").lower()
+            if lang in keep_languages:
+                continue
+            if keep_und and lang == "und":
+                continue
+            foreign_langs.append(lang)
+
+        if not foreign_langs:
+            continue
+
+        if dry_run:
+            would_strip_files += 1
+            would_strip_tracks += len(foreign_langs)
+            if len(examples) < 20:
+                examples.append(
+                    {
+                        "path": video,
+                        "tracks": len(foreign_langs),
+                        "langs": sorted(set(foreign_langs)),
+                    }
+                )
+            logger.debug("Would strip (foreign_tracks): %s (%s)", video, foreign_langs)
+            continue
+
+        try:
+            size_before = os.path.getsize(video)
+        except OSError:
+            size_before = 0
+        try:
+            backup = remove_foreign_subtitle_streams(
+                video_path=video,
+                target_languages=keep_languages,
+                keep_und=keep_und,
+            )
+        except (RemuxError, OSError) as exc:
+            logger.warning("execute_foreign_tracks: strip failed for %s: %s", video, exc)
+            continue
+        except Exception as exc:  # noqa: BLE001 — record + continue, never abort the batch
+            logger.error(
+                "execute_foreign_tracks: unexpected %s on %s: %s",
+                type(exc).__name__,
+                video,
+                exc,
+            )
+            continue
+
+        if backup:
+            stripped_files += 1
+            tracks_removed += len(foreign_langs)
+            try:
+                bytes_freed += max(0, size_before - os.path.getsize(video))
+            except OSError:
+                pass
+            logger.info(
+                "Stripped %d foreign track(s) from %s (backup at %s)",
+                len(foreign_langs),
+                video,
+                backup,
+            )
+
+    if dry_run:
+        return {
+            "would_strip_files": would_strip_files,
+            "would_strip_tracks": would_strip_tracks,
+            "examples": examples,
+        }
+    return {
+        "stripped_files": stripped_files,
+        "tracks_removed": tracks_removed,
+        "bytes_freed": bytes_freed,
+    }
 
 
 def execute_format_upgrade(media_path: str, config: dict, dry_run: bool = False) -> dict:

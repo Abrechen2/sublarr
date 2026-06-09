@@ -62,6 +62,87 @@ def test_language_filter_dry_run_deletes_nothing(tmp_path):
     assert (tmp_path / "show.fr.ass").exists()
 
 
+def _foreign_probe(*_args, **_kwargs):
+    """Fake ffprobe result: ger + eng kept, jpn + ita are foreign, und present."""
+    return {
+        "streams": [
+            {"codec_type": "video", "index": 0},
+            {"codec_type": "subtitle", "index": 1, "tags": {"language": "ger"}},
+            {"codec_type": "subtitle", "index": 2, "tags": {"language": "eng"}},
+            {"codec_type": "subtitle", "index": 3, "tags": {"language": "jpn"}},
+            {"codec_type": "subtitle", "index": 4, "tags": {"language": "ita"}},
+            {"codec_type": "subtitle", "index": 5, "tags": {"language": "und"}},
+        ]
+    }
+
+
+def test_foreign_tracks_dry_run_reports_without_stripping(tmp_path):
+    """dry_run reports foreign tracks (jpn+ita) and never calls the strip."""
+    from services.cleanup_executors import execute_foreign_tracks
+
+    (tmp_path / "show.mkv").write_bytes(b"video")
+    strip = MagicMock()
+    with (
+        patch("remux.get_media_streams", _foreign_probe),
+        patch("remux.remove_foreign_subtitle_streams", strip),
+    ):
+        result = execute_foreign_tracks(
+            str(tmp_path), {"keep_languages": ["de", "en"], "keep_und": True}, dry_run=True
+        )
+
+    assert result["would_strip_files"] == 1
+    assert result["would_strip_tracks"] == 2  # jpn + ita (und kept)
+    assert result["examples"][0]["langs"] == ["ita", "jpn"]
+    strip.assert_not_called()
+
+
+def test_foreign_tracks_execute_strips_foreign(tmp_path):
+    """execute calls remove_foreign_subtitle_streams with de+en variants kept."""
+    from services.cleanup_executors import execute_foreign_tracks
+
+    (tmp_path / "show.mkv").write_bytes(b"video")
+    strip = MagicMock(return_value="/media/.sublarr/trash/2026/show.mkv.123.bak")
+    with (
+        patch("remux.get_media_streams", _foreign_probe),
+        patch("remux.remove_foreign_subtitle_streams", strip),
+    ):
+        result = execute_foreign_tracks(
+            str(tmp_path), {"keep_languages": ["de", "en"], "keep_und": True}, dry_run=False
+        )
+
+    assert result["stripped_files"] == 1
+    assert result["tracks_removed"] == 2
+    strip.assert_called_once()
+    kept = strip.call_args.kwargs["target_languages"]
+    assert {"ger", "deu", "eng"}.issubset(kept)  # expanded to raw ffprobe tags
+    assert strip.call_args.kwargs["keep_und"] is True
+
+
+def test_foreign_tracks_empty_keep_aborts(tmp_path):
+    """An empty keep_languages must abort, never strip every track."""
+    from services.cleanup_executors import execute_foreign_tracks
+
+    (tmp_path / "show.mkv").write_bytes(b"video")
+    result = execute_foreign_tracks(str(tmp_path), {"keep_languages": []}, dry_run=False)
+    assert result.get("aborted") == "empty keep_languages"
+    assert result["stripped_files"] == 0
+
+
+def test_foreign_tracks_keep_und_false_strips_und(tmp_path):
+    """keep_und=False adds the undetermined track to the strip set."""
+    from services.cleanup_executors import execute_foreign_tracks
+
+    (tmp_path / "show.mkv").write_bytes(b"video")
+    with (
+        patch("remux.get_media_streams", _foreign_probe),
+        patch("remux.remove_foreign_subtitle_streams", MagicMock(return_value="bak")),
+    ):
+        result = execute_foreign_tracks(
+            str(tmp_path), {"keep_languages": ["de", "en"], "keep_und": False}, dry_run=True
+        )
+    assert result["would_strip_tracks"] == 3  # jpn + ita + und
+
+
 def test_format_upgrade_removes_srt_when_ass_exists(tmp_path):
     """SRT should be deleted when ASS exists for same base+language."""
     from services.cleanup_executors import execute_format_upgrade

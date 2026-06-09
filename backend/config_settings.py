@@ -255,6 +255,10 @@ class UISettings(BaseModel):
     # Foreign-track cleanup. Destructive (remuxes the MKV with backup-to-trash).
     cleanup_foreign_tracks_default: bool = False
     cleanup_foreign_tracks_keep_und: bool = False
+    # Languages always kept by foreign-track cleanup, on top of the item's
+    # target/wanted languages. Guarantees e.g. English survives even when
+    # only German is the download target. Empty list = target languages only.
+    cleanup_foreign_tracks_keep_languages: list[str] = ["de", "en"]
 
     # Provider Re-ranking
     provider_reranking_enabled: bool = False  # Auto-adjust score modifiers

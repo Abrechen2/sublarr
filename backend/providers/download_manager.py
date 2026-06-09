@@ -229,6 +229,30 @@ def _is_content_hash_blacklisted(provider_name: str, content: bytes) -> bool:
         return False
 
 
+_VIDEO_EXTS_FOR_SIDECAR = (".mkv", ".mp4", ".m4v", ".webm", ".mov", ".avi", ".ts")
+
+
+def _video_for_sidecar(sidecar_path: str) -> str | None:
+    """Best-effort: resolve the video file a sidecar belongs to.
+
+    Sidecars are ``<video_base>.<lang>[.<modifier>].<ext>``. Strip the
+    subtitle extension, then progressively strip trailing language/modifier
+    tokens, probing for a sibling video file at each step. Returns the first
+    match, or None when no companion video is found (caller skips the hook).
+    """
+    base = os.path.splitext(sidecar_path)[0]
+    for _ in range(3):
+        for ext in _VIDEO_EXTS_FOR_SIDECAR:
+            candidate = base + ext
+            if os.path.isfile(candidate):
+                return candidate
+        new_base = base.rsplit(".", 1)[0]
+        if new_base == base:
+            break
+        base = new_base
+    return None
+
+
 def save_subtitle(
     result: SubtitleResult,
     output_path: str,
@@ -465,6 +489,25 @@ def save_subtitle(
         _run_pipeline_for_path(output_path, series_id=series_id)
     except Exception as _exc:
         logger.warning("[pipeline] hook error: %s", _exc)
+
+    # Foreign-track cleanup hook (additive, best-effort). Strips embedded
+    # non-target subtitle tracks from the video container now that a
+    # target-language sidecar has landed — closing the gap where
+    # provider-downloaded episodes never went through the extract path.
+    # No-ops unless cleanup_foreign_tracks_default (or a series override)
+    # is enabled; the keep-set is target ∪ configured always-keep
+    # languages. Errors are swallowed inside the hook.
+    try:
+        _video = _video_for_sidecar(output_path)
+        if _video:
+            from services.foreign_track_cleanup import maybe_run_foreign_track_cleanup
+
+            maybe_run_foreign_track_cleanup(
+                {"sonarr_series_id": series_id, "target_language": result.language},
+                _video,
+            )
+    except Exception as _exc:
+        logger.debug("[foreign-track] post-download hook skipped: %s", _exc)
 
     # Post-download shell command (user-configurable, Bazarr parity)
     from post_download import run_post_download_command
