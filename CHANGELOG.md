@@ -5,6 +5,17 @@ All notable changes to Sublarr are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.94.0-beta] - 2026-06-09
+
+### Added
+- **Foreign-track cleanup rule ("Fremdsprachen-Tracks entfernen")** — A new cleanup rule that strips embedded subtitle tracks whose language is not on the keep-list (default German + English) from video files across the library. Available in Settings → Cleanup with a dry-run preview and manual or scheduled execution; originals are kept as restorable backups in the media trash directory. Closes the gap where provider-downloaded episodes never had their embedded foreign subtitle tracks removed (previously only the extract path did this).
+- **Automatic foreign-track stripping after download** — Provider subtitle downloads now strip non-target embedded subtitle tracks automatically when foreign-track cleanup is enabled, instead of only on the extract path. A configurable always-keep language list (`cleanup_foreign_tracks_keep_languages`, default German + English) guarantees English survives even for a German-only download target.
+
+### Fixed
+- **Foreign-track cleanup no longer risks removing the target language** — The keep-set was compared as bare 2-letter codes against raw ISO-639-2 track tags (e.g. `ger`/`eng`), which could classify the target language itself as foreign and strip it. Language codes are now expanded to all known tag variants before comparison.
+
+---
+
 ## [0.93.3-beta] - 2026-05-14
 
 ### Changed
