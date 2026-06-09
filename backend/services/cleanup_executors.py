@@ -512,6 +512,14 @@ def execute_foreign_tracks(media_path: str, config: dict, dry_run: bool = False)
                 video,
                 backup,
             )
+            # The container changed on disk — refresh the configured media
+            # servers so their cached track list reflects the strip.
+            try:
+                from services.media_server_notify import notify_media_servers
+
+                notify_media_servers(video)
+            except Exception:  # noqa: BLE001 — best-effort, never abort the batch
+                logger.debug("foreign_tracks: media-server refresh skipped", exc_info=True)
 
     if dry_run:
         return {

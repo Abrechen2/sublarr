@@ -38,18 +38,9 @@ def _notify_integrations(context, file_path=None):
     elif context.get("radarr_movie_id"):
         item_type = "movie"
 
-    try:
-        from mediaserver import get_media_server_manager
+    from services.media_server_notify import notify_media_servers
 
-        manager = get_media_server_manager()
-        results = manager.refresh_all(file_path, item_type)
-        for r in results:
-            if r.success:
-                logger.info("Media server refresh: %s", r.message)
-            else:
-                logger.warning("Media server refresh failed: %s", r.message)
-    except Exception as e:
-        logger.warning("Media server notification failed: %s", e)
+    notify_media_servers(file_path, item_type)
 
 
 def _record_config_hash_for_result(result, file_path):

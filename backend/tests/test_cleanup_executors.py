@@ -118,6 +118,41 @@ def test_foreign_tracks_execute_strips_foreign(tmp_path):
     assert strip.call_args.kwargs["keep_und"] is True
 
 
+def test_foreign_tracks_refreshes_media_servers_after_strip(tmp_path):
+    """A successful strip triggers a media-server refresh for the video."""
+    from services.cleanup_executors import execute_foreign_tracks
+
+    (tmp_path / "show.mkv").write_bytes(b"video")
+    notify = MagicMock()
+    with (
+        patch("remux.get_media_streams", _foreign_probe),
+        patch("remux.remove_foreign_subtitle_streams", MagicMock(return_value="bak")),
+        patch("services.media_server_notify.notify_media_servers", notify),
+    ):
+        execute_foreign_tracks(
+            str(tmp_path), {"keep_languages": ["de", "en"], "keep_und": True}, dry_run=False
+        )
+
+    notify.assert_called_once_with(str(tmp_path / "show.mkv"))
+
+
+def test_foreign_tracks_dry_run_does_not_refresh(tmp_path):
+    """Dry-run must not trigger any media-server refresh."""
+    from services.cleanup_executors import execute_foreign_tracks
+
+    (tmp_path / "show.mkv").write_bytes(b"video")
+    notify = MagicMock()
+    with (
+        patch("remux.get_media_streams", _foreign_probe),
+        patch("services.media_server_notify.notify_media_servers", notify),
+    ):
+        execute_foreign_tracks(
+            str(tmp_path), {"keep_languages": ["de", "en"], "keep_und": True}, dry_run=True
+        )
+
+    notify.assert_not_called()
+
+
 def test_foreign_tracks_empty_keep_aborts(tmp_path):
     """An empty keep_languages must abort, never strip every track."""
     from services.cleanup_executors import execute_foreign_tracks

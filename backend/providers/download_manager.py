@@ -497,6 +497,7 @@ def save_subtitle(
     # No-ops unless cleanup_foreign_tracks_default (or a series override)
     # is enabled; the keep-set is target ∪ configured always-keep
     # languages. Errors are swallowed inside the hook.
+    _video = None
     try:
         _video = _video_for_sidecar(output_path)
         if _video:
@@ -508,6 +509,16 @@ def save_subtitle(
             )
     except Exception as _exc:
         logger.debug("[foreign-track] post-download hook skipped: %s", _exc)
+
+    # Media-server refresh (best-effort) — a new sidecar landed (and the
+    # container may have been stripped above), so tell the configured media
+    # servers to re-scan the item. No-op when no server is configured.
+    try:
+        from services.media_server_notify import notify_media_servers
+
+        notify_media_servers(_video or output_path, "episode" if series_id else "")
+    except Exception as _exc:
+        logger.debug("[mediaserver] post-download refresh skipped: %s", _exc)
 
     # Post-download shell command (user-configurable, Bazarr parity)
     from post_download import run_post_download_command
