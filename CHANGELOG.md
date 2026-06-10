@@ -5,6 +5,24 @@ All notable changes to Sublarr are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.95.1-beta] - 2026-06-10
+
+### Fixed
+- **Standalone watched-folder re-add** — Re-adding an existing watched-folder path hit the UNIQUE(path) constraint and returned HTTP 500; the upsert now updates the existing row in place instead of blindly inserting.
+- **Six components crashed on render due to missing translation hooks** — The comparison-view close button, the episode score badge, the hook form modal, the Whisper model table, the API-key edit field and the statistics quality table referenced `t()`/`tc()` without declaring `useTranslation`, raising a ReferenceError when rendered.
+- **Trash actions raised a TypeError on every toast** — The trash hooks called the non-existent `toast.success()`/`toast.error()`; all four trash mutations now use the actual `toast(message, type)` API.
+- **Attention banner never appeared** — The dashboard banner read the wanted-items response from the wrong field and filtered on fields the API does not return; it now uses the real contract (`data`, `current_score`, `season_episode`).
+- **Dashboard batch indicator stuck** — The quick-actions panel read `is_running` while the API returns `running`, so the batch-search spinner state never reflected a running batch.
+- **Movie detail breadcrumb link dead** — The library breadcrumb used a `to` prop the component does not know; it now uses `href` and navigates again.
+- **Notification history showed "Invalid Date" and an empty column** — The table read `timestamp`/`channel` while the API returns `sent_at`/`title`; the channel column was replaced by a title column (DE+EN).
+
+### Security
+- **Dependency CVE bumps** — `requests` 2.32.4→2.33.0 (CVE-2026-25645) and `python-dotenv` 1.0.1→1.2.2 (CVE-2026-28684). `npm audit fix` resolved the `socket.io-parser` (HIGH) and `ws` advisories, and `@lhci/cli` moved to devDependencies — the production npm audit is now clean (0 vulnerabilities).
+
+### Changed
+- **TypeScript 6 migration with real type-checking** — The frontend now compiles under TypeScript 6.0 and the CI type-check step actually checks all sub-projects (`tsc -b`); CI also runs on direct master pushes again. This is what surfaced the latent runtime bugs fixed above.
+- **Docker frontend build stage upgraded to Node 26** (Dependabot).
+
 ## [0.95.0-beta] - 2026-06-10
 
 ### Added
