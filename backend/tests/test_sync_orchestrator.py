@@ -220,7 +220,7 @@ def test_api_list_engines(client):
     names = [e["name"] for e in body["engines"]]
     assert "ffsubsync" in names
     assert "alass" in names
-    assert body["sanity_threshold_ms"] == 60_000
+    assert body["sanity_threshold_ms"] == 45_000  # default lowered 60k->45k (0.95.0-beta)
     # Each engine entry carries the availability bool + timeout.
     for entry in body["engines"]:
         assert "available" in entry
