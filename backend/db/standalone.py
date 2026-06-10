@@ -18,26 +18,27 @@ def _get_repo():
 def upsert_watched_folder(
     path: str, label: str = "", media_type: str = "auto", enabled: bool = True
 ) -> int:
-    """Insert or update a watched folder by path. Returns the row id."""
-    if enabled:
-        # Create or update through the repository
-        result = _get_repo().create_watched_folder(path, label, media_type)
-        return result.get("id", 0)
-    else:
-        # For disabled folders, use update_watched_folder if existing
-        folders = _get_repo().get_watched_folders(enabled_only=False)
-        for f in folders:
-            if f["path"] == path:
-                _get_repo().update_watched_folder(
-                    f["id"], label=label, media_type=media_type, enabled=0
-                )
-                return f["id"]
-        # Create as enabled then disable
-        result = _get_repo().create_watched_folder(path, label, media_type)
-        folder_id = result.get("id", 0)
-        if folder_id:
-            _get_repo().update_watched_folder(folder_id, enabled=0)
-        return folder_id
+    """Insert or update a watched folder by path. Returns the row id.
+
+    `watched_folders.path` carries a UNIQUE constraint, so a blind INSERT on
+    an existing path would raise IntegrityError — always look up first.
+    """
+    repo = _get_repo()
+    existing = next(
+        (f for f in repo.get_watched_folders(enabled_only=False) if f["path"] == path),
+        None,
+    )
+    if existing:
+        repo.update_watched_folder(
+            existing["id"], label=label, media_type=media_type, enabled=1 if enabled else 0
+        )
+        return existing["id"]
+
+    result = repo.create_watched_folder(path, label, media_type)
+    folder_id = result.get("id", 0)
+    if folder_id and not enabled:
+        repo.update_watched_folder(folder_id, enabled=0)
+    return folder_id
 
 
 def get_watched_folders(enabled_only: bool = True) -> list:

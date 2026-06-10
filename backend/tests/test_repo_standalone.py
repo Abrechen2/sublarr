@@ -380,3 +380,52 @@ class TestAnidbMappings:
         # Just created, so should not be deleted with default TTL
         deleted = repo.clear_old_anidb_mappings()
         assert deleted == 0
+
+
+# ---------------------------------------------------------------------------
+# Module-level upsert_watched_folder (db.standalone)
+# ---------------------------------------------------------------------------
+
+
+class TestUpsertWatchedFolderModule:
+    def test_upsert_same_path_twice_updates_instead_of_raising(self, repo):
+        """Re-adding an existing path must update the row, not raise IntegrityError."""
+        from db.standalone import upsert_watched_folder
+
+        first_id = upsert_watched_folder("/media/dup", label="Old", media_type="auto")
+        second_id = upsert_watched_folder("/media/dup", label="New", media_type="series")
+
+        assert second_id == first_id
+        rows = [
+            f for f in repo.get_watched_folders(enabled_only=False) if f["path"] == "/media/dup"
+        ]
+        assert len(rows) == 1
+        assert rows[0]["label"] == "New"
+        assert rows[0]["media_type"] == "series"
+
+    def test_upsert_existing_path_disabled_flag_applies(self, repo):
+        """Upserting an existing path with enabled=False disables the row in place."""
+        from db.standalone import upsert_watched_folder
+
+        first_id = upsert_watched_folder("/media/dup2", enabled=True)
+        second_id = upsert_watched_folder("/media/dup2", enabled=False)
+
+        assert second_id == first_id
+        rows = [
+            f for f in repo.get_watched_folders(enabled_only=False) if f["path"] == "/media/dup2"
+        ]
+        assert len(rows) == 1
+        assert rows[0]["enabled"] == 0
+
+    def test_upsert_new_disabled_path_creates_disabled_row(self, repo):
+        """A brand-new path with enabled=False is created and immediately disabled."""
+        from db.standalone import upsert_watched_folder
+
+        folder_id = upsert_watched_folder("/media/fresh", enabled=False)
+
+        assert folder_id
+        rows = [
+            f for f in repo.get_watched_folders(enabled_only=False) if f["path"] == "/media/fresh"
+        ]
+        assert len(rows) == 1
+        assert rows[0]["enabled"] == 0
