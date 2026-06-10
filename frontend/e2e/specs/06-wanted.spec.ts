@@ -1,22 +1,22 @@
-/**
- * Batch 06 — Wanted (/wanted)
- * Covers: UI_TEST_PLAN.md Section 5.1–5.6
+﻿/**
+ * Batch 06 â€” Wanted (/wanted)
+ * Covers: UI_TEST_PLAN.md Section 5.1â€“5.6
  * Testids: wanted-filter-status, wanted-list, wanted-item,
  *           wanted-search-btn, wanted-process-btn
  */
-import { test, expect } from '@playwright/test';
+import { test, expect, type Page } from '@playwright/test';
 import { WantedPage } from '../pages/WantedPage';
 
 test.setTimeout(60000);
 
-async function gotoWanted(page: Parameters<Parameters<typeof test>[1]>[0]['page']) {
+async function gotoWanted(page: Page) {
   const wanted = new WantedPage(page);
   await wanted.goto();
   // Wait for either items or empty state
   await page.waitForTimeout(2000);
 }
 
-// ─── 5.1 Summary Cards ───────────────────────────────────────────────────────
+// â”€â”€â”€ 5.1 Summary Cards â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 test.describe('5.1 Summary Cards', () => {
   test('5.1.1 Wanted page loads with summary counts', async ({ page }) => {
@@ -31,14 +31,14 @@ test.describe('5.1 Summary Cards', () => {
     const searchAllBtn = page.locator('button:has-text("Search All"), button[title*="Search All"]').first();
     const hasBtn = await searchAllBtn.isVisible({ timeout: 3000 }).catch(() => false);
     if (!hasBtn) {
-      test.skip(true, 'Search All button not found — may not exist if no wanted items');
+      test.skip(true, 'Search All button not found â€” may not exist if no wanted items');
     } else {
       await expect(searchAllBtn).toBeVisible();
     }
   });
 });
 
-// ─── 5.2 Filter Bar ──────────────────────────────────────────────────────────
+// â”€â”€â”€ 5.2 Filter Bar â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 test.describe('5.2 Filter Bar', () => {
   test.beforeEach(async ({ page }) => {
@@ -75,7 +75,7 @@ test.describe('5.2 Filter Bar', () => {
   });
 });
 
-// ─── 5.3 Item List ───────────────────────────────────────────────────────────
+// â”€â”€â”€ 5.3 Item List â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 test.describe('5.3 Item List / Status Badges', () => {
   test.beforeEach(async ({ page }) => {
@@ -99,7 +99,7 @@ test.describe('5.3 Item List / Status Badges', () => {
     const items = page.locator('[data-testid="wanted-item"]');
     const count = await items.count();
     if (count === 0) {
-      test.skip(true, 'No wanted items — empty state OK');
+      test.skip(true, 'No wanted items â€” empty state OK');
       return;
     }
     expect(count).toBeGreaterThanOrEqual(1);
@@ -107,7 +107,7 @@ test.describe('5.3 Item List / Status Badges', () => {
   });
 });
 
-// ─── 5.4 Item Checkboxes / Batch Actions ─────────────────────────────────────
+// â”€â”€â”€ 5.4 Item Checkboxes / Batch Actions â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 test.describe('5.4 Item Selection and Batch Actions', () => {
   test('5.4.1 Clicking item checkbox selects it', async ({ page }) => {
@@ -133,7 +133,7 @@ test.describe('5.4 Item Selection and Batch Actions', () => {
   });
 });
 
-// ─── 5.5 Per-Item Action Menu ─────────────────────────────────────────────────
+// â”€â”€â”€ 5.5 Per-Item Action Menu â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 test.describe('5.5 Per-Item Action Buttons', () => {
   test('5.5.2 Search button visible per item', async ({ page }) => {
@@ -141,7 +141,7 @@ test.describe('5.5 Per-Item Action Buttons', () => {
     const searchBtn = page.locator('[data-testid="wanted-search-btn"]').first();
     const hasBtns = await searchBtn.isVisible({ timeout: 3000 }).catch(() => false);
     if (!hasBtns) {
-      test.skip(true, 'No wanted-search-btn found — no wanted items or deployed without testid');
+      test.skip(true, 'No wanted-search-btn found â€” no wanted items or deployed without testid');
       return;
     }
     await expect(searchBtn).toBeVisible();

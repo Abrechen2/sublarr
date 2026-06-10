@@ -1,19 +1,19 @@
-/**
- * Batch 08 — Settings (/settings)
+﻿/**
+ * Batch 08 â€” Settings (/settings)
  * Covers: UI_TEST_PLAN.md Section 9
  */
-import { test, expect } from '@playwright/test';
+import { test, expect, type Page } from '@playwright/test';
 import { BasePage } from '../pages/BasePage';
 
 test.setTimeout(60000);
 
-async function gotoSettings(page: Parameters<Parameters<typeof test>[1]>[0]['page']) {
+async function gotoSettings(page: Page) {
   const base = new BasePage(page);
   await base.goto('/settings');
   await page.waitForTimeout(1000);
 }
 
-// ─── 9.1 Tab Navigation ──────────────────────────────────────────────────────
+// â”€â”€â”€ 9.1 Tab Navigation â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 test.describe('9.1 Settings Tabs', () => {
   test('9.1 Settings page loads with tabs', async ({ page }) => {
@@ -44,7 +44,7 @@ test.describe('9.1 Settings Tabs', () => {
   });
 });
 
-// ─── 9.2 General Settings ─────────────────────────────────────────────────────
+// â”€â”€â”€ 9.2 General Settings â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 test.describe('9.2 General Settings', () => {
   test('9.2 General settings fields visible', async ({ page }) => {
@@ -57,7 +57,7 @@ test.describe('9.2 General Settings', () => {
   });
 });
 
-// ─── 9.3 Providers Tab ───────────────────────────────────────────────────────
+// â”€â”€â”€ 9.3 Providers Tab â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 test.describe('9.3 Providers Tab', () => {
   test('9.3 Providers tab navigates', async ({ page }) => {
@@ -76,7 +76,7 @@ test.describe('9.3 Providers Tab', () => {
   });
 });
 
-// ─── 9.4 Save Settings ────────────────────────────────────────────────────────
+// â”€â”€â”€ 9.4 Save Settings â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 test.describe('9.4 Save Settings', () => {
   test('9.4 Save button exists', async ({ page }) => {
@@ -84,7 +84,7 @@ test.describe('9.4 Save Settings', () => {
     const saveBtn = page.locator('button:has-text("Save"), button[type="submit"]').first();
     const hasSave = await saveBtn.isVisible({ timeout: 3000 }).catch(() => false);
     if (!hasSave) {
-      test.skip(true, 'No save button found — settings may auto-save');
+      test.skip(true, 'No save button found â€” settings may auto-save');
     } else {
       await expect(saveBtn).toBeVisible();
     }

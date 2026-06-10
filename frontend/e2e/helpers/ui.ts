@@ -1,4 +1,4 @@
-import { Page, expect } from '@playwright/test';
+﻿import { expect, type Page } from '@playwright/test';
 
 /** Wait for the app to finish loading (spinner gone, main content visible) */
 export async function waitForAppReady(page: Page): Promise<void> {

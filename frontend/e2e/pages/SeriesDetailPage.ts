@@ -1,4 +1,4 @@
-import { Page } from '@playwright/test';
+import type { Page } from '@playwright/test';
 import { BasePage } from './BasePage';
 
 export class SeriesDetailPage extends BasePage {
@@ -6,7 +6,8 @@ export class SeriesDetailPage extends BasePage {
     super(page);
   }
 
-  async goto(seriesId: number): Promise<void> {
+  // Accepts a series id (number) while staying assignable to BasePage.goto(path: string).
+  async goto(seriesId: number | string): Promise<void> {
     await super.goto(`/library/series/${seriesId}`);
   }
 

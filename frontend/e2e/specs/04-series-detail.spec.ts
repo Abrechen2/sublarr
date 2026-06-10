@@ -1,13 +1,13 @@
-/**
+﻿/**
  * Batch 04 - Series Detail
  */
-import { test, expect } from '@playwright/test';
+import { test, expect, type Page } from '@playwright/test';
 import { LibraryPage } from '../pages/LibraryPage';
 
-// Two navigations needed (library → series detail) — give each test 60s
+// Two navigations needed (library â†’ series detail) â€” give each test 60s
 test.setTimeout(60000);
 
-async function gotoFirstSeries(page: Parameters<Parameters<typeof test>[1]>[0]['page']) {
+async function gotoFirstSeries(page: Page) {
   const library = new LibraryPage(page);
   await library.goto();
   await expect(library.rows.first()).toBeVisible({ timeout: 20000 });

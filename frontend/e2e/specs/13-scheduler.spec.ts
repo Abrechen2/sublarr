@@ -8,12 +8,12 @@
  *   - Edit-trigger persists and surfaces the "Edited" pill
  *   - Reset-default removes the override
  */
-import { expect, test } from '@playwright/test'
+import { expect, test, type Page } from '@playwright/test'
 import { BasePage } from '../pages/BasePage'
 
 test.setTimeout(60000)
 
-async function gotoScheduler(page: Parameters<Parameters<typeof test>[1]>[0]['page']) {
+async function gotoScheduler(page: Page) {
   const base = new BasePage(page)
   await base.goto('/settings/system/scheduler')
   // Wait for a known default job to appear; bail out if the endpoint is not yet served.

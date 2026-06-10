@@ -273,7 +273,7 @@ test.describe('Subtitle Preview — UI & Functional', () => {
       return node;
     });
 
-    const box = await (panelEl as { boundingBox: () => Promise<{ x: number; y: number; width: number; height: number } | null> }).boundingBox().catch(() => null);
+    const box = await (panelEl as unknown as { boundingBox: () => Promise<{ x: number; y: number; width: number; height: number } | null> }).boundingBox().catch(() => null);
 
     await page.screenshot({ path: 'test-results/screenshots/e2e-subtitle-07-viewport-center.png', fullPage: false });
 
