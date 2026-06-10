@@ -12,7 +12,10 @@ import pytest
 
 
 def _has_echo() -> bool:
-    return bool(shutil.which("echo")) or bool(shutil.which("sh")) or bool(shutil.which("bash"))
+    # The runner executes argv[0] directly (shell=False, POSIX shlex semantics).
+    # On Windows, `echo` is a cmd builtin — shutil.which() may still hit Git's
+    # usr/bin shim while subprocess can't spawn it, so require a POSIX platform.
+    return os.name == "posix" and bool(shutil.which("echo"))
 
 
 def test_shell_runner_disabled_by_default(monkeypatch):
