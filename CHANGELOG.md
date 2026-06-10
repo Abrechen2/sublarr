@@ -5,6 +5,17 @@ All notable changes to Sublarr are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.95.0-beta] - 2026-06-10
+
+### Added
+- **Media-server refresh after subtitle changes** — Jellyfin, Plex and Kodi libraries are now refreshed automatically after a subtitle download or a foreign-track strip, so external players pick up newly written sidecars without waiting for a manual library rescan.
+
+### Fixed
+- **ffsubsync mis-lock rejection** — The subtitle sync sanity threshold default was lowered from 60s to 45s after a production bulk run surfaced a cluster of engine mis-locks at ±56–60ms, just under the old ceiling. Genuinely large offsets are still accepted, while the spurious near-ceiling cluster is now rejected and falls through to the next engine.
+- **Foreign-track cleanup and track extraction no longer skip files with a phantom trailing segment** — The remux duration sanity check compared the container's reported duration, which a trailing subtitle track can inflate tens of seconds past the actual video. A subtitle-only remux then legitimately shrank the container to the real video end and was wrongly rejected, leaving the file uncleaned (e.g. Solo Leveling S01E12: container 1478s vs real video 1420s). The check now compares the video stream's own duration; a genuinely truncated video still fails.
+
+---
+
 ## [0.94.0-beta] - 2026-06-09
 
 ### Added
