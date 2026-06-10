@@ -94,6 +94,76 @@ def test_verify_passes_multi_stream_removal(tmp_path):
         _verify(orig, new, n_removed=2)  # should not raise
 
 
+def test_verify_passes_phantom_trailing_segment(tmp_path):
+    """Container duration inflated by a trailing sub track must not false-positive.
+
+    Regression for Solo Leveling S01E12: the source container reports 1478 s but
+    the video stream is only ~1420 s (a removed subtitle track extended the
+    segment). After a subtitle-only remux the container shrinks to ~1420 s.
+    _verify must compare the video-stream DURATION tags (≈equal) and pass instead
+    of comparing the inflated container durations (1478 vs 1420 → false reject).
+    """
+    orig = str(tmp_path / "orig.mkv")
+    new = str(tmp_path / "new.mkv")
+    with open(orig, "wb") as f:
+        f.write(b"x" * 1000)
+    with open(new, "wb") as f:
+        f.write(b"x" * 950)
+
+    orig_info = {
+        "format": {"duration": "1478.15"},
+        "streams": [
+            {"codec_type": "video", "tags": {"DURATION": "00:23:40.004000000"}},
+            {"codec_type": "audio", "tags": {"DURATION": "00:23:40.063000000"}},
+            {"codec_type": "subtitle"},
+            {"codec_type": "subtitle"},
+        ],
+    }
+    new_info = {
+        "format": {"duration": "1420.5"},
+        "streams": [
+            {"codec_type": "video", "tags": {"DURATION": "00:23:40.004000000"}},
+            {"codec_type": "audio", "tags": {"DURATION": "00:23:40.063000000"}},
+            {"codec_type": "subtitle"},
+        ],
+    }
+    with patch("remux._probe", side_effect=[orig_info, new_info]):
+        _verify(orig, new, n_removed=1)  # must not raise
+
+
+def test_verify_fails_truncated_video(tmp_path):
+    """A genuinely truncated video (shorter video-stream DURATION) still fails."""
+    orig = str(tmp_path / "orig.mkv")
+    new = str(tmp_path / "new.mkv")
+    with open(orig, "wb") as f:
+        f.write(b"x" * 1000)
+    with open(new, "wb") as f:
+        f.write(b"x" * 950)
+
+    orig_info = {
+        "format": {"duration": "1420.0"},
+        "streams": [
+            {"codec_type": "video", "tags": {"DURATION": "00:23:40.000000000"}},
+            {"codec_type": "audio", "tags": {"DURATION": "00:23:40.000000000"}},
+            {"codec_type": "subtitle"},
+            {"codec_type": "subtitle"},
+        ],
+    }
+    new_info = {
+        "format": {"duration": "1360.0"},
+        "streams": [
+            {"codec_type": "video", "tags": {"DURATION": "00:22:40.000000000"}},  # 60s short
+            {"codec_type": "audio", "tags": {"DURATION": "00:23:40.000000000"}},
+            {"codec_type": "subtitle"},
+        ],
+    }
+    with (
+        patch("remux._probe", side_effect=[orig_info, new_info]),
+        pytest.raises(RemuxError, match="Duration mismatch"),
+    ):
+        _verify(orig, new, n_removed=1)
+
+
 def test_verify_fails_duration_mismatch(tmp_path):
     orig = str(tmp_path / "orig.mkv")
     new = str(tmp_path / "new.mkv")

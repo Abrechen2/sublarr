@@ -309,6 +309,47 @@ def _probe(path: str) -> dict:
     return json.loads(result.stdout)
 
 
+def _video_duration(info: dict) -> float:
+    """Real video duration in seconds for an ffprobe ``info`` dict.
+
+    Prefers the first video stream's own duration over the container's
+    ``format.duration``. A container duration can be inflated by a phantom
+    trailing segment — e.g. a subtitle track whose last event extends tens of
+    seconds past the actual video — so a subtitle-only remux legitimately
+    shrinks ``format.duration`` to the real video end. Comparing those container
+    values then false-positives the duration guard even though no video/audio
+    content was lost (observed on Solo Leveling S01E12: container 1478 s vs real
+    video 1420 s).
+
+    Matroska stores per-track length in a ``DURATION`` tag
+    (``HH:MM:SS.fffffffff``); ffprobe surfaces it under ``stream.tags.DURATION``.
+    Preference order: numeric stream ``duration`` → ``tags.DURATION`` → container
+    ``format.duration``. Returns 0.0 when nothing usable is present.
+    """
+    for s in info.get("streams", []):
+        if s.get("codec_type") != "video":
+            continue
+        d = s.get("duration")
+        if d not in (None, "", "N/A"):
+            try:
+                return float(d)
+            except (TypeError, ValueError):
+                pass
+        tags = s.get("tags") or {}
+        tag = tags.get("DURATION") or tags.get("duration")
+        if tag:
+            try:
+                h, m, sec = str(tag).split(":")
+                return int(h) * 3600 + int(m) * 60 + float(sec)
+            except (ValueError, AttributeError):
+                pass
+        break  # only the first video stream matters
+    try:
+        return float(info.get("format", {}).get("duration", 0) or 0)
+    except (TypeError, ValueError):
+        return 0.0
+
+
 def _verify(original_path: str, remuxed_path: str, n_removed: int = 1) -> None:
     """Compare duration, stream count, and file size between original and remux.
 
@@ -319,11 +360,14 @@ def _verify(original_path: str, remuxed_path: str, n_removed: int = 1) -> None:
     new_info = _probe(remuxed_path)
 
     # Duration check: allow ±5 s or 1 % of total duration (whichever is larger).
-    # Some MKVs have phantom trailing segments that mkvmerge trims during remux,
-    # causing ffprobe to report slightly different durations. A strict 2 s cap
+    # Compare the VIDEO STREAM duration (via _video_duration), not the container
+    # format.duration: some MKVs have a phantom trailing segment (e.g. a sub
+    # track extending past the video) that inflates format.duration, so a
+    # subtitle-only remux rewrites the segment length to the real video end and
+    # a container-vs-container comparison false-positives. A strict 2 s cap
     # produces false-positive failures for long files (24-min anime = ~1 % ≈ 14 s).
-    orig_dur = float(orig_info.get("format", {}).get("duration", 0))
-    new_dur = float(new_info.get("format", {}).get("duration", 0))
+    orig_dur = _video_duration(orig_info)
+    new_dur = _video_duration(new_info)
     dur_tolerance = max(5.0, orig_dur * 0.01)
     if orig_dur > 0 and abs(orig_dur - new_dur) > dur_tolerance:
         raise RemuxError(f"Duration mismatch: original={orig_dur:.1f}s remuxed={new_dur:.1f}s")
