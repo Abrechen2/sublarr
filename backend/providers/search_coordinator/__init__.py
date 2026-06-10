@@ -4,33 +4,31 @@ Extracted from providers/__init__.py — contains the parallel search
 orchestration, caching, retry logic, and result scoring.
 
 Not instantiated directly — used as mixin by ProviderManager.
+
+This package keeps the budget-gated execution core (``_submit_provider_searches``,
+``_collect_provider_results``, ``_handle_rate_limit_exception``) and the public
+``search`` entry points in this module so that tests which monkeypatch
+``providers.search_coordinator.get_budget_manager`` /
+``providers.search_coordinator.get_key_selector`` continue to bind correctly.
+Cache, scoring and per-provider retry helpers live in sibling modules and are
+mixed in below.
 """
 
-import hashlib
-import json
 import logging
-import threading
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from concurrent.futures import TimeoutError as FutureTimeoutError
 
-try:
-    import metrics as _metrics_module
-
-    _METRICS_AVAILABLE = getattr(_metrics_module, "METRICS_AVAILABLE", False)
-except ImportError:
-    _metrics_module = None  # type: ignore[assignment]
-    _METRICS_AVAILABLE = False
-
 from db.repositories.provider_account_pool import ProviderAccountPoolRepository
 from providers.base import (
-    ProviderAuthError,
     ProviderRateLimitError,
-    ProviderTimeoutError,
     SubtitleFormat,
     SubtitleResult,
     VideoQuery,
     compute_score,
 )
+from providers.search_coordinator.cache import SearchCacheMixin
+from providers.search_coordinator.retry import SearchRetryMixin
+from providers.search_coordinator.scoring import SearchScoringMixin
 from services.key_selector import get_key_selector
 from services.provider_budget import get_budget_manager
 
@@ -47,8 +45,10 @@ _warned_missing_limits: set[str] = set()
 # (≤ 2 min) are transient bursts while longer waits indicate the daily window.
 _RATE_LIMIT_WINDOW_THRESHOLD_S = 120
 
+__all__ = ["SearchCoordinatorMixin"]
 
-class SearchCoordinatorMixin:
+
+class SearchCoordinatorMixin(SearchRetryMixin, SearchScoringMixin, SearchCacheMixin):
     """Mixin providing parallel search orchestration, caching, and retry logic.
 
     Expects the host class to provide:
@@ -60,95 +60,6 @@ class SearchCoordinatorMixin:
     - self._get_retries(name) -> int
     - self._check_auto_disable(name)
     """
-
-    @staticmethod
-    def _get_cache_backend():
-        """Get the app-level cache backend (Redis or memory), or None.
-
-        Uses Flask's current_app to access the cache_backend. Returns None
-        if called outside Flask context or if cache_backend is not configured.
-        Never raises -- safe to call from any context.
-        """
-        try:
-            from flask import current_app
-
-            return getattr(current_app, "cache_backend", None)
-        except (RuntimeError, ImportError):
-            # Outside Flask app context or Flask not available
-            return None
-
-    def _try_cached_search_results(
-        self,
-        cache_key: str,
-        format_filter,
-        app_cache_key: str,
-        cache_backend,
-        cache_ttl_minutes: float,
-    ) -> list | None:
-        """Two-tier cache lookup. Returns cached results or None to fall through.
-
-        Tier 1: in-process/Redis fast cache keyed by ``app_cache_key``. Tier 2:
-        persistent DB cache populated by every search. On a Tier-2 hit the
-        value is backfilled into Tier 1 so the next call is cheaper.
-
-        Records PROVIDER_CACHE_HITS_TOTAL / PROVIDER_CACHE_MISSES_TOTAL metrics
-        when the ``metrics`` module is available.
-        """
-        # Tier 1
-        if cache_backend:
-            try:
-                fast_cached = cache_backend.get(app_cache_key)
-                if fast_cached:
-                    try:
-                        cached_data = json.loads(fast_cached)
-                        cached_results = self._deserialize_results(cached_data)
-                        logger.info("Returning %d results from fast cache", len(cached_results))
-                        try:
-                            if _METRICS_AVAILABLE:
-                                _metrics_module.PROVIDER_CACHE_HITS_TOTAL.labels(layer="fast").inc()
-                        except Exception:
-                            pass
-                        return cached_results
-                    except Exception as e:
-                        logger.debug("Failed to parse fast cached results: %s", e)
-            except Exception as e:
-                logger.debug("Fast cache lookup failed (non-blocking): %s", e)
-
-        # Tier 2
-        from db.providers import get_cached_results
-
-        cached_json = get_cached_results(
-            "combined", cache_key, format_filter.value if format_filter else None
-        )
-        if cached_json:
-            try:
-                cached_data = json.loads(cached_json)
-                cached_results = self._deserialize_results(cached_data)
-                logger.info("Returning %d cached results from DB", len(cached_results))
-                try:
-                    if _METRICS_AVAILABLE:
-                        _metrics_module.PROVIDER_CACHE_HITS_TOTAL.labels(layer="db").inc()
-                except Exception:
-                    pass
-                if cache_backend:
-                    try:
-                        cache_backend.set(
-                            app_cache_key, cached_json, ttl_seconds=int(cache_ttl_minutes * 60)
-                        )
-                    except Exception as e:
-                        logger.debug("Fast cache backfill failed (non-blocking): %s", e)
-                return cached_results
-            except Exception as e:
-                logger.warning("Failed to parse cached results: %s", e)
-
-        # Both tiers missed
-        try:
-            if _METRICS_AVAILABLE:
-                _metrics_module.PROVIDER_CACHE_MISSES_TOTAL.labels(layer="fast").inc()
-                _metrics_module.PROVIDER_CACHE_MISSES_TOTAL.labels(layer="db").inc()
-        except Exception:
-            pass
-        return None
 
     def _submit_provider_searches(
         self,
@@ -482,364 +393,6 @@ class SearchCoordinatorMixin:
                 ProviderAccountPoolRepository().mark_429(key_id)
         except Exception as _mke:  # noqa: BLE001
             logger.warning("mark_429 failed for %s: %s", name, _mke)
-
-    def _finalise_search_results(
-        self,
-        all_results: list,
-        query,
-        format_filter,
-        min_score: int,
-        must_contain,
-        must_not_contain,
-    ) -> list:
-        """Post-search scoring / classification / filtering / sorting pipeline.
-
-        Runs in strict order: compute_score → forced classification →
-        forced_only filter → language/format/min_score gates → blacklist →
-        must_contain / must_not_contain → release-group exclude/prefer →
-        final sort (ASS first, then score desc). Returns the filtered +
-        sorted list.
-        """
-        # Score all results (noop for anything that was already scored)
-        for result in all_results:
-            if result.score == 0:
-                compute_score(result, query)
-
-        # Post-search forced classification: use forced_detection to classify
-        # results from providers without native forced support (e.g., AnimeTosho,
-        # Jimaku, SubDL). Single-pass: search once, classify results.
-        from forced_detection import classify_forced_result
-
-        for result in all_results:
-            if not result.forced:
-                forced_type = classify_forced_result(
-                    result.filename,
-                    result.provider_data if hasattr(result, "provider_data") else None,
-                )
-                if forced_type in ("forced", "signs"):
-                    result.forced = True
-
-        # Post-filter: if query requests forced_only, remove non-forced results
-        if query.forced_only:
-            all_results = [r for r in all_results if r.forced]
-
-        # Filter by language (if query specifies languages)
-        if query.languages:
-            all_results = [r for r in all_results if r.language in query.languages]
-
-        # Filter by format — include UNKNOWN since some providers omit format metadata
-        if format_filter:
-            all_results = [
-                r
-                for r in all_results
-                if r.format == format_filter or r.format == SubtitleFormat.UNKNOWN
-            ]
-
-        # Filter by min score
-        if min_score > 0:
-            all_results = [r for r in all_results if r.score >= min_score]
-
-        # Filter blacklisted subtitles
-        from db.blacklist import is_blacklisted
-
-        all_results = [r for r in all_results if not is_blacklisted(r.provider_name, r.subtitle_id)]
-
-        # mustContain / mustNotContain filtering (language profile)
-        if must_contain:
-            from wanted_search.profile_filters import apply_must_contain
-
-            all_results = apply_must_contain(all_results, must_contain)
-        if must_not_contain:
-            from wanted_search.profile_filters import apply_must_not_contain
-
-            all_results = apply_must_not_contain(all_results, must_not_contain)
-
-        # Release group filtering: exclude blocked groups, boost preferred groups
-        from config import get_settings
-
-        settings = get_settings()
-        _exclude = [
-            g.strip().lower() for g in settings.release_group_exclude.split(",") if g.strip()
-        ]
-        _prefer = [g.strip().lower() for g in settings.release_group_prefer.split(",") if g.strip()]
-
-        if _exclude:
-            before = len(all_results)
-            all_results = [
-                r for r in all_results if not any(g in r.release_info.lower() for g in _exclude)
-            ]
-            filtered = before - len(all_results)
-            if filtered:
-                logger.debug(
-                    "Release group filter: excluded %d result(s) matching %s", filtered, _exclude
-                )
-
-        if _prefer:
-            bonus = settings.release_group_prefer_bonus
-            for r in all_results:
-                if any(g in r.release_info.lower() for g in _prefer):
-                    r.score += bonus
-                    r.matches.add("release_group_prefer")
-
-        # Sort by format preference (ASS first), then by score descending
-        all_results.sort(
-            key=lambda r: (
-                0 if r.format == SubtitleFormat.ASS else 1,  # ASS first
-                -r.score,  # Then by score descending
-            )
-        )
-
-        return all_results
-
-    def _write_search_cache(
-        self,
-        all_results: list,
-        app_cache_key: str,
-        cache_key: str,
-        cache_ttl_minutes: float,
-        cache_backend,
-    ) -> None:
-        """Serialise scored results and write both cache tiers.
-
-        Never raises — cache failures degrade to a debug log so downstream
-        scoring/filtering still returns results.
-        """
-        from db.providers import cache_provider_results
-
-        try:
-            cache_data = [
-                {
-                    "provider_name": r.provider_name,
-                    "subtitle_id": r.subtitle_id,
-                    "language": r.language,
-                    "format": r.format.value,
-                    "filename": r.filename,
-                    "download_url": r.download_url,
-                    "release_info": r.release_info,
-                    "hearing_impaired": r.hearing_impaired,
-                    "forced": r.forced,
-                    "score": r.score,
-                    "provider_data": r.provider_data,
-                }
-                for r in all_results
-            ]
-            cache_json = json.dumps(cache_data)
-            if cache_backend:
-                try:
-                    cache_backend.set(
-                        app_cache_key, cache_json, ttl_seconds=int(cache_ttl_minutes * 60)
-                    )
-                except Exception as e:
-                    logger.debug("Fast cache write failed (non-blocking): %s", e)
-            cache_provider_results(
-                "combined", cache_key, cache_json, ttl_hours=cache_ttl_minutes / 60
-            )
-        except Exception as e:
-            logger.debug("Failed to cache results: %s", e)
-
-    @staticmethod
-    def _deserialize_results(cached_data: list) -> list:
-        """Deserialize a list of dicts into SubtitleResult objects."""
-        results = []
-        for r_data in cached_data:
-            result = SubtitleResult(
-                provider_name=r_data["provider_name"],
-                subtitle_id=r_data["subtitle_id"],
-                language=r_data["language"],
-                format=SubtitleFormat(r_data.get("format", "unknown")),
-                filename=r_data.get("filename", ""),
-                download_url=r_data.get("download_url", ""),
-                release_info=r_data.get("release_info", ""),
-                hearing_impaired=r_data.get("hearing_impaired", False),
-                forced=r_data.get("forced", False),
-                score=r_data.get("score", 0),
-                provider_data=r_data.get("provider_data", {}),
-            )
-            results.append(result)
-        return results
-
-    def _make_cache_key(
-        self, query: VideoQuery, format_filter: SubtitleFormat | None = None
-    ) -> str:
-        """Generate a cache key for a query."""
-        key_parts = [
-            query.file_path or "",
-            ",".join(sorted(query.languages)) if query.languages else "",
-            format_filter.value if format_filter else "",
-            str(query.anidb_id) if query.anidb_id else "",
-        ]
-        key_str = "|".join(key_parts)
-        return hashlib.md5(key_str.encode(), usedforsecurity=False).hexdigest()  # noqa: S324
-
-    def _search_provider_with_retry(
-        self, name: str, provider, query: VideoQuery, key: dict | None = None
-    ) -> tuple[list[SubtitleResult], float]:
-        """Search a single provider with retries.
-
-        Credential injection (api_key/username/password from the pool row) is
-        performed HERE inside the worker thread under a per-provider lock so
-        two concurrent ``search()`` calls cannot clobber the singleton
-        provider's credentials. Original values are restored in a finally
-        block so provider state never leaks between calls.
-
-        ``mark_used`` is also called here (worker thread) — previously it ran
-        in the coordinator loop causing a DB commit per provider per tick.
-
-        Args:
-            key: pool row selected by KeySelector, or None for legacy callers
-                that don't use the pool gate.
-
-        Returns:
-            Tuple of (results list, elapsed_ms). elapsed_ms is 0 if no successful search.
-        """
-        if key is None:
-            return self._do_search_provider_with_retry(name, provider, query)
-
-        # Lazy-init the per-provider lock dict (the mixin has no __init__).
-        # setdefault is atomic on CPython dicts so a concurrent first call is
-        # benign — both threads converge on the same RLock instance.
-        if not hasattr(self, "_provider_call_locks"):
-            self._provider_call_locks = {}
-        lock = self._provider_call_locks.setdefault(name, threading.RLock())
-
-        with lock:
-            old = (
-                getattr(provider, "api_key", None),
-                getattr(provider, "username", None),
-                getattr(provider, "password", None),
-            )
-            provider.api_key = key["api_key"]
-            if key.get("username"):
-                provider.username = key["username"]
-            if key.get("password"):
-                provider.password = key["password"]
-            try:
-                result = self._do_search_provider_with_retry(name, provider, query)
-                # Phase 4a: record key usage on success (worker thread — parallel).
-                try:
-                    ProviderAccountPoolRepository().mark_used(key["id"])
-                except Exception as _pe:  # noqa: BLE001
-                    logger.debug(
-                        "mark_used failed for %s key_id=%s: %s",
-                        name,
-                        key["id"],
-                        _pe,
-                    )
-                return result
-            finally:
-                provider.api_key, provider.username, provider.password = old
-
-    def _do_search_provider_with_retry(
-        self, name: str, provider, query: VideoQuery
-    ) -> tuple[list[SubtitleResult], float]:
-        """Core search-with-retry loop (no credential injection).
-
-        Factored out of :meth:`_search_provider_with_retry` so the injection
-        wrapper and the legacy ``key=None`` path can share the same body.
-        """
-        import time as _time
-
-        retries = self._get_retries(name)
-        elapsed_ms = 0.0
-
-        # Check if provider is initialized
-        if hasattr(provider, "session") and provider.session is None:
-            logger.warning("Provider %s not initialized (session is None), skipping search", name)
-            return [], 0.0
-
-        logger.debug(
-            "Searching provider %s for: %s (languages: %s)",
-            name,
-            query.display_name,
-            query.languages,
-        )
-
-        import requests as _requests
-
-        for attempt in range(retries + 1):
-            # Re-check CB and server rate limit INSIDE the thread — between
-            # submission and the actual HTTP request, other threads may have
-            # tripped the breaker or received a 429.
-            cb = self._circuit_breakers.get(name)
-            if cb and not cb.allow_request():
-                logger.info("Provider %s circuit breaker OPEN, aborting search", name)
-                raise ProviderTimeoutError(f"Provider {name} circuit breaker open")
-            until = self._server_rate_limit_until.get(name, 0)
-            if _time.time() < until:
-                logger.info(
-                    "Provider %s server-rate-limited (%.0fs left), skipping",
-                    name,
-                    until - _time.time(),
-                )
-                raise ProviderRateLimitError(
-                    f"Provider {name} server-rate-limited",
-                    retry_after=int(until - _time.time()),
-                )
-            try:
-                start = _time.monotonic()
-                results = provider.search(query)
-                elapsed_ms = (_time.monotonic() - start) * 1000
-
-                logger.info(
-                    "Provider %s returned %d results in %.0fms (attempt %d/%d)",
-                    name,
-                    len(results),
-                    elapsed_ms,
-                    attempt + 1,
-                    retries + 1,
-                )
-                if results:
-                    logger.debug(
-                        "Provider %s top result: %s (score: %d, format: %s)",
-                        name,
-                        results[0].filename,
-                        results[0].score,
-                        results[0].format.value,
-                    )
-                return results, elapsed_ms
-            except ProviderAuthError as e:
-                logger.error("Provider %s authentication failed: %s", name, e)
-                raise  # Propagate to caller for circuit breaker recording
-            except ProviderRateLimitError as e:
-                logger.warning("Provider %s rate limit exceeded: %s", name, e)
-                # Set shared rate limit so concurrent threads skip this provider
-                retry_after = getattr(e, "retry_after", 60)
-                self._server_rate_limit_until[name] = _time.time() + retry_after
-                raise  # Don't retry — server limit far exceeds backoff budget
-            except _requests.Timeout:
-                # Timeouts are not transient — the server is slow or unreachable.
-                # Retrying will just waste the full timeout budget again. Raise so
-                # the caller records a circuit breaker failure.
-                elapsed_ms = (_time.monotonic() - start) * 1000
-                logger.warning(
-                    "Provider %s timed out after %.0fms (attempt %d/%d), not retrying",
-                    name,
-                    elapsed_ms,
-                    attempt + 1,
-                    retries + 1,
-                )
-                raise ProviderTimeoutError(f"Provider {name} timed out after {elapsed_ms:.0f}ms")
-            except Exception as e:
-                if attempt < retries:
-                    logger.debug(
-                        "Provider %s search failed (attempt %d/%d), retrying: %s",
-                        name,
-                        attempt + 1,
-                        retries + 1,
-                        e,
-                        exc_info=True,
-                    )
-                else:
-                    logger.warning(
-                        "Provider %s search failed after %d attempts: %s",
-                        name,
-                        retries + 1,
-                        e,
-                        exc_info=True,
-                    )
-                    raise
-
-        return [], 0.0
 
     @staticmethod
     def _emit_provider_state(name: str, state: str, reason: str, remaining_seconds: int = 0):
