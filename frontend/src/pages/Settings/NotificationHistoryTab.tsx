@@ -3,6 +3,7 @@ import { Loader2, RotateCcw } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import { useNotificationHistory, useResendNotification } from '@/hooks/useSystemApi'
 import { toast } from '@/components/shared/Toast'
+import type { NotificationHistoryEntry } from '@/lib/types'
 
 // ─── NotificationHistoryTab ───────────────────────────────────────────────────
 
@@ -73,22 +74,22 @@ export function NotificationHistoryTab() {
             <tr style={{ backgroundColor: 'var(--bg-surface-hover)', color: 'var(--text-muted)' }}>
               <th className="px-3 py-2 text-left font-medium">{t('notification_history.col_timestamp')}</th>
               <th className="px-3 py-2 text-left font-medium">{t('notification_history.col_event')}</th>
-              <th className="px-3 py-2 text-left font-medium">{t('notification_history.col_channel')}</th>
+              <th className="px-3 py-2 text-left font-medium">{t('notification_history.col_title')}</th>
               <th className="px-3 py-2 text-left font-medium">{t('notification_history.col_status')}</th>
               <th className="px-3 py-2 text-left font-medium">{t('notification_history.col_action')}</th>
             </tr>
           </thead>
           <tbody>
-            {entries.map((entry: { id: number; timestamp: string; event_type: string; channel: string; status: string }) => (
+            {entries.map((entry: NotificationHistoryEntry) => (
               <tr
                 key={entry.id}
                 style={{ borderTop: '1px solid var(--border)', color: 'var(--text-primary)' }}
               >
                 <td className="px-3 py-2 whitespace-nowrap" style={{ color: 'var(--text-muted)' }}>
-                  {new Date(entry.timestamp).toLocaleString()}
+                  {new Date(entry.sent_at).toLocaleString()}
                 </td>
                 <td className="px-3 py-2">{entry.event_type}</td>
-                <td className="px-3 py-2">{entry.channel}</td>
+                <td className="px-3 py-2">{entry.title}</td>
                 <td className="px-3 py-2">
                   <span
                     className="px-1.5 py-0.5 rounded text-[10px] font-medium"

@@ -24,6 +24,7 @@ function ServiceKeyCard({
   onTest: (service: string) => void
 }) {
   const { t } = useTranslation('settings')
+  const { t: tc } = useTranslation('common')
   const [editingKey, setEditingKey] = useState<string | null>(null)
   const [editValue, setEditValue] = useState('')
   const [showValues, setShowValues] = useState<Record<string, boolean>>({})

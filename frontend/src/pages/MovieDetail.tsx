@@ -238,7 +238,7 @@ export function MovieDetailPage() {
   return (
     <div className="space-y-4 animate-in">
       {/* Breadcrumb navigation */}
-      <Breadcrumb items={[{ label: t('title'), to: '/library' }, { label: movie.title }]} />
+      <Breadcrumb items={[{ label: t('title'), href: '/library' }, { label: movie.title }]} />
 
       {/* Hero Header */}
       <MovieHero movie={movie} />

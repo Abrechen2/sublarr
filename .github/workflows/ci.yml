@@ -117,7 +117,9 @@ jobs:
 
       - name: Type check (tsc)
         working-directory: ./frontend
-        run: npx tsc --noEmit
+        # -b builds all referenced projects; bare --noEmit on the solution-style
+        # root tsconfig (files: []) checks nothing.
+        run: npx tsc -b
 
       - name: Tests (vitest)
         working-directory: ./frontend

@@ -890,7 +890,7 @@
     "filter_placeholder": "z.B. subtitle_found",
     "col_timestamp": "Zeitstempel",
     "col_event": "Event",
-    "col_channel": "Kanal",
+    "col_title": "Titel",
     "col_status": "Status",
     "col_action": "Aktion",
     "resend": "Erneut senden",

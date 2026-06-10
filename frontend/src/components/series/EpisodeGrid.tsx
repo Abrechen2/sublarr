@@ -100,6 +100,7 @@ interface ScoreCellProps {
 
 /** Score badge pill — color-tiered by score value, or contextual state badges. */
 export function ScoreCell({ status, score, isSearching }: ScoreCellProps) {
+  const { t } = useTranslation('library')
   if (isSearching) {
     return (
       <span style={{

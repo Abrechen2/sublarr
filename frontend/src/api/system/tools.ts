@@ -1,12 +1,12 @@
-import { api } from '../core'
+﻿import { api } from '../core'
 import type {
   SubtitleToolResult,
-  SubtitleContent, SubtitleSaveResult, SubtitleBackup, SubtitleValidation, SubtitleParseResult,
+  SubtitleContent, SubtitleSaveResult, SubtitleBackupContent, SubtitleValidation, SubtitleParseResult,
   SubtitleDiffResult,
   BazarrMappingReport, CompatBatchResult, ExtendedHealthAllResponse, ExportResult,
 } from '@/lib/types'
 
-// ─── Subtitle Tools ───────────────────────────────────────────────────────────
+// â”€â”€â”€ Subtitle Tools â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 export async function runSubtitleTool(tool: string, params: Record<string, unknown>): Promise<SubtitleToolResult> {
   const { data } = await api.post(`/tools/${tool}`, params)
@@ -28,7 +28,7 @@ export async function saveSubtitleContent(filePath: string, content: string, las
   return data
 }
 
-export async function getSubtitleBackup(filePath: string): Promise<SubtitleBackup> {
+export async function getSubtitleBackup(filePath: string): Promise<SubtitleBackupContent> {
   const { data } = await api.get('/tools/backup', { params: { file_path: filePath } })
   return data
 }
@@ -43,7 +43,7 @@ export async function parseSubtitleCues(filePath: string): Promise<SubtitleParse
   return data
 }
 
-// ─── Audio ────────────────────────────────────────────────────────────────────
+// â”€â”€â”€ Audio â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 export interface WaveformData {
   duration: number
@@ -69,7 +69,7 @@ export async function extractAudio(filePath: string, audioTrackIndex?: number): 
   return data
 }
 
-// ─── Spell Checking ───────────────────────────────────────────────────────────
+// â”€â”€â”€ Spell Checking â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 export interface SpellCheckError {
   word: string
@@ -108,7 +108,7 @@ export async function getSpellDictionaries(): Promise<{ dictionaries: string[] }
   return data
 }
 
-// ─── OCR ──────────────────────────────────────────────────────────────────────
+// â”€â”€â”€ OCR â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 export interface OCRExtractResult {
   text: string
@@ -152,7 +152,7 @@ export async function previewOCRFrame(
   return data
 }
 
-// ─── External Integrations ────────────────────────────────────────────────────
+// â”€â”€â”€ External Integrations â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 export async function getBazarrMappingReport(dbPath: string): Promise<BazarrMappingReport> {
   const { data } = await api.post('/integrations/bazarr/mapping-report', { db_path: dbPath })
@@ -212,7 +212,7 @@ export async function exportIntegrationConfigZip(
   return data
 }
 
-// ─── Quality Fixes ────────────────────────────────────────────────────────────
+// â”€â”€â”€ Quality Fixes â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 export async function overlapFix(filePath: string): Promise<{ fixed: number; backup_path: string }> {
   const { data } = await api.post('/tools/overlap-fix', { file_path: filePath })
@@ -272,7 +272,7 @@ export async function detectOpeningEnding(filePath: string): Promise<{
   return data
 }
 
-// ─── Format Conversion ────────────────────────────────────────────────────────
+// â”€â”€â”€ Format Conversion â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 export async function convertSubtitle(params: {
   file_path?: string
@@ -284,7 +284,7 @@ export async function convertSubtitle(params: {
   return data as { output_path: string; format: string }
 }
 
-// ─── Waveform Extraction ──────────────────────────────────────────────────────
+// â”€â”€â”€ Waveform Extraction â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 export async function extractWaveform(
   videoPath: string,
@@ -296,7 +296,7 @@ export async function extractWaveform(
   return data as { audio_url: string; duration_s: number }
 }
 
-// ─── Audio Tracks (Plan B8) ───────────────────────────────────────────────────
+// â”€â”€â”€ Audio Tracks (Plan B8) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 export interface AudioTrack {
   index: number
@@ -345,7 +345,7 @@ export async function fetchScenes(videoPath: string): Promise<ScenesResponse> {
   return data
 }
 
-// ─── Subtitle Diff ────────────────────────────────────────────────────────────
+// â”€â”€â”€ Subtitle Diff â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 export async function computeSubtitleDiff(
   original: string,
@@ -378,7 +378,7 @@ export async function applySubtitleDiff(
   }
 }
 
-// ─── Subtitle Processing ──────────────────────────────────────────────────────
+// â”€â”€â”€ Subtitle Processing â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 export interface ModConfig {
   mod: 'common_fixes' | 'hi_removal' | 'credit_removal'

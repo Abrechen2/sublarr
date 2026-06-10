@@ -164,7 +164,13 @@ export function CleanupTab() {
   const handleCreateRule = useCallback(() => {
     if (!newRule.name.trim()) return
     createRule.mutate(
-      { name: newRule.name, rule_type: newRule.rule_type, config_json: {}, enabled: newRule.enabled },
+      {
+        name: newRule.name,
+        rule_type: newRule.rule_type,
+        config_json: {},
+        enabled: newRule.enabled,
+        schedule: 'manual',
+      },
       {
         onSuccess: () => {
           toast(t('cleanup.rules.created', 'Rule created'))

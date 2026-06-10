@@ -29,6 +29,7 @@ function WhisperBackendCard({
   testResult?: WhisperHealthResult | 'testing'
 }) {
   const { t } = useTranslation('settings')
+  const { t: tc } = useTranslation('common')
   const [expanded, setExpanded] = useState(false)
   const [formValues, setFormValues] = useState<Record<string, string>>({})
   const [showPasswords, setShowPasswords] = useState<Record<string, boolean>>({})

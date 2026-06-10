@@ -131,6 +131,7 @@ function ComparisonHeader({
   onClose?: () => void
   panelCount?: number
 }) {
+  const { t } = useTranslation('editor')
   return (
     <div
       className="flex items-center gap-2 px-3 py-2 shrink-0"

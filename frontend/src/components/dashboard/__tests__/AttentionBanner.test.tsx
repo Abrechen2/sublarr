@@ -21,11 +21,13 @@ function wrap(ui: React.ReactElement) {
   return render(<BrowserRouter>{ui}</BrowserRouter>)
 }
 
+// Shape mirrors PaginatedWanted: items live under `data`, scores in `current_score`,
+// episode label pre-formatted in `season_episode`.
 const ALL_ITEMS = {
   data: {
-    items: [
-      { id: 1, series_title: 'One Piece', season_number: 1, episode_number: 4, status: 'failed', score: null },
-      { id: 2, series_title: 'Jujutsu Kaisen', season_number: 2, episode_number: 6, status: 'found', score: 38 },
+    data: [
+      { id: 1, title: 'One Piece', season_episode: 'S01E04', status: 'failed', current_score: 0 },
+      { id: 2, title: 'Jujutsu Kaisen', season_episode: 'S02E06', status: 'found', current_score: 38 },
     ],
     total: 2,
   },
@@ -88,7 +90,7 @@ describe('AttentionBanner', () => {
   })
 
   it('returns null when no items need attention', () => {
-    mockUseWantedItems.mockReturnValue({ data: { items: [], total: 0 }, isLoading: false })
+    mockUseWantedItems.mockReturnValue({ data: { data: [], total: 0 }, isLoading: false })
     const { container } = wrap(<AttentionBanner />)
     expect(container.firstChild).toBeNull()
   })

@@ -47,6 +47,7 @@ function HookFormModal({
   onCancel: () => void
   isPending: boolean
 }) {
+  const { t } = useTranslation('settings')
   const { t: tc } = useTranslation('common')
   const [form, setForm] = useState<HookFormData>(
     initialData ?? { name: '', event_name: eventNames[0] ?? '', script_path: '', timeout_seconds: 30 }

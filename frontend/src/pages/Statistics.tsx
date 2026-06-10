@@ -31,6 +31,7 @@ function ScoreBar({ pct }: { pct: number }) {
 
 function SeriesQualityTable({ data }: { data: SeriesQuality[] }) {
   const { t } = useTranslation('statistics')
+  const { t: tc } = useTranslation('common')
   const [sortBy, setSortBy] = useState<'avg_score' | 'download_count'>('download_count')
   const sorted = [...data].sort((a, b) => b[sortBy] - a[sortBy])
   return (

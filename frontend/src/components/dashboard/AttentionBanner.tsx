@@ -2,18 +2,10 @@ import { Link } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { ChevronRight, Search, SkipForward, Check } from 'lucide-react'
 import { useWantedItems, useSearchWantedItem, useUpdateWantedStatus } from '@/hooks/useWantedApi'
+import type { WantedItem } from '@/types/wanted'
 
 const MAX_ITEMS = 5
 const LOW_SCORE_THRESHOLD = 50
-
-interface WantedItem {
-  readonly id: number
-  readonly series_title: string
-  readonly season_number: number | null
-  readonly episode_number: number | null
-  readonly status: string
-  readonly score: number | null
-}
 
 interface ActionBtnProps {
   readonly testId: string
@@ -55,10 +47,12 @@ export function AttentionBanner() {
   const searchMutation = useSearchWantedItem()
   const statusMutation = useUpdateWantedStatus()
 
-  const allFetched: WantedItem[] = data?.items ?? []
+  const allFetched: WantedItem[] = data?.data ?? []
   const failedItems = allFetched.filter((item) => item.status === 'failed')
+  // current_score > 0 means a subtitle exists but scored poorly (upgrade candidate)
   const lowScoreItems = allFetched.filter(
-    (item) => item.score !== null && item.score < LOW_SCORE_THRESHOLD && item.status !== 'failed',
+    (item) =>
+      item.current_score > 0 && item.current_score < LOW_SCORE_THRESHOLD && item.status !== 'failed',
   )
 
   const allItems = [...failedItems, ...lowScoreItems].slice(0, MAX_ITEMS)
@@ -124,10 +118,7 @@ export function AttentionBanner() {
       {/* Item rows */}
       {allItems.map((item, index) => {
         const isFailed = item.status === 'failed'
-        const episodeLabel =
-          item.season_number !== null && item.episode_number !== null
-            ? `S${String(item.season_number).padStart(2, '0')}E${String(item.episode_number).padStart(2, '0')}`
-            : null
+        const episodeLabel = item.season_episode || null
 
         return (
           <div
@@ -156,7 +147,7 @@ export function AttentionBanner() {
                 whiteSpace: 'nowrap',
               }}
             >
-              {item.series_title}
+              {item.title}
               {episodeLabel && (
                 <span style={{ fontSize: '11px', color: 'var(--text-muted)', marginLeft: '5px' }}>
                   {episodeLabel}
@@ -167,7 +158,7 @@ export function AttentionBanner() {
               data-testid={`attention-reason-${item.id}`}
               style={{ fontSize: '10px', color: 'var(--text-muted)', flexShrink: 0 }}
             >
-              {isFailed ? t('attention.reasonFailed') : `Score ${item.score}`}
+              {isFailed ? t('attention.reasonFailed') : `Score ${item.current_score}`}
             </span>
             <div style={{ display: 'flex', gap: '4px', flexShrink: 0 }}>
               {isFailed ? (

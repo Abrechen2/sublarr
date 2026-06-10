@@ -329,7 +329,7 @@ function QuickActionsPanel() {
   const startBatch = useStartWantedBatch()
 
   const isScanning = refreshWanted.isPending || Boolean(wantedSummary?.scan_running)
-  const isBatching = startBatch.isPending || Boolean(batchStatus?.is_running)
+  const isBatching = startBatch.isPending || Boolean(batchStatus?.running)
 
   const btnStyle = (disabled: boolean): React.CSSProperties => ({
     width: '100%',

@@ -1,4 +1,4 @@
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+﻿import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import {
   getTrashOverview,
   restoreSidecarBatch,
@@ -23,10 +23,10 @@ export function useRestoreSidecarBatch() {
   return useMutation({
     mutationFn: (batchId: string) => restoreSidecarBatch(batchId),
     onSuccess: (result) => {
-      toast.success(`${result.restored} Untertitel wiederhergestellt`)
+      toast(`${result.restored} Untertitel wiederhergestellt`)
       qc.invalidateQueries({ queryKey: TRASH_KEY })
     },
-    onError: () => toast.error('Wiederherstellung fehlgeschlagen'),
+    onError: () => toast('Wiederherstellung fehlgeschlagen', 'error'),
   })
 }
 
@@ -35,10 +35,10 @@ export function useDeleteSidecarBatch() {
   return useMutation({
     mutationFn: (batchId: string) => deleteSidecarBatch(batchId),
     onSuccess: () => {
-      toast.success('Batch endgültig gelöscht')
+      toast('Batch endgÃ¼ltig gelÃ¶scht')
       qc.invalidateQueries({ queryKey: TRASH_KEY })
     },
-    onError: () => toast.error('Löschen fehlgeschlagen'),
+    onError: () => toast('LÃ¶schen fehlgeschlagen', 'error'),
   })
 }
 
@@ -47,10 +47,10 @@ export function useDeleteMkvBackup() {
   return useMutation({
     mutationFn: (backupPath: string) => deleteMkvBackup(backupPath),
     onSuccess: () => {
-      toast.success('Backup endgültig gelöscht')
+      toast('Backup endgÃ¼ltig gelÃ¶scht')
       qc.invalidateQueries({ queryKey: TRASH_KEY })
     },
-    onError: () => toast.error('Löschen fehlgeschlagen'),
+    onError: () => toast('LÃ¶schen fehlgeschlagen', 'error'),
   })
 }
 
@@ -69,11 +69,11 @@ export function useRestoreMkvBackup() {
     onSuccess: (result) => {
       const msg =
         result.sidecars_deleted > 0
-          ? `Video wiederhergestellt — ${result.sidecars_deleted} Sidecar-Batch(es) gelöscht`
+          ? `Video wiederhergestellt â€” ${result.sidecars_deleted} Sidecar-Batch(es) gelÃ¶scht`
           : 'Video-Backup wiederhergestellt'
-      toast.success(msg)
+      toast(msg)
       qc.invalidateQueries({ queryKey: TRASH_KEY })
     },
-    onError: () => toast.error('Wiederherstellung fehlgeschlagen'),
+    onError: () => toast('Wiederherstellung fehlgeschlagen', 'error'),
   })
 }
