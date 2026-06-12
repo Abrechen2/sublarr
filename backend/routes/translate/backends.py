@@ -345,9 +345,9 @@ def ollama_pull_model():
         return jsonify({"error": f"Cannot connect to Ollama at {ollama_url}"}), 502
     except requests.HTTPError as e:
         return jsonify({"error": f"Ollama pull failed: {e}"}), 502
-    except Exception as e:
+    except Exception:
         logger.exception("ollama_pull_model failed")
-        return jsonify({"error": str(e)}), 500
+        return jsonify({"error": "Internal server error"}), 500
 
 
 @bp.route("/backends/stats", methods=["GET"])

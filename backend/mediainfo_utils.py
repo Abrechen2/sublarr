@@ -69,7 +69,9 @@ def run_mediainfo(file_path: str) -> dict:
             "mediainfo not found in PATH — install mediainfo or switch engine to ffprobe"
         )
 
-    cmd = ["mediainfo", "--Output=JSON", file_path]
+    from security_utils import safe_subprocess_arg
+
+    cmd = ["mediainfo", "--Output=JSON", safe_subprocess_arg(file_path)]
     try:
         result = subprocess.run(cmd, capture_output=True, text=True, timeout=30)
     except subprocess.TimeoutExpired:

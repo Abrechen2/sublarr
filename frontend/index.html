@@ -11,24 +11,10 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet" />
     <title>Sublarr</title>
+    <script src="/theme-init.js"></script>
   </head>
   <body>
     <div id="root"></div>
-    <script>
-      (function() {
-        var theme = localStorage.getItem('sublarr-theme');
-        if (theme === 'light') {
-          document.documentElement.classList.remove('dark');
-        } else if (theme === 'dark' || !theme) {
-          document.documentElement.classList.add('dark');
-        } else {
-          // system
-          if (window.matchMedia('(prefers-color-scheme: dark)').matches) {
-            document.documentElement.classList.add('dark');
-          }
-        }
-      })();
-    </script>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>

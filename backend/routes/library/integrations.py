@@ -137,7 +137,8 @@ def test_sonarr_instance():
         is_healthy, message = client.health_check()
         return jsonify({"healthy": is_healthy, "message": message})
     except Exception as e:
-        return jsonify({"healthy": False, "message": str(e)}), 500
+        logger.exception("Sonarr health check failed: %s", e)
+        return jsonify({"healthy": False, "message": "Health check failed"}), 500
 
 
 @bp.route("/radarr/instances/test", methods=["POST"])
@@ -204,4 +205,5 @@ def test_radarr_instance():
         is_healthy, message = client.health_check()
         return jsonify({"healthy": is_healthy, "message": message})
     except Exception as e:
-        return jsonify({"healthy": False, "message": str(e)}), 500
+        logger.exception("Radarr health check failed: %s", e)
+        return jsonify({"healthy": False, "message": "Health check failed"}), 500

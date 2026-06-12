@@ -2,7 +2,6 @@
 
 import logging
 import os
-import threading
 
 from flask import current_app, jsonify
 
@@ -11,6 +10,7 @@ from extensions import socketio
 from routes.translate import bp
 from routes.translate._helpers import _is_translation_enabled, _run_job
 from security_utils import is_safe_path
+from services.background_tasks import submit_background
 
 logger = logging.getLogger(__name__)
 
@@ -144,8 +144,7 @@ def retranslate_single(job_id):
                 },
             )
 
-    thread = threading.Thread(target=_run, daemon=True)
-    thread.start()
+    submit_background(_run)
 
     return jsonify(
         {
@@ -263,8 +262,7 @@ def retranslate_batch():
                 },
             )
 
-    thread = threading.Thread(target=_run_retranslate, daemon=True)
-    thread.start()
+    submit_background(_run_retranslate)
 
     return jsonify(
         {

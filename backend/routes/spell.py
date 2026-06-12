@@ -154,8 +154,8 @@ def check_spelling():
 
         return jsonify(result), 200
     except RuntimeError as e:
-        logger.error("Spell checking failed: %s", e)
-        return jsonify({"error": str(e)}), 500
+        logger.exception("Spell checking failed: %s", e)
+        return jsonify({"error": "Internal server error"}), 500
     except Exception:
         logger.exception("Unexpected error during spell checking")
         return jsonify({"error": "Internal server error"}), 500

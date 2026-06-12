@@ -155,8 +155,8 @@ def extract_ocr():
 
         return jsonify(result), 200
     except RuntimeError as e:
-        logger.error("OCR extraction failed: %s", e)
-        return jsonify({"error": str(e)}), 500
+        logger.exception("OCR extraction failed: %s", e)
+        return jsonify({"error": "Internal server error"}), 500
     except Exception:
         logger.exception("Unexpected error during OCR extraction")
         return jsonify({"error": "Internal server error"}), 500
@@ -252,8 +252,8 @@ def preview_ocr():
 
         return jsonify(result), 200
     except RuntimeError as e:
-        logger.error("OCR preview failed: %s", e)
-        return jsonify({"error": str(e)}), 500
+        logger.exception("OCR preview failed: %s", e)
+        return jsonify({"error": "Internal server error"}), 500
     except Exception:
         logger.exception("Unexpected error during OCR preview")
         return jsonify({"error": "Internal server error"}), 500

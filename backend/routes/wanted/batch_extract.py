@@ -1,7 +1,6 @@
 """Wanted batch-extract route — extracts embedded subtitles for many items at once."""
 
 import logging
-import threading
 
 from flask import current_app, jsonify, request
 
@@ -9,6 +8,7 @@ from events import emit_event
 from extensions import socketio
 from routes.batch_state import _batch_extract_lock, _batch_extract_state
 from routes.wanted import bp
+from services.background_tasks import submit_background
 
 logger = logging.getLogger(__name__)
 
@@ -226,11 +226,7 @@ def batch_extract():
         _batch_extract_state["running"] = True
 
     app = current_app._get_current_object()
-    threading.Thread(
-        target=_run_batch_extract,
-        args=(item_ids, auto_translate, app),
-        daemon=True,
-    ).start()
+    submit_background(_run_batch_extract, item_ids, auto_translate, app)
     return jsonify({"status": "started", "total_items": len(item_ids)}), 202
 
 

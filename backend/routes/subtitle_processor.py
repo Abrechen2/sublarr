@@ -22,6 +22,7 @@ from flask import Blueprint, current_app, jsonify, request
 
 from config import get_settings, map_path
 from security_utils import is_safe_path
+from services.background_tasks import submit_background
 from subtitle_filename import bak_path_for, find_existing_bak
 
 bp = Blueprint("subtitle_processor", __name__, url_prefix="/api/v1")
@@ -250,7 +251,7 @@ def process_series(series_id):
         finally:
             _batch_running = False
 
-    threading.Thread(target=_run, args=(app,), daemon=True).start()
+    submit_background(_run, app)
     return jsonify({"status": "started", "series_id": series_id}), 202
 
 
@@ -280,7 +281,7 @@ def process_all():
         finally:
             _batch_running = False
 
-    threading.Thread(target=_run, args=(app,), daemon=True).start()
+    submit_background(_run, app)
     return jsonify({"status": "started", "filter": filter_mode}), 202
 
 

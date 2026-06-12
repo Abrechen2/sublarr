@@ -202,6 +202,44 @@ def register_error_handlers(app: object) -> None:
         )
         return jsonify(_build_error_response(error)), error.http_status
 
+    @flask_app.errorhandler(404)
+    def _handle_404(error):  # type: ignore[return]
+        """Return JSON for unknown /api/ paths instead of Werkzeug HTML.
+
+        Non-API paths fall through to the default handling (the SPA catch-all
+        normally serves index.html for those, so this rarely fires for them).
+        """
+        from flask import request
+
+        if request.path.startswith("/api/"):
+            return jsonify(
+                {
+                    "error": "Not found",
+                    "code": "NOT_FOUND",
+                    "path": request.path,
+                    "request_id": getattr(g, "request_id", "?"),
+                    "timestamp": datetime.now(UTC).isoformat(),
+                }
+            ), 404
+        return error
+
+    @flask_app.errorhandler(405)
+    def _handle_405(error):  # type: ignore[return]
+        """Return JSON for method-not-allowed on API routes."""
+        from flask import request
+
+        if request.path.startswith("/api/"):
+            return jsonify(
+                {
+                    "error": "Method not allowed",
+                    "code": "METHOD_NOT_ALLOWED",
+                    "path": request.path,
+                    "request_id": getattr(g, "request_id", "?"),
+                    "timestamp": datetime.now(UTC).isoformat(),
+                }
+            ), 405
+        return error
+
     @flask_app.errorhandler(Exception)
     def _handle_generic_error(error: Exception):  # type: ignore[return]
         """Catch-all: log full traceback, return generic 500."""

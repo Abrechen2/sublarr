@@ -104,8 +104,8 @@ def get_video_stream():
 
         return jsonify({"error": "Playlist generation failed"}), 500
     except RuntimeError as e:
-        logger.error("HLS generation failed: %s", e)
-        return jsonify({"error": str(e)}), 500
+        logger.exception("HLS generation failed: %s", e)
+        return jsonify({"error": "Internal server error"}), 500
     except Exception:
         logger.exception("Unexpected error generating HLS stream")
         return jsonify({"error": "Internal server error"}), 500
@@ -261,8 +261,8 @@ def create_screenshot():
 
         return jsonify({"error": "Screenshot generation failed"}), 500
     except RuntimeError as e:
-        logger.error("Screenshot generation failed: %s", e)
-        return jsonify({"error": str(e)}), 500
+        logger.exception("Screenshot generation failed: %s", e)
+        return jsonify({"error": "Internal server error"}), 500
     except Exception:
         logger.exception("Unexpected error generating screenshot")
         return jsonify({"error": "Internal server error"}), 500
@@ -340,8 +340,8 @@ def get_subtitle_webvtt():
 
         return jsonify({"error": "Subtitle conversion failed"}), 500
     except RuntimeError as e:
-        logger.error("Subtitle conversion failed: %s", e)
-        return jsonify({"error": str(e)}), 500
+        logger.exception("Subtitle conversion failed: %s", e)
+        return jsonify({"error": "Internal server error"}), 500
     except Exception:
         logger.exception("Unexpected error converting subtitle")
         return jsonify({"error": "Internal server error"}), 500

@@ -28,6 +28,8 @@ export interface SeriesInfo {
   profile_id: number | null
   profile_name: string
   missing_count: number
+  // "sonarr" | "standalone" — present in mixed-mode library responses.
+  source?: string
 }
 
 
@@ -39,6 +41,10 @@ export interface MovieInfo {
   path: string
   poster: string
   status: string
+  // Sent by the standalone branch of the library list response.
+  missing_count?: number
+  // "radarr" | "standalone" — present in mixed-mode library responses.
+  source?: string
 }
 
 export interface EpisodeInfo {

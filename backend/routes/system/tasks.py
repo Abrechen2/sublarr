@@ -9,6 +9,7 @@ from datetime import datetime
 from flask import current_app, jsonify, request
 
 from routes.system import bp
+from services.background_tasks import submit_background
 
 logger = logging.getLogger(__name__)
 
@@ -327,8 +328,6 @@ def trigger_cleanup():
         503:
           description: Cleanup scheduler not initialized
     """
-    import threading
-
     from cleanup_scheduler import get_cleanup_scheduler
 
     cs = get_cleanup_scheduler()
@@ -342,7 +341,7 @@ def trigger_cleanup():
         with app.app_context():
             cs._execute_cleanup()
 
-    threading.Thread(target=_run, daemon=True).start()
+    submit_background(_run)
     return jsonify({"status": "started"})
 
 
@@ -364,8 +363,6 @@ def trigger_upgrade_scan():
         503:
           description: Upgrade scheduler not initialized
     """
-    import threading
-
     from upgrade_scheduler import get_upgrade_scheduler
 
     us = get_upgrade_scheduler()
@@ -377,7 +374,7 @@ def trigger_upgrade_scan():
     def _run():
         us._execute_scan()
 
-    threading.Thread(target=_run, daemon=True).start()
+    submit_background(_run)
     return jsonify({"status": "started"})
 
 

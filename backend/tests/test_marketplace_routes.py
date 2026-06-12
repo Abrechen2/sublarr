@@ -149,7 +149,7 @@ def test_install_sha256_mismatch_returns_500(client):
     assert resp.status_code == 500
     data = resp.get_json()
     assert "error" in data
-    assert "SHA256 mismatch" in data["error"]
+    assert data["error"] == "Internal server error"
 
 
 # ---------------------------------------------------------------------------

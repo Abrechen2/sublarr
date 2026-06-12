@@ -148,8 +148,8 @@ def get_waveform():
 
         return jsonify(waveform_data), 200
     except RuntimeError as e:
-        logger.error("Waveform generation failed: %s", e)
-        return jsonify({"error": str(e)}), 500
+        logger.exception("Waveform generation failed: %s", e)
+        return jsonify({"error": "Internal server error"}), 500
     except Exception:
         logger.exception("Unexpected error generating waveform")
         return jsonify({"error": "Internal server error"}), 500
@@ -224,8 +224,8 @@ def extract_audio():
             }
         ), 200
     except RuntimeError as e:
-        logger.error("Audio extraction failed: %s", e)
-        return jsonify({"error": str(e)}), 500
+        logger.exception("Audio extraction failed: %s", e)
+        return jsonify({"error": "Internal server error"}), 500
     except Exception:
         logger.exception("Unexpected error extracting audio")
         return jsonify({"error": "Internal server error"}), 500
@@ -290,8 +290,8 @@ def get_audio_tracks():
         tracks = list_audio_tracks(mapped_path)
         return jsonify({"tracks": tracks, "video_path": mapped_path}), 200
     except RuntimeError as e:
-        logger.error("Audio-track probe failed: %s", e)
-        return jsonify({"error": str(e)}), 500
+        logger.exception("Audio-track probe failed: %s", e)
+        return jsonify({"error": "Internal server error"}), 500
     except Exception:
         logger.exception("Unexpected error probing audio tracks")
         return jsonify({"error": "Internal server error"}), 500
@@ -359,8 +359,8 @@ def get_audio_keyframes():
         keyframes = list_keyframes(mapped_path)
         return jsonify({"keyframes": keyframes, "video_path": mapped_path}), 200
     except RuntimeError as e:
-        logger.error("Keyframe scan failed: %s", e)
-        return jsonify({"error": str(e)}), 500
+        logger.exception("Keyframe scan failed: %s", e)
+        return jsonify({"error": "Internal server error"}), 500
     except Exception:
         logger.exception("Unexpected error scanning keyframes")
         return jsonify({"error": "Internal server error"}), 500

@@ -13,9 +13,10 @@ Provides:
 """
 
 import logging
-import threading
 
 from flask import Blueprint, current_app, jsonify, request
+
+from services.background_tasks import submit_background
 
 bp = Blueprint("anidb_mapping", __name__, url_prefix="/api/v1/anidb-mapping")
 logger = logging.getLogger(__name__)
@@ -54,8 +55,7 @@ def trigger_refresh():
     def _bg():
         run_sync(app)
 
-    t = threading.Thread(target=_bg, daemon=True)
-    t.start()
+    submit_background(_bg)
 
     return jsonify({"success": True, "message": "AniDB sync started"}), 202
 

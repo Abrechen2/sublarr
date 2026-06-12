@@ -2,13 +2,13 @@
 
 import logging
 import os
-import threading
 
 from flask import current_app, jsonify, request
 
 from routes.translate import bp
 from routes.translate._helpers import _is_translation_enabled, _run_job
 from security_utils import is_safe_path
+from services.background_tasks import submit_background
 
 logger = logging.getLogger(__name__)
 
@@ -122,7 +122,7 @@ def list_jobs():
         return jsonify(result)
     except Exception as e:
         logger.exception("GET /jobs failed: %s", e)
-        return jsonify({"error": str(e), "detail": "list_jobs_failed"}), 500
+        return jsonify({"error": "Internal server error", "detail": "list_jobs_failed"}), 500
 
 
 @bp.route("/jobs/<job_id>/retry", methods=["POST"])
@@ -192,8 +192,7 @@ def retry_job(job_id):
         with _app.app_context():
             _run_job(new_job)
 
-    thread = threading.Thread(target=_run_with_ctx, daemon=True)
-    thread.start()
+    submit_background(_run_with_ctx)
 
     return jsonify(
         {

@@ -198,22 +198,13 @@ def _which(cmd: str) -> bool:
 
 
 def _safe_arg_path(path: str) -> str:
-    """Return ``path`` with a ``./`` prefix when its basename starts with ``-``.
-
-    Audit G8 — argv-injection defence. Subprocess.run with a list avoids
-    shell parsing, but the called binary still does its own getopt-style
-    flag parsing, so ``-evil.mkv`` reaches ffmpeg/mkvmerge as a flag.
-    Prepending ``./`` keeps the path semantically identical (relative to
-    cwd) while ensuring no ambiguity for downstream argv parsing.
+    """Argv-injection defence (Audit G8). Thin wrapper over the canonical
+    ``security_utils.safe_subprocess_arg`` so every subprocess call site shares
+    one implementation.
     """
-    if not path:
-        return path
-    if os.path.isabs(path):
-        return path
-    base = os.path.basename(path)
-    if base.startswith("-"):
-        return os.path.join(".", path)
-    return path
+    from security_utils import safe_subprocess_arg
+
+    return safe_subprocess_arg(path)
 
 
 # ---------------------------------------------------------------------------

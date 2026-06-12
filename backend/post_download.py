@@ -46,14 +46,17 @@ def run_post_download_command(
     if not command or not command.strip():
         return
 
+    # Quote every substituted value so a path with spaces (or shell-meaningful
+    # characters from a provider) stays a single argv token after shlex.split
+    # instead of fragmenting into several arguments.
     expanded = (
-        command.replace("{subtitle_path}", subtitle_path)
-        .replace("{path}", subtitle_path)
-        .replace("{language}", language)
-        .replace("{provider}", provider)
-        .replace("{score}", str(int(score)))
-        .replace("{media_type}", media_type)
-        .replace("{video_path}", video_path)
+        command.replace("{subtitle_path}", shlex.quote(subtitle_path))
+        .replace("{path}", shlex.quote(subtitle_path))
+        .replace("{language}", shlex.quote(language))
+        .replace("{provider}", shlex.quote(provider))
+        .replace("{score}", shlex.quote(str(int(score))))
+        .replace("{media_type}", shlex.quote(media_type))
+        .replace("{video_path}", shlex.quote(video_path))
     )
     try:
         argv = shlex.split(expanded)

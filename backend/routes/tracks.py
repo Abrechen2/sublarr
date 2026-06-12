@@ -4,7 +4,6 @@ import logging
 import os
 import re
 import tempfile
-import threading
 
 from flask import Blueprint, current_app, jsonify, request
 
@@ -12,6 +11,7 @@ from ass_utils import extract_subtitle_stream, get_media_streams
 from config import map_path
 from events import emit_event
 from remux import RemuxError, remove_subtitle_streams
+from services.background_tasks import submit_background
 
 bp = Blueprint("tracks", __name__, url_prefix="/api/v1")
 logger = logging.getLogger(__name__)
@@ -110,12 +110,13 @@ def list_tracks(ep_id):
     if not video_path:
         return jsonify({"error": "Episode has no video file or Sonarr is not configured"}), 404
     if not os.path.exists(video_path):
-        return jsonify({"error": "Video file not found on disk: " + video_path}), 404
+        logger.warning("Video file not found on disk: %s", video_path)
+        return jsonify({"error": "Video file not found on disk"}), 404
     try:
         probe = get_media_streams(video_path)
     except RuntimeError as exc:
-        logger.error("Stream probe failed for ep %d (%s): %s", ep_id, video_path, exc)
-        return jsonify({"error": "Failed to probe video file: " + str(exc)}), 500
+        logger.exception("Stream probe failed for ep %d (%s): %s", ep_id, video_path, exc)
+        return jsonify({"error": "Failed to probe video file"}), 500
     except Exception:
         logger.exception("Unexpected error probing ep %d", ep_id)
         return jsonify({"error": "Internal server error"}), 500
@@ -132,11 +133,13 @@ def extract_track(ep_id, index):
     if not video_path:
         return jsonify({"error": "Episode has no video file or Sonarr is not configured"}), 404
     if not os.path.exists(video_path):
-        return jsonify({"error": "Video file not found on disk: " + video_path}), 404
+        logger.warning("Video file not found on disk: %s", video_path)
+        return jsonify({"error": "Video file not found on disk"}), 404
     try:
         probe = get_media_streams(video_path)
     except RuntimeError as exc:
-        return jsonify({"error": "Failed to probe video file: " + str(exc)}), 500
+        logger.exception("Failed to probe video file: %s", exc)
+        return jsonify({"error": "Failed to probe video file"}), 500
     except Exception:
         return jsonify({"error": "Internal server error"}), 500
     tracks = _build_track_list(probe.get("streams", []))
@@ -160,7 +163,8 @@ def extract_track(ep_id, index):
     try:
         extract_subtitle_stream(video_path, stream_info, output_path)
     except RuntimeError as exc:
-        return jsonify({"error": "Extraction failed: " + str(exc)}), 500
+        logger.exception("Extraction failed: %s", exc)
+        return jsonify({"error": "Extraction failed"}), 500
     except Exception:
         return jsonify({"error": "Internal server error"}), 500
     return jsonify(
@@ -175,11 +179,13 @@ def use_track_as_source(ep_id, index):
     if not video_path:
         return jsonify({"error": "Episode has no video file or Sonarr is not configured"}), 404
     if not os.path.exists(video_path):
-        return jsonify({"error": "Video file not found on disk: " + video_path}), 404
+        logger.warning("Video file not found on disk: %s", video_path)
+        return jsonify({"error": "Video file not found on disk"}), 404
     try:
         probe = get_media_streams(video_path)
     except RuntimeError as exc:
-        return jsonify({"error": "Failed to probe video file: " + str(exc)}), 500
+        logger.exception("Failed to probe video file: %s", exc)
+        return jsonify({"error": "Failed to probe video file"}), 500
     except Exception:
         return jsonify({"error": "Internal server error"}), 500
     tracks = _build_track_list(probe.get("streams", []))
@@ -199,9 +205,11 @@ def use_track_as_source(ep_id, index):
         with open(tmp_path, encoding="utf-8", errors="replace") as fh:
             content = fh.read()
     except RuntimeError as exc:
-        return jsonify({"error": "Extraction failed: " + str(exc)}), 500
+        logger.exception("Extraction failed: %s", exc)
+        return jsonify({"error": "Extraction failed"}), 500
     except OSError as exc:
-        return jsonify({"error": "File I/O error: " + str(exc)}), 500
+        logger.exception("File I/O error: %s", exc)
+        return jsonify({"error": "File I/O error"}), 500
     except Exception:
         return jsonify({"error": "Internal server error"}), 500
     finally:
@@ -561,5 +569,5 @@ def batch_extract_series_tracks(series_id):
                         "[batch-extract-tracks] auto-cleanup: removed %d sidecar(s)", _cleaned
                     )
 
-    threading.Thread(target=_run, args=(app,), daemon=True).start()
+    submit_background(_run, app)
     return jsonify({"status": "started", "series_id": series_id}), 202

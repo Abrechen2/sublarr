@@ -776,7 +776,9 @@ class TestExportConfig:
 
         assert rv.status_code == 200
 
-    def test_include_secrets_passed_through(self, client):
+    def test_include_secrets_never_passed_through(self, client):
+        # Security: secrets must never be exportable over HTTP. Even when the
+        # client asks for include_secrets=True, the route forces it to False.
         with patch("export_manager.export_config", return_value={}) as mock_fn:
             client.post(
                 "/api/v1/integrations/export",
@@ -784,7 +786,7 @@ class TestExportConfig:
                 content_type="application/json",
             )
 
-        mock_fn.assert_called_once_with("json", include_secrets=True)
+        mock_fn.assert_called_once_with("json", include_secrets=False)
 
     def test_include_secrets_defaults_false(self, client):
         with patch("export_manager.export_config", return_value={}) as mock_fn:
@@ -870,7 +872,8 @@ class TestExportZip:
         assert rv.data == fake_zip
         assert "sublarr_export.zip" in rv.headers["Content-Disposition"]
 
-    def test_include_secrets_passed_through(self, client):
+    def test_include_secrets_never_passed_through(self, client):
+        # Security: secrets must never be exportable over HTTP (see above).
         with patch("export_manager.export_to_zip", return_value=b"zip") as mock_fn:
             client.post(
                 "/api/v1/integrations/export/zip",
@@ -878,7 +881,7 @@ class TestExportZip:
                 content_type="application/json",
             )
 
-        mock_fn.assert_called_once_with(["json"], include_secrets=True)
+        mock_fn.assert_called_once_with(["json"], include_secrets=False)
 
     def test_zip_export_exception_returns_500(self, client):
         with patch(

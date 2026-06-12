@@ -426,10 +426,12 @@ def save_subtitle(
         logger.error("Failed to create directory for %s: %s", output_path, e)
         raise RuntimeError(f"Cannot create directory for subtitle: {e}") from e
 
-    # Write file with error handling
+    # Write file with error handling. Atomic (tmp + os.replace) so a crash mid-
+    # write can't replace a previously-good sidecar with a truncated one.
     try:
-        with open(output_path, "wb") as f:
-            f.write(result.content)
+        from utils.atomic_write import atomic_write_bytes
+
+        atomic_write_bytes(output_path, result.content)
     except OSError as e:
         logger.error("Failed to write subtitle to %s: %s", output_path, e)
         raise RuntimeError(f"Cannot write subtitle file: {e}") from e

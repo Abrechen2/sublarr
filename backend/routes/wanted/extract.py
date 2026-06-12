@@ -2,7 +2,6 @@
 
 import logging
 import os
-import threading
 
 from flask import current_app, jsonify
 
@@ -11,6 +10,7 @@ from db.models.activity import EVENT_EXTRACT
 from events import emit_event
 from remux import RemuxError, remove_subtitle_stream
 from routes.wanted import bp
+from services.background_tasks import submit_background
 
 logger = logging.getLogger(__name__)
 
@@ -256,7 +256,7 @@ def _extract_embedded_sub(item_id: int, file_path: str, auto_translate: bool = F
                         except Exception:
                             pass
 
-            threading.Thread(target=_translate_async, daemon=True).start()
+            submit_background(_translate_async)
         except Exception as exc:
             logger.warning(
                 "[Auto-Translate] Could not start translation thread for item %d: %s", item_id, exc

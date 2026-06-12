@@ -192,13 +192,27 @@ def _fetch_dump() -> bool:
 
     Returns True on success, False on failure.
     """
+    # Size caps so a hostile/misbehaving endpoint (or a MITM) cannot OOM the
+    # process: bound both the compressed download and the decompressed XML.
+    _max_compressed = 100 * 1024 * 1024  # 100 MB
+    _max_decompressed = 200 * 1024 * 1024  # 200 MB
     try:
         req = Request(_DUMP_URL, headers={"User-Agent": "Sublarr/1.0"})
         with urlopen(req, timeout=30) as resp:
-            data = resp.read()
+            data = resp.read(_max_compressed + 1)
+        if len(data) > _max_compressed:
+            logger.warning("AniDB dump exceeds %d bytes — refusing", _max_compressed)
+            return False
         # Validate: must be valid gzip with ≥ _DUMP_MIN_ENTRIES entries
         try:
-            root = ET.fromstring(gzip.decompress(data))
+            import io
+
+            with gzip.GzipFile(fileobj=io.BytesIO(data)) as gz:
+                xml_bytes = gz.read(_max_decompressed + 1)
+            if len(xml_bytes) > _max_decompressed:
+                logger.warning("AniDB dump decompresses beyond cap — refusing")
+                return False
+            root = ET.fromstring(xml_bytes)
         except Exception as parse_err:
             logger.debug("AniDB dump validation failed (parse error): %s", parse_err)
             return False
@@ -291,7 +305,9 @@ def resolve_anidb_from_title_dump(series_title: str, tvdb_id: int | None = None)
             try:
                 save_anidb_mapping(tvdb_id, aid)
             except Exception:
-                pass
+                logger.warning(
+                    "Failed to cache AniDB mapping tvdb=%s aid=%s", tvdb_id, aid, exc_info=True
+                )
         return aid
 
     # Fuzzy match — find best scoring entry
@@ -311,7 +327,9 @@ def resolve_anidb_from_title_dump(series_title: str, tvdb_id: int | None = None)
             try:
                 save_anidb_mapping(tvdb_id, best_aid)
             except Exception:
-                pass
+                logger.warning(
+                    "Failed to cache AniDB mapping tvdb=%s aid=%s", tvdb_id, best_aid, exc_info=True
+                )
         return best_aid
 
     logger.debug(

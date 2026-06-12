@@ -168,7 +168,8 @@ def remove_track_from_container(ep_id: int, index: int):
     try:
         probe = get_media_streams(video_path)
     except RuntimeError as exc:
-        return jsonify({"error": "Failed to probe video file: " + str(exc)}), 500
+        logger.exception("Failed to probe video file: %s", exc)
+        return jsonify({"error": "Failed to probe video file"}), 500
     except Exception:
         return jsonify({"error": "Internal server error"}), 500
 

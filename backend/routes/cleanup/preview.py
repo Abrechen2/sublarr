@@ -71,8 +71,8 @@ def preview_cleanup():
         code = 404 if "not found" in str(e) else 400
         return jsonify({"error": str(e)}), code
     except Exception as e:
-        logger.error("Preview failed: %s", e)
-        return jsonify({"error": str(e)}), 500
+        logger.exception("Preview failed: %s", e)
+        return jsonify({"error": "Internal server error"}), 500
 
 
 @bp.route("/non-target-subs", methods=["POST"])

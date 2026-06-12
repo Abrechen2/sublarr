@@ -46,20 +46,29 @@ def _register_shutdown_handler(app):
             get_standalone_manager().stop()
             logger.info("Standalone watcher stopped")
         except Exception:
-            pass
+            logger.debug("standalone watcher shutdown error", exc_info=True)
 
         try:
             from cleanup_scheduler import stop_cleanup_scheduler
 
             stop_cleanup_scheduler()
         except Exception:
-            pass
+            logger.debug("cleanup scheduler shutdown error", exc_info=True)
         try:
             from upgrade_scheduler import stop_upgrade_scheduler
 
             stop_upgrade_scheduler()
         except Exception:
-            pass
+            logger.debug("upgrade scheduler shutdown error", exc_info=True)
+
+        # Stop accepting new fire-and-forget background tasks and cancel any
+        # still queued so the process can exit promptly (Docker SIGTERM grace).
+        try:
+            from services.background_tasks import shutdown_background
+
+            shutdown_background(wait=False)
+        except Exception:
+            logger.debug("background task executor shutdown error", exc_info=True)
 
         # Plan B6 follow-up — drain the post-processing executor so in-flight
         # ops (webhooks, plex_refresh, etc.) finish cleanly before process exit.

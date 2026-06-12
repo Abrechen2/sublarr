@@ -289,14 +289,17 @@ def waveform_extract():
         track_index = raw_track
 
     from config import get_settings, map_path
+    from security_utils import is_safe_path
 
     video_path = map_path(video_path)
 
-    # Security: ensure video_path is under media_path
+    # Security: ensure video_path is under media_path. Use is_safe_path (which
+    # resolves symlinks via realpath) rather than abspath startswith — abspath
+    # collapses '..' but follows no symlinks, so a symlink under media_path
+    # pointing outside it (e.g. media/link -> /proc) would otherwise slip
+    # through and be handed to ffmpeg.
     _s = get_settings()
-    _media_path = os.path.abspath(_s.media_path)
-    _abs_video = os.path.abspath(video_path)
-    if not _abs_video.startswith(_media_path + os.sep):
+    if not is_safe_path(video_path, _s.media_path):
         return jsonify({"error": "video_path must be under the configured media_path"}), 403
 
     if not os.path.exists(video_path):

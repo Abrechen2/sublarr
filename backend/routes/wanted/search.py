@@ -5,7 +5,6 @@ Scanner-triggered routes (search-all, search-upgrades) and bulk actions
 """
 
 import logging
-import threading
 
 from flask import current_app, jsonify, request
 
@@ -13,6 +12,7 @@ from events import emit_event
 from extensions import socketio
 from routes.batch_state import wanted_batch_lock, wanted_batch_state
 from routes.wanted import bp
+from services.background_tasks import submit_background
 
 logger = logging.getLogger(__name__)
 
@@ -66,8 +66,7 @@ def search_wanted(item_id):
                 logger.exception("Wanted search failed for item_id=%s", item_id)
                 emit_event("wanted_item_searched", {"wanted_id": item_id, "error": str(e)})
 
-    thread = threading.Thread(target=_run, daemon=True)
-    thread.start()
+    submit_background(_run)
 
     return jsonify({"status": "searching", "wanted_id": item_id}), 202
 
@@ -131,8 +130,7 @@ def process_wanted(item_id):
                 logger.exception("Wanted process failed for item_id=%s", item_id)
                 emit_event("wanted_item_processed", {"wanted_id": item_id, "error": str(e)})
 
-    thread = threading.Thread(target=_run, daemon=True)
-    thread.start()
+    submit_background(_run)
 
     return jsonify({"status": "processing", "wanted_id": item_id}), 202
 
@@ -283,8 +281,7 @@ def wanted_batch_search():
                 except Exception as exc:
                     logger.warning("Notification send failed after wanted batch search: %s", exc)
 
-    thread = threading.Thread(target=_run_batch, daemon=True)
-    thread.start()
+    submit_background(_run_batch)
 
     return jsonify({"status": "started", "total_items": total}), 202
 

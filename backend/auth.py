@@ -146,6 +146,16 @@ def init_auth(app):
         if path.startswith("/api/v1/tools/waveform-audio/"):
             return None
 
+        # Skip auth for /media/stream requests carrying a valid short-lived
+        # stream token. The <video> element cannot send an X-Api-Key header on
+        # its own range requests; instead the client mints a path-scoped HMAC
+        # token via the (authenticated) /media/stream-token endpoint and passes
+        # that in the URL — so the raw API key never appears in access logs.
+        from media_token import stream_request_has_valid_token
+
+        if stream_request_has_valid_token():
+            return None
+
         # Skip auth for webhook endpoints — each handler performs its own
         # HMAC-based auth (see routes/webhooks.py). IMPORTANT: any new webhook
         # route added under /api/v1/webhook/ MUST implement auth manually;

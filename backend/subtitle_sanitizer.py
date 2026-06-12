@@ -177,3 +177,47 @@ def sanitize_subtitle(content: bytes, fmt) -> bytes:
 
     # Unknown or other formats: pass through unchanged
     return content
+
+
+def sanitize_subtitle_file(path: str) -> bool:
+    """Sanitize an on-disk subtitle file in place (format inferred from suffix).
+
+    Used to give locally-produced output (e.g. LLM translation results) the
+    same content sanitization the provider-download path applies — prompt
+    injection in model output must not be able to smuggle drawing-mode/Lua
+    (ASS) or HTML/script (SRT/VTT) past the renderer. Best-effort: a read or
+    parse failure logs and leaves the file untouched rather than raising into
+    the translation flow.
+
+    Returns:
+        True if the file was rewritten with sanitized content, else False.
+    """
+    import os
+
+    ext = os.path.splitext(path)[1].lower().lstrip(".")
+    if ext in ("ass", "ssa"):
+        sanitizer = sanitize_ass_content
+    elif ext in ("srt", "vtt"):
+        sanitizer = sanitize_srt_vtt_content
+    else:
+        return False
+
+    try:
+        with open(path, "rb") as fh:
+            original = fh.read()
+    except OSError as exc:
+        logger.warning("Could not read %s for sanitization: %s", path, exc)
+        return False
+
+    cleaned = sanitizer(original)
+    if cleaned == original:
+        return False
+
+    try:
+        from utils.atomic_write import atomic_write_bytes
+
+        atomic_write_bytes(path, cleaned)
+    except OSError as exc:
+        logger.warning("Could not write sanitized %s: %s", path, exc)
+        return False
+    return True

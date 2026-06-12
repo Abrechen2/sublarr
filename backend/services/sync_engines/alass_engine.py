@@ -66,10 +66,17 @@ class AlassEngine(BaseSyncEngine):
         except Exception:
             pass
 
+        from security_utils import safe_subprocess_arg
         from services.sync_engines.concurrency import nice_prefix, sync_subprocess_lock
 
         out_path = str(src)
-        cmd = [*nice_prefix(), "alass", reference_path, subtitle_path, out_path]
+        cmd = [
+            *nice_prefix(),
+            "alass",
+            safe_subprocess_arg(reference_path),
+            safe_subprocess_arg(subtitle_path),
+            safe_subprocess_arg(out_path),
+        ]
         logger.info("alass: syncing %s against %s", subtitle_path, reference_path)
 
         try:

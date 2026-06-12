@@ -87,9 +87,9 @@ def get_marketplace_plugin(plugin_name: str):
             return jsonify({"error": "Plugin not found"}), 404
 
         return jsonify(plugin_info), 200
-    except Exception as e:
+    except Exception:
         logger.exception("Failed to get plugin info")
-        return jsonify({"error": str(e)}), 500
+        return jsonify({"error": "Internal server error"}), 500
 
 
 @bp.route("/marketplace/installed", methods=["GET"])
@@ -160,9 +160,9 @@ def refresh_marketplace():
         registry = GitHubRegistry(github_token=github_token)
         plugins = registry.search(force_refresh=True)
         return jsonify({"plugins": plugins, "count": len(plugins)})
-    except Exception as e:
+    except Exception:
         logger.exception("Failed to refresh marketplace from GitHub")
-        return jsonify({"error": str(e)}), 500
+        return jsonify({"error": "Internal server error"}), 500
 
 
 @bp.route("/marketplace/updates", methods=["GET"])
@@ -197,6 +197,6 @@ def check_marketplace_updates():
         updates = marketplace.check_updates(installed)
 
         return jsonify({"updates": updates}), 200
-    except Exception as e:
+    except Exception:
         logger.exception("Failed to check updates")
-        return jsonify({"error": str(e)}), 500
+        return jsonify({"error": "Internal server error"}), 500

@@ -14,7 +14,7 @@ import hmac
 import logging
 import os
 
-from flask import Flask
+from flask import Flask, request
 
 from app_logging import (  # re-exported for back-compat (tests import from app)
     LOG_FORMAT,
@@ -127,17 +127,26 @@ def create_app(testing=False):
         response.headers.setdefault("Referrer-Policy", "same-origin")
         response.headers.setdefault("Cross-Origin-Opener-Policy", "same-origin")
         response.headers.setdefault("Cross-Origin-Embedder-Policy", "credentialless")
-        # CSP: allow self + inline styles/scripts (SPA requirement) + ws/wss for SocketIO.
+        # CSP: allow self + inline styles + ws/wss for SocketIO.
+        # script-src is strict (no 'unsafe-inline') for the SPA — its only inline
+        # script (the pre-paint theme bootstrap) was moved to /theme-init.js so an
+        # injected inline <script> can no longer execute. The Swagger UI bundle at
+        # /api/docs* still ships inline bootstrap scripts, so that path keeps the
+        # relaxed directive scoped to itself.
         # media-src needs blob: because the Waveform editor (WaveSurfer.js) fetches the
         # extracted audio from /api/v1/tools/waveform-audio/, wraps it in URL.createObjectURL(),
         # and feeds it into an internal <audio> element — which the browser charges against
         # media-src, not connect-src.
+        if request.path.startswith("/api/docs"):
+            script_src = "script-src 'self' 'unsafe-inline' 'wasm-unsafe-eval'; "
+        else:
+            script_src = "script-src 'self' 'wasm-unsafe-eval'; "
         response.headers.setdefault(
             "Content-Security-Policy",
             (
                 "default-src 'self'; "
-                "script-src 'self' 'unsafe-inline' 'wasm-unsafe-eval'; "
-                "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; "
+                + script_src
+                + "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; "
                 "img-src 'self' data: https:; "
                 "media-src 'self' blob:; "
                 "connect-src 'self' ws: wss:; "
@@ -151,7 +160,13 @@ def create_app(testing=False):
         )
         return response
 
-    # Initialize rate limiter (in-memory; swap storage_uri for Redis in multi-worker setups)
+    # Initialize rate limiter. In-memory counters are per-process, so under a
+    # multi-worker Gunicorn deployment every worker keeps its own tally and the
+    # effective limit becomes N×. When a Redis URL is configured, use it as the
+    # shared storage backend so limits hold across workers (brute-force guard).
+    _redis_url = getattr(settings, "redis_url", None)
+    if _redis_url:
+        app.config["RATELIMIT_STORAGE_URI"] = _redis_url
     limiter.init_app(app)
 
     # Initialize authentication

@@ -88,7 +88,9 @@ def apply_mods(path: str, mods: list[ModConfig], dry_run: bool = False) -> Proce
             os.makedirs(os.path.dirname(bak_path), exist_ok=True)
             shutil.copy2(path, bak_path)
             backed_up = True
-        subs.save(path, format_=fmt, encoding="utf-8")
+        from utils.atomic_write import atomic_save_subs
+
+        atomic_save_subs(subs, path, format_=fmt, encoding="utf-8")
 
     return ProcessingResult(
         changes=all_changes,

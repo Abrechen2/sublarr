@@ -270,12 +270,33 @@ export async function getStreamingEnabled(): Promise<boolean> {
   return data.streaming_enabled ?? true
 }
 
-/** Returns the URL for streaming a media file. Not a fetch — just a URL builder.
- *  Appends the API key as a query param so browser-native requests (<video>, libass-wasm)
- *  can authenticate without custom headers. */
-export function getMediaStreamUrl(filePath: string): string {
+/** Mint a short-lived, path-scoped stream token for a media file.
+ *  The token (not the API key) is what goes in the <video> URL, so the raw
+ *  key never lands in web-server access logs. */
+export async function createStreamToken(filePath: string): Promise<string> {
+  const { data } = await api.post<{ token: string; expires_at: number }>(
+    '/media/stream-token',
+    { path: filePath },
+  )
+  return data.token
+}
+
+/** Build a browser-native stream URL from a path + token. The token authorises
+ *  this single path for a few hours; the API key is never embedded in the URL. */
+export function buildStreamUrl(filePath: string, token: string): string {
   const encoded = encodeURIComponent(filePath)
-  const apiKey = localStorage.getItem('sublarr_api_key')
-  const auth = apiKey ? `&apikey=${encodeURIComponent(apiKey)}` : ''
-  return `/api/v1/media/stream?path=${encoded}${auth}`
+  return `/api/v1/media/stream?path=${encoded}&token=${encodeURIComponent(token)}`
+}
+
+/** Fetch raw subtitle/media text through the authenticated axios instance so
+ *  the X-Api-Key travels in a header, not the URL. Used for subtitle loads
+ *  where fetch()-with-headers is possible (unlike a <video> src). */
+export async function fetchMediaText(filePath: string, signal?: AbortSignal): Promise<string> {
+  const { data } = await api.get<string>('/media/stream', {
+    params: { path: filePath },
+    responseType: 'text',
+    transformResponse: (raw) => raw,
+    signal,
+  })
+  return data
 }

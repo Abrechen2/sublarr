@@ -407,16 +407,12 @@ def test_search_all_emits_failure_event_when_worker_crashes(client, monkeypatch)
 
     monkeypatch.setattr("routes.wanted.bulk_actions.emit_event", _emit)
 
-    # Run the worker synchronously by patching threading.Thread to invoke
-    # ``target`` immediately instead of spawning a background thread.
-    class _SyncThread:
-        def __init__(self, target=None, daemon=None, **_kwargs):
-            self._target = target
-
-        def start(self):
-            self._target()
-
-    monkeypatch.setattr("routes.wanted.bulk_actions.threading.Thread", _SyncThread)
+    # Run the worker synchronously by patching submit_background to invoke
+    # the callable immediately instead of dispatching to the bounded pool.
+    monkeypatch.setattr(
+        "routes.wanted.bulk_actions.submit_background",
+        lambda fn, *a, **k: fn(*a, **k),
+    )
 
     resp = client.post("/api/v1/wanted/search-all")
     assert resp.status_code == 202
@@ -439,14 +435,10 @@ def test_search_upgrades_emits_failure_event_when_worker_crashes(client, monkeyp
         lambda evt, payload: captured.append((evt, payload)),
     )
 
-    class _SyncThread:
-        def __init__(self, target=None, daemon=None, **_kwargs):
-            self._target = target
-
-        def start(self):
-            self._target()
-
-    monkeypatch.setattr("routes.wanted.bulk_actions.threading.Thread", _SyncThread)
+    monkeypatch.setattr(
+        "routes.wanted.bulk_actions.submit_background",
+        lambda fn, *a, **k: fn(*a, **k),
+    )
 
     resp = client.post("/api/v1/wanted/search-upgrades")
     assert resp.status_code == 202

@@ -7,6 +7,7 @@ Auth endpoints and /api/v1/health are always exempt.
 
 import hmac
 import logging
+import os
 import secrets
 
 import bcrypt
@@ -78,8 +79,17 @@ def init_ui_auth(app):
 
     app.config["SESSION_COOKIE_HTTPONLY"] = True
     app.config["SESSION_COOKIE_SAMESITE"] = "Lax"
-    # Secure flag only when served over HTTPS (not for internal HTTP-only deployments)
-    app.config["SESSION_COOKIE_SECURE"] = False
+    # Secure flag: opt-in for HTTPS deployments (incl. TLS-terminating reverse
+    # proxies). Defaults to False so plain-HTTP LAN deployments keep working,
+    # but operators serving over TLS should set SUBLARR_SESSION_SECURE=1 so the
+    # browser never transmits the session cookie over an insecure connection.
+    _secure = os.environ.get("SUBLARR_SESSION_SECURE", "").strip().lower() in (
+        "1",
+        "true",
+        "yes",
+        "on",
+    )
+    app.config["SESSION_COOKIE_SECURE"] = _secure
 
     # Enforce session_timeout_minutes from config; default to 8 hours instead of Flask's 31-day default
     from datetime import timedelta
@@ -112,6 +122,13 @@ def init_ui_auth(app):
         if session.get("ui_authenticated"):
             return None
         if _has_valid_api_key():
+            return None
+        # Browser-native <video> streaming authenticates via a path-scoped
+        # short-lived token instead of the session cookie / API key (see
+        # media_token); honour it here too so playback works under UI auth.
+        from media_token import stream_request_has_valid_token
+
+        if stream_request_has_valid_token():
             return None
         return jsonify({"error": "Authentication required"}), 401
 

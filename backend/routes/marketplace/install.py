@@ -120,8 +120,8 @@ def install_marketplace_plugin():
 
         return jsonify({"status": "installed", "name": name})
     except RuntimeError as e:
-        logger.error("Plugin install failed: %s", e)
-        return jsonify({"error": str(e)}), 500
+        logger.exception("Plugin install failed: %s", e)
+        return jsonify({"error": "Internal server error"}), 500
     except Exception:
         logger.exception("Plugin install unexpected error")
         return jsonify({"error": "Internal server error"}), 500
@@ -188,8 +188,8 @@ def uninstall_marketplace_plugin():
 
         return jsonify(result), 200
     except RuntimeError as e:
-        logger.error("Plugin uninstallation failed: %s", e)
-        return jsonify({"error": str(e)}), 500
+        logger.exception("Plugin uninstallation failed: %s", e)
+        return jsonify({"error": "Internal server error"}), 500
     except Exception:
         logger.exception("Unexpected error during plugin uninstallation")
         return jsonify({"error": "Internal server error"}), 500

@@ -60,6 +60,8 @@ def extract_frame(
         temp_fd, output_path = tempfile.mkstemp(suffix=".png")
         os.close(temp_fd)
 
+    from security_utils import safe_subprocess_arg
+
     # Build FFmpeg command
     cmd = [
         "ffmpeg",
@@ -67,12 +69,12 @@ def extract_frame(
         "-ss",
         str(timestamp),
         "-i",
-        video_path,
+        safe_subprocess_arg(video_path),
         "-vframes",
         "1",  # Extract only one frame
         "-vf",
         "scale=1920:-1",  # Scale to reasonable size for OCR
-        output_path,
+        safe_subprocess_arg(output_path),
     ]
 
     try:

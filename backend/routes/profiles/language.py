@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import logging
+
 from flask import jsonify, request
 
 from cache_response import cached_get, invalidate_response_cache
@@ -16,6 +18,8 @@ from services.profile_service import (
     set_default_for_all,
     update_profile,
 )
+
+logger = logging.getLogger(__name__)
 
 
 @bp.route("/language-profiles", methods=["GET"])
@@ -117,7 +121,8 @@ def create_language_profile_endpoint():
     except ProfileConflictError as exc:
         return jsonify({"error": str(exc)}), 409
     except Exception as exc:
-        return jsonify({"error": str(exc)}), 500
+        logger.exception("Failed to create language profile: %s", exc)
+        return jsonify({"error": "Internal server error"}), 500
 
     invalidate_response_cache()
     return jsonify(profile), 201
@@ -193,7 +198,8 @@ def update_language_profile_endpoint(profile_id):
     except ProfileConflictError as exc:
         return jsonify({"error": str(exc)}), 409
     except Exception as exc:
-        return jsonify({"error": str(exc)}), 500
+        logger.exception("Failed to update language profile: %s", exc)
+        return jsonify({"error": "Internal server error"}), 500
 
     invalidate_response_cache()
     return jsonify(updated)

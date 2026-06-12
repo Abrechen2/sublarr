@@ -139,6 +139,27 @@ def validate_download_url(url: str, provider_name: str) -> tuple[bool, str | Non
     )
 
 
+def safe_subprocess_arg(path: str) -> str:
+    """Return ``path`` made safe to pass as a positional argv to an external
+    binary, by prefixing ``./`` when a *relative* path's basename starts with
+    ``-``.
+
+    subprocess with a list avoids shell parsing, but the called binary still
+    does its own getopt-style flag parsing, so a file literally named
+    ``-i.mkv`` would be mistaken for a flag. Prefixing ``./`` keeps the path
+    semantically identical while removing the ambiguity. Absolute paths (which
+    start with the path separator, not ``-``) are returned unchanged.
+    """
+    if not path:
+        return path
+    if os.path.isabs(path):
+        return path
+    base = os.path.basename(path)
+    if base.startswith("-"):
+        return os.path.join(".", path)
+    return path
+
+
 def is_safe_path(file_path: str, base_dir: str) -> bool:
     """Return True iff file_path resolves inside base_dir (symlinks resolved).
 

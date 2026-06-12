@@ -6,6 +6,7 @@ import logging
 
 from flask import current_app, jsonify, redirect, send_file
 
+from extensions import limiter
 from routes.standalone import bp
 
 logger = logging.getLogger(__name__)
@@ -89,6 +90,7 @@ def get_series(series_id):
 
 
 @bp.route("/series/<int:series_id>/poster", methods=["GET"])
+@limiter.limit("120/minute")
 def series_poster(series_id):
     """Serve the local poster image for a standalone series.
 
@@ -213,8 +215,8 @@ def scan_series(series_id):
             response["summary"] = summary
         return jsonify(response)
     except Exception as e:
-        logger.error("Failed to scan series %d: %s", series_id, e)
-        return jsonify({"error": str(e)}), 500
+        logger.exception("Failed to scan series %d: %s", series_id, e)
+        return jsonify({"error": "Internal server error"}), 500
 
 
 @bp.route("/series/<int:series_id>/refresh-metadata", methods=["POST"])

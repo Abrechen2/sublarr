@@ -5,7 +5,7 @@ import { X } from 'lucide-react'
 import type { PlayerSubtitleTrack } from '@/lib/types'
 import { VideoPlayer, type VideoPlayerHandle } from './VideoPlayer'
 import { SubtitleTrackSelector } from './SubtitleTrackSelector'
-import { getMediaStreamUrl } from '@/api/client'
+import { createStreamToken, buildStreamUrl } from '@/api/client'
 
 interface Props {
   videoPath: string
@@ -31,7 +31,24 @@ export function PlayerModal({
   const onSeekReadyRef = useRef(onSeekReady)
 
   const activeTrack = activeIndex !== null ? (subtitleTracks[activeIndex] ?? null) : null
-  const streamUrl = getMediaStreamUrl(videoPath)
+  const [streamUrl, setStreamUrl] = useState<string>('')
+
+  // Mint a short-lived stream token, then build the <video> URL from it. The
+  // raw API key is never placed in the URL (it would otherwise be logged by the
+  // web server on every range request).
+  useEffect(() => {
+    let cancelled = false
+    createStreamToken(videoPath)
+      .then((token) => {
+        if (!cancelled) setStreamUrl(buildStreamUrl(videoPath, token))
+      })
+      .catch(() => {
+        // Token mint failed (streaming disabled / auth) — player shows no source.
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [videoPath])
 
   useEffect(() => {
     onSeekReadyRef.current = onSeekReady

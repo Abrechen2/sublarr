@@ -6,6 +6,7 @@ import logging
 
 from flask import jsonify, redirect, send_file
 
+from extensions import limiter
 from routes.standalone import bp
 
 logger = logging.getLogger(__name__)
@@ -92,6 +93,7 @@ def get_movie(movie_id):
 
 
 @bp.route("/movies/<int:movie_id>/poster", methods=["GET"])
+@limiter.limit("120/minute")
 def movie_poster(movie_id):
     """Serve the local poster image for a standalone movie."""
     from db.standalone import get_standalone_movies

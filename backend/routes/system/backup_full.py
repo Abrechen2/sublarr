@@ -145,6 +145,7 @@ def download_full_backup(filename):
           description: Backup file not found
     """
     from config import get_settings
+    from security_utils import is_safe_path
 
     # Security: validate filename
     if not filename.endswith(".zip") or "/" in filename or "\\" in filename or ".." in filename:
@@ -152,6 +153,10 @@ def download_full_backup(filename):
 
     s = get_settings()
     zip_path = os.path.join(s.backup_dir, filename)
+    # Defence in depth: confirm the resolved path stays inside backup_dir even
+    # if a symlink lives there (consistent with every other file endpoint).
+    if not is_safe_path(zip_path, s.backup_dir):
+        return jsonify({"error": "Invalid filename"}), 400
     if not os.path.exists(zip_path):
         return jsonify({"error": "Backup file not found"}), 404
 
@@ -201,6 +206,7 @@ def restore_full_backup():
         400:
           description: Invalid or missing file
     """
+    from archive_utils import safe_read_zip_member
     from config import Settings, get_settings, reload_settings
     from database_backup import DatabaseBackup
     from db import close_db, get_db
@@ -224,7 +230,7 @@ def restore_full_backup():
             if "manifest.json" not in zf.namelist():
                 return jsonify({"error": "ZIP missing manifest.json"}), 400
 
-            manifest = json.loads(zf.read("manifest.json"))
+            manifest = json.loads(safe_read_zip_member(zf, "manifest.json"))
             if manifest.get("schema_version") != 1:
                 return jsonify(
                     {"error": f"Unsupported schema_version: {manifest.get('schema_version')}"}
@@ -236,7 +242,7 @@ def restore_full_backup():
 
             # Import config if present
             if "config.json" in zf.namelist():
-                config_data = json.loads(zf.read("config.json"))
+                config_data = json.loads(safe_read_zip_member(zf, "config.json"))
                 valid_keys = (
                     set(Settings.model_fields.keys())
                     if hasattr(Settings, "model_fields")
@@ -274,7 +280,9 @@ def restore_full_backup():
                 import tempfile
 
                 with tempfile.NamedTemporaryFile(delete=False, suffix=suffix) as tmp:
-                    tmp.write(zf.read(db_archive_name))
+                    # Cap the decompressed DB entry — a 16 MB upload could
+                    # otherwise expand to multiple GB and OOM the worker.
+                    tmp.write(safe_read_zip_member(zf, db_archive_name, max_bytes=2 * 1024**3))
                     tmp_path = tmp.name
 
                 try:
@@ -315,7 +323,8 @@ def restore_full_backup():
                 }
             )
 
-    except (json.JSONDecodeError, KeyError, zipfile.BadZipFile) as exc:
+    except (json.JSONDecodeError, KeyError, ValueError, zipfile.BadZipFile) as exc:
+        # ValueError covers safe_read_zip_member's bomb/ratio rejections.
         return jsonify({"error": f"Invalid backup file: {exc}"}), 400
 
 

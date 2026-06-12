@@ -130,9 +130,18 @@ def sync_with_ffsubsync(subtitle_path: str, video_path: str) -> dict:
     fd, out_path = tempfile.mkstemp(suffix=ext)
     os.close(fd)
 
+    from security_utils import safe_subprocess_arg
     from services.sync_engines.concurrency import nice_prefix, sync_subprocess_lock
 
-    cmd = [*nice_prefix(), "ffsubsync", video_path, "-i", subtitle_path, "-o", out_path]
+    cmd = [
+        *nice_prefix(),
+        "ffsubsync",
+        safe_subprocess_arg(video_path),
+        "-i",
+        safe_subprocess_arg(subtitle_path),
+        "-o",
+        safe_subprocess_arg(out_path),
+    ]
     try:
         with sync_subprocess_lock:
             result = subprocess.run(cmd, capture_output=True, text=True, timeout=600)
@@ -243,9 +252,16 @@ def sync_with_alass(subtitle_path: str, reference_path: str) -> dict:
     fd, out_path = tempfile.mkstemp(suffix=ext)
     os.close(fd)
 
+    from security_utils import safe_subprocess_arg
     from services.sync_engines.concurrency import nice_prefix, sync_subprocess_lock
 
-    cmd = [*nice_prefix(), "alass", reference_path, subtitle_path, out_path]
+    cmd = [
+        *nice_prefix(),
+        "alass",
+        safe_subprocess_arg(reference_path),
+        safe_subprocess_arg(subtitle_path),
+        safe_subprocess_arg(out_path),
+    ]
     try:
         with sync_subprocess_lock:
             result = subprocess.run(cmd, capture_output=True, text=True, timeout=300)

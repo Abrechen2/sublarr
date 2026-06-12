@@ -95,10 +95,19 @@ class FfsubsyncEngine(BaseSyncEngine):
         except Exception:
             pass
 
+        from security_utils import safe_subprocess_arg
         from services.sync_engines.concurrency import nice_prefix, sync_subprocess_lock
 
         out_path = str(src)
-        cmd = [*nice_prefix(), "ffsubsync", video_path, "-i", subtitle_path, "-o", out_path]
+        cmd = [
+            *nice_prefix(),
+            "ffsubsync",
+            safe_subprocess_arg(video_path),
+            "-i",
+            safe_subprocess_arg(subtitle_path),
+            "-o",
+            safe_subprocess_arg(out_path),
+        ]
         logger.info("ffsubsync: syncing %s against %s", subtitle_path, video_path)
 
         try:

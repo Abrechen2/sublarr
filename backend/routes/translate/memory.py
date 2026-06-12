@@ -43,8 +43,8 @@ def translation_memory_stats():
         stats = get_translation_cache_stats()
         return jsonify(stats)
     except Exception as e:
-        logger.error("Failed to get translation memory stats: %s", e)
-        return jsonify({"error": str(e)}), 500
+        logger.exception("Failed to get translation memory stats: %s", e)
+        return jsonify({"error": "Internal server error"}), 500
 
 
 @bp.route("/translation-memory/cache", methods=["DELETE"])
@@ -79,5 +79,5 @@ def clear_translation_memory_cache():
         logger.info("Translation memory cache cleared: %d entries deleted", deleted)
         return jsonify({"cleared": True, "deleted": deleted})
     except Exception as e:
-        logger.error("Failed to clear translation memory cache: %s", e)
-        return jsonify({"error": str(e)}), 500
+        logger.exception("Failed to clear translation memory cache: %s", e)
+        return jsonify({"error": "Internal server error"}), 500

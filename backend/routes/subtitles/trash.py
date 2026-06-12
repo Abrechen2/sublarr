@@ -337,6 +337,7 @@ def purge_trash_batch(batch_id: str):
     try:
         shutil.rmtree(batch_dir)
     except OSError as exc:
-        return jsonify({"error": str(exc)}), 500
+        logger.exception("Failed to purge trash batch: %s", exc)
+        return jsonify({"error": "Internal server error"}), 500
 
     return jsonify({"purged": file_count}), 200

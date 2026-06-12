@@ -15,7 +15,6 @@ path stay in lock-step. This module only owns:
 
 import logging
 import os
-import threading
 import time
 from concurrent.futures import ThreadPoolExecutor, as_completed
 
@@ -26,6 +25,7 @@ from events import emit_event
 from extensions import socketio
 from routes.batch_state import _batch_probe_lock, _batch_probe_state
 from routes.wanted import bp
+from services.background_tasks import submit_background
 from services.embedded_extractor import (
     compute_keep_langs,
     extract_and_cleanup,
@@ -252,11 +252,7 @@ def batch_probe():
         return jsonify({"status": "nothing_to_probe", "total_items": 0})
 
     app = current_app._get_current_object()
-    threading.Thread(
-        target=_run_batch_probe,
-        args=(items, app),
-        daemon=True,
-    ).start()
+    submit_background(_run_batch_probe, items, app)
     return jsonify({"status": "started", "total_items": len(items)}), 202
 
 

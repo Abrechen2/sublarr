@@ -8,12 +8,12 @@ Endpoints:
 """
 
 import logging
-import threading
 import uuid
 
 from flask import jsonify, request
 
 from routes.cleanup import _scan_lock, _scan_state, bp
+from services.background_tasks import submit_background
 
 logger = logging.getLogger(__name__)
 
@@ -86,8 +86,7 @@ def start_scan():
                 _scan_state["running"] = False
             socketio.emit("scan_error", {"error": str(e)})
 
-    thread = threading.Thread(target=_run_scan, daemon=True)
-    thread.start()
+    submit_background(_run_scan)
 
     return jsonify({"status": "scanning", "scan_id": scan_id})
 

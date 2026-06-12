@@ -1,13 +1,13 @@
 """Wanted bulk-action routes — search-all, search-upgrades, batch-action."""
 
 import logging
-import threading
 
 from flask import current_app, jsonify, request
 
 from events import emit_event
 from extensions import socketio
 from routes.wanted import bp
+from services.background_tasks import submit_background
 
 logger = logging.getLogger(__name__)
 
@@ -39,7 +39,7 @@ def _spawn_search_worker(*, include_upgrades: bool) -> None:
             except Exception:
                 logger.debug("emit wanted_search_failed itself failed", exc_info=True)
 
-    threading.Thread(target=_run_search, daemon=True).start()
+    submit_background(_run_search)
 
 
 @bp.route("/wanted/search-all", methods=["POST"])

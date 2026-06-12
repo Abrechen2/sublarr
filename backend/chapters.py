@@ -36,9 +36,19 @@ def get_chapters(video_path: str) -> list[dict]:
 
 def _probe_chapters(video_path: str) -> list[dict]:
     """Run ffprobe -show_chapters and return normalized chapter list."""
+    from security_utils import safe_subprocess_arg
+
     try:
         result = subprocess.run(
-            ["ffprobe", "-v", "quiet", "-print_format", "json", "-show_chapters", video_path],
+            [
+                "ffprobe",
+                "-v",
+                "quiet",
+                "-print_format",
+                "json",
+                "-show_chapters",
+                safe_subprocess_arg(video_path),
+            ],
             capture_output=True,
             text=True,
             timeout=30,

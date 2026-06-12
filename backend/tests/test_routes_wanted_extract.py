@@ -244,8 +244,7 @@ class TestBatchExtract:
         app, client = app_client
         item_id = _insert_wanted(app, existing_sub="embedded_ass")
 
-        with patch("threading.Thread") as mock_thread:
-            mock_thread.return_value = MagicMock()
+        with patch("routes.wanted.batch_extract.submit_background") as mock_submit:
             resp = client.post(
                 "/api/v1/wanted/batch-extract",
                 json={"item_ids": [item_id]},
@@ -255,14 +254,13 @@ class TestBatchExtract:
         data = resp.get_json()
         assert data["status"] == "started"
         assert data["total_items"] == 1
-        mock_thread.assert_called_once()
+        mock_submit.assert_called_once()
 
     def test_batch_extract_with_series_id(self, app_client):
         app, client = app_client
         _insert_wanted(app, title="Ep1")
 
-        with patch("threading.Thread") as mock_thread:
-            mock_thread.return_value = MagicMock()
+        with patch("routes.wanted.batch_extract.submit_background"):
             resp = client.post(
                 "/api/v1/wanted/batch-extract",
                 json={"series_id": 1},
@@ -277,8 +275,7 @@ class TestBatchExtract:
         _insert_wanted(app, title="Embedded", existing_sub="embedded_srt")
         _insert_wanted(app, title="Empty", existing_sub="")
 
-        with patch("threading.Thread") as mock_thread:
-            mock_thread.return_value = MagicMock()
+        with patch("routes.wanted.batch_extract.submit_background"):
             resp = client.post("/api/v1/wanted/batch-extract", json={})
 
         assert resp.status_code == 202
@@ -290,8 +287,7 @@ class TestBatchExtract:
         app, client = app_client
         _insert_wanted(app, title="Has Sidecar", existing_sub="ass")
 
-        with patch("threading.Thread") as mock_thread:
-            mock_thread.return_value = MagicMock()
+        with patch("routes.wanted.batch_extract.submit_background"):
             resp = client.post("/api/v1/wanted/batch-extract", json={})
 
         data = resp.get_json()
@@ -324,17 +320,16 @@ class TestBatchExtract:
         app, client = app_client
         item_id = _insert_wanted(app)
 
-        with patch("threading.Thread") as mock_thread:
-            mock_thread.return_value = MagicMock()
+        with patch("routes.wanted.batch_extract.submit_background") as mock_submit:
             resp = client.post(
                 "/api/v1/wanted/batch-extract",
                 json={"item_ids": [item_id], "auto_translate": True},
             )
 
         assert resp.status_code == 202
-        # Verify auto_translate=True was passed to the thread args
-        thread_args = mock_thread.call_args[1]["args"]
-        assert thread_args[1] is True  # second positional arg is auto_translate
+        # submit_background(_run_batch_extract, item_ids, auto_translate, app)
+        submit_args = mock_submit.call_args[0]
+        assert submit_args[2] is True  # auto_translate
 
 
 # ===========================================================================
@@ -378,8 +373,7 @@ class TestBatchProbe:
         app, client = app_client
         _insert_wanted(app, title="Probe Me", existing_sub="")
 
-        with patch("threading.Thread") as mock_thread:
-            mock_thread.return_value = MagicMock()
+        with patch("routes.wanted.batch_probe.submit_background"):
             resp = client.post("/api/v1/wanted/batch-probe", json={})
 
         assert resp.status_code == 202
@@ -419,8 +413,7 @@ class TestBatchProbe:
         app, client = app_client
         _insert_wanted(app, title="Series Ep", existing_sub="")
 
-        with patch("threading.Thread") as mock_thread:
-            mock_thread.return_value = MagicMock()
+        with patch("routes.wanted.batch_probe.submit_background"):
             resp = client.post("/api/v1/wanted/batch-probe", json={"series_id": 1})
 
         assert resp.status_code in (200, 202)
@@ -677,14 +670,12 @@ class TestExtractEmbeddedSubHelper:
             patch(P_UPDATE_STATUS),
             patch(P_EMIT_EVENT),
             patch(P_LOG_ACTIVITY),
-            patch("threading.Thread") as mock_thread,
+            patch("routes.wanted.extract.submit_background") as mock_submit,
         ):
-            mock_thread.return_value = MagicMock()
             result = _extract_embedded_sub(1, str(mkv), auto_translate=True)
 
         assert result["format"] == "srt"
-        mock_thread.assert_called_once()
-        mock_thread.return_value.start.assert_called_once()
+        mock_submit.assert_called_once()
 
     def test_auto_translate_not_triggered_for_ass(self, app_client, tmp_path):
         """auto_translate=True does NOT start translation for ASS format."""
@@ -718,11 +709,11 @@ class TestExtractEmbeddedSubHelper:
             patch(P_UPDATE_STATUS),
             patch(P_EMIT_EVENT),
             patch(P_LOG_ACTIVITY),
-            patch("threading.Thread") as mock_thread,
+            patch("routes.wanted.extract.submit_background") as mock_submit,
         ):
             _extract_embedded_sub(1, str(mkv), auto_translate=True)
 
-        mock_thread.assert_not_called()
+        mock_submit.assert_not_called()
 
     def test_empty_file_path_raises(self, app_client):
         app, _ = app_client

@@ -45,6 +45,10 @@ export interface ProviderInfo {
   downloads: number
   config_fields: ProviderConfigField[]
   stats: ProviderHealthStats
+  // Sent by the /providers status endpoint for initialized providers.
+  circuit_breaker_state?: string
+  throttled_until?: string
+  throttle_reason?: string
 }
 
 export interface ProviderHealthItem {

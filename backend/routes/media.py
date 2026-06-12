@@ -10,6 +10,7 @@ from flask import Blueprint, Response, jsonify, request, send_file
 
 from auth import require_api_key
 from config import get_settings
+from extensions import limiter
 from security_utils import is_safe_path
 
 bp = Blueprint("media", __name__, url_prefix="/api/v1")
@@ -59,8 +60,54 @@ def _stream_range(
     return resp
 
 
-@bp.route("/media/stream")
+@bp.route("/media/stream-token", methods=["POST"])
 @require_api_key
+def stream_token():
+    """Mint a short-lived, path-scoped token for browser-native streaming.
+    ---
+    post:
+      tags:
+        - Media
+      summary: Create a stream token
+      description: >
+        Returns an HMAC token bound to a specific media file path, valid for a
+        few hours. The browser passes this token (not the API key) in the
+        /media/stream URL so the raw API key never appears in access logs.
+      security:
+        - apiKeyAuth: []
+      responses:
+        200:
+          description: Token issued
+        400:
+          description: Missing path parameter
+        403:
+          description: Path outside media_path
+        404:
+          description: File not found
+        503:
+          description: Streaming is disabled in settings
+    """
+    settings = get_settings()
+    if not settings.streaming_enabled:
+        return jsonify({"error": "Streaming is disabled"}), 503
+
+    data = request.get_json(silent=True) or {}
+    path = data.get("path", "")
+    if not path:
+        return jsonify({"error": "path parameter required"}), 400
+    if not is_safe_path(path, settings.media_path):
+        return jsonify({"error": "Access denied"}), 403
+    if not os.path.isfile(path):
+        return jsonify({"error": "File not found"}), 404
+
+    from media_token import generate_stream_token
+
+    token, expires_at = generate_stream_token(path)
+    return jsonify({"token": token, "expires_at": expires_at})
+
+
+@bp.route("/media/stream")
+@limiter.limit("600/minute")
 def stream_media():
     """Stream a video file with HTTP 206 Range support.
     ---
@@ -106,6 +153,11 @@ def stream_media():
         503:
           description: Streaming is disabled in settings
     """
+    # Auth is enforced by the global before_request hooks: a normal API
+    # key / UI session, OR a valid path-scoped stream token (see media_token).
+    # No @require_api_key decorator here — the <video> element can't send the
+    # X-Api-Key header, so token-authenticated requests must be able to reach
+    # this handler without the decorator rejecting them.
     settings = get_settings()
 
     if not settings.streaming_enabled:

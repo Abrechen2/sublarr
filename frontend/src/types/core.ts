@@ -30,8 +30,11 @@ export interface AuthStatus {
 
 export interface HealthStatus {
   status: 'healthy' | 'unhealthy'
-  version: string
-  services: Record<string, string>
+  // version + services are only present on an authenticated request; an
+  // anonymous /health response returns just `status`. Optional so consumers
+  // null-guard instead of dereferencing undefined.
+  version?: string
+  services?: Record<string, string>
 }
 
 export interface UpdateInfo {

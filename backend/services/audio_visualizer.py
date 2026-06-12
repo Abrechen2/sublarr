@@ -26,6 +26,8 @@ def _run_ffprobe_keyframes(video_path: str) -> str:
     ``K_`` for a keyframe packet. Split out so unit tests can patch this
     boundary instead of the whole subprocess plumbing.
     """
+    from security_utils import safe_subprocess_arg
+
     cmd = [
         "ffprobe",
         "-v",
@@ -36,7 +38,7 @@ def _run_ffprobe_keyframes(video_path: str) -> str:
         "packet=pts_time,flags",
         "-of",
         "csv=p=0",
-        video_path,
+        safe_subprocess_arg(video_path),
     ]
     try:
         result = subprocess.run(cmd, capture_output=True, text=True, timeout=120)
@@ -131,12 +133,14 @@ def extract_audio_track(
         temp_fd, output_path = tempfile.mkstemp(suffix=".wav")
         os.close(temp_fd)
 
+    from security_utils import safe_subprocess_arg
+
     # Build FFmpeg command
     cmd = [
         "ffmpeg",
         "-y",  # Overwrite output file
         "-i",
-        video_path,
+        safe_subprocess_arg(video_path),
         "-vn",  # No video
         "-acodec",
         "pcm_s16le",  # 16-bit PCM
@@ -150,7 +154,7 @@ def extract_audio_track(
     if audio_track_index is not None:
         cmd.extend(["-map", f"0:a:{audio_track_index}"])
 
-    cmd.append(output_path)
+    cmd.append(safe_subprocess_arg(output_path))
 
     try:
         result = subprocess.run(

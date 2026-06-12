@@ -14,7 +14,6 @@ documented patch paths alive.
 
 import hmac  # noqa: F401 — used by handler sub-modules via the routes.webhooks.hmac lookup
 import logging
-import threading
 import time  # noqa: F401 — ditto
 
 from flask import (  # noqa: F401 — re-exported so handlers import from routes.webhooks
@@ -26,6 +25,7 @@ from flask import (  # noqa: F401 — re-exported so handlers import from routes
 
 from events import emit_event  # noqa: F401 — tests patch routes.webhooks.emit_event
 from extensions import socketio  # noqa: F401 — tests patch routes.webhooks.socketio
+from services.background_tasks import submit_background
 
 bp = Blueprint("webhooks", __name__, url_prefix="/api/v1")
 logger = logging.getLogger(__name__)
@@ -64,7 +64,7 @@ def _spawn_pipeline(
                 except Exception:
                     logger.debug("webhook_failed emit failed", exc_info=True)
 
-    threading.Thread(target=_run, daemon=True).start()
+    submit_background(_run)
 
 
 def _webhook_auto_pipeline(file_path: str, title: str, series_id: int = None, movie_id: int = None):

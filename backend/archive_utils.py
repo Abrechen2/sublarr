@@ -124,6 +124,11 @@ def safe_read_zip_member(
     """
     info = zf.getinfo(name)  # raises KeyError if missing
 
+    # The central-directory header fields are attacker-controlled: a crafted
+    # archive can declare file_size=0 while storing a large DEFLATE payload,
+    # making both header checks pass and then expanding to GBs inside zf.read().
+    # Treat the headers only as a cheap fast-reject, and enforce the real cap by
+    # streaming the decompressed bytes and stopping one byte past the limit.
     if info.file_size > max_bytes:
         raise ValueError(
             f"ZIP entry '{name}' too large: {info.file_size // (1024 * 1024)} MB > "
@@ -138,7 +143,13 @@ def safe_read_zip_member(
                 f"{_MAX_COMPRESSION_RATIO}:1 limit"
             )
 
-    return zf.read(name)
+    with zf.open(name) as member:
+        data = member.read(max_bytes + 1)
+    if len(data) > max_bytes:
+        raise ValueError(
+            f"ZIP entry '{name}' exceeds {max_bytes // (1024 * 1024)} MB cap during decompression"
+        )
+    return data
 
 
 def extract_subtitles_from_rar(

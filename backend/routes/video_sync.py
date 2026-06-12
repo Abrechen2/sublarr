@@ -422,6 +422,6 @@ def install_engine(engine: str):
 
         result = _install(engine)
         return jsonify(result)
-    except Exception as exc:
+    except Exception:
         logger.exception("Engine install failed: %s", engine)
-        return jsonify({"success": False, "error": str(exc)}), 500
+        return jsonify({"success": False, "error": "Internal server error"}), 500

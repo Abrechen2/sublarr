@@ -69,8 +69,8 @@ def scan_orphaned():
     except Exception as e:
         with _orphan_lock:
             _orphan_state["running"] = False
-        logger.error("Orphan scan failed: %s", e)
-        return jsonify({"error": str(e)}), 500
+        logger.exception("Orphan scan failed: %s", e)
+        return jsonify({"error": "Internal server error"}), 500
 
 
 @bp.route("/orphaned", methods=["GET"])

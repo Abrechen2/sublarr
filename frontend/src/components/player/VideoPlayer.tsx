@@ -1,7 +1,7 @@
 import { useEffect, useRef, useImperativeHandle, forwardRef } from 'react'
 import type { PlayerSubtitleTrack } from '@/lib/types'
 import { SubtitleOctopus, type ISubtitleOctopus } from '@/lib/subtitleOctopus'
-import { getMediaStreamUrl } from '@/api/client'
+import { fetchMediaText } from '@/api/client'
 import { isSrt, srtToAss, isFirefox, assToVtt, srtToVtt } from '@/lib/subtitleUtils'
 
 export interface VideoPlayerHandle {
@@ -60,13 +60,11 @@ export const VideoPlayer = forwardRef<VideoPlayerHandle, Props>(
 
       if (!activeTrack) return
 
-      const url = getMediaStreamUrl(activeTrack.path)
       const controller = new AbortController()
 
       const loadVtt = async () => {
         try {
-          const resp = await fetch(url, { signal: controller.signal })
-          const raw = await resp.text()
+          const raw = await fetchMediaText(activeTrack.path, controller.signal)
           const vtt = isSrt(raw) ? srtToVtt(raw) : assToVtt(raw)
 
           const blob = new Blob([vtt], { type: 'text/vtt' })
@@ -119,13 +117,11 @@ export const VideoPlayer = forwardRef<VideoPlayerHandle, Props>(
       }
 
       const video = videoRef.current
-      const url = getMediaStreamUrl(activeTrack.path)
       const controller = new AbortController()
 
       const loadTrack = async () => {
         try {
-          const resp = await fetch(url, { signal: controller.signal })
-          const raw = await resp.text()
+          const raw = await fetchMediaText(activeTrack.path, controller.signal)
           const content = isSrt(raw) ? srtToAss(raw) : raw
 
           if (!octopusRef.current) {

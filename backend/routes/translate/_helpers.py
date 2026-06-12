@@ -1,8 +1,6 @@
 """Translate helpers — shared constants and non-route functions."""
 
-import ipaddress
 import logging
-from urllib.parse import urlparse
 
 import requests
 
@@ -230,37 +228,19 @@ def _build_arr_context(data):
 def _validate_callback_url(url):
     """Validate callback URL to prevent SSRF attacks.
 
-    Blocks private IPs, localhost, and non-HTTP schemes.
+    Delegates to the canonical ``security_utils.validate_service_url`` so the
+    bypass surface is identical to every other outbound-URL check: it
+    normalises decimal/octal/hex-encoded IPv4 and IPv4-mapped IPv6 before
+    the loopback/link-local/metadata checks fire (the hand-rolled
+    ``ipaddress.ip_address`` form here accepted ``http://2130706433/`` =
+    127.0.0.1) and resolves DNS hostnames to re-check every A/AAAA answer.
 
     Returns:
         tuple: (is_valid: bool, error_message: str or None)
     """
-    try:
-        parsed = urlparse(url)
-    except Exception:
-        return False, "Invalid URL"
+    from security_utils import validate_service_url
 
-    if parsed.scheme not in ("http", "https"):
-        return False, f"Unsupported scheme: {parsed.scheme}"
-
-    hostname = parsed.hostname
-    if not hostname:
-        return False, "No hostname in URL"
-
-    # Block localhost variants
-    if hostname in ("localhost", "127.0.0.1", "::1", "0.0.0.0"):
-        return False, "Localhost callbacks are not allowed"
-
-    # Block private/reserved IP ranges
-    try:
-        addr = ipaddress.ip_address(hostname)
-        if addr.is_private or addr.is_loopback or addr.is_reserved or addr.is_link_local:
-            return False, f"Private/reserved IP not allowed: {hostname}"
-    except ValueError:
-        # hostname is not an IP — that's fine (it's a domain name)
-        pass
-
-    return True, None
+    return validate_service_url(url)
 
 
 def _send_callback(url, data):

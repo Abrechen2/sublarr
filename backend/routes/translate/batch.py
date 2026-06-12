@@ -6,7 +6,6 @@ Re-translation endpoints (/retranslate/*) live in routes/translate/retranslate.p
 
 import logging
 import os
-import threading
 
 from flask import current_app, jsonify, request
 
@@ -21,6 +20,7 @@ from routes.translate._helpers import (
     _validate_callback_url,
 )
 from security_utils import is_safe_path
+from services.background_tasks import submit_background
 
 logger = logging.getLogger(__name__)
 
@@ -263,8 +263,7 @@ def batch_start():
                 },
             )
 
-    thread = threading.Thread(target=_run_batch, daemon=True)
-    thread.start()
+    submit_background(_run_batch)
 
     return jsonify(
         {

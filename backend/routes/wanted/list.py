@@ -1,12 +1,12 @@
 """Wanted list/CRUD routes — GET /wanted, summary, refresh, status, delete."""
 
 import logging
-import threading
 
 from flask import current_app, jsonify, request
 
 from events import emit_event
 from routes.wanted import bp
+from services.background_tasks import submit_background
 
 logger = logging.getLogger(__name__)
 
@@ -244,8 +244,7 @@ def refresh_wanted():
             except Exception:
                 logger.debug("emit wanted_scan_complete itself failed", exc_info=True)
 
-    thread = threading.Thread(target=_run_scan, daemon=True)
-    thread.start()
+    submit_background(_run_scan)
 
     return jsonify({"status": "scan_started", "series_id": series_id}), 202
 
