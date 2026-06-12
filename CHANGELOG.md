@@ -5,6 +5,15 @@ All notable changes to Sublarr are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.95.2-beta] - 2026-06-12
+
+### Security
+- **Stream URLs no longer carry the API key** — `/media/stream` now uses a path-scoped, short-lived HMAC stream token (6 h) requested via `POST /media/stream-token`, instead of embedding the API key in the URL where it could leak through logs, history or referrers.
+- **Bounded background execution** — the roughly twenty unbounded `threading.Thread` spawns across route handlers are replaced by a shared, size-capped executor (`SUBLARR_BACKGROUND_WORKERS`, default 8) that is drained cleanly on shutdown, preventing thread exhaustion under load.
+- **Atomic subtitle writes** — subtitle saves now write to a temporary file and atomically rename it into place, so a crash mid-write can no longer leave a partially written or corrupt sidecar.
+- **Hardened inputs and responses** — SSRF validation on translate callback URLs (blocks decimal/hex-encoded IPs), a streaming size cap plus safe member reads on full-backup ZIPs, a strict Content-Security-Policy with no inline scripts outside `/api/docs`, `is_safe_path` enforcement on waveform extraction, subprocess-argument quoting across the remux/sync/OCR engines, and generic 500 responses that no longer leak internal error text or filesystem paths.
+- **Configurable cookie and rate-limit security** — `SESSION_COOKIE_SECURE` and the rate-limit storage backend are now driven by environment/Redis configuration rather than hardcoded defaults.
+
 ## [0.95.1-beta] - 2026-06-10
 
 ### Fixed
