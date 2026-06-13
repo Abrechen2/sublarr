@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Discord — questions & install help
+    url: https://discord.gg/WjatsKzHXz
+    about: For setup help, configuration questions and general chat, please use Discord.
+  - name: Documentation
+    url: https://sublarr.de/docs/
+    about: Installation, configuration and troubleshooting guides — check here first.

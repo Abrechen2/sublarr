@@ -1,0 +1,94 @@
+name: Bug Report
+description: Report a bug or unexpected behaviour in Sublarr
+title: "[Bug] "
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for taking the time to report a bug! Please include your
+        Sublarr version and logs. The **Support Export** under
+        *Settings → System* produces a secret-scrubbed bundle — attaching
+        it (or the relevant log lines) makes diagnosis much faster.
+
+  - type: input
+    id: summary
+    attributes:
+      label: Summary
+      description: One sentence — what is the problem?
+      placeholder: "Subtitle sync silently leaves the file unchanged"
+    validations:
+      required: true
+
+  - type: textarea
+    id: actual
+    attributes:
+      label: What actually happened?
+      description: Describe the observed behaviour.
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected
+    attributes:
+      label: What should have happened?
+      description: Describe the behaviour you expected.
+    validations:
+      required: true
+
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: Steps to reproduce
+      description: Minimal steps so someone else can trigger the bug.
+      placeholder: |
+        1. Go to ...
+        2. Click ...
+        3. Observe ...
+
+  - type: input
+    id: version
+    attributes:
+      label: Sublarr version
+      description: Shown in the sidebar / Settings → System.
+      placeholder: "1.0.0"
+    validations:
+      required: true
+
+  - type: dropdown
+    id: deployment
+    attributes:
+      label: Deployment
+      description: How are you running Sublarr?
+      options:
+        - Docker (ghcr.io image)
+        - Unraid (Community Applications)
+        - docker compose (with Postgres / Redis)
+        - Other / bare metal
+    validations:
+      required: true
+
+  - type: dropdown
+    id: database
+    attributes:
+      label: Database
+      options:
+        - SQLite (default)
+        - PostgreSQL
+    validations:
+      required: false
+
+  - type: textarea
+    id: logs
+    attributes:
+      label: Logs / Support Export
+      description: |
+        Paste the relevant log lines, or attach the scrubbed Support
+        Export bundle (Settings → System). Do not paste API keys.
+      render: text
+
+  - type: textarea
+    id: additional
+    attributes:
+      label: Additional context
+      description: Screenshots, the affected provider/series, anything else that helps.
