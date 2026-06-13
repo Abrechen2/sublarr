@@ -6,7 +6,7 @@
 
 ### Subtitle Manager & Downloader for Anime and Media
 
-*arr-compatible · Self-hosted · Open Source · LLM translation (⚠️ beta, experimental)
+*arr-compatible · Self-hosted · Open Source · Anime-first scoring
 
 [![Version](https://img.shields.io/badge/version-1.0.0-teal.svg)](https://github.com/Abrechen2/sublarr/releases)
 [![License: GPL-3.0](https://img.shields.io/badge/License-GPL--3.0-blue.svg)](LICENSE)
@@ -95,17 +95,11 @@ It follows the *arr-suite design philosophy: connect it to Sonarr/Radarr, set up
 - **Batch search** — run searches across all wanted items with live progress bar
 - **Anime-only mode** — optionally limit wanted scanning to anime series
 
-### 🌐 LLM Translation *(⚠️ Beta — use with caution)*
+### 🌐 LLM Translation *(optional · experimental · off by default)*
 
-> **This feature is experimental and not yet reliable enough for production use.** Quality depends heavily on the model, prompt, language pair, and content type. EN→DE anime is the best-tested path. Results can be inconsistent — verify before using.
+Sublarr can *optionally* translate subtitles with a local or cloud LLM (Ollama, DeepL, Google, LibreTranslate, or any OpenAI-compatible endpoint). It is **disabled by default and not a headline feature** — quality varies a lot by model and language pair, so treat it as a bonus, not a reason to use Sublarr. EN→DE anime is the best-tested path.
 
-- **Fully local** — translates via [Ollama](https://ollama.ai/); no external API required
-- **Multiple backends** — Ollama, DeepL, Google Cloud Translate, LibreTranslate, any OpenAI-compatible API
-- **Context-aware batching** — cues grouped into context-window-aware chunks for coherent translations
-- **Translation memory** — SHA-256 + difflib similarity cache avoids retranslating identical/near-identical lines
-- **Per-line quality scoring** — optional LLM pass scores each translated line (0–10), retries low-scoring lines
-- **Prompt presets** — 5 built-in templates (Anime, Documentary, Casual…) + custom presets
-- **Glossary injection** — consistent term translation across episodes via per-series glossary
+If you want to try it, see the [translation docs](https://sublarr.de/docs/user-guide/translation-llm/).
 
 ### 🎨 UI
 - *arr-style dark theme with teal accent — feels at home next to Sonarr, Radarr, Prowlarr
