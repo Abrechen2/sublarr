@@ -501,3 +501,25 @@ def test_get_available_engines_returns_bools():
     engines = get_available_engines()
     assert isinstance(engines["ffsubsync"], bool)
     assert isinstance(engines["alass"], bool)
+
+
+def test_make_backup_writes_into_hidden_sublarr_backups(tmp_path):
+    """Sync backups must land in .sublarr/backups/, never beside the active sub.
+
+    Regression: a sibling ``<base>.bak.<ext>`` in the media root gets picked
+    up by Plex/Emby/Jellyfin as a Bashkir (.bak) subtitle track and is not
+    swept by retention. The backup belongs in the hidden backups dir.
+    """
+    from services.video_sync import _make_backup
+
+    sub = tmp_path / "Show - S01E01.en.srt"
+    sub.write_text("1\n00:00:01,000 --> 00:00:02,000\nhi\n", encoding="utf-8")
+
+    backup = _make_backup(str(sub))
+
+    expected = tmp_path / ".sublarr" / "backups" / "Show - S01E01.en.bak.srt"
+    assert backup == str(expected)
+    assert expected.is_file()
+    # No sibling .bak left in the (visible) media root.
+    assert not (tmp_path / "Show - S01E01.en.bak.srt").exists()
+    assert list(tmp_path.glob("*.bak.*")) == []

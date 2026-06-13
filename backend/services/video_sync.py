@@ -376,9 +376,17 @@ def install_engine(engine: str) -> dict:
 
 
 def _make_backup(file_path: str) -> str:
-    """Copy file_path to <base>.bak<ext> and return the backup path."""
-    base, ext = os.path.splitext(file_path)
-    backup = f"{base}.bak{ext}"
+    """Copy file_path into the hidden .sublarr/backups/ dir; return the path.
+
+    Backups live in ``<dir>/.sublarr/backups/<base>.bak<ext>`` rather than
+    beside the active sub, so media servers don't read ``.bak`` as a Bashkir
+    subtitle track and the retention/cleanup/UI tooling can manage them.
+    See ``subtitle_filename.bak_path_for``.
+    """
+    from subtitle_filename import bak_path_for
+
+    backup = bak_path_for(file_path)
+    os.makedirs(os.path.dirname(backup), exist_ok=True)
     shutil.copy2(file_path, backup)
     return backup
 

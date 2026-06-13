@@ -60,8 +60,14 @@ class AlassEngine(BaseSyncEngine):
             )
 
         src = Path(subtitle_path)
-        backup = src.with_suffix(src.suffix + ".bak")
+        # Safety backup → hidden .sublarr/backups/ (not beside the active sub),
+        # so media servers don't read .bak as a Bashkir track and retention/UI
+        # can manage it. See subtitle_filename.bak_path_for.
+        from subtitle_filename import bak_path_for
+
+        backup = Path(bak_path_for(str(src)))
         try:
+            backup.parent.mkdir(parents=True, exist_ok=True)
             shutil.copy2(src, backup)
         except Exception:
             pass
