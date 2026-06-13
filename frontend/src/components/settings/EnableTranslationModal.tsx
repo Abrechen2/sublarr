@@ -52,7 +52,7 @@ export function EnableTranslationModal({ onClose }: EnableTranslationModalProps)
           </div>
           <div>
             <div className="font-bold text-base" style={{ color: 'var(--text-primary)' }}>
-              Translation aktivieren
+              {t('enable_translation_modal.title')}
             </div>
             <div
               className="text-xs font-semibold rounded-full px-2 py-0.5 inline-block mt-0.5"
@@ -74,12 +74,10 @@ export function EnableTranslationModal({ onClose }: EnableTranslationModalProps)
           }}
         >
           <p>
-            Die KI-Übersetzungsfunktion ist experimentell und funktioniert aktuell nicht
-            zuverlässig genug für den produktiven Einsatz. Ergebnisse können stark
-            variieren — abhängig von Modell, Prompt und Eingabequalität.
+            {t('enable_translation_modal.warning_body')}
           </p>
           <p className="mt-2">
-            Voraussetzung: Ein laufender <strong>Ollama</strong>-Server mit einem konfigurierten Modell.
+            {t('enable_translation_modal.requirement_prefix')}<strong>Ollama</strong>{t('enable_translation_modal.requirement_suffix')}
           </p>
         </div>
 
@@ -93,7 +91,7 @@ export function EnableTranslationModal({ onClose }: EnableTranslationModalProps)
             style={{ accentColor: 'var(--accent)', width: 16, height: 16 }}
           />
           <span className="text-sm" style={{ color: 'var(--text-secondary)' }}>
-            Ich verstehe, dass dies eine Beta-Funktion ist, und nutze sie auf eigenes Risiko.
+            {t('enable_translation_modal.understand_checkbox')}
           </span>
         </label>
 
@@ -108,7 +106,7 @@ export function EnableTranslationModal({ onClose }: EnableTranslationModalProps)
               color: 'var(--text-secondary)',
             }}
           >
-            Cancel
+            {t('enable_translation_modal.cancel')}
           </button>
           <button
             onClick={handleEnable}
@@ -121,7 +119,7 @@ export function EnableTranslationModal({ onClose }: EnableTranslationModalProps)
               opacity: !understood || updateConfig.isPending ? 0.5 : 1,
             }}
           >
-            Enable Translation
+            {t('enable_translation_modal.enable_button')}
           </button>
         </div>
       </div>

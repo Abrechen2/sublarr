@@ -129,10 +129,10 @@ export function SeriesDetailPage() {
       void queryClient.invalidateQueries({ queryKey: ['series-subtitles', seriesId] })
       void queryClient.invalidateQueries({ queryKey: ['series', seriesId] })
       const msg = d.succeeded > 0
-        ? `${d.succeeded} Track(s) extrahiert${d.failed > 0 ? `, ${d.failed} fehlgeschlagen` : ''}`
+        ? `${t('series_detail.tracks_extracted', { count: d.succeeded })}${d.failed > 0 ? t('series_detail.tracks_failed_suffix', { count: d.failed }) : ''}`
         : d.failed > 0
-          ? `Extraktion fehlgeschlagen (${d.failed} Fehler)`
-          : 'Extraktion abgeschlossen — alle bereits vorhanden'
+          ? t('series_detail.extraction_failed_count', { count: d.failed })
+          : t('series_detail.extraction_done_all_present')
       toast(msg, d.failed > 0 ? 'error' : 'success')
     },
   })
@@ -176,9 +176,9 @@ export function SeriesDetailPage() {
       }
       return patchSeriesSettings(seriesId, payload)
     },
-    onSuccess: () => toast('Override gespeichert', 'success'),
+    onSuccess: () => toast(t('series_detail.override_saved'), 'success'),
     onError: (err: unknown) => {
-      const msg = err instanceof Error ? err.message : 'Speichern fehlgeschlagen'
+      const msg = err instanceof Error ? err.message : t('series_detail.save_failed')
       toast(msg, 'error')
     },
   })
@@ -193,8 +193,8 @@ export function SeriesDetailPage() {
     updateSeriesSettingsMutation.mutate(
       { seriesId, settings: { absolute_order: enabled } },
       {
-        onSuccess: () => toast(enabled ? 'Absolute order enabled' : 'Absolute order disabled'),
-        onError: () => toast('Failed to update series settings', 'error'),
+        onSuccess: () => toast(enabled ? t('series_detail.absolute_order_enabled') : t('series_detail.absolute_order_disabled')),
+        onError: () => toast(t('series_detail.update_settings_failed'), 'error'),
       }
     )
   }, [seriesId, updateSeriesSettingsMutation])
@@ -206,11 +206,11 @@ export function SeriesDetailPage() {
         .then(() => {
           void queryClient.invalidateQueries({ queryKey: ['series', seriesId] })
           const label =
-            value === true ? 'Cleanup: always' : value === false ? 'Cleanup: never' : 'Cleanup: inherit'
+            value === true ? t('series_detail.cleanup_always_toast') : value === false ? t('series_detail.cleanup_never_toast') : t('series_detail.cleanup_inherit_toast')
           toast(label, 'success')
         })
         .catch((err: unknown) => {
-          const msg = err instanceof Error ? err.message : 'Speichern fehlgeschlagen'
+          const msg = err instanceof Error ? err.message : t('series_detail.save_failed')
           toast(msg, 'error')
         })
     },
@@ -219,8 +219,8 @@ export function SeriesDetailPage() {
 
   const handleRefreshAnidbMapping = useCallback(() => {
     refreshAnidbMappingMutation.mutate(undefined, {
-      onSuccess: () => toast('AniDB mapping refresh started'),
-      onError: () => toast('Failed to refresh AniDB mapping', 'error'),
+      onSuccess: () => toast(t('series_detail.anidb_refresh_started')),
+      onError: () => toast(t('series_detail.anidb_refresh_failed'), 'error'),
     })
   }, [refreshAnidbMappingMutation])
 
@@ -250,7 +250,7 @@ export function SeriesDetailPage() {
         setSearchResults((prev) => ({ ...prev, [ep.id]: data }))
       },
       onError: () => {
-        toast('Search failed', 'error')
+        toast(t('series_detail.search_failed'), 'error')
       },
     })
   }, [expandedEp, episodeSearch])
@@ -267,7 +267,7 @@ export function SeriesDetailPage() {
         setHistoryEntries((prev) => ({ ...prev, [ep.id]: data.entries }))
       }).catch(() => {
         setHistoryEntries((prev) => ({ ...prev, [ep.id]: [] }))
-        toast('Failed to load history', 'error')
+        toast(t('series_detail.load_history_failed'), 'error')
       })
     })
   }, [expandedEp])
@@ -275,10 +275,10 @@ export function SeriesDetailPage() {
   const handleProcess = useCallback((wantedId: number) => {
     processItem.mutate(wantedId, {
       onSuccess: () => {
-        toast('Download started')
+        toast(t('series_detail.download_started'))
       },
       onError: () => {
-        toast('Download failed', 'error')
+        toast(t('series_detail.download_failed'), 'error')
       },
     })
   }, [processItem])
@@ -304,11 +304,11 @@ export function SeriesDetailPage() {
   }, [])
 
   const handleAutoSync = useCallback((subtitlePath: string, videoPath: string) => {
-    toast('Auto-syncing…', 'info')
+    toast(t('series_detail.auto_syncing'), 'info')
     void autoSyncFile(subtitlePath, videoPath).then(() => {
-      toast('Auto-sync gestartet')
+      toast(t('series_detail.auto_sync_started'))
     }).catch((err: unknown) => {
-      const msg = err instanceof Error ? err.message : 'Auto-sync fehlgeschlagen'
+      const msg = err instanceof Error ? err.message : t('series_detail.auto_sync_failed')
       toast(msg, 'error')
     })
   }, [])
@@ -337,7 +337,7 @@ export function SeriesDetailPage() {
     batchExtractAllTracks(seriesId).catch((err: unknown) => {
       setExtractProgress(null)
       if (extractTimeoutRef.current) clearTimeout(extractTimeoutRef.current)
-      const msg = err instanceof Error ? err.message : 'Extraktion fehlgeschlagen'
+      const msg = err instanceof Error ? err.message : t('series_detail.extraction_failed')
       toast(msg, 'error')
     })
   }, [seriesId, extractProgress, queryClient])
@@ -350,7 +350,7 @@ export function SeriesDetailPage() {
   const handleExport = useCallback(() => {
     if (seriesId == null) return
     exportSeriesSubtitles(seriesId).catch((err: unknown) => {
-      const msg = err instanceof Error ? err.message : 'Export fehlgeschlagen'
+      const msg = err instanceof Error ? err.message : t('series_detail.export_failed')
       toast(msg, 'error')
     })
   }, [seriesId])
@@ -381,14 +381,14 @@ export function SeriesDetailPage() {
     try {
       await deleteSubtitles([path], deleteAlsoBlacklist)
       if (deleteAlsoBlacklist) {
-        toast('Untertitel gelöscht und gesperrt', 'success')
+        toast(t('series_detail.subtitle_deleted_blacklisted'), 'success')
         queryClient.invalidateQueries({ queryKey: ['blacklist'] })
       } else {
-        toast('Sidecar gelöscht')
+        toast(t('series_detail.sidecar_deleted'))
       }
       await queryClient.invalidateQueries({ queryKey: ['series-subtitles', seriesId] })
     } catch {
-      toast('Löschen fehlgeschlagen', 'error')
+      toast(t('series_detail.delete_failed'), 'error')
     }
   }, [deleteConfirm, deleteAlsoBlacklist, queryClient, seriesId])
 
@@ -460,11 +460,11 @@ export function SeriesDetailPage() {
     setIsRescanning(true)
     rescanSeriesMutation.mutate(seriesId, {
       onSuccess: () => {
-        toast('Re-scan started', 'success')
+        toast(t('series_detail.rescan_started'), 'success')
         setIsRescanning(false)
       },
       onError: () => {
-        toast('Re-scan failed', 'error')
+        toast(t('series_detail.rescan_failed'), 'error')
         setIsRescanning(false)
       },
     })
@@ -480,9 +480,9 @@ export function SeriesDetailPage() {
       a.download = `series-${seriesId}-nfo.zip`
       a.click()
       URL.revokeObjectURL(url)
-      toast('NFO exported', 'success')
+      toast(t('series_detail.nfo_exported'), 'success')
     } catch {
-      toast('NFO export failed', 'error')
+      toast(t('series_detail.nfo_export_failed'), 'error')
     }
   }, [seriesId])
 
@@ -519,7 +519,7 @@ export function SeriesDetailPage() {
     <div className="space-y-4 animate-in">
       {/* Breadcrumb navigation */}
       <div className="flex items-center justify-between">
-        <Breadcrumb items={[{ label: 'Library', href: '/library' }, { label: series.title }]} />
+        <Breadcrumb items={[{ label: t('series_detail.breadcrumb_library'), href: '/library' }, { label: series.title }]} />
         {/* Hidden back button for tests */}
         <button
           data-testid="series-back-btn"
@@ -609,8 +609,8 @@ export function SeriesDetailPage() {
             <Loader2 size={13} className="animate-spin flex-shrink-0" style={{ color: 'var(--accent)' }} />
             <span className="text-xs font-semibold" style={{ color: 'var(--accent)' }}>
               {extractProgress.total === 0
-                ? 'Extraktion wird gestartet…'
-                : `Extrahiere Tracks — ${extractProgress.current} / ${extractProgress.total} Episoden`}
+                ? t('series_detail.extraction_starting')
+                : t('series_detail.extracting_tracks_progress', { current: extractProgress.current, total: extractProgress.total })}
             </span>
             {extractProgress.filename && (
               <span
@@ -765,7 +765,7 @@ export function SeriesDetailPage() {
               <div className="flex items-center gap-2">
                 <Trash2 size={16} style={{ color: 'var(--error)' }} />
                 <h3 className="font-semibold text-sm" style={{ color: 'var(--text-primary)' }}>
-                  Untertitel löschen
+                  {t('series_detail.delete_subtitle_title')}
                 </h3>
               </div>
               <button
@@ -792,7 +792,7 @@ export function SeriesDetailPage() {
                 onChange={(e) => setDeleteAlsoBlacklist(e.target.checked)}
                 className="rounded"
               />
-              Auch zur Sperrliste hinzufügen
+              {t('series_detail.also_blacklist')}
             </label>
 
             <div className="flex gap-2 justify-end pt-1">
@@ -801,14 +801,14 @@ export function SeriesDetailPage() {
                 className="px-3 py-1.5 rounded-md text-sm transition-colors"
                 style={{ border: '1px solid var(--border)', color: 'var(--text-secondary)', backgroundColor: 'var(--bg-primary)' }}
               >
-                Abbrechen
+                {t('series_detail.cancel')}
               </button>
               <button
                 onClick={handleDeleteConfirm}
                 className="px-3 py-1.5 rounded-md text-sm font-medium transition-colors"
                 style={{ backgroundColor: 'var(--error)', color: 'white' }}
               >
-                Löschen
+                {t('series_detail.delete')}
               </button>
             </div>
           </div>
@@ -922,7 +922,7 @@ export function SeriesDetailPage() {
             videoPath={videoSyncEp.ep.file_path}
             onClose={() => setVideoSyncEp(null)}
             onComplete={() => {
-              toast('Video-Sync abgeschlossen')
+              toast(t('series_detail.video_sync_done'))
               setVideoSyncEp(null)
             }}
           />

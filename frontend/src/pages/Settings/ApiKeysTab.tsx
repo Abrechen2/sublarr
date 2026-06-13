@@ -133,7 +133,7 @@ function ServiceKeyCard({
                     onClick={() => handleSave(key.name)}
                     className="p-1 rounded"
                     style={{ color: 'var(--success)' }}
-                    title="Save"
+                    title={t('apiKeys.save')}
                   >
                     <Check size={14} />
                   </button>
@@ -174,7 +174,7 @@ function ServiceKeyCard({
                     onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = 'var(--accent-bg)' }}
                     onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = 'transparent' }}
                   >
-                    {key.status === 'configured' ? 'Rotate' : 'Set'}
+                    {key.status === 'configured' ? t('apiKeys.rotate') : t('apiKeys.set')}
                   </button>
                 </div>
               )}
@@ -199,13 +199,14 @@ function BazarrPreviewModal({
   onCancel: () => void
   isPending: boolean
 }) {
+  const { t } = useTranslation('settings')
   return (
     <div
       className="rounded-lg p-4 space-y-3"
       style={{ backgroundColor: 'var(--bg-primary)', border: '1px solid var(--accent-dim)' }}
     >
       <div className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>
-        Bazarr Migration Preview
+        {t('apiKeys.bazarr_preview_title')}
       </div>
 
       {preview.warnings.length > 0 && (
@@ -242,8 +243,8 @@ function BazarrPreviewModal({
       </div>
 
       <div className="text-xs" style={{ color: 'var(--text-muted)' }}>
-        {preview.config_entries.length} config entries
-        {preview.blacklist_count > 0 && `, ${preview.blacklist_count} blacklist entries`}
+        {t('apiKeys.config_entries_count', { count: preview.config_entries.length })}
+        {preview.blacklist_count > 0 && t('apiKeys.blacklist_entries_count', { count: preview.blacklist_count })}
       </div>
 
       <div className="flex items-center gap-2">
@@ -254,7 +255,7 @@ function BazarrPreviewModal({
           style={{ backgroundColor: 'var(--accent)' }}
         >
           {isPending ? <Loader2 size={12} className="animate-spin" /> : <Check size={12} />}
-          Confirm Import
+          {t('apiKeys.confirm_import')}
         </button>
         <button
           onClick={onCancel}
@@ -262,7 +263,7 @@ function BazarrPreviewModal({
           style={{ color: 'var(--text-muted)' }}
         >
           <X size={12} />
-          Cancel
+          {t('apiKeys.cancel')}
         </button>
       </div>
     </div>
@@ -307,7 +308,7 @@ export function ApiKeysTab({
           toast(`${service}: ${result.message}`, 'error')
         }
       },
-      onError: () => toast(`${service}: Connection failed`, 'error'),
+      onError: () => toast(t('apiKeys.connection_failed', { service }), 'error'),
     })
   }
 
@@ -331,7 +332,7 @@ export function ApiKeysTab({
     if (!file) return
     importKeys.mutate(file, {
       onSuccess: (result) => {
-        toast(`Imported ${result.imported} keys` + (result.skipped > 0 ? ` (${result.skipped} skipped)` : ''))
+        toast(t('apiKeys.imported_keys', { count: result.imported }) + (result.skipped > 0 ? t('apiKeys.imported_skipped', { count: result.skipped }) : ''))
       },
       onError: () => toast(t('apiKeys.importFailed', 'Import failed'), 'error'),
     })
@@ -345,7 +346,7 @@ export function ApiKeysTab({
       onSuccess: (preview) => {
         setBazarrPreview(preview)
       },
-      onError: () => toast('Failed to parse Bazarr config', 'error'),
+      onError: () => toast(t('apiKeys.bazarr_parse_failed'), 'error'),
     })
     e.target.value = ''
   }
@@ -355,9 +356,9 @@ export function ApiKeysTab({
     confirmBazarr.mutate(bazarrPreview, {
       onSuccess: (result) => {
         setBazarrPreview(null)
-        toast(`Bazarr import complete: ${result.imported} entries imported`)
+        toast(t('apiKeys.bazarr_import_complete', { count: result.imported }))
       },
-      onError: () => toast('Bazarr import failed', 'error'),
+      onError: () => toast(t('apiKeys.bazarr_import_failed'), 'error'),
     })
   }
 

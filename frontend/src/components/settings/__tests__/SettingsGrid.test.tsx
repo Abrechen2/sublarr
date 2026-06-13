@@ -155,6 +155,6 @@ describe('SettingsGrid', () => {
     renderWithRouter(<SettingsGrid />)
     const translationCard = screen.getByTestId('settings-card-translation')
     await user.click(translationCard)
-    expect(screen.getByText('Translation aktivieren')).toBeInTheDocument()
+    expect(screen.getByText('enable_translation_modal.title')).toBeInTheDocument()
   })
 })

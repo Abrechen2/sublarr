@@ -27,7 +27,7 @@ test('saves config with null for "Use global" option', async () => {
   render(<SeriesProcessingOverride seriesId={42} initialConfig={{ hi_removal: false }} />)
   fireEvent.click(screen.getByText('Processing Override'))
 
-  const saveBtn = screen.getByText('Speichern')
+  const saveBtn = screen.getByText('Save')
   fireEvent.click(saveBtn)
 
   await waitFor(() => {

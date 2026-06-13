@@ -33,7 +33,7 @@ export function ContextWindowSizeRow() {
   return (
     <SettingRow
       label={t('translation_backends.context_window')}
-      helpText="Number of lines before and after each batch sent as context to the LLM. 0 = disabled."
+      helpText={t('translation_backends.context_window_help')}
     >
       <input
         type="number"
@@ -68,16 +68,16 @@ export function DefaultSyncEngineRow() {
     updateConfig.mutate(
       { 'sync.default_engine': value },
       {
-        onSuccess: () => toast('Sync engine preference saved'),
-        onError: () => toast('Failed to save sync engine preference', 'error'),
+        onSuccess: () => toast(t('settings:translation_backends.toast_sync_engine_saved')),
+        onError: () => toast(t('settings:translation_backends.toast_sync_engine_save_failed'), 'error'),
       },
     )
   }
 
   return (
     <SettingRow
-      label={t('translation_backends.default_sync_engine')}
-      helpText="Engine used by auto-sync when no per-request override is given. alass = audio-based alignment; ffsubsync = frame-rate-based."
+      label={t('settings:translation_backends.default_sync_engine')}
+      helpText={t('settings:translation_backends.default_sync_engine_help')}
     >
       <select
         value={currentEngine}
@@ -91,7 +91,7 @@ export function DefaultSyncEngineRow() {
           fontSize: '13px',
         }}
       >
-        <option value="alass">alass (recommended)</option>
+        <option value="alass">{t('settings:translation_backends.sync_engine_alass_recommended')}</option>
         <option value="ffsubsync">ffsubsync</option>
       </select>
     </SettingRow>
@@ -110,8 +110,8 @@ export function AutoSyncSection() {
     updateConfig.mutate(
       { auto_sync_after_download: value },
       {
-        onSuccess: () => toast('Auto-Sync Einstellung gespeichert'),
-        onError: () => toast('Fehler beim Speichern', 'error'),
+        onSuccess: () => toast(t('settings:translation_backends.toast_auto_sync_saved')),
+        onError: () => toast(t('settings:translation_backends.toast_save_failed'), 'error'),
       },
     )
   }
@@ -120,8 +120,8 @@ export function AutoSyncSection() {
     updateConfig.mutate(
       { auto_sync_engine: value },
       {
-        onSuccess: () => toast('Auto-Sync Engine gespeichert'),
-        onError: () => toast('Fehler beim Speichern', 'error'),
+        onSuccess: () => toast(t('settings:translation_backends.toast_auto_sync_engine_saved')),
+        onError: () => toast(t('settings:translation_backends.toast_save_failed'), 'error'),
       },
     )
   }
@@ -129,8 +129,8 @@ export function AutoSyncSection() {
   return (
     <>
       <SettingRow
-        label={t('translation_backends.auto_sync_after_download')}
-        helpText="Synchronisiert heruntergeladene Untertitel automatisch gegen die Videodatei (nur ffsubsync)."
+        label={t('settings:translation_backends.auto_sync_after_download')}
+        helpText={t('settings:translation_backends.auto_sync_after_download_help')}
       >
         <Toggle
           checked={!!enabled}
@@ -140,8 +140,8 @@ export function AutoSyncSection() {
       </SettingRow>
       {enabled && (
         <SettingRow
-          label={t('translation_backends.auto_sync_engine')}
-          helpText="Engine für automatische Synchronisierung. alass wird bei Auto-Sync übersprungen (erfordert Referenz-Track)."
+          label={t('settings:translation_backends.auto_sync_engine')}
+          helpText={t('settings:translation_backends.auto_sync_engine_help')}
         >
           <select
             value={currentEngine}
@@ -155,7 +155,7 @@ export function AutoSyncSection() {
               fontSize: '13px',
             }}
           >
-            <option value="ffsubsync">ffsubsync (Spracherkennung)</option>
+            <option value="ffsubsync">{t('settings:translation_backends.auto_sync_engine_ffsubsync_option')}</option>
           </select>
         </SettingRow>
       )}
@@ -195,12 +195,12 @@ export function EpisodeContextSection() {
       style={{ backgroundColor: 'var(--bg-surface)', border: '1px solid var(--border)' }}
     >
       <h2 className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>
-        Episode Context
+        {t('settings:translation_backends.episode_context_title')}
       </h2>
 
       <SettingRow
-        label={t('translation_backends.use_episode_context')}
-        description="Include previous episode subtitle as context for translation"
+        label={t('settings:translation_backends.use_episode_context')}
+        description={t('settings:translation_backends.use_episode_context_desc')}
       >
         <Toggle
           checked={useEpisodeContext}
@@ -222,8 +222,8 @@ export function EpisodeContextSection() {
 
       {useEpisodeContext && (
         <SettingRow
-          label={t('translation_backends.context_episodes')}
-          description="Number of prior episodes to include as context"
+          label={t('settings:translation_backends.context_episodes')}
+          description={t('settings:translation_backends.context_episodes_desc')}
         >
           <input
             data-testid="input-translation-context-episodes"
@@ -240,8 +240,8 @@ export function EpisodeContextSection() {
       )}
 
       <SettingRow
-        label={t('translation_backends.auto_series_glossary')}
-        description="Automatically build a per-series glossary from translation history"
+        label={t('settings:translation_backends.auto_series_glossary')}
+        description={t('settings:translation_backends.auto_series_glossary_desc')}
       >
         <Toggle
           checked={seriesGlossaryAuto}
@@ -289,8 +289,8 @@ export function TranslationBackendsTab() {
       updateConfig.mutate(
         { request_timeout: String(clamped) },
         {
-          onSuccess: () => toast('Request timeout saved'),
-          onError: () => toast('Failed to save request timeout', 'error'),
+          onSuccess: () => toast(t('settings:translation_backends.toast_request_timeout_saved')),
+          onError: () => toast(t('settings:translation_backends.toast_request_timeout_failed'), 'error'),
         },
       )
     }
@@ -302,8 +302,8 @@ export function TranslationBackendsTab() {
       updateConfig.mutate(
         { backoff_base: String(clamped) },
         {
-          onSuccess: () => toast('Backoff base saved'),
-          onError: () => toast('Failed to save backoff base', 'error'),
+          onSuccess: () => toast(t('settings:translation_backends.toast_backoff_base_saved')),
+          onError: () => toast(t('settings:translation_backends.toast_backoff_base_failed'), 'error'),
         },
       )
     }
@@ -323,14 +323,14 @@ export function TranslationBackendsTab() {
       onSuccess: (result) => {
         setTestResults((prev) => ({ ...prev, [name]: result }))
         if (result.healthy) {
-          toast(`${name}: healthy`)
+          toast(t('settings:translation_backends.toast_backend_healthy', { name }))
         } else {
-          toast(`${name}: ${result.message}`, 'error')
+          toast(t('settings:translation_backends.toast_backend_error', { name, message: result.message }), 'error')
         }
       },
       onError: () => {
-        setTestResults((prev) => ({ ...prev, [name]: { healthy: false, message: 'Test request failed' } }))
-        toast(`${name}: test failed`, 'error')
+        setTestResults((prev) => ({ ...prev, [name]: { healthy: false, message: t('settings:translation_backends.test_request_failed') } }))
+        toast(t('settings:translation_backends.toast_backend_test_failed', { name }), 'error')
       },
     })
   }
@@ -341,10 +341,10 @@ export function TranslationBackendsTab() {
       { name: backendName, config },
       {
         onSuccess: () => {
-          toast(`Template applied — open the "${backendName}" backend card to add your API key and save`)
+          toast(t('settings:translation_backends.toast_template_applied', { name: backendName }))
         },
         onError: () => {
-          toast('Failed to apply template', 'error')
+          toast(t('settings:translation_backends.toast_template_apply_failed'), 'error')
         },
       },
     )
@@ -369,7 +369,7 @@ export function TranslationBackendsTab() {
 
       <div className="flex items-center justify-between">
         <span className="text-xs font-medium" style={{ color: 'var(--text-secondary)' }}>
-          {backends.length} translation backends available &mdash; expand to configure and test
+          {t('settings:translation_backends.backends_available', { count: backends.length })}
         </span>
         <button
           onClick={() => setShowTemplatePicker(true)}
@@ -389,7 +389,7 @@ export function TranslationBackendsTab() {
           }}
         >
           <Wand2 size={12} />
-          Add from Template
+          {t('settings:translation_backends.add_from_template')}
         </button>
       </div>
 
@@ -405,7 +405,7 @@ export function TranslationBackendsTab() {
 
       {backends.length === 0 && (
         <div className="text-center py-8 text-sm" style={{ color: 'var(--text-muted)' }}>
-          No translation backends registered. Install backend packages (e.g. deepl, openai, google-cloud-translate) to enable them.
+          {t('settings:translation_backends.no_backends_registered')}
         </div>
       )}
 
@@ -423,13 +423,13 @@ export function TranslationBackendsTab() {
         style={{ backgroundColor: 'var(--bg-surface)', border: '1px solid var(--border)' }}
       >
         <h2 className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>
-          Global LLM Request Settings
+          {t('settings:translation_backends.global_llm_title')}
         </h2>
         <p className="text-xs" style={{ color: 'var(--text-muted)' }}>
-          Applied to all translation backends that use the Ollama/LLM pipeline.
+          {t('settings:translation_backends.global_llm_desc')}
         </p>
         <SettingRow
-          label={t('translation_backends.request_timeout')}
+          label={t('settings:translation_backends.request_timeout')}
           helpText="Timeout for each LLM API request. Increase for slow or large models. Default: 90."
         >
           <input
@@ -455,7 +455,7 @@ export function TranslationBackendsTab() {
           />
         </SettingRow>
         <SettingRow
-          label={t('translation_backends.backoff_base')}
+          label={t('settings:translation_backends.backoff_base')}
           helpText="Base interval for exponential backoff on retries. Default: 5."
         >
           <input

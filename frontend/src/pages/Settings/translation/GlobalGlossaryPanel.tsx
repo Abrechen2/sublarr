@@ -46,8 +46,8 @@ export function GlobalGlossaryPanel() {
     updateConfig.mutate(
       { glossary_enabled: String(value) },
       {
-        onSuccess: () => toast('Glossary setting saved'),
-        onError: () => toast('Failed to save setting', 'error'),
+        onSuccess: () => toast(t('glossary_panel.toast_setting_saved')),
+        onError: () => toast(t('glossary_panel.toast_save_failed'), 'error'),
       },
     )
   }
@@ -58,8 +58,8 @@ export function GlobalGlossaryPanel() {
       updateConfig.mutate(
         { glossary_max_terms: String(clamped) },
         {
-          onSuccess: () => toast('Max glossary terms saved'),
-          onError: () => toast('Failed to save setting', 'error'),
+          onSuccess: () => toast(t('glossary_panel.toast_max_terms_saved')),
+          onError: () => toast(t('glossary_panel.toast_save_failed'), 'error'),
         },
       )
     }
@@ -83,7 +83,7 @@ export function GlobalGlossaryPanel() {
 
   const handleSave = () => {
     if (!formData.source_term.trim() || !formData.target_term.trim()) {
-      toast('Source and target terms are required', 'error')
+      toast(t('glossary_panel.toast_terms_required'), 'error')
       return
     }
 
@@ -92,10 +92,10 @@ export function GlobalGlossaryPanel() {
         { entryId: editingId, series_id: null, ...formData },
         {
           onSuccess: () => {
-            toast('Glossary entry updated')
+            toast(t('glossary_panel.toast_entry_updated'))
             resetForm()
           },
-          onError: () => toast('Failed to update entry', 'error'),
+          onError: () => toast(t('glossary_panel.toast_update_failed'), 'error'),
         }
       )
     } else {
@@ -103,22 +103,22 @@ export function GlobalGlossaryPanel() {
         { series_id: null, ...formData },
         {
           onSuccess: () => {
-            toast('Glossary entry created')
+            toast(t('glossary_panel.toast_entry_created'))
             resetForm()
           },
-          onError: () => toast('Failed to create entry', 'error'),
+          onError: () => toast(t('glossary_panel.toast_create_failed'), 'error'),
         }
       )
     }
   }
 
   const handleDelete = (id: number) => {
-    if (!confirm('Delete this glossary entry?')) return
+    if (!confirm(t('glossary_panel.confirm_delete'))) return
     deleteEntry.mutate(
       { entryId: id, seriesId: null },
       {
-        onSuccess: () => toast('Entry deleted'),
-        onError: () => toast('Failed to delete entry', 'error'),
+        onSuccess: () => toast(t('glossary_panel.toast_entry_deleted')),
+        onError: () => toast(t('glossary_panel.toast_delete_failed'), 'error'),
       }
     )
   }
@@ -137,7 +137,7 @@ export function GlobalGlossaryPanel() {
         <div className="flex items-center gap-2">
           <BookOpen size={16} style={{ color: 'var(--accent)' }} />
           <h2 className="text-lg font-semibold" style={{ color: 'var(--text-primary)' }}>
-            Global Glossary
+            {t('glossary_panel.title')}
           </h2>
           <span
             className="px-1.5 py-0.5 rounded text-[10px] font-medium"
@@ -164,7 +164,7 @@ export function GlobalGlossaryPanel() {
               ) : (
                 <Download size={12} />
               )}
-              Export TSV
+              {t('glossary_panel.export_tsv')}
             </button>
           )}
           <button
@@ -177,7 +177,7 @@ export function GlobalGlossaryPanel() {
             data-testid="glossary-add-btn"
           >
             <Plus size={12} />
-            Add Entry
+            {t('glossary_panel.add_entry')}
           </button>
         </div>
       </div>
@@ -189,7 +189,7 @@ export function GlobalGlossaryPanel() {
       >
         <SettingRow
           label={t('glossary_page.title')}
-          helpText="Inject per-series glossary terms into LLM translation prompts for consistent proper noun handling."
+          helpText={t('glossary_panel.enable_help')}
         >
           <Toggle
             checked={glossaryEnabled}
@@ -199,7 +199,7 @@ export function GlobalGlossaryPanel() {
         </SettingRow>
         <SettingRow
           label={t('glossary_page.max_terms')}
-          helpText="Maximum number of glossary terms injected per translation request."
+          helpText={t('glossary_panel.max_terms_help')}
           advanced
         >
           <input
@@ -253,12 +253,12 @@ export function GlobalGlossaryPanel() {
           style={{ backgroundColor: 'var(--bg-surface)', border: '1px solid var(--accent-dim)' }}
         >
           <div className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>
-            {editingId ? 'Edit Entry' : 'New Global Entry'}
+            {editingId ? t('glossary_panel.edit_entry_form') : t('glossary_panel.new_entry_form')}
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div>
               <label className="block text-xs font-medium mb-1" style={{ color: 'var(--text-secondary)' }}>
-                Source Term
+                {t('glossary_panel.source_term_label')}
               </label>
               <input
                 type="text"
@@ -275,7 +275,7 @@ export function GlobalGlossaryPanel() {
             </div>
             <div>
               <label className="block text-xs font-medium mb-1" style={{ color: 'var(--text-secondary)' }}>
-                Target Term
+                {t('glossary_panel.target_term_label')}
               </label>
               <input
                 type="text"
@@ -293,7 +293,7 @@ export function GlobalGlossaryPanel() {
           </div>
           <div>
             <label className="block text-xs font-medium mb-1" style={{ color: 'var(--text-secondary)' }}>
-              Notes (optional)
+              {t('glossary_panel.notes_label')}
             </label>
             <input
               type="text"
@@ -320,10 +320,10 @@ export function GlobalGlossaryPanel() {
               ) : (
                 <Check size={12} />
               )}
-              Save
+              {t('glossary_panel.save')}
             </button>
             <button onClick={resetForm} className="flex items-center gap-1 px-3 py-1.5 rounded text-xs" style={{ color: 'var(--text-muted)' }}>
-              <X size={12} /> Cancel
+              <X size={12} /> {t('glossary_panel.cancel')}
             </button>
           </div>
         </div>
@@ -338,8 +338,8 @@ export function GlobalGlossaryPanel() {
           <BookOpen size={24} className="mx-auto mb-2" style={{ color: 'var(--text-muted)', opacity: 0.5 }} />
           <p className="text-sm" style={{ color: 'var(--text-muted)' }}>
             {searchQuery
-              ? 'No entries match your search.'
-              : 'No global glossary entries. Add terms that should be consistently translated across all series.'}
+              ? t('glossary_panel.no_search_results')
+              : t('glossary_panel.no_entries')}
           </p>
         </div>
       ) : (

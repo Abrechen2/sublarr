@@ -117,12 +117,16 @@ export function SubtitleCleanupModal({ seriesId, targetLanguages, onClose }: Pro
     setIsBusy(true)
     try {
       const result = await batchDeleteSeriesSubtitles(seriesId, { languages: [...toDelete] })
-      toast(`Bereinigt: ${result.deleted} Dateien gelöscht${result.failed ? `, ${result.failed} Fehler` : ''}`)
+      toast(
+        result.failed
+          ? tc('subtitle_cleanup.result_with_errors', { deleted: result.deleted, failed: result.failed })
+          : tc('subtitle_cleanup.result', { deleted: result.deleted })
+      )
       await queryClient.invalidateQueries({ queryKey: ['series-subtitles', seriesId] })
       await queryClient.invalidateQueries({ queryKey: ['series-detail', seriesId] })
       onClose()
     } catch {
-      toast('Bereinigung fehlgeschlagen', 'error')
+      toast(tc('subtitle_cleanup.failed'), 'error')
     } finally {
       setIsBusy(false)
     }
@@ -144,7 +148,7 @@ export function SubtitleCleanupModal({ seriesId, targetLanguages, onClose }: Pro
         {/* Header */}
         <div className="flex items-center justify-between px-4 py-3" style={{ borderBottom: '1px solid var(--border)' }}>
           <h2 id="subtitle-cleanup-title" className="font-semibold text-sm" style={{ color: 'var(--text-primary)' }}>
-            Sidecar bereinigen
+            {tc('subtitle_cleanup.title')}
           </h2>
           <button
             autoFocus
@@ -163,11 +167,11 @@ export function SubtitleCleanupModal({ seriesId, targetLanguages, onClose }: Pro
           {isLoading ? (
             <div className="flex items-center gap-2 text-sm py-4" style={{ color: 'var(--text-secondary)' }}>
               <Loader2 size={14} className="animate-spin" />
-              Lade Sidecar-Dateien…
+              {tc('subtitle_cleanup.loading')}
             </div>
           ) : allLanguages.length === 0 ? (
             <p className="text-sm py-4 text-center" style={{ color: 'var(--text-muted)' }}>
-              Keine Sidecar-Dateien gefunden.
+              {tc('subtitle_cleanup.empty')}
             </p>
           ) : (
             <>
@@ -178,7 +182,7 @@ export function SubtitleCleanupModal({ seriesId, targetLanguages, onClose }: Pro
                   className="text-xs px-2.5 py-1 rounded border"
                   style={{ color: 'var(--accent)', borderColor: 'var(--accent-dim)', backgroundColor: 'var(--accent-bg)' }}
                 >
-                  Nur Target-Sprachen behalten
+                  {tc('subtitle_cleanup.keep_target_only')}
                 </button>
                 {toDelete.size > 0 && (
                   <button
@@ -186,7 +190,7 @@ export function SubtitleCleanupModal({ seriesId, targetLanguages, onClose }: Pro
                     className="text-xs px-2.5 py-1 rounded"
                     style={{ color: 'var(--text-secondary)', backgroundColor: 'var(--bg-primary)' }}
                   >
-                    Auswahl leeren
+                    {tc('subtitle_cleanup.clear_selection')}
                   </button>
                 )}
               </div>
@@ -231,7 +235,7 @@ export function SubtitleCleanupModal({ seriesId, targetLanguages, onClose }: Pro
                         )}
                       </span>
                       <span className="text-xs tabular-nums" style={{ color: 'var(--text-secondary)' }}>
-                        {info.count} {info.count === 1 ? 'Datei' : 'Dateien'} · {formatBytes(info.totalBytes)}
+                        {info.count} {info.count === 1 ? tc('subtitle_cleanup.file') : tc('subtitle_cleanup.files')} · {formatBytes(info.totalBytes)}
                       </span>
                     </label>
                   )
@@ -246,8 +250,8 @@ export function SubtitleCleanupModal({ seriesId, targetLanguages, onClose }: Pro
           <div className="px-4 py-3 flex items-center justify-between" style={{ borderTop: '1px solid var(--border)' }}>
             <span className="text-xs" style={{ color: toDelete.size > 0 ? 'var(--error)' : 'var(--text-muted)' }}>
               {toDelete.size > 0
-                ? `Löscht ${previewCount} Dateien (${formatBytes(previewBytes)})`
-                : 'Nichts ausgewählt'}
+                ? tc('subtitle_cleanup.will_delete', { count: previewCount, size: formatBytes(previewBytes) })
+                : tc('subtitle_cleanup.nothing_selected')}
             </span>
             <div className="flex gap-2">
               <button
@@ -255,7 +259,7 @@ export function SubtitleCleanupModal({ seriesId, targetLanguages, onClose }: Pro
                 className="px-3 py-1.5 rounded text-xs"
                 style={{ color: 'var(--text-secondary)', backgroundColor: 'var(--bg-primary)' }}
               >
-                Abbrechen
+                {tc('subtitle_cleanup.cancel')}
               </button>
               <button
                 onClick={handleConfirm}
@@ -264,7 +268,7 @@ export function SubtitleCleanupModal({ seriesId, targetLanguages, onClose }: Pro
                 style={{ backgroundColor: toDelete.size > 0 ? 'var(--error)' : 'var(--text-muted)' }}
               >
                 {isBusy ? <Loader2 size={12} className="animate-spin" /> : <Trash2 size={12} />}
-                Löschen
+                {tc('subtitle_cleanup.delete')}
               </button>
             </div>
           </div>

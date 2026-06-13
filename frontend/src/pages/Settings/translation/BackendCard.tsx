@@ -63,15 +63,15 @@ export function BackendCard({
 
   const getFieldDescription = (key: string): string | undefined => {
     const k = key.toLowerCase()
-    if (k === 'name' || k === 'label' || k === 'backend_name' || k === 'display_name') return 'Anzeigename für dieses LLM-Backend'
-    if (k === 'url' || k === 'base_url' || k === 'api_base_url' || k === 'api_base' || k === 'endpoint' || k === 'host') return 'Endpunkt der LLM-API, z.B. http://localhost:11434 für Ollama'
-    if (k === 'api_key' || k === 'token' || k === 'api_token' || k === 'secret' || k === 'key') return 'API-Schlüssel für authentifizierte Endpunkte (für lokale Ollama leer lassen)'
-    if (k === 'model' || k === 'model_name' || k === 'model_id') return 'LLM-Modell das für Übersetzungen verwendet wird, z.B. gemma2:27b'
-    if (k === 'enabled' || k === 'enable' || k === 'active') return 'Dieses Backend für LLM-Übersetzungen aktivieren'
-    if (k === 'max_tokens' || k === 'context_length' || k === 'max_context' || k === 'context_window') return 'Maximale Token-Anzahl pro API-Anfrage'
-    if (k === 'temperature' || k === 'temp') return 'Sampling-Temperatur (0=deterministisch, 1=kreativ) — 0.1-0.3 für Übersetzungen empfohlen'
-    if (k === 'system_prompt' || k === 'prompt' || k === 'prompt_template' || k === 'system_message') return 'Systemanweisung für das LLM — definiert Übersetzungsstil und -kontext'
-    if (k === 'timeout' || k === 'request_timeout' || k === 'connect_timeout') return 'Timeout in Sekunden für LLM-API-Anfragen'
+    if (k === 'name' || k === 'label' || k === 'backend_name' || k === 'display_name') return t('backend_card.field_desc_name')
+    if (k === 'url' || k === 'base_url' || k === 'api_base_url' || k === 'api_base' || k === 'endpoint' || k === 'host') return t('backend_card.field_desc_url')
+    if (k === 'api_key' || k === 'token' || k === 'api_token' || k === 'secret' || k === 'key') return t('backend_card.field_desc_api_key')
+    if (k === 'model' || k === 'model_name' || k === 'model_id') return t('backend_card.field_desc_model')
+    if (k === 'enabled' || k === 'enable' || k === 'active') return t('backend_card.field_desc_enabled')
+    if (k === 'max_tokens' || k === 'context_length' || k === 'max_context' || k === 'context_window') return t('backend_card.field_desc_max_tokens')
+    if (k === 'temperature' || k === 'temp') return t('backend_card.field_desc_temperature')
+    if (k === 'system_prompt' || k === 'prompt' || k === 'prompt_template' || k === 'system_message') return t('backend_card.field_desc_system_prompt')
+    if (k === 'timeout' || k === 'request_timeout' || k === 'connect_timeout') return t('backend_card.field_desc_timeout')
     return undefined
   }
 
@@ -79,8 +79,8 @@ export function BackendCard({
     saveConfigMut.mutate(
       { name: backend.name, config: formValues },
       {
-        onSuccess: () => toast('Backend config saved'),
-        onError: () => toast('Failed to save backend config', 'error'),
+        onSuccess: () => toast(t('backend_card.toast_saved')),
+        onError: () => toast(t('backend_card.toast_save_failed'), 'error'),
       }
     )
   }
@@ -118,21 +118,21 @@ export function BackendCard({
               className="w-1.5 h-1.5 rounded-full shrink-0"
               style={{ backgroundColor: backend.configured ? 'var(--success)' : 'var(--text-muted)' }}
             />
-            {backend.configured ? 'Configured' : 'Not configured'}
+            {backend.configured ? t('backend_card.configured') : t('backend_card.not_configured')}
           </span>
           {backend.supports_glossary && (
             <span
               className="px-1.5 py-0.5 rounded text-[10px] font-medium"
               style={{ backgroundColor: 'var(--accent-bg)', color: 'var(--accent)' }}
             >
-              Glossary
+              {t('backend_card.glossary_badge')}
             </span>
           )}
         </div>
         <div className="flex items-center gap-2 shrink-0">
           {successRate !== null && (
             <span className="text-xs" style={{ color: 'var(--text-muted)' }}>
-              {successRate}% success
+              {t('backend_card.success_label', { rate: successRate })}
             </span>
           )}
           {expanded ? <ChevronUp size={16} style={{ color: 'var(--text-muted)' }} /> : <ChevronDown size={16} style={{ color: 'var(--text-muted)' }} />}
@@ -147,7 +147,7 @@ export function BackendCard({
               <div className="flex items-center gap-2">
                 <Activity size={12} style={{ color: 'var(--text-muted)' }} />
                 <span className="text-xs font-medium" style={{ color: 'var(--text-secondary)' }}>
-                  Statistics
+                  {t('backend_card.statistics')}
                 </span>
               </div>
               {/* Success rate bar */}
@@ -170,25 +170,25 @@ export function BackendCard({
                 </div>
               </div>
               <div className="flex items-center gap-3 flex-wrap text-xs" style={{ color: 'var(--text-muted)' }}>
-                <span>{stats.successful_translations}/{stats.total_requests} requests</span>
+                <span>{t('backend_card.requests_stat', { success: stats.successful_translations, total: stats.total_requests })}</span>
                 {stats.avg_response_time_ms > 0 && (
-                  <span>Avg: {Math.round(stats.avg_response_time_ms)}ms</span>
+                  <span>{t('backend_card.avg_stat', { ms: Math.round(stats.avg_response_time_ms) })}</span>
                 )}
                 {stats.last_response_time_ms > 0 && (
-                  <span>Last: {Math.round(stats.last_response_time_ms)}ms</span>
+                  <span>{t('backend_card.last_stat', { ms: Math.round(stats.last_response_time_ms) })}</span>
                 )}
                 {stats.total_characters > 0 && (
-                  <span>{stats.total_characters.toLocaleString()} chars</span>
+                  <span>{t('backend_card.chars_stat', { count: stats.total_characters.toLocaleString() })}</span>
                 )}
                 {stats.consecutive_failures > 0 && (
                   <span style={{ color: 'rgb(245 158 11)' }}>
-                    {stats.consecutive_failures} consecutive failures
+                    {t('backend_card.consecutive_failures', { count: stats.consecutive_failures })}
                   </span>
                 )}
               </div>
               {stats.last_error && (
                 <div className="text-xs truncate" style={{ color: 'var(--error)' }} title={stats.last_error}>
-                  Last error: {stats.last_error}
+                  {t('backend_card.last_error', { error: stats.last_error })}
                 </div>
               )}
             </div>
@@ -212,7 +212,7 @@ export function BackendCard({
                       type={field.type === 'password' && !showPasswords[field.key] ? 'password' : field.type === 'number' ? 'number' : 'text'}
                       value={formValues[field.key] === '***configured***' ? '' : (formValues[field.key] ?? field.default ?? '')}
                       onChange={(e) => setFormValues((v) => ({ ...v, [field.key]: e.target.value }))}
-                      placeholder={formValues[field.key] === '***configured***' ? '(configured)' : field.default || (field.required ? 'Required' : 'Optional')}
+                      placeholder={formValues[field.key] === '***configured***' ? t('backend_card.placeholder_configured') : field.default || (field.required ? t('backend_card.placeholder_required') : t('backend_card.placeholder_optional'))}
                       className="flex-1 px-2.5 py-1.5 rounded text-xs transition-all duration-150 focus:outline-none"
                       style={{
                         backgroundColor: 'var(--bg-primary)',
@@ -226,7 +226,7 @@ export function BackendCard({
                         onClick={() => setShowPasswords((p) => ({ ...p, [field.key]: !p[field.key] }))}
                         className="p-1.5 rounded transition-all duration-150"
                         style={{ border: '1px solid var(--border)', color: 'var(--text-muted)', backgroundColor: 'var(--bg-primary)' }}
-                        title={showPasswords[field.key] ? 'Hide' : 'Show'}
+                        title={showPasswords[field.key] ? t('backend_card.hide') : t('backend_card.show')}
                       >
                         {showPasswords[field.key] ? <EyeOff size={12} /> : <Eye size={12} />}
                       </button>
@@ -239,7 +239,7 @@ export function BackendCard({
 
           {backend.config_fields.length === 0 && (
             <div className="pt-2 text-xs" style={{ color: 'var(--text-muted)' }}>
-              No configuration required for this backend.
+              {t('backend_card.no_config_required')}
             </div>
           )}
 
@@ -267,7 +267,7 @@ export function BackendCard({
               ) : (
                 <TestTube size={12} />
               )}
-              Test
+              {t('backend_card.test')}
             </button>
 
             {backend.config_fields.length > 0 && (
@@ -282,14 +282,14 @@ export function BackendCard({
                 ) : (
                   <Save size={12} />
                 )}
-                Save
+                {t('backend_card.save')}
               </button>
             )}
 
             {/* Test result inline */}
             {testResult && testResult !== 'testing' && (
               <span className="text-xs" style={{ color: testResult.healthy ? 'var(--success)' : 'var(--error)' }}>
-                {testResult.healthy ? 'Healthy' : 'Error'}: {testResult.message}
+                {testResult.healthy ? t('backend_card.healthy_label') : t('backend_card.error_label')}: {testResult.message}
               </span>
             )}
           </div>
@@ -316,7 +316,7 @@ export function BackendCard({
 
           {/* Backend info */}
           <div className="text-xs" style={{ color: 'var(--text-muted)' }}>
-            Max batch size: {backend.max_batch_size} lines
+            {t('backend_card.max_batch_size', { count: backend.max_batch_size })}
           </div>
         </div>
       )}

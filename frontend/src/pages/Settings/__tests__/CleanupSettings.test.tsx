@@ -24,7 +24,10 @@ vi.mock('@/hooks/useSystemApi', () => ({
 }))
 
 vi.mock('react-i18next', () => ({
-  useTranslation: () => ({ t: (_k: string, fb: string) => fb ?? _k }),
+  useTranslation: () => ({
+    t: (_k: string, opts?: unknown) =>
+      typeof opts === 'string' ? opts : ((opts as { defaultValue?: string })?.defaultValue ?? _k),
+  }),
 }))
 
 let CleanupSettings: FC
@@ -52,7 +55,7 @@ describe('CleanupSettings', () => {
 
   it('shows the automatic cleanup section', () => {
     wrap(<CleanupSettings />)
-    expect(screen.getByText('Automatische Bereinigung')).toBeTruthy()
+    expect(screen.getByText('cleanup.auto_cleanup_heading')).toBeTruthy()
   })
 
   it('renders the 5 fixed operation cards', () => {

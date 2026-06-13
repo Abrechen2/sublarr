@@ -62,7 +62,7 @@ export function SubtitleBackupsPage() {
 
   const handlePurgeOrphans = async () => {
     if (orphanCount === 0) return
-    if (!confirm(`${orphanCount} verwaiste Backups löschen?`)) return
+    if (!confirm(t('subtitle_backups.confirm_purge_orphans', { count: orphanCount }))) return
     cleanupMutation.mutate({ orphans_only: true, dry_run: false }, {
       onSuccess: () => void refetch(),
     })
@@ -70,10 +70,10 @@ export function SubtitleBackupsPage() {
 
   const handlePurgeAged = async () => {
     if (retentionDays <= 0) {
-      toast('Aufbewahrung ist deaktiviert (0 Tage)', 'error')
+      toast(t('subtitle_backups.retention_disabled_toast'), 'error')
       return
     }
-    if (!confirm(`Backups älter als ${retentionDays} Tage löschen?`)) return
+    if (!confirm(t('subtitle_backups.confirm_purge_aged', { days: retentionDays }))) return
     cleanupMutation.mutate(
       { older_than_days: retentionDays, orphans_only: false, dry_run: false },
       { onSuccess: () => void refetch() },
@@ -86,7 +86,7 @@ export function SubtitleBackupsPage() {
       {
         onSuccess: (result) => {
           const n = result.deleted.length
-          toast(`Trockenlauf: ${n} Backups würden gelöscht`, 'success')
+          toast(t('subtitle_backups.dry_run_result', { count: n }), 'success')
         },
       },
     )
@@ -94,30 +94,30 @@ export function SubtitleBackupsPage() {
 
   const handleRestore = async (backup: SubtitleBackup) => {
     if (!backup.restore_path) {
-      toast('Kein Wiederherstellungs-Pfad verfügbar', 'error')
+      toast(t('subtitle_backups.no_restore_path'), 'error')
       return
     }
     setBusyPath(backup.path)
     try {
       await undoProcessSubtitle(backup.restore_path)
-      toast('Backup wiederhergestellt', 'success')
+      toast(t('subtitle_backups.restored'), 'success')
       void refetch()
     } catch (e) {
-      toast(e instanceof Error ? e.message : 'Wiederherstellen fehlgeschlagen', 'error')
+      toast(e instanceof Error ? e.message : t('subtitle_backups.restore_failed'), 'error')
     } finally {
       setBusyPath(null)
     }
   }
 
   const handleDelete = async (backup: SubtitleBackup) => {
-    if (!confirm(`Backup endgültig löschen?\n${backup.path}`)) return
+    if (!confirm(t('subtitle_backups.confirm_delete', { path: backup.path }))) return
     setBusyPath(backup.path)
     try {
       await deleteSubtitles([backup.path])
-      toast('Backup gelöscht', 'success')
+      toast(t('subtitle_backups.deleted'), 'success')
       void refetch()
     } catch (e) {
-      toast(e instanceof Error ? e.message : 'Löschen fehlgeschlagen', 'error')
+      toast(e instanceof Error ? e.message : t('subtitle_backups.delete_failed'), 'error')
     } finally {
       setBusyPath(null)
     }
@@ -325,7 +325,7 @@ export function SubtitleBackupsPage() {
                           )}
                         >
                           <AlertTriangle size={10} />
-                          Orphan
+                          {t('subtitle_backups.orphan_badge')}
                         </span>
                       ) : (
                         <span className="text-[10px]" style={{ color: 'var(--text-muted)' }}>OK</span>

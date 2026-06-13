@@ -47,8 +47,8 @@ function WhisperBackendCard({
     saveConfigMut.mutate(
       { name: backend.name, config: formValues },
       {
-        onSuccess: () => toast('Whisper backend config saved'),
-        onError: () => toast('Failed to save whisper backend config', 'error'),
+        onSuccess: () => toast(t('whisper_tab.backend_config_saved')),
+        onError: () => toast(t('whisper_tab.backend_config_save_failed'), 'error'),
       }
     )
   }
@@ -82,7 +82,7 @@ function WhisperBackendCard({
               className="w-1.5 h-1.5 rounded-full shrink-0"
               style={{ backgroundColor: backend.configured ? 'var(--success)' : 'var(--text-muted)' }}
             />
-            {backend.configured ? 'Configured' : 'Not configured'}
+            {backend.configured ? t('whisper_tab.configured') : t('whisper_tab.not_configured')}
           </span>
           {backend.supports_gpu && (
             <span
@@ -97,7 +97,7 @@ function WhisperBackendCard({
               className="px-1.5 py-0.5 rounded text-[10px] font-medium"
               style={{ backgroundColor: 'var(--accent-bg)', color: 'var(--accent)' }}
             >
-              Language Detection
+              {t('whisper_tab.language_detection')}
             </span>
           )}
         </div>
@@ -122,7 +122,7 @@ function WhisperBackendCard({
                       type={field.type === 'password' && !showPasswords[field.key] ? 'password' : field.type === 'number' ? 'number' : 'text'}
                       value={formValues[field.key] === '***configured***' ? '' : (formValues[field.key] ?? field.default ?? '')}
                       onChange={(e) => setFormValues((v) => ({ ...v, [field.key]: e.target.value }))}
-                      placeholder={formValues[field.key] === '***configured***' ? '(configured)' : field.default || (field.required ? 'Required' : 'Optional')}
+                      placeholder={formValues[field.key] === '***configured***' ? t('whisper_tab.configured_placeholder') : field.default || (field.required ? t('whisper_tab.required') : t('whisper_tab.optional'))}
                       className="flex-1 px-2.5 py-1.5 rounded text-xs transition-all duration-150 focus:outline-none"
                       style={{
                         backgroundColor: 'var(--bg-primary)',
@@ -136,7 +136,7 @@ function WhisperBackendCard({
                         onClick={() => setShowPasswords((p) => ({ ...p, [field.key]: !p[field.key] }))}
                         className="p-1.5 rounded transition-all duration-150"
                         style={{ border: '1px solid var(--border)', color: 'var(--text-muted)', backgroundColor: 'var(--bg-primary)' }}
-                        title={showPasswords[field.key] ? 'Hide' : 'Show'}
+                        title={showPasswords[field.key] ? t('whisper_tab.hide') : t('whisper_tab.show')}
                       >
                         {showPasswords[field.key] ? <EyeOff size={12} /> : <Eye size={12} />}
                       </button>
@@ -152,7 +152,7 @@ function WhisperBackendCard({
 
           {backend.config_fields.length === 0 && (
             <div className="pt-2 text-xs" style={{ color: 'var(--text-muted)' }}>
-              No configuration required for this backend.
+              {t('whisper_tab.no_config_required')}
             </div>
           )}
 
@@ -160,7 +160,7 @@ function WhisperBackendCard({
           {backend.name === 'faster_whisper' && (
             <div className="space-y-2 pt-2" style={{ borderTop: '1px solid var(--border)' }}>
               <span className="text-xs font-medium" style={{ color: 'var(--text-secondary)' }}>
-                Available Models
+                {t('whisper_tab.available_models')}
               </span>
               <div className="rounded overflow-hidden text-xs" style={{ border: '1px solid var(--border)' }}>
                 <table className="w-full">
@@ -207,7 +207,7 @@ function WhisperBackendCard({
               ) : (
                 <TestTube size={12} />
               )}
-              Test
+              {t('whisper_tab.test')}
             </button>
 
             {backend.config_fields.length > 0 && (
@@ -222,14 +222,14 @@ function WhisperBackendCard({
                 ) : (
                   <Save size={12} />
                 )}
-                Save
+                {t('whisper_tab.save')}
               </button>
             )}
 
             {/* Test result inline */}
             {testResult && testResult !== 'testing' && (
               <span className="text-xs" style={{ color: testResult.healthy ? 'var(--success)' : 'var(--error)' }}>
-                {testResult.healthy ? 'Healthy' : 'Error'}: {testResult.message}
+                {testResult.healthy ? t('whisper_tab.healthy') : t('whisper_tab.error')}: {testResult.message}
               </span>
             )}
           </div>
@@ -273,8 +273,8 @@ export function WhisperTab() {
 
   const handleSaveConfig = () => {
     saveConfigMut.mutate(localConfig as unknown as Record<string, unknown>, {
-      onSuccess: () => toast('Whisper config saved'),
-      onError: () => toast('Failed to save whisper config', 'error'),
+      onSuccess: () => toast(t('whisper_tab.config_saved')),
+      onError: () => toast(t('whisper_tab.config_save_failed'), 'error'),
     })
   }
 
@@ -284,14 +284,14 @@ export function WhisperTab() {
       onSuccess: (result: WhisperHealthResult) => {
         setTestResults((prev) => ({ ...prev, [name]: result }))
         if (result.healthy) {
-          toast(`${name}: healthy`)
+          toast(t('whisper_tab.backend_healthy', { name }))
         } else {
           toast(`${name}: ${result.message}`, 'error')
         }
       },
       onError: () => {
-        setTestResults((prev) => ({ ...prev, [name]: { healthy: false, message: 'Test request failed' } }))
-        toast(`${name}: test failed`, 'error')
+        setTestResults((prev) => ({ ...prev, [name]: { healthy: false, message: t('whisper_tab.test_request_failed') } }))
+        toast(t('whisper_tab.backend_test_failed', { name }), 'error')
       },
     })
   }
@@ -312,13 +312,13 @@ export function WhisperTab() {
         style={{ backgroundColor: 'var(--bg-surface)', border: '1px solid var(--border)' }}
       >
         <h3 className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>
-          Whisper Configuration
+          {t('whisper_tab.config_heading')}
         </h3>
 
         {/* Enable/disable toggle */}
         <SettingRow
           label={t('whisper_tab.enable_whisper')}
-          description="Whisper-Backend für automatische Transkription aktivieren"
+          description={t('whisper_tab.enable_desc')}
         >
           <button
             onClick={() => setLocalConfig((c) => ({ ...c, whisper_enabled: !c.whisper_enabled }))}
@@ -339,7 +339,7 @@ export function WhisperTab() {
         {/* Backend selection */}
         <SettingRow
           label={t('whisper_tab.active_backend')}
-          description="Aktives Whisper-Backend für Transkriptionsjobs"
+          description={t('whisper_tab.backend_desc')}
         >
           <select
             value={localConfig.whisper_backend}
@@ -361,7 +361,7 @@ export function WhisperTab() {
         {/* Max concurrent */}
         <SettingRow
           label={t('whisper_tab.max_concurrent_jobs')}
-          description="Anzahl paralleler Transkriptionsjobs (1–4) — höhere Werte erfordern mehr CPU/GPU"
+          description={t('whisper_tab.max_concurrent_desc')}
         >
           <input
             type="number"
@@ -385,7 +385,7 @@ export function WhisperTab() {
         {/* Whisper fallback min score */}
         <SettingRow
           label={t('whisper_tab.fallback_min_score')}
-          description="Transkription wird als Fallback genutzt wenn Provider-Score unter diesem Schwellenwert"
+          description={t('whisper_tab.fallback_min_score_desc')}
         >
           <input
             type="number"
@@ -418,7 +418,7 @@ export function WhisperTab() {
           ) : (
             <Save size={12} />
           )}
-          Save Config
+          {t('whisper_tab.save_config')}
         </button>
 
         {/* Stats summary */}
@@ -427,13 +427,13 @@ export function WhisperTab() {
             <div className="flex items-center gap-2">
               <Activity size={12} style={{ color: 'var(--text-muted)' }} />
               <span className="text-xs font-medium" style={{ color: 'var(--text-secondary)' }}>
-                Whisper Statistics
+                {t('whisper_tab.statistics')}
               </span>
             </div>
             <div className="flex items-center gap-3 flex-wrap text-xs" style={{ color: 'var(--text-muted)' }}>
-              <span>{stats.total} total jobs</span>
+              <span>{t('whisper_tab.total_jobs', { count: stats.total })}</span>
               {stats.avg_processing_time > 0 && (
-                <span>Avg: {Math.round(stats.avg_processing_time / 1000)}s processing</span>
+                <span>{t('whisper_tab.avg_processing', { seconds: Math.round(stats.avg_processing_time / 1000) })}</span>
               )}
               {Object.entries(stats.by_status).map(([status, count]) => (
                 <span key={status}>{count} {status}</span>
@@ -447,7 +447,7 @@ export function WhisperTab() {
       <div className="space-y-3">
         <div className="flex items-center justify-between">
           <span className="text-xs font-medium" style={{ color: 'var(--text-secondary)' }}>
-            {backends.length} whisper backend{backends.length !== 1 ? 's' : ''} available &mdash; expand to configure and test
+            {t('whisper_tab.backends_available', { count: backends.length })}
           </span>
         </div>
 
@@ -462,7 +462,7 @@ export function WhisperTab() {
 
         {backends.length === 0 && (
           <div className="text-center py-8 text-sm" style={{ color: 'var(--text-muted)' }}>
-            No Whisper backends registered. Install faster-whisper or configure Subgen to enable speech-to-text.
+            {t('whisper_tab.no_backends')}
           </div>
         )}
       </div>

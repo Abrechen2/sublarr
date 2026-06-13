@@ -18,7 +18,7 @@ export function SyncPreview({ events, operation }: SyncPreviewProps) {
   if (events.length === 0) {
     return (
       <div className="text-center py-4 text-xs" style={{ color: 'var(--text-muted)' }}>
-        No preview events available.
+        {t('editor:sync_preview.no_events')}
       </div>
     )
   }
@@ -27,10 +27,10 @@ export function SyncPreview({ events, operation }: SyncPreviewProps) {
     <div className="space-y-2">
       <div className="flex items-center justify-between">
         <span className="text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--text-muted)' }}>
-          Preview: {operation}
+          {t('editor:sync_preview.preview_label', { operation })}
         </span>
         <span className="text-xs" style={{ color: 'var(--text-muted)' }}>
-          {events.length} sample events
+          {t('editor:sync_preview.sample_events', { count: events.length })}
         </span>
       </div>
 
@@ -39,11 +39,11 @@ export function SyncPreview({ events, operation }: SyncPreviewProps) {
           <thead>
             <tr style={{ backgroundColor: 'var(--bg-elevated)', borderBottom: '1px solid var(--border)' }}>
               <th className="text-left text-[10px] font-semibold uppercase tracking-wider px-2 py-1.5" style={{ color: 'var(--text-muted)', width: '40px' }}>#</th>
-              <th className="text-left text-[10px] font-semibold uppercase tracking-wider px-2 py-1.5" style={{ color: 'var(--text-muted)' }}>{t('sync_preview.before_start')}</th>
-              <th className="text-left text-[10px] font-semibold uppercase tracking-wider px-2 py-1.5" style={{ color: 'var(--text-muted)' }}>{t('sync_preview.before_end')}</th>
-              <th className="text-left text-[10px] font-semibold uppercase tracking-wider px-2 py-1.5" style={{ color: 'var(--accent)' }}>{t('sync_preview.after_start')}</th>
-              <th className="text-left text-[10px] font-semibold uppercase tracking-wider px-2 py-1.5" style={{ color: 'var(--accent)' }}>{t('sync_preview.after_end')}</th>
-              <th className="text-left text-[10px] font-semibold uppercase tracking-wider px-2 py-1.5" style={{ color: 'var(--text-muted)' }}>Text</th>
+              <th className="text-left text-[10px] font-semibold uppercase tracking-wider px-2 py-1.5" style={{ color: 'var(--text-muted)' }}>{t('editor:sync_preview.before_start')}</th>
+              <th className="text-left text-[10px] font-semibold uppercase tracking-wider px-2 py-1.5" style={{ color: 'var(--text-muted)' }}>{t('editor:sync_preview.before_end')}</th>
+              <th className="text-left text-[10px] font-semibold uppercase tracking-wider px-2 py-1.5" style={{ color: 'var(--accent)' }}>{t('editor:sync_preview.after_start')}</th>
+              <th className="text-left text-[10px] font-semibold uppercase tracking-wider px-2 py-1.5" style={{ color: 'var(--accent)' }}>{t('editor:sync_preview.after_end')}</th>
+              <th className="text-left text-[10px] font-semibold uppercase tracking-wider px-2 py-1.5" style={{ color: 'var(--text-muted)' }}>{t('editor:sync_preview.text_col')}</th>
             </tr>
           </thead>
           <tbody>

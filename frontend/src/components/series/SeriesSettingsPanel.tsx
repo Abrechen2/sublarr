@@ -103,7 +103,7 @@ export function SeriesSettingsPanel({
             }}
           >
             {profiles.length === 0 && (
-              <option value="">{series.profile_name || 'Default'}</option>
+              <option value="">{series.profile_name || t('series_settings_panel.default_profile')}</option>
             )}
             {profiles.map((p) => (
               <option key={p.id} value={p.id}>
@@ -138,7 +138,7 @@ export function SeriesSettingsPanel({
                 fontStyle: 'italic',
               }}
             >
-              src: {series.source_language_name}
+              {t('series_settings_panel.source_label')} {series.source_language_name}
             </span>
           )}
         </div>
@@ -158,7 +158,7 @@ export function SeriesSettingsPanel({
               border: showGlossary ? '1px solid var(--accent)' : '1px solid var(--border)',
             }}
           >
-            📖 Glossary
+            📖 {t('series_settings_panel.glossary')}
           </button>
 
           {/* Absolute order toggle — field is `absolute_order` on SeriesDetail */}
@@ -179,7 +179,7 @@ export function SeriesSettingsPanel({
               disabled={updatePending}
               onChange={(e) => onToggleAbsoluteOrder(e.target.checked)}
             />
-            Absolute Order
+            {t('series_settings_panel.absolute_order')}
           </label>
 
           {/* AniDB refresh — only shown when absolute order is enabled */}
@@ -196,7 +196,7 @@ export function SeriesSettingsPanel({
                 cursor: refreshPending ? 'default' : 'pointer',
               }}
             >
-              🔄 AniDB Refresh
+              🔄 {t('series_settings_panel.anidb_refresh')}
             </button>
           )}
 
@@ -229,7 +229,7 @@ export function SeriesSettingsPanel({
               </span>
               <select
                 id="cleanup-foreign-tracks-select"
-                aria-label="Cleanup foreign tracks"
+                aria-label={t('series_settings_panel.cleanup_foreign_tracks_aria')}
                 disabled={updatePending}
                 value={
                   series.cleanup_foreign_tracks_override === true
@@ -258,7 +258,7 @@ export function SeriesSettingsPanel({
                     defaultValue: 'Inherit',
                   })}
                   {series.cleanup_foreign_tracks_effective !== undefined
-                    ? ` (${series.cleanup_foreign_tracks_effective ? 'on' : 'off'})`
+                    ? ` (${series.cleanup_foreign_tracks_effective ? t('series_settings_panel.on') : t('series_settings_panel.off')})`
                     : ''}
                 </option>
                 <option value="true">
@@ -289,7 +289,7 @@ export function SeriesSettingsPanel({
                 cursor: 'pointer',
               }}
             >
-              📦 Untertitel exportieren
+              📦 {t('series_settings_panel.export_subtitles')}
             </button>
           </Tooltip>
 
@@ -308,8 +308,8 @@ export function SeriesSettingsPanel({
               }}
             >
               {isExtracting
-                ? `Extrahiere… ${extractProgress ? `${extractProgress.current}/${extractProgress.total}` : ''}`
-                : '🎵 Embedded extrahieren'
+                ? `${t('series_settings_panel.extracting')} ${extractProgress ? `${extractProgress.current}/${extractProgress.total}` : ''}`
+                : `🎵 ${t('series_settings_panel.extract_embedded')}`
               }
             </button>
           </Tooltip>
@@ -326,7 +326,7 @@ export function SeriesSettingsPanel({
                 cursor: 'pointer',
               }}
             >
-              🧹 Sidecar bereinigen
+              🧹 {t('series_settings_panel.cleanup_sidecar')}
             </button>
           </Tooltip>
 
@@ -343,7 +343,7 @@ export function SeriesSettingsPanel({
                 cursor: 'pointer',
               }}
             >
-              🎭 Fansub-Override{hasFansubOverride ? ' ✓' : ''}
+              🎭 {t('series_settings_panel.fansub_override')}{hasFansubOverride ? ' ✓' : ''}
             </button>
           </Tooltip>
         </div>

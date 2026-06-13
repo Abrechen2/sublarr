@@ -47,8 +47,8 @@ export function TranslationQualitySection() {
     updateConfig.mutate(
       { translation_quality_enabled: String(value) },
       {
-        onSuccess: () => toast('Translation quality setting saved'),
-        onError: () => toast('Failed to save setting', 'error'),
+        onSuccess: () => toast(t('translation_quality.toast_setting_saved')),
+        onError: () => toast(t('translation_quality.toast_save_failed'), 'error'),
       },
     )
   }
@@ -59,8 +59,8 @@ export function TranslationQualitySection() {
       updateConfig.mutate(
         { translation_quality_threshold: String(clamped) },
         {
-          onSuccess: () => toast('Quality threshold saved'),
-          onError: () => toast('Failed to save threshold', 'error'),
+          onSuccess: () => toast(t('translation_quality.toast_threshold_saved')),
+          onError: () => toast(t('translation_quality.toast_threshold_failed'), 'error'),
         },
       )
     }
@@ -72,8 +72,8 @@ export function TranslationQualitySection() {
       updateConfig.mutate(
         { translation_quality_max_retries: String(clamped) },
         {
-          onSuccess: () => toast('Max retries saved'),
-          onError: () => toast('Failed to save max retries', 'error'),
+          onSuccess: () => toast(t('translation_quality.toast_max_retries_saved')),
+          onError: () => toast(t('translation_quality.toast_max_retries_failed'), 'error'),
         },
       )
     }
@@ -85,8 +85,8 @@ export function TranslationQualitySection() {
       updateConfig.mutate(
         { temperature: String(clamped) },
         {
-          onSuccess: () => toast('Temperature saved'),
-          onError: () => toast('Failed to save temperature', 'error'),
+          onSuccess: () => toast(t('translation_quality.toast_temperature_saved')),
+          onError: () => toast(t('translation_quality.toast_temperature_failed'), 'error'),
         },
       )
     }
@@ -98,8 +98,8 @@ export function TranslationQualitySection() {
       updateConfig.mutate(
         { batch_size: String(clamped) },
         {
-          onSuccess: () => toast('Batch size saved'),
-          onError: () => toast('Failed to save batch size', 'error'),
+          onSuccess: () => toast(t('translation_quality.toast_batch_size_saved')),
+          onError: () => toast(t('translation_quality.toast_batch_size_failed'), 'error'),
         },
       )
     }
@@ -113,17 +113,17 @@ export function TranslationQualitySection() {
       <div className="flex items-center gap-2">
         <Activity size={16} style={{ color: 'var(--accent)' }} />
         <h2 className="text-base font-semibold" style={{ color: 'var(--text-primary)' }}>
-          Translation Quality
+          {t('translation_quality.title')}
         </h2>
       </div>
 
       <p className="text-xs" style={{ color: 'var(--text-muted)' }}>
-        Lines scoring below threshold are retried up to max retries.
+        {t('translation_quality.intro')}
       </p>
 
       <SettingRow
         label={t('translation_quality.enable_quality_scoring')}
-        helpText="Score each translated line after translation and retry low-quality results."
+        helpText={t('translation_quality.enable_help')}
       >
         <Toggle
           checked={enabled}
@@ -134,7 +134,7 @@ export function TranslationQualitySection() {
 
       <SettingRow
         label={t('translation_quality.quality_threshold')}
-        helpText="Lines scoring below this value are retried. Default: 50."
+        helpText={t('translation_quality.threshold_help')}
       >
         <input
           type="number"
@@ -161,7 +161,7 @@ export function TranslationQualitySection() {
 
       <SettingRow
         label={t('translation_quality.max_retries')}
-        helpText="Max retry attempts per line when quality is below threshold. Default: 2."
+        helpText={t('translation_quality.max_retries_help')}
       >
         <input
           type="number"
@@ -188,7 +188,7 @@ export function TranslationQualitySection() {
 
       <SettingRow
         label={t('translation_quality.temperature')}
-        helpText="LLM sampling temperature. Lower values are more deterministic; 0.1–0.3 recommended for translation. Default: 0.3."
+        helpText={t('translation_quality.temperature_help')}
       >
         <input
           data-testid="input-temperature"
@@ -215,7 +215,7 @@ export function TranslationQualitySection() {
 
       <SettingRow
         label={t('translation_quality.batch_size')}
-        helpText="Number of subtitle lines sent to the LLM per request. Smaller batches are slower but use less context. Default: 15."
+        helpText={t('translation_quality.batch_size_help')}
       >
         <input
           data-testid="input-batch_size"

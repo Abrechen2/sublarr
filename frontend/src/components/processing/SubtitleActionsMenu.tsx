@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import {
   ChevronDown, Scissors, Wrench, RotateCcw, Clock,
   Eye, Pencil, Download, FileCode,
@@ -34,6 +35,7 @@ type ActivePanel = 'hi_removal' | 'common_fixes' | null
 export function SubtitleActionsMenu({
   subtitlePath, onRefresh, onPreview, onEdit, onSync, onAutoSync, onVideoSync, onHealthCheck,
 }: Props) {
+  const { t } = useTranslation('common')
   const [open, setOpen] = useState(false)
   const [hasBak, setHasBak] = useState(false)
   const [activePanel, setActivePanel] = useState<ActivePanel>(null)
@@ -60,7 +62,7 @@ export function SubtitleActionsMenu({
       setPreviewChanges(result.changes)
       setActivePanel(mod)
     } catch (e: unknown) {
-      toast(e instanceof Error ? e.message : 'Vorschau fehlgeschlagen', 'error')
+      toast(e instanceof Error ? e.message : t('subtitle_actions.preview_failed'), 'error')
     } finally {
       setLoading(false)
     }
@@ -71,11 +73,11 @@ export function SubtitleActionsMenu({
     setLoading(true)
     try {
       await processSubtitle(subtitlePath, [{ mod: activePanel }], false)
-      toast('Änderungen angewendet', 'success')
+      toast(t('subtitle_actions.changes_applied'), 'success')
       setActivePanel(null)
       onRefresh?.()
     } catch (e: unknown) {
-      toast(e instanceof Error ? e.message : 'Anwenden fehlgeschlagen', 'error')
+      toast(e instanceof Error ? e.message : t('subtitle_actions.apply_failed'), 'error')
     } finally {
       setLoading(false)
     }
@@ -85,10 +87,10 @@ export function SubtitleActionsMenu({
     setOpen(false)
     try {
       await undoProcessSubtitle(subtitlePath)
-      toast('Backup wiederhergestellt', 'success')
+      toast(t('subtitle_actions.backup_restored'), 'success')
       onRefresh?.()
     } catch (e: unknown) {
-      toast(e instanceof Error ? e.message : 'Wiederherstellen fehlgeschlagen', 'error')
+      toast(e instanceof Error ? e.message : t('subtitle_actions.restore_failed'), 'error')
     }
   }
 
@@ -98,7 +100,7 @@ export function SubtitleActionsMenu({
         onClick={handleOpen}
         className="flex items-center gap-1 px-2 py-1 text-xs bg-zinc-800 hover:bg-zinc-700 rounded border border-zinc-600"
       >
-        Aktionen <ChevronDown size={12} />
+        {t('subtitle_actions.actions')} <ChevronDown size={12} />
       </button>
 
       {open && (
@@ -108,7 +110,7 @@ export function SubtitleActionsMenu({
               onClick={() => { setOpen(false); onPreview(subtitlePath) }}
               className="flex items-center gap-2 w-full px-3 py-2 text-sm hover:bg-zinc-800 text-left"
             >
-              <Eye size={14} /> Vorschau
+              <Eye size={14} /> {t('subtitle_actions.preview')}
             </button>
           )}
           {onEdit && (
@@ -116,7 +118,7 @@ export function SubtitleActionsMenu({
               onClick={() => { setOpen(false); onEdit(subtitlePath) }}
               className="flex items-center gap-2 w-full px-3 py-2 text-sm hover:bg-zinc-800 text-left"
             >
-              <Pencil size={14} /> Editor
+              <Pencil size={14} /> {t('subtitle_actions.editor')}
             </button>
           )}
           <a
@@ -125,38 +127,38 @@ export function SubtitleActionsMenu({
             onClick={() => setOpen(false)}
             className="flex items-center gap-2 w-full px-3 py-2 text-sm hover:bg-zinc-800 text-left"
           >
-            <Download size={14} /> Download
+            <Download size={14} /> {t('subtitle_actions.download')}
           </a>
           <button
             onClick={() => {
               setOpen(false)
               exportSubtitleNfo(subtitlePath)
-                .then(() => toast('NFO exportiert', 'success'))
-                .catch(() => toast('NFO-Export fehlgeschlagen', 'error'))
+                .then(() => toast(t('subtitle_actions.nfo_exported'), 'success'))
+                .catch(() => toast(t('subtitle_actions.nfo_failed'), 'error'))
             }}
             className="flex items-center gap-2 w-full px-3 py-2 text-sm hover:bg-zinc-800 text-left"
           >
-            <FileCode size={14} /> NFO exportieren
+            <FileCode size={14} /> {t('subtitle_actions.export_nfo')}
           </button>
           <div className="border-t border-zinc-700 my-1" />
           <button
             onClick={() => { setOpen(false); openPreview('hi_removal') }}
             className="flex items-center gap-2 w-full px-3 py-2 text-sm hover:bg-zinc-800 text-left"
           >
-            <Scissors size={14} /> HI entfernen
+            <Scissors size={14} /> {t('subtitle_actions.hi_removal')}
           </button>
           <button
             onClick={() => { setOpen(false); openPreview('common_fixes') }}
             className="flex items-center gap-2 w-full px-3 py-2 text-sm hover:bg-zinc-800 text-left"
           >
-            <Wrench size={14} /> Common Fixes
+            <Wrench size={14} /> {t('subtitle_actions.common_fixes')}
           </button>
           {onSync && (
             <button
               onClick={() => { setOpen(false); onSync(subtitlePath) }}
               className="flex items-center gap-2 w-full px-3 py-2 text-sm hover:bg-zinc-800 text-left"
             >
-              <Clock size={14} /> Timing anpassen
+              <Clock size={14} /> {t('subtitle_actions.adjust_timing')}
             </button>
           )}
           {onAutoSync && (
@@ -164,7 +166,7 @@ export function SubtitleActionsMenu({
               onClick={() => { setOpen(false); onAutoSync(subtitlePath) }}
               className="flex items-center gap-2 w-full px-3 py-2 text-sm hover:bg-zinc-800 text-left"
             >
-              <RefreshCw size={14} /> Auto-Sync
+              <RefreshCw size={14} /> {t('subtitle_actions.auto_sync')}
             </button>
           )}
           {onVideoSync && (
@@ -172,7 +174,7 @@ export function SubtitleActionsMenu({
               onClick={() => { setOpen(false); onVideoSync(subtitlePath) }}
               className="flex items-center gap-2 w-full px-3 py-2 text-sm hover:bg-zinc-800 text-left"
             >
-              <Clapperboard size={14} /> Video-Sync
+              <Clapperboard size={14} /> {t('subtitle_actions.video_sync')}
             </button>
           )}
           {onHealthCheck && (
@@ -180,7 +182,7 @@ export function SubtitleActionsMenu({
               onClick={() => { setOpen(false); onHealthCheck(subtitlePath) }}
               className="flex items-center gap-2 w-full px-3 py-2 text-sm hover:bg-zinc-800 text-left"
             >
-              <ShieldCheck size={14} /> Health-Check
+              <ShieldCheck size={14} /> {t('subtitle_actions.health_check')}
             </button>
           )}
           {hasBak && (
@@ -188,7 +190,7 @@ export function SubtitleActionsMenu({
               onClick={handleUndo}
               className="flex items-center gap-2 w-full px-3 py-2 text-sm hover:bg-zinc-800 text-left text-yellow-400"
             >
-              <RotateCcw size={14} /> Backup wiederherstellen
+              <RotateCcw size={14} /> {t('subtitle_actions.restore_backup')}
             </button>
           )}
         </div>

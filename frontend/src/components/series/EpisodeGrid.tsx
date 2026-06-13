@@ -185,7 +185,7 @@ export function EpisodeInlineActions({
             backgroundColor: 'transparent', color: 'var(--text-secondary)',
             border: '1px solid var(--border)', cursor: 'pointer',
           }}
-        >Skip</button>
+        >{t('episode_ui.skip')}</button>
       </div>
     )
   }

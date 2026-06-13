@@ -721,11 +721,11 @@ export default function Onboarding() {
                     className="w-full px-3 py-2 rounded-md text-sm focus:outline-none"
                     style={inputStyle}
                   >
-                    <option value="1">1 hour</option>
-                    <option value="3">3 hours</option>
-                    <option value="6">6 hours</option>
-                    <option value="12">12 hours</option>
-                    <option value="24">24 hours</option>
+                    <option value="1">{t('automation_step.interval_1h')}</option>
+                    <option value="3">{t('automation_step.interval_3h')}</option>
+                    <option value="6">{t('automation_step.interval_6h')}</option>
+                    <option value="12">{t('automation_step.interval_12h')}</option>
+                    <option value="24">{t('automation_step.interval_24h')}</option>
                   </select>
                 </div>
               )}
@@ -868,7 +868,7 @@ export default function Onboarding() {
                               type={field.type === 'password' && !msShowPasswords[pwKey] ? 'password' : 'text'}
                               value={String(inst[field.key] ?? '')}
                               onChange={(e) => updateMsField(idx, field.key, e.target.value)}
-                              placeholder={field.default || (field.required ? 'Required' : 'Optional')}
+                              placeholder={field.default || (field.required ? t('mediaservers_step.required') : t('mediaservers_step.optional'))}
                               autoComplete={field.type === 'password' ? 'new-password' : 'off'}
                               spellCheck={false}
                               className="flex-1 px-2.5 py-1.5 rounded text-sm focus:outline-none"

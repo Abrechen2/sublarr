@@ -42,8 +42,8 @@ function MetadataApiKeysSection() {
         metadata_cache_ttl_days: cacheTtl,
       },
       {
-        onSuccess: () => toast('Metadata settings saved'),
-        onError:   () => toast('Failed to save metadata settings', 'error'),
+        onSuccess: () => toast(t('settings:connections_metadata.saved')),
+        onError:   () => toast(t('settings:connections_metadata.save_failed'), 'error'),
       },
     )
   }
@@ -78,7 +78,7 @@ function MetadataApiKeysSection() {
           className="text-[13px] font-medium"
           style={{ color: 'var(--text-primary)' }}
         >
-          TMDB API Key
+          {t('settings:connections_metadata.tmdb_api_key')}
         </label>
         <div className="flex items-center gap-1.5">
           <input
@@ -87,7 +87,7 @@ function MetadataApiKeysSection() {
             type={showTmdb ? 'text' : 'password'}
             value={tmdbKey}
             onChange={(e) => setTmdbKey(e.target.value)}
-            placeholder={t('connections_metadata.tmdb_placeholder')}
+            placeholder={t('settings:connections_metadata.tmdb_placeholder')}
             className="focus:outline-none"
             style={{ ...inputStyle, width: '260px' }}
           />
@@ -116,7 +116,7 @@ function MetadataApiKeysSection() {
           className="text-[13px] font-medium"
           style={{ color: 'var(--text-primary)' }}
         >
-          TheTVDB API Key
+          {t('settings:connections_metadata.tvdb_api_key')}
         </label>
         <div className="flex items-center gap-1.5">
           <input
@@ -125,7 +125,7 @@ function MetadataApiKeysSection() {
             type={showTvdb ? 'text' : 'password'}
             value={tvdbKey}
             onChange={(e) => setTvdbKey(e.target.value)}
-            placeholder={t('connections_metadata.tvdb_placeholder')}
+            placeholder={t('settings:connections_metadata.tvdb_placeholder')}
             className="focus:outline-none"
             style={{ ...inputStyle, width: '260px' }}
           />
@@ -154,7 +154,7 @@ function MetadataApiKeysSection() {
           className="text-[13px] font-medium"
           style={{ color: 'var(--text-primary)' }}
         >
-          TheTVDB PIN
+          {t('settings:connections_metadata.tvdb_pin')}
         </label>
         <div className="flex items-center gap-1.5">
           <input
@@ -163,7 +163,7 @@ function MetadataApiKeysSection() {
             type={showPin ? 'text' : 'password'}
             value={tvdbPin}
             onChange={(e) => setTvdbPin(e.target.value)}
-            placeholder={t('connections_metadata.subscriber_pin')}
+            placeholder={t('settings:connections_metadata.subscriber_pin')}
             className="focus:outline-none"
             style={{ ...inputStyle, width: '260px' }}
           />
@@ -190,10 +190,10 @@ function MetadataApiKeysSection() {
             className="text-[13px] font-medium"
             style={{ color: 'var(--text-primary)' }}
           >
-            Cache TTL (days)
+            {t('settings:connections_metadata.cache_ttl')}
           </label>
           <span className="text-[11px]" style={{ color: 'var(--text-muted)' }}>
-            How long metadata is cached before a refresh.
+            {t('settings:connections_metadata.cache_ttl_desc')}
           </span>
         </div>
         <input
@@ -217,7 +217,7 @@ function MetadataApiKeysSection() {
           className="flex items-center gap-1.5 px-3 py-1.5 rounded text-xs font-medium text-white"
           style={{ backgroundColor: 'var(--accent)' }}
         >
-          Save
+          {t('settings:connections_metadata.save')}
         </button>
       </div>
     </div>
@@ -231,7 +231,7 @@ export function MetadataSectionWrapper() {
   return (
     <SettingsSection
       title={t('connections_metadata.title')}
-      description="API keys for metadata providers (TMDB, TheTVDB)"
+      description={t('connections_metadata.section_desc')}
       icon={<Database size={16} style={{ color: 'var(--accent)' }} />}
     >
       <div className="py-1">

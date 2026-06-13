@@ -13,6 +13,7 @@
  * the user's own scroll position right after they clicked a row.
  */
 import { useEffect, useMemo, useRef, useState, useCallback } from 'react'
+import { useTranslation } from 'react-i18next'
 import { detectGapsAndOverlaps } from './gapOverlap'
 import { formatCueTextForDisplay } from './cueTextDisplay'
 
@@ -79,6 +80,7 @@ export function WaveformCueList({
   isPlaying = false,
   onTextChange,
 }: WaveformCueListProps) {
+  const { t } = useTranslation('editor')
   const listRef = useRef<HTMLDivElement>(null)
   const activeRowRef = useRef<HTMLDivElement>(null)
   const firstInViewportRowRef = useRef<HTMLDivElement>(null)
@@ -204,7 +206,7 @@ export function WaveformCueList({
         role="status"
         aria-live="polite"
       >
-        Cue-Liste eingeklappt — über die Toolbar wieder einblenden
+        {t('cue_list.collapsed')}
       </div>
     )
   }
@@ -215,7 +217,7 @@ export function WaveformCueList({
         className="px-3 py-4 text-sm text-muted text-center border border-border bg-surface rounded-md"
         role="status"
       >
-        Keine Cues / no cues
+        {t('cue_list.no_cues')}
       </div>
     )
   }
@@ -224,15 +226,15 @@ export function WaveformCueList({
     <div className="rounded-md border border-border overflow-hidden flex flex-col flex-1 min-h-0">
       <div className="px-3 py-2 flex items-center justify-between bg-surface border-b border-border flex-shrink-0">
         <div className="text-xs text-muted">
-          <span className="text-primary font-medium">Cue-Liste</span>
+          <span className="text-primary font-medium">{t('cue_list.title')}</span>
           {' · '}
-          <span>{cues.length} Cues — folgt der Welle</span>
+          <span>{t('cue_list.follows_wave', { count: cues.length })}</span>
         </div>
       </div>
       <div
         ref={listRef}
         role="listbox"
-        aria-label="Untertitel-Cues"
+        aria-label={t('cue_list.aria_label')}
         className="overflow-y-auto bg-primary flex-1 min-h-0"
         onWheel={() => {
           userScrolledAtRef.current = Date.now()
@@ -328,7 +330,7 @@ export function WaveformCueList({
                   ev.stopPropagation()
                   beginEdit(idx, displayText)
                 }}
-                title={onTextChange ? 'Doppelklick zum Bearbeiten' : undefined}
+                title={onTextChange ? t('cue_list.dblclick_edit') : undefined}
               >
                 {isEditingThisRow ? (
                   <textarea
@@ -350,11 +352,11 @@ export function WaveformCueList({
                     onBlur={commitEdit}
                     rows={Math.max(2, editingDraft.split('\n').length)}
                     className="w-full bg-surface text-primary border border-border rounded p-1 text-sm leading-snug focus:outline-none focus:ring-2 focus:ring-[#1DB8D4] resize-none"
-                    aria-label={`Cue ${idx + 1} bearbeiten`}
+                    aria-label={t('cue_list.edit_cue_aria', { index: idx + 1 })}
                     data-testid={`cue-text-editor-${idx}`}
                   />
                 ) : lines.length === 0 || (lines.length === 1 && lines[0] === '') ? (
-                  <span className="italic text-muted">(leerer Cue / empty)</span>
+                  <span className="italic text-muted">{t('cue_list.empty_cue')}</span>
                 ) : (
                   lines.map((line, i) => <div key={`${idx}-${i}`}>{line}</div>)
                 )}
@@ -363,14 +365,14 @@ export function WaveformCueList({
                 {hasGap && (
                   <span
                     data-testid={`quality-dot-gap-${idx}`}
-                    title="Tight gap (< 80 ms) to next cue"
+                    title={t('cue_list.gap_tooltip')}
                     className="inline-block w-2 h-2 rounded-full bg-warning"
                   />
                 )}
                 {hasOverlap && (
                   <span
                     data-testid={`quality-dot-overlap-${idx}`}
-                    title="Overlap with next cue"
+                    title={t('cue_list.overlap_tooltip')}
                     className="inline-block w-2 h-2 rounded-full bg-error"
                   />
                 )}

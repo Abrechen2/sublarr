@@ -137,14 +137,14 @@ function BulkSyncPanel({
     },
     onSyncBatchComplete: (d) => {
       setSyncState((prev) => ({ ...prev, isRunning: false }))
-      toast(`Bulk sync complete: ${d.completed} synced, ${d.failed} failed`)
+      toast(t('bulk_sync.complete', { completed: d.completed, failed: d.failed }))
       onComplete(d)
     },
   })
 
   const handleStart = async () => {
     if (scope === 'series' && !selectedSeriesId) {
-      toast('Select a series first', 'error')
+      toast(t('bulk_sync.select_series_first'), 'error')
       return
     }
     setLoading(true)
@@ -155,9 +155,9 @@ function BulkSyncPanel({
         engine || undefined,
       )
       setSyncState({ ...INITIAL_SYNC_STATE, isRunning: true, total: res.total_items })
-      toast(`Bulk sync started: ${res.total_items} files`)
+      toast(t('bulk_sync.started', { count: res.total_items }))
     } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : 'Bulk sync failed'
+      const msg = err instanceof Error ? err.message : t('bulk_sync.failed')
       toast(msg, 'error')
     } finally {
       setLoading(false)
@@ -204,7 +204,7 @@ function BulkSyncPanel({
               onChange={(e) => setSelectedSeriesId(e.target.value === '' ? '' : Number(e.target.value))}
               className="text-xs px-2 py-1.5 rounded cursor-pointer max-w-[200px] bg-page text-secondary border border-border"
             >
-              <option value="">-- Select series --</option>
+              <option value="">{t('bulk_sync.select_series_option')}</option>
               {series.map((s) => (
                 <option key={s.id} value={s.id}>{s.title}</option>
               ))}
@@ -580,7 +580,7 @@ export function LibraryPage() {
             }}
           >
             {showBulkSync ? <X size={12} /> : <RefreshCw size={12} />}
-            Auto-Sync
+            {t('bulk_sync.auto_sync')}
           </button>
         </div>
       </div>
@@ -633,16 +633,16 @@ export function LibraryPage() {
                 onClick={async () => {
                   try {
                     await startSeriesBatchSearch([...selectedSeries])
-                    toast('Batch search queued')
+                    toast(t('bulk.batch_search_queued'))
                     clearSelection()
                   } catch (err) {
-                    const msg = err instanceof Error ? err.message : 'Batch search failed'
+                    const msg = err instanceof Error ? err.message : t('bulk.batch_search_failed')
                     toast(msg, 'error')
                   }
                 }}
                 className="px-3 py-1.5 rounded text-xs font-medium bg-accent-bg text-accent border border-accent-dim"
               >
-                Search All Missing
+                {t('bulk.search_all_missing')}
               </button>
               {profiles && profiles.length > 0 && (
                 <select
@@ -657,9 +657,9 @@ export function LibraryPage() {
                         onSuccess: (result) => {
                           clearSelection()
                           if (result.failed.length > 0) {
-                            toast(`${result.assigned} zugewiesen, ${result.failed.length} fehlgeschlagen`, 'error')
+                            toast(t('bulk.profiles_assigned_partial', { assigned: result.assigned, failed: result.failed.length }), 'error')
                           } else {
-                            toast(`${result.assigned} Profil(e) zugewiesen`)
+                            toast(t('bulk.profiles_assigned', { count: result.assigned }))
                           }
                         },
                       },

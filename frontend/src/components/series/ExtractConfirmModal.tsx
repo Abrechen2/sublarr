@@ -1,4 +1,5 @@
 import { AlertTriangle, ArchiveRestore } from 'lucide-react'
+import { useTranslation } from 'react-i18next'
 
 interface ExtractConfirmModalProps {
   readonly open: boolean
@@ -7,6 +8,7 @@ interface ExtractConfirmModalProps {
 }
 
 export function ExtractConfirmModal({ open, onConfirm, onCancel }: ExtractConfirmModalProps) {
+  const { t } = useTranslation('library')
   if (!open) return null
 
   return (
@@ -33,16 +35,16 @@ export function ExtractConfirmModal({ open, onConfirm, onCancel }: ExtractConfir
             className="text-sm font-semibold"
             style={{ color: 'var(--text-primary)' }}
           >
-            Embedded Untertitel extrahieren
+            {t('extract_confirm.title')}
           </h2>
         </div>
 
         {/* Body */}
         <div className="px-5 py-4 flex flex-col gap-3">
           <p className="text-sm leading-relaxed" style={{ color: 'var(--text-secondary)' }}>
-            Alle eingebetteten Untertitel-Streams jeder Episode dieser Serie werden als Sidecar-Dateien
-            (z.&nbsp;B. <code className="text-xs px-1 py-0.5 rounded" style={{ backgroundColor: 'var(--bg-elevated)', color: 'var(--text-primary)' }}>.de.ass</code>)
-            neben der Videodatei gespeichert.
+            {t('extract_confirm.body_before_code')}
+            <code className="text-xs px-1 py-0.5 rounded" style={{ backgroundColor: 'var(--bg-elevated)', color: 'var(--text-primary)' }}>.de.ass</code>
+            {t('extract_confirm.body_after_code')}
           </p>
 
           {/* Warning box */}
@@ -59,8 +61,9 @@ export function ExtractConfirmModal({ open, onConfirm, onCancel }: ExtractConfir
               style={{ color: 'var(--color-warning, #f59e0b)', flexShrink: 0, marginTop: '1px' }}
             />
             <span>
-              Die extrahierten Streams werden anschließend <strong style={{ color: 'var(--text-primary)' }}>aus dem Videocontainer entfernt</strong>.
-              Die Videodateien werden dabei verändert.
+              {t('extract_confirm.warning_before_strong')}
+              <strong style={{ color: 'var(--text-primary)' }}>{t('extract_confirm.warning_strong')}</strong>
+              {t('extract_confirm.warning_after_strong')}
             </span>
           </div>
 
@@ -78,9 +81,9 @@ export function ExtractConfirmModal({ open, onConfirm, onCancel }: ExtractConfir
               style={{ color: 'var(--accent)', flexShrink: 0, marginTop: '1px' }}
             />
             <span>
-              Vor jeder Änderung wird automatisch ein Backup im{' '}
+              {t('extract_confirm.trash_before_code')}{' '}
               <code className="text-xs px-1 py-0.5 rounded" style={{ backgroundColor: 'var(--bg-elevated)', color: 'var(--text-primary)' }}>.sublarr/trash</code>
-              {' '}Ordner neben der Videodatei angelegt. Die Originale können von dort wiederhergestellt werden.
+              {' '}{t('extract_confirm.trash_after_code')}
             </span>
           </div>
         </div>
@@ -100,7 +103,7 @@ export function ExtractConfirmModal({ open, onConfirm, onCancel }: ExtractConfir
               cursor: 'pointer',
             }}
           >
-            Abbrechen
+            {t('extract_confirm.cancel')}
           </button>
           <button
             autoFocus
@@ -113,7 +116,7 @@ export function ExtractConfirmModal({ open, onConfirm, onCancel }: ExtractConfir
               border: 'none',
             }}
           >
-            Extrahieren
+            {t('extract_confirm.confirm')}
           </button>
         </div>
       </div>

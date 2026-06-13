@@ -10,7 +10,10 @@ import type { SeriesDetail } from '@/lib/types'
 
 vi.mock('react-i18next', () => ({
   useTranslation: () => ({
-    t: (_key: string, opts?: { defaultValue?: string }) => opts?.defaultValue ?? _key,
+    t: (_key: string, opts?: unknown) =>
+      typeof opts === 'string'
+        ? opts
+        : ((opts as { defaultValue?: string })?.defaultValue ?? _key),
   }),
 }))
 
@@ -81,7 +84,7 @@ describe('SeriesSettingsPanel — cleanup_foreign_tracks three-state toggle', ()
     })
     render(<MemoryRouter><SeriesSettingsPanel {...baseProps} series={series} /></MemoryRouter>)
 
-    const select = screen.getByRole('combobox', { name: /cleanup foreign tracks/i })
+    const select = screen.getByRole('combobox', { name: /cleanup_foreign_tracks/i })
     expect((select as HTMLSelectElement).value).toBe('null')
   })
 
@@ -93,7 +96,7 @@ describe('SeriesSettingsPanel — cleanup_foreign_tracks three-state toggle', ()
     render(<MemoryRouter><SeriesSettingsPanel {...baseProps} series={series} /></MemoryRouter>)
 
     expect(
-      (screen.getByRole('combobox', { name: /cleanup foreign tracks/i }) as HTMLSelectElement)
+      (screen.getByRole('combobox', { name: /cleanup_foreign_tracks/i }) as HTMLSelectElement)
         .value,
     ).toBe('true')
   })
@@ -106,7 +109,7 @@ describe('SeriesSettingsPanel — cleanup_foreign_tracks three-state toggle', ()
     render(<MemoryRouter><SeriesSettingsPanel {...baseProps} series={series} /></MemoryRouter>)
 
     expect(
-      (screen.getByRole('combobox', { name: /cleanup foreign tracks/i }) as HTMLSelectElement)
+      (screen.getByRole('combobox', { name: /cleanup_foreign_tracks/i }) as HTMLSelectElement)
         .value,
     ).toBe('false')
   })
@@ -127,7 +130,7 @@ describe('SeriesSettingsPanel — cleanup_foreign_tracks three-state toggle', ()
       </MemoryRouter>,
     )
 
-    const select = screen.getByRole('combobox', { name: /cleanup foreign tracks/i })
+    const select = screen.getByRole('combobox', { name: /cleanup_foreign_tracks/i })
     fireEvent.change(select, { target: { value: 'true' } })
 
     expect(onSetCleanupForeignTracks).toHaveBeenCalledWith(true)
@@ -149,7 +152,7 @@ describe('SeriesSettingsPanel — cleanup_foreign_tracks three-state toggle', ()
       </MemoryRouter>,
     )
 
-    const select = screen.getByRole('combobox', { name: /cleanup foreign tracks/i })
+    const select = screen.getByRole('combobox', { name: /cleanup_foreign_tracks/i })
     fireEvent.change(select, { target: { value: 'null' } })
 
     expect(onSetCleanupForeignTracks).toHaveBeenCalledWith(null)
@@ -166,7 +169,7 @@ describe('SeriesSettingsPanel — cleanup_foreign_tracks three-state toggle', ()
       </MemoryRouter>,
     )
 
-    const select = screen.getByRole('combobox', { name: /cleanup foreign tracks/i })
+    const select = screen.getByRole('combobox', { name: /cleanup_foreign_tracks/i })
     expect((select as HTMLSelectElement).disabled).toBe(true)
   })
 })

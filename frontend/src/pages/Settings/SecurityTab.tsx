@@ -28,19 +28,19 @@ export function SecurityTab() {
     mutationFn: (enabled: boolean) => toggleAuth(enabled),
     onSuccess: (_, enabled) => {
       queryClient.invalidateQueries({ queryKey: ['auth-status'] })
-      toast(`UI authentication ${enabled ? 'enabled' : 'disabled'}`, 'success')
+      toast(enabled ? t('security_tab.auth_enabled') : t('security_tab.auth_disabled'), 'success')
     },
-    onError: () => toast('Failed to update authentication setting', 'error'),
+    onError: () => toast(t('security_tab.auth_update_failed'), 'error'),
   })
 
   const { mutate: doChangePw, isPending: changingPw } = useMutation({
     mutationFn: () => changePassword(currentPw, newPw),
     onSuccess: () => {
       setCurrentPw(''); setNewPw(''); setConfirmPw(''); setPwError('')
-      toast('Password changed', 'success')
+      toast(t('security_tab.password_changed'), 'success')
     },
     onError: (err: unknown) => {
-      const msg = (err as { response?: { data?: { error?: string } } })?.response?.data?.error ?? 'Failed'
+      const msg = (err as { response?: { data?: { error?: string } } })?.response?.data?.error ?? t('security_tab.failed')
       toast(msg, 'error')
     },
   })
@@ -48,8 +48,8 @@ export function SecurityTab() {
   function handleChangePw(e: React.FormEvent) {
     e.preventDefault()
     setPwError('')
-    if (newPw.length < 4) { setPwError('New password must be at least 4 characters.'); return }
-    if (newPw !== confirmPw) { setPwError('Passwords do not match.'); return }
+    if (newPw.length < 4) { setPwError(t('security_tab.pw_too_short')); return }
+    if (newPw !== confirmPw) { setPwError(t('security_tab.pw_mismatch')); return }
     doChangePw()
   }
 
@@ -90,7 +90,7 @@ export function SecurityTab() {
                   onChange={(e) => setCurrentPw(e.target.value)} style={{ ...inputStyle, paddingRight: '2.5rem' }} />
                 <button type="button" onClick={() => setShowPw((v) => !v)}
                   className="absolute right-2 top-1/2 -translate-y-1/2" style={{ color: 'var(--text-muted)' }}
-                  aria-label={showPw ? 'Hide' : 'Show'}>
+                  aria-label={showPw ? t('security_tab.hide') : t('security_tab.show')}>
                   {showPw ? <EyeOff size={14} /> : <Eye size={14} />}
                 </button>
               </div>
@@ -107,7 +107,7 @@ export function SecurityTab() {
             <button type="submit" disabled={changingPw || !currentPw || !newPw || !confirmPw}
               className="rounded-lg px-4 py-1.5 text-sm font-semibold transition-opacity disabled:opacity-50"
               style={{ backgroundColor: 'var(--accent)', color: '#fff' }}>
-              {changingPw ? 'Saving…' : 'Change Password'}
+              {changingPw ? t('security_tab.saving') : t('security_tab.change_password')}
             </button>
           </form>
         </SettingsCard>
@@ -119,7 +119,7 @@ export function SecurityTab() {
           <div className="space-y-4 pt-1">
             <FormGroup
               label={t('security_tab.session_timeout')}
-              hint="0 = sessions never expire"
+              hint={t('security_tab.session_timeout_hint')}
               data-testid="form-group-session-timeout-minutes"
             >
               <input
@@ -163,7 +163,7 @@ export function SecurityTab() {
             </FormGroup>
             <FormGroup
               label={t('security.allowed_ip_ranges')}
-              hint="Comma-separated CIDR ranges. Empty = allow all."
+              hint={t('security_tab.allowed_ip_ranges_hint')}
               data-testid="form-group-allowed-ip-ranges"
             >
               <input

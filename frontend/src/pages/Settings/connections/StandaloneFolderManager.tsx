@@ -225,8 +225,8 @@ export function StandaloneFolderManager() {
                         className="px-2.5 py-1.5 rounded text-sm focus:outline-none"
                         style={selectStyle}
                       >
-                        <option value="auto">Auto</option>
-                        <option value="tv">TV</option>
+                        <option value="auto">{t('library_sources_tab.auto')}</option>
+                        <option value="tv">{t('library_sources_tab.tv')}</option>
                         <option value="movie">{t('library_sources_tab.movie')}</option>
                       </select>
                     </div>
@@ -238,7 +238,7 @@ export function StandaloneFolderManager() {
                         style={{ backgroundColor: 'var(--accent)' }}
                       >
                         {saveFolder.isPending ? <Loader2 size={10} className="animate-spin" /> : <Check size={10} />}
-                        Save
+                        {t('library_sources_tab.save')}
                       </button>
                       <button
                         onClick={() => setEditingId(null)}
@@ -246,7 +246,7 @@ export function StandaloneFolderManager() {
                         style={{ color: 'var(--text-muted)' }}
                       >
                         <X size={10} />
-                        Cancel
+                        {t('library_sources_tab.cancel')}
                       </button>
                     </div>
                   </div>
@@ -372,8 +372,8 @@ export function StandaloneFolderManager() {
               className="px-2.5 py-1.5 rounded text-sm focus:outline-none"
               style={selectStyle}
             >
-              <option value="auto">Auto</option>
-              <option value="tv">TV</option>
+              <option value="auto">{t('library_sources_tab.auto')}</option>
+              <option value="tv">{t('library_sources_tab.tv')}</option>
               <option value="movie">{t('library_sources_tab.movie')}</option>
             </select>
           </div>
@@ -385,7 +385,7 @@ export function StandaloneFolderManager() {
               style={{ backgroundColor: 'var(--accent)' }}
             >
               {saveFolder.isPending ? <Loader2 size={10} className="animate-spin" /> : <Check size={10} />}
-              Save
+              {t('library_sources_tab.save')}
             </button>
             <button
               onClick={() => { setShowAdd(false); setNewPath(''); setNewLabel(''); setNewMediaType('auto') }}
@@ -393,7 +393,7 @@ export function StandaloneFolderManager() {
               style={{ color: 'var(--text-muted)' }}
             >
               <X size={10} />
-              Cancel
+              {t('library_sources_tab.cancel')}
             </button>
           </div>
         </div>

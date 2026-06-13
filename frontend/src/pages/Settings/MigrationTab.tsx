@@ -49,7 +49,7 @@ export function MigrationTab() {
 
   const handleAnalyze = useCallback(async () => {
     if (!configFile && !dbFile) {
-      toast('Please upload at least a config file or database file', 'error')
+      toast(t('migration.upload_required'), 'error')
       return
     }
 
@@ -65,13 +65,13 @@ export function MigrationTab() {
       }
       setPreview(previewData)
       setStep('preview')
-      toast('Analysis complete', 'success')
+      toast(t('migration.analysis_complete'), 'success')
     } catch (_err) {
-      toast('Analysis failed', 'error')
+      toast(t('migration.analysis_failed'), 'error')
     } finally {
       setIsLoading(false)
     }
-  }, [configFile, dbFile])
+  }, [configFile, dbFile, t])
 
   const handleImport = useCallback(async () => {
     setIsLoading(true)
@@ -85,28 +85,27 @@ export function MigrationTab() {
       }
       setImportResult(result)
       setStep('complete')
-      toast('Migration completed successfully', 'success')
+      toast(t('migration.completed'), 'success')
     } catch (_err) {
-      toast('Migration failed', 'error')
+      toast(t('migration.failed'), 'error')
     } finally {
       setIsLoading(false)
     }
-  }, [preview])
+  }, [preview, t])
 
   return (
     <div className="space-y-6">
       <div className="rounded-lg p-4 mb-6" style={{ backgroundColor: 'var(--bg-surface)', border: '1px solid var(--border)' }}>
         <h3 className="text-sm font-semibold mb-1" style={{ color: 'var(--text-primary)' }}>{tc('ui.bazarr_migration')}</h3>
         <p className="text-sm" style={{ color: 'var(--text-secondary)' }}>
-          Importiert Bazarr-Konfiguration und Subtitle-Metadaten. Nutze dies wenn du von Bazarr zu Sublarr wechselst.
-          Deine bestehenden Subtitle-Dateien bleiben unverändert — nur die Konfiguration und Datenbankeinträge werden übertragen.
+          {t('migration.intro_desc')}
         </p>
       </div>
 
       <div>
         <h2 className="text-2xl font-bold mb-2">{t('integrations.bazarr.title')}</h2>
         <p className="text-sm" style={{ color: 'var(--text-secondary)' }}>
-          Migrate your Bazarr configuration, profiles, and history to Sublarr.
+          {t('migration.subtitle')}
         </p>
       </div>
 
@@ -114,13 +113,13 @@ export function MigrationTab() {
       {step === 'upload' && (
         <div className="space-y-4">
           <div className="rounded-lg p-6" style={{ backgroundColor: 'var(--bg-surface)', border: '1px solid var(--border)' }}>
-            <h3 className="text-lg font-semibold mb-4">Step 1: Upload Files</h3>
+            <h3 className="text-lg font-semibold mb-4">{t('migration.step1_title')}</h3>
 
             <div className="space-y-4">
               <div>
                 <label className="block text-sm font-medium mb-2">
                   <FileText className="inline w-4 h-4 mr-2" />
-                  Bazarr Config File (config.yaml or config.ini)
+                  {t('migration.config_file_label')}
                 </label>
                 <input
                   type="file"
@@ -129,14 +128,14 @@ export function MigrationTab() {
                   className="block w-full text-sm file:mr-4 file:py-2 file:px-4 file:rounded file:border-0 file:text-sm file:font-semibold file:bg-teal-500 file:text-white hover:file:bg-teal-600" style={{ color: 'var(--text-secondary)' }}
                 />
                 {configFile && (
-                  <p className="mt-2 text-sm" style={{ color: 'var(--text-secondary)' }}>Selected: {configFile.name}</p>
+                  <p className="mt-2 text-sm" style={{ color: 'var(--text-secondary)' }}>{t('migration.selected', { name: configFile.name })}</p>
                 )}
               </div>
 
               <div>
                 <label className="block text-sm font-medium mb-2">
                   <Database className="inline w-4 h-4 mr-2" />
-                  Bazarr Database (bazarr.db)
+                  {t('migration.db_file_label')}
                 </label>
                 <input
                   type="file"
@@ -145,7 +144,7 @@ export function MigrationTab() {
                   className="block w-full text-sm file:mr-4 file:py-2 file:px-4 file:rounded file:border-0 file:text-sm file:font-semibold file:bg-teal-500 file:text-white hover:file:bg-teal-600" style={{ color: 'var(--text-secondary)' }}
                 />
                 {dbFile && (
-                  <p className="mt-2 text-sm" style={{ color: 'var(--text-secondary)' }}>Selected: {dbFile.name}</p>
+                  <p className="mt-2 text-sm" style={{ color: 'var(--text-secondary)' }}>{t('migration.selected', { name: dbFile.name })}</p>
                 )}
               </div>
             </div>
@@ -160,7 +159,7 @@ export function MigrationTab() {
               ) : (
                 <Upload className="w-4 h-4" />
               )}
-              Analyze Files
+              {t('migration.analyze_button')}
             </button>
           </div>
         </div>
@@ -170,7 +169,7 @@ export function MigrationTab() {
       {step === 'preview' && preview && (
         <div className="space-y-4">
           <div className="rounded-lg p-6" style={{ backgroundColor: 'var(--bg-surface)', border: '1px solid var(--border)' }}>
-            <h3 className="text-lg font-semibold mb-4">Step 2: Preview Migration</h3>
+            <h3 className="text-lg font-semibold mb-4">{t('migration.step2_title')}</h3>
 
             <div className="space-y-3">
               <div className="flex items-center justify-between p-3 rounded" style={{ backgroundColor: 'var(--bg-primary)' }}>
@@ -196,7 +195,7 @@ export function MigrationTab() {
                 onClick={() => setStep('upload')}
                 className="px-4 py-2 text-white rounded" style={{ backgroundColor: 'var(--bg-primary)', border: '1px solid var(--border)' }}
               >
-                Back
+                {t('migration.back')}
               </button>
               <button
                 onClick={handleImport}
@@ -208,7 +207,7 @@ export function MigrationTab() {
                 ) : (
                   <CheckCircle className="w-4 h-4" />
                 )}
-                Import to Sublarr
+                {t('migration.import_button')}
               </button>
             </div>
           </div>
@@ -253,7 +252,7 @@ export function MigrationTab() {
               }}
               className="mt-6 px-4 py-2 bg-teal-500 hover:bg-teal-600 text-white rounded"
             >
-              Start New Migration
+              {t('migration.start_new')}
             </button>
           </div>
         </div>

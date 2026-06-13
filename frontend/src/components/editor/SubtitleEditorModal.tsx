@@ -132,16 +132,16 @@ export default function SubtitleEditorModal({
         setContent(next)
       } catch (err) {
         if (err instanceof UnsupportedFormatError) {
-          toast(`Wellenform-Edit für Format "${format}" noch nicht unterstützt.`, 'info')
+          toast(t('editor_modal.waveform_unsupported_format', { format }), 'info')
           return
         }
         // Index-out-of-range or malformed input — surface a polite toast and
         // leave content untouched.
-        const msg = err instanceof Error ? err.message : 'Cue konnte nicht aktualisiert werden.'
+        const msg = err instanceof Error ? err.message : t('editor_modal.cue_update_failed')
         toast(msg, 'error')
       }
     },
-    [content, format],
+    [content, format, t],
   )
 
   // Inline cue-text edit from the WaveformCueList. Same undo/redo
@@ -158,18 +158,18 @@ export default function SubtitleEditorModal({
         setContent(next)
       } catch (err) {
         if (err instanceof UnsupportedFormatError) {
-          toast(`Wellenform-Edit für Format "${format}" noch nicht unterstützt.`, 'info')
+          toast(t('editor_modal.waveform_unsupported_format', { format }), 'info')
           return
         }
         if (err instanceof CueTextHasStylingError) {
-          toast('Cue enthält Stil-Tags — bitte im Quelltext-Tab bearbeiten.', 'info')
+          toast(t('editor_modal.cue_has_styling'), 'info')
           return
         }
-        const msg = err instanceof Error ? err.message : 'Cue konnte nicht aktualisiert werden.'
+        const msg = err instanceof Error ? err.message : t('editor_modal.cue_update_failed')
         toast(msg, 'error')
       }
     },
-    [content, format],
+    [content, format, t],
   )
 
   const handleWaveformUndo = useCallback(() => {
@@ -202,15 +202,15 @@ export default function SubtitleEditorModal({
           setBaselineContent(snapshot)
           // Save resets the dirty-state but keeps the undo stack so the
           // user can still roll back even after persisting.
-          toast('Gespeichert')
+          toast(t('editor_modal.saved'))
         },
         onError: (err: unknown) => {
-          const msg = err instanceof Error ? err.message : 'Speichern fehlgeschlagen'
+          const msg = err instanceof Error ? err.message : t('editor_modal.save_failed')
           toast(msg, 'error')
         },
       },
     )
-  }, [filePath, content, lastModified, saveMutate])
+  }, [filePath, content, lastModified, saveMutate, t])
 
   /** Move the WaveformEditor's selection by one cue (Up/Down hotkeys). */
   const handleSelectAdjacentCue = useCallback((direction: 'prev' | 'next') => {
@@ -251,11 +251,11 @@ export default function SubtitleEditorModal({
   const handleKeyDown = useCallback((e: KeyboardEvent) => {
     if (e.key === 'Escape') {
       if (hasUnsavedChanges) {
-        if (!confirm('You have unsaved changes. Close without saving?')) return
+        if (!confirm(t('editor_modal.unsaved_confirm'))) return
       }
       onClose()
     }
-  }, [hasUnsavedChanges, onClose])
+  }, [hasUnsavedChanges, onClose, t])
 
   useEffect(() => {
     if (!filePath) return
@@ -267,19 +267,19 @@ export default function SubtitleEditorModal({
   const handleOverlayClick = useCallback((e: React.MouseEvent) => {
     if (e.target === overlayRef.current) {
       if (hasUnsavedChanges) {
-        if (!confirm('You have unsaved changes. Close without saving?')) return
+        if (!confirm(t('editor_modal.unsaved_confirm'))) return
       }
       onClose()
     }
-  }, [hasUnsavedChanges, onClose])
+  }, [hasUnsavedChanges, onClose, t])
 
   // Close handler with unsaved changes guard
   const handleClose = useCallback(() => {
     if (hasUnsavedChanges) {
-      if (!confirm('You have unsaved changes. Close without saving?')) return
+      if (!confirm(t('editor_modal.unsaved_confirm'))) return
     }
     onClose()
-  }, [hasUnsavedChanges, onClose])
+  }, [hasUnsavedChanges, onClose, t])
 
   // Auto-sync timing via alass/ffsubsync
   const handleAutoSync = () => {
@@ -287,10 +287,10 @@ export default function SubtitleEditorModal({
     setSyncLoading(true)
     autoSyncFile(filePath)
       .then(() => {
-        toast('Auto-sync complete')
+        toast(t('editor_modal.autosync_complete'))
       })
       .catch((err: unknown) => {
-        const msg = err instanceof Error ? err.message : 'Auto-sync failed'
+        const msg = err instanceof Error ? err.message : t('editor_modal.autosync_failed')
         toast(msg, 'error')
       })
       .finally(() => setSyncLoading(false))
@@ -308,30 +308,30 @@ export default function SubtitleEditorModal({
         void queryClient.invalidateQueries({ queryKey: ['subtitle-content', filePath] })
       })
       .catch((err: unknown) => {
-        const msg = err instanceof Error ? err.message : `${name} fehlgeschlagen`
+        const msg = err instanceof Error ? err.message : t('editor_modal.fix_failed', { name })
         toast(msg, 'error')
       })
       .finally(() => setFixLoading(null))
-  }, [fixLoading, filePath, queryClient])
+  }, [fixLoading, filePath, queryClient, t])
 
   const qualityFixes = [
-    { key: 'overlap', label: 'Überlappungen', fn: () => overlapFix(filePath!).then(r => `${r.fixed} Überlappungen behoben`) },
-    { key: 'timing', label: 'Timing', fn: () => timingNormalize(filePath!).then(r => `${r.extended} Cues verlängert, ${r.too_long} zu lang`) },
-    { key: 'merge', label: 'Zusammenführen', fn: () => mergeLines(filePath!).then(r => `${r.merged} Zeilen zusammengeführt`) },
-    { key: 'split', label: 'Aufteilen', fn: () => splitLines(filePath!).then(r => `${r.split} Cues aufgeteilt`) },
-    { key: 'spell', label: 'Rechtschreibung', fn: () => spellCheck(filePath!).then(r => `${r.total} Fehler gefunden`) },
-    { key: 'credits', label: 'Credits entfernen', fn: () => removeCredits(filePath!).then(r => `${r.removed ?? 0} Credit-Zeilen entfernt`) },
-    { key: 'opEd', label: 'OP/ED erkennen', fn: () => detectOpeningEnding(filePath!).then(r => r.detected.length > 0 ? `${r.detected.length} OP/ED Bereiche erkannt` : 'Keine OP/ED erkannt') },
+    { key: 'overlap', label: t('editor_modal.fix_overlap'), fn: () => overlapFix(filePath!).then(r => t('editor_modal.fix_overlap_result', { count: r.fixed })) },
+    { key: 'timing', label: t('editor_modal.fix_timing'), fn: () => timingNormalize(filePath!).then(r => t('editor_modal.fix_timing_result', { extended: r.extended, tooLong: r.too_long })) },
+    { key: 'merge', label: t('editor_modal.fix_merge'), fn: () => mergeLines(filePath!).then(r => t('editor_modal.fix_merge_result', { count: r.merged })) },
+    { key: 'split', label: t('editor_modal.fix_split'), fn: () => splitLines(filePath!).then(r => t('editor_modal.fix_split_result', { count: r.split })) },
+    { key: 'spell', label: t('editor_modal.fix_spell'), fn: () => spellCheck(filePath!).then(r => t('editor_modal.fix_spell_result', { count: r.total })) },
+    { key: 'credits', label: t('editor_modal.fix_credits'), fn: () => removeCredits(filePath!).then(r => t('editor_modal.fix_credits_result', { count: r.removed ?? 0 })) },
+    { key: 'opEd', label: t('editor_modal.fix_oped'), fn: () => detectOpeningEnding(filePath!).then(r => r.detected.length > 0 ? t('editor_modal.fix_oped_result', { count: r.detected.length }) : t('editor_modal.fix_oped_none')) },
   ]
 
   // When modal is closed, render nothing
   if (!filePath) return null
 
   const MODE_TABS: { key: EditorMode; label: string; icon: typeof Eye }[] = [
-    { key: 'preview', label: 'Preview', icon: Eye },
-    { key: 'edit', label: 'Edit', icon: Pencil },
-    { key: 'diff', label: 'Diff', icon: GitCompare },
-    ...(videoPath ? [{ key: 'waveform' as const, label: 'Waveform', icon: Activity }] : []),
+    { key: 'preview', label: t('editor_modal.tab_preview'), icon: Eye },
+    { key: 'edit', label: t('editor_modal.tab_edit'), icon: Pencil },
+    { key: 'diff', label: t('editor_modal.tab_diff'), icon: GitCompare },
+    ...(videoPath ? [{ key: 'waveform' as const, label: t('editor_modal.tab_waveform'), icon: Activity }] : []),
   ]
 
   return createPortal(
@@ -396,7 +396,7 @@ export default function SubtitleEditorModal({
             {syncLoading
               ? <Loader2 size={12} className="animate-spin" />
               : <RefreshCw size={12} />}
-            Auto-Sync
+            {t('editor_modal.auto_sync_button')}
           </button>
 
           {/* File path + close */}
@@ -416,7 +416,7 @@ export default function SubtitleEditorModal({
                   color: 'var(--warning)',
                 }}
               >
-                Unsaved
+                {t('editor_modal.unsaved_badge')}
               </span>
             )}
             <button
@@ -488,10 +488,10 @@ export default function SubtitleEditorModal({
                       { filePath, targetFormat: convertTarget },
                       {
                         onSuccess: () => {
-                          toast(`Converted to ${convertTarget.toUpperCase()}`)
+                          toast(t('editor_modal.converted', { format: convertTarget.toUpperCase() }))
                           void queryClient.invalidateQueries({ queryKey: ['subtitle-content', filePath] })
                         },
-                        onError: () => toast('Convert failed', 'error'),
+                        onError: () => toast(t('editor_modal.convert_failed'), 'error'),
                       },
                     )
                   }
@@ -499,7 +499,7 @@ export default function SubtitleEditorModal({
                   data-testid="convert-format-btn"
                 >
                   {convertMut.isPending && <Loader2 size={9} className="animate-spin" />}
-                  Convert
+                  {t('editor_modal.convert_button')}
                 </button>
               </div>
             )}
@@ -516,7 +516,7 @@ export default function SubtitleEditorModal({
                   style={{ color: 'var(--accent)' }}
                 />
                 <span className="text-sm" style={{ color: 'var(--text-muted)' }}>
-                  Loading editor...
+                  {t('editor_modal.loading_editor')}
                 </span>
               </div>
             }
@@ -557,7 +557,7 @@ export default function SubtitleEditorModal({
                   style={{ color: 'var(--accent)' }}
                 />
                 <span className="text-sm" style={{ color: 'var(--text-muted)' }}>
-                  Loading content...
+                  {t('editor_modal.loading_content')}
                 </span>
               </div>
             )}
@@ -584,7 +584,7 @@ export default function SubtitleEditorModal({
                   style={{ color: 'var(--accent)' }}
                 />
                 <span className="text-sm" style={{ color: 'var(--text-muted)' }}>
-                  Loading content...
+                  {t('editor_modal.loading_content')}
                 </span>
               </div>
             )}

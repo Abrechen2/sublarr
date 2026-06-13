@@ -274,7 +274,7 @@ export function WantedPage() {
   const handleProcess = (itemId: number) => {
     setProcessingItemId(itemId)
     processItem.mutate(itemId, {
-      onSuccess: () => toast('Suche gestartet…', 'success'),
+      onSuccess: () => toast(t('wanted.search_started'), 'success'),
       onError: (e: Error) => toast(e.message, 'error'),
       onSettled: () => setProcessingItemId(null),
     })
@@ -286,10 +286,10 @@ export function WantedPage() {
       { itemId, options: { target_language: targetLanguage } },
       {
         onSuccess: (data) => {
-          toast(`Extracted ${data.format.toUpperCase()} subtitle to ${data.output_path}`, 'success')
+          toast(t('wanted.extract_success', { format: data.format.toUpperCase(), path: data.output_path }), 'success')
         },
         onError: (error: Error) => {
-          toast(`Extraction failed: ${error.message}`, 'error')
+          toast(t('wanted.extract_failed', { error: error.message }), 'error')
         },
         onSettled: () => {
           setExtractingItemId(null)
@@ -307,12 +307,12 @@ export function WantedPage() {
       onSuccess: (result) => {
         toast(t('wanted.cleanup_result', { count: result.deleted.length }), 'success')
         if (result.errors.length) {
-          toast(`${result.errors.length} error(s) during cleanup`, 'error')
+          toast(t('wanted.cleanup_errors', { count: result.errors.length }), 'error')
         }
         setShowCleanupConfirm(false)
       },
       onError: (e: Error) => {
-        toast(`Cleanup failed: ${e.message}`, 'error')
+        toast(t('wanted.cleanup_failed', { error: e.message }), 'error')
         setShowCleanupConfirm(false)
       },
     })
@@ -334,7 +334,7 @@ export function WantedPage() {
             <div className="flex items-center gap-2 text-sm font-medium text-accent">
               <Loader2 size={14} className="animate-spin" />
               {probeStatus.current_item
-                ? `Scanning: ${probeStatus.current_item}`
+                ? t('wanted.scanning', { item: probeStatus.current_item })
                 : t('wanted.starting', 'Starting...')}
             </div>
             <span className="text-xs tabular-nums font-mono text-accent">

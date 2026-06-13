@@ -71,7 +71,7 @@ export function GlossaryPanel({ seriesId }: GlossaryPanelProps) {
 
   const handleSave = () => {
     if (!formData.source_term.trim() || !formData.target_term.trim()) {
-      toast('Source and target terms are required', 'error')
+      toast(t('glossary_panel.terms_required'), 'error')
       return
     }
 
@@ -80,10 +80,10 @@ export function GlossaryPanel({ seriesId }: GlossaryPanelProps) {
         { entryId: editingId, series_id: seriesId, ...formData },
         {
           onSuccess: () => {
-            toast('Glossary entry updated')
+            toast(t('glossary_panel.entry_updated'))
             resetForm()
           },
-          onError: () => toast('Failed to update entry', 'error'),
+          onError: () => toast(t('glossary_panel.update_failed'), 'error'),
         }
       )
     } else {
@@ -91,22 +91,22 @@ export function GlossaryPanel({ seriesId }: GlossaryPanelProps) {
         { series_id: seriesId, ...formData },
         {
           onSuccess: () => {
-            toast('Glossary entry created')
+            toast(t('glossary_panel.entry_created'))
             resetForm()
           },
-          onError: () => toast('Failed to create entry', 'error'),
+          onError: () => toast(t('glossary_panel.create_failed'), 'error'),
         }
       )
     }
   }
 
   const handleDelete = (id: number) => {
-    if (!confirm('Delete this glossary entry?')) return
+    if (!confirm(t('glossary_panel.confirm_delete'))) return
     deleteEntry.mutate(
       { entryId: id, seriesId },
       {
-        onSuccess: () => toast('Entry deleted'),
-        onError: () => toast('Failed to delete entry', 'error'),
+        onSuccess: () => toast(t('glossary_panel.entry_deleted')),
+        onError: () => toast(t('glossary_panel.delete_failed'), 'error'),
       }
     )
   }
@@ -118,9 +118,9 @@ export function GlossaryPanel({ seriesId }: GlossaryPanelProps) {
         onSuccess: (data) => {
           setCandidates(data.candidates)
           setShowCandidates(true)
-          if (data.candidates.length === 0) toast('No new candidates found', 'info')
+          if (data.candidates.length === 0) toast(t('glossary_panel.no_candidates'), 'info')
         },
-        onError: () => toast('Failed to fetch suggestions', 'error'),
+        onError: () => toast(t('glossary_panel.suggestions_failed'), 'error'),
       }
     )
   }
@@ -162,7 +162,7 @@ export function GlossaryPanel({ seriesId }: GlossaryPanelProps) {
             style={{ backgroundColor: 'var(--bg-surface)', border: '1px solid var(--border)', color: 'var(--text-secondary)' }}
           >
             {suggestTerms.isPending ? <Loader2 size={11} className="animate-spin" /> : <Wand2 size={11} />}
-            Suggest
+            {t('glossary_panel.suggest')}
           </button>
           <button
             onClick={() => exportTsv.mutate({ seriesId })}
@@ -178,7 +178,7 @@ export function GlossaryPanel({ seriesId }: GlossaryPanelProps) {
 
       {entries.length > 0 && (
         <p className="text-xs" style={{ color: 'var(--text-muted)' }}>
-          Series-specific entries override global entries with the same source term.
+          {t('glossary_panel.override_hint')}
         </p>
       )}
 
@@ -272,7 +272,7 @@ export function GlossaryPanel({ seriesId }: GlossaryPanelProps) {
         >
           <div className="flex items-center justify-between">
             <span className="text-xs font-semibold" style={{ color: 'var(--text-primary)' }}>
-              {candidates.length} Suggestions
+              {t('glossary_panel.suggestions_count', { count: candidates.length })}
             </span>
             <button onClick={() => setShowCandidates(false)} style={{ color: 'var(--text-muted)' }}>
               <X size={12} />
@@ -299,7 +299,7 @@ export function GlossaryPanel({ seriesId }: GlossaryPanelProps) {
                   className="flex items-center gap-1 px-2 py-0.5 rounded text-xs font-medium text-white"
                   style={{ backgroundColor: 'var(--accent)' }}
                 >
-                  <Plus size={10} /> Add
+                  <Plus size={10} /> {t('glossary_panel.add')}
                 </button>
               </div>
             ))}
@@ -320,7 +320,7 @@ export function GlossaryPanel({ seriesId }: GlossaryPanelProps) {
                 <th className="text-left text-[10px] font-semibold uppercase tracking-wider px-3 py-1.5" style={{ color: 'var(--text-muted)' }}>{t('glossary_panel.col_source')}</th>
                 <th className="text-left text-[10px] font-semibold uppercase tracking-wider px-3 py-1.5" style={{ color: 'var(--text-muted)' }}>{t('glossary_panel.col_target')}</th>
                 <th className="text-left text-[10px] font-semibold uppercase tracking-wider px-3 py-1.5" style={{ color: 'var(--text-muted)' }}>{t('glossary_panel.col_notes')}</th>
-                <th className="text-left text-[10px] font-semibold uppercase tracking-wider px-3 py-1.5" style={{ color: 'var(--text-muted)' }}>Type</th>
+                <th className="text-left text-[10px] font-semibold uppercase tracking-wider px-3 py-1.5" style={{ color: 'var(--text-muted)' }}>{t('glossary_panel.col_type')}</th>
                 <th className="text-left text-[10px] font-semibold uppercase tracking-wider px-3 py-1.5" style={{ color: 'var(--text-muted)' }}>{t('glossary_panel.col_actions')}</th>
               </tr>
             </thead>
@@ -344,7 +344,7 @@ export function GlossaryPanel({ seriesId }: GlossaryPanelProps) {
                       <TermTypeBadge type={entry.term_type ?? 'other'} />
                       {entry.approved === 0 && (
                         <span className="text-[10px] px-1 rounded" style={{ backgroundColor: 'var(--bg-surface)', color: 'var(--text-muted)', border: '1px solid var(--border)' }}>
-                          pending
+                          {t('glossary_panel.pending')}
                         </span>
                       )}
                     </div>

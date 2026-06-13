@@ -34,9 +34,9 @@ function TrackRow({ track, episodeId, videoPath, onOpenEditor }: { track: Track;
     setExtracting(true)
     try {
       const result = await extractTrack(episodeId, track.index)
-      toast(`Extrahiert: ${result.output_path.split(/[\\/]/).pop()}`)
+      toast(t('track_panel.extracted', { name: result.output_path.split(/[\\/]/).pop() }))
     } catch {
-      toast('Extraktion fehlgeschlagen', 'error')
+      toast(t('track_panel.extraction_failed'), 'error')
     } finally {
       setExtracting(false)
     }
@@ -48,7 +48,7 @@ function TrackRow({ track, episodeId, videoPath, onOpenEditor }: { track: Track;
       const result = await extractTrack(episodeId, track.index)
       onOpenEditor(result.output_path)
     } catch {
-      toast('Extraktion fehlgeschlagen', 'error')
+      toast(t('track_panel.extraction_failed'), 'error')
     } finally {
       setUsingAsSource(false)
     }
@@ -61,7 +61,7 @@ function TrackRow({ track, episodeId, videoPath, onOpenEditor }: { track: Track;
       try {
         const job = await getRemuxJob(jobId)
         if (job.status === 'completed') {
-          toast('Stream aus Container entfernt — Backup erstellt')
+          toast(t('track_panel.stream_removed'))
           setRemoving(false)
           if (job.result?.backup_path && job.result?.video_path) {
             setRemuxBackup({ backupPath: job.result.backup_path, videoPath: job.result.video_path })
@@ -69,7 +69,7 @@ function TrackRow({ track, episodeId, videoPath, onOpenEditor }: { track: Track;
           return
         }
         if (job.status === 'failed') {
-          toast(`Remux fehlgeschlagen: ${job.error ?? 'Unbekannter Fehler'}`, 'error')
+          toast(t('track_panel.remux_failed', { error: job.error ?? t('track_panel.unknown_error') }), 'error')
           setRemoving(false)
           return
         }
@@ -77,9 +77,9 @@ function TrackRow({ track, episodeId, videoPath, onOpenEditor }: { track: Track;
         // network hiccup — keep polling
       }
     }
-    toast('Remux-Job Timeout — prüfe Logs', 'error')
+    toast(t('track_panel.remux_timeout'), 'error')
     setRemoving(false)
-  }, [])
+  }, [t])
 
   const handleRemoveFromContainer = async () => {
     if (!confirmRemove) {
@@ -92,7 +92,7 @@ function TrackRow({ track, episodeId, videoPath, onOpenEditor }: { track: Track;
       const { job_id } = await removeTrackFromContainer(episodeId, track.index)
       void pollRemuxJob(job_id)
     } catch {
-      toast('Remux konnte nicht gestartet werden', 'error')
+      toast(t('track_panel.remux_start_failed'), 'error')
       setRemoving(false)
     }
   }
@@ -105,9 +105,9 @@ function TrackRow({ track, episodeId, videoPath, onOpenEditor }: { track: Track;
         video_path: videoPath,
         target_format: targetFormat as 'srt' | 'ass' | 'ssa' | 'vtt',
       })
-      toast(`Konvertiert: ${result.output_path.split(/[\\/]/).pop()}`)
+      toast(t('track_panel.converted', { name: result.output_path.split(/[\\/]/).pop() }))
     } catch {
-      toast('Konvertierung fehlgeschlagen', 'error')
+      toast(t('track_panel.conversion_failed'), 'error')
     } finally {
       setConverting(false)
     }
@@ -177,7 +177,7 @@ function TrackRow({ track, episodeId, videoPath, onOpenEditor }: { track: Track;
               title={t('extract_sidecar')}
             >
               {extracting ? <Loader2 size={10} className="animate-spin" /> : <Download size={10} />}
-              Extrahieren
+              {t('track_panel.extract')}
             </button>
             {!isImageBased && (
               <button
@@ -193,7 +193,7 @@ function TrackRow({ track, episodeId, videoPath, onOpenEditor }: { track: Track;
                 title={t('track_panel.open_in_editor')}
               >
                 {usingAsSource ? <Loader2 size={10} className="animate-spin" /> : <FileText size={10} />}
-                Als Quelle
+                {t('track_panel.as_source')}
               </button>
             )}
             {!isImageBased && (
@@ -232,8 +232,8 @@ function TrackRow({ track, episodeId, videoPath, onOpenEditor }: { track: Track;
                     onClick={() => {
                       setRestoring(true)
                       restoreRemuxBackup(remuxBackup.backupPath, remuxBackup.videoPath)
-                        .then(() => { toast('Stream wiederhergestellt'); setRemuxBackup(null) })
-                        .catch(() => toast('Wiederherstellung fehlgeschlagen', 'error'))
+                        .then(() => { toast(t('track_panel.stream_restored')); setRemuxBackup(null) })
+                        .catch(() => toast(t('track_panel.restore_failed'), 'error'))
                         .finally(() => setRestoring(false))
                     }}
                     className="flex items-center gap-1 px-2 py-1 rounded text-[10px] font-medium transition-colors ml-1"
@@ -245,7 +245,7 @@ function TrackRow({ track, episodeId, videoPath, onOpenEditor }: { track: Track;
                     title={t('restore_from_backup')}
                   >
                     <Trash2 size={10} />
-                    Rückgängig
+                    {t('track_panel.undo')}
                   </button>
                 )
               ) : (
@@ -258,12 +258,12 @@ function TrackRow({ track, episodeId, videoPath, onOpenEditor }: { track: Track;
                     color: confirmRemove ? '#ef4444' : 'var(--text-muted)',
                     border: confirmRemove ? '1px solid rgba(239,68,68,0.4)' : '1px solid var(--border)',
                   }}
-                  title={confirmRemove ? 'Klicke erneut zur Bestätigung' : 'Stream aus Container entfernen (erstellt .bak Backup)'}
+                  title={confirmRemove ? t('track_panel.confirm_again_title') : t('track_panel.remove_from_container_title')}
                   onBlur={() => setConfirmRemove(false)}
                   data-testid={`remux-remove-track-${track.index}`}
                 >
                   <Trash2 size={10} />
-                  {confirmRemove ? 'Sicher?' : 'Entfernen'}
+                  {confirmRemove ? t('track_panel.sure') : t('track_panel.remove')}
                 </button>
               )
             )}
@@ -275,6 +275,7 @@ function TrackRow({ track, episodeId, videoPath, onOpenEditor }: { track: Track;
 }
 
 export function TrackPanel({ episodeId, onOpenEditor }: TrackPanelProps) {
+  const { t } = useTranslation('library')
   const [result, setResult] = useState<EpisodeTracksResponse | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -285,19 +286,19 @@ export function TrackPanel({ episodeId, onOpenEditor }: TrackPanelProps) {
       .then((data) => { if (!cancelled) { setResult(data); setLoading(false) } })
       .catch((err: unknown) => {
         if (!cancelled) {
-          const msg = err instanceof Error ? err.message : 'Fehler beim Laden der Tracks'
+          const msg = err instanceof Error ? err.message : t('track_panel.load_error')
           setError(msg)
           setLoading(false)
         }
       })
     return () => { cancelled = true }
-  }, [episodeId])
+  }, [episodeId, t])
 
   if (loading) {
     return (
       <div className="px-4 py-3 flex items-center gap-2 text-sm" style={{ backgroundColor: 'var(--bg-primary)', color: 'var(--text-secondary)' }}>
         <Loader2 size={14} className="animate-spin" />
-        Tracks werden geladen…
+        {t('track_panel.loading_tracks')}
       </div>
     )
   }
@@ -314,7 +315,7 @@ export function TrackPanel({ episodeId, onOpenEditor }: TrackPanelProps) {
   if (!result || result.tracks.length === 0) {
     return (
       <div className="px-4 py-3 text-sm" style={{ backgroundColor: 'var(--bg-primary)', color: 'var(--text-muted)' }}>
-        Keine eingebetteten Tracks gefunden.
+        {t('track_panel.no_tracks')}
       </div>
     )
   }
@@ -326,10 +327,10 @@ export function TrackPanel({ episodeId, onOpenEditor }: TrackPanelProps) {
     <div style={{ backgroundColor: 'var(--bg-primary)' }} className="px-4 py-3 space-y-3">
       <div className="flex items-center justify-between">
         <span className="text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--text-muted)' }}>
-          Eingebettete Tracks ({result.tracks.length})
+          {t('track_panel.embedded_tracks_count', { count: result.tracks.length })}
         </span>
         <span className="text-[10px]" style={{ color: 'var(--text-muted)', fontFamily: 'var(--font-mono)' }}>
-          {subtitles.length} Sub · {audio.length} Audio
+          {t('track_panel.sub_audio_count', { sub: subtitles.length, audio: audio.length })}
         </span>
       </div>
 
@@ -337,7 +338,7 @@ export function TrackPanel({ episodeId, onOpenEditor }: TrackPanelProps) {
         <table className="w-full">
           <thead>
             <tr style={{ backgroundColor: 'var(--bg-surface)', borderBottom: '1px solid var(--border)' }}>
-              {['#', 'Format', 'Sprache', 'Titel', 'Flags', 'Aktionen'].map((h) => (
+              {['#', t('track_panel.col_format'), t('track_panel.col_language'), t('track_panel.col_title'), t('track_panel.col_flags'), t('track_panel.col_actions')].map((h) => (
                 <th
                   key={h}
                   className="text-left text-[10px] font-semibold uppercase tracking-wider px-3 py-1.5"

@@ -32,7 +32,7 @@ function OverrideSelect({
   value: Override
   onChange: (v: Override) => void
 }) {
-  const { t } = useTranslation('common')
+  const { t } = useTranslation('library')
   const raw = value === null ? 'global' : value ? 'on' : 'off'
   return (
     <select
@@ -65,9 +65,9 @@ export function SeriesProcessingOverride({ seriesId, initialConfig }: Props) {
     setSaving(true)
     try {
       await updateSeriesProcessingConfig(seriesId, config as Record<string, boolean | null>)
-      toast('Einstellungen gespeichert', 'success')
+      toast(t('common:series_override.saved'), 'success')
     } catch {
-      toast('Speichern fehlgeschlagen', 'error')
+      toast(t('common:series_override.save_failed'), 'error')
     } finally {
       setSaving(false)
     }
@@ -99,7 +99,7 @@ export function SeriesProcessingOverride({ seriesId, initialConfig }: Props) {
             disabled={saving}
             className="w-full mt-2 py-1.5 text-xs bg-blue-600 hover:bg-blue-500 rounded text-white disabled:opacity-50"
           >
-            {saving ? 'Speichert…' : 'Speichern'}
+            {saving ? t('common:series_override.saving') : t('common:series_override.save')}
           </button>
         </div>
       )}

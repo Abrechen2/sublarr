@@ -1,4 +1,5 @@
 import type { ReactNode } from 'react'
+import { useTranslation } from 'react-i18next'
 
 /**
  * RulesLayout — Settings Template C (Inheritance / Overrides).
@@ -47,6 +48,7 @@ export function RulesLayout({
   treeWidth = DEFAULT_TREE_WIDTH,
   railWidth = DEFAULT_RAIL_WIDTH,
 }: RulesLayoutProps) {
+  const { t } = useTranslation('settings')
   const hasRail = Boolean(healthRail)
 
   const gridTemplate = hasRail
@@ -69,7 +71,7 @@ export function RulesLayout({
         <aside
           data-testid="rules-scope-tree"
           className="border-r border-[var(--border)] p-3 overflow-y-auto"
-          aria-label="Scope tree"
+          aria-label={t('rules_layout.scope_tree')}
         >
           {scopeTree}
         </aside>

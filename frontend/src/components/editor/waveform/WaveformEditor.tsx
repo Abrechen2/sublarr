@@ -514,7 +514,7 @@ export function WaveformEditor({
         className="flex items-center gap-1.5 px-3 py-1.5 rounded text-xs font-medium transition-colors bg-accent-bg text-accent border border-accent-dim"
       >
         {isPlaying ? <Pause size={12} /> : <Play size={12} />}
-        {isPlaying ? 'Pause' : 'Play'}
+        {isPlaying ? t('waveform.pause') : t('waveform.play')}
       </button>
 
       {onCueChange && (
@@ -529,12 +529,12 @@ export function WaveformEditor({
           }`}
           title={
             editingEnabled
-              ? 'Entsperrt — Regionen lassen sich verschieben/skalieren. Klicken zum Sperren.'
-              : 'Gesperrt — Schutz vor versehentlichem Bearbeiten. Klicken zum Entsperren.'
+              ? t('waveform.unlock_tooltip')
+              : t('waveform.lock_tooltip')
           }
         >
           {editingEnabled ? <Unlock size={12} /> : <Lock size={12} />}
-          {editingEnabled ? 'Entsperrt' : 'Gesperrt'}
+          {editingEnabled ? t('waveform.unlocked') : t('waveform.locked')}
         </button>
       )}
 
@@ -544,10 +544,10 @@ export function WaveformEditor({
           onClick={onUndo}
           disabled={!canUndo}
           className="flex items-center gap-1.5 px-3 py-1.5 rounded text-xs font-medium transition-colors bg-surface text-primary border border-border disabled:opacity-40 disabled:cursor-not-allowed"
-          title="Letzte Cue-Timing-Änderung rückgängig (Ctrl+Z)"
+          title={t('waveform.undo_tooltip')}
         >
           <Undo2 size={12} />
-          Undo
+          {t('waveform.undo')}
         </button>
       )}
 
@@ -557,10 +557,10 @@ export function WaveformEditor({
           onClick={onRedo}
           disabled={!canRedo}
           className="flex items-center gap-1.5 px-3 py-1.5 rounded text-xs font-medium transition-colors bg-surface text-primary border border-border disabled:opacity-40 disabled:cursor-not-allowed"
-          title="Wiederherstellen (Ctrl+Y)"
+          title={t('waveform.redo_tooltip')}
         >
           <Redo2 size={12} />
-          Redo
+          {t('waveform.redo')}
         </button>
       )}
 
@@ -574,10 +574,10 @@ export function WaveformEditor({
               ? 'bg-accent-bg text-accent border-accent-dim'
               : 'bg-surface text-primary border-border'
           } disabled:opacity-40 disabled:cursor-not-allowed`}
-          title={hasUnsavedChanges ? 'Änderungen speichern (Ctrl+S)' : 'Keine Änderungen zu speichern'}
+          title={hasUnsavedChanges ? t('waveform.save_tooltip') : t('waveform.save_disabled_tooltip')}
         >
           {saveInFlight ? <Loader2 size={12} className="animate-spin" /> : <Save size={12} />}
-          {saveInFlight ? 'Speichern…' : 'Speichern'}
+          {saveInFlight ? t('waveform.saving') : t('waveform.save')}
         </button>
       )}
 
@@ -600,10 +600,10 @@ export function WaveformEditor({
             ? 'bg-accent-bg text-accent border-accent-dim'
             : 'bg-surface text-primary border-border'
         }`}
-        title="Spectrogram"
+        title={t('waveform.spectrogram')}
       >
         <Activity size={12} />
-        Spectrogram
+        {t('waveform.spectrogram')}
       </button>
 
       <button
@@ -615,10 +615,10 @@ export function WaveformEditor({
             ? 'bg-accent-bg text-accent border-accent-dim'
             : 'bg-surface text-primary border-border'
         }`}
-        title="Audio scrubbing while dragging"
+        title={t('waveform.scrub_tooltip')}
       >
         <Headphones size={12} />
-        Scrub
+        {t('waveform.scrub')}
       </button>
 
       <button
@@ -630,10 +630,10 @@ export function WaveformEditor({
             ? 'bg-accent-bg text-accent border-accent-dim'
             : 'bg-surface text-primary border-border'
         }`}
-        title="Keyframe-Marker einblenden"
+        title={t('waveform.keyframes_tooltip')}
       >
         <Film size={12} />
-        Keyframes
+        {t('waveform.keyframes')}
       </button>
 
       <button
@@ -645,10 +645,10 @@ export function WaveformEditor({
             ? 'bg-accent-bg text-accent border-accent-dim'
             : 'bg-surface text-primary border-border'
         }`}
-        title={cueListCollapsed ? 'Cue-Liste einblenden' : 'Cue-Liste einklappen — mehr Welle'}
+        title={cueListCollapsed ? t('waveform.list_show') : t('waveform.list_hide')}
       >
         <ListIcon size={12} />
-        Liste
+        {t('waveform.list')}
       </button>
 
       <label className="flex items-center gap-1.5 text-xs text-muted">
@@ -660,7 +660,7 @@ export function WaveformEditor({
           step={1}
           value={zoomPxPerSec}
           onChange={(e) => setZoomPxPerSec(Number(e.target.value))}
-          aria-label="Zoom"
+          aria-label={t('waveform.zoom')}
           className="w-24 accent-accent"
         />
         <span aria-hidden="true">+</span>
@@ -669,7 +669,7 @@ export function WaveformEditor({
 
       <label
         className="flex items-center gap-1.5 text-xs text-muted"
-        title="Vertikale Amplituden-Lupe (1×–5×) — für leise Dialoge"
+        title={t('waveform.amp_tooltip')}
       >
         <Activity size={12} aria-hidden="true" />
         <input
@@ -679,7 +679,7 @@ export function WaveformEditor({
           step={0.1}
           value={ampZoom}
           onChange={(e) => updateAmpZoom(Number(e.target.value))}
-          aria-label="Amplitude zoom"
+          aria-label={t('waveform.amp_aria')}
           className="w-20 accent-accent"
         />
         <span className="tabular-nums w-10 text-right">{ampZoom.toFixed(1)}×</span>
@@ -687,7 +687,7 @@ export function WaveformEditor({
 
       <label
         className="flex items-center gap-1.5 text-xs text-muted"
-        title="Wiedergabe-Geschwindigkeit (Tonhöhe bleibt erhalten)"
+        title={t('waveform.rate_tooltip')}
       >
         <Gauge size={12} aria-hidden="true" />
         <input
@@ -697,7 +697,7 @@ export function WaveformEditor({
           step={0.05}
           value={playbackRate}
           onChange={(e) => updatePlaybackRate(Number(e.target.value))}
-          aria-label="Playback rate"
+          aria-label={t('waveform.rate_aria')}
           className="w-20 accent-accent"
         />
         <span className="tabular-nums w-12 text-right">{playbackRate.toFixed(2)}×</span>
@@ -710,7 +710,7 @@ export function WaveformEditor({
           onChange={(e) => setAutoCenter(e.target.checked)}
           className="accent-accent"
         />
-        Auto-center
+        {t('waveform.auto_center')}
       </label>
 
       <WaveformAudioTrackPicker
@@ -721,19 +721,19 @@ export function WaveformEditor({
 
       {parseData && (
         <span className="text-xs text-muted">
-          {parseData.cue_count} Cues · {parseData.format.toUpperCase()}
+          {t('waveform.cues_format', { count: parseData.cue_count, format: parseData.format.toUpperCase() })}
         </span>
       )}
 
       {editingEnabled && selectedCueIdx !== null && keyframesData && (
         <span className="text-xs text-muted">
-          Snap: {keyframesData.keyframes.length} keyframes
+          {t('waveform.snap_keyframes', { count: keyframesData.keyframes.length })}
         </span>
       )}
 
       {scenesData && scenesData.available && sceneMarkersMs.length > 0 && (
         <span className="text-xs text-muted">
-          {sceneMarkersMs.length} scene cuts
+          {t('waveform.scene_cuts', { count: sceneMarkersMs.length })}
         </span>
       )}
     </div>
@@ -744,7 +744,7 @@ export function WaveformEditor({
       {showSpinner && (
         <div className="flex items-center gap-2 text-sm text-muted">
           <Loader2 size={14} className="animate-spin" />
-          {extractLoading ? 'Audio wird extrahiert…' : 'Wellenform wird gezeichnet…'}
+          {extractLoading ? t('waveform.extracting_audio') : t('waveform.drawing')}
         </div>
       )}
 

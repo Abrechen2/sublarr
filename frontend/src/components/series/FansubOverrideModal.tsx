@@ -51,7 +51,7 @@ export function FansubOverrideModal({ seriesId, open, onClose }: Props) {
       { preferred_groups: parseGroups(preferred), excluded_groups: parseGroups(excluded), bonus },
       {
         onSuccess: onClose,
-        onError: () => toast('Failed to save fansub preferences', 'error'),
+        onError: () => toast(t('fansub_modal.save_failed'), 'error'),
       },
     )
   }
@@ -59,7 +59,7 @@ export function FansubOverrideModal({ seriesId, open, onClose }: Props) {
   const handleReset = () => {
     deletePrefs.mutate(undefined, {
       onSuccess: onClose,
-      onError: () => toast('Failed to reset fansub preferences', 'error'),
+      onError: () => toast(t('fansub_modal.reset_failed'), 'error'),
     })
   }
 
@@ -90,7 +90,7 @@ export function FansubOverrideModal({ seriesId, open, onClose }: Props) {
         onKeyDown={(e) => e.key === 'Escape' && onClose()}
       >
         <h3 id="fansub-modal-title" style={{ margin: '0 0 16px', fontSize: 14, fontWeight: 600 }}>
-          Fansub Preferences
+          {t('fansub_modal.title')}
         </h3>
 
         {isLoading ? (
@@ -99,7 +99,7 @@ export function FansubOverrideModal({ seriesId, open, onClose }: Props) {
           <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
             <label style={{ fontSize: 12 }}>
               <span style={{ color: 'var(--text-muted)', display: 'block', marginBottom: 4 }}>
-                Preferred Groups (comma-separated)
+                {t('fansub_modal.preferred_groups_label')}
               </span>
               <input
                 type="text"
@@ -116,7 +116,7 @@ export function FansubOverrideModal({ seriesId, open, onClose }: Props) {
 
             <label style={{ fontSize: 12 }}>
               <span style={{ color: 'var(--text-muted)', display: 'block', marginBottom: 4 }}>
-                Excluded Groups (comma-separated)
+                {t('fansub_modal.excluded_groups_label')}
               </span>
               <input
                 type="text"
@@ -133,7 +133,7 @@ export function FansubOverrideModal({ seriesId, open, onClose }: Props) {
 
             <label style={{ fontSize: 12 }}>
               <span style={{ color: 'var(--text-muted)', display: 'block', marginBottom: 4 }}>
-                Bonus Points (score)
+                {t('fansub_modal.bonus_label')}
               </span>
               <input
                 type="number"
@@ -159,7 +159,7 @@ export function FansubOverrideModal({ seriesId, open, onClose }: Props) {
                   fontSize: 12, cursor: 'pointer', fontWeight: 600,
                 }}
               >
-                {setPrefs.isPending ? 'Saving…' : 'Save'}
+                {setPrefs.isPending ? t('fansub_modal.saving') : t('fansub_modal.save')}
               </button>
               {hasOverride && (
                 <button
@@ -171,7 +171,7 @@ export function FansubOverrideModal({ seriesId, open, onClose }: Props) {
                     padding: '6px 14px', fontSize: 12, cursor: 'pointer',
                   }}
                 >
-                  {deletePrefs.isPending ? '…' : 'Reset to Global'}
+                  {deletePrefs.isPending ? '…' : t('fansub_modal.reset_to_global')}
                 </button>
               )}
               <button
@@ -182,7 +182,7 @@ export function FansubOverrideModal({ seriesId, open, onClose }: Props) {
                   fontSize: 12, cursor: 'pointer',
                 }}
               >
-                Cancel
+                {t('fansub_modal.cancel')}
               </button>
             </div>
           </div>

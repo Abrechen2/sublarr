@@ -78,7 +78,10 @@
   "app": {
     "name": "Sublarr",
     "online": "Online",
-    "offline": "Offline"
+    "offline": "Offline",
+    "donate": "Spenden",
+    "star": "Star",
+    "update_available": "{{version}} verfügbar"
   },
   "pagination": {
     "showing": "Zeige",
@@ -189,7 +192,19 @@
     "running": "Systemprüfung läuft...",
     "close": "Schließen",
     "score_not_checked": "Qualitäts-Score: Nicht geprüft",
-    "score_value": "Qualitäts-Score: {{score}}/100"
+    "score_value": "Qualitäts-Score: {{score}}/100",
+    "fixed_score": "Behoben. Neuer Score: {{score}}",
+    "fix_failed": "Behebung fehlgeschlagen",
+    "batch_fixed": "{{count}} Probleme behoben. Neuer Score: {{score}}",
+    "batch_fix_failed": "Stapel-Behebung fehlgeschlagen",
+    "auto_fixable": "{{count}} automatisch behebbare Probleme",
+    "fix_all": "Alle beheben ({{count}})",
+    "fixes_to_apply": "Anzuwendende Korrekturen:",
+    "confirm": "Bestätigen",
+    "cancel": "Abbrechen",
+    "no_issues": "Keine Probleme gefunden. Score: 100",
+    "line": "Zeile {{line}}",
+    "autofix_tooltip": "Dieses Problem automatisch beheben"
   },
   "shortcuts": {
     "title": "Tastenkürzel",
@@ -213,7 +228,15 @@
     "search_all": "Alle durchsuchen",
     "select_all": "Alle auswählen",
     "health_check": "Qualitätsprüfung",
-    "no_actions": "Keine Aktionen für diese Seite"
+    "no_actions": "Keine Aktionen für diese Seite",
+    "scan_started": "Bibliotheks-Scan gestartet",
+    "search_started": "Wanted-Suche gestartet",
+    "refresh_started": "Aktualisierungs-Scan gestartet",
+    "batch_started": "Stapel-Suche gestartet",
+    "selection_toggled": "Auswahl umgeschaltet",
+    "health_hint": "Health-Check: nutze die Aktionen in der Episodentabelle",
+    "close": "Schnellaktionen schließen",
+    "open": "Schnellaktionen öffnen"
   },
   "plugins": {
     "marketplace_title": "Plugin-Marktplatz",
@@ -532,5 +555,116 @@
     "batch_translate_downloaded": "Heruntergeladene Untertitel als Batch übersetzen",
     "scan_embedded": "In allen ungelösten Einträgen nach eingebetteten Untertiteln scannen",
     "last": "Zuletzt"
+  },
+  "interjection": {
+    "load_failed": "Interjektionsliste konnte nicht geladen werden",
+    "saved": "Liste gespeichert",
+    "save_failed": "Speichern fehlgeschlagen",
+    "reset_done": "Auf Standard zurückgesetzt",
+    "reset_failed": "Zurücksetzen fehlgeschlagen",
+    "label_custom": "Interjektionen (benutzerdefiniert)",
+    "label_default": "Interjektionen (Standard)",
+    "reset": "Zurücksetzen",
+    "saving": "Speichert…",
+    "save": "Liste speichern"
+  },
+  "subtitle_actions": {
+    "preview_failed": "Vorschau fehlgeschlagen",
+    "changes_applied": "Änderungen angewendet",
+    "apply_failed": "Anwenden fehlgeschlagen",
+    "backup_restored": "Backup wiederhergestellt",
+    "restore_failed": "Wiederherstellen fehlgeschlagen",
+    "actions": "Aktionen",
+    "preview": "Vorschau",
+    "editor": "Editor",
+    "download": "Download",
+    "export_nfo": "NFO exportieren",
+    "nfo_exported": "NFO exportiert",
+    "nfo_failed": "NFO-Export fehlgeschlagen",
+    "hi_removal": "HI entfernen",
+    "common_fixes": "Common Fixes",
+    "adjust_timing": "Timing anpassen",
+    "auto_sync": "Auto-Sync",
+    "video_sync": "Video-Sync",
+    "health_check": "Health-Check",
+    "restore_backup": "Backup wiederherstellen"
+  },
+  "batch_process": {
+    "started": "Stapel-Verarbeitung gestartet",
+    "start_failed": "Start fehlgeschlagen",
+    "process_library": "Bibliothek verarbeiten",
+    "all_series": "Alle Serien",
+    "unprocessed": "Noch nicht verarbeitet"
+  },
+  "batch_log": {
+    "backup_restored": "Backup wiederhergestellt",
+    "restore_failed": "Wiederherstellen fehlgeschlagen",
+    "changes": "{{count}} Änderungen",
+    "undo": "Rückgängig"
+  },
+  "series_override": {
+    "saved": "Einstellungen gespeichert",
+    "save_failed": "Speichern fehlgeschlagen",
+    "saving": "Speichert…",
+    "save": "Speichern"
+  },
+  "ocr": {
+    "preview_failed": "Vorschau fehlgeschlagen",
+    "completed": "OCR abgeschlossen: {{successful}}/{{frames}} Frames, Qualität: {{quality}}%",
+    "extraction_failed": "OCR-Extraktion fehlgeschlagen",
+    "description": "Text aus eingebetteten Bild-Untertiteln (DVD, Blu-ray) per Tesseract OCR extrahieren.",
+    "preview_button": "Vorschau",
+    "extracting": "Extrahiere…",
+    "extract_button": "OCR-Text extrahieren",
+    "quality": "Qualität: {{quality}}% ({{successful}}/{{frames}} Frames)",
+    "title": "OCR-Extraktion",
+    "preview_frame": "Frame-Vorschau",
+    "extracted_text_lower": "Extrahierter Text:",
+    "extracted_text_upper": "Extrahierter Text:"
+  },
+  "subtitle_cleanup": {
+    "result_with_errors": "Bereinigt: {{deleted}} Dateien gelöscht, {{failed}} Fehler",
+    "result": "Bereinigt: {{deleted}} Dateien gelöscht",
+    "failed": "Bereinigung fehlgeschlagen",
+    "title": "Sidecar bereinigen",
+    "loading": "Lade Sidecar-Dateien…",
+    "empty": "Keine Sidecar-Dateien gefunden.",
+    "keep_target_only": "Nur Target-Sprachen behalten",
+    "clear_selection": "Auswahl leeren",
+    "file": "Datei",
+    "files": "Dateien",
+    "will_delete": "Löscht {{count}} Dateien ({{size}})",
+    "nothing_selected": "Nichts ausgewählt",
+    "cancel": "Abbrechen",
+    "delete": "Löschen"
+  },
+  "cleanup_card": {
+    "preview_dryrun": "Vorschau — Trockenlauf",
+    "no_real_change": "keine echte Änderung",
+    "files_tracks_removed": "Dateien ({{count}} Spuren würden entfernt)",
+    "would_delete": "würden gelöscht",
+    "would_keep": "bleiben erhalten",
+    "pct_removed": "{{pct}}% würden entfernt",
+    "total": "{{total}} gesamt",
+    "examples": "Beispiele",
+    "of": "von {{total}}",
+    "more_files": "+ {{count}} weitere Dateien nicht angezeigt",
+    "none_deleted": "Keine Dateien würden gelöscht",
+    "deactivate": "Deaktivieren",
+    "activate": "Aktivieren",
+    "active": "Aktiv",
+    "inactive": "Inaktiv",
+    "keep_languages": "Sprachen behalten",
+    "keep_undetermined": "Unbestimmte Sprache (und) behalten",
+    "preferred_format": "Bevorzugtes Format",
+    "retention_days": "Aufbewahrung (Tage)",
+    "retention_hint": "0 = für immer behalten (Waisen werden trotzdem sofort entfernt)",
+    "schedule": "Zeitplan",
+    "loading": "Lädt…",
+    "preview": "Vorschau",
+    "running": "Läuft…",
+    "run_now": "Jetzt ausführen",
+    "activate_first": "Zuerst aktivieren",
+    "last_run": "Zuletzt: {{date}}"
   }
 }

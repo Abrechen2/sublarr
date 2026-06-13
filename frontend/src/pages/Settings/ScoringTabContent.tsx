@@ -52,8 +52,8 @@ function ReleaseGroupSection() {
         release_group_prefer_bonus: bonus,
       },
       {
-        onSuccess: () => toast('Release group settings saved'),
-        onError: () => toast('Failed to save release group settings', 'error'),
+        onSuccess: () => toast(t('scoring_content.toast_rg_saved')),
+        onError: () => toast(t('scoring_content.toast_rg_save_failed'), 'error'),
       }
     )
   }
@@ -61,7 +61,7 @@ function ReleaseGroupSection() {
   return (
     <SettingSection
       title={t('scoring.release_group_filter')}
-      description="Provider-Suchergebnisse nach Release-Gruppe filtern und priorisieren."
+      description={t('scoring_content.rg_filter_desc')}
     >
       <div className="flex items-center justify-end -mt-1">
         <button
@@ -71,7 +71,7 @@ function ReleaseGroupSection() {
           style={{ backgroundColor: 'var(--accent)' }}
         >
           {updateConfig.isPending ? <Loader2 size={12} className="animate-spin" /> : <Save size={12} />}
-          Save
+          {t('scoring_content.save')}
         </button>
       </div>
       <div className="space-y-3">
@@ -79,7 +79,7 @@ function ReleaseGroupSection() {
           <div>
             <span className="text-[12px] font-medium" style={{ color: 'var(--text-primary)' }}>{t('scoring.preferred_release_groups')}</span>
             <p className="text-[11px] mt-0.5" style={{ color: 'var(--text-muted)' }}>
-              Komma-getrennte Release-Gruppen die bevorzugt werden (Score-Bonus). Leer = deaktiviert.
+              {t('scoring_content.rg_prefer_hint')}
             </p>
           </div>
           <input
@@ -100,7 +100,7 @@ function ReleaseGroupSection() {
           <div>
             <span className="text-[12px] font-medium" style={{ color: 'var(--text-primary)' }}>{t('scoring.blocked_release_groups')}</span>
             <p className="text-[11px] mt-0.5" style={{ color: 'var(--text-muted)' }}>
-              Komma-getrennte Release-Gruppen die aus Suchergebnissen ausgeschlossen werden.
+              {t('scoring_content.rg_exclude_hint')}
             </p>
           </div>
           <input
@@ -121,7 +121,7 @@ function ReleaseGroupSection() {
           <div>
             <span className="text-[12px] font-medium" style={{ color: 'var(--text-primary)' }}>{t('scoring.prefer_bonus')}</span>
             <p className="text-[11px] mt-0.5" style={{ color: 'var(--text-muted)' }}>
-              Score-Bonus für Ergebnisse die einer bevorzugten Gruppe entsprechen.
+              {t('scoring_content.rg_bonus_hint')}
             </p>
           </div>
           <input
@@ -170,8 +170,8 @@ function MtDetectionSection() {
     updateConfig.mutate(
       { 'providers.mt_penalty': penalty, 'providers.mt_confidence_threshold': threshold },
       {
-        onSuccess: () => toast('MT detection settings saved'),
-        onError: () => toast('Failed to save MT detection settings', 'error'),
+        onSuccess: () => toast(t('scoring_content.toast_mt_saved')),
+        onError: () => toast(t('scoring_content.toast_mt_save_failed'), 'error'),
       }
     )
   }
@@ -179,7 +179,7 @@ function MtDetectionSection() {
   return (
     <SettingSection
       title={t('scoring.mt_detection')}
-      description="Subtitles detected as machine-translated receive a score penalty. Set penalty to 0 to disable. Threshold: minimum confidence (0-100) required to apply the penalty."
+      description={t('scoring_content.mt_detection_desc')}
     >
       <div className="flex items-center justify-end -mt-1">
         <button
@@ -189,7 +189,7 @@ function MtDetectionSection() {
           style={{ backgroundColor: 'var(--accent)' }}
         >
           {updateConfig.isPending ? <Loader2 size={12} className="animate-spin" /> : <Save size={12} />}
-          Save
+          {t('scoring_content.save')}
         </button>
       </div>
       <div className="space-y-3">
@@ -197,7 +197,7 @@ function MtDetectionSection() {
           <div>
             <span className="text-[12px] font-medium" style={{ color: 'var(--text-primary)' }}>{t('scoring.mt_score_penalty')}</span>
             <p className="text-[11px] mt-0.5" style={{ color: 'var(--text-muted)' }}>
-              Applied to machine-translated subtitles (-50 to 0; 0 = disabled)
+              {t('scoring_content.mt_penalty_hint')}
             </p>
           </div>
           <input
@@ -219,7 +219,7 @@ function MtDetectionSection() {
           <div>
             <span className="text-[12px] font-medium" style={{ color: 'var(--text-primary)' }}>{t('scoring.mt_confidence_threshold')}</span>
             <p className="text-[11px] mt-0.5" style={{ color: 'var(--text-muted)' }}>
-              Minimum confidence % (0-100) to flag as machine-translated
+              {t('scoring_content.mt_threshold_hint')}
             </p>
           </div>
           <input
@@ -288,19 +288,19 @@ export function ScoringTab() {
 
   const handleSaveWeights = () => {
     updateWeights.mutate({ episode: episodeWeights, movie: movieWeights }, {
-      onSuccess: () => toast('Scoring weights saved'),
-      onError: () => toast('Failed to save weights', 'error'),
+      onSuccess: () => toast(t('scoring_content.toast_weights_saved')),
+      onError: () => toast(t('scoring_content.toast_weights_save_failed'), 'error'),
     })
   }
 
   const handleResetWeights = () => {
-    if (!confirm('Reset all scoring weights to defaults?')) return
+    if (!confirm(t('scoring_content.confirm_reset_weights'))) return
     resetWeights.mutate(undefined, {
       onSuccess: () => {
         setWeightsInit(false)
-        toast('Scoring weights reset to defaults')
+        toast(t('scoring_content.toast_weights_reset'))
       },
-      onError: () => toast('Failed to reset weights', 'error'),
+      onError: () => toast(t('scoring_content.toast_weights_reset_failed'), 'error'),
     })
   }
 
@@ -310,21 +310,21 @@ export function ScoringTab() {
       if (mod !== 0) toSave[name] = mod
     }
     updateModifiers.mutate(toSave, {
-      onSuccess: () => toast('Provider modifiers saved'),
-      onError: () => toast('Failed to save modifiers', 'error'),
+      onSuccess: () => toast(t('scoring_content.toast_modifiers_saved')),
+      onError: () => toast(t('scoring_content.toast_modifiers_save_failed'), 'error'),
     })
   }
 
   const handleApplyPreset = (preset: ScoringPreset) => {
-    if (!confirm(`Apply preset "${preset.name}"? This will overwrite the current scoring weights.`)) return
+    if (!confirm(t('scoring_content.confirm_apply_preset', { name: preset.name }))) return
     importPreset.mutate(preset as unknown as Record<string, unknown>, {
       onSuccess: () => {
         setWeightsInit(false)
         setModsInit(false)
         setSelectedPreset('')
-        toast(`Preset "${preset.name}" applied`)
+        toast(t('scoring_content.toast_preset_applied', { name: preset.name }))
       },
-      onError: () => toast('Failed to apply preset', 'error'),
+      onError: () => toast(t('scoring_content.toast_preset_apply_failed'), 'error'),
     })
   }
 
@@ -333,7 +333,7 @@ export function ScoringTab() {
     try {
       parsed = JSON.parse(customPresetJson)
     } catch {
-      toast('Invalid JSON', 'error')
+      toast(t('scoring_content.toast_invalid_json'), 'error')
       return
     }
     handleApplyPreset(parsed)
@@ -342,10 +342,10 @@ export function ScoringTab() {
   }
 
   const formatWeightKey = (key: string) => {
-    if (key === 'format_bonus') return 'ASS Format Bonus'
-    if (key === 'hearing_impaired') return 'Hearing Impaired'
-    if (key === 'release_group') return 'Release Group'
-    if (key === 'audio_codec') return 'Audio Codec'
+    if (key === 'format_bonus') return t('scoring_content.label_ass_format_bonus')
+    if (key === 'hearing_impaired') return t('scoring_content.label_hearing_impaired')
+    if (key === 'release_group') return t('scoring_content.label_release_group')
+    if (key === 'audio_codec') return t('scoring_content.label_audio_codec')
     return key.charAt(0).toUpperCase() + key.slice(1)
   }
 
@@ -389,7 +389,7 @@ export function ScoringTab() {
       {/* Scoring Presets */}
       <SettingSection
         title={t('scoring.load_preset')}
-        description="Apply a bundled scoring profile or import a custom JSON preset."
+        description={t('scoring_content.preset_desc')}
       >
         <div className="flex flex-wrap items-end gap-2">
           <div className="flex-1 min-w-[160px]">
@@ -419,7 +419,7 @@ export function ScoringTab() {
             style={{ backgroundColor: 'var(--accent)' }}
           >
             {importPreset.isPending ? <Loader2 size={12} className="animate-spin" /> : <Download size={12} />}
-            Apply
+            {t('scoring_content.apply')}
           </button>
           <button
             onClick={() => setShowCustomImport((v) => !v)}
@@ -427,7 +427,7 @@ export function ScoringTab() {
             style={{ border: '1px solid var(--border)', color: 'var(--text-muted)' }}
           >
             {showCustomImport ? <X size={12} /> : <Plus size={12} />}
-            Custom JSON
+            {t('scoring_content.custom_json')}
           </button>
         </div>
         {showCustomImport && (
@@ -446,7 +446,7 @@ export function ScoringTab() {
               className="self-end flex items-center gap-1 px-3 py-1.5 rounded text-xs font-medium text-white disabled:opacity-50"
               style={{ backgroundColor: 'var(--accent)' }}
             >
-              <Download size={12} /> Import & Apply
+              <Download size={12} /> {t('scoring_content.import_apply')}
             </button>
           </div>
         )}
@@ -455,7 +455,7 @@ export function ScoringTab() {
       {/* Scoring Weights */}
       <SettingSection
         title={t('scoring.scoring_weights')}
-        description="Higher weights = more important match criteria. Default values shown in grey."
+        description={t('scoring_content.weights_desc')}
       >
         <div className="flex items-center justify-end gap-2 -mt-1">
           <button
@@ -463,7 +463,7 @@ export function ScoringTab() {
             disabled={resetWeights.isPending}
             className="flex items-center gap-1 px-2 py-1 rounded text-[11px] font-medium" style={{ border: '1px solid var(--border)', color: 'var(--text-muted)' }}
           >
-            <RotateCcw size={11} /> Reset to Defaults
+            <RotateCcw size={11} /> {t('scoring_content.reset_to_defaults')}
           </button>
           <button
             onClick={handleSaveWeights}
@@ -471,19 +471,19 @@ export function ScoringTab() {
             className="flex items-center gap-1 px-3 py-1.5 rounded text-xs font-medium text-white" style={{ backgroundColor: 'var(--accent)' }}
           >
             {updateWeights.isPending ? <Loader2 size={12} className="animate-spin" /> : <Save size={12} />}
-            Save
+            {t('scoring_content.save')}
           </button>
         </div>
         <div className="flex flex-wrap gap-6">
-          {renderWeightTable('Episode Weights', episodeWeights, setEpisodeWeights, weights?.defaults?.episode)}
-          {renderWeightTable('Movie Weights', movieWeights, setMovieWeights, weights?.defaults?.movie)}
+          {renderWeightTable(t('scoring_content.episode_weights'), episodeWeights, setEpisodeWeights, weights?.defaults?.episode)}
+          {renderWeightTable(t('scoring_content.movie_weights'), movieWeights, setMovieWeights, weights?.defaults?.movie)}
         </div>
       </SettingSection>
 
       {/* Provider Modifiers */}
       <SettingSection
         title={t('scoring.provider_modifiers')}
-        description="Add bonus (positive) or penalty (negative) to all results from a specific provider."
+        description={t('scoring_content.modifiers_desc')}
       >
         <div className="flex items-center justify-end -mt-1">
           <button
@@ -492,7 +492,7 @@ export function ScoringTab() {
             className="flex items-center gap-1 px-3 py-1.5 rounded text-xs font-medium text-white" style={{ backgroundColor: 'var(--accent)' }}
           >
             {updateModifiers.isPending ? <Loader2 size={12} className="animate-spin" /> : <Save size={12} />}
-            Save All
+            {t('scoring_content.save_all')}
           </button>
         </div>
         <div className="space-y-2">
