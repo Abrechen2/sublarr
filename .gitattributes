@@ -1,0 +1,5 @@
+# Shell scripts must use LF endings — they run inside Linux containers.
+# A CRLF docker-entrypoint.sh would fail with "bad interpreter" at runtime
+# (the Dockerfile also strips \r defensively, this is belt-and-suspenders).
+*.sh text eol=lf
+docker-entrypoint.sh text eol=lf
