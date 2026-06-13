@@ -401,6 +401,42 @@ Every Sublarr instance ships its own interactive API reference:
 
 ---
 
+## 🤖 How AI was used in this project
+
+Honest answer, since it comes up: yes, AI was used as a coding assistant
+throughout Sublarr's development. I think the fair thing is to be specific
+about where it helped and where it didn't, so you can judge for yourself.
+
+**Where AI helped:**
+- Boilerplate and scaffolding — route handlers, repository classes,
+  TypeScript types, config plumbing
+- Test generation — the bulk of the ~5000-test suite was AI-drafted, then
+  reviewed and corrected by hand
+- Refactoring at scale — the route/service file splits, inline-style →
+  Tailwind migration, and the i18n pass were AI-assisted sweeps
+- Documentation — README, changelog prose, and the docs site started as
+  AI drafts
+- Rubber-ducking — second opinions on tricky bugs and design trade-offs
+
+**Where AI did not decide things:**
+- The architecture, the data model, and how the pieces fit together
+- The subtitle scoring system (ASS-first weighting, dialect/sync/trust
+  scoring) — the part that actually makes Sublarr useful
+- Provider integrations and their quirks (AniDB absolute order, anime
+  season collapse, format fidelity) — all hand-debugged against real data
+- The waveform editor's interaction model
+- Every production deploy decision, security fix, and what ships vs. doesn't
+
+AI is a tool I used to move faster on the parts that are tedious. The product
+decisions, the hard debugging, and the year+ of iteration are mine. If a
+generated chunk was wrong, it got fixed by hand — which is most of what
+"using AI a lot" actually looks like in practice.
+
+If that's a dealbreaker for you, fair enough. If you try it and find a bug,
+a report with logs is worth more to me than any opinion about the tooling.
+
+---
+
 ## 🤝 Contributing
 
 Contributions are welcome — bug reports, feature requests, and pull requests.
