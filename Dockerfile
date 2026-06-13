@@ -32,6 +32,7 @@ RUN apt-get update && \
         ffmpeg \
         mkvtoolnix \
         curl \
+        gosu \
         unrar-free \
         postgresql-client \
         tesseract-ocr \
@@ -79,7 +80,17 @@ RUN groupadd -g ${PGID} sublarr && \
 RUN mkdir -p /config/backups && \
     chown -R sublarr:sublarr /app /config
 
-USER sublarr
+# Runtime entrypoint: remaps the sublarr user to PUID/PGID, fixes /config
+# ownership on the bind-mounted volume, then drops privileges via gosu.
+# Runs as root so it can chown /config and remap the user; gunicorn itself
+# runs unprivileged as the requested PUID/PGID.
+COPY docker-entrypoint.sh /usr/local/bin/docker-entrypoint.sh
+RUN sed -i 's/\r$//' /usr/local/bin/docker-entrypoint.sh && \
+    chmod +x /usr/local/bin/docker-entrypoint.sh
+
+# NOTE: container starts as root so the entrypoint can chown /config and
+# remap the user. The application process is dropped to PUID:PGID via gosu.
+USER root
 
 EXPOSE 5765
 
@@ -90,4 +101,5 @@ HEALTHCHECK --interval=30s --timeout=10s --start-period=30s --retries=3 \
 
 STOPSIGNAL SIGTERM
 
+ENTRYPOINT ["/usr/local/bin/docker-entrypoint.sh"]
 CMD ["gunicorn", "--bind", "0.0.0.0:5765", "--worker-class", "gthread", "--workers", "1", "--threads", "4", "--timeout", "300", "--graceful-timeout", "15", "app:create_app()"]
