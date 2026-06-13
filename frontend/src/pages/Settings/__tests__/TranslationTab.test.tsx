@@ -22,7 +22,10 @@ import {
 // ─── Mocks ───────────────────────────────────────────────────────────────────
 
 vi.mock('react-i18next', () => ({
-  useTranslation: () => ({ t: (key: string, fallback?: string) => fallback ?? key }),
+  useTranslation: () => ({
+    t: (key: string, opts?: unknown) =>
+      typeof opts === 'string' ? opts : ((opts as { defaultValue?: string })?.defaultValue ?? key),
+  }),
 }))
 
 // Default: showAdvanced true so advanced SettingRow fields are visible in tests
@@ -269,6 +272,6 @@ describe('GlobalGlossaryPanel — CRUD and Export', () => {
 
   it('Add Entry button has correct label', () => {
     renderComponent(<GlobalGlossaryPanel />)
-    expect(screen.getByTestId('glossary-add-btn')).toHaveTextContent('Add Entry')
+    expect(screen.getByTestId('glossary-add-btn')).toHaveTextContent('glossary_panel.add_entry')
   })
 })

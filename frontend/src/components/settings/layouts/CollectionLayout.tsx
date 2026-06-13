@@ -1,4 +1,5 @@
 import type { ReactNode } from 'react'
+import { useTranslation } from 'react-i18next'
 
 /**
  * CollectionLayout — Settings Template A (Master-Detail).
@@ -55,6 +56,7 @@ export function CollectionLayout<T>({
   listWidth = DEFAULT_LIST_WIDTH,
   railWidth = DEFAULT_RAIL_WIDTH,
 }: CollectionLayoutProps<T>) {
+  const { t } = useTranslation('settings')
   const selected = items.find((it) => getItemId(it) === selectedId) ?? null
   const hasRail = Boolean(healthRail)
 
@@ -89,7 +91,7 @@ export function CollectionLayout<T>({
 
           {items.length === 0
             ? emptyState ?? (
-                <div className="text-[11px] text-muted px-3 py-2">No items yet.</div>
+                <div className="text-[11px] text-muted px-3 py-2">{t('collection_layout.no_items')}</div>
               )
             : items.map((item) => {
                 const id = getItemId(item)

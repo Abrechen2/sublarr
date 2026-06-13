@@ -69,7 +69,7 @@ export function LanguageProfilesTab() {
     const targetLangs = form.target_languages
     const targetNames = targetLangs.map(getLangLabel)
     if (!form.name || targetLangs.length === 0) {
-      toast('Profilname und mindestens eine Zielsprache erforderlich', 'error')
+      toast(t('language_profiles.name_and_lang_required'), 'error')
       return
     }
 
@@ -85,21 +85,21 @@ export function LanguageProfilesTab() {
 
     if (editingId) {
       updateProfile.mutate({ id: editingId, data: payload }, {
-        onSuccess: () => { toast('Profil gespeichert'); resetForm() },
-        onError: () => toast('Profil konnte nicht gespeichert werden', 'error'),
+        onSuccess: () => { toast(t('language_profiles.saved')); resetForm() },
+        onError: () => toast(t('language_profiles.save_failed'), 'error'),
       })
     } else {
       createProfile.mutate(payload as Omit<LanguageProfile, 'id' | 'is_default'>, {
-        onSuccess: () => { toast('Profil erstellt'); resetForm() },
-        onError: () => toast('Profil konnte nicht erstellt werden', 'error'),
+        onSuccess: () => { toast(t('language_profiles.created')); resetForm() },
+        onError: () => toast(t('language_profiles.create_failed'), 'error'),
       })
     }
   }
 
   const handleDelete = (id: number) => {
     deleteProfile.mutate(id, {
-      onSuccess: () => toast('Profil gelöscht'),
-      onError: () => toast('Standard-Profil kann nicht gelöscht werden', 'error'),
+      onSuccess: () => toast(t('language_profiles.deleted')),
+      onError: () => toast(t('language_profiles.delete_default_failed'), 'error'),
     })
   }
 
@@ -115,7 +115,7 @@ export function LanguageProfilesTab() {
     <div className="space-y-3">
       <div className="flex items-center justify-between">
         <span className="text-xs font-medium" style={{ color: 'var(--text-secondary)' }}>
-          Sprachprofile legen fest, welche Untertitelsprachen pro Serie/Film gesucht werden.
+          {t('language_profiles.intro')}
         </span>
         <button
           onClick={() => { setShowAdd(true); setEditingId(null); setForm({ name: '', target_languages: [], forced_preference: 'disabled', forced_scoring: 'include', hi_preference: 'include', cutoff_language: '' }) }}
@@ -123,7 +123,7 @@ export function LanguageProfilesTab() {
           style={{ border: '1px solid var(--accent-dim)', color: 'var(--accent)', backgroundColor: 'var(--accent-bg)' }}
         >
           <Plus size={12} />
-          Profil hinzufügen
+          {t('language_profiles.add_profile')}
         </button>
       </div>
 
@@ -134,7 +134,7 @@ export function LanguageProfilesTab() {
           style={{ backgroundColor: 'var(--bg-surface)', border: '1px solid var(--accent-dim)' }}
         >
           <div className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>
-            {editingId ? 'Profil bearbeiten' : 'Neues Profil'}
+            {editingId ? t('language_profiles.edit_title') : t('language_profiles.new_title')}
           </div>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
 
@@ -153,9 +153,9 @@ export function LanguageProfilesTab() {
             {/* Target languages */}
             <div className="space-y-1 md:col-span-2">
               <label className="text-xs font-medium" style={{ color: 'var(--text-secondary)' }}>
-                Zielsprachen
+                {t('language_profiles.target_languages')}
                 <span className="ml-1.5 text-[10px] font-normal" style={{ color: 'var(--text-muted)' }}>
-                  1. = Primär · 2. = Fallback · 3. = weiterer Fallback
+                  {t('language_profiles.target_languages_order')}
                 </span>
               </label>
               <LanguagePillSelector
@@ -170,7 +170,7 @@ export function LanguageProfilesTab() {
                 placeholder={t('language_profiles.add_language')}
               />
               <p className="text-[10px]" style={{ color: 'var(--text-muted)' }}>
-                Sublarr sucht Untertitel in dieser Reihenfolge. Die erste verfügbare Sprache wird verwendet.
+                {t('language_profiles.target_languages_help')}
               </p>
             </div>
 
@@ -188,9 +188,9 @@ export function LanguageProfilesTab() {
                 <option value="auto">{t('language_profiles.forced_auto_detect')}</option>
               </select>
               <p className="text-[11px]" style={{ color: 'var(--text-muted)' }}>
-                {form.forced_preference === 'disabled' && 'Forced/Signs-Untertitel werden ignoriert'}
-                {form.forced_preference === 'separate' && 'Forced-Untertitel werden aktiv gesucht und separat verwaltet'}
-                {form.forced_preference === 'auto' && 'Forced-Untertitel werden erkannt wenn vorhanden, aber nicht aktiv gesucht'}
+                {form.forced_preference === 'disabled' && t('language_profiles.forced_pref_disabled_desc')}
+                {form.forced_preference === 'separate' && t('language_profiles.forced_pref_separate_desc')}
+                {form.forced_preference === 'auto' && t('language_profiles.forced_pref_auto_desc')}
               </p>
             </div>
 
@@ -209,10 +209,10 @@ export function LanguageProfilesTab() {
                 <option value="only">{t('language_profiles.only_forced')}</option>
               </select>
               <p className="text-[11px]" style={{ color: 'var(--text-muted)' }}>
-                {form.forced_scoring === 'include' && 'Forced-Untertitel werden gleichwertig bewertet'}
-                {form.forced_scoring === 'prefer' && 'Forced-Untertitel erhalten +30 Punkte beim Scoring'}
-                {form.forced_scoring === 'exclude' && 'Forced-Untertitel werden beim Scoring auf -999 gesetzt'}
-                {form.forced_scoring === 'only' && 'Nur Forced-Untertitel werden akzeptiert (normale auf -999)'}
+                {form.forced_scoring === 'include' && t('language_profiles.forced_scoring_include_desc')}
+                {form.forced_scoring === 'prefer' && t('language_profiles.forced_scoring_prefer_desc')}
+                {form.forced_scoring === 'exclude' && t('language_profiles.forced_scoring_exclude_desc')}
+                {form.forced_scoring === 'only' && t('language_profiles.forced_scoring_only_desc')}
               </p>
             </div>
 
@@ -231,17 +231,17 @@ export function LanguageProfilesTab() {
                 <option value="only">{t('language_profiles.only_hi')}</option>
               </select>
               <p className="text-[11px]" style={{ color: 'var(--text-muted)' }}>
-                {form.hi_preference === 'include' && 'HI-Untertitel werden gleichwertig eingeschlossen'}
-                {form.hi_preference === 'prefer' && 'HI-Untertitel werden bevorzugt, falls verfügbar'}
-                {form.hi_preference === 'exclude' && 'HI-Untertitel werden übersprungen'}
-                {form.hi_preference === 'only' && 'Nur HI-Untertitel werden akzeptiert'}
+                {form.hi_preference === 'include' && t('language_profiles.hi_pref_include_desc')}
+                {form.hi_preference === 'prefer' && t('language_profiles.hi_pref_prefer_desc')}
+                {form.hi_preference === 'exclude' && t('language_profiles.hi_pref_exclude_desc')}
+                {form.hi_preference === 'only' && t('language_profiles.hi_pref_only_desc')}
               </p>
             </div>
 
             {/* Cutoff Language */}
             <div className="space-y-1 md:col-span-2">
               <label className="text-xs font-medium" style={{ color: 'var(--text-secondary)' }}>
-                Cutoff-Sprache
+                {t('language_profiles.cutoff_language_label')}
               </label>
               <select
                 value={form.cutoff_language}
@@ -260,8 +260,8 @@ export function LanguageProfilesTab() {
               </select>
               <p className="text-[11px]" style={{ color: 'var(--text-muted)' }}>
                 {form.cutoff_language
-                  ? `Sobald ein ${LANGUAGE_OPTIONS.find((o) => o.value === form.cutoff_language)?.label ?? form.cutoff_language}-Untertitel vorhanden ist, werden keine weiteren Sprachen gesucht.`
-                  : 'Sublarr sucht Untertitel für alle Zielsprachen — unabhängig davon, was bereits vorhanden ist.'}
+                  ? t('language_profiles.cutoff_active_desc', { language: LANGUAGE_OPTIONS.find((o) => o.value === form.cutoff_language)?.label ?? form.cutoff_language })
+                  : t('language_profiles.cutoff_inactive_desc')}
               </p>
             </div>
 
@@ -278,10 +278,10 @@ export function LanguageProfilesTab() {
               ) : (
                 <Check size={12} />
               )}
-              Speichern
+              {t('language_profiles.save')}
             </button>
             <button onClick={resetForm} className="flex items-center gap-1 px-3 py-1.5 rounded text-xs" style={{ color: 'var(--text-muted)' }}>
-              <X size={12} /> Abbrechen
+              <X size={12} /> {t('language_profiles.cancel')}
             </button>
           </div>
         </div>
@@ -303,7 +303,7 @@ export function LanguageProfilesTab() {
                   className="px-1.5 py-0.5 rounded text-[10px] font-medium"
                   style={{ backgroundColor: 'var(--accent-bg)', color: 'var(--accent)' }}
                 >
-                  Standard
+                  {t('language_profiles.default_badge')}
                 </span>
               )}
             </div>
@@ -312,8 +312,8 @@ export function LanguageProfilesTab() {
                 <button
                   onClick={() => {
                     setAsDefaultForAll.mutate(p.id, {
-                      onSuccess: () => toast(`"${p.name}" als Standard für alle aktiviert`),
-                      onError: () => toast('Standard konnte nicht gesetzt werden', 'error'),
+                      onSuccess: () => toast(t('language_profiles.set_default_success', { name: p.name })),
+                      onError: () => toast(t('language_profiles.set_default_failed'), 'error'),
                     })
                   }}
                   disabled={setAsDefaultForAll.isPending}
@@ -365,22 +365,22 @@ export function LanguageProfilesTab() {
           <div className="flex items-center gap-4 flex-wrap text-xs" style={{ color: 'var(--text-secondary)' }}>
             {p.forced_preference && p.forced_preference !== 'disabled' && (
               <span>
-                Erzwungen: <code style={{ fontFamily: 'var(--font-mono)', color: 'var(--accent)' }}>{p.forced_preference}</code>
+                {t('language_profiles.summary_forced')} <code style={{ fontFamily: 'var(--font-mono)', color: 'var(--accent)' }}>{p.forced_preference}</code>
               </span>
             )}
             {p.forced_scoring && p.forced_scoring !== 'include' && (
               <span>
-                Forced-Wertung: <code style={{ fontFamily: 'var(--font-mono)', color: 'var(--accent)' }}>{p.forced_scoring}</code>
+                {t('language_profiles.summary_forced_scoring')} <code style={{ fontFamily: 'var(--font-mono)', color: 'var(--accent)' }}>{p.forced_scoring}</code>
               </span>
             )}
             {p.hi_preference && p.hi_preference !== 'include' && (
               <span>
-                HI: <code style={{ fontFamily: 'var(--font-mono)', color: 'var(--accent)' }}>{p.hi_preference}</code>
+                {t('language_profiles.summary_hi')} <code style={{ fontFamily: 'var(--font-mono)', color: 'var(--accent)' }}>{p.hi_preference}</code>
               </span>
             )}
             {p.cutoff_language && (
               <span>
-                Cutoff: <code style={{ fontFamily: 'var(--font-mono)', color: 'var(--accent)' }}>
+                {t('language_profiles.summary_cutoff')} <code style={{ fontFamily: 'var(--font-mono)', color: 'var(--accent)' }}>
                   {LANGUAGE_OPTIONS.find((o) => o.value === p.cutoff_language)?.label ?? p.cutoff_language}
                 </code>
               </span>
@@ -391,7 +391,7 @@ export function LanguageProfilesTab() {
 
       {(!profiles || profiles.length === 0) && !showAdd && (
         <div className="text-center py-8 text-sm" style={{ color: 'var(--text-muted)' }}>
-          Keine Sprachprofile konfiguriert. Ein Standard-Profil wird automatisch erstellt.
+          {t('language_profiles.empty')}
         </div>
       )}
     </div>

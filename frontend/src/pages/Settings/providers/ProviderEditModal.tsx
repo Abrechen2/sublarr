@@ -1,4 +1,5 @@
 import { useEffect } from 'react'
+import { useTranslation } from 'react-i18next'
 import { X } from 'lucide-react'
 import type { ProviderInfo } from '@/lib/types'
 import { ProviderEditor } from './ProviderEditor'
@@ -32,6 +33,7 @@ export function ProviderEditModal({
   onFieldChange, onTest, onToggle,
   onClearCache, onReEnable, onRemove, isNew, onClose,
 }: ProviderEditModalProps) {
+  const { t } = useTranslation('settings')
   useEffect(() => {
     const handleKey = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose() }
     document.addEventListener('keydown', handleKey)
@@ -63,7 +65,7 @@ export function ProviderEditModal({
         >
           <div>
             <p className="text-[11px] font-medium mb-0.5" style={{ color: 'var(--text-muted)' }}>
-              {isNew ? 'Schritt 2 von 2 · ' : ''}Provider bearbeiten
+              {isNew ? t('provider_edit_modal.step_prefix') : ''}{t('provider_edit_modal.edit_provider')}
             </p>
             <h2 id="provider-edit-title" className="text-sm font-semibold capitalize" style={{ color: 'var(--text-primary)' }}>
               {provider.name.replace(/_/g, ' ')}
@@ -72,7 +74,7 @@ export function ProviderEditModal({
           <button
             autoFocus
             onClick={onClose}
-            aria-label="Close"
+            aria-label={t('provider_edit_modal.close')}
             className="p-1.5 rounded transition-colors"
             style={{ color: 'var(--text-muted)' }}
             onMouseEnter={(e) => { e.currentTarget.style.color = 'var(--error)' }}
@@ -105,7 +107,7 @@ export function ProviderEditModal({
                   color: 'var(--bg-primary)',
                 }}
               >
-                Schließen
+                {t('provider_edit_modal.close_button')}
               </button>
             }
           />

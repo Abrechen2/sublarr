@@ -15,7 +15,7 @@ describe('EnableTranslationModal', () => {
   it('renders beta warning text', () => {
     render(<EnableTranslationModal onClose={vi.fn()} />)
     expect(screen.getByText('BETA')).toBeInTheDocument()
-    expect(screen.getByText(/experimentell/i)).toBeInTheDocument()
+    expect(screen.getByText(/experimental/i)).toBeInTheDocument()
   })
 
   it('Enable button is disabled until checkbox is checked', () => {

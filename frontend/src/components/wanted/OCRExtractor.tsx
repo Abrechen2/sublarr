@@ -45,7 +45,7 @@ export function OCRExtractor({
       })
       setPreviewFrame(result)
     } catch (_err) {
-      toast('Preview failed', 'error')
+      toast(t('ocr.preview_failed'), 'error')
     }
   }, [filePath, timestamp, streamIndex, previewMutation])
 
@@ -59,9 +59,9 @@ export function OCRExtractor({
       })
       setExtractResult(result)
       onExtracted?.(result.text)
-      toast(`OCR completed: ${result.successful_frames}/${result.frames} frames, quality: ${result.quality}%`, 'success')
+      toast(t('ocr.completed', { successful: result.successful_frames, frames: result.frames, quality: result.quality }), 'success')
     } catch (_err) {
-      toast('OCR extraction failed', 'error')
+      toast(t('ocr.extraction_failed'), 'error')
     } finally {
       setIsExtracting(false)
     }
@@ -72,7 +72,7 @@ export function OCRExtractor({
       <div className="mb-4">
         <h3 className="text-lg font-semibold mb-2">{t('ocr.title')}</h3>
         <p className="text-sm text-gray-400">
-          Extract text from embedded image subtitles (DVD, Blu-ray) using Tesseract OCR.
+          {t('ocr.description')}
         </p>
       </div>
 
@@ -98,7 +98,7 @@ export function OCRExtractor({
             ) : (
               <Eye className="w-4 h-4" />
             )}
-            Preview
+            {t('ocr.preview_button')}
           </button>
         </div>
 
@@ -131,12 +131,12 @@ export function OCRExtractor({
           {isExtracting || extractMutation.isPending ? (
             <>
               <Loader2 className="w-4 h-4 animate-spin" />
-              Extracting...
+              {t('ocr.extracting')}
             </>
           ) : (
             <>
               <Play className="w-4 h-4" />
-              Extract OCR Text
+              {t('ocr.extract_button')}
             </>
           )}
         </button>
@@ -152,7 +152,7 @@ export function OCRExtractor({
               <AlertCircle className="w-5 h-5 text-yellow-500" />
             )}
             <span className="font-medium">
-              Quality: {extractResult.quality}% ({extractResult.successful_frames}/{extractResult.frames} frames)
+              {t('ocr.quality', { quality: extractResult.quality, successful: extractResult.successful_frames, frames: extractResult.frames })}
             </span>
           </div>
           <div className="mt-2">

@@ -24,7 +24,7 @@ export function PathMappingEditor({
       setTestResult(data)
     } catch (error: unknown) {
       const msg = (error as { response?: { data?: { error?: string } } })?.response?.data?.error
-        ?? 'Path mapping test failed'
+        ?? t('path_mapping.test_failed')
       toast(msg, 'error')
       setTestResult(null)
     } finally {
@@ -63,7 +63,7 @@ export function PathMappingEditor({
   return (
     <div className="space-y-1.5">
       <label className="block text-sm font-medium" style={{ color: 'var(--text-primary)' }}>
-        Path Mapping (Remote &rarr; Local)
+        {t('path_mapping.title')}
       </label>
       <div className="space-y-2">
         {rows.length > 0 && (
@@ -140,13 +140,13 @@ export function PathMappingEditor({
           }}
         >
           <Plus size={12} />
-          Add Mapping
+          {t('path_mapping.add_mapping')}
         </button>
       </div>
       {/* Test Path Mapping */}
       <div className="pt-3 space-y-2" style={{ borderTop: '1px solid var(--border)' }}>
         <label className="block text-xs font-medium" style={{ color: 'var(--text-primary)' }}>
-          Test Path Mapping
+          {t('path_mapping.test_title')}
         </label>
         <div className="flex gap-2">
           <input
@@ -187,7 +187,7 @@ export function PathMappingEditor({
             }}
           >
             {isTesting ? <Loader2 size={14} className="animate-spin" /> : <TestTube size={14} />}
-            Test
+            {t('path_mapping.test')}
           </button>
         </div>
         {testResult && (
@@ -198,7 +198,7 @@ export function PathMappingEditor({
             </div>
             <div>
               <span style={{ color: testResult.exists ? 'var(--success)' : 'var(--error)' }}>
-                {testResult.exists ? '\u2713 File exists' : '\u2717 File not found'}
+                {testResult.exists ? t('path_mapping.file_exists') : t('path_mapping.file_not_found')}
               </span>
             </div>
           </div>

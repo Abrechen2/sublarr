@@ -209,7 +209,7 @@ export function ScoringTab() {
     setMovieWeights((w) => ({ ...w, format_bonus: val }))
     updateWeights.mutate(
       { episode: { ...episodeWeights, format_bonus: val }, movie: { ...movieWeights, format_bonus: val } },
-      { onSuccess: () => toast('ASS format preference saved') },
+      { onSuccess: () => toast(t('scoring_tab.toast_ass_saved')) },
     )
   }
 
@@ -218,7 +218,7 @@ export function ScoringTab() {
     setMtPenalty(penalty)
     updateConfig.mutate(
       { 'providers.mt_penalty': penalty },
-      { onSuccess: () => toast('MT penalty updated') },
+      { onSuccess: () => toast(t('scoring_tab.toast_mt_penalty_updated')) },
     )
   }
 
@@ -231,9 +231,9 @@ export function ScoringTab() {
         setWeightsInit(false)
         setModsInit(false)
         setApplyingPreset(null)
-        toast(`Preset "${preset.name}" applied`)
+        toast(t('scoring_tab.toast_preset_applied', { name: preset.name }))
       },
-      onError: () => { setApplyingPreset(null); toast('Failed to apply preset', 'error') },
+      onError: () => { setApplyingPreset(null); toast(t('scoring_tab.toast_preset_apply_failed'), 'error') },
     })
   }
 
@@ -248,15 +248,15 @@ export function ScoringTab() {
   const saveWeights = () => {
     updateWeights.mutate(
       { episode: episodeWeights, movie: movieWeights },
-      { onSuccess: () => toast('Scoring weights saved'), onError: () => toast('Failed to save', 'error') },
+      { onSuccess: () => toast(t('scoring_tab.toast_weights_saved')), onError: () => toast(t('scoring_tab.toast_save_failed'), 'error') },
     )
   }
 
   const resetAllWeights = () => {
-    if (!confirm('Reset all scoring weights to factory defaults?')) return
+    if (!confirm(t('scoring_tab.confirm_reset_weights'))) return
     resetWeights.mutate(undefined, {
-      onSuccess: () => { setWeightsInit(false); toast('Weights reset to defaults') },
-      onError: () => toast('Failed to reset', 'error'),
+      onSuccess: () => { setWeightsInit(false); toast(t('scoring_tab.toast_weights_reset')) },
+      onError: () => toast(t('scoring_tab.toast_reset_failed'), 'error'),
     })
   }
 
@@ -266,22 +266,22 @@ export function ScoringTab() {
       if (mod !== 0) toSave[name] = mod
     }
     updateModifiers.mutate(toSave, {
-      onSuccess: () => toast('Provider modifiers saved'),
-      onError: () => toast('Failed to save', 'error'),
+      onSuccess: () => toast(t('scoring_tab.toast_modifiers_saved')),
+      onError: () => toast(t('scoring_tab.toast_save_failed'), 'error'),
     })
   }
 
   const saveReleaseGroup = () => {
     updateConfig.mutate(
       { release_group_prefer: rgPrefer, release_group_exclude: rgExclude, release_group_prefer_bonus: rgBonus },
-      { onSuccess: () => toast('Release group settings saved'), onError: () => toast('Failed to save', 'error') },
+      { onSuccess: () => toast(t('scoring_tab.toast_rg_saved')), onError: () => toast(t('scoring_tab.toast_save_failed'), 'error') },
     )
   }
 
   const saveMt = () => {
     updateConfig.mutate(
       { 'providers.mt_penalty': mtPenalty, 'providers.mt_confidence_threshold': mtThreshold },
-      { onSuccess: () => toast('MT settings saved'), onError: () => toast('Failed to save', 'error') },
+      { onSuccess: () => toast(t('scoring_tab.toast_mt_saved')), onError: () => toast(t('scoring_tab.toast_save_failed'), 'error') },
     )
   }
 
@@ -382,13 +382,13 @@ export function ScoringTab() {
             }}
           >
             {updateConfig.isPending ? <Loader2 size={12} className="animate-spin" /> : <Save size={12} />}
-            Save
+            {t('scoring_tab.save')}
           </button>
         </div>
 
         <FormGroup
           label={t('scoring_tab.preferred_groups')}
-          hint={`Comma-separated release groups that receive a +${rgBonus} score bonus (e.g. SubsPlease, Erai-raws). Leave empty to disable.`}
+          hint={t('scoring_tab.preferred_groups_hint', { bonus: rgBonus })}
           data-testid="form-group-rg-prefer"
         >
           <input
@@ -462,10 +462,10 @@ export function ScoringTab() {
         >
           <div style={{ textAlign: 'left' }}>
             <span style={{ fontSize: 14, fontWeight: 600, color: 'var(--text-primary)' }}>
-              Advanced: Fine-tune Weights
+              {t('scoring_tab.advanced_title')}
             </span>
             <p style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 2 }}>
-              Adjust individual scoring criteria for episodes and movies
+              {t('scoring_tab.advanced_desc')}
             </p>
           </div>
           {showAdvanced
@@ -492,7 +492,7 @@ export function ScoringTab() {
                   background: 'transparent', cursor: 'pointer', opacity: resetWeights.isPending ? 0.5 : 1,
                 }}
               >
-                <RotateCcw size={11} /> Reset to Defaults
+                <RotateCcw size={11} /> {t('scoring_tab.reset_to_defaults')}
               </button>
               <button
                 data-testid="btn-save-weights"
@@ -506,7 +506,7 @@ export function ScoringTab() {
                 }}
               >
                 {updateWeights.isPending ? <Loader2 size={12} className="animate-spin" /> : <Save size={12} />}
-                Save Weights
+                {t('scoring_tab.save_weights')}
               </button>
             </div>
 
@@ -519,7 +519,7 @@ export function ScoringTab() {
                   fontSize: 11, fontWeight: 700, textTransform: 'uppercase',
                   letterSpacing: '0.08em', color: 'var(--text-muted)', marginBottom: 8,
                 }}>
-                  Episode Weights
+                  {t('scoring_tab.episode_weights')}
                 </h4>
                 {Object.entries(episodeWeights).map(([key, val]) => (
                   <WeightSliderRow
@@ -537,7 +537,7 @@ export function ScoringTab() {
                   fontSize: 11, fontWeight: 700, textTransform: 'uppercase',
                   letterSpacing: '0.08em', color: 'var(--text-muted)', marginBottom: 8,
                 }}>
-                  Movie Weights
+                  {t('scoring_tab.movie_weights')}
                 </h4>
                 {Object.entries(movieWeights).map(([key, val]) => (
                   <WeightSliderRow
@@ -559,10 +559,10 @@ export function ScoringTab() {
                     fontSize: 11, fontWeight: 700, textTransform: 'uppercase',
                     letterSpacing: '0.08em', color: 'var(--text-muted)',
                   }}>
-                    Provider Modifiers
+                    {t('scoring_tab.provider_modifiers')}
                   </h4>
                   <p style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 2 }}>
-                    Bonus or penalty applied to every result from a specific provider.
+                    {t('scoring_tab.provider_modifiers_desc')}
                   </p>
                 </div>
                 <button
@@ -578,7 +578,7 @@ export function ScoringTab() {
                   }}
                 >
                   {updateModifiers.isPending ? <Loader2 size={12} className="animate-spin" /> : <Save size={12} />}
-                  Save
+                  {t('scoring_tab.save')}
                 </button>
               </div>
 
@@ -591,7 +591,7 @@ export function ScoringTab() {
                       <FormGroup
                         key={name}
                         label={name}
-                        hint={`Score modifier for all ${name} results.`}
+                        hint={t('scoring_tab.modifier_hint', { name })}
                         data-testid={`form-group-modifier-${name}`}
                       >
                         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
@@ -617,7 +617,7 @@ export function ScoringTab() {
                   })}
                 {Object.keys(providerMods).length === 0 && (
                   <p style={{ fontSize: 12, color: 'var(--text-muted)', padding: '8px 0' }}>
-                    No providers configured.
+                    {t('scoring_tab.no_providers_configured')}
                   </p>
                 )}
               </div>
@@ -631,10 +631,10 @@ export function ScoringTab() {
                     fontSize: 11, fontWeight: 700, textTransform: 'uppercase',
                     letterSpacing: '0.08em', color: 'var(--text-muted)',
                   }}>
-                    MT Detection Thresholds
+                    {t('scoring_tab.mt_detection_thresholds')}
                   </h4>
                   <p style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 2 }}>
-                    Fine-tune the penalty and confidence threshold for machine-translation detection.
+                    {t('scoring_tab.mt_detection_desc')}
                   </p>
                 </div>
                 <button
@@ -650,7 +650,7 @@ export function ScoringTab() {
                   }}
                 >
                   {updateConfig.isPending ? <Loader2 size={12} className="animate-spin" /> : <Save size={12} />}
-                  Save
+                  {t('scoring_tab.save')}
                 </button>
               </div>
               <div data-testid="mt-detection-controls">

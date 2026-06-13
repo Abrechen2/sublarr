@@ -67,11 +67,11 @@ export function EpisodeSearchPanel({ results, isLoading, onProcess }: EpisodeSea
           <thead>
             <tr style={{ backgroundColor: 'var(--bg-surface)', borderBottom: '1px solid var(--border)' }}>
               <th className="text-left text-[10px] font-semibold uppercase tracking-wider px-3 py-1.5" style={{ color: 'var(--text-muted)' }}>{t('episode_search.col_provider')}</th>
-              <th className="text-left text-[10px] font-semibold uppercase tracking-wider px-3 py-1.5" style={{ color: 'var(--text-muted)' }}>Type</th>
+              <th className="text-left text-[10px] font-semibold uppercase tracking-wider px-3 py-1.5" style={{ color: 'var(--text-muted)' }}>{t('episode_search.col_type')}</th>
               <th className="text-left text-[10px] font-semibold uppercase tracking-wider px-3 py-1.5" style={{ color: 'var(--text-muted)' }}>{t('episode_search.col_format')}</th>
               <th className="text-left text-[10px] font-semibold uppercase tracking-wider px-3 py-1.5" style={{ color: 'var(--text-muted)' }}>{t('episode_search.col_score')}</th>
               <th className="text-left text-[10px] font-semibold uppercase tracking-wider px-3 py-1.5" style={{ color: 'var(--text-muted)' }}>{t('episode_search.col_release')}</th>
-              <th className="text-left text-[10px] font-semibold uppercase tracking-wider px-3 py-1.5" style={{ color: 'var(--text-muted)' }}>Lang</th>
+              <th className="text-left text-[10px] font-semibold uppercase tracking-wider px-3 py-1.5" style={{ color: 'var(--text-muted)' }}>{t('episode_search.col_lang')}</th>
             </tr>
           </thead>
           <tbody>
@@ -91,7 +91,7 @@ export function EpisodeSearchPanel({ results, isLoading, onProcess }: EpisodeSea
                       color: r._type === 'target' ? 'var(--success)' : 'var(--accent)',
                     }}
                   >
-                    {r._type === 'target' ? 'Target' : 'Source'}
+                    {r._type === 'target' ? t('episode_search.target') : t('episode_search.source')}
                   </span>
                 </td>
                 <td className="px-3 py-1.5">

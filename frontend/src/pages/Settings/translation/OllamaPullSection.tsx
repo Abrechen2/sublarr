@@ -18,23 +18,23 @@ export function OllamaPullSection() {
     setPulling(true)
     pullMut.mutate(modelName.trim(), {
       onSuccess: (r) => {
-        toast(r.message ?? `Pulling ${modelName}…`)
+        toast(r.message ?? tc('settings:ollama_pull.toast_pulling', { model: modelName }))
         setPulling(false)
       },
       onError: () => {
-        toast('Pull failed', 'error')
+        toast(tc('settings:ollama_pull.toast_failed'), 'error')
         setPulling(false)
       },
     })
   }
 
   return (
-    <SettingRow label={tc('ui.pull_ollama_model')} description="Download or update a model from the Ollama registry.">
+    <SettingRow label={tc('ui.pull_ollama_model')} description={tc('settings:ollama_pull.description')}>
       <div className="flex gap-2 items-center">
         <input
           type="text"
           className="input-base"
-          placeholder="e.g. gemma2:27b"
+          placeholder={tc('settings:ollama_pull.model_placeholder')}
           value={modelName}
           onChange={(e) => setModelName(e.target.value)}
           data-testid="ollama-model-input"
@@ -65,7 +65,7 @@ export function OllamaPullSection() {
           }}
         >
           {pulling && <Loader2 size={14} className="animate-spin" />}
-          Pull
+          {tc('settings:ollama_pull.pull_button')}
         </button>
       </div>
     </SettingRow>

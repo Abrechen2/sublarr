@@ -56,15 +56,15 @@ export function HealthCheckPanel({ filePath, onClose, onFixed }: HealthCheckPane
         { filePath, fixes: [checkName] },
         {
           onSuccess: (result) => {
-            toast(`Fixed. New score: ${result.new_score}`)
+            toast(t('health.fixed_score', { score: result.new_score }))
             void refetch()
             onFixed?.()
           },
-          onError: () => toast('Fix failed', 'error'),
+          onError: () => toast(t('health.fix_failed'), 'error'),
         }
       )
     },
-    [filePath, healthFix, refetch, onFixed]
+    [filePath, healthFix, refetch, onFixed, t]
   )
 
   const handleFixAll = useCallback(() => {
@@ -72,15 +72,15 @@ export function HealthCheckPanel({ filePath, onClose, onFixed }: HealthCheckPane
       { filePath, fixes: fixableChecks },
       {
         onSuccess: (result) => {
-          toast(`Fixed ${result.fixes_applied.length} issues. New score: ${result.new_score}`)
+          toast(t('health.batch_fixed', { count: result.fixes_applied.length, score: result.new_score }))
           setShowConfirm(false)
           void refetch()
           onFixed?.()
         },
-        onError: () => toast('Batch fix failed', 'error'),
+        onError: () => toast(t('health.batch_fix_failed'), 'error'),
       }
     )
-  }, [filePath, fixableChecks, healthFix, refetch, onFixed])
+  }, [filePath, fixableChecks, healthFix, refetch, onFixed, t])
 
   return (
     <div
@@ -153,7 +153,7 @@ export function HealthCheckPanel({ filePath, onClose, onFixed }: HealthCheckPane
               style={{ backgroundColor: 'var(--bg-primary)', borderBottom: '1px solid var(--border)' }}
             >
               <span className="text-xs" style={{ color: 'var(--text-secondary)' }}>
-                {fixableIssues.length} auto-fixable issue{fixableIssues.length !== 1 ? 's' : ''}
+                {t('health.auto_fixable', { count: fixableIssues.length })}
               </span>
               <button
                 onClick={() => setShowConfirm(true)}
@@ -161,7 +161,7 @@ export function HealthCheckPanel({ filePath, onClose, onFixed }: HealthCheckPane
                 style={{ backgroundColor: 'var(--accent)' }}
               >
                 <Wrench size={11} />
-                Fix All ({fixableChecks.length})
+                {t('health.fix_all', { count: fixableChecks.length })}
               </button>
             </div>
           )}
@@ -173,7 +173,7 @@ export function HealthCheckPanel({ filePath, onClose, onFixed }: HealthCheckPane
               style={{ backgroundColor: 'var(--warning-bg)', borderBottom: '1px solid var(--border)' }}
             >
               <div className="text-xs font-semibold" style={{ color: 'var(--warning)' }}>
-                Fixes to apply:
+                {t('health.fixes_to_apply')}
               </div>
               <ul className="text-xs space-y-0.5" style={{ color: 'var(--text-primary)' }}>
                 {fixableIssues.map((issue, i) => (
@@ -192,14 +192,14 @@ export function HealthCheckPanel({ filePath, onClose, onFixed }: HealthCheckPane
                   ) : (
                     <Wrench size={11} />
                   )}
-                  Confirm
+                  {t('health.confirm')}
                 </button>
                 <button
                   onClick={() => setShowConfirm(false)}
                   className="px-3 py-1 rounded text-xs"
                   style={{ color: 'var(--text-muted)' }}
                 >
-                  Cancel
+                  {t('health.cancel')}
                 </button>
               </div>
             </div>
@@ -209,7 +209,7 @@ export function HealthCheckPanel({ filePath, onClose, onFixed }: HealthCheckPane
           {sortedIssues.length === 0 ? (
             <div className="flex flex-col items-center gap-2 py-8" style={{ color: 'var(--success)' }}>
               <CheckCircle2 size={28} />
-              <span className="text-sm font-medium">No issues found. Score: 100</span>
+              <span className="text-sm font-medium">{t('health.no_issues')}</span>
             </div>
           ) : (
             <div className="divide-y" style={{ borderColor: 'var(--border)' }}>
@@ -234,7 +234,7 @@ export function HealthCheckPanel({ filePath, onClose, onFixed }: HealthCheckPane
                           fontFamily: 'var(--font-mono)',
                         }}
                       >
-                        Line {issue.line}
+                        {t('health.line', { line: issue.line })}
                       </span>
                     )}
                   </div>
@@ -244,7 +244,7 @@ export function HealthCheckPanel({ filePath, onClose, onFixed }: HealthCheckPane
                       disabled={healthFix.isPending}
                       className="flex-shrink-0 p-1.5 rounded transition-colors"
                       style={{ color: 'var(--text-muted)' }}
-                      title={issue.fix || 'Auto-fix this issue'}
+                      title={issue.fix || t('health.autofix_tooltip')}
                       onMouseEnter={(e) => { e.currentTarget.style.color = 'var(--accent)' }}
                       onMouseLeave={(e) => { e.currentTarget.style.color = 'var(--text-muted)' }}
                     >

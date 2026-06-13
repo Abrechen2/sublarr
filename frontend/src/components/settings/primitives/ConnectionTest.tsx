@@ -1,5 +1,6 @@
 import { useState, useCallback } from 'react'
 import type { ReactNode } from 'react'
+import { useTranslation } from 'react-i18next'
 
 /**
  * ConnectionTest — a reusable test-connection button with a state machine.
@@ -57,6 +58,7 @@ export function ConnectionTest({
   onResult,
   testIdPrefix = 'connection-test',
 }: ConnectionTestProps) {
+  const { t } = useTranslation('settings')
   const [state, setState] = useState<ConnectionTestState>('idle')
   const [result, setResult] = useState<ConnectionTestResult | null>(null)
 
@@ -72,13 +74,13 @@ export function ConnectionTest({
     } catch (err) {
       const failResult: ConnectionTestResult = {
         ok: false,
-        detail: err instanceof Error ? err.message : 'Test failed',
+        detail: err instanceof Error ? err.message : t('connection_test.test_failed'),
       }
       setState('fail')
       setResult(failResult)
       onResult?.(failResult)
     }
-  }, [disabled, state, onTest, onResult])
+  }, [disabled, state, onTest, onResult, t])
 
   const pillClass = (() => {
     switch (state) {
@@ -107,10 +109,10 @@ export function ConnectionTest({
   })()
 
   const pillText = (() => {
-    if (state === 'testing') return 'Testing…'
+    if (state === 'testing') return t('connection_test.testing')
     if (result?.detail) return result.detail
-    if (state === 'ok') return 'OK'
-    if (state === 'fail') return 'Failed'
+    if (state === 'ok') return t('connection_test.ok')
+    if (state === 'fail') return t('connection_test.failed')
     return ''
   })()
 
@@ -127,7 +129,7 @@ export function ConnectionTest({
         data-testid={`${testIdPrefix}-btn`}
         className={`font-semibold rounded bg-[var(--accent)] text-[#0a0f14] hover:bg-[var(--accent-dim)] disabled:opacity-60 disabled:cursor-not-allowed ${sizeClasses[size]}`}
       >
-        {state === 'testing' ? 'Testing…' : label}
+        {state === 'testing' ? t('connection_test.testing') : label}
       </button>
 
       {state !== 'idle' && (

@@ -254,7 +254,7 @@ export function CleanupSettings() {
       if (existing) {
         updateRule.mutate(
           { id: existing.id, data: { enabled } },
-          { onError: () => toast('Fehler beim Speichern', 'error') },
+          { onError: () => toast(t('cleanup.errors.save_failed'), 'error') },
         )
       } else {
         createRule.mutate(
@@ -265,11 +265,11 @@ export function CleanupSettings() {
             enabled,
             schedule: 'manual',
           },
-          { onError: () => toast('Fehler beim Erstellen', 'error') },
+          { onError: () => toast(t('cleanup.errors.create_failed'), 'error') },
         )
       }
     },
-    [rules, createRule, updateRule],
+    [rules, createRule, updateRule, t],
   )
 
   const handleUpdate = useCallback(
@@ -278,10 +278,10 @@ export function CleanupSettings() {
       if (!existing) return
       updateRule.mutate(
         { id: existing.id, data: patch },
-        { onError: () => toast('Fehler beim Speichern', 'error') },
+        { onError: () => toast(t('cleanup.errors.save_failed'), 'error') },
       )
     },
-    [rules, updateRule],
+    [rules, updateRule, t],
   )
 
   // ── Dedup handlers ──────────────────────────────────────────────────────────
@@ -289,9 +289,9 @@ export function CleanupSettings() {
   const handleStartScan = useCallback(() => {
     startScan.mutate(undefined, {
       onSuccess: () => setIsScanning(true),
-      onError: () => toast('Scan fehlgeschlagen', 'error'),
+      onError: () => toast(t('cleanup.errors.scan_failed'), 'error'),
     })
-  }, [startScan])
+  }, [startScan, t])
 
   const handleDeleteDuplicates = useCallback(
     (selections: { keep: string; delete: string[] }[]) => {
@@ -301,28 +301,28 @@ export function CleanupSettings() {
         onError: () => {
           deleteDuplicates.mutate(selections, {
             onSuccess: (result: { deleted: number; bytes_freed: number }) => {
-              toast(`${result.deleted} Dateien gelöscht, ${formatBytes(result.bytes_freed)} freigegeben`)
+              toast(t('cleanup.dedup.deleted_files', { count: result.deleted, size: formatBytes(result.bytes_freed) }))
               setPendingDeleteSelections(null)
             },
-            onError: () => toast('Fehler beim Löschen', 'error'),
+            onError: () => toast(t('cleanup.errors.delete_failed'), 'error'),
           })
         },
       })
     },
-    [cleanupPreview, deleteDuplicates],
+    [cleanupPreview, deleteDuplicates, t],
   )
 
   const handleConfirmDedupDelete = useCallback(() => {
     if (!pendingDeleteSelections) return
     deleteDuplicates.mutate(pendingDeleteSelections, {
       onSuccess: (result: { deleted: number; bytes_freed: number }) => {
-        toast(`${result.deleted} Dateien gelöscht, ${formatBytes(result.bytes_freed)} freigegeben`)
+        toast(t('cleanup.dedup.deleted_files', { count: result.deleted, size: formatBytes(result.bytes_freed) }))
         setPendingDeleteSelections(null)
         setDedupPreviewData(null)
       },
-      onError: () => toast('Fehler beim Löschen', 'error'),
+      onError: () => toast(t('cleanup.errors.delete_failed'), 'error'),
     })
-  }, [pendingDeleteSelections, deleteDuplicates])
+  }, [pendingDeleteSelections, deleteDuplicates, t])
 
   // ── Render ──────────────────────────────────────────────────────────────────
 
@@ -355,7 +355,7 @@ export function CleanupSettings() {
           className="text-[10px] font-semibold uppercase tracking-wider mb-3 px-1"
           style={{ color: 'var(--text-muted)' }}
         >
-          Automatische Bereinigung
+          {t('cleanup.auto_cleanup_heading')}
         </div>
         <div className="space-y-3">
           {OPERATIONS.map((op) => {
@@ -379,7 +379,7 @@ export function CleanupSettings() {
           className="text-[10px] font-semibold uppercase tracking-wider mb-3 px-1"
           style={{ color: 'var(--text-muted)' }}
         >
-          Deduplizierung
+          {t('cleanup.dedup_heading')}
         </div>
         <div
           className="rounded-xl overflow-hidden"
@@ -398,10 +398,10 @@ export function CleanupSettings() {
             </div>
             <div className="flex-1 min-w-0">
               <div className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>
-                Duplikat-Scanner
+                {t('cleanup.dedup.scanner_title')}
               </div>
               <div className="text-xs mt-0.5" style={{ color: 'var(--text-muted)' }}>
-                Findet inhaltsgleiche Subtitle-Dateien via SHA-256 und lässt dich wählen, welche behalten werden
+                {t('cleanup.dedup.scanner_desc')}
               </div>
             </div>
             <button
@@ -411,7 +411,7 @@ export function CleanupSettings() {
               style={{ background: 'var(--accent)', color: '#000' }}
             >
               {isScanning ? <Loader2 size={13} className="animate-spin" /> : <Layers size={13} />}
-              {isScanning ? 'Scannt…' : t('cleanup.dedup.scanButton', 'Neu scannen')}
+              {isScanning ? t('cleanup.dedup.scanning_short') : t('cleanup.dedup.scanButton', 'Neu scannen')}
             </button>
           </div>
 

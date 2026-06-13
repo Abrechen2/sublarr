@@ -64,7 +64,12 @@
     "interval_label": "Wie oft soll gesucht werden",
     "upgrade_label": "Vorhandene Untertitel auf bessere Treffer aktualisieren",
     "upgrade_description": "Bewertet vorhandene Untertitel neu und ersetzt sie, wenn ein höher bewerteter Kandidat verfügbar ist.",
-    "settings_hint": "All das kann später unter Einstellungen → Automatisierung geändert werden."
+    "settings_hint": "All das kann später unter Einstellungen → Automatisierung geändert werden.",
+    "interval_1h": "1 Stunde",
+    "interval_3h": "3 Stunden",
+    "interval_6h": "6 Stunden",
+    "interval_12h": "12 Stunden",
+    "interval_24h": "24 Stunden"
   },
   "ollama_step": {
     "description": "Richte das LLM-Übersetzungs-Backend ein.",
@@ -82,7 +87,9 @@
     "server_name": "Servername",
     "connection_successful": "Verbindung erfolgreich",
     "test_failed": "Test fehlgeschlagen",
-    "types_load_failed": "Medienserver-Typen konnten nicht geladen werden."
+    "types_load_failed": "Medienserver-Typen konnten nicht geladen werden.",
+    "required": "Erforderlich",
+    "optional": "Optional"
   },
   "scan_step": {
     "description": "Führe deinen ersten Scan aus, um fehlende Untertitel zu finden.",

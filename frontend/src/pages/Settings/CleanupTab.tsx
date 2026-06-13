@@ -118,26 +118,26 @@ export function CleanupTab() {
         // If preview fails, proceed with direct delete
         deleteDuplicates.mutate(selections, {
           onSuccess: (result) => {
-            toast(`Deleted ${result.deleted} files, freed ${formatBytes(result.bytes_freed)}`)
+            toast(t('cleanup.dedup.deleted_files', { count: result.deleted, size: formatBytes(result.bytes_freed) }))
             setPendingDeleteSelections(null)
           },
-          onError: () => toast('Failed to delete duplicates', 'error'),
+          onError: () => toast(t('cleanup.dedup.delete_failed'), 'error'),
         })
       },
     })
-  }, [cleanupPreview, deleteDuplicates])
+  }, [cleanupPreview, deleteDuplicates, t])
 
   const handleConfirmDelete = useCallback(() => {
     if (!pendingDeleteSelections) return
     deleteDuplicates.mutate(pendingDeleteSelections, {
       onSuccess: (result) => {
-        toast(`Deleted ${result.deleted} files, freed ${formatBytes(result.bytes_freed)}`)
+        toast(t('cleanup.dedup.deleted_files', { count: result.deleted, size: formatBytes(result.bytes_freed) }))
         setPendingDeleteSelections(null)
         setPreviewData(null)
       },
-      onError: () => toast('Failed to delete duplicates', 'error'),
+      onError: () => toast(t('cleanup.dedup.delete_failed'), 'error'),
     })
-  }, [pendingDeleteSelections, deleteDuplicates])
+  }, [pendingDeleteSelections, deleteDuplicates, t])
 
   const handleOrphanedScan = useCallback(() => {
     orphanedScan.mutate(undefined, {
@@ -154,12 +154,12 @@ export function CleanupTab() {
     if (paths.length === 0) return
     deleteOrphaned.mutate(paths, {
       onSuccess: (result) => {
-        toast(`Deleted ${result.deleted} orphaned files, freed ${formatBytes(result.bytes_freed)}`)
+        toast(t('cleanup.orphaned.deleted_files', { count: result.deleted, size: formatBytes(result.bytes_freed) }))
         setSelectedOrphaned(new Set())
       },
-      onError: () => toast('Failed to delete orphaned files', 'error'),
+      onError: () => toast(t('cleanup.orphaned.delete_failed'), 'error'),
     })
-  }, [selectedOrphaned, deleteOrphaned])
+  }, [selectedOrphaned, deleteOrphaned, t])
 
   const handleCreateRule = useCallback(() => {
     if (!newRule.name.trim()) return
@@ -177,7 +177,7 @@ export function CleanupTab() {
           setShowCreateRule(false)
           setNewRule({ name: '', rule_type: 'dedup', enabled: true })
         },
-        onError: () => toast('Failed to create rule', 'error'),
+        onError: () => toast(t('cleanup.rules.create_failed'), 'error'),
       }
     )
   }, [newRule, createRule, t])
@@ -185,21 +185,21 @@ export function CleanupTab() {
   const handleToggleRule = useCallback((rule: CleanupRule) => {
     updateRule.mutate(
       { id: rule.id, data: { enabled: !rule.enabled } },
-      { onError: () => toast('Failed to update rule', 'error') }
+      { onError: () => toast(t('cleanup.rules.update_failed'), 'error') }
     )
-  }, [updateRule])
+  }, [updateRule, t])
 
   const handleDeleteRule = useCallback((id: number) => {
     deleteRule.mutate(id, {
       onSuccess: () => toast(t('cleanup.rules.deleted', 'Rule deleted')),
-      onError: () => toast('Failed to delete rule', 'error'),
+      onError: () => toast(t('cleanup.rules.delete_failed'), 'error'),
     })
   }, [deleteRule, t])
 
   const handleRunRule = useCallback((id: number) => {
     runRule.mutate(id, {
       onSuccess: () => toast(t('cleanup.rules.running', 'Rule execution started')),
-      onError: () => toast('Failed to run rule', 'error'),
+      onError: () => toast(t('cleanup.rules.run_failed'), 'error'),
     })
   }, [runRule, t])
 

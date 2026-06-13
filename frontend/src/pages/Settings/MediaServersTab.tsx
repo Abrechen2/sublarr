@@ -75,7 +75,7 @@ export function MediaServersTab() {
   }
 
   const removeInstance = (idx: number) => {
-    if (!confirm(`Remove "${localInstances[idx].name}"?`)) return
+    if (!confirm(t('media_servers.confirm_remove', { name: localInstances[idx].name }))) return
     const updated = localInstances.filter((_, i) => i !== idx)
     saveInstances(updated)
     if (expandedIdx === idx) setExpandedIdx(null)
@@ -105,14 +105,14 @@ export function MediaServersTab() {
       onSuccess: (result) => {
         setTestResults((prev) => ({ ...prev, [idx]: result }))
         if (result.healthy) {
-          toast(`${inst.name}: connection successful`)
+          toast(t('media_servers.test_connection_ok', { name: inst.name }))
         } else {
           toast(`${inst.name}: ${result.message}`, 'error')
         }
       },
       onError: () => {
-        setTestResults((prev) => ({ ...prev, [idx]: { healthy: false, message: 'Test request failed' } }))
-        toast(`${inst.name}: test failed`, 'error')
+        setTestResults((prev) => ({ ...prev, [idx]: { healthy: false, message: t('media_servers.test_request_failed') } }))
+        toast(t('media_servers.test_connection_failed', { name: inst.name }), 'error')
       },
     })
   }
@@ -270,8 +270,8 @@ export function MediaServersTab() {
                         onChange={(e) => updateInstance(idx, field.key, e.target.value)}
                         placeholder={
                           String(inst[field.key] ?? '') === '***configured***'
-                            ? '(configured)'
-                            : field.default || (field.required ? 'Required' : 'Optional')
+                            ? t('media_servers.placeholder_configured')
+                            : field.default || (field.required ? t('media_servers.placeholder_required') : t('media_servers.placeholder_optional'))
                         }
                         className="flex-1 px-2.5 py-1.5 rounded text-xs transition-all duration-150 focus:outline-none"
                         style={{
@@ -286,7 +286,7 @@ export function MediaServersTab() {
                           onClick={() => setShowPasswords((p) => ({ ...p, [`${idx}-${field.key}`]: !p[`${idx}-${field.key}`] }))}
                           className="p-1.5 rounded transition-all duration-150"
                           style={{ border: '1px solid var(--border)', color: 'var(--text-muted)', backgroundColor: 'var(--bg-primary)' }}
-                          title={showPasswords[`${idx}-${field.key}`] ? 'Hide' : 'Show'}
+                          title={showPasswords[`${idx}-${field.key}`] ? t('media_servers.hide') : t('media_servers.show')}
                         >
                           {showPasswords[`${idx}-${field.key}`] ? <EyeOff size={12} /> : <Eye size={12} />}
                         </button>

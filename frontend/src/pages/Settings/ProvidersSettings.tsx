@@ -101,7 +101,7 @@ export function ProvidersSettings() {
         <div className="py-4 space-y-0">
           <FormGroup
             label={ts('providers_page.hidden_providers')}
-            hint="Comma-separated provider IDs to hide from the list (e.g. opensubtitles,kitsunekko)."
+            hint={ts('providers_page.hidden_providers_hint')}
             htmlFor="providers-hidden"
             data-testid="form-group-providers-hidden"
           >
@@ -118,7 +118,7 @@ export function ProvidersSettings() {
 
           <FormGroup
             label={ts('providers_page.dedup_on_download')}
-            hint="Skip downloading a subtitle if an identical file is already present."
+            hint={ts('providers_page.dedup_on_download_hint')}
             data-testid="form-group-dedup-on-download"
           >
             <div data-testid="toggle-dedup-on-download">
@@ -131,7 +131,7 @@ export function ProvidersSettings() {
 
           <FormGroup
             label={ts('providers_page.auto_prioritize')}
-            hint="Automatically sort providers by recent success rate."
+            hint={ts('providers_page.auto_prioritize_hint')}
             data-testid="form-group-provider-auto-prioritize"
           >
             <div data-testid="toggle-provider-auto-prioritize">
@@ -144,7 +144,7 @@ export function ProvidersSettings() {
 
           <FormGroup
             label={ts('providers_page.rate_limiting')}
-            hint="Enforce per-provider request rate limits to avoid bans."
+            hint={ts('providers_page.rate_limiting_hint')}
             data-testid="form-group-provider-rate-limit-enabled"
           >
             <div data-testid="toggle-provider-rate-limit-enabled">
@@ -157,7 +157,7 @@ export function ProvidersSettings() {
 
           <FormGroup
             label={ts('providers_page.search_timeout')}
-            hint="Seconds before a provider search request times out."
+            hint={ts('providers_page.search_timeout_hint')}
             htmlFor="provider-search-timeout"
             data-testid="form-group-provider-search-timeout"
           >
@@ -175,7 +175,7 @@ export function ProvidersSettings() {
 
           <FormGroup
             label={ts('providers_page.cache_ttl')}
-            hint="How long to cache provider search results before expiring."
+            hint={ts('providers_page.cache_ttl_hint')}
             htmlFor="provider-cache-ttl-minutes"
             data-testid="form-group-provider-cache-ttl-minutes"
           >
@@ -193,7 +193,7 @@ export function ProvidersSettings() {
 
           <FormGroup
             label={ts('providers_page.auto_disable_cooldown')}
-            hint="Minutes a provider stays disabled after repeated failures."
+            hint={ts('providers_page.auto_disable_cooldown_hint')}
             htmlFor="provider-auto-disable-cooldown-minutes"
             data-testid="form-group-provider-auto-disable-cooldown-minutes"
           >
@@ -232,7 +232,7 @@ export function ProvidersSettings() {
           <div className="mt-6 space-y-0">
             <FormGroup
               label={ts('providers_page.github_token')}
-              hint="Personal access token for higher Marketplace API rate limits."
+              hint={ts('providers_page.github_token_hint')}
               htmlFor="github-token"
               data-testid="form-group-github-token"
             >
@@ -250,7 +250,7 @@ export function ProvidersSettings() {
 
             <FormGroup
               label={ts('providers_page.plugins_directory')}
-              hint="Path where plugin files are stored. Leave empty to use the default."
+              hint={ts('providers_page.plugins_directory_hint')}
               htmlFor="plugins-dir"
               data-testid="form-group-plugins-dir"
             >
@@ -267,7 +267,7 @@ export function ProvidersSettings() {
 
             <FormGroup
               label={ts('providers_page.hot_reload_plugins')}
-              hint="Automatically reload plugins when their files change on disk."
+              hint={ts('providers_page.hot_reload_plugins_hint')}
               data-testid="form-group-plugin-hot-reload"
             >
               <div data-testid="toggle-plugin-hot-reload">
@@ -296,7 +296,7 @@ export function ProvidersSettings() {
         <div className="py-4 space-y-0" data-testid="providers-anticaptcha-content">
           <FormGroup
             label={ts('providers_page.backend')}
-            hint="Select the anti-captcha service provider."
+            hint={ts('providers_page.backend_hint')}
             htmlFor="anti-captcha-backend"
             data-testid="form-group-anti-captcha-backend"
           >
@@ -318,7 +318,7 @@ export function ProvidersSettings() {
           {strVal(configData, 'anti_captcha_provider') && (
             <FormGroup
               label={ts('providers_page.api_key')}
-              hint="Your anti-captcha service API key."
+              hint={ts('providers_page.api_key_hint')}
               htmlFor="anti-captcha-api-key"
               data-testid="form-group-anti-captcha-api-key"
             >
@@ -382,7 +382,7 @@ export function ProvidersSettings() {
           <div className="py-4 space-y-0" data-testid="download-limits-content">
             <FormGroup
               label={ts('providers_page.concurrent_searches')}
-              hint="Maximum number of providers searched simultaneously"
+              hint={ts('providers_page.concurrent_searches_hint')}
               htmlFor="max-concurrent-provider-searches"
               data-testid="form-group-max-concurrent-provider-searches"
             >
@@ -405,7 +405,7 @@ export function ProvidersSettings() {
 
             <FormGroup
               label={ts('providers_page.max_subtitle_size')}
-              hint="Reject subtitle files larger than this size"
+              hint={ts('providers_page.max_subtitle_size_hint')}
               htmlFor="max-subtitle-file-size-kb"
               data-testid="form-group-max-subtitle-file-size-kb"
             >
@@ -428,7 +428,7 @@ export function ProvidersSettings() {
 
             <FormGroup
               label={ts('providers_page.provider_delay')}
-              hint="Milliseconds to wait between each provider request"
+              hint={ts('providers_page.provider_delay_hint')}
               htmlFor="download-delay-between-providers-ms"
               data-testid="form-group-download-delay-between-providers-ms"
             >
@@ -468,7 +468,7 @@ export function ProvidersSettings() {
               {/* Reranking */}
               <FormGroup
                 label={ts('providers_page.provider_reranking')}
-                hint="Reorder provider results based on historical download success rates."
+                hint={ts('providers_page.provider_reranking_hint')}
                 htmlFor="provider-reranking-enabled"
                 data-testid="form-group-provider-reranking-enabled"
               >
@@ -482,7 +482,7 @@ export function ProvidersSettings() {
 
               <FormGroup
                 label={ts('providers_page.reranking_min_downloads')}
-                hint="Minimum download count before a provider is eligible for reranking."
+                hint={ts('providers_page.reranking_min_downloads_hint')}
                 htmlFor="provider-reranking-min-downloads"
                 data-testid="form-group-provider-reranking-min-downloads"
               >
@@ -502,7 +502,7 @@ export function ProvidersSettings() {
 
               <FormGroup
                 label={ts('providers_page.reranking_max_modifier')}
-                hint="Maximum score modifier applied by reranking (e.g. 0.3 = ±30%)."
+                hint={ts('providers_page.reranking_max_modifier_hint')}
                 htmlFor="provider-reranking-max-modifier"
                 data-testid="form-group-provider-reranking-max-modifier"
               >
@@ -524,7 +524,7 @@ export function ProvidersSettings() {
               {/* Dynamic Timeouts */}
               <FormGroup
                 label={ts('providers_page.dynamic_timeouts')}
-                hint="Automatically adjust search timeouts based on provider response history."
+                hint={ts('providers_page.dynamic_timeouts_hint')}
                 data-testid="form-group-provider-dynamic-timeout-enabled"
               >
                 <div data-testid="toggle-provider-dynamic-timeout-enabled">
@@ -537,7 +537,7 @@ export function ProvidersSettings() {
 
               <FormGroup
                 label={ts('providers_page.dyn_timeout_min_samples')}
-                hint="Minimum number of response samples before dynamic adjustment kicks in."
+                hint={ts('providers_page.dyn_timeout_min_samples_hint')}
                 htmlFor="provider-dynamic-timeout-min-samples"
                 data-testid="form-group-provider-dynamic-timeout-min-samples"
               >
@@ -557,7 +557,7 @@ export function ProvidersSettings() {
 
               <FormGroup
                 label={ts('providers_page.dyn_timeout_multiplier')}
-                hint="Multiply the measured average response time by this factor for the timeout."
+                hint={ts('providers_page.dyn_timeout_multiplier_hint')}
                 htmlFor="provider-dynamic-timeout-multiplier"
                 data-testid="form-group-provider-dynamic-timeout-multiplier"
               >
@@ -578,7 +578,7 @@ export function ProvidersSettings() {
 
               <FormGroup
                 label={ts('providers_page.dyn_timeout_buffer')}
-                hint="Fixed seconds added on top of the calculated dynamic timeout."
+                hint={ts('providers_page.dyn_timeout_buffer_hint')}
                 htmlFor="provider-dynamic-timeout-buffer-secs"
                 data-testid="form-group-provider-dynamic-timeout-buffer-secs"
               >
@@ -598,7 +598,7 @@ export function ProvidersSettings() {
 
               <FormGroup
                 label={ts('providers_page.dyn_timeout_min')}
-                hint="Minimum timeout regardless of dynamic calculation."
+                hint={ts('providers_page.dyn_timeout_min_hint')}
                 htmlFor="provider-dynamic-timeout-min-secs"
                 data-testid="form-group-provider-dynamic-timeout-min-secs"
               >
@@ -618,7 +618,7 @@ export function ProvidersSettings() {
 
               <FormGroup
                 label={ts('providers_page.dyn_timeout_max')}
-                hint="Maximum timeout cap even if dynamic calculation exceeds it."
+                hint={ts('providers_page.dyn_timeout_max_hint')}
                 htmlFor="provider-dynamic-timeout-max-secs"
                 data-testid="form-group-provider-dynamic-timeout-max-secs"
               >
@@ -639,7 +639,7 @@ export function ProvidersSettings() {
               {/* Circuit Breaker */}
               <FormGroup
                 label={ts('providers_page.circuit_breaker_threshold')}
-                hint="Number of consecutive failures before a provider is temporarily disabled."
+                hint={ts('providers_page.circuit_breaker_threshold_hint')}
                 htmlFor="circuit-breaker-failure-threshold"
                 data-testid="form-group-circuit-breaker-failure-threshold"
               >
@@ -659,7 +659,7 @@ export function ProvidersSettings() {
 
               <FormGroup
                 label={ts('providers_page.circuit_breaker_cooldown')}
-                hint="Seconds a provider stays in OPEN state before being retried."
+                hint={ts('providers_page.circuit_breaker_cooldown_hint')}
                 htmlFor="circuit-breaker-cooldown-seconds"
                 data-testid="form-group-circuit-breaker-cooldown-seconds"
               >

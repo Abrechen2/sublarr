@@ -35,11 +35,11 @@ export function SubtitleToolsTab() {
     subtitleTool.mutate({ tool, params }, {
       onSuccess: (data) => {
         setToolResult((prev) => ({ ...prev, [resultKey]: data.status || 'Done' }))
-        toast(`Tool "${tool}" completed successfully`)
+        toast(t('subtitle_tools_tab.tool_success', { tool }))
       },
       onError: () => {
         setToolResult((prev) => ({ ...prev, [resultKey]: 'Failed' }))
-        toast(`Tool "${tool}" failed`, 'error')
+        toast(t('subtitle_tools_tab.tool_failed', { tool }), 'error')
       },
     })
   }
@@ -48,7 +48,7 @@ export function SubtitleToolsTab() {
     if (!previewPath.trim()) return
     previewMutation.mutate(previewPath, {
       onSuccess: (data) => setPreviewData(data),
-      onError: () => toast('Preview failed', 'error'),
+      onError: () => toast(t('subtitle_tools_tab.preview_failed'), 'error'),
     })
   }
 
@@ -56,16 +56,16 @@ export function SubtitleToolsTab() {
     <div className="space-y-4">
       <div className="text-xs px-1" style={{ color: 'var(--text-muted)' }}>
         <AlertTriangle size={12} className="inline mr-1" />
-        A backup (.bak) is created before any modification.
+        {t('subtitle_tools_tab.backup_notice')}
       </div>
 
       {/* Remove HI Markers */}
       <div className="rounded-lg p-5" style={{ backgroundColor: 'var(--bg-surface)', border: '1px solid var(--border)' }}>
         <h3 className="text-sm font-semibold mb-1" style={{ color: 'var(--text-primary)' }}>
-          Remove Hearing-Impaired Markers
+          {t('subtitle_tools_tab.remove_hi_title')}
         </h3>
         <p className="text-xs mb-3" style={{ color: 'var(--text-muted)' }}>
-          Removes [HI], (music), and other hearing-impaired annotations from subtitle files.
+          {t('subtitle_tools_tab.remove_hi_desc')}
         </p>
         <div className="flex items-center gap-2">
           <input
@@ -89,12 +89,12 @@ export function SubtitleToolsTab() {
             style={{ backgroundColor: 'var(--accent)', opacity: !hiPath.trim() ? 0.5 : 1 }}
           >
             {subtitleTool.isPending ? <Loader2 size={14} className="animate-spin" /> : <Wrench size={14} />}
-            Remove
+            {t('subtitle_tools_tab.remove')}
           </button>
         </div>
         {toolResult.hi && (
           <p className="text-xs mt-2" style={{ color: toolResult.hi === 'Failed' ? 'var(--error)' : 'var(--success)' }}>
-            Result: {toolResult.hi}
+            {t('subtitle_tools_tab.result', { value: toolResult.hi })}
           </p>
         )}
       </div>
@@ -102,11 +102,10 @@ export function SubtitleToolsTab() {
       {/* Adjust Timing */}
       <div className="rounded-lg p-5" style={{ backgroundColor: 'var(--bg-surface)', border: '1px solid var(--border)' }}>
         <h3 className="text-sm font-semibold mb-1" style={{ color: 'var(--text-primary)' }}>
-          Adjust Timing
+          {t('subtitle_tools_tab.adjust_timing_title')}
         </h3>
         <p className="text-xs mb-3" style={{ color: 'var(--text-muted)' }}>
-          Shift all subtitle timestamps by a specified millisecond offset.
-          Positive values delay, negative values advance.
+          {t('subtitle_tools_tab.adjust_timing_desc')}
         </p>
         <div className="flex items-center gap-2">
           <input type="text" value={timingPath} onChange={(e) => setTimingPath(e.target.value)} placeholder={t('subtitle_tools_tab.file_path_label')}
@@ -116,7 +115,7 @@ export function SubtitleToolsTab() {
             <input type="number" value={timingOffset} onChange={(e) => setTimingOffset(parseInt(e.target.value) || 0)}
               className="w-24 px-2 py-2 rounded-md text-sm text-center"
               style={{ backgroundColor: 'var(--bg-primary)', border: '1px solid var(--border)', color: 'var(--text-primary)', fontFamily: 'var(--font-mono)', fontSize: '13px' }} />
-            <span className="text-xs shrink-0" style={{ color: 'var(--text-muted)' }}>ms ({timingOffset >= 0 ? 'delay' : 'advance'})</span>
+            <span className="text-xs shrink-0" style={{ color: 'var(--text-muted)' }}>ms ({timingOffset >= 0 ? t('subtitle_tools_tab.delay') : t('subtitle_tools_tab.advance')})</span>
           </div>
           <button
             onClick={() => runTool('adjust-timing', { file_path: timingPath, offset_ms: timingOffset }, 'timing')}
@@ -125,11 +124,11 @@ export function SubtitleToolsTab() {
             style={{ backgroundColor: 'var(--accent)', opacity: !timingPath.trim() ? 0.5 : 1 }}
           >
             {subtitleTool.isPending ? <Loader2 size={14} className="animate-spin" /> : <Wrench size={14} />}
-            Apply
+            {t('subtitle_tools_tab.apply')}
           </button>
         </div>
         {toolResult.timing && (
-          <p className="text-xs mt-2" style={{ color: toolResult.timing === 'Failed' ? 'var(--error)' : 'var(--success)' }}>Result: {toolResult.timing}</p>
+          <p className="text-xs mt-2" style={{ color: toolResult.timing === 'Failed' ? 'var(--error)' : 'var(--success)' }}>{t('subtitle_tools_tab.result', { value: toolResult.timing })}</p>
         )}
       </div>
 
@@ -137,7 +136,7 @@ export function SubtitleToolsTab() {
       <div className="rounded-lg p-5" style={{ backgroundColor: 'var(--bg-surface)', border: '1px solid var(--border)' }}>
         <h3 className="text-sm font-semibold mb-1" style={{ color: 'var(--text-primary)' }}>{t('subtitle_tools_tab.common_fixes')}</h3>
         <p className="text-xs mb-3" style={{ color: 'var(--text-muted)' }}>
-          Apply common subtitle cleaning operations: fix encoding, trim whitespace, normalize line breaks, remove empty lines.
+          {t('subtitle_tools_tab.common_fixes_desc')}
         </p>
         <div className="flex items-center gap-2 mb-3">
           <input type="text" value={fixesPath} onChange={(e) => setFixesPath(e.target.value)} placeholder={t('subtitle_tools_tab.file_path_label')}
@@ -160,10 +159,10 @@ export function SubtitleToolsTab() {
           style={{ backgroundColor: 'var(--accent)', opacity: !fixesPath.trim() ? 0.5 : 1 }}
         >
           {subtitleTool.isPending ? <Loader2 size={14} className="animate-spin" /> : <Wrench size={14} />}
-          Apply Fixes
+          {t('subtitle_tools_tab.apply_fixes')}
         </button>
         {toolResult.fixes && (
-          <p className="text-xs mt-2" style={{ color: toolResult.fixes === 'Failed' ? 'var(--error)' : 'var(--success)' }}>Result: {toolResult.fixes}</p>
+          <p className="text-xs mt-2" style={{ color: toolResult.fixes === 'Failed' ? 'var(--error)' : 'var(--success)' }}>{t('subtitle_tools_tab.result', { value: toolResult.fixes })}</p>
         )}
       </div>
 
@@ -182,7 +181,7 @@ export function SubtitleToolsTab() {
             style={{ backgroundColor: 'var(--accent)', opacity: !previewPath.trim() ? 0.5 : 1 }}
           >
             {previewMutation.isPending ? <Loader2 size={14} className="animate-spin" /> : <Eye size={14} />}
-            Preview
+            {t('subtitle_tools_tab.preview')}
           </button>
         </div>
         {previewData && (
@@ -191,7 +190,7 @@ export function SubtitleToolsTab() {
               <span className="text-xs font-medium px-2 py-0.5 rounded" style={{ backgroundColor: 'var(--accent-bg)', color: 'var(--accent)' }}>
                 {previewData.format.toUpperCase()}
               </span>
-              <span className="text-xs" style={{ color: 'var(--text-muted)' }}>{previewData.total_lines} total lines</span>
+              <span className="text-xs" style={{ color: 'var(--text-muted)' }}>{t('subtitle_tools_tab.total_lines', { count: previewData.total_lines })}</span>
             </div>
             <div
               className="max-h-64 overflow-auto rounded p-3 text-xs"

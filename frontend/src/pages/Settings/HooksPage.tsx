@@ -75,7 +75,7 @@ function HookFormModal({
       >
         <div className="flex items-center justify-between">
           <h3 className="font-semibold text-sm" style={{ color: 'var(--text-primary)' }}>
-            {initialData ? 'Edit Hook' : 'New Hook'}
+            {initialData ? t('system_hooks_page.edit_hook') : t('system_hooks_page.new_hook')}
           </h3>
           <button onClick={onCancel} style={{ color: 'var(--text-muted)' }}>
             <X size={14} />
@@ -128,7 +128,7 @@ function HookFormModal({
             style={{ backgroundColor: 'var(--accent)', color: 'white', border: 'none', borderRadius: '6px', padding: '6px 14px', cursor: 'pointer' }}
           >
             {isPending ? <Loader2 size={14} className="animate-spin inline mr-1" /> : null}
-            Save
+            {t('system_hooks_page.save')}
           </button>
         </div>
       </div>
@@ -158,13 +158,13 @@ function OutgoingHooksSection() {
   const handleSave = (form: HookFormData) => {
     if (editingHook) {
       updateHook.mutate({ id: editingHook.id, data: form }, {
-        onSuccess: () => { setShowModal(false); setEditingHook(null); toast('Hook updated') },
-        onError: () => toast('Failed to update hook', 'error'),
+        onSuccess: () => { setShowModal(false); setEditingHook(null); toast(t('settings:system_hooks_page.toast_hook_updated')) },
+        onError: () => toast(t('settings:system_hooks_page.toast_hook_update_failed'), 'error'),
       })
     } else {
       createHook.mutate(form, {
-        onSuccess: () => { setShowModal(false); toast('Hook created') },
-        onError: () => toast('Failed to create hook', 'error'),
+        onSuccess: () => { setShowModal(false); toast(t('settings:system_hooks_page.toast_hook_created')) },
+        onError: () => toast(t('settings:system_hooks_page.toast_hook_create_failed'), 'error'),
       })
     }
   }
@@ -172,9 +172,9 @@ function OutgoingHooksSection() {
   const handleTest = (id: number) => {
     testHookMut.mutate(id, {
       onSuccess: (r: { success?: boolean; message?: string }) => {
-        toast(r.message ?? (r.success ? 'Hook test succeeded' : 'Hook test failed'))
+        toast(r.message ?? (r.success ? t('settings:system_hooks_page.toast_test_succeeded') : t('settings:system_hooks_page.toast_test_failed')))
       },
-      onError: () => toast('Hook test failed', 'error'),
+      onError: () => toast(t('settings:system_hooks_page.toast_test_failed'), 'error'),
     })
   }
 
@@ -188,13 +188,13 @@ function OutgoingHooksSection() {
           data-testid="new-hook-btn"
         >
           <Plus size={14} />
-          New Hook
+          {t('settings:system_hooks_page.new_hook')}
         </button>
       </div>
 
       {hooks.length === 0 && (
         <div className="text-center py-8 text-sm" style={{ color: 'var(--text-muted)' }}>
-          No hooks configured yet. Create one to run scripts on events.
+          {t('settings:system_hooks_page.no_hooks')}
         </div>
       )}
 
@@ -218,7 +218,7 @@ function OutgoingHooksSection() {
           </div>
           <div className="flex items-center gap-1.5">
             <button
-              title={t('system_hooks_page.action.test')}
+              title={t('settings:system_hooks_page.action.test')}
               onClick={() => handleTest(hook.id)}
               className="p-1.5 rounded"
               style={{ color: 'var(--text-muted)', border: '1px solid var(--border)' }}
@@ -227,7 +227,7 @@ function OutgoingHooksSection() {
               <TestTube size={13} />
             </button>
             <button
-              title={t('system_hooks_page.action.edit')}
+              title={t('settings:system_hooks_page.action.edit')}
               onClick={() => { setEditingHook(hook); setShowModal(true) }}
               className="p-1.5 rounded"
               style={{ color: 'var(--text-muted)', border: '1px solid var(--border)' }}
@@ -236,7 +236,7 @@ function OutgoingHooksSection() {
               <Edit2 size={13} />
             </button>
             <button
-              title={t('system_hooks_page.action.delete')}
+              title={t('settings:system_hooks_page.action.delete')}
               onClick={() => setDeleteConfirmId(hook.id)}
               className="p-1.5 rounded"
               style={{ color: 'var(--error)', border: '1px solid var(--border)' }}
@@ -271,7 +271,7 @@ function OutgoingHooksSection() {
             className="w-full max-w-sm mx-4 rounded-xl p-5 space-y-4"
             style={{ backgroundColor: 'var(--bg-surface)', border: '1px solid var(--border)' }}
           >
-            <h3 className="font-semibold text-sm" style={{ color: 'var(--text-primary)' }}>{t('system_hooks_page.confirm_delete_title')}</h3>
+            <h3 className="font-semibold text-sm" style={{ color: 'var(--text-primary)' }}>{t('settings:system_hooks_page.confirm_delete_title')}</h3>
             <p className="text-xs" style={{ color: 'var(--text-muted)' }}>{tc('common.undo_warning')}</p>
             <div className="flex gap-2 justify-end">
               <button className="btn-secondary text-sm" onClick={() => setDeleteConfirmId(null)}>{tc('actions.cancel')}</button>
@@ -280,12 +280,12 @@ function OutgoingHooksSection() {
                 style={{ backgroundColor: 'var(--error)', color: 'white', border: 'none', cursor: 'pointer' }}
                 onClick={() => {
                   deleteHook.mutate(deleteConfirmId, {
-                    onSuccess: () => { setDeleteConfirmId(null); toast('Hook deleted') },
-                    onError: () => { setDeleteConfirmId(null); toast('Delete failed', 'error') },
+                    onSuccess: () => { setDeleteConfirmId(null); toast(t('settings:system_hooks_page.toast_hook_deleted')) },
+                    onError: () => { setDeleteConfirmId(null); toast(t('settings:system_hooks_page.toast_delete_failed'), 'error') },
                   })
                 }}
               >
-                Delete
+                {t('settings:system_hooks_page.delete')}
               </button>
             </div>
           </div>
@@ -316,21 +316,21 @@ function HookLogsSection() {
           data-testid="clear-hook-logs-btn"
         >
           <Trash2 size={12} />
-          Clear logs
+          {t('settings:system_hooks_page.clear_logs')}
         </button>
       </div>
 
       {logList.length === 0 ? (
-        <div className="text-center py-6 text-sm" style={{ color: 'var(--text-muted)' }}>{t('system_hooks_page.logs.empty')}</div>
+        <div className="text-center py-6 text-sm" style={{ color: 'var(--text-muted)' }}>{t('settings:system_hooks_page.logs.empty')}</div>
       ) : (
         <div className="overflow-x-auto rounded-lg" style={{ border: '1px solid var(--border)' }}>
           <table className="w-full text-xs">
             <thead>
               <tr style={{ backgroundColor: 'var(--bg-surface-hover)', color: 'var(--text-muted)' }}>
-                <th className="px-3 py-2 text-left">{t('system_hooks_page.logs.timestamp')}</th>
-                <th className="px-3 py-2 text-left">Hook</th>
-                <th className="px-3 py-2 text-left">{t('system_hooks_page.logs.event')}</th>
-                <th className="px-3 py-2 text-left">{t('system_hooks_page.logs.status')}</th>
+                <th className="px-3 py-2 text-left">{t('settings:system_hooks_page.logs.timestamp')}</th>
+                <th className="px-3 py-2 text-left">{t('settings:system_hooks_page.col_hook')}</th>
+                <th className="px-3 py-2 text-left">{t('settings:system_hooks_page.logs.event')}</th>
+                <th className="px-3 py-2 text-left">{t('settings:system_hooks_page.logs.status')}</th>
               </tr>
             </thead>
             <tbody>
@@ -343,7 +343,7 @@ function HookLogsSection() {
                   <td className="px-3 py-2">{log.event_name ?? '—'}</td>
                   <td className="px-3 py-2">
                     <span style={{ color: log.success ? 'var(--success)' : 'var(--error)' }}>
-                      {log.success ? 'OK' : 'Failed'}
+                      {log.success ? t('settings:system_hooks_page.status_ok') : t('settings:system_hooks_page.status_failed')}
                     </span>
                   </td>
                 </tr>
@@ -364,7 +364,7 @@ function HookLogsSection() {
             className="w-full max-w-sm mx-4 rounded-xl p-5 space-y-4"
             style={{ backgroundColor: 'var(--bg-surface)', border: '1px solid var(--border)' }}
           >
-            <h3 className="font-semibold text-sm" style={{ color: 'var(--text-primary)' }}>{t('system_hooks_page.confirm_clear_title')}</h3>
+            <h3 className="font-semibold text-sm" style={{ color: 'var(--text-primary)' }}>{t('settings:system_hooks_page.confirm_clear_title')}</h3>
             <p className="text-xs" style={{ color: 'var(--text-muted)' }}>{tc('common.undo_warning')}</p>
             <div className="flex gap-2 justify-end">
               <button className="btn-secondary text-sm" onClick={() => setShowClearConfirm(false)}>{tc('actions.cancel')}</button>
@@ -373,12 +373,12 @@ function HookLogsSection() {
                 style={{ backgroundColor: 'var(--error)', color: 'white', border: 'none', cursor: 'pointer' }}
                 onClick={() => {
                   clearLogs.mutate(undefined, {
-                    onSuccess: () => { setShowClearConfirm(false); toast('Hook logs cleared') },
-                    onError: () => { setShowClearConfirm(false); toast('Clear failed', 'error') },
+                    onSuccess: () => { setShowClearConfirm(false); toast(t('settings:system_hooks_page.toast_logs_cleared')) },
+                    onError: () => { setShowClearConfirm(false); toast(t('settings:system_hooks_page.toast_clear_failed'), 'error') },
                   })
                 }}
               >
-                Clear
+                {t('settings:system_hooks_page.clear')}
               </button>
             </div>
           </div>

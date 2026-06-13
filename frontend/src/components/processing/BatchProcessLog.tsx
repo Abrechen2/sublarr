@@ -1,4 +1,5 @@
 import { CheckCircle, XCircle, RotateCcw } from 'lucide-react'
+import { useTranslation } from 'react-i18next'
 import { undoProcessSubtitle } from '@/api/client'
 import { toast } from '@/components/shared/Toast'
 
@@ -17,12 +18,13 @@ interface Props {
 }
 
 export function BatchProcessLog({ entries, current, total }: Props) {
+  const { t } = useTranslation('common')
   async function handleUndo(path: string) {
     try {
       await undoProcessSubtitle(path)
-      toast('Backup wiederhergestellt', 'success')
+      toast(t('batch_log.backup_restored'), 'success')
     } catch {
-      toast('Wiederherstellen fehlgeschlagen', 'error')
+      toast(t('batch_log.restore_failed'), 'error')
     }
   }
 
@@ -45,14 +47,14 @@ export function BatchProcessLog({ entries, current, total }: Props) {
               : <XCircle size={12} className="text-red-400 shrink-0" />}
             <span className="flex-1 truncate text-zinc-300">{e.filename}</span>
             {e.status === 'ok' && e.changes > 0 && (
-              <span className="text-zinc-500">{e.changes} Änderungen</span>
+              <span className="text-zinc-500">{t('batch_log.changes', { count: e.changes })}</span>
             )}
             {e.backed_up && (
               <button
                 onClick={() => handleUndo(e.sub_path)}
                 className="flex items-center gap-1 text-yellow-400 hover:text-yellow-300"
               >
-                <RotateCcw size={10} /> Undo
+                <RotateCcw size={10} /> {t('batch_log.undo')}
               </button>
             )}
           </div>

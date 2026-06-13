@@ -186,7 +186,14 @@
     "sortBy": "Sort by",
     "sort_desc": "Descending",
     "upgrades_only": "Upgrades only",
-    "srt_upgradeable": "SRT upgradeable"
+    "srt_upgradeable": "SRT upgradeable",
+    "search_started": "Search started…",
+    "extract_success": "Extracted {{format}} subtitle to {{path}}",
+    "extract_failed": "Extraction failed: {{error}}",
+    "cleanup_errors": "{{count}} error(s) during cleanup",
+    "cleanup_failed": "Cleanup failed: {{error}}",
+    "scanning": "Scanning: {{item}}",
+    "no_match_filters": "No items match the current filters"
   },
   "wanted_extra": {
     "target": "Target:",

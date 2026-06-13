@@ -35,8 +35,8 @@ export function TranslationMemorySection() {
     updateConfig.mutate(
       { translation_memory_enabled: String(value) },
       {
-        onSuccess: () => toast('Translation memory setting saved'),
-        onError: () => toast('Failed to save setting', 'error'),
+        onSuccess: () => toast(t('translation_memory_section.toast_setting_saved')),
+        onError: () => toast(t('translation_memory_section.toast_save_failed'), 'error'),
       },
     )
   }
@@ -48,8 +48,8 @@ export function TranslationMemorySection() {
       updateConfig.mutate(
         { translation_memory_similarity_threshold: String(rounded) },
         {
-          onSuccess: () => toast('Similarity threshold saved'),
-          onError: () => toast('Failed to save threshold', 'error'),
+          onSuccess: () => toast(t('translation_memory_section.toast_threshold_saved')),
+          onError: () => toast(t('translation_memory_section.toast_threshold_failed'), 'error'),
         },
       )
     }
@@ -57,8 +57,8 @@ export function TranslationMemorySection() {
 
   const handleClearCache = () => {
     clearCache.mutate(undefined, {
-      onSuccess: (result) => toast(`Translation memory cleared (${result.deleted} entries removed)`),
-      onError: () => toast('Failed to clear translation memory', 'error'),
+      onSuccess: (result) => toast(t('translation_memory_section.toast_cleared', { count: result.deleted })),
+      onError: () => toast(t('translation_memory_section.toast_clear_failed'), 'error'),
     })
   }
 
@@ -70,18 +70,18 @@ export function TranslationMemorySection() {
       <div className="flex items-center gap-2">
         <Database size={16} style={{ color: 'var(--accent)' }} />
         <h2 className="text-base font-semibold" style={{ color: 'var(--text-primary)' }}>
-          Translation Memory
+          {t('translation_memory_section.title')}
         </h2>
         {!statsLoading && stats && (
           <span className="text-xs" style={{ color: 'var(--text-muted)' }}>
-            {stats.entries.toLocaleString()} cached {stats.entries === 1 ? 'entry' : 'entries'}
+            {t('translation_memory_section.cached_entries', { count: stats.entries })}
           </span>
         )}
       </div>
 
       <SettingRow
         label={t('translation_memory_section.enable')}
-        helpText="Reuse previously translated lines that are similar to new ones, reducing LLM calls and improving consistency."
+        helpText={t('translation_memory_section.enable_help')}
       >
         <Toggle
           checked={enabled}
@@ -92,7 +92,7 @@ export function TranslationMemorySection() {
 
       <SettingRow
         label={t('translation_memory_section.similarity_threshold')}
-        helpText="Minimum similarity (0.0–1.0) for a cached translation to be reused. 1.0 = exact match only; 0.8 = near-identical lines reused."
+        helpText={t('translation_memory_section.threshold_help')}
       >
         <input
           type="number"
@@ -143,21 +143,21 @@ export function TranslationMemorySection() {
           ) : (
             <Trash2 size={12} />
           )}
-          Clear translation memory
+          {t('translation_memory_section.clear_button')}
         </button>
         {!statsLoading && stats && (
           <span className="text-xs" style={{ color: 'var(--text-muted)' }}>
             {stats.entries === 0
-              ? 'Cache is empty'
-              : `${stats.entries.toLocaleString()} ${stats.entries === 1 ? 'entry' : 'entries'} stored`}
+              ? t('translation_memory_section.cache_empty')
+              : t('translation_memory_section.entries_stored', { count: stats.entries })}
           </span>
         )}
       </div>
       <ConfirmModal
         open={showClearConfirm}
         title={t('translation_memory_section.clear')}
-        message="Clear all cached translations? This cannot be undone."
-        confirmLabel="Clear"
+        message={t('translation_memory_section.clear_confirm_message')}
+        confirmLabel={t('translation_memory_section.clear_confirm_label')}
         onConfirm={() => { setShowClearConfirm(false); handleClearCache() }}
         onCancel={() => setShowClearConfirm(false)}
       />

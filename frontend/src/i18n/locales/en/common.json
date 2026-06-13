@@ -78,7 +78,10 @@
   "app": {
     "name": "Sublarr",
     "online": "Online",
-    "offline": "Offline"
+    "offline": "Offline",
+    "donate": "Donate",
+    "star": "Star",
+    "update_available": "{{version}} available"
   },
   "pagination": {
     "showing": "Showing",
@@ -189,7 +192,19 @@
     "running": "Running health checks...",
     "close": "Close",
     "score_not_checked": "Quality Score: Not checked",
-    "score_value": "Quality Score: {{score}}/100"
+    "score_value": "Quality Score: {{score}}/100",
+    "fixed_score": "Fixed. New score: {{score}}",
+    "fix_failed": "Fix failed",
+    "batch_fixed": "Fixed {{count}} issues. New score: {{score}}",
+    "batch_fix_failed": "Batch fix failed",
+    "auto_fixable": "{{count}} auto-fixable issues",
+    "fix_all": "Fix All ({{count}})",
+    "fixes_to_apply": "Fixes to apply:",
+    "confirm": "Confirm",
+    "cancel": "Cancel",
+    "no_issues": "No issues found. Score: 100",
+    "line": "Line {{line}}",
+    "autofix_tooltip": "Auto-fix this issue"
   },
   "shortcuts": {
     "title": "Keyboard Shortcuts",
@@ -213,7 +228,15 @@
     "search_all": "Search All",
     "select_all": "Select All",
     "health_check": "Health Check",
-    "no_actions": "No actions for this page"
+    "no_actions": "No actions for this page",
+    "scan_started": "Library scan started",
+    "search_started": "Wanted search started",
+    "refresh_started": "Refresh scan started",
+    "batch_started": "Batch search started",
+    "selection_toggled": "Selection toggled",
+    "health_hint": "Health check: use the episode table actions",
+    "close": "Close quick actions",
+    "open": "Open quick actions"
   },
   "plugins": {
     "marketplace_title": "Plugin Marketplace",
@@ -532,5 +555,116 @@
     "batch_translate_downloaded": "Batch translate downloaded subtitles",
     "scan_embedded": "Scan for embedded subtitles in all unresolved items",
     "last": "Last"
+  },
+  "interjection": {
+    "load_failed": "Could not load interjection list",
+    "saved": "List saved",
+    "save_failed": "Save failed",
+    "reset_done": "Reset to default",
+    "reset_failed": "Reset failed",
+    "label_custom": "Interjections (custom)",
+    "label_default": "Interjections (default)",
+    "reset": "Reset",
+    "saving": "Saving…",
+    "save": "Save list"
+  },
+  "subtitle_actions": {
+    "preview_failed": "Preview failed",
+    "changes_applied": "Changes applied",
+    "apply_failed": "Apply failed",
+    "backup_restored": "Backup restored",
+    "restore_failed": "Restore failed",
+    "actions": "Actions",
+    "preview": "Preview",
+    "editor": "Editor",
+    "download": "Download",
+    "export_nfo": "Export NFO",
+    "nfo_exported": "NFO exported",
+    "nfo_failed": "NFO export failed",
+    "hi_removal": "Remove HI",
+    "common_fixes": "Common Fixes",
+    "adjust_timing": "Adjust timing",
+    "auto_sync": "Auto-Sync",
+    "video_sync": "Video-Sync",
+    "health_check": "Health Check",
+    "restore_backup": "Restore backup"
+  },
+  "batch_process": {
+    "started": "Batch processing started",
+    "start_failed": "Start failed",
+    "process_library": "Process library",
+    "all_series": "All series",
+    "unprocessed": "Not yet processed"
+  },
+  "batch_log": {
+    "backup_restored": "Backup restored",
+    "restore_failed": "Restore failed",
+    "changes": "{{count}} changes",
+    "undo": "Undo"
+  },
+  "series_override": {
+    "saved": "Settings saved",
+    "save_failed": "Save failed",
+    "saving": "Saving…",
+    "save": "Save"
+  },
+  "ocr": {
+    "preview_failed": "Preview failed",
+    "completed": "OCR completed: {{successful}}/{{frames}} frames, quality: {{quality}}%",
+    "extraction_failed": "OCR extraction failed",
+    "description": "Extract text from embedded image subtitles (DVD, Blu-ray) using Tesseract OCR.",
+    "preview_button": "Preview",
+    "extracting": "Extracting…",
+    "extract_button": "Extract OCR Text",
+    "quality": "Quality: {{quality}}% ({{successful}}/{{frames}} frames)",
+    "title": "OCR Extraction",
+    "preview_frame": "Preview Frame",
+    "extracted_text_lower": "Extracted text:",
+    "extracted_text_upper": "Extracted Text:"
+  },
+  "subtitle_cleanup": {
+    "result_with_errors": "Cleaned up: {{deleted}} files deleted, {{failed}} errors",
+    "result": "Cleaned up: {{deleted}} files deleted",
+    "failed": "Cleanup failed",
+    "title": "Clean up sidecars",
+    "loading": "Loading sidecar files…",
+    "empty": "No sidecar files found.",
+    "keep_target_only": "Keep only target languages",
+    "clear_selection": "Clear selection",
+    "file": "file",
+    "files": "files",
+    "will_delete": "Deletes {{count}} files ({{size}})",
+    "nothing_selected": "Nothing selected",
+    "cancel": "Cancel",
+    "delete": "Delete"
+  },
+  "cleanup_card": {
+    "preview_dryrun": "Preview — dry run",
+    "no_real_change": "no real change",
+    "files_tracks_removed": "files ({{count}} tracks would be removed)",
+    "would_delete": "would be deleted",
+    "would_keep": "would be kept",
+    "pct_removed": "{{pct}}% would be removed",
+    "total": "{{total}} total",
+    "examples": "Examples",
+    "of": "of {{total}}",
+    "more_files": "+ {{count}} more files not shown",
+    "none_deleted": "No files would be deleted",
+    "deactivate": "Deactivate",
+    "activate": "Activate",
+    "active": "Active",
+    "inactive": "Inactive",
+    "keep_languages": "Keep languages",
+    "keep_undetermined": "Keep undetermined language (und)",
+    "preferred_format": "Preferred format",
+    "retention_days": "Retention (days)",
+    "retention_hint": "0 = keep forever (orphans still purged immediately)",
+    "schedule": "Schedule",
+    "loading": "Loading…",
+    "preview": "Preview",
+    "running": "Running…",
+    "run_now": "Run now",
+    "activate_first": "Activate first",
+    "last_run": "Last: {{date}}"
   }
 }

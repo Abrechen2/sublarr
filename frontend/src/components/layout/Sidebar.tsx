@@ -261,7 +261,7 @@ export function Sidebar() {
               }}
             >
               <Heart size={11} style={{ color: '#e85d8a' }} />
-              Donate
+              {t('app.donate')}
             </a>
             <a
               href="https://github.com/Abrechen2/sublarr"
@@ -282,7 +282,7 @@ export function Sidebar() {
               }}
             >
               <Star size={11} style={{ color: '#f5a623' }} />
-              Star
+              {t('app.star')}
             </a>
           </div>
 
@@ -319,7 +319,7 @@ export function Sidebar() {
               style={{ color: 'var(--accent)', fontSize: '10px', fontFamily: 'var(--font-mono)' }}
             >
               <span>↑</span>
-              <span>{updateInfo.latest} verfügbar</span>
+              <span>{t('app.update_available', { version: updateInfo.latest })}</span>
             </a>
           )}
         </div>

@@ -21,6 +21,7 @@ const fabStyles = `
 // ─── Action Handler Hook ─────────────────────────────────────────────────────
 
 function useQuickActionHandlers(): ReadonlyMap<string, () => void> {
+  const { t } = useTranslation('common')
   const refreshWanted = useRefreshWanted()
   const searchAllWanted = useSearchAllWanted()
   const startWantedBatch = useStartWantedBatch()
@@ -31,37 +32,37 @@ function useQuickActionHandlers(): ReadonlyMap<string, () => void> {
 
     handlers.set('scan_library', () => {
       void refreshWanted.mutateAsync(undefined)
-      toast('Library scan started', 'info')
+      toast(t('quick_actions.scan_started'), 'info')
     })
 
     handlers.set('search_wanted', () => {
       void searchAllWanted.mutateAsync(undefined)
-      toast('Wanted search started', 'info')
+      toast(t('quick_actions.search_started'), 'info')
     })
 
     handlers.set('refresh_scan', () => {
       void refreshWanted.mutateAsync(undefined)
-      toast('Refresh scan started', 'info')
+      toast(t('quick_actions.refresh_started'), 'info')
     })
 
     handlers.set('search_all', () => {
       void startWantedBatch.mutateAsync(undefined)
-      toast('Batch search started', 'info')
+      toast(t('quick_actions.batch_started'), 'info')
     })
 
     handlers.set('select_all', () => {
       // Select all is a toggle -- handled by the page's own selection logic
       // Here we just notify, the actual selection is managed by selection store
       selectAllItems('wanted', [])
-      toast('Selection toggled', 'info')
+      toast(t('quick_actions.selection_toggled'), 'info')
     })
 
     handlers.set('health_check', () => {
-      toast('Health check: use the episode table actions', 'info')
+      toast(t('quick_actions.health_hint'), 'info')
     })
 
     return handlers
-  }, [refreshWanted, searchAllWanted, startWantedBatch, selectAllItems])
+  }, [refreshWanted, searchAllWanted, startWantedBatch, selectAllItems, t])
 }
 
 // ─── FAB Component ───────────────────────────────────────────────────────────
@@ -183,7 +184,7 @@ export function QuickActionsFAB() {
             color: 'white',
             transform: open ? 'rotate(45deg)' : 'rotate(0deg)',
           }}
-          aria-label={open ? 'Close quick actions' : 'Open quick actions'}
+          aria-label={open ? t('quick_actions.close') : t('quick_actions.open')}
           aria-expanded={open}
         >
           <Plus size={24} />

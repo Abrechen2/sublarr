@@ -54,7 +54,7 @@ describe('TrackPanel remux remove button (Step 66)', () => {
     const btn = await screen.findByTestId('remux-remove-track-2')
     fireEvent.click(btn)
     // After first click, button shows confirm text
-    expect(btn.textContent).toContain('Sicher?')
+    expect(btn.textContent).toContain('Sure?')
   })
 
   it('calls removeTrackFromContainer on second click', async () => {

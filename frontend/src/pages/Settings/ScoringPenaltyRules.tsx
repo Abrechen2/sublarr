@@ -38,7 +38,7 @@ export function ScoringPenaltyRules() {
 
   if (isLoading) {
     return (
-      <SettingsSection title={tc('ui.penalty_rules')} description="Loading rules...">
+      <SettingsSection title={tc('ui.penalty_rules')} description={tc('settings:scoring_penalty.loading')}>
         <Loader2 size={14} className="animate-spin" />
       </SettingsSection>
     )
@@ -51,8 +51,8 @@ export function ScoringPenaltyRules() {
     updateRule.mutate(
       { ruleId: rule.rule_id, weight },
       {
-        onSuccess: () => toast(`Rule "${rule.label || rule.rule_id}" saved`),
-        onError: () => toast('Failed to save rule weight', 'error'),
+        onSuccess: () => toast(tc('settings:scoring_penalty.toast_rule_saved', { name: rule.label || rule.rule_id })),
+        onError: () => toast(tc('settings:scoring_penalty.toast_rule_save_failed'), 'error'),
       },
     )
   }
@@ -60,11 +60,11 @@ export function ScoringPenaltyRules() {
   return (
     <SettingsSection
       title={tc('ui.penalty_rules')}
-      description="Named rules that add or subtract from subtitle scores. Set a rule's weight to 0 to disable it."
+      description={tc('settings:scoring_penalty.section_desc')}
     >
       {rules.length === 0 && (
         <p style={{ fontSize: 12, color: 'var(--text-muted)', padding: '8px 0' }}>
-          No penalty rules registered.
+          {tc('settings:scoring_penalty.none_registered')}
         </p>
       )}
       {rules.map(rule => {
@@ -105,7 +105,7 @@ export function ScoringPenaltyRules() {
                 style={{ ...inputStyle, width: 72, textAlign: 'right', fontFamily: 'var(--font-mono, monospace)', color }}
               />
               <span style={{ fontSize: 10, color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>
-                def: {rule.default_weight}
+                {tc('settings:scoring_penalty.default_short', { value: rule.default_weight })}
               </span>
               <button
                 disabled={!isDirty || updateRule.isPending}
@@ -122,7 +122,7 @@ export function ScoringPenaltyRules() {
                 }}
               >
                 {updateRule.isPending ? <Loader2 size={11} className="animate-spin" /> : <Save size={11} />}
-                Save
+                {tc('settings:scoring_penalty.save')}
               </button>
             </div>
           </FormGroup>

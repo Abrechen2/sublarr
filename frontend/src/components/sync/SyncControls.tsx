@@ -76,7 +76,7 @@ export function SyncControls({ filePath, videoPath, onSynced, onClose }: SyncCon
           setPreviewOperation(result.operation)
         },
         onError: () => {
-          toast('Preview failed', 'error')
+          toast(t('sync_controls.preview_failed'), 'error')
         },
       }
     )
@@ -87,13 +87,13 @@ export function SyncControls({ filePath, videoPath, onSynced, onClose }: SyncCon
       { filePath, operation: activeTab === 'chapter' ? 'offset' : activeTab, params: getParams(), preview: false },
       {
         onSuccess: () => {
-          toast('Sync applied successfully')
+          toast(t('sync_controls.sync_applied'))
           setPreviewEvents(null)
           setShowConfirm(false)
           onSynced?.()
         },
         onError: () => {
-          toast('Sync failed', 'error')
+          toast(t('sync_controls.sync_failed'), 'error')
           setShowConfirm(false)
         },
       }
@@ -119,7 +119,7 @@ export function SyncControls({ filePath, videoPath, onSynced, onClose }: SyncCon
           setShowConfirm(false)
         },
         onError: () => {
-          toast('Chapter preview failed', 'error')
+          toast(t('sync_controls.chapter_preview_failed'), 'error')
         },
       },
     )
@@ -138,13 +138,13 @@ export function SyncControls({ filePath, videoPath, onSynced, onClose }: SyncCon
       },
       {
         onSuccess: () => {
-          toast('Chapter sync applied successfully')
+          toast(t('sync_controls.chapter_sync_applied'))
           setShowConfirm(false)
           setPreviewEvents(null)
           onSynced?.()
         },
         onError: () => {
-          toast('Chapter sync failed', 'error')
+          toast(t('sync_controls.chapter_sync_failed'), 'error')
           setShowConfirm(false)
         },
       },
@@ -164,7 +164,7 @@ export function SyncControls({ filePath, videoPath, onSynced, onClose }: SyncCon
         <div className="flex items-center gap-2">
           <Timer size={16} style={{ color: 'var(--accent)' }} />
           <span className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>
-            Sync Timing
+            {t('sync_controls.title')}
           </span>
           <span className="text-xs truncate max-w-[200px]" style={{ color: 'var(--text-muted)' }}>
             {fileName}

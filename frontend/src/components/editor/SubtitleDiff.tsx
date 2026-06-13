@@ -76,7 +76,7 @@ export default function SubtitleDiff({
       })
       .catch((err: unknown) => {
         if (cancelled) return
-        setDiffError(err instanceof Error ? err.message : 'Failed to compute diff')
+        setDiffError(err instanceof Error ? err.message : t('subtitle_diff.compute_failed'))
       })
       .finally(() => {
         if (!cancelled) setLoading(false)
@@ -124,7 +124,7 @@ export default function SubtitleDiff({
       await applySubtitleDiff(filePath, backup.content, currentContent, rejectedIndices)
       onApplied?.()
     } catch (err: unknown) {
-      setApplyError(err instanceof Error ? err.message : 'Failed to apply changes')
+      setApplyError(err instanceof Error ? err.message : t('subtitle_diff.apply_failed'))
     } finally {
       setApplying(false)
     }
@@ -138,7 +138,7 @@ export default function SubtitleDiff({
         <DiffHeader onClose={onClose} onBackToEditor={onBackToEditor} />
         <div className="flex flex-1 items-center justify-center" style={{ color: 'var(--text-muted)' }}>
           <Loader2 className="mr-2 h-5 w-5 animate-spin" />
-          Loading backup...
+          {t('subtitle_diff.loading_backup')}
         </div>
       </div>
     )
@@ -171,7 +171,7 @@ export default function SubtitleDiff({
             className="rounded px-4 py-1.5 text-sm transition-colors"
             style={{ backgroundColor: 'var(--bg-surface-hover)', color: 'var(--text-primary)' }}
           >
-            Retry
+            {t('subtitle_diff.retry')}
           </button>
         </div>
       </div>
@@ -201,8 +201,7 @@ export default function SubtitleDiff({
         {diffResult && (
           <>
             <span className="text-xs" style={{ color: 'var(--text-muted)' }}>
-              {changedCount} change{changedCount !== 1 ? 's' : ''} —{' '}
-              {acceptedCount} accepted
+              {t('subtitle_diff.changes_summary', { changes: changedCount, accepted: acceptedCount })}
             </span>
 
             <div className="flex gap-1 ml-2">
@@ -213,7 +212,7 @@ export default function SubtitleDiff({
                 title={t('accept_all')}
               >
                 <CheckSquare size={12} />
-                Accept All
+                {t('accept_all')}
               </button>
               <button
                 onClick={rejectAll}
@@ -222,7 +221,7 @@ export default function SubtitleDiff({
                 title={t('reject_all')}
               >
                 <SquareX size={12} />
-                Reject All
+                {t('reject_all')}
               </button>
             </div>
 
@@ -233,7 +232,7 @@ export default function SubtitleDiff({
                 onChange={e => setShowUnchanged(e.target.checked)}
                 className="rounded"
               />
-              Show unchanged
+              {t('subtitle_diff.show_unchanged')}
             </label>
 
             <div className="flex-1" />
@@ -245,7 +244,7 @@ export default function SubtitleDiff({
               style={{ backgroundColor: 'var(--accent)', color: 'white' }}
             >
               {applying ? <Loader2 size={13} className="animate-spin" /> : <Check size={13} />}
-              Apply Changes
+              {t('subtitle_diff.apply_changes')}
             </button>
           </>
         )}
@@ -265,14 +264,14 @@ export default function SubtitleDiff({
       {loading && (
         <div className="flex flex-1 items-center justify-center" style={{ color: 'var(--text-muted)' }}>
           <Loader2 className="mr-2 h-5 w-5 animate-spin" />
-          Computing diff...
+          {t('subtitle_diff.computing')}
         </div>
       )}
 
       {/* Empty state */}
       {!loading && diffResult && changedCount === 0 && (
         <div className="flex flex-1 items-center justify-center text-sm" style={{ color: 'var(--text-muted)' }}>
-          No differences found between backup and current content.
+          {t('subtitle_diff.no_differences')}
         </div>
       )}
 
@@ -283,8 +282,8 @@ export default function SubtitleDiff({
             <thead>
               <tr style={{ backgroundColor: 'var(--bg-elevated)', borderBottom: '1px solid var(--border)' }}>
                 <th className="px-3 py-2 text-left text-xs font-medium w-10" style={{ color: 'var(--text-muted)' }}>#</th>
-                <th className="px-3 py-2 text-left text-xs font-medium w-28" style={{ color: 'var(--text-muted)' }}>Time</th>
-                <th className="px-3 py-2 text-left text-xs font-medium w-20" style={{ color: 'var(--text-muted)' }}>Type</th>
+                <th className="px-3 py-2 text-left text-xs font-medium w-28" style={{ color: 'var(--text-muted)' }}>{t('subtitle_diff.time_col')}</th>
+                <th className="px-3 py-2 text-left text-xs font-medium w-20" style={{ color: 'var(--text-muted)' }}>{t('subtitle_diff.type_col')}</th>
                 <th className="px-3 py-2 text-left text-xs font-medium" style={{ color: 'var(--text-muted)' }}>{t('subtitle_diff.original')}</th>
                 <th className="px-3 py-2 text-left text-xs font-medium" style={{ color: 'var(--text-muted)' }}>{t('subtitle_diff.modified')}</th>
                 <th className="px-3 py-2 text-center text-xs font-medium w-20" style={{ color: 'var(--text-muted)' }}>{t('subtitle_diff.accept')}</th>
@@ -320,6 +319,7 @@ interface DiffRowProps {
 }
 
 function DiffRow({ entry, entryIndex, accepted, onToggle, format: _format }: DiffRowProps) {
+  const { t } = useTranslation('editor')
   const isChangeable = entry.type !== 'unchanged'
   const badge = TYPE_BADGE[entry.type]
   const timeCue = entry.original ?? entry.modified
@@ -351,7 +351,7 @@ function DiffRow({ entry, entryIndex, accepted, onToggle, format: _format }: Dif
       {/* Type badge */}
       <td className="px-3 py-2">
         <span className="text-xs font-medium" style={{ color: badge.color }}>
-          {badge.label}
+          {t(`subtitle_diff.type_${entry.type}`)}
         </span>
       </td>
 
@@ -375,7 +375,7 @@ function DiffRow({ entry, entryIndex, accepted, onToggle, format: _format }: Dif
               color: accepted ? 'var(--success)' : 'var(--error)',
               backgroundColor: accepted ? 'rgba(var(--success-rgb, 16, 185, 129), 0.12)' : 'rgba(var(--error-rgb, 239, 68, 68), 0.12)',
             }}
-            title={accepted ? 'Click to reject' : 'Click to accept'}
+            title={accepted ? t('subtitle_diff.click_reject') : t('subtitle_diff.click_accept')}
           >
             {accepted ? <Check size={14} /> : <X size={14} />}
           </button>
@@ -413,7 +413,7 @@ function DiffHeader({
           onMouseLeave={e => { e.currentTarget.style.backgroundColor = 'transparent' }}
         >
           <ArrowLeft className="h-4 w-4" />
-          Back to Editor
+          {t('back_to_editor')}
         </button>
       )}
 

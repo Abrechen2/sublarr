@@ -30,8 +30,8 @@ export function AnidbTab() {
     updateConfig.mutate(
       { [key]: value },
       {
-        onSuccess: () => toast('Setting saved'),
-        onError: () => toast('Failed to save setting', 'error'),
+        onSuccess: () => toast(t('toast.setting_saved')),
+        onError: () => toast(t('toast.setting_save_failed'), 'error'),
       },
     )
   }
@@ -40,8 +40,8 @@ export function AnidbTab() {
     updateConfig.mutate(
       { [key]: value },
       {
-        onSuccess: () => toast('Setting saved'),
-        onError: () => toast('Failed to save setting', 'error'),
+        onSuccess: () => toast(t('toast.setting_saved')),
+        onError: () => toast(t('toast.setting_save_failed'), 'error'),
       },
     )
   }

@@ -103,10 +103,10 @@ export function FormLayout({
       >
         <nav
           className="bg-[var(--bg-surface)] border border-[var(--border)] rounded-lg p-3"
-          aria-label="Page sections"
+          aria-label={t('settings:form_layout.page_sections')}
         >
           <h3 className="text-[10px] font-bold uppercase tracking-wider text-muted m-0 mb-2 px-1">
-            On this page
+            {t('settings:form_layout.on_this_page')}
           </h3>
           <ul className="flex flex-col gap-0.5 m-0 p-0 list-none">
             {visibleSections.map((s) => (
@@ -141,10 +141,9 @@ export function FormLayout({
               data-testid="form-expert-hint"
               className="mt-3 p-2 bg-[var(--bg-elevated)] rounded text-[10px] text-muted border border-[var(--border)]"
             >
-              <strong className="text-[var(--accent)]">Expert mode: off</strong>
+              <strong className="text-[var(--accent)]">{t('settings:form_layout.expert_mode_off')}</strong>
               <br />
-              Toggle to reveal {hiddenExpertCount} hidden item
-              {hiddenExpertCount > 1 ? 's' : ''}.
+              {t('settings:form_layout.toggle_reveal', { count: hiddenExpertCount })}
             </div>
           )}
         </nav>

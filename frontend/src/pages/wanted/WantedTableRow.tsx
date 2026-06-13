@@ -27,6 +27,7 @@ interface FailureReasonRowProps {
 }
 
 export function FailureReasonRow({ error, retryAfter, searchCount }: FailureReasonRowProps) {
+  const { t } = useTranslation('library')
   if (!error) return null
   const countdown = formatRetryCountdown(retryAfter)
   return (
@@ -42,11 +43,11 @@ export function FailureReasonRow({ error, retryAfter, searchCount }: FailureReas
       <div>
         {error}
         <span style={{ marginLeft: '6px', color: 'var(--text-muted)' }}>
-          ({searchCount} attempt{searchCount !== 1 ? 's' : ''})
+          ({t('wanted_row.attempts', { count: searchCount })})
         </span>
         {countdown && (
           <span style={{ marginLeft: '6px', color: 'var(--text-muted)' }}>
-            · Next retry in {countdown}
+            · {t('wanted_row.next_retry', { countdown })}
           </span>
         )}
       </div>
@@ -112,11 +113,11 @@ export function SearchResultsRow({ results, isLoading, onBlacklist, t }: SearchR
             <thead>
               <tr style={{ backgroundColor: 'var(--bg-surface)', borderBottom: '1px solid var(--border)' }}>
                 <th className="text-left text-[10px] font-semibold uppercase tracking-wider px-3 py-1.5" style={{ color: 'var(--text-muted)' }}>{t('wanted_row.col_provider')}</th>
-                <th className="text-left text-[10px] font-semibold uppercase tracking-wider px-3 py-1.5" style={{ color: 'var(--text-muted)' }}>Type</th>
+                <th className="text-left text-[10px] font-semibold uppercase tracking-wider px-3 py-1.5" style={{ color: 'var(--text-muted)' }}>{t('wanted_row.col_type')}</th>
                 <th className="text-left text-[10px] font-semibold uppercase tracking-wider px-3 py-1.5" style={{ color: 'var(--text-muted)' }}>{t('wanted_row.col_format')}</th>
                 <th className="text-left text-[10px] font-semibold uppercase tracking-wider px-3 py-1.5" style={{ color: 'var(--text-muted)' }}>{t('wanted_row.col_score')}</th>
                 <th className="text-left text-[10px] font-semibold uppercase tracking-wider px-3 py-1.5" style={{ color: 'var(--text-muted)' }}>{t('wanted_row.col_release')}</th>
-                <th className="text-left text-[10px] font-semibold uppercase tracking-wider px-3 py-1.5" style={{ color: 'var(--text-muted)' }}>Lang</th>
+                <th className="text-left text-[10px] font-semibold uppercase tracking-wider px-3 py-1.5" style={{ color: 'var(--text-muted)' }}>{t('wanted_row.col_lang')}</th>
                 <th className="text-right text-[10px] font-semibold uppercase tracking-wider px-3 py-1.5" style={{ color: 'var(--text-muted)' }}></th>
               </tr>
             </thead>
@@ -137,7 +138,7 @@ export function SearchResultsRow({ results, isLoading, onBlacklist, t }: SearchR
                         color: r._type === 'target' ? 'var(--success)' : 'var(--accent)',
                       }}
                     >
-                      {r._type === 'target' ? 'Target' : 'Source'}
+                      {r._type === 'target' ? t('wanted_row.target') : t('wanted_row.source')}
                     </span>
                   </td>
                   <td className="px-3 py-1.5">

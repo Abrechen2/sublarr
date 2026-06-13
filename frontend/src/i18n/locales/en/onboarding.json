@@ -64,7 +64,12 @@
     "interval_label": "How often to search",
     "upgrade_label": "Upgrade existing subtitles when better matches are found",
     "upgrade_description": "Re-runs scoring on existing subtitles and replaces them when a higher-scoring candidate is available.",
-    "settings_hint": "All of these can be changed later in Settings → Automation."
+    "settings_hint": "All of these can be changed later in Settings → Automation.",
+    "interval_1h": "1 hour",
+    "interval_3h": "3 hours",
+    "interval_6h": "6 hours",
+    "interval_12h": "12 hours",
+    "interval_24h": "24 hours"
   },
   "ollama_step": {
     "description": "Set up the LLM translation backend.",
@@ -82,7 +87,9 @@
     "server_name": "Server name",
     "connection_successful": "connection successful",
     "test_failed": "test failed",
-    "types_load_failed": "Could not load media-server types."
+    "types_load_failed": "Could not load media-server types.",
+    "required": "Required",
+    "optional": "Optional"
   },
   "scan_step": {
     "description": "Run your first wanted scan to find missing subtitles.",

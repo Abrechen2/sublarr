@@ -14,7 +14,7 @@ export function InterjectionListEditor() {
       setText(items.join('\n'))
       setIsCustom(is_custom)
     }).catch(() => {
-      toast('Interjektionsliste konnte nicht geladen werden', 'error')
+      toast(t('interjection.load_failed'), 'error')
     })
   }, [])
 
@@ -24,9 +24,9 @@ export function InterjectionListEditor() {
       const items = text.split('\n').map(s => s.trim()).filter(Boolean)
       await putInterjections(items)
       setIsCustom(true)
-      toast('Liste gespeichert', 'success')
+      toast(t('interjection.saved'), 'success')
     } catch {
-      toast('Speichern fehlgeschlagen', 'error')
+      toast(t('interjection.save_failed'), 'error')
     } finally {
       setSaving(false)
     }
@@ -38,19 +38,19 @@ export function InterjectionListEditor() {
       const { items } = await getInterjections()
       setText(items.join('\n'))
       setIsCustom(false)
-      toast('Auf Standard zurückgesetzt', 'success')
+      toast(t('interjection.reset_done'), 'success')
     } catch {
-      toast('Zurücksetzen fehlgeschlagen', 'error')
+      toast(t('interjection.reset_failed'), 'error')
     }
   }
 
   return (
     <div className="space-y-2">
       <div className="flex items-center justify-between">
-        <span className="text-xs text-zinc-400">Interjektionen {isCustom ? '(benutzerdefiniert)' : '(Standard)'}</span>
+        <span className="text-xs text-zinc-400">{isCustom ? t('interjection.label_custom') : t('interjection.label_default')}</span>
         {isCustom && (
           <button onClick={handleReset} className="text-xs text-zinc-500 hover:text-zinc-300 underline">
-            Zurücksetzen
+            {t('interjection.reset')}
           </button>
         )}
       </div>
@@ -65,7 +65,7 @@ export function InterjectionListEditor() {
         disabled={saving}
         className="px-3 py-1.5 text-xs bg-zinc-700 hover:bg-zinc-600 rounded disabled:opacity-50"
       >
-        {saving ? 'Speichert…' : 'Liste speichern'}
+        {saving ? t('interjection.saving') : t('interjection.save')}
       </button>
     </div>
   )

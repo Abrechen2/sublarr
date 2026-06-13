@@ -169,7 +169,7 @@ export function SeasonGroup({
               style={{ accentColor: 'var(--accent)' }}
               title={t('episode_ui.season_select_all')}
             />
-            <span style={{ fontSize: '10px', color: 'var(--text-muted)' }}>All</span>
+            <span style={{ fontSize: '10px', color: 'var(--text-muted)' }}>{t('episode_ui.select_all_short')}</span>
           </div>
         )}
       </div>
@@ -237,7 +237,7 @@ export function SeasonGroup({
                     {/* Col 3: Title + file line */}
                     <div style={{ minWidth: 0 }}>
                       <div style={{ fontSize: '13px', fontWeight: 500, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                        {ep.title || 'TBA'}
+                        {ep.title || t('episode_ui.tba')}
                       </div>
                       <div style={{ fontSize: '11px', marginTop: '2px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                         {status === 'missing' ? (
@@ -313,7 +313,7 @@ export function SeasonGroup({
                                       onClick={(e) => { e.stopPropagation(); void onDeleteSidecar(matchingSidecar.path) }}
                                       className="p-0.5 rounded hover:opacity-80"
                                       style={{ color: 'var(--error)', lineHeight: 1 }}
-                                      title={`Delete: ${matchingSidecar.path}`}
+                                      title={t('episode_ui.delete_path', { path: matchingSidecar.path })}
                                     >
                                       <X size={9} />
                                     </button>
@@ -339,7 +339,7 @@ export function SeasonGroup({
                                     color: 'var(--warning, #ffb84d)',
                                     border: '1px solid var(--warning, #ffb84d)',
                                   }}
-                                  title={`${sib.language.toUpperCase()} ${(sib.modifier ?? '').toUpperCase()} variant — ${sib.path}`}
+                                  title={t('episode_ui.variant_title', { lang: sib.language.toUpperCase(), modifier: (sib.modifier ?? '').toUpperCase(), path: sib.path })}
                                 >
                                   {sib.language.toUpperCase()}
                                   <span style={{ opacity: 0.85 }}>{(sib.modifier ?? '').toUpperCase()}</span>
@@ -347,14 +347,14 @@ export function SeasonGroup({
                                     onClick={(e) => { e.stopPropagation(); void onDeleteSidecar(sib.path) }}
                                     className="ml-0.5 rounded hover:opacity-80"
                                     style={{ color: 'var(--error)', lineHeight: 1 }}
-                                    title={`Delete: ${sib.path}`}
+                                    title={t('episode_ui.delete_path', { path: sib.path })}
                                   >
                                     <X size={9} />
                                   </button>
                                   <a
                                     href={getSubtitleDownloadUrl(sib.path)}
                                     download
-                                    title={`Download ${sib.language} ${sib.modifier} ${sib.format}`}
+                                    title={t('episode_ui.download_variant_title', { lang: sib.language, modifier: sib.modifier, format: sib.format })}
                                     className="p-0.5"
                                     style={{ color: 'inherit', lineHeight: 1 }}
                                     onClick={(e) => e.stopPropagation()}
@@ -379,7 +379,7 @@ export function SeasonGroup({
                                 key={s.path}
                                 className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[10px] font-semibold uppercase"
                                 style={{ backgroundColor: 'var(--bg-surface)', color: 'var(--text-muted)', border: '1px solid var(--border)' }}
-                                title={`${s.language.toUpperCase()}${s.modifier ? ' ' + s.modifier.toUpperCase() : ''} ${s.format.toUpperCase()} — extra sidecar`}
+                                title={t('episode_ui.extra_sidecar_title', { lang: `${s.language.toUpperCase()}${s.modifier ? ' ' + s.modifier.toUpperCase() : ''} ${s.format.toUpperCase()}` })}
                               >
                                 {s.language.toUpperCase()}
                                 {s.modifier && (
@@ -392,14 +392,14 @@ export function SeasonGroup({
                                   onClick={(e) => { e.stopPropagation(); void onDeleteSidecar(s.path) }}
                                   className="ml-0.5 rounded hover:opacity-80"
                                   style={{ color: 'var(--error)', lineHeight: 1 }}
-                                  title={`Delete: ${s.path}`}
+                                  title={t('episode_ui.delete_path', { path: s.path })}
                                 >
                                   <X size={9} />
                                 </button>
                                 <a
                                   href={getSubtitleDownloadUrl(s.path)}
                                   download
-                                  title={`Download ${s.language} ${s.format}`}
+                                  title={t('episode_ui.download_title', { lang: s.language, format: s.format })}
                                   className="p-0.5"
                                   style={{ color: 'var(--text-muted)', lineHeight: 1 }}
                                   onClick={(e) => e.stopPropagation()}
@@ -471,7 +471,7 @@ export function SeasonGroup({
                           }}
                           title={t('episode_ui.skip_ignored')}
                         >
-                          Skip
+                          {t('episode_ui.skip')}
                         </button>
                       )}
                       {/* Accept (for low-score episodes) */}
@@ -485,7 +485,7 @@ export function SeasonGroup({
                           }}
                           title={t('episode_ui.accept_quality')}
                         >
-                          Accept
+                          {t('episode_ui.accept')}
                         </button>
                       )}
                       {/* Full action menu */}
@@ -542,14 +542,14 @@ export function SeasonGroup({
               style={{ backgroundColor: 'var(--bg-elevated)', border: '1px solid var(--accent-dim)' }}
             >
               <span className="text-xs font-medium mr-1" style={{ color: 'var(--accent)' }}>
-                {selectedEpisodes.size} selected
+                {t('episode_ui.selected_count', { count: selectedEpisodes.size })}
               </span>
               <button
                 onClick={() => { void startWantedBatchSearch([...selectedEpisodes]); clearAll() }}
                 className="px-3 py-1 rounded text-xs font-medium"
                 style={{ backgroundColor: 'var(--accent-bg)', color: 'var(--accent)', border: '1px solid var(--accent-dim)' }}
               >
-                Search
+                {t('episode_ui.search')}
               </button>
               <button
                 onClick={() => { onExtract?.(); clearAll() }}
@@ -558,7 +558,7 @@ export function SeasonGroup({
                 style={{ backgroundColor: 'var(--bg-surface)', color: 'var(--text-secondary)', border: '1px solid var(--border)' }}
               >
                 {isExtracting ? <Loader2 size={11} className="animate-spin" /> : null}
-                Extract
+                {t('episode_ui.extract')}
               </button>
               <button
                 onClick={() => {
@@ -569,21 +569,21 @@ export function SeasonGroup({
                 className="px-3 py-1 rounded text-xs font-medium disabled:opacity-60"
                 style={{ backgroundColor: 'var(--bg-surface)', color: 'var(--text-secondary)', border: '1px solid var(--border)' }}
               >
-                Translate
+                {t('episode_ui.translate')}
               </button>
               <button
                 onClick={() => { onOpenCleanupModal(); clearAll() }}
                 className="px-3 py-1 rounded text-xs font-medium"
                 style={{ backgroundColor: 'var(--bg-surface)', color: 'var(--text-secondary)', border: '1px solid var(--border)' }}
               >
-                Cleanup
+                {t('episode_ui.cleanup')}
               </button>
               <button
                 onClick={clearAll}
                 className="ml-auto px-2 py-1 rounded text-xs"
                 style={{ color: 'var(--text-muted)' }}
               >
-                Clear
+                {t('episode_ui.clear')}
               </button>
             </div>
           )}

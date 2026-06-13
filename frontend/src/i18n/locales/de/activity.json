@@ -186,7 +186,14 @@
     "sortBy": "Sortieren nach",
     "sort_desc": "Absteigend",
     "upgrades_only": "Nur Upgrades",
-    "srt_upgradeable": "SRT-upgradebar"
+    "srt_upgradeable": "SRT-upgradebar",
+    "search_started": "Suche gestartet…",
+    "extract_success": "{{format}}-Untertitel nach {{path}} extrahiert",
+    "extract_failed": "Extraktion fehlgeschlagen: {{error}}",
+    "cleanup_errors": "{{count}} Fehler bei der Bereinigung",
+    "cleanup_failed": "Bereinigung fehlgeschlagen: {{error}}",
+    "scanning": "Scanne: {{item}}",
+    "no_match_filters": "Keine Einträge entsprechen den aktuellen Filtern"
   },
   "wanted_extra": {
     "target": "Ziel:",

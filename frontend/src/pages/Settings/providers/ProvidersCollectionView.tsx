@@ -114,7 +114,7 @@ export function ProvidersCollectionView({
       },
       onError: () => {
         setTestResults((prev) => ({
-          ...prev, [name]: { healthy: false, message: 'Test failed' },
+          ...prev, [name]: { healthy: false, message: tc('settings:providers_collection.test_failed') },
         }))
       },
     })
@@ -141,7 +141,7 @@ export function ProvidersCollectionView({
       providers_enabled: newEnabledValue,
     })
     setSelectedId(null)
-    toast(`Provider ${name.replace(/_/g, ' ')} entfernt`)
+    toast(tc('settings:providers_collection.provider_removed', { name: name.replace(/_/g, ' ') }))
   }
 
   const handleAddProvider = (name: string) => {
@@ -161,7 +161,11 @@ export function ProvidersCollectionView({
 
   const handleClearCache = (providerName?: string) => {
     clearCacheMut.mutate(providerName, {
-      onSuccess: () => toast(`Cache geleert${providerName ? ` für ${providerName}` : ''}`),
+      onSuccess: () => toast(
+        providerName
+          ? tc('settings:providers_collection.cache_cleared_for', { name: providerName })
+          : tc('settings:providers_collection.cache_cleared'),
+      ),
     })
   }
 
@@ -170,9 +174,9 @@ export function ProvidersCollectionView({
       try {
         const { enableProvider } = await import('@/api/client')
         const result = await enableProvider(name)
-        toast(result.message || `Provider ${name} reaktiviert`)
+        toast(result.message || tc('settings:providers_collection.provider_reactivated', { name }))
       } catch {
-        toast(`Fehler beim Reaktivieren von ${name}`, 'error')
+        toast(tc('settings:providers_collection.provider_reactivate_failed', { name }), 'error')
       }
     })()
   }
@@ -217,33 +221,36 @@ export function ProvidersCollectionView({
       if (!h) continue
       const cbState = h.circuit_breaker_state ?? 'closed'
       const isRateLimited = h.throttle_reason === 'rate_limited'
+      const displayName = p.name.replace(/_/g, ' ')
       if (!h.healthy) {
         items.push({
           id: `provider-${p.name}-unhealthy`,
           severity: 'err',
-          title: `${p.name.replace(/_/g, ' ')} unhealthy`,
-          body: cbState !== 'closed' ? `Circuit: ${cbState}` : undefined,
-          fix: { onClick: () => setSelectedId(p.name), label: 'Inspect →' },
+          title: tc('settings:providers_collection.health_unhealthy', { name: displayName }),
+          body: cbState !== 'closed'
+            ? tc('settings:providers_collection.health_circuit_body', { state: cbState })
+            : undefined,
+          fix: { onClick: () => setSelectedId(p.name), label: tc('settings:providers_collection.inspect') },
         })
       } else if (isRateLimited) {
         items.push({
           id: `provider-${p.name}-rate-limited`,
           severity: 'warn',
-          title: `${p.name.replace(/_/g, ' ')} rate limited`,
-          fix: { onClick: () => setSelectedId(p.name), label: 'Inspect →' },
+          title: tc('settings:providers_collection.health_rate_limited', { name: displayName }),
+          fix: { onClick: () => setSelectedId(p.name), label: tc('settings:providers_collection.inspect') },
         })
       } else if (cbState !== 'closed') {
         items.push({
           id: `provider-${p.name}-circuit`,
           severity: 'warn',
-          title: `${p.name.replace(/_/g, ' ')} circuit ${cbState}`,
-          fix: { onClick: () => setSelectedId(p.name), label: 'Inspect →' },
+          title: tc('settings:providers_collection.health_circuit', { name: displayName, state: cbState }),
+          fix: { onClick: () => setSelectedId(p.name), label: tc('settings:providers_collection.inspect') },
         })
       } else {
         items.push({
           id: `provider-${p.name}-ok`,
           severity: 'ok',
-          title: `${p.name.replace(/_/g, ' ')} healthy`,
+          title: tc('settings:providers_collection.health_healthy', { name: displayName }),
         })
       }
     }
@@ -263,7 +270,7 @@ export function ProvidersCollectionView({
   const listHeader = (
     <div className="flex items-center justify-between gap-2">
       <div className="text-[11px] font-medium" style={{ color: 'var(--text-secondary)' }}>
-        {activeCount} aktiv / {shownProviders.length} konfiguriert
+        {tc('settings:providers_collection.active_count', { active: activeCount, total: shownProviders.length })}
       </div>
       <div className="flex items-center gap-1">
         <button
@@ -290,8 +297,8 @@ export function ProvidersCollectionView({
             color: 'var(--text-muted)',
             backgroundColor: 'var(--bg-primary)',
           }}
-          aria-label="Clear all caches"
-          title="Alle Caches leeren"
+          aria-label={tc('settings:providers_collection.clear_all_caches')}
+          title={tc('settings:providers_collection.clear_all_caches')}
         >
           <Trash2 size={11} />
         </button>
@@ -304,7 +311,7 @@ export function ProvidersCollectionView({
       data-testid="settings.providers.empty-detail"
       className="flex items-center justify-center h-full text-xs text-muted"
     >
-      Wähle einen Provider aus der Liste oder klicke auf „+ Hinzufügen“.
+      {tc('settings:providers_collection.empty_detail')}
     </div>
   )
 
@@ -368,7 +375,7 @@ export function ProvidersCollectionView({
             data-testid="settings.providers.empty-list"
             className="text-[11px] text-muted px-3 py-2"
           >
-            Noch kein Provider konfiguriert.
+            {tc('settings:providers_collection.empty_list')}
           </div>
         }
         healthRail={healthItems.length > 0 ? <HealthRail items={healthItems} /> : undefined}

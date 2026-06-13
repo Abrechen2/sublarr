@@ -3,6 +3,8 @@
 // the user can scan a row and immediately see "lots of green" vs
 // "mostly red".
 
+import { useTranslation } from 'react-i18next'
+
 interface SchedulerJobStats7d {
   readonly ok: number
   readonly error: number
@@ -12,6 +14,7 @@ interface SchedulerJobStats7d {
 }
 
 export function HealthBar({ stats }: { stats: SchedulerJobStats7d }) {
+  const { t } = useTranslation('settings')
   const skipped = stats.skipped_overlap ?? 0
   const total = stats.ok + stats.error + stats.timeout + stats.missed + skipped
   if (total === 0) {
@@ -19,7 +22,7 @@ export function HealthBar({ stats }: { stats: SchedulerJobStats7d }) {
       <div
         className="h-1 w-full overflow-hidden rounded-full"
         style={{ backgroundColor: 'var(--bg-elevated)' }}
-        aria-label="No runs yet"
+        aria-label={t('health_bar.no_runs')}
       />
     )
   }
@@ -36,7 +39,12 @@ export function HealthBar({ stats }: { stats: SchedulerJobStats7d }) {
       className="flex h-1 w-full overflow-hidden rounded-full"
       style={{ backgroundColor: 'var(--bg-elevated)' }}
       role="img"
-      aria-label={`7d: ${stats.ok} ok, ${stats.error} error, ${stats.timeout} timeout, ${stats.missed} missed`}
+      aria-label={t('health_bar.aria_summary', {
+        ok: stats.ok,
+        error: stats.error,
+        timeout: stats.timeout,
+        missed: stats.missed,
+      })}
     >
       {segments.map((s, i) => (
         <div

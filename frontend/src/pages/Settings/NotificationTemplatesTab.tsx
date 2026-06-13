@@ -41,12 +41,12 @@ function NotificationToggles() {
       const { testNotification } = await import('@/api/client')
       const result = await testNotification()
       if (result.success) {
-        toast('Test notification sent!')
+        toast(t('notifications_tab.toast_test_sent'))
       } else {
-        toast(result.message || 'Test failed', 'error')
+        toast(result.message || t('notifications_tab.toast_test_failed'), 'error')
       }
     } catch {
-      toast('Failed to send test notification', 'error')
+      toast(t('notifications_tab.toast_test_send_failed'), 'error')
     }
   }
 
@@ -68,19 +68,19 @@ function NotificationToggles() {
           onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = 'transparent' }}
         >
           <TestTube size={12} />
-          Test
+          {t('notifications_tab.test_button')}
         </button>
       </div>
 
       {/* Apprise URLs */}
       <div className="space-y-1.5">
         <label className="block text-xs font-medium" style={{ color: 'var(--text-secondary)' }}>
-          Notification URLs (Apprise)
+          {t('notifications_tab.apprise_urls_label')}
         </label>
         <textarea
           value={String(config?.notification_urls_json ?? '')}
           onChange={(e) => updateConfig.mutate({ notification_urls_json: e.target.value })}
-          placeholder={'One URL per line, e.g.:\npushover://user@token\ndiscord://webhook_id/webhook_token'}
+          placeholder={t('notifications_tab.apprise_urls_placeholder')}
           rows={3}
           className="w-full px-3 py-2 rounded-md text-xs focus:outline-none resize-y"
           style={{
@@ -148,21 +148,21 @@ function TemplatesSection() {
   const handleSave = () => {
     if (creating) {
       createTemplate.mutate(draft, {
-        onSuccess: () => { setCreating(false); setDraft({}); toast('Template created') },
-        onError: () => toast('Failed to create template', 'error'),
+        onSuccess: () => { setCreating(false); setDraft({}); toast(t('notifications_tab.toast_template_created')) },
+        onError: () => toast(t('notifications_tab.toast_template_create_failed'), 'error'),
       })
     } else if (editingId !== null) {
       updateTemplate.mutate({ id: editingId, data: draft }, {
-        onSuccess: () => { setEditingId(null); setDraft({}); toast('Template updated') },
-        onError: () => toast('Failed to update template', 'error'),
+        onSuccess: () => { setEditingId(null); setDraft({}); toast(t('notifications_tab.toast_template_updated')) },
+        onError: () => toast(t('notifications_tab.toast_template_update_failed'), 'error'),
       })
     }
   }
 
   const handleDelete = (id: number) => {
     deleteTemplate.mutate(id, {
-      onSuccess: () => { if (editingId === id) { setEditingId(null); setDraft({}) }; toast('Template deleted') },
-      onError: () => toast('Failed to delete template', 'error'),
+      onSuccess: () => { if (editingId === id) { setEditingId(null); setDraft({}) }; toast(t('notifications_tab.toast_template_deleted')) },
+      onError: () => toast(t('notifications_tab.toast_template_delete_failed'), 'error'),
     })
   }
 
@@ -256,10 +256,10 @@ function TemplatesSection() {
                   style={{ backgroundColor: 'var(--accent)' }}
                 >
                   {updateTemplate.isPending ? <Loader2 size={12} className="animate-spin" /> : <Save size={12} />}
-                  Save
+                  {t('notifications_tab.save')}
                 </button>
                 <button onClick={handleCancel} className="px-3 py-1.5 rounded text-xs" style={{ color: 'var(--text-muted)' }}>
-                  <X size={12} className="inline mr-1" />Cancel
+                  <X size={12} className="inline mr-1" />{t('notifications_tab.cancel')}
                 </button>
               </div>
             </div>
@@ -282,10 +282,10 @@ function TemplatesSection() {
               style={{ backgroundColor: 'var(--accent)' }}
             >
               {createTemplate.isPending ? <Loader2 size={12} className="animate-spin" /> : <Save size={12} />}
-              Create
+              {t('notifications_tab.create')}
             </button>
             <button onClick={handleCancel} className="px-3 py-1.5 rounded text-xs" style={{ color: 'var(--text-muted)' }}>
-              <X size={12} className="inline mr-1" />Cancel
+              <X size={12} className="inline mr-1" />{t('notifications_tab.cancel')}
             </button>
           </div>
         </div>
@@ -298,7 +298,7 @@ function TemplatesSection() {
         >
           <Bell size={24} className="mx-auto mb-2" style={{ color: 'var(--text-muted)' }} />
           <p className="text-xs" style={{ color: 'var(--text-muted)' }}>
-            No templates yet. Create one to customize notification content.
+            {t('notifications_tab.no_templates')}
           </p>
         </div>
       )}
@@ -327,8 +327,8 @@ function FiltersSection() {
       ? current.filter((e) => e !== eventName)
       : [...current, eventName]
     updateFilters.mutate({ ...filters, [list]: updated }, {
-      onSuccess: () => toast('Filters updated'),
-      onError: () => toast('Failed to update filters', 'error'),
+      onSuccess: () => toast(t('notifications_tab.toast_filters_updated')),
+      onError: () => toast(t('notifications_tab.toast_filters_update_failed'), 'error'),
     })
   }
 

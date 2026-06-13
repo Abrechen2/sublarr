@@ -59,13 +59,13 @@ export function EventsHooksTab() {
     if (!hookForm) return
     if (editingHookId !== null) {
       updateHook.mutate({ id: editingHookId, data: hookForm }, {
-        onSuccess: () => { setHookForm(null); setEditingHookId(null); toast('Hook updated') },
-        onError: () => toast('Failed to update hook', 'error'),
+        onSuccess: () => { setHookForm(null); setEditingHookId(null); toast(t('events_hooks_page.toast_hook_updated')) },
+        onError: () => toast(t('events_hooks_page.toast_hook_update_failed'), 'error'),
       })
     } else {
       createHook.mutate(hookForm, {
-        onSuccess: () => { setHookForm(null); toast('Hook created') },
-        onError: () => toast('Failed to create hook', 'error'),
+        onSuccess: () => { setHookForm(null); toast(t('events_hooks_page.toast_hook_created')) },
+        onError: () => toast(t('events_hooks_page.toast_hook_create_failed'), 'error'),
       })
     }
   }
@@ -74,13 +74,13 @@ export function EventsHooksTab() {
     if (!webhookForm) return
     if (editingWebhookId !== null) {
       updateWebhook.mutate({ id: editingWebhookId, data: webhookForm }, {
-        onSuccess: () => { setWebhookForm(null); setEditingWebhookId(null); toast('Webhook updated') },
-        onError: () => toast('Failed to update webhook', 'error'),
+        onSuccess: () => { setWebhookForm(null); setEditingWebhookId(null); toast(t('events_hooks_page.toast_webhook_updated')) },
+        onError: () => toast(t('events_hooks_page.toast_webhook_update_failed'), 'error'),
       })
     } else {
       createWebhook.mutate(webhookForm, {
-        onSuccess: () => { setWebhookForm(null); toast('Webhook created') },
-        onError: () => toast('Failed to create webhook', 'error'),
+        onSuccess: () => { setWebhookForm(null); toast(t('events_hooks_page.toast_webhook_created')) },
+        onError: () => toast(t('events_hooks_page.toast_webhook_create_failed'), 'error'),
       })
     }
   }
@@ -118,22 +118,22 @@ export function EventsHooksTab() {
                     ><Edit2 size={13} /></button>
                     <button
                       onClick={() => testHookMut.mutate(hook.id, {
-                        onSuccess: (r) => toast(r.success ? `Test passed (exit ${r.exit_code})` : `Test failed: ${r.stderr || r.error}`, r.success ? 'success' : 'error'),
-                        onError: () => toast('Test failed', 'error'),
+                        onSuccess: (r) => toast(r.success ? t('events_hooks_page.toast_test_passed', { code: r.exit_code }) : t('events_hooks_page.toast_test_failed', { error: r.stderr || r.error }), r.success ? 'success' : 'error'),
+                        onError: () => toast(t('events_hooks_page.toast_test_failed_generic'), 'error'),
                       })}
                       disabled={testHookMut.isPending}
                       className="p-1 rounded hover:opacity-80" style={{ color: 'var(--accent)' }}
                     >{testHookMut.isPending ? <Loader2 size={13} className="animate-spin" /> : <TestTube size={13} />}</button>
                     <button
-                      onClick={() => { if (confirm('Delete this hook?')) deleteHook.mutate(hook.id) }}
+                      onClick={() => { if (confirm(t('events_hooks_page.confirm_delete_hook'))) deleteHook.mutate(hook.id) }}
                       className="p-1 rounded hover:opacity-80" style={{ color: 'var(--error)' }}
                     ><Trash2 size={13} /></button>
                   </div>
                 </div>
                 <div className="flex items-center gap-3 text-[11px]" style={{ color: 'var(--text-muted)' }}>
                   <span style={{ fontFamily: 'var(--font-mono)' }}>{hook.script_path}</span>
-                  {hook.trigger_count > 0 && <span>{hook.trigger_count} triggers</span>}
-                  {hook.last_triggered_at && <span>Last: {new Date(hook.last_triggered_at).toLocaleString()}</span>}
+                  {hook.trigger_count > 0 && <span>{t('events_hooks_page.triggers_count', { count: hook.trigger_count })}</span>}
+                  {hook.last_triggered_at && <span>{t('events_hooks_page.last_triggered', { time: new Date(hook.last_triggered_at).toLocaleString() })}</span>}
                 </div>
               </div>
             ))}
@@ -170,7 +170,7 @@ export function EventsHooksTab() {
                 <div className="flex items-center gap-2">
                   <button onClick={handleCreateHook} disabled={createHook.isPending || updateHook.isPending}
                     className="flex items-center gap-1 px-3 py-1.5 rounded text-xs font-medium text-white" style={{ backgroundColor: 'var(--accent)' }}>
-                    <Check size={12} />{editingHookId ? 'Update' : 'Create'}
+                    <Check size={12} />{editingHookId ? t('events_hooks_page.update') : t('events_hooks_page.create')}
                   </button>
                   <button onClick={() => { setHookForm(null); setEditingHookId(null) }} className="px-3 py-1.5 rounded text-xs" style={{ color: 'var(--text-muted)' }}>
                     <X size={12} />
@@ -181,7 +181,7 @@ export function EventsHooksTab() {
               <button
                 onClick={() => setHookForm({ name: '', event_name: '', script_path: '', timeout_seconds: 30 })}
                 className="flex items-center gap-1.5 px-3 py-2 rounded-md text-xs font-medium" style={{ border: '1px solid var(--border)', color: 'var(--text-secondary)' }}
-              ><Plus size={13} /> Add Hook</button>
+              ><Plus size={13} /> {t('events_hooks_page.add_hook')}</button>
             )}
           </div>
         )}
@@ -226,22 +226,22 @@ export function EventsHooksTab() {
                     ><Edit2 size={13} /></button>
                     <button
                       onClick={() => testWebhookMut.mutate(wh.id, {
-                        onSuccess: (r) => toast(r.success ? `OK (${r.status_code})` : `Failed: ${r.error || r.status_code}`, r.success ? 'success' : 'error'),
-                        onError: () => toast('Test failed', 'error'),
+                        onSuccess: (r) => toast(r.success ? t('events_hooks_page.toast_webhook_ok', { code: r.status_code }) : t('events_hooks_page.toast_webhook_failed', { error: r.error || r.status_code }), r.success ? 'success' : 'error'),
+                        onError: () => toast(t('events_hooks_page.toast_test_failed_generic'), 'error'),
                       })}
                       disabled={testWebhookMut.isPending}
                       className="p-1 rounded hover:opacity-80" style={{ color: 'var(--accent)' }}
                     >{testWebhookMut.isPending ? <Loader2 size={13} className="animate-spin" /> : <TestTube size={13} />}</button>
                     <button
-                      onClick={() => { if (confirm('Delete this webhook?')) deleteWebhook.mutate(wh.id) }}
+                      onClick={() => { if (confirm(t('events_hooks_page.confirm_delete_webhook'))) deleteWebhook.mutate(wh.id) }}
                       className="p-1 rounded hover:opacity-80" style={{ color: 'var(--error)' }}
                     ><Trash2 size={13} /></button>
                   </div>
                 </div>
                 <div className="flex items-center gap-3 text-[11px]" style={{ color: 'var(--text-muted)' }}>
                   <span style={{ fontFamily: 'var(--font-mono)' }}>{wh.url.length > 50 ? wh.url.slice(0, 50) + '...' : wh.url}</span>
-                  {wh.consecutive_failures > 0 && <span style={{ color: 'var(--error)' }}>{wh.consecutive_failures} failures</span>}
-                  {wh.trigger_count > 0 && <span>{wh.trigger_count} triggers</span>}
+                  {wh.consecutive_failures > 0 && <span style={{ color: 'var(--error)' }}>{t('events_hooks_page.failures_count', { count: wh.consecutive_failures })}</span>}
+                  {wh.trigger_count > 0 && <span>{t('events_hooks_page.triggers_count', { count: wh.trigger_count })}</span>}
                 </div>
               </div>
             ))}
@@ -295,7 +295,7 @@ export function EventsHooksTab() {
                 <div className="flex items-center gap-2">
                   <button onClick={handleCreateWebhook} disabled={createWebhook.isPending || updateWebhook.isPending}
                     className="flex items-center gap-1 px-3 py-1.5 rounded text-xs font-medium text-white" style={{ backgroundColor: 'var(--accent)' }}>
-                    <Check size={12} />{editingWebhookId ? 'Update' : 'Create'}
+                    <Check size={12} />{editingWebhookId ? t('events_hooks_page.update') : t('events_hooks_page.create')}
                   </button>
                   <button onClick={() => { setWebhookForm(null); setEditingWebhookId(null); setShowWebhookSecret(false) }} className="px-3 py-1.5 rounded text-xs" style={{ color: 'var(--text-muted)' }}>
                     <X size={12} />
@@ -306,7 +306,7 @@ export function EventsHooksTab() {
               <button
                 onClick={() => setWebhookForm({ name: '', event_name: '', url: '', secret: '', retry_count: 3, timeout_seconds: 10 })}
                 className="flex items-center gap-1.5 px-3 py-2 rounded-md text-xs font-medium" style={{ border: '1px solid var(--border)', color: 'var(--text-secondary)' }}
-              ><Plus size={13} /> Add Webhook</button>
+              ><Plus size={13} /> {t('events_hooks_page.add_webhook')}</button>
             )}
           </div>
         )}
@@ -333,18 +333,18 @@ export function EventsHooksTab() {
             {logList.length > 0 && (
               <div className="flex justify-end pt-2">
                 <button
-                  onClick={() => { if (confirm('Clear all execution logs?')) clearLogs.mutate(undefined, { onSuccess: () => toast('Logs cleared') }) }}
+                  onClick={() => { if (confirm(t('events_hooks_page.confirm_clear_logs'))) clearLogs.mutate(undefined, { onSuccess: () => toast(t('events_hooks_page.toast_logs_cleared')) }) }}
                   className="flex items-center gap-1 px-2 py-1 rounded text-[11px]" style={{ color: 'var(--error)' }}
-                ><Trash2 size={11} /> Clear Logs</button>
+                ><Trash2 size={11} /> {t('events_hooks_page.clear_logs')}</button>
               </div>
             )}
             <div className="overflow-x-auto">
               <table className="w-full text-[12px]">
                 <thead>
                   <tr style={{ borderBottom: '1px solid var(--border)' }}>
-                    <th className="text-left py-1.5 px-2 font-medium" style={{ color: 'var(--text-muted)' }}>Time</th>
+                    <th className="text-left py-1.5 px-2 font-medium" style={{ color: 'var(--text-muted)' }}>{t('events_hooks_page.col_time')}</th>
                     <th className="text-left py-1.5 px-2 font-medium" style={{ color: 'var(--text-muted)' }}>{t('events_hooks_page.col_event')}</th>
-                    <th className="text-left py-1.5 px-2 font-medium" style={{ color: 'var(--text-muted)' }}>Type</th>
+                    <th className="text-left py-1.5 px-2 font-medium" style={{ color: 'var(--text-muted)' }}>{t('events_hooks_page.col_type')}</th>
                     <th className="text-left py-1.5 px-2 font-medium" style={{ color: 'var(--text-muted)' }}>{t('events_hooks_page.col_status')}</th>
                     <th className="text-right py-1.5 px-2 font-medium" style={{ color: 'var(--text-muted)' }}>{t('events_hooks_page.col_duration')}</th>
                   </tr>

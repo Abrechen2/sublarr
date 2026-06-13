@@ -38,7 +38,7 @@ export function PromptPresetsTab() {
 
   const handleSave = () => {
     if (!formData.name.trim() || !formData.prompt_template.trim()) {
-      toast('Name and prompt template are required', 'error')
+      toast(t('prompt_presets_tab.toast_fields_required'), 'error')
       return
     }
 
@@ -47,28 +47,28 @@ export function PromptPresetsTab() {
         { presetId: editingId, ...formData },
         {
           onSuccess: () => {
-            toast('Preset updated')
+            toast(t('prompt_presets_tab.toast_updated'))
             resetForm()
           },
-          onError: () => toast('Failed to update preset', 'error'),
+          onError: () => toast(t('prompt_presets_tab.toast_update_failed'), 'error'),
         }
       )
     } else {
       createPreset.mutate(formData, {
         onSuccess: () => {
-          toast('Preset created')
+          toast(t('prompt_presets_tab.toast_created'))
           resetForm()
         },
-        onError: () => toast('Failed to create preset', 'error'),
+        onError: () => toast(t('prompt_presets_tab.toast_create_failed'), 'error'),
       })
     }
   }
 
   const handleDelete = (id: number) => {
-    if (!confirm('Delete this preset? You cannot delete the last preset.')) return
+    if (!confirm(t('prompt_presets_tab.confirm_delete'))) return
     deletePreset.mutate(id, {
-      onSuccess: () => toast('Preset deleted'),
-      onError: () => toast('Failed to delete preset', 'error'),
+      onSuccess: () => toast(t('prompt_presets_tab.toast_deleted')),
+      onError: () => toast(t('prompt_presets_tab.toast_delete_failed'), 'error'),
     })
   }
 
@@ -85,11 +85,11 @@ export function PromptPresetsTab() {
       <div className="rounded-lg p-4 mb-4 text-sm" style={{ backgroundColor: 'var(--bg-surface)', border: '1px solid var(--border)', color: 'var(--text-secondary)' }}>
         <p className="font-medium mb-1" style={{ color: 'var(--text-primary)' }}>{t('prompt_presets_tab.available_variables')}</p>
         <p className="font-mono text-xs" style={{ color: 'var(--accent)' }}>{'{title}'} {'{context}'} {'{source_lang}'} {'{target_lang}'} {'{line_count}'}</p>
-        <p className="mt-1 text-xs" style={{ color: 'var(--text-muted)' }}>Diese Variablen werden beim Übersetzen durch die jeweiligen Werte ersetzt.</p>
+        <p className="mt-1 text-xs" style={{ color: 'var(--text-muted)' }}>{t('prompt_presets_tab.variables_note')}</p>
       </div>
       <div className="flex items-center justify-between">
         <h2 className="text-lg font-semibold" style={{ color: 'var(--text-primary)' }}>
-          Prompt Presets
+          {t('prompt_presets_tab.title')}
         </h2>
         <button
           onClick={() => {
@@ -100,7 +100,7 @@ export function PromptPresetsTab() {
           style={{ backgroundColor: 'var(--accent)' }}
         >
           <Plus size={12} />
-          Add Preset
+          {t('prompt_presets_tab.add_preset')}
         </button>
       </div>
 
@@ -110,7 +110,7 @@ export function PromptPresetsTab() {
           style={{ backgroundColor: 'var(--bg-surface)', border: '1px solid var(--accent-dim)' }}
         >
           <div className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>
-            {editingId ? 'Edit Preset' : 'New Preset'}
+            {editingId ? t('prompt_presets_tab.edit_preset_form') : t('prompt_presets_tab.new_preset_form')}
           </div>
           <div className="space-y-2">
             <input
@@ -145,7 +145,7 @@ export function PromptPresetsTab() {
                 checked={formData.is_default}
                 onChange={(e) => setFormData((f) => ({ ...f, is_default: e.target.checked }))}
               />
-              Set as default
+              {t('prompt_presets_tab.set_as_default')}
             </label>
           </div>
           <div className="flex items-center gap-2">
@@ -160,10 +160,10 @@ export function PromptPresetsTab() {
               ) : (
                 <Check size={12} />
               )}
-              Save
+              {t('prompt_presets_tab.save')}
             </button>
             <button onClick={resetForm} className="flex items-center gap-1 px-3 py-1.5 rounded text-xs" style={{ color: 'var(--text-muted)' }}>
-              <X size={12} /> Cancel
+              <X size={12} /> {t('prompt_presets_tab.cancel')}
             </button>
           </div>
         </div>
@@ -183,7 +183,7 @@ export function PromptPresetsTab() {
                   className="px-1.5 py-0.5 rounded text-[10px] font-medium"
                   style={{ backgroundColor: 'var(--accent-bg)', color: 'var(--accent)' }}
                 >
-                  Default
+                  {t('prompt_presets_tab.default_badge')}
                 </span>
               )}
             </div>
@@ -241,7 +241,7 @@ export function PromptPresetsTab() {
                   checked={formData.is_default}
                   onChange={(e) => setFormData((f) => ({ ...f, is_default: e.target.checked }))}
                 />
-                Set as default
+                {t('prompt_presets_tab.set_as_default')}
               </label>
               <div className="flex items-center gap-2">
                 <button
@@ -255,10 +255,10 @@ export function PromptPresetsTab() {
                   ) : (
                     <Check size={12} />
                   )}
-                  Save
+                  {t('prompt_presets_tab.save')}
                 </button>
                 <button onClick={resetForm} className="flex items-center gap-1 px-3 py-1.5 rounded text-xs" style={{ color: 'var(--text-muted)' }}>
-                  <X size={12} /> Cancel
+                  <X size={12} /> {t('prompt_presets_tab.cancel')}
                 </button>
               </div>
             </div>
@@ -280,7 +280,7 @@ export function PromptPresetsTab() {
 
       {presets.length === 0 && !showAdd && (
         <div className="text-center py-8 text-sm" style={{ color: 'var(--text-muted)' }}>
-          No prompt presets configured. A default preset will be created automatically.
+          {t('prompt_presets_tab.no_presets')}
         </div>
       )}
     </div>

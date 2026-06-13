@@ -69,7 +69,7 @@ function BazarrMigrationSection() {
         setReport(data)
         toast(t('integrations.bazarr.reportTitle'))
       },
-      onError: () => toast('Failed to generate mapping report', 'error'),
+      onError: () => toast(t('integrations.bazarr.reportFailed'), 'error'),
     })
   }, [dbPath, mappingReport, t])
 
@@ -120,13 +120,13 @@ function BazarrMigrationSection() {
             </h4>
             <div className="grid grid-cols-2 gap-2 text-xs" style={{ color: 'var(--text-secondary)' }}>
               <div>
-                Bazarr Version:{' '}
+                {t('integrations.bazarr.version_label')}{' '}
                 <span style={{ color: 'var(--text-primary)', fontFamily: 'var(--font-mono)' }}>
                   {report.compatibility.bazarr_version || 'Unknown'}
                 </span>
               </div>
               <div>
-                Schema Version:{' '}
+                {t('integrations.bazarr.schema_version_label')}{' '}
                 <span style={{ color: 'var(--text-primary)', fontFamily: 'var(--font-mono)' }}>
                   {report.compatibility.schema_version || 'Unknown'}
                 </span>
@@ -141,14 +141,14 @@ function BazarrMigrationSection() {
             </h4>
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-xs">
               {([
-                ['Profiles', report.migration_summary.profiles_count],
-                ['Blacklist', report.migration_summary.blacklist_count],
-                ['Shows', report.migration_summary.shows_count],
-                ['Movies', report.migration_summary.movies_count],
-                ['History', report.migration_summary.history_count],
-              ] as const).map(([label, count]) => (
-                <div key={label} className="flex items-center gap-1.5">
-                  <span style={{ color: 'var(--text-muted)' }}>{label}:</span>
+                ['integrations.bazarr.summary_profiles', report.migration_summary.profiles_count],
+                ['integrations.bazarr.summary_blacklist', report.migration_summary.blacklist_count],
+                ['integrations.bazarr.summary_shows', report.migration_summary.shows_count],
+                ['integrations.bazarr.summary_movies', report.migration_summary.movies_count],
+                ['integrations.bazarr.summary_history', report.migration_summary.history_count],
+              ] as const).map(([labelKey, count]) => (
+                <div key={labelKey} className="flex items-center gap-1.5">
+                  <span style={{ color: 'var(--text-muted)' }}>{t(labelKey)}:</span>
                   <span className="font-medium" style={{ color: 'var(--accent)' }}>{count}</span>
                 </div>
               ))}
@@ -216,7 +216,7 @@ function BazarrMigrationSection() {
 
           {/* Link to Import */}
           <p className="text-xs" style={{ color: 'var(--text-muted)' }}>
-            {t('integrations.bazarr.proceedToImport')}: Settings &gt; API Keys &gt; Bazarr Migration
+            {t('integrations.bazarr.proceedToImport')}: {t('integrations.bazarr.import_path')}
           </p>
         </div>
       )}
@@ -237,14 +237,14 @@ function CompatCheckSection() {
   const handleRun = useCallback(() => {
     const paths = subtitlePathsText.split('\n').map(p => p.trim()).filter(Boolean)
     if (paths.length === 0) {
-      toast('Enter at least one subtitle file path', 'error')
+      toast(t('integrations.compat.enterPath'), 'error')
       return
     }
     compatCheck.mutate({ subtitlePaths: paths, videoPath: videoPath.trim(), target }, {
       onSuccess: (data) => setResults(data),
-      onError: () => toast('Compatibility check failed', 'error'),
+      onError: () => toast(t('integrations.compat.checkFailed'), 'error'),
     })
-  }, [subtitlePathsText, videoPath, target, compatCheck])
+  }, [subtitlePathsText, videoPath, target, compatCheck, t])
 
   const inputStyle = {
     backgroundColor: 'var(--bg-primary)',
@@ -371,6 +371,7 @@ function CompatCheckSection() {
 // ─── Extended Health Section ────────────────────────────────────────────────
 
 function HealthConnectionBadge({ healthy }: { healthy: boolean }) {
+  const { t } = useTranslation('settings')
   return (
     <span
       className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold"
@@ -380,7 +381,7 @@ function HealthConnectionBadge({ healthy }: { healthy: boolean }) {
       }}
     >
       {healthy ? <CheckCircle size={10} /> : <XCircle size={10} />}
-      {healthy ? 'Connected' : 'Disconnected'}
+      {healthy ? t('integrations.health.connected') : t('integrations.health.disconnected')}
     </span>
   )
 }
@@ -425,7 +426,7 @@ function HealthServiceCard({ name, check }: { name: string; check: ExtendedHealt
           <span style={{ color: 'var(--text-muted)' }}>{t('integrations.health.webhookStatus')}:</span>{' '}
           {check.webhook_status.configured ? (
             <span style={{ color: 'var(--success)' }}>
-              {check.webhook_status.sublarr_webhooks.length} Sublarr webhook(s)
+              {t('integrations.health.sublarr_webhooks', { count: check.webhook_status.sublarr_webhooks.length })}
             </span>
           ) : (
             <span style={{ color: 'var(--text-muted)' }}>{t('integrations.not_configured')}</span>
@@ -543,14 +544,14 @@ function ExportConfigSection() {
         a.download = data.filename
         a.click()
         URL.revokeObjectURL(url)
-        toast('Config exported')
+        toast(t('integrations.export.exported'))
         if (data.warnings.length > 0) {
           data.warnings.forEach(w => toast(w, 'error'))
         }
       },
-      onError: () => toast('Export failed', 'error'),
+      onError: () => toast(t('integrations.export.failed'), 'error'),
     })
-  }, [format, includeSecrets, exportConfig])
+  }, [format, includeSecrets, exportConfig, t])
 
   const handleExportAll = useCallback(() => {
     const allFormats = ['bazarr', 'plex', 'kodi', 'generic']
@@ -562,11 +563,11 @@ function ExportConfigSection() {
         a.download = `sublarr-export-${new Date().toISOString().slice(0, 10)}.zip`
         a.click()
         URL.revokeObjectURL(url)
-        toast('ZIP export downloaded')
+        toast(t('integrations.export.zipDownloaded'))
       },
-      onError: () => toast('ZIP export failed', 'error'),
+      onError: () => toast(t('integrations.export.zipFailed'), 'error'),
     })
-  }, [includeSecrets, exportZip])
+  }, [includeSecrets, exportZip, t])
 
   const inputStyle = {
     backgroundColor: 'var(--bg-primary)',

@@ -1,5 +1,6 @@
 import { useState, useCallback } from 'react'
 import type { ReactNode } from 'react'
+import { useTranslation } from 'react-i18next'
 
 /**
  * ApiKeyField — masked credential input with Test-Connection affordance.
@@ -41,6 +42,7 @@ export function ApiKeyField({
   lastValidatedLabel,
   disabled = false,
 }: ApiKeyFieldProps) {
+  const { t } = useTranslation('settings')
   const [reveal, setReveal] = useState(false)
   const [testing, setTesting] = useState(false)
   const [result, setResult] = useState<ApiKeyTestResult | null>(null)
@@ -54,28 +56,28 @@ export function ApiKeyField({
     } catch (err) {
       setResult({
         ok: false,
-        detail: err instanceof Error ? err.message : 'Test failed',
+        detail: err instanceof Error ? err.message : t('api_key_field.test_failed'),
       })
     } finally {
       setTesting(false)
     }
-  }, [onTest])
+  }, [onTest, t])
 
   // Prefer live test result; fall back to backend freshness hint.
   const statusPill: { cls: string; text: string } | null = result
     ? result.ok
       ? {
           cls: 'bg-[rgba(63,185,80,0.12)] text-[var(--success)]',
-          text: `● ${result.detail ?? 'OK'}`,
+          text: `● ${result.detail ?? t('api_key_field.ok')}`,
         }
       : {
           cls: 'bg-[rgba(240,92,92,0.12)] text-[var(--error)]',
-          text: `✕ ${result.detail ?? 'Failed'}`,
+          text: `✕ ${result.detail ?? t('api_key_field.failed')}`,
         }
     : lastValidatedLabel
       ? {
           cls: 'bg-[rgba(63,185,80,0.12)] text-[var(--success)]',
-          text: `● last validated ${lastValidatedLabel}`,
+          text: `● ${t('api_key_field.last_validated', { time: lastValidatedLabel })}`,
         }
       : null
 
@@ -89,7 +91,7 @@ export function ApiKeyField({
             onClick={() => setReveal((v) => !v)}
             className="text-[10px] text-muted hover:text-primary"
           >
-            {reveal ? 'Hide' : 'Reveal'}
+            {reveal ? t('api_key_field.hide') : t('api_key_field.reveal')}
           </button>
         )}
       </div>
@@ -114,7 +116,7 @@ export function ApiKeyField({
               data-testid="api-key-test-btn"
               className="text-[11px] font-semibold px-3 py-1.5 rounded bg-[var(--accent)] text-[#0a0f14] hover:bg-[var(--accent-dim)] disabled:opacity-60 disabled:cursor-not-allowed"
             >
-              {testing ? 'Testing…' : 'Test connection'}
+              {testing ? t('api_key_field.testing') : t('api_key_field.test_connection')}
             </button>
           )}
           {statusPill && (
@@ -130,7 +132,7 @@ export function ApiKeyField({
               data-testid="api-key-scopes"
               className="text-[10px] text-muted"
             >
-              scopes: {result.scopes.join(', ')}
+              {t('api_key_field.scopes', { scopes: result.scopes.join(', ') })}
             </span>
           ) : null}
         </div>

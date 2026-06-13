@@ -72,6 +72,7 @@ function PreviewPanel({
   result: PreviewResult
   onClose: () => void
 }) {
+  const { t } = useTranslation('common')
   const willDelete = result.would_delete ?? result.would_strip_files ?? 0
   const willKeep = result.would_keep
   const examples = result.examples ?? []
@@ -92,12 +93,12 @@ function PreviewPanel({
         <div className="flex items-center gap-2.5">
           <Eye size={13} style={{ color: 'var(--text-muted)' }} />
           <span className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>
-            Vorschau — Trockenlauf
+            {t('cleanup_card.preview_dryrun')}
           </span>
         </div>
         <div className="flex items-center gap-3">
           <span className="text-xs" style={{ color: 'var(--text-muted)' }}>
-            keine echte Änderung
+            {t('cleanup_card.no_real_change')}
           </span>
           <button
             onClick={onClose}
@@ -127,8 +128,8 @@ function PreviewPanel({
             </div>
             <div className="text-xs mt-1.5" style={{ color: 'var(--text-muted)' }}>
               {stripTracks !== undefined
-                ? `Dateien (${stripTracks} Spuren würden entfernt)`
-                : 'würden gelöscht'}
+                ? t('cleanup_card.files_tracks_removed', { count: stripTracks })
+                : t('cleanup_card.would_delete')}
             </div>
           </div>
           {willKeep !== undefined && (
@@ -146,7 +147,7 @@ function PreviewPanel({
                 {willKeep}
               </div>
               <div className="text-xs mt-1.5" style={{ color: 'var(--text-muted)' }}>
-                bleiben erhalten
+                {t('cleanup_card.would_keep')}
               </div>
             </div>
           )}
@@ -159,8 +160,8 @@ function PreviewPanel({
               className="flex justify-between text-xs mb-2"
               style={{ color: 'var(--text-muted)' }}
             >
-              <span>{pct}% würden entfernt</span>
-              <span>{total} gesamt</span>
+              <span>{t('cleanup_card.pct_removed', { pct })}</span>
+              <span>{t('cleanup_card.total', { total })}</span>
             </div>
             <div
               className="rounded-full overflow-hidden"
@@ -181,8 +182,8 @@ function PreviewPanel({
               className="text-[10px] font-semibold uppercase tracking-wider mb-3"
               style={{ color: 'var(--text-muted)' }}
             >
-              Beispiele ({examples.length}
-              {willDelete > examples.length ? ` von ${willDelete}` : ''})
+              {t('cleanup_card.examples')} ({examples.length}
+              {willDelete > examples.length ? ` ${t('cleanup_card.of', { total: willDelete })}` : ''})
             </div>
             <div className="rounded-lg overflow-hidden" style={{ border: '1px solid var(--border)' }}>
               {examples.map((ex, i) => {
@@ -251,7 +252,7 @@ function PreviewPanel({
             </div>
             {willDelete > examples.length && (
               <div className="text-xs text-center pt-3" style={{ color: 'var(--text-muted)' }}>
-                + {willDelete - examples.length} weitere Dateien nicht angezeigt
+                {t('cleanup_card.more_files', { count: willDelete - examples.length })}
               </div>
             )}
           </div>
@@ -260,7 +261,7 @@ function PreviewPanel({
         {willDelete === 0 && (
           <div className="flex items-center justify-center gap-2 py-3 text-sm" style={{ color: 'var(--success)' }}>
             <CheckCircle2 size={15} />
-            Keine Dateien würden gelöscht
+            {t('cleanup_card.none_deleted')}
           </div>
         )}
       </div>
@@ -362,13 +363,13 @@ export function CleanupOpCard({ meta, rule, onToggle, onUpdate }: CleanupOpCardP
         <div
           className="flex items-center gap-2 flex-shrink-0"
           onClick={handleToggleClick}
-          title={enabled ? 'Deaktivieren' : 'Aktivieren'}
+          title={enabled ? t('cleanup_card.deactivate') : t('cleanup_card.activate')}
         >
           <span
             className="text-xs font-medium"
             style={{ color: enabled ? 'var(--success)' : 'var(--text-muted)' }}
           >
-            {enabled ? 'Aktiv' : 'Inaktiv'}
+            {enabled ? t('cleanup_card.active') : t('cleanup_card.inactive')}
           </span>
           <div
             className="relative flex-shrink-0 rounded-full transition-colors"
@@ -412,7 +413,7 @@ export function CleanupOpCard({ meta, rule, onToggle, onUpdate }: CleanupOpCardP
                   className="text-[10px] font-semibold uppercase tracking-wider mb-3"
                   style={{ color: 'var(--text-muted)' }}
                 >
-                  Sprachen behalten
+                  {t('cleanup_card.keep_languages')}
                 </div>
                 <LanguageFilterConfig
                   value={(config.keep_languages as string[]) ?? []}
@@ -427,7 +428,7 @@ export function CleanupOpCard({ meta, rule, onToggle, onUpdate }: CleanupOpCardP
                   className="text-[10px] font-semibold uppercase tracking-wider mb-3"
                   style={{ color: 'var(--text-muted)' }}
                 >
-                  Sprachen behalten
+                  {t('cleanup_card.keep_languages')}
                 </div>
                 <LanguageFilterConfig
                   value={(config.keep_languages as string[]) ?? ['de', 'en']}
@@ -442,7 +443,7 @@ export function CleanupOpCard({ meta, rule, onToggle, onUpdate }: CleanupOpCardP
                     checked={(config.keep_und as boolean) ?? true}
                     onChange={(e) => updateConfig({ keep_und: e.target.checked })}
                   />
-                  Unbestimmte Sprache (und) behalten
+                  {t('cleanup_card.keep_undetermined')}
                 </label>
               </div>
             )}
@@ -453,7 +454,7 @@ export function CleanupOpCard({ meta, rule, onToggle, onUpdate }: CleanupOpCardP
                   className="text-[10px] font-semibold uppercase tracking-wider mb-3"
                   style={{ color: 'var(--text-muted)' }}
                 >
-                  Bevorzugtes Format
+                  {t('cleanup_card.preferred_format')}
                 </div>
                 <FormatUpgradeConfig
                   value={(config.keep_format as 'any' | 'ass' | 'srt') ?? 'any'}
@@ -468,7 +469,7 @@ export function CleanupOpCard({ meta, rule, onToggle, onUpdate }: CleanupOpCardP
                   className="text-[10px] font-semibold uppercase tracking-wider mb-3"
                   style={{ color: 'var(--text-muted)' }}
                 >
-                  Aufbewahrung (Tage)
+                  {t('cleanup_card.retention_days')}
                 </div>
                 <input
                   type="number"
@@ -494,7 +495,7 @@ export function CleanupOpCard({ meta, rule, onToggle, onUpdate }: CleanupOpCardP
                   className="text-[10px] font-semibold uppercase tracking-wider mb-3"
                   style={{ color: 'var(--text-muted)' }}
                 >
-                  Aufbewahrung (Tage)
+                  {t('cleanup_card.retention_days')}
                 </div>
                 <input
                   type="number"
@@ -512,7 +513,7 @@ export function CleanupOpCard({ meta, rule, onToggle, onUpdate }: CleanupOpCardP
                     border: '1px solid var(--border)',
                     color: 'var(--text-primary)',
                   }}
-                  title="0 = keep forever (orphans still purged immediately)"
+                  title={t('cleanup_card.retention_hint')}
                 />
               </div>
             )}
@@ -523,7 +524,7 @@ export function CleanupOpCard({ meta, rule, onToggle, onUpdate }: CleanupOpCardP
                 className="text-[10px] font-semibold uppercase tracking-wider mb-3"
                 style={{ color: 'var(--text-muted)' }}
               >
-                Zeitplan
+                {t('cleanup_card.schedule')}
               </div>
               <SchedulePicker
                 value={rule?.schedule ?? 'manual'}
@@ -545,7 +546,7 @@ export function CleanupOpCard({ meta, rule, onToggle, onUpdate }: CleanupOpCardP
                 style={{ border: '1px solid var(--border)', color: 'var(--text-secondary)' }}
               >
                 <Eye size={13} />
-                {rulePreview.isPending ? 'Lädt…' : 'Vorschau'}
+                {rulePreview.isPending ? t('cleanup_card.loading') : t('cleanup_card.preview')}
               </button>
             )}
 
@@ -556,18 +557,18 @@ export function CleanupOpCard({ meta, rule, onToggle, onUpdate }: CleanupOpCardP
               style={{ background: 'var(--accent)', color: '#000' }}
             >
               <Play size={13} />
-              {runRule.isPending ? 'Läuft…' : 'Jetzt ausführen'}
+              {runRule.isPending ? t('cleanup_card.running') : t('cleanup_card.run_now')}
             </button>
 
             {!rule && (
               <span className="text-xs" style={{ color: 'var(--text-muted)' }}>
-                Zuerst aktivieren
+                {t('cleanup_card.activate_first')}
               </span>
             )}
 
             {rule?.last_run_at && (
               <span className="ml-auto text-xs" style={{ color: 'var(--text-muted)' }}>
-                Zuletzt: {new Date(rule.last_run_at).toLocaleString('de-DE')}
+                {t('cleanup_card.last_run', { date: new Date(rule.last_run_at).toLocaleString('de-DE') })}
               </span>
             )}
           </div>

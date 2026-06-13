@@ -43,8 +43,8 @@ export function BackupTab() {
     updateConfig.mutate(
       { [key]: value },
       {
-        onSuccess: () => toast('Setting saved'),
-        onError: () => toast('Failed to save setting', 'error'),
+        onSuccess: () => toast(t('toast.setting_saved')),
+        onError: () => toast(t('toast.setting_save_failed'), 'error'),
       },
     )
   }
@@ -64,9 +64,9 @@ export function BackupTab() {
   const handleCreate = () => {
     createBackup.mutate(undefined, {
       onSuccess: (data) => {
-        toast(`Backup created: ${data.filename}`)
+        toast(t('backup_tab.created_toast', { filename: data.filename }))
       },
-      onError: () => toast('Failed to create backup', 'error'),
+      onError: () => toast(t('backup_tab.create_failed'), 'error'),
     })
   }
 
@@ -75,10 +75,11 @@ export function BackupTab() {
     restoreBackup.mutate(restoreFile, {
       onSuccess: (result) => {
         const imported = result.config_imported?.length || 0
-        toast(`Restored: ${imported} config keys, DB ${result.db_restored ? 'restored' : 'skipped'}`)
+        const db = result.db_restored ? t('backup_tab.db_restored') : t('backup_tab.db_skipped')
+        toast(t('backup_tab.restored_toast', { count: imported, db }))
         setRestoreFile(null)
       },
-      onError: () => toast('Restore failed', 'error'),
+      onError: () => toast(t('backup_tab.restore_failed_toast'), 'error'),
     })
   }
 
