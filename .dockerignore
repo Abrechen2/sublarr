@@ -4,8 +4,14 @@ __pycache__
 !README.md
 .gitignore
 .dockerignore
+# Env files at any depth — backend/.env must never be baked into the image
+# (a root-only `.env` pattern does NOT match nested paths in .dockerignore)
 .env
 .env.*
+**/.env
+**/.env.*
+.ruff_cache/
+**/.ruff_cache/
 Modelfile
 scripts/
 node_modules/
