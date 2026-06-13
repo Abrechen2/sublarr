@@ -1,7 +1,7 @@
 """API Key Management routes — /api/v1/api-keys/*.
 
 Centralised API key registry with test, rotate, export/import, and Bazarr
-migration endpoints. See `docs/superpowers/plans/2026-04-18-b1-routes-api-keys-split.md`.
+migration endpoints.
 
 Package layout:
     helpers.py  — API_KEY_REGISTRY + _mask_value + _get_service_info

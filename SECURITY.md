@@ -19,7 +19,8 @@ We aim to acknowledge reports within 48 hours and provide a fix within 7 days fo
 
 | Version | Supported |
 |---------|-----------|
-| 0.51.x-beta | Yes |
+| 1.0.x | Yes — current stable |
+| 0.9x-beta | Best-effort — please upgrade to 1.0 |
 | < 0.31.x | No — missing critical security fixes |
 
 ## Security Architecture

@@ -1,7 +1,4 @@
-"""REST API for the Profiles & Overrides Settings page (Codex Template C).
-
-See docs/superpowers/specs/2026-04-25-profiles-overrides-design.md.
-"""
+"""REST API for the Profiles & Overrides Settings page (Template C)."""
 
 from __future__ import annotations
 

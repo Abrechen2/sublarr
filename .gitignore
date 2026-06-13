@@ -91,6 +91,26 @@ backend/providers/CLAUDE.md
 backend/translation/CLAUDE.md
 frontend/CLAUDE.md
 
+# Private roadmaps / internal planning (never commit)
+*.private.md
+
+# Internal planning & dev artifacts — kept local, not published
+docs/superpowers/
+docs/refactor-proposals/
+docs/SETTINGS_GAP_ANALYSIS.md
+docs/UI_GAP_ANALYSIS.md
+docs/LEARNINGS.md
+docs/UI_TEST_PLAN.md
+docs/UI_FUNCTIONS.md
+docs/PROTECTED.md
+docs/RELIABILITY_BASELINE.md
+docs/INCIDENT_RUNBOOK.md
+docs/assets/reddit/
+scripts/discord/
+tools/dedupe_hooks.py
+tools/find_undef_t.py
+tools/fix_per_function_hooks.py
+
 # Git worktrees
 .worktrees/
 CLAUDE.local.md

@@ -8,7 +8,7 @@
 
 *arr-compatible · Self-hosted · Open Source · LLM translation (⚠️ beta, experimental)
 
-[![Version](https://img.shields.io/badge/version-0.84.0--beta-teal.svg)](https://github.com/Abrechen2/sublarr/releases)
+[![Version](https://img.shields.io/badge/version-1.0.0-teal.svg)](https://github.com/Abrechen2/sublarr/releases)
 [![License: GPL-3.0](https://img.shields.io/badge/License-GPL--3.0-blue.svg)](LICENSE)
 [![Python 3.12+](https://img.shields.io/badge/Python-3.12+-3776ab.svg)](https://www.python.org/)
 [![React 19](https://img.shields.io/badge/React-19-61dafb.svg)](https://react.dev/)
@@ -28,8 +28,8 @@ Sublarr is a self-hosted subtitle manager for anime and media libraries. It auto
 
 It follows the *arr-suite design philosophy: connect it to Sonarr/Radarr, set up your language profiles, and let it handle everything automatically via webhooks. Or run it standalone — no *arr setup required.
 
-> [!WARNING]
-> **Active beta.** Configuration formats, database schemas, and API contracts may change between versions. Read the [CHANGELOG](CHANGELOG.md) before upgrading. Always keep backups of your subtitle files before enabling automation. Solo-maintained project — bug reports and contributions welcome.
+> [!NOTE]
+> **V1.0 — stable core.** The subtitle search, scoring, download and *arr-integration paths are stable. **LLM translation remains experimental** (see below). Always keep backups of your subtitle files before enabling automation, and read the [CHANGELOG](CHANGELOG.md) before upgrading. Solo-maintained project — bug reports and contributions welcome.
 
 ---
 
@@ -39,7 +39,7 @@ It follows the *arr-suite design philosophy: connect it to Sonarr/Radarr, set up
 
 | Feature | Status |
 |---------|--------|
-| Subtitle search & download (22 providers) | Core — most-tested path |
+| Subtitle search & download (21 providers + embedded extraction) | Core — most-tested path |
 | ASS-first scoring, deduplication, trust scoring | Core — most-tested path |
 | Sonarr/Radarr webhook integration | Core — most-tested path |
 | Standalone mode (no *arr required) | Core — filesystem watching + NFO metadata |
@@ -49,7 +49,7 @@ It follows the *arr-suite design philosophy: connect it to Sonarr/Radarr, set up
 | **LLM translation via Ollama / DeepL / Google** | **⚠️ Beta — experimental, quality varies** |
 
 ### 🔍 Subtitle Search & Download
-- **22 providers** — AnimeTosho, Jimaku, OpenSubtitles, SubDL, Subscene, Subf2m, Subsource, SubsDump, Addic7ed, BetaSeries, Titlovi, Titrari, TVSubtitles, Gestdown, Kitsunekko, Napisy24, Podnapisi, YIFY, Zimuku, LegendasDivX, TurkceAltyazi + embedded extraction
+- **21 providers** — AnimeTosho, Jimaku, OpenSubtitles, SubDL, Subscene, Subf2m, Subsource, SubsDump, Addic7ed, BetaSeries, Titlovi, Titrari, TVSubtitles, Gestdown, Kitsunekko, Napisy24, Podnapisi, YIFY, Zimuku, LegendasDivX, TurkceAltyazi — plus embedded subtitle extraction
 - **ASS-first scoring** — ASS/SSA gets +50 bonus over SRT; format, dialect, sync quality, and uploader reputation scored
 - **Smart deduplication** — avoids re-downloading identical files via SHA-256 hashing
 - **Machine translation detection** — flags OpenSubtitles mt/ai-tagged uploads with an orange badge
@@ -145,7 +145,7 @@ Open **http://localhost:5765** — that's it.
 ```yaml
 services:
   sublarr:
-    image: ghcr.io/abrechen2/sublarr:0.84.0-beta
+    image: ghcr.io/abrechen2/sublarr:latest
     container_name: sublarr
     ports:
       - "5765:5765"
@@ -166,7 +166,7 @@ The image runs as a non-root user with `cap_drop: ALL` and no new privileges. A 
 ```yaml
 services:
   sublarr:
-    image: ghcr.io/abrechen2/sublarr:0.84.0-beta
+    image: ghcr.io/abrechen2/sublarr:latest
     container_name: sublarr
     ports:
       - "5765:5765"
@@ -319,8 +319,6 @@ SUBLARR_WANTED_AUTO_TRANSLATE=true
 ```
 
 Set `SUBLARR_OLLAMA_URL` to your Ollama host. For Docker, use `http://host.docker.internal:11434`.
-
-> **Model info:** [huggingface.co/Sublarr](https://huggingface.co/Sublarr) — BLEU-1: 0.281, 7 GB, GGUF Q4_K_M quantization.
 
 ---
 
