@@ -5,6 +5,22 @@ All notable changes to Sublarr are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.0.0] - 2026-06-13
+
+Sublarr 1.0 — first stable release. The core subtitle pipeline (search,
+ASS-first scoring, download, Sonarr/Radarr integration, standalone mode,
+waveform editor and sync tools) is considered stable for everyday use.
+LLM translation remains experimental.
+
+### Added
+- **Complete UI internationalization** — the remaining ~360 hardcoded interface strings (toasts, dialogs, labels, tooltips) now flow through the i18n system; the entire UI is available in German and English with full de/en key parity.
+
+### Fixed
+- **Raw translation keys in several panels** — fixed namespace-binding bugs where dropdowns and table headers (series processing override, event/system hooks, integrations, translation backends, sync preview) could display raw i18n keys instead of translated text.
+
+### Changed
+- **Multi-arch image** — the 1.0.0 image ships for `linux/amd64` and `linux/arm64`, enabling ARM hosts (Raspberry Pi) and Unraid Community Applications on ARM.
+
 ## [0.95.2-beta] - 2026-06-12
 
 ### Security
