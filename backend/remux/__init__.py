@@ -234,8 +234,15 @@ def _remux_mkvmerge(video_path: str, stream_indices: list[int], output_path: str
         safe_video,
     ]
     logger.debug("Remux mkvmerge: %s", " ".join(cmd))
+    from utils.io_timeout import compute_io_timeout
+
     result = subprocess.run(
-        cmd, capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=600
+        cmd,
+        capture_output=True,
+        text=True,
+        encoding="utf-8",
+        errors="replace",
+        timeout=compute_io_timeout(video_path),
     )
     if result.returncode not in (0, 1):  # mkvmerge exit 1 = warnings, still OK
         # mkvmerge writes hard errors to stdout, not stderr — include both so
@@ -266,8 +273,15 @@ def _remux_ffmpeg(video_path: str, stream_indices: list[int], output_path: str) 
     cmd += ["-c", "copy", safe_output]
 
     logger.debug("Remux ffmpeg: %s", " ".join(cmd))
+    from utils.io_timeout import compute_io_timeout
+
     result = subprocess.run(
-        cmd, capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=600
+        cmd,
+        capture_output=True,
+        text=True,
+        encoding="utf-8",
+        errors="replace",
+        timeout=compute_io_timeout(video_path),
     )
     if result.returncode != 0:
         raise RemuxError(f"ffmpeg failed (exit {result.returncode}): {result.stderr[-500:]}")

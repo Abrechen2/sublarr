@@ -116,16 +116,25 @@ class FfsubsyncEngine(BaseSyncEngine):
         ]
         logger.info("ffsubsync: syncing %s against %s", subtitle_path, video_path)
 
+        # ffsubsync reads + analyses audio from the full video; a large
+        # remux needs far more than the fixed floor. Scale by file size,
+        # never dropping below the engine's class default (self.timeout_s).
+        from utils.io_timeout import compute_io_timeout
+
+        effective_timeout = compute_io_timeout(video_path, floor=self.timeout_s)
+
         try:
             with sync_subprocess_lock:
-                proc = subprocess.run(cmd, capture_output=True, text=True, timeout=self.timeout_s)
+                proc = subprocess.run(
+                    cmd, capture_output=True, text=True, timeout=effective_timeout
+                )
         except subprocess.TimeoutExpired:
             return SyncResult(
                 engine=self.name,
                 ok=False,
                 offset_ms=0,
                 duration_ms=int((time.monotonic() - start) * 1000),
-                reason=f"timeout {self.timeout_s}s",
+                reason=f"timeout {effective_timeout}s",
             )
 
         if proc.returncode != 0:
