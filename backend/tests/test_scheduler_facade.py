@@ -293,3 +293,51 @@ def test_trigger_is_default_check(scheduler):
 
     scheduler.reset_to_default("deflt")
     assert scheduler.trigger_is_default("deflt") is True
+
+
+def test_reconcile_resets_on_trigger_class_drift(scheduler):
+    """interval→cron code redesign must take over a stale persisted row."""
+    from apscheduler.triggers.cron import CronTrigger
+
+    spec = JobSpec(
+        id="drift",
+        func=lambda: None,
+        default_trigger=CronTrigger(hour=3, minute=45),
+    )
+    scheduler.register_job(spec)
+    scheduler.start_registered_jobs()
+    scheduler.start()
+
+    # Simulate the OLD persisted interval trigger from before the redesign.
+    scheduler._scheduler.reschedule_job("drift", trigger=IntervalTrigger(hours=168))
+    assert isinstance(scheduler._scheduler.get_job("drift").trigger, IntervalTrigger)
+
+    reset = scheduler.reconcile_trigger_classes()
+
+    assert reset == 1
+    assert isinstance(scheduler._scheduler.get_job("drift").trigger, CronTrigger)
+
+
+def test_reconcile_keeps_same_class_override(scheduler):
+    """A user's same-class cron override must survive reconciliation."""
+    from apscheduler.triggers.cron import CronTrigger
+
+    spec = JobSpec(
+        id="keep",
+        func=lambda: None,
+        default_trigger=CronTrigger(hour=3, minute=45),
+    )
+    scheduler.register_job(spec)
+    scheduler.start_registered_jobs()
+    scheduler.start()
+
+    # User picked a different cron TIME (same class) via the admin UI.
+    scheduler.modify_trigger("keep", CronTrigger(hour=5, minute=0))
+
+    reset = scheduler.reconcile_trigger_classes()
+
+    assert reset == 0
+    job = scheduler._scheduler.get_job("keep")
+    assert isinstance(job.trigger, CronTrigger)
+    # Still the user's 05:00, not reset to the 03:45 default.
+    assert any(f.name == "hour" and str(f) == "5" for f in job.trigger.fields)

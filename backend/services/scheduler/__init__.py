@@ -79,7 +79,6 @@ def _build_default_jobs() -> list[JobSpec]:
     via the per-site adapter (``start_cleanup_scheduler``, etc.).
     """
     from anidb_sync import anidb_sync_tick
-    from cleanup_scheduler import DEFAULT_INTERVAL_HOURS as CLEANUP_DEFAULT
     from cleanup_scheduler import cleanup_tick
     from services.subtitle_automation_runner import subtitle_automation_tick
     from services.wanted_scanner_scheduler import (
@@ -117,19 +116,6 @@ def _build_default_jobs() -> list[JobSpec]:
     except Exception:
         logger.debug("scheduler: settings unavailable during _build_default_jobs", exc_info=True)
 
-    cleanup_interval_hours = CLEANUP_DEFAULT
-    try:
-        from db.repositories.config import ConfigRepository
-
-        val = ConfigRepository().get_config_entry("cleanup_schedule_interval_hours")
-        if val is not None:
-            cleanup_interval_hours = max(1, int(val))
-    except Exception:
-        logger.debug(
-            "scheduler: cleanup interval unavailable during _build_default_jobs",
-            exc_info=True,
-        )
-
     return [
         JobSpec(
             id="scheduler_history_cleanup",
@@ -148,9 +134,17 @@ def _build_default_jobs() -> list[JobSpec]:
             description="Delete old translation_events rows per retention policy.",
         ),
         JobSpec(
+            # Fixed daily wall-clock fire (03:45), NOT an interval. A weekly
+            # IntervalTrigger never fired reliably on this frequently-redeployed
+            # container — every restart left the long next-fire untouched and it
+            # kept slipping, so trash backups were never auto-pruned. A daily
+            # CronTrigger with coalesce fires at a deterministic time and
+            # survives restarts (matches scheduler_history_cleanup /
+            # translation_events_cleanup). The per-rule retention (old_backups =
+            # 7 days) bounds the footprint; running daily just enforces it.
             id="cleanup",
             func=cleanup_tick,
-            default_trigger=IntervalTrigger(hours=max(1, cleanup_interval_hours)),
+            default_trigger=CronTrigger(hour=3, minute=45),
             timeout_s=3600,
             owner_module="cleanup_scheduler",
             description=("Run enabled cleanup rules (dedup, orphan files, format upgrade, ...)."),
@@ -185,7 +179,12 @@ def _build_default_jobs() -> list[JobSpec]:
             id="wanted_search",
             func=wanted_search_tick,
             default_trigger=IntervalTrigger(hours=search_interval_hours),
-            timeout_s=900,
+            # Searching ~2k+ wanted items across rate-limited providers can
+            # legitimately run long on high-latency days (one slow provider
+            # × many items). 900 s clipped real runs; 1800 s leaves headroom.
+            # Per-request HTTP timeouts (RetryingSession default 15 s) keep a
+            # single hung provider from blocking the whole sweep.
+            timeout_s=1800,
             owner_module="services.wanted_scanner",
             description="Search providers for all wanted items.",
         ),
@@ -246,6 +245,10 @@ def bootstrap_scheduler(app: Flask) -> SublarrScheduler | None:
         s.register_job(spec)
 
     s.start_registered_jobs()
+    # Self-heal trigger-class redesigns (e.g. cleanup: interval → cron). An
+    # existing JobStore row is preserved by start_registered_jobs, so a
+    # code-level trigger-type change would otherwise never apply.
+    s.reconcile_trigger_classes()
     s.purge_orphans()
     s.attach_listeners()
     s.start()

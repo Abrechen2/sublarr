@@ -392,6 +392,42 @@ class SublarrScheduler:
         default = self._spec_by_id(job_id).default_trigger
         return repr(job.trigger) == repr(default)
 
+    def reconcile_trigger_classes(self) -> int:
+        """Reset jobs whose persisted trigger CLASS drifted from the default.
+
+        When a JobSpec's ``default_trigger`` changes type in code (e.g.
+        IntervalTrigger → CronTrigger), the existing JobStore row keeps the
+        old trigger because ``start_registered_jobs`` skips jobs that already
+        exist (to preserve user overrides). A pure interval→cron redesign
+        would therefore never take effect on an existing install.
+
+        This compares the stored trigger's class against the spec default's
+        class and ``reset_to_default`` for any mismatch. Same-class overrides
+        (e.g. a user-chosen cron time) are left untouched — only a deliberate
+        code-level trigger-type change triggers the reset. Returns the number
+        of jobs reset. Safe to call once at bootstrap.
+        """
+        scheduler = self._ensure_scheduler()
+        reset = 0
+        for spec_id in list(self._registered_ids):
+            spec = self._spec_by_id(spec_id)
+            job = scheduler.get_job(spec_id)
+            if job is None:
+                continue
+            if type(job.trigger).__name__ != type(spec.default_trigger).__name__:
+                logger.info(
+                    "scheduler: trigger class drift on %s (%s → %s) — resetting to default",
+                    spec_id,
+                    type(job.trigger).__name__,
+                    type(spec.default_trigger).__name__,
+                )
+                try:
+                    self.reset_to_default(spec_id)
+                    reset += 1
+                except Exception:
+                    logger.error("scheduler: reconcile reset failed for %s", spec_id, exc_info=True)
+        return reset
+
 
 def reconcile_stale_runs(grace_minutes: int = 10) -> int:
     """Mark abandoned rows (no finished_at, started_at older than grace) as interrupted.

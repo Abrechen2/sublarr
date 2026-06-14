@@ -74,27 +74,20 @@ class _CleanupSchedulerProxy:
 
 
 def start_cleanup_scheduler(app, socketio=None):
-    """Adapter that updates the APScheduler cleanup job's interval.
+    """Display-only adapter — no longer reschedules the cleanup job.
 
-    Called by app_schedulers._start_schedulers and by settings-save paths.
-    Reads ``cleanup_schedule_interval_hours`` from config and reschedules
-    the registered ``cleanup`` JobSpec. Safe to call before the scheduler
-    is available — logs a warning and returns.
+    The ``cleanup`` JobSpec now owns a fixed daily CronTrigger (03:45) as
+    its default; rescheduling it to an IntervalTrigger here would clobber
+    that cron on every boot, reintroducing the weekly-interval job that
+    never fired reliably on a redeployed container. Trigger changes now go
+    exclusively through the Scheduler admin UI (modify_trigger /
+    reset_default).
+
+    Kept as a thin shim so ``app_schedulers._start_schedulers`` and the
+    legacy System-Tasks snapshot still resolve ``interval_hours``.
     """
-    from apscheduler.triggers.interval import IntervalTrigger
-
-    scheduler = app.extensions.get("scheduler") if app is not None else None
-    interval = _get_interval_hours()
-    _state["interval_hours"] = interval
-
-    if scheduler is None:
-        logger.debug("cleanup_scheduler: SublarrScheduler not available yet")
-        return
-    try:
-        scheduler.modify_trigger("cleanup", IntervalTrigger(hours=max(1, interval)))
-        logger.info("cleanup: interval set to %dh via adapter", interval)
-    except Exception:
-        logger.error("cleanup: adapter failed", exc_info=True)
+    _state["interval_hours"] = _get_interval_hours()
+    logger.debug("cleanup_scheduler: cron-owned, adapter is display-only")
 
 
 def stop_cleanup_scheduler():
