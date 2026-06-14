@@ -5,6 +5,23 @@ All notable changes to Sublarr are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.1.0] - 2026-06-14
+
+### Added
+- **Dubtitle detection & selection** — Anime files often bundle several
+  English subtitle tracks (fansub, dubtitle/CC, signs & songs) all tagged
+  "eng", so viewers watching the English dub get fansub subs that don't match
+  what's spoken. Sublarr can now identify the dubtitle specifically. A cheap
+  heuristic pass classifies each English track (signs/forced, SDH/CC, cue
+  density, characters-per-second, overlapping cues); when several full-text
+  English tracks remain ambiguous, it samples the English dub audio with
+  Whisper and scores each subtitle's wording against what's actually spoken —
+  the closest match above the threshold is flagged as the dubtitle. Per-track
+  match scores are surfaced in the episode track panel and nothing is applied
+  automatically (suggest-then-confirm). A "fetch, then verify" helper can also
+  score a downloaded English subtitle against the dub audio. Off by default
+  (`dubtitle_detection`); also available on demand per episode.
+
 ## [1.0.1] - 2026-06-14
 
 ### Fixed
