@@ -223,6 +223,73 @@ def use_track_as_source(ep_id, index):
     ), 200
 
 
+@bp.route("/library/episodes/<int:ep_id>/dubtitle/detect", methods=["POST"])
+def detect_episode_dubtitle(ep_id):
+    """Identify the dubtitle among the file's embedded English subtitle tracks.
+
+    Read-only: extracts streams to tempfiles and samples audio, never writes
+    to the library. Tier-1 (heuristics) always runs; Tier-2 (Whisper audio
+    match) runs only when several full-text English tracks remain ambiguous
+    and ``run_tier2`` is true. The response suggests a dubtitle but applies
+    nothing — extract/strip/set-default stay explicit user actions.
+    """
+    from services.dubtitle import detect_dubtitle
+
+    body = request.get_json(silent=True) or {}
+    run_tier2 = bool(body.get("run_tier2", True))
+    min_score = body.get("min_score")
+    if min_score is not None:
+        try:
+            min_score = float(min_score)
+        except (TypeError, ValueError):
+            return jsonify({"error": "min_score must be a number"}), 400
+
+    video_path = _get_video_path(ep_id)
+    if not video_path:
+        return jsonify({"error": "Episode has no video file or Sonarr is not configured"}), 404
+    if not os.path.exists(video_path):
+        logger.warning("Video file not found on disk: %s", video_path)
+        return jsonify({"error": "Video file not found on disk"}), 404
+
+    try:
+        result = detect_dubtitle(video_path, min_score=min_score, run_tier2=run_tier2)
+    except Exception:
+        logger.exception("Dubtitle detection failed for ep %d", ep_id)
+        return jsonify({"error": "Dubtitle detection failed"}), 500
+
+    return jsonify(
+        {
+            "video_path": video_path,
+            "dubtitle_sub_index": result.dubtitle_sub_index,
+            "method": result.method,
+            "tier2_ran": result.tier2_ran,
+            "min_score": result.min_score,
+            "message": result.message,
+            "whisper_fallback_available": result.whisper_fallback_available,
+            "candidates": [
+                {
+                    "sub_index": c.sub_index,
+                    "stream_index": c.stream_index,
+                    "language": c.language,
+                    "title": c.title,
+                    "format": c.fmt,
+                    "is_sdh": c.is_sdh,
+                    "subtype": c.subtype,
+                    "cue_count": c.cue_count,
+                    "cue_density": c.cue_density,
+                    "avg_cps": c.avg_cps,
+                    "overlap_ratio": c.overlap_ratio,
+                    "tier1_label": c.tier1_label,
+                    "audio_score": c.audio_score,
+                    "is_dubtitle": c.is_dubtitle,
+                    "reason": c.reason,
+                }
+                for c in result.candidates
+            ],
+        }
+    ), 200
+
+
 def _cleanup_series_sidecars(episode_files: dict, keep_langs: set, keep_format: str) -> int:
     """Remove sidecar subtitle files that are not in keep_langs after batch-extract.
 

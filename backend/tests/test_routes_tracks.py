@@ -264,6 +264,65 @@ class TestListTracks:
             resp = client.get("/api/v1/library/episodes/99/tracks")
         assert resp.status_code == 404
 
+    def test_dubtitle_detect_returns_result(self, client):
+        from services.dubtitle.detector import DubtitleCandidate, DubtitleDetectionResult
+
+        fake = DubtitleDetectionResult(
+            candidates=[
+                DubtitleCandidate(
+                    sub_index=1,
+                    stream_index=3,
+                    language="eng",
+                    title="English",
+                    fmt="ass",
+                    is_sdh=False,
+                    subtype="full",
+                    cue_count=420,
+                    cue_density=12.0,
+                    avg_cps=14.0,
+                    overlap_ratio=0.0,
+                    tier1_label="candidate",
+                    audio_score=0.81,
+                    is_dubtitle=True,
+                    reason="audio match 0.81",
+                )
+            ],
+            dubtitle_sub_index=1,
+            method="tier2",
+            tier2_ran=True,
+            min_score=0.55,
+            message="ok",
+        )
+        with (
+            patch("routes.tracks._get_video_path", return_value="/media/ep.mkv"),
+            patch("os.path.exists", return_value=True),
+            patch("services.dubtitle.detect_dubtitle", return_value=fake) as mocked,
+        ):
+            resp = client.post(
+                "/api/v1/library/episodes/1/dubtitle/detect", json={"run_tier2": True}
+            )
+        assert resp.status_code == 200
+        data = resp.get_json()
+        assert data["dubtitle_sub_index"] == 1
+        assert data["method"] == "tier2"
+        assert data["candidates"][0]["audio_score"] == 0.81
+        assert mocked.call_args.kwargs["run_tier2"] is True
+
+    def test_dubtitle_detect_bad_min_score(self, client):
+        with (
+            patch("routes.tracks._get_video_path", return_value="/media/ep.mkv"),
+            patch("os.path.exists", return_value=True),
+        ):
+            resp = client.post(
+                "/api/v1/library/episodes/1/dubtitle/detect", json={"min_score": "abc"}
+            )
+        assert resp.status_code == 400
+
+    def test_dubtitle_detect_404_no_video(self, client):
+        with patch("routes.tracks._get_video_path", return_value=None):
+            resp = client.post("/api/v1/library/episodes/99/dubtitle/detect", json={})
+        assert resp.status_code == 404
+
     def test_404_file_missing_on_disk(self, client):
         with (
             patch("routes.tracks._get_video_path", return_value="/missing.mkv"),

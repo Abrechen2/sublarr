@@ -252,6 +252,12 @@ class UISettings(BaseModel):
     embedded_allow_sdh: bool = True
     embedded_sdh_penalty: int = 5
 
+    # Dubtitle detection (roadmap A4 / issue #146). Off by default: surfaces
+    # the dubtitle among multiple English tracks; suggest-then-confirm, never
+    # silently applied. dubtitle_min_score is the Tier-2 audio-match threshold.
+    dubtitle_detection: bool = False
+    dubtitle_min_score: float = 0.55
+
     # Foreign-track cleanup. Destructive (remuxes the MKV with backup-to-trash).
     cleanup_foreign_tracks_default: bool = False
     cleanup_foreign_tracks_keep_und: bool = False

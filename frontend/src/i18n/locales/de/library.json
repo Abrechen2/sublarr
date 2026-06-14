@@ -424,7 +424,16 @@
     "col_language": "Sprache",
     "col_title": "Titel",
     "col_flags": "Flags",
-    "col_actions": "Aktionen"
+    "col_actions": "Aktionen",
+    "dubtitle_detect": "Dubtitle erkennen",
+    "dubtitle_detecting": "Dubtitle wird erkannt…",
+    "dubtitle_badge": "Dubtitle",
+    "dubtitle_detect_failed": "Dubtitle-Erkennung fehlgeschlagen",
+    "dubtitle_score": "Audio-Treffer {{score}}",
+    "dub_label_likely_dubtitle": "Wahrsch. CC",
+    "dub_label_candidate": "Kandidat",
+    "dub_label_signs_forced": "Signs/Forced",
+    "dub_label_sparse": "Spärlich"
   },
   "bulk": {
     "selected": "{{count}} ausgewählt",

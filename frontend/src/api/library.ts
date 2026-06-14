@@ -113,6 +113,17 @@ export async function trackAsSource(epId: number, index: number): Promise<import
   return data
 }
 
+export async function detectDubtitle(
+  epId: number,
+  options?: { runTier2?: boolean; minScore?: number },
+): Promise<import('@/lib/types').DubtitleDetectionResult> {
+  const body: Record<string, unknown> = {}
+  if (options?.runTier2 !== undefined) body.run_tier2 = options.runTier2
+  if (options?.minScore !== undefined) body.min_score = options.minScore
+  const { data } = await api.post(`/library/episodes/${epId}/dubtitle/detect`, body)
+  return data
+}
+
 export async function removeTrackFromContainer(
   epId: number,
   index: number,

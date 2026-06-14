@@ -191,6 +191,37 @@ export interface TrackAsSourceResult {
   title: string
 }
 
+// ─── Dubtitle detection (A4 / issue #146) ─────────────────────────────────────
+
+export interface DubtitleCandidate {
+  sub_index: number
+  stream_index: number | null
+  language: string
+  title: string
+  format: string
+  is_sdh: boolean
+  subtype: 'full' | 'forced' | 'signs'
+  cue_count: number
+  cue_density: number
+  avg_cps: number
+  overlap_ratio: number
+  tier1_label: 'likely_dubtitle' | 'candidate' | 'signs_forced' | 'sparse'
+  audio_score: number | null
+  is_dubtitle: boolean
+  reason: string
+}
+
+export interface DubtitleDetectionResult {
+  video_path: string
+  dubtitle_sub_index: number | null
+  method: 'tier1' | 'tier2' | 'none'
+  tier2_ran: boolean
+  min_score: number
+  message: string
+  whisper_fallback_available: boolean
+  candidates: DubtitleCandidate[]
+}
+
 // ─── Series preferences ───────────────────────────────────────────────────────
 
 export interface SeriesAudioPref {

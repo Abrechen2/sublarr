@@ -1,9 +1,9 @@
 import { useState, useEffect, useCallback } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Loader2, Download, FileText, AlertTriangle, Trash2 } from 'lucide-react'
-import { listEpisodeTracks, extractTrack, convertSubtitle, removeTrackFromContainer, getRemuxJob, restoreRemuxBackup } from '@/api/client'
+import { Loader2, Download, FileText, AlertTriangle, Trash2, ScanSearch, Sparkles } from 'lucide-react'
+import { listEpisodeTracks, extractTrack, convertSubtitle, removeTrackFromContainer, getRemuxJob, restoreRemuxBackup, detectDubtitle } from '@/api/client'
 import { toast } from '@/components/shared/Toast'
-import type { Track, EpisodeTracksResponse } from '@/lib/types'
+import type { Track, EpisodeTracksResponse, DubtitleCandidate } from '@/lib/types'
 
 interface TrackPanelProps {
   episodeId: number
@@ -17,7 +17,37 @@ function codecColor(codecType: 'audio' | 'subtitle', codec: string): { bg: strin
   return { bg: 'var(--bg-surface)', text: 'var(--text-secondary)' }
 }
 
-function TrackRow({ track, episodeId, videoPath, onOpenEditor }: { track: Track; episodeId: number; videoPath: string; onOpenEditor: (p: string) => void }) {
+function DubtitleBadge({ dub }: { dub: DubtitleCandidate }) {
+  const { t } = useTranslation('library')
+  if (dub.is_dubtitle) {
+    const score = dub.audio_score != null ? dub.audio_score.toFixed(2) : null
+    return (
+      <span
+        className="flex items-center gap-0.5 text-[9px] px-1 py-0.5 rounded uppercase font-bold"
+        style={{ backgroundColor: 'rgba(16,185,129,0.15)', color: 'var(--success)' }}
+        title={score ? t('track_panel.dubtitle_score', { score }) : dub.reason}
+      >
+        <Sparkles size={9} />
+        {t('track_panel.dubtitle_badge')}
+        {score && <span className="font-mono">{score}</span>}
+      </span>
+    )
+  }
+  const labelKey = `track_panel.dub_label_${dub.tier1_label}` as const
+  const score = dub.audio_score != null ? ` ${dub.audio_score.toFixed(2)}` : ''
+  return (
+    <span
+      className="text-[9px] px-1 py-0.5 rounded uppercase font-medium"
+      style={{ backgroundColor: 'var(--bg-surface)', color: 'var(--text-muted)' }}
+      title={dub.reason}
+    >
+      {t(labelKey)}
+      {score && <span className="font-mono">{score}</span>}
+    </span>
+  )
+}
+
+function TrackRow({ track, episodeId, videoPath, onOpenEditor, dub }: { track: Track; episodeId: number; videoPath: string; onOpenEditor: (p: string) => void; dub?: DubtitleCandidate }) {
   const { t } = useTranslation('library')
   const [extracting, setExtracting] = useState(false)
   const [usingAsSource, setUsingAsSource] = useState(false)
@@ -158,6 +188,7 @@ function TrackRow({ track, episodeId, videoPath, onOpenEditor }: { track: Track;
               Forced
             </span>
           )}
+          {dub && <DubtitleBadge dub={dub} />}
         </div>
       </td>
       {/* Actions */}
@@ -279,6 +310,22 @@ export function TrackPanel({ episodeId, onOpenEditor }: TrackPanelProps) {
   const [result, setResult] = useState<EpisodeTracksResponse | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [detecting, setDetecting] = useState(false)
+  const [dubCandidates, setDubCandidates] = useState<Map<number, DubtitleCandidate> | null>(null)
+  const [dubMessage, setDubMessage] = useState<string | null>(null)
+
+  const handleDetectDubtitle = async () => {
+    setDetecting(true)
+    try {
+      const res = await detectDubtitle(episodeId)
+      setDubCandidates(new Map(res.candidates.map((c) => [c.sub_index, c])))
+      setDubMessage(res.message)
+    } catch {
+      toast(t('track_panel.dubtitle_detect_failed'), 'error')
+    } finally {
+      setDetecting(false)
+    }
+  }
 
   useEffect(() => {
     let cancelled = false
@@ -325,14 +372,43 @@ export function TrackPanel({ episodeId, onOpenEditor }: TrackPanelProps) {
 
   return (
     <div style={{ backgroundColor: 'var(--bg-primary)' }} className="px-4 py-3 space-y-3">
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between gap-2">
         <span className="text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--text-muted)' }}>
           {t('track_panel.embedded_tracks_count', { count: result.tracks.length })}
         </span>
-        <span className="text-[10px]" style={{ color: 'var(--text-muted)', fontFamily: 'var(--font-mono)' }}>
-          {t('track_panel.sub_audio_count', { sub: subtitles.length, audio: audio.length })}
-        </span>
+        <div className="flex items-center gap-2">
+          {subtitles.length > 1 && (
+            <button
+              onClick={() => void handleDetectDubtitle()}
+              disabled={detecting}
+              className="flex items-center gap-1 px-2 py-1 rounded text-[10px] font-medium transition-colors"
+              style={{
+                backgroundColor: 'var(--accent-bg)',
+                color: 'var(--accent)',
+                border: '1px solid var(--accent-dim)',
+                opacity: detecting ? 0.6 : 1,
+              }}
+              title={t('track_panel.dubtitle_detect')}
+            >
+              {detecting ? <Loader2 size={10} className="animate-spin" /> : <ScanSearch size={10} />}
+              {detecting ? t('track_panel.dubtitle_detecting') : t('track_panel.dubtitle_detect')}
+            </button>
+          )}
+          <span className="text-[10px]" style={{ color: 'var(--text-muted)', fontFamily: 'var(--font-mono)' }}>
+            {t('track_panel.sub_audio_count', { sub: subtitles.length, audio: audio.length })}
+          </span>
+        </div>
       </div>
+
+      {dubMessage && (
+        <div
+          className="flex items-start gap-2 px-3 py-2 rounded-md text-xs"
+          style={{ backgroundColor: 'var(--accent-bg)', color: 'var(--text-secondary)', border: '1px solid var(--accent-dim)' }}
+        >
+          <Sparkles size={13} style={{ color: 'var(--accent)', flexShrink: 0, marginTop: 1 }} />
+          <span>{dubMessage}</span>
+        </div>
+      )}
 
       <div className="rounded-md overflow-hidden" style={{ border: '1px solid var(--border)' }}>
         <table className="w-full">
@@ -357,6 +433,7 @@ export function TrackPanel({ episodeId, onOpenEditor }: TrackPanelProps) {
                 episodeId={episodeId}
                 videoPath={result.video_path}
                 onOpenEditor={onOpenEditor}
+                dub={track.codec_type === 'subtitle' ? dubCandidates?.get(track.sub_index) : undefined}
               />
             ))}
           </tbody>

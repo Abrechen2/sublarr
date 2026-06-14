@@ -424,7 +424,16 @@
     "col_language": "Language",
     "col_title": "Title",
     "col_flags": "Flags",
-    "col_actions": "Actions"
+    "col_actions": "Actions",
+    "dubtitle_detect": "Detect dubtitle",
+    "dubtitle_detecting": "Detecting dubtitle…",
+    "dubtitle_badge": "Dubtitle",
+    "dubtitle_detect_failed": "Dubtitle detection failed",
+    "dubtitle_score": "audio match {{score}}",
+    "dub_label_likely_dubtitle": "Likely CC",
+    "dub_label_candidate": "Candidate",
+    "dub_label_signs_forced": "Signs/Forced",
+    "dub_label_sparse": "Sparse"
   },
   "bulk": {
     "selected": "{{count}} selected",

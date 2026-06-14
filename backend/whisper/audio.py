@@ -200,6 +200,69 @@ def get_audio_track_by_index(file_path: str, index: int) -> dict:
     return track
 
 
+def extract_audio_window_to_wav(
+    file_path: str,
+    stream_index: int,
+    output_path: str,
+    start_s: float,
+    duration_s: float,
+) -> str:
+    """Extract a *time window* of an audio track to 16kHz mono WAV.
+
+    Same output format as :func:`extract_audio_to_wav` but only the slice
+    ``[start_s, start_s + duration_s)``. Used by multi-segment sampling
+    (dubtitle Tier-2 scoring, and the planned A1 language-ID vote) so we
+    transcribe a few short windows instead of a whole episode. ``-ss`` is
+    placed before ``-i`` for a fast input seek.
+
+    Raises:
+        RuntimeError: If ffmpeg fails, is not installed, or produces no output.
+    """
+    cmd = [
+        "ffmpeg",
+        "-ss",
+        f"{max(0.0, start_s):.3f}",
+        "-t",
+        f"{max(0.1, duration_s):.3f}",
+        "-i",
+        file_path,
+        "-map",
+        f"0:a:{stream_index}",
+        "-acodec",
+        "pcm_s16le",
+        "-ar",
+        "16000",
+        "-ac",
+        "1",
+        "-y",
+        output_path,
+    ]
+
+    logger.info(
+        "Sampling audio track %d window [%.1fs +%.1fs] from %s",
+        stream_index,
+        start_s,
+        duration_s,
+        os.path.basename(file_path),
+    )
+
+    try:
+        proc = subprocess.run(cmd, capture_output=True, timeout=120)
+    except FileNotFoundError:
+        raise RuntimeError("ffmpeg not found. Install ffmpeg to enable audio sampling.")
+    except subprocess.TimeoutExpired:
+        raise RuntimeError(f"ffmpeg audio sampling timed out (120s): {file_path}")
+
+    if proc.returncode != 0:
+        stderr = proc.stderr.decode("utf-8", errors="replace")[:500]
+        raise RuntimeError(f"ffmpeg failed (code {proc.returncode}): {stderr}")
+
+    if not os.path.exists(output_path) or os.path.getsize(output_path) == 0:
+        raise RuntimeError(f"ffmpeg produced no audio window: {output_path}")
+
+    return output_path
+
+
 def extract_audio_to_wav(
     file_path: str,
     stream_index: int,
