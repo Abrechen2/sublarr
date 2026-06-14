@@ -5,6 +5,27 @@ All notable changes to Sublarr are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.0.1] - 2026-06-14
+
+### Fixed
+- **Trash backups now auto-pruned reliably** — The scheduled cleanup job ran
+  on a weekly interval that never fired dependably on a frequently restarted
+  container, so the 7-day backup-retention rule never executed and pre-remux
+  video backups piled up (113 GB observed in production). Cleanup now runs on
+  a fixed daily schedule (03:45) and a one-time reconciliation migrates the
+  stale job on upgrade. Retention itself is unchanged (7 days).
+- **Large video files no longer time out during remux and subtitle sync** — A
+  hardcoded 600-second subprocess limit false-failed big files (e.g. a 25 GB
+  Remux movie) on every cleanup cycle. Timeouts now scale with file size (up
+  to 60 minutes), so foreign-track stripping and ffsubsync finish on large
+  media instead of being left untouched.
+
+### Changed
+- **`wanted_search` search window raised to 30 minutes** — Searching thousands
+  of wanted items across rate-limited providers could exceed the previous
+  15-minute ceiling on high-latency days. Per-request HTTP timeouts already
+  prevent a single hung provider from stalling the whole sweep.
+
 ## [1.0.0] - 2026-06-13
 
 Sublarr 1.0 — first stable release. The core subtitle pipeline (search,
