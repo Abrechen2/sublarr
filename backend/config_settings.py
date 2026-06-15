@@ -355,6 +355,12 @@ class UISettings(BaseModel):
     provider_budget_enabled: bool = True
     provider_budget_stretch_mode: str = "stretch"  # 'stretch' | 'burst' | 'off'
     provider_budget_burst_window_hours: int = 6
+    # Reserve this % below each provider's declared limit. Must be a declared
+    # field (not just read via getattr) so the first-run wizard's profile
+    # presets (light=40, balanced=20, aggressive=10) actually persist —
+    # UISettings uses extra="ignore", so an undeclared key is silently dropped
+    # and the budget manager would always fall back to the 20 default.
+    provider_budget_safety_margin_pct: int = 20
     scheduler_profile: str = "balanced"  # 'light' | 'balanced' | 'aggressive' | 'custom'
     scheduler_history_retention_days: int = Field(
         default=30,
