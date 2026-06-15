@@ -124,6 +124,16 @@ export async function detectDubtitle(
   return data
 }
 
+/** Cached dubtitle result (from a prior detect or the scheduled sweep), or null if none. */
+export async function getCachedDubtitle(
+  epId: number,
+): Promise<import('@/lib/types').DubtitleDetectionResult | null> {
+  const res = await api.get(`/library/episodes/${epId}/dubtitle`, {
+    validateStatus: (s) => s === 200 || s === 204,
+  })
+  return res.status === 204 ? null : res.data
+}
+
 export async function removeTrackFromContainer(
   epId: number,
   index: number,

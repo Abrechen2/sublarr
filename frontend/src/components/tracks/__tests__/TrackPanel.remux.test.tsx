@@ -27,6 +27,8 @@ vi.mock('@/api/client', () => ({
   removeTrackFromContainer: mocks.removeTrack,
   getRemuxJob: vi.fn().mockResolvedValue({ job_id: 'test-job-123', status: 'pending', result: null, error: null }),
   restoreRemuxBackup: vi.fn(),
+  detectDubtitle: vi.fn(),
+  getCachedDubtitle: vi.fn().mockResolvedValue(null),
 }))
 
 vi.mock('@/components/shared/Toast', () => ({

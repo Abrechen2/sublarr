@@ -91,6 +91,8 @@ class DubtitleDetectionResult:
     method: str = "none"  # "tier1" | "tier2" | "none"
     tier2_ran: bool = False
     min_score: float = _DEFAULT_MIN_SCORE
+    margin: float | None = None  # best audio_score − runner-up (Tier-2 only)
+    runner_up_score: float | None = None
     message: str = ""
     whisper_fallback_available: bool = False
 
@@ -410,12 +412,27 @@ def _resolve_min_score(min_score: float | None) -> float:
         return _DEFAULT_MIN_SCORE
 
 
+def _resolve_auto_guards() -> tuple[float, int]:
+    """Return (min_margin, auto_min_cues) for unattended detection from config."""
+    try:
+        from config import get_settings
+
+        s = get_settings()
+        return (
+            float(getattr(s, "dubtitle_min_margin", 0.15)),
+            int(getattr(s, "dubtitle_auto_min_cues", 70)),
+        )
+    except Exception:
+        return 0.15, 70
+
+
 def detect_dubtitle(
     video_path: str,
     *,
     probe_data: dict | None = None,
     min_score: float | None = None,
     run_tier2: bool = True,
+    automated: bool = False,
 ) -> DubtitleDetectionResult:
     """Identify the dubtitle among a file's embedded English subtitle tracks.
 
@@ -426,6 +443,12 @@ def detect_dubtitle(
             :data:`_DEFAULT_MIN_SCORE`.
         run_tier2: When False, only the no-audio heuristics run (used by the
             UI's "quick scan" and by tests).
+        automated: Unattended mode (scheduled sweep). Applies the stricter
+            Gemini-recommended guardrails — a higher cue floor and a
+            confidence-margin gate on the Tier-2 winner — so an automatic
+            flag is only set when the call is genuinely high-confidence. The
+            on-demand UI path leaves this False and still suggests the best
+            candidate for a human to confirm.
 
     Returns:
         :class:`DubtitleDetectionResult` — scored candidates plus the
@@ -435,6 +458,7 @@ def detect_dubtitle(
     from ass_utils import get_media_streams
 
     threshold = _resolve_min_score(min_score)
+    min_margin, auto_min_cues = _resolve_auto_guards()
     result = DubtitleDetectionResult(min_score=threshold)
 
     if probe_data is None:
@@ -457,6 +481,10 @@ def detect_dubtitle(
         result.candidates.append(_classify_tier1(st, cues))
 
     full_text = [c for c in result.candidates if c.tier1_label in ("candidate", "likely_dubtitle")]
+    # Unattended mode demands a denser dialogue track so a borderline-sparse
+    # track can't be auto-flagged on a lucky single-window match.
+    if automated:
+        full_text = [c for c in full_text if c.cue_count >= auto_min_cues]
 
     if not full_text:
         result.method = "tier1"
@@ -503,28 +531,88 @@ def detect_dubtitle(
         result.whisper_fallback_available = True
         return result
 
-    best: DubtitleCandidate | None = None
     for cand in full_text:
         score = _score_cues_against_windows(cues_by_index[cand.sub_index], windows)
         cand.audio_score = round(score, 3) if score is not None else None
         if score is not None:
             cand.reason = f"audio match {score:.2f} over {len(windows)} window(s)"
-            if best is None or (cand.audio_score or 0) > (best.audio_score or 0):
-                best = cand
+
+    # Rank by audio score to derive winner + runner-up (for the margin gate).
+    scored = sorted(
+        (c for c in full_text if c.audio_score is not None),
+        key=lambda c: c.audio_score or 0,
+        reverse=True,
+    )
+    best = scored[0] if scored else None
+    runner_up = scored[1].audio_score if len(scored) > 1 else None
+    result.runner_up_score = runner_up
+    result.margin = round((best.audio_score or 0) - runner_up, 3) if runner_up is not None else None
 
     result.method = "tier2"
-    if best is not None and (best.audio_score or 0) >= threshold:
-        best.is_dubtitle = True
-        result.dubtitle_sub_index = best.sub_index
-        result.message = f"Dubtitle selected by audio match ({best.audio_score:.2f} ≥ {threshold})."
-    else:
+    if best is None or (best.audio_score or 0) < threshold:
         top = max((c.audio_score or 0) for c in full_text)
         result.message = (
             f"No English track matched the dub above {threshold} (best {top:.2f}). "
             "Likely no dubtitle present — offer Whisper full-transcription."
         )
         result.whisper_fallback_available = True
+        return result
+
+    # Confidence-margin gate: only an unattended run insists on a clear gap to
+    # the runner-up. The on-demand UI still surfaces the best guess for a human.
+    if automated and result.margin is not None and result.margin < min_margin:
+        result.message = (
+            f"Top match {best.audio_score:.2f} too close to runner-up "
+            f"{runner_up:.2f} (margin {result.margin:.2f} < {min_margin}); "
+            "not auto-flagged — confirm manually."
+        )
+        return result
+
+    best.is_dubtitle = True
+    result.dubtitle_sub_index = best.sub_index
+    margin_note = f", margin {result.margin:.2f}" if result.margin is not None else ""
+    result.message = (
+        f"Dubtitle selected by audio match ({best.audio_score:.2f} ≥ {threshold}{margin_note})."
+    )
     return result
+
+
+def result_to_dict(result: DubtitleDetectionResult) -> dict:
+    """Serialize a detection result to the JSON shape used by the API + cache.
+
+    Shared by the on-demand POST endpoint and the cached GET endpoint so both
+    return identical payloads (``video_path`` is added by the route).
+    """
+    return {
+        "dubtitle_sub_index": result.dubtitle_sub_index,
+        "method": result.method,
+        "tier2_ran": result.tier2_ran,
+        "min_score": result.min_score,
+        "margin": result.margin,
+        "runner_up_score": result.runner_up_score,
+        "message": result.message,
+        "whisper_fallback_available": result.whisper_fallback_available,
+        "candidates": [
+            {
+                "sub_index": c.sub_index,
+                "stream_index": c.stream_index,
+                "language": c.language,
+                "title": c.title,
+                "format": c.fmt,
+                "is_sdh": c.is_sdh,
+                "subtype": c.subtype,
+                "cue_count": c.cue_count,
+                "cue_density": c.cue_density,
+                "avg_cps": c.avg_cps,
+                "overlap_ratio": c.overlap_ratio,
+                "tier1_label": c.tier1_label,
+                "audio_score": c.audio_score,
+                "is_dubtitle": c.is_dubtitle,
+                "reason": c.reason,
+            }
+            for c in result.candidates
+        ],
+    }
 
 
 def validate_subtitle_against_audio(

@@ -236,6 +236,26 @@ class ChapterCache(db.Model):
     cached_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
 
 
+class DubtitleDetection(db.Model):
+    """Cached dubtitle-detection result per video, invalidated by file mtime.
+
+    ``result_json`` holds the full serialized DubtitleDetectionResult
+    (candidates + per-track scores) so the UI can render the flag without
+    re-running detection, and a scheduled sweep can skip files it has
+    already seen at the same mtime — including the "no dubtitle present"
+    outcome, which is cached too.
+    """
+
+    __tablename__ = "dubtitle_detections"
+
+    file_path: Mapped[str] = mapped_column(Text, primary_key=True)
+    mtime: Mapped[float] = mapped_column(Float, nullable=False)
+    dubtitle_sub_index: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    method: Mapped[str] = mapped_column(Text, nullable=False, default="none")
+    result_json: Mapped[str] = mapped_column(Text, nullable=False, default="{}")
+    detected_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+
+
 class BlacklistEntry(db.Model):
     """Blacklisted subtitle provider results."""
 

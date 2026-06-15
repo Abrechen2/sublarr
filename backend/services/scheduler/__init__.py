@@ -80,6 +80,7 @@ def _build_default_jobs() -> list[JobSpec]:
     """
     from anidb_sync import anidb_sync_tick
     from cleanup_scheduler import cleanup_tick
+    from services.dubtitle.sweep import dubtitle_scan_tick
     from services.subtitle_automation_runner import subtitle_automation_tick
     from services.wanted_scanner_scheduler import (
         wanted_scanner_tick,
@@ -198,6 +199,20 @@ def _build_default_jobs() -> list[JobSpec]:
                 "Drain the subtitle_automation_queue: extract pending embedded "
                 "subtitles into sidecars. No-op when the master toggle "
                 "(subtitle_automation_enabled) is off."
+            ),
+        ),
+        JobSpec(
+            id="dubtitle_scan",
+            func=dubtitle_scan_tick,
+            # Daily, after the nightly cleanup/upgrade window. No-op unless
+            # dubtitle_detection is enabled; bounded + cached so it stays cheap.
+            default_trigger=CronTrigger(hour=4, minute=15),
+            timeout_s=3600,
+            owner_module="services.dubtitle.sweep",
+            description=(
+                "Detect + flag the dubtitle on library files with multiple "
+                "embedded English subtitle tracks. No-op when dubtitle_detection "
+                "is off; never modifies files (flag only)."
             ),
         ),
         JobSpec(

@@ -187,6 +187,8 @@ class ScanningSettings(_SettingsView):
             "cleanup_foreign_tracks_keep_und",
             "dubtitle_detection",
             "dubtitle_min_score",
+            "dubtitle_min_margin",
+            "dubtitle_auto_min_cues",
             "wanted_search_interval_hours",
             "wanted_search_on_startup",
             "wanted_search_max_items_per_run",

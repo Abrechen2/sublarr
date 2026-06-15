@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Loader2, Download, FileText, AlertTriangle, Trash2, ScanSearch, Sparkles } from 'lucide-react'
-import { listEpisodeTracks, extractTrack, convertSubtitle, removeTrackFromContainer, getRemuxJob, restoreRemuxBackup, detectDubtitle } from '@/api/client'
+import { listEpisodeTracks, extractTrack, convertSubtitle, removeTrackFromContainer, getRemuxJob, restoreRemuxBackup, detectDubtitle, getCachedDubtitle } from '@/api/client'
 import { toast } from '@/components/shared/Toast'
 import type { Track, EpisodeTracksResponse, DubtitleCandidate } from '@/lib/types'
 
@@ -313,6 +313,21 @@ export function TrackPanel({ episodeId, onOpenEditor }: TrackPanelProps) {
   const [detecting, setDetecting] = useState(false)
   const [dubCandidates, setDubCandidates] = useState<Map<number, DubtitleCandidate> | null>(null)
   const [dubMessage, setDubMessage] = useState<string | null>(null)
+
+  // Auto-load a previously cached result (from a prior detect or the
+  // scheduled sweep) so the dubtitle flag shows on open without re-detecting.
+  useEffect(() => {
+    let cancelled = false
+    getCachedDubtitle(episodeId)
+      .then((res) => {
+        if (!cancelled && res) {
+          setDubCandidates(new Map(res.candidates.map((c) => [c.sub_index, c])))
+          setDubMessage(res.message)
+        }
+      })
+      .catch(() => { /* no cached result — silent */ })
+    return () => { cancelled = true }
+  }, [episodeId])
 
   const handleDetectDubtitle = async () => {
     setDetecting(true)

@@ -304,6 +304,63 @@ class TestDetectDubtitle:
         assert res.dubtitle_sub_index is None
         assert res.whisper_fallback_available is True
 
+    def _two_close_tracks(self, monkeypatch):
+        """Two dense EN tracks whose audio scores are close (margin ~0.1)."""
+        probe = self._probe([("eng", "ass", "A"), ("eng", "ass", "B")])
+
+        def fake_cues(video, sub_index, fmt):
+            # sub 0 → 0.9 (one out-of-transcript token); sub 1 → 1.0 (all match)
+            window_text = "a b c d e f g h i zzz" if sub_index == 0 else "a b c d e f g h i j"
+            cues = []
+            for i in range(90):
+                t = i * 10_000
+                text = window_text if 720_000 <= t < 765_000 else "a b c d e f g h i j"
+                cues.append(_Cue(t, t + 2_000, text))
+            return cues
+
+        monkeypatch.setattr(det, "_extract_and_load_cues", fake_cues)
+        transcript = set(["a", "b", "c", "d", "e", "f", "g", "h", "i", "j"])
+        monkeypatch.setattr(
+            det,
+            "_build_dub_transcript_windows",
+            lambda video, dur: [_TranscriptWindow(720_000, 765_000, transcript)],
+        )
+        return probe
+
+    def test_margin_and_runner_up_populated(self, monkeypatch):
+        probe = self._two_close_tracks(monkeypatch)
+        res = detect_dubtitle("/fake.mkv", probe_data=probe, min_score=0.5)
+        assert res.margin is not None
+        assert res.runner_up_score is not None
+        assert res.margin == round(1.0 - 0.9, 3)
+
+    def test_on_demand_flags_best_despite_small_margin(self, monkeypatch):
+        probe = self._two_close_tracks(monkeypatch)
+        res = detect_dubtitle("/fake.mkv", probe_data=probe, min_score=0.5, automated=False)
+        assert res.dubtitle_sub_index == 1  # best (1.0) suggested for human
+
+    def test_automated_blocks_on_small_margin(self, monkeypatch):
+        probe = self._two_close_tracks(monkeypatch)
+        res = detect_dubtitle("/fake.mkv", probe_data=probe, min_score=0.5, automated=True)
+        # margin 0.1 < default 0.15 → not auto-flagged
+        assert res.dubtitle_sub_index is None
+        assert "margin" in res.message.lower()
+
+    def test_automated_cue_floor_excludes_thin_tracks(self, monkeypatch):
+        # Two full-text tracks but each below the auto cue floor (70) → excluded,
+        # so automated mode finds nothing to score.
+        probe = self._probe([("eng", "ass", "A"), ("eng", "ass", "B")])
+        monkeypatch.setattr(det, "_extract_and_load_cues", lambda *a, **k: _dense_cues(50))
+        called = {"n": 0}
+        monkeypatch.setattr(
+            det, "_build_dub_transcript_windows", lambda v, d: called.__setitem__("n", 1) or []
+        )
+        res = detect_dubtitle("/fake.mkv", probe_data=probe, min_score=0.5, automated=True)
+        # 50-cue tracks pass on-demand floor (40) but fail auto floor (70):
+        # both drop out of full_text → no full-text tracks → Tier-2 never runs.
+        assert called["n"] == 0
+        assert res.dubtitle_sub_index is None
+
     def test_run_tier2_false_skips_audio(self, monkeypatch):
         probe = self._probe([("eng", "ass", "A"), ("eng", "ass", "B")])
         monkeypatch.setattr(det, "_extract_and_load_cues", lambda *a, **k: _dense_cues(80))

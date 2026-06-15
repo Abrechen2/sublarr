@@ -323,6 +323,26 @@ class TestListTracks:
             resp = client.post("/api/v1/library/episodes/99/dubtitle/detect", json={})
         assert resp.status_code == 404
 
+    def test_dubtitle_get_cached_returns_payload(self, client):
+        cached = {"dubtitle_sub_index": 1, "method": "tier1", "candidates": []}
+        with (
+            patch("routes.tracks._get_video_path", return_value="/media/ep.mkv"),
+            patch("services.dubtitle.get_cached_detection", return_value=cached),
+        ):
+            resp = client.get("/api/v1/library/episodes/1/dubtitle")
+        assert resp.status_code == 200
+        data = resp.get_json()
+        assert data["cached"] is True
+        assert data["dubtitle_sub_index"] == 1
+
+    def test_dubtitle_get_204_when_none(self, client):
+        with (
+            patch("routes.tracks._get_video_path", return_value="/media/ep.mkv"),
+            patch("services.dubtitle.get_cached_detection", return_value=None),
+        ):
+            resp = client.get("/api/v1/library/episodes/1/dubtitle")
+        assert resp.status_code == 204
+
     def test_404_file_missing_on_disk(self, client):
         with (
             patch("routes.tracks._get_video_path", return_value="/missing.mkv"),

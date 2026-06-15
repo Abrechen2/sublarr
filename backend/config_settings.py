@@ -257,6 +257,12 @@ class UISettings(BaseModel):
     # silently applied. dubtitle_min_score is the Tier-2 audio-match threshold.
     dubtitle_detection: bool = False
     dubtitle_min_score: float = 0.55
+    # Unattended-mode guardrails (Gemini review 2026-06-14): require a clear
+    # gap between the best and runner-up audio match before auto-flagging, and
+    # demand a denser dialogue track than the on-demand path so a sparse signs
+    # track can't fluke a single-window match.
+    dubtitle_min_margin: float = 0.15
+    dubtitle_auto_min_cues: int = 70
 
     # Foreign-track cleanup. Destructive (remuxes the MKV with backup-to-trash).
     cleanup_foreign_tracks_default: bool = False

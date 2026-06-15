@@ -233,7 +233,7 @@ def detect_episode_dubtitle(ep_id):
     and ``run_tier2`` is true. The response suggests a dubtitle but applies
     nothing — extract/strip/set-default stay explicit user actions.
     """
-    from services.dubtitle import detect_dubtitle
+    from services.dubtitle import detect_dubtitle, result_to_dict, store_detection
 
     body = request.get_json(silent=True) or {}
     run_tier2 = bool(body.get("run_tier2", True))
@@ -257,37 +257,30 @@ def detect_episode_dubtitle(ep_id):
         logger.exception("Dubtitle detection failed for ep %d", ep_id)
         return jsonify({"error": "Dubtitle detection failed"}), 500
 
-    return jsonify(
-        {
-            "video_path": video_path,
-            "dubtitle_sub_index": result.dubtitle_sub_index,
-            "method": result.method,
-            "tier2_ran": result.tier2_ran,
-            "min_score": result.min_score,
-            "message": result.message,
-            "whisper_fallback_available": result.whisper_fallback_available,
-            "candidates": [
-                {
-                    "sub_index": c.sub_index,
-                    "stream_index": c.stream_index,
-                    "language": c.language,
-                    "title": c.title,
-                    "format": c.fmt,
-                    "is_sdh": c.is_sdh,
-                    "subtype": c.subtype,
-                    "cue_count": c.cue_count,
-                    "cue_density": c.cue_density,
-                    "avg_cps": c.avg_cps,
-                    "overlap_ratio": c.overlap_ratio,
-                    "tier1_label": c.tier1_label,
-                    "audio_score": c.audio_score,
-                    "is_dubtitle": c.is_dubtitle,
-                    "reason": c.reason,
-                }
-                for c in result.candidates
-            ],
-        }
-    ), 200
+    payload = result_to_dict(result)
+    # Persist so the UI can re-render the flag without re-detecting, and a
+    # later sweep skips this file at the same mtime.
+    store_detection(video_path, payload)
+    return jsonify({"video_path": video_path, "cached": False, **payload}), 200
+
+
+@bp.route("/library/episodes/<int:ep_id>/dubtitle", methods=["GET"])
+def get_episode_dubtitle(ep_id):
+    """Return the cached dubtitle-detection result for an episode, if any.
+
+    Lets the track panel show the dubtitle flag on load without re-running
+    detection. 200 with the cached payload when present (and still fresh for
+    the file's mtime), 204 when nothing has been detected/cached yet.
+    """
+    from services.dubtitle import get_cached_detection
+
+    video_path = _get_video_path(ep_id)
+    if not video_path:
+        return jsonify({"error": "Episode has no video file or Sonarr is not configured"}), 404
+    cached = get_cached_detection(video_path)
+    if cached is None:
+        return "", 204
+    return jsonify({"video_path": video_path, "cached": True, **cached}), 200
 
 
 def _cleanup_series_sidecars(episode_files: dict, keep_langs: set, keep_format: str) -> int:
