@@ -131,11 +131,17 @@ def complete_setup():
     save_config_entry("scheduler_profile", profile)
     save_config_entry("setup_wizard_completed", "true")
 
-    # Settings cache may need refresh so in-process readers see the new values
+    # Settings cache may need refresh so in-process readers see the new values.
+    # Pass the FULL set of DB overrides — a bare reload_settings() rebuilds UI
+    # fields from defaults only (see config_singleton.reload_settings: the
+    # override overlay is skipped when overrides is None), which would wipe the
+    # profile we just saved AND every other configured UI setting from memory
+    # until the next config write or restart.
     try:
         from config import reload_settings
+        from db.config import get_all_config_entries
 
-        reload_settings()
+        reload_settings(get_all_config_entries())
     except Exception as e:  # noqa: BLE001
         logger.debug("reload_settings after wizard completion failed: %s", e)
 
