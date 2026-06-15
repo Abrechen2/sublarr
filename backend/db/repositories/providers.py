@@ -111,7 +111,14 @@ class ProviderRepository(BaseRepository):
             if name not in stats:
                 stats[name] = {"total": 0, "active": 0}
             stats[name]["total"] += 1
-            if expires_at > now:
+            if expires_at is None:
+                continue
+            # SQLite returns naive datetimes (no tz), while `now` is tz-aware;
+            # comparing the two raises "can't compare offset-naive and
+            # offset-aware datetimes" and 500s GET /api/v1/providers/stats on
+            # SQLite installs. Normalise naive values to UTC before comparing.
+            exp = expires_at if expires_at.tzinfo is not None else expires_at.replace(tzinfo=UTC)
+            if exp > now:
                 stats[name]["active"] += 1
         return stats
 
