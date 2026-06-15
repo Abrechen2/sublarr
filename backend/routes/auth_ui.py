@@ -18,7 +18,7 @@ from extensions import limiter
 logger = logging.getLogger(__name__)
 
 auth_ui_bp = Blueprint("auth_ui", __name__, url_prefix="/api/v1/auth")
-_MIN_PASSWORD_LENGTH = 12
+_MIN_PASSWORD_LENGTH = 8
 
 
 def _is_session_authenticated() -> bool:
@@ -113,7 +113,7 @@ def setup():
                   enum: [set_password, disable]
                 password:
                   type: string
-                  description: Required when action is set_password. Minimum 12 characters.
+                  description: Required when action is set_password. Minimum 8 characters.
       responses:
         200:
           description: Auth configured

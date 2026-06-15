@@ -21,10 +21,16 @@ export function WebSocketProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     const apikey = localStorage.getItem('sublarr_api_key') ?? undefined
     socketRef.current = io(window.location.origin, {
-      // Werkzeug dev server doesn't support WebSocket upgrades — attempting the
-      // upgrade corrupts the polling session (POST 400). Force polling-only in
-      // development; production (gunicorn/eventlet) supports the full upgrade path.
-      transports: import.meta.env.DEV ? ['polling'] : ['websocket', 'polling'],
+      // Polling-only by design. The backend runs Flask-SocketIO with
+      // async_mode="threading" (gunicorn gthread worker, see backend/app.py),
+      // which does NOT implement the native WebSocket transport — every
+      // attempted `websocket` upgrade fails its handshake (404/400) and spams
+      // the browser console with errors before silently falling back to
+      // long-polling (GitHub #148). The Werkzeug dev server has the same
+      // limitation. Until the server moves to an eventlet/gevent async mode,
+      // long-polling is the only transport that actually works, so don't
+      // advertise `websocket` to the client.
+      transports: ['polling'],
       auth: apikey ? { apikey } : undefined,
     })
     setSocket(socketRef.current)

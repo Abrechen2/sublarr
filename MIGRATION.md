@@ -33,12 +33,12 @@ This guide covers upgrading Sublarr from any beta version to V1.0.
 **Action required:** Versions before 0.31.0 are missing critical security fixes.
 
 - Rate limiting on login and API key endpoints was added
-- Minimum password length increased from 4 to 12 characters
+- Minimum password length increased from 4 to 8 characters
 - Database credentials are no longer exposed in the config API
 - HTTP security headers (X-Frame-Options, X-Content-Type-Options, etc.) are now set
 
 **After upgrading:**
-- Change your password if it is shorter than 12 characters
+- Change your password if it is shorter than 8 characters
 - Set `SUBLARR_API_KEY` to a strong random value if not already set
 
 ### From < 0.35.0 (Auth Security)
@@ -110,7 +110,7 @@ If a migration fails, restore your backup and report the issue.
 
 ### Password rejected after upgrade (from < 0.31.0)
 
-Minimum password length is now 12 characters. Reset via:
+Minimum password length is now 8 characters. Reset via:
 ```bash
 docker exec sublarr python -c "
 from app import create_app

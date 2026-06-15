@@ -12,7 +12,7 @@ All endpoints use the prefix `/api/v1/`. Authentication is via `X-Api-Key` heade
 | POST | `/auth/setup` | No | — | First-run: set password (`action: "set_password"`) or disable auth (`action: "disable"`) |
 | POST | `/auth/login` | No | 10/min, 30/hour | Verify password and create session |
 | POST | `/auth/logout` | Session | — | Clear session |
-| POST | `/auth/change-password` | Session | — | Update password (min 12 chars) |
+| POST | `/auth/change-password` | Session | — | Update password (min 8 chars) |
 | POST | `/auth/toggle` | Session or API key | — | Enable/disable UI auth |
 
 ---

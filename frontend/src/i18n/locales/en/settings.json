@@ -1763,7 +1763,7 @@
     "auth_update_failed": "Failed to update authentication setting",
     "password_changed": "Password changed",
     "failed": "Failed",
-    "pw_too_short": "New password must be at least 4 characters.",
+    "pw_too_short": "New password must be at least 8 characters.",
     "pw_mismatch": "Passwords do not match.",
     "hide": "Hide",
     "show": "Show",

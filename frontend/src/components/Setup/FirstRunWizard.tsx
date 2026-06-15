@@ -152,9 +152,11 @@ function ProfileCard({
       className="text-left rounded-lg p-4 flex flex-col gap-2"
       style={{
         backgroundColor: selected ? 'var(--bg-elevated)' : 'var(--bg-secondary)',
-        border: `2px solid ${
-          recommended ? 'var(--accent)' : selected ? 'var(--accent)' : 'var(--border)'
-        }`,
+        // Border reflects ONLY the current selection so exactly one card reads as
+        // active. The recommendation is conveyed by the badge, not the border —
+        // otherwise the recommended card stays accent-bordered even after the user
+        // picks a different one, making two cards look selected at once. (Fixes #148.)
+        border: `2px solid ${selected ? 'var(--accent)' : 'var(--border)'}`,
         cursor: 'pointer',
       }}
     >

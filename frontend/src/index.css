@@ -196,10 +196,18 @@
   --shadow-glass: 0 4px 24px rgba(0,0,0,0.2);
 }
 
-/* ---- Reset ---- */
+/* ---- Reset ----
+   margin/padding are intentionally NOT reset here. Tailwind v4 Preflight
+   already applies `*{margin:0;padding:0;box-sizing:border-box}` inside its
+   `@layer base`, where the spacing utilities (emitted into `@layer utilities`)
+   correctly override it. Repeating that reset UNLAYERED here would outrank
+   EVERY @layer and silently strip all p-*/m-*/px-*/gap-* utilities app-wide —
+   that was the root cause of issue #148. We only keep box-sizing explicit.
+   NOTE: these element rules must stay UNLAYERED — wrapping them in
+   `@layer base` causes the Tailwind v4 pipeline to drop them (verified in dev
+   and build), which silently removed the body background (white flashes in
+   dark mode). */
 * {
-  margin: 0;
-  padding: 0;
   box-sizing: border-box;
 }
 

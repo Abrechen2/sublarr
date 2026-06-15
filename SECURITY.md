@@ -31,7 +31,7 @@ Sublarr supports two authentication mechanisms:
 
 1. **API Key Authentication** — Set via `SUBLARR_API_KEY` environment variable. All `/api/v1/` endpoints require the key in the `X-Api-Key` header. Enforced by a global `before_request` hook in `auth.py`.
 
-2. **UI Session Authentication** — Browser-based login with bcrypt-hashed passwords. Session cookies use `HttpOnly`, `SameSite=Lax` flags. Minimum password length: 12 characters.
+2. **UI Session Authentication** — Browser-based login with bcrypt-hashed passwords. Session cookies use `HttpOnly`, `SameSite=Lax` flags. Minimum password length: 8 characters.
 
 **Important:** At least one authentication mechanism must be enabled. If both `SUBLARR_API_KEY` is empty and UI auth is disabled, a startup warning is logged and all endpoints are publicly accessible.
 
@@ -135,7 +135,7 @@ The following attack vectors have been tested and confirmed mitigated:
 For production deployments:
 
 - [ ] Set `SUBLARR_API_KEY` to a strong random value (32+ chars)
-- [ ] Enable UI auth with a strong password (12+ chars)
+- [ ] Enable UI auth with a strong password (8+ chars)
 - [ ] Use a reverse proxy with HTTPS termination
 - [ ] Restrict network access to trusted networks
 - [ ] Set `SUBLARR_LOG_LEVEL=WARNING` to reduce log verbosity

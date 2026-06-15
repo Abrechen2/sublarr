@@ -48,7 +48,7 @@ export function SecurityTab() {
   function handleChangePw(e: React.FormEvent) {
     e.preventDefault()
     setPwError('')
-    if (newPw.length < 4) { setPwError(t('security_tab.pw_too_short')); return }
+    if (newPw.length < 8) { setPwError(t('security_tab.pw_too_short')); return }
     if (newPw !== confirmPw) { setPwError(t('security_tab.pw_mismatch')); return }
     doChangePw()
   }

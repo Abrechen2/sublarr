@@ -36,7 +36,7 @@ export function SetupPage() {
   function handleSetPassword(e: React.FormEvent) {
     e.preventDefault()
     setError('')
-    if (password.length < 4) { setError('Password must be at least 4 characters.'); return }
+    if (password.length < 8) { setError('Password must be at least 8 characters.'); return }
     if (password !== confirm) { setError('Passwords do not match.'); return }
     doSetup({ action: 'set_password', password })
   }
