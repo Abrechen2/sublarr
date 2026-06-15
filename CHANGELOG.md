@@ -35,6 +35,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   passwords the backend then refused (frontend required 4 characters, backend
   12). The minimum is now a consistent 8 characters across the UI and API.
   (#149)
+- **Providers settings page errored on SQLite** — `GET /api/v1/providers/stats`
+  returned a 500 (`can't compare offset-naive and offset-aware datetimes`) on
+  SQLite installs because cached-entry timestamps were compared without
+  normalising timezones. Naive timestamps are now treated as UTC. (Postgres was
+  unaffected.)
+- **First-run wizard didn't fully apply the chosen profile** — The provider
+  budget safety margin prescribed by each profile (light/balanced/aggressive)
+  was silently dropped because the field wasn't declared in settings, so the
+  budget manager always used the default. The field is now persisted.
+- **Settings reset to defaults after completing the wizard** — Finishing the
+  first-run wizard reloaded settings without the database overrides, briefly
+  resetting all UI-configured values to defaults in memory until the next
+  config write or restart. The wizard now reloads with the full config.
 
 ## [1.1.0] - 2026-06-14
 
