@@ -5,6 +5,37 @@ All notable changes to Sublarr are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.2.0] - 2026-06-15
+
+### Added
+- **Automatic dubtitle detection** — Sublarr now detects the dubtitle
+  automatically instead of only on demand. A background sweep classifies the
+  English tracks and caches the result in a new `dubtitle_detections` table, so
+  the episode track panel shows the detected dubtitle immediately on open
+  without re-probing. Tier-1 heuristics were hardened (margin gate + minimum
+  cue-count floor) to reduce false matches among multiple English tracks.
+
+### Fixed
+- **App-wide styling broken on the Docker image** — A global CSS reset declared
+  outside Tailwind's cascade layers silently overrode every spacing utility
+  (padding, margin, gaps) across the whole app, leaving forms and pages
+  unstyled. The reset now defers to Tailwind's layered Preflight, restoring
+  correct spacing everywhere. (#148)
+- **White patches in dark mode** — The page background could fail to apply,
+  letting the browser's white canvas show through panels in dark mode. Base
+  element styles are now emitted reliably so the dark background always paints.
+- **First-run profile selection** — Picking a profile other than the
+  recommended one now visibly deselects the recommended card; the highlight
+  used to stick to both.
+- **Noisy WebSocket errors in the browser console** — The frontend tried to
+  open a native WebSocket the backend never supported, failing the handshake on
+  every page and spamming the console before falling back to long-polling. The
+  client now uses long-polling directly. (#148)
+- **Initial password rejected unexpectedly** — The setup form accepted
+  passwords the backend then refused (frontend required 4 characters, backend
+  12). The minimum is now a consistent 8 characters across the UI and API.
+  (#149)
+
 ## [1.1.0] - 2026-06-14
 
 ### Added
