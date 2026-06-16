@@ -119,11 +119,11 @@ describe('IconSidebar', () => {
 
   it('shows update chip next to version when update available', () => {
     vi.mocked(useUpdateInfo).mockReturnValue({
-      data: { available: true, latest: '0.42.0', current: '0.41.8', url: 'https://github.com/abrechen2/sublarr/releases/tag/v0.42.0' },
+      data: { available: true, latest: 'v0.42.0', current: '0.41.8', url: 'https://github.com/abrechen2/sublarr/releases/tag/v0.42.0' },
     })
     renderWithRouter(<IconSidebar />)
     expect(screen.getByTestId('sidebar-update-chip')).toBeInTheDocument()
-    expect(screen.getByTestId('sidebar-update-chip')).toHaveTextContent('0.42.0')
+    expect(screen.getByTestId('sidebar-update-chip')).toHaveTextContent('v0.42.0')
   })
 
   it('does not show update chip when no update available', () => {

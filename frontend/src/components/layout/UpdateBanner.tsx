@@ -53,7 +53,7 @@ export function UpdateBanner() {
         aria-label={t('update.banner.dismiss')}
         className="absolute right-3 top-1/2 -translate-y-1/2 leading-none text-emerald-300/70 hover:text-emerald-200"
       >
-        ✕
+        <span aria-hidden="true">✕</span>
       </button>
     </div>
   )

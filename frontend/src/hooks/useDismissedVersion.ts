@@ -1,10 +1,10 @@
 import { useCallback, useState } from 'react'
 
-const STORAGE_KEY = 'sublarr.update-banner.dismissed'
+export const DISMISSED_VERSION_KEY = 'sublarr.update-banner.dismissed'
 
 function readDismissed(): string | null {
   try {
-    return window.localStorage.getItem(STORAGE_KEY)
+    return window.localStorage.getItem(DISMISSED_VERSION_KEY)
   } catch {
     return null
   }
@@ -22,7 +22,7 @@ export function useDismissedVersion() {
   const dismiss = useCallback((version: string) => {
     setDismissedVersion(version)
     try {
-      window.localStorage.setItem(STORAGE_KEY, version)
+      window.localStorage.setItem(DISMISSED_VERSION_KEY, version)
     } catch {
       // localStorage blocked (private mode) — session-only dismissal.
     }

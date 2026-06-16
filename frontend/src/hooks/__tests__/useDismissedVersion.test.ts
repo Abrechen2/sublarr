@@ -1,8 +1,6 @@
 import { describe, it, expect, beforeEach } from 'vitest'
 import { renderHook, act } from '@testing-library/react'
-import { useDismissedVersion } from '../useDismissedVersion'
-
-const KEY = 'sublarr.update-banner.dismissed'
+import { useDismissedVersion, DISMISSED_VERSION_KEY as KEY } from '../useDismissedVersion'
 
 describe('useDismissedVersion', () => {
   beforeEach(() => {

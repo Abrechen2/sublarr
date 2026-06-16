@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { render, screen, fireEvent } from '@testing-library/react'
 import { useUpdateInfo } from '@/hooks/useApi'
+import { DISMISSED_VERSION_KEY as KEY } from '@/hooks/useDismissedVersion'
 
 vi.mock('react-i18next', () => ({
   useTranslation: () => ({
@@ -13,7 +14,6 @@ vi.mock('@/hooks/useApi', () => ({ useUpdateInfo: vi.fn() }))
 
 import { UpdateBanner } from '../UpdateBanner'
 
-const KEY = 'sublarr.update-banner.dismissed'
 const updateData = (over: Record<string, unknown> = {}) => ({
   data: { available: true, latest: 'v1.2.0', current: '1.1.0', url: 'https://gh/release', ...over },
 })
@@ -22,6 +22,12 @@ describe('UpdateBanner', () => {
   beforeEach(() => {
     window.localStorage.clear()
     vi.mocked(useUpdateInfo).mockReturnValue(updateData() as never)
+  })
+
+  it('renders nothing while update info is loading', () => {
+    vi.mocked(useUpdateInfo).mockReturnValue({ data: undefined } as never)
+    const { container } = render(<UpdateBanner />)
+    expect(container.firstChild).toBeNull()
   })
 
   it('renders nothing when no update is available', () => {

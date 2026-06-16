@@ -179,6 +179,7 @@ function AppInner({
           <UpdateBanner />
           <div className="flex flex-1 min-h-0">
             <IconSidebar />
+            {/* min-h-screen kept intentionally: avoids content reflow when the banner is dismissed */}
             <main
               id="main-content"
               className="flex-1 min-w-0 min-h-screen main-content-area"
