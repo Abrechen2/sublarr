@@ -294,7 +294,11 @@
   "close_player": "Close player",
   "update": {
     "available": "available",
-    "view_release": "View on GitHub →"
+    "view_release": "View on GitHub →",
+    "banner": {
+      "message": "Version {{version}} is available",
+      "dismiss": "Dismiss"
+    }
   },
   "settings": {
     "overview": {
