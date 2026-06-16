@@ -2,6 +2,7 @@ import { lazy, Suspense, useState, useEffect, useCallback } from 'react'
 import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { IconSidebar } from '@/components/layout/IconSidebar'
+import { UpdateBanner } from '@/components/layout/UpdateBanner'
 import { BottomNav } from '@/components/layout/BottomNav'
 import { StatusBar } from '@/components/layout/StatusBar'
 import { ToastContainer, toast } from '@/components/shared/Toast'
@@ -174,17 +175,20 @@ function AppInner({
       {isAuthRoute ? (
         <AnimatedRoutes />
       ) : (
-        <div className="flex min-h-screen">
-          <IconSidebar />
-          <main
-            id="main-content"
-            className="flex-1 min-w-0 min-h-screen main-content-area"
-            style={{ padding: '24px 32px 60px', maxWidth: '1680px' }}
-          >
-            <AnimatedRoutes />
-          </main>
-          <StatusBar />
-          <BottomNav />
+        <div className="flex flex-col min-h-screen">
+          <UpdateBanner />
+          <div className="flex flex-1 min-h-0">
+            <IconSidebar />
+            <main
+              id="main-content"
+              className="flex-1 min-w-0 min-h-screen main-content-area"
+              style={{ padding: '24px 32px 60px', maxWidth: '1680px' }}
+            >
+              <AnimatedRoutes />
+            </main>
+            <StatusBar />
+            <BottomNav />
+          </div>
         </div>
       )}
       {!isAuthRoute && (
