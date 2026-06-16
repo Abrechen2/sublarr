@@ -2,6 +2,7 @@ import { NavLink } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { LayoutDashboard, BookOpen, Bell, Settings, Search, Trash2, ScrollText } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import { formatVersion } from '@/lib/version'
 import { useHealth, useUpdateInfo } from '@/hooks/useApi'
 import { useWantedSummary } from '@/hooks/useWantedApi'
 import { ThemeToggle } from '@/components/shared/ThemeToggle'
@@ -82,7 +83,7 @@ export function IconSidebar() {
                 className="sidebar-label text-[10px] px-1 rounded font-mono ml-1 shrink-0"
                 style={{ backgroundColor: 'rgba(251,191,36,0.2)', color: 'rgb(251,191,36)' }}
               >
-                ↑ v{updateInfo?.latest}
+                ↑ {formatVersion(updateInfo?.latest)}
               </span>
             )}
           </div>

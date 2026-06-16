@@ -22,6 +22,7 @@ import {
 } from 'lucide-react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { cn } from '@/lib/utils'
+import { formatVersion } from '@/lib/version'
 import { useHealth, useUpdateInfo } from '@/hooks/useApi'
 import { getAuthStatus, logout } from '@/api/client'
 import { ThemeToggle } from '@/components/shared/ThemeToggle'
@@ -319,7 +320,7 @@ export function Sidebar() {
               style={{ color: 'var(--accent)', fontSize: '10px', fontFamily: 'var(--font-mono)' }}
             >
               <span>↑</span>
-              <span>{t('app.update_available', { version: updateInfo.latest })}</span>
+              <span>{t('app.update_available', { version: formatVersion(updateInfo.latest) })}</span>
             </a>
           )}
         </div>

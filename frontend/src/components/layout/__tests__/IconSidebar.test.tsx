@@ -130,4 +130,14 @@ describe('IconSidebar', () => {
     renderWithRouter(<IconSidebar />)
     expect(screen.queryByTestId('sidebar-update-chip')).not.toBeInTheDocument()
   })
+
+  it('shows the update chip with a single v (no double v)', () => {
+    vi.mocked(useUpdateInfo).mockReturnValue({
+      data: { available: true, latest: 'v1.2.0', current: '1.1.0', url: 'https://gh/r' },
+    } as never)
+    renderWithRouter(<IconSidebar />)
+    const chip = screen.getByTestId('sidebar-update-chip')
+    expect(chip.textContent).toContain('v1.2.0')
+    expect(chip.textContent).not.toContain('vv1.2.0')
+  })
 })

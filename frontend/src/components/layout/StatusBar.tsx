@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef, useMemo } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useHealth, useUpdateInfo } from '@/hooks/useApi'
+import { formatVersion } from '@/lib/version'
 import { useScannerStatus, useWantedBatchStatus, useWantedBatchProbeStatus } from '@/hooks/useWantedApi'
 import { useProviderHealth } from '@/hooks/useProvidersApi'
 
@@ -132,7 +133,7 @@ export function StatusBar() {
             }}
           >
             <div style={{ color: 'rgb(251,191,36)', fontWeight: 600, marginBottom: 4 }}>
-              ↑ v{updateInfo?.latest} {t('update.available')}
+              ↑ {formatVersion(updateInfo?.latest)} {t('update.available')}
             </div>
             <a
               href={updateInfo?.url ?? '#'}
