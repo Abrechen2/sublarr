@@ -16,7 +16,7 @@ def detect(ctx) -> list[Issue]:
             continue
         declared = _to2(t.lang)
         detected, conf = _detect_language(t.raw)
-        if detected is None or declared == "und":
+        if detected is None or declared in ("", "und"):
             continue
         if detected != declared and conf >= _MED_CONF:
             issues.append(

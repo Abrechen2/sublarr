@@ -32,8 +32,8 @@ def detect(ctx) -> list[Issue]:
                 count=len(markers),
                 snippets=[f"ASS structure in SRT-tagged target: {markers[0]!r}"],
                 raw_hash="",
-                fixable=True,
-                suggested_fix="repair_escapes",
+                fixable=False,
+                suggested_fix=None,
             )
         )
     return issues

@@ -13,6 +13,7 @@ from services.subtitle_health.models import (
     Issue,
     IssueType,
     Severity,
+    TargetKind,
 )
 from services.subtitle_health.raw_io import md5_bytes
 from services.subtitle_health.text_utils import (
@@ -108,7 +109,11 @@ def detect(ctx) -> list[Issue]:
                 )
 
     # (2) Content detection vs declared tag.
+    # Embedded streams are handled by container_metadata_drift to avoid
+    # double-reporting the same mismatch from two different checkers.
     for t in ctx.targets:
+        if t.kind == TargetKind.EMBEDDED:
+            continue
         if not t.raw or (t.path, t.stream_index) in dup_paths:
             continue
         detected, conf = _detect_language(t.raw)

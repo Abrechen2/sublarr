@@ -51,6 +51,24 @@ def test_sidecars_are_ignored_by_this_checker():
     assert detect(ctx) == []  # language_mislabel handles sidecars
 
 
+def test_embedded_untagged_stream_not_flagged():
+    ctx = ScanContext(
+        episode_id=1,
+        video_path="/m/x.mkv",
+        targets=[
+            Target(
+                kind=TargetKind.EMBEDDED,
+                path="/m/x.mkv",
+                stream_index=0,
+                lang="",
+                codec="subrip",
+                raw=_read("english.srt"),
+            )
+        ],
+    )
+    assert detect(ctx) == []
+
+
 def test_correct_embedded_lang_yields_no_issue():
     ctx = ScanContext(
         episode_id=1,

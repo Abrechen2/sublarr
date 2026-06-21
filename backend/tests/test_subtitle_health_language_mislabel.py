@@ -80,15 +80,38 @@ def test_embedded_ger_tag_with_german_content_not_flagged():
     assert issues == []
 
 
-def test_embedded_dup_does_not_suppress_other_streams():
-    """FIX 4: dup_paths must key on (path, stream_index), not path alone.
+def test_embedded_target_not_content_checked_here():
+    # Embedded content-language mismatch is container_metadata_drift's job,
+    # not language_mislabel — avoid double-reporting.
+    english = _read("english.srt")
+    ctx = ScanContext(
+        episode_id=1,
+        video_path="/m/x.mkv",
+        targets=[
+            Target(
+                kind=TargetKind.EMBEDDED,
+                path="/m/x.mkv",
+                stream_index=0,
+                lang="ger",
+                codec="subrip",
+                raw=english,
+            )
+        ],
+    )
+    assert [i for i in detect(ctx) if i.type == IssueType.LANGUAGE_MISLABEL] == []
 
-    streams 0+1 share identical bytes (MD5 dup pair); stream 2 has DISTINCT
-    bytes (english + trailing newline) so it is NOT in the dup group, but it
-    shares the same video_path as the dup pair. The old code added t.path to
-    dup_paths, so stream 2's content detection was wrongly suppressed. With the
-    fix, dup_paths holds (path, stream_index) tuples, and stream 2's tuple is
-    not there, so content detection still runs and flags 'declared de, content en'.
+
+def test_embedded_dup_does_not_suppress_other_streams():
+    """dup_paths must key on (path, stream_index), not path alone.
+
+    Streams 0+1 share identical bytes (MD5 dup pair) and get flagged by the
+    md5-dup arm. Stream 2 has DISTINCT bytes so it is NOT in the dup group.
+    This test verifies:
+    - dup_paths uses (path, stream_index) tuples so stream 2 is not wrongly
+      excluded from its arm by proximity to the dup pair.
+    - The md5-dup arm still reports both dup streams (0 and 1).
+    - Stream 2 is EMBEDDED, so language_mislabel's content-detection arm
+      deliberately skips it (container_metadata_drift handles that instead).
     """
     english = _read("english.srt")
     ctx = ScanContext(
@@ -111,8 +134,8 @@ def test_embedded_dup_does_not_suppress_other_streams():
                 codec="srt",
                 raw=english,
             ),
-            # Stream 2: distinct bytes (not an MD5 dup), but same path.
-            # Declared 'de', content is English → must be flagged.
+            # Stream 2: distinct bytes (not an MD5 dup), same path.
+            # Embedded → content-detection is container_metadata_drift's job.
             Target(
                 kind=TargetKind.EMBEDDED,
                 path="/m/x.mkv",
@@ -124,5 +147,8 @@ def test_embedded_dup_does_not_suppress_other_streams():
         ],
     )
     issues = [i for i in detect(ctx) if i.type == IssueType.LANGUAGE_MISLABEL]
-    # stream 2 must still be flagged by content detection
-    assert any(i.stream_index == 2 for i in issues)
+    # The md5-dup pair (streams 0+1) must still be reported.
+    dup_stream_indexes = {i.stream_index for i in issues}
+    assert 0 in dup_stream_indexes and 1 in dup_stream_indexes
+    # Stream 2 is NOT flagged here — it's embedded, delegated to container_metadata_drift.
+    assert 2 not in dup_stream_indexes

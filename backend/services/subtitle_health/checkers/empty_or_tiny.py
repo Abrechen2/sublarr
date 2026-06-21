@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import logging
 
-from services.subtitle_health.models import Issue, IssueType, Severity
+from services.subtitle_health.models import Issue, IssueType, Severity, TargetKind
 from services.subtitle_health.text_utils import decode_with_confidence
 
 logger = logging.getLogger(__name__)
@@ -48,7 +48,9 @@ def detect(ctx) -> list[Issue]:
                 snippets=[f"{n} cues"],
                 raw_hash="",
                 fixable=False,
-                suggested_fix="trash_sidecar" if n == 0 else None,
+                suggested_fix=(
+                    "trash_sidecar" if (n == 0 and t.kind == TargetKind.SIDECAR) else None
+                ),
             )
         )
     return issues

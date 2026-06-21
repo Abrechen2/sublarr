@@ -33,13 +33,23 @@ def run_series_scan(series_id: int) -> dict:
     scanned = 0
     affected = 0
 
+    try:
+        from config import get_settings
+
+        _primary = getattr(get_settings(), "target_language", None)
+        target_languages = [_primary] if _primary else []
+    except Exception:
+        target_languages = []
+
     for idx, ep in enumerate(episodes):
         ep_id = ep.get("id")
         path = client.get_episode_file_path(ep_id) if ep_id else None
         if not path or not os.path.exists(path):
             continue
         try:
-            result = scan_episode(episode_id=ep_id, video_path=path)
+            result = scan_episode(
+                episode_id=ep_id, video_path=path, target_languages=target_languages
+            )
         except Exception:
             logger.exception("subtitle_health: episode scan failed for ep %s", ep_id)
             continue

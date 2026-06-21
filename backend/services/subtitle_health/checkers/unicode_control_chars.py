@@ -41,8 +41,8 @@ def detect(ctx) -> list[Issue]:
                     f"{len(matches)} control/bidi codepoint(s), first U+{ord(matches[0]):04X}"
                 ],
                 raw_hash="",
-                fixable=True,
-                suggested_fix="reencode",
+                fixable=False,
+                suggested_fix=None,
             )
         )
     return issues

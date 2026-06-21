@@ -43,3 +43,31 @@ def test_clean_timing_yields_no_issue():
         b"2\n00:00:04,000 --> 00:00:06,000\nNormal two.\n"
     )
     assert detect(_ctx(raw)) == []
+
+
+def test_ass_overlap_is_not_flagged():
+    # Two ASS dialogue events overlapping in time is legitimate (layers/signs).
+    raw = (
+        b"[Script Info]\nScriptType: v4.00+\n"
+        b"[V4+ Styles]\n"
+        b"[Events]\n"
+        b"Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text\n"
+        b"Dialogue: 0,0:00:01.00,0:00:05.00,Default,,0,0,0,,First line here\n"
+        b"Dialogue: 1,0:00:03.00,0:00:06.00,Default,,0,0,0,,Second overlapping line\n"
+    )
+    ctx = ScanContext(
+        episode_id=1,
+        video_path="/m/x.mkv",
+        targets=[
+            Target(
+                kind=TargetKind.EMBEDDED,
+                path="/m/x.mkv",
+                stream_index=0,
+                lang="ger",
+                codec="ass",
+                raw=raw,
+            )
+        ],
+    )
+    issues = detect(ctx)
+    assert not any("overlap" in s for i in issues for s in i.snippets)

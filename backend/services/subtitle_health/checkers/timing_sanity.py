@@ -7,6 +7,10 @@ from services.subtitle_health.text_utils import decode_with_confidence
 
 _MAX_CPS = 45  # characters per second above this is implausible
 
+# ASS/SSA legitimately overlaps cues (layers, signs, styled dialogue).
+# Only SRT-like line-sequential formats treat overlap as an error.
+_OVERLAP_CODECS = frozenset({"srt", "subrip", "webvtt", "text"})
+
 
 def _events(raw: bytes):
     import pysubs2
@@ -28,7 +32,8 @@ def detect(ctx) -> list[Issue]:
         if not events:
             continue
         problems: list[str] = []
-        prev_end = None
+        check_overlap = (t.codec or "").lower() in _OVERLAP_CODECS
+        max_end = None
         for ev in events:
             dur_ms = ev.end - ev.start
             if dur_ms <= 0:
@@ -37,9 +42,9 @@ def detect(ctx) -> list[Issue]:
                 cps = len(ev.plaintext) / (dur_ms / 1000.0)
                 if cps > _MAX_CPS:
                     problems.append(f"CPS {cps:.0f} at {ev.start}ms")
-            if prev_end is not None and ev.start < prev_end:
+            if check_overlap and max_end is not None and ev.start < max_end:
                 problems.append(f"overlap at {ev.start}ms")
-            prev_end = ev.end
+            max_end = ev.end if max_end is None else max(max_end, ev.end)
         if not problems:
             continue
         issues.append(
