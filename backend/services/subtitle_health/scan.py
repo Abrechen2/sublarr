@@ -24,6 +24,9 @@ class Target:
     lang: str
     codec: str
     raw: bytes
+    forced: bool = False
+    default: bool = False
+    title: str = ""
 
 
 @dataclass
@@ -31,6 +34,7 @@ class ScanContext:
     episode_id: int | None
     video_path: str
     targets: list[Target] = field(default_factory=list)
+    target_languages: list[str] = field(default_factory=list)
 
 
 def _list_embedded_targets(video_path: str) -> list[Target]:
@@ -61,6 +65,9 @@ def _list_embedded_targets(video_path: str) -> list[Target]:
                 lang=s["lang"],
                 codec=s["codec"],
                 raw=raw,
+                forced=bool(s.get("forced")),
+                default=bool(s.get("default")),
+                title=s.get("title", ""),
             )
         )
     return targets
