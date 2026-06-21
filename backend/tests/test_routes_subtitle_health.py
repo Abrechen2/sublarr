@@ -57,3 +57,14 @@ def test_series_health_scan_starts_background(client):
     assert resp.status_code == 202
     assert resp.get_json()["series_id"] == 99
     assert bg.called
+
+
+def test_fix_endpoint_requires_fields(client):
+    resp = client.post("/api/v1/library/episodes/5/health/fix", json={})
+    assert resp.status_code == 400
+
+
+def test_report_endpoint_ok(client):
+    resp = client.get("/api/v1/subtitle-health/report")
+    assert resp.status_code == 200
+    assert "total_findings" in resp.get_json()

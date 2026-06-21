@@ -333,6 +333,47 @@ def scan_series_health(series_id):
     return jsonify({"status": "started", "series_id": series_id}), 202
 
 
+@bp.route("/library/episodes/<int:ep_id>/health/fix", methods=["POST"])
+def fix_episode_health(ep_id):
+    """Apply one fix action against a persisted finding."""
+    from security_utils import is_safe_path
+    from services.subtitle_health.apply import apply_fix
+    from services.subtitle_health.store import get_finding
+
+    body = request.get_json(silent=True) or {}
+    finding_id = body.get("finding_id")
+    action = body.get("action")
+    if not finding_id or not action:
+        return jsonify({"error": "finding_id and action are required"}), 400
+
+    finding = get_finding(finding_id)
+    if not finding:
+        return jsonify({"error": "finding not found"}), 404
+    if not is_safe_path(finding["target_path"]):
+        return jsonify({"error": "unsafe target path"}), 400
+
+    result = apply_fix(finding_id, action, body.get("opts"))
+    code = 200 if result.get("changed") else 409
+    return jsonify(result), code
+
+
+@bp.route("/subtitle-health/fixes/<int:fix_id>/rollback", methods=["POST"])
+def rollback_health_fix(fix_id):
+    """Undo a previously applied fix from its manifest."""
+    from services.subtitle_health.fixers.rollback import apply as rollback_apply
+
+    result = rollback_apply(fix_id)
+    return jsonify(result), (200 if result.get("restored") else 409)
+
+
+@bp.route("/subtitle-health/report", methods=["GET"])
+def subtitle_health_report():
+    """Aggregated open-findings report across the library."""
+    from services.subtitle_health.store import report_summary
+
+    return jsonify(report_summary()), 200
+
+
 def _cleanup_series_sidecars(episode_files: dict, keep_langs: set, keep_format: str) -> int:
     """Remove sidecar subtitle files that are not in keep_langs after batch-extract.
 
