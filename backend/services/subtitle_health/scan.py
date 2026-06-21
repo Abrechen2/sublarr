@@ -15,6 +15,8 @@ from services.subtitle_health.raw_io import (
 
 logger = logging.getLogger(__name__)
 
+SCANNER_VERSION = 1
+
 
 @dataclass
 class Target:
@@ -134,4 +136,11 @@ def scan_episode(
         if not issue.raw_hash:
             issue.raw_hash = raw_by_path_stream.get((issue.target_path, issue.stream_index), "")
 
-    return ScanResult(episode_id=episode_id, video_path=video_path, issues=issues)
+    result = ScanResult(episode_id=episode_id, video_path=video_path, issues=issues)
+    try:
+        from services.subtitle_health.store import persist_scan_result
+
+        persist_scan_result(result, scanner_version=SCANNER_VERSION)
+    except Exception:
+        logger.debug("subtitle_health: persist skipped", exc_info=True)
+    return result
