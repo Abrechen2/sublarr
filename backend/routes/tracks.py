@@ -283,6 +283,38 @@ def get_episode_dubtitle(ep_id):
     return jsonify({"video_path": video_path, "cached": True, **cached}), 200
 
 
+@bp.route("/library/episodes/<int:ep_id>/health/scan", methods=["POST"])
+def scan_episode_health(ep_id):
+    """Read-only subtitle-health scan for one episode.
+
+    Inspects embedded subtitle tracks (raw, via -c:s copy) and sidecar files,
+    runs the registered checkers, and returns the findings. Writes nothing.
+    """
+    from routes.subtitles import scan_subtitle_sidecars
+    from services.subtitle_health import scan_episode
+
+    video_path = _get_video_path(ep_id)
+    if not video_path:
+        return jsonify({"error": "Episode has no video file or Sonarr is not configured"}), 404
+    if not os.path.exists(video_path):
+        return jsonify({"error": "Video file not found on disk"}), 404
+
+    sidecars = []
+    try:
+        for sc in scan_subtitle_sidecars(video_path):
+            sidecars.append({"path": sc.get("path"), "lang": sc.get("language", "und")})
+    except Exception:
+        logger.warning("subtitle_health: sidecar scan failed for %s", video_path)
+
+    try:
+        result = scan_episode(episode_id=ep_id, video_path=video_path, sidecars=sidecars)
+    except Exception:
+        logger.exception("subtitle_health: scan failed for ep %d", ep_id)
+        return jsonify({"error": "Subtitle health scan failed"}), 500
+
+    return jsonify(result.to_dict()), 200
+
+
 def _cleanup_series_sidecars(episode_files: dict, keep_langs: set, keep_format: str) -> int:
     """Remove sidecar subtitle files that are not in keep_langs after batch-extract.
 
