@@ -315,6 +315,24 @@ def scan_episode_health(ep_id):
     return jsonify(result.to_dict()), 200
 
 
+@bp.route("/library/series/<int:series_id>/health/scan", methods=["POST"])
+def scan_series_health(series_id):
+    """Kick off a background subtitle-health scan for a whole series.
+
+    Returns 202 immediately; progress is emitted via the
+    ``subtitle_health_progress`` SocketIO event and the final summary via
+    ``subtitle_health_complete``.
+    """
+    from services.subtitle_health.series_scan import run_series_scan
+
+    def _job():
+        summary = run_series_scan(series_id)
+        emit_event("subtitle_health_complete", summary)
+
+    submit_background(_job)
+    return jsonify({"status": "started", "series_id": series_id}), 202
+
+
 def _cleanup_series_sidecars(episode_files: dict, keep_langs: set, keep_format: str) -> int:
     """Remove sidecar subtitle files that are not in keep_langs after batch-extract.
 

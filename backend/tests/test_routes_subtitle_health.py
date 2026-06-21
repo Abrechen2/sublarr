@@ -47,3 +47,13 @@ def test_health_scan_404_when_no_video(client):
     with patch("routes.tracks._get_video_path", return_value=None):
         resp = client.post("/api/v1/library/episodes/1/health/scan")
     assert resp.status_code == 404
+
+
+def test_series_health_scan_starts_background(client):
+    from unittest.mock import patch
+
+    with patch("routes.tracks.submit_background") as bg:
+        resp = client.post("/api/v1/library/series/99/health/scan")
+    assert resp.status_code == 202
+    assert resp.get_json()["series_id"] == 99
+    assert bg.called
