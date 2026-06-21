@@ -68,6 +68,8 @@ def _run_mkvmerge_replace(
         _safe_arg_path(clean_sidecar),
     ]
     result = subprocess.run(cmd, capture_output=True, text=True, timeout=900)
+    if result.returncode == 1:
+        logger.warning("mkvmerge warnings during remux: %s", result.stderr)
     return result.returncode in (0, 1)
 
 

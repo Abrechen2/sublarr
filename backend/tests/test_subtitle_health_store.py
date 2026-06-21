@@ -41,6 +41,12 @@ def test_persist_replaces_prior_open_findings(app_ctx):
     assert len(rows) == 1  # re-scan replaces, does not duplicate
 
 
+def test_suggested_fix_persisted(app_ctx):
+    store.persist_scan_result(_result(), scanner_version=1)
+    rows = store.get_findings_for_episode(5)
+    assert rows[0]["suggested_fix"] == "repair_escapes"
+
+
 def test_record_and_get_manifest(app_ctx):
     fix_id = store.record_fix(
         finding_id=None,

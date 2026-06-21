@@ -16,6 +16,8 @@ def apply(path: str, *, finding_id=None, mark_wanted: bool = True) -> dict:
     with open(path, "rb") as fh:
         original = fh.read()
     trashed = backup_sidecar(path)
+    if trashed is None:
+        return {"changed": False, "reason": "trash failed"}
     fix_id = store.record_fix(
         finding_id=finding_id,
         fixer="trash_sidecar",

@@ -20,4 +20,12 @@ def apply(fix_id: int) -> dict:
         return {"restored": False, "reason": "backup missing"}
     os.makedirs(os.path.dirname(dst) or ".", exist_ok=True)
     shutil.move(src, dst)
+    fid = m.get("finding_id")
+    if fid is not None:
+        try:
+            from services.subtitle_health import store
+
+            store.mark_finding(fid, "open")
+        except Exception:
+            pass
     return {"restored": True, "target_path": dst}

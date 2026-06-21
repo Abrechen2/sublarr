@@ -12,6 +12,14 @@ def test_sidecar_rename(tmp_path, app_ctx):
     assert not p.exists()
 
 
+def test_rename_rejects_bad_lang(tmp_path, app_ctx):
+    p = tmp_path / "show.de.srt"
+    p.write_bytes(b"x")
+    res = metadata_correction.apply_sidecar_rename(str(p), new_lang="../evil")
+    assert res["changed"] is False
+    assert p.exists()  # not renamed
+
+
 def test_embedded_uses_mkvpropedit(tmp_path, app_ctx):
     video = tmp_path / "show.mkv"
     video.write_bytes(b"fake")

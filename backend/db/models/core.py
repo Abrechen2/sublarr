@@ -569,6 +569,7 @@ class SubtitleHealthFinding(db.Model):
     status: Mapped[str] = mapped_column(Text, nullable=False, default="open")
     scanner_version: Mapped[int] = mapped_column(Integer, nullable=False, default=1)
     detected_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    suggested_fix: Mapped[str | None] = mapped_column(Text, nullable=True)
 
 
 class SubtitleHealthFix(db.Model):

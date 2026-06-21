@@ -27,6 +27,8 @@ def apply_to_sidecar(path: str, *, finding_id=None) -> dict:
     if fixed == original:
         return {"changed": False, "reason": "already clean utf-8"}
     trashed = backup_sidecar(path)
+    if trashed is None:
+        return {"changed": False, "reason": "backup failed; not overwriting"}
     atomic_write_bytes(path, fixed)
     fix_id = store.record_fix(
         finding_id=finding_id,

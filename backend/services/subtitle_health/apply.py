@@ -65,15 +65,20 @@ def apply_fix(finding_id: int, action: str, opts: dict | None = None) -> dict:
                 finding_id=finding_id,
             )
         elif action == "metadata_correction":
+            import re
+
+            new_lang = opts.get("new_lang") or ""
+            if not re.fullmatch(r"[a-z]{2,3}", new_lang):
+                return {"changed": False, "reason": "valid new_lang required"}
             from services.subtitle_health.fixers import metadata_correction
 
             if kind == "embedded":
                 res = metadata_correction.apply_embedded_lang(
-                    path, sub_index=sub_index, new_lang=opts["new_lang"], finding_id=finding_id
+                    path, sub_index=sub_index, new_lang=new_lang, finding_id=finding_id
                 )
             else:
                 res = metadata_correction.apply_sidecar_rename(
-                    path, new_lang=opts["new_lang"], finding_id=finding_id
+                    path, new_lang=new_lang, finding_id=finding_id
                 )
         else:
             return {"changed": False, "reason": f"unknown action: {action}"}

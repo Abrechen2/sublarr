@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import os
+import re
 import subprocess
 
 _LANG3 = {"de": "ger", "en": "eng"}
@@ -24,6 +25,9 @@ def _run_mkvpropedit(video_path: str, track_selector: str, lang3: str) -> bool:
 
 
 def apply_embedded_lang(video_path: str, *, sub_index: int, new_lang: str, finding_id=None) -> dict:
+    if not re.fullmatch(r"[a-z]{2,3}", new_lang or ""):
+        return {"changed": False, "reason": "invalid new_lang"}
+
     from services.subtitle_health import store
 
     lang3 = _LANG3.get(new_lang, new_lang)
@@ -46,6 +50,9 @@ def apply_embedded_lang(video_path: str, *, sub_index: int, new_lang: str, findi
 
 
 def apply_sidecar_rename(path: str, *, new_lang: str, finding_id=None) -> dict:
+    if not re.fullmatch(r"[a-z]{2,3}", new_lang or ""):
+        return {"changed": False, "reason": "invalid new_lang"}
+
     from services.subtitle_health import store
 
     d = os.path.dirname(path)
@@ -56,6 +63,8 @@ def apply_sidecar_rename(path: str, *, new_lang: str, finding_id=None) -> dict:
     new_path = os.path.join(d, new_name)
     if os.path.exists(new_path):
         return {"changed": False, "reason": "target name already exists"}
+    if os.path.commonpath([os.path.realpath(new_path), os.path.realpath(d)]) != os.path.realpath(d):
+        return {"changed": False, "reason": "unsafe target path"}
     os.rename(path, new_path)
     fix_id = store.record_fix(
         finding_id=finding_id,

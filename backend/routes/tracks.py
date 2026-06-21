@@ -356,7 +356,9 @@ def fix_episode_health(ep_id):
     finding = get_finding(finding_id)
     if not finding:
         return jsonify({"error": "finding not found"}), 404
-    if not is_safe_path(finding["target_path"]):
+    from config import get_settings
+
+    if not is_safe_path(finding["target_path"], getattr(get_settings(), "media_path", "/media")):
         return jsonify({"error": "unsafe target path"}), 400
 
     result = apply_fix(finding_id, action, body.get("opts"))

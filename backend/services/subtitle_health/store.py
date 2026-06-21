@@ -32,6 +32,7 @@ def persist_scan_result(result, scanner_version: int = 1) -> None:
                     count=issue.count,
                     snippets_json=json.dumps(issue.snippets[:3]),
                     raw_hash=issue.raw_hash,
+                    suggested_fix=issue.suggested_fix,
                     status="open",
                     scanner_version=scanner_version,
                     detected_at=datetime.now(UTC),
@@ -57,6 +58,7 @@ def _finding_to_dict(row) -> dict:
         "snippets": json.loads(row.snippets_json or "[]"),
         "raw_hash": row.raw_hash,
         "status": row.status,
+        "suggested_fix": row.suggested_fix,
     }
 
 

@@ -15,12 +15,21 @@ def _quarantine_dir(path: str) -> str:
 
 
 def apply(path: str, *, finding_id=None) -> dict:
+    from config import get_settings
+    from security_utils import is_safe_path
     from services.subtitle_health import store
+
+    if not is_safe_path(path, getattr(get_settings(), "media_path", "/media")):
+        return {"changed": False, "reason": "unsafe path"}
 
     with open(path, "rb") as fh:
         original = fh.read()
     qdir = _quarantine_dir(path)
     dest = os.path.join(qdir, os.path.basename(path))
+    if os.path.exists(dest):
+        import uuid
+
+        dest = os.path.join(qdir, f"{uuid.uuid4().hex[:8]}_{os.path.basename(path)}")
     shutil.move(path, dest)
     fix_id = store.record_fix(
         finding_id=finding_id,

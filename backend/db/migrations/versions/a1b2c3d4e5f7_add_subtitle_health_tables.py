@@ -30,6 +30,7 @@ def upgrade():
             sa.Column("count", sa.Integer(), nullable=False, server_default="0"),
             sa.Column("snippets_json", sa.Text(), nullable=False, server_default="[]"),
             sa.Column("raw_hash", sa.Text(), nullable=False, server_default=""),
+            sa.Column("suggested_fix", sa.Text(), nullable=True),
             sa.Column("status", sa.Text(), nullable=False, server_default="open"),
             sa.Column("scanner_version", sa.Integer(), nullable=False, server_default="1"),
             sa.Column("detected_at", sa.DateTime(timezone=True), nullable=False),

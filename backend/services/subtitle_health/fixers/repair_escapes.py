@@ -44,6 +44,8 @@ def apply_to_sidecar(path: str, codec: str, *, finding_id=None) -> dict:
         return {"changed": False, "reason": "already clean"}
     validate_cue_count(original, fixed)
     trashed = backup_sidecar(path)
+    if trashed is None:
+        return {"changed": False, "reason": "backup failed; not overwriting"}
     atomic_write_bytes(path, fixed)
     fix_id = store.record_fix(
         finding_id=finding_id,

@@ -45,17 +45,13 @@ def atomic_write_bytes(path: str, data: bytes) -> None:
 
 
 def backup_sidecar(path: str) -> str | None:
-    """Move a sidecar into the project trash, returning the trashed path.
+    """Move a sidecar into the project trash, returning the trashed path or None."""
+    from config import get_settings
+    from routes.subtitles.helpers import _get_batch_dir, _trash_sidecar
 
-    Adapts the real _trash_sidecar signature:
-        returns (path_result, error_or_None)
-    where path_result is the trashed path on success, or the original path
-    on failure; error_or_None is None on success or an error string on failure.
-    """
-    from routes.subtitles.helpers import _get_trash_root, _trash_sidecar
-
-    media_root = _get_trash_root(path)
-    path_result, err = _trash_sidecar(path, media_root, "")
+    media_path = getattr(get_settings(), "media_path", "/media")
+    batch_dir = _get_batch_dir(media_path, "subtitle_health")
+    trashed, err = _trash_sidecar(path, media_path, batch_dir)
     if err is not None:
         return None
-    return path_result
+    return trashed
