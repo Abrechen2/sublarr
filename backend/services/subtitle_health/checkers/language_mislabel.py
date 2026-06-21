@@ -74,12 +74,12 @@ def detect(ctx) -> list[Issue]:
         if not t.raw:
             continue
         by_hash.setdefault(md5_bytes(t.raw), []).append(t)
-    dup_paths: set[str] = set()
+    dup_paths: set[tuple[str, int | None]] = set()
     for group in by_hash.values():
         langs = {_norm(t.lang) for t in group}
         if len(group) > 1 and len(langs) > 1:
             for t in group:
-                dup_paths.add(t.path)
+                dup_paths.add((t.path, t.stream_index))
                 issues.append(
                     Issue(
                         type=IssueType.LANGUAGE_MISLABEL,
@@ -99,7 +99,7 @@ def detect(ctx) -> list[Issue]:
 
     # (2) Content detection vs declared tag.
     for t in ctx.targets:
-        if not t.raw or t.path in dup_paths:
+        if not t.raw or (t.path, t.stream_index) in dup_paths:
             continue
         detected, conf = _detect_language(t.raw)
         declared = _norm(t.lang)

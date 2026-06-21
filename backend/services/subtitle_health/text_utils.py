@@ -5,8 +5,9 @@ from __future__ import annotations
 import re
 
 # ASS override blocks and escape codes (used for ANALYSIS stripping only).
+# ASS_ESCAPE_RE is also imported by checkers/ass_escape_leak.py — single source of truth.
 _ASS_TAG_RE = re.compile(r"\{\\[^}]*\}")
-_ASS_ESC_RE = re.compile(r"(?<!\\)\\[Nnh]")
+ASS_ESCAPE_RE = re.compile(r"(?<!\\)\\[Nnh]")
 _SRT_TS_RE = re.compile(r"^\d+\s*$|-->")
 
 # Decode candidates in priority order after UTF-8.
@@ -20,7 +21,10 @@ def decode_with_confidence(data: bytes) -> tuple[str, str, float]:
     was (replacement-char rate). Mojibake/encoding checks build on this.
     """
     if data.startswith(b"\xef\xbb\xbf"):
-        return data[3:].decode("utf-8", errors="replace"), "utf-8-sig", 1.0
+        text = data[3:].decode("utf-8", errors="replace")
+        rep = text.count("�")
+        conf = max(0.0, 1.0 - rep / max(1, len(text)))
+        return text, "utf-8-sig", conf
     try:
         return data.decode("utf-8"), "utf-8", 1.0
     except UnicodeDecodeError:
@@ -39,7 +43,7 @@ def decode_with_confidence(data: bytes) -> tuple[str, str, float]:
 def strip_ass_tags(text: str) -> str:
     """Remove ASS override blocks and convert escape codes to spaces (analysis)."""
     text = _ASS_TAG_RE.sub("", text)
-    text = _ASS_ESC_RE.sub(" ", text)
+    text = ASS_ESCAPE_RE.sub(" ", text)
     return re.sub(r"\s+", " ", text).strip()
 
 

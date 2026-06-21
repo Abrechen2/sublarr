@@ -5,6 +5,13 @@ import pytest
 
 from services.subtitle_health import raw_io
 
+
+def test_mov_text_not_treated_as_text_codec():
+    """FIX 3: mov_text removed from _COPY_EXT — -c:s copy yields binary TTXT."""
+    assert raw_io.is_text_codec("mov_text") is False
+    assert raw_io.is_text_codec("subrip") is True
+
+
 FIX = os.path.join(os.path.dirname(__file__), "fixtures", "subtitle_health")
 
 

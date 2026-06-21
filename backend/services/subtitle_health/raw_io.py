@@ -23,7 +23,7 @@ _COPY_EXT = {
     "ass": "ass",
     "ssa": "ass",
     "webvtt": "vtt",
-    "mov_text": "srt",
+    # mov_text excluded: -c:s copy yields binary TTXT, not text
     "text": "srt",
 }
 

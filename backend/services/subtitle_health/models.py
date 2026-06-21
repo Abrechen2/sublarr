@@ -9,6 +9,7 @@ from enum import StrEnum
 class IssueType(StrEnum):
     ASS_ESCAPE_LEAK = "ass_escape_leak"
     LANGUAGE_MISLABEL = "language_mislabel"
+    # Emitted by Plan 2 checkers (scaffolding):
     EMPTY_OR_TINY = "empty_or_tiny"
     ENCODING_MOJIBAKE = "encoding_mojibake"
     TIMING_SANITY = "timing_sanity"

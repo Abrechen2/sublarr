@@ -56,3 +56,51 @@ def test_correct_languages_yield_no_issue():
         ],
     )
     assert [i for i in detect(ctx) if i.type == IssueType.LANGUAGE_MISLABEL] == []
+
+
+def test_embedded_dup_does_not_suppress_other_streams():
+    """FIX 4: dup_paths must key on (path, stream_index), not path alone.
+
+    streams 0+1 share identical bytes (MD5 dup pair); stream 2 has DISTINCT
+    bytes (english + trailing newline) so it is NOT in the dup group, but it
+    shares the same video_path as the dup pair. The old code added t.path to
+    dup_paths, so stream 2's content detection was wrongly suppressed. With the
+    fix, dup_paths holds (path, stream_index) tuples, and stream 2's tuple is
+    not there, so content detection still runs and flags 'declared de, content en'.
+    """
+    english = _read("english.srt")
+    ctx = ScanContext(
+        episode_id=1,
+        video_path="/m/x.mkv",
+        targets=[
+            Target(
+                kind=TargetKind.EMBEDDED,
+                path="/m/x.mkv",
+                stream_index=0,
+                lang="de",
+                codec="srt",
+                raw=english,
+            ),
+            Target(
+                kind=TargetKind.EMBEDDED,
+                path="/m/x.mkv",
+                stream_index=1,
+                lang="en",
+                codec="srt",
+                raw=english,
+            ),
+            # Stream 2: distinct bytes (not an MD5 dup), but same path.
+            # Declared 'de', content is English → must be flagged.
+            Target(
+                kind=TargetKind.EMBEDDED,
+                path="/m/x.mkv",
+                stream_index=2,
+                lang="de",
+                codec="srt",
+                raw=english + b"\n",  # distinct MD5 — not in dup group
+            ),
+        ],
+    )
+    issues = [i for i in detect(ctx) if i.type == IssueType.LANGUAGE_MISLABEL]
+    # stream 2 must still be flagged by content detection
+    assert any(i.stream_index == 2 for i in issues)
