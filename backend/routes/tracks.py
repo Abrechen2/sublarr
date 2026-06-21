@@ -204,6 +204,13 @@ def use_track_as_source(ep_id, index):
         extract_subtitle_stream(video_path, stream_info, tmp_path)
         with open(tmp_path, encoding="utf-8", errors="replace") as fh:
             content = fh.read()
+        if ext in ("srt", "vtt"):
+            try:
+                from services.subtitle_health.fixers.repair_escapes import repair_text
+
+                content = repair_text(content, codec=ext)
+            except Exception:
+                logger.debug("subtitle_health: extract repair skipped", exc_info=True)
     except RuntimeError as exc:
         logger.exception("Extraction failed: %s", exc)
         return jsonify({"error": "Extraction failed"}), 500
