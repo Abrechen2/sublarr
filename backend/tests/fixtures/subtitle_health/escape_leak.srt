@@ -1,0 +1,11 @@
+1
+00:00:28,670 --> 00:00:30,630
+Sieht aus als hättest du gut geschlafen.
+
+2
+00:00:47,490 --> 00:00:49,510
+Du hast erkannt\Nwie gut dieser Schweif ist?
+
+3
+00:00:53,120 --> 00:00:55,620
+Na ja\hverhältnismäßig.
