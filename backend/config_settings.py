@@ -553,6 +553,11 @@ class UISettings(BaseModel):
     lockout_duration_minutes: int = 60
     allowed_ip_ranges: str = ""  # Comma-separated CIDR ranges; empty = allow all
 
+    # Subtitle Health
+    subtitle_health_enabled: bool = True
+    subtitle_health_sweep_enabled: bool = True
+    subtitle_health_auto_fix: bool = False
+
     model_config = {"extra": "ignore"}
 
 

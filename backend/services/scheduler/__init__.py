@@ -82,6 +82,7 @@ def _build_default_jobs() -> list[JobSpec]:
     from cleanup_scheduler import cleanup_tick
     from services.dubtitle.sweep import dubtitle_scan_tick
     from services.subtitle_automation_runner import subtitle_automation_tick
+    from services.subtitle_health.sweep import subtitle_health_sweep_tick
     from services.wanted_scanner_scheduler import (
         wanted_scanner_tick,
         wanted_search_tick,
@@ -214,6 +215,14 @@ def _build_default_jobs() -> list[JobSpec]:
                 "embedded English subtitle tracks. No-op when dubtitle_detection "
                 "is off; never modifies files (flag only)."
             ),
+        ),
+        JobSpec(
+            id="subtitle_health_sweep",
+            func=subtitle_health_sweep_tick,
+            default_trigger=CronTrigger(hour=4, minute=30),
+            timeout_s=3600,
+            owner_module="services.subtitle_health.sweep",
+            description="Scan the library for subtitle content defects (report-only unless auto-fix enabled).",
         ),
         JobSpec(
             id="standalone_scan",
