@@ -58,6 +58,28 @@ def test_correct_languages_yield_no_issue():
     assert [i for i in detect(ctx) if i.type == IssueType.LANGUAGE_MISLABEL] == []
 
 
+def test_embedded_ger_tag_with_german_content_not_flagged():
+    # "ger" is the 3-letter code for German; genuine German content must NOT
+    # be flagged as mislabeled just because lingua returns "de".
+    german = _read("german.srt")
+    ctx = ScanContext(
+        episode_id=1,
+        video_path="/m/x.mkv",
+        targets=[
+            Target(
+                kind=TargetKind.EMBEDDED,
+                path="/m/x.mkv",
+                stream_index=0,
+                lang="ger",
+                codec="srt",
+                raw=german,
+            ),
+        ],
+    )
+    issues = [i for i in detect(ctx) if i.type == IssueType.LANGUAGE_MISLABEL]
+    assert issues == []
+
+
 def test_embedded_dup_does_not_suppress_other_streams():
     """FIX 4: dup_paths must key on (path, stream_index), not path alone.
 

@@ -65,6 +65,16 @@ def _norm(lang: str) -> str:
     return (lang or "").lower().split("-")[0]
 
 
+# ISO 639-2/B and /T three-letter codes -> two-letter, for comparing a declared
+# track tag against lingua's two-letter output.
+_LANG3_TO_2 = {"ger": "de", "deu": "de", "eng": "en"}
+
+
+def _to2(lang: str) -> str:
+    n = _norm(lang)
+    return _LANG3_TO_2.get(n, n)
+
+
 def detect(ctx) -> list[Issue]:
     issues: list[Issue] = []
 
@@ -102,7 +112,7 @@ def detect(ctx) -> list[Issue]:
         if not t.raw or (t.path, t.stream_index) in dup_paths:
             continue
         detected, conf = _detect_language(t.raw)
-        declared = _norm(t.lang)
+        declared = _to2(t.lang)
         if detected is None or declared in ("", "und"):
             continue
         if detected != declared and conf >= _MED_CONF:
