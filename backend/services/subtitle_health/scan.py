@@ -77,6 +77,7 @@ def scan_episode(
     episode_id: int | None,
     video_path: str,
     sidecars: list[dict] | None = None,
+    target_languages: list[str] | None = None,
 ) -> ScanResult:
     """Run all registered checkers over the episode's embedded + sidecar subs.
 
@@ -110,7 +111,12 @@ def scan_episode(
             )
         )
 
-    ctx = ScanContext(episode_id=episode_id, video_path=video_path, targets=targets)
+    ctx = ScanContext(
+        episode_id=episode_id,
+        video_path=video_path,
+        targets=targets,
+        target_languages=target_languages or [],
+    )
     raw_by_path_stream = {(t.path, t.stream_index): md5_bytes(t.raw) for t in targets if t.raw}
 
     issues = []
