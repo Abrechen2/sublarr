@@ -550,6 +550,45 @@ class ProviderAccountPool(db.Model):
     )
 
 
+class SubtitleHealthFinding(db.Model):
+    """A persisted subtitle-health issue for one target (sidecar or stream)."""
+
+    __tablename__ = "subtitle_health_findings"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    episode_id: Mapped[int | None] = mapped_column(Integer, nullable=True, index=True)
+    target_kind: Mapped[str] = mapped_column(Text, nullable=False)
+    target_path: Mapped[str] = mapped_column(Text, nullable=False, index=True)
+    stream_index: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    lang: Mapped[str] = mapped_column(Text, nullable=False, default="und")
+    issue_type: Mapped[str] = mapped_column(Text, nullable=False)
+    severity: Mapped[str] = mapped_column(Text, nullable=False)
+    count: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    snippets_json: Mapped[str] = mapped_column(Text, nullable=False, default="[]")
+    raw_hash: Mapped[str] = mapped_column(Text, nullable=False, default="")
+    status: Mapped[str] = mapped_column(Text, nullable=False, default="open")
+    scanner_version: Mapped[int] = mapped_column(Integer, nullable=False, default=1)
+    detected_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+
+
+class SubtitleHealthFix(db.Model):
+    """A manifest row for an applied fix — enables rollback."""
+
+    __tablename__ = "subtitle_health_fixes"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    finding_id: Mapped[int | None] = mapped_column(Integer, nullable=True, index=True)
+    fixer: Mapped[str] = mapped_column(Text, nullable=False)
+    action: Mapped[str] = mapped_column(Text, nullable=False)
+    target_path: Mapped[str] = mapped_column(Text, nullable=False)
+    trashed_original_path: Mapped[str | None] = mapped_column(Text, nullable=True)
+    original_hash: Mapped[str] = mapped_column(Text, nullable=False, default="")
+    fixed_hash: Mapped[str] = mapped_column(Text, nullable=False, default="")
+    fixer_version: Mapped[int] = mapped_column(Integer, nullable=False, default=1)
+    reversible: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
+    applied_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+
+
 __all__ = [
     "Job",
     "DailyStats",
@@ -571,4 +610,6 @@ __all__ = [
     "FansubPreference",
     "ProviderLearnedLimit",
     "ProviderAccountPool",
+    "SubtitleHealthFinding",
+    "SubtitleHealthFix",
 ]
