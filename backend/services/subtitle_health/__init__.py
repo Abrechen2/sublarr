@@ -10,5 +10,6 @@ from services.subtitle_health.models import (
     Severity,
     TargetKind,
 )
+from services.subtitle_health.scan import scan_episode
 
-__all__ = ["Issue", "IssueType", "ScanResult", "Severity", "TargetKind"]
+__all__ = ["Issue", "IssueType", "ScanResult", "Severity", "TargetKind", "scan_episode"]
