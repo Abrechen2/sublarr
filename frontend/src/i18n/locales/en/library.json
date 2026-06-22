@@ -432,6 +432,8 @@
     "col_flags": "Flags",
     "col_actions": "Actions",
     "col_file": "File",
+    "col_source": "Source",
+    "source_sidecar": "Sidecar",
     "section_sidecars": "Sidecar subtitles ({{count}})",
     "download": "Download",
     "delete": "Delete",

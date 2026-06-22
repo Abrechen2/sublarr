@@ -432,6 +432,8 @@
     "col_flags": "Flags",
     "col_actions": "Aktionen",
     "col_file": "Datei",
+    "col_source": "Quelle",
+    "source_sidecar": "Sidecar",
     "section_sidecars": "Sidecar-Untertitel ({{count}})",
     "download": "Download",
     "delete": "Löschen",

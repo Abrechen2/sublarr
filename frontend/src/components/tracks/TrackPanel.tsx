@@ -436,9 +436,17 @@ function SidecarRow({
 
   return (
     <tr style={{ borderBottom: '1px solid var(--border)' }}>
-      <td className="px-3 py-1.5 text-xs truncate max-w-[200px]" style={{ color: 'var(--text-secondary)' }} title={name}>
-        {name}
+      {/* Source */}
+      <td className="px-3 py-1.5">
+        <span
+          className="text-[9px] px-1 py-0.5 rounded uppercase font-bold"
+          style={{ backgroundColor: 'var(--accent-bg)', color: 'var(--accent)' }}
+          title={t('track_panel.source_sidecar')}
+        >
+          {t('track_panel.source_sidecar')}
+        </span>
       </td>
+      {/* Format */}
       <td className="px-3 py-1.5">
         <span
           className="text-[10px] px-1.5 py-0.5 rounded uppercase font-bold"
@@ -447,11 +455,17 @@ function SidecarRow({
           {sidecar.format.toUpperCase()}
         </span>
       </td>
+      {/* Language */}
       <td className="px-3 py-1.5">
         <span className="text-[10px] px-1.5 py-0.5 rounded uppercase font-semibold" style={{ backgroundColor: 'var(--accent-bg)', color: 'var(--accent)' }}>
           {sidecar.language}
         </span>
       </td>
+      {/* Title (filename) */}
+      <td className="px-3 py-1.5 text-xs truncate max-w-[160px]" style={{ color: 'var(--text-secondary)' }} title={name}>
+        {name}
+      </td>
+      {/* Flags */}
       <td className="px-3 py-1.5">
         {sidecar.modifier && (
           <span className="text-[9px] px-1 py-0.5 rounded uppercase font-bold" style={{ backgroundColor: 'rgba(245,158,11,0.12)', color: 'var(--warning)' }}>
@@ -459,6 +473,7 @@ function SidecarRow({
           </span>
         )}
       </td>
+      {/* Actions */}
       <td className="px-3 py-1.5">
         <div className="flex items-center gap-1">
           <button
@@ -499,27 +514,53 @@ function SidecarRow({
   )
 }
 
-function SidecarTable({
+const _LANG3_TO_2: Record<string, string> = { ger: 'de', deu: 'de', eng: 'en', jpn: 'ja' }
+function _normLang(lang: string | undefined): string {
+  const n = (lang || 'und').toLowerCase().split('-')[0]
+  return _LANG3_TO_2[n] ?? n
+}
+
+// Phase 3 — unified, language-first subtitle view: embedded tracks AND sidecar
+// files in ONE table sorted by language, instead of two disjoint tables.
+function SubtitleSection({
+  subtitles,
   sidecars,
+  episodeId,
+  videoPath,
   onOpenEditor,
-  onDeleted,
+  dubCandidates,
+  onSidecarDeleted,
   t,
 }: {
+  subtitles: Track[]
   sidecars: SidecarSubtitle[]
+  episodeId: number
+  videoPath: string
   onOpenEditor: (p: string) => void
-  onDeleted: (path: string) => void
+  dubCandidates: Map<number, DubtitleCandidate> | null
+  onSidecarDeleted: (path: string) => void
   t: (key: string, opts?: Record<string, unknown>) => string
 }) {
+  type Entry =
+    | { kind: 'embedded'; lang: string; track: Track }
+    | { kind: 'sidecar'; lang: string; sidecar: SidecarSubtitle }
+  const entries: Entry[] = [
+    ...subtitles.map((tr): Entry => ({ kind: 'embedded', lang: _normLang(tr.language), track: tr })),
+    ...sidecars.map((s): Entry => ({ kind: 'sidecar', lang: _normLang(s.language), sidecar: s })),
+  ].sort((a, b) => a.lang.localeCompare(b.lang) || a.kind.localeCompare(b.kind))
+
+  if (entries.length === 0) return null
+
   return (
     <div className="space-y-1">
       <span className="text-[10px] font-semibold uppercase tracking-wider" style={{ color: 'var(--text-muted)' }}>
-        {t('track_panel.section_sidecars', { count: sidecars.length })}
+        {t('track_panel.section_subtitles', { count: entries.length })}
       </span>
       <div className="rounded-md overflow-hidden" style={{ border: '1px solid var(--border)' }}>
         <table className="w-full">
           <thead>
             <tr style={{ backgroundColor: 'var(--bg-surface)', borderBottom: '1px solid var(--border)' }}>
-              {[t('track_panel.col_file'), t('track_panel.col_format'), t('track_panel.col_language'), t('track_panel.col_flags'), t('track_panel.col_actions')].map((h) => (
+              {[t('track_panel.col_source'), t('track_panel.col_format'), t('track_panel.col_language'), t('track_panel.col_title'), t('track_panel.col_flags'), t('track_panel.col_actions')].map((h) => (
                 <th key={h} className="text-left text-[10px] font-semibold uppercase tracking-wider px-3 py-1.5" style={{ color: 'var(--text-muted)' }}>
                   {h}
                 </th>
@@ -527,9 +568,26 @@ function SidecarTable({
             </tr>
           </thead>
           <tbody>
-            {sidecars.map((s) => (
-              <SidecarRow key={s.path} sidecar={s} onOpenEditor={onOpenEditor} onDeleted={onDeleted} t={t} />
-            ))}
+            {entries.map((e) =>
+              e.kind === 'embedded' ? (
+                <TrackRow
+                  key={`emb-${e.track.index}`}
+                  track={e.track}
+                  episodeId={episodeId}
+                  videoPath={videoPath}
+                  onOpenEditor={onOpenEditor}
+                  dub={dubCandidates?.get(e.track.sub_index)}
+                />
+              ) : (
+                <SidecarRow
+                  key={`side-${e.sidecar.path}`}
+                  sidecar={e.sidecar}
+                  onOpenEditor={onOpenEditor}
+                  onDeleted={onSidecarDeleted}
+                  t={t}
+                />
+              ),
+            )}
           </tbody>
         </table>
       </div>
@@ -674,26 +732,16 @@ export function TrackPanel({ episodeId, onOpenEditor }: TrackPanelProps) {
         </div>
       )}
 
-      {subtitles.length > 0 && (
-        <TrackTable
-          caption={t('track_panel.section_subtitles', { count: subtitles.length })}
-          tracks={subtitles}
-          episodeId={episodeId}
-          videoPath={result.video_path}
-          onOpenEditor={onOpenEditor}
-          dubCandidates={dubCandidates}
-          t={t}
-        />
-      )}
-
-      {sidecars.length > 0 && (
-        <SidecarTable
-          sidecars={sidecars}
-          onOpenEditor={onOpenEditor}
-          onDeleted={(path) => setSidecars((prev) => prev.filter((s) => s.path !== path))}
-          t={t}
-        />
-      )}
+      <SubtitleSection
+        subtitles={subtitles}
+        sidecars={sidecars}
+        episodeId={episodeId}
+        videoPath={result.video_path}
+        onOpenEditor={onOpenEditor}
+        dubCandidates={dubCandidates}
+        onSidecarDeleted={(path) => setSidecars((prev) => prev.filter((s) => s.path !== path))}
+        t={t}
+      />
 
       {audio.length > 0 && (
         <TrackTable
