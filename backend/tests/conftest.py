@@ -79,6 +79,25 @@ def temp_db():
 
 
 @pytest.fixture(autouse=True)
+def _isolate_settings_env():
+    """Snapshot + restore os.environ and the settings singleton around every test.
+
+    Several route tests call reload_settings() which reads SUBLARR_* env vars and
+    caches a process-global Settings singleton. Under xdist a test that mutates an
+    env var (or leaves a reloaded singleton) could leak into later tests on the
+    same worker, causing order-dependent flakes (e.g. subtitle_processor media-path
+    checks). Restoring both makes each test start from a clean baseline.
+    """
+    import config_singleton
+
+    snapshot = dict(os.environ)
+    yield
+    os.environ.clear()
+    os.environ.update(snapshot)
+    config_singleton._settings = None
+
+
+@pytest.fixture(autouse=True)
 def _reset_budget_singleton():
     """Ensure every test sees a fresh ProviderBudgetManager singleton.
 
