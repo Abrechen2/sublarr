@@ -306,6 +306,64 @@ function TrackRow({ track, episodeId, videoPath, onOpenEditor, dub }: { track: T
   )
 }
 
+function TrackTable({
+  caption,
+  tracks,
+  episodeId,
+  videoPath,
+  onOpenEditor,
+  dubCandidates,
+  t,
+}: {
+  caption: string
+  tracks: Track[]
+  episodeId: number
+  videoPath: string
+  onOpenEditor: (p: string) => void
+  dubCandidates?: Map<number, DubtitleCandidate>
+  t: (key: string, opts?: Record<string, unknown>) => string
+}) {
+  return (
+    <div className="space-y-1">
+      <span
+        className="text-[10px] font-semibold uppercase tracking-wider"
+        style={{ color: 'var(--text-muted)' }}
+      >
+        {caption}
+      </span>
+      <div className="rounded-md overflow-hidden" style={{ border: '1px solid var(--border)' }}>
+        <table className="w-full">
+          <thead>
+            <tr style={{ backgroundColor: 'var(--bg-surface)', borderBottom: '1px solid var(--border)' }}>
+              {['#', t('track_panel.col_format'), t('track_panel.col_language'), t('track_panel.col_title'), t('track_panel.col_flags'), t('track_panel.col_actions')].map((h) => (
+                <th
+                  key={h}
+                  className="text-left text-[10px] font-semibold uppercase tracking-wider px-3 py-1.5"
+                  style={{ color: 'var(--text-muted)' }}
+                >
+                  {h}
+                </th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {tracks.map((track) => (
+              <TrackRow
+                key={track.index}
+                track={track}
+                episodeId={episodeId}
+                videoPath={videoPath}
+                onOpenEditor={onOpenEditor}
+                dub={dubCandidates?.get(track.sub_index)}
+              />
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  )
+}
+
 export function TrackPanel({ episodeId, onOpenEditor }: TrackPanelProps) {
   const { t } = useTranslation('library')
   const [result, setResult] = useState<EpisodeTracksResponse | null>(null)
@@ -426,35 +484,29 @@ export function TrackPanel({ episodeId, onOpenEditor }: TrackPanelProps) {
         </div>
       )}
 
-      <div className="rounded-md overflow-hidden" style={{ border: '1px solid var(--border)' }}>
-        <table className="w-full">
-          <thead>
-            <tr style={{ backgroundColor: 'var(--bg-surface)', borderBottom: '1px solid var(--border)' }}>
-              {['#', t('track_panel.col_format'), t('track_panel.col_language'), t('track_panel.col_title'), t('track_panel.col_flags'), t('track_panel.col_actions')].map((h) => (
-                <th
-                  key={h}
-                  className="text-left text-[10px] font-semibold uppercase tracking-wider px-3 py-1.5"
-                  style={{ color: 'var(--text-muted)' }}
-                >
-                  {h}
-                </th>
-              ))}
-            </tr>
-          </thead>
-          <tbody>
-            {result.tracks.map((track) => (
-              <TrackRow
-                key={track.index}
-                track={track}
-                episodeId={episodeId}
-                videoPath={result.video_path}
-                onOpenEditor={onOpenEditor}
-                dub={track.codec_type === 'subtitle' ? dubCandidates?.get(track.sub_index) : undefined}
-              />
-            ))}
-          </tbody>
-        </table>
-      </div>
+      {subtitles.length > 0 && (
+        <TrackTable
+          caption={t('track_panel.section_subtitles', { count: subtitles.length })}
+          tracks={subtitles}
+          episodeId={episodeId}
+          videoPath={result.video_path}
+          onOpenEditor={onOpenEditor}
+          dubCandidates={dubCandidates}
+          t={t}
+        />
+      )}
+
+      {audio.length > 0 && (
+        <TrackTable
+          caption={t('track_panel.section_audio', { count: audio.length })}
+          tracks={audio}
+          episodeId={episodeId}
+          videoPath={result.video_path}
+          onOpenEditor={onOpenEditor}
+          dubCandidates={undefined}
+          t={t}
+        />
+      )}
 
       <HealthSection episodeId={episodeId} onOpenEditor={onOpenEditor} />
     </div>

@@ -419,6 +419,8 @@
     "loading_tracks": "Loading tracks…",
     "no_tracks": "No embedded tracks found.",
     "embedded_tracks_count": "Embedded tracks ({{count}})",
+    "section_subtitles": "Subtitles ({{count}})",
+    "section_audio": "Audio ({{count}})",
     "sub_audio_count": "{{sub}} sub · {{audio}} audio",
     "col_format": "Format",
     "col_language": "Language",

@@ -419,6 +419,8 @@
     "loading_tracks": "Tracks werden geladen…",
     "no_tracks": "Keine eingebetteten Tracks gefunden.",
     "embedded_tracks_count": "Eingebettete Tracks ({{count}})",
+    "section_subtitles": "Untertitel ({{count}})",
+    "section_audio": "Audio ({{count}})",
     "sub_audio_count": "{{sub}} Sub · {{audio}} Audio",
     "col_format": "Format",
     "col_language": "Sprache",
