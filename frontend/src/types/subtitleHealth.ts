@@ -16,6 +16,9 @@ export type HealthTargetKind = 'sidecar' | 'embedded'
 
 export interface HealthIssue {
   id?: number
+  /** Embedded defect suppressed because a clean sidecar of the same language
+   *  exists (players prefer the sidecar). Hidden from the actionable list. */
+  shadowed?: boolean
   type: HealthIssueType
   severity: HealthSeverity
   episode_id: number | null

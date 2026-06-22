@@ -44,6 +44,37 @@ describe('HealthSection', () => {
     )
   })
 
+  it('hides shadowed findings (clean sidecar covers the embedded defect)', async () => {
+    vi.mocked(api.scanEpisodeHealth).mockResolvedValue({
+      episode_id: 5,
+      video_path: '/m/x.mkv',
+      healthy: false,
+      issue_count: 1,
+      issues: [
+        {
+          id: 1,
+          shadowed: true,
+          type: 'ass_escape_leak',
+          severity: 'confirmed',
+          episode_id: 5,
+          target_kind: 'embedded',
+          target_path: '/m/x.mkv',
+          stream_index: 0,
+          lang: 'ger',
+          count: 198,
+          snippets: [],
+          raw_hash: 'h',
+          fixable: true,
+          suggested_fix: 'extract_clean_sidecar',
+        },
+      ],
+    })
+    render(<HealthSection episodeId={5} />)
+    fireEvent.click(screen.getByText('subtitle_health.scan'))
+    await waitFor(() => expect(screen.getByText('subtitle_health.healthy')).toBeInTheDocument())
+    expect(screen.queryByText('subtitle_health.types.ass_escape_leak')).not.toBeInTheDocument()
+  })
+
   it('applies a fix and marks it resolved', async () => {
     vi.mocked(api.scanEpisodeHealth).mockResolvedValue({
       episode_id: 5,

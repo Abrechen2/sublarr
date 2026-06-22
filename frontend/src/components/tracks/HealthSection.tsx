@@ -54,6 +54,10 @@ export function HealthSection({ episodeId }: Props) {
     [runScan],
   )
 
+  // Shadowed findings (embedded defect covered by a clean sidecar) are not
+  // actionable — hide them so the fix doesn't reappear on every rescan.
+  const visibleIssues = result ? result.issues.filter((i) => !i.shadowed) : []
+
   return (
     <div className="mt-4 border-t border-border pt-3">
       <div className="flex items-center justify-between">
@@ -68,13 +72,13 @@ export function HealthSection({ episodeId }: Props) {
         </button>
       </div>
 
-      {result && result.healthy && (
+      {result && visibleIssues.length === 0 && (
         <p className="mt-2 text-sm text-emerald-400">{t('subtitle_health.healthy')}</p>
       )}
 
-      {result && !result.healthy && (
+      {result && visibleIssues.length > 0 && (
         <ul className="mt-2 space-y-2">
-          {result.issues.map((issue) => (
+          {visibleIssues.map((issue) => (
             <li
               key={`${issue.id}-${issue.target_path}-${issue.stream_index}`}
               className="rounded-md border border-border bg-surface p-3"
