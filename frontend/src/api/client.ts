@@ -15,5 +15,6 @@ export * from './providers'
 export * from './settings'
 export * from './system'
 export * from './scheduler'
+export * from './subtitleHealth'
 
 export default (await import('./core')).api
