@@ -192,6 +192,59 @@ def remove_track_from_container(ep_id: int, index: int):
     return jsonify({"job_id": job_id, "status": "queued"}), 202
 
 
+@bp.route("/library/episodes/<int:ep_id>/tracks/<int:index>/set-default", methods=["POST"])
+def set_track_default(ep_id: int, index: int):
+    """Make stream `index` the default track for its type (audio/subtitle).
+
+    Header-only edit via mkvpropedit (no remux): sets flag-default=1 on the
+    target and 0 on all other tracks of the same type, so exactly one default
+    remains. Fast and preserves the file's permissions.
+    """
+    import subprocess
+
+    from remux import _safe_arg_path
+
+    video_path = _get_video_path(ep_id)
+    if not video_path:
+        return jsonify({"error": "Episode has no video file or Sonarr is not configured"}), 404
+    if not os.path.exists(video_path):
+        return jsonify({"error": "Video file not found on disk"}), 404
+
+    try:
+        probe = get_media_streams(video_path)
+    except Exception:
+        return jsonify({"error": "Failed to probe video file"}), 500
+
+    streams = probe.get("streams", [])
+    if index < 0 or index >= len(streams):
+        return jsonify({"error": f"Stream index {index} out of range"}), 400
+    target = streams[index]
+    ctype = target.get("codec_type")
+    if ctype not in ("audio", "subtitle"):
+        return jsonify({"error": "Only audio or subtitle tracks can be set as default"}), 400
+
+    sel = {"audio": "a", "subtitle": "s"}[ctype]
+    # mkvpropedit selectors are 1-based per track type.
+    edits: list[str] = []
+    pos = 0
+    for s in streams:
+        if s.get("codec_type") == ctype:
+            pos += 1
+            flag = "1" if s.get("index") == target.get("index") else "0"
+            edits += ["--edit", f"track:{sel}{pos}", "--set", f"flag-default={flag}"]
+
+    cmd = ["mkvpropedit", _safe_arg_path(video_path), *edits]
+    try:
+        result = subprocess.run(cmd, capture_output=True, text=True, timeout=120)
+    except Exception as exc:
+        logger.exception("mkvpropedit set-default failed: %s", exc)
+        return jsonify({"error": "mkvpropedit invocation failed"}), 500
+    if result.returncode != 0:
+        logger.error("mkvpropedit set-default rc=%s: %s", result.returncode, result.stderr)
+        return jsonify({"error": "mkvpropedit failed"}), 500
+    return jsonify({"changed": True, "index": index, "codec_type": ctype}), 200
+
+
 @bp.route("/remux/jobs", methods=["GET"])
 def list_remux_jobs():
     """Return all recent remux jobs."""

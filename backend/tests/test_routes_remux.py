@@ -23,6 +23,44 @@ def _reset_jobs():
 # ---------------------------------------------------------------------------
 
 
+class TestSetTrackDefault:
+    """POST /library/episodes/<id>/tracks/<index>/set-default."""
+
+    def _streams(self):
+        return {
+            "streams": [
+                {"index": 0, "codec_type": "video"},
+                {"index": 1, "codec_type": "audio"},
+                {"index": 2, "codec_type": "audio"},
+            ]
+        }
+
+    def test_set_default_audio_runs_mkvpropedit(self, client):
+        with (
+            patch("routes.remux._get_video_path", return_value="/media/x.mkv"),
+            patch("routes.remux.os.path.exists", return_value=True),
+            patch("routes.remux.get_media_streams", return_value=self._streams()),
+            patch("subprocess.run") as mock_run,
+        ):
+            mock_run.return_value = MagicMock(returncode=0, stderr="")
+            resp = client.post("/api/v1/library/episodes/5/tracks/2/set-default")
+            assert resp.status_code == 200
+            assert resp.get_json()["changed"] is True
+            cmd = mock_run.call_args[0][0]
+            # second audio track (a2) becomes default, first (a1) cleared
+            assert "track:a2" in cmd and "flag-default=1" in cmd
+            assert "track:a1" in cmd and "flag-default=0" in cmd
+
+    def test_set_default_rejects_video_stream(self, client):
+        with (
+            patch("routes.remux._get_video_path", return_value="/media/x.mkv"),
+            patch("routes.remux.os.path.exists", return_value=True),
+            patch("routes.remux.get_media_streams", return_value=self._streams()),
+        ):
+            resp = client.post("/api/v1/library/episodes/5/tracks/0/set-default")
+            assert resp.status_code == 400
+
+
 class TestHelpers:
     """Unit tests for module-level helper functions."""
 
