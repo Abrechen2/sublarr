@@ -51,6 +51,7 @@ const JOB_CATEGORY: Record<string, JobCategory> = {
   cleanup: 'maintenance',
   scheduler_history_cleanup: 'maintenance',
   translation_events_cleanup: 'maintenance',
+  subtitle_health_sweep: 'maintenance',
 }
 
 export function categorize(jobId: string): JobCategory {

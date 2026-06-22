@@ -1436,6 +1436,10 @@
       "translation_events_cleanup": {
         "name": "Translation log cleanup",
         "desc": "Prunes translation_events rows older than the retention window."
+      },
+      "subtitle_health_sweep": {
+        "name": "Subtitle health sweep",
+        "desc": "Scans the library for subtitle content defects (report-only unless auto-fix is enabled)."
       }
     },
     "actions_menu": "More actions",

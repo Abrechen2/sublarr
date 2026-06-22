@@ -1425,6 +1425,10 @@
       "translation_events_cleanup": {
         "name": "Übersetzungs-Verlauf bereinigen",
         "desc": "Löscht translation_events-Einträge außerhalb des Retention-Fensters."
+      },
+      "subtitle_health_sweep": {
+        "name": "Untertitel-Gesundheit prüfen",
+        "desc": "Durchsucht die Bibliothek nach Untertitel-Defekten (nur Bericht, außer Auto-Korrektur ist aktiviert)."
       }
     },
     "actions_menu": "Weitere Aktionen",
