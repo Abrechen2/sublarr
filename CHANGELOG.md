@@ -5,6 +5,27 @@ All notable changes to Sublarr are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.3.0] - 2026-06-22
+
+### Added
+- **Subtitle Health** — A new detect-and-repair subsystem for subtitle
+  content defects across embedded tracks and sidecars. Nine checkers flag
+  problems like leaked ASS escape codes (literal `\N`), language mislabels,
+  broken encoding, timing errors, format mismatches and control characters;
+  matching fixers repair them with full, reversible backups and one-click
+  rollback. Findings surface per episode in the track panel, per series via
+  a bulk scan, and library-wide under Settings → System → Subtitle Health.
+  A scheduled sweep can auto-apply the safe fixes.
+- **Update banner** — A dismissible announcement bar notifies you when a
+  newer Sublarr version is available; dismissals are remembered per version.
+
+### Fixed
+- **Corrupted SRT timecodes on download** — Every downloaded SRT/VTT
+  subtitle had its `-->` timecode separator HTML-escaped to `--&gt;` by the
+  content sanitizer, producing malformed timecodes that media players reject.
+  The sanitizer now preserves the timecode arrow (and a leading BOM) while
+  keeping full XSS protection on cue text. (Pre-existing since 0.15.2-beta.)
+
 ## [1.2.0] - 2026-06-15
 
 ### Added
