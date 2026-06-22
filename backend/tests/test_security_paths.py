@@ -244,6 +244,33 @@ class TestSubtitleSanitizer:
         assert b"<b>" in result
         assert b"Click me" in result
 
+    def test_srt_timecode_arrow_preserved(self):
+        """SRT timecode separator '-->' must survive sanitization unescaped.
+
+        Regression: BeautifulSoup serialization HTML-escapes '>' to '&gt;',
+        turning '00:00:01,000 --> 00:00:02,000' into a malformed timecode that
+        players reject — corrupting the whole cue. The arrow on timecode lines
+        must stay literal.
+        """
+        srt = (
+            b"1\n00:00:01,000 --> 00:00:02,000\nHello\n\n"
+            b"2\n00:00:03,000 --> 00:00:04,000\nWorld\n"
+        )
+        result = sanitize_srt_vtt_content(srt)
+        assert b"--&gt;" not in result, "timecode arrow must not be HTML-escaped"
+        assert result.count(b"-->") == 2
+
+    def test_srt_bom_preserved_by_sanitizer(self):
+        """A leading UTF-8 BOM must survive sanitization.
+
+        BOM normalization is the job of the (opt-outable) repair pass, not the
+        always-on sanitizer; stripping it here breaks the repair-disabled
+        contract in save_subtitle.
+        """
+        srt = b"\xef\xbb\xbf1\n00:00:01,000 --> 00:00:02,000\nHi\n"
+        result = sanitize_srt_vtt_content(srt)
+        assert result.startswith(b"\xef\xbb\xbf"), "BOM must be preserved by sanitizer"
+
     def test_content_type_ass_validated(self):
         """Content not starting with [Script Info] fails ASS content-type check."""
         assert validate_content_type(b"Not ASS content", SubtitleFormat.ASS) is False

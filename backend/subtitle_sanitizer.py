@@ -29,6 +29,18 @@ _ALLOWED_HTML_TAGS = frozenset({"i", "b", "u", "font"})
 # Attributes allowed per tag (all others stripped)
 _ALLOWED_ATTRS: dict[str, frozenset[str]] = {"font": frozenset({"color"})}
 
+# UTF-8 byte-order mark. Preserved across sanitization (BOM normalization is the
+# repair pass's job, not the always-on sanitizer).
+_UTF8_BOM = b"\xef\xbb\xbf"
+
+# SRT/VTT timecode arrow flanked by two timestamps. BeautifulSoup serialization
+# HTML-escapes the '>' in '-->' to '&gt;', producing a malformed timecode that
+# players reject. We restore the literal arrow ONLY between two timestamps —
+# timecode lines never carry user text, so this never weakens XSS sanitization
+# of cue text (where escaping a literal '>' is intentionally kept).
+_TS = r"\d{1,2}:\d{2}(?::\d{2})?[.,]\d{3}"
+_TIMECODE_ARROW_RE = re.compile(rf"({_TS}[ \t]*)--&gt;([ \t]*{_TS})".encode())
+
 
 def sanitize_ass_content(content: bytes) -> bytes:
     """Sanitize ASS/SSA subtitle content.
@@ -72,6 +84,7 @@ def sanitize_srt_vtt_content(content: bytes) -> bytes:
     try:
         from bs4 import BeautifulSoup
 
+        had_bom = content.startswith(_UTF8_BOM)
         text = content.decode("utf-8", errors="replace")
         soup = BeautifulSoup(text, "html.parser")
 
@@ -111,6 +124,13 @@ def sanitize_srt_vtt_content(content: bytes) -> bytes:
             sanitized = repair_bytes(sanitized, codec="srt")
         except Exception:
             logger.debug("subtitle_health: inline repair skipped", exc_info=True)
+        # Restore the timecode arrow that BeautifulSoup HTML-escaped to '--&gt;'.
+        # Scoped to timestamp-flanked arrows only — cue-text escaping is kept.
+        sanitized = _TIMECODE_ARROW_RE.sub(rb"\1-->\2", sanitized)
+        # Preserve a leading BOM: the always-on sanitizer must not normalize it
+        # (that is the opt-outable repair pass's responsibility).
+        if had_bom and not sanitized.startswith(_UTF8_BOM):
+            sanitized = _UTF8_BOM + sanitized
         return sanitized
     except Exception as e:
         logger.warning("SRT/VTT sanitization failed, returning original: %s", e)
