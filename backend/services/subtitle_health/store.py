@@ -89,6 +89,20 @@ def get_finding(finding_id: int) -> dict | None:
     return _finding_to_dict(row) if row else None
 
 
+def dismiss_finding(finding_id: int) -> bool:
+    """Mark a finding as user-dismissed so it no longer appears as actionable
+    and survives future rescans (e.g. an accepted timing/CPS warning)."""
+    from db.models.core import SubtitleHealthFinding
+    from extensions import db
+
+    row = db.session.get(SubtitleHealthFinding, finding_id)
+    if not row:
+        return False
+    row.status = "dismissed"
+    db.session.commit()
+    return True
+
+
 def mark_finding(finding_id: int, status: str) -> None:
     from db.models.core import SubtitleHealthFinding
     from extensions import db

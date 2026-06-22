@@ -375,6 +375,15 @@ def rollback_health_fix(fix_id):
     return jsonify(result), (200 if result.get("restored") else 409)
 
 
+@bp.route("/subtitle-health/findings/<int:finding_id>/dismiss", methods=["POST"])
+def dismiss_health_finding(finding_id):
+    """Mark a finding as user-dismissed (e.g. an accepted timing/CPS warning)."""
+    from services.subtitle_health.store import dismiss_finding
+
+    ok = dismiss_finding(finding_id)
+    return jsonify({"dismissed": ok}), (200 if ok else 404)
+
+
 @bp.route("/subtitle-health/report", methods=["GET"])
 def subtitle_health_report():
     """Aggregated open-findings report across the library."""

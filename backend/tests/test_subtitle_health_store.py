@@ -61,6 +61,21 @@ def test_persist_backfills_issue_id(app_ctx):
     assert result.to_dict()["issues"][0]["id"] == persisted_id
 
 
+def test_dismiss_finding_sets_status_and_survives_rescan(app_ctx):
+    store.persist_scan_result(_result(), scanner_version=1)
+    fid = store.get_findings_for_episode(5)[0]["id"]
+    assert store.dismiss_finding(fid) is True
+    # dismissed → no longer in the open/actionable list
+    assert store.get_findings_for_episode(5) == []
+    # a rescan must NOT resurrect a dismissed finding
+    store.persist_scan_result(_result(), scanner_version=1)
+    assert store.get_finding(fid)["status"] == "dismissed"
+
+
+def test_dismiss_missing_finding_returns_false(app_ctx):
+    assert store.dismiss_finding(999999) is False
+
+
 def test_record_and_get_manifest(app_ctx):
     fix_id = store.record_fix(
         finding_id=None,
