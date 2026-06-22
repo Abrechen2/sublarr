@@ -34,6 +34,11 @@ export async function rollbackHealthFix(
   return data
 }
 
+export async function dismissHealthFinding(findingId: number): Promise<{ dismissed: boolean }> {
+  const { data } = await api.post(`/subtitle-health/findings/${findingId}/dismiss`)
+  return data
+}
+
 export async function getHealthReport(): Promise<HealthReport> {
   const { data } = await api.get('/subtitle-health/report')
   return data

@@ -456,7 +456,7 @@ export function TrackPanel({ episodeId, onOpenEditor }: TrackPanelProps) {
         </table>
       </div>
 
-      <HealthSection episodeId={episodeId} />
+      <HealthSection episodeId={episodeId} onOpenEditor={onOpenEditor} />
     </div>
   )
 }
