@@ -23,5 +23,11 @@ fi
 # very large, and its access is governed by the host's own permissions.
 chown -R "$PUID:$PGID" /config 2>/dev/null || true
 
+# Files Sublarr writes into /media (extracted sidecars, remuxed containers,
+# health fixes) must stay readable by the media server (Emby/Plex run as a
+# different user). The default root umask (0022) is fine, but be explicit and
+# allow a host override so subtitles never land mode 600/unreadable.
+umask "${UMASK:-022}"
+
 # Drop from root to the runtime user and hand off to gunicorn (the CMD).
 exec gosu "$PUID:$PGID" "$@"

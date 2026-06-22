@@ -12,6 +12,13 @@ class FixValidationError(Exception):
     """Raised when a fix would change the cue structure unexpectedly."""
 
 
+def _current_umask() -> int:
+    """Read the process umask without permanently changing it."""
+    cur = os.umask(0o022)
+    os.umask(cur)
+    return cur
+
+
 def count_cues(raw: bytes) -> int:
     import pysubs2
 
@@ -35,6 +42,13 @@ def atomic_write_bytes(path: str, data: bytes) -> None:
     try:
         with os.fdopen(fd, "wb") as fh:
             fh.write(data)
+        # mkstemp creates the temp file 0600; media files must stay readable by
+        # the media server (Emby/Plex run as a different user/group). Relax to
+        # 0644 (minus the current umask) before the atomic rename.
+        try:
+            os.chmod(tmp, 0o644 & ~_current_umask())
+        except OSError:
+            pass
         os.replace(tmp, path)
     finally:
         if os.path.exists(tmp):
