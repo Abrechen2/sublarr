@@ -15,9 +15,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   matching fixers repair them with full, reversible backups and one-click
   rollback. Findings surface per episode in the track panel, per series via
   a bulk scan, and library-wide under Settings → System → Subtitle Health.
-  A scheduled sweep can auto-apply the safe fixes.
+  A scheduled sweep can auto-apply the safe fixes. Each finding offers
+  contextual actions — fix, strip the embedded track (remux), open the file in
+  the editor, or dismiss an accepted advisory (e.g. a high-CPS timing warning).
+  Embedded-track defects are automatically suppressed once a clean sidecar of
+  the same language exists, so a fixed issue no longer reappears on every rescan.
 - **Update banner** — A dismissible announcement bar notifies you when a
   newer Sublarr version is available; dismissals are remembered per version.
+
+### Changed
+- **Episode track panel reorganised** — Audio and subtitles are now shown in
+  separate tables instead of one mixed list, and on-disk sidecar subtitle files
+  (`.de.srt`, `.en.srt`, …) are listed alongside the embedded tracks with
+  open-in-editor / download / delete actions.
 
 ### Fixed
 - **Corrupted SRT timecodes on download** — Every downloaded SRT/VTT
