@@ -1,10 +1,10 @@
 import { useState, useEffect, useCallback } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Loader2, Download, FileText, AlertTriangle, Trash2, ScanSearch, Sparkles } from 'lucide-react'
-import { listEpisodeTracks, extractTrack, convertSubtitle, removeTrackFromContainer, getRemuxJob, restoreRemuxBackup, detectDubtitle, getCachedDubtitle } from '@/api/client'
+import { listEpisodeTracks, extractTrack, convertSubtitle, removeTrackFromContainer, getRemuxJob, restoreRemuxBackup, detectDubtitle, getCachedDubtitle, listEpisodeSubtitles, deleteSubtitles, subtitleDownloadUrl } from '@/api/client'
 import { toast } from '@/components/shared/Toast'
 import { HealthSection } from './HealthSection'
-import type { Track, EpisodeTracksResponse, DubtitleCandidate } from '@/lib/types'
+import type { Track, EpisodeTracksResponse, DubtitleCandidate, SidecarSubtitle } from '@/lib/types'
 
 interface TrackPanelProps {
   episodeId: number
@@ -364,6 +364,141 @@ function TrackTable({
   )
 }
 
+function SidecarRow({
+  sidecar,
+  onOpenEditor,
+  onDeleted,
+  t,
+}: {
+  sidecar: SidecarSubtitle
+  onOpenEditor: (p: string) => void
+  onDeleted: (path: string) => void
+  t: (key: string, opts?: Record<string, unknown>) => string
+}) {
+  const [confirmDelete, setConfirmDelete] = useState(false)
+  const [deleting, setDeleting] = useState(false)
+  const name = sidecar.path.split(/[\\/]/).pop() ?? sidecar.path
+
+  const handleDelete = async () => {
+    if (!confirmDelete) {
+      setConfirmDelete(true)
+      return
+    }
+    setDeleting(true)
+    try {
+      await deleteSubtitles([sidecar.path], false)
+      onDeleted(sidecar.path)
+    } catch {
+      toast(t('series_detail.delete_failed'), 'error')
+    } finally {
+      setDeleting(false)
+      setConfirmDelete(false)
+    }
+  }
+
+  return (
+    <tr style={{ borderBottom: '1px solid var(--border)' }}>
+      <td className="px-3 py-1.5 text-xs truncate max-w-[200px]" style={{ color: 'var(--text-secondary)' }} title={name}>
+        {name}
+      </td>
+      <td className="px-3 py-1.5">
+        <span
+          className="text-[10px] px-1.5 py-0.5 rounded uppercase font-bold"
+          style={{ backgroundColor: 'var(--bg-surface)', color: 'var(--text-muted)', fontFamily: 'var(--font-mono)' }}
+        >
+          {sidecar.format.toUpperCase()}
+        </span>
+      </td>
+      <td className="px-3 py-1.5">
+        <span className="text-[10px] px-1.5 py-0.5 rounded uppercase font-semibold" style={{ backgroundColor: 'var(--accent-bg)', color: 'var(--accent)' }}>
+          {sidecar.language}
+        </span>
+      </td>
+      <td className="px-3 py-1.5">
+        {sidecar.modifier && (
+          <span className="text-[9px] px-1 py-0.5 rounded uppercase font-bold" style={{ backgroundColor: 'rgba(245,158,11,0.12)', color: 'var(--warning)' }}>
+            {sidecar.modifier}
+          </span>
+        )}
+      </td>
+      <td className="px-3 py-1.5">
+        <div className="flex items-center gap-1">
+          <button
+            onClick={() => onOpenEditor(sidecar.path)}
+            className="flex items-center gap-1 px-2 py-1 rounded text-[10px] font-medium"
+            style={{ backgroundColor: 'var(--accent-bg)', color: 'var(--accent)', border: '1px solid var(--accent-dim)' }}
+            title={t('track_panel.open_in_editor')}
+          >
+            <FileText size={10} />
+            {t('track_panel.open_in_editor')}
+          </button>
+          <a
+            href={subtitleDownloadUrl(sidecar.path)}
+            className="flex items-center gap-1 px-2 py-1 rounded text-[10px] font-medium"
+            style={{ backgroundColor: 'var(--bg-surface)', color: 'var(--text-secondary)', border: '1px solid var(--border)' }}
+            title={t('track_panel.download')}
+          >
+            <Download size={10} />
+            {t('track_panel.download')}
+          </a>
+          <button
+            onClick={() => void handleDelete()}
+            onBlur={() => setConfirmDelete(false)}
+            disabled={deleting}
+            className="flex items-center gap-1 px-2 py-1 rounded text-[10px] font-medium"
+            style={{
+              backgroundColor: confirmDelete ? 'rgba(239,68,68,0.15)' : 'var(--bg-surface)',
+              color: confirmDelete ? '#ef4444' : 'var(--text-muted)',
+              border: confirmDelete ? '1px solid rgba(239,68,68,0.4)' : '1px solid var(--border)',
+            }}
+          >
+            <Trash2 size={10} />
+            {confirmDelete ? t('track_panel.sure') : t('track_panel.delete')}
+          </button>
+        </div>
+      </td>
+    </tr>
+  )
+}
+
+function SidecarTable({
+  sidecars,
+  onOpenEditor,
+  onDeleted,
+  t,
+}: {
+  sidecars: SidecarSubtitle[]
+  onOpenEditor: (p: string) => void
+  onDeleted: (path: string) => void
+  t: (key: string, opts?: Record<string, unknown>) => string
+}) {
+  return (
+    <div className="space-y-1">
+      <span className="text-[10px] font-semibold uppercase tracking-wider" style={{ color: 'var(--text-muted)' }}>
+        {t('track_panel.section_sidecars', { count: sidecars.length })}
+      </span>
+      <div className="rounded-md overflow-hidden" style={{ border: '1px solid var(--border)' }}>
+        <table className="w-full">
+          <thead>
+            <tr style={{ backgroundColor: 'var(--bg-surface)', borderBottom: '1px solid var(--border)' }}>
+              {[t('track_panel.col_file'), t('track_panel.col_format'), t('track_panel.col_language'), t('track_panel.col_flags'), t('track_panel.col_actions')].map((h) => (
+                <th key={h} className="text-left text-[10px] font-semibold uppercase tracking-wider px-3 py-1.5" style={{ color: 'var(--text-muted)' }}>
+                  {h}
+                </th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {sidecars.map((s) => (
+              <SidecarRow key={s.path} sidecar={s} onOpenEditor={onOpenEditor} onDeleted={onDeleted} t={t} />
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  )
+}
+
 export function TrackPanel({ episodeId, onOpenEditor }: TrackPanelProps) {
   const { t } = useTranslation('library')
   const [result, setResult] = useState<EpisodeTracksResponse | null>(null)
@@ -372,6 +507,23 @@ export function TrackPanel({ episodeId, onOpenEditor }: TrackPanelProps) {
   const [detecting, setDetecting] = useState(false)
   const [dubCandidates, setDubCandidates] = useState<Map<number, DubtitleCandidate> | null>(null)
   const [dubMessage, setDubMessage] = useState<string | null>(null)
+  const [sidecars, setSidecars] = useState<SidecarSubtitle[]>([])
+
+  // Load sidecar subtitle files so they show alongside the embedded tracks
+  // (both are subtitles — the panel must not hide the on-disk ones).
+  useEffect(() => {
+    let cancelled = false
+    listEpisodeSubtitles(episodeId)
+      .then((res) => {
+        if (!cancelled) setSidecars(res.subtitles ?? [])
+      })
+      .catch(() => {
+        if (!cancelled) setSidecars([])
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [episodeId])
 
   // Auto-load a previously cached result (from a prior detect or the
   // scheduled sweep) so the dubtitle flag shows on open without re-detecting.
@@ -492,6 +644,15 @@ export function TrackPanel({ episodeId, onOpenEditor }: TrackPanelProps) {
           videoPath={result.video_path}
           onOpenEditor={onOpenEditor}
           dubCandidates={dubCandidates}
+          t={t}
+        />
+      )}
+
+      {sidecars.length > 0 && (
+        <SidecarTable
+          sidecars={sidecars}
+          onOpenEditor={onOpenEditor}
+          onDeleted={(path) => setSidecars((prev) => prev.filter((s) => s.path !== path))}
           t={t}
         />
       )}

@@ -29,6 +29,9 @@ vi.mock('@/api/client', () => ({
   restoreRemuxBackup: vi.fn(),
   detectDubtitle: vi.fn(),
   getCachedDubtitle: vi.fn().mockResolvedValue(null),
+  listEpisodeSubtitles: vi.fn().mockResolvedValue({ subtitles: [], video_path: '/media/show/s01e01.mkv' }),
+  deleteSubtitles: vi.fn(),
+  subtitleDownloadUrl: (p: string) => `/dl?path=${p}`,
 }))
 
 vi.mock('@/components/shared/Toast', () => ({
