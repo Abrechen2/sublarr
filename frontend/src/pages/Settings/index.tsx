@@ -99,6 +99,9 @@ const SystemHooksPage = lazy(() =>
 const SchedulerPage = lazy(() =>
   import('./SchedulerPage').then((m) => ({ default: m.SchedulerPage })),
 )
+const SubtitleHealthSettings = lazy(() =>
+  import('./SubtitleHealthSettings').then((m) => ({ default: m.SubtitleHealthSettings })),
+)
 // Plan B7 — multi-engine sync orchestrator (informational tab)
 const SyncEnginesTab = lazy(() =>
   import('./SyncEnginesTab').then((m) => ({ default: m.SyncEnginesTab })),
@@ -163,6 +166,7 @@ export function SettingsPage() {
             <Route path="system/diagnostics" element={<SystemDiagnosticsPage />} />
             <Route path="system/hooks" element={<SystemHooksPage />} />
             <Route path="system/scheduler" element={<SchedulerPage />} />
+            <Route path="system/subtitle-health" element={<SubtitleHealthSettings />} />
             <Route path="system/sync-engines" element={<SyncEnginesTab />} />
             <Route path="about" element={<AboutSettings />} />
             <Route path="cleanup" element={<Suspense fallback={<FormSkeleton />}><CleanupSettings /></Suspense>} />
