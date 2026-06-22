@@ -20,14 +20,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   the editor, or dismiss an accepted advisory (e.g. a high-CPS timing warning).
   Embedded-track defects are automatically suppressed once a clean sidecar of
   the same language exists, so a fixed issue no longer reappears on every rescan.
+  Accepted timing/CPS warnings can be dismissed for good, and a sidecar timing
+  issue can be re-aligned to the audio directly from the finding.
 - **Update banner** — A dismissible announcement bar notifies you when a
   newer Sublarr version is available; dismissals are remembered per version.
 
 ### Changed
-- **Episode track panel reorganised** — Audio and subtitles are now shown in
-  separate tables instead of one mixed list, and on-disk sidecar subtitle files
-  (`.de.srt`, `.en.srt`, …) are listed alongside the embedded tracks with
-  open-in-editor / download / delete actions.
+- **Episode track panel — language-first subtitles + separate audio** — Embedded
+  subtitle tracks and on-disk sidecar files (`.de.srt`, `.en.srt`, …) now appear
+  together in one language-sorted Subtitles table (instead of a mixed list that
+  hid sidecars), each with source-appropriate actions (extract / editor / convert
+  / remove / set-default for embedded; editor / download / delete for sidecars).
+  Audio tracks have their own table with a "Set default" control.
 
 ### Fixed
 - **Corrupted SRT timecodes on download** — Every downloaded SRT/VTT
@@ -35,6 +39,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   content sanitizer, producing malformed timecodes that media players reject.
   The sanitizer now preserves the timecode arrow (and a leading BOM) while
   keeping full XSS protection on cue text. (Pre-existing since 0.15.2-beta.)
+- **Subtitles unreadable by the media server after a fix/extract** — Files
+  Sublarr wrote into the library could land mode 0600 (owner-only), so Emby/Plex
+  (running as a different user) could not read them and playback failed. Written
+  files are now group/other-readable (atomic-write chmod + container umask).
 
 ## [1.2.0] - 2026-06-15
 
