@@ -32,6 +32,8 @@ vi.mock('@/api/client', () => ({
   listEpisodeSubtitles: vi.fn().mockResolvedValue({ subtitles: [], video_path: '/media/show/s01e01.mkv' }),
   deleteSubtitles: vi.fn(),
   getSubtitleDownloadUrl: (p: string) => `/dl?path=${p}`,
+  setTrackDefault: vi.fn().mockResolvedValue({ changed: true }),
+  autoSyncFile: vi.fn().mockResolvedValue({}),
 }))
 
 vi.mock('@/components/shared/Toast', () => ({

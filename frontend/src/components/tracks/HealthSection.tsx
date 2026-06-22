@@ -6,6 +6,8 @@ import {
   rollbackHealthFix,
   dismissHealthFinding,
 } from '@/api/subtitleHealth'
+import { autoSyncFile } from '@/api/client'
+import { toast } from '@/components/shared/Toast'
 import type { EpisodeHealthResult, HealthIssue } from '@/lib/types'
 
 const SEVERITY_CLASS: Record<string, string> = {
@@ -76,6 +78,18 @@ export function HealthSection({ episodeId, onOpenEditor }: Props) {
       await runScan()
     },
     [runScan],
+  )
+
+  const syncWithAudio = useCallback(
+    async (issue: HealthIssue) => {
+      try {
+        await autoSyncFile(issue.target_path, result?.video_path)
+        toast(t('subtitle_health.sync_started'), 'success')
+      } catch {
+        toast(t('subtitle_health.sync_failed'), 'error')
+      }
+    },
+    [result, t],
   )
 
   // Shadowed findings (embedded defect covered by a clean sidecar) are not
@@ -150,6 +164,16 @@ export function HealthSection({ episodeId, onOpenEditor }: Props) {
                       className="rounded-md border border-border px-3 py-1 text-sm hover:bg-surface disabled:opacity-50"
                     >
                       {t('subtitle_health.remux_track')}
+                    </button>
+                  )}
+                  {/* Timing issue on a sidecar: re-align to the audio. */}
+                  {isSidecar && issue.type === 'timing_sanity' && (
+                    <button
+                      type="button"
+                      onClick={() => syncWithAudio(issue)}
+                      className="rounded-md border border-border px-3 py-1 text-sm hover:bg-surface"
+                    >
+                      {t('subtitle_health.sync_audio')}
                     </button>
                   )}
                   {/* Sidecar issue (e.g. timing): open the file in the editor. */}

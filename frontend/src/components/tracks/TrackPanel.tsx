@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Loader2, Download, FileText, AlertTriangle, Trash2, ScanSearch, Sparkles } from 'lucide-react'
-import { listEpisodeTracks, extractTrack, convertSubtitle, removeTrackFromContainer, getRemuxJob, restoreRemuxBackup, detectDubtitle, getCachedDubtitle, listEpisodeSubtitles, deleteSubtitles, getSubtitleDownloadUrl } from '@/api/client'
+import { listEpisodeTracks, extractTrack, convertSubtitle, removeTrackFromContainer, getRemuxJob, restoreRemuxBackup, detectDubtitle, getCachedDubtitle, listEpisodeSubtitles, deleteSubtitles, getSubtitleDownloadUrl, setTrackDefault } from '@/api/client'
 import { toast } from '@/components/shared/Toast'
 import { HealthSection } from './HealthSection'
 import type { Track, EpisodeTracksResponse, DubtitleCandidate, SidecarSubtitle } from '@/lib/types'
@@ -57,7 +57,10 @@ function TrackRow({ track, episodeId, videoPath, onOpenEditor, dub }: { track: T
   const [confirmRemove, setConfirmRemove] = useState(false)
   const [remuxBackup, setRemuxBackup] = useState<{ backupPath: string; videoPath: string } | null>(null)
   const [restoring, setRestoring] = useState(false)
+  const [settingDefault, setSettingDefault] = useState(false)
+  const [isDefault, setIsDefault] = useState(track.default)
   const isSubtitle = track.codec_type === 'subtitle'
+  const isAudio = track.codec_type === 'audio'
   const isImageBased = track.codec === 'hdmv_pgs_subtitle' || track.codec === 'dvd_subtitle'
   const { bg, text } = codecColor(track.codec_type, track.codec)
 
@@ -82,6 +85,19 @@ function TrackRow({ track, episodeId, videoPath, onOpenEditor, dub }: { track: T
       toast(t('track_panel.extraction_failed'), 'error')
     } finally {
       setUsingAsSource(false)
+    }
+  }
+
+  const handleSetDefault = async () => {
+    setSettingDefault(true)
+    try {
+      await setTrackDefault(episodeId, track.index)
+      setIsDefault(true)
+      toast(t('track_panel.set_default_done'))
+    } catch {
+      toast(t('track_panel.set_default_failed'), 'error')
+    } finally {
+      setSettingDefault(false)
     }
   }
 
@@ -179,7 +195,7 @@ function TrackRow({ track, episodeId, videoPath, onOpenEditor, dub }: { track: T
       {/* Flags */}
       <td className="px-3 py-1.5">
         <div className="flex items-center gap-1">
-          {track.default && (
+          {isDefault && (
             <span className="text-[9px] px-1 py-0.5 rounded uppercase font-bold" style={{ backgroundColor: 'var(--accent-bg)', color: 'var(--accent)' }}>
               Default
             </span>
@@ -299,6 +315,28 @@ function TrackRow({ track, episodeId, videoPath, onOpenEditor, dub }: { track: T
                 </button>
               )
             )}
+          </div>
+        )}
+        {isAudio && (
+          <div className="flex items-center gap-1">
+            <button
+              onClick={() => void handleSetDefault()}
+              disabled={settingDefault || isDefault}
+              className="flex items-center gap-1 px-2 py-1 rounded text-[10px] font-medium transition-colors"
+              style={{
+                backgroundColor: 'var(--bg-surface)',
+                color: 'var(--text-secondary)',
+                border: '1px solid var(--border)',
+                opacity: settingDefault || isDefault ? 0.5 : 1,
+              }}
+              title={t('track_panel.set_default_title')}
+            >
+              {settingDefault ? (
+                <Loader2 size={10} className="animate-spin" />
+              ) : (
+                t('track_panel.set_default')
+              )}
+            </button>
           </div>
         )}
       </td>

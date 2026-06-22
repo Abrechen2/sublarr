@@ -145,6 +145,14 @@ export async function removeTrackFromContainer(
   return data
 }
 
+export async function setTrackDefault(
+  epId: number,
+  index: number,
+): Promise<{ changed: boolean; index: number; codec_type: string }> {
+  const { data } = await api.post(`/library/episodes/${epId}/tracks/${index}/set-default`)
+  return data
+}
+
 export async function getRemuxJob(jobId: string): Promise<{ job_id: string; status: string; result: Record<string, string> | null; error: string | null }> {
   const { data } = await api.get(`/remux/jobs/${jobId}`)
   return data
