@@ -67,9 +67,25 @@ def test_dismiss_finding_sets_status_and_survives_rescan(app_ctx):
     assert store.dismiss_finding(fid) is True
     # dismissed → no longer in the open/actionable list
     assert store.get_findings_for_episode(5) == []
-    # a rescan must NOT resurrect a dismissed finding
+    # a rescan must NOT resurrect a dismissed finding — the same logical finding
+    # must stay suppressed, not reappear as a fresh open row.
     store.persist_scan_result(_result(), scanner_version=1)
     assert store.get_finding(fid)["status"] == "dismissed"
+    assert store.get_findings_for_episode(5) == []
+
+
+def test_changed_content_resurfaces_dismissed_finding(app_ctx):
+    store.persist_scan_result(_result(), scanner_version=1)
+    fid = store.get_findings_for_episode(5)[0]["id"]
+    store.dismiss_finding(fid)
+    # Same target but DIFFERENT content (raw_hash) → a genuinely new issue that
+    # must surface again despite the prior dismissal.
+    changed = _result()
+    changed.issues[0].raw_hash = "different-hash"
+    store.persist_scan_result(changed, scanner_version=1)
+    open_now = store.get_findings_for_episode(5)
+    assert len(open_now) == 1
+    assert open_now[0]["raw_hash"] == "different-hash"
 
 
 def test_dismiss_missing_finding_returns_false(app_ctx):

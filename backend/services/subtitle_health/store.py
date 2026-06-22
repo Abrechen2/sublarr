@@ -14,8 +14,23 @@ def persist_scan_result(result, scanner_version: int = 1) -> None:
     from db.models.core import SubtitleHealthFinding
     from extensions import db
 
+    def _key(target_path, stream_index, issue_type, lang, raw_hash):
+        return (target_path, stream_index, issue_type, lang, raw_hash)
+
     try:
+        dismissed_keys: set = set()
         if result.episode_id is not None:
+            # Remember user-dismissed findings (by logical identity incl. content
+            # hash) so a rescan that re-detects the SAME issue keeps it
+            # suppressed instead of re-creating a fresh open row.
+            for r in (
+                db.session.query(SubtitleHealthFinding)
+                .filter_by(episode_id=result.episode_id, status="dismissed")
+                .all()
+            ):
+                dismissed_keys.add(
+                    _key(r.target_path, r.stream_index, r.issue_type, r.lang, r.raw_hash)
+                )
             # Replace prior auto-generated findings (open + shadowed); preserve
             # user-dismissed ones so a rescan doesn't un-dismiss them.
             db.session.query(SubtitleHealthFinding).filter(
@@ -23,6 +38,19 @@ def persist_scan_result(result, scanner_version: int = 1) -> None:
                 SubtitleHealthFinding.status != "dismissed",
             ).delete(synchronize_session=False)
         for issue in result.issues:
+            # A re-detected, still-dismissed issue (same content) is represented
+            # by the preserved dismissed row — don't insert an open duplicate.
+            if (
+                _key(
+                    issue.target_path,
+                    issue.stream_index,
+                    issue.type.value,
+                    issue.lang,
+                    issue.raw_hash,
+                )
+                in dismissed_keys
+            ):
+                continue
             row = SubtitleHealthFinding(
                 episode_id=issue.episode_id,
                 target_kind=issue.target_kind.value,
