@@ -16,9 +16,12 @@ def persist_scan_result(result, scanner_version: int = 1) -> None:
 
     try:
         if result.episode_id is not None:
-            db.session.query(SubtitleHealthFinding).filter_by(
-                episode_id=result.episode_id, status="open"
-            ).delete()
+            # Replace prior auto-generated findings (open + shadowed); preserve
+            # user-dismissed ones so a rescan doesn't un-dismiss them.
+            db.session.query(SubtitleHealthFinding).filter(
+                SubtitleHealthFinding.episode_id == result.episode_id,
+                SubtitleHealthFinding.status != "dismissed",
+            ).delete(synchronize_session=False)
         for issue in result.issues:
             row = SubtitleHealthFinding(
                 episode_id=issue.episode_id,
@@ -32,7 +35,7 @@ def persist_scan_result(result, scanner_version: int = 1) -> None:
                 snippets_json=json.dumps(issue.snippets[:3]),
                 raw_hash=issue.raw_hash,
                 suggested_fix=issue.suggested_fix,
-                status="open",
+                status="shadowed" if getattr(issue, "shadowed", False) else "open",
                 scanner_version=scanner_version,
                 detected_at=datetime.now(UTC),
             )

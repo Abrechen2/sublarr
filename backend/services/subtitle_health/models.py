@@ -48,10 +48,16 @@ class Issue:
     # response carries the id the fix endpoint needs. None for a fresh,
     # not-yet-persisted issue.
     id: int | None = None
+    # Shadowed = this embedded-track defect is irrelevant because a clean
+    # sidecar of the same language exists (players prefer the sidecar). Set by
+    # apply_shadowing; persisted as status="shadowed" and hidden from the
+    # actionable list so the fix doesn't reappear on every rescan.
+    shadowed: bool = False
 
     def to_dict(self) -> dict:
         return {
             "id": self.id,
+            "shadowed": self.shadowed,
             "type": self.type.value,
             "severity": self.severity.value,
             "episode_id": self.episode_id,

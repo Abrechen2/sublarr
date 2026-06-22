@@ -5,7 +5,7 @@ from __future__ import annotations
 import logging
 from dataclasses import dataclass, field
 
-from services.subtitle_health.models import ScanResult, TargetKind
+from services.subtitle_health.models import Issue, ScanResult, TargetKind
 from services.subtitle_health.raw_io import (
     extract_track_raw,
     is_text_codec,
@@ -16,6 +16,35 @@ from services.subtitle_health.raw_io import (
 logger = logging.getLogger(__name__)
 
 SCANNER_VERSION = 1
+
+# 3-letter → 2-letter language normalization so an embedded "ger" track and a
+# "de" sidecar are recognized as the same language for shadowing.
+_LANG3_TO_2 = {"ger": "de", "deu": "de", "eng": "en", "jpn": "ja"}
+
+
+def _norm_lang(lang: str) -> str:
+    n = (lang or "").strip().lower()
+    return _LANG3_TO_2.get(n, n)
+
+
+def apply_shadowing(issues: list[Issue], sidecar_langs: set[str]) -> None:
+    """Mark embedded-track findings as shadowed when a CLEAN sidecar of the same
+    language exists.
+
+    A language has a clean sidecar when a sidecar file is present for it
+    (``sidecar_langs``) AND no sidecar finding was raised for that language.
+    Players prefer external sidecars, so the embedded defect no longer affects
+    playback — we suppress it from the actionable list instead of re-surfacing
+    it on every rescan. Mutates ``issues`` in place; sidecar findings are never
+    shadowed.
+    """
+    sidecar_langs_with_issues = {
+        _norm_lang(i.lang) for i in issues if i.target_kind == TargetKind.SIDECAR
+    }
+    clean = {_norm_lang(lang) for lang in sidecar_langs} - sidecar_langs_with_issues
+    for issue in issues:
+        if issue.target_kind == TargetKind.EMBEDDED and _norm_lang(issue.lang) in clean:
+            issue.shadowed = True
 
 
 @dataclass
@@ -135,6 +164,10 @@ def scan_episode(
     for issue in issues:
         if not issue.raw_hash:
             issue.raw_hash = raw_by_path_stream.get((issue.target_path, issue.stream_index), "")
+
+    # Shadow embedded findings whose language already has a clean sidecar.
+    sidecar_langs = {t.lang for t in targets if t.kind == TargetKind.SIDECAR}
+    apply_shadowing(issues, sidecar_langs)
 
     result = ScanResult(episode_id=episode_id, video_path=video_path, issues=issues)
     try:
