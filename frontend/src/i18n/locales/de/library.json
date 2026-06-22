@@ -511,5 +511,44 @@
     "confirm": "Extrahieren"
   },
   "filter_chip_low_score": "Niedriger Score",
-  "filter_chip_anime": "Anime"
+  "filter_chip_anime": "Anime",
+  "subtitle_health": {
+    "title": "Untertitel-Gesundheit",
+    "scan": "Prüfen",
+    "scanning": "Prüfe …",
+    "healthy": "Keine Probleme gefunden",
+    "scan_series": "Ganze Serie prüfen",
+    "scan_series_started": "Serien-Prüfung gestartet …",
+    "issue_count_one": "{{count}} Problem gefunden",
+    "issue_count_other": "{{count}} Probleme gefunden",
+    "fix": "Beheben",
+    "fixing": "Behebe …",
+    "rollback": "Rückgängig",
+    "extract_clean": "Sauberen Sidecar extrahieren",
+    "remux": "Track im Container reparieren (Remux)",
+    "trash": "Löschen (in Papierkorb)",
+    "quarantine": "In Quarantäne",
+    "metadata_fix": "Sprach-Tag korrigieren",
+    "severity": {
+      "confirmed": "Bestätigt",
+      "suspicious": "Verdächtig",
+      "info": "Info"
+    },
+    "types": {
+      "ass_escape_leak": "ASS-Escape-Codes im Text (\\N)",
+      "language_mislabel": "Falsches Sprach-Tag",
+      "empty_or_tiny": "Leer/zu wenig Inhalt",
+      "encoding_mojibake": "Kaputte Kodierung (Mojibake)",
+      "timing_sanity": "Timing-Probleme",
+      "missing_language": "Sprache fehlt",
+      "format_mismatch": "Format passt nicht zur Endung",
+      "unicode_control_chars": "Steuerzeichen im Text",
+      "container_metadata_drift": "Container-Sprach-Tag falsch"
+    },
+    "fix_success": "Behoben",
+    "fix_failed": "Behebung fehlgeschlagen: {{reason}}",
+    "rollback_success": "Wiederhergestellt",
+    "report_title": "Untertitel-Gesundheit (Bibliothek)",
+    "report_total": "{{count}} offene Befunde über {{episodes}} Episoden"
+  }
 }
