@@ -16,6 +16,7 @@ import SubtitleEditorModal from '@/components/editor/SubtitleEditorModal'
 import { PlayerModal } from '@/components/player/PlayerModal'
 import type { PlayerSubtitleTrack } from '@/lib/types'
 import { autoSyncFile, batchExtractAllTracks, listSeriesSubtitles, deleteSubtitles, exportSeriesSubtitles, exportSeriesNfo } from '@/api/client'
+import { scanSeriesHealth } from '@/api/subtitleHealth'
 import { useWebSocket } from '@/hooks/useWebSocket'
 import { ProgressBar } from '@/components/shared/ProgressBar'
 import { InteractiveSearchModal } from '@/components/wanted/InteractiveSearchModal'
@@ -470,6 +471,17 @@ export function SeriesDetailPage() {
     })
   }, [seriesId, rescanSeriesMutation])
 
+  const handleScanHealth = useCallback(async () => {
+    if (!seriesId) return
+    try {
+      await scanSeriesHealth(seriesId)
+      // Background job; findings surface per-episode and in Settings → System → Subtitle Health.
+      toast(t('subtitle_health.scan_series_started'), 'success')
+    } catch {
+      toast(t('series_detail.rescan_failed'), 'error')
+    }
+  }, [seriesId, t])
+
   const handleNfoExport = useCallback(async () => {
     if (!seriesId) return
     try {
@@ -564,6 +576,7 @@ export function SeriesDetailPage() {
           onCleanup={() => setShowCleanupModal(true)}
           onFansub={() => setFansubOpen(true)}
           onExport={handleExport}
+          onScanHealth={handleScanHealth}
           updatePending={updateSeriesSettingsMutation.isPending}
           refreshPending={refreshAnidbMappingMutation.isPending}
         />

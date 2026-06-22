@@ -511,5 +511,44 @@
     "confirm": "Extract"
   },
   "filter_chip_low_score": "Low Score",
-  "filter_chip_anime": "Anime"
+  "filter_chip_anime": "Anime",
+  "subtitle_health": {
+    "title": "Subtitle Health",
+    "scan": "Scan",
+    "scanning": "Scanning …",
+    "healthy": "No issues found",
+    "scan_series": "Scan whole series",
+    "scan_series_started": "Series scan started …",
+    "issue_count_one": "{{count}} issue found",
+    "issue_count_other": "{{count}} issues found",
+    "fix": "Fix",
+    "fixing": "Fixing …",
+    "rollback": "Undo",
+    "extract_clean": "Extract clean sidecar",
+    "remux": "Repair track in container (remux)",
+    "trash": "Delete (to trash)",
+    "quarantine": "Quarantine",
+    "metadata_fix": "Correct language tag",
+    "severity": {
+      "confirmed": "Confirmed",
+      "suspicious": "Suspicious",
+      "info": "Info"
+    },
+    "types": {
+      "ass_escape_leak": "ASS escape codes in text (\\N)",
+      "language_mislabel": "Wrong language tag",
+      "empty_or_tiny": "Empty/too little content",
+      "encoding_mojibake": "Broken encoding (mojibake)",
+      "timing_sanity": "Timing problems",
+      "missing_language": "Language missing",
+      "format_mismatch": "Format does not match extension",
+      "unicode_control_chars": "Control characters in text",
+      "container_metadata_drift": "Container language tag wrong"
+    },
+    "fix_success": "Fixed",
+    "fix_failed": "Fix failed: {{reason}}",
+    "rollback_success": "Restored",
+    "report_title": "Subtitle Health (library)",
+    "report_total": "{{count}} open findings across {{episodes}} episodes"
+  }
 }

@@ -204,6 +204,13 @@ def use_track_as_source(ep_id, index):
         extract_subtitle_stream(video_path, stream_info, tmp_path)
         with open(tmp_path, encoding="utf-8", errors="replace") as fh:
             content = fh.read()
+        if ext in ("srt", "vtt"):
+            try:
+                from services.subtitle_health.fixers.repair_escapes import repair_text
+
+                content = repair_text(content, codec=ext)
+            except Exception:
+                logger.debug("subtitle_health: extract repair skipped", exc_info=True)
     except RuntimeError as exc:
         logger.exception("Extraction failed: %s", exc)
         return jsonify({"error": "Extraction failed"}), 500
@@ -281,6 +288,99 @@ def get_episode_dubtitle(ep_id):
     if cached is None:
         return "", 204
     return jsonify({"video_path": video_path, "cached": True, **cached}), 200
+
+
+@bp.route("/library/episodes/<int:ep_id>/health/scan", methods=["POST"])
+def scan_episode_health(ep_id):
+    """Read-only subtitle-health scan for one episode.
+
+    Inspects embedded subtitle tracks (raw, via -c:s copy) and sidecar files,
+    runs the registered checkers, and returns the findings. Writes nothing.
+    """
+    from routes.subtitles import scan_subtitle_sidecars
+    from services.subtitle_health import scan_episode
+
+    video_path = _get_video_path(ep_id)
+    if not video_path:
+        return jsonify({"error": "Episode has no video file or Sonarr is not configured"}), 404
+    if not os.path.exists(video_path):
+        return jsonify({"error": "Video file not found on disk"}), 404
+
+    sidecars = []
+    try:
+        for sc in scan_subtitle_sidecars(video_path):
+            sidecars.append({"path": sc.get("path"), "lang": sc.get("language", "und")})
+    except Exception:
+        logger.warning("subtitle_health: sidecar scan failed for %s", video_path)
+
+    try:
+        result = scan_episode(episode_id=ep_id, video_path=video_path, sidecars=sidecars)
+    except Exception:
+        logger.exception("subtitle_health: scan failed for ep %d", ep_id)
+        return jsonify({"error": "Subtitle health scan failed"}), 500
+
+    return jsonify(result.to_dict()), 200
+
+
+@bp.route("/library/series/<int:series_id>/health/scan", methods=["POST"])
+def scan_series_health(series_id):
+    """Kick off a background subtitle-health scan for a whole series.
+
+    Returns 202 immediately; progress is emitted via the
+    ``subtitle_health_progress`` SocketIO event and the final summary via
+    ``subtitle_health_complete``.
+    """
+    from services.subtitle_health.series_scan import run_series_scan
+
+    def _job():
+        summary = run_series_scan(series_id)
+        emit_event("subtitle_health_complete", summary)
+
+    submit_background(_job)
+    return jsonify({"status": "started", "series_id": series_id}), 202
+
+
+@bp.route("/library/episodes/<int:ep_id>/health/fix", methods=["POST"])
+def fix_episode_health(ep_id):
+    """Apply one fix action against a persisted finding."""
+    from security_utils import is_safe_path
+    from services.subtitle_health.apply import apply_fix
+    from services.subtitle_health.store import get_finding
+
+    body = request.get_json(silent=True) or {}
+    finding_id = body.get("finding_id")
+    action = body.get("action")
+    if not finding_id or not action:
+        return jsonify({"error": "finding_id and action are required"}), 400
+
+    finding = get_finding(finding_id)
+    if not finding:
+        return jsonify({"error": "finding not found"}), 404
+    from config import get_settings
+
+    if not is_safe_path(finding["target_path"], getattr(get_settings(), "media_path", "/media")):
+        return jsonify({"error": "unsafe target path"}), 400
+
+    result = apply_fix(finding_id, action, body.get("opts"))
+    code = 200 if result.get("changed") else 409
+    return jsonify(result), code
+
+
+@bp.route("/subtitle-health/fixes/<int:fix_id>/rollback", methods=["POST"])
+def rollback_health_fix(fix_id):
+    """Undo a previously applied fix from its manifest."""
+    from services.subtitle_health.fixers.rollback import apply as rollback_apply
+
+    result = rollback_apply(fix_id)
+    return jsonify(result), (200 if result.get("restored") else 409)
+
+
+@bp.route("/subtitle-health/report", methods=["GET"])
+def subtitle_health_report():
+    """Aggregated open-findings report across the library."""
+    from services.subtitle_health.store import report_summary
+
+    return jsonify(report_summary()), 200
 
 
 def _cleanup_series_sidecars(episode_files: dict, keep_langs: set, keep_format: str) -> int:

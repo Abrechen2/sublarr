@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next'
 import { Loader2, Download, FileText, AlertTriangle, Trash2, ScanSearch, Sparkles } from 'lucide-react'
 import { listEpisodeTracks, extractTrack, convertSubtitle, removeTrackFromContainer, getRemuxJob, restoreRemuxBackup, detectDubtitle, getCachedDubtitle } from '@/api/client'
 import { toast } from '@/components/shared/Toast'
+import { HealthSection } from './HealthSection'
 import type { Track, EpisodeTracksResponse, DubtitleCandidate } from '@/lib/types'
 
 interface TrackPanelProps {
@@ -454,6 +455,8 @@ export function TrackPanel({ episodeId, onOpenEditor }: TrackPanelProps) {
           </tbody>
         </table>
       </div>
+
+      <HealthSection episodeId={episodeId} />
     </div>
   )
 }

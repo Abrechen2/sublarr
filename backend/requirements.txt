@@ -60,3 +60,6 @@ stevedore>=5.2.0
 # BSD-3-Clause; lazy-imported in services/scene_detector.py so the dep is
 # strictly optional at runtime (graceful degradation if not installed).
 scenedetect>=0.6.6,<1.0
+
+# Subtitle health analysis — content-based language detection
+lingua-language-detector==2.2.0

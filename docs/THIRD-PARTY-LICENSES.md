@@ -75,6 +75,7 @@ Anything outside this set fails CI and triggers a manual review.
 | dogpile.cache | ≥1.3.0 | MIT | `MIT` | ✅ |
 | pysrt | ≥1.1.2 | **GPL-3.0** | `GPL-3.0` | ✅ same license as Sublarr |
 | stevedore | ≥5.2.0 | Apache-2.0 | `Apache-2.0` | ✅ |
+| lingua-language-detector | 2.2.0 | Apache-2.0 | `Apache-2.0` | ✅ |
 
 ### Vendored
 

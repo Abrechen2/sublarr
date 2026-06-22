@@ -72,6 +72,7 @@ const baseProps = {
   onCleanup: vi.fn(),
   onFansub: vi.fn(),
   onExport: vi.fn(),
+  onScanHealth: vi.fn(),
   updatePending: false,
   refreshPending: false,
 }

@@ -102,7 +102,16 @@ def sanitize_srt_vtt_content(content: bytes) -> bytes:
                 # Not an allowed tag — keep text content, remove the tag wrapper
                 tag.unwrap()
 
-        return str(soup).encode("utf-8")
+        sanitized = str(soup).encode("utf-8")
+        # Subtitle Health: convert leaked ASS escape codes to real SRT/VTT breaks
+        # so freshly-downloaded/translated sidecars never carry literal \N.
+        try:
+            from services.subtitle_health.fixers.repair_escapes import repair_bytes
+
+            sanitized = repair_bytes(sanitized, codec="srt")
+        except Exception:
+            logger.debug("subtitle_health: inline repair skipped", exc_info=True)
+        return sanitized
     except Exception as e:
         logger.warning("SRT/VTT sanitization failed, returning original: %s", e)
         return content
