@@ -451,6 +451,7 @@
       "security_backup": "Sicherheit, Backup & Logs",
       "hooks_webhooks": "Hooks & Webhooks",
       "scheduler": "Scheduler",
+      "subtitle_health": "Untertitel-Gesundheit",
       "sync_engines": "Sync-Engines",
       "translation_backends": "Backends & Glossar",
       "translation_cost": "Kosten & Memory",
