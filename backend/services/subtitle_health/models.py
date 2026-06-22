@@ -44,9 +44,14 @@ class Issue:
     raw_hash: str
     fixable: bool
     suggested_fix: str | None
+    # Persisted finding id, backfilled by persist_scan_result so the API
+    # response carries the id the fix endpoint needs. None for a fresh,
+    # not-yet-persisted issue.
+    id: int | None = None
 
     def to_dict(self) -> dict:
         return {
+            "id": self.id,
             "type": self.type.value,
             "severity": self.severity.value,
             "episode_id": self.episode_id,

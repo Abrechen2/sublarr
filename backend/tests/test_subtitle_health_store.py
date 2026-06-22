@@ -47,6 +47,20 @@ def test_suggested_fix_persisted(app_ctx):
     assert rows[0]["suggested_fix"] == "repair_escapes"
 
 
+def test_persist_backfills_issue_id(app_ctx):
+    # The scan API returns ScanResult.to_dict(); the fix endpoint needs the
+    # persisted finding id, so persist must backfill it onto the issue.
+    result = _result()
+    assert result.issues[0].id is None
+    store.persist_scan_result(result, scanner_version=1)
+    persisted_id = result.issues[0].id
+    assert persisted_id is not None
+    rows = store.get_findings_for_episode(5)
+    assert rows[0]["id"] == persisted_id
+    # to_dict surfaces the id for the frontend.
+    assert result.to_dict()["issues"][0]["id"] == persisted_id
+
+
 def test_record_and_get_manifest(app_ctx):
     fix_id = store.record_fix(
         finding_id=None,
