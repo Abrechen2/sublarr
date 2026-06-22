@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Loader2, Download, FileText, AlertTriangle, Trash2, ScanSearch, Sparkles } from 'lucide-react'
-import { listEpisodeTracks, extractTrack, convertSubtitle, removeTrackFromContainer, getRemuxJob, restoreRemuxBackup, detectDubtitle, getCachedDubtitle, listEpisodeSubtitles, deleteSubtitles, subtitleDownloadUrl } from '@/api/client'
+import { listEpisodeTracks, extractTrack, convertSubtitle, removeTrackFromContainer, getRemuxJob, restoreRemuxBackup, detectDubtitle, getCachedDubtitle, listEpisodeSubtitles, deleteSubtitles, getSubtitleDownloadUrl } from '@/api/client'
 import { toast } from '@/components/shared/Toast'
 import { HealthSection } from './HealthSection'
 import type { Track, EpisodeTracksResponse, DubtitleCandidate, SidecarSubtitle } from '@/lib/types'
@@ -433,7 +433,7 @@ function SidecarRow({
             {t('track_panel.open_in_editor')}
           </button>
           <a
-            href={subtitleDownloadUrl(sidecar.path)}
+            href={getSubtitleDownloadUrl(sidecar.path)}
             className="flex items-center gap-1 px-2 py-1 rounded text-[10px] font-medium"
             style={{ backgroundColor: 'var(--bg-surface)', color: 'var(--text-secondary)', border: '1px solid var(--border)' }}
             title={t('track_panel.download')}
