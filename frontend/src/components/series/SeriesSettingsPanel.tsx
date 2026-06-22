@@ -19,6 +19,7 @@ interface SeriesSettingsPanelProps {
   readonly onCleanup: () => void
   readonly onFansub: () => void
   readonly onExport: () => void
+  readonly onScanHealth: () => void
   readonly updatePending: boolean
   readonly refreshPending: boolean
 }
@@ -54,6 +55,7 @@ export function SeriesSettingsPanel({
   onCleanup,
   onFansub,
   onExport,
+  onScanHealth,
   updatePending,
   refreshPending,
 }: SeriesSettingsPanelProps) {
@@ -329,6 +331,20 @@ export function SeriesSettingsPanel({
               🧹 {t('series_settings_panel.cleanup_sidecar')}
             </button>
           </Tooltip>
+
+          {/* Untertitel-Gesundheit prüfen (ganze Serie) */}
+          <button
+            onClick={onScanHealth}
+            style={{
+              ...buttonBaseStyle,
+              backgroundColor: 'var(--bg-elevated)',
+              color: 'var(--text-secondary)',
+              border: '1px solid var(--border)',
+              cursor: 'pointer',
+            }}
+          >
+            🩺 {t('subtitle_health.scan_series')}
+          </button>
 
           {/* Fansub-Override */}
           <Tooltip content={t('series_settings_panel.tooltip_fansub')}>
