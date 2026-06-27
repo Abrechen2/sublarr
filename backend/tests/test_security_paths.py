@@ -253,8 +253,7 @@ class TestSubtitleSanitizer:
         must stay literal.
         """
         srt = (
-            b"1\n00:00:01,000 --> 00:00:02,000\nHello\n\n"
-            b"2\n00:00:03,000 --> 00:00:04,000\nWorld\n"
+            b"1\n00:00:01,000 --> 00:00:02,000\nHello\n\n2\n00:00:03,000 --> 00:00:04,000\nWorld\n"
         )
         result = sanitize_srt_vtt_content(srt)
         assert b"--&gt;" not in result, "timecode arrow must not be HTML-escaped"

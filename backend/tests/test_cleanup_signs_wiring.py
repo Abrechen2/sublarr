@@ -1,4 +1,5 @@
 """Tests for signs_cleanup wiring into rules route, runner, and scheduler."""
+
 from unittest.mock import MagicMock, patch
 
 

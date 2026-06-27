@@ -27,8 +27,7 @@ def test_load_cues_parses_srt(tmp_path):
 
     srt = tmp_path / "x.srt"
     srt.write_text(
-        "1\n00:00:01,000 --> 00:00:02,000\nHello\n\n"
-        "2\n00:00:03,000 --> 00:00:04,000\nWorld\n",
+        "1\n00:00:01,000 --> 00:00:02,000\nHello\n\n2\n00:00:03,000 --> 00:00:04,000\nWorld\n",
         encoding="utf-8",
     )
     cues = load_cues(str(srt))

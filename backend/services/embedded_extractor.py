@@ -332,9 +332,7 @@ def purge_signs_after_extract(
 
     try:
         settings = _get_settings()
-        level = SignsRemovalLevel.from_str(
-            getattr(settings, "cleanup_signs_removal_level", "off")
-        )
+        level = SignsRemovalLevel.from_str(getattr(settings, "cleanup_signs_removal_level", "off"))
     except Exception:
         return 0
 
