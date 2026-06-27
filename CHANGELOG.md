@@ -8,6 +8,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [1.3.0] - 2026-06-22
 
 ### Added
+- **Signs/forced subtitle removal** — A configurable cleanup level
+  (off / signs / signs+forced / signs+forced+songs, default off) that
+  detects and removes signs, forced and songs subtitle tracks — both
+  external sidecars and embedded streams — using metadata plus
+  cue-density analysis. It runs retroactively as a new (default-disabled)
+  `signs_cleanup` cleanup rule with a dry-run preview, and going-forward
+  whenever subtitles are extracted, so signs don't re-accumulate.
+  Removals go to the trash and stay recoverable; a full dialogue track,
+  or the last remaining subtitle of any language, is never removed.
+  Configurable under Settings → Cleanup.
 - **Subtitle Health** — A new detect-and-repair subsystem for subtitle
   content defects across embedded tracks and sidecars. Nine checkers flag
   problems like leaked ASS escape codes (literal `\N`), language mislabels,
@@ -34,6 +44,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   Audio tracks have their own table with a "Set default" control.
 
 ### Fixed
+- **Cleanup re-walked its own trash** — The sidecar cleanup and orphan
+  scan descended into the `.sublarr` trash subtree, re-processing
+  already-removed files on every run — producing thousands of harmless
+  "permission denied" warnings and tens of thousands of phantom
+  "orphans" each night. The trash subtree is now excluded from both
+  walks.
 - **Corrupted SRT timecodes on download** — Every downloaded SRT/VTT
   subtitle had its `-->` timecode separator HTML-escaped to `--&gt;` by the
   content sanitizer, producing malformed timecodes that media players reject.
