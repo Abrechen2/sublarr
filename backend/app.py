@@ -269,6 +269,16 @@ def create_app(testing=False):
 
         init_db()
 
+        # Seed built-in cleanup rules that should exist on every fresh install.
+        # Non-fatal: a failure here must never prevent the app from starting.
+        try:
+            from db.repositories.cleanup import CleanupRepository
+
+            CleanupRepository().ensure_default_rules()
+            logger.debug("Cleanup default rules seeded")
+        except Exception as _e:
+            logger.warning("Cleanup default rules seed failed (non-fatal): %s", _e)
+
         # Remove duplicate wanted_items rows that may exist in databases created
         # before the uq_wanted_file_lang_type UNIQUE constraint was added.
         # Keeps the row with the lowest rowid (earliest insert) for each

@@ -4,6 +4,7 @@ Provides deduplication queries, rule management, cleanup history logging,
 and disk space analysis aggregations.
 """
 
+import json as _json
 import logging
 import os
 import re
@@ -231,14 +232,49 @@ class CleanupRepository(BaseRepository):
 
     # ---- Cleanup Rules ---------------------------------------------------------
 
+    # Default rules seeded on every fresh install.  Each entry must include all
+    # fields accepted by create_rule().  Rules are keyed by rule_type — the seed
+    # is skipped for any type that already has a row (idempotent).
+    _DEFAULT_CLEANUP_RULES: list[dict] = [
+        {
+            "name": "Signs cleanup",
+            "rule_type": "signs_cleanup",
+            "enabled": False,
+            "schedule": "weekly",
+            "config_json": _json.dumps(
+                {
+                    "keep_languages": ["de", "en"],
+                    "strip_embedded": True,
+                    "permanent_delete": False,
+                }
+            ),
+        },
+    ]
+
+    def ensure_default_rules(self) -> None:
+        """Seed built-in cleanup rules if they are absent.
+
+        Idempotent — safe to call on every application startup.  Only creates
+        a rule when no row with the same rule_type already exists, so user
+        edits (name, schedule, config) are never overwritten.
+        """
+        existing_types = {r["rule_type"] for r in self.get_rules()}
+        for spec in self._DEFAULT_CLEANUP_RULES:
+            if spec["rule_type"] not in existing_types:
+                self.create_rule(
+                    name=spec["name"],
+                    rule_type=spec["rule_type"],
+                    config_json=spec["config_json"],
+                    enabled=spec["enabled"],
+                    schedule=spec["schedule"],
+                )
+
     def _rule_to_dict(self, rule) -> dict:
         """Serialize a CleanupRule ORM object to a dict.
 
         Parses config_json from a JSON string into a dict and includes
         the schedule field along with all standard rule fields.
         """
-        import json as _json
-
         try:
             config = _json.loads(rule.config_json or "{}")
         except (ValueError, TypeError):
