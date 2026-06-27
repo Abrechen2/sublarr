@@ -245,3 +245,31 @@ def test_orphan_db_removes_stale_db_entries(tmp_path):
 
     assert result["deleted"] == 1
     mock_repo.delete_by_paths.assert_called_once_with([missing])
+
+
+def test_subtitle_walk_skips_sublarr_trash(tmp_path):
+    """Sidecar walks must NOT descend into the .sublarr trash subtree.
+
+    Already-trashed foreign sidecars live under .sublarr/trash/<date>/ with
+    no matching video. Before the exclusion, language_filter re-walked them
+    every night and tried to re-trash them (prod: 5922 Permission-denied
+    WARNINGs, and orphan_files counted 27k of them as orphans). The trash
+    subtree must be pruned exactly like _video_files already does.
+    """
+    from services.cleanup_executors import execute_language_filter
+
+    # A live foreign sidecar at the top level — must be removed (control).
+    (tmp_path / "show.fr.ass").write_text("french sub")
+    # Trashed foreign sidecars under .sublarr — must be left untouched.
+    trash = tmp_path / ".sublarr" / "trash" / "2026-06-13"
+    trash.mkdir(parents=True)
+    (trash / "Old.ara.ass").write_text("trashed arabic")
+    (trash / "Old.spa.srt").write_text("trashed spanish")
+
+    config = {"keep_languages": ["de"], "permanent_delete": True}
+    result = execute_language_filter(str(tmp_path), config, dry_run=False)
+
+    assert result["deleted"] == 1  # only the live top-level fr.ass
+    assert not (tmp_path / "show.fr.ass").exists()
+    assert (trash / "Old.ara.ass").exists()
+    assert (trash / "Old.spa.srt").exists()

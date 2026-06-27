@@ -49,6 +49,13 @@ except ImportError:  # pragma: no cover
 SUBTITLE_EXTENSIONS = {".ass", ".ssa", ".srt", ".vtt", ".sub"}
 VIDEO_EXTENSIONS = {".mkv", ".mp4", ".avi", ".mov", ".m4v", ".ts", ".wmv"}
 
+# Trash/backup subtree name (matches the default ``remux_trash_dir``). Cleanup
+# walks must never descend into it: it holds already-removed sidecars and
+# video ``.bak`` backups, so re-walking it makes language_filter try to
+# re-trash trashed files and makes orphan scans count every trashed sidecar
+# as an orphan (prod: 5922 Permission-denied WARNINGs, 27k phantom orphans).
+_TRASH_DIR_NAME = ".sublarr"
+
 
 # ---------------------------------------------------------------------------
 # Pre-flight guards (audit C0-3)
@@ -101,6 +108,8 @@ def _safe_walk(root: str):
         seen.add(key)
         pruned = []
         for d in dirs:
+            if d == _TRASH_DIR_NAME:
+                continue  # never descend into the trash/backup subtree
             try:
                 child = os.stat(os.path.join(dirpath, d))
             except OSError:
@@ -126,15 +135,12 @@ def _subtitle_files(root: str) -> list[str]:
 def _video_files(root: str) -> list[str]:
     """Walk root recursively, return paths of all video files.
 
-    Skips the ``.sublarr`` trash/backup tree so we never probe or rewrite
-    our own backups (their ``.bak`` extension already excludes them, but
-    pruning the subtree avoids the wasted ffprobe calls).
+    The ``.sublarr`` trash/backup tree is pruned centrally by
+    :func:`_safe_walk`, so our own ``.bak`` backups are never probed or
+    rewritten.
     """
     found = []
     for dirpath, filenames in _safe_walk(root):
-        norm = dirpath.replace("\\", "/")
-        if "/.sublarr" in norm or os.path.basename(dirpath) == ".sublarr":
-            continue
         for fname in filenames:
             if os.path.splitext(fname)[1].lower() in VIDEO_EXTENSIONS:
                 found.append(os.path.join(dirpath, fname))

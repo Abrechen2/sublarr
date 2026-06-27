@@ -564,6 +564,24 @@ class TestScanOrphanedSubtitles:
         assert len(result) == 1
         assert result[0]["filename"] == "Episode01.en.srt"
 
+    def test_skips_sublarr_trash_subtree(self, tmp_path):
+        """Trashed sidecars under .sublarr must NOT be reported as orphans.
+
+        The trash dir holds already-removed sidecars with no matching video
+        by design; walking into it counted every one as an orphan (prod:
+        27k false positives) and made orphan_files try to re-trash them.
+        """
+        _write_file(tmp_path / "RealOrphan.en.srt", "live orphan")
+        _write_file(tmp_path / ".sublarr" / "trash" / "2026-06-13" / "Old.ara.ass", "trashed")
+        _write_file(tmp_path / ".sublarr" / "trash" / "2026-06-13" / "Old.spa.srt", "trashed")
+
+        result = scan_orphaned_subtitles(str(tmp_path))
+        paths = [r["path"] for r in result]
+
+        assert len(result) == 1
+        assert any("RealOrphan" in p for p in paths)
+        assert not any(".sublarr" in p for p in paths)
+
     def test_orphan_result_fields(self, tmp_path):
         sub = _write_file(tmp_path / "orphan.srt", "content")
         result = scan_orphaned_subtitles(str(tmp_path))
