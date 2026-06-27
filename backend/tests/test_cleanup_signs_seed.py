@@ -4,9 +4,11 @@ The seeding mechanism is `CleanupRepository.ensure_default_rules()`, called
 from `app.py` startup. The `app_ctx` fixture runs `create_app(testing=True)`,
 which exercises the full startup path, so by the time the test body executes
 the rule must already exist.
-"""
 
-import pytest
+Seeding is "first boot" only — a config flag (cleanup_default_rules_seeded)
+records that the defaults were offered once, so a user who deletes a default
+rule does not get it resurrected on the next restart.
+"""
 
 
 def test_default_signs_rule_seeded(app_ctx):
@@ -38,3 +40,23 @@ def test_ensure_default_rules_is_idempotent(app_ctx):
     repo.ensure_default_rules()
     count = sum(1 for r in repo.get_rules() if r["rule_type"] == "signs_cleanup")
     assert count == 1, f"Expected 1 signs_cleanup rule, found {count}"
+
+
+def test_deleted_default_is_not_resurrected(app_ctx):
+    """Once seeded, a user-deleted default rule stays deleted across reboots.
+
+    create_app() already seeded the rule and set the seeded-once flag. Deleting
+    the rule and re-running ensure_default_rules() (simulating a restart) must
+    NOT recreate it.
+    """
+    from db.repositories.cleanup import CleanupRepository
+
+    repo = CleanupRepository()
+    signs = next(r for r in repo.get_rules() if r["rule_type"] == "signs_cleanup")
+    assert repo.delete_rule(signs["id"]) is True
+
+    # Simulate the next boot: flag is already set → seeding must be a no-op.
+    repo.ensure_default_rules()
+
+    count = sum(1 for r in repo.get_rules() if r["rule_type"] == "signs_cleanup")
+    assert count == 0, "Deleted default rule must not be resurrected on next boot"

@@ -251,13 +251,25 @@ class CleanupRepository(BaseRepository):
         },
     ]
 
-    def ensure_default_rules(self) -> None:
-        """Seed built-in cleanup rules if they are absent.
+    # Config flag marking that the built-in defaults were offered once. Once
+    # set, seeding is skipped forever so a user who deletes a default rule does
+    # not get it resurrected on the next restart ("on first boot" semantics).
+    _DEFAULTS_SEEDED_FLAG = "cleanup_default_rules_seeded"
 
-        Idempotent — safe to call on every application startup.  Only creates
-        a rule when no row with the same rule_type already exists, so user
-        edits (name, schedule, config) are never overwritten.
+    def ensure_default_rules(self) -> None:
+        """Seed built-in cleanup rules on first boot only.
+
+        Idempotent and "first boot" aware: a config flag records that the
+        defaults were already offered. On the very first call ever it creates
+        any missing default rule and sets the flag; every later call sees the
+        flag and returns immediately, so a user-deleted default stays deleted.
         """
+        from db.repositories.config import ConfigRepository
+
+        config_repo = ConfigRepository()
+        if config_repo.get_config_entry(self._DEFAULTS_SEEDED_FLAG):
+            return
+
         existing_types = {r["rule_type"] for r in self.get_rules()}
         for spec in self._DEFAULT_CLEANUP_RULES:
             if spec["rule_type"] not in existing_types:
@@ -268,6 +280,8 @@ class CleanupRepository(BaseRepository):
                     enabled=spec["enabled"],
                     schedule=spec["schedule"],
                 )
+
+        config_repo.save_config_entry(self._DEFAULTS_SEEDED_FLAG, "1")
 
     def _rule_to_dict(self, rule) -> dict:
         """Serialize a CleanupRule ORM object to a dict.
