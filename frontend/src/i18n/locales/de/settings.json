@@ -502,7 +502,15 @@
       "delete_failed": "Fehler beim Löschen"
     },
     "auto_cleanup_heading": "Automatische Bereinigung",
-    "dedup_heading": "Deduplizierung"
+    "dedup_heading": "Deduplizierung",
+    "signs_removal": {
+      "label": "Signs/Forced entfernen",
+      "hint": "Entfernt Signs-, Forced- und Song-Untertitel aus Sidecar-Dateien beim Download",
+      "off": "Aus",
+      "signs": "Nur Signs",
+      "signs_forced": "Signs + Forced",
+      "signs_forced_songs": "Signs + Forced + Songs"
+    }
   },
   "integrations": {
     "title": "Integrationen",

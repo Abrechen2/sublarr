@@ -502,7 +502,15 @@
       "delete_failed": "Failed to delete"
     },
     "auto_cleanup_heading": "Automatic Cleanup",
-    "dedup_heading": "Deduplication"
+    "dedup_heading": "Deduplication",
+    "signs_removal": {
+      "label": "Remove signs/forced",
+      "hint": "Strips signs, forced and song subtitle lines from sidecar files on download",
+      "off": "Off",
+      "signs": "Signs only",
+      "signs_forced": "Signs + Forced",
+      "signs_forced_songs": "Signs + Forced + Songs"
+    }
   },
   "integrations": {
     "title": "Integrations",

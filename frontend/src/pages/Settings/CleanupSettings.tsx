@@ -26,8 +26,11 @@ import {
   useDeleteDuplicates,
   useCleanupHistory,
   useCleanupPreview,
+  useConfig,
+  useUpdateConfig,
 } from '@/hooks/useSystemApi'
 import type { CleanupRule, CleanupPreviewData } from '@/lib/types'
+import { strVal } from '@/lib/configUtils'
 
 // ─── Fixed operation definitions ─────────────────────────────────────────────
 
@@ -223,6 +226,8 @@ export function CleanupSettings() {
   const { data: stats } = useCleanupStats()
   const createRule = useCreateCleanupRule()
   const updateRule = useUpdateCleanupRule()
+  const { data: config } = useConfig()
+  const { mutate: updateConfig, isPending: isUpdatingConfig } = useUpdateConfig()
 
   // Dedup state
   const startScan = useStartCleanupScan()
@@ -370,6 +375,38 @@ export function CleanupSettings() {
               />
             )
           })}
+        </div>
+      </div>
+
+      {/* ── Signs removal level ── */}
+      <div>
+        <div className="text-[10px] font-semibold uppercase tracking-wider mb-3 px-1 text-muted">
+          {t('cleanup.signs_removal.label')}
+        </div>
+        <div className="rounded-xl bg-surface border border-border px-5 py-4">
+          <div className="flex items-center justify-between gap-4">
+            <div>
+              <div className="text-sm font-semibold text-primary">
+                {t('cleanup.signs_removal.label')}
+              </div>
+              <div className="text-xs mt-0.5 text-muted">
+                {t('cleanup.signs_removal.hint')}
+              </div>
+            </div>
+            <select
+              id="cleanup-signs-removal-level"
+              data-testid="select-signs-removal-level"
+              className="bg-elevated border border-border text-primary rounded text-sm px-3 py-2 min-w-[200px]"
+              value={strVal(config, 'cleanup_signs_removal_level', 'off')}
+              onChange={(e) => updateConfig({ cleanup_signs_removal_level: e.target.value })}
+              disabled={isUpdatingConfig}
+            >
+              <option value="off">{t('cleanup.signs_removal.off')}</option>
+              <option value="signs">{t('cleanup.signs_removal.signs')}</option>
+              <option value="signs_forced">{t('cleanup.signs_removal.signs_forced')}</option>
+              <option value="signs_forced_songs">{t('cleanup.signs_removal.signs_forced_songs')}</option>
+            </select>
+          </div>
         </div>
       </div>
 
