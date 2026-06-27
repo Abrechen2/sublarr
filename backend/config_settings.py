@@ -28,7 +28,7 @@ import logging
 import os
 from typing import Any
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 from pydantic_settings import BaseSettings
 
 from config_language_data import _get_language_tags
@@ -271,6 +271,10 @@ class UISettings(BaseModel):
     # target/wanted languages. Guarantees e.g. English survives even when
     # only German is the download target. Empty list = target languages only.
     cleanup_foreign_tracks_keep_languages: list[str] = ["de", "en"]
+
+    # Signs/forced/songs removal level (cleanup_signs rule + extract hook).
+    # off | signs | signs_forced | signs_forced_songs. Default off.
+    cleanup_signs_removal_level: str = "off"
 
     # Provider Re-ranking
     provider_reranking_enabled: bool = False  # Auto-adjust score modifiers
@@ -557,6 +561,14 @@ class UISettings(BaseModel):
     subtitle_health_enabled: bool = True
     subtitle_health_sweep_enabled: bool = True
     subtitle_health_auto_fix: bool = False
+
+    @field_validator("cleanup_signs_removal_level")
+    @classmethod
+    def _validate_signs_level(cls, v: str) -> str:
+        allowed = {"off", "signs", "signs_forced", "signs_forced_songs"}
+        if v not in allowed:
+            raise ValueError(f"cleanup_signs_removal_level must be one of {sorted(allowed)}")
+        return v
 
     model_config = {"extra": "ignore"}
 

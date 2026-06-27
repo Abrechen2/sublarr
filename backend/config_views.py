@@ -185,6 +185,7 @@ class ScanningSettings(_SettingsView):
             "embedded_sdh_penalty",
             "cleanup_foreign_tracks_default",
             "cleanup_foreign_tracks_keep_und",
+            "cleanup_signs_removal_level",
             "dubtitle_detection",
             "dubtitle_min_score",
             "dubtitle_min_margin",
