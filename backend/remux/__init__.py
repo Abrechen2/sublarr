@@ -619,13 +619,15 @@ def remove_subtitle_streams_by_index(
     """Remux ``video_path`` dropping the given subtitle order-indices.
 
     ``drop_indices`` are 0-based positions among the file's subtitle streams
-    (the same ``sub_index`` used elsewhere in probes). Leaves a ``.bak``
-    backup in the trash dir; returns its path. No-op (returns ``None``) for
-    an empty list.
+    (the same ``sub_index`` used elsewhere in probes). They are translated
+    internally to mkvmerge's global track IDs (the ffprobe ``stream["index"]``)
+    by probing the container — the same probe the twin
+    ``remove_foreign_subtitle_streams`` performs — because ``_remux_mkvmerge``
+    expects GLOBAL track IDs, not subtitle-relative positions.
 
-    Unlike ``remove_foreign_subtitle_streams``, this function does NOT probe
-    the container — callers supply the subtitle-relative track indices directly,
-    which mkvmerge accepts verbatim via ``--subtitle-tracks !N,M,...``.
+    Leaves a ``.bak`` backup in the trash dir; returns its path. No-op
+    (returns ``None``) for an empty list, or when none of the supplied indices
+    resolve to a real subtitle stream.
 
     Raises
     ------
@@ -635,7 +637,36 @@ def remove_subtitle_streams_by_index(
     if not drop_indices:
         return None
 
-    sorted_indices = sorted(drop_indices)
+    # Map subtitle-relative positions (sub_index) -> global ffprobe stream index.
+    # _remux_mkvmerge expects GLOBAL track IDs (matching mkvmerge --subtitle-tracks),
+    # so we must translate before handing off (mirrors remove_foreign_subtitle_streams).
+    try:
+        probe = get_media_streams(video_path)
+    except Exception as exc:
+        raise RemuxError(f"ffprobe failed on {video_path}: {exc}") from exc
+
+    sub_rel_to_global: dict[int, int] = {}
+    sub_only_idx = 0
+    for stream in probe.get("streams", []):
+        if stream.get("codec_type") != "subtitle":
+            continue
+        global_idx = stream.get("index")
+        if global_idx is not None:
+            sub_rel_to_global[sub_only_idx] = global_idx
+        sub_only_idx += 1
+
+    global_indices = sorted(
+        sub_rel_to_global[i] for i in set(drop_indices) if i in sub_rel_to_global
+    )
+    if not global_indices:
+        logger.debug(
+            "remove_subtitle_streams_by_index: no supplied index %s resolves to a "
+            "subtitle stream in %s — skipping",
+            sorted(set(drop_indices)),
+            video_path,
+        )
+        return None
+
     video_dir = os.path.dirname(video_path)
     suffix = os.path.splitext(video_path)[1]
 
@@ -644,18 +675,20 @@ def remove_subtitle_streams_by_index(
 
     try:
         logger.info(
-            "remove_subtitle_streams_by_index: stripping subtitle indices %s from %s",
-            sorted_indices,
+            "remove_subtitle_streams_by_index: stripping subtitle indices %s "
+            "(global track IDs %s) from %s",
+            sorted(set(drop_indices)),
+            global_indices,
             video_path,
         )
-        _remux_mkvmerge(video_path, sorted_indices, tmp_path)
-        _verify(video_path, tmp_path, n_removed=len(drop_indices))
+        _remux_mkvmerge(video_path, global_indices, tmp_path)
+        _verify(video_path, tmp_path, n_removed=len(global_indices))
 
         bak_path = _make_backup(video_path, use_reflink, trash_dir)
         os.replace(tmp_path, video_path)
         logger.info(
             "remove_subtitle_streams_by_index: complete — %d stream(s) removed, backup at %s",
-            len(drop_indices),
+            len(global_indices),
             bak_path,
         )
         return bak_path
