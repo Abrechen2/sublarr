@@ -66,5 +66,6 @@ def test_classify_stream_density_full_when_dense():
     from services.subtitle_signs import classify_stream
 
     stream = {"disposition": {}, "tags": {}}
-    dense = [Cue(i * 1000, i * 1000 + 800, "hello there friend") for i in range(120)]
+    # span ~199,200 ms >= MIN_SPAN_MS and density ~60/min (>> SIGNS_MAX_DENSITY)
+    dense = [Cue(i * 1000, i * 1000 + 800, "hello there friend") for i in range(200)]
     assert classify_stream(stream, cues=dense) == "full"

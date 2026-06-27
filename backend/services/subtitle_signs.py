@@ -8,10 +8,13 @@ dialogue track is dense). Pure functions, no filesystem mutation.
 
 from __future__ import annotations
 
+import logging
 from enum import StrEnum
 from typing import Literal
 
 from services.subtitle_cues import cue_statistics
+
+logger = logging.getLogger(__name__)
 
 Subtype = Literal["full", "signs", "forced", "songs"]
 
@@ -53,7 +56,7 @@ def _is_songs_title(title: str) -> bool:
     return "song" in t and "sign" not in t
 
 
-def _density_is_sparse(cues) -> bool:
+def _density_is_sparse(cues: list | None) -> bool:
     if not cues:
         return False
     span = max(c.end_ms for c in cues) - min(c.start_ms for c in cues)
@@ -63,7 +66,7 @@ def _density_is_sparse(cues) -> bool:
     return len(cues) < MIN_FULLTEXT_CUES or density <= SIGNS_MAX_DENSITY
 
 
-def classify_stream(stream_info: dict, *, cues=None) -> Subtype:
+def classify_stream(stream_info: dict, *, cues: list | None = None) -> Subtype:
     """Classify an embedded subtitle stream. Density only consulted if cues given."""
     from forced_detection import detect_subtitle_type
 
@@ -99,7 +102,8 @@ def classify_sidecar(path: str, *, use_density: bool) -> Subtype:
             import pysubs2
 
             ass_content = pysubs2.load(path)
-        except Exception:
+        except Exception as exc:
+            logger.debug("subtitle_signs: could not parse ASS %s: %s", path, exc)
             ass_content = None
 
     subtype, _conf = detect_subtitle_type(file_path=path, ass_content=ass_content)
