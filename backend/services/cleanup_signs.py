@@ -73,6 +73,12 @@ def _embedded_pass(
     Embedded classification is metadata-only (disposition/title); density is not
     applied to embedded streams by design (cost).
 
+    Last-sub guard is language-agnostic — it mirrors the sidecar sweep and the
+    spec's binding rule ("never leave an (episode, language) with zero
+    subtitles").  The last remaining subtitle stream of ANY language (including
+    ``und``/untagged) is kept, not just keep-language tracks; a lone foreign
+    signs/forced track is therefore preserved.
+
     ``drop_indices`` are 0-based subtitle-relative positions (the same ``sub_index``
     assigned while enumerating subtitle streams).  ``remove_subtitle_streams_by_index``
     translates them to global mkvmerge track IDs internally.
@@ -82,8 +88,6 @@ def _embedded_pass(
     from services.cleanup_executors import _video_files
     from services.subtitle_signs import classify_stream
     from services.subtitle_signs import is_removable as _is_removable
-
-    keep = {normalize_language_code(c) for c in (config.get("keep_languages") or ["de", "en"])}
 
     for video in _video_files(media_path):
         try:
@@ -103,12 +107,12 @@ def _embedded_pass(
         if not subs:
             continue
 
-        # Count keep-language subtitle streams per language before deciding drops.
-        keep_lang_count: dict[str, int] = {}
+        # Count subtitle streams per language (ALL languages, incl. und/untagged)
+        # before deciding drops — the last sub of any language is protected.
+        lang_count: dict[str, int] = {}
         for _idx, st in subs:
             lang = normalize_language_code((st.get("tags") or {}).get("language") or "")
-            if lang in keep:
-                keep_lang_count[lang] = keep_lang_count.get(lang, 0) + 1
+            lang_count[lang] = lang_count.get(lang, 0) + 1
 
         drop: list[int] = []
         for idx, st in subs:
@@ -116,12 +120,11 @@ def _embedded_pass(
             if not _is_removable(subtype, level):
                 continue
             lang = normalize_language_code((st.get("tags") or {}).get("language") or "")
-            if lang in keep and keep_lang_count.get(lang, 0) <= 1:
-                # Last keep-language sub for this language — must not be dropped.
+            if lang_count.get(lang, 0) <= 1:
+                # Last sub for this language — must not be dropped (any language).
                 continue
             drop.append(idx)
-            if lang in keep:
-                keep_lang_count[lang] -= 1
+            lang_count[lang] -= 1
 
         if not drop:
             continue

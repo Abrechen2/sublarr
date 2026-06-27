@@ -111,6 +111,59 @@ def test_embedded_last_track_guard_keeps_only_lang_track(tmp_path):
     assert result["stripped_files"] == 0
 
 
+def test_embedded_lone_foreign_signs_track_is_kept(tmp_path):
+    """A lone jpn forced/signs track is the only jpn sub → must NOT be stripped,
+    even though jpn is not a keep-language. An eng signs track with an eng
+    dialogue peer IS stripped (eng count 2 → 1)."""
+    from services.cleanup_signs import execute_signs_cleanup
+
+    video = tmp_path / "Ep.mkv"
+    video.write_bytes(b"fake")
+    probe = {
+        "streams": [
+            # sub_index 0: eng dialogue (full, kept)
+            {
+                "codec_type": "subtitle",
+                "codec_name": "ass",
+                "disposition": {},
+                "tags": {"language": "eng", "title": "Dialogue"},
+            },
+            # sub_index 1: eng forced "Signs" → strippable (eng peer remains)
+            {
+                "codec_type": "subtitle",
+                "codec_name": "ass",
+                "disposition": {"forced": 1},
+                "tags": {"language": "eng", "title": "Signs"},
+            },
+            # sub_index 2: jpn forced "Signs" → lone jpn sub, must be kept
+            {
+                "codec_type": "subtitle",
+                "codec_name": "ass",
+                "disposition": {"forced": 1},
+                "tags": {"language": "jpn", "title": "Signs"},
+            },
+        ]
+    }
+    with (
+        patch("config.get_settings", return_value=_settings(tmp_path)),
+        patch("remux.get_media_streams", return_value=probe),
+        patch(
+            "remux.remove_subtitle_streams_by_index", return_value=str(tmp_path / "Ep.mkv.bak")
+        ) as strip,
+    ):
+        result = execute_signs_cleanup(
+            str(tmp_path),
+            {"strip_embedded": True, "keep_languages": ["de", "en"]},
+            dry_run=False,
+        )
+
+    # Only the eng signs track (sub_index 1) is dropped; jpn (sub_index 2) kept.
+    strip.assert_called_once()
+    assert strip.call_args[0][1] == [1]
+    assert result["stripped_files"] == 1
+    assert result["stripped_tracks"] == 1
+
+
 def test_embedded_not_triggered_when_flag_false(tmp_path):
     """strip_embedded=False must not probe any video files."""
     from services.cleanup_signs import execute_signs_cleanup
