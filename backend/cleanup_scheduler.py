@@ -325,6 +325,24 @@ def _execute_cleanup():
                         retention_days,
                     )
 
+                elif rule_type == "signs_cleanup":
+                    from services.cleanup_signs import execute_signs_cleanup
+
+                    result = execute_signs_cleanup(media_path, config, dry_run=False)
+                    repo.update_rule_last_run(rule_id)
+                    repo.log_cleanup(
+                        action_type="scheduled_signs_cleanup",
+                        files_deleted=result.get("trashed_sidecars", 0)
+                        + result.get("stripped_files", 0),
+                        bytes_freed=result.get("bytes_freed", 0),
+                        rule_id=rule_id,
+                    )
+                    logger.info(
+                        "Scheduled signs_cleanup: %d sidecars, %d files stripped",
+                        result.get("trashed_sidecars", 0),
+                        result.get("stripped_files", 0),
+                    )
+
                 elif rule_type == "old_subtitle_baks":
                     # Auto-purge subtitle .bak files from
                     # subtitle_processor.apply_mods. Two-pronged: orphans

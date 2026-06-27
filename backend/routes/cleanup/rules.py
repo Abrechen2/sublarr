@@ -100,6 +100,7 @@ def create_rule():
         "orphan_files",
         "orphan_db",
         "foreign_tracks",
+        "signs_cleanup",
     }
     if rule_type not in valid_types:
         return jsonify({"error": f"rule_type must be one of: {sorted(valid_types)}"}), 400

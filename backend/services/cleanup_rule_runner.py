@@ -82,6 +82,18 @@ def _execute_rule_locked(rule_id: int, *, socketio=None) -> dict:
             bytes_freed=result.get("bytes_freed", 0),
         )
         return {"status": "ok", "result": result}
+    elif rule_type == "signs_cleanup":
+        from services.cleanup_signs import execute_signs_cleanup
+
+        result = execute_signs_cleanup(media_path, config, dry_run=False)
+        repo.update_rule_last_run(rule_id)
+        repo.log_cleanup(
+            action_type=rule_type,
+            rule_id=rule_id,
+            files_deleted=result.get("trashed_sidecars", 0) + result.get("stripped_files", 0),
+            bytes_freed=result.get("bytes_freed", 0),
+        )
+        return {"status": "ok", "result": result}
     elif rule_type == "dedup":
         result = scan_for_duplicates(media_path, socketio=socketio)
         repo.update_rule_last_run(rule_id)
@@ -180,6 +192,10 @@ def preview_rule(rule_id: int) -> dict:
         result = execute_orphan_db(config, dry_run=True)
     elif rule_type == "foreign_tracks":
         result = execute_foreign_tracks(media_path, config, dry_run=True)
+    elif rule_type == "signs_cleanup":
+        from services.cleanup_signs import execute_signs_cleanup
+
+        result = execute_signs_cleanup(media_path, config, dry_run=True)
     else:
         raise ValueError(f"Preview not supported for rule type: {rule_type}")
 
