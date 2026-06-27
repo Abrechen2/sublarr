@@ -31,6 +31,7 @@ from dataclasses import dataclass
 
 from config import get_settings
 from remux import RemuxError, remove_subtitle_streams, trash_non_target_sidecars
+from services.cleanup_executors import _trash_path  # module-level so tests can patch it
 
 logger = logging.getLogger(__name__)
 
@@ -297,6 +298,101 @@ def trash_unwanted_sidecars(
 
 
 # ---------------------------------------------------------------------------
+# Going-forward signs purge
+# ---------------------------------------------------------------------------
+
+
+def purge_signs_after_extract(
+    video_path: str,
+    *,
+    log_label: str = "extractor",
+) -> int:
+    """Trash freshly-extracted sidecars that classify as signs/forced/songs.
+
+    Runs the same SignsRemovalLevel classifier as the library-wide cleanup rule
+    (services.cleanup_signs) so newly extracted sidecars do not re-accumulate
+    after the retroactive sweep.
+
+    Last-sub guard: a sidecar is never trashed if it would leave the
+    (video_base, canonical_lang) pair with zero subtitles on disk.
+
+    Stable-file guard: intentionally omitted.  Extracted files are already
+    closed by the time this runs — there is no write-race to protect against.
+
+    Returns the number of sidecars trashed.
+    """
+    import glob as _glob
+
+    # Late imports so ``patch("config.get_settings", ...)`` works in tests and
+    # so the heavy subtitle-signs deps load only when actually needed.
+    from config import get_settings as _get_settings
+    from remux import _SIDECAR_EXTS
+    from services.cleanup_executors import _classify_sidecar
+    from services.subtitle_signs import SignsRemovalLevel, classify_sidecar, is_removable
+
+    try:
+        settings = _get_settings()
+        level = SignsRemovalLevel.from_str(
+            getattr(settings, "cleanup_signs_removal_level", "off")
+        )
+    except Exception:
+        return 0
+
+    if level is SignsRemovalLevel.OFF:
+        return 0
+
+    use_density = level is SignsRemovalLevel.SIGNS_FORCED_SONGS
+    video_base = os.path.splitext(video_path)[0]
+
+    # Enumerate all sidecars belonging to this video (same glob pattern used
+    # by trash_non_target_sidecars in remux).
+    candidates: list[str] = []
+    for ext in _SIDECAR_EXTS:
+        candidates.extend(_glob.glob(f"{video_base}.*{ext}"))
+
+    if not candidates:
+        return 0
+
+    # Build per-(video_base, canonical_lang) counts for the last-sub guard.
+    # Modifier is excluded intentionally: a .signs. sidecar and its
+    # full-dialogue peer share the same bucket so the guard correctly permits
+    # removing the signs file when a full one exists.
+    def _guard_key(path: str) -> tuple:
+        cl = _classify_sidecar(path)
+        if cl is None:
+            return (path,)
+        vb, lang, _mod = cl
+        return (vb, lang)
+
+    per_key: dict[tuple, int] = {}
+    for p in candidates:
+        key = _guard_key(p)
+        per_key[key] = per_key.get(key, 0) + 1
+
+    trashed = 0
+    for path in candidates:
+        try:
+            subtype = classify_sidecar(path, use_density=use_density)
+        except Exception as exc:
+            logger.debug("[%s]: signs purge: classify failed for %s: %s", log_label, path, exc)
+            continue
+        if not is_removable(subtype, level):
+            continue
+        key = _guard_key(path)
+        if per_key.get(key, 0) <= 1:
+            logger.info("[%s]: signs purge: last-sub guard kept %s", log_label, path)
+            continue
+        if _trash_path(path):
+            trashed += 1
+            per_key[key] -= 1
+            logger.info("[%s]: signs purge: trashed %s (%s)", log_label, path, subtype)
+        else:
+            logger.warning("[%s]: signs purge: could not trash %s", log_label, path)
+
+    return trashed
+
+
+# ---------------------------------------------------------------------------
 # Orchestrator
 # ---------------------------------------------------------------------------
 
@@ -381,6 +477,12 @@ def extract_and_cleanup(
     sidecars_trashed = 0
     if any_extracted and keep_langs:
         sidecars_trashed = trash_unwanted_sidecars(file_path, keep_langs, log_label=log_label)
+
+    # Going-forward signs purge: trash signs/forced/songs sidecars produced by
+    # this extract pass so the library does not re-accumulate them after the
+    # retroactive sweep (Task 9).
+    if any_extracted:
+        sidecars_trashed += purge_signs_after_extract(file_path, log_label=log_label)
 
     primary_output_path, primary_format, primary_language = _pick_primary(
         extracted, target_language
