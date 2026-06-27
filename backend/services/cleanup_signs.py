@@ -3,8 +3,17 @@
 The level comes from the global ``cleanup_signs_removal_level`` setting (one
 source of truth); the rule's config dict carries operational options.  Trash
 by default; a sidecar is never removed if it would leave the episode+lang
-with no subtitle at all (last-sub guard).  Embedded stripping is added in
-Task 6; the counters ``stripped_files`` / ``stripped_tracks`` stay 0 here.
+with no subtitle at all (last-sub guard).
+
+Embedded stripping (Task 6)
+---------------------------
+When ``config["strip_embedded"]`` is True, ``execute_signs_cleanup`` also
+probes every video file under *media_path* and remuxes out embedded subtitle
+streams that classify as signs/forced/songs.  Classification is
+**metadata-only** (disposition flags + title tag) — extracting and parsing
+cue timings for every embedded stream library-wide would be prohibitively
+expensive and is not implemented here.  Density classification therefore
+remains a sidecar-only feature.
 
 Guard keying note
 -----------------
@@ -52,16 +61,99 @@ def _guard_key(path: str) -> tuple:
     return (video_base, canonical_lang)
 
 
+def _embedded_pass(
+    media_path: str,
+    config: dict,
+    level: SignsRemovalLevel,
+    dry_run: bool,
+    out: dict,
+) -> None:
+    """Strip removable embedded subtitle streams (signs/forced/songs) from all videos.
+
+    Embedded classification is metadata-only (disposition/title); density is not
+    applied to embedded streams by design (cost).
+
+    ``drop_indices`` are 0-based subtitle-relative positions (the same ``sub_index``
+    assigned while enumerating subtitle streams).  ``remove_subtitle_streams_by_index``
+    translates them to global mkvmerge track IDs internally.
+    """
+    import remux
+    from config_language_data import normalize_language_code
+    from services.cleanup_executors import _video_files
+    from services.subtitle_signs import classify_stream
+    from services.subtitle_signs import is_removable as _is_removable
+
+    keep = {normalize_language_code(c) for c in (config.get("keep_languages") or ["de", "en"])}
+
+    for video in _video_files(media_path):
+        try:
+            probe = remux.get_media_streams(video)
+        except Exception:
+            continue
+
+        # Build indexed list of subtitle streams (0-based subtitle-relative index).
+        subs: list[tuple[int, dict]] = []
+        sub_index = 0
+        for st in probe.get("streams", []):
+            if st.get("codec_type") != "subtitle":
+                continue
+            subs.append((sub_index, st))
+            sub_index += 1
+
+        if not subs:
+            continue
+
+        # Count keep-language subtitle streams per language before deciding drops.
+        keep_lang_count: dict[str, int] = {}
+        for _idx, st in subs:
+            lang = normalize_language_code((st.get("tags") or {}).get("language") or "")
+            if lang in keep:
+                keep_lang_count[lang] = keep_lang_count.get(lang, 0) + 1
+
+        drop: list[int] = []
+        for idx, st in subs:
+            subtype = classify_stream(st)  # metadata-only: no cues arg
+            if not _is_removable(subtype, level):
+                continue
+            lang = normalize_language_code((st.get("tags") or {}).get("language") or "")
+            if lang in keep and keep_lang_count.get(lang, 0) <= 1:
+                # Last keep-language sub for this language — must not be dropped.
+                continue
+            drop.append(idx)
+            if lang in keep:
+                keep_lang_count[lang] -= 1
+
+        if not drop:
+            continue
+
+        if dry_run:
+            out["would_strip_files"] = out.get("would_strip_files", 0) + 1
+            out["would_strip_tracks"] = out.get("would_strip_tracks", 0) + len(drop)
+        else:
+            try:
+                backup = remux.remove_subtitle_streams_by_index(video, drop)
+            except Exception:
+                logger.exception("signs_cleanup: embedded strip failed for %s", video)
+                continue
+            if backup:
+                out["stripped_files"] += 1
+                out["stripped_tracks"] += len(drop)
+
+
 def execute_signs_cleanup(media_path: str, config: dict, dry_run: bool = False) -> dict:
-    """Remove signs/forced/songs subtitle sidecars from *media_path*.
+    """Remove signs/forced/songs subtitle sidecars and embedded streams from *media_path*.
 
     Args:
         media_path: Root directory to scan recursively.
         config: Operational options dict — keys recognised:
             * ``permanent_delete`` (bool, default False) — hard-delete instead
               of moving to the trash dir.
-            * ``strip_embedded`` (bool, default False) — reserved for Task 6;
-              ignored here.
+            * ``strip_embedded`` (bool, default False) — when True, also probe
+              video files and remux out embedded streams that classify as
+              signs/forced/songs.
+            * ``keep_languages`` (list[str], default ["de","en"]) — ISO-639-1
+              codes; the last keep-language embedded track per language is
+              never dropped.
         dry_run: When True nothing is deleted; returns counts + examples only.
 
     Returns:
@@ -138,11 +230,18 @@ def execute_signs_cleanup(media_path: str, config: dict, dry_run: bool = False) 
                 per_key[key] -= 1
                 logger.info("signs_cleanup: removed %s (%s)", path, subtype)
 
+    # Accumulate result before (optionally) adding embedded counters.
     if dry_run:
-        return {
+        result: dict = {
             "would_remove_sidecars": would_remove,
             "would_strip_files": 0,
             "would_strip_tracks": 0,
             "examples": examples,
         }
-    return {**base_result, "trashed_sidecars": trashed, "bytes_freed": bytes_freed}
+    else:
+        result = {**base_result, "trashed_sidecars": trashed, "bytes_freed": bytes_freed}
+
+    if config.get("strip_embedded"):
+        _embedded_pass(media_path, config, level, dry_run, result)
+
+    return result
