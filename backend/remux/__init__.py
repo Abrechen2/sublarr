@@ -610,6 +610,63 @@ def remove_foreign_subtitle_streams(
     )
 
 
+def remove_subtitle_streams_by_index(
+    video_path: str,
+    drop_indices: list[int],
+    use_reflink: bool = True,
+    trash_dir: str = ".sublarr",
+) -> str | None:
+    """Remux ``video_path`` dropping the given subtitle order-indices.
+
+    ``drop_indices`` are 0-based positions among the file's subtitle streams
+    (the same ``sub_index`` used elsewhere in probes). Leaves a ``.bak``
+    backup in the trash dir; returns its path. No-op (returns ``None``) for
+    an empty list.
+
+    Unlike ``remove_foreign_subtitle_streams``, this function does NOT probe
+    the container — callers supply the subtitle-relative track indices directly,
+    which mkvmerge accepts verbatim via ``--subtitle-tracks !N,M,...``.
+
+    Raises
+    ------
+    RemuxError
+        On backup failure, mkvmerge error, or verification failure.
+    """
+    if not drop_indices:
+        return None
+
+    sorted_indices = sorted(drop_indices)
+    video_dir = os.path.dirname(video_path)
+    suffix = os.path.splitext(video_path)[1]
+
+    fd, tmp_path = tempfile.mkstemp(suffix=suffix, dir=video_dir)
+    os.close(fd)
+
+    try:
+        logger.info(
+            "remove_subtitle_streams_by_index: stripping subtitle indices %s from %s",
+            sorted_indices,
+            video_path,
+        )
+        _remux_mkvmerge(video_path, sorted_indices, tmp_path)
+        _verify(video_path, tmp_path, n_removed=len(drop_indices))
+
+        bak_path = _make_backup(video_path, use_reflink, trash_dir)
+        os.replace(tmp_path, video_path)
+        logger.info(
+            "remove_subtitle_streams_by_index: complete — %d stream(s) removed, backup at %s",
+            len(drop_indices),
+            bak_path,
+        )
+        return bak_path
+
+    except Exception:
+        if os.path.exists(tmp_path):
+            with contextlib_suppress(OSError):
+                os.unlink(tmp_path)
+        raise
+
+
 def contextlib_suppress(exc_type):
     """Tiny suppress context manager to avoid extra import."""
     import contextlib
