@@ -125,6 +125,10 @@ def execute_signs_cleanup(media_path: str, config: dict, dry_run: bool = False) 
 
         if dry_run:
             would_remove += 1
+            # Mirror the execute branch so the preview faithfully simulates a
+            # real run: decrement the bucket so the last-sub guard's ``<= 1``
+            # check fires for the next removable file in the same group.
+            per_key[key] -= 1
             if len(examples) < 20:
                 examples.append({"path": path, "size_bytes": size, "reason": subtype})
         else:

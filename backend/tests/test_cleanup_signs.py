@@ -66,3 +66,32 @@ def test_aborts_on_unreachable_media():
         gs.return_value.cleanup_signs_removal_level = "signs"
         result = execute_signs_cleanup("/nonexistent/xyz", {}, dry_run=False)
     assert result.get("aborted")
+
+
+def test_last_sub_guard_two_signs_no_full_execute(tmp_path):
+    """Two signs subs for the same episode+lang, no full peer → remove exactly one."""
+    from services.cleanup_signs import execute_signs_cleanup
+
+    (tmp_path / "Show.en.signs.ass").write_text("signs", encoding="utf-8")
+    (tmp_path / "Show.en.signs.srt").write_text("signs", encoding="utf-8")
+    cfg = {"permanent_delete": True, "strip_embedded": False}
+    with patch("config.get_settings", return_value=_settings(tmp_path)):
+        result = execute_signs_cleanup(str(tmp_path), cfg, dry_run=False)
+    assert result["trashed_sidecars"] == 1
+    remaining = [
+        p for p in (tmp_path / "Show.en.signs.ass", tmp_path / "Show.en.signs.srt") if p.exists()
+    ]
+    assert len(remaining) == 1  # last-sub guard keeps one
+
+
+def test_last_sub_guard_two_signs_no_full_dry_run(tmp_path):
+    """Dry-run honours the guard: reports 1 (not 2), touches nothing."""
+    from services.cleanup_signs import execute_signs_cleanup
+
+    (tmp_path / "Show.en.signs.ass").write_text("signs", encoding="utf-8")
+    (tmp_path / "Show.en.signs.srt").write_text("signs", encoding="utf-8")
+    with patch("config.get_settings", return_value=_settings(tmp_path)):
+        result = execute_signs_cleanup(str(tmp_path), {"strip_embedded": False}, dry_run=True)
+    assert result["would_remove_sidecars"] == 1
+    assert (tmp_path / "Show.en.signs.ass").exists()
+    assert (tmp_path / "Show.en.signs.srt").exists()
