@@ -1,4 +1,4 @@
-"""Event filter configuration endpoints (include/exclude/content filters)."""
+"""Event filter configuration endpoints (include/exclude event filters)."""
 
 from __future__ import annotations
 
@@ -19,7 +19,7 @@ def get_filters():
       tags:
         - Notifications
       summary: Get notification filters
-      description: Returns include/exclude event lists and content filters from config_entries.
+      description: Returns include/exclude event lists from config_entries.
       responses:
         200:
           description: Current filter config
@@ -29,13 +29,11 @@ def get_filters():
     config_repo = ConfigRepository()
     include_raw = config_repo.get_config_entry("notification_filter_include_events")
     exclude_raw = config_repo.get_config_entry("notification_filter_exclude_events")
-    content_raw = config_repo.get_config_entry("notification_filter_content_filters")
 
     return jsonify(
         {
             "include_events": json.loads(include_raw) if include_raw else [],
             "exclude_events": json.loads(exclude_raw) if exclude_raw else [],
-            "content_filters": json.loads(content_raw) if content_raw else [],
         }
     )
 
@@ -65,17 +63,6 @@ def update_filters():
                   type: array
                   items:
                     type: string
-                content_filters:
-                  type: array
-                  items:
-                    type: object
-                    properties:
-                      field:
-                        type: string
-                      operator:
-                        type: string
-                      value:
-                        type: string
       responses:
         200:
           description: Filters updated
@@ -93,11 +80,6 @@ def update_filters():
     if "exclude_events" in data:
         config_repo.save_config_entry(
             "notification_filter_exclude_events", json.dumps(data["exclude_events"])
-        )
-
-    if "content_filters" in data:
-        config_repo.save_config_entry(
-            "notification_filter_content_filters", json.dumps(data["content_filters"])
         )
 
     return jsonify({"success": True})
