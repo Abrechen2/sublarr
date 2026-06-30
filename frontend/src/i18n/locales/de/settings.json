@@ -1242,7 +1242,18 @@
     "glossary_section": "Globales Glossar",
     "context_quality_section": "Kontext & Qualität",
     "sync_section": "Sync-Engine",
-    "episode_context_section": "Episoden-Kontext"
+    "episode_context_section": "Episoden-Kontext",
+    "beta_title": "Beta-Funktion",
+    "beta_body": "Die KI-Übersetzungsfunktion ist experimentell und funktioniert aktuell nicht zuverlässig genug für den produktiven Einsatz. Ergebnisse können stark variieren — abhängig von Modell, Prompt und Eingabequalität. Nutzung auf eigenes Risiko.",
+    "enable_button": "Übersetzung aktivieren",
+    "disabled_hint": "Übersetzung ist aktuell deaktiviert. Aktiviere sie oben, damit die folgenden Einstellungen wirksam werden und Übersetzungs-Jobs laufen.",
+    "disable_title": "Übersetzung deaktivieren",
+    "disable_desc": "Deaktiviert die Übersetzungsfunktion und bricht alle wartenden Jobs ab.",
+    "disable_button": "Übersetzung deaktivieren",
+    "disable_confirm": "Wirklich deaktivieren? Alle wartenden Übersetzungs-Jobs werden abgebrochen.",
+    "cancel": "Abbrechen",
+    "disabling": "Deaktiviere…",
+    "confirm": "Bestätigen"
   },
   "subtitles_scoring_page": {
     "scoring_section": "Scoring",

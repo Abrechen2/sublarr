@@ -1242,7 +1242,18 @@
     "glossary_section": "Global Glossary",
     "context_quality_section": "Context & Quality",
     "sync_section": "Sync Engine",
-    "episode_context_section": "Episode Context"
+    "episode_context_section": "Episode Context",
+    "beta_title": "Beta Feature",
+    "beta_body": "AI translation is experimental and does not currently work reliably enough for production use. Results vary widely depending on the model, prompt and input quality. Use at your own risk.",
+    "enable_button": "Enable translation",
+    "disabled_hint": "Translation is currently disabled. Enable it above so the settings below take effect and translation jobs run.",
+    "disable_title": "Disable translation",
+    "disable_desc": "Disables the translation feature and cancels all pending jobs.",
+    "disable_button": "Disable translation",
+    "disable_confirm": "Really disable? All pending translation jobs will be cancelled.",
+    "cancel": "Cancel",
+    "disabling": "Disabling…",
+    "confirm": "Confirm"
   },
   "subtitles_scoring_page": {
     "scoring_section": "Scoring",

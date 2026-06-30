@@ -135,10 +135,10 @@ export function TranslationSettings() {
         <FlaskConical size={18} style={{ color: 'var(--warning, #f59e0b)', flexShrink: 0, marginTop: 1 }} />
         <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
           <span style={{ fontWeight: 600, fontSize: 13, color: 'var(--warning, #f59e0b)' }}>
-            Beta Feature
+            {t('translation_page.beta_title', 'Beta Feature')}
           </span>
           <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>
-            Die KI-Übersetzungsfunktion ist experimentell und funktioniert aktuell nicht zuverlässig genug für den produktiven Einsatz. Ergebnisse können stark variieren — abhängig von Modell, Prompt und Eingabequalität. Nutzung auf eigenes Risiko.
+            {t('translation_page.beta_body')}
           </span>
         </div>
         {!translationEnabled && (
@@ -153,7 +153,7 @@ export function TranslationSettings() {
               border: 'none',
             }}
           >
-            Translation aktivieren
+            {t('translation_page.enable_button', 'Enable translation')}
           </button>
         )}
       </div>
@@ -164,8 +164,7 @@ export function TranslationSettings() {
           className="text-xs"
           style={{ color: 'var(--text-muted)', margin: '0 2px 8px' }}
         >
-          Übersetzung ist aktuell deaktiviert. Aktiviere sie oben, damit die
-          folgenden Einstellungen wirksam werden und Übersetzungs-Jobs laufen.
+          {t('translation_page.disabled_hint')}
         </div>
       )}
 
@@ -377,10 +376,10 @@ export function TranslationSettings() {
             <AlertTriangle size={18} style={{ color: 'var(--error)', flexShrink: 0, marginTop: 1 }} />
             <div>
               <div className="font-semibold text-sm" style={{ color: 'var(--error)' }}>
-                Translation deaktivieren
+                {t('translation_page.disable_title', 'Disable translation')}
               </div>
               <div className="text-xs mt-0.5" style={{ color: 'var(--text-muted)' }}>
-                Deaktiviert die Translation-Funktion und bricht alle wartenden Jobs ab.
+                {t('translation_page.disable_desc')}
               </div>
             </div>
           </div>
@@ -393,7 +392,7 @@ export function TranslationSettings() {
               backgroundColor: 'transparent',
             }}
           >
-            Disable Translation
+            {t('translation_page.disable_button', 'Disable translation')}
           </button>
         </div>
 
@@ -403,7 +402,7 @@ export function TranslationSettings() {
             style={{ borderTop: '1px solid var(--error)' }}
           >
             <span className="text-sm" style={{ color: 'var(--text-secondary)' }}>
-              Wirklich deaktivieren? Alle wartenden Translation-Jobs werden abgebrochen.
+              {t('translation_page.disable_confirm')}
             </span>
             <div className="flex gap-2 shrink-0">
               <button
@@ -411,7 +410,7 @@ export function TranslationSettings() {
                 className="px-3 py-1.5 rounded-md text-sm"
                 style={{ border: '1px solid var(--border)', color: 'var(--text-secondary)' }}
               >
-                Abbrechen
+                {t('translation_page.cancel', 'Cancel')}
               </button>
               <button
                 onClick={handleDisableConfirm}
@@ -419,7 +418,7 @@ export function TranslationSettings() {
                 className="px-3 py-1.5 rounded-md text-sm font-semibold"
                 style={{ backgroundColor: 'var(--error)', color: '#fff' }}
               >
-                {disableTranslation.isPending ? 'Deaktiviere…' : 'Bestätigen'}
+                {disableTranslation.isPending ? t('translation_page.disabling', 'Disabling…') : t('translation_page.confirm', 'Confirm')}
               </button>
             </div>
           </div>

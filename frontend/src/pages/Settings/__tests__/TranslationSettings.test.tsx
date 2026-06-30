@@ -312,15 +312,15 @@ describe('TranslationSettings', () => {
     const user = userEvent.setup()
     renderPage()
     await user.click(screen.getByRole('button', { name: /disable translation/i }))
-    expect(screen.getByText(/wirklich deaktivieren/i)).toBeInTheDocument()
+    expect(screen.getByText(/really disable/i)).toBeInTheDocument()
   })
 
-  it('clicking Bestätigen calls disableTranslation.mutate', async () => {
+  it('clicking Confirm calls disableTranslation.mutate', async () => {
     mockDisableMutate.mockClear()
     const user = userEvent.setup()
     renderPage()
     await user.click(screen.getByRole('button', { name: /disable translation/i }))
-    await user.click(screen.getByRole('button', { name: /bestätigen/i }))
+    await user.click(screen.getByRole('button', { name: /confirm/i }))
     expect(mockDisableMutate).toHaveBeenCalledOnce()
   })
 
