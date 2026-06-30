@@ -263,6 +263,12 @@ class UISettings(BaseModel):
     # track can't fluke a single-window match.
     dubtitle_min_margin: float = 0.15
     dubtitle_auto_min_cues: int = 70
+    # When True, an English sidecar downloaded for an episode with English dub
+    # audio is scored against the dub (Tier-2) before being kept; a sub that is a
+    # confident low-score mismatch is KEPT but flagged (not trashed). Opt-in:
+    # verification needs Whisper + dub audio and falls back to "keep" when either
+    # is unavailable.
+    dubtitle_verify_on_download: bool = False
 
     # Foreign-track cleanup. Destructive (remuxes the MKV with backup-to-trash).
     cleanup_foreign_tracks_default: bool = False

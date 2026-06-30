@@ -18,6 +18,7 @@ from error_handler import DuplicateSubtitleError
 from providers import get_provider_manager
 from providers.base import SubtitleFormat
 from upgrade_scorer import should_upgrade
+from wanted_search.dubtitle_verify import verify_dubtitle_on_keep
 from wanted_search.metadata import _set_adaptive_retry_after, build_query_from_wanted
 from wanted_search.post_processor import (
     _process_forced_wanted_item,
@@ -150,6 +151,23 @@ def _check_max_search_attempts(item: dict, item_id: int, settings) -> dict | Non
 
 
 # ---------------------------------------------------------------------------
+# Dub-mismatch flagging (best-effort, never raises)
+# ---------------------------------------------------------------------------
+
+
+def _flag_dub_mismatch(saved_path: str) -> None:
+    """Log a warning when audio verification identifies a likely dub mismatch.
+
+    Best-effort: the subtitle has already been saved and is kept regardless.
+    This function only records the observation so it shows up in logs.
+    """
+    logger.warning(
+        "dub_audio_mismatch: %s kept but flagged as a likely dub mismatch by audio verification",
+        saved_path,
+    )
+
+
+# ---------------------------------------------------------------------------
 # Step 1: target-language ASS direct download
 # ---------------------------------------------------------------------------
 
@@ -270,6 +288,8 @@ def _try_target_ass_direct(ctx: dict) -> dict | None:
                     "score": result.score,
                 },
             )
+            if not verify_dubtitle_on_keep(saved_path, file_path, settings):
+                _flag_dub_mismatch(saved_path)
             _try_auto_sync(saved_path, file_path, settings)
             delete_wanted_item(item_id)
             return {
@@ -505,6 +525,8 @@ def _try_target_srt_direct(ctx: dict) -> dict | None:
                     "score": result.score,
                 },
             )
+            if not verify_dubtitle_on_keep(saved_path, file_path, settings):
+                _flag_dub_mismatch(saved_path)
             _try_auto_sync(saved_path, file_path, settings)
             delete_wanted_item(item_id)
             return {
