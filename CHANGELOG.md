@@ -7,7 +7,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [1.4.0] - 2026-06-30
 
+### Added
+- **Dubtitle Detection settings UI** — the dubtitle keys (detection,
+  verify-on-download, minimum score/margin, auto cue floor) are now
+  configurable under Settings → Subtitles → Stream Management instead of being
+  config/env-only. The two dubtitle API endpoints are now documented in OpenAPI.
+
 ### Fixed
+- **Translation backend credential overwrite** — saving a configured backend
+  without re-typing its key overwrote the stored secret with the mask token
+  `***`; masked password fields are no longer re-sent on save.
+- **Translation could not be re-enabled after disabling** — the disabled state
+  is stored as the string `'false'`, which the UI mis-read as "enabled"
+  (`Boolean('false')` is true), hiding the enable control. It now compares
+  explicitly so disable → re-enable works.
+- **Backend config field types** — Ollama's `use_chat_api` (checkbox) and
+  `system_prompt` (textarea) rendered as plain text inputs; they now render
+  correctly, and translation numeric inputs guard against NaN and clamp to range.
+- **Translation settings i18n** — the beta banner, enable/disable controls and
+  several help texts were hardcoded German/English; they are now fully
+  translated (DE + EN).
 - **Translation could not be enabled from the UI** (#151) — the Translation
   settings group was hidden from the settings navigation until translation
   was already enabled, and the only enable control lived on a settings
