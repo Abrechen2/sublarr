@@ -352,7 +352,15 @@ class OllamaBackend(LLMBackend):
                 raise RuntimeError(f"Ollama response missing 'response' key: {list(raw.keys())}")
             content = raw["response"]
 
-        text = (content or "").strip()
+        # Strip reasoning-model <think>…</think> blocks (qwen3, deepseek-r1, …)
+        # so chain-of-thought never leaks into the subtitle output. Handles
+        # well-formed pairs and the "reasoning … </think> answer" shape where
+        # the opening tag was suppressed by the API.
+        text = content or ""
+        text = re.sub(r"<think>.*?</think>", "", text, flags=re.DOTALL | re.IGNORECASE)
+        if "</think>" in text.lower():
+            text = text[text.lower().rfind("</think>") + len("</think>") :]
+        text = text.strip()
 
         # LLMBackend._verify_line_count handles length validation and retry.
         # Split on newlines and strip the V8-style "N: " / "N. " numbering
