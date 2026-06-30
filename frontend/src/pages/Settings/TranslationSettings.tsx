@@ -91,7 +91,6 @@ function SectionSkeleton() {
 
 export function TranslationSettings() {
   const { t } = useTranslation('settings')
-  const { t: tTranslation } = useTranslation('settings')
   const { t: tc } = useTranslation('common')
   const navigate = useNavigate()
   const [showDisableConfirm, setShowDisableConfirm] = useState(false)
@@ -259,7 +258,12 @@ export function TranslationSettings() {
                   data-testid="input-translation-max-workers"
                   style={{ ...settingsInputStyle, width: '100px', outline: 'none' }}
                   value={Number(strVal(config, 'translation_max_workers', '4'))}
-                  onChange={(e) => updateConfig({ translation_max_workers: Number(e.target.value) })}
+                  onChange={(e) => {
+                    const n = Number(e.target.value)
+                    if (Number.isFinite(n)) {
+                      updateConfig({ translation_max_workers: Math.min(16, Math.max(1, Math.round(n))) })
+                    }
+                  }}
                   min={1}
                   max={16}
                 />
@@ -329,10 +333,10 @@ export function TranslationSettings() {
       >
         <div>
           <div style={{ fontSize: '14px', fontWeight: 600, color: 'var(--text-primary)' }}>
-            {tTranslation('transcription_page.title')}
+            {t('transcription_page.title')}
           </div>
           <div style={{ fontSize: '11px', color: 'var(--text-muted)', marginTop: 2 }}>
-            {tTranslation('transcription_page.subtitle')}
+            {t('transcription_page.subtitle')}
           </div>
         </div>
         <Link

@@ -1640,7 +1640,9 @@
     "context_episodes": "Kontext-Episoden",
     "auto_series_glossary": "Automatisches Serien-Glossar",
     "request_timeout": "Request-Timeout (Sekunden)",
+    "request_timeout_help": "Timeout pro LLM-API-Anfrage. Für langsame oder große Modelle erhöhen. Standard: 90.",
     "backoff_base": "Backoff-Basis (Sekunden)",
+    "backoff_base_help": "Basis-Intervall für exponentielles Backoff bei Wiederholungen. Standard: 5.",
     "context_window_help": "Anzahl der Zeilen vor und nach jedem Batch, die als Kontext an das LLM gesendet werden. 0 = deaktiviert.",
     "default_sync_engine_help": "Engine, die bei der automatischen Synchronisierung verwendet wird, wenn keine Übersteuerung pro Anfrage angegeben ist. alass = audio-basierte Ausrichtung; ffsubsync = bildraten-basiert.",
     "toast_sync_engine_saved": "Sync-Engine-Einstellung gespeichert",
@@ -1670,7 +1672,7 @@
     "add_from_template": "Aus Vorlage hinzufügen",
     "no_backends_registered": "Keine Übersetzungs-Backends registriert. Installiere Backend-Pakete (z.B. deepl, openai, google-cloud-translate), um sie zu aktivieren.",
     "global_llm_title": "Globale LLM-Anfrageeinstellungen",
-    "global_llm_desc": "Gilt für alle Übersetzungs-Backends, die die Ollama/LLM-Pipeline verwenden."
+    "global_llm_desc": "Standardwerte für die Ollama/LLM-Pipeline. Ein einzeln konfiguriertes Backend (in seiner Karte) verwendet seine eigenen Werte und ignoriert diese globalen."
   },
   "sync_engines_tab": {
     "loading": "Lade Sync-Engines…",
