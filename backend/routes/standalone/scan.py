@@ -128,8 +128,6 @@ def get_status():
                   auto_activated:
                     type: boolean
                     description: True when standalone is implicitly active because no arr is configured.
-        501:
-          description: StandaloneManager not yet implemented
         500:
           description: Server error
     """
@@ -137,13 +135,6 @@ def get_status():
 
     try:
         return jsonify(get_standalone_status())
-    except ImportError:
-        return jsonify(
-            {
-                "status": "not_implemented",
-                "message": "StandaloneManager is not yet implemented",
-            }
-        ), 501
     except Exception as e:
         logger.error("Failed to get standalone status: %s", e)
         return jsonify({"error": "Failed to get standalone status"}), 500
