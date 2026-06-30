@@ -3,7 +3,6 @@ import { useTranslation } from 'react-i18next'
 import { NavLink, useMatch } from 'react-router-dom'
 import { Search } from 'lucide-react'
 import { cn } from '@/lib/utils'
-import { useConfig } from '@/hooks/useApi'
 import { SettingsSearchModal } from './SettingsSearchModal'
 
 interface NavPage {
@@ -16,7 +15,7 @@ interface NavGroup {
   readonly pages: readonly NavPage[]
 }
 
-function useNavGroups(translationEnabled: boolean): readonly NavGroup[] {
+function useNavGroups(): readonly NavGroup[] {
   const { t } = useTranslation('common')
 
   const groups: NavGroup[] = [
@@ -60,16 +59,16 @@ function useNavGroups(translationEnabled: boolean): readonly NavGroup[] {
     },
   ]
 
-  if (translationEnabled) {
-    groups.push({
-      label: t('settings.categories.translation.title', 'Übersetzung'),
-      pages: [
-        { label: t('settings.nav.translation_backends', 'Backends & Glossar'), href: '/settings/translation' },
-        { label: t('settings.nav.translation_cost', 'Kosten & Memory'), href: '/settings/translation/cost-memory' },
-        { label: t('settings.nav.translation_queue', 'Queue'), href: '/settings/translation/queue' },
-      ],
-    })
-  }
+  // Always show the Translation group so the feature is reachable even when
+  // it is currently disabled — the page itself carries the enable control.
+  groups.push({
+    label: t('settings.categories.translation.title', 'Übersetzung'),
+    pages: [
+      { label: t('settings.nav.translation_backends', 'Backends & Glossar'), href: '/settings/translation' },
+      { label: t('settings.nav.translation_cost', 'Kosten & Memory'), href: '/settings/translation/cost-memory' },
+      { label: t('settings.nav.translation_queue', 'Queue'), href: '/settings/translation/queue' },
+    ],
+  })
 
   groups.push(
     {
@@ -119,9 +118,7 @@ function NavPageLink({ href, label }: NavPage) {
 
 export function SettingsNav() {
   const { t: tc } = useTranslation('common')
-  const { data: config } = useConfig()
-  const translationEnabled = Boolean(config?.translation_enabled)
-  const groups = useNavGroups(translationEnabled)
+  const groups = useNavGroups()
   const [searchOpen, setSearchOpen] = useState(false)
 
   useEffect(() => {

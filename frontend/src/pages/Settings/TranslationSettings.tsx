@@ -98,6 +98,11 @@ export function TranslationSettings() {
   const disableTranslation = useDisableTranslation()
   const { data: config } = useConfig()
   const { mutate: updateConfig } = useUpdateConfig()
+  const translationEnabled = Boolean(config?.translation_enabled)
+
+  function handleEnable() {
+    updateConfig({ translation_enabled: 'true' })
+  }
 
   function handleDisableConfirm() {
     disableTranslation.mutate(undefined, {
@@ -136,7 +141,33 @@ export function TranslationSettings() {
             Die KI-Übersetzungsfunktion ist experimentell und funktioniert aktuell nicht zuverlässig genug für den produktiven Einsatz. Ergebnisse können stark variieren — abhängig von Modell, Prompt und Eingabequalität. Nutzung auf eigenes Risiko.
           </span>
         </div>
+        {!translationEnabled && (
+          <button
+            onClick={handleEnable}
+            data-testid="enable-translation-btn"
+            className="shrink-0 self-center px-3 py-1.5 rounded-md text-sm font-semibold"
+            style={{
+              marginLeft: 'auto',
+              backgroundColor: 'var(--warning, #f59e0b)',
+              color: '#fff',
+              border: 'none',
+            }}
+          >
+            Translation aktivieren
+          </button>
+        )}
       </div>
+
+      {!translationEnabled && (
+        <div
+          data-testid="translation-disabled-hint"
+          className="text-xs"
+          style={{ color: 'var(--text-muted)', margin: '0 2px 8px' }}
+        >
+          Übersetzung ist aktuell deaktiviert. Aktiviere sie oben, damit die
+          folgenden Einstellungen wirksam werden und Übersetzungs-Jobs laufen.
+        </div>
+      )}
 
       <FormLayout sections={SECTIONS}>
 
@@ -329,7 +360,8 @@ export function TranslationSettings() {
 
       </FormLayout>
 
-      {/* Danger Zone — Disable Translation */}
+      {/* Danger Zone — Disable Translation (only when enabled) */}
+      {translationEnabled && (
       <div
         data-testid="section-disable-translation"
         style={{
@@ -393,6 +425,7 @@ export function TranslationSettings() {
           </div>
         )}
       </div>
+      )}
     </SettingsDetailLayout>
   )
 }
