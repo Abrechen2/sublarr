@@ -864,7 +864,7 @@
     "jellyfin_translate": "Bei Jellyfin-Wiedergabe übersetzen",
     "jellyfin_translate_hint": "Untertitel automatisch übersetzen wenn Jellyfin die Wiedergabe einer neuen Episode startet.",
     "streaming_enabled": "Streaming aktiviert",
-    "streaming_enabled_hint": "Subtitle-Streaming-Modus aktivieren (experimentell).",
+    "streaming_enabled_hint": "HTTP-Range-Streaming des Originalvideos an den Waveform-Editor für die Browser-Vorschau.",
     "post_processing_enabled": "Post-Processing aktiviert",
     "post_processing_enabled_hint": "Führt nach jedem erfolgreichen Subtitle-Download den konfigurierten Shell-Befehl aus.",
     "post_download_command": "Post-Download-Befehl",

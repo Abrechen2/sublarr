@@ -864,7 +864,7 @@
     "jellyfin_translate": "Translate on Jellyfin Playback",
     "jellyfin_translate_hint": "Automatically translate subtitles when Jellyfin starts playback of a new episode.",
     "streaming_enabled": "Streaming Enabled",
-    "streaming_enabled_hint": "Enable subtitle streaming mode (experimental).",
+    "streaming_enabled_hint": "HTTP-range streaming of the source video to the Waveform Editor for in-browser preview.",
     "post_processing_enabled": "Post-Processing Enabled",
     "post_processing_enabled_hint": "Runs the configured shell command after every successful subtitle download.",
     "post_download_command": "Post-Download Command",
