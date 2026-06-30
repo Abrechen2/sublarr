@@ -1257,6 +1257,20 @@
     "workers_hint": "Maximum parallel translation worker threads.",
     "configure_link": "Configure →"
   },
+  "dubtitle_page": {
+    "title": "Dubtitle Detection",
+    "description": "Identify (and optionally verify) the English \"dubtitle\" among the multiple English tracks anime files ship.",
+    "detection_label": "Dubtitle detection",
+    "detection_desc": "Detect which English track is the dubtitle. The track-panel button always works; this toggle governs the nightly sweep that flags it automatically.",
+    "verify_label": "Verify downloads against the dub",
+    "verify_desc": "After downloading an English subtitle for an episode that has English dub audio, score it against the dub; a confident mismatch is kept but flagged in the logs. Requires Whisper; falls back to keep when unavailable.",
+    "min_score_label": "Minimum match score",
+    "min_score_desc": "Tier-2 acceptance threshold (0-1). A track must score at least this against the dub audio. Lower it if real dubtitles are being missed; raise it to be stricter.",
+    "min_margin_label": "Minimum margin",
+    "min_margin_desc": "Unattended only (0-1). The winner must beat the runner-up by at least this much, so two near-tied tracks are never auto-flagged on a coin-flip.",
+    "auto_cues_label": "Auto cue floor",
+    "auto_cues_desc": "Unattended only. A track needs at least this many cues during the scheduled sweep, so a sparse track cannot fluke a match."
+  },
   "subtitles_scoring_page": {
     "scoring_section": "Scoring",
     "per_language_section": "Per-Language Scores",

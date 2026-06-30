@@ -1257,6 +1257,20 @@
     "workers_hint": "Maximale Anzahl paralleler Übersetzungs-Worker-Threads.",
     "configure_link": "Konfigurieren →"
   },
+  "dubtitle_page": {
+    "title": "Dubtitle-Erkennung",
+    "description": "Identifiziert (und verifiziert optional) den englischen \"Dubtitle\" unter den mehreren englischen Tracks, die Anime-Dateien mitbringen.",
+    "detection_label": "Dubtitle-Erkennung",
+    "detection_desc": "Erkennt, welcher englische Track der Dubtitle ist. Der Button im Track-Panel funktioniert immer; dieser Schalter steuert den nächtlichen Sweep, der ihn automatisch markiert.",
+    "verify_label": "Downloads gegen die Audio verifizieren",
+    "verify_desc": "Nach dem Download eines englischen Untertitels für eine Episode mit englischem Dub-Audio wird er gegen die Audio gescort; ein klarer Mismatch wird behalten, aber im Log geflaggt. Benötigt Whisper; fällt sonst auf \"behalten\" zurück.",
+    "min_score_label": "Minimaler Match-Score",
+    "min_score_desc": "Tier-2-Akzeptanzschwelle (0-1). Ein Track muss mindestens so hoch gegen die Dub-Audio scoren. Senken, wenn echte Dubtitles verfehlt werden; erhöhen für strenger.",
+    "min_margin_label": "Minimaler Abstand",
+    "min_margin_desc": "Nur unbeaufsichtigt (0-1). Der Gewinner muss den Zweitplatzierten um mindestens diesen Wert schlagen, damit zwei fast gleichauf liegende Tracks nie per Münzwurf markiert werden.",
+    "auto_cues_label": "Cue-Mindestzahl (Auto)",
+    "auto_cues_desc": "Nur unbeaufsichtigt. Ein Track braucht beim geplanten Sweep mindestens so viele Cues, damit ein dünner Track keinen Zufallstreffer landet."
+  },
   "subtitles_scoring_page": {
     "scoring_section": "Scoring",
     "per_language_section": "Sprach-spezifische Scores",
