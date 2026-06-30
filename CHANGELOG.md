@@ -5,6 +5,44 @@ All notable changes to Sublarr are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Fixed
+- **Translation could not be enabled from the UI** (#151) — the Translation
+  settings group was hidden from the settings navigation until translation
+  was already enabled, and the only enable control lived on a settings
+  overview screen that is no longer reachable. Translation is now always
+  listed in the settings navigation, and its page shows an explicit
+  "Translation aktivieren" button (plus a disabled-state hint) when
+  translation is off, with the Disable danger zone shown only when it is on.
+- **Dead "not implemented" branch** — the standalone status endpoint no
+  longer advertises a 501 response for a manager that has long existed.
+
+### Added
+- **Dub-audio verification on download (opt-in)** — with
+  `dubtitle_verify_on_download` enabled, a downloaded English subtitle is
+  scored against the English dub audio before being kept; a confident
+  mismatch is kept but flagged in the logs. Off by default, and it falls
+  back to "keep" whenever Whisper or dub audio is unavailable, so it never
+  blocks a download.
+
+### Removed
+- **Never-enforced notification content filters** — the notification
+  settings API no longer accepts or stores per-content `{field, operator,
+  value}` filters, which were persisted but never applied. Event-type
+  include/exclude filters are unchanged.
+
+### Changed
+- **Subtitle-sync docs** now list only the two real engines (ffsubsync,
+  alass); the never-built "nanosync" / "LLM-assisted" engines were removed
+  from the documentation.
+- **Streaming setting label** clarified — the bare "experimental" tag was
+  replaced with a description of what the toggle does (HTTP-range streaming
+  of the source video to the Waveform Editor).
+- **OpenAPI cleanup `rule_type` enums** aligned with the rule types the
+  backend actually accepts (added `signs_cleanup`, `foreign_tracks`, and
+  others that were undocumented).
+
 ## [1.3.0] - 2026-06-22
 
 ### Added
