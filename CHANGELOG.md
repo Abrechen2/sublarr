@@ -5,7 +5,7 @@ All notable changes to Sublarr are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [1.4.0] - 2026-06-30
 
 ### Fixed
 - **Translation could not be enabled from the UI** (#151) — the Translation
@@ -15,6 +15,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   listed in the settings navigation, and its page shows an explicit
   "Translation aktivieren" button (plus a disabled-state hint) when
   translation is off, with the Disable danger zone shown only when it is on.
+- **Reasoning-model output leaked into translations** — Ollama responses from
+  reasoning models (qwen3, deepseek-r1) carry a `<think>…</think>` block that
+  was written straight into the translated subtitle. It is now stripped before
+  the translation is parsed, for both the generate and chat APIs.
 - **Dead "not implemented" branch** — the standalone status endpoint no
   longer advertises a 501 response for a manager that has long existed.
 
