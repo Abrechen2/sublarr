@@ -1253,7 +1253,9 @@
     "disable_confirm": "Wirklich deaktivieren? Alle wartenden Übersetzungs-Jobs werden abgebrochen.",
     "cancel": "Abbrechen",
     "disabling": "Deaktiviere…",
-    "confirm": "Bestätigen"
+    "confirm": "Bestätigen",
+    "workers_hint": "Maximale Anzahl paralleler Übersetzungs-Worker-Threads.",
+    "configure_link": "Konfigurieren →"
   },
   "subtitles_scoring_page": {
     "scoring_section": "Scoring",

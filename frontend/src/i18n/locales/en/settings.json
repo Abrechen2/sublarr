@@ -1253,7 +1253,9 @@
     "disable_confirm": "Really disable? All pending translation jobs will be cancelled.",
     "cancel": "Cancel",
     "disabling": "Disabling…",
-    "confirm": "Confirm"
+    "confirm": "Confirm",
+    "workers_hint": "Maximum parallel translation worker threads.",
+    "configure_link": "Configure →"
   },
   "subtitles_scoring_page": {
     "scoring_section": "Scoring",

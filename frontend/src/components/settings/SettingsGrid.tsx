@@ -266,7 +266,10 @@ export function SettingsGrid({ disabledCategories = [], className }: SettingsGri
   const { data: config } = useConfig()
   const [showEnableModal, setShowEnableModal] = useState(false)
 
-  const translationEnabled = Boolean(config?.translation_enabled)
+  // Stored as the string 'true'/'false' — Boolean('false') === true would
+  // wrongly show the card as enabled, so compare explicitly.
+  const translationEnabled =
+    config?.translation_enabled === true || config?.translation_enabled === 'true'
 
   return (
     <div className="flex flex-col gap-0">

@@ -76,8 +76,18 @@ export function BackendCard({
   }
 
   const handleSave = () => {
+    // The backend returns configured secrets masked as "***" (see
+    // backends.py). Never send a still-masked password field back — that would
+    // overwrite the real stored credential with the literal mask token. Only
+    // password fields the user actually re-typed are submitted.
+    const cleaned: Record<string, string> = {}
+    for (const [k, v] of Object.entries(formValues)) {
+      const fld = backend.config_fields.find((f) => f.key === k)
+      if (fld?.type === 'password' && v === '***') continue
+      cleaned[k] = v
+    }
     saveConfigMut.mutate(
-      { name: backend.name, config: formValues },
+      { name: backend.name, config: cleaned },
       {
         onSuccess: () => toast(t('backend_card.toast_saved')),
         onError: () => toast(t('backend_card.toast_save_failed'), 'error'),
@@ -208,19 +218,45 @@ export function BackendCard({
                   description={getFieldDescription(field.key)}
                 >
                   <div className="flex items-center gap-1.5 w-full">
-                    <input
-                      type={field.type === 'password' && !showPasswords[field.key] ? 'password' : field.type === 'number' ? 'number' : 'text'}
-                      value={formValues[field.key] === '***configured***' ? '' : (formValues[field.key] ?? field.default ?? '')}
-                      onChange={(e) => setFormValues((v) => ({ ...v, [field.key]: e.target.value }))}
-                      placeholder={formValues[field.key] === '***configured***' ? t('backend_card.placeholder_configured') : field.default || (field.required ? t('backend_card.placeholder_required') : t('backend_card.placeholder_optional'))}
-                      className="flex-1 px-2.5 py-1.5 rounded text-xs transition-all duration-150 focus:outline-none"
-                      style={{
-                        backgroundColor: 'var(--bg-primary)',
-                        border: '1px solid var(--border)',
-                        color: 'var(--text-primary)',
-                        fontFamily: 'var(--font-mono)',
-                      }}
-                    />
+                    {field.type === 'checkbox' ? (
+                      <input
+                        type="checkbox"
+                        checked={(formValues[field.key] ?? field.default ?? 'false') === 'true'}
+                        onChange={(e) =>
+                          setFormValues((v) => ({ ...v, [field.key]: e.target.checked ? 'true' : 'false' }))
+                        }
+                        className="h-4 w-4"
+                        style={{ accentColor: 'var(--accent)' }}
+                      />
+                    ) : field.type === 'textarea' ? (
+                      <textarea
+                        value={formValues[field.key] ?? field.default ?? ''}
+                        onChange={(e) => setFormValues((v) => ({ ...v, [field.key]: e.target.value }))}
+                        placeholder={field.default || (field.required ? t('backend_card.placeholder_required') : t('backend_card.placeholder_optional'))}
+                        rows={3}
+                        className="flex-1 px-2.5 py-1.5 rounded text-xs transition-all duration-150 focus:outline-none resize-y"
+                        style={{
+                          backgroundColor: 'var(--bg-primary)',
+                          border: '1px solid var(--border)',
+                          color: 'var(--text-primary)',
+                          fontFamily: 'var(--font-mono)',
+                        }}
+                      />
+                    ) : (
+                      <input
+                        type={field.type === 'password' && !showPasswords[field.key] ? 'password' : field.type === 'number' ? 'number' : 'text'}
+                        value={formValues[field.key] === '***' ? '' : (formValues[field.key] ?? field.default ?? '')}
+                        onChange={(e) => setFormValues((v) => ({ ...v, [field.key]: e.target.value }))}
+                        placeholder={formValues[field.key] === '***' ? t('backend_card.placeholder_configured') : field.default || (field.required ? t('backend_card.placeholder_required') : t('backend_card.placeholder_optional'))}
+                        className="flex-1 px-2.5 py-1.5 rounded text-xs transition-all duration-150 focus:outline-none"
+                        style={{
+                          backgroundColor: 'var(--bg-primary)',
+                          border: '1px solid var(--border)',
+                          color: 'var(--text-primary)',
+                          fontFamily: 'var(--font-mono)',
+                        }}
+                      />
+                    )}
                     {field.type === 'password' && (
                       <button
                         onClick={() => setShowPasswords((p) => ({ ...p, [field.key]: !p[field.key] }))}

@@ -98,7 +98,10 @@ export function TranslationSettings() {
   const disableTranslation = useDisableTranslation()
   const { data: config } = useConfig()
   const { mutate: updateConfig } = useUpdateConfig()
-  const translationEnabled = Boolean(config?.translation_enabled)
+  // config_entries stores this as the string 'true'/'false', so Boolean() is
+  // wrong (Boolean('false') === true). Match the codebase string-bool pattern.
+  const translationEnabled =
+    config?.translation_enabled === true || config?.translation_enabled === 'true'
 
   function handleEnable() {
     updateConfig({ translation_enabled: 'true' })
@@ -247,7 +250,7 @@ export function TranslationSettings() {
               <TranslationMemorySection />
               <FormGroup
                 label={tc('ui.translation_workers')}
-                hint="Maximum parallel translation worker threads."
+                hint={t('translation_page.workers_hint', 'Maximum parallel translation worker threads.')}
                 htmlFor="translation-max-workers"
               >
                 <input
@@ -255,7 +258,7 @@ export function TranslationSettings() {
                   type="number"
                   data-testid="input-translation-max-workers"
                   style={{ ...settingsInputStyle, width: '100px', outline: 'none' }}
-                  value={Number(strVal(config, 'translation_max_workers', '2'))}
+                  value={Number(strVal(config, 'translation_max_workers', '4'))}
                   onChange={(e) => updateConfig({ translation_max_workers: Number(e.target.value) })}
                   min={1}
                   max={16}
@@ -336,7 +339,7 @@ export function TranslationSettings() {
           to="/settings/providers/transcription"
           style={{ fontSize: '12px', color: 'var(--accent)' }}
         >
-          Configure →
+          {t('translation_page.configure_link', 'Configure →')}
         </Link>
       </div>
       {/* 6. Episode Context (Step 45) */}
