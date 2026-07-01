@@ -680,6 +680,7 @@
     "translation_backend_none": "— no fallback —",
     "translation_backend_unconfigured": "not configured",
     "translation_backend_help": "Empty = global default. Otherwise this profile uses the chosen backend (fallback only on failure).",
+    "translation_backend_unconfigured_warn": "This backend has no API key yet — translation would fail. Configure it under Translation → Backends.",
     "save": "Save",
     "cancel": "Cancel",
     "default_badge": "Default",

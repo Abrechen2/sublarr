@@ -315,6 +315,13 @@ export function LanguageProfilesTab() {
                 onChange={(name) => setForm((f) => ({ ...f, translation_backend: name, fallback_backend: name ? f.fallback_backend : '' }))}
               />
               <p className="text-[11px] text-muted">{t('language_profiles.translation_backend_help')}</p>
+              {form.translation_backend &&
+                form.translation_backend !== 'ollama' &&
+                !backends.find((b) => b.name === form.translation_backend)?.configured && (
+                  <p className="text-[11px]" style={{ color: 'var(--warning)' }}>
+                    {t('language_profiles.translation_backend_unconfigured_warn')}
+                  </p>
+              )}
             </div>
             {form.translation_backend && (
               <div className="space-y-1">

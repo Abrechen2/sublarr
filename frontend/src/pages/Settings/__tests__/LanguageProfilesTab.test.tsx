@@ -118,11 +118,12 @@ describe('LanguageProfilesTab — per-profile backend override', () => {
     openEditor()
 
     fireEvent.change(screen.getByTestId('profile-backend'), { target: { value: 'deepl' } })
-    // No fallback selection made — stays on inherit/none.
+    fireEvent.change(screen.getByTestId('profile-fallback'), { target: { value: 'deepl' } })
     fireEvent.click(screen.getByText('language_profiles.save'))
 
     expect(updateMutate).toHaveBeenCalledWith(
       expect.objectContaining({
+        id: 1,
         data: expect.objectContaining({
           translation_backend: 'deepl',
           fallback_chain: ['deepl'],

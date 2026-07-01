@@ -185,6 +185,46 @@ class TestUpdateLanguageProfile:
         data = resp.get_json()
         assert "already exists" in data["error"]
 
+    def test_translation_backend_and_fallback_chain_round_trip(self, client, monkeypatch):
+        _patch_cache(monkeypatch)
+        updated = {
+            **SAMPLE_PROFILE,
+            "translation_backend": "deepl",
+            "fallback_chain": ["deepl", "ollama"],
+        }
+        with (
+            patch("db.profiles.get_language_profile", side_effect=[SAMPLE_PROFILE, updated]),
+            patch("db.profiles.update_language_profile") as mock_update,
+        ):
+            resp = client.put(
+                "/api/v1/language-profiles/1",
+                json={"translation_backend": "deepl", "fallback_chain": ["deepl", "ollama"]},
+            )
+        assert resp.status_code == 200
+        data = resp.get_json()
+        assert data["translation_backend"] == "deepl"
+        assert data["fallback_chain"] == ["deepl", "ollama"]
+        mock_update.assert_called_once_with(
+            1, translation_backend="deepl", fallback_chain=["deepl", "ollama"]
+        )
+
+    def test_translation_backend_and_fallback_chain_clear_to_inherit(self, client, monkeypatch):
+        _patch_cache(monkeypatch)
+        updated = {**SAMPLE_PROFILE, "translation_backend": "", "fallback_chain": []}
+        with (
+            patch("db.profiles.get_language_profile", side_effect=[SAMPLE_PROFILE, updated]),
+            patch("db.profiles.update_language_profile") as mock_update,
+        ):
+            resp = client.put(
+                "/api/v1/language-profiles/1",
+                json={"translation_backend": "", "fallback_chain": []},
+            )
+        assert resp.status_code == 200
+        data = resp.get_json()
+        assert data["translation_backend"] == ""
+        assert data["fallback_chain"] == []
+        mock_update.assert_called_once_with(1, translation_backend="", fallback_chain=[])
+
 
 # ---------------------------------------------------------------------------
 # TestDeleteLanguageProfile — DELETE /api/v1/language-profiles/<id>

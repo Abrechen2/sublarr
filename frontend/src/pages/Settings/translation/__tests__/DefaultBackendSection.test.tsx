@@ -4,10 +4,10 @@ import { AdvancedSettingsProvider } from '@/contexts/AdvancedSettingsContext'
 
 const mutate = vi.fn()
 vi.mock('@/hooks/useApi', () => ({
-  useBackends: () => ({ data: [
+  useBackends: () => ({ data: { backends: [
     { name: 'ollama', display_name: 'Ollama (Local LLM)', configured: false },
     { name: 'deepl', display_name: 'DeepL', configured: true },
-  ] }),
+  ] } }),
   useConfig: () => ({ data: { translation_default_backend: 'ollama', translation_default_fallback: '' } }),
   useUpdateConfig: () => ({ mutate }),
 }))

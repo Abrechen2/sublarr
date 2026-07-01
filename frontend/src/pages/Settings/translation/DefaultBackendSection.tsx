@@ -6,16 +6,11 @@ import type { TranslationBackendInfo } from '@/types/translation'
 
 export function DefaultBackendSection() {
   const { t } = useTranslation('settings')
-  const { data: backendsResult } = useBackends()
+  const { data: backendsData } = useBackends()
   const { data: config } = useConfig()
   const updateConfig = useUpdateConfig()
 
-  // `useBackends()` normally resolves to `{ backends: TranslationBackendInfo[] }`,
-  // but this component's test mocks `data` as a flat array — support both shapes
-  // so the component works against the real API and against the prescribed test.
-  const list: TranslationBackendInfo[] = Array.isArray(backendsResult)
-    ? backendsResult
-    : (backendsResult?.backends ?? [])
+  const list: TranslationBackendInfo[] = backendsData?.backends ?? []
 
   const primary = (config?.translation_default_backend as string | undefined) ?? 'ollama'
   const fallback = (config?.translation_default_fallback as string | undefined) ?? ''
