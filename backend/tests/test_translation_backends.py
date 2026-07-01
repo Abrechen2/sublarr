@@ -334,9 +334,7 @@ def test_translate_with_fallback_empty_chain_reports_no_backend(manager):
 def test_translate_with_fallback_unregistered_backend_reports_no_backend(manager):
     """A chain naming only unregistered backends never runs anything and must
     say so, not 'All backends failed. Last error: None'."""
-    result = manager.translate_with_fallback(
-        ["Hi"], "en", "de", fallback_chain=["does_not_exist"]
-    )
+    result = manager.translate_with_fallback(["Hi"], "en", "de", fallback_chain=["does_not_exist"])
     assert result.success is False
     assert "No usable translation backend" in result.error
 

@@ -14,6 +14,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   config/env-only. The two dubtitle API endpoints are now documented in OpenAPI.
 
 ### Fixed
+- **Translation ran but silently produced nothing** — Queued translation jobs
+  never executed. The job queue defaulted to Redis/RQ, which needs a separate
+  worker process the single-container deployment does not run, so jobs sat in
+  "queued" forever; and the in-process fallback ran jobs without a Flask app
+  context, so the first DB access raised "working outside of application
+  context". The in-process queue is now the default and runs each job inside an
+  app context, and an RQ backend with no worker is logged loudly at startup.
+  Separately, a language profile with an empty backend and empty fallback chain
+  selected no backend at all ("All backends failed. Last error: None"); empty
+  profile values now fall back to Ollama and the error names the real cause.
+- **Cloud translation backend cards crashed the settings page** — Expanding the
+  Claude, Gemini, DeepSeek, Mistral, ChatGPT, Azure Translator or MyMemory card
+  threw "toLowerCase of undefined" and broke the whole Translation tab, because
+  those backends declared their config fields with `name` instead of the
+  contracted `key`. The field descriptors are fixed and the UI degrades
+  gracefully on a bad descriptor. Backend help tooltips are no longer clipped
+  at the card edge.
 - **Translation backend credential overwrite** — saving a configured backend
   without re-typing its key overwrote the stored secret with the mask token
   `***`; masked password fields are no longer re-sent on save.
