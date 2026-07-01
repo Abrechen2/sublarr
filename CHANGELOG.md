@@ -8,6 +8,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [1.4.0] - 2026-06-30
 
 ### Added
+- **Translation backend is now selectable in the UI** — a global default backend
+  (with an optional single fallback) on Settings → Translation → Backends &
+  Glossary, plus a per-profile override on Languages & Profiles. Profiles inherit
+  the global default unless overridden. Previously the backend was a DB-only field
+  with no UI, so configuring e.g. DeepL never changed which backend was actually
+  used.
 - **Dubtitle Detection settings UI** — the dubtitle keys (detection,
   verify-on-download, minimum score/margin, auto cue floor) are now
   configurable under Settings → Subtitles → Stream Management instead of being
