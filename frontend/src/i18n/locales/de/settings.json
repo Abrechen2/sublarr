@@ -1646,6 +1646,13 @@
     "col_type": "Typ"
   },
   "translation_backends": {
+    "default_backend_title": "Standard-Übersetzungs-Backend",
+    "default_backend_help": "Wird für Übersetzungen genutzt, sofern ein Sprachprofil nichts anderes vorgibt.",
+    "default_backend_primary": "Primär",
+    "default_backend_fallback": "Fallback (optional)",
+    "default_backend_none": "— kein Fallback —",
+    "default_backend_unconfigured": "nicht konfiguriert",
+    "default_backend_unconfigured_warn": "Dieses Backend hat noch keinen API-Key — Übersetzung würde fehlschlagen. Weiter unten konfigurieren.",
     "context_window": "Kontextfenster (Zeilen)",
     "default_sync_engine": "Standard-Sync-Engine",
     "auto_sync_after_download": "Auto-Sync nach Download",

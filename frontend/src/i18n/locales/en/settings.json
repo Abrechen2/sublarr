@@ -1646,6 +1646,13 @@
     "col_type": "Type"
   },
   "translation_backends": {
+    "default_backend_title": "Default translation backend",
+    "default_backend_help": "Used for translations unless a language profile overrides it.",
+    "default_backend_primary": "Primary",
+    "default_backend_fallback": "Fallback (optional)",
+    "default_backend_none": "— no fallback —",
+    "default_backend_unconfigured": "not configured",
+    "default_backend_unconfigured_warn": "This backend has no API key yet — translation would fail. Configure it below.",
     "context_window": "Context window (lines)",
     "default_sync_engine": "Default sync engine",
     "auto_sync_after_download": "Auto-Sync after download",

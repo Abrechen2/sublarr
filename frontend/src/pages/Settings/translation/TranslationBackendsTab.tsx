@@ -10,6 +10,7 @@ import {
 } from '@/hooks/useApi'
 import type { BackendStats, BackendHealthResult } from '@/lib/types'
 import { BackendCard } from '@/pages/Settings/translation/BackendCard'
+import { DefaultBackendSection } from '@/pages/Settings/translation/DefaultBackendSection'
 import { OllamaPullSection } from '@/pages/Settings/translation/OllamaPullSection'
 import { TemplatePickerModal } from '@/pages/Settings/translation/TemplatePickerModal'
 
@@ -333,6 +334,8 @@ export function TranslationBackendsTab() {
           onApply={handleApplyTemplate}
         />
       )}
+
+      <DefaultBackendSection />
 
       <div className="flex items-center justify-between">
         <span className="text-xs font-medium" style={{ color: 'var(--text-secondary)' }}>
