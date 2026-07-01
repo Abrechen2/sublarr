@@ -216,12 +216,17 @@ def _resolve_backend_for_context(arr_context, target_language):
     if not profile:
         profile = get_default_profile()
 
-    backend = profile.get("translation_backend", "ollama")
-    chain = profile.get("fallback_chain", ["ollama"])
+    # Guard against EMPTY values, not just missing keys: a profile row can
+    # carry translation_backend="" and fallback_chain=[] (e.g. the default
+    # "Standard" profile), which dict.get(key, default) does NOT coerce. An
+    # empty backend/chain makes translate_with_fallback iterate nothing and
+    # fail with the useless "All backends failed. Last error: None".
+    backend = profile.get("translation_backend") or "ollama"
+    chain = [b for b in (profile.get("fallback_chain") or []) if b]
 
-    # Ensure primary backend is first in chain
+    # Ensure primary backend is first in chain (and chain is never empty).
     if backend not in chain:
-        chain = [backend] + list(chain)
+        chain = [backend] + chain
 
     return (backend, chain)
 
