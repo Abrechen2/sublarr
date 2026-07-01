@@ -142,6 +142,14 @@ class UISettings(BaseModel):
     source_language_name: str = "English"
     target_language_name: str = "German"
     prompt_template: str = ""  # Empty = auto-generated from languages
+    # Global default translation backend + optional single fallback. A language
+    # profile with an empty translation_backend inherits these. Declared here as
+    # UISettings so the /config API surfaces AND accepts them (the Backends-page
+    # "Default translation backend" control reads/writes via /config). The
+    # resolver reads them via db.config.get_config_entry — this default is only
+    # the fallback when no config_entry row exists.
+    translation_default_backend: str = "ollama"
+    translation_default_fallback: str = ""
 
     # Subtitle Providers
     provider_priorities: str = "animetosho,jimaku,opensubtitles,subdl"
