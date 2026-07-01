@@ -6,7 +6,9 @@ import {
   useUpdateProfile,
   useDeleteProfile,
   useSetProfileAsDefaultForAll,
+  useBackends,
 } from '@/hooks/useApi'
+import { BackendSelect } from '@/components/settings/BackendSelect'
 import {
   Loader2,
   Trash2,
@@ -35,6 +37,8 @@ export function LanguageProfilesTab() {
   const updateProfile = useUpdateProfile()
   const deleteProfile = useDeleteProfile()
   const setAsDefaultForAll = useSetProfileAsDefaultForAll()
+  const { data: backendsData } = useBackends()
+  const backends = backendsData?.backends ?? []
   const [editingId, setEditingId] = useState<number | null>(null)
   const [showAdd, setShowAdd] = useState(false)
   const [form, setForm] = useState({
@@ -44,10 +48,21 @@ export function LanguageProfilesTab() {
     forced_scoring: 'include' as 'include' | 'prefer' | 'exclude' | 'only',
     hi_preference: 'include' as 'include' | 'prefer' | 'exclude' | 'only',
     cutoff_language: '',
+    translation_backend: '',
+    fallback_backend: '',
   })
 
   const resetForm = () => {
-    setForm({ name: '', target_languages: [], forced_preference: 'disabled', forced_scoring: 'include', hi_preference: 'include', cutoff_language: '' })
+    setForm({
+      name: '',
+      target_languages: [],
+      forced_preference: 'disabled',
+      forced_scoring: 'include',
+      hi_preference: 'include',
+      cutoff_language: '',
+      translation_backend: '',
+      fallback_backend: '',
+    })
     setEditingId(null)
     setShowAdd(false)
   }
@@ -60,6 +75,8 @@ export function LanguageProfilesTab() {
       forced_scoring: p.forced_scoring || 'include',
       hi_preference: p.hi_preference || 'include',
       cutoff_language: p.cutoff_language || '',
+      translation_backend: p.translation_backend && p.translation_backend !== '' ? p.translation_backend : '',
+      fallback_backend: (p.fallback_chain ?? []).filter((b) => b && b !== p.translation_backend)[0] ?? '',
     })
     setEditingId(p.id)
     setShowAdd(false)
@@ -73,6 +90,12 @@ export function LanguageProfilesTab() {
       return
     }
 
+    const primary = form.translation_backend
+    const fallback = primary ? form.fallback_backend : ''
+    const fallback_chain = primary
+      ? (fallback && fallback !== primary ? [primary, fallback] : [primary])
+      : []
+
     const payload = {
       name: form.name,
       target_languages: targetLangs,
@@ -81,6 +104,8 @@ export function LanguageProfilesTab() {
       forced_scoring: form.forced_scoring,
       hi_preference: form.hi_preference,
       cutoff_language: form.cutoff_language,
+      translation_backend: primary,
+      fallback_chain,
     }
 
     if (editingId) {
@@ -118,7 +143,20 @@ export function LanguageProfilesTab() {
           {t('language_profiles.intro')}
         </span>
         <button
-          onClick={() => { setShowAdd(true); setEditingId(null); setForm({ name: '', target_languages: [], forced_preference: 'disabled', forced_scoring: 'include', hi_preference: 'include', cutoff_language: '' }) }}
+          onClick={() => {
+            setShowAdd(true)
+            setEditingId(null)
+            setForm({
+              name: '',
+              target_languages: [],
+              forced_preference: 'disabled',
+              forced_scoring: 'include',
+              hi_preference: 'include',
+              cutoff_language: '',
+              translation_backend: '',
+              fallback_backend: '',
+            })
+          }}
           className="flex items-center gap-1.5 px-2.5 py-1 rounded text-xs font-medium transition-all duration-150"
           style={{ border: '1px solid var(--accent-dim)', color: 'var(--accent)', backgroundColor: 'var(--accent-bg)' }}
         >
@@ -264,6 +302,33 @@ export function LanguageProfilesTab() {
                   : t('language_profiles.cutoff_inactive_desc')}
               </p>
             </div>
+
+            {/* Translation Backend override */}
+            <div className="space-y-1">
+              <label className="text-xs font-medium text-secondary">{t('language_profiles.translation_backend_label')}</label>
+              <BackendSelect
+                data-testid="profile-backend"
+                value={form.translation_backend}
+                backends={backends}
+                inheritLabel={t('language_profiles.translation_backend_inherit')}
+                unconfiguredLabel={t('language_profiles.translation_backend_unconfigured')}
+                onChange={(name) => setForm((f) => ({ ...f, translation_backend: name, fallback_backend: name ? f.fallback_backend : '' }))}
+              />
+              <p className="text-[11px] text-muted">{t('language_profiles.translation_backend_help')}</p>
+            </div>
+            {form.translation_backend && (
+              <div className="space-y-1">
+                <label className="text-xs font-medium text-secondary">{t('language_profiles.translation_backend_fallback')}</label>
+                <BackendSelect
+                  data-testid="profile-fallback"
+                  value={form.fallback_backend}
+                  backends={backends}
+                  noneLabel={t('language_profiles.translation_backend_none')}
+                  unconfiguredLabel={t('language_profiles.translation_backend_unconfigured')}
+                  onChange={(name) => setForm((f) => ({ ...f, fallback_backend: name }))}
+                />
+              </div>
+            )}
 
           </div>
           <div className="flex items-center gap-2 pt-1">
