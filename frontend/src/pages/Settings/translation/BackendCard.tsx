@@ -62,7 +62,10 @@ export function BackendCard({
   }, [configData])
 
   const getFieldDescription = (key: string): string | undefined => {
-    const k = key.toLowerCase()
+    // Defensive: a backend descriptor that omits `key` (contract violation)
+    // must not crash the whole Translation tab via undefined.toLowerCase().
+    const k = (key ?? '').toLowerCase()
+    if (!k) return undefined
     if (k === 'name' || k === 'label' || k === 'backend_name' || k === 'display_name') return t('backend_card.field_desc_name')
     if (k === 'url' || k === 'base_url' || k === 'api_base_url' || k === 'api_base' || k === 'endpoint' || k === 'host') return t('backend_card.field_desc_url')
     if (k === 'api_key' || k === 'token' || k === 'api_token' || k === 'secret' || k === 'key') return t('backend_card.field_desc_api_key')
@@ -101,16 +104,17 @@ export function BackendCard({
 
   return (
     <div
-      className="rounded-lg overflow-hidden"
+      className="rounded-lg"
       style={{
         backgroundColor: 'var(--bg-surface)',
         border: '1px solid var(--border)',
       }}
     >
-      {/* Header */}
+      {/* Header — no `overflow-hidden` on the card so InfoTooltips can escape
+          the card bounds; the header rounds its own top corners instead. */}
       <button
         onClick={() => setExpanded(!expanded)}
-        className="w-full flex items-center justify-between gap-3 p-4 text-left transition-colors"
+        className={`w-full flex items-center justify-between gap-3 p-4 text-left transition-colors ${expanded ? 'rounded-t-lg' : 'rounded-lg'}`}
         style={{ backgroundColor: expanded ? 'var(--bg-surface-hover)' : undefined }}
       >
         <div className="flex items-center gap-3 min-w-0">

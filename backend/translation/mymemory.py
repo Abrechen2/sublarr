@@ -42,7 +42,7 @@ class MyMemoryBackend(TranslationBackend):
 
     config_fields = [
         {
-            "name": "email",
+            "key": "email",
             "type": "text",
             "label": "Email (optional, raises daily quota)",
             "required": False,

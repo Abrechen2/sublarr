@@ -180,7 +180,7 @@ def test_cost_calculation_matches_price_sheet():
 
 def test_config_fields_present():
     b = _claude()
-    field_names = {f["name"] if isinstance(f, dict) else f.name for f in b.config_fields}
+    field_names = {f["key"] if isinstance(f, dict) else f.key for f in b.config_fields}
     assert "api_key" in field_names
     assert "model" in field_names
 

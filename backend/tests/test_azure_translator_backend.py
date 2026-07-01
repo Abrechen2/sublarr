@@ -152,7 +152,7 @@ def test_error_writes_error_event(app, reset_conc):
 
 def test_config_fields_present():
     b = _azure()
-    field_names = {f["name"] if isinstance(f, dict) else f.name for f in b.config_fields}
+    field_names = {f["key"] if isinstance(f, dict) else f.key for f in b.config_fields}
     assert "api_key" in field_names
     assert "region" in field_names
 
