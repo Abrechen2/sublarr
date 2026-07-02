@@ -21,6 +21,17 @@ vi.mock('@/hooks/useWantedApi', () => ({
   useWantedBatchProbeStatus: () => ({ data: { running: false } }),
 }))
 
+vi.mock('@/hooks/useSchedulerJobs', () => ({
+  useSchedulerJobs: () => ({
+    data: {
+      jobs: [
+        { id: 'wanted_scanner', paused: false },
+        { id: 'wanted_search', paused: false },
+      ],
+    },
+  }),
+}))
+
 vi.mock('@/hooks/useProvidersApi', () => ({
   useProviderHealth: vi.fn(() => ({ data: { providers: [] } })),
 }))

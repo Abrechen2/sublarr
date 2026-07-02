@@ -2,7 +2,7 @@ import { Link } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { AttentionBanner } from './AttentionBanner'
 import { useHistory } from '@/hooks/useProvidersApi'
-import { parseMediaTitle, formatRelativeTime } from '@/lib/utils'
+import { parseMediaTitle, formatNumber, formatRelativeTime } from '@/lib/utils'
 
 const FEED_LIMIT = 20
 
@@ -16,6 +16,9 @@ export function ActivityFeed() {
   return (
     <div
       data-testid="activity-feed"
+      // min-h keeps the feed readable when the dashboard stacks on phones;
+      // md:min-h-0 restores the flex-shrink behavior of the two-column layout.
+      className="min-h-[360px] md:min-h-0"
       style={{
         background: 'var(--bg-surface)',
         border: '1px solid var(--border)',
@@ -24,7 +27,6 @@ export function ActivityFeed() {
         flexDirection: 'column',
         overflow: 'hidden',
         flex: 1,
-        minHeight: 0,
       }}
     >
       {/* Header */}
@@ -148,7 +150,7 @@ export function ActivityFeed() {
                   color: 'var(--text-muted)',
                 }}
               >
-                ··· {total - FEED_LIMIT} {t('feed.moreEvents')}
+                ··· {formatNumber(total - FEED_LIMIT)} {t('feed.moreEvents')}
               </div>
             )}
           </>
