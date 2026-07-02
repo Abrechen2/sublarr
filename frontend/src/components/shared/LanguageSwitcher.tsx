@@ -1,13 +1,18 @@
 import { useTranslation } from 'react-i18next'
+import { useUpdateConfig } from '@/hooks/useApi'
 
 export function LanguageSwitcher() {
   const { i18n } = useTranslation()
+  const { mutate: updateConfig } = useUpdateConfig()
   const currentLang = i18n.language?.startsWith('de') ? 'de' : 'en'
 
   const toggleLanguage = () => {
     const newLang = currentLang === 'en' ? 'de' : 'en'
     i18n.changeLanguage(newLang)
-    // Automatically persisted to localStorage by language detector
+    // Persisted to localStorage by the language detector; also persist the
+    // interface_language setting so the toggle and Settings → General stay
+    // in sync (they were previously two disconnected sources of truth).
+    updateConfig({ interface_language: newLang })
   }
 
   return (

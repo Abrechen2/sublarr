@@ -13,6 +13,7 @@ vi.mock('react-i18next', () => ({
 vi.mock('@/hooks/useApi', () => ({
   useHealth: () => ({ data: { status: 'healthy', version: '0.33.0' } }),
   useUpdateInfo: vi.fn(() => ({ data: null })),
+  useUpdateConfig: () => ({ mutate: vi.fn(), isPending: false }),
 }))
 
 vi.mock('@/hooks/useWantedApi', () => ({
