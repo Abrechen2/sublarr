@@ -1,17 +1,24 @@
 import { memo } from 'react'
 import { useTranslation } from 'react-i18next'
-import { useJobs, useBatchStatus } from '@/hooks/useApi'
+import { useJobs, useBatchStatus, useCancelJob, useClearQueuedJobs } from '@/hooks/useApi'
 import { StatusBadge } from '@/components/shared/StatusBadge'
 import { ProgressBar } from '@/components/shared/ProgressBar'
+import { toast } from '@/components/shared/Toast'
 import { truncatePath } from '@/lib/utils'
-import { Layers, Loader2 } from 'lucide-react'
+import { Layers, Loader2, X } from 'lucide-react'
 
 const TranslationJobRow = memo(function TranslationJobRow({
   file_path,
   status,
+  cancelLabel,
+  onCancel,
+  cancelDisabled,
 }: {
   file_path: string
   status: 'running' | 'queued'
+  cancelLabel?: string
+  onCancel?: () => void
+  cancelDisabled?: boolean
 }) {
   return (
     <div className="px-4 py-2.5 flex items-center gap-3">
@@ -31,6 +38,18 @@ const TranslationJobRow = memo(function TranslationJobRow({
         {truncatePath(file_path)}
       </span>
       <StatusBadge status={status} />
+      {onCancel && (
+        <button
+          type="button"
+          aria-label={cancelLabel}
+          title={cancelLabel}
+          onClick={onCancel}
+          disabled={cancelDisabled}
+          className="shrink-0 p-1 rounded-md text-muted hover:text-error hover:bg-surface-hover transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+        >
+          <X size={14} />
+        </button>
+      )}
     </div>
   )
 })
@@ -40,6 +59,24 @@ export function TranslationsTab() {
   const { data: activeJobs } = useJobs(1, 20, 'running', 3000)
   const { data: queuedJobs } = useJobs(1, 20, 'queued', 3000)
   const { data: batch } = useBatchStatus()
+  const cancelJob = useCancelJob()
+  const clearQueued = useClearQueuedJobs()
+
+  const queuedCount = queuedJobs?.data?.length ?? 0
+
+  const handleCancelJob = (jobId: string) => {
+    cancelJob.mutate(jobId, {
+      onSuccess: () => toast(t('translations.cancel_success'), 'success'),
+      onError: () => toast(t('translations.cancel_failed'), 'error'),
+    })
+  }
+
+  const handleClearQueued = () => {
+    clearQueued.mutate(undefined, {
+      onSuccess: (res) => toast(t('translations.clear_success', { n: res.cancelled }), 'success'),
+      onError: () => toast(t('translations.clear_failed'), 'error'),
+    })
+  }
 
   const hasActivity =
     batch?.running ||
@@ -131,18 +168,36 @@ export function TranslationsTab() {
         className="rounded-lg overflow-hidden"
         style={{ backgroundColor: 'var(--bg-surface)', border: '1px solid var(--border)' }}
       >
-        <div className="px-4 py-3" style={{ borderBottom: '1px solid var(--border)' }}>
+        <div
+          className="px-4 py-3 flex items-center justify-between gap-3"
+          style={{ borderBottom: '1px solid var(--border)' }}
+        >
           <h2
             className="text-xs font-semibold uppercase tracking-wider"
             style={{ color: 'var(--text-muted)' }}
           >
-            {t('queue.queued_count', { count: queuedJobs?.data?.length ?? 0 })}
+            {t('queue.queued_count', { count: queuedCount })}
           </h2>
+          <button
+            type="button"
+            onClick={handleClearQueued}
+            disabled={clearQueued.isPending || queuedCount === 0}
+            className="text-xs px-2 py-1 rounded-md border border-border text-secondary hover:bg-surface-hover transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            {t('translations.clear_queued')}
+          </button>
         </div>
         <div className="divide-y" style={{ borderColor: 'var(--border)' }}>
           {queuedJobs?.data?.length ? (
             queuedJobs.data.map((job) => (
-              <TranslationJobRow key={job.id} file_path={job.file_path} status="queued" />
+              <TranslationJobRow
+                key={job.id}
+                file_path={job.file_path}
+                status="queued"
+                cancelLabel={t('translations.cancel_job')}
+                onCancel={() => handleCancelJob(job.id)}
+                cancelDisabled={cancelJob.isPending}
+              />
             ))
           ) : (
             <div className="px-4 py-6 text-center text-sm" style={{ color: 'var(--text-secondary)' }}>

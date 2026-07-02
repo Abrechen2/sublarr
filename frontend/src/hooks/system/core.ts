@@ -5,7 +5,7 @@ import {
   getHealth, getUpdateInfo, getStats, getJobs,
   getBatchStatus, getConfig, updateConfig, disableTranslation,
   getLogs,
-  retryJob,
+  retryJob, cancelQueuedJob, clearQueuedJobs,
   exportConfig, importConfig,
   getSupportedLanguages,
   testSonarrInstance, testRadarrInstance,
@@ -189,6 +189,28 @@ export function useRetryJob() {
   const queryClient = useQueryClient()
   return useMutation({
     mutationFn: (jobId: string) => retryJob(jobId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['jobs'] })
+    },
+  })
+}
+
+/** Mutation: cancels a queued job (or deletes a finished one from history). */
+export function useCancelJob() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (jobId: string) => cancelQueuedJob(jobId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['jobs'] })
+    },
+  })
+}
+
+/** Mutation: cancels all queued translation jobs. */
+export function useClearQueuedJobs() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: () => clearQueuedJobs(),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['jobs'] })
     },

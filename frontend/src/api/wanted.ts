@@ -20,6 +20,21 @@ export async function retryJob(jobId: string): Promise<{ status: string; job_id:
   return data
 }
 
+/** Cancel a queued job (soft-cancel) or delete a finished one from history.
+ *  Named cancelQueuedJob (not cancelJob) — api/translation.ts already exports
+ *  a cancelJob for the live-queue cooperative cancel, and both modules are
+ *  re-exported star-style through api/client.ts. */
+export async function cancelQueuedJob(jobId: string): Promise<{ status: string; job_id: string }> {
+  const { data } = await api.delete(`/jobs/${jobId}`)
+  return data
+}
+
+/** Cancel all queued translation jobs. Returns the number cancelled. */
+export async function clearQueuedJobs(): Promise<{ cancelled: number }> {
+  const { data } = await api.post('/jobs/clear-queued')
+  return data
+}
+
 // ─── Wanted ─────────────────────────────────────────────────────────────
 
 export async function getWantedItems(
