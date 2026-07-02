@@ -75,6 +75,12 @@ jobs:
           python tools/test_lint_no_new_env_fields.py
           python tools/lint_no_new_env_fields.py
 
+      - name: Lint (no routes imports in services — layering)
+        working-directory: ./backend
+        run: |
+          python tools/test_lint_no_routes_import_in_services.py
+          python tools/lint_no_routes_import_in_services.py
+
       - name: Type check (mypy)
         working-directory: ./backend
         run: mypy . --config-file mypy.ini

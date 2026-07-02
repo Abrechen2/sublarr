@@ -6,7 +6,11 @@ importing from translate.py and wanted.py.
 """
 
 import threading
-import time
+
+# Translation stats state moved to services.translation_jobs (2026-07-02) so
+# the job runner lives entirely in the services layer. Re-exported here for
+# routes that still import it from routes.batch_state (same dict/lock objects).
+from services.translation_jobs import _memory_stats, stats_lock  # noqa: F401
 
 # --- Translation batch state ------------------------------------------------
 
@@ -21,13 +25,6 @@ batch_state = {
     "errors": [],
 }
 batch_lock = threading.Lock()
-
-stats_lock = threading.Lock()
-_memory_stats = {
-    "started_at": time.time(),
-    "upgrades": {"srt_to_ass_translated": 0, "srt_upgrade_skipped": 0},
-    "quality_warnings": 0,
-}
 
 # --- Wanted batch-search state ----------------------------------------------
 

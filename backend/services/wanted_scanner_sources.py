@@ -15,7 +15,9 @@ import time
 
 from config import get_settings
 from db.wanted import batch_upsert_context
-from routes.wanted.extract import _extract_embedded_sub
+
+# Aliased import: tests patch "services.wanted_scanner_sources._extract_embedded_sub".
+from services.embedded_extractor import extract_embedded_sub as _extract_embedded_sub
 from services.wanted_item_scanner import scan_radarr_movie, scan_sonarr_series
 
 logger = logging.getLogger(__name__)

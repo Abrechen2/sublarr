@@ -65,7 +65,7 @@ class TestHelpers:
     """Unit tests for module-level helper functions."""
 
     def test_media_paths_single(self, client):
-        with patch("routes.remux.get_settings") as mock_settings:
+        with patch("services.trash_locations.get_settings") as mock_settings:
             s = MagicMock()
             s.media_path = "/media/anime"
             s.extra_media_paths = ""
@@ -77,7 +77,7 @@ class TestHelpers:
             assert result == ["/media/anime"]
 
     def test_media_paths_with_extras(self, client):
-        with patch("routes.remux.get_settings") as mock_settings:
+        with patch("services.trash_locations.get_settings") as mock_settings:
             s = MagicMock()
             s.media_path = "/media/anime"
             s.extra_media_paths = "/media/movies, /media/tv"
@@ -89,7 +89,7 @@ class TestHelpers:
             assert result == ["/media/anime", "/media/movies", "/media/tv"]
 
     def test_media_paths_empty(self, client):
-        with patch("routes.remux.get_settings") as mock_settings:
+        with patch("services.trash_locations.get_settings") as mock_settings:
             s = MagicMock()
             s.media_path = ""
             s.extra_media_paths = ""
@@ -101,7 +101,7 @@ class TestHelpers:
             assert result == []
 
     def test_trash_paths_relative(self, client):
-        with patch("routes.remux.get_settings") as mock_settings:
+        with patch("services.trash_locations.get_settings") as mock_settings:
             s = MagicMock()
             s.media_path = "/media/anime"
             s.extra_media_paths = ""
@@ -115,7 +115,7 @@ class TestHelpers:
             assert result == [expected]
 
     def test_trash_paths_absolute(self, client):
-        with patch("routes.remux.get_settings") as mock_settings:
+        with patch("services.trash_locations.get_settings") as mock_settings:
             s = MagicMock()
             s.remux_trash_dir = "/opt/trash"
             mock_settings.return_value = s

@@ -6,6 +6,8 @@ import logging
 import os
 import threading
 
+from services.translation_jobs import run_job
+
 logger = logging.getLogger(__name__)
 
 
@@ -54,10 +56,8 @@ def retranslate_item(item_id: int) -> str | None:
     _app = _current_app._get_current_object()
 
     def _run():
-        from routes.translate import _run_job
-
         with _app.app_context():
-            _run_job(new_job)
+            run_job(new_job)
             emit_event(
                 "translation_complete",
                 {

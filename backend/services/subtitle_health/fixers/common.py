@@ -60,12 +60,13 @@ def atomic_write_bytes(path: str, data: bytes) -> None:
 
 def backup_sidecar(path: str) -> str | None:
     """Move a sidecar into the project trash, returning the trashed path or None."""
+    # get_settings stays a lazy import so tests can patch "config.get_settings".
     from config import get_settings
-    from routes.subtitles.helpers import _get_batch_dir, _trash_sidecar
+    from services.sidecar_trash import get_batch_dir, trash_sidecar
 
     media_path = getattr(get_settings(), "media_path", "/media")
-    batch_dir = _get_batch_dir(media_path, "subtitle_health")
-    trashed, err = _trash_sidecar(path, media_path, batch_dir)
+    batch_dir = get_batch_dir(media_path, "subtitle_health")
+    trashed, err = trash_sidecar(path, media_path, batch_dir)
     if err is not None:
         return None
     return trashed

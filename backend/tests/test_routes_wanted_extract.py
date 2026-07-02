@@ -47,9 +47,14 @@ P_OUTPUT_FOR_LANG = "translator.get_output_path_for_lang"
 # Each module imports emit_event/socketio/remux independently, so patches must
 # target the module where the function under test was defined.
 _M = "routes.wanted.extract"
-P_EMIT_EVENT = f"{_M}.emit_event"
-P_LOG_ACTIVITY = f"{_M}.log_activity"
 P_REMOVE_STREAM = f"{_M}.remove_subtitle_stream"
+
+# _extract_embedded_sub's implementation moved to
+# services.embedded_extractor.extract_embedded_sub (2026-07-02); its
+# top-level imports (emit_event, log_activity, submit_background) are now
+# bound there.
+P_EMIT_EVENT = "services.embedded_extractor.emit_event"
+P_LOG_ACTIVITY = "services.embedded_extractor.log_activity"
 
 _M_BE = "routes.wanted.batch_extract"
 P_EMIT_EVENT_BE = f"{_M_BE}.emit_event"
@@ -670,7 +675,7 @@ class TestExtractEmbeddedSubHelper:
             patch(P_UPDATE_STATUS),
             patch(P_EMIT_EVENT),
             patch(P_LOG_ACTIVITY),
-            patch("routes.wanted.extract.submit_background") as mock_submit,
+            patch("services.embedded_extractor.submit_background") as mock_submit,
         ):
             result = _extract_embedded_sub(1, str(mkv), auto_translate=True)
 
@@ -709,7 +714,7 @@ class TestExtractEmbeddedSubHelper:
             patch(P_UPDATE_STATUS),
             patch(P_EMIT_EVENT),
             patch(P_LOG_ACTIVITY),
-            patch("routes.wanted.extract.submit_background") as mock_submit,
+            patch("services.embedded_extractor.submit_background") as mock_submit,
         ):
             _extract_embedded_sub(1, str(mkv), auto_translate=True)
 
