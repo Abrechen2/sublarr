@@ -5,6 +5,48 @@ All notable changes to Sublarr are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.5.0] - 2026-07-02
+
+### Added
+- **Translation queue can be cleared from the UI** — queued translation
+  jobs get a cancel button and the Activity → Translations tab a
+  "Clear queued" action, backed by `DELETE /api/v1/jobs/{id}` and
+  `POST /api/v1/jobs/clear-queued`. A guard re-checks the job status
+  before execution, so cancelled jobs can never start; this also cleans
+  up jobs orphaned by container restarts.
+
+### Fixed
+- **Dashboard no longer contradicts itself** — the header status pill
+  and the footer automation status now derive from one shared source
+  (scheduler jobs + live scanner state) with a new "partially paused"
+  state and tooltips naming the paused jobs. Provider health dots
+  reflect connectivity instead of the lifetime download-conversion rate
+  (now a separate, tooltipped figure), the hidden 7-provider cap is
+  gone, the success-rate tile is labeled as translation success (30d),
+  and the activity feed no longer labels lifetime counts as "today".
+- **Interface language setting is applied again** — the stored
+  `interface_language` setting and the rendered language could silently
+  differ (the setting said German while the UI showed English). The
+  setting now applies on load, the Settings dropdown switches
+  immediately, the sidebar toggle persists to the setting, and the
+  selector offers only the actually translated languages (DE/EN).
+- **Broken characters in the English UI** — 49 double-encoded strings
+  (mojibake such as "1Ã—" and "â€"") in the English locale were
+  repaired, and two German leftovers in the EN locale translated.
+- **Mobile layout** — the dashboard stacks into one column with a 2×2
+  stats grid, and the settings sub-navigation collapses on phones
+  instead of squeezing the content to an unusable sliver.
+- **Wanted page** — the duplicate page header is gone, the header count
+  and the "Total Wanted" card now report the same number, and a failed
+  list fetch shows a retryable error instead of an empty list (the
+  Library page got the same error state).
+- **Series detail and library cards** — series with specials no longer
+  open on a fileless Season 0 (season 0 is labeled "Specials", the
+  season-count tag is translated), and the library card badges got
+  tooltips explaining the missing count and the coverage score. Numbers
+  and provider names now render consistently across dashboard and
+  history.
+
 ## [1.4.0] - 2026-06-30
 
 ### Added
