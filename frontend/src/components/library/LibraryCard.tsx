@@ -1,5 +1,6 @@
 import type React from 'react'
 import { Film, Tv, CheckCircle2 } from 'lucide-react'
+import { useTranslation } from 'react-i18next'
 import type { SeriesInfo, MovieInfo } from '@/lib/types'
 import { ScoreBadge } from '@/components/shared/ScoreBadge'
 import { cn } from '@/lib/utils'
@@ -26,6 +27,7 @@ function computeScore(item: SeriesInfo | MovieInfo): number | null {
 }
 
 export function LibraryCard({ item, onClick, style, className, selected, onToggleSelected }: LibraryCardProps) {
+  const { t } = useTranslation('library')
   const series = isSeries(item) ? item : null
   const missingCount = series?.missing_count ?? 0
   const score = computeScore(item)
@@ -117,6 +119,8 @@ export function LibraryCard({ item, onClick, style, className, selected, onToggl
           <span
             data-testid="library-card-missing-badge"
             className="absolute z-10 font-bold"
+            title={t('card.missing_tooltip', { count: missingCount })}
+            aria-label={t('card.missing_tooltip', { count: missingCount })}
             style={{
               top: '6px',
               right: '6px',
@@ -136,6 +140,8 @@ export function LibraryCard({ item, onClick, style, className, selected, onToggl
           <div
             data-testid="library-card-score-badge"
             className="absolute bottom-1.5 left-1.5 z-10"
+            title={t('card.score_tooltip', { score })}
+            aria-label={t('card.score_tooltip', { score })}
           >
             <ScoreBadge score={score} />
           </div>

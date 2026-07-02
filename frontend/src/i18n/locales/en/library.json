@@ -1,4 +1,6 @@
 {
+  "load_failed": "Failed to load the library.",
+  "retry_load": "Retry",
   "subtitle_pills": {
     "missing": "{{lang}} missing",
     "missing_tooltip": "No {{lang}} subtitle found — searching",
@@ -38,7 +40,12 @@
   "filter_status_complete": "Complete",
   "filter_profile_all": "All Profiles",
   "pagination": {
-    "show": "Show {{start}} to {{end}} of {{total}} entries"
+    "show": "Showing {{start}} to {{end}} of {{total}} entries"
+  },
+  "card": {
+    "missing_tooltip_one": "{{count}} subtitle missing",
+    "missing_tooltip_other": "{{count}} subtitles missing",
+    "score_tooltip": "Subtitle coverage: {{score}}%"
   },
   "empty": {
     "title": "No Library Data",
@@ -232,6 +239,9 @@
     "files": "{{count}} files",
     "glossary": "Glossary",
     "season": "Season {{number}}",
+    "specials": "Specials",
+    "season_count_one": "{{count}} Season",
+    "season_count_other": "{{count}} Seasons",
     "episodes_count": "{{count}} episodes",
     "ep": "Ep",
     "title_col": "Title",

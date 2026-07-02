@@ -16,7 +16,7 @@ interface SeriesHeroProps {
   readonly onSeriesSettings: () => void
 }
 
-function buildMetaTags(series: SeriesDetail): string[] {
+function buildMetaTags(series: SeriesDetail, t: (key: string, opts?: object) => string): string[] {
   const tags: string[] = []
   const knownGenres = ['anime', 'fantasy', 'action', 'drama', 'comedy', 'sci-fi', 'thriller']
   for (const tag of (series.tags ?? [])) {
@@ -25,9 +25,9 @@ function buildMetaTags(series: SeriesDetail): string[] {
       tags.push(tag.charAt(0).toUpperCase() + tag.slice(1))
     }
   }
-  // Season count
+  // Season count (regular seasons only — specials/season 0 are not counted)
   if ((series.season_count ?? 0) > 0) {
-    tags.push(`${series.season_count} Season${series.season_count > 1 ? 's' : ''}`)
+    tags.push(t('series_detail.season_count', { count: series.season_count }))
   }
   // Format preference — infer from profile name
   const profile = (series.profile_name ?? '').toLowerCase()
@@ -51,7 +51,7 @@ export function SeriesHero({
 }: SeriesHeroProps) {
   const { t } = useTranslation('library')
   const totalEps = series.episode_file_count ?? 0
-  const metaTags = buildMetaTags(series)
+  const metaTags = buildMetaTags(series, t)
 
   return (
     <div

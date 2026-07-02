@@ -410,8 +410,11 @@ export function SeriesDetailPage() {
   const [activeSeason, setActiveSeason] = useState<number | null>(null)
   const [showSeriesSettings, setShowSeriesSettings] = useState(false)
 
-  // Default to the first season (lowest number)
-  const defaultSeason = seasonGroups[0]?.[0] ?? null
+  // Default to the first REAL season — season 0 holds specials, which are
+  // often fileless placeholders and made complete series look broken when
+  // shown first. Fall back to season 0 only if it is the only season.
+  const defaultSeason =
+    seasonGroups.find(([s]) => s > 0)?.[0] ?? seasonGroups[0]?.[0] ?? null
   const currentSeason = activeSeason ?? defaultSeason
   const currentEpisodes = seasonGroups.find(([s]) => s === currentSeason)?.[1] ?? []
 
