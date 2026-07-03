@@ -48,3 +48,26 @@ def ip_in_networks(ip_str: str | None, networks: list[_Network]) -> bool:
     except ValueError:
         return False
     return any(ip in net for net in networks)
+
+
+def request_has_valid_proxy_auth() -> bool:
+    """True if the current request is authenticated via a trusted reverse proxy.
+
+    All must hold: feature enabled → a non-empty trusted-proxy allowlist is
+    configured → the request's direct peer IP is within it → the configured
+    identity header is present and non-empty. Any failure → False (fail closed).
+    """
+    from flask import request
+
+    from config import get_settings
+
+    settings = get_settings()
+    if not getattr(settings, "proxy_auth_enabled", False):
+        return False
+    networks = parse_trusted_networks(getattr(settings, "proxy_auth_trusted_ips", "") or "")
+    if not networks:
+        return False  # enabled but no allowlist → never trust (fail closed)
+    if not ip_in_networks(request.remote_addr, networks):
+        return False
+    header_name = getattr(settings, "proxy_auth_header", "Remote-User") or "Remote-User"
+    return bool(request.headers.get(header_name, "").strip())
