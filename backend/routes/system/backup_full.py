@@ -92,6 +92,14 @@ def create_full_backup():
         zf.writestr("config.json", json.dumps(safe_config, indent=2))
         zf.write(db_backup_path, db_archive_name)
 
+        # Encryption master key — required for restored secrets to decrypt.
+        from config_crypto import _key_path
+
+        key_file = _key_path()
+        if os.path.exists(key_file):
+            with open(key_file, "rb") as kf:
+                zf.writestr(".encryption_key", kf.read())
+
     buffer.seek(0)
 
     # Step 4: Save ZIP to backup_dir
@@ -239,6 +247,26 @@ def restore_full_backup():
             s = get_settings()
             imported_keys = []
             db_restored = False
+
+            # Restore the encryption master key BEFORE config entries are
+            # written back, so any enc:v1: ciphertext in config.json decrypts
+            # against the correct key. Older backups have no key file — skip
+            # without raising so those restores still succeed.
+            import config_crypto
+            from config_crypto import _key_path
+
+            if ".encryption_key" in zf.namelist():
+                key_bytes = safe_read_zip_member(zf, ".encryption_key", max_bytes=4096)
+                if isinstance(key_bytes, str):
+                    key_bytes = key_bytes.encode()
+                dest = _key_path()
+                os.makedirs(os.path.dirname(dest) or ".", exist_ok=True)
+                fd = os.open(dest, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)
+                try:
+                    os.write(fd, key_bytes)
+                finally:
+                    os.close(fd)
+                config_crypto.reset_cipher_cache()
 
             # Import config if present
             if "config.json" in zf.namelist():
