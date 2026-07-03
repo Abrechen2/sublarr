@@ -8,7 +8,7 @@ from __future__ import annotations
 
 import os
 
-ALLOWED_UPLOAD_EXTS: frozenset[str] = frozenset({"srt", "ass", "ssa", "vtt", "sub"})
+ALLOWED_UPLOAD_EXTS: frozenset[str] = frozenset({"srt", "ass", "ssa", "vtt"})
 MAX_UPLOAD_BYTES: int = 5 * 1024 * 1024
 _ARCHIVE_EXTS: frozenset[str] = frozenset({"zip", "rar", "7z", "gz", "tar"})
 
@@ -47,8 +47,21 @@ def prepare_upload(filename: str, raw: bytes) -> tuple[bytes, str]:
             413, f"File too large: {len(raw) // 1024} KB > {MAX_UPLOAD_BYTES // 1024} KB limit"
         )
 
+    from providers.base import SubtitleFormat
     from providers.format_validator import detect_format_from_content
     from subtitle_sanitizer import sanitize_subtitle, validate_content_type
+
+    # detect_format_from_content() only ever distinguishes ASS from SRT — it
+    # never returns VTT. Detect the WEBVTT magic ourselves first so content
+    # detection (not the extension) still wins: a genuine .vtt upload (or a
+    # WEBVTT file misnamed .srt) must not be misdetected as SRT and rejected.
+    stripped = raw.lstrip(b"\xef\xbb\xbf")
+    if stripped.lstrip()[:6] == b"WEBVTT":
+        try:
+            content = sanitize_subtitle(raw, SubtitleFormat.VTT)
+        except ValueError as e:
+            raise UploadError(422, f"Subtitle failed the security check: {e}") from e
+        return content, "vtt"
 
     fmt = detect_format_from_content(raw)
     detected = getattr(fmt, "value", "unknown")

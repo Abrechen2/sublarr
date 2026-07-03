@@ -38,3 +38,21 @@ def test_binary_bitmap_content_rejected_with_422():
     with pytest.raises(UploadError) as exc:
         prepare_upload("a.srt", b"\x89PNG\r\n\x1a\n" + b"\x00" * 64)
     assert exc.value.status == 422
+
+
+def test_valid_vtt_returns_content_and_ext():
+    content, ext = prepare_upload("cap.vtt", b"WEBVTT\n\n00:00:01.000 --> 00:00:02.000\nHallo\n")
+    assert ext == "vtt"
+    assert b"Hallo" in content
+
+
+def test_vtt_content_beats_srt_extension():
+    content, ext = prepare_upload("cap.srt", b"WEBVTT\n\n00:00:01.000 --> 00:00:02.000\nHi\n")
+    assert ext == "vtt"
+    assert b"Hi" in content
+
+
+def test_sub_extension_rejected_with_415():
+    with pytest.raises(UploadError) as exc:
+        prepare_upload("x.sub", _SRT)
+    assert exc.value.status == 415
