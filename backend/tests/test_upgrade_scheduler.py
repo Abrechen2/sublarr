@@ -127,6 +127,20 @@ class TestUpgradeSchedulerScanLogic:
         assert result["queued"] == 1
         assert result["skipped"] == 0
 
+    def test_machine_translation_row_skipped(self):
+        # Feature #8 phase-1 guard: a provisional machine-translated download
+        # must NOT be reactivated by the generic upgrade scan (its original-only
+        # re-seek is feature #8b). Otherwise the wanted flips back to "wanted"
+        # and the normal scanner re-translates it in a loop.
+        dl = _make_download(score=0, fmt="srt")
+        dl.source = "machine_translation"
+        item = {"id": 1, "status": "provisional", "last_search_at": None}
+
+        result, _ = self._run_scan([dl], item)
+
+        assert result["queued"] == 0
+        assert result["skipped"] == 1
+
     def test_high_score_ass_skipped(self):
         dl = _make_download(score=700, fmt="ass")
         item = {"id": 1, "status": "completed", "last_search_at": None}

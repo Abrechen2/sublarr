@@ -173,6 +173,16 @@ def _execute_scan() -> dict:
             downloads = db.execute(stmt).scalars().all()
 
             for dl in downloads:
+                # Phase-1 provisional-MT guard (feature #8): do not let the
+                # generic upgrade scan reactivate machine-translated rows. A
+                # provisional MT item's wanted status is neither "wanted" nor
+                # "searching", so without this guard the scan would flip it back
+                # to "wanted" and the normal scanner would re-translate it in a
+                # loop. The original-only re-seek of these rows is feature #8b.
+                if (dl.source or "") == "machine_translation":
+                    skipped += 1
+                    continue
+
                 # Only consider low-score downloads or non-ASS formats
                 is_low_score = (dl.score or 0) < UPGRADE_SCORE_THRESHOLD
                 is_not_ass = (dl.format or "").lower() not in ("ass", "ssa")
