@@ -75,6 +75,12 @@ def finalize_translation(item_id, item, output_path, target_lang, target_fmt) ->
                 file_path=output_path,
                 score=0,
                 source="machine_translation",
+                # The site-provider subtitle that fed this translation already
+                # bumped daily_stats via its own record_subtitle_download call.
+                # This synthetic MT row must land for history/upgrade-scan
+                # purposes but must NOT double-count the same translation on
+                # the Statistics dashboard.
+                record_stats=False,
             )
         except Exception as e:
             logger.warning(

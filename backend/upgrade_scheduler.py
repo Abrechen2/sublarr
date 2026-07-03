@@ -173,12 +173,14 @@ def _execute_scan() -> dict:
             downloads = db.execute(stmt).scalars().all()
 
             for dl in downloads:
-                # Phase-1 provisional-MT guard (feature #8): do not let the
-                # generic upgrade scan reactivate machine-translated rows. A
-                # provisional MT item's wanted status is neither "wanted" nor
-                # "searching", so without this guard the scan would flip it back
-                # to "wanted" and the normal scanner would re-translate it in a
-                # loop. The original-only re-seek of these rows is feature #8b.
+                # Phase-1 provisional-MT guard (feature #8): defense-in-depth
+                # skip of the MT row itself. The PRIMARY/complete guard is the
+                # "provisional" status check below -- a translation also writes
+                # a second subtitle_downloads row for the site-provider subtitle
+                # (source="provider", file_path=the video path), which resolves
+                # back to the same wanted item and is NOT source==
+                # "machine_translation", so it would slip past this check alone.
+                # The original-only re-seek of these rows is feature #8b.
                 if (dl.source or "") == "machine_translation":
                     skipped += 1
                     continue
@@ -196,8 +198,11 @@ def _execute_scan() -> dict:
                     skipped += 1
                     continue
 
-                # Skip if already in "wanted" / "searching" state
-                if item.get("status") in ("wanted", "searching"):
+                # Skip if already in "wanted" / "searching" / "provisional" state.
+                # "provisional" is the primary guard against re-reactivating an
+                # MT-kept-seeking item via its sibling site-provider download row
+                # (see the machine_translation early-skip comment above).
+                if item.get("status") in ("wanted", "searching", "provisional"):
                     skipped += 1
                     continue
 

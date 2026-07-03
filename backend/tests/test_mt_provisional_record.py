@@ -10,10 +10,19 @@ profile-resolution error. See docs/plans/2026-07-03-v1.6-provisional-mt.md.
 
 from __future__ import annotations
 
+from datetime import date
+
+from db.models.core import DailyStats
 from db.models.providers import SubtitleDownload
 from db.wanted import get_wanted_item, upsert_wanted_item
 from extensions import db
 from services import mt_provisional
+
+
+def _translated_count() -> int:
+    """Current daily_stats.translated for today, 0 if no row exists yet."""
+    row = db.session.get(DailyStats, date.today().isoformat())
+    return (row.translated or 0) if row else 0
 
 
 def _make_wanted_item(tmp_path, target_language="de"):
@@ -130,3 +139,50 @@ def test_resolve_keep_seeking_defaults_false_without_profile_assignment(app_ctx,
     item_id, item = _make_wanted_item(tmp_path)
 
     assert mt_provisional.resolve_keep_seeking(item) is False
+
+
+def test_finalize_translation_does_not_double_count_daily_stats(app_ctx, tmp_path, monkeypatch):
+    """Regression: finalize_translation's synthetic MT row must not bump
+    daily_stats -- the site-provider subtitle that fed the translation already
+    recorded its own record_stat call. Without record_stats=False this row
+    would add a second, phantom +1 to daily_stats.translated per translation.
+    """
+    monkeypatch.setattr(mt_provisional, "resolve_keep_seeking", lambda item: True)
+
+    item_id, item = _make_wanted_item(tmp_path)
+    output_path = str(tmp_path / "ep.de.ass")
+
+    before = _translated_count()
+
+    mt_provisional.finalize_translation(item_id, item, output_path, "de", "ass")
+
+    # The MT row itself must still exist (needed for history / upgrade-scan guard).
+    row = db.session.query(SubtitleDownload).filter_by(source="machine_translation").one()
+    assert row.file_path == output_path
+
+    # But daily_stats must NOT have moved -- no double count.
+    assert _translated_count() == before
+
+
+def test_record_subtitle_download_default_still_bumps_daily_stats(app_ctx, tmp_path):
+    """Existing callers that don't pass record_stats keep bumping daily_stats
+    (proves the new keyword param is opt-out, not a behaviour change for the
+    normal provider-download path).
+    """
+    from db.providers import record_subtitle_download
+
+    mkv = tmp_path / "site_sub.mkv"
+    mkv.touch()
+
+    before = _translated_count()
+
+    record_subtitle_download(
+        provider_name="jimaku",
+        subtitle_id="abc123",
+        language="de",
+        fmt="ass",
+        file_path=str(mkv),
+        score=88,
+    )
+
+    assert _translated_count() == before + 1

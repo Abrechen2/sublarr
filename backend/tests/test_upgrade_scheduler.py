@@ -141,6 +141,25 @@ class TestUpgradeSchedulerScanLogic:
         assert result["queued"] == 0
         assert result["skipped"] == 1
 
+    def test_provisional_item_via_sibling_provider_row_skipped(self):
+        # Fix B: a translation writes TWO subtitle_downloads rows -- the MT
+        # output (source="machine_translation", guarded above) AND a sibling
+        # row for the site-provider subtitle that fed it (source="provider",
+        # file_path=the video path). That sibling row resolves back to the
+        # SAME wanted item, which is now "provisional" (keep-seeking the
+        # human original). Without the status guard, this low-score/SRT
+        # sibling would be re-queued and reactivate the item -> re-translate
+        # loop once #8b enables keep-seeking. The "provisional" status guard
+        # must catch it even though dl.source == "provider" here.
+        dl = _make_download(score=200, fmt="srt")
+        dl.source = "provider"
+        item = {"id": 1, "status": "provisional", "last_search_at": None}
+
+        result, _ = self._run_scan([dl], item)
+
+        assert result["queued"] == 0
+        assert result["skipped"] == 1
+
     def test_high_score_ass_skipped(self):
         dl = _make_download(score=700, fmt="ass")
         item = {"id": 1, "status": "completed", "last_search_at": None}
