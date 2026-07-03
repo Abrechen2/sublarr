@@ -6,7 +6,10 @@ the filename extension. Archives are rejected here (raw files only).
 
 from __future__ import annotations
 
+import logging
 import os
+
+logger = logging.getLogger(__name__)
 
 ALLOWED_UPLOAD_EXTS: frozenset[str] = frozenset({"srt", "ass", "ssa", "vtt"})
 MAX_UPLOAD_BYTES: int = 5 * 1024 * 1024
@@ -101,3 +104,76 @@ def prepare_upload(filename: str, raw: bytes) -> tuple[bytes, str]:
         raise UploadError(422, reason or "File content is not a recognised text subtitle.")
 
     return _sanitize_or_raise(raw, fmt), detected
+
+
+def build_sidecar_path(video_path: str, language: str, modifier: str | None, ext: str) -> str:
+    """Build the sidecar subtitle path next to a video file.
+
+    E.g. ("/m/Show - S01E01.mkv", "de", None, "srt") -> "/m/Show - S01E01.de.srt"
+    E.g. ("/m/Show - S01E01.mkv", "en", "forced", "ass") -> "/m/Show - S01E01.en.forced.ass"
+    """
+    base, _ = os.path.splitext(video_path)
+    parts = [base, language]
+    if modifier:
+        parts.append(modifier)
+    parts.append(ext)
+    return ".".join(parts)
+
+
+def save_manual_subtitle(
+    video_path: str,
+    content: bytes,
+    ext: str,
+    language: str,
+    modifier: str | None,
+    overwrite: bool,
+    media_path: str,
+) -> str:
+    """Write a validated manual subtitle as a sidecar and record it. Returns the path."""
+    import security_utils
+    from routes.subtitles.helpers import scan_subtitle_sidecars
+    from utils.atomic_write import atomic_write_bytes
+
+    out_path = build_sidecar_path(video_path, language, modifier, ext)
+
+    if not security_utils.is_safe_path(out_path, media_path):
+        raise UploadError(400, "Resolved subtitle path is outside the media directory.")
+
+    existing = None
+    for side in scan_subtitle_sidecars(video_path):
+        if side.get("language") == language and side.get("modifier") == modifier:
+            existing = side["path"]
+            break
+    if existing and not overwrite:
+        raise UploadError(409, f"A {language} subtitle already exists — set overwrite to replace.")
+    if existing and overwrite:
+        try:
+            from services.sidecar_trash import get_batch_dir, trash_sidecar
+
+            batch_dir = get_batch_dir(media_path, "manual-upload")
+            os.makedirs(batch_dir, exist_ok=True)
+            trash_sidecar(existing, media_path, batch_dir)
+        except Exception as e:
+            # The atomic overwrite below still replaces the file; do not abort,
+            # but do NOT swallow silently — log so a failing trash is visible.
+            logger.warning("manual upload: could not trash prior sidecar %s: %s", existing, e)
+
+    atomic_write_bytes(out_path, content)
+
+    try:
+        from db.providers import record_subtitle_download
+
+        record_subtitle_download(
+            provider_name="manual",
+            subtitle_id=f"manual:{os.path.basename(out_path)}",
+            language=language,
+            fmt=ext,
+            file_path=out_path,
+            score=0,
+            source="manual",
+        )
+    except Exception as e:
+        # History recording must never lose the written file — but log it (not silent).
+        logger.warning("manual upload: history record failed for %s: %s", out_path, e)
+
+    return out_path
