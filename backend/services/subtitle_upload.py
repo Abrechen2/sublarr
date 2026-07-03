@@ -131,7 +131,7 @@ def save_manual_subtitle(
     language: str,
     modifier: str | None,
     overwrite: bool,
-    media_path: str,
+    media_roots: list[str],
 ) -> str:
     """Write a validated manual subtitle as a sidecar and record it. Returns the path."""
     import security_utils
@@ -140,9 +140,9 @@ def save_manual_subtitle(
 
     # Defense-in-depth: language/modifier are spliced directly into the sidecar
     # path below. A value like language="../../etc" would resolve to a path
-    # still inside media_path (so is_safe_path passes) but outside the video's
-    # own directory. Reject anything that isn't a plain language/modifier
-    # token before it ever reaches path construction.
+    # still inside a configured root (so is_safe_path passes) but outside the
+    # video's own directory. Reject anything that isn't a plain language/
+    # modifier token before it ever reaches path construction.
     if not _LANGUAGE_RE.match(language or ""):
         raise UploadError(400, "Invalid language code")
     if modifier is not None and modifier not in _ALLOWED_MODIFIERS:
@@ -150,7 +150,13 @@ def save_manual_subtitle(
 
     out_path = build_sidecar_path(video_path, language, modifier, ext)
 
-    if not security_utils.is_safe_path(out_path, media_path):
+    # Multi-root libraries: a video may live under the primary media_path OR
+    # any configured extra_media_paths root. Accept the sidecar as long as it
+    # resolves inside ANY configured root; an empty root list fails closed.
+    media_root = next(
+        (root for root in media_roots if security_utils.is_safe_path(out_path, root)), None
+    )
+    if media_root is None:
         raise UploadError(400, "Resolved subtitle path is outside the media directory.")
 
     existing = None
@@ -164,9 +170,9 @@ def save_manual_subtitle(
         try:
             from services.sidecar_trash import get_batch_dir, trash_sidecar
 
-            batch_dir = get_batch_dir(media_path, "manual-upload")
+            batch_dir = get_batch_dir(media_root, "manual-upload")
             os.makedirs(batch_dir, exist_ok=True)
-            _, trash_error = trash_sidecar(existing, media_path, batch_dir)
+            _, trash_error = trash_sidecar(existing, media_root, batch_dir)
             if trash_error is not None:
                 logger.warning(
                     "manual upload: could not trash prior sidecar %s: %s", existing, trash_error
@@ -177,6 +183,30 @@ def save_manual_subtitle(
             logger.warning("manual upload: could not trash prior sidecar %s: %s", existing, e)
 
     atomic_write_bytes(out_path, content)
+
+    # Register the content hash exactly like download_manager does after a
+    # provider download, so a manual overwrite doesn't leave a stale hash
+    # behind and manual files participate in dedup/cleanup like any other.
+    try:
+        from db.repositories.cleanup import CleanupRepository
+        from dedup_engine import compute_content_hash_from_bytes
+
+        content_hash = compute_content_hash_from_bytes(content)
+        CleanupRepository().upsert_hash(
+            file_path=out_path,
+            content_hash=content_hash,
+            file_size=len(content),
+            format=ext,
+            language=language,
+        )
+    except Exception as e:
+        try:
+            from extensions import db as _db
+
+            _db.session.rollback()
+        except Exception:
+            pass
+        logger.warning("manual upload: hash registration failed for %s: %s", out_path, e)
 
     try:
         from db.providers import record_subtitle_download

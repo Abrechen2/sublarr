@@ -154,7 +154,7 @@ class ProviderRepository(BaseRepository):
             fmt: Subtitle format ("srt", "ass", etc.).
             file_path: Absolute path to the saved subtitle file.
             score: Provider score (0 for Whisper-generated).
-            source: Source type -- "provider" (default) or "whisper".
+            source: Source type -- "provider" (default), "whisper", or "manual".
             upgraded_from_id: DB id of the previous SubtitleDownload this one replaces.
         """
         now = self._now()

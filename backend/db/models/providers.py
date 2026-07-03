@@ -42,7 +42,9 @@ class SubtitleDownload(db.Model):
     file_path: Mapped[str] = mapped_column(Text, nullable=False)
     score: Mapped[int | None] = mapped_column(Integer, default=0)
     subtitle_type: Mapped[str | None] = mapped_column(Text, default="full")
-    source: Mapped[str | None] = mapped_column(Text, default="provider")  # "provider" | "whisper"
+    source: Mapped[str | None] = mapped_column(
+        Text, default="provider"
+    )  # "provider" | "whisper" | "manual"
     downloaded_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
     upgraded_from_id: Mapped[int | None] = mapped_column(Integer, nullable=True)
 

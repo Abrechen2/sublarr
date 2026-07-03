@@ -86,7 +86,7 @@ def record_subtitle_download(
     """Record a subtitle download for history tracking.
 
     Args:
-        source: Source type -- "provider" (default) or "whisper".
+        source: Source type -- "provider" (default), "whisper", or "manual".
         upgraded_from_id: DB id of the previous SubtitleDownload this one replaces.
     """
     result = _get_repo().record_subtitle_download(

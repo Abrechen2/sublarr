@@ -2,12 +2,11 @@
 
 from __future__ import annotations
 
-import logging
 import os
 
 from flask import jsonify, request
 
-from config import get_settings, map_path
+from config import map_path
 from routes.subtitles import bp
 from services.subtitle_upload import (
     MAX_UPLOAD_BYTES,
@@ -15,8 +14,6 @@ from services.subtitle_upload import (
     prepare_upload,
     save_manual_subtitle,
 )
-
-logger = logging.getLogger(__name__)
 
 # Reject obviously-oversized requests before reading the body into memory.
 _MAX_REQUEST_BYTES = MAX_UPLOAD_BYTES + 1024 * 1024  # subtitle cap + multipart overhead
@@ -46,10 +43,11 @@ def _do_upload(video_path: str):
     modifier = _modifier_from_form()
 
     try:
+        from services.trash_locations import media_paths
+
         content, ext = prepare_upload(upload.filename, upload.read())
-        media_path = getattr(get_settings(), "media_path", "/media")
         saved = save_manual_subtitle(
-            video_path, content, ext, language, modifier, overwrite, media_path
+            video_path, content, ext, language, modifier, overwrite, media_paths()
         )
     except UploadError as e:
         return jsonify({"error": e.message}), e.status
