@@ -1,0 +1,40 @@
+import pytest
+
+from services.subtitle_upload import MAX_UPLOAD_BYTES, UploadError, prepare_upload
+
+_SRT = b"1\n00:00:01,000 --> 00:00:02,000\nHallo Welt\n"
+
+
+def test_valid_srt_returns_content_and_ext():
+    content, ext = prepare_upload("Movie.de.srt", _SRT)
+    assert ext == "srt"
+    assert b"Hallo Welt" in content
+
+
+def test_archive_rejected_with_415():
+    with pytest.raises(UploadError) as exc:
+        prepare_upload("subs.zip", b"PK\x03\x04whatever")
+    assert exc.value.status == 415
+
+
+def test_unknown_extension_rejected():
+    with pytest.raises(UploadError) as exc:
+        prepare_upload("movie.txt", _SRT)
+    assert exc.value.status == 415
+
+
+def test_empty_rejected():
+    with pytest.raises(UploadError):
+        prepare_upload("a.srt", b"")
+
+
+def test_oversize_rejected_with_413():
+    with pytest.raises(UploadError) as exc:
+        prepare_upload("a.srt", b"x" * (MAX_UPLOAD_BYTES + 1))
+    assert exc.value.status == 413
+
+
+def test_binary_bitmap_content_rejected_with_422():
+    with pytest.raises(UploadError) as exc:
+        prepare_upload("a.srt", b"\x89PNG\r\n\x1a\n" + b"\x00" * 64)
+    assert exc.value.status == 422
