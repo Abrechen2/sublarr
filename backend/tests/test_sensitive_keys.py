@@ -30,3 +30,18 @@ def test_master_key_source_is_excluded():
 def test_password_hash_is_excluded():
     # already a bcrypt hash, not reversible plaintext
     assert not is_sensitive_key("ui_password_hash")
+
+
+def test_namespaced_keys_are_not_sensitive():
+    # Dotted keys are owned by sub-repositories (PluginRepository,
+    # post_processing/config_store.py) that bypass the encrypt/decrypt layer.
+    # Encrypting them would produce ciphertext those repos read verbatim.
+    assert not is_sensitive_key("plugin.foo.access_token")
+    assert not is_sensitive_key("plugin.x.client_secret")
+    assert not is_sensitive_key("post_processing.emby.api_key")
+    assert not is_sensitive_key("backend.deepl.some_token")
+
+
+def test_plain_secret_suffix_is_sensitive():
+    assert is_sensitive_key("webhook_secret")
+    assert is_sensitive_key("session_secret")
