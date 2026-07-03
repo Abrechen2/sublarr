@@ -8,12 +8,16 @@ from __future__ import annotations
 
 import logging
 import os
+import re
 
 logger = logging.getLogger(__name__)
 
 ALLOWED_UPLOAD_EXTS: frozenset[str] = frozenset({"srt", "ass", "ssa", "vtt"})
 MAX_UPLOAD_BYTES: int = 5 * 1024 * 1024
 _ARCHIVE_EXTS: frozenset[str] = frozenset({"zip", "rar", "7z", "gz", "tar"})
+
+_LANGUAGE_RE = re.compile(r"^[a-z]{2,3}$")
+_ALLOWED_MODIFIERS: frozenset[str] = frozenset({"hi", "forced", "sdh", "cc"})
 
 
 class UploadError(Exception):
@@ -134,6 +138,16 @@ def save_manual_subtitle(
     from routes.subtitles.helpers import scan_subtitle_sidecars
     from utils.atomic_write import atomic_write_bytes
 
+    # Defense-in-depth: language/modifier are spliced directly into the sidecar
+    # path below. A value like language="../../etc" would resolve to a path
+    # still inside media_path (so is_safe_path passes) but outside the video's
+    # own directory. Reject anything that isn't a plain language/modifier
+    # token before it ever reaches path construction.
+    if not _LANGUAGE_RE.match(language or ""):
+        raise UploadError(400, "Invalid language code")
+    if modifier is not None and modifier not in _ALLOWED_MODIFIERS:
+        raise UploadError(400, "Invalid subtitle modifier")
+
     out_path = build_sidecar_path(video_path, language, modifier, ext)
 
     if not security_utils.is_safe_path(out_path, media_path):
@@ -152,7 +166,11 @@ def save_manual_subtitle(
 
             batch_dir = get_batch_dir(media_path, "manual-upload")
             os.makedirs(batch_dir, exist_ok=True)
-            trash_sidecar(existing, media_path, batch_dir)
+            _, trash_error = trash_sidecar(existing, media_path, batch_dir)
+            if trash_error is not None:
+                logger.warning(
+                    "manual upload: could not trash prior sidecar %s: %s", existing, trash_error
+                )
         except Exception as e:
             # The atomic overwrite below still replaces the file; do not abort,
             # but do NOT swallow silently — log so a failing trash is visible.
