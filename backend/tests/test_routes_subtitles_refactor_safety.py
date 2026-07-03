@@ -21,6 +21,8 @@ EXPECTED_URL_RULES = {
     ("/api/v1/library/episodes/<int:ep_id>/subtitles", "GET"),
     ("/api/v1/library/movies/<int:movie_id>/subtitles", "GET"),
     ("/api/v1/library/series/<int:series_id>/subtitles", "GET"),
+    ("/api/v1/library/episodes/<int:ep_id>/subtitles/upload", "POST"),
+    ("/api/v1/library/movies/<int:movie_id>/subtitles/upload", "POST"),
     ("/api/v1/library/subtitles", "DELETE"),
     ("/api/v1/library/series/<int:series_id>/subtitles/batch-delete", "POST"),
     ("/api/v1/library/trash", "GET"),
