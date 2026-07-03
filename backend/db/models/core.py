@@ -534,8 +534,9 @@ class ProviderAccountPool(db.Model):
     api_key: Mapped[str] = mapped_column(String(500), nullable=False)
     username: Mapped[str | None] = mapped_column(String(200), nullable=True)
     password: Mapped[str | None] = mapped_column(String(500), nullable=True)
-    # Provider-account credential (not a user login). Stored in plaintext to
-    # match the existing config_entries policy; encryption-at-rest is a future task.
+    # Provider-account credential (not a user login). Encrypted at rest via
+    # ProviderAccountPoolRepository (config_crypto Fernet); back-filled by
+    # migration c9d0e1f2a3b4_encrypt_sensitive_at_rest.
     tier: Mapped[str] = mapped_column(String(20), nullable=False, default="free")
     enabled: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
     last_used_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
