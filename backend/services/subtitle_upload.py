@@ -26,6 +26,19 @@ def _ext_of(filename: str) -> str:
     return os.path.splitext(filename or "")[1].lstrip(".").lower()
 
 
+def _sanitize_or_raise(raw: bytes, fmt) -> bytes:
+    """Run the sanitizer, converting a ValueError into an UploadError(422).
+
+    Shared by every accepted-format branch so the try/except isn't duplicated.
+    """
+    from subtitle_sanitizer import sanitize_subtitle
+
+    try:
+        return sanitize_subtitle(raw, fmt)
+    except ValueError as e:
+        raise UploadError(422, f"Subtitle failed the security check: {e}") from e
+
+
 def prepare_upload(filename: str, raw: bytes) -> tuple[bytes, str]:
     """Validate + sanitize an uploaded subtitle. Returns (content, detected_ext).
 
@@ -48,29 +61,43 @@ def prepare_upload(filename: str, raw: bytes) -> tuple[bytes, str]:
         )
 
     from providers.base import SubtitleFormat
-    from providers.format_validator import detect_format_from_content
-    from subtitle_sanitizer import sanitize_subtitle, validate_content_type
+    from providers.format_validator import _validate_subtitle_content, detect_format_from_content
+    from subtitle_sanitizer import validate_content_type
 
     # detect_format_from_content() only ever distinguishes ASS from SRT — it
     # never returns VTT. Detect the WEBVTT magic ourselves first so content
     # detection (not the extension) still wins: a genuine .vtt upload (or a
     # WEBVTT file misnamed .srt) must not be misdetected as SRT and rejected.
+    #
+    # BOM-tolerant only (no general whitespace-skipping): this must mirror the
+    # inner validate_content_type() check exactly — WEBVTT must sit right at
+    # the start after an optional BOM. Otherwise a file that tolerates leading
+    # blank lines here but not there passes this sniff and then fails the
+    # inner check with a confusing 422.
     stripped = raw.lstrip(b"\xef\xbb\xbf")
-    if stripped.lstrip()[:6] == b"WEBVTT":
-        try:
-            content = sanitize_subtitle(raw, SubtitleFormat.VTT)
-        except ValueError as e:
-            raise UploadError(422, f"Subtitle failed the security check: {e}") from e
-        return content, "vtt"
+    if stripped.startswith(b"WEBVTT"):
+        # Whole-payload magic-byte/control-byte check (P4 defense) — the
+        # outer content-type sniff above only looks at the first bytes, so a
+        # payload like b"WEBVTT\n" + binary would otherwise sail through and
+        # get written to disk verbatim (VTT sanitization fails open on a
+        # parse error). Must run BEFORE sanitizing.
+        valid, reason = _validate_subtitle_content(raw, "vtt")
+        if not valid:
+            raise UploadError(422, reason or "File content is not a recognised text subtitle.")
+        return _sanitize_or_raise(raw, SubtitleFormat.VTT), "vtt"
 
     fmt = detect_format_from_content(raw)
     detected = getattr(fmt, "value", "unknown")
     if detected == "unknown" or not validate_content_type(raw, fmt):
         raise UploadError(422, "File content is not a recognised text subtitle.")
 
-    try:
-        content = sanitize_subtitle(raw, fmt)
-    except ValueError as e:
-        raise UploadError(422, f"Subtitle failed the security check: {e}") from e
+    # Same whole-payload check for srt/ass/ssa — a decoy header like
+    # "[Script Info]\n" or "1\n" followed by binary passes the first-line-only
+    # validate_content_type() check above; ASS sanitization also fails open on
+    # a parse error, so without this the binary payload would be written to
+    # disk unchanged.
+    valid, reason = _validate_subtitle_content(raw, detected)
+    if not valid:
+        raise UploadError(422, reason or "File content is not a recognised text subtitle.")
 
-    return content, detected
+    return _sanitize_or_raise(raw, fmt), detected
