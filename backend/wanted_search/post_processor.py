@@ -363,8 +363,13 @@ def download_specific_for_item(
             fmt=s.get("format", ""),
             source=s.get("source", ""),
         )
-        delete_wanted_item(item_id)
         out = translate_result.get("output_path")
+
+        from services.mt_provisional import finalize_translation
+
+        mt_fmt = "ass" if actual_source_path.endswith(".ass") else "srt"
+        finalize_translation(item_id, item, out, item_lang, mt_fmt)
+
         if out:
             _try_auto_sync(out, file_path, settings)
         return {
