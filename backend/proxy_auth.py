@@ -6,6 +6,22 @@ is the real TCP peer) is within an operator-configured trusted-proxy network
 AND it carries a non-empty configured identity header (default ``Remote-User``).
 Lets Authelia/authentik SSO satisfy the UI-auth gate. Fails closed on any
 misconfiguration.
+
+Operator requirement / Security note:
+    This mechanism's security depends entirely on the trusted reverse proxy
+    SETTING/OVERWRITING the identity header itself AND STRIPPING any
+    client-supplied copy of that header before forwarding the request to
+    Sublarr. Sublarr trusts the header's presence purely because the request
+    came from an allow-listed IP — it has no way to tell whether the header
+    value was set by the proxy or forged by the client. If the proxy forwards
+    an incoming ``Remote-User`` (or whatever header is configured) verbatim
+    instead of stripping/overwriting it, ANY client within the trusted IP
+    range (e.g. another host on the same LAN/VLAN as the proxy) can forge an
+    arbitrary identity by sending that header itself, fully bypassing
+    authentication. Operators MUST configure their reverse proxy (Authelia,
+    authentik, nginx, Traefik, etc.) to strip client-supplied identity headers
+    on the public/untrusted side and only ever set them on the
+    proxy-to-Sublarr hop.
 """
 
 from __future__ import annotations
@@ -40,6 +56,11 @@ def ip_in_networks(ip_str: str | None, networks: list[_Network]) -> bool:
     """True if ip_str is a valid address contained in any of networks.
 
     Version mismatches (v4 address vs v6 network) return False, not an error.
+
+    On dual-stack binds, a trusted proxy's peer address may arrive as an
+    IPv4-mapped IPv6 address (e.g. ``::ffff:10.1.2.3``), which does not match
+    an IPv4 CIDR by itself. If ip_str parses as such an address, its embedded
+    IPv4 address is also checked against networks.
     """
     if not ip_str:
         return False
@@ -47,7 +68,12 @@ def ip_in_networks(ip_str: str | None, networks: list[_Network]) -> bool:
         ip = ipaddress.ip_address(ip_str)
     except ValueError:
         return False
-    return any(ip in net for net in networks)
+    if any(ip in net for net in networks):
+        return True
+    mapped = getattr(ip, "ipv4_mapped", None)
+    if mapped is not None:
+        return any(mapped in net for net in networks)
+    return False
 
 
 def request_has_valid_proxy_auth() -> bool:

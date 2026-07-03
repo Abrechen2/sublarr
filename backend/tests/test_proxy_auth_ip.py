@@ -34,3 +34,13 @@ def test_mixed_ipv4_ipv6_no_crash():
     assert ip_in_networks("10.0.0.9", nets)
     assert ip_in_networks("::1", nets)
     assert not ip_in_networks("10.0.0.9", parse_trusted_networks("::1/128"))
+
+
+def test_ipv4_mapped_ipv6_matches_v4_allowlist():
+    nets = parse_trusted_networks("10.0.0.0/8")
+    assert ip_in_networks("::ffff:10.1.2.3", nets)
+
+
+def test_ipv4_mapped_ipv6_outside_allowlist_is_false():
+    nets = parse_trusted_networks("10.0.0.0/8")
+    assert not ip_in_networks("::ffff:203.0.113.9", nets)
