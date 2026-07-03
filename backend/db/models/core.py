@@ -178,6 +178,13 @@ class LanguageProfile(db.Model):
     must_not_contain_json: Mapped[str] = mapped_column(Text, nullable=False, default="[]")
     cutoff_language: Mapped[str] = mapped_column(Text, nullable=False, default="")
     audio_exclude_languages_json: Mapped[str] = mapped_column(Text, nullable=False, default="[]")
+    # Provisional machine-translation (feature #8). When mt_keep_seeking_original
+    # is on, a Sublarr-translated sub is recorded as source="machine_translation"
+    # and the wanted item is kept "provisional" (seeking the human original)
+    # instead of being deleted. See docs/plans/2026-07-03-v1.6-provisional-mt.md.
+    mt_keep_seeking_original: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    mt_on_original_found: Mapped[str] = mapped_column(Text, nullable=False, default="notify")
+    mt_min_original_score: Mapped[int] = mapped_column(Integer, nullable=False, default=1)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
 
