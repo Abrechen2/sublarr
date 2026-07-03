@@ -303,3 +303,75 @@ class TestRestoreRollsBackKeyOnLaterFailure:
 
         assert rv.status_code == 400
         assert not key_path.exists()
+
+    @patch("config.reload_settings")
+    @patch("db.config.get_all_config_entries", return_value={})
+    @patch("db.config.save_config_entry")
+    def test_db_restore_stage_failure_with_untyped_exception_rolls_back_key(
+        self, mock_save, mock_get_all, mock_reload, client, tmp_path, monkeypatch
+    ):
+        """The rollback must fire for ANY failure past the key-swap point, not
+        only the narrow ``(json.JSONDecodeError, KeyError, ValueError,
+        zipfile.BadZipFile)`` tuple rescued at the very end of the route.
+
+        Here config.json is perfectly valid — the DB-restore call itself
+        (``DatabaseBackup.restore_backup``) raises a plain ``RuntimeError``,
+        a type NOT in that tuple. It can only be caught by the route's broad
+        ``except Exception:`` rollback block, then re-raised into the app's
+        generic error handler (500 INTERNAL_ERROR) — proving the rollback
+        invariant holds for arbitrary failures, not just JSON parsing.
+        """
+        config_dir = tmp_path / "config"
+        config_dir.mkdir()
+        monkeypatch.setenv("SUBLARR_CONFIG_DIR", str(config_dir))
+
+        # Prime an existing master key and a value encrypted under it.
+        config_crypto.reset_cipher_cache()
+        original_plaintext = "still-live-secret-db-stage"
+        original_ciphertext = config_crypto.encrypt(original_plaintext)
+
+        key_path = config_dir / ".encryption_key"
+        assert key_path.exists()
+        original_key_bytes = key_path.read_bytes()
+
+        # The backup ships a DIFFERENT (valid) key and a VALID config.json —
+        # only the DB-restore step fails, well downstream of json.loads.
+        new_key = Fernet.generate_key()
+        assert new_key != original_key_bytes
+
+        manifest = _make_manifest(["manifest.json", "config.json", "sublarr.db"])
+        zip_buf = io.BytesIO()
+        with zipfile.ZipFile(zip_buf, "w", zipfile.ZIP_DEFLATED) as zf:
+            zf.writestr("manifest.json", json.dumps(manifest))
+            zf.writestr("config.json", json.dumps({"log_level": "DEBUG"}))
+            zf.writestr("sublarr.db", b"fake-sqlite-db-bytes")
+            zf.writestr(".encryption_key", new_key)
+        zip_buf.seek(0)
+
+        with patch("database_backup.DatabaseBackup") as mock_db_backup_cls:
+            mock_db_backup_cls.return_value.restore_backup.side_effect = RuntimeError(
+                "simulated DB restore crash"
+            )
+
+            rv = client.post(
+                "/api/v1/backup/full/restore",
+                data={"file": (zip_buf, "backup.zip")},
+                content_type="multipart/form-data",
+            )
+
+        # RuntimeError is not in the route's narrow rescue tuple, so it
+        # propagates past the route entirely and is only caught by the
+        # app-wide generic Exception handler — confirming the rollback fired
+        # from the *broad* except Exception: block, not the narrow one.
+        assert rv.status_code == 500
+        assert rv.get_json()["code"] == "INTERNAL_ERROR"
+
+        # Invariant: the key file is back to EXACTLY the pre-restore bytes —
+        # not the new key, and not deleted.
+        assert key_path.read_bytes() == original_key_bytes
+
+        # Invariant: the cipher cache was rebuilt from the rolled-back key
+        # file — data encrypted under the ORIGINAL key still decrypts. A
+        # stale cache pointing at the (rolled-back) new key would raise
+        # InvalidToken here.
+        assert config_crypto.decrypt(original_ciphertext) == original_plaintext
