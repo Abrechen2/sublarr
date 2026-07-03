@@ -92,3 +92,27 @@ def test_invalid_modifier_traversal_rejected_400(tmp_path):
     with pytest.raises(UploadError) as exc:
         save_manual_subtitle(str(video), _SRT, "srt", "de", "../x", False, str(tmp_path))
     assert exc.value.status == 400
+
+
+def test_language_with_trailing_newline_rejected_400(tmp_path):
+    video = tmp_path / "M.mkv"
+    video.write_bytes(b"v")
+    with pytest.raises(UploadError) as exc:
+        save_manual_subtitle(str(video), _SRT, "srt", "de\n", None, False, str(tmp_path))
+    assert exc.value.status == 400
+
+
+def test_language_uppercase_rejected_400(tmp_path):
+    video = tmp_path / "M.mkv"
+    video.write_bytes(b"v")
+    with pytest.raises(UploadError) as exc:
+        save_manual_subtitle(str(video), _SRT, "srt", "EN", None, False, str(tmp_path))
+    assert exc.value.status == 400
+
+
+def test_valid_language_code_still_works(tmp_path):
+    video = tmp_path / "M.mkv"
+    video.write_bytes(b"v")
+    saved = save_manual_subtitle(str(video), _SRT, "srt", "de", None, False, str(tmp_path))
+    assert os.path.exists(saved)
+    assert saved.endswith(".de.srt")

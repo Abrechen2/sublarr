@@ -16,7 +16,7 @@ ALLOWED_UPLOAD_EXTS: frozenset[str] = frozenset({"srt", "ass", "ssa", "vtt"})
 MAX_UPLOAD_BYTES: int = 5 * 1024 * 1024
 _ARCHIVE_EXTS: frozenset[str] = frozenset({"zip", "rar", "7z", "gz", "tar"})
 
-_LANGUAGE_RE = re.compile(r"^[a-z]{2,3}$")
+_LANGUAGE_RE = re.compile(r"^[a-z]{2,3}\Z")
 _ALLOWED_MODIFIERS: frozenset[str] = frozenset({"hi", "forced", "sdh", "cc"})
 
 
