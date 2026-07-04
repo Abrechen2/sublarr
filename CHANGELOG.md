@@ -5,6 +5,15 @@ All notable changes to Sublarr are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.6.0-rc.2] - 2026-07-04
+
+RC-server findings on real Postgres + prod-media mirror:
+- **Fixed** a concurrency race in the daily-stats upsert — parallel wanted-search
+  workers could collide on the `daily_stats` date primary key (UniqueViolation →
+  failed search item). Now retries as an update. Affected prod (Postgres) too.
+- **Fixed** automatic combine not firing after the *async* auto-translate on
+  embedded extract (the target language wasn't written yet when combine ran).
+
 ## [1.6.0-rc.1] - 2026-07-04
 
 Release candidate for 1.6.0 — staged on the RC server against a copy of prod
