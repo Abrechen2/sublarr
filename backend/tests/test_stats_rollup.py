@@ -104,3 +104,30 @@ def test_tick_rolls_up_recent_days(app_ctx):
     for d in (today, yesterday):
         row = db.session.query(StatsDailyRollup).filter_by(date=d.date().isoformat()).one_or_none()
         assert row is not None and row.downloads >= 1
+
+
+def test_tick_backfills_history_and_skips_empty_days(app_ctx):
+    """First tick backfills older activity days (H1) but not pure-empty days."""
+    now = datetime.now(UTC)
+    old_day = now - timedelta(days=10)
+    _add_download(old_day.date().isoformat())  # activity 10 days ago, no rollup row yet
+    db.session.commit()
+
+    stats_rollup.stats_rollup_tick()
+
+    # the historical activity day got backfilled
+    old_row = (
+        db.session.query(StatsDailyRollup)
+        .filter_by(date=old_day.date().isoformat())
+        .one_or_none()
+    )
+    assert old_row is not None and old_row.downloads == 1
+    # a day with no activity in between did NOT get a (noise) row
+    empty_day = (now - timedelta(days=5)).date().isoformat()
+    assert db.session.query(StatsDailyRollup).filter_by(date=empty_day).one_or_none() is None
+
+
+def test_upsert_skip_if_empty(app_ctx):
+    day = "2026-06-20"  # no data
+    assert stats_rollup.upsert_rollup(day, skip_if_empty=True) is False
+    assert db.session.query(StatsDailyRollup).filter_by(date=day).one_or_none() is None

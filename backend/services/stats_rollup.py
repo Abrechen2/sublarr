@@ -93,12 +93,20 @@ def compute_rollup_for_date(date_str: str) -> dict:
     }
 
 
-def upsert_rollup(date_str: str) -> None:
-    """Compute and idempotently upsert the rollup row for ``date_str``."""
+def upsert_rollup(date_str: str, *, skip_if_empty: bool = False) -> bool:
+    """Compute and idempotently upsert the rollup row for ``date_str``.
+
+    Returns True if a row was written. With ``skip_if_empty`` a day with no
+    activity (0 downloads / translations / syncs) is skipped — used by the
+    backfill so a fresh install doesn't create long runs of empty rows.
+    """
     from db.models.statistics import StatsDailyRollup
     from extensions import db
 
     data = compute_rollup_for_date(date_str)
+    if skip_if_empty and not (data["downloads"] or data["translations"] or data["syncs"]):
+        return False
+
     session = db.session
     row = session.get(StatsDailyRollup, date_str)
     if row is None:
@@ -115,24 +123,58 @@ def upsert_rollup(date_str: str) -> None:
     row.by_language_json = json.dumps(data["by_language"])
     row.updated_at = datetime.now(UTC)
     session.commit()
+    return True
+
+
+# Days of history the rollup keeps warm — covers the FE "30d"/"all" ranges plus
+# self-heals downtime gaps. First tick on an existing library backfills this far.
+_BACKFILL_DAYS = 90
+
+
+def _existing_dates(cutoff: str) -> set[str]:
+    from db.models.statistics import StatsDailyRollup
+    from extensions import db
+
+    rows = db.session.execute(
+        select(StatsDailyRollup.date).where(StatsDailyRollup.date >= cutoff)
+    ).all()
+    return {r[0] for r in rows}
+
+
+def _safe_upsert(date_str: str, *, skip_if_empty: bool = False) -> None:
+    try:
+        upsert_rollup(date_str, skip_if_empty=skip_if_empty)
+    except Exception:
+        logger.error("stats_rollup: failed to roll up %s", date_str, exc_info=True)
+        try:
+            from extensions import db
+
+            db.session.rollback()
+        except Exception:
+            pass
 
 
 def stats_rollup_tick() -> None:
-    """Roll up the last two days (today + yesterday, to catch late writes).
+    """Refresh recent rollups and self-heal any missing historical day.
 
-    Module-level + picklable so APScheduler's SQLAlchemyJobStore can persist a
-    textual reference. Runs inside the scheduler's app context.
+    Always rewrites today + yesterday (late writes). Then, for the last
+    ``_BACKFILL_DAYS`` days, computes any day that has activity but no row yet —
+    which both **backfills history on first run** (the trend chart is otherwise
+    blank for weeks) and **fills gaps** left by multi-day scheduler downtime
+    (H1/H2). Days that already have a row are skipped, so steady-state runs are
+    cheap. Module-level + picklable for APScheduler; runs in the app context.
     """
     today = datetime.now(UTC).date()
-    for offset in (0, 1):
-        day = (today - timedelta(days=offset)).isoformat()
-        try:
-            upsert_rollup(day)
-        except Exception:
-            logger.error("stats_rollup: failed to roll up %s", day, exc_info=True)
-            try:
-                from extensions import db
+    _safe_upsert(today.isoformat())
+    _safe_upsert((today - timedelta(days=1)).isoformat())
 
-                db.session.rollback()
-            except Exception:
-                pass
+    cutoff = (today - timedelta(days=_BACKFILL_DAYS)).isoformat()
+    try:
+        existing = _existing_dates(cutoff)
+    except Exception:
+        logger.error("stats_rollup: could not read existing rollup dates", exc_info=True)
+        return
+    for offset in range(2, _BACKFILL_DAYS + 1):
+        day = (today - timedelta(days=offset)).isoformat()
+        if day not in existing:
+            _safe_upsert(day, skip_if_empty=True)

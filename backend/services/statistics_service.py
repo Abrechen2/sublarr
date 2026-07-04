@@ -48,7 +48,7 @@ def get_subtitles_stats(range_key: str = "30d") -> dict:
         by_source[r.source or "unknown"] += 1
         by_provider[r.provider_name or "unknown"] += 1
         by_language[r.language or "unknown"] += 1
-        if r.score:
+        if r.score is not None:
             scores.append(r.score)
 
     return {
@@ -137,11 +137,28 @@ def _db_size_bytes() -> int:
     try:
         from config import get_settings
 
-        db_path = getattr(get_settings(), "db_path", "") or ""
+        settings = get_settings()
+        database_url = getattr(settings, "database_url", "") or ""
+        # PostgreSQL: the SQLite file doesn't exist — ask the server.
+        if database_url.startswith(("postgres://", "postgresql://")):
+            from sqlalchemy import text
+
+            from extensions import db
+
+            size = db.session.execute(
+                text("SELECT pg_database_size(current_database())")
+            ).scalar_one()
+            return int(size or 0)
+        db_path = getattr(settings, "db_path", "") or ""
         if db_path and os.path.exists(db_path):
             return os.path.getsize(db_path)
     except Exception:
-        pass
+        try:
+            from extensions import db
+
+            db.session.rollback()
+        except Exception:
+            pass
     return 0
 
 
