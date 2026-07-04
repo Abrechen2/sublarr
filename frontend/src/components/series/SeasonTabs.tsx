@@ -1,4 +1,5 @@
 // frontend/src/components/series/SeasonTabs.tsx
+import { useTranslation } from 'react-i18next'
 
 interface SeasonTabsProps {
   readonly seasons: number[]
@@ -7,6 +8,8 @@ interface SeasonTabsProps {
 }
 
 export function SeasonTabs({ seasons, activeSeason, onSeasonChange }: SeasonTabsProps) {
+  const { t } = useTranslation('library')
+
   return (
     // Pill-container matching .season-tabs in mockup
     <div style={{
@@ -32,7 +35,9 @@ export function SeasonTabs({ seasons, activeSeason, onSeasonChange }: SeasonTabs
             boxShadow: s === activeSeason ? '0 1px 3px rgba(0,0,0,0.2)' : 'none',
           }}
         >
-          Season {s}
+          {s === 0
+            ? t('series_detail.specials')
+            : t('series_detail.season', { number: s })}
         </button>
       ))}
     </div>

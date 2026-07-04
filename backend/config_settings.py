@@ -142,6 +142,14 @@ class UISettings(BaseModel):
     source_language_name: str = "English"
     target_language_name: str = "German"
     prompt_template: str = ""  # Empty = auto-generated from languages
+    # Global default translation backend + optional single fallback. A language
+    # profile with an empty translation_backend inherits these. Declared here as
+    # UISettings so the /config API surfaces AND accepts them (the Backends-page
+    # "Default translation backend" control reads/writes via /config). The
+    # resolver reads them via db.config.get_config_entry — this default is only
+    # the fallback when no config_entry row exists.
+    translation_default_backend: str = "ollama"
+    translation_default_fallback: str = ""
 
     # Subtitle Providers
     provider_priorities: str = "animetosho,jimaku,opensubtitles,subdl"
@@ -263,6 +271,12 @@ class UISettings(BaseModel):
     # track can't fluke a single-window match.
     dubtitle_min_margin: float = 0.15
     dubtitle_auto_min_cues: int = 70
+    # When True, an English sidecar downloaded for an episode with English dub
+    # audio is scored against the dub (Tier-2) before being kept; a sub that is a
+    # confident low-score mismatch is KEPT but flagged (not trashed). Opt-in:
+    # verification needs Whisper + dub audio and falls back to "keep" when either
+    # is unavailable.
+    dubtitle_verify_on_download: bool = False
 
     # Foreign-track cleanup. Destructive (remuxes the MKV with backup-to-trash).
     cleanup_foreign_tracks_default: bool = False
@@ -477,7 +491,11 @@ class UISettings(BaseModel):
 
     # Redis behaviour (URL is in BootSettings)
     redis_cache_enabled: bool = True  # Use Redis for provider cache
-    redis_queue_enabled: bool = True  # Use Redis+RQ for job queue
+    # RQ requires a SEPARATE `python worker.py` process (see docker-compose.redis.yml).
+    # Sublarr ships single-container without that worker, so RQ must NOT be the
+    # default: enabling it without a worker leaves every queued job stuck in
+    # `queued` forever (silent). Opt in only alongside the rq-worker service.
+    redis_queue_enabled: bool = False  # Use Redis+RQ for job queue (needs worker.py)
 
     # Interface Preferences (Step 37)
     interface_language: str = "en"

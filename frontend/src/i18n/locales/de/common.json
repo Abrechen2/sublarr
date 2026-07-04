@@ -21,6 +21,19 @@
     "activity": "Aktivität",
     "system": "System"
   },
+  "skip_to_main_content": "Zum Inhalt springen",
+  "global_toasts": {
+    "webhook_received": "Webhook: {{title}}",
+    "download_received": "Download empfangen",
+    "auto_processed": "Automatisch verarbeitet: {{title}}",
+    "file_fallback": "Datei",
+    "upgraded": "Aktualisiert: {{file}}",
+    "subtitle_fallback": "Untertitel",
+    "search_complete": "Suche abgeschlossen: {{count}} gefunden",
+    "retranslated": "Neu übersetzt: {{count}} Dateien",
+    "config_updated": "Konfiguration aktualisiert",
+    "config_updated_keys": "Konfiguration aktualisiert: {{keys}}"
+  },
   "status": {
     "healthy": "Gesund",
     "unhealthy": "Fehlerhaft",
@@ -38,6 +51,8 @@
     "batch_searching": "Batch-Suche läuft",
     "automation_active": "Automatisierung: aktiv",
     "automation_paused": "Automatisierung: pausiert",
+    "automation_partial": "Automatisierung: teilweise pausiert",
+    "automation_idle": "Automatisierung: bereit",
     "providers_throttled": "{{count}} Provider gedrosselt",
     "found": "Gefunden",
     "extracted": "Extrahiert",

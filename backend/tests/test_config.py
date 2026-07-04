@@ -114,3 +114,17 @@ def test_translation_enabled_via_db_override():
     assert settings.translation_enabled is True
     # Reset for downstream tests
     reload_settings()
+
+
+def test_translation_default_backend_fields_exposed():
+    """The global default-backend keys are UISettings so the /config API
+    surfaces + accepts them (the Backends-page control reads/writes them).
+    Regression: they were config_entries-only and invisible to /config, so the
+    control always displayed the fallback 'ollama'."""
+    settings = get_settings()
+    assert settings.translation_default_backend == "ollama"
+    assert settings.translation_default_fallback == ""
+    # must be part of the serialized settings surface (what /config returns)
+    dumped = settings.model_dump()
+    assert "translation_default_backend" in dumped
+    assert "translation_default_fallback" in dumped

@@ -79,8 +79,11 @@ vi.mock('../TranslationTab', () => ({
 
 const mockDisableMutate = vi.fn()
 const mockUpdateConfig = vi.fn()
+const mockConfigHolder: { data: Record<string, unknown> } = {
+  data: { translation_enabled: true, translation_max_workers: 2 },
+}
 vi.mock('@/hooks/useApi', () => ({
-  useConfig: () => ({ data: { translation_max_workers: 2 }, isLoading: false }),
+  useConfig: () => ({ data: mockConfigHolder.data, isLoading: false }),
   useUpdateConfig: () => ({ mutate: mockUpdateConfig, isPending: false }),
   useDisableTranslation: () => ({ mutate: mockDisableMutate, isPending: false }),
 }))
@@ -112,6 +115,7 @@ function renderPage() {
 describe('TranslationSettings', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    mockConfigHolder.data = { translation_enabled: true, translation_max_workers: 2 }
   })
 
   // ── Layout ────────────────────────────────────────────────────────────────
@@ -308,16 +312,39 @@ describe('TranslationSettings', () => {
     const user = userEvent.setup()
     renderPage()
     await user.click(screen.getByRole('button', { name: /disable translation/i }))
-    expect(screen.getByText(/wirklich deaktivieren/i)).toBeInTheDocument()
+    expect(screen.getByText(/really disable/i)).toBeInTheDocument()
   })
 
-  it('clicking Bestätigen calls disableTranslation.mutate', async () => {
+  it('clicking Confirm calls disableTranslation.mutate', async () => {
     mockDisableMutate.mockClear()
     const user = userEvent.setup()
     renderPage()
     await user.click(screen.getByRole('button', { name: /disable translation/i }))
-    await user.click(screen.getByRole('button', { name: /bestätigen/i }))
+    await user.click(screen.getByRole('button', { name: /confirm/i }))
     expect(mockDisableMutate).toHaveBeenCalledOnce()
+  })
+
+  // ── Enable (when disabled) ──────────────────────────────────────────────────
+
+  it('shows Enable button and hides Disable zone when translation is disabled', () => {
+    mockConfigHolder.data = { translation_enabled: false }
+    renderPage()
+    expect(screen.getByTestId('enable-translation-btn')).toBeInTheDocument()
+    expect(screen.queryByTestId('section-disable-translation')).not.toBeInTheDocument()
+  })
+
+  it('clicking Enable calls updateConfig with translation_enabled true', async () => {
+    mockConfigHolder.data = { translation_enabled: false }
+    const user = userEvent.setup()
+    renderPage()
+    await user.click(screen.getByTestId('enable-translation-btn'))
+    expect(mockUpdateConfig).toHaveBeenCalledWith({ translation_enabled: 'true' })
+  })
+
+  it('hides Enable button and shows Disable zone when translation is enabled', () => {
+    renderPage()
+    expect(screen.queryByTestId('enable-translation-btn')).not.toBeInTheDocument()
+    expect(screen.getByTestId('section-disable-translation')).toBeInTheDocument()
   })
 })
 

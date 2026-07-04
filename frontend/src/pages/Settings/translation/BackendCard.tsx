@@ -62,7 +62,10 @@ export function BackendCard({
   }, [configData])
 
   const getFieldDescription = (key: string): string | undefined => {
-    const k = key.toLowerCase()
+    // Defensive: a backend descriptor that omits `key` (contract violation)
+    // must not crash the whole Translation tab via undefined.toLowerCase().
+    const k = (key ?? '').toLowerCase()
+    if (!k) return undefined
     if (k === 'name' || k === 'label' || k === 'backend_name' || k === 'display_name') return t('backend_card.field_desc_name')
     if (k === 'url' || k === 'base_url' || k === 'api_base_url' || k === 'api_base' || k === 'endpoint' || k === 'host') return t('backend_card.field_desc_url')
     if (k === 'api_key' || k === 'token' || k === 'api_token' || k === 'secret' || k === 'key') return t('backend_card.field_desc_api_key')
@@ -76,8 +79,18 @@ export function BackendCard({
   }
 
   const handleSave = () => {
+    // The backend returns configured secrets masked as "***" (see
+    // backends.py). Never send a still-masked password field back — that would
+    // overwrite the real stored credential with the literal mask token. Only
+    // password fields the user actually re-typed are submitted.
+    const cleaned: Record<string, string> = {}
+    for (const [k, v] of Object.entries(formValues)) {
+      const fld = backend.config_fields.find((f) => f.key === k)
+      if (fld?.type === 'password' && v === '***') continue
+      cleaned[k] = v
+    }
     saveConfigMut.mutate(
-      { name: backend.name, config: formValues },
+      { name: backend.name, config: cleaned },
       {
         onSuccess: () => toast(t('backend_card.toast_saved')),
         onError: () => toast(t('backend_card.toast_save_failed'), 'error'),
@@ -91,16 +104,17 @@ export function BackendCard({
 
   return (
     <div
-      className="rounded-lg overflow-hidden"
+      className="rounded-lg"
       style={{
         backgroundColor: 'var(--bg-surface)',
         border: '1px solid var(--border)',
       }}
     >
-      {/* Header */}
+      {/* Header — no `overflow-hidden` on the card so InfoTooltips can escape
+          the card bounds; the header rounds its own top corners instead. */}
       <button
         onClick={() => setExpanded(!expanded)}
-        className="w-full flex items-center justify-between gap-3 p-4 text-left transition-colors"
+        className={`w-full flex items-center justify-between gap-3 p-4 text-left transition-colors ${expanded ? 'rounded-t-lg' : 'rounded-lg'}`}
         style={{ backgroundColor: expanded ? 'var(--bg-surface-hover)' : undefined }}
       >
         <div className="flex items-center gap-3 min-w-0">
@@ -208,19 +222,45 @@ export function BackendCard({
                   description={getFieldDescription(field.key)}
                 >
                   <div className="flex items-center gap-1.5 w-full">
-                    <input
-                      type={field.type === 'password' && !showPasswords[field.key] ? 'password' : field.type === 'number' ? 'number' : 'text'}
-                      value={formValues[field.key] === '***configured***' ? '' : (formValues[field.key] ?? field.default ?? '')}
-                      onChange={(e) => setFormValues((v) => ({ ...v, [field.key]: e.target.value }))}
-                      placeholder={formValues[field.key] === '***configured***' ? t('backend_card.placeholder_configured') : field.default || (field.required ? t('backend_card.placeholder_required') : t('backend_card.placeholder_optional'))}
-                      className="flex-1 px-2.5 py-1.5 rounded text-xs transition-all duration-150 focus:outline-none"
-                      style={{
-                        backgroundColor: 'var(--bg-primary)',
-                        border: '1px solid var(--border)',
-                        color: 'var(--text-primary)',
-                        fontFamily: 'var(--font-mono)',
-                      }}
-                    />
+                    {field.type === 'checkbox' ? (
+                      <input
+                        type="checkbox"
+                        checked={(formValues[field.key] ?? field.default ?? 'false') === 'true'}
+                        onChange={(e) =>
+                          setFormValues((v) => ({ ...v, [field.key]: e.target.checked ? 'true' : 'false' }))
+                        }
+                        className="h-4 w-4"
+                        style={{ accentColor: 'var(--accent)' }}
+                      />
+                    ) : field.type === 'textarea' ? (
+                      <textarea
+                        value={formValues[field.key] ?? field.default ?? ''}
+                        onChange={(e) => setFormValues((v) => ({ ...v, [field.key]: e.target.value }))}
+                        placeholder={field.default || (field.required ? t('backend_card.placeholder_required') : t('backend_card.placeholder_optional'))}
+                        rows={3}
+                        className="flex-1 px-2.5 py-1.5 rounded text-xs transition-all duration-150 focus:outline-none resize-y"
+                        style={{
+                          backgroundColor: 'var(--bg-primary)',
+                          border: '1px solid var(--border)',
+                          color: 'var(--text-primary)',
+                          fontFamily: 'var(--font-mono)',
+                        }}
+                      />
+                    ) : (
+                      <input
+                        type={field.type === 'password' && !showPasswords[field.key] ? 'password' : field.type === 'number' ? 'number' : 'text'}
+                        value={formValues[field.key] === '***' ? '' : (formValues[field.key] ?? field.default ?? '')}
+                        onChange={(e) => setFormValues((v) => ({ ...v, [field.key]: e.target.value }))}
+                        placeholder={formValues[field.key] === '***' ? t('backend_card.placeholder_configured') : field.default || (field.required ? t('backend_card.placeholder_required') : t('backend_card.placeholder_optional'))}
+                        className="flex-1 px-2.5 py-1.5 rounded text-xs transition-all duration-150 focus:outline-none"
+                        style={{
+                          backgroundColor: 'var(--bg-primary)',
+                          border: '1px solid var(--border)',
+                          color: 'var(--text-primary)',
+                          fontFamily: 'var(--font-mono)',
+                        }}
+                      />
+                    )}
                     {field.type === 'password' && (
                       <button
                         onClick={() => setShowPasswords((p) => ({ ...p, [field.key]: !p[field.key] }))}

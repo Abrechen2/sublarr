@@ -55,6 +55,11 @@ def delete_old_jobs(days: int) -> int:
     return _get_repo().delete_old_jobs(days)
 
 
+def cancel_job(job_id: str) -> bool:
+    """Race-safe cancel of a single queued job. Returns True if cancelled."""
+    return _get_repo().cancel_job(job_id)
+
+
 def cancel_queued_jobs() -> int:
     """Mark all queued translation jobs as cancelled. Returns count cancelled."""
     return _get_repo().cancel_queued_jobs()

@@ -214,13 +214,8 @@ def _is_event_filtered(event_type: str) -> bool:
       - If `include_events` is non-empty, the event MUST appear in it.
       - If the event appears in `exclude_events`, suppress.
       - If both lists are empty, do not suppress.
-
-    `notification_filter_content_filters` is intentionally NOT enforced
-    here — the API persists arbitrary `{field, operator, value}` shapes
-    but no UI ever creates one and the operator semantics are
-    undefined. Wiring it without a UI contract risks shipping
-    half-defined behaviour. Tracked as Tier-2.
     """
+    # Per-content notification filtering is intentionally not supported (no operator contract / UI).
     try:
         from db.repositories.config import ConfigRepository
 

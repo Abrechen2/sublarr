@@ -26,7 +26,9 @@ from datetime import UTC, datetime, timedelta
 from db.repositories.subtitle_automation_queue import (
     SubtitleAutomationQueueRepository,
 )
-from routes.wanted.extract import _extract_embedded_sub
+
+# Aliased import: tests patch "services.subtitle_automation_runner._extract_embedded_sub".
+from services.embedded_extractor import extract_embedded_sub as _extract_embedded_sub
 
 logger = logging.getLogger(__name__)
 

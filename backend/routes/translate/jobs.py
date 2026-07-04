@@ -125,6 +125,108 @@ def list_jobs():
         return jsonify({"error": "Internal server error", "detail": "list_jobs_failed"}), 500
 
 
+@bp.route("/jobs/<job_id>", methods=["DELETE"])
+def cancel_or_delete_job(job_id):
+    """Cancel a queued job or delete a finished one.
+    ---
+    delete:
+      tags:
+        - Translate
+      summary: Cancel or delete a job
+      description: >
+        Queued jobs are soft-cancelled (status becomes "cancelled").
+        Finished jobs (completed, failed, cancelled) are deleted from history.
+        Running jobs cannot be removed and return 409.
+      security:
+        - apiKeyAuth: []
+      parameters:
+        - in: path
+          name: job_id
+          required: true
+          schema:
+            type: string
+          description: Job ID to cancel or delete
+      responses:
+        200:
+          description: Job cancelled or deleted
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    enum: [cancelled, deleted]
+                  job_id:
+                    type: string
+        404:
+          description: Job not found
+        409:
+          description: Job is running and cannot be removed
+    """
+    from db.jobs import cancel_job, delete_job, get_job
+
+    job = get_job(job_id)
+    if not job:
+        return jsonify({"error": "Job not found"}), 404
+
+    if job["status"] == "running":
+        return jsonify(
+            {"error": "Job is running and cannot be cancelled. Wait for it to finish."}
+        ), 409
+
+    if job["status"] == "queued":
+        if cancel_job(job_id):
+            return jsonify({"status": "cancelled", "job_id": job_id})
+        # Race: the job left "queued" between the read and the conditional
+        # UPDATE. Re-read to decide — running gets a 409, a vanished job a
+        # 404, and a terminal status falls through to the delete branch.
+        job = get_job(job_id)
+        if not job:
+            return jsonify({"error": "Job not found"}), 404
+        if job["status"] == "running":
+            return jsonify(
+                {"error": "Job is running and cannot be cancelled. Wait for it to finish."}
+            ), 409
+
+    # Terminal statuses (completed, failed, cancelled) — remove from history.
+    if not delete_job(job_id):
+        return jsonify({"error": "Job not found"}), 404
+    return jsonify({"status": "deleted", "job_id": job_id})
+
+
+@bp.route("/jobs/clear-queued", methods=["POST"])
+def clear_queued_jobs_endpoint():
+    """Cancel all queued translation jobs.
+    ---
+    post:
+      tags:
+        - Translate
+      summary: Clear queued jobs
+      description: Marks every queued translation job as cancelled. Running jobs are untouched.
+      security:
+        - apiKeyAuth: []
+      responses:
+        200:
+          description: Number of jobs cancelled
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  cancelled:
+                    type: integer
+    """
+    from db.jobs import cancel_queued_jobs
+
+    try:
+        cancelled = cancel_queued_jobs()
+        return jsonify({"cancelled": cancelled})
+    except Exception as e:
+        logger.exception("POST /jobs/clear-queued failed: %s", e)
+        return jsonify({"error": "Internal server error", "detail": "clear_queued_failed"}), 500
+
+
 @bp.route("/jobs/<job_id>/retry", methods=["POST"])
 def retry_job(job_id):
     """Retry a failed job by creating a new translation job.

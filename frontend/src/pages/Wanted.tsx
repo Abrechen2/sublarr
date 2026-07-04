@@ -12,10 +12,9 @@ import { useBatchTranslate } from '@/hooks/useTranslationApi'
 import { toast } from '@/components/shared/Toast'
 import type { WantedSearchResponse } from '@/lib/types'
 import type { WantedItem } from '@/types/wanted'
-import { Loader2, CheckSquare, Square, MinusSquare, Download } from 'lucide-react'
+import { Loader2, CheckSquare, Square, MinusSquare, Download, RefreshCw } from 'lucide-react'
 import { StatusBadge } from '@/components/shared/StatusBadge'
 import SubtitleEditorModal from '@/components/editor/SubtitleEditorModal'
-import { PageHeader } from '@/components/layout/PageHeader'
 import { InteractiveSearchModal } from '@/components/wanted/InteractiveSearchModal'
 import type { FilterDef, ActiveFilter } from '@/components/filters/FilterBar'
 import { BatchActionBar } from '@/components/batch/BatchActionBar'
@@ -107,6 +106,8 @@ export function WantedPage() {
   const {
     data: wanted,
     isPending: isLoading,
+    isError,
+    refetch,
     isFetchingNextPage,
     hasNextPage,
     fetchNextPage,
@@ -320,11 +321,6 @@ export function WantedPage() {
 
   return (
     <div className="flex flex-col gap-5" style={{ height: 'calc(100vh - 108px)' }}>
-      <PageHeader
-        title={t('wanted.page_title', 'Wanted')}
-        subtitle={t('wanted.page_subtitle', 'Subtitles missing from your library')}
-      />
-
       {/* Batch Probe Progress Banner */}
       {probeStatus?.running && (
         <div
@@ -422,7 +418,7 @@ export function WantedPage() {
 
       {/* Toolbar: Title + Action Buttons */}
       <WantedToolbar
-        summaryTotal={summary?.total ?? 0}
+        summaryTotal={totalWanted}
         scanRunning={summary?.scan_running}
         batchRunning={batchStatus?.running}
         startBatchPending={startBatch.isPending}
@@ -526,6 +522,22 @@ export function WantedPage() {
                     <td className="px-4 py-3"><div className="skeleton h-6 w-6 rounded ml-auto" /></td>
                   </tr>
                 ))
+              ) : isError ? (
+                <tr>
+                  <td colSpan={9} className="px-4 py-8 text-center text-sm text-secondary">
+                    <div className="flex flex-col items-center gap-3">
+                      <span>{t('wanted.load_failed')}</span>
+                      <button
+                        onClick={() => refetch()}
+                        className="flex items-center gap-2 px-4 py-2 rounded-md text-sm font-medium text-white hover:opacity-90"
+                        style={{ backgroundColor: 'var(--accent)' }}
+                      >
+                        <RefreshCw size={14} />
+                        {t('wanted.retry')}
+                      </button>
+                    </div>
+                  </td>
+                </tr>
               ) : filteredGroups.length ? (
                 <>
                   {filteredGroups.map((group, i) => (

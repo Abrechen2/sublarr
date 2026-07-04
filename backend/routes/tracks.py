@@ -239,6 +239,131 @@ def detect_episode_dubtitle(ep_id):
     match) runs only when several full-text English tracks remain ambiguous
     and ``run_tier2`` is true. The response suggests a dubtitle but applies
     nothing — extract/strip/set-default stay explicit user actions.
+    ---
+    post:
+      tags:
+        - Library
+      summary: Detect dubtitle for episode
+      description: >
+        Identifies the dubtitle among the file's embedded English subtitle tracks.
+        Tier-1 heuristics always run; Tier-2 Whisper audio-match runs only when
+        multiple full-text English tracks remain ambiguous and run_tier2 is true.
+        Read-only — never writes to the library. Persists the result for the
+        cached GET endpoint.
+      security:
+        - apiKeyAuth: []
+      parameters:
+        - in: path
+          name: ep_id
+          required: true
+          schema:
+            type: integer
+          description: Sonarr episode ID
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                run_tier2:
+                  type: boolean
+                  default: true
+                  description: >
+                    Run Tier-2 Whisper audio-match when Tier-1 leaves multiple
+                    full-text English tracks ambiguous.
+                min_score:
+                  type: number
+                  minimum: 0
+                  maximum: 1
+                  description: >
+                    Tier-2 acceptance threshold (0–1); falls back to the
+                    dubtitle_min_score config value when omitted.
+      responses:
+        200:
+          description: Detection result with scored candidates
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  video_path:
+                    type: string
+                  cached:
+                    type: boolean
+                    description: Always false for the detect endpoint
+                  dubtitle_sub_index:
+                    type: integer
+                    nullable: true
+                    description: Sub-stream index of the detected dubtitle, or null if undetermined
+                  method:
+                    type: string
+                    enum: [tier1, tier2, none]
+                    description: Which detection tier produced the result
+                  tier2_ran:
+                    type: boolean
+                    description: Whether Tier-2 Whisper audio-match was executed
+                  min_score:
+                    type: number
+                    description: Tier-2 threshold used for this run
+                  margin:
+                    type: number
+                    nullable: true
+                    description: Gap between the best and runner-up Tier-2 audio scores
+                  runner_up_score:
+                    type: number
+                    nullable: true
+                    description: Audio-match score of the second-best candidate
+                  message:
+                    type: string
+                    description: Human-readable explanation of the detection outcome
+                  whisper_fallback_available:
+                    type: boolean
+                    description: Whether a Whisper full-transcription pass could still help
+                  candidates:
+                    type: array
+                    description: All English subtitle tracks that were evaluated
+                    items:
+                      type: object
+                      properties:
+                        sub_index:
+                          type: integer
+                        stream_index:
+                          type: integer
+                          nullable: true
+                        language:
+                          type: string
+                        title:
+                          type: string
+                        format:
+                          type: string
+                        is_sdh:
+                          type: boolean
+                        subtype:
+                          type: string
+                        cue_count:
+                          type: integer
+                        cue_density:
+                          type: number
+                        avg_cps:
+                          type: number
+                        overlap_ratio:
+                          type: number
+                        tier1_label:
+                          type: string
+                        audio_score:
+                          type: number
+                          nullable: true
+                        is_dubtitle:
+                          type: boolean
+                        reason:
+                          type: string
+        400:
+          description: min_score is not a number
+        404:
+          description: Episode has no video file or video file not found on disk
+        500:
+          description: Dubtitle detection failed
     """
     from services.dubtitle import detect_dubtitle, result_to_dict, store_detection
 
@@ -278,6 +403,65 @@ def get_episode_dubtitle(ep_id):
     Lets the track panel show the dubtitle flag on load without re-running
     detection. 200 with the cached payload when present (and still fresh for
     the file's mtime), 204 when nothing has been detected/cached yet.
+    ---
+    get:
+      tags:
+        - Library
+      summary: Get cached dubtitle detection
+      description: >
+        Returns the stored dubtitle-detection result for an episode without
+        re-running detection. Returns 204 when no result is cached or the
+        cached entry is stale relative to the current file mtime.
+      security:
+        - apiKeyAuth: []
+      parameters:
+        - in: path
+          name: ep_id
+          required: true
+          schema:
+            type: integer
+          description: Sonarr episode ID
+      responses:
+        200:
+          description: Cached detection result (same shape as the detect endpoint)
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  video_path:
+                    type: string
+                  cached:
+                    type: boolean
+                    description: Always true for the cached GET endpoint
+                  dubtitle_sub_index:
+                    type: integer
+                    nullable: true
+                  method:
+                    type: string
+                    enum: [tier1, tier2, none]
+                  tier2_ran:
+                    type: boolean
+                  min_score:
+                    type: number
+                  margin:
+                    type: number
+                    nullable: true
+                  runner_up_score:
+                    type: number
+                    nullable: true
+                  message:
+                    type: string
+                  whisper_fallback_available:
+                    type: boolean
+                  candidates:
+                    type: array
+                    items:
+                      type: object
+        204:
+          description: No cached detection result available for this episode
+        404:
+          description: Episode has no video file or Sonarr is not configured
     """
     from services.dubtitle import get_cached_detection
 

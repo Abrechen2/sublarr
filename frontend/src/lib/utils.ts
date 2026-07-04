@@ -24,6 +24,46 @@ export function formatRelativeTime(isoString: string): string {
   return `${Math.floor(diff / 86400)}d ago`
 }
 
+/** Locale-aware thousands formatting — one formatter for every count in the UI. */
+export function formatNumber(n: number | null | undefined, locale?: string): string {
+  if (n == null || Number.isNaN(n)) return '—'
+  return n.toLocaleString(locale ?? (typeof navigator !== 'undefined' ? navigator.language : 'en'))
+}
+
+/** Canonical display names for subtitle providers (internal ids are lowercase). */
+const PROVIDER_DISPLAY_NAMES: Record<string, string> = {
+  opensubtitles: 'OpenSubtitles',
+  opensubtitlescom: 'OpenSubtitles.com',
+  subdl: 'SubDL',
+  jimaku: 'Jimaku',
+  animetosho: 'AnimeTosho',
+  kitsunekko: 'Kitsunekko',
+  subsdump: 'SubsDump',
+  addic7ed: 'Addic7ed',
+  turkcealtyazi: 'TurkceAltyazi',
+  legendasdivx: 'LegendasDivx',
+  gestdown: 'Gestdown',
+  podnapisi: 'Podnapisi',
+  napiprojekt: 'NapiProjekt',
+  napisy24: 'Napisy24',
+  betaseries: 'BetaSeries',
+  subf2m: 'Subf2m',
+  subscene: 'Subscene',
+  subsource: 'SubSource',
+  tvsubtitles: 'TVsubtitles',
+  embedded: 'Embedded',
+  whisper: 'Whisper',
+}
+
+/** Uniform provider name rendering across dashboard, history, and filters. */
+export function formatProviderName(name: string | null | undefined): string {
+  if (!name) return '—'
+  const key = name.toLowerCase()
+  const base = key.endsWith('_subliminal') ? key.slice(0, -'_subliminal'.length) : key
+  const display = PROVIDER_DISPLAY_NAMES[base] ?? base.charAt(0).toUpperCase() + base.slice(1)
+  return key === base ? display : `${display} (Subliminal)`
+}
+
 export function truncatePath(path: string, maxLen: number = 60): string {
   if (path.length <= maxLen) return path
   const parts = path.split('/')

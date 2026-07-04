@@ -32,13 +32,13 @@ class ChatGPTBackend(LLMBackend):
 
     config_fields = [
         {
-            "name": "api_key",
+            "key": "api_key",
             "type": "password",
             "label": "API Key",
             "required": True,
         },
         {
-            "name": "model",
+            "key": "model",
             "type": "text",
             "label": "Model",
             "required": False,

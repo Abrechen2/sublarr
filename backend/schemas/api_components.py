@@ -136,8 +136,9 @@ class CleanupRule(BaseModel):
     name: str
     rule_type: str = Field(
         description=(
-            "One of: orphan_files, duplicate_files, low_score_files, old_files, "
-            "non_target_languages, format_filter, old_subtitle_baks"
+            "One of: language_filter, format_upgrade, orphan_files, orphan_db, "
+            "old_subtitle_baks, old_backups, dedup, orphaned, foreign_tracks, "
+            "signs_cleanup"
         )
     )
     enabled: bool = True

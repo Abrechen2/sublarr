@@ -216,14 +216,25 @@ def _resolve_backend_for_context(arr_context, target_language):
     if not profile:
         profile = get_default_profile()
 
-    backend = profile.get("translation_backend", "ollama")
-    chain = profile.get("fallback_chain", ["ollama"])
+    # Guard against EMPTY values, not just missing keys. An empty
+    # translation_backend means "inherit the global default" (config_entries
+    # translation_default_backend / translation_default_fallback). This turns
+    # the empty-profile state from a bug into a first-class feature.
+    prof_backend = profile.get("translation_backend")
+    if prof_backend:
+        primary = prof_backend
+        prof_chain = [b for b in (profile.get("fallback_chain") or []) if b]
+        fallback = next((b for b in prof_chain if b != primary), None)
+    else:
+        from db.config import get_config_entry
 
-    # Ensure primary backend is first in chain
-    if backend not in chain:
-        chain = [backend] + list(chain)
+        primary = get_config_entry("translation_default_backend") or "ollama"
+        fallback = get_config_entry("translation_default_fallback") or None
+        if fallback == primary:
+            fallback = None
 
-    return (backend, chain)
+    chain = [primary] + ([fallback] if fallback else [])
+    return (primary, chain)
 
 
 def _get_cache_config() -> tuple:

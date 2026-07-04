@@ -230,10 +230,10 @@ def preview_cleanup_action(action: str, params: dict) -> dict:
 def _run_old_backups(rule, config):
     """Execute old_backups cleanup."""
     from remux.backup_cleanup import cleanup_old_backups
-    from routes.remux import _trash_paths
+    from services.trash_locations import remux_trash_paths
 
     retention_days = int(config.get("retention_days", 7))
-    return cleanup_old_backups(_trash_paths(), retention_days)
+    return cleanup_old_backups(remux_trash_paths(), retention_days)
 
 
 def _run_old_subtitle_baks(rule, config):

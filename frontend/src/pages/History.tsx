@@ -3,7 +3,7 @@ import { useTranslation } from 'react-i18next'
 import { useQueryClient } from '@tanstack/react-query'
 import { useHistory, useHistoryStats, useAddToBlacklist } from '@/hooks/useApi'
 import { deleteSubtitles } from '@/api/client'
-import { formatRelativeTime, parseMediaTitle } from '@/lib/utils'
+import { formatRelativeTime, formatProviderName, parseMediaTitle } from '@/lib/utils'
 import { toast } from '@/components/shared/Toast'
 import {
   Clock, Download, ChevronLeft, ChevronRight, Ban, Eye, GitCompare,
@@ -17,13 +17,6 @@ import { useSelectionStore } from '@/stores/selectionStore'
 import type { FilterCondition } from '@/lib/types'
 
 const PROVIDER_FILTERS = ['all', 'animetosho', 'jimaku', 'opensubtitles', 'subdl'] as const
-
-const PROVIDER_LABELS: Record<string, string> = {
-  animetosho: 'AnimeTosho',
-  jimaku: 'Jimaku',
-  opensubtitles: 'OpenSubtitles',
-  subdl: 'SubDL',
-}
 
 const SCOPE = 'history' as const
 
@@ -103,7 +96,7 @@ const HistoryTableRow = memo(function HistoryTableRow({
       </td>
       <td className="px-3 py-2.5">
         <span className="text-xs font-medium capitalize" style={{ fontFamily: 'var(--font-mono)', color: 'var(--text-secondary)' }}>
-          {entry.provider_name}
+          {formatProviderName(entry.provider_name)}
         </span>
       </td>
       <td className="px-3 py-2.5">
@@ -358,7 +351,7 @@ export function HistoryPage() {
         <SummaryCard icon={Download} label={t('history.total_downloads')} value={stats?.total_downloads ?? 0} color="var(--accent)" />
         <SummaryCard icon={Clock} label={t('history.last_24h')} value={stats?.last_24h ?? 0} color="var(--success)" />
         <SummaryCard icon={Clock} label={t('history.last_7d')} value={stats?.last_7d ?? 0} color="var(--warning)" />
-        <SummaryCard icon={Download} label={t('history.top_provider')} value={topProvider} color="var(--text-secondary)" />
+        <SummaryCard icon={Download} label={t('history.top_provider')} value={topProvider === '-' ? '-' : formatProviderName(topProvider)} color="var(--text-secondary)" />
       </div>
 
       {/* Provider Filter Buttons */}
@@ -388,7 +381,7 @@ export function HistoryPage() {
                 border: `1px solid ${isActive ? 'var(--accent-dim)' : 'var(--border)'}`,
               }}
             >
-              {p === 'all' ? t('history.all_providers') : (PROVIDER_LABELS[p] ?? p)}
+              {p === 'all' ? t('history.all_providers') : formatProviderName(p)}
             </button>
           )
         })}

@@ -1,4 +1,6 @@
 {
+  "load_failed": "Bibliothek konnte nicht geladen werden.",
+  "retry_load": "Erneut versuchen",
   "subtitle_pills": {
     "missing": "{{lang}} fehlt",
     "missing_tooltip": "Kein {{lang}}-Untertitel vorhanden — wird gesucht",
@@ -39,6 +41,11 @@
   "filter_profile_all": "Alle Profile",
   "pagination": {
     "show": "Zeige {{start}} bis {{end}} von {{total}} Einträgen"
+  },
+  "card": {
+    "missing_tooltip_one": "{{count}} Untertitel fehlt",
+    "missing_tooltip_other": "{{count}} Untertitel fehlen",
+    "score_tooltip": "Untertitel-Abdeckung: {{score}} %"
   },
   "empty": {
     "title": "Keine Bibliotheksdaten",
@@ -232,6 +239,9 @@
     "files": "{{count}} Dateien",
     "glossary": "Glossar",
     "season": "Staffel {{number}}",
+    "specials": "Specials",
+    "season_count_one": "{{count}} Staffel",
+    "season_count_other": "{{count}} Staffeln",
     "episodes_count": "{{count}} Episoden",
     "ep": "Ep",
     "title_col": "Titel",

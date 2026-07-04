@@ -10,7 +10,13 @@
   "translations": {
     "no_active": "Keine aktiven Übersetzungsjobs",
     "no_queued": "Keine wartenden Übersetzungsjobs",
-    "empty": "Keine Übersetzungsjobs aktiv. Übersetzungen starten automatisch nach dem Untertitel-Download."
+    "empty": "Keine Übersetzungsjobs aktiv. Übersetzungen starten automatisch nach dem Untertitel-Download.",
+    "cancel_job": "Job abbrechen",
+    "cancel_success": "Job abgebrochen",
+    "cancel_failed": "Job konnte nicht abgebrochen werden",
+    "clear_queued": "Wartende Jobs leeren",
+    "clear_success": "{{n}} wartende Jobs abgebrochen",
+    "clear_failed": "Wartende Jobs konnten nicht geleert werden"
   },
   "title": "Übersetzungen",
   "filter": {
@@ -181,6 +187,8 @@
     "cleanup_result": "{{count}} Eintrag(e) bereinigt",
     "no_results_found": "Keine Treffer.",
     "no_wanted_items": "Keine gesuchten Einträge.",
+    "load_failed": "Gesuchte Einträge konnten nicht geladen werden.",
+    "retry": "Erneut versuchen",
     "items_missing": "{{count}} Eintrag(e) fehlen",
     "total_wanted": "{{count}} insgesamt gesucht",
     "sortBy": "Sortieren nach",

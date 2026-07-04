@@ -10,6 +10,7 @@ import {
 } from '@/hooks/useApi'
 import type { BackendStats, BackendHealthResult } from '@/lib/types'
 import { BackendCard } from '@/pages/Settings/translation/BackendCard'
+import { DefaultBackendSection } from '@/pages/Settings/translation/DefaultBackendSection'
 import { OllamaPullSection } from '@/pages/Settings/translation/OllamaPullSection'
 import { TemplatePickerModal } from '@/pages/Settings/translation/TemplatePickerModal'
 
@@ -104,23 +105,11 @@ export function AutoSyncSection() {
   const updateConfig = useUpdateConfig()
 
   const enabled = config ? config['auto_sync_after_download'] === 'true' || config['auto_sync_after_download'] === true : false
-  const currentEngine = config ? ((config['auto_sync_engine'] as string | undefined) ?? 'ffsubsync') : 'ffsubsync'
-
   const handleToggle = (value: boolean) => {
     updateConfig.mutate(
       { auto_sync_after_download: value },
       {
         onSuccess: () => toast(t('settings:translation_backends.toast_auto_sync_saved')),
-        onError: () => toast(t('settings:translation_backends.toast_save_failed'), 'error'),
-      },
-    )
-  }
-
-  const handleEngineChange = (value: string) => {
-    updateConfig.mutate(
-      { auto_sync_engine: value },
-      {
-        onSuccess: () => toast(t('settings:translation_backends.toast_auto_sync_engine_saved')),
         onError: () => toast(t('settings:translation_backends.toast_save_failed'), 'error'),
       },
     )
@@ -143,20 +132,9 @@ export function AutoSyncSection() {
           label={t('settings:translation_backends.auto_sync_engine')}
           helpText={t('settings:translation_backends.auto_sync_engine_help')}
         >
-          <select
-            value={currentEngine}
-            disabled={updateConfig.isPending}
-            onChange={(e) => handleEngineChange(e.target.value)}
-            className="px-3 py-2 rounded-md text-sm cursor-pointer transition-all duration-150 focus:outline-none"
-            style={{
-              backgroundColor: 'var(--bg-primary)',
-              border: '1px solid var(--border)',
-              color: 'var(--text-primary)',
-              fontSize: '13px',
-            }}
-          >
-            <option value="ffsubsync">{t('settings:translation_backends.auto_sync_engine_ffsubsync_option')}</option>
-          </select>
+          <span style={{ fontSize: '13px', color: 'var(--text-primary)' }}>
+            {t('settings:translation_backends.auto_sync_engine_ffsubsync_option')}
+          </span>
         </SettingRow>
       )}
     </>
@@ -202,23 +180,15 @@ export function EpisodeContextSection() {
         label={t('settings:translation_backends.use_episode_context')}
         description={t('settings:translation_backends.use_episode_context_desc')}
       >
-        <Toggle
-          checked={useEpisodeContext}
-          onChange={(v) =>
-            updateConfig.mutate({ translation_use_episode_context: String(v) })
-          }
-          data-testid="toggle-translation-use-episode-context"
-        />
+        <div data-testid="toggle-translation-use-episode-context">
+          <Toggle
+            checked={useEpisodeContext}
+            onChange={(v) =>
+              updateConfig.mutate({ translation_use_episode_context: String(v) })
+            }
+          />
+        </div>
       </SettingRow>
-      {/* Wrapper for the Toggle's testid since Toggle doesn't accept data-testid */}
-      <div data-testid="toggle-translation-use-episode-context" style={{ display: 'none' }}>
-        <Toggle
-          checked={useEpisodeContext}
-          onChange={(v) =>
-            updateConfig.mutate({ translation_use_episode_context: String(v) })
-          }
-        />
-      </div>
 
       {useEpisodeContext && (
         <SettingRow
@@ -231,9 +201,14 @@ export function EpisodeContextSection() {
             min={1}
             max={5}
             value={contextEpisodes}
-            onChange={(e) =>
-              updateConfig.mutate({ translation_context_episodes: Number(e.target.value) })
-            }
+            onChange={(e) => {
+              const n = Number(e.target.value)
+              if (Number.isFinite(n)) {
+                updateConfig.mutate({
+                  translation_context_episodes: Math.min(5, Math.max(1, Math.round(n))),
+                })
+              }
+            }}
             style={inputStyle}
           />
         </SettingRow>
@@ -243,22 +218,15 @@ export function EpisodeContextSection() {
         label={t('settings:translation_backends.auto_series_glossary')}
         description={t('settings:translation_backends.auto_series_glossary_desc')}
       >
-        <Toggle
-          checked={seriesGlossaryAuto}
-          onChange={(v) =>
-            updateConfig.mutate({ translation_series_glossary_auto: String(v) })
-          }
-        />
+        <div data-testid="toggle-translation-series-glossary-auto">
+          <Toggle
+            checked={seriesGlossaryAuto}
+            onChange={(v) =>
+              updateConfig.mutate({ translation_series_glossary_auto: String(v) })
+            }
+          />
+        </div>
       </SettingRow>
-      {/* Wrapper for the Toggle's testid */}
-      <div data-testid="toggle-translation-series-glossary-auto" style={{ display: 'none' }}>
-        <Toggle
-          checked={seriesGlossaryAuto}
-          onChange={(v) =>
-            updateConfig.mutate({ translation_series_glossary_auto: String(v) })
-          }
-        />
-      </div>
     </div>
   )
 }
@@ -367,6 +335,8 @@ export function TranslationBackendsTab() {
         />
       )}
 
+      <DefaultBackendSection />
+
       <div className="flex items-center justify-between">
         <span className="text-xs font-medium" style={{ color: 'var(--text-secondary)' }}>
           {t('settings:translation_backends.backends_available', { count: backends.length })}
@@ -430,7 +400,7 @@ export function TranslationBackendsTab() {
         </p>
         <SettingRow
           label={t('settings:translation_backends.request_timeout')}
-          helpText="Timeout for each LLM API request. Increase for slow or large models. Default: 90."
+          helpText={t('settings:translation_backends.request_timeout_help')}
         >
           <input
             data-testid="input-request_timeout"
@@ -456,7 +426,7 @@ export function TranslationBackendsTab() {
         </SettingRow>
         <SettingRow
           label={t('settings:translation_backends.backoff_base')}
-          helpText="Base interval for exponential backoff on retries. Default: 5."
+          helpText={t('settings:translation_backends.backoff_base_help')}
         >
           <input
             data-testid="input-backoff_base"

@@ -448,3 +448,88 @@ class TestResolveBackendForContext:
         backend, chain = _resolve_backend_for_context({"sonarr_series_id": 1}, "de")
         assert backend == "ollama"
         mock_default.assert_called_once()
+
+    @patch("db.config.get_config_entry")
+    @patch("db.profiles.get_default_profile")
+    def test_empty_profile_values_coerce_to_ollama(self, mock_default, mock_cfg):
+        """Regression: a profile with empty backend + empty chain must not
+        yield an empty fallback chain (which made translate_with_fallback fail
+        with 'All backends failed. Last error: None'). The prod default
+        'Standard' profile shipped exactly this state."""
+        from translator._helpers import _resolve_backend_for_context
+
+        mock_default.return_value = {
+            "translation_backend": "",
+            "fallback_chain": [],
+        }
+        mock_cfg.side_effect = lambda k: None
+        backend, chain = _resolve_backend_for_context(None, "de")
+        assert backend == "ollama"
+        assert chain == ["ollama"]
+
+    @patch("db.config.get_config_entry")
+    @patch("db.profiles.get_default_profile")
+    def test_falsy_entries_dropped_from_chain(self, mock_default, mock_cfg):
+        from translator._helpers import _resolve_backend_for_context
+
+        mock_default.return_value = {
+            "translation_backend": None,
+            "fallback_chain": ["", "ollama", None],
+        }
+        mock_cfg.side_effect = lambda k: None
+        backend, chain = _resolve_backend_for_context(None, "de")
+        assert backend == "ollama"
+        assert chain == ["ollama"]
+
+    @patch("db.config.get_config_entry")
+    @patch("db.profiles.get_default_profile")
+    def test_empty_profile_inherits_global_default(self, mock_default, mock_cfg):
+        from translator._helpers import _resolve_backend_for_context
+
+        mock_default.return_value = {"translation_backend": "", "fallback_chain": []}
+        cfg = {"translation_default_backend": "deepl", "translation_default_fallback": "ollama"}
+        mock_cfg.side_effect = lambda k: cfg.get(k)
+
+        backend, chain = _resolve_backend_for_context(None, "de")
+        assert backend == "deepl"
+        assert chain == ["deepl", "ollama"]
+
+    @patch("db.config.get_config_entry")
+    @patch("db.profiles.get_default_profile")
+    def test_empty_profile_and_empty_global_falls_back_to_ollama(self, mock_default, mock_cfg):
+        from translator._helpers import _resolve_backend_for_context
+
+        mock_default.return_value = {"translation_backend": "", "fallback_chain": []}
+        mock_cfg.side_effect = lambda k: None
+
+        backend, chain = _resolve_backend_for_context(None, "de")
+        assert backend == "ollama"
+        assert chain == ["ollama"]
+
+    @patch("db.config.get_config_entry")
+    @patch("db.profiles.get_default_profile")
+    def test_profile_override_wins_over_global(self, mock_default, mock_cfg):
+        from translator._helpers import _resolve_backend_for_context
+
+        mock_default.return_value = {
+            "translation_backend": "deepl",
+            "fallback_chain": ["deepl", "ollama"],
+        }
+        mock_cfg.side_effect = lambda k: "chatgpt"
+
+        backend, chain = _resolve_backend_for_context(None, "de")
+        assert backend == "deepl"
+        assert chain == ["deepl", "ollama"]
+
+    @patch("db.config.get_config_entry")
+    @patch("db.profiles.get_default_profile")
+    def test_global_fallback_equal_to_primary_is_dropped(self, mock_default, mock_cfg):
+        from translator._helpers import _resolve_backend_for_context
+
+        mock_default.return_value = {"translation_backend": "", "fallback_chain": []}
+        cfg = {"translation_default_backend": "ollama", "translation_default_fallback": "ollama"}
+        mock_cfg.side_effect = lambda k: cfg.get(k)
+
+        backend, chain = _resolve_backend_for_context(None, "de")
+        assert backend == "ollama"
+        assert chain == ["ollama"]

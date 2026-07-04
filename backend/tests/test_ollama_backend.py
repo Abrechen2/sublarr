@@ -410,6 +410,28 @@ class TestLLMBackendHooks:
         assert resp.tokens_out == 12
         assert resp.finish_reason == "stop"
 
+    def test_parse_response_strips_think_block_pair(self):
+        # Reasoning models (qwen3, deepseek-r1) emit <think>…</think> before
+        # the answer — it must never reach the subtitle output.
+        backend = _make_backend()
+        raw = {
+            "_mode": "generate",
+            "response": "<think>The user wants German.\nLet me translate.</think>\nHallo\nWelt",
+        }
+        resp = backend._parse_response(raw)
+        assert resp.translations == ["Hallo", "Welt"]
+
+    def test_parse_response_strips_dangling_think_close(self):
+        # Some models emit the reasoning then a closing </think> with no opening
+        # tag (the API suppressed it). Keep only what follows the close.
+        backend = _make_backend()
+        raw = {
+            "_mode": "generate",
+            "response": "Okay, translate casually.\nUse 'Lass uns'.</think>\nHallo\nWelt",
+        }
+        resp = backend._parse_response(raw)
+        assert resp.translations == ["Hallo", "Welt"]
+
     def test_parse_response_chat_reads_message_content(self):
         backend = _make_backend()
         raw = {

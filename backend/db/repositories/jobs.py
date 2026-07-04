@@ -137,6 +137,22 @@ class JobRepository(BaseRepository):
         self._commit()
         return result.rowcount
 
+    def cancel_job(self, job_id: str) -> bool:
+        """Race-safe soft-cancel of a single queued job.
+
+        Issues a conditional UPDATE so a job that transitioned to running
+        between the caller's read and this write is never cancelled.
+        Returns True if the job was queued and is now cancelled.
+        """
+        stmt = (
+            update(Job)
+            .where(Job.id == job_id, Job.status == "queued")
+            .values(status="cancelled", completed_at=self._now())
+        )
+        result = self.session.execute(stmt)
+        self._commit()
+        return result.rowcount > 0
+
     def cancel_queued_jobs(self) -> int:
         """Mark all queued translation jobs as cancelled. Returns count of cancelled jobs."""
         stmt = update(Job).where(Job.status == "queued").values(status="cancelled")

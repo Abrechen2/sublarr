@@ -1,6 +1,7 @@
 import { lazy, Suspense, useState, useEffect, useCallback } from 'react'
 import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
+import { useTranslation } from 'react-i18next'
 import { IconSidebar } from '@/components/layout/IconSidebar'
 import { UpdateBanner } from '@/components/layout/UpdateBanner'
 import { BottomNav } from '@/components/layout/BottomNav'
@@ -21,6 +22,7 @@ import { AuthGuard } from '@/components/auth/AuthGuard'
 import { ErrorBoundary } from '@/components/shared/ErrorBoundary'
 import FirstRunWizard, { shouldShowWizard } from '@/components/Setup/FirstRunWizard'
 import { useSetupStatus } from '@/hooks/useSystemApi'
+import { useConfig } from '@/hooks/useApi'
 
 // Route-level code splitting: each page is lazy-loaded as a separate chunk
 const Dashboard = lazy(() => import('@/pages/Dashboard').then(m => ({ default: m.Dashboard })))
@@ -91,34 +93,57 @@ function AnimatedRoutes() {
 }
 
 function GlobalWebSocketListener() {
+  const { t } = useTranslation('common')
+
   useWebSocket({
     onWebhookReceived: (data: unknown) => {
       const d = data as Record<string, unknown>
-      toast(`Webhook: ${String(d.title ?? 'Download received')}`, 'info')
+      toast(t('global_toasts.webhook_received', { title: String(d.title ?? t('global_toasts.download_received')) }), 'info')
     },
     onWebhookCompleted: (data: unknown) => {
       const d = data as Record<string, unknown>
-      toast(`Auto-processed: ${String(d.title ?? d.file_path ?? 'file')}`, 'success')
+      toast(t('global_toasts.auto_processed', { title: String(d.title ?? d.file_path ?? t('global_toasts.file_fallback')) }), 'success')
     },
     onUpgradeCompleted: (data: unknown) => {
       const d = data as Record<string, unknown>
-      toast(`Upgraded: ${String(d.file_path ?? 'subtitle')}`, 'success')
+      toast(t('global_toasts.upgraded', { file: String(d.file_path ?? t('global_toasts.subtitle_fallback')) }), 'success')
     },
     onWantedSearchCompleted: (data: unknown) => {
       const d = data as Record<string, unknown>
-      toast(`Search complete: ${String(d.found ?? 0)} found`, 'info')
+      toast(t('global_toasts.search_complete', { count: Number(d.found ?? 0) }), 'info')
     },
     onRetranslationCompleted: (data: unknown) => {
       const d = data as Record<string, unknown>
-      const count = String(d.count ?? d.succeeded ?? 0)
-      toast(`Re-translated: ${count} files`, 'success')
+      toast(t('global_toasts.retranslated', { count: Number(d.count ?? d.succeeded ?? 0) }), 'success')
     },
     onConfigUpdated: (data: unknown) => {
       const d = data as Record<string, unknown>
       const keys = d.updated_keys as string[] | undefined
-      toast(`Config updated${keys ? `: ${keys.join(', ')}` : ''}`, 'info')
+      toast(
+        keys
+          ? t('global_toasts.config_updated_keys', { keys: keys.join(', ') })
+          : t('global_toasts.config_updated'),
+        'info'
+      )
     },
   })
+
+  return null
+}
+
+/** Applies the persisted interface_language setting to the i18n runtime once
+ *  the config loads, so the stored setting and the rendered language cannot
+ *  drift apart (they were previously two disconnected sources of truth). */
+function InterfaceLanguageSync() {
+  const { i18n } = useTranslation()
+  const { data: config } = useConfig()
+
+  useEffect(() => {
+    const lang = (config as Record<string, unknown> | undefined)?.interface_language
+    if ((lang === 'de' || lang === 'en') && !i18n.language?.startsWith(lang)) {
+      i18n.changeLanguage(lang)
+    }
+  }, [config, i18n])
 
   return null
 }
@@ -159,6 +184,7 @@ function AppInner({
   closeShortcutsModal: () => void
 }) {
   const location = useLocation()
+  const { t } = useTranslation('common')
   const isAuthRoute = location.pathname === '/setup' || location.pathname === '/login'
 
   return (
@@ -168,8 +194,9 @@ function AppInner({
         className="sr-only focus:not-sr-only focus:absolute focus:top-4 focus:left-4 focus:z-[100] focus:px-4 focus:py-2 focus:rounded"
         style={{ backgroundColor: 'var(--accent)', color: '#fff' }}
       >
-        Skip to main content
+        {t('skip_to_main_content')}
       </a>
+      {!isAuthRoute && <InterfaceLanguageSync />}
       <GlobalWebSocketListener />
       <GlobalShortcuts onToggleShortcutsModal={toggleShortcutsModal} />
       {isAuthRoute ? (

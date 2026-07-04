@@ -138,6 +138,7 @@ class TranslationManager:
             or a failure result if all backends fail
         """
         last_error = None
+        attempted = 0
 
         for backend_name in fallback_chain:
             # Check circuit breaker
@@ -148,7 +149,13 @@ class TranslationManager:
 
             backend = self.get_backend(backend_name)
             if not backend:
+                logger.warning(
+                    "Backend %r in fallback chain is not registered/instantiable — skipping",
+                    backend_name,
+                )
                 continue
+
+            attempted += 1
 
             try:
                 start_time = time.time()
@@ -179,10 +186,21 @@ class TranslationManager:
                 self._record_failure(backend_name, str(e))
                 logger.warning("Backend %s failed: %s", backend_name, e)
 
+        if attempted == 0:
+            # No backend ever ran: chain empty, all unregistered, or all
+            # circuit-open. "Last error: None" was actively misleading here.
+            error = (
+                f"No usable translation backend in fallback chain {list(fallback_chain)} "
+                "(none registered/configured, or all circuit breakers open). "
+                "Check the language profile's translation_backend / fallback_chain."
+            )
+        else:
+            error = f"All backends failed. Last error: {last_error}"
+
         return TranslationResult(
             translated_lines=[],
             backend_name="none",
-            error=f"All backends failed. Last error: {last_error}",
+            error=error,
             success=False,
         )
 

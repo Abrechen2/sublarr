@@ -91,27 +91,23 @@ def _arr_pause(pause: bool) -> None:
 
 
 def _media_paths() -> list[str]:
-    settings = get_settings()
-    paths = []
-    media = getattr(settings, "media_path", "")
-    if media:
-        paths.append(media)
-    extra = getattr(settings, "extra_media_paths", "")
-    if extra:
-        paths.extend(p.strip() for p in extra.split(",") if p.strip())
-    return paths
+    """Compat shim — implementation moved to
+    :func:`services.trash_locations.media_paths`."""
+    from services.trash_locations import media_paths
+
+    return media_paths()
 
 
 def _trash_paths() -> list[str]:
-    """Return the resolved trash directory paths (one per media root)."""
-    settings = get_settings()
-    trash_dir = getattr(settings, "remux_trash_dir", ".sublarr")
-    result = []
-    if os.path.isabs(trash_dir):
-        return [os.path.join(trash_dir, "trash")]
-    for media_path in _media_paths():
-        result.append(os.path.join(media_path, trash_dir, "trash"))
-    return result
+    """Compat shim — implementation moved to
+    :func:`services.trash_locations.remux_trash_paths`.
+
+    Kept because cleanup_scheduler, routes.trash and many tests
+    reference/patch ``routes.remux._trash_paths``.
+    """
+    from services.trash_locations import remux_trash_paths
+
+    return remux_trash_paths()
 
 
 # ---------------------------------------------------------------------------

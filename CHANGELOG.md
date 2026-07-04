@@ -5,6 +5,132 @@ All notable changes to Sublarr are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.5.0] - 2026-07-02
+
+### Added
+- **Translation queue can be cleared from the UI** — queued translation
+  jobs get a cancel button and the Activity → Translations tab a
+  "Clear queued" action, backed by `DELETE /api/v1/jobs/{id}` and
+  `POST /api/v1/jobs/clear-queued`. A guard re-checks the job status
+  before execution, so cancelled jobs can never start; this also cleans
+  up jobs orphaned by container restarts.
+
+### Fixed
+- **Dashboard no longer contradicts itself** — the header status pill
+  and the footer automation status now derive from one shared source
+  (scheduler jobs + live scanner state) with a new "partially paused"
+  state and tooltips naming the paused jobs. Provider health dots
+  reflect connectivity instead of the lifetime download-conversion rate
+  (now a separate, tooltipped figure), the hidden 7-provider cap is
+  gone, the success-rate tile is labeled as translation success (30d),
+  and the activity feed no longer labels lifetime counts as "today".
+- **Interface language setting is applied again** — the stored
+  `interface_language` setting and the rendered language could silently
+  differ (the setting said German while the UI showed English). The
+  setting now applies on load, the Settings dropdown switches
+  immediately, the sidebar toggle persists to the setting, and the
+  selector offers only the actually translated languages (DE/EN).
+- **Broken characters in the English UI** — 49 double-encoded strings
+  (mojibake such as "1Ã—" and "â€"") in the English locale were
+  repaired, and two German leftovers in the EN locale translated.
+- **Mobile layout** — the dashboard stacks into one column with a 2×2
+  stats grid, and the settings sub-navigation collapses on phones
+  instead of squeezing the content to an unusable sliver.
+- **Wanted page** — the duplicate page header is gone, the header count
+  and the "Total Wanted" card now report the same number, and a failed
+  list fetch shows a retryable error instead of an empty list (the
+  Library page got the same error state).
+- **Series detail and library cards** — series with specials no longer
+  open on a fileless Season 0 (season 0 is labeled "Specials", the
+  season-count tag is translated), and the library card badges got
+  tooltips explaining the missing count and the coverage score. Numbers
+  and provider names now render consistently across dashboard and
+  history.
+
+## [1.4.0] - 2026-06-30
+
+### Added
+- **Translation backend is now selectable in the UI** — a global default backend
+  (with an optional single fallback) on Settings → Translation → Backends &
+  Glossary, plus a per-profile override on Languages & Profiles. Profiles inherit
+  the global default unless overridden. Previously the backend was a DB-only field
+  with no UI, so configuring e.g. DeepL never changed which backend was actually
+  used.
+- **Dubtitle Detection settings UI** — the dubtitle keys (detection,
+  verify-on-download, minimum score/margin, auto cue floor) are now
+  configurable under Settings → Subtitles → Stream Management instead of being
+  config/env-only. The two dubtitle API endpoints are now documented in OpenAPI.
+
+### Fixed
+- **Translation ran but silently produced nothing** — Queued translation jobs
+  never executed. The job queue defaulted to Redis/RQ, which needs a separate
+  worker process the single-container deployment does not run, so jobs sat in
+  "queued" forever; and the in-process fallback ran jobs without a Flask app
+  context, so the first DB access raised "working outside of application
+  context". The in-process queue is now the default and runs each job inside an
+  app context, and an RQ backend with no worker is logged loudly at startup.
+  Separately, a language profile with an empty backend and empty fallback chain
+  selected no backend at all ("All backends failed. Last error: None"); empty
+  profile values now fall back to Ollama and the error names the real cause.
+- **Cloud translation backend cards crashed the settings page** — Expanding the
+  Claude, Gemini, DeepSeek, Mistral, ChatGPT, Azure Translator or MyMemory card
+  threw "toLowerCase of undefined" and broke the whole Translation tab, because
+  those backends declared their config fields with `name` instead of the
+  contracted `key`. The field descriptors are fixed and the UI degrades
+  gracefully on a bad descriptor. Backend help tooltips are no longer clipped
+  at the card edge.
+- **Translation backend credential overwrite** — saving a configured backend
+  without re-typing its key overwrote the stored secret with the mask token
+  `***`; masked password fields are no longer re-sent on save.
+- **Translation could not be re-enabled after disabling** — the disabled state
+  is stored as the string `'false'`, which the UI mis-read as "enabled"
+  (`Boolean('false')` is true), hiding the enable control. It now compares
+  explicitly so disable → re-enable works.
+- **Backend config field types** — Ollama's `use_chat_api` (checkbox) and
+  `system_prompt` (textarea) rendered as plain text inputs; they now render
+  correctly, and translation numeric inputs guard against NaN and clamp to range.
+- **Translation settings i18n** — the beta banner, enable/disable controls and
+  several help texts were hardcoded German/English; they are now fully
+  translated (DE + EN).
+- **Translation could not be enabled from the UI** (#151) — the Translation
+  settings group was hidden from the settings navigation until translation
+  was already enabled, and the only enable control lived on a settings
+  overview screen that is no longer reachable. Translation is now always
+  listed in the settings navigation, and its page shows an explicit
+  "Translation aktivieren" button (plus a disabled-state hint) when
+  translation is off, with the Disable danger zone shown only when it is on.
+- **Reasoning-model output leaked into translations** — Ollama responses from
+  reasoning models (qwen3, deepseek-r1) carry a `<think>…</think>` block that
+  was written straight into the translated subtitle. It is now stripped before
+  the translation is parsed, for both the generate and chat APIs.
+- **Dead "not implemented" branch** — the standalone status endpoint no
+  longer advertises a 501 response for a manager that has long existed.
+
+### Added
+- **Dub-audio verification on download (opt-in)** — with
+  `dubtitle_verify_on_download` enabled, a downloaded English subtitle is
+  scored against the English dub audio before being kept; a confident
+  mismatch is kept but flagged in the logs. Off by default, and it falls
+  back to "keep" whenever Whisper or dub audio is unavailable, so it never
+  blocks a download.
+
+### Removed
+- **Never-enforced notification content filters** — the notification
+  settings API no longer accepts or stores per-content `{field, operator,
+  value}` filters, which were persisted but never applied. Event-type
+  include/exclude filters are unchanged.
+
+### Changed
+- **Subtitle-sync docs** now list only the two real engines (ffsubsync,
+  alass); the never-built "nanosync" / "LLM-assisted" engines were removed
+  from the documentation.
+- **Streaming setting label** clarified — the bare "experimental" tag was
+  replaced with a description of what the toggle does (HTTP-range streaming
+  of the source video to the Waveform Editor).
+- **OpenAPI cleanup `rule_type` enums** aligned with the rule types the
+  backend actually accepts (added `signs_cleanup`, `foreign_tracks`, and
+  others that were undocumented).
+
 ## [1.3.0] - 2026-06-22
 
 ### Added

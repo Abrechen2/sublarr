@@ -1,5 +1,5 @@
 import { api } from './core'
-import type { EpisodeHealthResult, HealthFixResult, HealthReport } from '@/lib/types'
+import type { EpisodeHealthResult, HealthFixResult, HealthReport } from '@/types/subtitleHealth'
 
 export async function scanEpisodeHealth(epId: number): Promise<EpisodeHealthResult> {
   const { data } = await api.post(`/library/episodes/${epId}/health/scan`)

@@ -34,7 +34,7 @@
     "api_key_placeholder": "Leave empty to disable",
     "api_key_hint": "Protects all API endpoints. Leave empty to disable authentication.",
     "log_level": "Log Level",
-    "log_level_hint": "Controls server log verbosity. Use DEBUG only for troubleshooting â€” it generates large log files.",
+    "log_level_hint": "Controls server log verbosity. Use DEBUG only for troubleshooting — it generates large log files.",
     "media_path": "Media Path",
     "media_path_hint": "Root directory where your media library is stored.",
     "db_path": "Database Path",
@@ -90,8 +90,8 @@
       "no_active": "No translations in progress.",
       "no_recent": "No recent translations.",
       "cancel": "Cancel",
-      "cancelling": "Cancellingâ€¦",
-      "cancel_requested": "Cancel requested â€” will stop after current batch",
+      "cancelling": "Cancelling…",
+      "cancel_requested": "Cancel requested — will stop after current batch",
       "eta_unknown": "ETA unknown",
       "eta_seconds": "~{{n}}s remaining",
       "eta_minutes": "~{{n}}m remaining",
@@ -147,7 +147,7 @@
     "watcher_watching": "Watching",
     "watcher_stopped": "Stopped",
     "scan_all": "Scan All",
-    "scanning": "Scanningâ€¦",
+    "scanning": "Scanning…",
     "add_folder": "Add Folder",
     "last_scan": "Last scan:",
     "folder_enabled": "Enabled",
@@ -290,10 +290,10 @@
     "editor": {
       "enable_hint": "Use this provider for automatic subtitle search",
       "test_label": "Test",
-      "testing": "Testingâ€¦",
+      "testing": "Testing…",
       "last_response": "Last",
-      "consecutive_failures_one": "{{count}}Ã— consecutive failure",
-      "consecutive_failures_other": "{{count}}Ã— consecutive failures",
+      "consecutive_failures_one": "{{count}}× consecutive failure",
+      "consecutive_failures_other": "{{count}}× consecutive failures",
       "locked_until": "Locked until",
       "unknown": "unknown",
       "downloads_count": "{{count}} Downloads",
@@ -305,12 +305,12 @@
       "configured": "(configured)",
       "field_required_error": "{{label}} is required",
       "not_configured": "Not configured",
-      "consecutive_failures": "{{count}}Ã— consecutive failures"
+      "consecutive_failures": "{{count}}× consecutive failures"
     },
     "descriptions": {
       "fallback": "Subtitle provider",
-      "opensubtitles": "Largest subtitle database â€” REST API v1",
-      "opensubtitles_com": "Largest subtitle database â€” REST API v1",
+      "opensubtitles": "Largest subtitle database — REST API v1",
+      "opensubtitles_com": "Largest subtitle database — REST API v1",
       "opensubtitlesvip": "OpenSubtitles VIP access with higher daily limit",
       "podnapisi": "Slavic & European languages, no account required",
       "subscene": "Large community collection across many languages",
@@ -323,27 +323,27 @@
       "kitsunekko": "Japanese-original ASS subtitles, no account required",
       "napisy24": "Polish subtitles, no account required",
       "titrari": "Romanian subtitles, no account required",
-      "legendasdivx": "Portuguese subtitles â€” account on legendasdivx.pt required",
+      "legendasdivx": "Portuguese subtitles — account on legendasdivx.pt required",
       "whisper_subgen": "Local AI transcription via self-hosted Subgen",
       "whisperai": "Local AI transcription via Whisper model",
-      "addic7ed": "TV-series specialist with episode-accurate subtitles â€” account optional",
+      "addic7ed": "TV-series specialist with episode-accurate subtitles — account optional",
       "tvsubtitles": "Classic multi-language aggregator for TV series",
-      "turkcealtyazi": "Largest Turkish subtitle provider â€” account required"
+      "turkcealtyazi": "Largest Turkish subtitle provider — account required"
     },
     "field_help": {
       "fallback": "Configuration value for \"{{label}}\"",
-      "opensubtitles_api_key": "REST API key from opensubtitles.com (not .org) â€” under Account Settings",
+      "opensubtitles_api_key": "REST API key from opensubtitles.com (not .org) — under Account Settings",
       "opensubtitles_username": "OpenSubtitles.org username (free registration)",
       "opensubtitles_password": "OpenSubtitles.org password",
-      "subdl_api_key": "API key from subdl.com â€” under Account â†’ API",
-      "jimaku_api_key": "API key from jimaku.net â€” under Settings â†’ API Token",
+      "subdl_api_key": "API key from subdl.com — under Account → API",
+      "jimaku_api_key": "API key from jimaku.net — under Settings → API Token",
       "api_key_generic": "API key for authenticating with the provider",
       "username_generic": "Username for the provider account",
       "password_generic": "Password for the provider account",
       "url_generic": "Base URL of the provider instance including port, no trailing slash",
       "timeout_generic": "Maximum request wait time in seconds before aborting",
       "priority_generic": "Lower number = higher priority during provider selection",
-      "score_generic": "Minimum quality score for acceptable subtitles (0â€“10)"
+      "score_generic": "Minimum quality score for acceptable subtitles (0–10)"
     },
     "add_modal": {
       "step_1_of_2": "Step 1 of 2",
@@ -366,7 +366,7 @@
     "footer": {
       "subtitle_backups": {
         "title": "Subtitle Backup Management",
-        "description": "Manual overview of all .bak files â€” restore, purge orphans, dry run.",
+        "description": "Manual overview of all .bak files — restore, purge orphans, dry run.",
         "open": "Open"
       }
     },
@@ -382,7 +382,7 @@
       "groupsFoundTruncated": "{{shown}} of {{total}} duplicate groups",
       "truncatedHint": "delete these to reveal more",
       "crossEpisodeBadge": "Cross-Episode",
-      "crossEpisodeWarning": "Identical content across different episodes â€” likely a misfiled subtitle. Verify before deleting.",
+      "crossEpisodeWarning": "Identical content across different episodes — likely a misfiled subtitle. Verify before deleting.",
       "filesToDelete": "files to delete",
       "files": "files",
       "keepLabel": "Keep",
@@ -492,8 +492,8 @@
       }
     },
     "page": {
-      "title": "Bereinigung",
-      "subtitle": "Automatisierte Bereinigung von Sidecar-Dateien und DatenbankeintrÃ¤gen"
+      "title": "Cleanup",
+      "subtitle": "Automated cleanup of sidecar files and database entries"
     },
     "errors": {
       "save_failed": "Failed to save",
@@ -585,7 +585,7 @@
   "max_size_mb": "Max file size (MB)",
   "backup_count": "Backup files",
   "log_viewer_display": "Log Viewer Display",
-  "log_viewer_display_desc": "These settings only affect what you see in the Logs page â€” they do not change the log files.",
+  "log_viewer_display_desc": "These settings only affect what you see in the Logs page — they do not change the log files.",
   "category_scanner": "Scanner",
   "category_translation": "Translation",
   "category_providers": "Providers",
@@ -628,7 +628,7 @@
     "fallback_chain": "Fallback Chain",
     "profile_name": "Profile name",
     "profile_name_placeholder": "e.g. German",
-    "add_language": "â€” Add language â€”",
+    "add_language": "— Add language —",
     "forced_disabled": "Disabled",
     "forced_separate": "Search separately",
     "forced_auto_detect": "Auto-detect",
@@ -639,7 +639,7 @@
     "only_forced": "Only forced",
     "hi_subtitles": "Hearing-impaired subtitles (HI)",
     "only_hi": "Only HI",
-    "no_filter": "None â€” always search all languages",
+    "no_filter": "None — always search all languages",
     "set_default": "Enable as default for all existing and new series/movies",
     "edit_profile": "Edit profile",
     "delete_profile": "Delete profile",
@@ -674,6 +674,13 @@
     "cutoff_language_label": "Cutoff language",
     "cutoff_active_desc": "Once a {{language}} subtitle is present, no further languages are searched.",
     "cutoff_inactive_desc": "Sublarr searches subtitles for all target languages — regardless of what is already present.",
+    "translation_backend_label": "Translation backend",
+    "translation_backend_inherit": "Use global default",
+    "translation_backend_fallback": "Fallback (optional)",
+    "translation_backend_none": "— no fallback —",
+    "translation_backend_unconfigured": "not configured",
+    "translation_backend_help": "Empty = global default. Otherwise this profile uses the chosen backend (fallback only on failure).",
+    "translation_backend_unconfigured_warn": "This backend has no API key yet — translation would fail. Configure it under Translation → Backends.",
     "save": "Save",
     "cancel": "Cancel",
     "default_badge": "Default",
@@ -864,7 +871,7 @@
     "jellyfin_translate": "Translate on Jellyfin Playback",
     "jellyfin_translate_hint": "Automatically translate subtitles when Jellyfin starts playback of a new episode.",
     "streaming_enabled": "Streaming Enabled",
-    "streaming_enabled_hint": "Enable subtitle streaming mode (experimental).",
+    "streaming_enabled_hint": "HTTP-range streaming of the source video to the Waveform Editor for in-browser preview.",
     "post_processing_enabled": "Post-Processing Enabled",
     "post_processing_enabled_hint": "Runs the configured shell command after every successful subtitle download.",
     "post_download_command": "Post-Download Command",
@@ -924,7 +931,7 @@
     "mt_penalty": "MT Score Penalty",
     "mt_penalty_hint": "Penalty applied to machine-translated subtitles (âˆ’50 to 0; 0 = disabled).",
     "mt_threshold": "MT Confidence Threshold",
-    "mt_threshold_hint": "Minimum confidence % (0â€“100) to flag a subtitle as machine-translated.",
+    "mt_threshold_hint": "Minimum confidence % (0–100) to flag a subtitle as machine-translated.",
     "toast_ass_saved": "ASS format preference saved",
     "toast_mt_penalty_updated": "MT penalty updated",
     "toast_preset_applied": "Preset \"{{name}}\" applied",
@@ -1083,14 +1090,14 @@
   "config_export_import": {
     "export_label": "Export settings",
     "export_desc": "Download all config keys as JSON.",
-    "exporting": "Exportingâ€¦",
+    "exporting": "Exporting…",
     "export_btn": "Export",
     "import_label": "Import settings",
     "import_desc": "Restore settings from a previously exported JSON backup. Secrets are skipped.",
     "choose_file": "Choose file",
     "import_confirm_title": "Import {{count}} settings?",
     "import_confirm_body": "This will overwrite existing settings. Secret fields (passwords, API keys) will be skipped.",
-    "importing": "Importingâ€¦",
+    "importing": "Importing…",
     "import_btn": "Import",
     "export_failed": "Export failed",
     "invalid_json": "Invalid JSON file",
@@ -1120,12 +1127,12 @@
     "field_name": "Name",
     "field_name_desc": "Display name for this instance",
     "field_path_mapping": "Path Mapping",
-    "field_path_mapping_desc": "Container path â†’ media server path mapping, e.g. /media:/data",
+    "field_path_mapping_desc": "Container path → media server path mapping, e.g. /media:/data",
     "field_path_mapping_help": "Map container paths to media server paths, e.g. /media:/data",
     "field_enabled": "Enabled",
     "field_enabled_desc": "Enable {{name}} integration for library refresh notifications",
     "field_desc_url": "{{name}} instance URL including port, e.g. http://localhost:8096",
-    "field_desc_api_key": "Create in {{name}} under Settings â†’ API Keys",
+    "field_desc_api_key": "Create in {{name}} under Settings → API Keys",
     "field_desc_username": "Username of the {{name}} account",
     "field_desc_password": "Password of the {{name}} account",
     "btn_test": "Test Connection",
@@ -1174,9 +1181,9 @@
     "webhook_url_label": "Webhook URL",
     "copy_url_title": "Copy URL",
     "copied": "Copied!",
-    "sonarr_desc": "Paste into Sonarr â†’ Settings â†’ Connect â†’ Webhook",
-    "radarr_desc": "Paste into Radarr â†’ Settings â†’ Connect â†’ Webhook",
-    "jellyfin_desc": "Paste into Jellyfin â†’ Dashboard â†’ Webhooks plugin"
+    "sonarr_desc": "Paste into Sonarr → Settings → Connect → Webhook",
+    "radarr_desc": "Paste into Radarr → Settings → Connect → Webhook",
+    "jellyfin_desc": "Paste into Jellyfin → Dashboard → Webhooks plugin"
   },
   "instance_editor": {
     "instances_label": "{{label}} Instances",
@@ -1195,12 +1202,12 @@
       "folders_count": "{{count}} folders watched",
       "no_folders": "No folders configured",
       "scan_btn": "Scan library now",
-      "scanning": "Scanningâ€¦",
+      "scanning": "Scanning…",
       "scan_started": "Scan started",
       "scan_failed": "Could not start scan",
-      "desc_auto": "No Sonarr/Radarr configured â€” standalone mode is running automatically. Configure watched folders below.",
+      "desc_auto": "No Sonarr/Radarr configured — standalone mode is running automatically. Configure watched folders below.",
       "desc_active": "Standalone mode is manually enabled.",
-      "desc_inactive": "Sonarr/Radarr configured â€” standalone mode is inactive. Toggle it on below to scan watched folders directly.",
+      "desc_inactive": "Sonarr/Radarr configured — standalone mode is inactive. Toggle it on below to scan watched folders directly.",
       "section_title": "Standalone Mode",
       "section_desc": "Manage library without Sonarr/Radarr"
     },
@@ -1242,7 +1249,34 @@
     "glossary_section": "Global Glossary",
     "context_quality_section": "Context & Quality",
     "sync_section": "Sync Engine",
-    "episode_context_section": "Episode Context"
+    "episode_context_section": "Episode Context",
+    "beta_title": "Beta Feature",
+    "beta_body": "AI translation is experimental and does not currently work reliably enough for production use. Results vary widely depending on the model, prompt and input quality. Use at your own risk.",
+    "enable_button": "Enable translation",
+    "disabled_hint": "Translation is currently disabled. Enable it above so the settings below take effect and translation jobs run.",
+    "disable_title": "Disable translation",
+    "disable_desc": "Disables the translation feature and cancels all pending jobs.",
+    "disable_button": "Disable translation",
+    "disable_confirm": "Really disable? All pending translation jobs will be cancelled.",
+    "cancel": "Cancel",
+    "disabling": "Disabling…",
+    "confirm": "Confirm",
+    "workers_hint": "Maximum parallel translation worker threads.",
+    "configure_link": "Configure →"
+  },
+  "dubtitle_page": {
+    "title": "Dubtitle Detection",
+    "description": "Identify (and optionally verify) the English \"dubtitle\" among the multiple English tracks anime files ship.",
+    "detection_label": "Dubtitle detection",
+    "detection_desc": "Detect which English track is the dubtitle. The track-panel button always works; this toggle governs the nightly sweep that flags it automatically.",
+    "verify_label": "Verify downloads against the dub",
+    "verify_desc": "After downloading an English subtitle for an episode that has English dub audio, score it against the dub; a confident mismatch is kept but flagged in the logs. Requires Whisper; falls back to keep when unavailable.",
+    "min_score_label": "Minimum match score",
+    "min_score_desc": "Tier-2 acceptance threshold (0-1). A track must score at least this against the dub audio. Lower it if real dubtitles are being missed; raise it to be stricter.",
+    "min_margin_label": "Minimum margin",
+    "min_margin_desc": "Unattended only (0-1). The winner must beat the runner-up by at least this much, so two near-tied tracks are never auto-flagged on a coin-flip.",
+    "auto_cues_label": "Auto cue floor",
+    "auto_cues_desc": "Unattended only. A track needs at least this many cues during the scheduled sweep, so a sparse track cannot fluke a match."
   },
   "subtitles_scoring_page": {
     "scoring_section": "Scoring",
@@ -1342,7 +1376,7 @@
     "cron_weekly": "Weekly {{dow}} {{hour}}:{{minute}}",
     "last_run": "Last run",
     "next_run": "Next run",
-    "never": "â€”",
+    "never": "—",
     "just_now": "just now",
     "minutes_ago": "{{n}} min ago",
     "hours_ago": "{{n}} h ago",
@@ -1451,14 +1485,14 @@
       }
     },
     "actions_menu": "More actions",
-    "health_summary": "{{ok}} ok Â· {{err}} err (7d)"
+    "health_summary": "{{ok}} ok · {{err}} err (7d)"
   },
   "subtitles": {
     "primary_language": "Primary Language",
     "primary_language_hint": "The main subtitle language. Sublarr always searches for this first.",
     "additional_languages": "Additional Languages",
     "additional_languages_hint": "More languages to search for alongside the primary. Searched after the primary language.",
-    "add_language_placeholder": "â€” Add language â€”"
+    "add_language_placeholder": "— Add language —"
   },
   "provider_keys": {
     "title": "API keys",
@@ -1469,7 +1503,7 @@
     "edit": "Edit",
     "delete": "Delete",
     "delete_aria": "Delete key",
-    "delete_last_aria": "Delete last key â€” provider will be disabled",
+    "delete_last_aria": "Delete last key — provider will be disabled",
     "edit_title": "Edit key",
     "add_title": "Add key",
     "label_field": "Label",
@@ -1501,7 +1535,7 @@
     "mt_score_penalty": "MT Score Penalty",
     "mt_confidence_threshold": "MT Confidence Threshold",
     "load_preset": "Load Preset",
-    "select_preset": "Select presetâ€¦",
+    "select_preset": "Select preset…",
     "scoring_weights": "Scoring Weights",
     "provider_modifiers": "Provider Modifiers",
     "no_providers": "No providers available."
@@ -1619,6 +1653,13 @@
     "col_type": "Type"
   },
   "translation_backends": {
+    "default_backend_title": "Default translation backend",
+    "default_backend_help": "Used for translations unless a language profile overrides it.",
+    "default_backend_primary": "Primary",
+    "default_backend_fallback": "Fallback (optional)",
+    "default_backend_none": "— no fallback —",
+    "default_backend_unconfigured": "not configured",
+    "default_backend_unconfigured_warn": "This backend has no API key yet — translation would fail. Configure it below.",
     "context_window": "Context window (lines)",
     "default_sync_engine": "Default sync engine",
     "auto_sync_after_download": "Auto-Sync after download",
@@ -1627,7 +1668,9 @@
     "context_episodes": "Context Episodes",
     "auto_series_glossary": "Auto Series Glossary",
     "request_timeout": "Request timeout (seconds)",
+    "request_timeout_help": "Timeout for each LLM API request. Increase for slow or large models. Default: 90.",
     "backoff_base": "Backoff base (seconds)",
+    "backoff_base_help": "Base interval for exponential backoff on retries. Default: 5.",
     "context_window_help": "Number of lines before and after each batch sent as context to the LLM. 0 = disabled.",
     "default_sync_engine_help": "Engine used by auto-sync when no per-request override is given. alass = audio-based alignment; ffsubsync = frame-rate-based.",
     "toast_sync_engine_saved": "Sync engine preference saved",
@@ -1657,15 +1700,15 @@
     "add_from_template": "Add from Template",
     "no_backends_registered": "No translation backends registered. Install backend packages (e.g. deepl, openai, google-cloud-translate) to enable them.",
     "global_llm_title": "Global LLM Request Settings",
-    "global_llm_desc": "Applied to all translation backends that use the Ollama/LLM pipeline."
+    "global_llm_desc": "Defaults for the Ollama/LLM pipeline. A backend configured individually (in its card) uses its own values and ignores these globals."
   },
   "sync_engines_tab": {
-    "loading": "Loading sync enginesâ€¦",
+    "loading": "Loading sync engines…",
     "title": "Sync Engines",
     "engine_chain": "Engine chain",
     "no_engines": "No engines configured.",
     "recent_runs": "Recent sync runs",
-    "loading_runs": "Loading recent runsâ€¦"
+    "loading_runs": "Loading recent runs…"
   },
   "integrations_page": {
     "sonarr_config": "Sonarr Config:",
@@ -1713,9 +1756,9 @@
   },
   "translation_quality": {
     "enable_quality_scoring": "Enable quality scoring",
-    "quality_threshold": "Quality threshold (0â€“100)",
-    "max_retries": "Max retries (0â€“5)",
-    "temperature": "Temperature (0.0â€“1.0)",
+    "quality_threshold": "Quality threshold (0–100)",
+    "max_retries": "Max retries (0–5)",
+    "temperature": "Temperature (0.0–1.0)",
     "batch_size": "Batch size (lines)",
     "toast_setting_saved": "Translation quality setting saved",
     "toast_save_failed": "Failed to save setting",
@@ -1763,7 +1806,7 @@
     "no_plugins": "No plugins found."
   },
   "post_processing_tab": {
-    "loading": "Loading post-processing configâ€¦",
+    "loading": "Loading post-processing config…",
     "title": "Post-Processing Pipeline",
     "subtitle": "Run actions after a subtitle is downloaded, translated, or synced."
   },
@@ -1834,7 +1877,7 @@
     },
     "cleanup": {
       "title": "Foreign-Track Cleanup",
-      "description": "After extraction succeeds, remove non-target-language subtitle tracks from the container. Backups go to the trash folder â€” nothing is permanently deleted.",
+      "description": "After extraction succeeds, remove non-target-language subtitle tracks from the container. Backups go to the trash folder — nothing is permanently deleted.",
       "default": "Strip by default",
       "default_help": "Global default; per-series overrides live on the series settings panel.",
       "keep_und": "Keep undetermined (und)",
@@ -1914,7 +1957,7 @@
       "subtitle": "Manage subtitle providers, marketplace plugins, and captcha settings",
       "global": {
         "title": "Global provider settings",
-        "description": "Apply across every configured subtitle provider â€” hidden list, dedup, prioritisation, rate limits, timeouts and cache TTL."
+        "description": "Apply across every configured subtitle provider — hidden list, dedup, prioritisation, rate limits, timeouts and cache TTL."
       },
       "marketplace": {
         "title": "Marketplace",
@@ -1991,11 +2034,11 @@
     "loading": "Loading...",
     "close": "Close",
     "cancel": "Cancel",
-    "saving": "Savingâ€¦",
+    "saving": "Saving…",
     "save": "Save"
   },
   "ui": {
-    "loading": "Loadingâ€¦"
+    "loading": "Loading…"
   },
   "subtitle_backups": {
     "title": "Subtitle Backups",

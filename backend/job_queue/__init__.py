@@ -111,7 +111,7 @@ class QueueBackend(ABC):
 
 
 def create_job_queue(
-    redis_url: str = "", queue_name: str = "sublarr", max_workers: int = 2
+    redis_url: str = "", queue_name: str = "sublarr", max_workers: int = 2, app=None
 ) -> QueueBackend:
     """Factory function to create the appropriate job queue backend.
 
@@ -123,6 +123,9 @@ def create_job_queue(
         redis_url: Redis connection URL. Empty string means use memory fallback.
         queue_name: Queue name for RQ (default: "sublarr").
         max_workers: Max concurrent worker threads for MemoryJobQueue (default: 2).
+        app: Optional Flask app, forwarded to MemoryJobQueue so its worker
+            threads run inside an app context. Ignored by the RQ backend,
+            which relies on ``worker.py``'s ``_AppContextWorker`` instead.
 
     Returns:
         A QueueBackend instance (RQ or Memory).
@@ -134,7 +137,7 @@ def create_job_queue(
             logger.info("redis package not installed, using memory job queue")
             from job_queue.memory_queue import MemoryJobQueue
 
-            return MemoryJobQueue(max_workers=max_workers)
+            return MemoryJobQueue(max_workers=max_workers, app=app)
 
         try:
             import rq  # noqa: F401
@@ -142,7 +145,7 @@ def create_job_queue(
             logger.info("rq package not installed, using memory job queue")
             from job_queue.memory_queue import MemoryJobQueue
 
-            return MemoryJobQueue(max_workers=max_workers)
+            return MemoryJobQueue(max_workers=max_workers, app=app)
 
         try:
             client = redis_lib.Redis.from_url(
@@ -159,4 +162,4 @@ def create_job_queue(
 
     from job_queue.memory_queue import MemoryJobQueue
 
-    return MemoryJobQueue(max_workers=max_workers)
+    return MemoryJobQueue(max_workers=max_workers, app=app)

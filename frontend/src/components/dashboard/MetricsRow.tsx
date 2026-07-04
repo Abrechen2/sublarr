@@ -1,27 +1,29 @@
 import { useTranslation } from 'react-i18next'
 import { useStats } from '@/hooks/useSystemApi'
 import { useWantedSummary } from '@/hooks/useWantedApi'
+import { formatNumber } from '@/lib/utils'
 
 interface MetricCellProps {
   readonly testId: string
   readonly value: string | number
   readonly label: string
   readonly valueColor: string
-  readonly borderLeft?: boolean
+  /** Responsive border classes — the grid is 2×2 on phones and 1×4 on md+. */
+  readonly className?: string
 }
 
-function MetricCell({ testId, value, label, valueColor, borderLeft }: MetricCellProps) {
+function MetricCell({ testId, value, label, valueColor, className }: MetricCellProps) {
   return (
     <div
       role="group"
       aria-label={label}
       data-testid={testId}
+      className={className}
       style={{
         padding: '12px 18px',
         display: 'flex',
         flexDirection: 'column',
         gap: '2px',
-        borderLeft: borderLeft ? '1px solid var(--border)' : undefined,
       }}
     >
       <span
@@ -58,21 +60,23 @@ export function MetricsRow() {
 
   const isLoading = statsLoading || wantedLoading
 
-  const total: string | number = isLoading ? '—' : (stats?.total_subtitles ?? '—')
-  const missing: string | number = isLoading ? '—' : (wantedSummary?.total ?? '—')
+  const missingNum = wantedSummary?.total
+  const lowScoreNum = stats?.low_score_count
+
+  const total: string | number = isLoading ? '—' : formatNumber(stats?.total_subtitles)
+  const missing: string | number = isLoading ? '—' : formatNumber(missingNum)
   const avgScore: string | number = isLoading
     ? '—'
     : stats?.average_score != null
       ? stats.average_score.toFixed(1)
       : '—'
-  const lowScore: string | number = isLoading ? '—' : (stats?.low_score_count ?? '—')
+  const lowScore: string | number = isLoading ? '—' : formatNumber(lowScoreNum)
 
   return (
     <div
       data-testid="metrics-row"
+      className="grid grid-cols-2 md:grid-cols-4"
       style={{
-        display: 'grid',
-        gridTemplateColumns: 'repeat(4, 1fr)',
         background: 'var(--bg-surface)',
         border: '1px solid var(--border)',
         borderRadius: 'var(--radius-lg)',
@@ -89,22 +93,22 @@ export function MetricsRow() {
         testId="metric-missing"
         value={missing}
         label={t('metrics.missing')}
-        valueColor={typeof missing === 'number' && missing > 0 ? 'var(--warning)' : 'var(--text-primary)'}
-        borderLeft
+        valueColor={(missingNum ?? 0) > 0 ? 'var(--warning)' : 'var(--text-primary)'}
+        className="border-l border-border"
       />
       <MetricCell
         testId="metric-avg-score"
         value={avgScore}
         label={t('metrics.avgScore')}
         valueColor="var(--accent)"
-        borderLeft
+        className="border-t border-border md:border-t-0 md:border-l"
       />
       <MetricCell
         testId="metric-low-score"
         value={lowScore}
         label={t('metrics.lowScore')}
-        valueColor={typeof lowScore === 'number' && lowScore > 0 ? 'var(--upgrade, var(--accent))' : 'var(--text-primary)'}
-        borderLeft
+        valueColor={(lowScoreNum ?? 0) > 0 ? 'var(--upgrade, var(--accent))' : 'var(--text-primary)'}
+        className="border-l border-t border-border md:border-t-0"
       />
     </div>
   )

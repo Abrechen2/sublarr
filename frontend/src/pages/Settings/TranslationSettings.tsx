@@ -91,13 +91,20 @@ function SectionSkeleton() {
 
 export function TranslationSettings() {
   const { t } = useTranslation('settings')
-  const { t: tTranslation } = useTranslation('settings')
   const { t: tc } = useTranslation('common')
   const navigate = useNavigate()
   const [showDisableConfirm, setShowDisableConfirm] = useState(false)
   const disableTranslation = useDisableTranslation()
   const { data: config } = useConfig()
   const { mutate: updateConfig } = useUpdateConfig()
+  // config_entries stores this as the string 'true'/'false', so Boolean() is
+  // wrong (Boolean('false') === true). Match the codebase string-bool pattern.
+  const translationEnabled =
+    config?.translation_enabled === true || config?.translation_enabled === 'true'
+
+  function handleEnable() {
+    updateConfig({ translation_enabled: 'true' })
+  }
 
   function handleDisableConfirm() {
     disableTranslation.mutate(undefined, {
@@ -130,13 +137,38 @@ export function TranslationSettings() {
         <FlaskConical size={18} style={{ color: 'var(--warning, #f59e0b)', flexShrink: 0, marginTop: 1 }} />
         <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
           <span style={{ fontWeight: 600, fontSize: 13, color: 'var(--warning, #f59e0b)' }}>
-            Beta Feature
+            {t('translation_page.beta_title', 'Beta Feature')}
           </span>
           <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>
-            Die KI-Übersetzungsfunktion ist experimentell und funktioniert aktuell nicht zuverlässig genug für den produktiven Einsatz. Ergebnisse können stark variieren — abhängig von Modell, Prompt und Eingabequalität. Nutzung auf eigenes Risiko.
+            {t('translation_page.beta_body')}
           </span>
         </div>
+        {!translationEnabled && (
+          <button
+            onClick={handleEnable}
+            data-testid="enable-translation-btn"
+            className="shrink-0 self-center px-3 py-1.5 rounded-md text-sm font-semibold"
+            style={{
+              marginLeft: 'auto',
+              backgroundColor: 'var(--warning, #f59e0b)',
+              color: '#fff',
+              border: 'none',
+            }}
+          >
+            {t('translation_page.enable_button', 'Enable translation')}
+          </button>
+        )}
       </div>
+
+      {!translationEnabled && (
+        <div
+          data-testid="translation-disabled-hint"
+          className="text-xs"
+          style={{ color: 'var(--text-muted)', margin: '0 2px 8px' }}
+        >
+          {t('translation_page.disabled_hint')}
+        </div>
+      )}
 
       <FormLayout sections={SECTIONS}>
 
@@ -217,7 +249,7 @@ export function TranslationSettings() {
               <TranslationMemorySection />
               <FormGroup
                 label={tc('ui.translation_workers')}
-                hint="Maximum parallel translation worker threads."
+                hint={t('translation_page.workers_hint', 'Maximum parallel translation worker threads.')}
                 htmlFor="translation-max-workers"
               >
                 <input
@@ -225,8 +257,13 @@ export function TranslationSettings() {
                   type="number"
                   data-testid="input-translation-max-workers"
                   style={{ ...settingsInputStyle, width: '100px', outline: 'none' }}
-                  value={Number(strVal(config, 'translation_max_workers', '2'))}
-                  onChange={(e) => updateConfig({ translation_max_workers: Number(e.target.value) })}
+                  value={Number(strVal(config, 'translation_max_workers', '4'))}
+                  onChange={(e) => {
+                    const n = Number(e.target.value)
+                    if (Number.isFinite(n)) {
+                      updateConfig({ translation_max_workers: Math.min(16, Math.max(1, Math.round(n))) })
+                    }
+                  }}
                   min={1}
                   max={16}
                 />
@@ -296,17 +333,17 @@ export function TranslationSettings() {
       >
         <div>
           <div style={{ fontSize: '14px', fontWeight: 600, color: 'var(--text-primary)' }}>
-            {tTranslation('transcription_page.title')}
+            {t('transcription_page.title')}
           </div>
           <div style={{ fontSize: '11px', color: 'var(--text-muted)', marginTop: 2 }}>
-            {tTranslation('transcription_page.subtitle')}
+            {t('transcription_page.subtitle')}
           </div>
         </div>
         <Link
           to="/settings/providers/transcription"
           style={{ fontSize: '12px', color: 'var(--accent)' }}
         >
-          Configure →
+          {t('translation_page.configure_link', 'Configure →')}
         </Link>
       </div>
       {/* 6. Episode Context (Step 45) */}
@@ -329,7 +366,8 @@ export function TranslationSettings() {
 
       </FormLayout>
 
-      {/* Danger Zone — Disable Translation */}
+      {/* Danger Zone — Disable Translation (only when enabled) */}
+      {translationEnabled && (
       <div
         data-testid="section-disable-translation"
         style={{
@@ -345,10 +383,10 @@ export function TranslationSettings() {
             <AlertTriangle size={18} style={{ color: 'var(--error)', flexShrink: 0, marginTop: 1 }} />
             <div>
               <div className="font-semibold text-sm" style={{ color: 'var(--error)' }}>
-                Translation deaktivieren
+                {t('translation_page.disable_title', 'Disable translation')}
               </div>
               <div className="text-xs mt-0.5" style={{ color: 'var(--text-muted)' }}>
-                Deaktiviert die Translation-Funktion und bricht alle wartenden Jobs ab.
+                {t('translation_page.disable_desc')}
               </div>
             </div>
           </div>
@@ -361,7 +399,7 @@ export function TranslationSettings() {
               backgroundColor: 'transparent',
             }}
           >
-            Disable Translation
+            {t('translation_page.disable_button', 'Disable translation')}
           </button>
         </div>
 
@@ -371,7 +409,7 @@ export function TranslationSettings() {
             style={{ borderTop: '1px solid var(--error)' }}
           >
             <span className="text-sm" style={{ color: 'var(--text-secondary)' }}>
-              Wirklich deaktivieren? Alle wartenden Translation-Jobs werden abgebrochen.
+              {t('translation_page.disable_confirm')}
             </span>
             <div className="flex gap-2 shrink-0">
               <button
@@ -379,7 +417,7 @@ export function TranslationSettings() {
                 className="px-3 py-1.5 rounded-md text-sm"
                 style={{ border: '1px solid var(--border)', color: 'var(--text-secondary)' }}
               >
-                Abbrechen
+                {t('translation_page.cancel', 'Cancel')}
               </button>
               <button
                 onClick={handleDisableConfirm}
@@ -387,12 +425,13 @@ export function TranslationSettings() {
                 className="px-3 py-1.5 rounded-md text-sm font-semibold"
                 style={{ backgroundColor: 'var(--error)', color: '#fff' }}
               >
-                {disableTranslation.isPending ? 'Deaktiviere…' : 'Bestätigen'}
+                {disableTranslation.isPending ? t('translation_page.disabling', 'Disabling…') : t('translation_page.confirm', 'Confirm')}
               </button>
             </div>
           </div>
         )}
       </div>
+      )}
     </SettingsDetailLayout>
   )
 }

@@ -629,7 +629,7 @@ class TestEventFilters:
         data = resp.get_json()
         assert data["include_events"] == []
         assert data["exclude_events"] == []
-        assert data["content_filters"] == []
+        assert "content_filters" not in data
 
     def test_get_filters_parses_stored_json(self, client):
         mock_repo = MagicMock()
@@ -638,7 +638,6 @@ class TestEventFilters:
             mapping = {
                 "notification_filter_include_events": '["download_complete"]',
                 "notification_filter_exclude_events": '["error"]',
-                "notification_filter_content_filters": "[]",
             }
             return mapping.get(key)
 
@@ -675,3 +674,17 @@ class TestEventFilters:
         assert resp.status_code == 200
         # Only one save call, not three
         assert mock_repo.save_config_entry.call_count == 1
+
+    def test_put_content_filters_is_silently_ignored_not_persisted(self, client):
+        """content_filters in PUT body must be silently dropped — never persisted."""
+        mock_repo = MagicMock()
+        with patch(CONFIG_REPO_PATCH, return_value=mock_repo):
+            resp = client.put(
+                "/api/v1/notifications/filters",
+                json={
+                    "content_filters": [{"field": "title", "operator": "contains", "value": "test"}]
+                },
+            )
+        assert resp.status_code == 200
+        saved_keys = [call.args[0] for call in mock_repo.save_config_entry.call_args_list]
+        assert "notification_filter_content_filters" not in saved_keys

@@ -262,7 +262,23 @@ def create_app(testing=False):
         app.job_queue = create_job_queue(
             settings.redis_url if settings.redis_queue_enabled else "",
             max_workers=getattr(settings, "translation_max_workers", 4),
+            app=app,
         )
+        # Fail-loud on the silent-hang trap: an RQ backend with zero registered
+        # workers accepts jobs and never runs them (no crash, no log). Surface
+        # it at startup so a misconfigured deployment is obvious instead of
+        # translation quietly doing nothing.
+        try:
+            _q_info = app.job_queue.get_backend_info()
+            if _q_info.get("type") == "rq" and not _q_info.get("workers"):
+                logger.error(
+                    "Job queue is RQ but NO rq workers are registered — queued jobs "
+                    "(translation, batch search) will hang forever. Start `python "
+                    "worker.py` (see docker-compose.redis.yml) or set "
+                    "redis_queue_enabled=false to use the in-process queue."
+                )
+        except Exception as _e:
+            logger.debug("Could not inspect job queue backend info: %s", _e)
 
         # Initialize database (legacy -- no-op now that SQLAlchemy handles lifecycle)
         from db import init_db

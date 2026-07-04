@@ -11,6 +11,12 @@ export const settingsInputStyle: React.CSSProperties = {
   fontFamily: 'var(--font-body)',
 }
 
+/** UI languages the interface is actually translated into. */
+export const INTERFACE_LANGUAGE_OPTIONS = [
+  { value: 'de', label: 'Deutsch' },
+  { value: 'en', label: 'English' },
+] as const
+
 /** Subtitle language options — comprehensive list for target/source language selectors. */
 export const LANGUAGE_OPTIONS = [
   { value: 'af', label: 'Afrikaans' },

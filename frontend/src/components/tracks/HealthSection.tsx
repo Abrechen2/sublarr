@@ -8,7 +8,7 @@ import {
 } from '@/api/subtitleHealth'
 import { autoSyncFile } from '@/api/client'
 import { toast } from '@/components/shared/Toast'
-import type { EpisodeHealthResult, HealthIssue } from '@/lib/types'
+import type { EpisodeHealthResult, HealthIssue } from '@/types/subtitleHealth'
 
 const SEVERITY_CLASS: Record<string, string> = {
   confirmed: 'bg-red-500/15 text-red-400 border-red-500/30',

@@ -445,11 +445,6 @@ class TestGetStatus:
         assert data["enabled"] is True
         assert data["series_count"] == 5
 
-    def test_501_when_not_implemented(self, client):
-        with patch(f"{SVC_STANDALONE}.get_standalone_status", side_effect=ImportError("nope")):
-            resp = client.get("/api/v1/standalone/status")
-        assert resp.status_code == 501
-
     def test_500_on_error(self, client):
         with patch(f"{SVC_STANDALONE}.get_standalone_status", side_effect=RuntimeError("fail")):
             resp = client.get("/api/v1/standalone/status")

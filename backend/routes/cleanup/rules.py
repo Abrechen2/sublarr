@@ -66,7 +66,7 @@ def create_rule():
                   maxLength: 100
                 rule_type:
                   type: string
-                  enum: [dedup, orphaned, old_backups]
+                  enum: [dedup, orphaned, old_backups, language_filter, format_upgrade, orphan_files, orphan_db, foreign_tracks, signs_cleanup]
                 config_json:
                   type: string
                   default: "{}"
@@ -154,7 +154,7 @@ def update_rule(rule_id: int):
                   type: string
                 rule_type:
                   type: string
-                  enum: [dedup, orphaned, old_backups, language_filter, format_upgrade, orphan_files, orphan_db, foreign_tracks]
+                  enum: [dedup, orphaned, old_backups, language_filter, format_upgrade, orphan_files, orphan_db, foreign_tracks, signs_cleanup]
                 config_json:
                   type: string
                 enabled:
