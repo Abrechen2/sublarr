@@ -185,6 +185,17 @@ class LanguageProfile(db.Model):
     mt_keep_seeking_original: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     mt_on_original_found: Mapped[str] = mapped_column(Text, nullable=False, default="notify")
     mt_min_original_score: Mapped[int] = mapped_column(Integer, nullable=False, default=1)
+    # Combined / bilingual subtitles (feature #1). When combine_enabled is on,
+    # after download/extract Sublarr composes the combine_languages sidecars into
+    # one combined file (combine_format). combine_position drives ASS \an placement
+    # (primary = first entry in combine_languages). See
+    # docs/plans/2026-07-04-v1.6-combined-subtitles.md.
+    combine_enabled: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    combine_format: Mapped[str] = mapped_column(Text, nullable=False, default="ass")
+    combine_languages_json: Mapped[str] = mapped_column(Text, nullable=False, default="[]")
+    combine_position_json: Mapped[str] = mapped_column(
+        Text, nullable=False, default='{"primary": "bottom", "secondary": "top"}'
+    )
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
 

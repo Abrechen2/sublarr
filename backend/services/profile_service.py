@@ -43,7 +43,13 @@ UPDATABLE_PROFILE_KEYS = (
     "must_not_contain",
     "cutoff_language",
     "audio_exclude_languages",
+    "combine_enabled",
+    "combine_format",
+    "combine_languages",
+    "combine_position",
 )
+
+VALID_COMBINE_FORMATS = ("ass", "srt")
 
 
 # ─── Language Profile Logic ──────────────────────────────────────────────────
@@ -94,6 +100,12 @@ def validate_create_profile_data(data: dict) -> dict:
     audio_exclude_languages = data.get("audio_exclude_languages", [])
     cutoff_language = data.get("cutoff_language", "")
 
+    combine_format = data.get("combine_format", "ass")
+    if combine_format not in VALID_COMBINE_FORMATS:
+        raise ProfileValidationError("combine_format must be one of: ass, srt")
+    combine_languages = data.get("combine_languages", [])
+    combine_position = data.get("combine_position")
+
     return {
         "name": name,
         "source_lang": data.get("source_language", "en"),
@@ -111,6 +123,10 @@ def validate_create_profile_data(data: dict) -> dict:
         "audio_exclude_languages": (
             audio_exclude_languages if isinstance(audio_exclude_languages, list) else []
         ),
+        "combine_enabled": bool(data.get("combine_enabled", False)),
+        "combine_format": combine_format,
+        "combine_languages": combine_languages if isinstance(combine_languages, list) else [],
+        "combine_position": combine_position if isinstance(combine_position, dict) else None,
     }
 
 
@@ -165,6 +181,9 @@ def validate_update_profile_fields(data: dict) -> dict:
         raise ProfileValidationError(
             "forced_scoring must be one of: include, prefer, exclude, only"
         )
+
+    if "combine_format" in fields and fields["combine_format"] not in VALID_COMBINE_FORMATS:
+        raise ProfileValidationError("combine_format must be one of: ass, srt")
 
     return fields
 

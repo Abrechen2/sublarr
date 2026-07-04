@@ -30,6 +30,10 @@ def create_language_profile(
     must_not_contain: list = None,
     cutoff_language: str = "",
     audio_exclude_languages: list = None,
+    combine_enabled: bool | int = 0,
+    combine_format: str = "ass",
+    combine_languages: list = None,
+    combine_position: dict = None,
 ) -> int:
     """Create a new language profile. Returns the profile ID."""
     return _get_repo().create_profile(
@@ -47,6 +51,10 @@ def create_language_profile(
         must_not_contain=must_not_contain,
         cutoff_language=cutoff_language,
         audio_exclude_languages=audio_exclude_languages,
+        combine_enabled=combine_enabled,
+        combine_format=combine_format,
+        combine_languages=combine_languages,
+        combine_position=combine_position,
     )
 
 

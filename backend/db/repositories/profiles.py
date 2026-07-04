@@ -24,6 +24,13 @@ logger = logging.getLogger(__name__)
 VALID_FORCED_PREFERENCES = ("disabled", "separate", "auto")
 VALID_HI_PREFERENCES = ("include", "prefer", "exclude", "only")
 VALID_FORCED_SCORING = ("include", "prefer", "exclude", "only")
+VALID_COMBINE_FORMATS = ("ass", "srt")
+_DEFAULT_COMBINE_POSITION = {"primary": "bottom", "secondary": "top"}
+
+
+def _validate_combine_format(fmt: str) -> None:
+    if fmt not in VALID_COMBINE_FORMATS:
+        raise ValueError(f"Invalid combine_format '{fmt}'. Must be one of: {VALID_COMBINE_FORMATS}")
 
 
 class ProfileRepository(BaseRepository):
@@ -47,8 +54,13 @@ class ProfileRepository(BaseRepository):
         must_not_contain: list = None,
         cutoff_language: str = "",
         audio_exclude_languages: list = None,
+        combine_enabled: bool | int = 0,
+        combine_format: str = "ass",
+        combine_languages: list = None,
+        combine_position: dict = None,
     ) -> int:
         """Create a new language profile. Returns the profile ID."""
+        _validate_combine_format(combine_format)
         if forced_preference not in VALID_FORCED_PREFERENCES:
             raise ValueError(
                 f"Invalid forced_preference '{forced_preference}'. "
@@ -87,6 +99,14 @@ class ProfileRepository(BaseRepository):
             cutoff_language=cutoff_language or "",
             audio_exclude_languages_json=json.dumps(
                 audio_exclude_languages if audio_exclude_languages is not None else []
+            ),
+            combine_enabled=1 if combine_enabled else 0,
+            combine_format=combine_format,
+            combine_languages_json=json.dumps(
+                combine_languages if combine_languages is not None else []
+            ),
+            combine_position_json=json.dumps(
+                combine_position if combine_position is not None else _DEFAULT_COMBINE_POSITION
             ),
         )
         self.session.add(profile)
@@ -156,7 +176,15 @@ class ProfileRepository(BaseRepository):
             "must_not_contain",
             "cutoff_language",
             "audio_exclude_languages",
+            "combine_enabled",
+            "combine_format",
+            "combine_languages",
+            "combine_position",
         }
+
+        # Validate combine_format if provided
+        if "combine_format" in fields:
+            _validate_combine_format(fields["combine_format"])
 
         # Validate forced_preference if provided
         if "forced_preference" in fields:
@@ -198,6 +226,16 @@ class ProfileRepository(BaseRepository):
             elif key == "audio_exclude_languages":
                 profile.audio_exclude_languages_json = json.dumps(
                     value if isinstance(value, list) else []
+                )
+            elif key == "combine_enabled":
+                profile.combine_enabled = 1 if value else 0
+            elif key == "combine_languages":
+                profile.combine_languages_json = json.dumps(
+                    value if isinstance(value, list) else []
+                )
+            elif key == "combine_position":
+                profile.combine_position_json = json.dumps(
+                    value if isinstance(value, dict) else _DEFAULT_COMBINE_POSITION
                 )
             else:
                 setattr(profile, key, value)
@@ -431,5 +469,21 @@ class ProfileRepository(BaseRepository):
         except (json.JSONDecodeError, TypeError):
             d["audio_exclude_languages"] = []
             d.pop("audio_exclude_languages_json", None)
+
+        # Combined-subtitle fields (V1.6 Feature #1)
+        d["combine_enabled"] = bool(d.get("combine_enabled", 0))
+        d["combine_format"] = d.get("combine_format", "ass") or "ass"
+        try:
+            d["combine_languages"] = json.loads(d.pop("combine_languages_json", "[]") or "[]")
+        except (json.JSONDecodeError, TypeError):
+            d["combine_languages"] = []
+            d.pop("combine_languages_json", None)
+        try:
+            d["combine_position"] = json.loads(d.pop("combine_position_json", "") or "{}") or dict(
+                _DEFAULT_COMBINE_POSITION
+            )
+        except (json.JSONDecodeError, TypeError):
+            d["combine_position"] = dict(_DEFAULT_COMBINE_POSITION)
+            d.pop("combine_position_json", None)
 
         return d
