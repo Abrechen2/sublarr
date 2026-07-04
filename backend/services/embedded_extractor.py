@@ -709,6 +709,13 @@ def extract_embedded_sub(item_id: int, file_path: str, auto_translate: bool = Fa
                         ctx.push()
                     translator = Translator()
                     translator.translate_file(output_path, target_language=target_language)
+                    # The translated sidecar now exists — the synchronous
+                    # combine below ran at extract time when the target language
+                    # was still missing, so re-fire it here (V1.6 #1 auto-combine
+                    # after auto-translate). maybe_auto_combine never raises.
+                    from services.combine_service import maybe_auto_combine
+
+                    maybe_auto_combine(str(file_path), profile=profile)
                 except Exception as _exc:
                     logger.warning("[Auto-Translate] Failed for item %d: %s", item_id, _exc)
                 finally:
