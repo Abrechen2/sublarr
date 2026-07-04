@@ -64,7 +64,12 @@ def _do_combine(video_path: str):
     try:
         req = _parse_combine_body(request.get_json(silent=True) or {})
         result = combine_for_video(
-            video_path, req.languages, req.format, req.position, media_paths()
+            video_path,
+            req.languages,
+            req.format,
+            req.position,
+            media_paths(),
+            translate_missing=req.translate_missing,
         )
     except CombineError as exc:
         return jsonify({"error": exc.message}), exc.status
@@ -154,7 +159,14 @@ def combine_batch():
             )
             return
         try:
-            out = combine_for_video(video_path, req.languages, req.format, req.position, roots)
+            out = combine_for_video(
+                video_path,
+                req.languages,
+                req.format,
+                req.position,
+                roots,
+                translate_missing=req.translate_missing,
+            )
             results.append(
                 {
                     "type": item_type,

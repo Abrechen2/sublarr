@@ -46,6 +46,41 @@ def resolve_combine_sources(video_path: str, languages: list[str]) -> tuple[list
     return present, missing
 
 
+def _language_name(code: str) -> str:
+    from config_language_data import SUPPORTED_LANGUAGES
+
+    for entry in SUPPORTED_LANGUAGES:
+        if entry.get("code") == code:
+            return entry.get("name", code)
+    return code
+
+
+def _translate_missing_languages(video_path: str, missing: list[str]) -> None:
+    """Generate each missing target language via the translation stack.
+
+    Runs synchronously in the caller's app-context (on-demand path). Raises
+    :class:`CombineError` (422) if translation is disabled or fails to produce a
+    sidecar — the caller re-resolves sources afterwards and errors if any
+    language is still missing, so no partial combined artifact is written.
+    """
+    from routes.translate._helpers import _is_translation_enabled
+    from translator import translate_file
+
+    if not _is_translation_enabled():
+        raise CombineError(422, "Translation is disabled — cannot generate missing language(s)")
+
+    for lang in missing:
+        try:
+            result = translate_file(
+                video_path, target_language=lang, target_language_name=_language_name(lang)
+            )
+        except Exception as exc:
+            raise CombineError(422, f"Translation for '{lang}' failed: {exc}") from exc
+        if not result or not result.get("success"):
+            reason = (result or {}).get("error") or "no translatable source found"
+            raise CombineError(422, f"Could not generate '{lang}': {reason}")
+
+
 def build_combined_path(video_path: str, languages: list[str], fmt: str) -> str:
     """Combined sidecar path: ``<stem>.<lang1>-<lang2>.combined.<fmt>``."""
     base, _ = os.path.splitext(video_path)
@@ -102,18 +137,25 @@ def combine_for_video(
     fmt: str,
     position: dict | None,
     media_roots: list[str],
+    translate_missing: bool = False,
 ) -> dict:
     """Compose ``languages`` for ``video_path`` and write the combined sidecar.
 
-    Every requested language must already exist as a sidecar. Returns
-    ``{"combined_path", "languages", "format"}``. Raises :class:`CombineError`
-    on missing languages, an output path outside every media root, or any
-    composition failure.
+    When ``translate_missing`` is set, any missing target language is generated
+    via the translation stack first (synchronously, in the caller's app-context)
+    and sources are re-resolved. Every requested language must exist (or be
+    generated) as a sidecar. Returns ``{"combined_path", "languages", "format"}``.
+    Raises :class:`CombineError` on a still-missing language, a disabled/failed
+    translation, an output path outside every media root, or a composition
+    failure.
     """
     import security_utils
     from utils.atomic_write import atomic_write_bytes
 
     present, missing = resolve_combine_sources(video_path, languages)
+    if missing and translate_missing:
+        _translate_missing_languages(video_path, missing)
+        present, missing = resolve_combine_sources(video_path, languages)
     if missing:
         raise CombineError(422, "Missing subtitle language(s): " + ", ".join(missing))
 
