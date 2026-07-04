@@ -66,7 +66,7 @@ class StatisticsRepository(BaseRepository):
             )
         ).fetchall()
         return [
-            {"provider_name": row[0], "count": row[1], "avg_score": round(row[2] or 0, 1)}
+            {"provider_name": row[0], "count": row[1], "avg_score": round(float(row[2] or 0), 1)}
             for row in rows
         ]
 
@@ -110,7 +110,7 @@ class StatisticsRepository(BaseRepository):
         return [
             {
                 "date": row[0],
-                "avg_score": round(min(100.0, (row[1] or 0) / _SCORE_MAX * 100), 1),
+                "avg_score": round(min(100.0, float(row[1] or 0) / _SCORE_MAX * 100), 1),
                 "files_checked": row[2] or 0,
                 "issues_count": row[3] or 0,
             }
@@ -145,8 +145,8 @@ class StatisticsRepository(BaseRepository):
         return [
             {
                 "title": row[0],
-                "avg_score": round(row[1] or 0, 1),
-                "avg_score_pct": round(min(100.0, (row[1] or 0) / _SCORE_MAX * 100), 1),
+                "avg_score": round(float(row[1] or 0), 1),
+                "avg_score_pct": round(min(100.0, float(row[1] or 0) / _SCORE_MAX * 100), 1),
                 "download_count": row[2] or 0,
                 # MAX(downloaded_at) is a str on SQLite but a datetime on Postgres.
                 "last_download": _iso_timestamp(row[3]),

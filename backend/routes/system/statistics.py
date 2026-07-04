@@ -257,7 +257,9 @@ def export_statistics():
             "exported_at": datetime.now(UTC).isoformat(),
         }
 
-        json_bytes = json.dumps(stats_data, indent=2).encode("utf-8")
+        # default=str is a safety net: any stray Decimal (Postgres AVG) / datetime
+        # that slips through becomes a string rather than 500-ing the export.
+        json_bytes = json.dumps(stats_data, indent=2, default=str).encode("utf-8")
         buf = io.BytesIO(json_bytes)
         return send_file(
             buf,
