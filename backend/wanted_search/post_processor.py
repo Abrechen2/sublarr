@@ -53,6 +53,20 @@ def _try_auto_sync(subtitle_path: str, video_path: str, settings) -> None:
         logger.error("Auto-sync failed for %s: %s", subtitle_path, e)
 
 
+def _try_auto_combine(item, video_path: str) -> None:
+    """Fire automatic per-profile combine after a subtitle landed for a video.
+
+    Best-effort — ``maybe_auto_combine`` never raises, but keep the call guarded
+    so a lazy-import hiccup can never break the download pipeline.
+    """
+    try:
+        from services.combine_service import maybe_auto_combine
+
+        maybe_auto_combine(video_path, item=item)
+    except Exception as exc:  # pragma: no cover - defensive
+        logger.debug("auto-combine hook failed for %s: %s", video_path, exc)
+
+
 def _process_forced_wanted_item(item, item_id, item_lang, manager):
     """Process a forced wanted item: search with forced_only, download, skip translation.
 
@@ -372,6 +386,7 @@ def download_specific_for_item(
 
         if out:
             _try_auto_sync(out, file_path, settings)
+        _try_auto_combine(item, file_path)
         return {
             "success": True,
             "path": out,
@@ -396,6 +411,7 @@ def download_specific_for_item(
     except DuplicateSubtitleError as dup_err:
         delete_wanted_item(item_id)
         _try_auto_sync(dup_err.existing_path, file_path, settings)
+        _try_auto_combine(item, file_path)
         return {
             "success": True,
             "path": dup_err.existing_path,
@@ -408,6 +424,7 @@ def download_specific_for_item(
 
     delete_wanted_item(item_id)
     _try_auto_sync(actual_path, file_path, settings)
+    _try_auto_combine(item, file_path)
     return {
         "success": True,
         "path": actual_path,

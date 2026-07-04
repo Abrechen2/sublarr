@@ -172,3 +172,66 @@ def combine_for_video(
     _record_combined(out_path, languages[0], fmt, content)
 
     return {"combined_path": out_path, "languages": languages, "format": fmt}
+
+
+def _combined_is_fresh(out_path: str, sources: list[dict]) -> bool:
+    """True if a combined file exists and is at least as new as every source."""
+    try:
+        if not os.path.exists(out_path):
+            return False
+        out_mtime = os.path.getmtime(out_path)
+        return all(
+            os.path.exists(s["path"]) and os.path.getmtime(s["path"]) <= out_mtime for s in sources
+        )
+    except OSError:
+        return False
+
+
+def maybe_auto_combine(
+    video_path: str, item: dict | None = None, profile: dict | None = None
+) -> dict | None:
+    """Automatic per-profile combine, fired after a sidecar lands.
+
+    Composes when the governing profile has ``combine_enabled`` and every
+    ``combine_languages`` sidecar is present (never translates — a missing
+    language is a silent skip). NEVER raises: the acquisition pipeline must not
+    break on a combine failure. Returns the combine result dict when a combined
+    file was written, else ``None`` (disabled, missing language, already fresh,
+    or error). ``profile`` may be passed directly; otherwise it is resolved from
+    ``item``.
+    """
+    try:
+        if profile is None:
+            from config import get_settings
+            from services.embedded_extractor import resolve_profile_for_item
+
+            profile = resolve_profile_for_item(item or {}, get_settings())
+        if not profile or not profile.get("combine_enabled"):
+            return None
+
+        languages = profile.get("combine_languages") or []
+        if len(languages) < 2:
+            return None
+        fmt = profile.get("combine_format") or "ass"
+        position = profile.get("combine_position")
+
+        present, missing = resolve_combine_sources(video_path, languages)
+        if missing:
+            logger.debug("auto-combine: skip %s (missing %s)", video_path, ", ".join(missing))
+            return None
+
+        out_path = build_combined_path(video_path, languages, fmt)
+        if _combined_is_fresh(out_path, present):
+            return None
+
+        from services.trash_locations import media_paths
+
+        return combine_for_video(
+            video_path, languages, fmt, position, media_paths(), translate_missing=False
+        )
+    except CombineError as exc:
+        logger.info("auto-combine skipped for %s: %s", video_path, exc.message)
+        return None
+    except Exception as exc:
+        logger.warning("auto-combine failed for %s: %s", video_path, exc)
+        return None
