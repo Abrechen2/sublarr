@@ -185,6 +185,57 @@ def start_sync():
     return jsonify({"job_id": job_id}), 202
 
 
+@bp.route("/video-sync/compare", methods=["POST"])
+def sync_compare_endpoint():
+    """Non-destructively preview sync candidates for a side-by-side compare.
+
+    Body:
+        file_path (str): subtitle to preview — required
+        video_path (str): reference video for ffsubsync (optional)
+        reference_path (str): reference subtitle for alass (optional)
+
+    Runs the applicable engines WITHOUT overwriting the sidecar and returns
+    ``{original, candidates, any_output}``. Applying a chosen candidate is the
+    existing ``POST /video-sync`` job.
+    """
+    data = request.get_json(force=True, silent=True) or {}
+    subtitle_path = data.get("file_path", "").strip()
+    video_path = (data.get("video_path") or "").strip()
+    reference_path = (data.get("reference_path") or "").strip()
+
+    if not subtitle_path:
+        return jsonify({"error": "file_path is required"}), 400
+    if not os.path.exists(subtitle_path):
+        return jsonify({"error": f"Subtitle file not found: {subtitle_path}"}), 404
+    if not video_path and not reference_path:
+        return jsonify({"error": "video_path or reference_path is required"}), 400
+
+    from config import get_settings
+    from security_utils import is_safe_path
+
+    _s = get_settings()
+    if not is_safe_path(subtitle_path, _s.media_path):
+        return jsonify({"error": "file_path must be under the configured media_path"}), 403
+    if video_path and not is_safe_path(video_path, _s.media_path):
+        return jsonify({"error": "video_path must be under the configured media_path"}), 403
+    if reference_path and not is_safe_path(reference_path, _s.media_path):
+        return jsonify({"error": "reference_path must be under the configured media_path"}), 403
+
+    from services.sync_preview import sync_compare
+
+    try:
+        result = sync_compare(
+            subtitle_path,
+            video_path=video_path or None,
+            reference_path=reference_path or None,
+        )
+    except Exception as exc:  # pragma: no cover - defensive; per-engine errors are captured inside
+        logger.exception("sync compare failed for %s", subtitle_path)
+        return jsonify({"error": f"Sync compare failed: {exc}"}), 500
+
+    return jsonify(result), 200
+
+
 @bp.route("/auto-sync", methods=["POST"])
 def auto_sync():
     """Quick one-click auto-sync using ffsubsync (fire-and-forget, no job polling needed).
