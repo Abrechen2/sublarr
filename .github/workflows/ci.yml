@@ -36,7 +36,7 @@ jobs:
 
   # ─── Backend ─────────────────────────────────────────────────────────────
   backend:
-    name: Backend (Python 3.11)
+    name: Backend (Python 3.12)
     needs: changes
     if: needs.changes.outputs.backend == 'true' || github.event_name == 'workflow_call'
     runs-on: ubuntu-latest
@@ -45,7 +45,7 @@ jobs:
 
       - uses: actions/setup-python@v6
         with:
-          python-version: '3.11'
+          python-version: '3.12'
           cache: 'pip'
 
       - name: Install dependencies
@@ -142,7 +142,7 @@ jobs:
 
       - uses: actions/setup-python@v6
         with:
-          python-version: '3.11'
+          python-version: '3.12'
           cache: 'pip'
 
       - name: Install Python dependencies
