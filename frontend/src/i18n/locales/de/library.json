@@ -143,6 +143,7 @@
   "episode_actions": {
     "preview_subtitle": "Untertitel-Vorschau",
     "compare_subtitles": "Untertitel vergleichen",
+    "combine_subtitles": "Untertitel kombinieren",
     "sync_timing": "Timing synchronisieren",
     "auto_sync": "Auto-Sync (alass/ffsubsync)",
     "video_sync": "Video-Sync",
@@ -152,6 +153,35 @@
     "interactive_search": "Interaktive Suche",
     "history": "Verlauf",
     "back_to_library": "Zurück zur Bibliothek"
+  },
+  "sync_compare": {
+    "title": "Sync vergleichen",
+    "running": "Sync-Kandidaten werden berechnet …",
+    "no_output": "Keine Engine hat ein Ergebnis geliefert.",
+    "original": "Original",
+    "synced": "{{engine}} (synchronisiert)",
+    "shift_summary": "{{engine}}: Versatz {{shift}}",
+    "keep_original": "Original behalten",
+    "apply": "{{engine}} anwenden",
+    "applied": "Sync gestartet",
+    "apply_failed": "Sync konnte nicht gestartet werden",
+    "close": "Schließen",
+    "truncated": "Nur die ersten {{shown}} Zeilen werden angezeigt.",
+    "status_unavailable": "nicht installiert",
+    "status_rejected": "verworfen (Versatz unplausibel)",
+    "status_error": "Fehler"
+  },
+  "combine_dialog": {
+    "title": "Untertitel kombinieren",
+    "languages_label": "Sprachen",
+    "languages_help": "Wähle 2–3 Sprachen. Die erste ist die primäre (Reihenfolge zählt).",
+    "format_label": "Format",
+    "translate_missing": "Fehlende Sprache übersetzen und kombinieren",
+    "missing_warn": "Nicht vorhanden: {{languages}}. Aktiviere „Fehlende Sprache übersetzen“, sonst schlägt der Vorgang fehl.",
+    "combine": "Kombinieren",
+    "cancel": "Abbrechen",
+    "success": "Kombinierter Untertitel erstellt",
+    "failed": "Kombinieren fehlgeschlagen"
   },
   "series_settings_panel": {
     "section_language": "Sprache",

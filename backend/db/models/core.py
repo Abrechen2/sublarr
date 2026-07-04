@@ -178,6 +178,24 @@ class LanguageProfile(db.Model):
     must_not_contain_json: Mapped[str] = mapped_column(Text, nullable=False, default="[]")
     cutoff_language: Mapped[str] = mapped_column(Text, nullable=False, default="")
     audio_exclude_languages_json: Mapped[str] = mapped_column(Text, nullable=False, default="[]")
+    # Provisional machine-translation (feature #8). When mt_keep_seeking_original
+    # is on, a Sublarr-translated sub is recorded as source="machine_translation"
+    # and the wanted item is kept "provisional" (seeking the human original)
+    # instead of being deleted. See docs/plans/2026-07-03-v1.6-provisional-mt.md.
+    mt_keep_seeking_original: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    mt_on_original_found: Mapped[str] = mapped_column(Text, nullable=False, default="notify")
+    mt_min_original_score: Mapped[int] = mapped_column(Integer, nullable=False, default=1)
+    # Combined / bilingual subtitles (feature #1). When combine_enabled is on,
+    # after download/extract Sublarr composes the combine_languages sidecars into
+    # one combined file (combine_format). combine_position drives ASS \an placement
+    # (primary = first entry in combine_languages). See
+    # docs/plans/2026-07-04-v1.6-combined-subtitles.md.
+    combine_enabled: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    combine_format: Mapped[str] = mapped_column(Text, nullable=False, default="ass")
+    combine_languages_json: Mapped[str] = mapped_column(Text, nullable=False, default="[]")
+    combine_position_json: Mapped[str] = mapped_column(
+        Text, nullable=False, default='{"primary": "bottom", "secondary": "top"}'
+    )
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
 
@@ -534,8 +552,9 @@ class ProviderAccountPool(db.Model):
     api_key: Mapped[str] = mapped_column(String(500), nullable=False)
     username: Mapped[str | None] = mapped_column(String(200), nullable=True)
     password: Mapped[str | None] = mapped_column(String(500), nullable=True)
-    # Provider-account credential (not a user login). Stored in plaintext to
-    # match the existing config_entries policy; encryption-at-rest is a future task.
+    # Provider-account credential (not a user login). Encrypted at rest via
+    # ProviderAccountPoolRepository (config_crypto Fernet); back-filled by
+    # migration c9d0e1f2a3b4_encrypt_sensitive_at_rest.
     tier: Mapped[str] = mapped_column(String(20), nullable=False, default="free")
     enabled: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
     last_used_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)

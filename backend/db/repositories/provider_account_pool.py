@@ -15,6 +15,7 @@ from datetime import UTC, datetime
 
 from sqlalchemy import select
 
+from config_crypto import decrypt, encrypt
 from db.models.core import ProviderAccountPool
 from db.repositories.base import BaseRepository
 
@@ -37,9 +38,9 @@ class ProviderAccountPoolRepository(BaseRepository):
             "id": row.id,
             "provider_name": row.provider_name,
             "account_label": row.account_label,
-            "api_key": row.api_key,
+            "api_key": decrypt(row.api_key),
             "username": row.username,
-            "password": row.password,
+            "password": decrypt(row.password),
             "tier": row.tier,
             "enabled": row.enabled,
             "last_used_at": _as_utc(row.last_used_at),
@@ -61,10 +62,10 @@ class ProviderAccountPoolRepository(BaseRepository):
         row = ProviderAccountPool(
             provider_name=provider,
             account_label=label,
-            api_key=api_key,
+            api_key=encrypt(api_key),
             tier=tier,
             username=username,
-            password=password,
+            password=encrypt(password),
             enabled=enabled,
         )
         self.session.add(row)
@@ -135,6 +136,8 @@ class ProviderAccountPoolRepository(BaseRepository):
         if row is None:
             return False
         for k, v in fields.items():
+            if k in ("api_key", "password"):
+                v = encrypt(v)
             setattr(row, k, v)
         self.session.commit()
         return True

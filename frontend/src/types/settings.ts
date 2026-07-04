@@ -14,6 +14,18 @@ export interface LanguageProfile {
   forced_scoring: 'include' | 'prefer' | 'exclude' | 'only'
   hi_preference: 'include' | 'prefer' | 'exclude' | 'only'
   cutoff_language: string
+  // Combined / bilingual subtitles (V1.6 #1)
+  combine_enabled?: boolean
+  combine_format?: 'ass' | 'srt'
+  combine_languages?: string[]
+  combine_position?: CombinePosition
+}
+
+export type CombineVerticalPosition = 'top' | 'middle' | 'bottom'
+
+export interface CombinePosition {
+  primary: CombineVerticalPosition
+  secondary: CombineVerticalPosition
 }
 
 // ─── Events & Hooks ──────────────────────────────────────────────────────────

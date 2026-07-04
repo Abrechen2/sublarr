@@ -159,6 +159,8 @@
     "title": "Untertitel-Editor",
     "auto_sync_tooltip": "Untertitel-Timing automatisch via alass/ffsubsync synchronisieren",
     "close_esc": "Schließen (Esc)",
+    "fullscreen": "Vollbild (F)",
+    "exit_fullscreen": "Vollbild verlassen (Esc)",
     "waveform_unsupported_format": "Wellenform-Edit für Format \"{{format}}\" noch nicht unterstützt.",
     "cue_update_failed": "Cue konnte nicht aktualisiert werden.",
     "cue_has_styling": "Cue enthält Stil-Tags — bitte im Quelltext-Tab bearbeiten.",

@@ -8,11 +8,18 @@ Submodules:
     sidecars.py  — GET /library/{episodes|movies|series}/<id>/subtitles
     trash.py     — DELETE /library/subtitles, batch-delete, list/restore/purge trash
     export.py    — series ZIP export + single-file download
+    upload.py    — POST /library/{episodes|movies}/<id>/subtitles/upload
+    combine.py   — POST /library/{episodes|movies}/<id>/subtitles/combine + batch
 
 Endpoints:
   GET  /library/episodes/<ep_id>/subtitles
   GET  /library/series/<series_id>/subtitles
   GET  /library/movies/<movie_id>/subtitles
+  POST /library/episodes/<ep_id>/subtitles/upload
+  POST /library/movies/<movie_id>/subtitles/upload
+  POST /library/episodes/<ep_id>/subtitles/combine
+  POST /library/movies/<movie_id>/subtitles/combine
+  POST /library/subtitles/combine-batch
   DELETE /library/subtitles
   POST /library/series/<series_id>/subtitles/batch-delete
   GET  /library/trash
@@ -30,7 +37,7 @@ bp = Blueprint("subtitles", __name__, url_prefix="/api/v1")
 logger = logging.getLogger(__name__)
 
 # Submodule imports — decorators register routes at import time.
-from routes.subtitles import export, sidecars, trash  # noqa: E402, F401
+from routes.subtitles import combine, export, sidecars, trash, upload  # noqa: E402, F401
 
 # Public re-exports (tests + external callers depend on these):
 # - cleanup_scheduler.py:323            — _auto_purge_old_trash

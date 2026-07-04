@@ -156,6 +156,14 @@ class UISettings(BaseModel):
     providers_enabled: str = ""  # Empty = all registered providers enabled
     providers_hidden: str = ""  # Comma-separated provider names hidden from UI grid
 
+    # Reverse-proxy header authentication (Authelia/authentik SSO).
+    # When enabled, a request whose DIRECT peer IP (request.remote_addr — no
+    # ProxyFix) is within proxy_auth_trusted_ips is authenticated if it carries
+    # a non-empty proxy_auth_header. OFF by default; fails closed with no allowlist.
+    proxy_auth_enabled: bool = False
+    proxy_auth_trusted_ips: str = ""  # comma-separated IPs / CIDRs of trusted proxies
+    proxy_auth_header: str = "Remote-User"
+
     # Addic7ed (TV subtitles — optional credentials increase download limit)
     addic7ed_username: str = ""
     addic7ed_password: str = ""

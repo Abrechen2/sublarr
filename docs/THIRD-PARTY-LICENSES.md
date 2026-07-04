@@ -62,6 +62,7 @@ Anything outside this set fails CI and triggers a manual review.
 | APScheduler | ≥3.10,<4 | MIT | `MIT` | ✅ |
 | beautifulsoup4 | ≥4.12.0 | MIT | `MIT` | ✅ |
 | bcrypt | 4.2.1 | Apache-2.0 | `Apache-2.0` | ✅ |
+| cryptography | ≥42.0 | Apache-2.0 OR BSD-3-Clause | `Apache-2.0 OR BSD-3-Clause` | ✅ |
 | click | ≥8.1,<9 | BSD-3-Clause | `BSD-3-Clause` | ✅ |
 | lxml | ≥5.1.0 | BSD-3-Clause | `BSD-3-Clause` | ✅ |
 | watchdog | ≥6.0.0 | Apache-2.0 | `Apache-2.0` | ✅ |

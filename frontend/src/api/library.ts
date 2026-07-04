@@ -94,6 +94,29 @@ export async function downloadSpecificEpisode(episodeId: number, payload: Downlo
   return data
 }
 
+// ─── Combined / bilingual subtitles (V1.6 #1) ────────────────────────────────
+
+export interface CombineSubtitlesPayload {
+  languages: string[]
+  format: 'ass' | 'srt'
+  translate_missing?: boolean
+  position?: { primary: string; secondary: string }
+}
+
+export interface CombineSubtitlesResult {
+  combined_path: string
+  languages: string[]
+  format: string
+}
+
+export async function combineEpisodeSubtitles(
+  episodeId: number,
+  payload: CombineSubtitlesPayload,
+): Promise<CombineSubtitlesResult> {
+  const { data } = await api.post(`/library/episodes/${episodeId}/subtitles/combine`, payload)
+  return data
+}
+
 // ─── Subtitle Sidecar Management ─────────────────────────────────────────────
 
 export async function listEpisodeTracks(epId: number): Promise<import('@/lib/types').EpisodeTracksResponse> {

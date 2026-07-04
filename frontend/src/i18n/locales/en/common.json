@@ -606,6 +606,7 @@
     "adjust_timing": "Adjust timing",
     "auto_sync": "Auto-Sync",
     "video_sync": "Video-Sync",
+    "sync_compare": "Compare Sync",
     "health_check": "Health Check",
     "restore_backup": "Restore backup"
   },
@@ -686,5 +687,24 @@
     "run_now": "Run now",
     "activate_first": "Activate first",
     "last_run": "Last: {{date}}"
+  },
+  "whatsnew": {
+    "title": "What's new in {{version}}",
+    "close": "Close",
+    "got_it": "Got it",
+    "v160": {
+      "combined_title": "Combined subtitles",
+      "combined_desc": "Compose two languages into one bilingual file — or generate a missing language on demand and combine.",
+      "sync_compare_title": "Side-by-side sync compare",
+      "sync_compare_desc": "Preview a subtitle sync against your video before applying it, and pick the result you want.",
+      "statistics_title": "Statistics page",
+      "statistics_desc": "A new analytics page: downloads, translations, providers, system and trends over time.",
+      "upload_title": "Manual subtitle upload",
+      "upload_desc": "Drop your own .srt/.ass file for an episode or movie.",
+      "proxy_auth_title": "Reverse-proxy login",
+      "proxy_auth_desc": "Trust Remote-User / X-Forwarded-User from your proxy for Authelia/authentik SSO.",
+      "encryption_title": "Encrypted API keys",
+      "encryption_desc": "Provider API keys are now encrypted at rest in the database."
+    }
   }
 }

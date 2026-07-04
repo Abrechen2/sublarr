@@ -4,6 +4,8 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { useTranslation } from 'react-i18next'
 import { IconSidebar } from '@/components/layout/IconSidebar'
 import { UpdateBanner } from '@/components/layout/UpdateBanner'
+import { WhatsNewModal } from '@/components/layout/WhatsNewModal'
+import { useWhatsNew } from '@/hooks/useWhatsNew'
 import { BottomNav } from '@/components/layout/BottomNav'
 import { StatusBar } from '@/components/layout/StatusBar'
 import { ToastContainer, toast } from '@/components/shared/Toast'
@@ -35,6 +37,7 @@ const Onboarding = lazy(() => import('@/pages/Onboarding'))
 const SetupPage = lazy(() => import('@/pages/Setup').then(m => ({ default: m.SetupPage })))
 const LoginPage = lazy(() => import('@/pages/Login').then(m => ({ default: m.LoginPage })))
 const MovieDetailPage = lazy(() => import('@/pages/MovieDetail').then(m => ({ default: m.MovieDetailPage })))
+const StatisticsPage = lazy(() => import('@/pages/StatisticsPage').then(m => ({ default: m.StatisticsPage })))
 const WantedPage = lazy(() => import('@/pages/Wanted').then(m => ({ default: m.WantedPage })))
 const TrashPage = lazy(() => import('@/pages/Trash').then(m => ({ default: m.TrashPage })))
 const LogsPage = lazy(() => import('@/pages/Logs').then(m => ({ default: m.LogsPage })))
@@ -79,8 +82,8 @@ function AnimatedRoutes() {
           <Route path="/settings/*" element={<ErrorBoundary><Suspense fallback={<FormSkeleton />}><SettingsPage /></Suspense></ErrorBoundary>} />
           <Route path="/language-profiles" element={<Navigate to="/settings/subtitles/languages" replace />} />
           <Route path="/movies/:id" element={<Suspense fallback={<FormSkeleton />}><MovieDetailPage /></Suspense>} />
+          <Route path="/statistics" element={<Suspense fallback={<PageSkeleton />}><StatisticsPage /></Suspense>} />
           {/* Redirect old standalone pages into settings sub-routes */}
-          <Route path="/statistics" element={<Navigate to="/settings/system" replace />} />
           <Route path="/tasks" element={<Navigate to="/settings/automation" replace />} />
           <Route path="/plugins" element={<Navigate to="/settings/providers" replace />} />
           <Route path="/logs" element={<Suspense fallback={<PageSkeleton />}><LogsPage /></Suspense>} />
@@ -186,6 +189,7 @@ function AppInner({
   const location = useLocation()
   const { t } = useTranslation('common')
   const isAuthRoute = location.pathname === '/setup' || location.pathname === '/login'
+  const whatsNew = useWhatsNew()
 
   return (
     <>
@@ -204,6 +208,7 @@ function AppInner({
       ) : (
         <div className="flex flex-col min-h-screen">
           <UpdateBanner />
+          <WhatsNewModal open={whatsNew.open} version={whatsNew.version} onDismiss={whatsNew.dismiss} />
           <div className="flex flex-1 min-h-0">
             <IconSidebar />
             {/* min-h-screen kept intentionally: avoids content reflow when the banner is dismissed */}

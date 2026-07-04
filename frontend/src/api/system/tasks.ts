@@ -80,6 +80,35 @@ export async function startVideoSync(params: {
   return data
 }
 
+export interface SyncCue {
+  start: number
+  end: number
+  text: string
+}
+
+export interface SyncCandidate {
+  engine: 'ffsubsync' | 'alass'
+  status: 'ok' | 'unavailable' | 'rejected' | 'error'
+  shift_ms?: number
+  cues?: SyncCue[]
+  error?: string
+}
+
+export interface SyncCompareResult {
+  original: SyncCue[]
+  candidates: SyncCandidate[]
+  any_output: boolean
+}
+
+export async function syncCompare(params: {
+  file_path: string
+  video_path?: string
+  reference_path?: string
+}): Promise<SyncCompareResult> {
+  const { data } = await api.post('/tools/video-sync/compare', params)
+  return data
+}
+
 export async function getSyncJobStatus(jobId: string): Promise<{
   status: string
   result?: Record<string, unknown>

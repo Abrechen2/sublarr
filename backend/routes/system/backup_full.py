@@ -92,6 +92,14 @@ def create_full_backup():
         zf.writestr("config.json", json.dumps(safe_config, indent=2))
         zf.write(db_backup_path, db_archive_name)
 
+        # Encryption master key — required for restored secrets to decrypt.
+        from config_crypto import _key_path
+
+        key_file = _key_path()
+        if os.path.exists(key_file):
+            with open(key_file, "rb") as kf:
+                zf.writestr(".encryption_key", kf.read())
+
     buffer.seek(0)
 
     # Step 4: Save ZIP to backup_dir
@@ -163,6 +171,34 @@ def download_full_backup(filename):
     return send_file(
         zip_path, mimetype="application/zip", as_attachment=True, download_name=filename
     )
+
+
+def _rollback_master_key(old_key_bytes: bytes | None, key_path: str) -> None:
+    """Undo a master-key swap after a restore fails partway through.
+
+    Restores the on-disk key file to exactly the snapshot taken before the
+    restore touched it (deleting it if none existed), then drops the cached
+    Fernet cipher so the next encrypt/decrypt call reloads from the restored
+    file. Without this, a restore that overwrites the key and then fails on
+    a later step (malformed config.json, DB-restore error, ...) would leave
+    the still-live DB secrets encrypted under a key that no longer exists on
+    disk — permanently undecryptable.
+    """
+    import config_crypto
+
+    try:
+        if old_key_bytes is None:
+            if os.path.exists(key_path):
+                os.remove(key_path)
+        else:
+            fd = os.open(key_path, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)
+            try:
+                os.write(fd, old_key_bytes)
+            finally:
+                os.close(fd)
+    finally:
+        config_crypto.reset_cipher_cache()
+    logger.warning("Backup restore failed after master-key swap — rolled back .encryption_key")
 
 
 @bp.route("/backup/full/restore", methods=["POST"])
@@ -240,88 +276,133 @@ def restore_full_backup():
             imported_keys = []
             db_restored = False
 
-            # Import config if present
-            if "config.json" in zf.namelist():
-                config_data = json.loads(safe_read_zip_member(zf, "config.json"))
-                valid_keys = (
-                    set(Settings.model_fields.keys())
-                    if hasattr(Settings, "model_fields")
-                    else set()
-                )
-                secret_keys = {
-                    "api_key",
-                    "sonarr_api_key",
-                    "radarr_api_key",
-                    "jellyfin_api_key",
-                    "opensubtitles_api_key",
-                    "opensubtitles_password",
-                    "jimaku_api_key",
-                    "subdl_api_key",
-                    "tmdb_api_key",
-                    "tvdb_api_key",
-                    "tvdb_pin",
-                }
+            # Restore the encryption master key BEFORE config entries are
+            # written back, so any enc:v1: ciphertext in config.json decrypts
+            # against the correct key. Older backups have no key file — skip
+            # without raising so those restores still succeed.
+            import config_crypto
+            from config_crypto import _key_path
 
-                for key, value in config_data.items():
-                    if key in secret_keys:
-                        continue
-                    if str(value) == "***configured***":
-                        continue
-                    if not valid_keys or key in valid_keys:
-                        save_config_entry(key, str(value))
-                        imported_keys.append(key)
+            dest = _key_path()
+            key_touched = False
+            old_key_bytes = None
 
-            # Restore DB if present (dialect-aware via manifest)
-            backup_backend = manifest.get("db_backend", "sqlite")
-            db_archive_name = "sublarr.pgdump" if backup_backend == "postgresql" else "sublarr.db"
-            suffix = ".pgdump" if backup_backend == "postgresql" else ".db"
+            if ".encryption_key" in zf.namelist():
+                # Snapshot the pre-restore key BEFORE overwriting it, so a
+                # failure further down (corrupt config.json, DB-restore
+                # error, ...) can roll back to this exact byte state instead
+                # of leaving still-live DB secrets undecryptable.
+                if os.path.exists(dest):
+                    with open(dest, "rb") as kf_existing:
+                        old_key_bytes = kf_existing.read()
 
-            if db_archive_name in zf.namelist():
-                import tempfile
-
-                with tempfile.NamedTemporaryFile(delete=False, suffix=suffix) as tmp:
-                    # Cap the decompressed DB entry — a 16 MB upload could
-                    # otherwise expand to multiple GB and OOM the worker.
-                    tmp.write(safe_read_zip_member(zf, db_archive_name, max_bytes=2 * 1024**3))
-                    tmp_path = tmp.name
-
+                key_bytes = safe_read_zip_member(zf, ".encryption_key", max_bytes=4096)
+                if isinstance(key_bytes, str):
+                    key_bytes = key_bytes.encode()
+                os.makedirs(os.path.dirname(dest) or ".", exist_ok=True)
+                fd = os.open(dest, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)
                 try:
-                    backup = DatabaseBackup(db_path=s.db_path, backup_dir=s.backup_dir)
-                    close_db()
-                    backup.restore_backup(tmp_path)
-                    get_db()
-                    db_restored = True
+                    os.write(fd, key_bytes)
                 finally:
-                    with contextlib.suppress(OSError):
-                        os.unlink(tmp_path)
+                    os.close(fd)
+                config_crypto.reset_cipher_cache()
+                key_touched = True
 
-            # Reload settings with DB overrides
-            all_overrides = get_all_config_entries()
-            reload_settings(all_overrides)
-
-            # Invalidate caches
             try:
-                from mediaserver import invalidate_media_server_manager as _inv_media
-                from providers import invalidate_manager as _inv_providers
-                from radarr_client import invalidate_client as _inv_radarr
-                from sonarr_client import invalidate_client as _inv_sonarr
+                # Import config if present
+                if "config.json" in zf.namelist():
+                    config_data = json.loads(safe_read_zip_member(zf, "config.json"))
+                    valid_keys = (
+                        set(Settings.model_fields.keys())
+                        if hasattr(Settings, "model_fields")
+                        else set()
+                    )
+                    secret_keys = {
+                        "api_key",
+                        "sonarr_api_key",
+                        "radarr_api_key",
+                        "jellyfin_api_key",
+                        "opensubtitles_api_key",
+                        "opensubtitles_password",
+                        "jimaku_api_key",
+                        "subdl_api_key",
+                        "tmdb_api_key",
+                        "tvdb_api_key",
+                        "tvdb_pin",
+                    }
 
-                _inv_sonarr()
-                _inv_radarr()
-                _inv_media()
-                _inv_providers()
-            except Exception as exc:
-                logger.warning("Cache invalidation failed after backup restore: %s", exc)
+                    for key, value in config_data.items():
+                        if key in secret_keys:
+                            continue
+                        if str(value) == "***configured***":
+                            continue
+                        if not valid_keys or key in valid_keys:
+                            save_config_entry(key, str(value))
+                            imported_keys.append(key)
 
-            logger.info("Full backup restored: config=%s, db=%s", imported_keys, db_restored)
+                # Restore DB if present (dialect-aware via manifest)
+                backup_backend = manifest.get("db_backend", "sqlite")
+                db_archive_name = (
+                    "sublarr.pgdump" if backup_backend == "postgresql" else "sublarr.db"
+                )
+                suffix = ".pgdump" if backup_backend == "postgresql" else ".db"
 
-            return jsonify(
-                {
-                    "status": "restored",
-                    "config_imported": imported_keys,
-                    "db_restored": db_restored,
-                }
-            )
+                if db_archive_name in zf.namelist():
+                    import tempfile
+
+                    with tempfile.NamedTemporaryFile(delete=False, suffix=suffix) as tmp:
+                        # Cap the decompressed DB entry — a 16 MB upload could
+                        # otherwise expand to multiple GB and OOM the worker.
+                        tmp.write(safe_read_zip_member(zf, db_archive_name, max_bytes=2 * 1024**3))
+                        tmp_path = tmp.name
+
+                    try:
+                        backup = DatabaseBackup(db_path=s.db_path, backup_dir=s.backup_dir)
+                        close_db()
+                        backup.restore_backup(tmp_path)
+                        get_db()
+                        db_restored = True
+                    finally:
+                        with contextlib.suppress(OSError):
+                            os.unlink(tmp_path)
+
+                # Reload settings with DB overrides
+                all_overrides = get_all_config_entries()
+                reload_settings(all_overrides)
+
+                # Invalidate caches
+                try:
+                    from mediaserver import invalidate_media_server_manager as _inv_media
+                    from providers import invalidate_manager as _inv_providers
+                    from radarr_client import invalidate_client as _inv_radarr
+                    from sonarr_client import invalidate_client as _inv_sonarr
+
+                    _inv_sonarr()
+                    _inv_radarr()
+                    _inv_media()
+                    _inv_providers()
+                except Exception as exc:
+                    logger.warning("Cache invalidation failed after backup restore: %s", exc)
+
+                logger.info("Full backup restored: config=%s, db=%s", imported_keys, db_restored)
+
+                return jsonify(
+                    {
+                        "status": "restored",
+                        "config_imported": imported_keys,
+                        "db_restored": db_restored,
+                    }
+                )
+            except Exception:
+                # ANY failure past this point must not leave the master key
+                # swapped without the config/DB it was swapped for — roll it
+                # back to the pre-restore snapshot and re-raise so the
+                # existing error-response handling (below, or the global
+                # error handler for exception types not listed there) is
+                # unchanged.
+                if key_touched:
+                    _rollback_master_key(old_key_bytes, dest)
+                raise
 
     except (json.JSONDecodeError, KeyError, ValueError, zipfile.BadZipFile) as exc:
         # ValueError covers safe_read_zip_member's bomb/ratio rejections.

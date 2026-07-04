@@ -1,32 +1,58 @@
 {
   "title": "Statistiken",
-  "last_download": "Letzter Download",
+  "subtitle": "Analysen zu Bibliothek, Untertiteln, Übersetzung, Providern und System.",
+  "no_data": "Noch keine Daten für den gewählten Zeitraum.",
   "range": {
+    "24h": "24 Std",
     "7d": "7 Tage",
     "30d": "30 Tage",
-    "90d": "90 Tage",
-    "365d": "1 Jahr"
+    "all": "Alle"
   },
-  "export": "Exportieren",
-  "export_json": "Als JSON exportieren",
-  "export_csv": "Als CSV exportieren",
-  "charts": {
-    "translations": "Übersetzungen im Zeitverlauf",
-    "translated": "Übersetzt",
-    "failed": "Fehlgeschlagen",
-    "providers": "Provider-Nutzung",
-    "searches": "Suchen",
+  "overview": {
+    "title": "Überblick",
+    "subtitle_files": "Untertitel-Dateien",
     "downloads": "Downloads",
-    "format": "Untertitelformat-Verteilung",
-    "downloads_by_provider": "Downloads nach Provider",
-    "count": "Anzahl",
-    "avg_score": "Durchschn. Score",
-    "success": "Erfolgreich",
-    "issues": "Probleme",
-    "quality_trend": "Untertitel-Qualitäts-Trend",
-    "series_quality": "Serien-Untertitel-Qualität"
+    "translations": "Übersetzungen",
+    "wanted": "Gesucht",
+    "mt_awaiting": "MT wartet auf Original",
+    "avg_score": "Ø Download-Score"
   },
-  "no_data": "Noch keine Daten für den gewählten Zeitraum. Starte Untertitel-Suchen oder Übersetzungen.",
-  "exported": "Statistiken als {{format}} exportiert",
-  "export_failed": "Export fehlgeschlagen"
+  "trends": {
+    "title": "Verlauf",
+    "downloads": "Downloads",
+    "translations": "Übersetzungen",
+    "syncs": "Syncs"
+  },
+  "subtitles": {
+    "title": "Untertitel",
+    "by_source": "Nach Quelle",
+    "by_language": "Nach Sprache",
+    "by_provider": "Nach Provider"
+  },
+  "translation": {
+    "title": "Übersetzung",
+    "chars": "Übersetzte Zeichen",
+    "cost": "Geschätzte Kosten",
+    "pass_rate": "Qualitäts-Gate-Erfolgsquote",
+    "avg_latency": "Ø Latenz",
+    "by_backend": "Nach Backend"
+  },
+  "providers": {
+    "title": "Provider",
+    "provider": "Provider",
+    "searches": "Suchen",
+    "hit_rate": "Trefferquote",
+    "downloads": "Downloads",
+    "avg_score": "Ø Score",
+    "disabled": "deaktiviert"
+  },
+  "system": {
+    "title": "System",
+    "cpu": "CPU",
+    "memory": "Arbeitsspeicher",
+    "disk": "Festplatte",
+    "uptime": "Laufzeit",
+    "db_size": "Datenbankgröße",
+    "recent_jobs": "Letzte Scheduler-Läufe"
+  }
 }

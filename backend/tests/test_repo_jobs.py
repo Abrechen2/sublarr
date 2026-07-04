@@ -319,6 +319,29 @@ class TestDailyStats:
         assert stats[0]["translated"] == 2
         assert stats[0]["failed"] == 1
 
+    def test_record_daily_stats_retries_on_insert_conflict(self, repo):
+        """A concurrent-insert PK conflict (Postgres UniqueViolation) is retried,
+        not propagated — the record still lands and the count is correct."""
+        from sqlalchemy.exc import IntegrityError
+
+        real_commit = repo._commit
+        calls = {"n": 0}
+
+        def flaky_commit():
+            calls["n"] += 1
+            if calls["n"] == 1:
+                # Simulate the losing worker: its INSERT hits the date PK.
+                raise IntegrityError("INSERT", {}, Exception("duplicate key daily_stats_pkey"))
+            return real_commit()
+
+        with patch.object(repo, "_commit", side_effect=flaky_commit):
+            repo.record_daily_stats(success=True, fmt="ass")
+
+        assert calls["n"] >= 2  # retried after the conflict
+        stats = repo.get_daily_stats(days=1)
+        assert len(stats) == 1
+        assert stats[0]["translated"] == 1
+
     def test_get_daily_stats_empty(self, repo):
         """get_daily_stats returns empty list when no stats exist."""
         assert repo.get_daily_stats() == []

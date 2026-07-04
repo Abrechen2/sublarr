@@ -123,6 +123,10 @@ def init_ui_auth(app):
             return None
         if _has_valid_api_key():
             return None
+        from proxy_auth import request_has_valid_proxy_auth
+
+        if request_has_valid_proxy_auth():
+            return None
         # Browser-native <video> streaming authenticates via a path-scoped
         # short-lived token instead of the session cookie / API key (see
         # media_token); honour it here too so playback works under UI auth.

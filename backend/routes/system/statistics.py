@@ -9,9 +9,17 @@ from datetime import UTC, datetime
 
 from flask import jsonify, request, send_file
 
+from cache_response import cached_get
 from routes.system import bp
 
 logger = logging.getLogger(__name__)
+
+_VALID_RANGES = ("24h", "7d", "30d", "all")
+
+
+def _range_param() -> str:
+    r = (request.args.get("range") or "30d").strip().lower()
+    return r if r in _VALID_RANGES else "30d"
 
 
 @bp.route("/stats", methods=["GET"])
@@ -257,3 +265,56 @@ def export_statistics():
             as_attachment=True,
             download_name=f"sublarr_stats_{today}.json",
         )
+
+
+# ── V1.6 #9: grouped analytics endpoints (/api/v1/statistics/<group>) ─────────
+# Snapshot groups query live tables (cached ~5 min); trends reads the daily
+# rollup. Documented as anonymous-readable analytics like the legacy /statistics.
+
+
+@bp.route("/statistics/subtitles", methods=["GET"])
+@cached_get(ttl_seconds=300)
+def statistics_subtitles():
+    from services.statistics_service import get_subtitles_stats
+
+    return jsonify(get_subtitles_stats(_range_param()))
+
+
+@bp.route("/statistics/translation", methods=["GET"])
+@cached_get(ttl_seconds=300)
+def statistics_translation():
+    from services.statistics_service import get_translation_stats
+
+    return jsonify(get_translation_stats(_range_param()))
+
+
+@bp.route("/statistics/providers", methods=["GET"])
+@cached_get(ttl_seconds=300)
+def statistics_providers():
+    from services.statistics_service import get_providers_stats
+
+    return jsonify(get_providers_stats())
+
+
+@bp.route("/statistics/system", methods=["GET"])
+@cached_get(ttl_seconds=60)
+def statistics_system():
+    from services.statistics_service import get_system_stats
+
+    return jsonify(get_system_stats())
+
+
+@bp.route("/statistics/library", methods=["GET"])
+@cached_get(ttl_seconds=300)
+def statistics_library():
+    from services.statistics_service import get_library_stats
+
+    return jsonify(get_library_stats())
+
+
+@bp.route("/statistics/trends", methods=["GET"])
+@cached_get(ttl_seconds=300)
+def statistics_trends():
+    from services.statistics_service import get_trends
+
+    return jsonify(get_trends(_range_param()))
