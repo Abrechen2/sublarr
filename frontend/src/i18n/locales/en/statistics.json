@@ -1,32 +1,58 @@
 {
   "title": "Statistics",
-  "last_download": "Last Download",
+  "subtitle": "Library, subtitles, translation, providers and system analytics.",
+  "no_data": "No data for the selected period yet.",
   "range": {
-    "7d": "7 Days",
-    "30d": "30 Days",
-    "90d": "90 Days",
-    "365d": "1 Year"
+    "24h": "24h",
+    "7d": "7 days",
+    "30d": "30 days",
+    "all": "All"
   },
-  "export": "Export",
-  "export_json": "Export as JSON",
-  "export_csv": "Export as CSV",
-  "charts": {
-    "translations": "Translations Over Time",
-    "translated": "Translated",
-    "failed": "Failed",
-    "providers": "Provider Usage",
-    "searches": "Searches",
+  "overview": {
+    "title": "Overview",
+    "subtitle_files": "Subtitle files",
     "downloads": "Downloads",
-    "format": "Subtitle Format Distribution",
-    "downloads_by_provider": "Downloads by Provider",
-    "count": "Count",
-    "avg_score": "Avg Score",
-    "success": "Success",
-    "issues": "Issues",
-    "quality_trend": "Subtitle Quality Trend",
-    "series_quality": "Series Subtitle Quality"
+    "translations": "Translations",
+    "wanted": "Wanted",
+    "mt_awaiting": "MT awaiting original",
+    "avg_score": "Avg download score"
   },
-  "no_data": "No data for the selected period. Run subtitle searches or translations to populate statistics.",
-  "exported": "Statistics exported as {{format}}",
-  "export_failed": "Export failed"
+  "trends": {
+    "title": "Trends",
+    "downloads": "Downloads",
+    "translations": "Translations",
+    "syncs": "Syncs"
+  },
+  "subtitles": {
+    "title": "Subtitles",
+    "by_source": "By source",
+    "by_language": "By language",
+    "by_provider": "By provider"
+  },
+  "translation": {
+    "title": "Translation",
+    "chars": "Characters translated",
+    "cost": "Estimated cost",
+    "pass_rate": "Quality-gate pass rate",
+    "avg_latency": "Avg latency",
+    "by_backend": "By backend"
+  },
+  "providers": {
+    "title": "Providers",
+    "provider": "Provider",
+    "searches": "Searches",
+    "hit_rate": "Hit rate",
+    "downloads": "Downloads",
+    "avg_score": "Avg score",
+    "disabled": "disabled"
+  },
+  "system": {
+    "title": "System",
+    "cpu": "CPU",
+    "memory": "Memory",
+    "disk": "Disk",
+    "uptime": "Uptime",
+    "db_size": "Database size",
+    "recent_jobs": "Recent scheduler runs"
+  }
 }
