@@ -29,7 +29,7 @@ def resolve_combine_sources(video_path: str, languages: list[str]) -> tuple[list
     match ``languages`` (primary first), each the best sidecar for that language
     by ``plain > hi > forced`` priority.
     """
-    from routes.subtitles.helpers import scan_subtitle_sidecars
+    from services.sidecar_scan import scan_subtitle_sidecars
 
     by_lang: dict[str, list[dict]] = {}
     for side in scan_subtitle_sidecars(video_path):
@@ -55,6 +55,23 @@ def _language_name(code: str) -> str:
     return code
 
 
+def _translation_enabled() -> bool:
+    """True iff the translation feature is enabled (config flag, DB override →
+    Pydantic default). Inlined from routes.translate._helpers to keep the
+    services layer free of routes imports (layering contract)."""
+    try:
+        from db.config import get_config_entry
+
+        value = get_config_entry("translation_enabled")
+        if value is None:
+            from config import get_settings
+
+            return bool(getattr(get_settings(), "translation_enabled", False))
+        return value.lower() in ("true", "1", "yes")
+    except Exception:
+        return False
+
+
 def _translate_missing_languages(video_path: str, missing: list[str]) -> None:
     """Generate each missing target language via the translation stack.
 
@@ -63,10 +80,9 @@ def _translate_missing_languages(video_path: str, missing: list[str]) -> None:
     sidecar — the caller re-resolves sources afterwards and errors if any
     language is still missing, so no partial combined artifact is written.
     """
-    from routes.translate._helpers import _is_translation_enabled
     from translator import translate_file
 
-    if not _is_translation_enabled():
+    if not _translation_enabled():
         raise CombineError(422, "Translation is disabled — cannot generate missing language(s)")
 
     for lang in missing:

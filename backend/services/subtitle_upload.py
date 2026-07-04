@@ -135,7 +135,7 @@ def save_manual_subtitle(
 ) -> str:
     """Write a validated manual subtitle as a sidecar and record it. Returns the path."""
     import security_utils
-    from routes.subtitles.helpers import scan_subtitle_sidecars
+    from services.sidecar_scan import scan_subtitle_sidecars
     from utils.atomic_write import atomic_write_bytes
 
     # Defense-in-depth: language/modifier are spliced directly into the sidecar
