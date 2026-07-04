@@ -5,6 +5,15 @@ All notable changes to Sublarr are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.6.0-rc.7] - 2026-07-04
+
+- **Fixed** the subtitle-`.bak` cleanup being unusable: the `old_subtitle_baks`
+  rule type was handled by the runner/scheduler but rejected by the create-rule
+  API and never seeded, so `.bak` files under `.sublarr/backups` accumulated
+  forever (a real library had ~7100, most older than 30 days). The rule is now
+  creatable via the API/UI and back-filled once on existing installs (seeded
+  **disabled**, so nothing is deleted without opting in; 30-day retention).
+
 ## [1.6.0-rc.6] - 2026-07-04
 
 - **Fixed** manual upload, combined subtitles, and embedded-track actions
