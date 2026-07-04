@@ -41,6 +41,10 @@ const profile: LanguageProfile = {
   forced_scoring: 'include',
   hi_preference: 'include',
   cutoff_language: '',
+  combine_enabled: true,
+  combine_format: 'srt',
+  combine_languages: ['de', 'en'],
+  combine_position: { primary: 'top', secondary: 'bottom' },
 }
 
 const updateMutate = vi.fn()
@@ -128,6 +132,43 @@ describe('LanguageProfilesTab — per-profile backend override', () => {
           translation_backend: 'deepl',
           fallback_chain: ['deepl'],
         }),
+      }),
+      expect.anything(),
+    )
+  })
+})
+
+describe('LanguageProfilesTab — combined subtitles', () => {
+  it('round-trips the combine_* fields through edit + save', () => {
+    openEditor()
+
+    fireEvent.click(screen.getByText('language_profiles.save'))
+
+    expect(updateMutate).toHaveBeenCalledWith(
+      expect.objectContaining({
+        id: 1,
+        data: expect.objectContaining({
+          combine_enabled: true,
+          combine_format: 'srt',
+          combine_languages: ['de', 'en'],
+          combine_position: { primary: 'top', secondary: 'bottom' },
+        }),
+      }),
+      expect.anything(),
+    )
+  })
+
+  it('sends combine_enabled=false when the toggle is switched off', () => {
+    openEditor()
+
+    // The combine toggle is the only checkbox in the form.
+    fireEvent.click(screen.getByRole('checkbox'))
+    fireEvent.click(screen.getByText('language_profiles.save'))
+
+    expect(updateMutate).toHaveBeenCalledWith(
+      expect.objectContaining({
+        id: 1,
+        data: expect.objectContaining({ combine_enabled: false }),
       }),
       expect.anything(),
     )

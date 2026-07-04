@@ -28,6 +28,24 @@ function getLangLabel(code: string): string {
   return LANGUAGE_OPTIONS.find((o) => o.value === code)?.label ?? code
 }
 
+type CombineVertical = 'top' | 'middle' | 'bottom'
+
+const EMPTY_FORM = {
+  name: '',
+  target_languages: [] as string[],
+  forced_preference: 'disabled' as 'disabled' | 'separate' | 'auto',
+  forced_scoring: 'include' as 'include' | 'prefer' | 'exclude' | 'only',
+  hi_preference: 'include' as 'include' | 'prefer' | 'exclude' | 'only',
+  cutoff_language: '',
+  translation_backend: '',
+  fallback_backend: '',
+  combine_enabled: false,
+  combine_format: 'ass' as 'ass' | 'srt',
+  combine_languages: [] as string[],
+  combine_primary: 'bottom' as CombineVertical,
+  combine_secondary: 'top' as CombineVertical,
+}
+
 // ─── Language Profiles Tab ────────────────────────────────────────────────────
 
 export function LanguageProfilesTab() {
@@ -41,34 +59,17 @@ export function LanguageProfilesTab() {
   const backends = backendsData?.backends ?? []
   const [editingId, setEditingId] = useState<number | null>(null)
   const [showAdd, setShowAdd] = useState(false)
-  const [form, setForm] = useState({
-    name: '',
-    target_languages: [] as string[],
-    forced_preference: 'disabled' as 'disabled' | 'separate' | 'auto',
-    forced_scoring: 'include' as 'include' | 'prefer' | 'exclude' | 'only',
-    hi_preference: 'include' as 'include' | 'prefer' | 'exclude' | 'only',
-    cutoff_language: '',
-    translation_backend: '',
-    fallback_backend: '',
-  })
+  const [form, setForm] = useState({ ...EMPTY_FORM })
 
   const resetForm = () => {
-    setForm({
-      name: '',
-      target_languages: [],
-      forced_preference: 'disabled',
-      forced_scoring: 'include',
-      hi_preference: 'include',
-      cutoff_language: '',
-      translation_backend: '',
-      fallback_backend: '',
-    })
+    setForm({ ...EMPTY_FORM })
     setEditingId(null)
     setShowAdd(false)
   }
 
   const startEdit = (p: LanguageProfile) => {
     setForm({
+      ...EMPTY_FORM,
       name: p.name,
       target_languages: p.target_languages,
       forced_preference: p.forced_preference || 'disabled',
@@ -77,6 +78,11 @@ export function LanguageProfilesTab() {
       cutoff_language: p.cutoff_language || '',
       translation_backend: p.translation_backend && p.translation_backend !== '' ? p.translation_backend : '',
       fallback_backend: (p.fallback_chain ?? []).filter((b) => b && b !== p.translation_backend)[0] ?? '',
+      combine_enabled: p.combine_enabled ?? false,
+      combine_format: p.combine_format ?? 'ass',
+      combine_languages: p.combine_languages ?? [],
+      combine_primary: p.combine_position?.primary ?? 'bottom',
+      combine_secondary: p.combine_position?.secondary ?? 'top',
     })
     setEditingId(p.id)
     setShowAdd(false)
@@ -96,6 +102,13 @@ export function LanguageProfilesTab() {
       ? (fallback && fallback !== primary ? [primary, fallback] : [primary])
       : []
 
+    // Combine languages are always a subset of the target languages.
+    const combineLangs = form.combine_languages.filter((l) => targetLangs.includes(l))
+    if (form.combine_enabled && combineLangs.length < 2) {
+      toast(t('language_profiles.combine_languages_min'), 'error')
+      return
+    }
+
     const payload = {
       name: form.name,
       target_languages: targetLangs,
@@ -106,6 +119,10 @@ export function LanguageProfilesTab() {
       cutoff_language: form.cutoff_language,
       translation_backend: primary,
       fallback_chain,
+      combine_enabled: form.combine_enabled,
+      combine_format: form.combine_format,
+      combine_languages: combineLangs,
+      combine_position: { primary: form.combine_primary, secondary: form.combine_secondary },
     }
 
     if (editingId) {
@@ -146,16 +163,7 @@ export function LanguageProfilesTab() {
           onClick={() => {
             setShowAdd(true)
             setEditingId(null)
-            setForm({
-              name: '',
-              target_languages: [],
-              forced_preference: 'disabled',
-              forced_scoring: 'include',
-              hi_preference: 'include',
-              cutoff_language: '',
-              translation_backend: '',
-              fallback_backend: '',
-            })
+            setForm({ ...EMPTY_FORM })
           }}
           className="flex items-center gap-1.5 px-2.5 py-1 rounded text-xs font-medium transition-all duration-150"
           style={{ border: '1px solid var(--accent-dim)', color: 'var(--accent)', backgroundColor: 'var(--accent-bg)' }}
@@ -336,6 +344,78 @@ export function LanguageProfilesTab() {
                 />
               </div>
             )}
+
+            {/* Combined / bilingual subtitles (V1.6 #1) */}
+            <div className="space-y-2 md:col-span-2 pt-1" style={{ borderTop: '1px solid var(--border)' }}>
+              <label className="flex items-center gap-2 cursor-pointer pt-2">
+                <input
+                  type="checkbox"
+                  checked={form.combine_enabled}
+                  onChange={(e) => setForm((f) => ({ ...f, combine_enabled: e.target.checked }))}
+                  style={{ accentColor: 'var(--accent)' }}
+                />
+                <span className="text-xs font-medium text-secondary">
+                  {t('language_profiles.combine_title')} — {t('language_profiles.combine_enabled_label')}
+                </span>
+              </label>
+              <p className="text-[11px] text-muted">{t('language_profiles.combine_enabled_help')}</p>
+
+              {form.combine_enabled && (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3 pl-1 pt-1">
+                  {/* Format */}
+                  <div className="space-y-1">
+                    <label className="text-xs font-medium text-secondary">{t('language_profiles.combine_format_label')}</label>
+                    <select
+                      value={form.combine_format}
+                      onChange={(e) => setForm((f) => ({ ...f, combine_format: e.target.value as 'ass' | 'srt' }))}
+                      className="w-full px-2.5 py-1.5 rounded text-xs"
+                      style={{ backgroundColor: 'var(--bg-primary)', border: '1px solid var(--border)', color: 'var(--text-primary)' }}
+                    >
+                      <option value="ass">ASS</option>
+                      <option value="srt">SRT</option>
+                    </select>
+                  </div>
+
+                  {/* Languages to combine (subset of target languages) */}
+                  <div className="space-y-1 md:col-span-2">
+                    <label className="text-xs font-medium text-secondary">{t('language_profiles.combine_languages_label')}</label>
+                    <LanguagePillSelector
+                      value={form.combine_languages.filter((l) => form.target_languages.includes(l))}
+                      options={form.target_languages.map((l) => ({ value: l, label: getLangLabel(l) }))}
+                      onChange={(langs) => setForm((f) => ({ ...f, combine_languages: langs }))}
+                    />
+                    <p className="text-[11px] text-muted">{t('language_profiles.combine_languages_help')}</p>
+                  </div>
+
+                  {/* ASS positioning */}
+                  {form.combine_format === 'ass' && (
+                    <div className="space-y-1 md:col-span-2">
+                      <label className="text-xs font-medium text-secondary">{t('language_profiles.combine_position_label')}</label>
+                      <div className="flex flex-wrap gap-3">
+                        {([
+                          ['combine_primary', 'combine_position_primary', form.combine_primary] as const,
+                          ['combine_secondary', 'combine_position_secondary', form.combine_secondary] as const,
+                        ]).map(([field, labelKey, value]) => (
+                          <div key={field} className="flex items-center gap-1.5">
+                            <span className="text-[11px] text-muted">{t(`language_profiles.${labelKey}`)}</span>
+                            <select
+                              value={value}
+                              onChange={(e) => setForm((f) => ({ ...f, [field]: e.target.value as CombineVertical }))}
+                              className="px-2 py-1 rounded text-xs"
+                              style={{ backgroundColor: 'var(--bg-primary)', border: '1px solid var(--border)', color: 'var(--text-primary)' }}
+                            >
+                              <option value="top">{t('language_profiles.combine_position_top')}</option>
+                              <option value="middle">{t('language_profiles.combine_position_middle')}</option>
+                              <option value="bottom">{t('language_profiles.combine_position_bottom')}</option>
+                            </select>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
 
           </div>
           <div className="flex items-center gap-2 pt-1">
