@@ -11,6 +11,19 @@ from db.repositories.base import BaseRepository
 _SCORE_MAX = 900.0
 
 
+def _iso_timestamp(value) -> str | None:
+    """Normalise a timestamp column to an ISO string.
+
+    SQLite returns a text value; Postgres returns a ``datetime``. Handle both so
+    the response shape is stable regardless of backend.
+    """
+    if value is None:
+        return None
+    if hasattr(value, "isoformat"):
+        return value.isoformat()
+    return str(value).replace(" ", "T")
+
+
 class StatisticsRepository(BaseRepository):
     def get_daily_stats(self, days: int = 30) -> tuple[list[dict], dict]:
         """Return daily stats rows and aggregated by-format totals.
@@ -74,18 +87,25 @@ class StatisticsRepository(BaseRepository):
 
     def get_quality_trend(self, days: int = 30) -> list[dict]:
         """Return daily quality metrics from subtitle_downloads for the last *days* days."""
+        from datetime import UTC, datetime, timedelta
+
+        # Portable across SQLite + Postgres: SQLite's substr()/date('now', …) do
+        # not exist on Postgres (substr(timestamptz, …) → UndefinedFunction).
+        # Cast the timestamp to text first, then slice the YYYY-MM-DD prefix, and
+        # bind a Python-computed cutoff date instead of date('now', …).
+        cutoff = (datetime.now(UTC) - timedelta(days=days)).strftime("%Y-%m-%d")
         rows = self.session.execute(
             text("""
-                SELECT substr(downloaded_at, 1, 10) as date,
+                SELECT substr(CAST(downloaded_at AS TEXT), 1, 10) as day,
                        AVG(COALESCE(score, 0)) as avg_score,
                        COUNT(*) as files_checked,
                        SUM(CASE WHEN COALESCE(score, 0) < 100 THEN 1 ELSE 0 END) as issues_count
                 FROM subtitle_downloads
-                WHERE downloaded_at >= date('now', :offset)
-                GROUP BY substr(downloaded_at, 1, 10)
-                ORDER BY date ASC
+                WHERE substr(CAST(downloaded_at AS TEXT), 1, 10) >= :cutoff
+                GROUP BY substr(CAST(downloaded_at AS TEXT), 1, 10)
+                ORDER BY day ASC
             """),
-            {"offset": f"-{days} days"},
+            {"cutoff": cutoff},
         ).fetchall()
         return [
             {
@@ -99,13 +119,21 @@ class StatisticsRepository(BaseRepository):
 
     def get_series_quality(self) -> list[dict]:
         """Return per-series quality summary (top 20 by download count)."""
+        # SQLite aggregates a distinct list with GROUP_CONCAT; Postgres uses
+        # string_agg (GROUP_CONCAT does not exist there). Pick per dialect.
+        dialect = self.session.get_bind().dialect.name
+        fmt_agg = (
+            "string_agg(DISTINCT sd.format, ',')"
+            if dialect == "postgresql"
+            else "GROUP_CONCAT(DISTINCT sd.format)"
+        )
         rows = self.session.execute(
-            text("""
+            text(f"""
                 SELECT wi.title,
                        AVG(COALESCE(sd.score, 0)) as avg_score,
                        COUNT(*) as download_count,
                        MAX(sd.downloaded_at) as last_download,
-                       GROUP_CONCAT(DISTINCT sd.format) as formats
+                       {fmt_agg} as formats
                 FROM subtitle_downloads sd
                 JOIN wanted_items wi ON sd.file_path = wi.file_path
                 WHERE wi.title != ''
@@ -120,7 +148,8 @@ class StatisticsRepository(BaseRepository):
                 "avg_score": round(row[1] or 0, 1),
                 "avg_score_pct": round(min(100.0, (row[1] or 0) / _SCORE_MAX * 100), 1),
                 "download_count": row[2] or 0,
-                "last_download": row[3].replace(" ", "T") + "Z" if row[3] else None,
+                # MAX(downloaded_at) is a str on SQLite but a datetime on Postgres.
+                "last_download": _iso_timestamp(row[3]),
                 "formats": [f for f in (row[4] or "").split(",") if f],
             }
             for row in rows
