@@ -1,5 +1,6 @@
 import { FileVideo, RefreshCw, Settings, Loader2, Sparkles, FileText } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
+import type { TFunction } from 'i18next'
 import type { SeriesDetail } from '@/lib/types'
 
 interface SeriesHeroProps {
@@ -16,7 +17,7 @@ interface SeriesHeroProps {
   readonly onSeriesSettings: () => void
 }
 
-function buildMetaTags(series: SeriesDetail, t: (key: string, opts?: object) => string): string[] {
+function buildMetaTags(series: SeriesDetail, t: TFunction<'library'>): string[] {
   const tags: string[] = []
   const knownGenres = ['anime', 'fantasy', 'action', 'drama', 'comedy', 'sci-fi', 'thriller']
   for (const tag of (series.tags ?? [])) {
