@@ -5,6 +5,26 @@ All notable changes to Sublarr are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.6.0-rc.3] - 2026-07-04
+
+Maintenance RC — green CI + dependency refresh before 1.6.0 promotion. No
+user-facing feature changes; this hardens the build and pulls in dependency
+updates.
+
+- **Fixed** CI running the backend suite on Python 3.11 while the app ships on
+  3.12 (the Docker runtime). The version skew silently broke the pipeline for
+  ~2 weeks and masked the two fixes below — CI now runs on 3.12.
+- **Fixed** a layering violation: `services.combine_service` and
+  `services.subtitle_upload` imported `scan_subtitle_sidecars` from `routes.*`.
+  Moved it to the routes-independent `services.sidecar_scan` (the routes module
+  keeps a compat re-export); the layering linter now passes end-to-end.
+- **Fixed** test isolation for encryption-at-rest: building an app inside tests
+  wrote the Fernet master key to `/config` (not writable on the CI runner).
+  Tests now pin `SUBLARR_CONFIG_DIR` to a temp dir. Production is unaffected —
+  it owns a writable `/config`.
+- **Changed** dependency updates — 32 frontend npm minor/patch bumps and
+  `actions/checkout` 6 → 7.
+
 ## [1.6.0-rc.2] - 2026-07-04
 
 RC-server findings on real Postgres + prod-media mirror:
