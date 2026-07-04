@@ -10,6 +10,7 @@ import uuid
 from datetime import UTC, date, datetime, timedelta
 
 from sqlalchemy import delete, func, select, update
+from sqlalchemy.exc import IntegrityError
 
 from db.models.core import DailyStats, Job, WantedItem
 from db.models.providers import SubtitleDownload
@@ -193,57 +194,55 @@ class JobRepository(BaseRepository):
     def record_daily_stats(
         self, success: bool, skipped: bool = False, fmt: str = "", source: str = ""
     ):
-        """Record a translation result in daily stats (upsert with JSON merge)."""
-        today = date.today().isoformat()
+        """Record a translation result in daily stats (upsert with JSON merge).
 
-        existing = self.session.get(DailyStats, today)
+        Concurrency-safe: parallel search/translation workers can both see no row
+        for today and race two INSERTs into the same ``date`` primary key. On
+        Postgres that raises a UniqueViolation; SQLite serialises so it rarely
+        surfaces in dev (it was caught on the Postgres RC server). On conflict we
+        roll back and retry as an UPDATE against the row the winning worker just
+        committed — no double count, since the loser's INSERT is discarded.
+        """
 
-        if existing:
-            by_format = json.loads(existing.by_format_json or "{}")
-            by_source = json.loads(existing.by_source_json or "{}")
-
+        def _apply(row: DailyStats) -> None:
+            by_format = json.loads(row.by_format_json or "{}")
+            by_source = json.loads(row.by_source_json or "{}")
             if success and not skipped:
-                existing.translated = (existing.translated or 0) + 1
+                row.translated = (row.translated or 0) + 1
                 if fmt:
                     by_format[fmt] = by_format.get(fmt, 0) + 1
                 if source:
                     by_source[source] = by_source.get(source, 0) + 1
             elif success and skipped:
-                existing.skipped = (existing.skipped or 0) + 1
+                row.skipped = (row.skipped or 0) + 1
             else:
-                existing.failed = (existing.failed or 0) + 1
+                row.failed = (row.failed or 0) + 1
+            row.by_format_json = json.dumps(by_format)
+            row.by_source_json = json.dumps(by_source)
 
-            existing.by_format_json = json.dumps(by_format)
-            existing.by_source_json = json.dumps(by_source)
-        else:
-            by_format = {}
-            by_source = {}
-            translated = 0
-            failed = 0
-            skip_count = 0
-
-            if success and not skipped:
-                translated = 1
-                if fmt:
-                    by_format[fmt] = 1
-                if source:
-                    by_source[source] = 1
-            elif success and skipped:
-                skip_count = 1
-            else:
-                failed = 1
-
-            stats = DailyStats(
-                date=today,
-                translated=translated,
-                failed=failed,
-                skipped=skip_count,
-                by_format_json=json.dumps(by_format),
-                by_source_json=json.dumps(by_source),
-            )
-            self.session.add(stats)
-
-        self._commit()
+        today = date.today().isoformat()
+        for _attempt in range(3):
+            existing = self.session.get(DailyStats, today)
+            if existing is None:
+                existing = DailyStats(
+                    date=today,
+                    translated=0,
+                    failed=0,
+                    skipped=0,
+                    by_format_json="{}",
+                    by_source_json="{}",
+                )
+                self.session.add(existing)
+            _apply(existing)
+            try:
+                self._commit()
+                return
+            except IntegrityError:
+                # Another worker inserted today's row first — discard our INSERT
+                # and retry; session.get will now find the committed row.
+                self.session.rollback()
+                self.session.expire_all()
+        logger.warning("record_daily_stats: gave up after write contention on %s", today)
 
     def get_daily_stats(self, days: int = 30) -> list:
         """Get last N days of daily stats."""
