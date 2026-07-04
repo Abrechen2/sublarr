@@ -46,6 +46,7 @@ def _clean_combine_languages(value) -> list[str]:
         raise ProfileValidationError("combine_languages must be unique")
     return langs
 
+
 UPDATABLE_PROFILE_KEYS = (
     "name",
     "source_language",

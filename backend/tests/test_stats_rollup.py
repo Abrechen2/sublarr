@@ -117,9 +117,7 @@ def test_tick_backfills_history_and_skips_empty_days(app_ctx):
 
     # the historical activity day got backfilled
     old_row = (
-        db.session.query(StatsDailyRollup)
-        .filter_by(date=old_day.date().isoformat())
-        .one_or_none()
+        db.session.query(StatsDailyRollup).filter_by(date=old_day.date().isoformat()).one_or_none()
     )
     assert old_row is not None and old_row.downloads == 1
     # a day with no activity in between did NOT get a (noise) row
