@@ -8,7 +8,7 @@
 
 import { lazy, Suspense, useState, useEffect, useCallback, useRef } from 'react'
 import { createPortal } from 'react-dom'
-import { Loader2, X, Eye, Pencil, GitCompare, RefreshCw, Activity } from 'lucide-react'
+import { Loader2, X, Eye, Pencil, GitCompare, RefreshCw, Activity, Maximize2, Minimize2 } from 'lucide-react'
 import { useQueryClient } from '@tanstack/react-query'
 import { useSubtitleContent, useSaveSubtitle } from '@/hooks/useApi'
 import { autoSyncFile, overlapFix, timingNormalize, mergeLines, splitLines, spellCheck, removeCredits, detectOpeningEnding } from '@/api/client'
@@ -65,6 +65,7 @@ export default function SubtitleEditorModal({
   const { t } = useTranslation('editor')
   const queryClient = useQueryClient()
   const [mode, setMode] = useState<EditorMode>(initialMode)
+  const [fullscreen, setFullscreen] = useState(false)
   const [content, setContent] = useState<string | null>(null)
   const [lastModified, setLastModified] = useState<number | null>(null)
   const [format, setFormat] = useState<'ass' | 'srt' | null>(null)
@@ -247,15 +248,36 @@ export default function SubtitleEditorModal({
     }
   }, [filePath])
 
-  // Handle Escape key
+  // Handle Escape (exit fullscreen first, else close) + 'f' fullscreen toggle.
   const handleKeyDown = useCallback((e: KeyboardEvent) => {
     if (e.key === 'Escape') {
+      if (fullscreen) {
+        setFullscreen(false)
+        return
+      }
       if (hasUnsavedChanges) {
         if (!confirm(t('editor_modal.unsaved_confirm'))) return
       }
       onClose()
+      return
     }
-  }, [hasUnsavedChanges, onClose, t])
+    // 'f' toggles fullscreen — but never while the user is typing (CodeMirror,
+    // inputs, textareas, contenteditable) so it doesn't swallow the character.
+    if ((e.key === 'f' || e.key === 'F') && !e.ctrlKey && !e.metaKey && !e.altKey) {
+      const el = e.target as HTMLElement | null
+      if (
+        el &&
+        (el.tagName === 'INPUT' ||
+          el.tagName === 'TEXTAREA' ||
+          el.isContentEditable ||
+          el.closest?.('.cm-editor'))
+      ) {
+        return
+      }
+      e.preventDefault()
+      setFullscreen((v) => !v)
+    }
+  }, [fullscreen, hasUnsavedChanges, onClose, t])
 
   useEffect(() => {
     if (!filePath) return
@@ -345,10 +367,14 @@ export default function SubtitleEditorModal({
         role="dialog"
         aria-modal="true"
         aria-label={t('editor_modal.title')}
-        className="w-[92vw] h-[88vh] max-w-7xl rounded-lg overflow-hidden flex flex-col"
+        className={
+          fullscreen
+            ? 'w-screen h-screen overflow-hidden flex flex-col'
+            : 'w-[92vw] h-[88vh] max-w-7xl rounded-lg overflow-hidden flex flex-col'
+        }
         style={{
           backgroundColor: 'var(--bg-surface)',
-          border: '1px solid var(--border)',
+          border: fullscreen ? 'none' : '1px solid var(--border)',
         }}
       >
         {/* Header */}
@@ -419,6 +445,16 @@ export default function SubtitleEditorModal({
                 {t('editor_modal.unsaved_badge')}
               </span>
             )}
+            <button
+              onClick={() => setFullscreen((v) => !v)}
+              className="p-1 rounded transition-colors"
+              style={{ color: fullscreen ? 'var(--accent)' : 'var(--text-muted)' }}
+              title={t(fullscreen ? 'editor_modal.exit_fullscreen' : 'editor_modal.fullscreen')}
+              onMouseEnter={(e) => { e.currentTarget.style.color = 'var(--accent)' }}
+              onMouseLeave={(e) => { e.currentTarget.style.color = fullscreen ? 'var(--accent)' : 'var(--text-muted)' }}
+            >
+              {fullscreen ? <Minimize2 size={16} /> : <Maximize2 size={16} />}
+            </button>
             <button
               autoFocus
               onClick={handleClose}
