@@ -251,6 +251,26 @@ class CleanupRepository(BaseRepository):
         },
     ]
 
+    # Default rules introduced AFTER the global first-boot seed flag was already
+    # set on existing installs. The full seed below short-circuits on that flag,
+    # so a newly-added default would otherwise never reach an existing library
+    # (e.g. the subtitle-.bak cleanup was orphaned — its executor existed but no
+    # rule was ever created, so .bak files piled up forever). Each back-fill is
+    # guarded by its own per-type flag, so it is offered exactly once and a
+    # user-deleted rule is never resurrected.
+    _BACKFILL_CLEANUP_RULES: list[dict] = [
+        {
+            "name": "Old subtitle backups",
+            "rule_type": "old_subtitle_baks",
+            # Seeded DISABLED (like signs_cleanup): the feature becomes available
+            # in the UI without silently deleting files on upgrade. The user
+            # opts in. Retention falls back to subtitle_bak_retention_days (30d).
+            "enabled": False,
+            "schedule": "weekly",
+            "config_json": "{}",
+        },
+    ]
+
     # Config flag marking that the built-in defaults were offered once. Once
     # set, seeding is skipped forever so a user who deletes a default rule does
     # not get it resurrected on the next restart ("on first boot" semantics).
@@ -267,11 +287,28 @@ class CleanupRepository(BaseRepository):
         from db.repositories.config import ConfigRepository
 
         config_repo = ConfigRepository()
-        if config_repo.get_config_entry(self._DEFAULTS_SEEDED_FLAG):
-            return
-
         existing_types = {r["rule_type"] for r in self.get_rules()}
-        for spec in self._DEFAULT_CLEANUP_RULES:
+
+        # Full first-boot seed (once, guarded by the global flag).
+        if not config_repo.get_config_entry(self._DEFAULTS_SEEDED_FLAG):
+            for spec in self._DEFAULT_CLEANUP_RULES:
+                if spec["rule_type"] not in existing_types:
+                    self.create_rule(
+                        name=spec["name"],
+                        rule_type=spec["rule_type"],
+                        config_json=spec["config_json"],
+                        enabled=spec["enabled"],
+                        schedule=spec["schedule"],
+                    )
+                    existing_types.add(spec["rule_type"])
+            config_repo.save_config_entry(self._DEFAULTS_SEEDED_FLAG, "1")
+
+        # Per-type back-fill for defaults added after the global flag was set.
+        # Runs regardless of the flag but each type is offered exactly once.
+        for spec in self._BACKFILL_CLEANUP_RULES:
+            flag = f"cleanup_seeded_{spec['rule_type']}"
+            if config_repo.get_config_entry(flag):
+                continue
             if spec["rule_type"] not in existing_types:
                 self.create_rule(
                     name=spec["name"],
@@ -280,8 +317,7 @@ class CleanupRepository(BaseRepository):
                     enabled=spec["enabled"],
                     schedule=spec["schedule"],
                 )
-
-        config_repo.save_config_entry(self._DEFAULTS_SEEDED_FLAG, "1")
+            config_repo.save_config_entry(flag, "1")
 
     def _rule_to_dict(self, rule) -> dict:
         """Serialize a CleanupRule ORM object to a dict.
