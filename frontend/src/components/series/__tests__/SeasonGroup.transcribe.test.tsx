@@ -103,6 +103,7 @@ const baseProps = {
   onPreviewSub: vi.fn(),
   onEditSub: vi.fn(),
   onCompare: vi.fn(),
+  onCombine: vi.fn(),
   onSync: vi.fn(),
   onAutoSync: vi.fn(),
   onVideoSync: vi.fn(),

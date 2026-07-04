@@ -20,6 +20,7 @@ import { scanSeriesHealth } from '@/api/subtitleHealth'
 import { useWebSocket } from '@/hooks/useWebSocket'
 import { ProgressBar } from '@/components/shared/ProgressBar'
 import { InteractiveSearchModal } from '@/components/wanted/InteractiveSearchModal'
+import { CombineDialog } from '@/components/episodes/CombineDialog'
 import { ComparisonSelector } from '@/components/comparison/ComparisonSelector'
 import { SubtitleCleanupModal } from '@/components/shared/SubtitleCleanupModal'
 import { ExtractConfirmModal } from '@/components/series/ExtractConfirmModal'
@@ -142,6 +143,7 @@ export function SeriesDetailPage() {
   const [comparisonPaths, setComparisonPaths] = useState<string[] | null>(null)
   const [syncFilePath, setSyncFilePath] = useState<string | null>(null)
   const [compareSelectorEp, setCompareSelectorEp] = useState<EpisodeInfo | null>(null)
+  const [combineEp, setCombineEp] = useState<EpisodeInfo | null>(null)
 
   // Video sync modal (ffsubsync / alass)
   const [videoSyncEp, setVideoSyncEp] = useState<{ ep: EpisodeInfo; subtitlePath: string } | null>(null)
@@ -298,6 +300,10 @@ export function SeriesDetailPage() {
 
   const handleCompare = useCallback((ep: EpisodeInfo) => {
     setCompareSelectorEp(ep)
+  }, [])
+
+  const handleCombine = useCallback((ep: EpisodeInfo) => {
+    setCombineEp(ep)
   }, [])
 
   const handleSync = useCallback((filePath: string) => {
@@ -720,6 +726,7 @@ export function SeriesDetailPage() {
               setEditorMode('edit')
             }}
             onCompare={handleCompare}
+            onCombine={handleCombine}
             onSync={handleSync}
             onAutoSync={handleAutoSync}
             onVideoSync={handleVideoSync}
@@ -953,6 +960,21 @@ export function SeriesDetailPage() {
         onClose={() => setInteractiveEp(null)}
         onDownloaded={() => setInteractiveEp(null)}
       />
+
+      {/* Combine Subtitles Dialog */}
+      {combineEp && seriesId != null && (
+        <CombineDialog
+          open={!!combineEp}
+          episodeId={combineEp.id}
+          episodeTitle={`${series.title} — S${String(combineEp.season).padStart(2, '0')}E${String(combineEp.episode).padStart(2, '0')}${combineEp.title ? ` · ${combineEp.title}` : ''}`}
+          availableLanguages={Object.entries(combineEp.subtitles)
+            .filter(([, fmt]) => fmt)
+            .map(([lang]) => lang)}
+          targetLanguages={series.target_languages}
+          seriesId={seriesId}
+          onClose={() => setCombineEp(null)}
+        />
+      )}
 
       {/* Web Player Modal */}
       {playerState && (

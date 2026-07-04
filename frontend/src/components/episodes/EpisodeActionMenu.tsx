@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect } from 'react'
 import { useTranslation } from 'react-i18next'
 import {
-  Search, MoreHorizontal, Columns2, Database, ScanSearch, Clock, Loader2, ChevronUp,
+  Search, MoreHorizontal, Columns2, Database, ScanSearch, Clock, Loader2, ChevronUp, Layers,
 } from 'lucide-react'
 import type { EpisodeInfo } from '@/lib/types'
 
@@ -15,6 +15,7 @@ interface EpisodeActionMenuProps {
   hasMultipleSubs: boolean
   onSearch: () => void
   onCompare: () => void
+  onCombine: () => void
   onTracks: () => void
   onInteractiveSearch: () => void
   onHistory: () => void
@@ -30,6 +31,7 @@ export function EpisodeActionMenu({
   hasMultipleSubs,
   onSearch,
   onCompare,
+  onCombine,
   onTracks,
   onInteractiveSearch,
   onHistory,
@@ -118,6 +120,15 @@ export function EpisodeActionMenu({
                 icon={<Columns2 size={13} />}
                 label={t('episode_actions.compare_subtitles')}
                 onClick={() => { onCompare(); setDropdownOpen(false) }}
+              />
+            )}
+
+            {/* Combine — bilingual subtitle composition (episode-scope) */}
+            {ep.has_file && (
+              <DropdownItem
+                icon={<Layers size={13} />}
+                label={t('episode_actions.combine_subtitles')}
+                onClick={() => { onCombine(); setDropdownOpen(false) }}
               />
             )}
 

@@ -78,6 +78,7 @@ export interface SeasonGroupProps {
   readonly onPreviewSub: (filePath: string, videoPath: string) => void
   readonly onEditSub: (filePath: string, videoPath: string) => void
   readonly onCompare: (ep: EpisodeInfo) => void
+  readonly onCombine: (ep: EpisodeInfo) => void
   readonly onSync: (filePath: string) => void
   readonly onAutoSync: (subtitlePath: string, videoPath: string) => void
   readonly onVideoSync: (ep: EpisodeInfo, subtitlePath: string) => void
@@ -104,7 +105,7 @@ export function SeasonGroup({
   isExtracting, onExtract, expandedEp,
   onSearch, onInteractiveSearch, onHistory: _onHistory, onTracks: _onTracks, onClose,
   searchResults, searchLoading, historyEntries, historyLoading,
-  onProcess, onPreviewSub, onEditSub, onCompare, onSync, onAutoSync, onVideoSync,
+  onProcess, onPreviewSub, onEditSub, onCompare, onCombine, onSync, onAutoSync, onVideoSync,
   onHealthCheck, healthScores, onOpenEditor, sidecarMap, onDeleteSidecar,
   onOpenCleanupModal, onPreview, streamingEnabled, onRefreshSidecars, t,
   episodeWantedMap: _episodeWantedMap, onSkipEpisode, onAcceptEpisode,
@@ -498,6 +499,7 @@ export function SeasonGroup({
                         hasMultipleSubs={hasMultipleSubs}
                         onSearch={() => onSearch(ep)}
                         onCompare={() => onCompare(ep)}
+                        onCombine={() => onCombine(ep)}
                         onTracks={() => _onTracks(ep)}
                         onInteractiveSearch={() => onInteractiveSearch(ep)}
                         onHistory={() => _onHistory(ep)}
