@@ -5,6 +5,21 @@ All notable changes to Sublarr are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.6.0-rc.4] - 2026-07-04
+
+Two P1 bugs caught by exercising the 1.6.0 features on the real-Postgres RC
+(SQLite dev had masked both).
+
+- **Fixed** the Statistics page's aggregate + **Export** returning 500 on
+  Postgres — the quality-trend and per-series queries used SQLite-only
+  `substr(timestamp,…)`/`date('now',…)`/`GROUP_CONCAT`. They are now
+  dialect-neutral. (The Statistics page itself was unaffected — it uses the
+  grouped endpoints.)
+- **Fixed** subtitles being written `-rw-------` (0600) — manual uploads,
+  combined files, **and provider downloads** were unreadable by the media
+  server (Emby/Jellyfin) and other users. Atomic writes now relax the file to
+  `0644` (minus umask) before the rename.
+
 ## [1.6.0-rc.3] - 2026-07-04
 
 Maintenance RC — green CI + dependency refresh before 1.6.0 promotion. No
