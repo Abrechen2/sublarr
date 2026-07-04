@@ -52,6 +52,7 @@ from db.models.providers import (
 )
 from db.models.quality import SubtitleHealthResult
 from db.models.scheduler import JobRun  # noqa: F401
+from db.models.statistics import StatsDailyRollup  # noqa: F401
 from db.models.standalone import (
     AnidbMapping,
     MetadataCache,
