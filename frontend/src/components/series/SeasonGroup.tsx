@@ -379,7 +379,7 @@ export function SeasonGroup({
                               <span
                                 key={s.path}
                                 className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[10px] font-semibold uppercase"
-                                style={{ backgroundColor: 'var(--bg-surface)', color: 'var(--text-muted)', border: '1px solid var(--border)' }}
+                                style={{ backgroundColor: 'var(--bg-surface)', color: s.combined ? 'var(--accent)' : 'var(--text-muted)', border: `1px solid ${s.combined ? 'var(--accent-dim)' : 'var(--border)'}` }}
                                 title={t('episode_ui.extra_sidecar_title', { lang: `${s.language.toUpperCase()}${s.modifier ? ' ' + s.modifier.toUpperCase() : ''} ${s.format.toUpperCase()}` })}
                               >
                                 {s.language.toUpperCase()}
@@ -407,7 +407,11 @@ export function SeasonGroup({
                                 >
                                   <Download size={10} />
                                 </a>
-                                <SubtitleActionsMenu subtitlePath={s.path} onRefresh={onRefreshSidecars} />
+                                <SubtitleActionsMenu
+                                  subtitlePath={s.path}
+                                  onRefresh={onRefreshSidecars}
+                                  onEdit={s.combined ? (p) => onEditSub(p, ep.file_path) : undefined}
+                                />
                               </span>
                             ))
                           })()}
