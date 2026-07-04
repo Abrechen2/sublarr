@@ -687,5 +687,24 @@
     "run_now": "Jetzt ausführen",
     "activate_first": "Zuerst aktivieren",
     "last_run": "Zuletzt: {{date}}"
+  },
+  "whatsnew": {
+    "title": "Neu in {{version}}",
+    "close": "Schließen",
+    "got_it": "Verstanden",
+    "v160": {
+      "combined_title": "Kombinierte Untertitel",
+      "combined_desc": "Zwei Sprachen zu einer zweisprachigen Datei zusammenfügen — oder eine fehlende Sprache on-demand erzeugen und kombinieren.",
+      "sync_compare_title": "Sync-Vergleich nebeneinander",
+      "sync_compare_desc": "Eine Untertitel-Synchronisation gegen dein Video vorschauen, bevor du sie anwendest, und das gewünschte Ergebnis wählen.",
+      "statistics_title": "Statistik-Seite",
+      "statistics_desc": "Eine neue Analyse-Seite: Downloads, Übersetzungen, Provider, System und Verlauf über die Zeit.",
+      "upload_title": "Manueller Untertitel-Upload",
+      "upload_desc": "Lade deine eigene .srt/.ass-Datei für eine Folge oder einen Film hoch.",
+      "proxy_auth_title": "Reverse-Proxy-Login",
+      "proxy_auth_desc": "Vertraue Remote-User / X-Forwarded-User vom Proxy für Authelia/authentik-SSO.",
+      "encryption_title": "Verschlüsselte API-Keys",
+      "encryption_desc": "Provider-API-Keys werden jetzt verschlüsselt in der Datenbank gespeichert."
+    }
   }
 }

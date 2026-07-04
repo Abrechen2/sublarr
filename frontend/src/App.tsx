@@ -4,6 +4,8 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { useTranslation } from 'react-i18next'
 import { IconSidebar } from '@/components/layout/IconSidebar'
 import { UpdateBanner } from '@/components/layout/UpdateBanner'
+import { WhatsNewModal } from '@/components/layout/WhatsNewModal'
+import { useWhatsNew } from '@/hooks/useWhatsNew'
 import { BottomNav } from '@/components/layout/BottomNav'
 import { StatusBar } from '@/components/layout/StatusBar'
 import { ToastContainer, toast } from '@/components/shared/Toast'
@@ -187,6 +189,7 @@ function AppInner({
   const location = useLocation()
   const { t } = useTranslation('common')
   const isAuthRoute = location.pathname === '/setup' || location.pathname === '/login'
+  const whatsNew = useWhatsNew()
 
   return (
     <>
@@ -205,6 +208,7 @@ function AppInner({
       ) : (
         <div className="flex flex-col min-h-screen">
           <UpdateBanner />
+          <WhatsNewModal open={whatsNew.open} version={whatsNew.version} onDismiss={whatsNew.dismiss} />
           <div className="flex flex-1 min-h-0">
             <IconSidebar />
             {/* min-h-screen kept intentionally: avoids content reflow when the banner is dismissed */}
