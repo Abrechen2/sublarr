@@ -81,6 +81,7 @@ def _build_default_jobs() -> list[JobSpec]:
     from anidb_sync import anidb_sync_tick
     from cleanup_scheduler import cleanup_tick
     from services.dubtitle.sweep import dubtitle_scan_tick
+    from services.stats_rollup import stats_rollup_tick
     from services.subtitle_automation_runner import subtitle_automation_tick
     from services.subtitle_health.sweep import subtitle_health_sweep_tick
     from services.wanted_scanner_scheduler import (
@@ -134,6 +135,14 @@ def _build_default_jobs() -> list[JobSpec]:
             timeout_s=120,
             owner_module="utils.scheduler_retention_translation",
             description="Delete old translation_events rows per retention policy.",
+        ),
+        JobSpec(
+            id="stats_rollup",
+            func=stats_rollup_tick,
+            default_trigger=CronTrigger(hour=4, minute=0),
+            timeout_s=300,
+            owner_module="services.stats_rollup",
+            description="Roll up daily statistics (downloads/translations/syncs) for trend charts.",
         ),
         JobSpec(
             # Fixed daily wall-clock fire (03:45), NOT an interval. A weekly

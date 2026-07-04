@@ -78,9 +78,11 @@ export interface SeasonGroupProps {
   readonly onPreviewSub: (filePath: string, videoPath: string) => void
   readonly onEditSub: (filePath: string, videoPath: string) => void
   readonly onCompare: (ep: EpisodeInfo) => void
+  readonly onCombine: (ep: EpisodeInfo) => void
   readonly onSync: (filePath: string) => void
   readonly onAutoSync: (subtitlePath: string, videoPath: string) => void
   readonly onVideoSync: (ep: EpisodeInfo, subtitlePath: string) => void
+  readonly onSyncCompare: (ep: EpisodeInfo, subtitlePath: string) => void
   readonly onHealthCheck: (filePath: string) => void
   readonly healthScores: Record<string, number | null>
   readonly onOpenEditor: (filePath: string) => void
@@ -104,7 +106,7 @@ export function SeasonGroup({
   isExtracting, onExtract, expandedEp,
   onSearch, onInteractiveSearch, onHistory: _onHistory, onTracks: _onTracks, onClose,
   searchResults, searchLoading, historyEntries, historyLoading,
-  onProcess, onPreviewSub, onEditSub, onCompare, onSync, onAutoSync, onVideoSync,
+  onProcess, onPreviewSub, onEditSub, onCompare, onCombine, onSync, onAutoSync, onVideoSync, onSyncCompare,
   onHealthCheck, healthScores, onOpenEditor, sidecarMap, onDeleteSidecar,
   onOpenCleanupModal, onPreview, streamingEnabled, onRefreshSidecars, t,
   episodeWantedMap: _episodeWantedMap, onSkipEpisode, onAcceptEpisode,
@@ -325,6 +327,7 @@ export function SeasonGroup({
                                       onSync={onSync}
                                       onAutoSync={(p) => onAutoSync(p, ep.file_path)}
                                       onVideoSync={(p) => onVideoSync(ep, p)}
+                                      onSyncCompare={(p) => onSyncCompare(ep, p)}
                                       onHealthCheck={onHealthCheck}
                                     />
                                   </>
@@ -378,7 +381,7 @@ export function SeasonGroup({
                               <span
                                 key={s.path}
                                 className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[10px] font-semibold uppercase"
-                                style={{ backgroundColor: 'var(--bg-surface)', color: 'var(--text-muted)', border: '1px solid var(--border)' }}
+                                style={{ backgroundColor: 'var(--bg-surface)', color: s.combined ? 'var(--accent)' : 'var(--text-muted)', border: `1px solid ${s.combined ? 'var(--accent-dim)' : 'var(--border)'}` }}
                                 title={t('episode_ui.extra_sidecar_title', { lang: `${s.language.toUpperCase()}${s.modifier ? ' ' + s.modifier.toUpperCase() : ''} ${s.format.toUpperCase()}` })}
                               >
                                 {s.language.toUpperCase()}
@@ -406,7 +409,12 @@ export function SeasonGroup({
                                 >
                                   <Download size={10} />
                                 </a>
-                                <SubtitleActionsMenu subtitlePath={s.path} onRefresh={onRefreshSidecars} />
+                                <SubtitleActionsMenu
+                                  subtitlePath={s.path}
+                                  onRefresh={onRefreshSidecars}
+                                  onEdit={s.combined ? (p) => onEditSub(p, ep.file_path) : undefined}
+                                  onSyncCompare={(p) => onSyncCompare(ep, p)}
+                                />
                               </span>
                             ))
                           })()}
@@ -498,6 +506,7 @@ export function SeasonGroup({
                         hasMultipleSubs={hasMultipleSubs}
                         onSearch={() => onSearch(ep)}
                         onCompare={() => onCompare(ep)}
+                        onCombine={() => onCombine(ep)}
                         onTracks={() => _onTracks(ep)}
                         onInteractiveSearch={() => onInteractiveSearch(ep)}
                         onHistory={() => _onHistory(ep)}

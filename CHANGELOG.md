@@ -5,6 +5,49 @@ All notable changes to Sublarr are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.6.0-rc.2] - 2026-07-04
+
+RC-server findings on real Postgres + prod-media mirror:
+- **Fixed** a concurrency race in the daily-stats upsert — parallel wanted-search
+  workers could collide on the `daily_stats` date primary key (UniqueViolation →
+  failed search item). Now retries as an update. Affected prod (Postgres) too.
+- **Fixed** automatic combine not firing after the *async* auto-translate on
+  embedded extract (the target language wasn't written yet when combine ran).
+
+## [1.6.0-rc.1] - 2026-07-04
+
+Release candidate for 1.6.0 — staged on the RC server against a copy of prod
+media before promotion. Bundles nine features (see the 2026-07-03 design spec).
+
+### Added
+- **Combined / bilingual subtitles** — compose two per-language sidecars into one
+  bilingual file (ASS overlay with configurable positioning, or stacked SRT).
+  On-demand from the episode menu, automatic per language profile, and — Sublarr's
+  edge over composition-only tools — it can generate a missing language via the
+  translation stack and then combine. Combined files are editable in the editor.
+- **Side-by-side sync-compare** — preview a subtitle sync against the video
+  (ffsubsync/alass) without overwriting the sidecar, see the per-cue timing diff,
+  and choose which result to keep.
+- **Statistics page** — a full analytics page (library, subtitles, translation,
+  providers, system, and daily trends) backed by a rollup table + scheduler job
+  and a grouped `/api/v1/statistics` API with a time-range selector.
+- **Manual subtitle upload** — hand-drop a `.srt/.ass/.vtt` for an episode/movie
+  (backend; drag-&-drop UI to follow).
+- **Provisional machine-translation** — MT output is flagged `machine_translation`
+  and can be kept provisional while Sublarr keeps seeking a human original.
+- **Reverse-proxy header auth** — trust `Remote-User`/`X-Forwarded-User` from a
+  trusted proxy for Authelia/authentik SSO.
+- **Encrypted API keys at rest** — provider keys are Fernet-encrypted in the DB.
+- **What's-New wizard** — per-version release highlights, re-openable from About.
+- **Editor fullscreen toggle** — `f`/`Esc` in the subtitle editor.
+
+### Fixed
+- Audit hardening before the RC: combined SRT output no longer leaks ASS comment
+  lines; combined writes don't inflate download stats; `combine_languages` are
+  validated to plain language codes; the sync-compare endpoint is bounded +
+  rate-limited so it can't wedge the app; statistics backfill history + self-heal
+  gaps, and report DB size correctly on PostgreSQL.
+
 ## [1.5.0] - 2026-07-02
 
 ### Added

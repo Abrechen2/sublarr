@@ -3,7 +3,7 @@ import { useTranslation } from 'react-i18next'
 import {
   ChevronDown, Scissors, Wrench, RotateCcw, Clock,
   Eye, Pencil, Download, FileCode,
-  RefreshCw, Clapperboard, ShieldCheck,
+  RefreshCw, Clapperboard, ShieldCheck, Columns2,
 } from 'lucide-react'
 import {
   checkBakExists, processSubtitle, undoProcessSubtitle,
@@ -26,6 +26,8 @@ interface Props {
   onAutoSync?: (path: string) => void
   /** Run video-sync against the parent video. Omit to hide. */
   onVideoSync?: (path: string) => void
+  /** Open the non-destructive sync-compare modal. Omit to hide. */
+  onSyncCompare?: (path: string) => void
   /** Run health-check on this sub. Omit to hide. */
   onHealthCheck?: (path: string) => void
 }
@@ -33,7 +35,7 @@ interface Props {
 type ActivePanel = 'hi_removal' | 'common_fixes' | null
 
 export function SubtitleActionsMenu({
-  subtitlePath, onRefresh, onPreview, onEdit, onSync, onAutoSync, onVideoSync, onHealthCheck,
+  subtitlePath, onRefresh, onPreview, onEdit, onSync, onAutoSync, onVideoSync, onSyncCompare, onHealthCheck,
 }: Props) {
   const { t } = useTranslation('common')
   const [open, setOpen] = useState(false)
@@ -175,6 +177,14 @@ export function SubtitleActionsMenu({
               className="flex items-center gap-2 w-full px-3 py-2 text-sm hover:bg-zinc-800 text-left"
             >
               <Clapperboard size={14} /> {t('subtitle_actions.video_sync')}
+            </button>
+          )}
+          {onSyncCompare && (
+            <button
+              onClick={() => { setOpen(false); onSyncCompare(subtitlePath) }}
+              className="flex items-center gap-2 w-full px-3 py-2 text-sm hover:bg-zinc-800 text-left"
+            >
+              <Columns2 size={14} /> {t('subtitle_actions.sync_compare')}
             </button>
           )}
           {onHealthCheck && (

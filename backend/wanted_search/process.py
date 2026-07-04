@@ -444,7 +444,12 @@ def _try_source_ass_translation(ctx: dict) -> dict | None:
                 result.provider_name,
             )
             _try_auto_sync(translate_result.get("output_path"), file_path, settings)
-            delete_wanted_item(item_id)
+
+            from services.mt_provisional import finalize_translation
+
+            finalize_translation(
+                item_id, item, translate_result.get("output_path"), item_lang, "ass"
+            )
             return {
                 "wanted_id": item_id,
                 "status": "found",
@@ -678,7 +683,12 @@ def _try_source_srt_translation(ctx: dict) -> dict | None:
                 result.provider_name,
             )
             _try_auto_sync(translate_result.get("output_path"), file_path, settings)
-            delete_wanted_item(item_id)
+
+            from services.mt_provisional import finalize_translation
+
+            finalize_translation(
+                item_id, item, translate_result.get("output_path"), item_lang, "srt"
+            )
             return {
                 "wanted_id": item_id,
                 "status": "found",
@@ -763,7 +773,18 @@ def _fallback_translate_file(ctx: dict) -> dict:
                     "provider": "translate_pipeline",
                 }
             else:
-                delete_wanted_item(item_id)
+                # A genuine new machine translation was produced (embedded
+                # fallback). Flag it + keep the wanted provisional per profile
+                # (feature #8), same as the other translate-completion sites.
+                from services.mt_provisional import finalize_translation
+
+                finalize_translation(
+                    item_id,
+                    item,
+                    translate_result.get("output_path"),
+                    item_lang,
+                    translate_result.get("stats", {}).get("format") or "ass",
+                )
                 return {
                     "wanted_id": item_id,
                     "status": "found",

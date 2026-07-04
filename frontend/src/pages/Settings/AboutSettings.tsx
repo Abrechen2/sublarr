@@ -1,5 +1,8 @@
-import { Heart, Github, AlertCircle, Info, MessageCircle, Users } from 'lucide-react'
+import { Heart, Github, AlertCircle, Info, MessageCircle, Users, Sparkles } from 'lucide-react'
+import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
+import { WhatsNewModal } from '@/components/layout/WhatsNewModal'
+import { WHATS_NEW, versionKey } from '@/content/whatsNew'
 import { useTranslation } from 'react-i18next'
 import { SettingsDetailLayout } from '@/components/settings/SettingsDetailLayout'
 import { SettingsSection } from '@/components/settings/SettingsSection'
@@ -20,6 +23,7 @@ const SECTIONS: readonly FormSectionDef[] = [
 
 export function AboutSettings() {
   const { t } = useTranslation('settings')
+  const { t: tc } = useTranslation('common')
   const { data: health } = useQuery({
     queryKey: ['health'],
     queryFn: getHealth,
@@ -27,6 +31,8 @@ export function AboutSettings() {
   })
 
   const version = health?.version ?? '—'
+  const [showWhatsNew, setShowWhatsNew] = useState(false)
+  const wnVersion = versionKey(health?.version) ?? Object.keys(WHATS_NEW).slice(-1)[0] ?? null
 
   return (
     <SettingsDetailLayout
@@ -68,6 +74,13 @@ export function AboutSettings() {
               >
                 {version}
               </span>
+              <button
+                onClick={() => setShowWhatsNew(true)}
+                className="flex items-center gap-1 text-xs font-medium"
+                style={{ color: 'var(--accent)' }}
+              >
+                <Sparkles size={13} /> {tc('whatsnew.title', { version: wnVersion ?? version })}
+              </button>
             </div>
           </SettingsSection>
         </div>
@@ -267,6 +280,7 @@ export function AboutSettings() {
 
         </FormLayout>
       </div>
+      <WhatsNewModal open={showWhatsNew} version={wnVersion} onDismiss={() => setShowWhatsNew(false)} />
     </SettingsDetailLayout>
   )
 }

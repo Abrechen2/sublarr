@@ -82,12 +82,18 @@ def record_subtitle_download(
     score: int,
     source: str = "provider",
     upgraded_from_id: int | None = None,
+    record_stats: bool = True,
 ):
     """Record a subtitle download for history tracking.
 
     Args:
-        source: Source type -- "provider" (default) or "whisper".
+        source: Source type -- "provider" (default), "whisper", or "manual".
         upgraded_from_id: DB id of the previous SubtitleDownload this one replaces.
+        record_stats: Whether to also bump ``daily_stats`` for this download.
+            Set False for synthetic/derived rows that would otherwise
+            double-count a translation already recorded elsewhere (e.g. the
+            MT provisional row recorded on top of the site subtitle's own
+            record_stat call -- see services.mt_provisional.finalize_translation).
     """
     result = _get_repo().record_subtitle_download(
         provider_name,
@@ -106,12 +112,13 @@ def record_subtitle_download(
         details={"provider": provider_name, "language": language, "format": fmt, "score": score},
     )
     # Also record in daily_stats so the Statistics page shows provider downloads
-    try:
-        from db.jobs import record_stat
+    if record_stats:
+        try:
+            from db.jobs import record_stat
 
-        record_stat(success=True, fmt=fmt, source=provider_name)
-    except Exception:
-        logger.debug("Could not record download in daily_stats", exc_info=True)
+            record_stat(success=True, fmt=fmt, source=provider_name)
+        except Exception:
+            logger.debug("Could not record download in daily_stats", exc_info=True)
     return result
 
 

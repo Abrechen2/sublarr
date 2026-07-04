@@ -27,6 +27,7 @@ psutil==6.1.0
 APScheduler>=3.10,<4
 beautifulsoup4>=4.12.0
 bcrypt==4.2.1
+cryptography>=42.0
 click>=8.1,<9
 lxml>=5.1.0
 # defusedxml wraps stdlib + lxml parsers to disable DOCTYPE / entity / DTD

@@ -113,6 +113,9 @@ export interface SidecarSubtitle {
   // Backend strips "bak" before reaching the UI; only user-visible modifiers
   // (hi/forced/sdh/cc) appear here.
   modifier?: SubtitleModifier
+  // True for a combined/bilingual file (e.g. "ep.de-en.combined.ass"). Its
+  // `language` is a hyphen-joined tag ("de-en") rather than a single code.
+  combined?: boolean
 }
 
 // ─── Subtitle Backups (`.bak.<ext>` files) ───────────────────────────────────

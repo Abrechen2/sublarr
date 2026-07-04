@@ -16,7 +16,7 @@ import shutil
 from datetime import UTC, datetime
 
 from services.sidecar_trash import get_batch_dir, get_trash_root, trash_sidecar
-from subtitle_filename import SUBTITLE_EXTS, parse_subtitle_filename
+from subtitle_filename import SUBTITLE_EXTS, parse_combined_filename, parse_subtitle_filename
 
 logger = logging.getLogger(__name__)
 
@@ -45,6 +45,27 @@ def scan_subtitle_sidecars(video_path: str) -> list[dict]:
                 continue
             parsed = parse_subtitle_filename(fpath)
             if parsed is None:
+                # Combined/bilingual files (<base>.<l1>-<l2>.combined.<ext>) do
+                # not match the single-language parser (that keeps cleanup from
+                # trashing them). Surface them here so they are editable in the
+                # UI, tagged with ``combined`` and the joined language tag.
+                combined = parse_combined_filename(fpath)
+                if combined is not None:
+                    try:
+                        stat = os.stat(fpath)
+                    except OSError:
+                        continue
+                    lang_tag, ext = combined
+                    result.append(
+                        {
+                            "path": fpath,
+                            "language": lang_tag,
+                            "format": ext,
+                            "size_bytes": stat.st_size,
+                            "modified_at": stat.st_mtime,
+                            "combined": True,
+                        }
+                    )
                 continue
             if parsed.is_backup:
                 # .bak files belong to the backup-management UI, not the

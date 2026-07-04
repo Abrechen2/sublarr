@@ -172,6 +172,39 @@ def parse_subtitle_filename(path: str) -> ParsedFilename | None:
     )
 
 
+# Marker segment for combined/bilingual output (V1.6 #1). A combined file is
+# named ``<base>.<l1>-<l2>[-<l3>].combined.<ext>``. It deliberately does NOT
+# match parse_subtitle_filename (the dual "de-en" tag is not a language code),
+# so the keep-langs cleanup never trashes it. This additive parser lets the
+# scanner surface it as an editable sidecar without changing that protection.
+COMBINED_MARKER = "combined"
+
+
+def parse_combined_filename(path: str) -> tuple[str, str] | None:
+    """Parse a combined sidecar path into ``(language_tag, extension)``.
+
+    ``language_tag`` is the hyphen-joined set of language codes (e.g. ``"de-en"``).
+    Returns ``None`` when ``path`` is not a ``<base>.<l1>-<l2>[-…].combined.<ext>``
+    combined sidecar.
+    """
+    parts = os.path.basename(path).split(".")
+    if len(parts) < 4:
+        return None
+    ext = parts[-1].lower()
+    if ext not in SUBTITLE_EXTS:
+        return None
+    if parts[-2].lower() != COMBINED_MARKER:
+        return None
+    lang_tag = parts[-3]
+    langs = lang_tag.split("-")
+    if len(langs) < 2 or not all(_LANG_RE.match(code.lower()) for code in langs):
+        return None
+    base = ".".join(parts[:-3])
+    if not base:
+        return None
+    return (lang_tag, ext)
+
+
 def is_subtitle_sidecar(path: str) -> bool:
     """Return True when ``path`` looks like a real subtitle sidecar.
 

@@ -159,6 +159,8 @@
     "title": "Subtitle Editor",
     "auto_sync_tooltip": "Auto-sync subtitle timing with alass/ffsubsync",
     "close_esc": "Close (Esc)",
+    "fullscreen": "Fullscreen (F)",
+    "exit_fullscreen": "Exit fullscreen (Esc)",
     "waveform_unsupported_format": "Waveform editing for format \"{{format}}\" not yet supported.",
     "cue_update_failed": "Could not update cue.",
     "cue_has_styling": "Cue contains styling tags — please edit in the source tab.",

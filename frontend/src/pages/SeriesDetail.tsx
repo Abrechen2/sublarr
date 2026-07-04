@@ -20,6 +20,7 @@ import { scanSeriesHealth } from '@/api/subtitleHealth'
 import { useWebSocket } from '@/hooks/useWebSocket'
 import { ProgressBar } from '@/components/shared/ProgressBar'
 import { InteractiveSearchModal } from '@/components/wanted/InteractiveSearchModal'
+import { CombineDialog } from '@/components/episodes/CombineDialog'
 import { ComparisonSelector } from '@/components/comparison/ComparisonSelector'
 import { SubtitleCleanupModal } from '@/components/shared/SubtitleCleanupModal'
 import { ExtractConfirmModal } from '@/components/series/ExtractConfirmModal'
@@ -40,6 +41,7 @@ import { useMutation } from '@tanstack/react-query'
 const SubtitleComparison = lazy(() => import('@/components/comparison/SubtitleComparison').then(m => ({ default: m.SubtitleComparison })))
 const SyncControls = lazy(() => import('@/components/sync/SyncControls').then(m => ({ default: m.SyncControls })))
 const SyncModal = lazy(() => import('@/components/sync/SyncModal').then(m => ({ default: m.SyncModal })))
+const SyncOutputCompareModal = lazy(() => import('@/components/sync/SyncOutputCompareModal').then(m => ({ default: m.SyncOutputCompareModal })))
 const HealthCheckPanel = lazy(() => import('@/components/health/HealthCheckPanel').then(m => ({ default: m.HealthCheckPanel })))
 
 // ─── Main Page ─────────────────────────────────────────────────────────────
@@ -142,9 +144,11 @@ export function SeriesDetailPage() {
   const [comparisonPaths, setComparisonPaths] = useState<string[] | null>(null)
   const [syncFilePath, setSyncFilePath] = useState<string | null>(null)
   const [compareSelectorEp, setCompareSelectorEp] = useState<EpisodeInfo | null>(null)
+  const [combineEp, setCombineEp] = useState<EpisodeInfo | null>(null)
 
   // Video sync modal (ffsubsync / alass)
   const [videoSyncEp, setVideoSyncEp] = useState<{ ep: EpisodeInfo; subtitlePath: string } | null>(null)
+  const [syncCompareEp, setSyncCompareEp] = useState<{ ep: EpisodeInfo; subtitlePath: string } | null>(null)
 
   // Health check state
   const [healthCheckPath, setHealthCheckPath] = useState<string | null>(null)
@@ -300,6 +304,10 @@ export function SeriesDetailPage() {
     setCompareSelectorEp(ep)
   }, [])
 
+  const handleCombine = useCallback((ep: EpisodeInfo) => {
+    setCombineEp(ep)
+  }, [])
+
   const handleSync = useCallback((filePath: string) => {
     setSyncFilePath(filePath)
   }, [])
@@ -316,6 +324,10 @@ export function SeriesDetailPage() {
 
   const handleVideoSync = useCallback((ep: EpisodeInfo, subtitlePath: string) => {
     setVideoSyncEp({ ep, subtitlePath })
+  }, [])
+
+  const handleSyncCompare = useCallback((ep: EpisodeInfo, subtitlePath: string) => {
+    setSyncCompareEp({ ep, subtitlePath })
   }, [])
 
   const handleHealthCheck = useCallback((filePath: string) => {
@@ -720,9 +732,11 @@ export function SeriesDetailPage() {
               setEditorMode('edit')
             }}
             onCompare={handleCompare}
+            onCombine={handleCombine}
             onSync={handleSync}
             onAutoSync={handleAutoSync}
             onVideoSync={handleVideoSync}
+            onSyncCompare={handleSyncCompare}
             onHealthCheck={handleHealthCheck}
             healthScores={healthScores}
             onOpenEditor={(path) => { setEditorFilePath(path); setEditorMode('edit') }}
@@ -945,6 +959,21 @@ export function SeriesDetailPage() {
         </Suspense>
       )}
 
+      {/* Sync Compare Modal (non-destructive preview) */}
+      {syncCompareEp && (
+        <Suspense fallback={null}>
+          <SyncOutputCompareModal
+            subtitlePath={syncCompareEp.subtitlePath}
+            videoPath={syncCompareEp.ep.file_path}
+            onClose={() => setSyncCompareEp(null)}
+            onApplied={() => {
+              setSyncCompareEp(null)
+              void queryClient.invalidateQueries({ queryKey: ['series-subtitles', seriesId] })
+            }}
+          />
+        </Suspense>
+      )}
+
       {/* Interactive Search Modal */}
       <InteractiveSearchModal
         open={!!interactiveEp}
@@ -953,6 +982,21 @@ export function SeriesDetailPage() {
         onClose={() => setInteractiveEp(null)}
         onDownloaded={() => setInteractiveEp(null)}
       />
+
+      {/* Combine Subtitles Dialog */}
+      {combineEp && seriesId != null && (
+        <CombineDialog
+          open={!!combineEp}
+          episodeId={combineEp.id}
+          episodeTitle={`${series.title} — S${String(combineEp.season).padStart(2, '0')}E${String(combineEp.episode).padStart(2, '0')}${combineEp.title ? ` · ${combineEp.title}` : ''}`}
+          availableLanguages={Object.entries(combineEp.subtitles)
+            .filter(([, fmt]) => fmt)
+            .map(([lang]) => lang)}
+          targetLanguages={series.target_languages}
+          seriesId={seriesId}
+          onClose={() => setCombineEp(null)}
+        />
+      )}
 
       {/* Web Player Modal */}
       {playerState && (
