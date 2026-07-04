@@ -5,6 +5,13 @@ All notable changes to Sublarr are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.6.0-rc.5] - 2026-07-04
+
+- **Fixed** a second Postgres layer in the statistics fix from rc.4: once the
+  queries executed, `AVG()` returning `decimal.Decimal` (vs `float` on SQLite)
+  broke the aggregate `/statistics` and the Export. All AVG reads are now
+  coerced to `float`. Verified end-to-end on the RC Postgres.
+
 ## [1.6.0-rc.4] - 2026-07-04
 
 Two P1 bugs caught by exercising the 1.6.0 features on the real-Postgres RC
