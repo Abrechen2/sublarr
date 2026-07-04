@@ -371,10 +371,25 @@ def scan_orphaned_subtitles(media_path: str) -> list[dict]:
             if parsed_sub is not None:
                 base_name = parsed_sub.base
             else:
-                # Filename didn't match the <base>.<lang>(.mod)*.<ext> shape —
-                # fall back to plain extension stripping for legacy/alien
-                # naming so the orphan check still works on weird files.
-                base_name = os.path.splitext(filename)[0]
+                # Parse failed — an unrecognised modifier (".de.converted.ass",
+                # ".en.closedcaptions.srt") or an odd separator. The old
+                # extension-only fallback left the language/modifier tokens in
+                # the base, so a VALID sidecar whose video exists was flagged as
+                # an orphan (prod: ~6800 false positives vs ~80 real) and
+                # execute_orphan_files would delete it. Instead cut the base at
+                # the rightmost recognised 2-3 letter language token; with no
+                # language token the whole ext-stripped stem is the base
+                # (e.g. "orphan.srt" -> "orphan", still a real orphan).
+                from config_language_data import _REVERSE_LANGUAGE_TAGS
+
+                stem = os.path.splitext(filename)[0]
+                segs = stem.split(".")
+                base_name = stem
+                for i in range(len(segs) - 1, 0, -1):
+                    seg = segs[i].lower()
+                    if 2 <= len(seg) <= 3 and seg in _REVERSE_LANGUAGE_TAGS:
+                        base_name = ".".join(segs[:i])
+                        break
 
             # Check if any media file matches this base
             if base_name.lower() not in media_bases:
