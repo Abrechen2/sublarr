@@ -8,6 +8,15 @@ from pathlib import Path
 # Resolve once — avoids 8.3 short-name vs long-name mismatch on Windows
 _TEMP_DIR = os.path.realpath(tempfile.gettempdir())
 
+# config_crypto writes the Fernet master key to ``{config_dir}/.encryption_key``
+# (config_dir = SUBLARR_CONFIG_DIR, default ``/config``). Since 1.6.0 feature #6,
+# create_app() encrypts the auto-generated api_key, so ANY test that builds its
+# own app (not just the temp_db fixture) triggers that write. ``/config`` is not
+# writable on the CI runner → PermissionError. Pin it to a session-local tmp dir
+# at import time (before any create_app) so encryption always lands on a writable,
+# isolated path. setdefault so an explicit override still wins.
+os.environ.setdefault("SUBLARR_CONFIG_DIR", tempfile.mkdtemp(prefix="sublarr-cfg-"))
+
 import pytest
 
 from app import create_app
