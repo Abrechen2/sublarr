@@ -49,15 +49,11 @@ def _safe_language(raw: object) -> str:
 
 
 def _get_video_path(ep_id):
-    from sonarr_client import get_sonarr_client
+    # Resolves in both Sonarr and standalone modes (standalone episodes are
+    # wanted_items rows keyed by id). See services.episode_video_path.
+    from services.episode_video_path import resolve_episode_video_path
 
-    client = get_sonarr_client()
-    if client is None:
-        return None
-    path = client.get_episode_file_path(ep_id)
-    if not path:
-        return None
-    return map_path(path)
+    return resolve_episode_video_path(ep_id)
 
 
 def _normalise_stream(stream, stream_index, type_index):

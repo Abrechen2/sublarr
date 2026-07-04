@@ -153,12 +153,14 @@ def test_upload_episode_subtitle_no_file_400(client, temp_dir, monkeypatch):
     assert resp.status_code == 400
 
 
-def test_upload_episode_subtitle_sonarr_not_configured_503(client, monkeypatch):
+def test_upload_episode_subtitle_standalone_unknown_episode_404(client, monkeypatch):
+    # No Sonarr → the resolver falls through to the standalone wanted_items
+    # lookup. An unknown ep_id resolves to nothing → 404 (not the old 503).
     monkeypatch.setattr("sonarr_client.get_sonarr_client", lambda *a, **kw: None)
     resp = _upload(
         client, "/api/v1/library/episodes/1/subtitles/upload", "sub.srt", _SRT, language="de"
     )
-    assert resp.status_code == 503
+    assert resp.status_code == 404
 
 
 def test_upload_episode_subtitle_no_video_file_404(client, monkeypatch):

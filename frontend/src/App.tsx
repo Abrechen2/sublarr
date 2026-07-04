@@ -190,6 +190,12 @@ function AppInner({
   const { t } = useTranslation('common')
   const isAuthRoute = location.pathname === '/setup' || location.pathname === '/login'
   const whatsNew = useWhatsNew()
+  // Don't stack the What's-New modal on top of the first-run wizard — the wizard
+  // (z-50) would intercept its clicks. Suppress What's-New while the wizard is
+  // due; once it's completed or postponed, shouldShowWizard() flips false and
+  // What's-New shows on the next render (sequential, never overlapping).
+  const { data: setupStatus } = useSetupStatus()
+  const wizardActive = shouldShowWizard(setupStatus)
 
   return (
     <>
@@ -208,7 +214,7 @@ function AppInner({
       ) : (
         <div className="flex flex-col min-h-screen">
           <UpdateBanner />
-          <WhatsNewModal open={whatsNew.open} version={whatsNew.version} onDismiss={whatsNew.dismiss} />
+          <WhatsNewModal open={whatsNew.open && !wizardActive} version={whatsNew.version} onDismiss={whatsNew.dismiss} />
           <div className="flex flex-1 min-h-0">
             <IconSidebar />
             {/* min-h-screen kept intentionally: avoids content reflow when the banner is dismissed */}

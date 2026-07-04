@@ -6,7 +6,6 @@ import os
 
 from flask import jsonify, request
 
-from config import map_path
 from routes.subtitles import bp
 from services.subtitle_upload import (
     MAX_UPLOAD_BYTES,
@@ -57,17 +56,11 @@ def _do_upload(video_path: str):
 
 @bp.route("/library/episodes/<int:ep_id>/subtitles/upload", methods=["POST"])
 def upload_episode_subtitle(ep_id: int):
-    from sonarr_client import get_sonarr_client
+    from services.episode_video_path import resolve_episode_video_path
 
-    client = get_sonarr_client()
-    if client is None:
-        return jsonify({"error": "Sonarr not configured"}), 503
-    raw_path = client.get_episode_file_path(ep_id)
-    if not raw_path:
-        return jsonify({"error": "Episode has no video file"}), 404
-    video_path = map_path(raw_path)
-    if not os.path.exists(video_path):
-        return jsonify({"error": "Video file not found"}), 404
+    video_path = resolve_episode_video_path(ep_id)
+    if video_path is None:
+        return jsonify({"error": "Episode video file not found"}), 404
     return _do_upload(video_path)
 
 

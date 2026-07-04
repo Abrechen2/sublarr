@@ -1257,9 +1257,12 @@ class TestGetVideoPath:
         mock_client = MagicMock()
         mock_client.get_episode_file_path.return_value = "/sonarr/media/ep.mkv"
 
+        # _get_video_path now delegates to services.episode_video_path, which
+        # maps via config.map_path and verifies the file exists.
         with (
             patch("sonarr_client.get_sonarr_client", return_value=mock_client),
-            patch("routes.tracks.map_path", return_value="/local/media/ep.mkv"),
+            patch("config.map_path", return_value="/local/media/ep.mkv"),
+            patch("os.path.exists", return_value=True),
         ):
             result = _get_video_path(42)
 
