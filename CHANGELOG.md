@@ -5,6 +5,16 @@ All notable changes to Sublarr are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.6.0-rc.8] - 2026-07-04
+
+- **Fixed** the orphaned-subtitle scan flagging valid sidecars as orphans when
+  their name used an unrecognised modifier (`.de.converted.ass`,
+  `.en.closedcaptions.srt`) or an odd separator: the base is now cut at the
+  rightmost recognised language token instead of a naive extension strip, so a
+  sidecar whose video exists is no longer mistaken for an orphan (and no-language
+  orphans like `orphan.srt` are still caught). Affects the cleanup rule and the
+  UI orphan scan.
+
 ## [1.6.0-rc.7] - 2026-07-04
 
 - **Fixed** the subtitle-`.bak` cleanup being unusable: the `old_subtitle_baks`
