@@ -204,6 +204,30 @@ def test_combine_rejects_single_input(tmp_path):
         combine_subtitles([{"language": "en", "path": en, "format": "srt"}], output_format="srt")
 
 
+def test_combine_srt_skips_comment_events(tmp_path):
+    # An ASS Comment line (karaoke/typeset template) must not leak into SRT output.
+    de = str(tmp_path / "m.de.ass")
+    with open(de, "w", encoding="utf-8") as f:
+        f.write(
+            "[Script Info]\nScriptType: v4.00+\n[V4+ Styles]\nFormat: Name\nStyle: Default\n"
+            "[Events]\n"
+            "Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text\n"
+            "Comment: 0,0:00:01.00,0:00:03.00,Default,,0,0,0,,KARAOKE TEMPLATE\n"
+            "Dialogue: 0,0:00:01.00,0:00:03.00,Default,,0,0,0,,Echter Text\n"
+        )
+    en = _write(tmp_path, "m.en.srt", [(1000, 3000, "Real text")])
+    out = combine_subtitles(
+        [
+            {"language": "de", "path": de, "format": "ass"},
+            {"language": "en", "path": en, "format": "srt"},
+        ],
+        output_format="srt",
+    )
+    text = out.decode("utf-8")
+    assert "KARAOKE TEMPLATE" not in text
+    assert "Echter Text" in text
+
+
 def test_combine_rejects_invalid_output_format(tmp_path):
     de = _write(tmp_path, "m.de.srt", [(1, 2, "a")])
     en = _write(tmp_path, "m.en.srt", [(1, 2, "b")])

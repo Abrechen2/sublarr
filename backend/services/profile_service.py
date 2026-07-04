@@ -24,9 +24,27 @@ _MAX_BULK_ASSIGN = 1000
 
 # ─── Valid enum values ───────────────────────────────────────────────────────
 
+import re as _re
+
 VALID_FORCED_PREFERENCES = ("disabled", "separate", "auto")
 VALID_HI_PREFERENCES = ("include", "prefer", "exclude", "only")
 VALID_FORCED_SCORING = ("include", "prefer", "exclude", "only")
+
+# Combine languages must be plain 2-3 letter codes — never a hyphen-joined tag
+# (which would let a `de-en` value match an existing combined sidecar as a
+# source) and never a path fragment (defense-in-depth before build_combined_path).
+_COMBINE_LANG_RE = _re.compile(r"^[a-z]{2,3}\Z")
+
+
+def _clean_combine_languages(value) -> list[str]:
+    if not isinstance(value, list):
+        return []
+    langs = [str(v).strip().lower() for v in value]
+    if any(not _COMBINE_LANG_RE.match(lang) for lang in langs):
+        raise ProfileValidationError("combine_languages must be 2-3 letter language codes")
+    if len(set(langs)) != len(langs):
+        raise ProfileValidationError("combine_languages must be unique")
+    return langs
 
 UPDATABLE_PROFILE_KEYS = (
     "name",
@@ -103,7 +121,7 @@ def validate_create_profile_data(data: dict) -> dict:
     combine_format = data.get("combine_format", "ass")
     if combine_format not in VALID_COMBINE_FORMATS:
         raise ProfileValidationError("combine_format must be one of: ass, srt")
-    combine_languages = data.get("combine_languages", [])
+    combine_languages = _clean_combine_languages(data.get("combine_languages", []))
     combine_position = data.get("combine_position")
 
     return {
@@ -125,7 +143,7 @@ def validate_create_profile_data(data: dict) -> dict:
         ),
         "combine_enabled": bool(data.get("combine_enabled", False)),
         "combine_format": combine_format,
-        "combine_languages": combine_languages if isinstance(combine_languages, list) else [],
+        "combine_languages": combine_languages,
         "combine_position": combine_position if isinstance(combine_position, dict) else None,
     }
 
@@ -184,6 +202,9 @@ def validate_update_profile_fields(data: dict) -> dict:
 
     if "combine_format" in fields and fields["combine_format"] not in VALID_COMBINE_FORMATS:
         raise ProfileValidationError("combine_format must be one of: ass, srt")
+
+    if "combine_languages" in fields:
+        fields["combine_languages"] = _clean_combine_languages(fields["combine_languages"])
 
     return fields
 

@@ -31,6 +31,31 @@ from services.video_sync import (
 
 logger = logging.getLogger(__name__)
 
+# Preview is an interactive, user-initiated action holding the process-wide
+# sync_subprocess_lock, so bound it far tighter than the batch in-place sync
+# (600s/300s). A single-file preview that can't finish in a few minutes isn't
+# worth blocking the app for.
+_FFSUBSYNC_PREVIEW_TIMEOUT = 180
+_ALASS_PREVIEW_TIMEOUT = 120
+# Refuse to queue behind a long-running sync rather than pile up on the lock.
+_LOCK_WAIT_TIMEOUT = 30
+
+
+def _locked_subprocess(cmd: list[str], timeout: int):
+    """Run ``cmd`` holding the process-wide sync lock, acquired with a bounded
+    wait so a compare can't pile up behind a long in-place sync (H1 DoS guard).
+    """
+    from services.sync_engines.concurrency import sync_subprocess_lock
+
+    if not sync_subprocess_lock.acquire(timeout=_LOCK_WAIT_TIMEOUT):
+        raise RuntimeError("sync engine is busy — try again in a moment")
+    try:
+        return subprocess.run(cmd, capture_output=True, text=True, timeout=timeout)
+    except subprocess.TimeoutExpired:
+        raise RuntimeError(f"sync preview timed out after {timeout}s") from None
+    finally:
+        sync_subprocess_lock.release()
+
 
 def load_cues(path: str) -> list[dict]:
     """Parse a subtitle file into ``[{start, end, text}]`` (ms + plaintext)."""
@@ -50,7 +75,7 @@ def _run_ffsubsync_preview(subtitle_path: str, video_path: str) -> tuple[int, st
     """
     from config import get_settings
     from security_utils import safe_subprocess_arg
-    from services.sync_engines.concurrency import nice_prefix, sync_subprocess_lock
+    from services.sync_engines.concurrency import nice_prefix
 
     if not (shutil.which("ffsubsync") or _check_module("ffsubsync")):
         raise SyncUnavailableError("ffsubsync is not installed")
@@ -68,31 +93,28 @@ def _run_ffsubsync_preview(subtitle_path: str, video_path: str) -> tuple[int, st
         "-o",
         safe_subprocess_arg(out_path),
     ]
+    # Any failure after the tempfile is created removes it (incl. get_settings /
+    # shift-parse errors that sit between the subprocess and the return).
     try:
-        with sync_subprocess_lock:
-            result = subprocess.run(cmd, capture_output=True, text=True, timeout=600)
-    except subprocess.TimeoutExpired:
+        result = _locked_subprocess(cmd, _FFSUBSYNC_PREVIEW_TIMEOUT)
+        if result.returncode != 0:
+            raise RuntimeError(f"ffsubsync failed: {result.stderr.strip()}")
+        shift_ms = _parse_ffsubsync_shift(result.stderr + result.stdout)
+        threshold = getattr(get_settings(), "sync_sanity_threshold_ms", 60_000)
+        if abs(shift_ms) > threshold:
+            raise SyncSanityThresholdError(
+                f"ffsubsync shift {shift_ms}ms exceeds sanity threshold {threshold}ms"
+            )
+        return shift_ms, out_path
+    except BaseException:
         _safe_remove(out_path)
-        raise RuntimeError("ffsubsync timed out after 600s") from None
-
-    if result.returncode != 0:
-        _safe_remove(out_path)
-        raise RuntimeError(f"ffsubsync failed: {result.stderr.strip()}")
-
-    shift_ms = _parse_ffsubsync_shift(result.stderr + result.stdout)
-    threshold = getattr(get_settings(), "sync_sanity_threshold_ms", 60_000)
-    if abs(shift_ms) > threshold:
-        _safe_remove(out_path)
-        raise SyncSanityThresholdError(
-            f"ffsubsync shift {shift_ms}ms exceeds sanity threshold {threshold}ms"
-        )
-    return shift_ms, out_path
+        raise
 
 
 def _run_alass_preview(subtitle_path: str, reference_path: str) -> tuple[int | None, str]:
     """Run alass to a temp file. Returns ``(None, out_path)`` (alass reports no shift)."""
     from security_utils import safe_subprocess_arg
-    from services.sync_engines.concurrency import nice_prefix, sync_subprocess_lock
+    from services.sync_engines.concurrency import nice_prefix
 
     if not shutil.which("alass"):
         raise SyncUnavailableError("alass is not installed")
@@ -109,16 +131,13 @@ def _run_alass_preview(subtitle_path: str, reference_path: str) -> tuple[int | N
         safe_subprocess_arg(out_path),
     ]
     try:
-        with sync_subprocess_lock:
-            result = subprocess.run(cmd, capture_output=True, text=True, timeout=300)
-    except subprocess.TimeoutExpired:
+        result = _locked_subprocess(cmd, _ALASS_PREVIEW_TIMEOUT)
+        if result.returncode != 0:
+            raise RuntimeError(f"alass failed: {result.stderr.strip()}")
+        return None, out_path
+    except BaseException:
         _safe_remove(out_path)
-        raise RuntimeError("alass timed out after 300s") from None
-
-    if result.returncode != 0:
-        _safe_remove(out_path)
-        raise RuntimeError(f"alass failed: {result.stderr.strip()}")
-    return None, out_path
+        raise
 
 
 def _preview(engine: str, run_fn, subtitle_path: str, ref: str) -> dict:

@@ -14,6 +14,8 @@ from concurrent.futures import ThreadPoolExecutor
 
 from flask import Blueprint, current_app, jsonify, request
 
+from extensions import limiter
+
 bp = Blueprint("video_sync", __name__, url_prefix="/api/v1/tools")
 logger = logging.getLogger(__name__)
 
@@ -186,6 +188,7 @@ def start_sync():
 
 
 @bp.route("/video-sync/compare", methods=["POST"])
+@limiter.limit("6 per minute")
 def sync_compare_endpoint():
     """Non-destructively preview sync candidates for a side-by-side compare.
 

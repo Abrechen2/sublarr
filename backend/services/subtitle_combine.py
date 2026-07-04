@@ -209,9 +209,15 @@ def _map_secondary_to_primary(
     return out
 
 
+def _dialogue(subs: pysubs2.SSAFile) -> list[pysubs2.SSAEvent]:
+    """Real dialogue events only — drops Comment lines (karaoke/typeset templates
+    common in ASS) so they never leak into the stacked SRT output."""
+    return [e for e in subs.events if not e.is_comment]
+
+
 def _compose_srt(subs: list[pysubs2.SSAFile], an_codes: list[int]) -> pysubs2.SSAFile:
-    primary = subs[0].events
-    maps = [_map_secondary_to_primary(primary, s.events) for s in subs[1:]]
+    primary = _dialogue(subs[0])
+    maps = [_map_secondary_to_primary(primary, _dialogue(s)) for s in subs[1:]]
 
     result = pysubs2.SSAFile()
     for i, pe in enumerate(primary):

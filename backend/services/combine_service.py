@@ -126,6 +126,10 @@ def _record_combined(out_path: str, language: str, fmt: str, content: bytes) -> 
             file_path=out_path,
             score=0,
             source="combined",
+            # A combined file is composed from already-counted sidecars, not a
+            # fresh provider fetch — don't inflate downloads_today / success rate
+            # (same rule as the MT double-count fix, commit 0a7a9b52).
+            record_stats=False,
         )
     except Exception as exc:
         logger.warning("combine: history record failed for %s: %s", out_path, exc)

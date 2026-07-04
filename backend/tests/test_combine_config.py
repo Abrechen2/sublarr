@@ -142,3 +142,13 @@ def test_service_create_rejects_bad_combine_format(app_ctx):
 
     with pytest.raises(profile_service.ProfileValidationError):
         profile_service.create_profile({"name": "Combine Service Bad", "combine_format": "vtt"})
+
+
+def test_service_rejects_non_code_combine_languages(app_ctx):
+    """combine_languages must be plain lang codes — not path fragments or the
+    hyphen-joined combined tag (which could match an existing combined sidecar)."""
+    from services import profile_service
+
+    for bad in (["../../etc", "en"], ["de-en", "fr"], ["deu", "deu"]):
+        with pytest.raises(profile_service.ProfileValidationError):
+            profile_service.create_profile({"name": f"Bad {bad}", "combine_languages": bad})
