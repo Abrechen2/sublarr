@@ -38,14 +38,21 @@ class MemoryJobQueue(QueueBackend):
     queries, then automatically cleaned up to prevent memory leaks.
     """
 
-    def __init__(self, max_workers: int = 2):
+    def __init__(self, max_workers: int = 2, app=None):
         """Initialize with a bounded thread pool.
 
         Args:
             max_workers: Maximum number of concurrent worker threads.
+            app: Optional Flask app. When provided, every job runs inside
+                ``app.app_context()`` so ``db.session``, config, and Flask
+                extensions are available in the worker thread. Without it,
+                any DB-touching job (e.g. translation ``_run_job``) raises
+                "Working outside of application context" — mirrors the RQ
+                ``worker.py`` ``_AppContextWorker`` behaviour.
         """
         self._executor = ThreadPoolExecutor(max_workers=max_workers)
         self._max_workers = max_workers
+        self._app = app
         self._jobs: dict = {}  # job_id -> job metadata dict
         self._lock = threading.Lock()
         self._enqueue_count = 0
@@ -115,6 +122,11 @@ class MemoryJobQueue(QueueBackend):
                 self._jobs[job_id]["status"] = JobStatus.RUNNING
                 self._jobs[job_id]["started_at"] = now
 
+        # Run inside a Flask app context when available so DB-touching jobs
+        # (translation, etc.) can use db.session / config in this worker thread.
+        if self._app is not None:
+            with self._app.app_context():
+                return func(*args, **kwargs)
         return func(*args, **kwargs)
 
     def _on_complete(self, job_id: str, future: Future) -> None:

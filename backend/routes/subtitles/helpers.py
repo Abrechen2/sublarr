@@ -13,10 +13,9 @@ import json
 import logging
 import os
 import shutil
-import uuid
 from datetime import UTC, datetime
 
-from security_utils import is_safe_path
+from services.sidecar_trash import get_batch_dir, get_trash_root, trash_sidecar
 from subtitle_filename import SUBTITLE_EXTS, parse_subtitle_filename
 
 logger = logging.getLogger(__name__)
@@ -75,11 +74,15 @@ def scan_subtitle_sidecars(video_path: str) -> list[dict]:
 
 
 def _get_trash_root(media_path: str) -> str:
-    return os.path.join(media_path, ".sublarr_trash")
+    """Compat shim — implementation moved to
+    :func:`services.sidecar_trash.get_trash_root`."""
+    return get_trash_root(media_path)
 
 
 def _get_batch_dir(media_path: str, batch_id: str) -> str:
-    return os.path.join(_get_trash_root(media_path), batch_id)
+    """Compat shim — implementation moved to
+    :func:`services.sidecar_trash.get_batch_dir`."""
+    return get_batch_dir(media_path, batch_id)
 
 
 def _derive_series_name(path: str) -> str:
@@ -189,43 +192,9 @@ def _auto_purge_old_trash(media_path: str, retention_days: int) -> int:
 
 
 def _trash_sidecar(path: str, media_path: str, batch_dir: str) -> tuple[str, str | None]:
-    """Move a subtitle file into the trash batch directory.
+    """Compat shim — implementation moved to
+    :func:`services.sidecar_trash.trash_sidecar`.
 
     Returns (trashed_path_or_original, error_or_None).
     """
-    if not is_safe_path(path, media_path):
-        return path, "Path outside media directory"
-    ext = os.path.splitext(path)[1].lstrip(".").lower()
-    if ext not in _SUBTITLE_EXTS:
-        return path, f"Not a subtitle file: .{ext}"
-    if not os.path.exists(path):
-        return path, "File not found"
-
-    os.makedirs(batch_dir, exist_ok=True)
-    basename = os.path.basename(path)
-    trash_path = os.path.join(batch_dir, basename)
-    # Resolve name conflicts
-    if os.path.exists(trash_path):
-        trash_path = os.path.join(batch_dir, f"{uuid.uuid4().hex[:8]}_{basename}")
-    try:
-        shutil.move(path, trash_path)
-    except OSError as exc:
-        return path, str(exc)
-
-    # Move .quality.json sidecar too if present
-    quality_src = path + ".quality.json"
-    if os.path.exists(quality_src):
-        try:
-            shutil.move(quality_src, trash_path + ".quality.json")
-        except OSError:
-            pass
-
-    # Remove subtitle_downloads DB entry (best-effort)
-    try:
-        from db.library import delete_download_record
-
-        delete_download_record(path)
-    except Exception as exc:
-        logger.debug("Could not remove subtitle_downloads entry for %s: %s", path, exc)
-
-    return trash_path, None
+    return trash_sidecar(path, media_path, batch_dir)

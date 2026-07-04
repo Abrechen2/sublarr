@@ -8,6 +8,8 @@ only on arguments passed in.
 import logging
 from datetime import UTC, datetime
 
+from services.embedded_extractor import extract_embedded_sub
+
 logger = logging.getLogger(__name__)
 
 
@@ -108,9 +110,7 @@ def _extract_embedded_items(
     auto_translate = getattr(settings, "wanted_auto_translate", False)
     for item in embedded_items:
         try:
-            from routes.wanted import _extract_embedded_sub
-
-            _extract_embedded_sub(item["id"], item["file_path"], auto_translate=auto_translate)
+            extract_embedded_sub(item["id"], item["file_path"], auto_translate=auto_translate)
             found += 1
         except Exception as exc:
             logger.warning("[search_all] Extraction failed for item %d: %s", item["id"], exc)

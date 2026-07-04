@@ -2,26 +2,23 @@ import { useState, useEffect, useRef, useMemo } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useHealth, useUpdateInfo } from '@/hooks/useApi'
 import { formatVersion } from '@/lib/version'
-import { useScannerStatus, useWantedBatchStatus, useWantedBatchProbeStatus } from '@/hooks/useWantedApi'
 import { useProviderHealth } from '@/hooks/useProvidersApi'
+import { useAutomationState } from '@/hooks/useAutomationState'
 
 export function StatusBar() {
   const { t } = useTranslation('common')
   const { data: health } = useHealth()
   const { data: updateInfo } = useUpdateInfo()
-  const { data: scannerStatus } = useScannerStatus()
-  const { data: batchSearch } = useWantedBatchStatus()
-  const { data: batchProbe } = useWantedBatchProbeStatus()
+  const { state: automationState, pausedJobIds, scannerStatus, batchSearch, batchProbe } = useAutomationState()
   const { data: providerHealth } = useProviderHealth()
   const [popoverOpen, setPopoverOpen] = useState(false)
   const popoverRef = useRef<HTMLDivElement>(null)
 
   const isHealthy = health?.status === 'healthy'
   const isScanning = scannerStatus?.is_scanning ?? false
-  const isSearching = scannerStatus?.is_searching ?? false
   const isBatchSearching = batchSearch?.running ?? false
   const isBatchExtracting = batchProbe?.running ?? false
-  const isAutomationActive = isScanning || isSearching || isBatchSearching || isBatchExtracting
+  const isAutomationActive = automationState === 'active'
   const hasUpdate = updateInfo?.available === true
 
   const throttledProviders = useMemo(() => {
@@ -36,9 +33,21 @@ export function StatusBar() {
       .map((p) => p.name)
   }, [providerHealth])
 
-  const automationLabel = isAutomationActive
-    ? t('status.automation_active', 'Automation: active')
-    : t('status.automation_paused', 'Automation: paused')
+  // Same 4-state derivation as the dashboard status stripe (useAutomationState)
+  // so footer and dashboard can never contradict each other.
+  const automationLabel =
+    automationState === 'active'
+      ? t('status.automation_active', 'Automation: active')
+      : automationState === 'paused'
+        ? t('status.automation_paused', 'Automation: paused')
+        : automationState === 'partial'
+          ? t('status.automation_partial', 'Automation: partially paused')
+          : t('status.automation_idle', 'Automation: idle')
+
+  const automationTitle =
+    automationState === 'paused' || automationState === 'partial'
+      ? pausedJobIds.join(', ')
+      : undefined
 
   useEffect(() => {
     if (!popoverOpen) return
@@ -83,7 +92,7 @@ export function StatusBar() {
       <div className="h-3" style={{ borderLeft: '1px solid var(--border)' }} />
 
       {/* Automation status */}
-      <span data-testid="status-bar-automation">{automationLabel}</span>
+      <span data-testid="status-bar-automation" title={automationTitle}>{automationLabel}</span>
 
       {/* Separator */}
       <div className="h-3" style={{ borderLeft: '1px solid var(--border)' }} />

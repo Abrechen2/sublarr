@@ -5,15 +5,80 @@ All notable changes to Sublarr are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.5.0] - 2026-07-02
+
+### Added
+- **Translation queue can be cleared from the UI** — queued translation
+  jobs get a cancel button and the Activity → Translations tab a
+  "Clear queued" action, backed by `DELETE /api/v1/jobs/{id}` and
+  `POST /api/v1/jobs/clear-queued`. A guard re-checks the job status
+  before execution, so cancelled jobs can never start; this also cleans
+  up jobs orphaned by container restarts.
+
+### Fixed
+- **Dashboard no longer contradicts itself** — the header status pill
+  and the footer automation status now derive from one shared source
+  (scheduler jobs + live scanner state) with a new "partially paused"
+  state and tooltips naming the paused jobs. Provider health dots
+  reflect connectivity instead of the lifetime download-conversion rate
+  (now a separate, tooltipped figure), the hidden 7-provider cap is
+  gone, the success-rate tile is labeled as translation success (30d),
+  and the activity feed no longer labels lifetime counts as "today".
+- **Interface language setting is applied again** — the stored
+  `interface_language` setting and the rendered language could silently
+  differ (the setting said German while the UI showed English). The
+  setting now applies on load, the Settings dropdown switches
+  immediately, the sidebar toggle persists to the setting, and the
+  selector offers only the actually translated languages (DE/EN).
+- **Broken characters in the English UI** — 49 double-encoded strings
+  (mojibake such as "1Ã—" and "â€"") in the English locale were
+  repaired, and two German leftovers in the EN locale translated.
+- **Mobile layout** — the dashboard stacks into one column with a 2×2
+  stats grid, and the settings sub-navigation collapses on phones
+  instead of squeezing the content to an unusable sliver.
+- **Wanted page** — the duplicate page header is gone, the header count
+  and the "Total Wanted" card now report the same number, and a failed
+  list fetch shows a retryable error instead of an empty list (the
+  Library page got the same error state).
+- **Series detail and library cards** — series with specials no longer
+  open on a fileless Season 0 (season 0 is labeled "Specials", the
+  season-count tag is translated), and the library card badges got
+  tooltips explaining the missing count and the coverage score. Numbers
+  and provider names now render consistently across dashboard and
+  history.
+
 ## [1.4.0] - 2026-06-30
 
 ### Added
+- **Translation backend is now selectable in the UI** — a global default backend
+  (with an optional single fallback) on Settings → Translation → Backends &
+  Glossary, plus a per-profile override on Languages & Profiles. Profiles inherit
+  the global default unless overridden. Previously the backend was a DB-only field
+  with no UI, so configuring e.g. DeepL never changed which backend was actually
+  used.
 - **Dubtitle Detection settings UI** — the dubtitle keys (detection,
   verify-on-download, minimum score/margin, auto cue floor) are now
   configurable under Settings → Subtitles → Stream Management instead of being
   config/env-only. The two dubtitle API endpoints are now documented in OpenAPI.
 
 ### Fixed
+- **Translation ran but silently produced nothing** — Queued translation jobs
+  never executed. The job queue defaulted to Redis/RQ, which needs a separate
+  worker process the single-container deployment does not run, so jobs sat in
+  "queued" forever; and the in-process fallback ran jobs without a Flask app
+  context, so the first DB access raised "working outside of application
+  context". The in-process queue is now the default and runs each job inside an
+  app context, and an RQ backend with no worker is logged loudly at startup.
+  Separately, a language profile with an empty backend and empty fallback chain
+  selected no backend at all ("All backends failed. Last error: None"); empty
+  profile values now fall back to Ollama and the error names the real cause.
+- **Cloud translation backend cards crashed the settings page** — Expanding the
+  Claude, Gemini, DeepSeek, Mistral, ChatGPT, Azure Translator or MyMemory card
+  threw "toLowerCase of undefined" and broke the whole Translation tab, because
+  those backends declared their config fields with `name` instead of the
+  contracted `key`. The field descriptors are fixed and the UI degrades
+  gracefully on a bad descriptor. Backend help tooltips are no longer clipped
+  at the card edge.
 - **Translation backend credential overwrite** — saving a configured backend
   without re-typing its key overwrote the stored secret with the mask token
   `***`; masked password fields are no longer re-sent on save.

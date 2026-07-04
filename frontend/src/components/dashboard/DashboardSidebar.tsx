@@ -11,6 +11,7 @@ import {
   useWantedSummary,
 } from '@/hooks/useApi'
 import { formatBytes } from '@/lib/diskUtils'
+import { formatProviderName, formatNumber } from '@/lib/utils'
 
 // ─── Shared panel shell ───────────────────────────────────────────────────────
 
@@ -82,8 +83,19 @@ function getProviderVisual(p: ProviderStatus): {
     return { dot: '◆', dotColor: 'var(--warning)', label: 'Recovering', labelColor: 'var(--warning)', sortKey: 3 }
   }
 
+  // Dot color reflects connectivity health (reachable, no failure streak) —
+  // NOT the lifetime download-conversion rate. A provider with few downloads
+  // is still "green" as long as it responds; the percentage is shown as a
+  // separate, tooltipped figure.
   const pct = Math.round((p.stats?.success_rate ?? 0) * 100)
-  return { dot: '●', dotColor: pct >= 80 ? 'var(--success)' : 'var(--error)', label: `${pct}%`, labelColor: 'var(--text-muted)', sortKey: 10 }
+  const isHealthy = p.healthy !== false
+  return {
+    dot: '●',
+    dotColor: isHealthy ? 'var(--success)' : 'var(--error)',
+    label: `${pct}%`,
+    labelColor: 'var(--text-muted)',
+    sortKey: isHealthy ? 10 : 5,
+  }
 }
 
 function ThrottleCountdown({ until }: { until: string }) {
@@ -106,14 +118,15 @@ function ProviderHealthPanel() {
   const { data: providersData, isLoading } = useProviders()
   const allEnabled = (providersData?.providers ?? []).filter((p: ProviderStatus) => p.enabled) as ProviderStatus[]
 
-  // Sort: problems first, then by success rate descending
-  const sorted = [...allEnabled].sort((a, b) => {
+  // Sort: problems first, then by success rate descending. Show ALL enabled
+  // providers — a hidden tail made the panel disagree with the Services
+  // panel's "N/N active" count.
+  const providers = [...allEnabled].sort((a, b) => {
     const va = getProviderVisual(a)
     const vb = getProviderVisual(b)
     if (va.sortKey !== vb.sortKey) return va.sortKey - vb.sortKey
     return ((b.stats?.success_rate ?? 0) - (a.stats?.success_rate ?? 0))
   })
-  const providers = sorted.slice(0, 7)
 
   if (isLoading) {
     return (
@@ -159,12 +172,17 @@ function ProviderHealthPanel() {
               {vis.dot !== '●' ? vis.dot : ''}
             </span>
             <span style={{ flex: 1, fontSize: '12px', color: 'var(--text-secondary)' }}>
-              {p.name}
+              {formatProviderName(p.name)}
             </span>
             {p.throttled_until && p.throttle_reason === 'rate_limited' ? (
               <ThrottleCountdown until={p.throttled_until} />
             ) : (
-              <span style={{ fontSize: '11px', color: vis.labelColor }}>{vis.label}</span>
+              <span
+                style={{ fontSize: '11px', color: vis.labelColor }}
+                title={vis.label.endsWith('%') ? t('sidebar.successRateTooltip') : undefined}
+              >
+                {vis.label}
+              </span>
             )}
           </div>
         )
@@ -271,7 +289,7 @@ function DiskSpacePanel() {
                   fontFamily: 'var(--font-mono)',
                 }}
               >
-                {stats.total_files.toLocaleString()}
+                {formatNumber(stats.total_files)}
               </div>
               <div
                 style={{
@@ -293,7 +311,7 @@ function DiskSpacePanel() {
                   fontFamily: 'var(--font-mono)',
                 }}
               >
-                {stats.duplicate_files}
+                {formatNumber(stats.duplicate_files)}
               </div>
               <div
                 style={{
@@ -417,15 +435,11 @@ export function DashboardSidebar() {
   return (
     <div
       data-testid="dashboard-sidebar"
+      className="w-full md:w-[260px] shrink-0 flex flex-col overflow-hidden"
       style={{
-        width: '260px',
-        flexShrink: 0,
         background: 'var(--bg-surface)',
         border: '1px solid var(--border)',
         borderRadius: 'var(--radius-lg)',
-        overflow: 'hidden',
-        display: 'flex',
-        flexDirection: 'column',
       }}
     >
       <ProviderHealthPanel />

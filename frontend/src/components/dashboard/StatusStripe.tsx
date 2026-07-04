@@ -1,39 +1,20 @@
 import { useTranslation } from 'react-i18next'
-import { useScannerStatus, useWantedSummary, useRefreshWanted } from '@/hooks/useWantedApi'
+import { useWantedSummary, useRefreshWanted } from '@/hooks/useWantedApi'
 import { useStats } from '@/hooks/useSystemApi'
-import { useSchedulerJobs } from '@/hooks/useSchedulerJobs'
-import { formatRelativeTime } from '@/lib/utils'
-
-type AutomationState = 'active' | 'idle' | 'paused'
+import { useAutomationState } from '@/hooks/useAutomationState'
+import { formatNumber, formatRelativeTime } from '@/lib/utils'
 
 export function StatusStripe() {
   const { t } = useTranslation('dashboard')
-  const { data: scannerStatus } = useScannerStatus()
-  const { data: scheduler } = useSchedulerJobs()
+  const { state, pausedJobIds, scannerStatus } = useAutomationState()
   const { data: stats } = useStats()
   const { data: wantedSummary } = useWantedSummary()
   const refreshWanted = useRefreshWanted()
 
-  // 3-state: 'active' = scan/search running now, 'paused' = user paused BOTH
-  // scheduler jobs, 'idle' = armed and waiting for the next scheduled run.
-  // Paused requires BOTH jobs paused — a single-pause still counts as active
-  // automation (the other job keeps the pipeline alive).
-  const isRunning = Boolean(scannerStatus?.is_scanning || scannerStatus?.is_searching)
-  const jobs = scheduler?.jobs ?? []
-  const scannerJob = jobs.find((j) => j.id === 'wanted_scanner')
-  const searchJob = jobs.find((j) => j.id === 'wanted_search')
-  const bothPaused =
-    scannerJob !== undefined &&
-    searchJob !== undefined &&
-    scannerJob.paused &&
-    searchJob.paused
-
-  const state: AutomationState = isRunning ? 'active' : bothPaused ? 'paused' : 'idle'
-
   const stateColor =
     state === 'active'
       ? 'var(--success)'
-      : state === 'paused'
+      : state === 'paused' || state === 'partial'
         ? 'var(--warning)'
         : 'var(--text-muted)'
 
@@ -42,7 +23,14 @@ export function StatusStripe() {
       ? t('statusStripe.active')
       : state === 'paused'
         ? t('statusStripe.paused')
-        : t('statusStripe.idle')
+        : state === 'partial'
+          ? t('statusStripe.partial')
+          : t('statusStripe.idle')
+
+  const stateTitle =
+    state === 'partial' || state === 'paused'
+      ? t('statusStripe.pausedJobs', { jobs: pausedJobIds.join(', ') })
+      : undefined
 
   const lastActivity = scannerStatus?.last_scan_at ?? scannerStatus?.last_search_at ?? null
   const lastText = lastActivity
@@ -70,6 +58,7 @@ export function StatusStripe() {
         style={{ display: 'flex', alignItems: 'center', gap: '8px' }}
         aria-live="polite"
         aria-label={t('statusStripe.ariaLabel', { state: stateLabel, lastText })}
+        title={stateTitle}
       >
         <span
           data-testid="status-dot"
@@ -106,11 +95,15 @@ export function StatusStripe() {
       <div style={{ width: 1, height: 14, background: 'var(--border)', flexShrink: 0 }} />
 
       <span data-testid="status-total" style={{ fontSize: '11px', color: 'var(--text-secondary)' }}>
-        <strong style={{ color: 'var(--text-primary)' }}>{stats?.total_subtitles ?? '—'}</strong>{' '}
+        <strong style={{ color: 'var(--text-primary)' }}>{formatNumber(stats?.total_subtitles)}</strong>{' '}
         {t('statusStripe.subtitles')}
       </span>
 
-      <span data-testid="status-rate" style={{ fontSize: '11px', color: 'var(--text-secondary)' }}>
+      <span
+        data-testid="status-rate"
+        style={{ fontSize: '11px', color: 'var(--text-secondary)' }}
+        title={t('statusStripe.successRateTooltip')}
+      >
         <strong style={{ color: 'var(--success)' }}>
           {stats?.success_rate != null ? `${stats.success_rate}%` : '—'}
         </strong>{' '}
@@ -124,7 +117,7 @@ export function StatusStripe() {
 
       <span data-testid="status-missing" style={{ fontSize: '11px', color: 'var(--text-secondary)' }}>
         <strong style={{ color: missingCount > 0 ? 'var(--warning)' : 'var(--text-primary)' }}>
-          {missingCount}
+          {formatNumber(missingCount)}
         </strong>{' '}
         {t('statusStripe.missing')}
       </span>

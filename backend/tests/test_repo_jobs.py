@@ -204,6 +204,27 @@ class TestJobStatusQueries:
         """cancel_queued_jobs returns 0 when no queued jobs exist."""
         assert repo.cancel_queued_jobs() == 0
 
+    def test_cancel_job_queued(self, repo):
+        """cancel_job cancels a queued job and sets completed_at."""
+        created = repo.create_job("/media/a.ass")
+        assert repo.cancel_job(created["id"]) is True
+
+        job = repo.get_job(created["id"])
+        assert job["status"] == "cancelled"
+        assert job["completed_at"] is not None
+
+    def test_cancel_job_running_not_cancelled(self, repo):
+        """cancel_job refuses to touch a running job (race safety)."""
+        created = repo.create_job("/media/a.ass")
+        repo.update_job(created["id"], status="running")
+
+        assert repo.cancel_job(created["id"]) is False
+        assert repo.get_job(created["id"])["status"] == "running"
+
+    def test_cancel_job_not_found(self, repo):
+        """cancel_job returns False for an unknown job ID."""
+        assert repo.cancel_job("nonexist") is False
+
     def test_delete_old_jobs(self, repo):
         """delete_old_jobs removes jobs older than N days."""
         repo.create_job("/media/recent.ass")

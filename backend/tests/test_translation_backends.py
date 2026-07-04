@@ -321,6 +321,46 @@ def test_translate_with_fallback_all_fail(manager):
     assert "All backends failed" in result.error
 
 
+def test_translate_with_fallback_empty_chain_reports_no_backend(manager):
+    """An empty chain must NOT report 'Last error: None' — it never ran a
+    backend. Regression for the misleading error the empty default profile
+    produced."""
+    result = manager.translate_with_fallback(["Hi"], "en", "de", fallback_chain=[])
+    assert result.success is False
+    assert "No usable translation backend" in result.error
+    assert "Last error: None" not in result.error
+
+
+def test_translate_with_fallback_unregistered_backend_reports_no_backend(manager):
+    """A chain naming only unregistered backends never runs anything and must
+    say so, not 'All backends failed. Last error: None'."""
+    result = manager.translate_with_fallback(["Hi"], "en", "de", fallback_chain=["does_not_exist"])
+    assert result.success is False
+    assert "No usable translation backend" in result.error
+
+
+def test_all_builtin_backends_declare_key_in_config_fields():
+    """Contract (translation/base.py): every config_field dict must use `key`.
+
+    claude/gemini/deepseek/mistral/chatgpt/azure_translator/mymemory shipped
+    their fields with `name` instead of `key`, so the frontend BackendCard read
+    field.key === undefined and crashed the whole Translation tab on expand
+    (undefined.toLowerCase()). Guard the contract for every built-in backend.
+    """
+    from translation import TranslationManager, _register_builtin_backends
+
+    mgr = TranslationManager()
+    _register_builtin_backends(mgr)
+
+    backends = mgr.get_all_backends()
+    assert backends, "no built-in backends registered"
+    for info in backends:
+        for field in info["config_fields"] or []:
+            assert field.get("key"), (
+                f"backend {info['name']} has a config_field without 'key': {field}"
+            )
+
+
 def test_translate_with_fallback_skips_circuit_breaker_open(manager):
     """Backend with open circuit breaker is skipped."""
     manager.register_backend(MockBackendFail)

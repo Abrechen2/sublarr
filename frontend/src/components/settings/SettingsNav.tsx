@@ -136,10 +136,8 @@ export function SettingsNav() {
     <>
     <nav
       data-testid="settings-nav"
-      className="shrink-0 overflow-y-auto"
+      className="shrink-0 overflow-y-auto w-full md:w-[210px] md:min-w-[210px]"
       style={{
-        width: 210,
-        minWidth: 210,
         paddingRight: 8,
         paddingTop: 16,
         paddingBottom: 24,

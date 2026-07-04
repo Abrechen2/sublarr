@@ -4,11 +4,7 @@ import logging
 
 import requests
 
-from extensions import socketio
-from routes.batch_state import (
-    _memory_stats,
-    stats_lock,
-)
+from services.translation_jobs import run_job, update_stats
 
 logger = logging.getLogger(__name__)
 
@@ -150,62 +146,20 @@ def _is_translation_enabled() -> bool:
 
 
 def _update_stats(result):
-    """Update stats from a translation result (thread-safe)."""
-    from db.jobs import record_stat
-
-    with stats_lock:
-        if result["success"]:
-            s = result.get("stats", {})
-            if s.get("skipped"):
-                record_stat(success=True, skipped=True)
-                reason = s.get("reason", "")
-                if "no ASS upgrade" in reason:
-                    _memory_stats["upgrades"]["srt_upgrade_skipped"] += 1
-            else:
-                fmt = s.get("format", "")
-                source = s.get("source", "")
-                record_stat(success=True, skipped=False, fmt=fmt, source=source)
-                if s.get("upgrade_from_srt"):
-                    _memory_stats["upgrades"]["srt_to_ass_translated"] += 1
-                if s.get("quality_warnings"):
-                    _memory_stats["quality_warnings"] += len(s["quality_warnings"])
-        else:
-            record_stat(success=False)
+    """Compat shim — implementation moved to
+    :func:`services.translation_jobs.update_stats`."""
+    return update_stats(result)
 
 
 def _run_job(job_data):
-    """Execute a translation job in a background thread."""
-    from db.jobs import record_stat, update_job
-    from translator import translate_file
+    """Compat shim — implementation moved to
+    :func:`services.translation_jobs.run_job`.
 
-    job_id = job_data["id"]
-    try:
-        update_job(job_id, "running")
-
-        result = translate_file(
-            job_data["file_path"],
-            force=job_data.get("force", False),
-            arr_context=job_data.get("arr_context"),
-        )
-
-        status = "completed" if result["success"] else "failed"
-        update_job(job_id, status, result=result, error=result.get("error"))
-        _update_stats(result)
-
-        # Emit WebSocket event
-        socketio.emit(
-            "job_update",
-            {
-                "id": job_id,
-                "status": status,
-                "result": result,
-            },
-        )
-
-    except Exception as e:
-        logger.exception("Job %s failed", job_id)
-        update_job(job_id, "failed", error=str(e))
-        record_stat(success=False)
+    Kept because routes and tests reference/patch the historical
+    ``routes.translate...._run_job`` paths, and the redis job queue
+    pickles this callable by module path.
+    """
+    return run_job(job_data)
 
 
 def _build_arr_context(data):

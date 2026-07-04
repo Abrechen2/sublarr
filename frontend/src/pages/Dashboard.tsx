@@ -14,7 +14,8 @@ export function Dashboard() {
       <PageHeader title={t('title')} />
       <StatusStripe />
       <MetricsRow />
-      <div style={{ display: 'flex', gap: '16px', alignItems: 'flex-start', minHeight: '500px' }}>
+      {/* Stacks on phones; two columns from md up */}
+      <div className="flex flex-col md:flex-row gap-4 items-stretch md:items-start md:min-h-[500px]">
         <ActivityFeed />
         <DashboardSidebar />
       </div>

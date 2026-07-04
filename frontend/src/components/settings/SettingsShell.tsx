@@ -13,23 +13,16 @@ export function SettingsShell({ children }: SettingsShellProps) {
   return (
     <div
       data-testid="settings-shell"
-      className="flex gap-6 w-full"
-      style={{ alignItems: 'flex-start' }}
+      className="flex flex-col md:flex-row md:items-start gap-4 md:gap-6 w-full"
     >
-      {/* Sticky sidebar */}
-      <div
-        style={{
-          position: 'sticky',
-          top: 0,
-          maxHeight: '100vh',
-          overflowY: 'auto',
-        }}
-      >
+      {/* Sidebar — full-width scrollable block on phones, sticky column from md up */}
+      <div className="w-full max-h-64 overflow-y-auto md:w-auto md:max-h-screen md:sticky md:top-0">
         <SettingsNav />
       </div>
 
-      {/* Divider */}
+      {/* Divider (two-column layout only) */}
       <div
+        className="hidden md:block"
         style={{
           width: 1,
           minHeight: '100%',

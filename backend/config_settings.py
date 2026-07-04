@@ -142,6 +142,14 @@ class UISettings(BaseModel):
     source_language_name: str = "English"
     target_language_name: str = "German"
     prompt_template: str = ""  # Empty = auto-generated from languages
+    # Global default translation backend + optional single fallback. A language
+    # profile with an empty translation_backend inherits these. Declared here as
+    # UISettings so the /config API surfaces AND accepts them (the Backends-page
+    # "Default translation backend" control reads/writes via /config). The
+    # resolver reads them via db.config.get_config_entry — this default is only
+    # the fallback when no config_entry row exists.
+    translation_default_backend: str = "ollama"
+    translation_default_fallback: str = ""
 
     # Subtitle Providers
     provider_priorities: str = "animetosho,jimaku,opensubtitles,subdl"
@@ -483,7 +491,11 @@ class UISettings(BaseModel):
 
     # Redis behaviour (URL is in BootSettings)
     redis_cache_enabled: bool = True  # Use Redis for provider cache
-    redis_queue_enabled: bool = True  # Use Redis+RQ for job queue
+    # RQ requires a SEPARATE `python worker.py` process (see docker-compose.redis.yml).
+    # Sublarr ships single-container without that worker, so RQ must NOT be the
+    # default: enabling it without a worker leaves every queued job stuck in
+    # `queued` forever (silent). Opt in only alongside the rq-worker service.
+    redis_queue_enabled: bool = False  # Use Redis+RQ for job queue (needs worker.py)
 
     # Interface Preferences (Step 37)
     interface_language: str = "en"

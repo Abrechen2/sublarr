@@ -39,9 +39,9 @@ class ClaudeBackend(LLMBackend):
     cost_per_1m_tokens_out = Decimal("15.00")
 
     config_fields = [
-        {"name": "api_key", "type": "password", "label": "API Key", "required": True},
+        {"key": "api_key", "type": "password", "label": "API Key", "required": True},
         {
-            "name": "model",
+            "key": "model",
             "type": "text",
             "label": "Model",
             "required": False,

@@ -271,7 +271,7 @@ function BulkSyncPanel({
 
 export function LibraryPage() {
   const { t } = useTranslation('library')
-  const { data: library, isLoading } = useLibrary()
+  const { data: library, isLoading, isError, refetch } = useLibrary()
   const { data: profiles } = useLanguageProfiles()
   const assignProfile = useAssignProfile()
   const bulkAssign = useBulkAssignProfile()
@@ -390,6 +390,24 @@ export function LibraryPage() {
     return (
       <div className="flex items-center justify-center h-64">
         <Loader2 size={28} className="animate-spin text-accent" />
+      </div>
+    )
+  }
+
+  if (isError) {
+    return (
+      <div className="space-y-5">
+        <h1>{t('title')}</h1>
+        <div className="rounded-lg p-8 text-center bg-surface border border-border">
+          <h2 className="text-base font-semibold mb-2">{t('load_failed')}</h2>
+          <button
+            onClick={() => refetch()}
+            className="inline-flex items-center gap-2 px-4 py-2 rounded-md text-sm font-medium text-white hover:opacity-90 bg-accent"
+          >
+            <Loader2 size={14} className={isLoading ? 'animate-spin' : 'hidden'} />
+            {t('retry_load')}
+          </button>
+        </div>
       </div>
     )
   }

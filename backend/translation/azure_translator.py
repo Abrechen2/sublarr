@@ -42,13 +42,13 @@ class AzureTranslatorBackend(TranslationBackend):
 
     config_fields = [
         {
-            "name": "api_key",
+            "key": "api_key",
             "type": "password",
             "label": "Subscription Key",
             "required": True,
         },
         {
-            "name": "region",
+            "key": "region",
             "type": "text",
             "label": "Region",
             "required": False,

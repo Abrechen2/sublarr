@@ -7,7 +7,7 @@ import { FormLayout } from '@/components/settings/layouts'
 import type { FormSectionDef } from '@/components/settings/layouts'
 import { useConfig, useUpdateConfig } from '@/hooks/useApi'
 import { strVal } from '@/lib/configUtils'
-import { settingsInputStyle, LANGUAGE_OPTIONS } from '@/styles/settingsShared'
+import { settingsInputStyle, INTERFACE_LANGUAGE_OPTIONS } from '@/styles/settingsShared'
 
 // Reference migration for Settings Template B (FormLayout). This is the
 // first page converted onto the new scaffold — it defines the
@@ -37,7 +37,7 @@ const SECTIONS: readonly FormSectionDef[] = [
 export function GeneralSettings() {
   const { data: config, isLoading } = useConfig()
   const { mutate: updateConfig, isPending } = useUpdateConfig()
-  const { t } = useTranslation('settings')
+  const { t, i18n } = useTranslation('settings')
 
   const librarySorts = [
     { value: 'alpha', label: t('general_page.sort_alpha') },
@@ -103,10 +103,15 @@ export function GeneralSettings() {
                   data-testid="select-interface-language"
                   style={inputStyle}
                   value={strVal(config, 'interface_language', 'en')}
-                  onChange={(e) => save({ interface_language: e.target.value })}
+                  onChange={(e) => {
+                    save({ interface_language: e.target.value })
+                    // Apply immediately so the stored setting and the rendered
+                    // language can never drift apart.
+                    i18n.changeLanguage(e.target.value)
+                  }}
                   disabled={isPending}
                 >
-                  {LANGUAGE_OPTIONS.map((o) => (
+                  {INTERFACE_LANGUAGE_OPTIONS.map((o) => (
                     <option key={o.value} value={o.value}>
                       {o.label}
                     </option>

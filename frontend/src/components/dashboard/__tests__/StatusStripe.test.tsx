@@ -7,6 +7,8 @@ vi.mock('@/hooks/useWantedApi', () => ({
   useScannerStatus: vi.fn(() => ({ data: { is_scanning: false, is_searching: false, last_scan_at: '2026-04-05T10:00:00Z', last_search_at: null } })),
   useWantedSummary: vi.fn(() => ({ data: { total: 3 } })),
   useRefreshWanted: vi.fn(() => ({ mutate: mockMutate, isPending: false })),
+  useWantedBatchStatus: vi.fn(() => ({ data: { running: false } })),
+  useWantedBatchProbeStatus: vi.fn(() => ({ data: { running: false } })),
 }))
 vi.mock('@/hooks/useSystemApi', () => ({
   useStats: vi.fn(() => ({ data: { total_subtitles: 5000, downloads_today: 22, success_rate: 95, average_score: 88.0, low_score_count: 4 } })),
@@ -58,7 +60,7 @@ describe('StatusStripe', () => {
     expect(screen.getByTestId('status-dot').getAttribute('data-state')).toBe('paused')
   })
 
-  it('stays IDLE when only one job is paused (partial pause)', async () => {
+  it('shows PARTIALLY PAUSED when only one job is paused', async () => {
     const { useSchedulerJobs } = await import('@/hooks/useSchedulerJobs')
     ;(useSchedulerJobs as ReturnType<typeof vi.fn>).mockReturnValueOnce({
       data: {
@@ -71,7 +73,8 @@ describe('StatusStripe', () => {
 
     const { StatusStripe } = await import('../StatusStripe')
     render(<StatusStripe />)
-    expect(screen.getByTestId('status-dot').getAttribute('data-state')).toBe('idle')
+    expect(screen.getByTestId('status-label')).toHaveTextContent('statusStripe.partial')
+    expect(screen.getByTestId('status-dot').getAttribute('data-state')).toBe('partial')
   })
 
   it('exposes an aria-live status region for screen readers', async () => {
@@ -85,7 +88,8 @@ describe('StatusStripe', () => {
   it('shows total_subtitles', async () => {
     const { StatusStripe } = await import('../StatusStripe')
     render(<StatusStripe />)
-    expect(screen.getByTestId('status-total')).toHaveTextContent('5000')
+    // formatNumber renders locale thousands separators (e.g. "5,000"/"5.000")
+    expect(screen.getByTestId('status-total')).toHaveTextContent(/5[\s.,]000/)
   })
 
   it('shows success_rate', async () => {

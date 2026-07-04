@@ -149,7 +149,7 @@ def test_gpt4o_model_also_priced():
 
 def test_config_fields_present():
     b = _chatgpt()
-    field_names = {f["name"] if isinstance(f, dict) else f.name for f in b.config_fields}
+    field_names = {f["key"] if isinstance(f, dict) else f.key for f in b.config_fields}
     assert "api_key" in field_names
     assert "model" in field_names
 

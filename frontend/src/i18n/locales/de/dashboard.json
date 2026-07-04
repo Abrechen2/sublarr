@@ -109,11 +109,14 @@
     "active": "AUTOMATION AKTIV",
     "idle": "BEREIT",
     "paused": "PAUSIERT",
+    "partial": "TEILWEISE PAUSIERT",
+    "pausedJobs": "Pausierte Jobs: {{jobs}}",
     "ariaLabel": "Automation-Status: {{state}}, {{lastText}}",
     "lastScan": "Zuletzt",
     "neverScanned": "Noch nie gescannt",
     "subtitles": "Untertitel",
-    "successRate": "Erfolgsrate",
+    "successRate": "Übersetzungs-Erfolg (30 T.)",
+    "successRateTooltip": "Erfolgsrate der Übersetzungs-Jobs der letzten 30 Tage — nicht der Untertitel-Downloads",
     "today": "heute",
     "missing": "fehlend",
     "runNow": "Jetzt starten"
@@ -128,7 +131,7 @@
     "title": "Live Aktivitäts-Feed",
     "viewAll": "Alle ansehen",
     "empty": "Noch keine Aktivität",
-    "moreEvents": "weitere Ereignisse heute"
+    "moreEvents": "weitere Ereignisse"
   },
   "attention": {
     "title": "Benötigt Aufmerksamkeit",
@@ -149,6 +152,7 @@
   },
   "sidebar": {
     "providers": "Provider-Status",
+    "successRateTooltip": "Download-Erfolgsquote (erfolgreiche Downloads / Suchen, gesamt) — sagt nichts über die Erreichbarkeit aus",
     "services": "Services",
     "disk": "Speicher",
     "diskFiles": "Dateien",

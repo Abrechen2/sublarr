@@ -682,9 +682,7 @@ class TestEventFilters:
             resp = client.put(
                 "/api/v1/notifications/filters",
                 json={
-                    "content_filters": [
-                        {"field": "title", "operator": "contains", "value": "test"}
-                    ]
+                    "content_filters": [{"field": "title", "operator": "contains", "value": "test"}]
                 },
             )
         assert resp.status_code == 200

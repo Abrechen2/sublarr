@@ -34,7 +34,8 @@ describe('MetricsRow', () => {
 
   it('renders total subtitles value', () => {
     render(<MetricsRow />)
-    expect(screen.getByTestId('metric-total-value')).toHaveTextContent('12500')
+    // formatNumber renders locale thousands separators (e.g. "12,500"/"12.500")
+    expect(screen.getByTestId('metric-total-value')).toHaveTextContent(/12[\s.,]500/)
   })
 
   it('renders missing count from wantedSummary', () => {
