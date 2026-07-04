@@ -154,6 +154,23 @@
     "history": "Verlauf",
     "back_to_library": "Zurück zur Bibliothek"
   },
+  "sync_compare": {
+    "title": "Sync vergleichen",
+    "running": "Sync-Kandidaten werden berechnet …",
+    "no_output": "Keine Engine hat ein Ergebnis geliefert.",
+    "original": "Original",
+    "synced": "{{engine}} (synchronisiert)",
+    "shift_summary": "{{engine}}: Versatz {{shift}}",
+    "keep_original": "Original behalten",
+    "apply": "{{engine}} anwenden",
+    "applied": "Sync gestartet",
+    "apply_failed": "Sync konnte nicht gestartet werden",
+    "close": "Schließen",
+    "truncated": "Nur die ersten {{shown}} Zeilen werden angezeigt.",
+    "status_unavailable": "nicht installiert",
+    "status_rejected": "verworfen (Versatz unplausibel)",
+    "status_error": "Fehler"
+  },
   "combine_dialog": {
     "title": "Untertitel kombinieren",
     "languages_label": "Sprachen",

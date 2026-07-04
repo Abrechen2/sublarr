@@ -154,6 +154,23 @@
     "history": "History",
     "back_to_library": "Back to Library"
   },
+  "sync_compare": {
+    "title": "Compare sync",
+    "running": "Computing sync candidates …",
+    "no_output": "No engine produced a result.",
+    "original": "Original",
+    "synced": "{{engine}} (synced)",
+    "shift_summary": "{{engine}}: shift {{shift}}",
+    "keep_original": "Keep original",
+    "apply": "Apply {{engine}}",
+    "applied": "Sync started",
+    "apply_failed": "Could not start sync",
+    "close": "Close",
+    "truncated": "Showing the first {{shown}} rows only.",
+    "status_unavailable": "not installed",
+    "status_rejected": "rejected (implausible shift)",
+    "status_error": "error"
+  },
   "combine_dialog": {
     "title": "Combine subtitles",
     "languages_label": "Languages",

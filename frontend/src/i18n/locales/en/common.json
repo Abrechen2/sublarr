@@ -606,6 +606,7 @@
     "adjust_timing": "Adjust timing",
     "auto_sync": "Auto-Sync",
     "video_sync": "Video-Sync",
+    "sync_compare": "Compare Sync",
     "health_check": "Health Check",
     "restore_backup": "Restore backup"
   },

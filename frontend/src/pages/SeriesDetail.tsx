@@ -41,6 +41,7 @@ import { useMutation } from '@tanstack/react-query'
 const SubtitleComparison = lazy(() => import('@/components/comparison/SubtitleComparison').then(m => ({ default: m.SubtitleComparison })))
 const SyncControls = lazy(() => import('@/components/sync/SyncControls').then(m => ({ default: m.SyncControls })))
 const SyncModal = lazy(() => import('@/components/sync/SyncModal').then(m => ({ default: m.SyncModal })))
+const SyncOutputCompareModal = lazy(() => import('@/components/sync/SyncOutputCompareModal').then(m => ({ default: m.SyncOutputCompareModal })))
 const HealthCheckPanel = lazy(() => import('@/components/health/HealthCheckPanel').then(m => ({ default: m.HealthCheckPanel })))
 
 // ─── Main Page ─────────────────────────────────────────────────────────────
@@ -147,6 +148,7 @@ export function SeriesDetailPage() {
 
   // Video sync modal (ffsubsync / alass)
   const [videoSyncEp, setVideoSyncEp] = useState<{ ep: EpisodeInfo; subtitlePath: string } | null>(null)
+  const [syncCompareEp, setSyncCompareEp] = useState<{ ep: EpisodeInfo; subtitlePath: string } | null>(null)
 
   // Health check state
   const [healthCheckPath, setHealthCheckPath] = useState<string | null>(null)
@@ -322,6 +324,10 @@ export function SeriesDetailPage() {
 
   const handleVideoSync = useCallback((ep: EpisodeInfo, subtitlePath: string) => {
     setVideoSyncEp({ ep, subtitlePath })
+  }, [])
+
+  const handleSyncCompare = useCallback((ep: EpisodeInfo, subtitlePath: string) => {
+    setSyncCompareEp({ ep, subtitlePath })
   }, [])
 
   const handleHealthCheck = useCallback((filePath: string) => {
@@ -730,6 +736,7 @@ export function SeriesDetailPage() {
             onSync={handleSync}
             onAutoSync={handleAutoSync}
             onVideoSync={handleVideoSync}
+            onSyncCompare={handleSyncCompare}
             onHealthCheck={handleHealthCheck}
             healthScores={healthScores}
             onOpenEditor={(path) => { setEditorFilePath(path); setEditorMode('edit') }}
@@ -947,6 +954,21 @@ export function SeriesDetailPage() {
             onComplete={() => {
               toast(t('series_detail.video_sync_done'))
               setVideoSyncEp(null)
+            }}
+          />
+        </Suspense>
+      )}
+
+      {/* Sync Compare Modal (non-destructive preview) */}
+      {syncCompareEp && (
+        <Suspense fallback={null}>
+          <SyncOutputCompareModal
+            subtitlePath={syncCompareEp.subtitlePath}
+            videoPath={syncCompareEp.ep.file_path}
+            onClose={() => setSyncCompareEp(null)}
+            onApplied={() => {
+              setSyncCompareEp(null)
+              void queryClient.invalidateQueries({ queryKey: ['series-subtitles', seriesId] })
             }}
           />
         </Suspense>

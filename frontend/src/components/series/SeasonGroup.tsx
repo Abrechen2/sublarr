@@ -82,6 +82,7 @@ export interface SeasonGroupProps {
   readonly onSync: (filePath: string) => void
   readonly onAutoSync: (subtitlePath: string, videoPath: string) => void
   readonly onVideoSync: (ep: EpisodeInfo, subtitlePath: string) => void
+  readonly onSyncCompare: (ep: EpisodeInfo, subtitlePath: string) => void
   readonly onHealthCheck: (filePath: string) => void
   readonly healthScores: Record<string, number | null>
   readonly onOpenEditor: (filePath: string) => void
@@ -105,7 +106,7 @@ export function SeasonGroup({
   isExtracting, onExtract, expandedEp,
   onSearch, onInteractiveSearch, onHistory: _onHistory, onTracks: _onTracks, onClose,
   searchResults, searchLoading, historyEntries, historyLoading,
-  onProcess, onPreviewSub, onEditSub, onCompare, onCombine, onSync, onAutoSync, onVideoSync,
+  onProcess, onPreviewSub, onEditSub, onCompare, onCombine, onSync, onAutoSync, onVideoSync, onSyncCompare,
   onHealthCheck, healthScores, onOpenEditor, sidecarMap, onDeleteSidecar,
   onOpenCleanupModal, onPreview, streamingEnabled, onRefreshSidecars, t,
   episodeWantedMap: _episodeWantedMap, onSkipEpisode, onAcceptEpisode,
@@ -326,6 +327,7 @@ export function SeasonGroup({
                                       onSync={onSync}
                                       onAutoSync={(p) => onAutoSync(p, ep.file_path)}
                                       onVideoSync={(p) => onVideoSync(ep, p)}
+                                      onSyncCompare={(p) => onSyncCompare(ep, p)}
                                       onHealthCheck={onHealthCheck}
                                     />
                                   </>
@@ -411,6 +413,7 @@ export function SeasonGroup({
                                   subtitlePath={s.path}
                                   onRefresh={onRefreshSidecars}
                                   onEdit={s.combined ? (p) => onEditSub(p, ep.file_path) : undefined}
+                                  onSyncCompare={(p) => onSyncCompare(ep, p)}
                                 />
                               </span>
                             ))

@@ -105,6 +105,7 @@ const baseProps = {
   onCompare: vi.fn(),
   onCombine: vi.fn(),
   onSync: vi.fn(),
+  onSyncCompare: vi.fn(),
   onAutoSync: vi.fn(),
   onVideoSync: vi.fn(),
   onHealthCheck: vi.fn(),
