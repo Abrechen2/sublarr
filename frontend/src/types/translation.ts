@@ -19,7 +19,7 @@ export interface TranslationBackendInfo {
 export interface BackendConfigField {
   key: string
   label: string
-  type: 'text' | 'password' | 'number'
+  type: 'text' | 'password' | 'number' | 'checkbox' | 'textarea'
   required: boolean
   default: string
   help?: string
