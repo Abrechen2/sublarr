@@ -35,7 +35,7 @@ def test_translate_missing_generates_then_combines(temp_dir, monkeypatch, app_ct
     Path(video).touch()
     _write_sidecar(temp_dir, "ep", "en", "Hello world")  # DE missing
 
-    monkeypatch.setattr("routes.translate._helpers._is_translation_enabled", lambda: True)
+    monkeypatch.setattr("services.combine_service._translation_enabled", lambda: True)
 
     def fake_translate_file(mkv_path, target_language=None, target_language_name=None, **kw):
         # Simulate the translation stack producing the missing DE sidecar.
@@ -65,7 +65,7 @@ def test_translate_missing_disabled_raises_422(temp_dir, monkeypatch, app_ctx):
     Path(video).touch()
     _write_sidecar(temp_dir, "ep2", "en", "Hello")
 
-    monkeypatch.setattr("routes.translate._helpers._is_translation_enabled", lambda: False)
+    monkeypatch.setattr("services.combine_service._translation_enabled", lambda: False)
 
     with pytest.raises(CombineError) as exc:
         combine_service.combine_for_video(
@@ -82,7 +82,7 @@ def test_translate_missing_failure_leaves_no_artifact(temp_dir, monkeypatch, app
     Path(video).touch()
     _write_sidecar(temp_dir, "ep3", "en", "Hello")
 
-    monkeypatch.setattr("routes.translate._helpers._is_translation_enabled", lambda: True)
+    monkeypatch.setattr("services.combine_service._translation_enabled", lambda: True)
     monkeypatch.setattr(
         "translator.translate_file",
         lambda *a, **k: {"success": False, "error": "quality gate failed"},
