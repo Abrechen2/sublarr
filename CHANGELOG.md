@@ -5,6 +5,17 @@ All notable changes to Sublarr are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.6.0-rc.11] - 2026-07-05
+
+- **Fixed** a standalone series' detail page showing "no episodes" for a series
+  that already has all its subtitles. The episode list was built from the
+  transient `wanted_items` table (which only holds episodes still missing a
+  subtitle and churns on every rescan), so a fully-satisfied series rendered
+  empty. The detail now enumerates the series folder on disk for its episode
+  list and uses `wanted_items` only to enrich per-episode status; it falls back
+  to the previous behaviour when the folder is unreachable. Standalone-only —
+  Sonarr-managed libraries are unaffected.
+
 ## [1.6.0-rc.10] - 2026-07-05
 
 - **Fixed** a standalone-scan database race that could leave a series' episode
