@@ -17,6 +17,7 @@ from translator._helpers import (  # noqa: F401 — re-exported for patches
     _skip_result,
     _submit_whisper_job,
     check_disk_space,
+    find_any_source_sub,
     find_external_source_sub,
 )
 from translator.ass_flow import (  # noqa: F401 — re-exported for patches
@@ -47,6 +48,12 @@ from translator.srt_flow import (  # noqa: F401 — re-exported for patches
 
 logger = logging.getLogger(__name__)
 
+# Bounded fallback source languages for provider search when the preferred
+# source isn't available. Common subtitle source languages, ordered by how
+# often they carry a translatable original. The target language is always
+# excluded at the call site.
+_FALLBACK_SOURCE_LANGUAGES = ("en", "ja", "zh", "ko", "es", "fr", "de", "pt", "it", "ru")
+
 
 def _pkg():
     """Return the translator package module (for patchable symbol lookup).
@@ -72,7 +79,12 @@ def _pkg():
 
 
 def translate_file(
-    mkv_path, force=False, arr_context=None, target_language=None, target_language_name=None
+    mkv_path,
+    force=False,
+    arr_context=None,
+    target_language=None,
+    target_language_name=None,
+    source_language=None,
 ):
     """Translate subtitles for a single MKV file.
 
@@ -104,9 +116,16 @@ def translate_file(
     _get_media_streams = _pkg().get_media_streams
     _select_best_subtitle_stream = _pkg().select_best_subtitle_stream
 
+    from config_language_data import normalize_language_code
+
     settings = _get_settings()
     tgt_lang = target_language or settings.target_language
     tgt_name = target_language_name or settings.target_language_name
+    # Preferred source language (translation direction). Falls back to the
+    # configured global source; callers (e.g. wanted_search) may pass the
+    # profile's source_language. When the actual available source is in a
+    # different language, that real language is used instead of this preference.
+    pref_source = source_language or settings.source_language
 
     if not os.path.exists(mkv_path):
         raise FileNotFoundError(f"File not found: {mkv_path}")
@@ -167,8 +186,13 @@ def translate_file(
 
     # C1: Source ASS embedded → .{lang}.ass
     best_stream = _select_best_subtitle_stream(probe_data)
+    emb_src = (
+        (normalize_language_code(best_stream.get("language") or "") or pref_source)
+        if best_stream
+        else pref_source
+    )
     if best_stream and best_stream["format"] == "ass":
-        logger.info("Case C1: Translating source ASS to target ASS")
+        logger.info("Case C1: Translating source ASS (%s) to target ASS", emb_src)
         result = translate_ass(
             mkv_path,
             best_stream,
@@ -176,6 +200,7 @@ def translate_file(
             target_language=tgt_lang,
             target_language_name=tgt_name,
             arr_context=arr_context,
+            source_language=emb_src,
         )
         if result["success"]:
             _record_config_hash_for_result(result, mkv_path)
@@ -184,29 +209,59 @@ def translate_file(
 
     # C2: Source SRT embedded → .{lang}.srt
     if best_stream and best_stream["format"] == "srt":
-        logger.info("Case C2: Translating embedded source SRT to target SRT")
+        logger.info("Case C2: Translating embedded source SRT (%s) to target SRT", emb_src)
         result = translate_srt_from_stream(
-            mkv_path, best_stream, target_language=tgt_lang, arr_context=arr_context
+            mkv_path,
+            best_stream,
+            target_language=tgt_lang,
+            arr_context=arr_context,
+            source_language=emb_src,
         )
         if result["success"]:
             _record_config_hash_for_result(result, mkv_path)
             _notify_integrations(arr_context, file_path=mkv_path)
         return result
 
-    # C2b: External source SRT → .{lang}.srt
-    ext_srt = find_external_source_sub(mkv_path)
-    if ext_srt:
-        logger.info("Case C2b: Translating external source SRT to target SRT")
-        result = translate_srt_from_file(
-            mkv_path, ext_srt, target_language=tgt_lang, arr_context=arr_context
-        )
-        if result["success"]:
+    # C2b: External source sidecar (any available language) → translate
+    ext_src, ext_lang = find_any_source_sub(
+        mkv_path, target_language=tgt_lang, preferred_language=pref_source
+    )
+    if ext_src:
+        if ext_src.lower().endswith(".ass"):
+            logger.info("Case C2b: Translating external source ASS (%s) to target ASS", ext_lang)
+            result = _translate_external_ass(
+                mkv_path,
+                ext_src,
+                target_language=tgt_lang,
+                target_language_name=tgt_name,
+                arr_context=arr_context,
+                source_language=ext_lang,
+            )
+        else:
+            logger.info("Case C2b: Translating external source SRT (%s) to target SRT", ext_lang)
+            result = translate_srt_from_file(
+                mkv_path,
+                ext_src,
+                target_language=tgt_lang,
+                arr_context=arr_context,
+                source_language=ext_lang,
+            )
+        if result and result["success"]:
             _record_config_hash_for_result(result, mkv_path)
             _notify_integrations(arr_context, file_path=mkv_path)
         return result
 
-    # C3: Provider search for source subtitle → translate
-    src_path, src_fmt, src_score = _search_providers_for_source_sub(mkv_path, arr_context)
+    # C3: Provider search for a source subtitle (any language) → translate.
+    # Try the preferred source first, then a bounded fallback set so a provider
+    # can supply a source in whatever language it has — never the target.
+    src_lang_candidates = [
+        lang
+        for lang in [pref_source, *_FALLBACK_SOURCE_LANGUAGES]
+        if lang and lang != tgt_lang
+    ]
+    src_path, src_fmt, src_score, src_lang = _search_providers_for_source_sub(
+        mkv_path, arr_context, source_languages=src_lang_candidates
+    )
 
     # C3 Whisper-fallback threshold check:
     _min_score = _get_whisper_fallback_min_score()
@@ -223,7 +278,9 @@ def translate_file(
     if src_path:
         if src_fmt == "ass":
             logger.info(
-                "Case C3: Translating provider source ASS to target ASS (score=%d)", src_score
+                "Case C3: Translating provider source ASS (%s) to target ASS (score=%d)",
+                src_lang,
+                src_score,
             )
             result = _translate_external_ass(
                 mkv_path,
@@ -231,10 +288,13 @@ def translate_file(
                 target_language=tgt_lang,
                 target_language_name=tgt_name,
                 arr_context=arr_context,
+                source_language=src_lang,
             )
         else:
             logger.info(
-                "Case C3: Translating provider source SRT to target SRT (score=%d)", src_score
+                "Case C3: Translating provider source SRT (%s) to target SRT (score=%d)",
+                src_lang,
+                src_score,
             )
             result = translate_srt_from_file(
                 mkv_path,
@@ -242,6 +302,7 @@ def translate_file(
                 source="provider_source_srt",
                 target_language=tgt_lang,
                 arr_context=arr_context,
+                source_language=src_lang,
             )
         if result and result["success"]:
             _record_config_hash_for_result(result, mkv_path)
@@ -272,7 +333,7 @@ def translate_file(
             "Case D: Whisper transcription not available or failed to submit for %s", mkv_path
         )
 
-    return _fail_result(f"No {settings.source_language_name} subtitle source found")
+    return _fail_result("No source subtitle found to translate from")
 
 
 class Translator:

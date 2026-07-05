@@ -22,8 +22,15 @@ import pysubs2
 logger = logging.getLogger(__name__)
 
 
-def translate_srt_from_stream(mkv_path, stream_info, target_language=None, arr_context=None):
-    """Translate an embedded SRT subtitle stream to target language .{lang}.srt."""
+def translate_srt_from_stream(
+    mkv_path, stream_info, target_language=None, arr_context=None, source_language=None
+):
+    """Translate an embedded SRT subtitle stream to target language .{lang}.srt.
+
+    ``source_language`` overrides the assumed source language (translation
+    direction) — pass the stream's actual language so a non-English embedded
+    sub is translated from its real language, not from the configured default.
+    """
     import translator.core as _core
 
     output_path = _core.get_output_path_for_lang(mkv_path, "srt", target_language)
@@ -43,6 +50,7 @@ def translate_srt_from_stream(mkv_path, stream_info, target_language=None, arr_c
             source="embedded_srt",
             target_language=target_language,
             arr_context=arr_context,
+            source_language=source_language,
         )
     except Exception as e:
         logger.exception("SRT stream translation failed for %s", mkv_path)
@@ -53,25 +61,51 @@ def translate_srt_from_stream(mkv_path, stream_info, target_language=None, arr_c
 
 
 def translate_srt_from_file(
-    mkv_path, srt_path, source="external_srt", target_language=None, arr_context=None
+    mkv_path,
+    srt_path,
+    source="external_srt",
+    target_language=None,
+    arr_context=None,
+    source_language=None,
 ):
-    """Translate an external SRT file to target language .{lang}.srt."""
+    """Translate an external SRT file to target language .{lang}.srt.
+
+    ``source_language`` overrides the assumed source language so a non-English
+    source sidecar/provider sub is translated from its actual language.
+    """
     import translator.core as _core
 
     output_path = _core.get_output_path_for_lang(mkv_path, "srt", target_language)
     _core.check_disk_space(output_path)
 
     try:
-        return _core._translate_srt(srt_path, output_path, source=source, arr_context=arr_context)
+        return _core._translate_srt(
+            srt_path,
+            output_path,
+            source=source,
+            target_language=target_language,
+            arr_context=arr_context,
+            source_language=source_language,
+        )
     except Exception as e:
         logger.exception("SRT file translation failed for %s", mkv_path)
         return _core._fail_result(str(e))
 
 
-def _translate_srt(srt_path, output_path, source="srt", target_language=None, arr_context=None):
+def _translate_srt(
+    srt_path,
+    output_path,
+    source="srt",
+    target_language=None,
+    arr_context=None,
+    source_language=None,
+):
     """Internal: translate an SRT file.
 
     SRT is simpler than ASS: no styles to classify, no override tags.
+
+    ``source_language`` overrides the translation-direction source language
+    (defaults to the configured ``settings.source_language``).
     """
     import translator.core as _core
 
@@ -113,7 +147,7 @@ def _translate_srt(srt_path, output_path, source="srt", target_language=None, ar
     _tw_manager = _core._pkg()._translate_with_manager
     translated_texts, translation_result = _tw_manager(
         dialog_texts,
-        source_lang=settings.source_language,
+        source_lang=(source_language or settings.source_language),
         target_lang=tgt_lang,
         arr_context=arr_context,
         series_id=series_id,

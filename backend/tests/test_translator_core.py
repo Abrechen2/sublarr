@@ -423,7 +423,7 @@ class TestTranslateFile:
             translate_file("/nonexistent/video.mkv")
 
     @patch("translator.core.find_external_source_sub", return_value=None)
-    @patch("translator.core._search_providers_for_source_sub", return_value=(None, None, 0))
+    @patch("translator.core._search_providers_for_source_sub", return_value=(None, None, 0, None))
     @patch("translator.core._search_providers_for_target_ass", return_value=None)
     @patch("translator.core._is_whisper_enabled", return_value=False)
     @patch("translator.core._get_whisper_fallback_min_score", return_value=0)
@@ -454,7 +454,7 @@ class TestTranslateFile:
         assert "already exists" in result["stats"]["reason"]
 
     @patch("translator.core.find_external_source_sub", return_value=None)
-    @patch("translator.core._search_providers_for_source_sub", return_value=(None, None, 0))
+    @patch("translator.core._search_providers_for_source_sub", return_value=(None, None, 0, None))
     @patch("translator.core._search_providers_for_target_ass", return_value=None)
     @patch("translator.core._is_whisper_enabled", return_value=False)
     @patch("translator.core._get_whisper_fallback_min_score", return_value=0)
@@ -487,7 +487,7 @@ class TestTranslateFile:
         assert "no ass upgrade" in result["stats"]["reason"].lower()
 
     @patch("translator.core.find_external_source_sub", return_value=None)
-    @patch("translator.core._search_providers_for_source_sub", return_value=(None, None, 0))
+    @patch("translator.core._search_providers_for_source_sub", return_value=(None, None, 0, None))
     @patch("translator.core._search_providers_for_target_ass", return_value=None)
     @patch("translator.core._is_whisper_enabled", return_value=False)
     @patch("translator.core._get_whisper_fallback_min_score", return_value=0)
@@ -522,7 +522,7 @@ class TestTranslateFile:
     @patch("translator.jobs._record_config_hash_for_result")
     @patch("translator.core.translate_ass")
     @patch("translator.core.find_external_source_sub", return_value=None)
-    @patch("translator.core._search_providers_for_source_sub", return_value=(None, None, 0))
+    @patch("translator.core._search_providers_for_source_sub", return_value=(None, None, 0, None))
     @patch("translator.core._search_providers_for_target_ass", return_value=None)
     @patch("translator.core._is_whisper_enabled", return_value=False)
     @patch("translator.core._get_whisper_fallback_min_score", return_value=0)
@@ -564,7 +564,7 @@ class TestTranslateFile:
     @patch("translator.jobs._record_config_hash_for_result")
     @patch("translator.core.translate_srt_from_stream")
     @patch("translator.core.find_external_source_sub", return_value=None)
-    @patch("translator.core._search_providers_for_source_sub", return_value=(None, None, 0))
+    @patch("translator.core._search_providers_for_source_sub", return_value=(None, None, 0, None))
     @patch("translator.core._search_providers_for_target_ass", return_value=None)
     @patch("translator.core._is_whisper_enabled", return_value=False)
     @patch("translator.core._get_whisper_fallback_min_score", return_value=0)
@@ -602,7 +602,7 @@ class TestTranslateFile:
 
     @patch("translator.core._submit_whisper_job")
     @patch("translator.core.find_external_source_sub", return_value=None)
-    @patch("translator.core._search_providers_for_source_sub", return_value=(None, None, 0))
+    @patch("translator.core._search_providers_for_source_sub", return_value=(None, None, 0, None))
     @patch("translator.core._search_providers_for_target_ass", return_value=None)
     @patch("translator.core._is_whisper_enabled", return_value=True)
     @patch("translator.core._get_whisper_fallback_min_score", return_value=0)
@@ -641,7 +641,7 @@ class TestTranslateFile:
         mock_submit.assert_called_once()
 
     @patch("translator.core.find_external_source_sub", return_value=None)
-    @patch("translator.core._search_providers_for_source_sub", return_value=(None, None, 0))
+    @patch("translator.core._search_providers_for_source_sub", return_value=(None, None, 0, None))
     @patch("translator.core._search_providers_for_target_ass", return_value=None)
     @patch("translator.core._is_whisper_enabled", return_value=False)
     @patch("translator.core._get_whisper_fallback_min_score", return_value=0)

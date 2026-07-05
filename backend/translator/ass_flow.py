@@ -33,6 +33,7 @@ def translate_ass(
     target_language=None,
     target_language_name=None,
     arr_context=None,
+    source_language=None,
 ):
     """Translate an ASS subtitle stream to target language .{lang}.ass."""
     # Call-time import so test patches on translator.core.* take effect.
@@ -102,7 +103,7 @@ def translate_ass(
         _tw_manager = _core._pkg()._translate_with_manager
         translated_texts, translation_result = _tw_manager(
             dialog_texts,
-            source_lang=settings.source_language,
+            source_lang=(source_language or settings.source_language),
             target_lang=tgt_lang,
             arr_context=arr_context,
             series_id=series_id,
@@ -211,9 +212,18 @@ def translate_ass(
 
 
 def _translate_external_ass(
-    mkv_path, ass_path, target_language=None, target_language_name=None, arr_context=None
+    mkv_path,
+    ass_path,
+    target_language=None,
+    target_language_name=None,
+    arr_context=None,
+    source_language=None,
 ):
-    """Translate a downloaded external ASS file to target language."""
+    """Translate a downloaded external ASS file to target language.
+
+    ``source_language`` overrides the translation-direction source language so
+    a non-English provider/source ASS is translated from its actual language.
+    """
     # Call-time import so test patches on translator.core.* take effect.
     import translator.core as _core
 
@@ -265,7 +275,7 @@ def _translate_external_ass(
         _tw_manager = _core._pkg()._translate_with_manager
         translated_texts, translation_result = _tw_manager(
             dialog_texts,
-            source_lang=settings.source_language,
+            source_lang=(source_language or settings.source_language),
             target_lang=tgt_lang,
             arr_context=arr_context,
             series_id=series_id,
@@ -282,7 +292,7 @@ def _translate_external_ass(
                 logger.info("Retrying translation (attempt %d/2)...", retry + 1)
                 translated_texts, translation_result = _tw_manager(
                     dialog_texts,
-                    source_lang=settings.source_language,
+                    source_lang=(source_language or settings.source_language),
                     target_lang=tgt_lang,
                     arr_context=arr_context,
                     series_id=series_id,
