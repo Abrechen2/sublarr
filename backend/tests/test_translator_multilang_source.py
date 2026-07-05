@@ -53,9 +53,9 @@ def test_find_any_source_sub_prefers_preferred_language(tmp_path):
 
     settings = MagicMock(target_language="de", source_language="en")
     with patch("translator._helpers.get_settings", return_value=settings):
-        path, lang = find_any_source_sub(mkv, preferred_language="en")
+        path, lang = find_any_source_sub(mkv, preferred_languages=["en", "ja"])
 
-    assert lang == "en"
+    assert lang == "en"  # preference order wins even though ja is also present
     assert path.endswith(".en.srt")
 
 
@@ -71,6 +71,24 @@ def test_find_any_source_sub_none_when_only_target_or_modifier(tmp_path):
     settings = MagicMock(target_language="de", source_language="en")
     with patch("translator._helpers.get_settings", return_value=settings):
         path, lang = find_any_source_sub(mkv)
+
+    assert path is None
+    assert lang is None
+
+
+def test_find_any_source_sub_strict_rejects_other_languages(tmp_path):
+    """allow_other=False (strict single-source): a non-preferred language is not
+    accepted even when it's the only source present."""
+    from translator._helpers import find_any_source_sub
+
+    base = str(tmp_path / "M [imdb-tt2]")
+    mkv = base + ".mkv"
+    _touch(mkv)
+    _touch(base + ".ja.srt")  # only Japanese; preferred is en
+
+    settings = MagicMock(target_language="de", source_language="en")
+    with patch("translator._helpers.get_settings", return_value=settings):
+        path, lang = find_any_source_sub(mkv, preferred_languages=["en"], allow_other=False)
 
     assert path is None
     assert lang is None

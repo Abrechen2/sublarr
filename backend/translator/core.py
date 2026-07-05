@@ -126,6 +126,18 @@ def translate_file(
     # profile's source_language. When the actual available source is in a
     # different language, that real language is used instead of this preference.
     pref_source = source_language or settings.source_language
+    # Multi-language source configuration (all UI/API-configurable).
+    any_source = getattr(settings, "auto_translate_any_source", True)
+    provider_multilang = getattr(settings, "auto_translate_provider_multilang", True)
+    candidate_langs = list(
+        getattr(settings, "auto_translate_source_languages", _FALLBACK_SOURCE_LANGUAGES)
+    )
+    # Ordered source preference: profile/global source first, then the configured
+    # candidates, minus the target, de-duplicated.
+    source_pref: list[str] = []
+    for _lang in [pref_source, *candidate_langs]:
+        if _lang and _lang != tgt_lang and _lang not in source_pref:
+            source_pref.append(_lang)
 
     if not os.path.exists(mkv_path):
         raise FileNotFoundError(f"File not found: {mkv_path}")
@@ -186,12 +198,13 @@ def translate_file(
 
     # C1: Source ASS embedded → .{lang}.ass
     best_stream = _select_best_subtitle_stream(probe_data)
-    emb_src = (
-        (normalize_language_code(best_stream.get("language") or "") or pref_source)
-        if best_stream
-        else pref_source
-    )
-    if best_stream and best_stream["format"] == "ass":
+    emb_lang = normalize_language_code(best_stream.get("language") or "") if best_stream else ""
+    emb_src = emb_lang or pref_source  # translation direction
+    # In strict single-source mode, only use an embedded stream that IS the
+    # preferred source (or has no language tag); in any-source mode accept it
+    # in whatever language it is.
+    emb_ok = best_stream is not None and (any_source or not emb_lang or emb_lang == pref_source)
+    if best_stream and best_stream["format"] == "ass" and emb_ok:
         logger.info("Case C1: Translating source ASS (%s) to target ASS", emb_src)
         result = translate_ass(
             mkv_path,
@@ -208,7 +221,7 @@ def translate_file(
         return result
 
     # C2: Source SRT embedded → .{lang}.srt
-    if best_stream and best_stream["format"] == "srt":
+    if best_stream and best_stream["format"] == "srt" and emb_ok:
         logger.info("Case C2: Translating embedded source SRT (%s) to target SRT", emb_src)
         result = translate_srt_from_stream(
             mkv_path,
@@ -222,9 +235,13 @@ def translate_file(
             _notify_integrations(arr_context, file_path=mkv_path)
         return result
 
-    # C2b: External source sidecar (any available language) → translate
+    # C2b: External source sidecar → translate. Prefer the configured order; in
+    # strict mode only the preferred source language is accepted.
     ext_src, ext_lang = find_any_source_sub(
-        mkv_path, target_language=tgt_lang, preferred_language=pref_source
+        mkv_path,
+        target_language=tgt_lang,
+        preferred_languages=source_pref,
+        allow_other=any_source,
     )
     if ext_src:
         if ext_src.lower().endswith(".ass"):
@@ -251,12 +268,10 @@ def translate_file(
             _notify_integrations(arr_context, file_path=mkv_path)
         return result
 
-    # C3: Provider search for a source subtitle (any language) → translate.
-    # Try the preferred source first, then a bounded fallback set so a provider
-    # can supply a source in whatever language it has — never the target.
-    src_lang_candidates = [
-        lang for lang in [pref_source, *_FALLBACK_SOURCE_LANGUAGES] if lang and lang != tgt_lang
-    ]
+    # C3: Provider search for a source subtitle → translate. When multi-language
+    # provider search is enabled, try the full configured preference order;
+    # otherwise only the preferred source language.
+    src_lang_candidates = source_pref if (any_source and provider_multilang) else [pref_source]
     src_path, src_fmt, src_score, src_lang = _search_providers_for_source_sub(
         mkv_path, arr_context, source_languages=src_lang_candidates
     )

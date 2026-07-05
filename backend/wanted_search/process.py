@@ -749,8 +749,21 @@ def _fallback_translate_file(ctx: dict) -> dict:
         arr_context = _build_arr_context(item)
         job = create_job(file_path, force=False, arr_context=arr_context if arr_context else None)
         update_job(job["id"], "running")
+        # Prefer the item's profile source language (per-profile translation
+        # direction); translate_file falls back to the global source when None.
+        profile_source = None
+        try:
+            from services.mt_provisional import _resolve_profile_for_item
+
+            prof = _resolve_profile_for_item(item)
+            profile_source = (prof or {}).get("source_language") or None
+        except Exception:  # pragma: no cover - defensive
+            profile_source = None
         translate_result = translate_file(
-            file_path, target_language=item_lang, arr_context=arr_context if arr_context else None
+            file_path,
+            target_language=item_lang,
+            arr_context=arr_context if arr_context else None,
+            source_language=profile_source,
         )
 
         if translate_result["success"]:

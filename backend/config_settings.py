@@ -141,6 +141,27 @@ class UISettings(BaseModel):
     target_language: str = "de"
     source_language_name: str = "English"
     target_language_name: str = "German"
+    # Multi-language auto-translate source. When on, the missing target is
+    # translated FROM whatever source subtitle actually exists (any language),
+    # preferring the profile/global source; otherwise only the preferred source
+    # language is used. ``auto_translate_provider_multilang`` additionally lets
+    # the provider search try several source languages, and
+    # ``auto_translate_source_languages`` is the ordered candidate/preference
+    # list used for that search and for choosing among available local sources.
+    auto_translate_any_source: bool = True
+    auto_translate_provider_multilang: bool = True
+    auto_translate_source_languages: list[str] = [
+        "en",
+        "ja",
+        "zh",
+        "ko",
+        "es",
+        "fr",
+        "de",
+        "pt",
+        "it",
+        "ru",
+    ]
     prompt_template: str = ""  # Empty = auto-generated from languages
     # Global default translation backend + optional single fallback. A language
     # profile with an empty translation_backend inherits these. Declared here as

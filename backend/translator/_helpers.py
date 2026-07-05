@@ -309,16 +309,17 @@ def find_external_source_sub(mkv_path):
     return None
 
 
-def find_any_source_sub(mkv_path, target_language=None, preferred_language=None):
-    """Find an external subtitle in ANY language (except the target) to translate FROM.
+def find_any_source_sub(mkv_path, target_language=None, preferred_languages=None, allow_other=True):
+    """Find an external subtitle to translate FROM.
 
     Unlike ``find_external_source_sub`` (which only matches the configured source
     language), this enables translating the missing target FROM whatever source
-    sub actually exists. Prefers ``preferred_language`` (the profile/global source
-    language) when present, otherwise picks any other available non-target
-    language deterministically. Only recognised language tags count — a
-    modifier-only sidecar (``.forced.srt``, ``.sdh.srt``) without a language
-    token is ignored.
+    sub actually exists. ``preferred_languages`` is an ordered preference list —
+    a sidecar in one of those languages wins (earliest preference first). When
+    ``allow_other`` is True (multi-language source), any other recognised
+    non-target language is accepted as a fallback; when False (strict
+    single-source), only ``preferred_languages`` are used. Modifier-only
+    sidecars (``.forced.srt``, ``.sdh.srt``) without a language token are ignored.
 
     Returns ``(path, source_language)`` or ``(None, None)``.
     """
@@ -328,10 +329,12 @@ def find_any_source_sub(mkv_path, target_language=None, preferred_language=None)
 
     settings = get_settings()
     target = normalize_language_code(target_language or settings.target_language)
-    preferred = normalize_language_code(preferred_language or settings.source_language or "")
+    prefs = [normalize_language_code(lang) for lang in (preferred_languages or []) if lang]
+    if not prefs:
+        prefs = [normalize_language_code(settings.source_language or "")]
     base = os.path.splitext(mkv_path)[0]
 
-    candidates: list[tuple[str, str]] = []  # (lang, path)
+    found: dict[str, str] = {}  # lang -> path (first match wins)
     for fmt in ("ass", "srt"):
         # Escape the base so filename brackets (e.g. "[imdb-tt…]") aren't parsed
         # as glob character classes; the ".*.<fmt>" tail stays a real glob.
@@ -343,18 +346,21 @@ def find_any_source_sub(mkv_path, target_language=None, preferred_language=None)
             lang = _REVERSE_LANGUAGE_TAGS[tag]
             if lang == target:
                 continue
-            candidates.append((lang, path))
+            found.setdefault(lang, path)
 
-    if not candidates:
+    if not found:
         return None, None
-    for lang, path in candidates:
-        if lang == preferred:
-            logger.info("Found preferred-language source subtitle (%s): %s", lang, path)
-            return path, lang
-    candidates.sort(key=lambda c: (c[0], c[1]))
-    lang, path = candidates[0]
-    logger.info("Found fallback-language source subtitle (%s): %s", lang, path)
-    return path, lang
+    # Honour the configured preference order first.
+    for lang in prefs:
+        if lang in found:
+            logger.info("Found preferred source subtitle (%s): %s", lang, found[lang])
+            return found[lang], lang
+    if not allow_other:
+        return None, None
+    # Any other recognised non-target language, deterministically.
+    lang = sorted(found)[0]
+    logger.info("Found fallback source subtitle (%s): %s", lang, found[lang])
+    return found[lang], lang
 
 
 def _skip_result(reason, output_path=None):

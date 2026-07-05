@@ -79,6 +79,10 @@ export const FIELDS: FieldConfig[] = [
     advanced: true },
   { key: 'hi_removal_enabled', label: 'Remove Hearing Impaired Tags', type: 'toggle', tab: 'Translation',
     description: 'Entfernt [Geräuschbeschreibungen] und (Sprechertags) aus Untertiteln.' },
+  { key: 'auto_translate_any_source', label: 'Translate From Any Source Language', type: 'toggle', tab: 'Translation',
+    description: 'Übersetzt die fehlende Zielsprache aus JEDER vorhandenen Quell-Sprache (bevorzugt die Profil-/Standard-Quelle). Aus: es wird nur die bevorzugte Quellsprache genutzt.' },
+  { key: 'auto_translate_provider_multilang', label: 'Provider Multi-Language Source Search', type: 'toggle', tab: 'Translation',
+    description: 'Sucht bei Providern nach Quell-Untertiteln in mehreren Sprachen (mehr Treffer, mehr API-Verbrauch). Nur wirksam, wenn „aus beliebiger Quelle" aktiv ist.' },
   { key: 'hi_preference', label: 'Hearing Impaired Preference', type: 'select', tab: 'Translation',
     description: 'Wie Untertitel mit HI-Tags bei der Provider-Suche behandelt werden.',
     options: [
