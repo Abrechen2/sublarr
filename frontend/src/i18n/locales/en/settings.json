@@ -1920,6 +1920,10 @@
       "pipeline": {
         "autoTranslate": "Auto-Translate",
         "autoTranslateHint": "Automatically translate downloaded subtitles to the target language.",
+        "anySource": "Translate From Any Source Language",
+        "anySourceHint": "Translate the missing target from whatever source subtitle exists (any language), preferring the profile/default source. Off: only the preferred source language is used.",
+        "providerMultilang": "Provider Multi-Language Source Search",
+        "providerMultilangHint": "Search providers for source subtitles in multiple languages (more matches, more API usage). Only applies when \"any source\" is on.",
         "autoSync": "Auto-Sync",
         "autoSyncHint": "Automatically synchronise subtitles to video timing after download.",
         "autoCleanup": "Auto-Cleanup",

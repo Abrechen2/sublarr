@@ -1920,6 +1920,10 @@
       "pipeline": {
         "autoTranslate": "Auto-Übersetzen",
         "autoTranslateHint": "Heruntergeladene Untertitel automatisch in die Zielsprache übersetzen.",
+        "anySource": "Aus beliebiger Quellsprache übersetzen",
+        "anySourceHint": "Übersetzt die fehlende Zielsprache aus JEDER vorhandenen Quell-Sprache (bevorzugt die Profil-/Standard-Quelle). Aus: es wird nur die bevorzugte Quellsprache genutzt.",
+        "providerMultilang": "Provider-Suche über mehrere Quellsprachen",
+        "providerMultilangHint": "Sucht bei Providern nach Quell-Untertiteln in mehreren Sprachen (mehr Treffer, mehr API-Verbrauch). Nur wirksam, wenn „aus beliebiger Quelle\" aktiv ist.",
         "autoSync": "Auto-Sync",
         "autoSyncHint": "Untertitel automatisch ans Video-Timing synchronisieren nach dem Download.",
         "autoCleanup": "Auto-Bereinigung",

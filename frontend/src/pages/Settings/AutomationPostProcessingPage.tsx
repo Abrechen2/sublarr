@@ -108,6 +108,44 @@ function ProcessingPipelineContent() {
       </FormGroup>
 
       <FormGroup
+        label={t(
+          'settings.automation.pipeline.anySource',
+          'Translate From Any Source Language',
+        )}
+        hint={t(
+          'settings.automation.pipeline.anySourceHint',
+          'Translate the missing target from whatever source subtitle exists (any language), preferring the profile/default source. Off: only the preferred source language is used.',
+        )}
+        htmlFor="auto-translate-any-source"
+        data-testid="form-group-auto-translate-any-source"
+      >
+        <Toggle
+          checked={boolVal(config, 'auto_translate_any_source', true)}
+          onChange={(v) => save({ auto_translate_any_source: v })}
+          disabled={updateConfig.isPending}
+        />
+      </FormGroup>
+
+      <FormGroup
+        label={t(
+          'settings.automation.pipeline.providerMultilang',
+          'Provider Multi-Language Source Search',
+        )}
+        hint={t(
+          'settings.automation.pipeline.providerMultilangHint',
+          'Search providers for source subtitles in multiple languages (more matches, more API usage). Only applies when "any source" is on.',
+        )}
+        htmlFor="auto-translate-provider-multilang"
+        data-testid="form-group-auto-translate-provider-multilang"
+      >
+        <Toggle
+          checked={boolVal(config, 'auto_translate_provider_multilang', true)}
+          onChange={(v) => save({ auto_translate_provider_multilang: v })}
+          disabled={updateConfig.isPending}
+        />
+      </FormGroup>
+
+      <FormGroup
         label={t('settings.automation.pipeline.autoSync', 'Auto-Sync')}
         hint={t(
           'settings.automation.pipeline.autoSyncHint',
