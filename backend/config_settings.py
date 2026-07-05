@@ -162,6 +162,37 @@ class UISettings(BaseModel):
         "it",
         "ru",
     ]
+
+    @field_validator("auto_translate_source_languages", mode="before")
+    @classmethod
+    def _parse_source_language_list(cls, v):
+        """Coerce a persisted config value into a list of language codes.
+
+        The generic /config writer stores non-string values via ``str()``, so a
+        list round-trips as its Python repr (``"['ja', 'en']"``). Accept a real
+        list, a JSON array, that Python-repr string, or a comma-separated string
+        so the setting survives an API/DB round-trip regardless of how it was
+        stored.
+        """
+        if isinstance(v, list):
+            return [str(x).strip() for x in v if str(x).strip()]
+        if isinstance(v, str):
+            s = v.strip()
+            if not s:
+                return []
+            import ast as _ast
+            import json as _json
+
+            for _parse in (_json.loads, _ast.literal_eval):
+                try:
+                    parsed = _parse(s)
+                    if isinstance(parsed, list):
+                        return [str(x).strip() for x in parsed if str(x).strip()]
+                except (ValueError, SyntaxError):
+                    pass
+            return [p.strip() for p in s.split(",") if p.strip()]
+        return v
+
     prompt_template: str = ""  # Empty = auto-generated from languages
     # Global default translation backend + optional single fallback. A language
     # profile with an empty translation_backend inherits these. Declared here as

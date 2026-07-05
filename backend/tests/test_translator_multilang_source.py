@@ -189,3 +189,32 @@ def test_translate_ass_threads_explicit_source_language(tmp_path):
 
     _, kwargs = pkg._translate_with_manager.call_args
     assert kwargs["source_lang"] == "ja"
+
+
+# --- source-languages config-setting round-trip ------------------------------
+
+
+def test_source_languages_setting_parses_various_forms():
+    """The generic /config writer str()'s lists, so the setting must survive a
+    Python-repr string, a JSON array, a CSV string, or a real list."""
+    from config_settings import UISettings
+
+    assert UISettings(
+        auto_translate_source_languages="['ja', 'en']"
+    ).auto_translate_source_languages == [
+        "ja",
+        "en",
+    ]
+    assert UISettings(
+        auto_translate_source_languages='["zh", "ko"]'
+    ).auto_translate_source_languages == [
+        "zh",
+        "ko",
+    ]
+    assert UISettings(auto_translate_source_languages="fr, de").auto_translate_source_languages == [
+        "fr",
+        "de",
+    ]
+    assert UISettings(auto_translate_source_languages=["en"]).auto_translate_source_languages == [
+        "en"
+    ]
