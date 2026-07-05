@@ -54,6 +54,7 @@ class ProfileRepository(BaseRepository):
         must_not_contain: list = None,
         cutoff_language: str = "",
         audio_exclude_languages: list = None,
+        mt_keep_seeking_original: bool | int = 0,
         combine_enabled: bool | int = 0,
         combine_format: str = "ass",
         combine_languages: list = None,
@@ -100,6 +101,7 @@ class ProfileRepository(BaseRepository):
             audio_exclude_languages_json=json.dumps(
                 audio_exclude_languages if audio_exclude_languages is not None else []
             ),
+            mt_keep_seeking_original=1 if mt_keep_seeking_original else 0,
             combine_enabled=1 if combine_enabled else 0,
             combine_format=combine_format,
             combine_languages_json=json.dumps(

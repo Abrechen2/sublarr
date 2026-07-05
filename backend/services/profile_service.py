@@ -146,6 +146,7 @@ def validate_create_profile_data(data: dict) -> dict:
         "audio_exclude_languages": (
             audio_exclude_languages if isinstance(audio_exclude_languages, list) else []
         ),
+        "mt_keep_seeking_original": bool(data.get("mt_keep_seeking_original", False)),
         "combine_enabled": bool(data.get("combine_enabled", False)),
         "combine_format": combine_format,
         "combine_languages": combine_languages,

@@ -14,6 +14,8 @@ export interface LanguageProfile {
   forced_scoring: 'include' | 'prefer' | 'exclude' | 'only'
   hi_preference: 'include' | 'prefer' | 'exclude' | 'only'
   cutoff_language: string
+  // Provisional machine-translation (V1.6 #8)
+  mt_keep_seeking_original?: boolean
   // Combined / bilingual subtitles (V1.6 #1)
   combine_enabled?: boolean
   combine_format?: 'ass' | 'srt'

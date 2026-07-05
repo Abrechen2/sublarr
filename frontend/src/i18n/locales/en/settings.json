@@ -675,6 +675,8 @@
     "cutoff_active_desc": "Once a {{language}} subtitle is present, no further languages are searched.",
     "cutoff_inactive_desc": "Sublarr searches subtitles for all target languages — regardless of what is already present.",
     "combine_title": "Combined subtitles",
+    "mt_keep_seeking_label": "Keep seeking the original (provisional MT)",
+    "mt_keep_seeking_help": "When on, a Sublarr-produced translation is marked provisional and the item stays in the search queue instead of being deleted — so a later pass can find a human original.",
     "combine_enabled_label": "Combine automatically",
     "combine_enabled_help": "Merges the selected languages into one bilingual file after download/extract. If a language is missing it is silently skipped (no translation).",
     "combine_format_label": "Format",

@@ -39,6 +39,7 @@ const EMPTY_FORM = {
   cutoff_language: '',
   translation_backend: '',
   fallback_backend: '',
+  mt_keep_seeking_original: false,
   combine_enabled: false,
   combine_format: 'ass' as 'ass' | 'srt',
   combine_languages: [] as string[],
@@ -78,6 +79,7 @@ export function LanguageProfilesTab() {
       cutoff_language: p.cutoff_language || '',
       translation_backend: p.translation_backend && p.translation_backend !== '' ? p.translation_backend : '',
       fallback_backend: (p.fallback_chain ?? []).filter((b) => b && b !== p.translation_backend)[0] ?? '',
+      mt_keep_seeking_original: p.mt_keep_seeking_original ?? false,
       combine_enabled: p.combine_enabled ?? false,
       combine_format: p.combine_format ?? 'ass',
       combine_languages: p.combine_languages ?? [],
@@ -119,6 +121,7 @@ export function LanguageProfilesTab() {
       cutoff_language: form.cutoff_language,
       translation_backend: primary,
       fallback_chain,
+      mt_keep_seeking_original: form.mt_keep_seeking_original,
       combine_enabled: form.combine_enabled,
       combine_format: form.combine_format,
       combine_languages: combineLangs,
@@ -342,6 +345,30 @@ export function LanguageProfilesTab() {
                   unconfiguredLabel={t('language_profiles.translation_backend_unconfigured')}
                   onChange={(name) => setForm((f) => ({ ...f, fallback_backend: name }))}
                 />
+              </div>
+            )}
+
+            {/* Provisional machine-translation (V1.6 #8) — keep the wanted item
+                alive after an MT so a later pass can seek the human original. */}
+            {form.translation_backend && (
+              <div className="space-y-1 md:col-span-2">
+                <label className="flex items-center gap-2 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    data-testid="profile-mt-keep-seeking"
+                    checked={form.mt_keep_seeking_original}
+                    onChange={(e) =>
+                      setForm((f) => ({ ...f, mt_keep_seeking_original: e.target.checked }))
+                    }
+                    style={{ accentColor: 'var(--accent)' }}
+                  />
+                  <span className="text-xs font-medium text-secondary">
+                    {t('language_profiles.mt_keep_seeking_label')}
+                  </span>
+                </label>
+                <p className="text-[11px] text-muted">
+                  {t('language_profiles.mt_keep_seeking_help')}
+                </p>
               </div>
             )}
 

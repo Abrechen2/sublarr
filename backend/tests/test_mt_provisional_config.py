@@ -59,3 +59,26 @@ def test_update_profile_accepts_mt_keep_seeking_original(app_ctx):
     updated = update_profile(profile_id, {"mt_keep_seeking_original": False})
     assert updated["mt_keep_seeking_original"] == 0
     assert db.session.get(LanguageProfile, profile_id).mt_keep_seeking_original == 0
+
+
+def test_create_profile_accepts_mt_keep_seeking_original(app_ctx):
+    """POST /language-profiles must persist mt_keep_seeking_original.
+
+    The create path flows service.validate_create_profile_data →
+    db.profiles.create_language_profile → ProfileRepository.create_profile; all
+    three must carry the flag so a profile created with the UI toggle on keeps
+    it (previously the field was silently dropped on create).
+    """
+    from services.profile_service import create_profile
+
+    prof = create_profile(
+        {
+            "name": "MT Keep Seeking Create",
+            "target_languages": ["de"],
+            "target_language_names": ["German"],
+            "translation_backend": "deepl",
+            "mt_keep_seeking_original": True,
+        }
+    )
+    assert prof["mt_keep_seeking_original"] == 1
+    assert db.session.get(LanguageProfile, prof["id"]).mt_keep_seeking_original == 1
