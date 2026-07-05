@@ -208,3 +208,39 @@ export function useRunAutomationNow() {
     },
   })
 }
+
+// ─── Provisional-MT pending-original review (feature #8b Phase 2, Task 4) ───
+
+import { getMtPendingItems, approveMtPending, rejectMtPending } from '@/api/wanted'
+
+/** Polls `/wanted/mt-pending` every 30s so the toolbar indicator stays fresh. */
+export function useMtPendingItems() {
+  return useQuery({
+    queryKey: ['wanted-mt-pending'],
+    queryFn: getMtPendingItems,
+    refetchInterval: 30000,
+  })
+}
+
+export function useApproveMtPending() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (itemId: number) => approveMtPending(itemId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['wanted-mt-pending'] })
+      queryClient.invalidateQueries({ queryKey: ['wanted'] })
+      queryClient.invalidateQueries({ queryKey: ['wanted-summary'] })
+    },
+  })
+}
+
+export function useRejectMtPending() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (itemId: number) => rejectMtPending(itemId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['wanted-mt-pending'] })
+      queryClient.invalidateQueries({ queryKey: ['wanted'] })
+    },
+  })
+}

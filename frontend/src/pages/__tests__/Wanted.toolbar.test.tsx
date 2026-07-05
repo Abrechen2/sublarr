@@ -7,6 +7,7 @@ import { MemoryRouter } from 'react-router-dom'
 const mockBatchTranslateMutate = vi.fn()
 const mockRefreshMutate = vi.fn()
 const mockCleanupMutate = vi.fn()
+let mockMtPendingTotal = 0
 
 vi.mock('@/hooks/useTranslationApi', () => ({
   useBatchTranslate: () => ({ mutate: mockBatchTranslateMutate, isPending: false }),
@@ -30,6 +31,9 @@ vi.mock('@/hooks/useApi', () => ({
   useCleanupSidecars: () => ({ mutate: mockCleanupMutate, isPending: false }),
   useTranslationEnabled: () => true,
   useInfiniteWantedItems: () => ({ data: undefined, fetchNextPage: vi.fn(), hasNextPage: false, isFetchingNextPage: false }),
+  useMtPendingItems: () => ({ data: { data: [], total: mockMtPendingTotal }, isLoading: false, isError: false }),
+  useApproveMtPending: () => ({ mutate: vi.fn(), isPending: false }),
+  useRejectMtPending: () => ({ mutate: vi.fn(), isPending: false }),
 }))
 
 vi.mock('@/stores/selectionStore', () => ({
@@ -120,6 +124,7 @@ async function renderWanted() {
 describe('Wanted toolbar buttons (Steps 56 & 57)', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    mockMtPendingTotal = 0
   })
 
   it('renders batch-translate-btn', async () => {
@@ -147,5 +152,24 @@ describe('Wanted toolbar buttons (Steps 56 & 57)', () => {
   it('renders wanted-cleanup-btn', async () => {
     await renderWanted()
     expect(screen.getByTestId('wanted-cleanup-btn')).toBeTruthy()
+  })
+
+  it('hides the pending-original indicator when there is nothing pending', async () => {
+    await renderWanted()
+    expect(screen.queryByTestId('mt-pending-toolbar-btn')).toBeNull()
+  })
+
+  it('shows the pending-original indicator with a count when items are pending (feature #8b)', async () => {
+    mockMtPendingTotal = 3
+    await renderWanted()
+    expect(screen.getByTestId('mt-pending-toolbar-btn')).toBeTruthy()
+    expect(screen.getByTestId('mt-pending-count')).toHaveTextContent('3')
+  })
+
+  it('opens the pending-original modal when the indicator is clicked', async () => {
+    mockMtPendingTotal = 1
+    await renderWanted()
+    fireEvent.click(screen.getByTestId('mt-pending-toolbar-btn'))
+    expect(screen.getByRole('dialog')).toBeTruthy()
   })
 })

@@ -8,6 +8,7 @@ import {
   AlertCircle,
   Search,
   MinusCircle,
+  RefreshCw,
 } from 'lucide-react'
 
 interface StatusBadgeProps {
@@ -29,6 +30,7 @@ const statusStyles: Record<string, { bg: string; text: string }> = {
   ignored:          { bg: 'rgba(124,130,147,0.08)', text: 'var(--text-muted)' },
   'not configured': { bg: 'rgba(124,130,147,0.08)', text: 'var(--text-secondary)' },
   skipped:          { bg: 'rgba(124,130,147,0.08)', text: 'var(--text-secondary)' },
+  provisional:      { bg: 'var(--upgrade-bg)', text: 'var(--upgrade)' },
 }
 
 const statusIcons: Record<string, typeof CheckCircle2> = {
@@ -45,6 +47,7 @@ const statusIcons: Record<string, typeof CheckCircle2> = {
   ignored:          MinusCircle,
   skipped:          MinusCircle,
   'not configured': MinusCircle,
+  provisional:      RefreshCw,
 }
 
 // Map API status strings to common:status translation keys
@@ -62,6 +65,7 @@ const statusTranslationKeys: Record<string, string> = {
   ignored: 'status.ignored',
   'not configured': 'status.not_configured',
   skipped: 'status.skipped',
+  provisional: 'status.provisional',
   online: 'status.online',
   offline: 'status.offline',
   enabled: 'status.enabled',

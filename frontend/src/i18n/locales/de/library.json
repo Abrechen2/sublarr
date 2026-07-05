@@ -528,6 +528,27 @@
     "preview_subtitle": "Untertitel-Vorschau",
     "interactive_search": "Interaktive Suche"
   },
+  "mt_pending": {
+    "toolbar_button": "Ausstehende Originale",
+    "badge_count_one": "{{count}} ausstehendes Original",
+    "badge_count_other": "{{count}} ausstehende Originale",
+    "title": "Ausstehende Originale",
+    "description": "Für diese provisorischen Maschinenübersetzungen wurde ein echtes Original gefunden. Genehmigen, um es zu installieren und die Maschinenübersetzung zu ersetzen, oder ablehnen, um die Maschinenübersetzung zu behalten.",
+    "col_title": "Titel",
+    "col_provider": "Provider",
+    "col_score": "Score",
+    "col_found": "Gefunden",
+    "approve": "Genehmigen",
+    "reject": "Ablehnen",
+    "approve_success": "Original genehmigt — wird installiert…",
+    "approve_failed": "Original konnte nicht genehmigt werden",
+    "reject_success": "Maschinenübersetzung beibehalten",
+    "reject_failed": "Original konnte nicht abgelehnt werden",
+    "loading": "Lädt…",
+    "load_failed": "Ausstehende Originale konnten nicht geladen werden",
+    "empty": "Keine ausstehenden Originale",
+    "close": "Schließen"
+  },
   "episode_search": {
     "col_type": "Typ",
     "col_lang": "Sprache",

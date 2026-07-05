@@ -1,5 +1,5 @@
 import { useTranslation } from 'react-i18next'
-import { RefreshCw, Search, ScanSearch, Download, Languages } from 'lucide-react'
+import { RefreshCw, Search, ScanSearch, Download, Languages, Bell } from 'lucide-react'
 
 export interface WantedToolbarProps {
   summaryTotal: number
@@ -12,11 +12,15 @@ export interface WantedToolbarProps {
   cleanupPending: boolean
   batchTranslatePending: boolean
   translationEnabled: boolean
+  /** Count of provisional-MT items with a pending-original notification (feature #8b). */
+  mtPendingCount?: number
   onRefresh: () => void
   onBatchSearch: () => void
   onStartProbe: () => void
   onShowCleanupConfirm: () => void
   onBatchTranslate: () => void
+  /** Opens the pending-original review modal. Omit if the feature is not wired up. */
+  onOpenMtPending?: () => void
 }
 
 export function WantedToolbar({
@@ -30,11 +34,13 @@ export function WantedToolbar({
   cleanupPending,
   batchTranslatePending,
   translationEnabled,
+  mtPendingCount = 0,
   onRefresh,
   onBatchSearch,
   onStartProbe,
   onShowCleanupConfirm,
   onBatchTranslate,
+  onOpenMtPending,
 }: WantedToolbarProps) {
   const { t } = useTranslation('library')
   const { t: tc } = useTranslation('common')
@@ -48,6 +54,23 @@ export function WantedToolbar({
         </p>
       </div>
       <div className="flex items-center gap-2">
+        {mtPendingCount > 0 && onOpenMtPending && (
+          <button
+            onClick={onOpenMtPending}
+            data-testid="mt-pending-toolbar-btn"
+            title={t('mt_pending.toolbar_button')}
+            className="relative flex items-center gap-2 px-4 py-2 rounded-md text-sm font-medium bg-surface text-foreground border border-border hover:opacity-90"
+          >
+            <Bell size={14} />
+            {t('mt_pending.toolbar_button')}
+            <span
+              data-testid="mt-pending-count"
+              className="inline-flex items-center justify-center min-w-[1.25rem] h-5 px-1 rounded-full text-[11px] font-semibold text-white bg-accent"
+            >
+              {mtPendingCount}
+            </span>
+          </button>
+        )}
         <button
           onClick={onStartProbe}
           disabled={startProbePending || probeRunning || batchRunning}

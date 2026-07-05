@@ -528,6 +528,27 @@
     "preview_subtitle": "Preview subtitle",
     "interactive_search": "Interactive search"
   },
+  "mt_pending": {
+    "toolbar_button": "Pending originals",
+    "badge_count_one": "{{count}} pending original",
+    "badge_count_other": "{{count}} pending originals",
+    "title": "Pending Originals",
+    "description": "A genuine subtitle was found for these provisional machine translations. Approve to install it and replace the machine translation, or reject to keep the machine translation.",
+    "col_title": "Title",
+    "col_provider": "Provider",
+    "col_score": "Score",
+    "col_found": "Found",
+    "approve": "Approve",
+    "reject": "Reject",
+    "approve_success": "Original approved — installing…",
+    "approve_failed": "Could not approve the original",
+    "reject_success": "Kept the machine translation",
+    "reject_failed": "Could not reject the original",
+    "loading": "Loading…",
+    "load_failed": "Failed to load pending originals",
+    "empty": "No pending originals",
+    "close": "Close"
+  },
   "episode_search": {
     "col_type": "Type",
     "col_lang": "Lang",

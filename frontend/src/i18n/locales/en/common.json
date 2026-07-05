@@ -60,7 +60,8 @@
     "not_configured": "Not configured",
     "skipped": "Skipped",
     "forced": "Forced",
-    "scanning": "Scanning..."
+    "scanning": "Scanning...",
+    "provisional": "Provisional (seeking original)"
   },
   "actions": {
     "save": "Save",

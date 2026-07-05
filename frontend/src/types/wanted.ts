@@ -13,7 +13,7 @@ export interface WantedItem {
   embedded_languages: Array<{ lang: string; format: string }>
   missing_languages: string[]
   target_language: string
-  status: 'wanted' | 'searching' | 'found' | 'failed' | 'ignored' | 'extracted'
+  status: 'wanted' | 'searching' | 'found' | 'failed' | 'ignored' | 'extracted' | 'provisional'
   last_search_at: string
   search_count: number
   error: string

@@ -280,3 +280,46 @@ export async function batchAction(itemIds: number[], action: import('@/lib/types
   const res = await api.post('/wanted/batch-action', { item_ids: itemIds, action })
   return res.data
 }
+
+// ─── Provisional-MT pending-original review (feature #8b Phase 2, Task 3/4) ──
+// Backend: routes/wanted/mt_pending.py. A `mt_on_original_found="notify"`
+// re-seek pass records a candidate original on the wanted row without
+// touching any files; these endpoints list it and let the user approve
+// (install the original, trash the MT) or reject (keep the MT, pin it).
+
+export interface MtPendingOriginal {
+  provider: string
+  score: number
+  output_path: string
+  format: string
+  found_at: string
+}
+
+export interface MtPendingItem {
+  id: number
+  title: string
+  season_episode: string
+  file_path: string
+  item_type: 'episode' | 'movie'
+  mt_pending_original: MtPendingOriginal
+}
+
+export interface MtPendingListResponse {
+  data: MtPendingItem[]
+  total: number
+}
+
+export async function getMtPendingItems(): Promise<MtPendingListResponse> {
+  const { data } = await api.get('/wanted/mt-pending')
+  return data
+}
+
+export async function approveMtPending(itemId: number): Promise<{ status: string; id: number }> {
+  const { data } = await api.post(`/wanted/${itemId}/mt-pending/approve`)
+  return data
+}
+
+export async function rejectMtPending(itemId: number): Promise<{ status: string; id: number }> {
+  const { data } = await api.post(`/wanted/${itemId}/mt-pending/reject`)
+  return data
+}

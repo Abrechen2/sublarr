@@ -6,7 +6,7 @@ import {
   useProcessWantedItem, useStartWantedBatch, useWantedBatchStatus,
   useWantedBatchExtractStatus, useWantedBatchProbeStatus, useStartBatchProbe,
   useRetranslateSingle, useAddToBlacklist, useExtractEmbeddedSub,
-  useCleanupSidecars, useTranslationEnabled,
+  useCleanupSidecars, useTranslationEnabled, useMtPendingItems,
 } from '@/hooks/useApi'
 import { useBatchTranslate } from '@/hooks/useTranslationApi'
 import { toast } from '@/components/shared/Toast'
@@ -23,6 +23,7 @@ import { useWebSocket } from '@/hooks/useWebSocket'
 import { useQueryClient, useQuery } from '@tanstack/react-query'
 import { getConfig } from '@/api/settings'
 import { WantedToolbar } from './wanted/WantedToolbar'
+import { MtPendingModal } from './wanted/MtPendingModal'
 import { WantedFilterPanel } from './wanted/WantedFilterPanel'
 import { WantedGroupedRow } from './wanted/WantedGroupedRow'
 import type { WantedGroup } from '@/types/wanted'
@@ -129,6 +130,8 @@ export function WantedPage() {
   const batchTranslate = useBatchTranslate()
   const translationEnabled = useTranslationEnabled()
   const [showCleanupConfirm, setShowCleanupConfirm] = useState(false)
+  const [showMtPendingModal, setShowMtPendingModal] = useState(false)
+  const { data: mtPending } = useMtPendingItems()
   const queryClient = useQueryClient()
 
   // Live updates via WebSocket
@@ -428,11 +431,13 @@ export function WantedPage() {
         cleanupPending={cleanupSidecars.isPending}
         batchTranslatePending={batchTranslate.isPending}
         translationEnabled={!!translationEnabled}
+        mtPendingCount={mtPending?.total ?? 0}
         onRefresh={() => refreshWanted.mutate(undefined)}
         onBatchSearch={handleBatchSearch}
         onStartProbe={() => startProbe.mutate(undefined)}
         onShowCleanupConfirm={() => setShowCleanupConfirm(true)}
         onBatchTranslate={() => batchTranslate.mutate([])}
+        onOpenMtPending={() => setShowMtPendingModal(true)}
       />
 
       {/* Filter Panel: Summary Cards + Filters + Search + Sort + FilterBar */}
@@ -617,6 +622,9 @@ export function WantedPage() {
         onClose={() => setInteractiveItem(null)}
         onDownloaded={() => setInteractiveItem(null)}
       />
+
+      {/* Pending-Original Review Modal (feature #8b) */}
+      <MtPendingModal open={showMtPendingModal} onClose={() => setShowMtPendingModal(false)} />
 
       {/* Cleanup Sidecars Confirmation Dialog */}
       {showCleanupConfirm && (

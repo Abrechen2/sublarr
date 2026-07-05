@@ -51,4 +51,14 @@ describe('StatusBadge', () => {
     const { container } = render(<StatusBadge status="wanted" />)
     expect(container.querySelector('svg')).toBeInTheDocument()
   })
+
+  it('renders the provisional status (feature #8b)', () => {
+    render(<StatusBadge status="provisional" />)
+    expect(screen.getByText('provisional')).toBeInTheDocument()
+  })
+
+  it('renders an SVG icon for provisional status', () => {
+    const { container } = render(<StatusBadge status="provisional" />)
+    expect(container.querySelector('svg')).toBeInTheDocument()
+  })
 })

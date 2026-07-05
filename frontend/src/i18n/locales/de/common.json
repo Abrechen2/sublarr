@@ -60,7 +60,8 @@
     "not_configured": "Nicht konfiguriert",
     "skipped": "Übersprungen",
     "forced": "Erzwungen",
-    "scanning": "Scannen…"
+    "scanning": "Scannen…",
+    "provisional": "Provisorisch (sucht Original)"
   },
   "actions": {
     "save": "Speichern",
