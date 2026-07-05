@@ -180,6 +180,7 @@ class ProfileRepository(BaseRepository):
             "combine_format",
             "combine_languages",
             "combine_position",
+            "mt_keep_seeking_original",
         }
 
         # Validate combine_format if provided
@@ -229,6 +230,8 @@ class ProfileRepository(BaseRepository):
                 )
             elif key == "combine_enabled":
                 profile.combine_enabled = 1 if value else 0
+            elif key == "mt_keep_seeking_original":
+                profile.mt_keep_seeking_original = 1 if value else 0
             elif key == "combine_languages":
                 profile.combine_languages_json = json.dumps(
                     value if isinstance(value, list) else []

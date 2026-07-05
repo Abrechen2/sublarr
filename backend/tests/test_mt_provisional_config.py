@@ -29,3 +29,33 @@ def test_new_profile_has_provisional_mt_defaults(app_ctx):
     assert profile.mt_keep_seeking_original == 0
     assert profile.mt_on_original_found == "notify"
     assert profile.mt_min_original_score == 1
+
+
+def test_update_profile_accepts_mt_keep_seeking_original(app_ctx):
+    """PUT /language-profiles/<id> must accept mt_keep_seeking_original.
+
+    Regression: the field was missing from both the service-layer
+    UPDATABLE_PROFILE_KEYS and the repository-layer allowed set, so a PUT with
+    only this field 400'd ("No fields to update") and it could only be toggled
+    via a raw DB write. It must round-trip through the API as an int flag.
+    """
+    from services.profile_service import update_profile
+
+    repo = ProfileRepository()
+    profile_id = repo.create_profile(
+        name="MT Keep Seeking PUT",
+        source_lang="en",
+        source_name="English",
+        target_langs=["de"],
+        target_names=["German"],
+    )
+
+    # Turn it on (truthy value coerces to the 0/1 int column).
+    updated = update_profile(profile_id, {"mt_keep_seeking_original": True})
+    assert updated["mt_keep_seeking_original"] == 1
+    assert db.session.get(LanguageProfile, profile_id).mt_keep_seeking_original == 1
+
+    # And back off.
+    updated = update_profile(profile_id, {"mt_keep_seeking_original": False})
+    assert updated["mt_keep_seeking_original"] == 0
+    assert db.session.get(LanguageProfile, profile_id).mt_keep_seeking_original == 0

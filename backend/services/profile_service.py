@@ -66,6 +66,10 @@ UPDATABLE_PROFILE_KEYS = (
     "combine_format",
     "combine_languages",
     "combine_position",
+    # Provisional machine-translation (feature #8). Phase 1 exposes only the
+    # keep-seeking flag; mt_on_original_found / mt_min_original_score are
+    # phase-2 (#8b) and stay DB-only until that flow lands.
+    "mt_keep_seeking_original",
 )
 
 VALID_COMBINE_FORMATS = ("ass", "srt")
