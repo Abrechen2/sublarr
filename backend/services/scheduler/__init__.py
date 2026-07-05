@@ -81,6 +81,7 @@ def _build_default_jobs() -> list[JobSpec]:
     from anidb_sync import anidb_sync_tick
     from cleanup_scheduler import cleanup_tick
     from services.dubtitle.sweep import dubtitle_scan_tick
+    from services.mt_reseek import mt_reseek_tick
     from services.stats_rollup import stats_rollup_tick
     from services.subtitle_automation_runner import subtitle_automation_tick
     from services.subtitle_health.sweep import subtitle_health_sweep_tick
@@ -167,6 +168,22 @@ def _build_default_jobs() -> list[JobSpec]:
             timeout_s=3600,
             owner_module="upgrade_scheduler",
             description="Scan subtitle_downloads for re-queue eligible upgrade candidates.",
+        ),
+        JobSpec(
+            id="mt_reseek",
+            func=mt_reseek_tick,
+            # Daily original-only re-search of provisional machine-translations
+            # (feature #8b). Inert unless a profile opted into keep-seeking, so
+            # a fixed 24h interval is cheap; the per-item backoff floor (24h)
+            # matches this cadence. Search-heavy like wanted_search → same
+            # 1800s headroom so a slow provider day never trips the timeout.
+            default_trigger=IntervalTrigger(hours=24),
+            timeout_s=1800,
+            owner_module="services.mt_reseek",
+            description=(
+                "Re-search provisional machine-translations for a genuine "
+                "provider/embedded original (original-only, no re-translate)."
+            ),
         ),
         JobSpec(
             id="anidb_sync",

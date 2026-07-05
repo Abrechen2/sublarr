@@ -852,8 +852,17 @@ def _build_arr_context(item: dict) -> dict:
 # ---------------------------------------------------------------------------
 
 
-def process_wanted_item(item_id: int) -> dict:
+def process_wanted_item(item_id: int, auto_translate: bool | None = None) -> dict:
     """Full pipeline for one item: search -> download best -> translate.
+
+    Args:
+        item_id: The wanted item to process.
+        auto_translate: Override for the translate gate. ``None`` (default)
+            reads ``settings.wanted_auto_translate`` as before. Passing
+            ``False`` forces ORIGINAL-ONLY mode (skip the source-language
+            translate steps 2/4/5) — used by the provisional-MT re-seek job
+            (feature #8b) to look for a genuine provider/embedded original
+            without re-translating. ``True`` forces translation on.
 
     Returns:
         dict: {wanted_id, status, output_path, provider, error}
@@ -919,7 +928,11 @@ def process_wanted_item(item_id: int) -> dict:
         "is_upgrade": bool(item.get("upgrade_candidate")),
         "current_score": item.get("current_score", 0),
         "manager": manager,
-        "auto_translate": getattr(settings, "wanted_auto_translate", True),
+        "auto_translate": (
+            getattr(settings, "wanted_auto_translate", True)
+            if auto_translate is None
+            else bool(auto_translate)
+        ),
         "query": query,
         "source_query": None,
         "ass_had_results": False,

@@ -229,6 +229,36 @@ class WantedRepository(BaseRepository, _WantedUpsertMixin, _WantedUpdatesMixin):
         rows = self.session.execute(stmt).scalars().all()
         return [self._row_to_wanted(r) for r in rows]
 
+    def get_provisional_items(
+        self, limit: int, search_cutoff: datetime | None = None
+    ) -> list[dict]:
+        """Return ``status="provisional"`` items eligible for MT re-seek.
+
+        Provisional items are Sublarr machine-translations kept alive (profile
+        ``mt_keep_seeking_original=1``) while Sublarr seeks a human/provider
+        original (feature #8b). Ordered fair — oldest ``last_search_at`` first,
+        then fewest ``search_count`` — so the re-seek job spreads its budget
+        across the backlog instead of starving older items.
+
+        ``search_cutoff`` applies the per-item backoff: rows searched more
+        recently than the cutoff are excluded so the job stays cheap. Rows that
+        were never searched (``last_search_at IS NULL``) always qualify.
+        """
+        stmt = select(WantedItem).where(WantedItem.status == "provisional")
+        if search_cutoff is not None:
+            stmt = stmt.where(
+                or_(
+                    WantedItem.last_search_at.is_(None),
+                    WantedItem.last_search_at < search_cutoff,
+                )
+            )
+        stmt = stmt.order_by(
+            WantedItem.last_search_at.asc().nullsfirst(),
+            WantedItem.search_count.asc(),
+        ).limit(limit)
+        rows = self.session.execute(stmt).scalars().all()
+        return [self._row_to_wanted(r) for r in rows]
+
     def get_wanted_item(self, item_id: int) -> dict | None:
         """Get a single wanted item by ID."""
         item = self.session.get(WantedItem, item_id)
