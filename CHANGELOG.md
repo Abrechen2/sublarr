@@ -5,160 +5,55 @@ All notable changes to Sublarr are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [1.6.0-rc.11] - 2026-07-05
+## [1.6.0] - 2026-07-05
 
-- **Fixed** a standalone series' detail page showing "no episodes" for a series
-  that already has all its subtitles. The episode list was built from the
-  transient `wanted_items` table (which only holds episodes still missing a
-  subtitle and churns on every rescan), so a fully-satisfied series rendered
-  empty. The detail now enumerates the series folder on disk for its episode
-  list and uses `wanted_items` only to enrich per-episode status; it falls back
-  to the previous behaviour when the folder is unreachable. Standalone-only —
-  Sonarr-managed libraries are unaffected.
-
-## [1.6.0-rc.10] - 2026-07-05
-
-- **Fixed** a standalone-scan database race that could leave a series' episode
-  list empty until a manual rescan: when a `wanted_items` row was deleted
-  concurrently (a parallel scan/cleanup) between the scanner's SELECT and its
-  flush, the resulting `StaleDataError` poisoned the shared session and every
-  later series in the scan failed with "transaction has been rolled back". The
-  upsert now recovers from the concurrent-delete and retries, and the scanner
-  rolls back after any per-item error so one failure can't cascade.
-- **Added** a "keep seeking the original" toggle to the language-profile editor
-  for the provisional machine-translation flag (`mt_keep_seeking_original`).
-  The flag was previously only reachable by a direct database write; it now has
-  a UI control (shown when a translation backend is selected) and is honoured on
-  both profile creation and update.
-
-## [1.6.0-rc.9] - 2026-07-05
-
-- **Fixed** batch re-translation (Wanted → batch-translate) not flagging its
-  output as a machine translation: the re-translate path ran the generic
-  translation engine but never recorded the translated file as
-  `source="machine_translation"` nor set the wanted item provisional/deleted on
-  success, unlike the normal search path. Re-translated output is now recorded
-  and the item is resolved per profile (kept provisional when
-  keep-seeking-original is enabled, otherwise removed) — but only on a genuine
-  machine translation, so skips and provider downloads are left untouched.
-- **Fixed** the per-profile `mt_keep_seeking_original` flag being un-settable via
-  `PUT /language-profiles/<id>` (returned 400 "No fields to update"): it was
-  missing from the update whitelist and could previously only be changed by a
-  direct database write. It now round-trips through the API.
-
-## [1.6.0-rc.8] - 2026-07-04
-
-- **Fixed** the orphaned-subtitle scan flagging valid sidecars as orphans when
-  their name used an unrecognised modifier (`.de.converted.ass`,
-  `.en.closedcaptions.srt`) or an odd separator: the base is now cut at the
-  rightmost recognised language token instead of a naive extension strip, so a
-  sidecar whose video exists is no longer mistaken for an orphan (and no-language
-  orphans like `orphan.srt` are still caught). Affects the cleanup rule and the
-  UI orphan scan.
-
-## [1.6.0-rc.7] - 2026-07-04
-
-- **Fixed** the subtitle-`.bak` cleanup being unusable: the `old_subtitle_baks`
-  rule type was handled by the runner/scheduler but rejected by the create-rule
-  API and never seeded, so `.bak` files under `.sublarr/backups` accumulated
-  forever (a real library had ~7100, most older than 30 days). The rule is now
-  creatable via the API/UI and back-filled once on existing installs (seeded
-  **disabled**, so nothing is deleted without opting in; 30-day retention).
-
-## [1.6.0-rc.6] - 2026-07-04
-
-- **Fixed** manual upload, combined subtitles, and embedded-track actions
-  (extract, use-as-source, dubtitle, health) returning 503 for **TV episodes on
-  standalone installs** (no Sonarr) — they resolved the video path via Sonarr
-  only. They now resolve standalone episodes directly, so all of these work
-  without Sonarr (movies already did).
-- **Fixed** the What's-New modal appearing on top of the first-run setup wizard,
-  which blocked clicks — it now waits until the wizard is completed or postponed.
-
-## [1.6.0-rc.5] - 2026-07-04
-
-- **Fixed** a second Postgres layer in the statistics fix from rc.4: once the
-  queries executed, `AVG()` returning `decimal.Decimal` (vs `float` on SQLite)
-  broke the aggregate `/statistics` and the Export. All AVG reads are now
-  coerced to `float`. Verified end-to-end on the RC Postgres.
-
-## [1.6.0-rc.4] - 2026-07-04
-
-Two P1 bugs caught by exercising the 1.6.0 features on the real-Postgres RC
-(SQLite dev had masked both).
-
-- **Fixed** the Statistics page's aggregate + **Export** returning 500 on
-  Postgres — the quality-trend and per-series queries used SQLite-only
-  `substr(timestamp,…)`/`date('now',…)`/`GROUP_CONCAT`. They are now
-  dialect-neutral. (The Statistics page itself was unaffected — it uses the
-  grouped endpoints.)
-- **Fixed** subtitles being written `-rw-------` (0600) — manual uploads,
-  combined files, **and provider downloads** were unreadable by the media
-  server (Emby/Jellyfin) and other users. Atomic writes now relax the file to
-  `0644` (minus umask) before the rename.
-
-## [1.6.0-rc.3] - 2026-07-04
-
-Maintenance RC — green CI + dependency refresh before 1.6.0 promotion. No
-user-facing feature changes; this hardens the build and pulls in dependency
-updates.
-
-- **Fixed** CI running the backend suite on Python 3.11 while the app ships on
-  3.12 (the Docker runtime). The version skew silently broke the pipeline for
-  ~2 weeks and masked the two fixes below — CI now runs on 3.12.
-- **Fixed** a layering violation: `services.combine_service` and
-  `services.subtitle_upload` imported `scan_subtitle_sidecars` from `routes.*`.
-  Moved it to the routes-independent `services.sidecar_scan` (the routes module
-  keeps a compat re-export); the layering linter now passes end-to-end.
-- **Fixed** test isolation for encryption-at-rest: building an app inside tests
-  wrote the Fernet master key to `/config` (not writable on the CI runner).
-  Tests now pin `SUBLARR_CONFIG_DIR` to a temp dir. Production is unaffected —
-  it owns a writable `/config`.
-- **Changed** dependency updates — 32 frontend npm minor/patch bumps and
-  `actions/checkout` 6 → 7.
-
-## [1.6.0-rc.2] - 2026-07-04
-
-RC-server findings on real Postgres + prod-media mirror:
-- **Fixed** a concurrency race in the daily-stats upsert — parallel wanted-search
-  workers could collide on the `daily_stats` date primary key (UniqueViolation →
-  failed search item). Now retries as an update. Affected prod (Postgres) too.
-- **Fixed** automatic combine not firing after the *async* auto-translate on
-  embedded extract (the target language wasn't written yet when combine ran).
-
-## [1.6.0-rc.1] - 2026-07-04
-
-Release candidate for 1.6.0 — staged on the RC server against a copy of prod
-media before promotion. Bundles nine features (see the 2026-07-03 design spec).
+A large feature release: combined subtitles, side-by-side sync-compare, a full
+statistics page, provisional machine-translation, reverse-proxy SSO, and
+encryption at rest — plus a broad round of PostgreSQL-correctness and
+standalone-mode fixes surfaced by staging against a copy of production.
 
 ### Added
 - **Combined / bilingual subtitles** — compose two per-language sidecars into one
-  bilingual file (ASS overlay with configurable positioning, or stacked SRT).
-  On-demand from the episode menu, automatic per language profile, and — Sublarr's
-  edge over composition-only tools — it can generate a missing language via the
-  translation stack and then combine. Combined files are editable in the editor.
+  bilingual file (ASS overlay with configurable positioning, or stacked SRT),
+  on-demand from the episode menu or automatically per language profile. Uniquely,
+  a missing language can be generated via the translation stack and then combined.
+  Combined files stay editable in the editor.
 - **Side-by-side sync-compare** — preview a subtitle sync against the video
   (ffsubsync/alass) without overwriting the sidecar, see the per-cue timing diff,
   and choose which result to keep.
 - **Statistics page** — a full analytics page (library, subtitles, translation,
-  providers, system, and daily trends) backed by a rollup table + scheduler job
-  and a grouped `/api/v1/statistics` API with a time-range selector.
-- **Manual subtitle upload** — hand-drop a `.srt/.ass/.vtt` for an episode/movie
-  (backend; drag-&-drop UI to follow).
-- **Provisional machine-translation** — MT output is flagged `machine_translation`
-  and can be kept provisional while Sublarr keeps seeking a human original.
-- **Reverse-proxy header auth** — trust `Remote-User`/`X-Forwarded-User` from a
-  trusted proxy for Authelia/authentik SSO.
-- **Encrypted API keys at rest** — provider keys are Fernet-encrypted in the DB.
+  providers, system, and daily trends) backed by a rollup table + scheduler job,
+  with a time-range selector.
+- **Manual subtitle upload** — hand-drop a `.srt/.ass/.vtt` for an episode or movie.
+- **Provisional machine-translation** — a Sublarr-produced translation can be
+  flagged `machine_translation` and kept provisional while Sublarr keeps seeking a
+  human original, per language profile (with a UI toggle).
+- **Reverse-proxy header auth** — trust `Remote-User` / `X-Forwarded-User` from a
+  trusted proxy for Authelia / authentik SSO.
+- **Encrypted API keys at rest** — provider keys are Fernet-encrypted in the database.
 - **What's-New wizard** — per-version release highlights, re-openable from About.
-- **Editor fullscreen toggle** — `f`/`Esc` in the subtitle editor.
+- **Editor fullscreen toggle** — `f` / `Esc` in the subtitle editor.
 
 ### Fixed
-- Audit hardening before the RC: combined SRT output no longer leaks ASS comment
-  lines; combined writes don't inflate download stats; `combine_languages` are
-  validated to plain language codes; the sync-compare endpoint is bounded +
-  rate-limited so it can't wedge the app; statistics backfill history + self-heal
-  gaps, and report DB size correctly on PostgreSQL.
+- Standalone series-detail now lists every episode from the series folder on disk
+  instead of the transient wanted-items table, so a fully-satisfied series no
+  longer shows "no episodes".
+- A standalone-scan database race (a concurrent-delete `StaleDataError`) is
+  recovered instead of poisoning the shared session and emptying the scan.
+- The Statistics aggregate and its export no longer return 500 on PostgreSQL
+  (SQLite-only SQL made dialect-neutral; `AVG()` Decimal coercion).
+- Subtitles are written world-readable (`0644`) — uploads, combined files, and
+  provider downloads are no longer unreadable by the media server.
+- Batch re-translation flags its output as a machine translation and resolves the
+  wanted item per profile; the per-profile keep-seeking flag is settable via the API/UI.
+- Episode-level actions (upload, combine, tracks) work for TV episodes on
+  standalone installs without Sonarr.
+- The orphaned-subtitle scan no longer flags valid sidecars whose filename uses an
+  unrecognised modifier, and the subtitle-`.bak` cleanup rule is now usable.
+- A daily-stats upsert race under parallel search workers (which affected
+  PostgreSQL / production too).
+- CI now runs the backend suite on the shipped Python (3.12), a services→routes
+  layering violation is resolved, and dependencies were refreshed.
 
 ## [1.5.0] - 2026-07-02
 
