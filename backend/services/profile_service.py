@@ -29,6 +29,7 @@ import re as _re
 VALID_FORCED_PREFERENCES = ("disabled", "separate", "auto")
 VALID_HI_PREFERENCES = ("include", "prefer", "exclude", "only")
 VALID_FORCED_SCORING = ("include", "prefer", "exclude", "only")
+VALID_MT_ON_ORIGINAL_FOUND = ("notify", "auto_replace")
 
 # Combine languages must be plain 2-3 letter codes — never a hyphen-joined tag
 # (which would let a `de-en` value match an existing combined sidecar as a
@@ -66,10 +67,13 @@ UPDATABLE_PROFILE_KEYS = (
     "combine_format",
     "combine_languages",
     "combine_position",
-    # Provisional machine-translation (feature #8). Phase 1 exposes only the
-    # keep-seeking flag; mt_on_original_found / mt_min_original_score are
-    # phase-2 (#8b) and stay DB-only until that flow lands.
+    # Provisional machine-translation (feature #8). Phase 1 shipped the
+    # keep-seeking flag; Phase 2 (#8b, mt_reseek job + approve/reject UI)
+    # landed in 1.6.2 and reads mt_on_original_found / mt_min_original_score
+    # off the profile, so both are now settable via the API too.
     "mt_keep_seeking_original",
+    "mt_on_original_found",
+    "mt_min_original_score",
 )
 
 VALID_COMBINE_FORMATS = ("ass", "srt")
@@ -118,6 +122,18 @@ def validate_create_profile_data(data: dict) -> dict:
             "forced_scoring must be one of: include, prefer, exclude, only"
         )
 
+    mt_on_original_found = data.get("mt_on_original_found", "notify")
+    if mt_on_original_found not in VALID_MT_ON_ORIGINAL_FOUND:
+        raise ProfileValidationError("mt_on_original_found must be one of: notify, auto_replace")
+
+    mt_min_original_score = data.get("mt_min_original_score", 1)
+    if (
+        not isinstance(mt_min_original_score, int)
+        or isinstance(mt_min_original_score, bool)
+        or mt_min_original_score < 0
+    ):
+        raise ProfileValidationError("mt_min_original_score must be a non-negative integer")
+
     must_contain = data.get("must_contain", [])
     must_not_contain = data.get("must_not_contain", [])
     audio_exclude_languages = data.get("audio_exclude_languages", [])
@@ -147,6 +163,8 @@ def validate_create_profile_data(data: dict) -> dict:
             audio_exclude_languages if isinstance(audio_exclude_languages, list) else []
         ),
         "mt_keep_seeking_original": bool(data.get("mt_keep_seeking_original", False)),
+        "mt_on_original_found": mt_on_original_found,
+        "mt_min_original_score": mt_min_original_score,
         "combine_enabled": bool(data.get("combine_enabled", False)),
         "combine_format": combine_format,
         "combine_languages": combine_languages,
@@ -208,6 +226,17 @@ def validate_update_profile_fields(data: dict) -> dict:
 
     if "combine_format" in fields and fields["combine_format"] not in VALID_COMBINE_FORMATS:
         raise ProfileValidationError("combine_format must be one of: ass, srt")
+
+    if (
+        "mt_on_original_found" in fields
+        and fields["mt_on_original_found"] not in VALID_MT_ON_ORIGINAL_FOUND
+    ):
+        raise ProfileValidationError("mt_on_original_found must be one of: notify, auto_replace")
+
+    if "mt_min_original_score" in fields:
+        score = fields["mt_min_original_score"]
+        if not isinstance(score, int) or isinstance(score, bool) or score < 0:
+            raise ProfileValidationError("mt_min_original_score must be a non-negative integer")
 
     if "combine_languages" in fields:
         fields["combine_languages"] = _clean_combine_languages(fields["combine_languages"])

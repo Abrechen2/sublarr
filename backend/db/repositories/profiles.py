@@ -25,6 +25,7 @@ VALID_FORCED_PREFERENCES = ("disabled", "separate", "auto")
 VALID_HI_PREFERENCES = ("include", "prefer", "exclude", "only")
 VALID_FORCED_SCORING = ("include", "prefer", "exclude", "only")
 VALID_COMBINE_FORMATS = ("ass", "srt")
+VALID_MT_ON_ORIGINAL_FOUND = ("notify", "auto_replace")
 _DEFAULT_COMBINE_POSITION = {"primary": "bottom", "secondary": "top"}
 
 
@@ -55,6 +56,8 @@ class ProfileRepository(BaseRepository):
         cutoff_language: str = "",
         audio_exclude_languages: list = None,
         mt_keep_seeking_original: bool | int = 0,
+        mt_on_original_found: str = "notify",
+        mt_min_original_score: int = 1,
         combine_enabled: bool | int = 0,
         combine_format: str = "ass",
         combine_languages: list = None,
@@ -74,6 +77,11 @@ class ProfileRepository(BaseRepository):
         if forced_scoring not in VALID_FORCED_SCORING:
             raise ValueError(
                 f"Invalid forced_scoring '{forced_scoring}'. Must be one of: {VALID_FORCED_SCORING}"
+            )
+        if mt_on_original_found not in VALID_MT_ON_ORIGINAL_FOUND:
+            raise ValueError(
+                f"Invalid mt_on_original_found '{mt_on_original_found}'. "
+                f"Must be one of: {VALID_MT_ON_ORIGINAL_FOUND}"
             )
         if fallback_chain is None:
             fallback_chain = [translation_backend]
@@ -102,6 +110,8 @@ class ProfileRepository(BaseRepository):
                 audio_exclude_languages if audio_exclude_languages is not None else []
             ),
             mt_keep_seeking_original=1 if mt_keep_seeking_original else 0,
+            mt_on_original_found=mt_on_original_found,
+            mt_min_original_score=mt_min_original_score,
             combine_enabled=1 if combine_enabled else 0,
             combine_format=combine_format,
             combine_languages_json=json.dumps(
@@ -183,6 +193,8 @@ class ProfileRepository(BaseRepository):
             "combine_languages",
             "combine_position",
             "mt_keep_seeking_original",
+            "mt_on_original_found",
+            "mt_min_original_score",
         }
 
         # Validate combine_format if provided
@@ -211,6 +223,15 @@ class ProfileRepository(BaseRepository):
             if fs not in VALID_FORCED_SCORING:
                 raise ValueError(
                     f"Invalid forced_scoring '{fs}'. Must be one of: {VALID_FORCED_SCORING}"
+                )
+
+        # Validate mt_on_original_found if provided
+        if "mt_on_original_found" in fields:
+            monf = fields["mt_on_original_found"]
+            if monf not in VALID_MT_ON_ORIGINAL_FOUND:
+                raise ValueError(
+                    f"Invalid mt_on_original_found '{monf}'. "
+                    f"Must be one of: {VALID_MT_ON_ORIGINAL_FOUND}"
                 )
 
         for key, value in fields.items():
