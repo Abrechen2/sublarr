@@ -53,7 +53,13 @@ def update_stats(result):
 
 
 def run_job(job_data):
-    """Execute a translation job in a background thread."""
+    """Execute a translation job in a background thread.
+
+    Returns the ``translate_file`` result dict on completion (so callers such
+    as ``services.retranslation`` can post-process the output — e.g. flag a
+    machine translation and set the wanted item provisional), or ``None`` when
+    the job was skipped (cancelled/removed before execution) or raised.
+    """
     from db.jobs import get_job, record_stat, update_job
     from translator import translate_file
 
@@ -75,7 +81,7 @@ def run_job(job_data):
             job_id,
             current.get("status") if current else None,
         )
-        return
+        return None
 
     try:
         update_job(job_id, "running")
@@ -100,7 +106,10 @@ def run_job(job_data):
             },
         )
 
+        return result
+
     except Exception as e:
         logger.exception("Job %s failed", job_id)
         update_job(job_id, "failed", error=str(e))
         record_stat(success=False)
+        return None
