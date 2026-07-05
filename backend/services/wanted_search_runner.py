@@ -35,6 +35,16 @@ from services.wanted_search_outcome import (  # noqa: F401 — re-exported for b
 
 logger = logging.getLogger(__name__)
 
+# Candidate-pool fetch cap for the scheduler's eligibility filter. The repo's
+# ORDER BY + LIMIT fetch must not be capped at `wanted_search_max_items_per_run`
+# — that would apply the ordering LIMIT before `_filter_eligible` ever runs,
+# silently starving due items that merely have a more recent `last_search_at`
+# than the rest of the backlog (confirmed on prod: 29 eligible items invisible
+# behind a stale 2000-row fair-order window). 10_000 comfortably covers any
+# realistic Sublarr wanted-item backlog (real libraries stay in the low
+# thousands) while keeping the ORDER BY + LIMIT query cheap.
+_ELIGIBILITY_FETCH_CAP = 10_000
+
 
 def _search_with_ctx(app, item_id: int) -> dict:
     """Worker wrapper: push a new Flask app context for each thread."""
@@ -217,12 +227,16 @@ def run_wanted_search(
     from db.wanted import get_items_for_scheduled_search
 
     order = getattr(settings, "wanted_search_order", "fair")
-    items = get_items_for_scheduled_search(limit=max_items, order=order)
+    # Fetch a generous candidate pool, NOT `max_items` — see
+    # _ELIGIBILITY_FETCH_CAP for why the fetch limit and the per-tick
+    # processing cap must be decoupled.
+    items = get_items_for_scheduled_search(limit=_ELIGIBILITY_FETCH_CAP, order=order)
 
     if not include_upgrades:
         items = [i for i in items if not i.get("upgrade_candidate")]
 
-    # Filter by backoff / cooldown
+    # Filter by backoff / cooldown — runs across the FULL fetched pool so due
+    # items are never invisible to this filter (see _ELIGIBILITY_FETCH_CAP).
     eligible = _filter_eligible(items, settings)
 
     # Phase 4a: min-per-day prefix — must-include items that survive the backlog gate.
@@ -262,6 +276,13 @@ def run_wanted_search(
             )
         except Exception as _bge:  # noqa: BLE001
             logger.warning("backlog reserve gate failed (non-blocking): %s", _bge)
+
+    # Truncate to the per-tick processing cap AFTER eligibility filtering (and
+    # after the min-per-day prefix + backlog reserve gate), so max_items still
+    # bounds the actual workload without reintroducing the LIMIT-before-filter
+    # starvation bug. Ordering (fair/newest_first/weighted, plus the min-prefix
+    # items kept at the front) is preserved since we only slice the list.
+    eligible = eligible[:max_items]
 
     if not eligible:
         return {"total": 0, "processed": 0, "found": 0, "failed": 0, "skipped": 0}

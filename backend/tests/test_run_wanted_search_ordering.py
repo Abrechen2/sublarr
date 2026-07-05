@@ -23,6 +23,7 @@ def _fake_selector(captured):
 
 def test_run_wanted_search_uses_configured_order(app_ctx, captured, monkeypatch):
     from config import get_settings
+    from services.wanted_search_runner import _ELIGIBILITY_FETCH_CAP
 
     s = get_settings()
     monkeypatch.setattr(s, "wanted_search_order", "fair", raising=False)
@@ -33,7 +34,10 @@ def test_run_wanted_search_uses_configured_order(app_ctx, captured, monkeypatch)
 
         run_wanted_search()
 
-    assert captured == {"limit": 100, "order": "fair"}
+    # The fetch limit is decoupled from max_items_per_run (see
+    # _ELIGIBILITY_FETCH_CAP) so the eligibility filter always sees the full
+    # candidate pool; max_items only bounds the per-tick workload afterwards.
+    assert captured == {"limit": _ELIGIBILITY_FETCH_CAP, "order": "fair"}
 
 
 def test_run_wanted_search_falls_back_to_fair_when_order_missing(app_ctx, captured, monkeypatch):
