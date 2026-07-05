@@ -164,6 +164,12 @@ def set_mt_pending_original(item_id: int, payload: str | None) -> bool:
     return _get_repo().set_mt_pending_original(item_id, payload)
 
 
+def get_mt_pending_items() -> list[dict]:
+    """List wanted items with a pending-original notification — see
+    ``WantedRepository.get_mt_pending_items``."""
+    return _get_repo().get_mt_pending_items()
+
+
 def delete_wanted_items(file_paths: list):
     """Delete wanted items by file paths (batch)."""
     for fp in file_paths or []:

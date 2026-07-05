@@ -259,6 +259,34 @@ class WantedRepository(BaseRepository, _WantedUpsertMixin, _WantedUpdatesMixin):
         rows = self.session.execute(stmt).scalars().all()
         return [self._row_to_wanted(r) for r in rows]
 
+    def get_mt_pending_items(self) -> list[dict]:
+        """Return wanted items with a pending-original notification (feature #8b Task 3).
+
+        Selects rows where ``mt_pending_original IS NOT NULL`` — set by
+        ``services.mt_reseek._record_pending_notification`` when
+        ``mt_on_original_found=="notify"`` finds a qualifying original during a
+        re-seek pass. The raw JSON payload is parsed into a dict (mirroring how
+        ``_row_to_wanted`` already parses ``missing_languages``/
+        ``embedded_languages``) so API consumers get structured
+        ``provider/score/output_path/format/found_at`` fields instead of a raw
+        JSON string.
+        """
+        stmt = (
+            select(WantedItem)
+            .where(WantedItem.mt_pending_original.isnot(None))
+            .order_by(WantedItem.updated_at.desc())
+        )
+        rows = self.session.execute(stmt).scalars().all()
+        items = []
+        for row in rows:
+            d = self._row_to_wanted(row)
+            try:
+                d["mt_pending_original"] = json.loads(d["mt_pending_original"])
+            except (TypeError, json.JSONDecodeError):
+                d["mt_pending_original"] = None
+            items.append(d)
+        return items
+
     def get_wanted_item(self, item_id: int) -> dict | None:
         """Get a single wanted item by ID."""
         item = self.session.get(WantedItem, item_id)

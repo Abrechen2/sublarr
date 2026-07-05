@@ -10,6 +10,7 @@ import routes.wanted.batch_probe  # noqa: E402, F401
 import routes.wanted.bulk_actions  # noqa: E402, F401
 import routes.wanted.extract  # noqa: E402, F401
 import routes.wanted.list  # noqa: E402, F401
+import routes.wanted.mt_pending  # noqa: E402, F401
 import routes.wanted.providers  # noqa: E402, F401
 import routes.wanted.search  # noqa: E402, F401
 
