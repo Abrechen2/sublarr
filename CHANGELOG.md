@@ -5,6 +5,21 @@ All notable changes to Sublarr are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.6.0-rc.9] - 2026-07-05
+
+- **Fixed** batch re-translation (Wanted → batch-translate) not flagging its
+  output as a machine translation: the re-translate path ran the generic
+  translation engine but never recorded the translated file as
+  `source="machine_translation"` nor set the wanted item provisional/deleted on
+  success, unlike the normal search path. Re-translated output is now recorded
+  and the item is resolved per profile (kept provisional when
+  keep-seeking-original is enabled, otherwise removed) — but only on a genuine
+  machine translation, so skips and provider downloads are left untouched.
+- **Fixed** the per-profile `mt_keep_seeking_original` flag being un-settable via
+  `PUT /language-profiles/<id>` (returned 400 "No fields to update"): it was
+  missing from the update whitelist and could previously only be changed by a
+  direct database write. It now round-trips through the API.
+
 ## [1.6.0-rc.8] - 2026-07-04
 
 - **Fixed** the orphaned-subtitle scan flagging valid sidecars as orphans when
