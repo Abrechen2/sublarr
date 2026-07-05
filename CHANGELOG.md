@@ -5,6 +5,21 @@ All notable changes to Sublarr are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.6.2-rc.1] - 2026-07-05
+
+### Added
+- **Provisional machine-translation now actively seeks the human original** —
+  when a profile keeps a machine-translated subtitle provisional
+  (`mt_keep_seeking_original`), a new scheduled job (`mt_reseek`) periodically
+  re-searches it in original-only mode (no re-translation). When a genuine
+  provider/embedded original is found, the profile's `mt_on_original_found`
+  setting decides what happens: `auto_replace` installs the original and
+  trashes the superseded machine translation automatically, while `notify`
+  raises a pending-review entry that can be approved (install the original)
+  or rejected (keep the machine translation and stop re-checking it) from
+  a review panel on the Wanted page. A machine translation can also be pinned so it is never
+  auto-replaced or re-checked, regardless of the profile setting.
+
 ## [1.6.1] - 2026-07-05
 
 ### Added
