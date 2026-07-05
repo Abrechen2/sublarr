@@ -5,22 +5,19 @@ All notable changes to Sublarr are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [1.6.1-rc.2] - 2026-07-05
+## [1.6.1] - 2026-07-05
 
-- **Changed** the multi-language auto-translate source is now fully
-  configurable (API + Settings + UI): two Translation-tab toggles ("Translate
-  From Any Source Language", "Provider Multi-Language Source Search"), an
-  ordered candidate source-language list (config/API), and per-profile source
-  language is now honoured for the translation direction.
-
-## [1.6.1-rc.1] - 2026-07-05
-
-- **Added** multi-language auto-translate source: the missing target subtitle is
-  now translated FROM whatever source subtitle actually exists (any language),
-  preferring the configured/profile source language, instead of only the fixed
-  source language. Covers embedded tracks, external sidecars, and provider
-  search (which now iterates candidate source languages), and sets the correct
-  translation direction from the real source language.
+### Added
+- **Multi-language auto-translate source** — the missing target subtitle is now
+  translated FROM whatever source subtitle actually exists (any language),
+  instead of only the configured source language. Sublarr picks the best
+  available source across embedded tracks, external sidecars, and provider
+  search (which can try several source languages), sets the correct translation
+  direction from the real source language, and honours the per-profile source
+  language. Configurable via Settings → Automation → Post-Processing (two
+  toggles: "Translate From Any Source Language" and "Provider Multi-Language
+  Source Search") and the `/config` API (candidate source-language list
+  included).
 
 ## [1.6.0] - 2026-07-05
 
