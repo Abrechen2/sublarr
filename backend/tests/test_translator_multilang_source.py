@@ -110,7 +110,10 @@ def test_provider_search_iterates_source_languages(tmp_path):
     with (
         patch("providers.get_provider_manager", return_value=manager),
         patch("translator.providers.get_settings", return_value=settings),
-        patch("translator.providers._build_video_query", side_effect=lambda *a, **k: MagicMock(languages=[])),
+        patch(
+            "translator.providers._build_video_query",
+            side_effect=lambda *a, **k: MagicMock(languages=[]),
+        ),
     ):
         path, fmt, score, lang = prov._search_providers_for_source_sub(
             mkv, None, source_languages=["en", "ja"]
@@ -138,7 +141,9 @@ def test_translate_ass_threads_explicit_source_language(tmp_path):
 
     with (
         patch("translator.core._pkg") as mock_pkg,
-        patch("translator.core.get_output_path_for_lang", return_value=str(tmp_path / "source.de.ass")),
+        patch(
+            "translator.core.get_output_path_for_lang", return_value=str(tmp_path / "source.de.ass")
+        ),
         patch("translator.core.check_disk_space"),
         patch("translator.core._write_quality_sidecar"),
         patch("translator.core._compute_quality_stats", return_value={}),

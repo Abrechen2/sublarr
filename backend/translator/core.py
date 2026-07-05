@@ -255,9 +255,7 @@ def translate_file(
     # Try the preferred source first, then a bounded fallback set so a provider
     # can supply a source in whatever language it has — never the target.
     src_lang_candidates = [
-        lang
-        for lang in [pref_source, *_FALLBACK_SOURCE_LANGUAGES]
-        if lang and lang != tgt_lang
+        lang for lang in [pref_source, *_FALLBACK_SOURCE_LANGUAGES] if lang and lang != tgt_lang
     ]
     src_path, src_fmt, src_score, src_lang = _search_providers_for_source_sub(
         mkv_path, arr_context, source_languages=src_lang_candidates

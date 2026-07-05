@@ -121,7 +121,9 @@ def _search_providers_for_source_sub(mkv_path, context=None, source_languages=No
                 ext = result.format.value if result.format.value != "unknown" else "srt"
                 # save_subtitle may rewrite the extension — use the returned path
                 # so the temp file we hand back actually exists on disk.
-                tmp_path = manager.save_subtitle(result, f"{base}.{lang}.{ext}", series_id=series_id)
+                tmp_path = manager.save_subtitle(
+                    result, f"{base}.{lang}.{ext}", series_id=series_id
+                )
                 actual_ext = os.path.splitext(tmp_path)[1].lstrip(".") or ext
                 logger.info(
                     "Provider %s delivered source %s (%s): %s (score=%d)",
