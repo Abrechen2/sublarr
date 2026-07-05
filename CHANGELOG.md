@@ -5,6 +5,15 @@ All notable changes to Sublarr are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.6.1-rc.1] - 2026-07-05
+
+- **Added** multi-language auto-translate source: the missing target subtitle is
+  now translated FROM whatever source subtitle actually exists (any language),
+  preferring the configured/profile source language, instead of only the fixed
+  source language. Covers embedded tracks, external sidecars, and provider
+  search (which now iterates candidate source languages), and sets the correct
+  translation direction from the real source language.
+
 ## [1.6.0] - 2026-07-05
 
 A large feature release: combined subtitles, side-by-side sync-compare, a full
