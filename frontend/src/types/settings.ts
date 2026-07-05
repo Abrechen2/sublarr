@@ -16,6 +16,8 @@ export interface LanguageProfile {
   cutoff_language: string
   // Provisional machine-translation (V1.6 #8)
   mt_keep_seeking_original?: boolean
+  mt_on_original_found?: 'notify' | 'auto_replace'
+  mt_min_original_score?: number
   // Combined / bilingual subtitles (V1.6 #1)
   combine_enabled?: boolean
   combine_format?: 'ass' | 'srt'

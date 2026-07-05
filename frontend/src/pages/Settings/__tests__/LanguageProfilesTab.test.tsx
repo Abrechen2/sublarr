@@ -138,6 +138,72 @@ describe('LanguageProfilesTab — per-profile backend override', () => {
   })
 })
 
+describe('LanguageProfilesTab — provisional MT re-seek controls', () => {
+  it('hides mt_on_original_found and mt_min_original_score when mt_keep_seeking_original is off', () => {
+    openEditor()
+
+    fireEvent.change(screen.getByTestId('profile-backend'), { target: { value: 'deepl' } })
+
+    expect(screen.queryByTestId('profile-mt-on-original-found')).not.toBeInTheDocument()
+    expect(screen.queryByTestId('profile-mt-min-original-score')).not.toBeInTheDocument()
+  })
+
+  it('shows mt_on_original_found and mt_min_original_score once mt_keep_seeking_original is on', () => {
+    openEditor()
+
+    fireEvent.change(screen.getByTestId('profile-backend'), { target: { value: 'deepl' } })
+    fireEvent.click(screen.getByTestId('profile-mt-keep-seeking'))
+
+    expect(screen.getByTestId('profile-mt-on-original-found')).toBeInTheDocument()
+    expect(screen.getByTestId('profile-mt-min-original-score')).toBeInTheDocument()
+  })
+
+  it('updates form state when the dropdown and score input change, and includes both in the save payload', () => {
+    openEditor()
+
+    fireEvent.change(screen.getByTestId('profile-backend'), { target: { value: 'deepl' } })
+    fireEvent.click(screen.getByTestId('profile-mt-keep-seeking'))
+
+    fireEvent.change(screen.getByTestId('profile-mt-on-original-found'), { target: { value: 'auto_replace' } })
+    fireEvent.change(screen.getByTestId('profile-mt-min-original-score'), { target: { value: '5' } })
+
+    fireEvent.click(screen.getByText('language_profiles.save'))
+
+    expect(updateMutate).toHaveBeenCalledWith(
+      expect.objectContaining({
+        id: 1,
+        data: expect.objectContaining({
+          mt_keep_seeking_original: true,
+          mt_on_original_found: 'auto_replace',
+          mt_min_original_score: 5,
+        }),
+      }),
+      expect.anything(),
+    )
+  })
+
+  it('defaults mt_on_original_found to notify and mt_min_original_score to 1 when saved without changes', () => {
+    openEditor()
+
+    fireEvent.change(screen.getByTestId('profile-backend'), { target: { value: 'deepl' } })
+    fireEvent.click(screen.getByTestId('profile-mt-keep-seeking'))
+
+    fireEvent.click(screen.getByText('language_profiles.save'))
+
+    expect(updateMutate).toHaveBeenCalledWith(
+      expect.objectContaining({
+        id: 1,
+        data: expect.objectContaining({
+          mt_keep_seeking_original: true,
+          mt_on_original_found: 'notify',
+          mt_min_original_score: 1,
+        }),
+      }),
+      expect.anything(),
+    )
+  })
+})
+
 describe('LanguageProfilesTab — combined subtitles', () => {
   it('round-trips the combine_* fields through edit + save', () => {
     openEditor()

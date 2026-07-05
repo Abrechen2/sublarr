@@ -40,6 +40,8 @@ const EMPTY_FORM = {
   translation_backend: '',
   fallback_backend: '',
   mt_keep_seeking_original: false,
+  mt_on_original_found: 'notify' as 'notify' | 'auto_replace',
+  mt_min_original_score: 1,
   combine_enabled: false,
   combine_format: 'ass' as 'ass' | 'srt',
   combine_languages: [] as string[],
@@ -80,6 +82,8 @@ export function LanguageProfilesTab() {
       translation_backend: p.translation_backend && p.translation_backend !== '' ? p.translation_backend : '',
       fallback_backend: (p.fallback_chain ?? []).filter((b) => b && b !== p.translation_backend)[0] ?? '',
       mt_keep_seeking_original: p.mt_keep_seeking_original ?? false,
+      mt_on_original_found: p.mt_on_original_found ?? 'notify',
+      mt_min_original_score: p.mt_min_original_score ?? 1,
       combine_enabled: p.combine_enabled ?? false,
       combine_format: p.combine_format ?? 'ass',
       combine_languages: p.combine_languages ?? [],
@@ -122,6 +126,8 @@ export function LanguageProfilesTab() {
       translation_backend: primary,
       fallback_chain,
       mt_keep_seeking_original: form.mt_keep_seeking_original,
+      mt_on_original_found: form.mt_on_original_found,
+      mt_min_original_score: form.mt_min_original_score,
       combine_enabled: form.combine_enabled,
       combine_format: form.combine_format,
       combine_languages: combineLangs,
@@ -369,6 +375,52 @@ export function LanguageProfilesTab() {
                 <p className="text-[11px] text-muted">
                   {t('language_profiles.mt_keep_seeking_help')}
                 </p>
+
+                {form.mt_keep_seeking_original && (
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3 pl-1 pt-2">
+                    <div className="space-y-1">
+                      <label className="text-xs font-medium text-secondary">
+                        {t('language_profiles.mt_on_original_found_label')}
+                      </label>
+                      <select
+                        data-testid="profile-mt-on-original-found"
+                        value={form.mt_on_original_found}
+                        onChange={(e) =>
+                          setForm((f) => ({
+                            ...f,
+                            mt_on_original_found: e.target.value as 'notify' | 'auto_replace',
+                          }))
+                        }
+                        className="w-full px-2.5 py-1.5 rounded text-xs bg-page border border-border text-foreground"
+                      >
+                        <option value="notify">{t('language_profiles.mt_on_original_found_notify')}</option>
+                        <option value="auto_replace">{t('language_profiles.mt_on_original_found_auto_replace')}</option>
+                      </select>
+                    </div>
+                    <div className="space-y-1">
+                      <label className="text-xs font-medium text-secondary">
+                        {t('language_profiles.mt_min_original_score_label')}
+                      </label>
+                      <input
+                        type="number"
+                        min={0}
+                        step={1}
+                        data-testid="profile-mt-min-original-score"
+                        value={form.mt_min_original_score}
+                        onChange={(e) =>
+                          setForm((f) => ({
+                            ...f,
+                            mt_min_original_score: Math.max(0, parseInt(e.target.value, 10) || 0),
+                          }))
+                        }
+                        className="w-full px-2.5 py-1.5 rounded text-xs bg-page border border-border text-foreground"
+                      />
+                      <p className="text-[11px] text-muted">
+                        {t('language_profiles.mt_min_original_score_help')}
+                      </p>
+                    </div>
+                  </div>
+                )}
               </div>
             )}
 
