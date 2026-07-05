@@ -5,6 +5,21 @@ All notable changes to Sublarr are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.6.0-rc.10] - 2026-07-05
+
+- **Fixed** a standalone-scan database race that could leave a series' episode
+  list empty until a manual rescan: when a `wanted_items` row was deleted
+  concurrently (a parallel scan/cleanup) between the scanner's SELECT and its
+  flush, the resulting `StaleDataError` poisoned the shared session and every
+  later series in the scan failed with "transaction has been rolled back". The
+  upsert now recovers from the concurrent-delete and retries, and the scanner
+  rolls back after any per-item error so one failure can't cascade.
+- **Added** a "keep seeking the original" toggle to the language-profile editor
+  for the provisional machine-translation flag (`mt_keep_seeking_original`).
+  The flag was previously only reachable by a direct database write; it now has
+  a UI control (shown when a translation backend is selected) and is honoured on
+  both profile creation and update.
+
 ## [1.6.0-rc.9] - 2026-07-05
 
 - **Fixed** batch re-translation (Wanted → batch-translate) not flagging its
