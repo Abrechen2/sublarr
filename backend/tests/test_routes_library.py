@@ -215,6 +215,43 @@ def test_series_detail_found(client, monkeypatch):
     assert isinstance(data["episodes"], list)
 
 
+def test_standalone_series_detail_lists_episodes_from_disk_without_wanted(
+    client, monkeypatch, tmp_path
+):
+    """Regression: a standalone series with 0 wanted_items (all subs present)
+    must still list its episodes. The detail now enumerates the series folder on
+    disk and uses wanted_items only for status — previously it built episodes
+    straight from wanted_items, so a satisfied series rendered '0 episodes'."""
+    # Sonarr unconfigured → the endpoint falls back to the standalone builder.
+    monkeypatch.setattr("sonarr_client.get_sonarr_client", lambda *a, **kw: None)
+
+    # Two episode files on disk; NO wanted_items are inserted for this series.
+    sdir = tmp_path / "My Show (2020)" / "Season 1"
+    sdir.mkdir(parents=True)
+    (sdir / "My Show - S01E01 [1080p].mkv").write_bytes(b"\x00")
+    (sdir / "My Show - S01E02 [1080p].mkv").write_bytes(b"\x00")
+
+    series = {
+        "id": 77,
+        "title": "My Show",
+        "year": 2020,
+        "folder_path": str(tmp_path),
+        "poster_url": "",
+        "status": "continuing",
+        "season_count": 1,
+    }
+    monkeypatch.setattr("db.standalone.get_standalone_series", lambda *a, **kw: series)
+
+    resp = client.get("/api/v1/library/series/77")
+    assert resp.status_code == 200
+    data = resp.get_json()
+    assert data["source"] == "standalone"
+    assert data["episode_count"] == 2
+    paths = {e["file_path"] for e in data["episodes"]}
+    assert any("S01E01" in p for p in paths)
+    assert any("S01E02" in p for p in paths)
+
+
 def test_series_detail_with_episodes(client, monkeypatch):
     mock_sonarr = MagicMock()
     mock_sonarr.get_series_by_id.return_value = {

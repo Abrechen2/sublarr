@@ -13,6 +13,49 @@ from routes.library import bp
 logger = logging.getLogger(__name__)
 
 
+def _episode_title(series_title: str, season: int, episode: int) -> str:
+    """Human title for a standalone episode row (falls back to the series name)."""
+    if episode:
+        return f"{series_title} -- S{season:02d}E{episode:02d}"
+    return series_title
+
+
+def _enumerate_series_episode_files(folder_path: str) -> list[tuple[str, dict]]:
+    """List ``(file_path, parsed)`` for every episode video file under a
+    standalone series folder, skipping extras (trailers/samples/…).
+
+    Returns ``[]`` when the folder is missing or unreachable so the caller can
+    fall back to ``wanted_items`` rather than showing nothing while a mount is
+    down. This is the source of truth for "which episodes exist" — wanted_items
+    only holds episodes still MISSING a subtitle, so it can't be used for the
+    full listing.
+    """
+    import os
+
+    from standalone.parser import is_video_file, parse_media_file
+    from standalone.scanner import _is_extra_file
+
+    if not folder_path or not os.path.isdir(folder_path):
+        return []
+
+    out: list[tuple[str, dict]] = []
+    try:
+        for root, _dirs, files in os.walk(folder_path):
+            for filename in files:
+                fp = os.path.join(root, filename)
+                if not is_video_file(fp) or _is_extra_file(fp):
+                    continue
+                try:
+                    parsed = parse_media_file(fp)
+                except Exception:  # pragma: no cover - guessit hiccup on odd names
+                    parsed = {}
+                out.append((fp, parsed))
+    except OSError as exc:
+        logger.warning("Standalone episode enumeration failed for %s: %s", folder_path, exc)
+        return []
+    return out
+
+
 def _get_standalone_series_detail(series_id: int, settings) -> dict | None:
     """Build a Sonarr-compatible series detail dict from standalone DB data."""
     import re
@@ -50,26 +93,43 @@ def _get_standalone_series_detail(series_id: int, settings) -> dict | None:
     ).fetchall()
     wanted_items = [dict(r._mapping) for r in rows]
 
-    # Load subtitle_downloads score/provider for all file paths in this series
+    # Episode source = the series folder on disk, NOT wanted_items. wanted_items
+    # only holds episodes still MISSING a target subtitle; it drains as subs land
+    # and churns during a rescan's DELETE+re-INSERT, so a fully-satisfied series
+    # would otherwise render "0 episodes". Enumerate the folder and use
+    # wanted_items purely to enrich status.
+    episode_files = _enumerate_series_episode_files(series.get("folder_path", ""))
+
+    # Fallback: folder missing/unreachable (mount down) -- degrade to the
+    # wanted_items paths rather than showing nothing.
+    if not episode_files:
+        episode_files = [
+            (fp, {})
+            for fp in sorted({i.get("file_path", "") for i in wanted_items if i.get("file_path")})
+        ]
+
+    # Map file_path -> wanted_item for enrichment (id, season_episode, existing_sub).
+    wanted_by_fp: dict = {}
+    for _it in wanted_items:
+        _fp = _it.get("file_path", "")
+        if _fp and _fp not in wanted_by_fp:
+            wanted_by_fp[_fp] = _it
+
+    unique_fps = list({fp for fp, _ in episode_files if fp})
+
+    # Load subtitle_downloads score/provider for all file paths in this series.
+    # Named binds via expanding-IN keep this cross-DB (the old `?` + positional
+    # list was SQLite-only and silently 500'd on PostgreSQL).
     standalone_scores: dict = {}  # fp -> {lang: (score, provider_name)}
-    file_paths_all = list(
-        {item.get("file_path", "") for item in wanted_items if item.get("file_path")}
-    )
-    if file_paths_all:
+    if unique_fps:
         try:
-            # `?` placeholders + a positional list are SQLite-only; SQLAlchemy
-            # 2.x bound to PostgreSQL raises on every call and the catch-all
-            # below masks it as a debug log, so every standalone-series detail
-            # used to render score=null + provider=null even with downloads
-            # actually persisted. Use named binds via expanding-IN to stay
-            # cross-DB.
             stmt = text(
                 "SELECT file_path, language, format, score, provider_name "
                 "FROM subtitle_downloads "
                 "WHERE file_path IN :fps AND format != '' "
                 "ORDER BY downloaded_at DESC"
             ).bindparams(bindparam("fps", expanding=True))
-            rows_sa = db.execute(stmt, {"fps": file_paths_all}).fetchall()
+            rows_sa = db.execute(stmt, {"fps": unique_fps}).fetchall()
             for row in rows_sa:
                 sa_path, sa_lang, sa_fmt = row[0], row[1], row[2]
                 sa_score, sa_provider = row[3], row[4]
@@ -80,9 +140,6 @@ def _get_standalone_series_detail(series_id: int, settings) -> dict | None:
                         standalone_scores[sa_path][sa_lang] = (sa_score, sa_provider)
         except Exception as exc:
             logger.warning("subtitle_downloads score query failed: %s", exc, exc_info=True)
-
-    # Collect unique file paths for parallel subtitle detection
-    unique_fps = list({item.get("file_path", "") for item in wanted_items if item.get("file_path")})
 
     def _detect_subtitles(file_path: str) -> dict:
         """Detect subtitles for a single file across all target languages."""
@@ -116,32 +173,43 @@ def _get_standalone_series_detail(series_id: int, settings) -> dict | None:
 
     episodes = []
     seen: set = set()
-    for item in wanted_items:
-        fp = item.get("file_path", "")
-        if fp in seen:
+    for idx, (fp, parsed) in enumerate(episode_files):
+        if not fp or fp in seen:
             continue
         seen.add(fp)
-        se = item.get("season_episode", "")
+        wi = wanted_by_fp.get(fp)
+
+        # Season/episode: prefer the parsed filesystem metadata, else the
+        # wanted_item's season_episode string.
         season, episode = 0, 0
-        if se:
-            m = re.match(r"S(\d+)E(\d+)", se, re.IGNORECASE)
+        if parsed and parsed.get("episode") is not None:
+            season = int(parsed.get("season") or 0)
+            episode = int(parsed.get("episode") or 0)
+        elif wi and wi.get("season_episode"):
+            m = re.match(r"S(\d+)E(\d+)", wi["season_episode"], re.IGNORECASE)
             if m:
                 season, episode = int(m.group(1)), int(m.group(2))
+
         fs_subs = subtitle_map.get(fp, {})
         subtitles = {}
         for lang in target_languages:
             fs = fs_subs.get(lang, "") if fs_subs else ""
-            if fs:
-                subtitles[lang] = fs
-            else:
-                subtitles[lang] = wanted_fallback_sa.get(fp, {}).get(lang, "")
+            subtitles[lang] = fs or wanted_fallback_sa.get(fp, {}).get(lang, "")
         ep_scores_sa = standalone_scores.get(fp, {})
+
+        # Episode id: the wanted_item id while the episode is still wanted; a
+        # stable negative synthetic id once satisfied so the row still renders
+        # with a unique key.
+        ep_id = wi.get("id") if wi else -(idx + 1)
+        title = (wi.get("title") if wi else "") or _episode_title(
+            series.get("title", ""), season, episode
+        )
         episodes.append(
             {
-                "id": item.get("id"),
+                "id": ep_id,
                 "season": season,
                 "episode": episode,
-                "title": item.get("title", ""),
+                "title": title,
                 "has_file": True,
                 "file_path": fp,
                 "subtitles": subtitles,
@@ -155,6 +223,8 @@ def _get_standalone_series_detail(series_id: int, settings) -> dict | None:
                 "monitored": True,
             }
         )
+
+    episodes.sort(key=lambda e: (e["season"], e["episode"], e["file_path"]))
 
     poster = f"/api/v1/standalone/series/{series_id}/poster" if series.get("poster_url") else ""
 
@@ -171,7 +241,8 @@ def _get_standalone_series_detail(series_id: int, settings) -> dict | None:
         "fanart": "",
         "overview": "",
         "status": series.get("status", "continuing"),
-        "season_count": series.get("season_count") or 0,
+        "season_count": len({e["season"] for e in episodes if e["episode"]})
+        or (series.get("season_count") or 0),
         "episode_count": len(episodes),
         "episode_file_count": len(episodes),
         "tags": [],
