@@ -22,6 +22,7 @@ import os
 
 from sqlalchemy import or_, select
 from sqlalchemy.exc import IntegrityError
+from sqlalchemy.orm.exc import StaleDataError
 
 from db.models.core import WantedItem
 
@@ -145,6 +146,8 @@ class _WantedUpsertMixin:
         instance_name: str = "",
         subtitle_type: str = "full",
         embedded_languages: list = None,
+        *,
+        _retry: bool = False,
     ) -> tuple:
         """Insert or update a wanted item (matched on file_path + target_language + subtitle_type).
 
@@ -223,7 +226,40 @@ class _WantedUpsertMixin:
                 existing.instance_name = instance_name
                 existing.subtitle_type = subtitle_type
                 existing.updated_at = now
-            self._commit()
+            try:
+                self._commit()
+            except StaleDataError:
+                # The matched row was deleted concurrently (a parallel scan,
+                # standalone cleanup, or _prune_replaced_siblings) between our
+                # SELECT and this flush, so the UPDATE matched 0 rows. Recover
+                # by rolling back and re-running the upsert once — the retry
+                # re-SELECTs and inserts a fresh row (or adopts a concurrent
+                # insert winner via the IntegrityError path). Without this the
+                # StaleDataError propagates and poisons the shared session,
+                # cascading to every later item in the same scan.
+                self.session.rollback()
+                if _retry:
+                    raise
+                return self.upsert_wanted_item(
+                    item_type=item_type,
+                    file_path=file_path,
+                    title=title,
+                    season_episode=season_episode,
+                    existing_sub=existing_sub,
+                    missing_languages=missing_languages,
+                    sonarr_series_id=sonarr_series_id,
+                    sonarr_episode_id=sonarr_episode_id,
+                    radarr_movie_id=radarr_movie_id,
+                    standalone_series_id=standalone_series_id,
+                    standalone_movie_id=standalone_movie_id,
+                    upgrade_candidate=upgrade_candidate,
+                    current_score=current_score,
+                    target_language=target_language,
+                    instance_name=instance_name,
+                    subtitle_type=subtitle_type,
+                    embedded_languages=embedded_languages,
+                    _retry=True,
+                )
             self._prune_replaced_siblings(
                 keep_id=row_id,
                 keep_file_path=file_path,

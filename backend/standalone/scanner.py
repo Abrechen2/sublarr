@@ -250,6 +250,24 @@ class StandaloneScanner(_StandaloneProcessMixin):
             logger.error("scan_series(%d) failed: %s", series_id, e, exc_info=True)
             return {"error": str(e), "series_id": series_id}
 
+    def _recover_session(self) -> None:
+        """Roll back the shared session after a per-item processing error.
+
+        Standalone scans share the request-scoped ``db.session``. A failure
+        mid-item — e.g. a ``StaleDataError`` from a row deleted by a concurrent
+        scan/cleanup, or any DB error during flush — leaves that session
+        needing a rollback. Without recovering it here, the NEXT series/movie
+        immediately fails with 'transaction has been rolled back due to a
+        previous exception', which cascades so a single early error empties the
+        whole scan (episode list stayed empty until a manual rescan).
+        """
+        try:
+            from db import get_db
+
+            get_db().rollback()
+        except Exception as exc:  # pragma: no cover - defensive
+            logger.debug("Session rollback after scan error failed: %s", exc)
+
     def scan_folder(self, folder) -> tuple:
         """Scan a single watched folder.
 
@@ -393,6 +411,7 @@ class StandaloneScanner(_StandaloneProcessMixin):
                 wanted_count += w
             except Exception as e:
                 logger.error("Error processing series '%s': %s", title, e)
+                self._recover_session()
 
         # Process movies
         for file_path, parsed in movie_files:
@@ -402,6 +421,7 @@ class StandaloneScanner(_StandaloneProcessMixin):
                 wanted_count += w
             except Exception as e:
                 logger.error("Error processing movie '%s': %s", file_path, e)
+                self._recover_session()
 
         _stamp()
         return (series_count, movie_count, wanted_count)

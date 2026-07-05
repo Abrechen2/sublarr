@@ -408,6 +408,62 @@ class TestScanFolder:
 
         mock_upd.assert_not_called()
 
+    def test_scan_folder_recovers_session_after_series_error(self, app_ctx, tmp_path):
+        """Regression: a per-series DB failure must not poison the shared
+        session for the remaining series. A single StaleDataError once left the
+        session needing a rollback, so every later series failed with
+        'transaction has been rolled back' and the whole scan came back empty
+        (episode list blank until a manual rescan)."""
+        from sqlalchemy import text
+
+        from extensions import db
+
+        scanner = StandaloneScanner()
+        ep1 = tmp_path / "ShowA" / "ep01.mkv"
+        ep1.parent.mkdir(parents=True)
+        ep1.write_bytes(b"\x00")
+        ep2 = tmp_path / "ShowB" / "ep01.mkv"
+        ep2.parent.mkdir(parents=True)
+        ep2.write_bytes(b"\x00")
+
+        folder = {"path": str(tmp_path)}
+        mock_settings = MagicMock()
+        mock_settings.standalone_skip_extras = True
+
+        series_groups = {
+            "showa": [{"file_path": str(ep1), "title": "ShowA", "season": 1, "episode": 1}],
+            "showb": [{"file_path": str(ep2), "title": "ShowB", "season": 1, "episode": 1}],
+        }
+
+        processed = []
+
+        def fake_process(title, files, folder):
+            if title == "showa":
+                # Poison the session the way a StaleDataError does — leave it in
+                # a failed-transaction state that needs a rollback.
+                try:
+                    db.session.execute(text("SELECT * FROM __no_such_table__"))
+                except Exception:
+                    pass
+                raise RuntimeError("simulated stale-data failure")
+            # showb touches the DB — raises PendingRollbackError if showa's
+            # failure was never rolled back by the scanner.
+            db.session.execute(text("SELECT 1"))
+            processed.append(title)
+            return 2
+
+        with (
+            patch("config.get_settings", return_value=mock_settings),
+            patch("standalone.parser.is_video_file", return_value=True),
+            patch("standalone.parser.group_files_by_series", return_value=series_groups),
+            patch.object(scanner, "_process_series_group", side_effect=fake_process),
+        ):
+            s, m, w = scanner._scan_folder(folder)
+
+        assert "showb" in processed  # second series still processed after the first errored
+        assert s == 1
+        assert w == 2
+
     def test_extras_skipped_when_setting_enabled(self, tmp_path):
         """Trailer files are excluded when standalone_skip_extras is True."""
         scanner = StandaloneScanner()
