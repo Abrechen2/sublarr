@@ -5,6 +5,17 @@ All notable changes to Sublarr are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.6.3-rc.1] - 2026-07-05
+
+### Fixed
+- **`mt_on_original_found` and `mt_min_original_score` are now actually
+  configurable** — these profile fields (added with the provisional-MT
+  re-seek job) were fully implemented on the backend but had no reachable
+  API or UI control, so every profile stayed on the "notify" default
+  regardless of intent. Both are now exposed on the language profile create
+  and update API and have a Settings UI control (visible once "Keep seeking
+  the original" is enabled on a profile).
+
 ## [1.6.2] - 2026-07-05
 
 ### Added
