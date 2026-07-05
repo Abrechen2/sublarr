@@ -142,3 +142,25 @@ class _WantedUpdatesMixin:
         item.updated_at = self._now()
         self._commit()
         return True
+
+    def set_mt_pinned(self, item_id: int, pinned: bool) -> bool:
+        """Pin/unpin a provisional MT (feature #8b). A pinned item is never
+        auto-replaced or re-searched by ``services.mt_reseek``."""
+        item = self.session.get(WantedItem, item_id)
+        if not item:
+            return False
+        item.mt_pinned = 1 if pinned else 0
+        item.updated_at = self._now()
+        self._commit()
+        return True
+
+    def set_mt_pending_original(self, item_id: int, payload: str | None) -> bool:
+        """Record (or clear, with ``payload=None``) the pending-original JSON
+        signal set by a ``mt_on_original_found="notify"`` re-seek match."""
+        item = self.session.get(WantedItem, item_id)
+        if not item:
+            return False
+        item.mt_pending_original = payload
+        item.updated_at = self._now()
+        self._commit()
+        return True

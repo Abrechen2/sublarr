@@ -153,6 +153,17 @@ def update_existing_sub(item_id: int, value: str) -> bool:
     return _get_repo().update_existing_sub(item_id, value)
 
 
+def set_mt_pinned(item_id: int, pinned: bool) -> bool:
+    """Pin/unpin a provisional MT (feature #8b) — see ``WantedRepository.set_mt_pinned``."""
+    return _get_repo().set_mt_pinned(item_id, pinned)
+
+
+def set_mt_pending_original(item_id: int, payload: str | None) -> bool:
+    """Record/clear the pending-original signal — see
+    ``WantedRepository.set_mt_pending_original``."""
+    return _get_repo().set_mt_pending_original(item_id, payload)
+
+
 def delete_wanted_items(file_paths: list):
     """Delete wanted items by file paths (batch)."""
     for fp in file_paths or []:

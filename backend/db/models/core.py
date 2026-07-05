@@ -113,6 +113,22 @@ class WantedItem(db.Model):
     # don't poison an item when a provider has a bad day.
     error_count: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     last_error_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    # ── Provisional-MT re-seek fields (feature #8b Phase 2 Task 2,
+    # migration 3c4b1a2d5e6f) ─────────────────────────────────────────────
+    # User-edited/confirmed machine translation: never auto-replaced or
+    # re-searched by mt_reseek, regardless of the profile's
+    # mt_keep_seeking_original setting. Honoured by services.mt_reseek._is_pinned.
+    # Nullable (like upgrade_candidate above) rather than NOT NULL: the raw-SQL
+    # upsert path (db/repositories/wanted_upsert.py) enumerates columns
+    # explicitly and does not know about this one — a NOT NULL constraint
+    # would break every plain upsert_wanted_item() insert. NULL == falsy ==
+    # unpinned, so _is_pinned's bool(item.get("mt_pinned")) stays correct.
+    mt_pinned: Mapped[int | None] = mapped_column(Integer, nullable=True, default=0)
+    # JSON payload recording a qualifying original found during a
+    # mt_on_original_found="notify" re-seek pass (provider, score, output_path,
+    # found_at). NULL when there is no pending original. Set by
+    # services.mt_reseek, read/cleared by the Task-3 approve/reject API.
+    mt_pending_original: Mapped[str | None] = mapped_column(Text, nullable=True)
 
     __table_args__ = (
         Index("idx_wanted_status", "status"),

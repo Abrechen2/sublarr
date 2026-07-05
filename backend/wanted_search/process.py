@@ -204,6 +204,19 @@ def _try_target_ass_direct(ctx: dict) -> dict | None:
         ctx["ass_had_results"] = True
         new_score = result.score
 
+        if ctx.get("dry_run"):
+            from translator import get_output_path_for_lang
+
+            return {
+                "wanted_id": item_id,
+                "status": "found",
+                "dry_run": True,
+                "output_path": get_output_path_for_lang(file_path, "ass", item_lang),
+                "provider": result.provider_name,
+                "score": new_score,
+                "format": "ass",
+            }
+
         # For upgrade candidates, check if the new sub is actually better
         if is_upgrade and current_score > 0:
             from translator import get_output_path_for_lang
@@ -500,6 +513,17 @@ def _try_target_srt_direct(ctx: dict) -> dict | None:
         from translator import get_output_path_for_lang
 
         output_path = get_output_path_for_lang(file_path, "srt", item_lang)
+
+        if ctx.get("dry_run"):
+            return {
+                "wanted_id": item_id,
+                "status": "found",
+                "dry_run": True,
+                "output_path": output_path,
+                "provider": result.provider_name,
+                "score": result.score,
+                "format": "srt",
+            }
         try:
             # Use the returned path — see comment at Step 1: save_subtitle
             # may rewrite the extension if the format differs.
@@ -852,7 +876,12 @@ def _build_arr_context(item: dict) -> dict:
 # ---------------------------------------------------------------------------
 
 
-def process_wanted_item(item_id: int, auto_translate: bool | None = None) -> dict:
+def process_wanted_item(
+    item_id: int,
+    auto_translate: bool | None = None,
+    dry_run: bool = False,
+    bypass_existing_target_check: bool = False,
+) -> dict:
     """Full pipeline for one item: search -> download best -> translate.
 
     Args:
@@ -863,6 +892,41 @@ def process_wanted_item(item_id: int, auto_translate: bool | None = None) -> dic
             translate steps 2/4/5) — used by the provisional-MT re-seek job
             (feature #8b) to look for a genuine provider/embedded original
             without re-translating. ``True`` forces translation on.
+        dry_run: When ``True``, PREVIEW only — a genuine provider original
+            found via Step 1 (target ASS direct) or Step 3 (target SRT
+            direct) short-circuits BEFORE ``save_subtitle`` /
+            ``record_subtitle_download`` / ``delete_wanted_item`` and returns
+            ``{"status": "found", "dry_run": True, "provider", "score",
+            "output_path"}`` instead. Nothing is written to disk or the DB.
+            The normal "found" path is atomic (search -> download -> save ->
+            record -> delete, all before returning) so there is no other
+            point at which a caller can pause it — ``dry_run`` exists for
+            that purpose. Step 5 (embedded/translate fallback) is NOT
+            preview-safe (it triggers real extraction/translation as a side
+            effect of computing its own result) — in dry_run mode the
+            orchestrator stops before Step 5 and reports
+            ``{"status": "not_found", "dry_run": True}``. Used by the
+            provisional-MT re-seek job (feature #8b Phase 2 Task 2) to detect
+            a qualifying original before deciding replace-vs-notify.
+            Default ``False`` preserves the exact prior behaviour.
+            Scope note: ``dry_run`` only guards the PROVIDER-SEARCH write path
+            (Steps 1/3/5). The pre-flight gates that run before it
+            (``_check_profile_cutoff_and_audio``, ``_check_existing_sidecar``
+            unless bypassed, ``_check_max_search_attempts``) can still mutate
+            the wanted row or delete it — their outcomes are deterministic
+            file-presence/attempt-count facts independent of whether a
+            provider search happens, so letting them run identically in
+            preview and real calls is intentional, not an oversight.
+        bypass_existing_target_check: When ``True``, skip the early
+            "target-language sidecar already exists" short-circuit
+            (``_check_existing_sidecar``). Provisional-MT items already HAVE
+            a target-language sidecar — it IS the machine translation being
+            re-sought against — so the ordinary gate (which only checks file
+            presence, not provenance) would otherwise make the re-seek job a
+            permanent no-op for MT rows saved as ``.ass``. Used by
+            ``services.mt_reseek`` on both the preview and (for
+            ``auto_replace``) the real write call. Default ``False``
+            preserves the exact prior behaviour.
 
     Returns:
         dict: {wanted_id, status, output_path, provider, error}
@@ -883,9 +947,10 @@ def process_wanted_item(item_id: int, auto_translate: bool | None = None) -> dic
     if skip is not None:
         return skip
 
-    skip = _check_existing_sidecar(item, item_id, item_lang, settings)
-    if skip is not None:
-        return skip
+    if not bypass_existing_target_check:
+        skip = _check_existing_sidecar(item, item_id, item_lang, settings)
+        if skip is not None:
+            return skip
 
     skip = _check_max_search_attempts(item, item_id, settings)
     if skip is not None:
@@ -936,6 +1001,7 @@ def process_wanted_item(item_id: int, auto_translate: bool | None = None) -> dic
         "query": query,
         "source_query": None,
         "ass_had_results": False,
+        "dry_run": dry_run,
     }
 
     # Step 1: target-language ASS direct
@@ -967,5 +1033,13 @@ def process_wanted_item(item_id: int, auto_translate: bool | None = None) -> dic
             if result is not None:
                 return result
 
-    # Step 5: fallback to translate_file (embedded subtitle pipeline)
+    # Step 5: fallback to translate_file (embedded subtitle pipeline).
+    # NOT preview-safe (extraction/translation happen as a side effect of
+    # computing translate_file's own result) — dry_run stops here instead of
+    # entering it. See process_wanted_item's dry_run docstring.
+    if ctx.get("dry_run"):
+        logger.debug(
+            "Wanted %d: dry_run stops before the embedded/translate fallback (Step 5)", item_id
+        )
+        return {"wanted_id": item_id, "status": "not_found", "dry_run": True}
     return _fallback_translate_file(ctx)
