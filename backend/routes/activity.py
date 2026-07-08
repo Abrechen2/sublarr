@@ -14,7 +14,7 @@ _MAX_PER_PAGE = 200
 # even though wanted_search_runner.log_activity(EVENT_SEARCH, ...) writes
 # rows of that type — users could see them in the unfiltered list but
 # the API returned 400 on ?type=search.
-VALID_EVENT_TYPES = frozenset({"download", "extract", "delete", "scan", "search"})
+VALID_EVENT_TYPES = frozenset({"download", "extract", "delete", "scan", "search", "translate"})
 
 
 @bp.route("/activity", methods=["GET"])

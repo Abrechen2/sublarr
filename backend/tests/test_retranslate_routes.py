@@ -157,3 +157,90 @@ class TestRetranslateSingleWithWantedItem:
         with patch("db.jobs.get_job", return_value=None):
             resp = client.post("/api/v1/retranslate/999999")
         assert resp.status_code == 404
+
+
+class TestRetranslateBatch:
+    """Regression: /retranslate/batch called translate_file() directly and
+    skipped services.mt_provisional.record_mt_output entirely -- unlike
+    /retranslate/<id> and the wanted_search translate paths, a successful
+    batch re-translation produced no History entry and no MT-flagged
+    subtitle_downloads row (bug found 2026-07-08, same class as the single-
+    retranslate gap this file's other tests cover)."""
+
+    def test_success_records_mt_row_and_history_entry(self, client, tmp_path, monkeypatch):
+        _run_sync(monkeypatch)
+
+        media = tmp_path / "ep.mkv"
+        media.write_text("x")
+        out_path = str(tmp_path / "ep.de.ass")
+
+        with client.application.app_context():
+            save_config_entry("translation_enabled", "true")
+
+        with (
+            patch(
+                "db.jobs.get_outdated_jobs",
+                return_value=[{"file_path": str(media)}],
+            ),
+            patch(
+                "translator.translate_file",
+                return_value={
+                    "success": True,
+                    "output_path": out_path,
+                    "stats": {"format": "ass"},
+                },
+            ),
+        ):
+            resp = client.post("/api/v1/retranslate/batch")
+
+        assert resp.status_code == 202
+        with client.application.app_context():
+            from db.models.activity import EVENT_TRANSLATE, ActivityLog
+            from db.models.providers import SubtitleDownload
+            from extensions import db
+
+            row = db.session.query(SubtitleDownload).filter_by(source="machine_translation").one()
+            # file_path must be the VIDEO path -- see test_mt_provisional_record.py.
+            assert row.file_path == str(media)
+
+            activity_row = (
+                db.session.query(ActivityLog)
+                .filter_by(event_type=EVENT_TRANSLATE, file_path=str(media))
+                .first()
+            )
+            assert activity_row is not None
+
+    def test_skip_result_records_no_mt_row(self, client, tmp_path, monkeypatch):
+        _run_sync(monkeypatch)
+
+        media = tmp_path / "ep.mkv"
+        media.write_text("x")
+
+        with client.application.app_context():
+            save_config_entry("translation_enabled", "true")
+
+        with (
+            patch(
+                "db.jobs.get_outdated_jobs",
+                return_value=[{"file_path": str(media)}],
+            ),
+            patch(
+                "translator.translate_file",
+                return_value={
+                    "success": True,
+                    "output_path": str(tmp_path / "ep.de.ass"),
+                    "stats": {"skipped": True, "reason": "already exists"},
+                },
+            ),
+        ):
+            resp = client.post("/api/v1/retranslate/batch")
+
+        assert resp.status_code == 202
+        with client.application.app_context():
+            from db.models.providers import SubtitleDownload
+            from extensions import db
+
+            count = (
+                db.session.query(SubtitleDownload).filter_by(source="machine_translation").count()
+            )
+            assert count == 0

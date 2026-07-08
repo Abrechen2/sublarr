@@ -104,7 +104,9 @@ def build_combined_path(video_path: str, languages: list[str], fmt: str) -> str:
     return f"{base}.{lang_tag}.combined.{fmt}"
 
 
-def _record_combined(out_path: str, language: str, fmt: str, content: bytes) -> None:
+def _record_combined(
+    out_path: str, language: str, fmt: str, content: bytes, video_path: str
+) -> None:
     """Register hash + history row for a written combined sidecar.
 
     Mirrors ``services.subtitle_upload.save_manual_subtitle`` — failures here
@@ -139,7 +141,10 @@ def _record_combined(out_path: str, language: str, fmt: str, content: bytes) -> 
             subtitle_id=f"combined:{os.path.basename(out_path)}",
             language=language,
             fmt=fmt,
-            file_path=out_path,
+            # file_path is the VIDEO path, matching every other source (see
+            # mt_provisional.record_mt_output) -- not the combined sidecar's
+            # own path.
+            file_path=video_path,
             score=0,
             source="combined",
             # A combined file is composed from already-counted sidecars, not a
@@ -189,7 +194,7 @@ def combine_for_video(
         raise CombineError(400, "Resolved combined path is outside the media directory")
 
     atomic_write_bytes(out_path, content)
-    _record_combined(out_path, languages[0], fmt, content)
+    _record_combined(out_path, languages[0], fmt, content, video_path)
 
     return {"combined_path": out_path, "languages": languages, "format": fmt}
 

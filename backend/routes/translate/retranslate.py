@@ -248,6 +248,23 @@ def retranslate_batch():
                     processed += 1
                     if result["success"]:
                         succeeded += 1
+                        stats = result.get("stats") or {}
+                        output_path = result.get("output_path")
+                        # A successful, non-skipped translation must be
+                        # flagged the same way every other translate-
+                        # completion site does (retranslate_single,
+                        # wanted_search) -- otherwise it produces no History
+                        # entry at all (bug found 2026-07-08). No wanted item
+                        # is involved here (jobs are independent of
+                        # wanted_items), so record the MT row directly
+                        # instead of routing through finalize_translation.
+                        if output_path and not stats.get("skipped"):
+                            from services.mt_provisional import record_mt_output
+
+                            out_fmt = stats.get("format") or (
+                                "ass" if output_path.endswith(".ass") else "srt"
+                            )
+                            record_mt_output(file_path, output_path, s.target_language, out_fmt)
                     else:
                         failed += 1
                 except Exception as e:

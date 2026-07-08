@@ -54,7 +54,9 @@ def test_finalize_flags_mt_and_keeps_provisional_on_real_translation(
     retranslation._finalize_retranslation(item_id, item, "de", result)
 
     row = db.session.query(SubtitleDownload).filter_by(source="machine_translation").one()
-    assert row.file_path == out
+    # file_path is the VIDEO path (matches every other source), not the MT
+    # output path -- History's preview reconstructs "{base}.{lang}.{fmt}" from it.
+    assert row.file_path == item["file_path"]
     assert row.language == "de"
     assert row.score == 0
     assert get_wanted_item(item_id)["status"] == "provisional"

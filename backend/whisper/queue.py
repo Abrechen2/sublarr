@@ -277,7 +277,10 @@ class WhisperQueue:
                             subtitle_id=job_id,
                             language=language,
                             fmt="srt",
-                            file_path=srt_path,
+                            # file_path is the VIDEO path, matching every other
+                            # source (see mt_provisional.record_mt_output) --
+                            # not srt_path, the generated sidecar's own path.
+                            file_path=file_path,
                             score=0,
                             source="whisper",
                         )

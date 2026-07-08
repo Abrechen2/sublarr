@@ -62,7 +62,9 @@ def test_upload_episode_subtitle_success_records_manual_source(client, temp_dir,
     assert open(data["saved_path"], "rb").read() == _SRT
 
     with client.application.app_context():
-        row = SubtitleDownload.query.filter_by(file_path=data["saved_path"]).one()
+        # file_path is the VIDEO path, matching every other source -- see
+        # test_subtitle_download_file_path_convention.py.
+        row = SubtitleDownload.query.filter_by(file_path=video).one()
         assert row.source == "manual"
         assert row.language == "de"
         assert row.format == "srt"
@@ -200,7 +202,7 @@ def test_upload_movie_subtitle_success_records_manual_source(client, temp_dir):
     assert os.path.exists(data["saved_path"])
 
     with client.application.app_context():
-        row = SubtitleDownload.query.filter_by(file_path=data["saved_path"]).one()
+        row = SubtitleDownload.query.filter_by(file_path=video).one()
         assert row.source == "manual"
         assert row.language == "en"
 

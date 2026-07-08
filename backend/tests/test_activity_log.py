@@ -209,6 +209,83 @@ def test_scan_event_logs_without_file_path(app_ctx):
 # ---------------------------------------------------------------------------
 
 
+def test_record_subtitle_download_logs_translate_event_for_mt_source(app_ctx):
+    """A machine_translation subtitle_downloads row must log EVENT_TRANSLATE,
+    not EVENT_DOWNLOAD -- so History can give translations their own category
+    instead of lumping them under Downloads (bug found 2026-07-08)."""
+    from unittest.mock import patch
+
+    from db.models.activity import EVENT_TRANSLATE, ActivityLog
+    from extensions import db
+
+    with patch("db.providers._get_repo") as mock_get_repo:
+        mock_get_repo.return_value.record_subtitle_download.return_value = None
+
+        import db.providers as prov
+
+        prov.record_subtitle_download(
+            provider_name="translation",
+            subtitle_id="mt:ep8.de.ass",
+            language="de",
+            fmt="ass",
+            file_path="/media/ep8.mkv",
+            score=0,
+            source="machine_translation",
+            record_stats=False,
+        )
+
+    row = (
+        db.session.query(ActivityLog)
+        .filter_by(event_type=EVENT_TRANSLATE, file_path="/media/ep8.mkv")
+        .first()
+    )
+    assert row is not None
+
+
+def test_record_subtitle_download_still_logs_download_event_for_provider_source(app_ctx):
+    """Non-MT sources (provider, manual, whisper, combined) keep EVENT_DOWNLOAD."""
+    from unittest.mock import patch
+
+    from db.models.activity import EVENT_DOWNLOAD, ActivityLog
+    from extensions import db
+
+    with patch("db.providers._get_repo") as mock_get_repo:
+        mock_get_repo.return_value.record_subtitle_download.return_value = None
+
+        import db.providers as prov
+
+        prov.record_subtitle_download(
+            provider_name="jimaku",
+            subtitle_id="abc999",
+            language="de",
+            fmt="ass",
+            file_path="/media/ep9.mkv",
+            score=90,
+        )
+
+    row = (
+        db.session.query(ActivityLog)
+        .filter_by(event_type=EVENT_DOWNLOAD, file_path="/media/ep9.mkv")
+        .first()
+    )
+    assert row is not None
+
+
+def test_activity_endpoint_accepts_translate_filter(client):
+    """GET /api/v1/activity?type=translate must be accepted (not 400)."""
+    from db.activity import log_activity
+    from db.models.activity import EVENT_TRANSLATE
+
+    with client.application.app_context():
+        log_activity(EVENT_TRANSLATE, file_path="/media/ep10.mkv", status="success")
+
+    resp = client.get("/api/v1/activity?type=translate")
+    assert resp.status_code == 200, resp.data[:200]
+    body = resp.get_json()
+    for entry in body["data"]:
+        assert entry["event_type"] == "translate"
+
+
 def test_activity_endpoint_accepts_search_filter(client):
     """``EVENT_SEARCH`` rows are written by wanted_search_runner.log_activity
     but the route's VALID_EVENT_TYPES set was missing ``"search"``, so users

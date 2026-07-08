@@ -12,6 +12,7 @@ EVENT_EXTRACT = "extract"
 EVENT_DELETE = "delete"
 EVENT_SCAN = "scan"
 EVENT_SEARCH = "search"
+EVENT_TRANSLATE = "translate"
 
 
 class ActivityLog(db.Model):

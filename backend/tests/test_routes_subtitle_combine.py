@@ -71,7 +71,9 @@ def test_combine_episode_success_records_combined_source(client, temp_dir, monke
     assert "Hallo Welt" in joined and "Hello world" in joined
 
     with client.application.app_context():
-        row = SubtitleDownload.query.filter_by(file_path=out).one()
+        # file_path is the VIDEO path, matching every other source -- see
+        # test_subtitle_download_file_path_convention.py.
+        row = SubtitleDownload.query.filter_by(file_path=video).one()
         assert row.source == "combined"
         assert row.format == "srt"
 

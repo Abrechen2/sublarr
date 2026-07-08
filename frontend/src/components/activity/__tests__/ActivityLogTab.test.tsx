@@ -90,4 +90,10 @@ describe('ActivityLogTab', () => {
     wrap(<ActivityLogTab />)
     expect(screen.getByTestId('activity-row-4')).toHaveTextContent('Wanted scan')
   })
+
+  it('renders a translate filter pill alongside download/extract/delete/scan', () => {
+    wrap(<ActivityLogTab />)
+    // Mocked t(key, fallback) => fallback -- the pill's fallback is the raw type name.
+    expect(screen.getByText('translate')).toBeInTheDocument()
+  })
 })

@@ -83,6 +83,7 @@
   },
   "history": {
     "filter_downloads": "Downloads",
+    "filter_translate": "Übersetzungen",
     "filter_extract": "Extraktionen",
     "filter_delete": "Löschungen",
     "filter_scan": "Scans",

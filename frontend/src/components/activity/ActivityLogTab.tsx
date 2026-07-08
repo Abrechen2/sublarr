@@ -6,6 +6,7 @@ import type { ActivityEntry } from '@/api/system/activity'
 
 const EVENT_TYPE_COLORS: Record<string, string> = {
   download: 'var(--success)',
+  translate: 'var(--info, var(--accent))',
   extract: 'var(--accent)',
   delete: 'var(--danger)',
   scan: 'var(--text-muted)',
@@ -88,10 +89,11 @@ function ActivityRow({ entry }: { entry: ActivityEntry }) {
   )
 }
 
-const EVENT_TYPES = ['download', 'extract', 'delete', 'scan'] as const
+const EVENT_TYPES = ['download', 'translate', 'extract', 'delete', 'scan'] as const
 
 const EVENT_TYPE_I18N_KEYS: Record<string, string> = {
   download: 'history.filter_downloads',
+  translate: 'history.filter_translate',
   extract: 'history.filter_extract',
   delete: 'history.filter_delete',
   scan: 'history.filter_scan',

@@ -50,7 +50,13 @@ def test_finalize_translation_keeps_provisional_when_profile_opts_in(
 
     row = db.session.query(SubtitleDownload).filter_by(source="machine_translation").one()
     assert row.language == "de"
-    assert row.file_path == output_path
+    # file_path must be the VIDEO path, matching every other source (provider
+    # downloads, manual uploads, whisper, combine) -- see
+    # backend/wanted_search/process.py's record_subtitle_download calls. History's
+    # preview button reconstructs "{base}.{lang}.{fmt}" from this column assuming
+    # it's the video; storing the subtitle's own output_path here double-suffixed
+    # the reconstructed path and 404'd (bug found 2026-07-08).
+    assert row.file_path == item["file_path"]
     assert row.score == 0
 
     updated = get_wanted_item(item_id)
@@ -69,7 +75,7 @@ def test_finalize_translation_deletes_item_when_profile_opts_out(app_ctx, tmp_pa
 
     row = db.session.query(SubtitleDownload).filter_by(source="machine_translation").one()
     assert row.language == "de"
-    assert row.file_path == output_path
+    assert row.file_path == item["file_path"]
     assert row.score == 0
 
     assert get_wanted_item(item_id) is None
@@ -94,7 +100,7 @@ def test_finalize_translation_fails_safe_to_delete_on_profile_resolution_error(
     mt_provisional.finalize_translation(item_id, item, output_path, "de", "ass")
 
     row = db.session.query(SubtitleDownload).filter_by(source="machine_translation").one()
-    assert row.file_path == output_path
+    assert row.file_path == item["file_path"]
 
     # Fails safe to delete when profile resolution errors out.
     assert get_wanted_item(item_id) is None
@@ -158,7 +164,7 @@ def test_finalize_translation_does_not_double_count_daily_stats(app_ctx, tmp_pat
 
     # The MT row itself must still exist (needed for history / upgrade-scan guard).
     row = db.session.query(SubtitleDownload).filter_by(source="machine_translation").one()
-    assert row.file_path == output_path
+    assert row.file_path == item["file_path"]
 
     # But daily_stats must NOT have moved -- no double count.
     assert _translated_count() == before

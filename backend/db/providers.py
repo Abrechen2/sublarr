@@ -3,7 +3,7 @@
 import logging
 
 from db.activity import log_activity
-from db.models.activity import EVENT_DOWNLOAD
+from db.models.activity import EVENT_DOWNLOAD, EVENT_TRANSLATE
 from db.repositories.providers import ProviderRepository
 
 logger = logging.getLogger(__name__)
@@ -105,8 +105,12 @@ def record_subtitle_download(
         source=source,
         upgraded_from_id=upgraded_from_id,
     )
+    # Machine-translation rows get their own History category instead of
+    # being lumped under Downloads (bug found 2026-07-08) -- every other
+    # source (provider, manual, whisper, combined) still reads as a download.
+    event_type = EVENT_TRANSLATE if source == "machine_translation" else EVENT_DOWNLOAD
     log_activity(
-        EVENT_DOWNLOAD,
+        event_type,
         file_path=file_path,
         status="success",
         details={"provider": provider_name, "language": language, "format": fmt, "score": score},

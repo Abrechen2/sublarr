@@ -216,7 +216,11 @@ def save_manual_subtitle(
             subtitle_id=f"manual:{os.path.basename(out_path)}",
             language=language,
             fmt=ext,
-            file_path=out_path,
+            # file_path is the VIDEO path, matching every other source (see
+            # backend/services/mt_provisional.record_mt_output) -- not the
+            # uploaded sidecar's own path, which History's preview
+            # reconstructs "{base}.{lang}.{fmt}" from assuming a video.
+            file_path=video_path,
             score=0,
             source="manual",
         )

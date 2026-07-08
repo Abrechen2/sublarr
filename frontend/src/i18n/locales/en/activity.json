@@ -83,6 +83,7 @@
   },
   "history": {
     "filter_downloads": "Downloads",
+    "filter_translate": "Translations",
     "filter_extract": "Extractions",
     "filter_delete": "Deletions",
     "filter_scan": "Scans",

@@ -10,7 +10,7 @@ import { useTranslation } from 'react-i18next'
 import { HistoryPage } from '@/pages/History'
 import { ActivityLogTab } from '@/components/activity/ActivityLogTab'
 
-type SubFilter = 'downloads' | 'extract' | 'delete' | 'scan'
+type SubFilter = 'downloads' | 'translate' | 'extract' | 'delete' | 'scan'
 
 export function UnifiedHistoryTab() {
   const { t } = useTranslation('activity')
@@ -18,6 +18,7 @@ export function UnifiedHistoryTab() {
 
   const pills: { id: SubFilter; label: string }[] = [
     { id: 'downloads', label: t('history.filter_downloads') },
+    { id: 'translate', label: t('history.filter_translate') },
     { id: 'extract',   label: t('history.filter_extract') },
     { id: 'delete',    label: t('history.filter_delete') },
     { id: 'scan',      label: t('history.filter_scan') },
