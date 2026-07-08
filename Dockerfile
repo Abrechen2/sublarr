@@ -23,6 +23,10 @@ LABEL org.opencontainers.image.description="Standalone Subtitle Manager & Transl
 LABEL org.opencontainers.image.source="https://github.com/Abrechen2/sublarr"
 LABEL org.opencontainers.image.licenses="GPL-3.0"
 LABEL org.opencontainers.image.version="${VERSION}"
+# Also expose it to the running app (backend/version.py) so an RC-tagged
+# build (e.g. "1.6.5-rc.2") reports its actual tag instead of the plain
+# backend/VERSION content, which never carries the -rc.N suffix.
+ENV SUBLARR_VERSION="${VERSION}"
 
 # Install system dependencies
 # postgresql-client provides pg_dump/pg_restore for optional PostgreSQL backup support
