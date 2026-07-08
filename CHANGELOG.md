@@ -5,6 +5,29 @@ All notable changes to Sublarr are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.6.5] - 2026-07-08
+
+### Fixed
+- **DeepL translation could hang indefinitely** — the DeepL SDK's own
+  retry/backoff has no reliable upper bound, and under concurrent load a
+  request could stall forever, blocking the translation queue for minutes.
+  Calls now run under a 60-second timeout and a concurrency slot, so a
+  stuck request is abandoned instead of blocking subsequent work.
+- **Retranslated items stayed stuck in "wanted" status** — the
+  `/retranslate` endpoint resolved translation jobs but never updated the
+  source wanted item, so successfully retranslated items never left the
+  wanted list. It now finalizes the wanted item the same way the
+  batch-translate path already did.
+- **Wanted search ignored local subtitle sidecars already on disk** —
+  items with a source-language sidecar file were subject to the same
+  provider rate-limit backoff as items with no local material at all,
+  even though translating the sidecar needs no provider call. These items
+  are now translated directly, skipping the backoff wait entirely.
+- **API key bootstrap failed over LAN when UI login is disabled** —
+  `/auth/bootstrap` only worked from localhost or an authenticated
+  session; when authentication is disabled, the frontend now establishes
+  a session first so bootstrap succeeds from any host on the network.
+
 ## [1.6.4] - 2026-07-05
 
 ### Fixed
