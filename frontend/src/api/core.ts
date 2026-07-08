@@ -114,9 +114,21 @@ api.interceptors.response.use(
  * The /auth/bootstrap endpoint is only accessible from localhost or an
  * authenticated UI session, so the key is never exposed to external callers.
  * Once retrieved it is stored in localStorage and picked up by the interceptor.
+ *
+ * When UI auth is disabled, /auth/login is a no-op that just establishes a
+ * session cookie (no password needed) — calling it first lets /auth/bootstrap
+ * succeed over LAN instead of only from localhost.
  */
 export async function bootstrapApiKey(): Promise<void> {
   if (localStorage.getItem('sublarr_api_key')) return
+  try {
+    const status = await axios.get('/api/v1/auth/status')
+    if (status.data?.enabled === false && !status.data?.authenticated) {
+      await axios.post('/api/v1/auth/login', {})
+    }
+  } catch {
+    // Status check failed — still attempt bootstrap below as-is
+  }
   try {
     const res = await axios.get('/api/v1/auth/bootstrap')
     const key: string = res.data?.api_key

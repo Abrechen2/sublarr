@@ -4,11 +4,13 @@ Supports both Free and Pro plans (auto-detected from API key suffix).
 Native glossary support with caching for repeated translations.
 """
 
+import concurrent.futures
 import hashlib
 import json
 import logging
 
 from translation.base import TranslationBackend, TranslationResult
+from translation.concurrency import get_concurrency
 
 logger = logging.getLogger(__name__)
 
@@ -81,6 +83,12 @@ class DeepLBackend(TranslationBackend):
     supports_glossary = True
     supports_batch = True
     max_batch_size = 50  # DeepL limit: 50 texts per request
+    # The deepl SDK's own backoff/retry has no reliable upper bound in
+    # practice — under concurrent load we observed calls hang indefinitely
+    # (TCP socket stuck in CLOSE_WAIT with unread bytes, no exception ever
+    # raised). _run_with_timeout() below abandons the call past this many
+    # seconds rather than trusting the SDK to time out on its own.
+    timeout_s = 60
 
     config_fields = [
         {
@@ -108,6 +116,22 @@ class DeepLBackend(TranslationBackend):
                 raise RuntimeError("DeepL API key not configured")
             self._client = deepl.DeepLClient(auth_key=api_key)
         return self._client
+
+    def _run_with_timeout(self, fn, *args, **kwargs):
+        """Run fn in a throwaway thread, abandoning it if it exceeds timeout_s.
+
+        A fresh single-use executor per call (rather than a shared pool) means
+        a hung call only leaks one thread — it never blocks subsequent calls,
+        which a reused executor's single worker would.
+        """
+        executor = concurrent.futures.ThreadPoolExecutor(max_workers=1)
+        future = executor.submit(fn, *args, **kwargs)
+        try:
+            return future.result(timeout=self.timeout_s)
+        except concurrent.futures.TimeoutError:
+            raise TimeoutError(f"DeepL request exceeded {self.timeout_s}s") from None
+        finally:
+            executor.shutdown(wait=False)
 
     def translate_batch(
         self,
@@ -141,21 +165,22 @@ class DeepLBackend(TranslationBackend):
             raise RuntimeError("deepl package not installed. Install with: pip install deepl")
 
         try:
-            client = self._get_client()
+            with get_concurrency().slot(self.name, timeout_s=self.timeout_s):
+                client = self._get_client()
 
-            source = _to_deepl_lang(source_lang)
-            target = _to_deepl_lang(target_lang)
+                source = _to_deepl_lang(source_lang)
+                target = _to_deepl_lang(target_lang)
 
-            kwargs = {"source_lang": source, "target_lang": target}
+                kwargs = {"source_lang": source, "target_lang": target}
 
-            # Handle glossary if entries provided
-            if glossary_entries:
-                glossary = self._get_or_create_glossary(source, target, glossary_entries)
-                if glossary:
-                    kwargs["glossary"] = glossary
+                # Handle glossary if entries provided
+                if glossary_entries:
+                    glossary = self._get_or_create_glossary(source, target, glossary_entries)
+                    if glossary:
+                        kwargs["glossary"] = glossary
 
-            results = client.translate_text(lines, **kwargs)
-            translated = [r.text for r in results]
+                results = self._run_with_timeout(client.translate_text, lines, **kwargs)
+                translated = [r.text for r in results]
 
             return TranslationResult(
                 translated_lines=translated,
@@ -213,7 +238,8 @@ class DeepLBackend(TranslationBackend):
                 return None
 
             glossary_name = f"sublarr_{source_lang}_{target_lang}"
-            glossary = client.create_glossary(
+            glossary = self._run_with_timeout(
+                client.create_glossary,
                 glossary_name,
                 source_lang=source_lang,
                 target_lang=target_lang,

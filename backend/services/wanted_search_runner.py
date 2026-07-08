@@ -23,9 +23,12 @@ from config import get_settings
 from db.activity import log_activity
 from db.models.activity import EVENT_SEARCH
 from services.wanted_search_filters import (  # noqa: F401 — re-exported for back-compat
+    _EMBEDDED_TYPES,
     _apply_backlog_reserve_gate,
     _extract_embedded_items,
     _filter_eligible,
+    _split_local_translate_items,
+    _translate_local_sidecar_items,
 )
 from services.wanted_search_outcome import (  # noqa: F401 — re-exported for back-compat
     _ERROR_BACKOFF_TABLE,
@@ -235,6 +238,12 @@ def run_wanted_search(
     if not include_upgrades:
         items = [i for i in items if not i.get("upgrade_candidate")]
 
+    # Pull out items with a source-language sidecar already on disk BEFORE
+    # the retry_after gate — they need zero provider calls, so they must
+    # never wait behind the same backoff as items with no local material at
+    # all (see _split_local_translate_items docstring).
+    local_translate_items, items = _split_local_translate_items(items, settings)
+
     # Filter by backoff / cooldown — runs across the FULL fetched pool so due
     # items are never invisible to this filter (see _ELIGIBILITY_FETCH_CAP).
     eligible = _filter_eligible(items, settings)
@@ -284,27 +293,37 @@ def run_wanted_search(
     # items kept at the front) is preserved since we only slice the list.
     eligible = eligible[:max_items]
 
-    if not eligible:
+    if not eligible and not local_translate_items:
         return {"total": 0, "processed": 0, "found": 0, "failed": 0, "skipped": 0}
 
     # Split: embedded subs → extraction, rest → provider search
-    _embedded_types = ("embedded_ass", "embedded_srt")
-    embedded_items = [i for i in eligible if i.get("existing_sub") in _embedded_types]
-    search_items = [i for i in eligible if i.get("existing_sub") not in _embedded_types]
+    embedded_items = [i for i in eligible if i.get("existing_sub") in _EMBEDDED_TYPES]
+    search_items = [i for i in eligible if i.get("existing_sub") not in _EMBEDDED_TYPES]
 
     if embedded_items:
         logger.info(
             "[search_all] %d items have embedded subs — extracting instead of searching",
             len(embedded_items),
         )
+    if local_translate_items:
+        logger.info(
+            "[search_all] %d items have a local source sidecar — translating "
+            "directly instead of searching",
+            len(local_translate_items),
+        )
 
-    total = len(eligible)
+    total = len(eligible) + len(local_translate_items)
     processed = 0
     found = 0
     failed = 0
     skipped = 0
 
-    # Extract embedded-sub items first
+    # Translate local-sidecar items first — no provider involved at all.
+    processed, found, failed = _translate_local_sidecar_items(
+        local_translate_items, processed, found, failed, total, socketio, settings
+    )
+
+    # Extract embedded-sub items next
     processed, found, failed = _extract_embedded_items(
         embedded_items, processed, found, failed, total, socketio, settings
     )

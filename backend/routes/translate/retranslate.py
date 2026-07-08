@@ -99,13 +99,14 @@ def retranslate_single(job_id):
     from db.jobs import create_job, get_job
     from db.wanted import get_wanted_item
 
+    wanted_item = None
     job = get_job(str(job_id))
     if not job:
         # Try as wanted item ID
-        item = get_wanted_item(job_id)
-        if not item:
+        wanted_item = get_wanted_item(job_id)
+        if not wanted_item:
             return jsonify({"error": "Item not found"}), 404
-        file_path = item["file_path"]
+        file_path = wanted_item["file_path"]
     else:
         file_path = job["file_path"]
 
@@ -135,7 +136,19 @@ def retranslate_single(job_id):
 
     def _run():
         with _app.app_context():
-            _run_job(new_job)
+            result = _run_job(new_job)
+            # When called with a wanted-item ID (not an existing job ID), the
+            # wanted row must be resolved on success — otherwise it sits in
+            # "wanted" forever even though its target subtitle now exists on
+            # disk (this was reachable in prod: /retranslate never touched
+            # wanted_items at all). Reuses the same finalize helper the
+            # /wanted/batch-translate path already relies on, so both entry
+            # points flag MT output and set provisional status identically.
+            if wanted_item:
+                from services.retranslation import _finalize_retranslation
+
+                item_lang = wanted_item.get("target_language") or get_settings().target_language
+                _finalize_retranslation(wanted_item["id"], wanted_item, item_lang, result)
             emit_event(
                 "translation_complete",
                 {

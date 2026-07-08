@@ -9,7 +9,10 @@ from translation.base import TranslationResult
 
 def _make_backend(**config_overrides):
     """Create a DeepLBackend instance without triggering __init__ side effects."""
+    from translation.concurrency import get_concurrency
     from translation.deepl_backend import DeepLBackend
+
+    get_concurrency().register("deepl", 3)
 
     backend = DeepLBackend.__new__(DeepLBackend)
     backend.config = {"api_key": "test-key:fx", **config_overrides}
@@ -176,6 +179,56 @@ class TestTranslateBatch:
         # Verify glossary was passed to translate_text
         call_kwargs = mock_client.translate_text.call_args[1]
         assert "glossary" in call_kwargs
+
+    @patch("translation.deepl_backend._DEEPL_AVAILABLE", True)
+    def test_hung_call_is_abandoned_after_timeout(self):
+        """A translate_text call that never returns must not hang the job forever.
+
+        Reproduces the prod incident: the deepl SDK's own retry/backoff didn't
+        surface an exception even after 12+ minutes (TCP CLOSE_WAIT with
+        unread bytes). _run_with_timeout must bound the wait regardless.
+        """
+        import threading
+        import time
+
+        backend = _make_backend()
+        backend.timeout_s = 0.1
+        mock_client = MagicMock()
+        release_event = threading.Event()
+
+        def _never_returns_in_time(*args, **kwargs):
+            release_event.wait(timeout=5)  # released by the test at teardown
+            return [MagicMock(text="unused")]
+
+        mock_client.translate_text.side_effect = _never_returns_in_time
+        backend._client = mock_client
+
+        started = time.monotonic()
+        result = backend.translate_batch(["Hello"], "en", "de")
+        elapsed = time.monotonic() - started
+
+        assert result.success is False
+        assert "0.1s" in result.error
+        assert elapsed < 1.0  # bounded by timeout_s, not the 5s side_effect wait
+        release_event.set()  # let the abandoned thread finish so it doesn't leak past the test
+
+    @patch("translation.deepl_backend._DEEPL_AVAILABLE", True)
+    def test_translate_batch_uses_concurrency_slot(self):
+        """translate_batch must acquire the shared per-backend concurrency slot."""
+        from translation.concurrency import get_concurrency
+
+        backend = _make_backend()
+        mock_client = MagicMock()
+        mock_result = MagicMock()
+        mock_result.text = "Hallo"
+        mock_client.translate_text.return_value = [mock_result]
+        backend._client = mock_client
+
+        with patch.object(get_concurrency(), "slot", wraps=get_concurrency().slot) as mock_slot:
+            result = backend.translate_batch(["Hello"], "en", "de")
+
+        assert result.success is True
+        mock_slot.assert_called_once_with("deepl", timeout_s=backend.timeout_s)
 
 
 class TestGetOrCreateGlossary:

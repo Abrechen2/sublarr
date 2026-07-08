@@ -12,6 +12,11 @@ from services.embedded_extractor import extract_embedded_sub
 
 logger = logging.getLogger(__name__)
 
+# existing_sub values that already route through the embedded-extraction path
+# in run_wanted_search — these never need the local-sidecar split below since
+# they're already provider-free.
+_EMBEDDED_TYPES = ("embedded_ass", "embedded_srt")
+
 
 def _apply_backlog_reserve_gate(
     items: list[dict],
@@ -114,6 +119,98 @@ def _extract_embedded_items(
             found += 1
         except Exception as exc:
             logger.warning("[search_all] Extraction failed for item %d: %s", item["id"], exc)
+            failed += 1
+        processed += 1
+        if socketio:
+            socketio.emit(
+                "wanted_search_progress",
+                {
+                    "processed": processed,
+                    "total": total,
+                    "found": found,
+                    "failed": failed,
+                    "current_item": item.get("title", str(item["id"])),
+                },
+            )
+    return processed, found, failed
+
+
+def _split_local_translate_items(items: list[dict], settings) -> tuple[list[dict], list[dict]]:
+    """Pull out items with an external source-language sidecar already on disk.
+
+    These need zero provider calls — ``translate_file`` (Case C2b) would find
+    and use the sidecar anyway once an item reaches Step 5 of the normal
+    pipeline. The problem this closes: the ``retry_after`` eligibility gate
+    (``_filter_eligible``) operates purely on DB fields and has no idea a
+    local sidecar exists, so an item with real material sitting on disk waits
+    behind the same provider-rate-limit backoff as one with nothing at all —
+    confirmed on prod: 1012 of 2133 wanted items had a ready ``.eng.ass``
+    sidecar, 0 were ever picked up while auto-translate was on.
+
+    Only applies when ``wanted_auto_translate`` is enabled — otherwise
+    diverting these items would skip Steps 1/3's chance at a genuine
+    target-language provider match for no benefit (nothing would translate
+    the sidecar anyway).
+
+    Returns ``(local_translate_items, remaining_items)``.
+    """
+    if not getattr(settings, "wanted_auto_translate", False):
+        return [], items
+
+    from translator._helpers import find_any_source_sub
+
+    local_items = []
+    remaining = []
+    for item in items:
+        if item.get("existing_sub") in _EMBEDDED_TYPES:
+            remaining.append(item)
+            continue
+        try:
+            src_path, _src_lang = find_any_source_sub(
+                item["file_path"], target_language=item.get("target_language")
+            )
+        except Exception as exc:  # noqa: BLE001 — a probe failure must not block the item
+            logger.debug("[search_all] local-sidecar probe failed for item %d: %s", item["id"], exc)
+            src_path = None
+        if src_path:
+            local_items.append(item)
+        else:
+            remaining.append(item)
+    return local_items, remaining
+
+
+def _translate_local_sidecar_items(
+    local_items, processed, found, failed, total, socketio, settings
+) -> tuple[int, int, int]:
+    """Translate items whose external source sidecar was found by the split above.
+
+    Calls the same Step-5 fallback the normal per-item pipeline would
+    eventually reach (``wanted_search.process._fallback_translate_file``) —
+    no provider search, no retry_after gate, just the local translate.
+    """
+    from wanted_search.process import _fallback_translate_file
+
+    auto_translate = getattr(settings, "wanted_auto_translate", False)
+    for item in local_items:
+        item_lang = item.get("target_language") or settings.target_language
+        ctx = {
+            "item": item,
+            "item_id": item["id"],
+            "item_lang": item_lang,
+            "settings": settings,
+            "auto_translate": auto_translate,
+            "file_path": item["file_path"],
+        }
+        try:
+            result = _fallback_translate_file(ctx)
+            if result.get("status") == "found":
+                found += 1
+            else:
+                failed += 1
+        except Exception as exc:
+            logger.warning(
+                "[search_all] Local sidecar translate failed for item %d: %s", item["id"], exc
+            )
             failed += 1
         processed += 1
         if socketio:
