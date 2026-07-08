@@ -27,6 +27,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `/auth/bootstrap` only worked from localhost or an authenticated
   session; when authentication is disabled, the frontend now establishes
   a session first so bootstrap succeeds from any host on the network.
+- **Preview failed for translated, manually uploaded, transcribed, and
+  combined subtitles** — History's preview button reconstructs the
+  subtitle path assuming the stored path is the video, but these four
+  sources stored their own generated subtitle path instead, producing a
+  double-suffixed path that didn't exist on disk. All sources now store
+  the video path consistently.
+- **Batch re-translation left no record in History** — `/retranslate/batch`
+  called the translation engine directly and skipped the bookkeeping step,
+  unlike single re-translation and the automatic wanted-search paths, so a
+  successful batch run produced no History entry at all.
+
+### Added
+- **Translations now have their own History category** — machine-translated
+  subtitles previously showed up lumped under Downloads with no way to
+  filter them out; they now get a dedicated "Translations" tab.
 
 ## [1.6.4] - 2026-07-05
 
