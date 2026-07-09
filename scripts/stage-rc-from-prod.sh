@@ -4,7 +4,10 @@
 # FORCE=1. See docs/superpowers/specs/2026-07-09-sublarr-3tier-design.md.
 set -euo pipefail
 
-SSH="ssh -o ConnectTimeout=10 -i ${HOME}/.ssh/id_ed25519 root@192.168.178.36"
+# NB: rely on ssh's default key discovery (~/.ssh/id_ed25519) rather than an
+# explicit -i path — a HOME with spaces (Windows git-bash "Dennis Wittke")
+# word-splits inside the unquoted $SSH expansion and breaks the -i argument.
+SSH="ssh -o ConnectTimeout=10 root@192.168.178.36"
 SOURCE_PG="sublarr-postgres"
 TARGET_PG="${TARGET_PG:-sublarr-rc-postgres}"
 DB="sublarr"
