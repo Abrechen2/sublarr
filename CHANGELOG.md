@@ -45,6 +45,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **"What's New" dialog flickered on fresh installs** — it appeared for a
   frame before the first-run wizard took over; it now waits until the setup
   status is known.
+- **A wrong or missing encryption key no longer bricks startup** — if the
+  database is restored or moved without its `.encryption_key` file, config
+  values that can't be decrypted are treated as unset (the setting falls back
+  to its default and the failure is logged) instead of crashing the app during
+  boot.
 
 ### Added
 - **Translations now have their own History category** — machine-translated
