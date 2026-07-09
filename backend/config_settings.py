@@ -95,6 +95,10 @@ class BootSettings(BaseSettings):
     db_path: str = "/config/sublarr.db"
     database_url: str = ""
 
+    # Anonymous usage statistics (opt-in). Empty string disables sending entirely,
+    # regardless of the in-app consent toggle (self-hoster kill-switch / redirect).
+    stats_endpoint: str = "https://stats.sublarr.de/v1/ping"
+
     # Redis (optional cache + queue backend)
     redis_url: str = ""
 
