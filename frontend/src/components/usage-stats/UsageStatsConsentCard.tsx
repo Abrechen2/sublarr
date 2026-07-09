@@ -25,7 +25,7 @@ export function UsageStatsConsentCard({
       <p className="text-xs text-muted">{t('usageStats.body')}</p>
       <a
         className="text-xs text-accent underline"
-        href="/docs/getting-started/usage-statistics/"
+        href="https://sublarr.de/docs/getting-started/usage-statistics/"
         target="_blank"
         rel="noreferrer"
       >
