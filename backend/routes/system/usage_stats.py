@@ -4,7 +4,7 @@ GET  /api/v1/usage-stats/consent  -> {"consent": "unset|granted|denied"}
 POST /api/v1/usage-stats/consent  {"consent": "granted|denied"} -> {"consent": ...}
 """
 
-from flask import jsonify, request
+from flask import current_app, jsonify, request
 
 from routes.system import bp
 from services.background_tasks import submit_background
@@ -25,6 +25,16 @@ def usage_stats_consent_set():
     set_consent(value)
     if value == "granted":
         # Fire one immediate ping so the dashboard reflects the new opt-in
-        # without waiting up to 24h for the scheduled tick.
-        submit_background(usage_stats_tick)
+        # without waiting up to 24h for the scheduled tick. submit_background's
+        # contract is that the submitted callable pushes its own Flask app
+        # context (the pool worker has none); usage_stats_tick touches the DB
+        # via build_usage_payload, so wrap it — passing the bare tick silently
+        # failed with "working outside of application context".
+        _app = current_app._get_current_object()
+
+        def _immediate_ping() -> None:
+            with _app.app_context():
+                usage_stats_tick()
+
+        submit_background(_immediate_ping)
     return jsonify({"consent": value})
