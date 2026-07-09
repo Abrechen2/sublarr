@@ -707,5 +707,13 @@
       "encryption_title": "Encrypted API keys",
       "encryption_desc": "Provider API keys are now encrypted at rest in the database."
     }
+  },
+  "usageStats": {
+    "title": "Send anonymous usage statistics?",
+    "body": "Help make Sublarr better: anonymously share version, platform, active providers and a rough library-size bucket. No IP, no paths, no titles. You can turn it off any time in Settings.",
+    "whatIsSent": "What is sent?",
+    "accept": "Yes, share anonymously",
+    "decline": "No thanks",
+    "settingLabel": "Anonymous usage statistics"
   }
 }

@@ -707,5 +707,13 @@
       "encryption_title": "Verschlüsselte API-Keys",
       "encryption_desc": "Provider-API-Keys werden jetzt verschlüsselt in der Datenbank gespeichert."
     }
+  },
+  "usageStats": {
+    "title": "Anonyme Nutzungsstatistik senden?",
+    "body": "Hilf Sublarr besser zu werden: sende anonym Version, Plattform, aktive Provider und grobe Library-Größe. Keine IP, keine Pfade, keine Titel. Jederzeit in den Einstellungen abschaltbar.",
+    "whatIsSent": "Was wird gesendet?",
+    "accept": "Ja, anonym teilen",
+    "decline": "Nein danke",
+    "settingLabel": "Anonyme Nutzungsstatistik"
   }
 }
