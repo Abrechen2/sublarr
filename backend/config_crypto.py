@@ -85,5 +85,14 @@ def decrypt(value: str | None) -> str | None:
     try:
         return _get_cipher().decrypt(token.encode("ascii")).decode("utf-8")
     except InvalidToken:
-        logger.error("Failed to decrypt a config value — wrong or missing master key")
-        raise
+        # A wrong/missing master key (e.g. a DB restored or cloned without its
+        # {config_dir}/.encryption_key) must NOT brick the whole app on boot —
+        # get_all_config_entries() runs during create_app(). Treat the value as
+        # unset so the affected setting falls back to its default; the operator
+        # sees this error and can re-enter the key/value. (Previously re-raised,
+        # which crashed the gunicorn worker before it could serve anything.)
+        logger.error(
+            "Failed to decrypt a config value — wrong or missing master key; "
+            "treating it as unset (re-enter the value or restore the key)"
+        )
+        return None

@@ -225,29 +225,38 @@ class SublarrScheduler:
 
         scheduler = self._ensure_scheduler()
 
+        # APScheduler dispatches these listeners on its own event thread, which
+        # has no Flask app context — _write_job_run touches the DB, so it must
+        # run inside one. Without this, a job missed while the app was down
+        # (e.g. during a redeploy or a DB clone) logs "Working outside of
+        # application context" and its miss is never recorded.
         def _on_missed(event) -> None:
             try:
-                _write_job_run(
-                    job_id=event.job_id,
-                    started_at=event.scheduled_run_time,
-                    finished_at=None,
-                    status="missed",
-                    triggered_by="schedule",
-                )
+                if self._app is None:
+                    return
+                with self._app.app_context():
+                    _write_job_run(
+                        job_id=event.job_id,
+                        started_at=event.scheduled_run_time,
+                        finished_at=None,
+                        status="missed",
+                        triggered_by="schedule",
+                    )
             except Exception:
                 logger.error("scheduler: missed-listener failed", exc_info=True)
 
         def _on_error(event) -> None:
             try:
                 exc = event.exception
-                if isinstance(exc, MaxInstancesReachedError):
-                    _write_job_run(
-                        job_id=event.job_id,
-                        started_at=event.scheduled_run_time,
-                        finished_at=event.scheduled_run_time,
-                        status="skipped_overlap",
-                        triggered_by="schedule",
-                    )
+                if isinstance(exc, MaxInstancesReachedError) and self._app is not None:
+                    with self._app.app_context():
+                        _write_job_run(
+                            job_id=event.job_id,
+                            started_at=event.scheduled_run_time,
+                            finished_at=event.scheduled_run_time,
+                            status="skipped_overlap",
+                            triggered_by="schedule",
+                        )
             except Exception:
                 logger.error("scheduler: error-listener failed", exc_info=True)
 
