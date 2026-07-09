@@ -85,6 +85,7 @@ def _build_default_jobs() -> list[JobSpec]:
     from services.stats_rollup import stats_rollup_tick
     from services.subtitle_automation_runner import subtitle_automation_tick
     from services.subtitle_health.sweep import subtitle_health_sweep_tick
+    from services.usage_stats import usage_stats_tick
     from services.wanted_scanner_scheduler import (
         wanted_scanner_tick,
         wanted_search_tick,
@@ -128,6 +129,17 @@ def _build_default_jobs() -> list[JobSpec]:
             timeout_s=60,
             owner_module="services.scheduler",
             description="Delete old scheduler_job_runs rows per retention policy.",
+        ),
+        JobSpec(
+            id="usage_stats_ping",
+            func=usage_stats_tick,
+            # Once daily with up to 1h jitter so installs don't all hit the
+            # endpoint at the same wall-clock minute. Inert unless the user
+            # opted in (usage_stats_tick short-circuits on consent).
+            default_trigger=IntervalTrigger(hours=24, jitter=3600),
+            timeout_s=30,
+            owner_module="services.usage_stats",
+            description="Send opt-in anonymous usage statistics ping.",
         ),
         JobSpec(
             id="translation_events_cleanup",
