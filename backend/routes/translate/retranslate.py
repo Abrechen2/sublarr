@@ -206,7 +206,7 @@ def retranslate_batch():
                     type: integer
     """
     from config import get_settings
-    from db.jobs import get_outdated_jobs
+    from db.jobs import get_outdated_jobs, update_job
     from translator import translate_file
 
     if not _is_translation_enabled():
@@ -250,6 +250,16 @@ def retranslate_batch():
                         succeeded += 1
                         stats = result.get("stats") or {}
                         output_path = result.get("output_path")
+                        # Refresh the original outdated job row so it leaves
+                        # the outdated set. translate_file stamps the current
+                        # config_hash into result["stats"] on success; without
+                        # writing it back to the job, get_outdated_jobs keeps
+                        # returning this same job forever and outdated_count
+                        # never decrements (bug found 2026-07-08). Mirrors
+                        # services.translation_jobs.run_job's update_job call.
+                        job_id = job.get("id")
+                        if job_id:
+                            update_job(job_id, "completed", result=result)
                         # A successful, non-skipped translation must be
                         # flagged the same way every other translate-
                         # completion site does (retranslate_single,

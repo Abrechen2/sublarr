@@ -244,3 +244,44 @@ class TestRetranslateBatch:
                 db.session.query(SubtitleDownload).filter_by(source="machine_translation").count()
             )
             assert count == 0
+
+    def test_success_clears_outdated_flag(self, client, tmp_path, monkeypatch):
+        """Regression: batch re-translation must refresh each job's config_hash
+        to the current one, otherwise get_outdated_jobs keeps returning the same
+        jobs forever and outdated_count never decrements (bug found 2026-07-08).
+        Unlike the mocked-get_outdated_jobs tests above, this exercises the real
+        job row through the real get_outdated_jobs query end-to-end."""
+        _run_sync(monkeypatch)
+
+        media = tmp_path / "ep.mkv"
+        media.write_text("x")
+        out_path = str(tmp_path / "ep.de.ass")
+
+        with client.application.app_context():
+            from config import get_settings
+            from db.jobs import create_job, get_outdated_jobs_count, update_job
+
+            save_config_entry("translation_enabled", "true")
+            current_hash = get_settings().get_translation_config_hash()
+
+            # A completed job translated under an older config -> outdated.
+            job = create_job(str(media))
+            update_job(job["id"], "completed", result={"stats": {"config_hash": "stalehash0000"}})
+            assert get_outdated_jobs_count(current_hash) == 1
+
+        with patch(
+            "translator.translate_file",
+            return_value={
+                "success": True,
+                "output_path": out_path,
+                "stats": {"format": "ass", "config_hash": current_hash},
+            },
+        ):
+            resp = client.post("/api/v1/retranslate/batch")
+
+        assert resp.status_code == 202
+        with client.application.app_context():
+            from db.jobs import get_outdated_jobs_count
+
+            # Job now carries the current hash -> no longer outdated.
+            assert get_outdated_jobs_count(current_hash) == 0
