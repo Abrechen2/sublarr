@@ -1,12 +1,23 @@
-import { describe, it, expect } from 'vitest'
+import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { render, screen } from '@testing-library/react'
-import { WhatsNewModal } from '../WhatsNewModal'
 import { versionKey, WHATS_NEW } from '@/content/whatsNew'
 
-import { vi } from 'vitest'
 vi.mock('react-i18next', () => ({
   useTranslation: () => ({ t: (k: string) => k }),
 }))
+
+// Mutable consent so a single mocked hook can drive both states. vi.hoisted
+// keeps the ref accessible inside the (hoisted) vi.mock factory.
+const consentRef = vi.hoisted(() => ({ value: 'granted' as 'unset' | 'granted' | 'denied' }))
+vi.mock('@/hooks/useUsageStatsConsent', () => ({
+  useUsageStatsConsent: () => ({ consent: consentRef.value, isLoading: false, setConsent: vi.fn() }),
+}))
+
+import { WhatsNewModal } from '../WhatsNewModal'
+
+beforeEach(() => {
+  consentRef.value = 'granted'
+})
 
 describe('versionKey', () => {
   it('normalises a pre-release version to the content key', () => {
@@ -30,9 +41,23 @@ describe('WhatsNewModal', () => {
   })
 
   it('renders nothing when closed or version is null', () => {
-    const { container, rerender } = render(<WhatsNewModal open={false} version="1.6.0" onDismiss={() => {}} />)
+    const { container, rerender } = render(
+      <WhatsNewModal open={false} version="1.6.0" onDismiss={() => {}} />,
+    )
     expect(container).toBeEmptyDOMElement()
     rerender(<WhatsNewModal open version={null} onDismiss={() => {}} />)
     expect(container).toBeEmptyDOMElement()
+  })
+
+  it('shows the usage-stats consent card only when consent is unset', () => {
+    consentRef.value = 'unset'
+    render(<WhatsNewModal open version="1.6.0" onDismiss={() => {}} />)
+    expect(screen.getByTestId('usage-stats-accept')).toBeInTheDocument()
+  })
+
+  it('hides the consent card once a choice was made', () => {
+    consentRef.value = 'granted'
+    render(<WhatsNewModal open version="1.6.0" onDismiss={() => {}} />)
+    expect(screen.queryByTestId('usage-stats-accept')).not.toBeInTheDocument()
   })
 })
