@@ -12,7 +12,8 @@
     "providers": "Provider",
     "ollama": "Ollama",
     "mediaservers": "Medienserver (Optional)",
-    "scan": "Erster Scan"
+    "scan": "Erster Scan",
+    "usagestats": "Statistik"
   },
   "step_info": "Schritt {{step}} von {{total}}",
   "mode_step": {
@@ -90,6 +91,9 @@
     "types_load_failed": "Medienserver-Typen konnten nicht geladen werden.",
     "required": "Erforderlich",
     "optional": "Optional"
+  },
+  "usagestats_step": {
+    "description": "Optional — teile anonyme Nutzungsstatistik, um Sublarr zu verbessern."
   },
   "scan_step": {
     "description": "Führe deinen ersten Scan aus, um fehlende Untertitel zu finden.",

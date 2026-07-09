@@ -4,8 +4,9 @@ import { useTranslation } from 'react-i18next'
 import { updateConfig, completeOnboarding, getHealth, getMediaServerTypes, saveMediaServerInstances, testMediaServer, saveWatchedFolder, triggerStandaloneScan } from '@/api/client'
 import { testSonarrInstance, testRadarrInstance, testApiKey } from '@/api/settings'
 import { toast } from '@/components/shared/Toast'
-import { Loader2, CheckCircle, ArrowRight, ArrowLeft, Server, Globe, Cpu, Search, Play, Monitor, Plus, TestTube, Trash2, Eye, EyeOff, FolderOpen, Languages, Zap, AlertCircle } from 'lucide-react'
+import { Loader2, CheckCircle, ArrowRight, ArrowLeft, Server, Globe, Cpu, Search, Play, Monitor, Plus, TestTube, Trash2, Eye, EyeOff, FolderOpen, Languages, Zap, AlertCircle, BarChart3 } from 'lucide-react'
 import type { MediaServerType, MediaServerInstance, MediaServerTestResult } from '@/lib/types'
+import { UsageStatsConsentCard } from '@/components/usage-stats/UsageStatsConsentCard'
 
 export const ALL_STEPS = [
   { id: 'mode', titleKey: 'steps.mode', icon: Server, descKey: 'mode_step.description' },
@@ -17,6 +18,7 @@ export const ALL_STEPS = [
   { id: 'automation', titleKey: 'steps.automation', icon: Zap, descKey: 'automation_step.description' },
   { id: 'ollama', titleKey: 'steps.ollama', icon: Cpu, descKey: 'ollama_step.description' },
   { id: 'mediaservers', titleKey: 'steps.mediaservers', icon: Monitor, descKey: 'mediaservers_step.description' },
+  { id: 'usagestats', titleKey: 'steps.usagestats', icon: BarChart3, descKey: 'usagestats_step.description' },
   { id: 'scan', titleKey: 'steps.scan', icon: Play, descKey: 'scan_step.description' },
 ]
 
@@ -24,12 +26,12 @@ export function getVisibleSteps(setupMode: 'arr' | 'standalone' | null) {
   if (!setupMode) return [ALL_STEPS[0]] // only setup mode step
   if (setupMode === 'arr') {
     return ALL_STEPS.filter(s =>
-      ['mode', 'arr', 'pathmapping', 'language', 'providers', 'automation', 'ollama', 'mediaservers', 'scan'].includes(s.id)
+      ['mode', 'arr', 'pathmapping', 'language', 'providers', 'automation', 'ollama', 'mediaservers', 'usagestats', 'scan'].includes(s.id)
     )
   }
   // standalone: skip arr and pathmapping
   return ALL_STEPS.filter(s =>
-    ['mode', 'standalone', 'language', 'providers', 'automation', 'ollama', 'mediaservers', 'scan'].includes(s.id)
+    ['mode', 'standalone', 'language', 'providers', 'automation', 'ollama', 'mediaservers', 'usagestats', 'scan'].includes(s.id)
   )
 }
 
@@ -940,6 +942,12 @@ export default function Onboarding() {
                   </button>
                 </div>
               )}
+            </div>
+          )}
+
+          {currentStepDef.id === 'usagestats' && (
+            <div className="space-y-4">
+              <UsageStatsConsentCard onChoice={() => setStep((s) => s + 1)} />
             </div>
           )}
 

@@ -33,4 +33,16 @@ describe('Onboarding step structure', () => {
     expect(ids.indexOf('automation')).toBeGreaterThan(ids.indexOf('providers'))
     expect(ids.indexOf('automation')).toBeLessThan(ids.indexOf('ollama'))
   })
+
+  it('ALL_STEPS contains the usage-stats consent step', () => {
+    expect(ALL_STEPS.map(s => s.id)).toContain('usagestats')
+  })
+
+  it('usagestats step is the last step before scan in both modes', () => {
+    for (const mode of ['arr', 'standalone'] as const) {
+      const ids = getVisibleSteps(mode).map(s => s.id)
+      expect(ids).toContain('usagestats')
+      expect(ids.indexOf('usagestats')).toBe(ids.indexOf('scan') - 1)
+    }
+  })
 })
