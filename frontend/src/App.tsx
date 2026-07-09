@@ -6,6 +6,7 @@ import { IconSidebar } from '@/components/layout/IconSidebar'
 import { UpdateBanner } from '@/components/layout/UpdateBanner'
 import { WhatsNewModal } from '@/components/layout/WhatsNewModal'
 import { useWhatsNew } from '@/hooks/useWhatsNew'
+import { UsageStatsConsentGate } from '@/components/usage-stats/UsageStatsConsentGate'
 import { BottomNav } from '@/components/layout/BottomNav'
 import { StatusBar } from '@/components/layout/StatusBar'
 import { ToastContainer, toast } from '@/components/shared/Toast'
@@ -219,6 +220,7 @@ function AppInner({
         <div className="flex flex-col min-h-screen">
           <UpdateBanner />
           <WhatsNewModal open={whatsNew.open && !wizardActive && setupLoaded} version={whatsNew.version} onDismiss={whatsNew.dismiss} />
+          <UsageStatsConsentGate enabled={setupLoaded && !wizardActive && !whatsNew.open} />
           <div className="flex flex-1 min-h-0">
             <IconSidebar />
             {/* min-h-screen kept intentionally: avoids content reflow when the banner is dismissed */}
