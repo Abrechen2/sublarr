@@ -5,7 +5,7 @@ All notable changes to Sublarr are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [1.6.5] - 2026-07-08
+## [1.6.5] - 2026-07-09
 
 ### Fixed
 - **DeepL translation could hang indefinitely** — the DeepL SDK's own
@@ -37,11 +37,30 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   called the translation engine directly and skipped the bookkeeping step,
   unlike single re-translation and the automatic wanted-search paths, so a
   successful batch run produced no History entry at all.
+- **Batch re-translation never cleared the "outdated" flag** — after a
+  successful `/retranslate/batch` run, items kept reappearing as outdated
+  because their config hash was never written back, so the outdated count
+  never decreased. Each re-translated job is now refreshed like the
+  single-item path.
+- **"What's New" dialog flickered on fresh installs** — it appeared for a
+  frame before the first-run wizard took over; it now waits until the setup
+  status is known.
 
 ### Added
 - **Translations now have their own History category** — machine-translated
   subtitles previously showed up lumped under Downloads with no way to
   filter them out; they now get a dedicated "Translations" tab.
+- **Anonymous usage statistics (opt-in, off by default)** — Sublarr can now
+  share anonymous, aggregate usage data (version, platform, active providers,
+  a coarse library-size bucket — never IP addresses, paths, or titles) to help
+  prioritise development. You're asked once via a one-time prompt, and the
+  toggle also lives in Settings → About; it stays off unless you opt in, can be
+  turned off any time, and can be redirected or fully disabled with
+  `SUBLARR_STATS_ENDPOINT`.
+- **Startup warning for slow storage** — when the SQLite database sits on a
+  microSD card or a network share (the most common cause of a sluggish
+  instance), Sublarr now logs a warning at startup recommending an SSD or
+  PostgreSQL.
 
 ## [1.6.4] - 2026-07-05
 
