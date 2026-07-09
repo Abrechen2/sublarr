@@ -196,6 +196,10 @@ function AppInner({
   // What's-New shows on the next render (sequential, never overlapping).
   const { data: setupStatus } = useSetupStatus()
   const wizardActive = shouldShowWizard(setupStatus)
+  // Until the setup status has actually loaded, wizardActive is false (from
+  // undefined) — showing What's-New in that window makes it flicker for a frame
+  // before the first-run wizard takes over. Gate on the status being known.
+  const setupLoaded = setupStatus !== undefined
 
   return (
     <>
@@ -214,7 +218,7 @@ function AppInner({
       ) : (
         <div className="flex flex-col min-h-screen">
           <UpdateBanner />
-          <WhatsNewModal open={whatsNew.open && !wizardActive} version={whatsNew.version} onDismiss={whatsNew.dismiss} />
+          <WhatsNewModal open={whatsNew.open && !wizardActive && setupLoaded} version={whatsNew.version} onDismiss={whatsNew.dismiss} />
           <div className="flex flex-1 min-h-0">
             <IconSidebar />
             {/* min-h-screen kept intentionally: avoids content reflow when the banner is dismissed */}
