@@ -242,6 +242,16 @@ def create_app(testing=False):
                 conn.execute(text("PRAGMA busy_timeout=5000"))
                 conn.commit()
 
+            # Diagnostic: the #1 cause of "Sublarr is painfully slow" reports is
+            # a SQLite DB on a microSD card or network share. Time a few commits
+            # and warn if the /config volume is slow. Best-effort — never fatal.
+            try:
+                from db.storage_probe import warn_if_slow_storage
+
+                warn_if_slow_storage(sa_db.engine)
+            except Exception as _e:
+                logger.debug("Storage probe skipped: %s", _e)
+
         # Initialize FTS5 search tables (virtual tables for global search)
         from db.search import init_search_tables, rebuild_search_index
 
