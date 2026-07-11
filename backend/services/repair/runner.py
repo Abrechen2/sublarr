@@ -38,7 +38,7 @@ class QuotaExhaustedError(Exception):
 @dataclass
 class RepairOutcome:
     file_path: str
-    status: str  # repaired | hand_edited | provider_changed | unavailable | error
+    status: str  # repaired | unprovable | nothing_to_restore | unavailable | error
     detail: str = ""
 
 
@@ -55,7 +55,7 @@ class RepairRun:
         self.outcomes.append(outcome)
         if outcome.status == "repaired":
             self.repaired += 1
-        elif outcome.status in ("hand_edited", "provider_changed", "unavailable"):
+        elif outcome.status in ("unprovable", "nothing_to_restore", "unavailable"):
             self.skipped += 1
         else:
             self.failed += 1
@@ -150,26 +150,28 @@ def repair_one(candidate: RepairCandidate, *, dry_run: bool = False) -> RepairOu
         logger.warning("repair: fetch failed for %s: %s", candidate.file_path, exc)
         return RepairOutcome(candidate.file_path, "error", str(exc))
 
-    # Gate 1 — is this provably the original that was saved back then?
-    # (A .bak already cleared this gate; a provider file has to.)
-    if _hash_bytes(original) != candidate.original_hash:
-        return RepairOutcome(
-            candidate.file_path,
-            "provider_changed",
-            "the provider file no longer matches the hash recorded at download time",
-        )
-
     try:
         with open(candidate.file_path, "rb") as fh:
             on_disk = fh.read()
     except OSError as exc:
         return RepairOutcome(candidate.file_path, "error", str(exc))
 
-    # Gate 2 — is the file on disk pipeline damage, or someone's own edit?
+    # The gate is the REPLAY, not the hash. The hash recorded at download time is
+    # the hash of the file *as it was written back then*, and the normalisation
+    # chain that produced those bytes has changed since — on the production
+    # library it matched 0 of 8 sampled files, while the replay reproduced 5.
+    #
+    # The replay is the stronger proof anyway: "the old pipeline, applied to THIS
+    # original, produces EXACTLY the file on disk" establishes both that we hold
+    # the right original and that nobody has edited the file since. A hash match
+    # is kept only as a shortcut for the .bak path, which needs no replay.
     try:
         repaired = restore_subtitle(original=original, on_disk=on_disk, fmt=candidate.fmt)
     except RestoreRefusedError as exc:
-        return RepairOutcome(candidate.file_path, "hand_edited", str(exc))
+        from services.repair.restore import NOTHING_TO_RESTORE
+
+        status = "nothing_to_restore" if str(exc) == NOTHING_TO_RESTORE else "unprovable"
+        return RepairOutcome(candidate.file_path, status, str(exc))
     except Exception as exc:  # noqa: BLE001
         logger.warning("repair: restore failed for %s: %s", candidate.file_path, exc)
         return RepairOutcome(candidate.file_path, "error", str(exc))

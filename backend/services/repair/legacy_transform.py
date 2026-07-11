@@ -165,8 +165,10 @@ def replay_legacy_pipeline_with_survivors(
     fmt: str = "srt",
     common_fixes: bool = True,
     hi_removal: bool = True,
+    credit_removal: bool = False,
     common_fixes_options: dict | None = None,
     hi_removal_options: dict | None = None,
+    credit_removal_options: dict | None = None,
 ) -> tuple[bytes, list[int]]:
     """Replay the damaged pipeline and report which original cues survived it.
 
@@ -190,6 +192,12 @@ def replay_legacy_pipeline_with_survivors(
 
     if hi_removal:
         _legacy_hi_removal(subs, hi_removal_options or {})
+
+    if credit_removal:
+        # Never part of the bug, so the live implementation is the historical one.
+        from subtitle_processor import _apply_credit_removal
+
+        _apply_credit_removal(subs, credit_removal_options or {})
 
     survivors = [origin[id(e)] for e in subs.events if id(e) in origin]
 

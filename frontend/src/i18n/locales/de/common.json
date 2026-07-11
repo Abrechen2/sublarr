@@ -727,12 +727,12 @@
     "from_backup": "Aus Sicherung (gratis)",
     "needs_download": "Erneuter Download nötig",
     "already_repaired": "Bereits repariert",
-    "safety": "Es wird nichts überschrieben, ohne bewiesen zu haben, dass das echte Original vorliegt. Selbst bearbeitete Dateien bleiben unangetastet, die Synchronisation bleibt erhalten.",
+    "safety": "Es wird nichts überschrieben, ohne dass der alte Fehler-Code aus dem Original exakt die Datei auf deiner Platte erzeugt — erst das beweist, dass es das richtige Original ist und du die Datei nicht selbst bearbeitet hast. Lässt sich das nicht zeigen, bleibt die Datei unangetastet. Die Synchronisation bleibt erhalten.",
     "dry_run": "Testlauf",
     "start": "Reparatur starten",
     "restored": "Repariert",
-    "hand_edited": "Selbst bearbeitet (übersprungen)",
     "failed": "Fehlgeschlagen",
-    "quota_exhausted": "Das Tageskontingent des Anbieters ist aufgebraucht. Der nächste Lauf macht dort weiter, wo dieser aufgehört hat."
+    "quota_exhausted": "Das Tageskontingent des Anbieters ist aufgebraucht. Der nächste Lauf macht dort weiter, wo dieser aufgehört hat.",
+    "unprovable": "Nicht beweisbar (übersprungen)"
   }
 }

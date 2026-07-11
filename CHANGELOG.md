@@ -5,6 +5,33 @@ All notable changes to Sublarr are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.7.3] - 2026-07-11
+
+### Fixed
+- **Repair proved the wrong thing, and so refused every file.** It required the
+  re-downloaded original to hash to the value recorded at download time. But that
+  hash is the hash of the file *as it was written back then*, and the
+  normalisation chain that produced those bytes has changed since — so old files
+  can never reproduce it. On the production library the hash matched **0 of 8**
+  sampled files while the replay reproduced **5 of 8**, proving the downloads were
+  right and only the gate was wrong.
+
+  The proof is now the **replay**: the old buggy pipeline, applied to the
+  original, must reproduce the file on disk exactly. That is the stronger claim —
+  it establishes both that the original is the right one and that nobody has
+  edited the file since. The recorded hash is kept only as a shortcut for the
+  backup path, where it does hold (a `.bak` *is* the file as written).
+
+  Because the processing pipeline is configurable and can be overridden per
+  series, the replay now tries the combinations that were actually possible and
+  accepts the first that reproduces the file exactly. Trying several widens
+  coverage without weakening the proof.
+
+- **Two refusal reasons collapsed into one honest one.** A failed replay cannot
+  distinguish "you edited this file" from "the provider changed the file" —
+  claiming otherwise was a guess. Both now report as *unprovable*, and the file is
+  left alone either way.
+
 ## [1.7.2] - 2026-07-11
 
 ### Fixed

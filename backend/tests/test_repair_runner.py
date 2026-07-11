@@ -84,27 +84,30 @@ def test_repairs_and_brings_the_words_back(app_ctx, candidate, damaged_file):
     assert "  " not in _text_of(damaged_file)
 
 
-def test_refuses_when_the_provider_file_changed(app_ctx, candidate, damaged_file):
-    """Hash mismatch means we are not holding the original — do not overwrite."""
+def test_refuses_when_it_is_not_the_right_original(app_ctx, candidate, damaged_file):
+    """If no replay reproduces the file on disk, we cannot prove what we would
+
+    overwrite — the download is a different subtitle, or the file was edited.
+    """
     before = damaged_file.read_bytes()
     other = _srt([(1000, 3000, "Ein ganz anderer Untertitel.")])
 
     with patch("services.repair.runner.fetch_original", return_value=other):
         outcome = repair_one(candidate)
 
-    assert outcome.status == "provider_changed"
+    assert outcome.status == "unprovable"
     assert damaged_file.read_bytes() == before, "the file must not be touched"
 
 
 def test_refuses_a_hand_edited_file(app_ctx, candidate, damaged_file):
-    """If the replay cannot reproduce what is on disk, a human edited it."""
+    """A hand edit is not reproducible from the original — so it is not provable."""
     damaged_file.write_bytes(_srt([(1000, 3000, "Meine eigene Übersetzung.")]))
     before = damaged_file.read_bytes()
 
     with patch("services.repair.runner.fetch_original", return_value=ORIGINAL):
         outcome = repair_one(candidate)
 
-    assert outcome.status == "hand_edited"
+    assert outcome.status == "unprovable"
     assert damaged_file.read_bytes() == before, "a hand-edited file must never be overwritten"
 
 

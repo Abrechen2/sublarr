@@ -21,8 +21,8 @@ export interface RepairStatus {
   repaired: number
   from_bak: number
   from_provider: number
-  skipped_hand_edited: number
-  skipped_provider_changed: number
+  skipped_unprovable: number
+  skipped_nothing_to_restore: number
   failed: number
   quota_exhausted: boolean
   last_file: string

@@ -28,8 +28,8 @@ class RepairState:
     repaired: int = 0
     from_bak: int = 0
     from_provider: int = 0
-    skipped_hand_edited: int = 0
-    skipped_provider_changed: int = 0
+    skipped_unprovable: int = 0
+    skipped_nothing_to_restore: int = 0
     failed: int = 0
     quota_exhausted: bool = False
     started_at: str | None = None
@@ -105,10 +105,10 @@ def _execute(*, language: str | None, dry_run: bool, limit: int | None) -> None:
                 _state.from_bak += 1
             elif "from provider" in outcome.detail:
                 _state.from_provider += 1
-        elif outcome.status == "hand_edited":
-            _state.skipped_hand_edited += 1
-        elif outcome.status == "provider_changed":
-            _state.skipped_provider_changed += 1
+        elif outcome.status == "unprovable":
+            _state.skipped_unprovable += 1
+        elif outcome.status == "nothing_to_restore":
+            _state.skipped_nothing_to_restore += 1
         elif outcome.status != "repaired":
             _state.failed += 1
 
@@ -118,10 +118,10 @@ def _execute(*, language: str | None, dry_run: bool, limit: int | None) -> None:
 
     logger.info(
         "repair: finished — %d restored (%d from backups, %d re-downloaded), "
-        "%d hand-edited, %d failed",
+        "%d unprovable, %d failed",
         _state.repaired,
         _state.from_bak,
         _state.from_provider,
-        _state.skipped_hand_edited,
+        _state.skipped_unprovable,
         _state.failed,
     )

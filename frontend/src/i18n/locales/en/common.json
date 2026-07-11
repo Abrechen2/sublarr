@@ -727,12 +727,12 @@
     "from_backup": "From backup (free)",
     "needs_download": "Needs a re-download",
     "already_repaired": "Already repaired",
-    "safety": "Nothing is overwritten without proving the real original is in hand. Files you edited yourself are left alone, and the sync is preserved.",
+    "safety": "Nothing is overwritten unless the old buggy code, applied to the original, reproduces the file on your disk exactly — only that proves it is the right original and that you did not edit the file yourself. If it cannot be shown, the file is left alone. The sync is preserved.",
     "dry_run": "Dry run",
     "start": "Start repair",
     "restored": "Restored",
-    "hand_edited": "Hand-edited (skipped)",
     "failed": "Failed",
-    "quota_exhausted": "The provider's daily allowance is spent. The next run picks up where this one stopped."
+    "quota_exhausted": "The provider's daily allowance is spent. The next run picks up where this one stopped.",
+    "unprovable": "Unprovable (skipped)"
   }
 }

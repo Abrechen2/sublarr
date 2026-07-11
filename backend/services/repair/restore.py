@@ -26,6 +26,14 @@ import pysubs2
 from services.repair.legacy_transform import replay_legacy_pipeline_with_survivors
 
 
+NOTHING_TO_RESTORE = "the old pipeline changed nothing here — nothing to restore"
+UNPROVABLE = (
+    "no replay of the old pipeline reproduces the file on disk — it was either edited "
+    "by hand, or the provider file has changed since it was downloaded. Either way the "
+    "content cannot be proven, so the file is left alone."
+)
+
+
 class RestoreRefusedError(Exception):
     """The file must not be rewritten — with the reason why."""
 
@@ -69,22 +77,59 @@ def _fit_time_model(pairs: list[tuple[int, int]]) -> tuple[float, float]:
     return scale, offset
 
 
+# The processing pipeline is configurable, and Sublarr allows per-series overrides,
+# so the mods that ran over a given file are not knowable after the fact. These are
+# the combinations that were actually possible, most likely first. A variant is
+# accepted only when it reproduces the file on disk exactly — so trying several
+# widens coverage without weakening the proof one bit.
+_REPLAY_VARIANTS: tuple[dict, ...] = (
+    {"common_fixes": True, "hi_removal": True},
+    {"common_fixes": True, "hi_removal": True, "credit_removal": True},
+    {"common_fixes": True, "hi_removal": False},
+    {"common_fixes": False, "hi_removal": True},
+    {"common_fixes": True, "hi_removal": False, "credit_removal": True},
+    {"common_fixes": False, "hi_removal": True, "credit_removal": True},
+)
+
+
 def restore_subtitle(*, original: bytes, on_disk: bytes, fmt: str = "srt", **replay_opts) -> bytes:
-    """Return the repaired subtitle, or raise :class:`RestoreRefusedError`."""
+    """Return the repaired subtitle, or raise :class:`RestoreRefusedError`.
+
+    The proof is the replay, not a hash. A hash of the original was recorded at
+    download time, but it is the hash of the file *as it was written back then* —
+    and the normalisation chain that produced those bytes has changed since, so
+    old files can never reproduce it. On the production library it matched 0 of 8
+    sampled files while the replay reproduced 5 of them.
+
+    The replay is the stronger proof anyway: it does not merely say "this is some
+    original", it says "the old pipeline, applied to *this* original, produces
+    *exactly* the file on disk" — which simultaneously establishes that the
+    original is the right one and that nobody has edited the file since.
+    """
     orig = _load(original, fmt)
     disk = _load(on_disk, fmt)
+    disk_texts = _texts(disk)
 
-    replayed, survivors = replay_legacy_pipeline_with_survivors(original, fmt=fmt, **replay_opts)
-    replay_subs = _load(replayed, fmt)
+    variants = [replay_opts] if replay_opts else list(_REPLAY_VARIANTS)
 
-    if _texts(replay_subs) == _texts(orig) and len(orig.events) == len(disk.events):
-        raise RestoreRefusedError("the old pipeline changed nothing here — nothing to restore")
+    if _texts(orig) == disk_texts:
+        raise RestoreRefusedError(NOTHING_TO_RESTORE)
 
-    if _texts(replay_subs) != _texts(disk):
-        raise RestoreRefusedError(
-            "the file on disk is not what the old pipeline would have produced — "
-            "it was edited by hand"
+    replayed = survivors = None
+    for variant in variants:
+        candidate, candidate_survivors = replay_legacy_pipeline_with_survivors(
+            original, fmt=fmt, **variant
         )
+        if _texts(_load(candidate, fmt)) == disk_texts:
+            replayed, survivors = candidate, candidate_survivors
+            break
+
+    if replayed is None:
+        # We cannot tell the two apart, and pretending otherwise would be a lie:
+        # either the file was edited by hand, or the provider's file has changed
+        # since it was downloaded. Either way we cannot prove what we would be
+        # overwriting, so we do not touch it.
+        raise RestoreRefusedError(UNPROVABLE)
 
     # Surviving cue i on disk corresponds to original event survivors[i].
     pairs = [

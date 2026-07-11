@@ -133,7 +133,7 @@ export function SubtitleRepairPanel() {
           <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-[11px] text-muted pt-1">
             <span>{t('repair.restored')}: {status.repaired}</span>
             <span>{t('repair.from_backup')}: {status.from_bak}</span>
-            <span>{t('repair.hand_edited')}: {status.skipped_hand_edited}</span>
+            <span>{t('repair.unprovable')}: {status.skipped_unprovable}</span>
             <span>{t('repair.failed')}: {status.failed}</span>
           </div>
           {status.quota_exhausted && (
