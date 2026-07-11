@@ -5,6 +5,47 @@ All notable changes to Sublarr are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.6.6] - 2026-07-11
+
+### Fixed
+- **HI removal deleted ordinary words from non-English subtitles (data loss).**
+  Hearing-impaired cleanup shipped an English interjection word list ("Um",
+  "Uh", "Eh", "Nah", "Ah", "Oh", "Hmm", ...), compiled it into a bare
+  `(?:...)` substitution and cut every occurrence out of the subtitle text
+  — in **every** language, anywhere in a sentence. In German those are ordinary
+  words: "um" is one of the most common prepositions, "eh" means "anyway", "nah"
+  means "near". A downloaded German subtitle came back with all 8 occurrences of
+  "um" removed, each leaving a double space behind:
+
+      "darf ich dich um eine Sache bitten?"  ->  "darf ich dich  eine Sache bitten?"
+
+  Interjection stripping has been **removed outright**, not patched. A word list
+  cannot be made safe across languages, and Bazarr — via Subzero, the reference
+  implementation — never had one: HI removal targets *structural* markers
+  (brackets, music symbols, speaker labels), never linguistic ones. Only
+  subtitles downloaded while HI removal was enabled are affected; they must be
+  re-downloaded to be repaired. A one-time in-app notice explains this.
+- **HI removal deleted whole capitalised sentences.** Any line where
+  `text == text.upper()` was dropped, and punctuation is immune to `.upper()` —
+  so fully capitalised *sentences* counted as all-caps HI markers. This silently
+  removed anime song lyrics (OP/ED karaoke is conventionally typeset in caps)
+  and capitalised dialogue. The rule now follows Subzero's `HI_all_caps`: only
+  capitals, spaces and `-_&+` qualify, so a capitalised line carrying a comma or
+  a question mark is recognised as a sentence and kept. Subzero's
+  `only_uppercase` guard is honoured too — a subtitle that is capitalised
+  throughout is a typesetting style, not a stream of markers.
+- **HI removal stripped every ASS override tag off the cues it edited.** It read
+  `event.plaintext` (which drops `{...}` blocks) and wrote the result back into
+  `event.text`, so positioning (`n8`, `\pos`), italics and karaoke vanished
+  from any ASS cue the pipeline touched. Override blocks are now masked out
+  before the HI patterns run and restored afterwards.
+- **Processing backups were re-created from already-damaged files.** The `.bak`
+  is a single-slot undo, written only when none exists — but the check looked at
+  the canonical `.sublarr/backups/` path alone. After backups moved there, every
+  pre-migration file looked un-backed-up, so the "pristine" copy was recreated
+  from a file the pipeline had already mangled, destroying the only record of the
+  original. It now uses `find_existing_bak()`, which knows both locations.
+
 ## [1.6.5] - 2026-07-09
 
 ### Fixed

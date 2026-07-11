@@ -65,17 +65,18 @@ def test_all_caps_min_length_respected(create_test_subtitle):
     assert not caps_changes
 
 
-def test_interjection_whole_word_only(create_test_subtitle):
-    """'Hmm' standalone should be removed; 'Hmmm' (not in list) should not."""
+def test_interjections_are_not_stripped_anymore(create_test_subtitle):
+    """Interjection stripping is removed — it destroyed ordinary words in other
+
+    languages ("um"/"eh"/"nah" are German). HI removal is structural only, as in
+    Bazarr/Subzero. See test_hi_interjections_language_safety.py.
+    """
     from subtitle_processor import ModConfig, ModName, apply_mods
 
     path = create_test_subtitle(fmt="srt", lines=["Hmm, that's odd", "Hmmm interesting"])
     result = apply_mods(path, [ModConfig(mod=ModName.HI_REMOVAL)], dry_run=True)
 
-    hmm_changes = [c for c in result.changes if "Hmm," in c.original_text]
-    assert hmm_changes  # "Hmm" matched
-    hmmm_changes = [c for c in result.changes if c.original_text == "Hmmm interesting"]
-    assert not hmmm_changes  # "Hmmm" not in list
+    assert result.changes == []
 
 
 def test_multiline_bracket_span_removed(create_test_subtitle):

@@ -303,7 +303,6 @@
     "mkv_singular": "Backup",
     "mkv_plural": "Backups"
   },
-  "interjection_placeholder": "Eine Interjektion pro Zeile",
   "more_info": "Mehr Informationen",
   "timestamp_seconds_placeholder": "Zeitstempel (Sekunden)",
   "subtitle_track_label": "Untertitel-Track",
@@ -577,18 +576,6 @@
     "scan_embedded": "In allen ungelösten Einträgen nach eingebetteten Untertiteln scannen",
     "last": "Zuletzt"
   },
-  "interjection": {
-    "load_failed": "Interjektionsliste konnte nicht geladen werden",
-    "saved": "Liste gespeichert",
-    "save_failed": "Speichern fehlgeschlagen",
-    "reset_done": "Auf Standard zurückgesetzt",
-    "reset_failed": "Zurücksetzen fehlgeschlagen",
-    "label_custom": "Interjektionen (benutzerdefiniert)",
-    "label_default": "Interjektionen (Standard)",
-    "reset": "Zurücksetzen",
-    "saving": "Speichert…",
-    "save": "Liste speichern"
-  },
   "subtitle_actions": {
     "preview_failed": "Vorschau fehlgeschlagen",
     "changes_applied": "Änderungen angewendet",
@@ -715,5 +702,17 @@
     "accept": "Ja, anonym teilen",
     "decline": "Nein danke",
     "settingLabel": "Anonyme Nutzungsstatistik"
+  },
+  "damage_notice": {
+    "title": "Wichtig: Fehler in Sublarr hat Untertitel beschädigt",
+    "apology": "Es tut uns aufrichtig leid. Ein Fehler in Sublarr hat Wörter aus deinen heruntergeladenen Untertiteln gelöscht. Das hätte nicht passieren dürfen.",
+    "what_happened": "Die HI-Entfernung (Untertitel für Hörgeschädigte) benutzte eine englische Wortliste mit Füllwörtern wie \"um\", \"uh\", \"eh\" und \"nah\" — und schnitt diese aus dem Text jeder Sprache. Im Deutschen sind das ganz normale Wörter. \"um\" ist eine der häufigsten Präpositionen überhaupt.",
+    "example_before": "Original vom Anbieter:",
+    "example_after": "Was Sublarr daraus gemacht hat:",
+    "who_is_affected": "Betroffen sind Untertitel, die heruntergeladen wurden, während \"HI-Entfernung\" in der automatischen Verarbeitung aktiv war. Ist die Option bei dir aus, wurde nichts verändert.",
+    "backups": "Die .bak-Sicherungen helfen leider nicht: Durch einen zweiten Fehler wurden sie aus bereits beschädigten Dateien erzeugt. Wir haben auch das behoben.",
+    "fixed": "Die Ursache ist beseitigt: Die Füllwort-Entfernung ist ersatzlos entfernt. Die HI-Entfernung fasst jetzt nur noch echte Marker an (Klammern, Musiksymbole, Sprecher-Labels) — so wie Bazarr es auch macht. Neue Downloads sind sauber.",
+    "next": "Bereits beschädigte Untertitel lassen sich nur durch erneutes Herunterladen reparieren. Ein Reparatur-Werkzeug dafür ist in Arbeit.",
+    "got_it": "Verstanden"
   }
 }

@@ -148,29 +148,6 @@ def test_bak_exists_returns_true_when_bak_present(client, tmp_path, monkeypatch)
     assert resp.get_json()["exists"] is True
 
 
-def test_get_interjections_returns_list(client):
-    resp = client.get("/api/v1/tools/process/interjections")
-    assert resp.status_code == 200
-    data = resp.get_json()
-    assert "items" in data
-    assert isinstance(data["items"], list)
-    assert len(data["items"]) > 0
-    assert "is_custom" in data
-
-
-def test_put_interjections_updates_list(client):
-    resp = client.put(
-        "/api/v1/tools/process/interjections",
-        json={"items": ["Blorp", "Zorp"]},
-    )
-    assert resp.status_code == 200
-
-    resp2 = client.get("/api/v1/tools/process/interjections")
-    data = resp2.get_json()
-    assert "Blorp" in data["items"]
-    assert data["is_custom"] is True
-
-
 def test_process_series_returns_202(client):
     resp = client.post("/api/v1/library/series/123/process")
     assert resp.status_code == 202

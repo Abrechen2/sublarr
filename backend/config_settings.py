@@ -410,9 +410,6 @@ class UISettings(BaseModel):
     auto_process_sync_threshold: int = 60  # score below which auto-sync triggers
     auto_process_sync_fallback_engine: str = "ffsubsync"
 
-    # HI interjections list (newline-separated; empty = use bundled defaults)
-    hi_interjections_list: str = ""
-
     # Post-download shell command
     post_download_command: str = ""  # Shell command to run after each subtitle download
     post_processing_enabled: bool = False  # Must be explicitly enabled

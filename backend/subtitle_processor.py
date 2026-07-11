@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import logging
 import os
+import re
 import shutil
 from dataclasses import dataclass, field
 from enum import StrEnum
@@ -74,7 +75,7 @@ def apply_mods(path: str, mods: list[ModConfig], dry_run: bool = False) -> Proce
 
             changes = apply_common_fixes(subs, mod_config.options)
         elif mod_config.mod == ModName.HI_REMOVAL:
-            changes = _apply_hi_removal(subs, mod_config.options)
+            changes = _apply_hi_removal(subs, mod_config.options, fmt=fmt)
         elif mod_config.mod == ModName.CREDIT_REMOVAL:
             changes = _apply_credit_removal(subs, mod_config.options)
         else:
@@ -83,8 +84,17 @@ def apply_mods(path: str, mods: list[ModConfig], dry_run: bool = False) -> Proce
 
     backed_up = False
     if not dry_run and all_changes:
-        bak_path = _make_bak_path(path)
-        if not os.path.exists(bak_path):
+        from subtitle_filename import find_existing_bak
+
+        # find_existing_bak checks the canonical hidden location AND the legacy
+        # sibling one. Checking only the canonical path (as this did) meant that
+        # after the backups moved to .sublarr/backups/ every pre-migration file
+        # looked un-backed-up — so the "pristine" copy was silently re-created
+        # from an ALREADY-processed file, destroying the only record of the
+        # original. The bak is a single-slot undo; it must never be rewritten
+        # once one exists anywhere.
+        if find_existing_bak(path) is None:
+            bak_path = _make_bak_path(path)
             os.makedirs(os.path.dirname(bak_path), exist_ok=True)
             shutil.copy2(path, bak_path)
             backed_up = True
@@ -100,10 +110,36 @@ def apply_mods(path: str, mods: list[ModConfig], dry_run: bool = False) -> Proce
     )
 
 
-def _apply_hi_removal(subs: pysubs2.SSAFile, options: dict) -> list[Change]:
-    import re
+_ASS_OVERRIDE_RE = re.compile(r"\{[^}]*\}")
 
+# Private-use sentinels around the tag index. They are neither word characters
+# nor capitals nor punctuation, so no HI pattern can match through a masked tag
+# or mistake one for content.
+_MASK_OPEN = ""
+_MASK_CLOSE = ""
+_TAG_MASK_RE = re.compile(_MASK_OPEN + r"(\d+)" + _MASK_CLOSE)
+
+
+def _mask_ass_tags(text: str) -> tuple[str, list[str]]:
+    """Replace ASS override blocks with placeholders so text edits cannot eat them."""
+    tags: list[str] = []
+
+    def _stash(match: re.Match) -> str:
+        tags.append(match.group(0))
+        return f"{_MASK_OPEN}{len(tags) - 1}{_MASK_CLOSE}"
+
+    return _ASS_OVERRIDE_RE.sub(_stash, text), tags
+
+
+def _unmask_ass_tags(text: str, tags: list[str]) -> str:
+    """Put the override blocks back where their placeholders ended up."""
+    return _TAG_MASK_RE.sub(lambda m: tags[int(m.group(1))], text)
+
+
+def _apply_hi_removal(subs: pysubs2.SSAFile, options: dict, fmt: str = "srt") -> list[Change]:
     from hi_remover import remove_hi_markers
+
+    is_ass = fmt in ("ass", "ssa")
 
     opts = {
         "square_brackets": True,
@@ -114,12 +150,11 @@ def _apply_hi_removal(subs: pysubs2.SSAFile, options: dict) -> list[Change]:
         "speaker_labels": True,
         "all_caps_lines": True,
         "all_caps_min_length": 4,
-        "interjections": True,
         "music_hash_lines": True,
         **options,
     }
 
-    interjection_pattern = _build_interjection_pattern()
+    caps_pattern = _build_all_caps_pattern(subs, opts)
 
     extra_patterns = []
     if opts["curly_brackets"]:
@@ -142,33 +177,36 @@ def _apply_hi_removal(subs: pysubs2.SSAFile, options: dict) -> list[Change]:
         if not original:
             continue
 
-        cleaned = remove_hi_markers(original)
+        # On ASS/SSA the override blocks ({\an8}, {\i1}, karaoke) are masked out
+        # before the HI patterns run and restored afterwards. Reading plaintext
+        # and writing the result back into event.text used to drop every tag on
+        # any cue the pipeline touched — positioning and italics simply vanished.
+        # Masking is confined to ASS: on SRT a literal {...} is not formatting,
+        # and the curly_brackets option is meant to remove it.
+        work, tags = _mask_ass_tags(event.text) if is_ass else (event.text, [])
+        if is_ass:
+            work = work.replace("\\N", "\n").replace("\\h", " ")
+
+        cleaned = remove_hi_markers(work)
 
         for pat in extra_patterns:
             cleaned = pat.sub("", cleaned).strip()
 
-        if opts["all_caps_lines"]:
-            lines_out = []
-            for line in cleaned.split("\n"):
-                stripped = line.strip()
-                if (
-                    stripped
-                    and len(stripped) >= opts["all_caps_min_length"]
-                    and stripped == stripped.upper()
-                    and any(c.isalpha() for c in stripped)
-                ):
-                    pass
-                else:
-                    lines_out.append(line)
+        if caps_pattern is not None:
+            lines_out = [ln for ln in cleaned.split("\n") if not caps_pattern.match(ln.strip())]
             cleaned = "\n".join(lines_out).strip()
 
-        if opts["interjections"] and interjection_pattern:
-            cleaned = interjection_pattern.sub("", cleaned).strip()
+        cleaned = cleaned.strip()
+        if is_ass:
+            cleaned = _unmask_ass_tags(cleaned, tags).replace("\n", "\\N")
+            cleaned_plain = _ASS_OVERRIDE_RE.sub("", cleaned).replace("\\N", "\n").strip()
+        else:
+            cleaned_plain = cleaned
 
-        if cleaned != original:
+        if cleaned_plain != original:
             ts = f"{_ms_to_str(event.start)} --> {_ms_to_str(event.end)}"
-            changes.append(Change(i, ts, original, cleaned, "hi_removal"))
-            if cleaned:
+            changes.append(Change(i, ts, original, cleaned_plain, "hi_removal"))
+            if cleaned_plain:
                 event.text = cleaned
             else:
                 indices_to_remove.append(i)
@@ -198,50 +236,38 @@ def _mark_multiline_bracket_events(subs: pysubs2.SSAFile, to_remove: list[int]) 
                 to_remove.append(i + 1)
 
 
-def _build_interjection_pattern():
+def _build_all_caps_pattern(subs: pysubs2.SSAFile, opts: dict):
+    """Return the all-caps HI-marker pattern, or None when the rule must not run.
+
+    Mirrors Subzero's ``HI_all_caps`` (the mod Bazarr uses)::
+
+        (?u)(^(?=.*[A-ZÀ-Ž&+]{4,})[A-ZÀ-Ž-_\\s&+]+$)   # guard: not only_uppercase
+
+    The character class admits only capitals, spaces and ``-_&+``. Sentence
+    punctuation is deliberately absent: a capitalised line carrying a comma or a
+    question mark is a *sentence*, not a sound cue. The previous check was
+    ``text == text.upper()``, and punctuation is immune to ``.upper()`` — so
+    fully capitalised dialogue and anime song lyrics (OP/ED karaoke is
+    conventionally typeset in caps) were deleted outright.
+
+    Subzero's ``only_uppercase`` guard is honoured too: when the whole subtitle
+    is capitalised that is a typesetting style, not a stream of HI markers, and
+    applying the rule would empty the file.
+    """
     import re
 
-    try:
-        from config import get_settings
-
-        settings = get_settings()
-        raw = getattr(settings, "hi_interjections_list", "").strip()
-    except Exception as exc:
-        logger.warning("_build_interjection_pattern: failed to load settings: %s", exc)
-        raw = ""
-
-    if raw:
-        items = [l.strip() for l in raw.splitlines() if l.strip()]
-    else:
-        data_file = os.path.join(os.path.dirname(__file__), "data", "hi_interjections.txt")
-        if not os.path.exists(data_file):
-            return None
-        with open(data_file, encoding="utf-8") as f:
-            items = [l.strip() for l in f if l.strip()]
-
-    if not items:
+    if not opts.get("all_caps_lines"):
         return None
 
-    alt = "|".join(sorted([re.escape(w) for w in items], key=len, reverse=True))
+    texts = [e.plaintext.strip() for e in subs.events if not e.is_comment and e.plaintext.strip()]
+    if not texts:
+        return None
+    if all(t == t.upper() for t in texts):
+        logger.debug("all_caps_lines: subtitle is entirely uppercase — rule skipped")
+        return None
 
-    # An interjection only counts as one when it stands alone as an utterance.
-    # The bundled list is English, but it is applied to subtitles of every
-    # language — and matching anywhere in a sentence destroys ordinary words:
-    # German "um" (preposition), "eh" ("das ist eh klar") and "nah" ("nah am
-    # Fluss") are all on it. A German subtitle came back with every "um" cut
-    # out, each leaving a double space behind.
-    #
-    #   1. the whole line, or line-initial followed by sentence punctuation
-    #      ("Um, I think" / "Uh... maybe" / a cue that is just "Hmm")
-    #   2. wedged between commas ("Well, um, I think")
-    #
-    # Punctuation and the space after it are consumed together with the word,
-    # so no ", that's odd" or "dich  eine" artifacts are left behind.
-    return re.compile(
-        rf"^[ \t]*(?:{alt})\b[ \t]*(?:[,.!?…]+[ \t]*|$)"
-        rf"|,[ \t]*(?:{alt})\b[ \t]*(?=,)",
-        re.IGNORECASE | re.MULTILINE,
-    )
+    min_caps = max(int(opts.get("all_caps_min_length", 4)), 1)
+    return re.compile(rf"^(?=.*[A-ZÀ-Ž&+]{{{min_caps},}})[A-ZÀ-Ž\-_\s&+]+$", re.UNICODE)
 
 
 def _apply_credit_removal(subs: pysubs2.SSAFile, options: dict) -> list[Change]:

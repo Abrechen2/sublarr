@@ -303,7 +303,6 @@
     "mkv_singular": "backup",
     "mkv_plural": "backups"
   },
-  "interjection_placeholder": "One interjection per line",
   "more_info": "More information",
   "timestamp_seconds_placeholder": "Timestamp (seconds)",
   "subtitle_track_label": "Subtitle track",
@@ -577,18 +576,6 @@
     "scan_embedded": "Scan for embedded subtitles in all unresolved items",
     "last": "Last"
   },
-  "interjection": {
-    "load_failed": "Could not load interjection list",
-    "saved": "List saved",
-    "save_failed": "Save failed",
-    "reset_done": "Reset to default",
-    "reset_failed": "Reset failed",
-    "label_custom": "Interjections (custom)",
-    "label_default": "Interjections (default)",
-    "reset": "Reset",
-    "saving": "Saving…",
-    "save": "Save list"
-  },
   "subtitle_actions": {
     "preview_failed": "Preview failed",
     "changes_applied": "Changes applied",
@@ -715,5 +702,17 @@
     "accept": "Yes, share anonymously",
     "decline": "No thanks",
     "settingLabel": "Anonymous usage statistics"
+  },
+  "damage_notice": {
+    "title": "Important: a bug in Sublarr damaged your subtitles",
+    "apology": "We are genuinely sorry. A bug in Sublarr deleted words from your downloaded subtitles. This should never have happened.",
+    "what_happened": "HI removal (hearing-impaired cleanup) used an English filler-word list containing \"um\", \"uh\", \"eh\" and \"nah\" — and cut those out of the text in every language. In German they are ordinary words; \"um\" is one of the most common prepositions there is.",
+    "example_before": "Original from the provider:",
+    "example_after": "What Sublarr turned it into:",
+    "who_is_affected": "Affected are subtitles downloaded while \"HI removal\" was enabled in auto-processing. If that option is off for you, nothing was altered.",
+    "backups": "The .bak backups are unfortunately no help: a second bug meant they were created from files that were already damaged. We fixed that too.",
+    "fixed": "The cause is gone: filler-word removal has been removed outright. HI removal now only touches genuine markers (brackets, music symbols, speaker labels) — the way Bazarr does it. New downloads are clean.",
+    "next": "Subtitles that are already damaged can only be repaired by downloading them again. A repair tool for that is in the works.",
+    "got_it": "Understood"
   }
 }

@@ -3,8 +3,6 @@
 POST /api/v1/tools/process                — apply mods (supports dry_run)
 POST /api/v1/tools/process/undo           — restore .bak file
 GET  /api/v1/tools/process/bak-exists     — check if .bak exists
-GET  /api/v1/tools/process/interjections  — get interjections list
-PUT  /api/v1/tools/process/interjections  — replace interjections list
 POST /api/v1/library/series/<id>/process  — trigger series processing (background)
 POST /api/v1/library/process-all          — trigger full library batch (background)
 PATCH /api/v1/library/series/<id>/processing-config — save per-series override
@@ -190,46 +188,6 @@ def bak_exists():
         return jsonify({"error": msg}), code
     exists = find_existing_bak(abs_path) is not None
     return jsonify({"exists": exists}), 200
-
-
-@bp.route("/tools/process/interjections", methods=["GET"])
-def get_interjections():
-    """Return the current interjections list."""
-    s = get_settings()
-    raw = s.hi_interjections_list.strip()
-    if raw:
-        items = [line.strip() for line in raw.splitlines() if line.strip()]
-        is_custom = True
-    else:
-        data_file = os.path.join(os.path.dirname(__file__), "..", "data", "hi_interjections.txt")
-        if os.path.exists(data_file):
-            with open(data_file, encoding="utf-8") as f:
-                items = [line.strip() for line in f if line.strip()]
-        else:
-            items = []
-        is_custom = False
-
-    return jsonify({"items": items, "is_custom": is_custom}), 200
-
-
-@bp.route("/tools/process/interjections", methods=["PUT"])
-def put_interjections():
-    """Replace the interjections list. Empty items list resets to default."""
-    from config import reload_settings
-    from db.config import get_all_config_entries, save_config_entry
-
-    data = request.get_json(force=True, silent=True) or {}
-    items = data.get("items", [])
-
-    if not isinstance(items, list):
-        return jsonify({"error": "items must be an array"}), 400
-
-    saved = [str(i).strip() for i in items if str(i).strip()]
-    new_value = "\n".join(saved)
-    save_config_entry("hi_interjections_list", new_value)
-    reload_settings(get_all_config_entries())
-
-    return jsonify({"status": "ok", "count": len(saved)}), 200
 
 
 @bp.route("/library/series/<int:series_id>/process", methods=["POST"])

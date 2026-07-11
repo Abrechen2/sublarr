@@ -1,7 +1,4 @@
-import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { ChevronDown, ChevronRight } from 'lucide-react'
-import { InterjectionListEditor } from './InterjectionListEditor'
 
 interface PipelineConfig {
   auto_process_common_fixes: boolean
@@ -20,7 +17,6 @@ interface Props {
 
 export function ProcessingPipelineSettings({ config, onSave }: Props) {
   const { t } = useTranslation('settings')
-  const [hiExpanded, setHiExpanded] = useState(false)
 
   return (
     <div className="space-y-4">
@@ -42,27 +38,16 @@ export function ProcessingPipelineSettings({ config, onSave }: Props) {
       </div>
 
       {/* HI Removal */}
-      <div className="border-b border-zinc-800 pb-2">
-        <div className="flex items-center justify-between py-2">
-          <button
-            onClick={() => setHiExpanded(v => !v)}
-            className="flex items-center gap-1 text-sm text-zinc-300"
-          >
-            {hiExpanded ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
-            {t('automation_page.processing_pipeline.hi_removal')}
-          </button>
-          <input
-            type="checkbox"
-            checked={config.auto_process_hi_removal}
-            onChange={e => onSave({ auto_process_hi_removal: e.target.checked })}
-            className="w-4 h-4 accent-blue-500"
-          />
-        </div>
-        {hiExpanded && (
-          <div className="pl-4 pt-2">
-            <InterjectionListEditor />
-          </div>
-        )}
+      <div className="flex items-center justify-between py-2 border-b border-zinc-800">
+        <span className="text-sm text-zinc-300">
+          {t('automation_page.processing_pipeline.hi_removal')}
+        </span>
+        <input
+          type="checkbox"
+          checked={config.auto_process_hi_removal}
+          onChange={e => onSave({ auto_process_hi_removal: e.target.checked })}
+          className="w-4 h-4 accent-blue-500"
+        />
       </div>
 
       {/* Credit Removal */}

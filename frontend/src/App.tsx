@@ -6,6 +6,8 @@ import { IconSidebar } from '@/components/layout/IconSidebar'
 import { UpdateBanner } from '@/components/layout/UpdateBanner'
 import { WhatsNewModal } from '@/components/layout/WhatsNewModal'
 import { useWhatsNew } from '@/hooks/useWhatsNew'
+import { SubtitleDamageNotice } from '@/components/layout/SubtitleDamageNotice'
+import { useSubtitleDamageNotice } from '@/hooks/useSubtitleDamageNotice'
 import { UsageStatsConsentGate } from '@/components/usage-stats/UsageStatsConsentGate'
 import { BottomNav } from '@/components/layout/BottomNav'
 import { StatusBar } from '@/components/layout/StatusBar'
@@ -201,6 +203,10 @@ function AppInner({
   // undefined) — showing What's-New in that window makes it flicker for a frame
   // before the first-run wizard takes over. Gate on the status being known.
   const setupLoaded = setupStatus !== undefined
+  // The data-loss notice outranks What's-New: it warns about subtitles already
+  // damaged on disk. Same no-stacking rule — it shows first, alone.
+  const damageNotice = useSubtitleDamageNotice()
+  const damageNoticeOpen = damageNotice.open && !wizardActive && setupLoaded
 
   return (
     <>
@@ -219,8 +225,9 @@ function AppInner({
       ) : (
         <div className="flex flex-col min-h-screen">
           <UpdateBanner />
-          <WhatsNewModal open={whatsNew.open && !wizardActive && setupLoaded} version={whatsNew.version} onDismiss={whatsNew.dismiss} />
-          <UsageStatsConsentGate enabled={setupLoaded && !wizardActive && !whatsNew.open} />
+          <SubtitleDamageNotice open={damageNoticeOpen} onDismiss={damageNotice.dismiss} />
+          <WhatsNewModal open={whatsNew.open && !wizardActive && setupLoaded && !damageNoticeOpen} version={whatsNew.version} onDismiss={whatsNew.dismiss} />
+          <UsageStatsConsentGate enabled={setupLoaded && !wizardActive && !whatsNew.open && !damageNoticeOpen} />
           <div className="flex flex-1 min-h-0">
             <IconSidebar />
             {/* min-h-screen kept intentionally: avoids content reflow when the banner is dismissed */}

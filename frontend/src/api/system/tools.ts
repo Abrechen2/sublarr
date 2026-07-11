@@ -422,15 +422,6 @@ export async function checkBakExists(path: string): Promise<boolean> {
   }
 }
 
-export async function getInterjections(): Promise<{ items: string[]; is_custom: boolean }> {
-  const { data } = await api.get('/tools/process/interjections')
-  return data
-}
-
-export async function putInterjections(items: string[]): Promise<void> {
-  await api.put('/tools/process/interjections', { items })
-}
-
 export async function processSeries(series_id: number): Promise<void> {
   await api.post(`/library/series/${series_id}/process`)
 }
