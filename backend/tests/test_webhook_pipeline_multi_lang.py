@@ -135,3 +135,72 @@ def test_pipeline_download_runs_even_when_webhook_translate_is_disabled():
     # The translate gate is now inside process_wanted_item (reads
     # wanted_auto_translate), no longer at the webhook level.
     assert calls == [30]
+
+
+def test_pipeline_skips_direct_translate_when_disabled():
+    """No search and no webhook translate means the webhook only emits completion."""
+    file_path = "/media/_Anime/_Serien/Show/S01E04.mkv"
+
+    with (
+        patch(
+            "config.get_settings",
+            return_value=_settings_stub(
+                webhook_auto_search=False,
+                webhook_auto_translate=False,
+            ),
+        ),
+        patch("routes.webhooks.emit_event"),
+        patch("routes.webhooks.socketio"),
+        patch("db.jobs.create_job") as mock_create_job,
+        patch("routes.translate._run_job") as mock_run_job,
+        patch("notifier.send_notification"),
+    ):
+        wh._webhook_auto_pipeline(file_path=file_path, title="Show - S01E04")
+
+    mock_create_job.assert_not_called()
+    mock_run_job.assert_not_called()
+
+
+def test_pipeline_direct_translate_requires_webhook_translate_enabled():
+    """Direct translate fallback is only allowed by webhook_auto_translate."""
+    file_path = "/media/_Anime/_Serien/Show/S01E05.mkv"
+    job = {"id": 77, "file_path": file_path}
+
+    with (
+        patch(
+            "config.get_settings",
+            return_value=_settings_stub(
+                webhook_auto_search=False,
+                webhook_auto_translate=True,
+            ),
+        ),
+        patch("routes.webhooks.emit_event"),
+        patch("routes.webhooks.socketio"),
+        patch("db.jobs.create_job", return_value=job) as mock_create_job,
+        patch("routes.translate._run_job") as mock_run_job,
+        patch("notifier.send_notification"),
+    ):
+        wh._webhook_auto_pipeline(file_path=file_path, title="Show - S01E05")
+
+    mock_create_job.assert_called_once_with(file_path)
+    mock_run_job.assert_called_once_with(job)
+
+
+def test_spawn_pipeline_passes_request_settings_snapshot(app_ctx, monkeypatch):
+    """Background worker must use settings from webhook receipt time."""
+    settings = _settings_stub(webhook_delay_minutes=0)
+    captured = {}
+
+    monkeypatch.setattr("config.get_settings", lambda: settings)
+    monkeypatch.setattr(wh, "submit_background", lambda fn: fn())
+
+    def fake_pipeline(*args, **kwargs):
+        captured["args"] = args
+        captured["settings_snapshot"] = kwargs.get("settings_snapshot")
+
+    monkeypatch.setattr(wh, "_webhook_auto_pipeline", fake_pipeline)
+
+    wh._spawn_pipeline("/media/show/ep.mkv", "Show - Ep", series_id=42)
+
+    assert captured["args"][:4] == ("/media/show/ep.mkv", "Show - Ep", 42, None)
+    assert captured["settings_snapshot"] is settings

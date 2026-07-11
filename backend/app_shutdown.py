@@ -9,6 +9,22 @@ import logging
 import signal
 
 
+def shutdown_event_dispatchers(app, logger=None):
+    """Stop HookEngine/WebhookDispatcher instances registered on the app."""
+    logger = logger or logging.getLogger(__name__)
+    for key, label in (
+        ("hook_engine", "Hook engine"),
+        ("webhook_dispatcher", "Webhook dispatcher"),
+    ):
+        try:
+            dispatcher = app.extensions.pop(key, None)
+            if dispatcher is not None:
+                dispatcher.shutdown()
+                logger.info("%s shutdown complete", label)
+        except Exception:
+            logger.debug("%s shutdown error", key, exc_info=True)
+
+
 def _register_shutdown_handler(app):
     """Register handlers for graceful shutdown on SIGTERM/SIGINT.
 
@@ -60,6 +76,8 @@ def _register_shutdown_handler(app):
             stop_upgrade_scheduler()
         except Exception:
             logger.debug("upgrade scheduler shutdown error", exc_info=True)
+
+        shutdown_event_dispatchers(app, logger)
 
         # Stop accepting new fire-and-forget background tasks and cancel any
         # still queued so the process can exit promptly (Docker SIGTERM grace).

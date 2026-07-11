@@ -51,6 +51,28 @@ class TestSetTrackDefault:
             assert "track:a2" in cmd and "flag-default=1" in cmd
             assert "track:a1" in cmd and "flag-default=0" in cmd
 
+    def test_set_default_uses_ffprobe_stream_index(self, client):
+        streams = {
+            "streams": [
+                {"index": 0, "codec_type": "video"},
+                {"index": 2, "codec_type": "audio"},
+                {"index": 5, "codec_type": "audio"},
+            ]
+        }
+        with (
+            patch("routes.remux._get_video_path", return_value="/media/x.mkv"),
+            patch("routes.remux.os.path.exists", return_value=True),
+            patch("routes.remux.get_media_streams", return_value=streams),
+            patch("subprocess.run") as mock_run,
+        ):
+            mock_run.return_value = MagicMock(returncode=0, stderr="")
+            resp = client.post("/api/v1/library/episodes/5/tracks/5/set-default")
+
+        assert resp.status_code == 200
+        cmd = mock_run.call_args[0][0]
+        assert "track:a2" in cmd and "flag-default=1" in cmd
+        assert "track:a1" in cmd and "flag-default=0" in cmd
+
     def test_set_default_rejects_video_stream(self, client):
         with (
             patch("routes.remux._get_video_path", return_value="/media/x.mkv"),
@@ -126,31 +148,27 @@ class TestHelpers:
             assert result == [os.path.join("/opt/trash", "trash")]
 
     def test_get_video_path_no_client(self, client):
-        with patch("sonarr_client.get_sonarr_client", return_value=None):
+        with patch("services.episode_video_path.resolve_episode_video_path", return_value=None):
             from routes.remux import _get_video_path
 
             assert _get_video_path(1) is None
 
     def test_get_video_path_no_file(self, client):
-        mock_client = MagicMock()
-        mock_client.get_episode_file_path.return_value = None
-        with patch("sonarr_client.get_sonarr_client", return_value=mock_client):
+        with patch("services.episode_video_path.resolve_episode_video_path", return_value=None):
             from routes.remux import _get_video_path
 
             assert _get_video_path(1) is None
 
     def test_get_video_path_success(self, client):
-        mock_client = MagicMock()
-        mock_client.get_episode_file_path.return_value = "/media/show/ep01.mkv"
-        with (
-            patch("sonarr_client.get_sonarr_client", return_value=mock_client),
-            patch("routes.remux.map_path", side_effect=lambda p: p),
-        ):
+        with patch(
+            "services.episode_video_path.resolve_episode_video_path",
+            return_value="/media/show/ep01.mkv",
+        ) as resolver:
             from routes.remux import _get_video_path
 
             result = _get_video_path(42)
             assert result == "/media/show/ep01.mkv"
-            mock_client.get_episode_file_path.assert_called_once_with(42)
+            resolver.assert_called_once_with(42)
 
     def test_update_job_stores_status(self, client):
         import routes.remux as remux_mod
@@ -341,6 +359,31 @@ class TestRemoveTrackFromContainer:
         # submit(_run_remux, job_id, video_path, stream_index, subtitle_track_index)
         assert call_args[0][3] == 3  # stream_index
         assert call_args[0][4] == 1  # subtitle_track_index (1 sub before index 3)
+
+    def test_success_uses_ffprobe_stream_index(self, client):
+        """The route accepts non-contiguous ffprobe stream ids from the track UI."""
+        probe_data = {
+            "streams": [
+                {"index": 0, "codec_type": "video"},
+                {"index": 2, "codec_type": "subtitle"},
+                {"index": 5, "codec_type": "subtitle"},
+            ]
+        }
+        with (
+            patch("routes.remux._get_video_path", return_value="/media/ep.mkv"),
+            patch("routes.remux.os.path.exists", return_value=True),
+            patch("routes.remux.get_media_streams", return_value=probe_data),
+            patch("routes.remux._executor") as mock_executor,
+        ):
+            rv = client.post(
+                "/api/v1/library/episodes/1/tracks/5/remove-from-container",
+                json={},
+            )
+
+        assert rv.status_code == 202
+        call_args = mock_executor.submit.call_args
+        assert call_args[0][3] == 5
+        assert call_args[0][4] == 1
 
     def test_explicit_subtitle_track_index(self, client):
         """When body supplies subtitle_track_index, it is used verbatim."""

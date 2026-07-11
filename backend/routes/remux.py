@@ -29,7 +29,7 @@ from concurrent.futures import ThreadPoolExecutor
 from flask import Blueprint, jsonify, request
 
 from ass_utils import get_media_streams
-from config import get_settings, map_path
+from config import get_settings
 from remux import RemuxError, remove_subtitle_stream
 from remux.backup_cleanup import cleanup_old_backups, list_backups
 from security_utils import is_safe_path
@@ -48,15 +48,27 @@ _jobs_lock = threading.Lock()
 
 
 def _get_video_path(ep_id: int) -> str | None:
-    from sonarr_client import get_sonarr_client
+    from services.episode_video_path import resolve_episode_video_path
 
-    client = get_sonarr_client()
-    if client is None:
-        return None
-    path = client.get_episode_file_path(ep_id)
-    if not path:
-        return None
-    return map_path(path)
+    return resolve_episode_video_path(ep_id)
+
+
+def _resolve_stream_by_index(streams: list[dict], index: int) -> tuple[int, dict] | None:
+    """Match UI track indexes from routes.tracks._build_track_list.
+
+    ffprobe stream IDs are usually contiguous, but they are not guaranteed to be
+    equal to the stream list position. The track UI sends the normalized stream
+    id, so remux actions must resolve the stream the same way as the list route.
+    """
+    seen: set[int] = set()
+    for position, stream in enumerate(streams):
+        stream_index = stream.get("index", position)
+        if stream_index in seen:
+            stream_index = position
+        seen.add(stream_index)
+        if stream_index == index:
+            return position, stream
+    return None
 
 
 def _update_job(
@@ -170,21 +182,25 @@ def remove_track_from_container(ep_id: int, index: int):
         return jsonify({"error": "Internal server error"}), 500
 
     streams = probe.get("streams", [])
-    if index >= len(streams):
+    resolved = _resolve_stream_by_index(streams, index)
+    if resolved is None:
         return jsonify({"error": f"Stream index {index} out of range"}), 400
-    target = streams[index]
+    stream_position, target = resolved
     if target.get("codec_type") != "subtitle":
         return jsonify({"error": f"Stream {index} is not a subtitle stream"}), 400
 
     # Derive subtitle_track_index (0-based within subtitle streams) if not supplied
     if subtitle_track_index is None:
-        subtitle_track_index = sum(1 for s in streams[:index] if s.get("codec_type") == "subtitle")
+        subtitle_track_index = sum(
+            1 for s in streams[:stream_position] if s.get("codec_type") == "subtitle"
+        )
+    stream_index = target.get("index", stream_position)
 
     job_id = str(uuid.uuid4())
     with _jobs_lock:
         _jobs[job_id] = {"status": "queued", "result": None, "error": None}
 
-    _executor.submit(_run_remux, job_id, video_path, index, subtitle_track_index)
+    _executor.submit(_run_remux, job_id, video_path, stream_index, subtitle_track_index)
     return jsonify({"job_id": job_id, "status": "queued"}), 202
 
 
@@ -212,9 +228,10 @@ def set_track_default(ep_id: int, index: int):
         return jsonify({"error": "Failed to probe video file"}), 500
 
     streams = probe.get("streams", [])
-    if index < 0 or index >= len(streams):
+    resolved = _resolve_stream_by_index(streams, index)
+    if resolved is None:
         return jsonify({"error": f"Stream index {index} out of range"}), 400
-    target = streams[index]
+    stream_position, target = resolved
     ctype = target.get("codec_type")
     if ctype not in ("audio", "subtitle"):
         return jsonify({"error": "Only audio or subtitle tracks can be set as default"}), 400
@@ -222,12 +239,12 @@ def set_track_default(ep_id: int, index: int):
     sel = {"audio": "a", "subtitle": "s"}[ctype]
     # mkvpropedit selectors are 1-based per track type.
     edits: list[str] = []
-    pos = 0
-    for s in streams:
+    type_position = 0
+    for position, s in enumerate(streams):
         if s.get("codec_type") == ctype:
-            pos += 1
-            flag = "1" if s.get("index") == target.get("index") else "0"
-            edits += ["--edit", f"track:{sel}{pos}", "--set", f"flag-default={flag}"]
+            type_position += 1
+            flag = "1" if position == stream_position else "0"
+            edits += ["--edit", f"track:{sel}{type_position}", "--set", f"flag-default={flag}"]
 
     cmd = ["mkvpropedit", _safe_arg_path(video_path), *edits]
     try:

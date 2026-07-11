@@ -48,12 +48,21 @@ def _spawn_pipeline(
     event. Without this wrapper the daemon thread dies silently on import
     errors, DB outages, etc., and the UI never learns the pipeline aborted.
     """
+    from config import get_settings
+
     app = current_app._get_current_object()
+    settings_snapshot = get_settings()
 
     def _run():
         with app.app_context():
             try:
-                _webhook_auto_pipeline(file_path, title, series_id, movie_id)
+                _webhook_auto_pipeline(
+                    file_path,
+                    title,
+                    series_id,
+                    movie_id,
+                    settings_snapshot=settings_snapshot,
+                )
             except Exception as exc:
                 logger.exception("Webhook pipeline crashed for %s: %s", file_path, exc)
                 try:
@@ -67,7 +76,13 @@ def _spawn_pipeline(
     submit_background(_run)
 
 
-def _webhook_auto_pipeline(file_path: str, title: str, series_id: int = None, movie_id: int = None):
+def _webhook_auto_pipeline(
+    file_path: str,
+    title: str,
+    series_id: int = None,
+    movie_id: int = None,
+    settings_snapshot=None,
+):
     """Full webhook automation pipeline: delay -> scan -> search -> translate.
 
     Each step is individually configurable. Emits WebSocket events at each stage.
@@ -79,7 +94,7 @@ def _webhook_auto_pipeline(file_path: str, title: str, series_id: int = None, mo
     from routes.translate import _run_job
     from services.wanted_scanner import get_scanner
 
-    s = get_settings()
+    s = settings_snapshot or get_settings()
     delay = s.webhook_delay_minutes * 60
 
     emit_event(
@@ -156,8 +171,9 @@ def _webhook_auto_pipeline(file_path: str, title: str, series_id: int = None, mo
             logger.warning("Webhook pipeline: search/process failed: %s", e)
             result_info["steps"].append({"search": {"error": str(e)}})
 
-    # Step 4: Fallback -- direct translate if auto_search disabled
-    if not s.webhook_auto_search:
+    # Step 4: Fallback -- direct translate if auto_search is disabled but
+    # webhook-level auto-translate is explicitly enabled.
+    if not s.webhook_auto_search and s.webhook_auto_translate:
         job = create_job(file_path)
         _run_job(job)
         result_info["steps"].append({"translate": "direct"})

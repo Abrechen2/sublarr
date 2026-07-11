@@ -44,6 +44,21 @@ def pytest_sessionfinish(session, exitstatus):
         SublarrScheduler._force_stop_all_for_test_cleanup()
     except Exception:  # noqa: BLE001 — best-effort cleanup, never block exit
         pass
+    try:
+        from services.background_tasks import shutdown_background
+
+        shutdown_background(wait=False)
+    except Exception:  # noqa: BLE001 -- best-effort cleanup, never block exit
+        pass
+
+
+def _shutdown_event_dispatchers_for_test(app):
+    try:
+        from app_shutdown import shutdown_event_dispatchers
+
+        shutdown_event_dispatchers(app)
+    except Exception:  # noqa: BLE001 -- best-effort cleanup, never hide test failures
+        pass
 
 
 @pytest.fixture
@@ -125,7 +140,10 @@ def app_ctx(temp_db):
     """Provide Flask application context for DB-layer unit tests."""
     app = create_app(testing=True)
     with app.app_context():
-        yield app
+        try:
+            yield app
+        finally:
+            _shutdown_event_dispatchers_for_test(app)
 
 
 @pytest.fixture
@@ -136,7 +154,10 @@ def client(temp_db):
     app.config["WTF_CSRF_ENABLED"] = False
 
     with app.test_client() as client:
-        yield client
+        try:
+            yield client
+        finally:
+            _shutdown_event_dispatchers_for_test(app)
 
 
 @pytest.fixture

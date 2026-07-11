@@ -66,6 +66,7 @@ class WebhookDispatcher:
             thread_name_prefix="webhook",
         )
         self._app = app
+        self._subscriptions: list[tuple[object, object]] = []
         logger.debug("WebhookDispatcher created with %d workers", max_workers)
 
     def send_webhook(self, webhook_config: dict, event_name: str, event_data: dict) -> dict:
@@ -199,6 +200,11 @@ class WebhookDispatcher:
         """
         webhook_id = config.get("id")
 
+        if self._app is not None:
+            ctx = self._app.app_context()
+            ctx.push()
+        else:
+            ctx = None
         try:
             result = self.send_webhook(config, event_name, event_data)
 
@@ -244,10 +250,19 @@ class WebhookDispatcher:
                 event_name,
                 e,
             )
+        finally:
+            if ctx is not None:
+                ctx.pop()
 
     def shutdown(self) -> None:
-        """Shutdown the thread pool gracefully."""
-        self._pool.shutdown(wait=False)
+        """Disconnect event subscribers and stop the thread pool."""
+        for signal, handler in self._subscriptions:
+            try:
+                signal.disconnect(handler)
+            except Exception:
+                logger.debug("WebhookDispatcher subscriber disconnect failed", exc_info=True)
+        self._subscriptions.clear()
+        self._pool.shutdown(wait=False, cancel_futures=True)
         logger.info("WebhookDispatcher shut down")
 
 
@@ -277,6 +292,7 @@ def init_webhook_subscribers(dispatcher: WebhookDispatcher) -> None:
             continue
         handler = _make_webhook_handler(name)
         entry["signal"].connect(handler, weak=False)
+        dispatcher._subscriptions.append((entry["signal"], handler))
         count += 1
 
     logger.info("WebhookDispatcher subscribed to %d events", count)

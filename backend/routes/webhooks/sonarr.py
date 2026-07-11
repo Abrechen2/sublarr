@@ -116,6 +116,8 @@ def webhook_sonarr():
             "status": "queued",
             "file_path": file_path,
             "delay_minutes": s.webhook_delay_minutes,
-            "auto_pipeline": s.webhook_auto_search,
+            "auto_pipeline": bool(
+                s.webhook_auto_scan or s.webhook_auto_search or s.webhook_auto_translate
+            ),
         }
     ), 202

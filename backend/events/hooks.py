@@ -35,6 +35,7 @@ class HookEngine:
             thread_name_prefix="hook",
         )
         self._app = app
+        self._subscriptions: list[tuple[object, object]] = []
         logger.debug("HookEngine created with %d workers", max_workers)
 
     def execute_hook(self, hook_config: dict, event_name: str, event_data: dict) -> dict:
@@ -238,8 +239,14 @@ class HookEngine:
                 ctx.pop()
 
     def shutdown(self) -> None:
-        """Shutdown the thread pool gracefully."""
-        self._pool.shutdown(wait=False)
+        """Disconnect event subscribers and stop the thread pool."""
+        for signal, handler in self._subscriptions:
+            try:
+                signal.disconnect(handler)
+            except Exception:
+                logger.debug("HookEngine subscriber disconnect failed", exc_info=True)
+        self._subscriptions.clear()
+        self._pool.shutdown(wait=False, cancel_futures=True)
         logger.info("HookEngine shut down")
 
 
@@ -269,6 +276,7 @@ def init_hook_subscribers(engine: HookEngine) -> None:
             continue
         handler = _make_hook_handler(name)
         entry["signal"].connect(handler, weak=False)
+        engine._subscriptions.append((entry["signal"], handler))
         count += 1
 
     logger.info("HookEngine subscribed to %d events", count)
