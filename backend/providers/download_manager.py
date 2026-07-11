@@ -351,29 +351,17 @@ def save_subtitle(
     except Exception as e:
         logger.debug("Path validation skipped (config unavailable, likely in tests): %s", e)
 
-    # Sanitize subtitle content before writing to disk
-    try:
-        from subtitle_sanitizer import sanitize_subtitle
+    # Sanitise + the B5 repair pass (BOM, newlines, invalid decimals, overlapping
+    # cues, encoding mis-detection) before the content is written and hashed.
+    #
+    # This lives in subtitle_normalise so the repair feature can reproduce it
+    # exactly: the hash recorded below is of the NORMALISED content, so a
+    # re-download has to be put through the same transform before it can be
+    # compared against it. Duplicating the chain here is how they drifted apart
+    # in the first place.
+    from subtitle_normalise import normalise_downloaded_content
 
-        result.content = sanitize_subtitle(result.content, result.format)
-    except ValueError as e:
-        raise RuntimeError(f"Subtitle failed security check: {e}") from e
-    except Exception as e:
-        logger.warning("Subtitle sanitization failed (skipping): %s", e)
-
-    # Plan B5 — subtitle repair pass before writing (opt-outable).
-    # Fixes BOM, newlines, invalid decimals, overlapping cues, encoding
-    # mis-detection. Must never abort the save — fall through on any error.
-    try:
-        from config import get_settings as _repair_get_settings
-
-        if getattr(_repair_get_settings(), "enable_subtitle_repair", True):
-            from subtitle_repair import repair_bytes as _repair_bytes
-
-            _fmt = getattr(result.format, "value", None) or "srt"
-            result.content = _repair_bytes(result.content, fmt=str(_fmt))
-    except Exception as _repair_err:
-        logger.warning("subtitle_repair skipped for %s: %s", result.subtitle_id, _repair_err)
+    result.content = normalise_downloaded_content(result.content, result.format)
 
     # Duplicate detection: skip write if identical content already exists on disk
     try:

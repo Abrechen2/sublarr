@@ -88,9 +88,17 @@ def fetch_original(candidate: RepairCandidate) -> bytes:
         provider_data={"file_id": candidate.subtitle_id},
     )
     try:
-        return provider.download(result)
+        content = provider.download(result)
     except ProviderRateLimitError as exc:
         raise QuotaExhaustedError(str(exc)) from exc
+
+    # save_subtitle normalises a download before it writes and hashes it, so the
+    # pristine hash is of the NORMALISED content. Compare raw provider bytes
+    # against it and every single file is rejected — which is exactly what the
+    # first production dry run did.
+    from subtitle_normalise import normalise_downloaded_content
+
+    return normalise_downloaded_content(content, candidate.fmt)
 
 
 def _pristine_bak(candidate: RepairCandidate) -> bytes | None:

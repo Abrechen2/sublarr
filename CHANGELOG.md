@@ -5,6 +5,20 @@ All notable changes to Sublarr are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.7.2] - 2026-07-11
+
+### Fixed
+- **Repair refused every real file.** `save_subtitle()` does not store a download
+  as it arrives: it sanitises it, runs the B5 repair pass over it, writes *that*,
+  and records the hash of *that*. So the pristine hash in `subtitle_hashes` is the
+  hash of the **normalised** content — while repair re-downloaded the **raw**
+  provider bytes and compared those. Every file came back `provider_changed`,
+  which is the safety gate correctly refusing to overwrite something it could not
+  prove. Nothing was ever written or damaged.
+
+  Both paths now go through one function (`subtitle_normalise`), so the download
+  path and the repair path cannot drift apart again.
+
 ## [1.7.1] - 2026-07-11
 
 ### Changed
