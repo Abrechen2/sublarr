@@ -5,6 +5,40 @@ All notable changes to Sublarr are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.7.0] - 2026-07-11
+
+### Added
+- **Subtitle repair** — restores the subtitles the pre-1.6.6 HI-removal bug
+  damaged. The words it deleted are not recoverable from the damaged file, so
+  repair fetches the pristine original back. Nothing is ever overwritten on a
+  hunch; every repair clears three gates:
+
+  1. **The original must be provable.** `save_subtitle()` records the SHA-256 of
+     the pristine provider bytes *before* the pipeline runs, so a stored hash
+     that disagrees with the file on disk means the pipeline rewrote it — and
+     that hash identifies the original beyond doubt. A re-download (or a backup)
+     is only accepted if it hashes to it.
+  2. **The damage must be reproducible.** A frozen copy of the buggy pipeline is
+     replayed over the original; the result must equal the file on disk. If it
+     does not, a human edited the file, and repair leaves it alone.
+  3. **The write is atomic** and recorded, so no file is ever repaired twice.
+
+  A pristine `.bak` is preferred over a download: `apply_mods` backs the sidecar
+  up before editing it, so where that backup survived it *is* the original — and
+  the hash proves it. Those repairs cost no provider quota at all.
+
+  **The sync is preserved.** The damage was purely textual, and the file on disk
+  has since been synced to the video, so its timings are better than the
+  provider's. The pristine text is transplanted onto the synced timings, and the
+  cues the old pipeline deleted are rebuilt via the time model fitted from the
+  cues that survived. Nothing is re-synced, nothing is lost.
+
+  Provider quota is respected — the run stops cleanly when the daily allowance is
+  spent and resumes where it left off. Available under Settings → System →
+  Subtitle repair, and via `GET /api/v1/repair/scan`, `POST /api/v1/repair/run`
+  and `GET /api/v1/repair/status`. Scanning costs nothing: it is a local hash
+  comparison.
+
 ## [1.6.6] - 2026-07-11
 
 ### Fixed
