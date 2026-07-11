@@ -16,8 +16,8 @@
  *   – AniDB / Remux            – navigation tiles to per-domain pages
  *   – Diagnostics              – cross-link to /settings/system/diagnostics
  */
-import { lazy, Suspense } from 'react'
-import { Link } from 'react-router-dom'
+import { lazy, Suspense, useEffect } from 'react'
+import { Link, useLocation } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { SubtitleRepairPanel } from '@/components/repair/SubtitleRepairPanel'
 import {
@@ -150,6 +150,16 @@ const SECTIONS: readonly FormSectionDef[] = [
 export function SystemSettings() {
   const { t } = useTranslation('settings')
   const { t: tSettings } = useTranslation('settings')
+  const { hash } = useLocation()
+
+  // The data-loss notice links straight here with #subtitle-repair. React Router
+  // does not act on the fragment, so bring the section into view ourselves —
+  // otherwise the one-click jump lands at the top of a long page.
+  useEffect(() => {
+    if (!hash) return
+    const el = document.getElementById(hash.slice(1))
+    if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' })
+  }, [hash])
 
   return (
     <SettingsDetailLayout

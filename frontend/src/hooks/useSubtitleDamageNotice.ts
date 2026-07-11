@@ -7,7 +7,11 @@
  */
 import { useState, useEffect, useCallback } from 'react'
 
-const NOTICE_ID = 'hi-interjection-data-loss-2026-07'
+// Bumped when the notice changed: it no longer says a repair tool is coming —
+// the tool exists, and the notice now links straight to it. People who
+// dismissed the old wording must see the new one, or they never learn their
+// library can be fixed.
+const NOTICE_ID = 'hi-interjection-data-loss-2026-07-repair-available'
 const STORAGE_KEY = 'sublarr_notice_ack'
 
 export function useSubtitleDamageNotice() {
