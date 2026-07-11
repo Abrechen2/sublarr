@@ -711,7 +711,7 @@
     "example_after": "What Sublarr turned it into:",
     "who_is_affected": "Affected are subtitles downloaded while \"HI removal\" was enabled in auto-processing. If that option is off for you, nothing was altered.",
     "backups": "The .bak backups are unfortunately no help: a second bug meant they were created from files that were already damaged. We fixed that too.",
-    "fixed": "The cause is gone: filler-word removal has been removed outright. HI removal now only touches genuine markers (brackets, music symbols, speaker labels) — the way Bazarr does it. New downloads are clean.",
+    "fixed": "The cause is gone: filler-word removal has been removed outright. HI removal now only touches genuine markers — brackets, music symbols, speaker labels. New downloads are clean.",
     "next": "Subtitles that are already damaged can only be repaired by downloading them again. A repair tool for that is in the works.",
     "got_it": "Understood"
   }

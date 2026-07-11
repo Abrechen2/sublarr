@@ -711,7 +711,7 @@
     "example_after": "Was Sublarr daraus gemacht hat:",
     "who_is_affected": "Betroffen sind Untertitel, die heruntergeladen wurden, während \"HI-Entfernung\" in der automatischen Verarbeitung aktiv war. Ist die Option bei dir aus, wurde nichts verändert.",
     "backups": "Die .bak-Sicherungen helfen leider nicht: Durch einen zweiten Fehler wurden sie aus bereits beschädigten Dateien erzeugt. Wir haben auch das behoben.",
-    "fixed": "Die Ursache ist beseitigt: Die Füllwort-Entfernung ist ersatzlos entfernt. Die HI-Entfernung fasst jetzt nur noch echte Marker an (Klammern, Musiksymbole, Sprecher-Labels) — so wie Bazarr es auch macht. Neue Downloads sind sauber.",
+    "fixed": "Die Ursache ist beseitigt: Die Füllwort-Entfernung ist ersatzlos entfernt. Die HI-Entfernung fasst jetzt nur noch echte Marker an — Klammern, Musiksymbole, Sprecher-Labels. Neue Downloads sind sauber.",
     "next": "Bereits beschädigte Untertitel lassen sich nur durch erneutes Herunterladen reparieren. Ein Reparatur-Werkzeug dafür ist in Arbeit.",
     "got_it": "Verstanden"
   }
