@@ -181,11 +181,19 @@ def _apply_hi_removal(subs: pysubs2.SSAFile, options: dict, fmt: str = "srt") ->
         # before the HI patterns run and restored afterwards. Reading plaintext
         # and writing the result back into event.text used to drop every tag on
         # any cue the pipeline touched — positioning and italics simply vanished.
-        # Masking is confined to ASS: on SRT a literal {...} is not formatting,
-        # and the curly_brackets option is meant to remove it.
-        work, tags = _mask_ass_tags(event.text) if is_ass else (event.text, [])
+        #
+        # SRT keeps working on plaintext exactly as before. Feeding it raw
+        # event.text instead would rewrite every cue containing an escape such as
+        # \h (a hard space, which some SRTs use to align text): the comparison
+        # against plaintext would always differ, and the rewrite turned the
+        # escapes into literal runs of spaces. Only ASS needs the tag treatment,
+        # and on SRT a literal {...} is not formatting — curly_brackets is meant
+        # to remove it.
         if is_ass:
+            work, tags = _mask_ass_tags(event.text)
             work = work.replace("\\N", "\n").replace("\\h", " ")
+        else:
+            work, tags = original, []
 
         cleaned = remove_hi_markers(work)
 

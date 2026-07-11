@@ -63,3 +63,31 @@ def test_cue_that_becomes_empty_is_still_dropped(process_ass):
     """A cue whose entire content was an HI marker still disappears."""
     out = process_ass([r"{\an8}[DOOR SLAMS]", "Echte Zeile."])
     assert out == ["Echte Zeile."]
+
+
+def test_srt_escapes_do_not_become_runs_of_spaces(tmp_path):
+    r"""SRT must keep going through plaintext — raw event.text explodes escapes.
+
+    Some SRTs carry ASS-style escapes; \h (hard space) is used to align text into
+    columns. Running the HI patterns over raw event.text made every such cue
+    compare as "changed" against its plaintext, and the rewrite turned the
+    escapes into literal runs of spaces — 1074 of them in one real library file.
+    (``remove_hi_markers`` collapses runs of spaces by design, so a cue that goes
+    through plaintext comes out normalised, never exploded.)
+    """
+    import pysubs2
+
+    from subtitle_processor import ModConfig, ModName, apply_mods
+
+    path = tmp_path / "t.de.srt"
+    subs = pysubs2.SSAFile()
+    subs.events.append(pysubs2.SSAEvent(start=1000, end=3000, text=r"Alter\h\h\h17 Jahre"))
+    subs.events.append(pysubs2.SSAEvent(start=4000, end=6000, text=r"Räuber\h\h\h\h\hKoch"))
+    subs.save(str(path), format_="srt", encoding="utf-8")
+
+    apply_mods(str(path), [ModConfig(mod=ModName.HI_REMOVAL)], dry_run=False)
+
+    out = path.read_text(encoding="utf-8")
+    assert "  " not in out, f"escapes were exploded into literal spaces: {out!r}"
+    assert "Alter 17 Jahre" in out
+    assert "Räuber Koch" in out
