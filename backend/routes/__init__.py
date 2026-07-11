@@ -33,6 +33,7 @@ def register_blueprints(app):
     from routes.providers import bp as providers_bp
     from routes.providers_keys import bp as providers_keys_bp
     from routes.remux import bp as remux_bp
+    from routes.repair import bp as repair_bp
     from routes.search import bp as search_bp
     from routes.series_audio import bp as series_audio_bp
     from routes.series_settings_overrides import bp as series_settings_overrides_bp
@@ -83,6 +84,7 @@ def register_blueprints(app):
         api_keys_bp,
         notifications_mgmt_bp,
         cleanup_bp,
+        repair_bp,
         integrations_bp,
         languages_bp,
         audio_bp,

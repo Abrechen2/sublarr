@@ -19,8 +19,9 @@
 import { lazy, Suspense } from 'react'
 import { Link } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
+import { SubtitleRepairPanel } from '@/components/repair/SubtitleRepairPanel'
 import {
-  Shield, Archive, Key, Download, Activity, ExternalLink,
+  Shield, Archive, Key, Download, Activity, ExternalLink, Wrench,
 } from 'lucide-react'
 import { SettingsDetailLayout } from '@/components/settings/SettingsDetailLayout'
 import { SettingsSection } from '@/components/settings/SettingsSection'
@@ -141,6 +142,7 @@ const SECTIONS: readonly FormSectionDef[] = [
   { id: 'backup-restore',    titleKey: 'system_setup_page.backup_restore_section' },
   { id: 'api-keys',          titleKey: 'system_setup_page.api_keys_section', advancedCount: 1 },
   { id: 'config-export',     titleKey: 'system_setup_page.config_export_section' },
+  { id: 'subtitle-repair',   titleKey: 'system_setup_page.subtitle_repair_section' },
 ]
 
 // ─── SystemSettings Page ──────────────────────────────────────────────────────
@@ -243,6 +245,23 @@ export function SystemSettings() {
               <Suspense fallback={<SectionSkeleton />}>
                 <ConfigExportImportTab />
               </Suspense>
+            </SettingsSection>
+          </div>
+        </section>
+
+
+        {/* 5. Subtitle repair — restore what the pre-1.6.6 pipeline damaged */}
+        <section id="subtitle-repair" data-testid="settings.system.section-subtitle-repair">
+          <div data-testid="section-subtitle-repair">
+            <SettingsSection
+              title={t('system_setup_page.subtitle_repair_section')}
+              description={t(
+                'settings.system.subtitle_repair.description',
+                'Restore subtitles damaged by the HI-removal bug in versions before 1.6.6.',
+              )}
+              icon={<Wrench size={16} style={{ color: 'var(--accent)' }} />}
+            >
+              <SubtitleRepairPanel />
             </SettingsSection>
           </div>
         </section>

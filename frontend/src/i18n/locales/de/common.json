@@ -714,5 +714,23 @@
     "fixed": "Die Ursache ist beseitigt: Die Füllwort-Entfernung ist ersatzlos entfernt. Die HI-Entfernung fasst jetzt nur noch echte Marker an — Klammern, Musiksymbole, Sprecher-Labels. Neue Downloads sind sauber.",
     "next": "Bereits beschädigte Untertitel lassen sich nur durch erneutes Herunterladen reparieren. Ein Reparatur-Werkzeug dafür ist in Arbeit.",
     "got_it": "Verstanden"
+  },
+  "repair": {
+    "title": "Beschädigte Untertitel reparieren",
+    "intro": "Ein Fehler in Sublarr (vor 1.6.6) hat Wörter aus Untertiteln gelöscht. Die Reparatur holt das unversehrte Original zurück — aus einer nachweislich sauberen Sicherung oder, falls nötig, per erneutem Download beim Anbieter.",
+    "language": "Sprache",
+    "scan": "Prüfen",
+    "scanning": "Prüfe…",
+    "damaged": "Beschädigt",
+    "from_backup": "Aus Sicherung (gratis)",
+    "needs_download": "Erneuter Download nötig",
+    "already_repaired": "Bereits repariert",
+    "safety": "Es wird nichts überschrieben, ohne bewiesen zu haben, dass das echte Original vorliegt. Selbst bearbeitete Dateien bleiben unangetastet, die Synchronisation bleibt erhalten.",
+    "dry_run": "Testlauf",
+    "start": "Reparatur starten",
+    "restored": "Repariert",
+    "hand_edited": "Selbst bearbeitet (übersprungen)",
+    "failed": "Fehlgeschlagen",
+    "quota_exhausted": "Das Tageskontingent des Anbieters ist aufgebraucht. Der nächste Lauf macht dort weiter, wo dieser aufgehört hat."
   }
 }

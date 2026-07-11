@@ -1317,7 +1317,8 @@
     "security_section": "Sicherheit",
     "backup_restore_section": "Backup & Wiederherstellung",
     "api_keys_section": "API-Schlüssel",
-    "config_export_section": "Einstellungen exportieren / importieren"
+    "config_export_section": "Einstellungen exportieren / importieren",
+    "subtitle_repair_section": "Untertitel-Reparatur"
   },
   "system_diagnostics_page": {
     "title": "Diagnose",

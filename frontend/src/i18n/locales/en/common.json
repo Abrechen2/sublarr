@@ -714,5 +714,23 @@
     "fixed": "The cause is gone: filler-word removal has been removed outright. HI removal now only touches genuine markers — brackets, music symbols, speaker labels. New downloads are clean.",
     "next": "Subtitles that are already damaged can only be repaired by downloading them again. A repair tool for that is in the works.",
     "got_it": "Understood"
+  },
+  "repair": {
+    "title": "Repair damaged subtitles",
+    "intro": "A bug in Sublarr (before 1.6.6) deleted words from subtitles. Repair brings the pristine original back — from a provably clean backup, or by re-downloading it from the provider where necessary.",
+    "language": "Language",
+    "scan": "Scan",
+    "scanning": "Scanning…",
+    "damaged": "Damaged",
+    "from_backup": "From backup (free)",
+    "needs_download": "Needs a re-download",
+    "already_repaired": "Already repaired",
+    "safety": "Nothing is overwritten without proving the real original is in hand. Files you edited yourself are left alone, and the sync is preserved.",
+    "dry_run": "Dry run",
+    "start": "Start repair",
+    "restored": "Restored",
+    "hand_edited": "Hand-edited (skipped)",
+    "failed": "Failed",
+    "quota_exhausted": "The provider's daily allowance is spent. The next run picks up where this one stopped."
   }
 }
