@@ -63,6 +63,20 @@ def test_capitalised_sentence_with_punctuation_survives(process_srt, line):
     assert process_srt([line]) == [line]
 
 
+def test_capitalised_sentence_wrapped_across_two_lines_survives(process_srt):
+    """Judged line by line, the first line carries no punctuation and looked like
+
+    a marker — so half the sentence was deleted. The cue must be judged whole.
+    """
+    cue = "UM DIE DREHBUCHSCHREIBERIN\nZU BESCHÜTZEN, ODER?"
+    assert process_srt([cue]) == [cue]
+
+
+def test_two_line_caps_marker_is_still_removed(process_srt):
+    """A genuine marker wrapped over two lines is still a marker."""
+    assert process_srt(["PHONE\nRINGING", "Hallo."]) == ["Hallo."]
+
+
 def test_speaker_label_stripped_but_sentence_kept(process_srt):
     """ "ICH:" is the HI marker; the capitalised sentence behind it is dialogue."""
     out = process_srt(["ICH: DU HAST MICH DOCH WOHL NICHT UM HILFE GEBETEN,"])

@@ -200,9 +200,15 @@ def _apply_hi_removal(subs: pysubs2.SSAFile, options: dict, fmt: str = "srt") ->
         for pat in extra_patterns:
             cleaned = pat.sub("", cleaned).strip()
 
-        if caps_pattern is not None:
-            lines_out = [ln for ln in cleaned.split("\n") if not caps_pattern.match(ln.strip())]
-            cleaned = "\n".join(lines_out).strip()
+        # The caps rule judges the WHOLE cue, not each line on its own. A
+        # capitalised sentence wrapped across two subtitle lines has a first line
+        # that carries no punctuation of its own — judged line by line it looks
+        # like a marker, and half the sentence was deleted:
+        #   "UM DIE DREHBUCHSCHREIBERIN\nZU BESCHÜTZEN, ODER?" -> "ZU BESCHÜTZEN, ODER?"
+        # Joined, the comma and the question mark identify it as prose. The
+        # class admits \s, so a genuine two-line marker still matches as a whole.
+        if caps_pattern is not None and caps_pattern.match(cleaned.strip()):
+            cleaned = ""
 
         cleaned = cleaned.strip()
         if is_ass:
