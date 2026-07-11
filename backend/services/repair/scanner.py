@@ -1,14 +1,23 @@
 """Find subtitles the pre-1.6.6 pipeline rewrote, and resolve how to re-fetch them.
 
-Detection leans on an accident of ordering that turned out to be a gift:
-``save_subtitle()`` registers the SHA-256 of the **pristine provider bytes** in
-``subtitle_hashes`` and only *then* runs the processing pipeline that damaged the
-file. So a stored hash that disagrees with the file on disk means the pipeline
-rewrote it — and the stored hash is the fingerprint of the original, which lets
-a re-download be *proven* correct rather than merely assumed.
+``save_subtitle()`` records the hash of a download *as it writes it*, and only
+then runs the processing pipeline. So a stored hash that disagrees with the file
+on disk means the pipeline rewrote the file — that is what makes a candidate.
 
-Verified on the production library: 396 of 400 sampled rows still hold the
-pre-pipeline hash; none had been overwritten by a later rescan.
+Note what this does **not** say: it does not mean the file was *damaged*. The
+pipeline also normalises quotes and syncs timings, which moves the hash without
+harming a single word. On the production library every tracked sidecar had been
+touched, but a dry run over 25 of them found only 1 with content actually
+missing. Whether a file is damaged is only knowable by fetching the original and
+replaying the old pipeline over it — which is what the runner does. Files that
+turn out to be intact are recorded as ``undamaged`` so they are never fetched
+again.
+
+Nor is the stored hash a proof of the original: it is the hash of the file *as it
+was written back then*, and the normalisation chain that produced those bytes has
+changed since — it matched 0 of 8 sampled downloads. The proof lives in
+``restore``. The one place the hash still holds is a ``.bak``, which *is* the file
+as written.
 
 Resolving the provider record is the awkward part. ``subtitle_downloads.file_path``
 holds the **video** path for 7289 of 7297 rows, not the sidecar's — so the two
@@ -100,8 +109,13 @@ def _download_index(language: str | None) -> dict[tuple[str, str], tuple[str, st
 def _repaired_paths() -> dict[str, str]:
     """file_path -> hash of the file as repair left it, so a repair is done once."""
     try:
+        # 'undamaged' counts too: the pipeline moved the file's hash but never harmed
+        # its text. Re-checking it would cost a download to learn the same thing again.
         rows = db.session.execute(
-            sql("SELECT file_path, repaired_hash FROM subtitle_repairs WHERE status = 'repaired'")
+            sql(
+                "SELECT file_path, repaired_hash FROM subtitle_repairs "
+                "WHERE status IN ('repaired', 'undamaged')"
+            )
         ).fetchall()
     except Exception:  # noqa: BLE001 — table may not exist yet on an old DB
         return {}

@@ -170,8 +170,19 @@ def repair_one(candidate: RepairCandidate, *, dry_run: bool = False) -> RepairOu
     except RestoreRefusedError as exc:
         from services.repair.restore import NOTHING_TO_RESTORE
 
-        status = "nothing_to_restore" if str(exc) == NOTHING_TO_RESTORE else "unprovable"
-        return RepairOutcome(candidate.file_path, status, str(exc))
+        if str(exc) == NOTHING_TO_RESTORE:
+            # The pipeline touched this file (its hash moved) but never harmed its
+            # text — quotes normalised, timings synced, that sort of thing. Record
+            # it, or every future run re-downloads it to learn the same thing again
+            # and burns the daily quota on files that were never damaged.
+            if not dry_run:
+                _record_repair(
+                    candidate,
+                    repaired_hash=content_hash(candidate.file_path) or "",
+                    status="undamaged",
+                )
+            return RepairOutcome(candidate.file_path, "nothing_to_restore", str(exc))
+        return RepairOutcome(candidate.file_path, "unprovable", str(exc))
     except Exception as exc:  # noqa: BLE001
         logger.warning("repair: restore failed for %s: %s", candidate.file_path, exc)
         return RepairOutcome(candidate.file_path, "error", str(exc))
@@ -190,16 +201,18 @@ def repair_one(candidate: RepairCandidate, *, dry_run: bool = False) -> RepairOu
     return RepairOutcome(candidate.file_path, "repaired", f"original from {source}")
 
 
-def _record_repair(candidate: RepairCandidate, *, repaired_hash: str) -> None:
+def _record_repair(
+    candidate: RepairCandidate, *, repaired_hash: str, status: str = "repaired"
+) -> None:
     db.session.execute(
         sql("""
             INSERT INTO subtitle_repairs
                    (file_path, original_hash, repaired_hash, provider_name, subtitle_id,
                     status, repaired_at)
-            VALUES (:p, :oh, :rh, :prov, :sid, 'repaired', :ts)
+            VALUES (:p, :oh, :rh, :prov, :sid, :st, :ts)
             ON CONFLICT (file_path) DO UPDATE
                SET repaired_hash = EXCLUDED.repaired_hash,
-                   status        = 'repaired',
+                   status        = EXCLUDED.status,
                    repaired_at   = EXCLUDED.repaired_at
         """),
         {
@@ -208,6 +221,7 @@ def _record_repair(candidate: RepairCandidate, *, repaired_hash: str) -> None:
             "rh": repaired_hash,
             "prov": candidate.provider,
             "sid": candidate.subtitle_id,
+            "st": status,
             "ts": datetime.now(UTC),
         },
     )

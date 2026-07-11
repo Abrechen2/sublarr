@@ -25,7 +25,6 @@ import pysubs2
 
 from services.repair.legacy_transform import replay_legacy_pipeline_with_survivors
 
-
 NOTHING_TO_RESTORE = "the old pipeline changed nothing here — nothing to restore"
 UNPROVABLE = (
     "no replay of the old pipeline reproduces the file on disk — it was either edited "
