@@ -51,6 +51,7 @@ from db.models.providers import (
     SubtitleDownload,
 )
 from db.models.quality import SubtitleHealthResult
+from db.models.repair import SubtitleRepair  # noqa: F401
 from db.models.scheduler import JobRun  # noqa: F401
 from db.models.standalone import (
     AnidbMapping,
