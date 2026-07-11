@@ -17,6 +17,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { render, screen, fireEvent } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { SystemSettings } from '../SystemSettings'
 import enSettings from '../../../i18n/locales/en/settings.json'
 
@@ -102,10 +103,17 @@ vi.mock('@/hooks/useApi', () => ({
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
 function renderPage() {
+  // The page hosts the subtitle-repair panel, which fetches its scan/status
+  // through react-query — so the tree needs a client.
+  const qc = new QueryClient({
+    defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
+  })
   return render(
-    <MemoryRouter>
-      <SystemSettings />
-    </MemoryRouter>,
+    <QueryClientProvider client={qc}>
+      <MemoryRouter>
+        <SystemSettings />
+      </MemoryRouter>
+    </QueryClientProvider>,
   )
 }
 
@@ -162,10 +170,10 @@ describe('SystemSettings', () => {
 
   // ── All sections ──────────────────────────────────────────────────────────
 
-  it('renders exactly 4 settings sections (after the diagnostics split)', () => {
+  it('renders exactly 5 settings sections (security, backup, api keys, export, repair)', () => {
     renderPage()
     const sections = screen.getAllByTestId('settings-section')
-    expect(sections).toHaveLength(4)
+    expect(sections).toHaveLength(5)
   })
 
   // ── Section titles ────────────────────────────────────────────────────────
