@@ -167,7 +167,9 @@ def repair_one(candidate: RepairCandidate, *, dry_run: bool = False) -> RepairOu
         return RepairOutcome(candidate.file_path, "error", str(exc))
 
     if dry_run:
-        return RepairOutcome(candidate.file_path, "repaired", "dry run — nothing written")
+        # Report the source even on a dry run — the point of it is to show how
+        # many repairs are free (from a backup) before spending any quota.
+        return RepairOutcome(candidate.file_path, "repaired", f"dry run — original from {source}")
 
     # Gate 3 — atomic write, then remember it so it is never repaired twice.
     from utils.atomic_write import atomic_write_bytes

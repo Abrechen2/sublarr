@@ -2030,6 +2030,9 @@
       },
       "configExportImport": {
         "description": "Alle Einstellungen als JSON exportieren oder aus einer Backup-Datei importieren."
+      },
+      "subtitle_repair": {
+        "description": "Untertitel wiederherstellen, die der HI-Removal-Fehler in Versionen vor 1.6.6 beschädigt hat."
       }
     },
     "translation": {
