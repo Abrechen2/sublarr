@@ -8,7 +8,7 @@
 
 *arr-compatible · Self-hosted · Open Source · Anime-first scoring
 
-[![Version](https://img.shields.io/badge/version-1.6.4-teal.svg)](https://github.com/Abrechen2/sublarr/releases)
+[![Version](https://img.shields.io/badge/version-1.6.5-teal.svg)](https://github.com/Abrechen2/sublarr/releases)
 [![License: GPL-3.0](https://img.shields.io/badge/License-GPL--3.0-blue.svg)](LICENSE)
 [![Python 3.12+](https://img.shields.io/badge/Python-3.12+-3776ab.svg)](https://www.python.org/)
 [![React 19](https://img.shields.io/badge/React-19-61dafb.svg)](https://react.dev/)
