@@ -222,8 +222,26 @@ def _build_interjection_pattern():
     if not items:
         return None
 
-    escaped = sorted([re.escape(w) for w in items], key=len, reverse=True)
-    return re.compile(r"\b(?:" + "|".join(escaped) + r")\b", re.IGNORECASE)
+    alt = "|".join(sorted([re.escape(w) for w in items], key=len, reverse=True))
+
+    # An interjection only counts as one when it stands alone as an utterance.
+    # The bundled list is English, but it is applied to subtitles of every
+    # language — and matching anywhere in a sentence destroys ordinary words:
+    # German "um" (preposition), "eh" ("das ist eh klar") and "nah" ("nah am
+    # Fluss") are all on it. A German subtitle came back with every "um" cut
+    # out, each leaving a double space behind.
+    #
+    #   1. the whole line, or line-initial followed by sentence punctuation
+    #      ("Um, I think" / "Uh... maybe" / a cue that is just "Hmm")
+    #   2. wedged between commas ("Well, um, I think")
+    #
+    # Punctuation and the space after it are consumed together with the word,
+    # so no ", that's odd" or "dich  eine" artifacts are left behind.
+    return re.compile(
+        rf"^[ \t]*(?:{alt})\b[ \t]*(?:[,.!?…]+[ \t]*|$)"
+        rf"|,[ \t]*(?:{alt})\b[ \t]*(?=,)",
+        re.IGNORECASE | re.MULTILINE,
+    )
 
 
 def _apply_credit_removal(subs: pysubs2.SSAFile, options: dict) -> list[Change]:
