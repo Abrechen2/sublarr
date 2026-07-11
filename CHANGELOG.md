@@ -5,6 +5,20 @@ All notable changes to Sublarr are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.7.1] - 2026-07-11
+
+### Changed
+- **The data-loss notice now leads to the repair tool.** It still told people a
+  repair tool was "in the works" — it exists as of 1.7.0. The notice says so, and
+  a single click takes them to Settings → System → Subtitle repair. The
+  acknowledgement is re-issued once, so everyone who dismissed the old wording
+  sees the new one; otherwise they would never learn their library can be fixed.
+
+### Fixed
+- **The jump into the repair section landed in the wrong place.** The sections
+  above it load lazily and grow *after* the jump, pushing the target back out of
+  view. The page now re-anchors until the layout settles.
+
 ## [1.7.0] - 2026-07-11
 
 ### Added
