@@ -74,6 +74,12 @@ def _execute_rule_locked(rule_id: int, *, socketio=None) -> dict:
         result = execute_orphan_db(config, dry_run=False)
     elif rule_type == "foreign_tracks":
         result = execute_foreign_tracks(media_path, config, dry_run=False)
+        if result.get("aborted"):
+            # A guard fired (unreachable media_path, empty keep-set): nothing was
+            # swept. Stamping last_run_at here would make a no-op indistinguishable
+            # from a successful sweep in the UI.
+            logger.warning("foreign_tracks rule %s aborted: %s", rule_id, result["aborted"])
+            return {"status": "aborted", "result": result}
         repo.update_rule_last_run(rule_id)
         repo.log_cleanup(
             action_type=rule_type,

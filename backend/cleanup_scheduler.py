@@ -243,6 +243,11 @@ def _execute_cleanup():
 
                 elif rule_type == "foreign_tracks":
                     result = execute_foreign_tracks(media_path, config, dry_run=False)
+                    if result.get("aborted"):
+                        # Guard fired — nothing swept. Leave last_run_at untouched so
+                        # a no-op cannot masquerade as a successful sweep.
+                        logger.warning("Scheduled foreign_tracks aborted: %s", result["aborted"])
+                        continue
                     repo.update_rule_last_run(rule_id)
                     repo.log_cleanup(
                         action_type="scheduled_foreign_tracks",

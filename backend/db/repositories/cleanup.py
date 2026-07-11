@@ -269,6 +269,25 @@ class CleanupRepository(BaseRepository):
             "schedule": "weekly",
             "config_json": "{}",
         },
+        {
+            "name": "Foreign-Track Cleanup",
+            "rule_type": "foreign_tracks",
+            # The ONLY path that strips embedded foreign subtitle tracks from an
+            # EXISTING library — the post-extract hook only ever touches the file
+            # it is currently processing. Without this rule a library keeps every
+            # foreign track it was imported with.
+            #
+            # Seeded DISABLED (same convention as signs_cleanup): remuxing is
+            # destructive, so an upgrade must never rewrite media unasked. Once
+            # the user opts in, "weekly" means Sublarr sweeps on its own — a
+            # "manual" schedule is skipped by the nightly cleanup job entirely.
+            #
+            # Empty config: keep_languages / keep_und are inherited from the
+            # global cleanup_foreign_tracks_* settings at run time.
+            "enabled": False,
+            "schedule": "weekly",
+            "config_json": "{}",
+        },
     ]
 
     # Config flag marking that the built-in defaults were offered once. Once

@@ -84,6 +84,21 @@ def _media_path_reachable(media_path: str) -> bool:
         return False
 
 
+def _foreign_track_settings():
+    """Return the settings object, or None when it cannot be loaded.
+
+    Cleanup must degrade to "rule config only" rather than crash when settings
+    are unavailable (e.g. a run outside an app context).
+    """
+    try:
+        from config import get_settings
+
+        return get_settings()
+    except Exception:  # noqa: BLE001 — inheritance is best-effort, never fatal
+        logger.debug("execute_foreign_tracks: settings unavailable", exc_info=True)
+        return None
+
+
 def _safe_walk(root: str):
     """Yield ``(dirpath, filenames)`` from ``root`` without descending into
     symlink cycles.
@@ -420,8 +435,20 @@ def execute_foreign_tracks(media_path: str, config: dict, dry_run: bool = False)
             "aborted": "media_path unreachable",
         }
 
+    # An ABSENT key inherits the global cleanup_foreign_tracks_* setting; rules
+    # are created with config_json="{}", so without this the seeded sweep would
+    # abort on every run. An EXPLICITLY empty keep_languages still aborts below
+    # — inheriting there would strip every subtitle track in the library.
+    settings = _foreign_track_settings()
+    raw_keep = config.get("keep_languages")
+    if raw_keep is None:
+        raw_keep = getattr(settings, "cleanup_foreign_tracks_keep_languages", None) or []
+    raw_keep_und = config.get("keep_und")
+    if raw_keep_und is None:
+        raw_keep_und = getattr(settings, "cleanup_foreign_tracks_keep_und", False)
+
     keep_languages: set[str] = set()
-    for lang in config.get("keep_languages", []) or []:
+    for lang in raw_keep:
         keep_languages.update(_get_language_tags(lang.lower()))
     if not keep_languages:
         # Mirror the language_filter C0-2 guard: an empty keep set would
@@ -437,7 +464,7 @@ def execute_foreign_tracks(media_path: str, config: dict, dry_run: bool = False)
             "aborted": "empty keep_languages",
         }
 
-    keep_und = bool(config.get("keep_und", True))
+    keep_und = bool(raw_keep_und)
 
     from remux import RemuxError, get_media_streams, remove_foreign_subtitle_streams
 
