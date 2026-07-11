@@ -153,12 +153,31 @@ export function SystemSettings() {
   const { hash } = useLocation()
 
   // The data-loss notice links straight here with #subtitle-repair. React Router
-  // does not act on the fragment, so bring the section into view ourselves —
-  // otherwise the one-click jump lands at the top of a long page.
+  // does not act on the fragment, so bring the section into view ourselves.
+  //
+  // One scroll is not enough: the sections above are lazy-loaded, so they grow
+  // *after* the jump and push the target back out of view — the click lands in
+  // the middle of the Backup section instead. So keep re-anchoring until the
+  // element's position stops moving.
   useEffect(() => {
     if (!hash) return
-    const el = document.getElementById(hash.slice(1))
-    if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' })
+    const id = hash.slice(1)
+    let last = -1
+    let settled = 0
+    const timer = window.setInterval(() => {
+      const el = document.getElementById(id)
+      if (!el) return
+      const top = el.getBoundingClientRect().top
+      el.scrollIntoView({ block: 'start' })
+      settled = Math.abs(top - last) < 2 ? settled + 1 : 0
+      last = top
+      if (settled >= 3) window.clearInterval(timer)
+    }, 120)
+    const stop = window.setTimeout(() => window.clearInterval(timer), 4000)
+    return () => {
+      window.clearInterval(timer)
+      window.clearTimeout(stop)
+    }
   }, [hash])
 
   return (
