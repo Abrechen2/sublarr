@@ -154,7 +154,7 @@ def _apply_hi_removal(subs: pysubs2.SSAFile, options: dict, fmt: str = "srt") ->
         **options,
     }
 
-    caps_pattern = _build_all_caps_pattern(subs, opts)
+    caps_pattern = _build_all_caps_pattern(subs, opts, is_ass=is_ass)
 
     extra_patterns = []
     if opts["curly_brackets"]:
@@ -250,7 +250,7 @@ def _mark_multiline_bracket_events(subs: pysubs2.SSAFile, to_remove: list[int]) 
                 to_remove.append(i + 1)
 
 
-def _build_all_caps_pattern(subs: pysubs2.SSAFile, opts: dict):
+def _build_all_caps_pattern(subs: pysubs2.SSAFile, opts: dict, is_ass: bool = False):
     """Return the all-caps HI-marker pattern, or None when the rule must not run.
 
     Mirrors Subzero's ``HI_all_caps`` (the mod Bazarr uses)::
@@ -267,10 +267,16 @@ def _build_all_caps_pattern(subs: pysubs2.SSAFile, opts: dict):
     Subzero's ``only_uppercase`` guard is honoured too: when the whole subtitle
     is capitalised that is a typesetting style, not a stream of HI markers, and
     applying the rule would empty the file.
+
+    The rule is SRT-only. ASS has real typesetting: a capitalised line there is a
+    *sign* — positioned and styled (``\\an8``, ``\\pos``, its own style) — or song
+    karaoke. Capitalisation carries no HI meaning in a format that can express
+    intent directly, and applying the heuristic would delete exactly the content
+    the typesetter put there.
     """
     import re
 
-    if not opts.get("all_caps_lines"):
+    if is_ass or not opts.get("all_caps_lines"):
         return None
 
     texts = [e.plaintext.strip() for e in subs.events if not e.is_comment and e.plaintext.strip()]

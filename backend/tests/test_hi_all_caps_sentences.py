@@ -108,3 +108,60 @@ def test_unpunctuated_caps_marker_still_removed(process_srt):
 def test_short_caps_word_still_kept(process_srt):
     """Below all_caps_min_length (4 consecutive capitals) nothing is removed."""
     assert process_srt(["OK!", "Hello"]) == ["OK!", "Hello"]
+
+
+# ---------------------------------------------------------------------------
+# The all-caps heuristic belongs to SRT only
+# ---------------------------------------------------------------------------
+
+
+def test_all_caps_rule_does_not_run_on_ass(tmp_path):
+    r"""In ASS, a capitalised line is typesetting — a sign — not an HI marker.
+
+    Signs are positioned and styled (\an8, \pos, their own style); the caps
+    heuristic exists because SRT has no way to express that. Applying it to ASS
+    deletes the very content the typesetter placed there.
+    """
+    import pysubs2
+
+    from subtitle_processor import ModConfig, ModName, apply_mods
+
+    # Normal dialogue is present, so the only_uppercase guard does NOT fire —
+    # without an ASS exemption the caps rule would run and eat the signs.
+    cues = [
+        r"{\an8\pos(960,120)}CAFÉ HILFUMI",
+        r"{\an8}ZUTRITT FÜR UNBEFUGTE VERBOTEN",
+        "STRECKEN WIR UNSERE HÄNDE AUS",
+        "Guten Morgen, wie geht es dir?",
+        "Mir geht es gut, danke.",
+    ]
+    subs = pysubs2.SSAFile()
+    for i, text in enumerate(cues):
+        subs.events.append(
+            pysubs2.SSAEvent(start=(i * 3 + 1) * 1000, end=(i * 3 + 3) * 1000, text=text)
+        )
+    path = tmp_path / "t.ass"
+    subs.save(str(path), format_="ass")
+
+    apply_mods(str(path), [ModConfig(mod=ModName.HI_REMOVAL)], dry_run=False)
+
+    out = [e.text for e in pysubs2.load(str(path), format_="ass").events]
+    assert out == cues, "signs and lyrics must survive HI removal on ASS"
+
+
+def test_structural_markers_still_removed_on_ass(tmp_path):
+    """Brackets and speaker labels are HI markers in every format."""
+    import pysubs2
+
+    from subtitle_processor import ModConfig, ModName, apply_mods
+
+    subs = pysubs2.SSAFile()
+    subs.events.append(pysubs2.SSAEvent(start=1000, end=3000, text=r"{\an8}[DOOR SLAMS]"))
+    subs.events.append(pysubs2.SSAEvent(start=4000, end=6000, text="Guten Morgen."))
+    path = tmp_path / "t2.ass"
+    subs.save(str(path), format_="ass")
+
+    apply_mods(str(path), [ModConfig(mod=ModName.HI_REMOVAL)], dry_run=False)
+
+    out = [e.plaintext for e in pysubs2.load(str(path), format_="ass").events]
+    assert out == ["Guten Morgen."]
