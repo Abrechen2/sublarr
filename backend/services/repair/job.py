@@ -32,6 +32,7 @@ class RepairState:
     skipped_nothing_to_restore: int = 0
     failed: int = 0
     quota_exhausted: bool = False
+    resume_at: str | None = None
     started_at: str | None = None
     finished_at: str | None = None
     last_file: str = ""
@@ -83,8 +84,14 @@ def start(app, *, language: str | None = None, dry_run: bool = False, limit: int
 
 
 def _execute(*, language: str | None, dry_run: bool, limit: int | None) -> None:
+    from services.repair import resume
     from services.repair.runner import QuotaExhaustedError, repair_one
     from services.repair.scanner import scan
+
+    if not dry_run:
+        # This sharp run claims any pending auto-resume: it either finishes the
+        # work or schedules a fresh resume when the quota runs out again.
+        resume.clear_resume()
 
     report = scan(language=language, limit=limit)
     _state.total = report.repairable
@@ -97,6 +104,12 @@ def _execute(*, language: str | None, dry_run: bool, limit: int | None) -> None:
         except QuotaExhaustedError as exc:
             _state.quota_exhausted = True
             logger.warning("repair: provider quota exhausted — stopping: %s", exc)
+            if not dry_run:
+                # Finish the job without a human: persist a resume and let the
+                # repair_resume scheduler tick restart the pass once the
+                # provider's daily allowance is back.
+                resume_at = resume.schedule_resume(language=language, reset_at=exc.reset_at)
+                _state.resume_at = resume_at.isoformat()
             break
 
         if outcome.status == "repaired":

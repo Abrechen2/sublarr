@@ -137,7 +137,13 @@ export function SubtitleRepairPanel() {
             <span>{t('repair.failed')}: {status.failed}</span>
           </div>
           {status.quota_exhausted && (
-            <p className="text-[11px] text-danger pt-1">{t('repair.quota_exhausted')}</p>
+            <p className="text-[11px] text-danger pt-1">
+              {status.resume_at
+                ? t('repair.quota_resume', {
+                    time: new Date(status.resume_at).toLocaleString(),
+                  })
+                : t('repair.quota_exhausted')}
+            </p>
           )}
           {status.error && <p className="text-[11px] text-danger pt-1">{status.error}</p>}
         </div>

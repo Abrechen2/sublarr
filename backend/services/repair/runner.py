@@ -32,7 +32,15 @@ logger = logging.getLogger(__name__)
 
 
 class QuotaExhaustedError(Exception):
-    """The provider's daily download allowance is spent — resume tomorrow."""
+    """The provider's daily download allowance is spent — resume tomorrow.
+
+    ``reset_at`` carries the provider-reported moment the allowance returns
+    (aware UTC), when known — the auto-resume schedules itself from it.
+    """
+
+    def __init__(self, message: str = "", reset_at: datetime | None = None):
+        super().__init__(message)
+        self.reset_at = reset_at
 
 
 @dataclass
@@ -90,7 +98,7 @@ def fetch_original(candidate: RepairCandidate) -> bytes:
     try:
         content = provider.download(result)
     except ProviderRateLimitError as exc:
-        raise QuotaExhaustedError(str(exc)) from exc
+        raise QuotaExhaustedError(str(exc), reset_at=getattr(exc, "reset_at", None)) from exc
 
     # save_subtitle normalises a download before it writes and hashes it, so the
     # pristine hash is of the NORMALISED content. Compare raw provider bytes

@@ -35,6 +35,25 @@ from security_utils import validate_download_url
 logger = logging.getLogger(__name__)
 
 
+def _parse_reset_utc(value: object):
+    """Parse the 406 body's ``reset_time_utc`` into an aware UTC datetime.
+
+    The API also ships a human ``reset_time`` ("23 hours from now") — that one
+    parses to None, which downstream treats as "reset moment unknown".
+    """
+    from datetime import UTC, datetime
+
+    if not value or not isinstance(value, str):
+        return None
+    try:
+        parsed = datetime.fromisoformat(value.replace("Z", "+00:00"))
+    except ValueError:
+        return None
+    if parsed.tzinfo is None:
+        parsed = parsed.replace(tzinfo=UTC)
+    return parsed.astimezone(UTC)
+
+
 @register_provider
 class OpenSubtitlesProvider(SubtitleProvider, _OpenSubtitlesFetchMixin):
     """OpenSubtitles.com REST API v2 provider."""
@@ -375,7 +394,8 @@ class OpenSubtitlesProvider(SubtitleProvider, _OpenSubtitlesFetchMixin):
                 reset_time,
             )
             raise ProviderRateLimitError(
-                f"OpenSubtitles download quota exhausted (resets: {reset_time})"
+                f"OpenSubtitles download quota exhausted (resets: {reset_time})",
+                reset_at=_parse_reset_utc(reset_time),
             )
 
         if resp.status_code != 200:

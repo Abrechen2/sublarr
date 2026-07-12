@@ -25,6 +25,7 @@ export interface RepairStatus {
   skipped_nothing_to_restore: number
   failed: number
   quota_exhausted: boolean
+  resume_at: string | null
   last_file: string
   error: string
   recent: { file: string; status: string }[]

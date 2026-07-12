@@ -733,6 +733,7 @@
     "restored": "Restored",
     "failed": "Failed",
     "quota_exhausted": "The provider's daily allowance is spent. The next run picks up where this one stopped.",
+    "quota_resume": "The provider's daily allowance is spent. The run resumes automatically at {{time}} — nothing is downloaded twice.",
     "unprovable": "Unprovable (skipped)"
   }
 }

@@ -733,6 +733,7 @@
     "restored": "Repariert",
     "failed": "Fehlgeschlagen",
     "quota_exhausted": "Das Tageskontingent des Anbieters ist aufgebraucht. Der nächste Lauf macht dort weiter, wo dieser aufgehört hat.",
+    "quota_resume": "Das Tageskontingent des Anbieters ist aufgebraucht. Der Lauf setzt am {{time}} automatisch fort — nichts wird doppelt heruntergeladen.",
     "unprovable": "Nicht beweisbar (übersprungen)"
   }
 }

@@ -26,11 +26,18 @@ class ProviderAuthError(ProviderError):
 
 
 class ProviderRateLimitError(ProviderError):
-    """Provider rate limit exceeded."""
+    """Provider rate limit exceeded.
 
-    def __init__(self, message: str = "", retry_after: int = 60):
+    ``reset_at`` is the provider-reported moment the allowance returns (aware
+    UTC datetime), when the provider exposes one — e.g. OpenSubtitles' daily
+    download quota. Consumers that can wait (the subtitle-repair auto-resume)
+    schedule themselves from it; ``retry_after`` stays the short-window hint.
+    """
+
+    def __init__(self, message: str = "", retry_after: int = 60, reset_at=None):
         super().__init__(message)
         self.retry_after = retry_after
+        self.reset_at = reset_at
 
 
 class ProviderTimeoutError(ProviderError):

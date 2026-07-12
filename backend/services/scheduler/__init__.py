@@ -82,6 +82,7 @@ def _build_default_jobs() -> list[JobSpec]:
     from cleanup_scheduler import cleanup_tick
     from services.dubtitle.sweep import dubtitle_scan_tick
     from services.mt_reseek import mt_reseek_tick
+    from services.repair.resume import repair_resume_tick
     from services.stats_rollup import stats_rollup_tick
     from services.subtitle_automation_runner import subtitle_automation_tick
     from services.subtitle_health.sweep import subtitle_health_sweep_tick
@@ -195,6 +196,22 @@ def _build_default_jobs() -> list[JobSpec]:
             description=(
                 "Re-search provisional machine-translations for a genuine "
                 "provider/embedded original (original-only, no re-translate)."
+            ),
+        ),
+        JobSpec(
+            id="repair_resume",
+            func=repair_resume_tick,
+            # A sharp repair run spans several provider-quota days; this tick
+            # restarts it once the daily allowance is back. No-op unless a
+            # quota-interrupted run left a pending resume, so a 10-minute
+            # cadence costs one KV read. The tick only *starts* the background
+            # pass (job.start returns immediately) — 60 s is ample.
+            default_trigger=IntervalTrigger(minutes=10),
+            timeout_s=60,
+            owner_module="services.repair.resume",
+            description=(
+                "Resume a quota-interrupted subtitle repair run once the "
+                "provider's daily allowance resets. No-op when nothing is pending."
             ),
         ),
         JobSpec(
