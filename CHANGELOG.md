@@ -5,6 +5,17 @@ All notable changes to Sublarr are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.8.0] - 2026-07-12
+
+### Added
+- **Intact files are remembered.** The scan flags a file when the old pipeline
+  moved its hash — which also happens when it merely normalised quotes or
+  synced timings. A production dry run over 25 flagged files found only 1 with
+  words actually missing; the other 23 were intact. Repair now records such
+  files as *undamaged* and skips them on every future run, instead of
+  re-downloading them and spending the daily provider quota to learn the same
+  thing again.
+
 ## [1.7.3] - 2026-07-11
 
 ### Fixed
