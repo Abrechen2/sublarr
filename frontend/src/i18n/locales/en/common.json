@@ -729,6 +729,8 @@
     "already_repaired": "Already repaired",
     "safety": "Nothing is overwritten unless the old buggy code, applied to the original, reproduces the file on your disk exactly — only that proves it is the right original and that you did not edit the file yourself. If it cannot be shown, the file is left alone. The sync is preserved.",
     "dry_run": "Dry run",
+    "dry_run_limit": "Limit",
+    "quota_note": "Both runs re-download every file they check and spend the provider's daily allowance (e.g. 1,000 downloads/day on OpenSubtitles). A dry run saves no results — whatever it checks, a later run downloads again. It is therefore capped at the configured limit. The repair remembers all progress and resumes automatically once the allowance resets.",
     "start": "Start repair",
     "restored": "Restored",
     "failed": "Failed",

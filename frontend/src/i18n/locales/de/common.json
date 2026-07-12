@@ -729,6 +729,8 @@
     "already_repaired": "Bereits repariert",
     "safety": "Es wird nichts überschrieben, ohne dass der alte Fehler-Code aus dem Original exakt die Datei auf deiner Platte erzeugt — erst das beweist, dass es das richtige Original ist und du die Datei nicht selbst bearbeitet hast. Lässt sich das nicht zeigen, bleibt die Datei unangetastet. Die Synchronisation bleibt erhalten.",
     "dry_run": "Testlauf",
+    "dry_run_limit": "Limit",
+    "quota_note": "Beide Läufe laden jede geprüfte Datei beim Anbieter neu herunter und verbrauchen dessen Tageskontingent (z. B. 1.000 Downloads/Tag bei OpenSubtitles). Der Testlauf speichert dabei keine Ergebnisse — was er prüft, lädt ein späterer Lauf noch einmal. Er ist deshalb auf das eingestellte Limit begrenzt. Die Reparatur merkt sich jeden Fortschritt und setzt nach erschöpftem Kontingent automatisch fort.",
     "start": "Reparatur starten",
     "restored": "Repariert",
     "failed": "Fehlgeschlagen",

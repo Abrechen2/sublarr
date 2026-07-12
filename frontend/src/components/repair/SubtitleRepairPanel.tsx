@@ -16,6 +16,7 @@ export function SubtitleRepairPanel() {
   const { t } = useTranslation('common')
   const qc = useQueryClient()
   const [language, setLanguage] = useState('de')
+  const [dryLimit, setDryLimit] = useState('25')
 
   const { data: status } = useQuery({
     queryKey: ['repair-status'],
@@ -33,8 +34,18 @@ export function SubtitleRepairPanel() {
     enabled: false,
   })
 
+  // A dry run downloads every file it checks and persists nothing — unlimited,
+  // one click can burn the provider's whole daily allowance for zero progress.
+  // It is therefore always capped; an empty/invalid input falls back to 25.
+  const dryRunLimit = Math.max(1, parseInt(dryLimit, 10) || 25)
+
   const run = useMutation({
-    mutationFn: (dry: boolean) => startRepair({ language: language || undefined, dry_run: dry }),
+    mutationFn: (dry: boolean) =>
+      startRepair({
+        language: language || undefined,
+        dry_run: dry,
+        ...(dry ? { limit: dryRunLimit } : {}),
+      }),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['repair-status'] }),
   })
 
@@ -96,6 +107,8 @@ export function SubtitleRepairPanel() {
         </div>
       )}
 
+      <p className="text-[11px] text-warning">{t('repair.quota_note')}</p>
+
       <div className="flex items-center gap-2">
         <button
           onClick={() => run.mutate(true)}
@@ -104,6 +117,16 @@ export function SubtitleRepairPanel() {
         >
           {t('repair.dry_run')}
         </button>
+        <label className="flex items-center gap-1 text-[11px] text-muted">
+          {t('repair.dry_run_limit')}
+          <input
+            type="number"
+            min={1}
+            value={dryLimit}
+            onChange={(e) => setDryLimit(e.target.value)}
+            className="w-16 rounded border border-border bg-page px-2 py-1 text-xs"
+          />
+        </label>
         <button
           onClick={() => run.mutate(false)}
           disabled={running || !scan?.damaged}
