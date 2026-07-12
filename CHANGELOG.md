@@ -5,6 +5,18 @@ All notable changes to Sublarr are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.9.1] - 2026-07-12
+
+### Fixed
+- **The dry run could burn the whole daily quota for nothing.** A dry run
+  downloads every file it checks — the same provider cost as the real run —
+  but persists none of it, so whatever it checks gets downloaded again later.
+  Yet the panel offered it unlimited: one click could process the entire
+  library and spend the full daily allowance for zero progress. The dry run
+  is now capped by a visible limit field (default 25), and the panel says
+  plainly what both runs cost, that the dry run saves nothing, and that the
+  real run remembers progress and resumes on its own.
+
 ## [1.9.0] - 2026-07-12
 
 ### Added
