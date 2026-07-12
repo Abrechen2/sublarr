@@ -5,6 +5,18 @@ All notable changes to Sublarr are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.9.0] - 2026-07-12
+
+### Added
+- **A quota-stopped repair run now finishes itself.** A sharp repair run spans
+  several provider-quota days. Until now it simply stopped when the daily
+  allowance ran out and waited for a human to restart it. The run now
+  remembers where it stopped and resumes automatically the moment the
+  provider's allowance resets (OpenSubtitles reports that moment; without it,
+  the next UTC midnight is assumed) — repeating until everything is repaired.
+  The repair panel shows the exact time the run will continue, and nothing is
+  ever downloaded twice.
+
 ## [1.8.0] - 2026-07-12
 
 ### Added
