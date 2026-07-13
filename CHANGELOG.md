@@ -5,6 +5,18 @@ All notable changes to Sublarr are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.9.2] - 2026-07-13
+
+### Fixed
+- **Subtitle repair could never restore AnimeTosho files.** The repair runner
+  assembled the download request itself and passed nothing but the stored
+  subtitle ID. OpenSubtitles resolves that ID server-side, but AnimeTosho
+  downloads from a URL and was handed an empty one, so every AnimeTosho-sourced
+  sidecar failed with "No download URL" — whether or not the provider was
+  enabled. Rebuilding a stored ID into something downloadable is provider
+  knowledge, so providers now answer it themselves; AnimeTosho derives its
+  attachment URL from the ID and needs no extra API call to do it.
+
 ## [1.9.1] - 2026-07-12
 
 ### Fixed
