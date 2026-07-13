@@ -45,6 +45,11 @@ _FORMAT_MAP = {
 }
 
 
+def _attachment_url(attach_id: int) -> str:
+    """The XZ-compressed attachment lives under its own id in hex."""
+    return f"{ATTACH_BASE}/{attach_id:08x}/{attach_id}.xz"
+
+
 @register_provider
 class AnimeToshoProvider(SubtitleProvider):
     """AnimeTosho subtitle provider."""
@@ -323,8 +328,7 @@ class AnimeToshoProvider(SubtitleProvider):
                     continue
 
                 # Download URL: XZ-compressed attachment
-                hex_id = format(attach_id, "08x")
-                download_url = f"{ATTACH_BASE}/{hex_id}/{attach_id}.xz"
+                download_url = _attachment_url(attach_id)
 
                 # Build matches
                 matches = set()
@@ -366,6 +370,30 @@ class AnimeToshoProvider(SubtitleProvider):
     # _detect_language moved to providers/animetosho_parsers.py (module-level
     # function imported above). The in-class method no longer exists; call
     # sites use the imported name directly.
+
+    def result_for_download(self, subtitle_id: str, language: str = "") -> SubtitleResult:
+        """Rebuild the attachment URL from a stored id — AnimeTosho downloads by URL.
+
+        The id a search hands out is ``entry_id:attach_id``, and the attachment
+        URL is derived purely from ``attach_id``, so a re-fetch needs no API call
+        at all. Without this the result reaches ``download()`` with an empty
+        ``download_url`` and dies there.
+        """
+        entry_raw, _, attach_raw = subtitle_id.partition(":")
+        try:
+            entry_id, attach_id = int(entry_raw), int(attach_raw)
+        except ValueError:
+            raise ValueError(
+                f"AnimeTosho subtitle_id must be 'entry_id:attach_id', got {subtitle_id!r}"
+            ) from None
+
+        return SubtitleResult(
+            provider_name=self.name,
+            subtitle_id=subtitle_id,
+            language=language,
+            download_url=_attachment_url(attach_id),
+            provider_data={"entry_id": entry_id, "attach_id": attach_id, "is_xz": True},
+        )
 
     def download(self, result: SubtitleResult) -> bytes:
         if not self.session:

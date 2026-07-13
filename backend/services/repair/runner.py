@@ -81,20 +81,20 @@ def fetch_original(candidate: RepairCandidate) -> bytes:
     no search. That costs one quota unit instead of a search plus a download, and
     removes any chance of fetching a *different* subtitle than the one that was
     saved back then.
+
+    What that id has to become is provider knowledge: OpenSubtitles resolves it
+    server-side, AnimeTosho turns it back into an attachment URL. Assembling the
+    result here instead of asking the provider is what made every AnimeTosho
+    sidecar unrepairable — it arrived at ``download()`` with no URL.
     """
     from providers import get_provider_manager
-    from providers.base import ProviderRateLimitError, SubtitleResult
+    from providers.base import ProviderRateLimitError
 
     provider = get_provider_manager().get_provider(candidate.provider)
     if provider is None:
         raise LookupError(f"provider {candidate.provider!r} is not configured")
 
-    result = SubtitleResult(
-        provider_name=candidate.provider,
-        subtitle_id=candidate.subtitle_id,
-        language=candidate.language,
-        provider_data={"file_id": candidate.subtitle_id},
-    )
+    result = provider.result_for_download(candidate.subtitle_id, candidate.language)
     try:
         content = provider.download(result)
     except ProviderRateLimitError as exc:

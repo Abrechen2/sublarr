@@ -474,6 +474,25 @@ class SubtitleProvider(ABC):
         """
         ...
 
+    def result_for_download(self, subtitle_id: str, language: str = "") -> SubtitleResult:
+        """Rebuild a downloadable result from a stored ``subtitle_id`` — without a search.
+
+        Callers that already know exactly which subtitle they want (the repair
+        runner re-fetching a file it downloaded before) skip the search and go
+        straight to ``download()``. The id alone is enough for providers that
+        resolve it server-side; providers that download from a URL must override
+        this and rebuild that URL, or ``download()`` gets nothing to fetch.
+
+        Raises:
+            ValueError: The id is not in this provider's stored format.
+        """
+        return SubtitleResult(
+            provider_name=self.name,
+            subtitle_id=subtitle_id,
+            language=language,
+            provider_data={"file_id": subtitle_id},
+        )
+
     def health_check(self) -> tuple[bool, str]:
         """Check if the provider is reachable.
 
