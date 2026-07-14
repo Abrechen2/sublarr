@@ -121,3 +121,10 @@ AGENTS.md
 # Private memory archive + backups (owner-local, never committed)
 memory-archive/
 memory-backup-*.tar.gz
+
+# Internal roadmap board — the curated data layer and the generated page.
+# The board tool itself lives centrally (outside this repo); only these two
+# artefacts are per-project. roadmap.local.yaml names real hosts and this repo
+# is public, so it must never be committed.
+roadmap.local.yaml
+.roadmap/
