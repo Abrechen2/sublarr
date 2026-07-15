@@ -37,6 +37,40 @@ def test_put_config_updates_key(client):
     assert "log_level" in data.get("updated_keys", [])
 
 
+def test_put_config_log_level_reflected_in_response(client):
+    """Saving log_level must persist through the reload and come back in the
+    response config (not snap back to the ENV/default INFO).
+
+    Regression guard for the reported 'can't change log level from info to
+    debug' bug — the value was written to config_entries but dropped on reload.
+    """
+    resp = client.put(
+        "/api/v1/config",
+        json={"log_level": "DEBUG"},
+        content_type="application/json",
+    )
+    assert resp.status_code == 200
+    assert resp.get_json()["config"]["log_level"] == "DEBUG"
+
+
+def test_put_config_log_level_applies_live(client):
+    """Changing log_level must take effect on the running logger without a
+    restart (re-runs _setup_logging)."""
+    import logging
+
+    previous = logging.getLogger().level
+    try:
+        resp = client.put(
+            "/api/v1/config",
+            json={"log_level": "DEBUG"},
+            content_type="application/json",
+        )
+        assert resp.status_code == 200
+        assert logging.getLogger().level == logging.DEBUG
+    finally:
+        logging.getLogger().setLevel(previous)
+
+
 def test_put_config_rejects_empty_body(client):
     resp = client.put(
         "/api/v1/config",

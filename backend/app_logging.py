@@ -98,6 +98,10 @@ def _setup_logging(settings) -> None:
     logging.basicConfig(level=log_level, format=LOG_FORMAT)
 
     root = logging.getLogger()
+    # basicConfig() is a no-op once the root logger already has handlers, so on
+    # a re-run (settings-save → live re-apply) it would NOT update the level.
+    # Set it explicitly to keep _setup_logging idempotent for level changes.
+    root.setLevel(log_level)
 
     from logging.handlers import RotatingFileHandler
 

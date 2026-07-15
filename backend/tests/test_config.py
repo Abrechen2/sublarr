@@ -40,6 +40,37 @@ def test_env_prefix():
         del os.environ["SUBLARR_TARGET_LANGUAGE"]
 
 
+def test_reload_settings_applies_db_log_level_override():
+    """A UI-saved log_level (DB config_entries) must win over the ENV/default.
+
+    log_level is a boot field, but it is runtime-reconfigurable, so
+    reload_settings overlays a DB override for it. Regression guard for the
+    'log level won't persist / snaps back to INFO' bug.
+    """
+    settings = reload_settings({"log_level": "DEBUG"})
+    assert settings.log_level == "DEBUG"
+
+
+def test_reload_settings_applies_db_log_file_and_format_override():
+    """log_file (the UI 'log path') and log_format are runtime-overridable too."""
+    settings = reload_settings(
+        {"log_file": "/tmp/sublarr-custom.log", "log_format": "json"}
+    )
+    assert settings.log_file == "/tmp/sublarr-custom.log"
+    assert settings.log_format == "json"
+
+
+def test_reload_settings_ignores_non_runtime_boot_override():
+    """Only the curated runtime-safe boot fields are DB-overridable.
+
+    A DB override for a hard boot field like ``port`` must still be dropped —
+    boot infrastructure stays ENV-only. Guards against widening the override
+    surface beyond the logging fields.
+    """
+    settings = reload_settings({"port": 9999})
+    assert settings.port != 9999
+
+
 def test_language_tags():
     """Test language tag generation."""
     assert "de" in _get_language_tags("de")

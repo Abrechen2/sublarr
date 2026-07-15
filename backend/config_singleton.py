@@ -21,6 +21,17 @@ from config_settings import BootSettings, Settings, UISettings
 _settings: Settings | None = None
 _settings_lock = threading.Lock()
 
+# Boot fields that, although env-loadable and read at process start, are safe
+# to reconfigure at runtime and are therefore ALSO overridable from the DB
+# ``config_entries`` (set via the UI). Logging is fully re-applied live by
+# ``_setup_logging`` on save, so a UI change to these takes effect without a
+# restart and survives one (DB override wins over ENV once the user sets it).
+# Everything else in ``_ALLOWED_BOOT_FIELDS`` (port, paths, database_url, …)
+# stays ENV-only.
+_RUNTIME_OVERRIDABLE_BOOT_FIELDS: frozenset[str] = frozenset(
+    {"log_level", "log_file", "log_format"}
+)
+
 
 def get_settings() -> Settings:
     """Get or create the singleton Settings instance (thread-safe)."""
@@ -50,6 +61,20 @@ def reload_settings(overrides: dict | None = None) -> Settings:
     ui = UISettings()
 
     if overrides:
+        # Overlay DB overrides for the runtime-reconfigurable boot fields
+        # (logging). BootSettings coerces types on model_copy, so string-form
+        # config_entries values (e.g. "DEBUG") apply cleanly.
+        boot_override = {
+            key: value
+            for key, value in overrides.items()
+            if key in _RUNTIME_OVERRIDABLE_BOOT_FIELDS and value not in (None, "")
+        }
+        if boot_override:
+            try:
+                boot = boot.model_copy(update=boot_override)
+            except (ValueError, TypeError):
+                pass  # Invalid persisted value — keep the ENV/default boot value.
+
         ui_fields = UISettings.model_fields
         ui_data = ui.model_dump()
         update: dict = {}

@@ -3,6 +3,7 @@
 import json
 import logging
 import os
+import time
 
 from flask import jsonify, request
 
@@ -285,9 +286,15 @@ def update_config():
             save_config_entry(key, sanitized_value)
             saved_keys.append(key)
 
+    # Perf markers — measure each reconcile phase so a slow save (see the
+    # ~12s-lag reports) self-diagnoses in the logs instead of guessing which
+    # sub-operation stalls. Deltas are logged in a summary line below.
+    _marks: list[tuple[str, float]] = [("start", time.perf_counter())]
+
     # Reload settings with ALL DB overrides applied
     all_overrides = get_all_config_entries()
     settings = reload_settings(all_overrides)
+    _marks.append(("reload_settings", time.perf_counter()))
 
     # Selectively invalidate singleton clients based on which keys changed
     from mediaserver import invalidate_media_server_manager as _inv_media
@@ -345,6 +352,19 @@ def update_config():
         _inv_notifier()
     invalidate_scanner()
     invalidate_response_cache()
+    _marks.append(("invalidate_clients", time.perf_counter()))
+
+    # Live-apply logging changes (level / file path / format) without a restart.
+    # _setup_logging is idempotent — it tears down and rebuilds the file +
+    # WebSocket handlers — so re-running it with the reloaded settings makes a
+    # UI change to log_level/log_file/log_format take effect immediately.
+    if any(k in ("log_level", "log_file", "log_format") for k in saved_keys):
+        try:
+            from app_logging import _setup_logging
+
+            _setup_logging(settings)
+        except Exception as _exc:
+            logger.warning("Failed to re-apply logging config after update: %s", _exc)
 
     # Restart scanner scheduler so the new scanner instance has the Flask app
     # reference. Without this, search_all() fails with "Working outside of
@@ -358,6 +378,7 @@ def update_config():
         _get_scanner().start_scheduler(app=_capp._get_current_object(), socketio=_sock)
     except Exception as _exc:
         logger.warning("Failed to restart scanner scheduler after config update: %s", _exc)
+    _marks.append(("scheduler_restart", time.perf_counter()))
 
     # Reload media server instances with new config
     try:
@@ -366,6 +387,7 @@ def update_config():
         get_media_server_manager().load_instances()
     except Exception as exc:
         logger.warning("Media server reload failed after config update: %s", exc)
+    _marks.append(("media_reload", time.perf_counter()))
 
     # Hot-restart the standalone manager when its config or any arr-instance
     # config changed (auto-activation logic depends on arr presence). Without
@@ -431,6 +453,19 @@ def update_config():
             invalidate_scoring_cache()
         except Exception as exc:
             logger.warning("Scoring cache invalidation failed after config update: %s", exc)
+
+    _marks.append(("finish", time.perf_counter()))
+
+    # Emit per-phase durations. INFO when the whole reconcile is slow (>1s) so
+    # the ~12s-lag class of issue is always visible in prod logs; DEBUG otherwise.
+    _deltas = {
+        label: round((t - _marks[i][1]) * 1000)
+        for i, (label, t) in enumerate(_marks[1:], start=0)
+    }
+    _total_ms = round((_marks[-1][1] - _marks[0][1]) * 1000)
+    _phases = " ".join(f"{k}={v}ms" for k, v in _deltas.items())
+    _summary = f"config reconcile {_total_ms}ms total | {_phases}"
+    logger.log(logging.INFO if _total_ms > 1000 else logging.DEBUG, _summary)
 
     return jsonify(
         {
