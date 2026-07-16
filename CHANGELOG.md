@@ -5,6 +5,28 @@ All notable changes to Sublarr are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.9.3] - 2026-07-16
+
+### Fixed
+- **Settings UI no longer freezes on every change.** Saving any setting
+  (e.g. Items-per-Page) previously ran a full app-wide reconcile that
+  unconditionally restarted the background scheduler, rewriting the
+  APScheduler job store on every save (~2.5 s on a normal server, more on
+  low-power NAS CPUs). Combined with per-keystroke autosave this made the
+  settings page feel frozen for around 12 s. The scheduler now restarts only
+  when a scan or search interval actually changes; unrelated saves are
+  near-instant. The General settings inputs also debounce their autosave and
+  no longer disable themselves mid-save.
+- **Log level, log file and log format now persist and apply live.** Changing
+  the log level (e.g. INFO to DEBUG), the log file path, or the log format in
+  the UI previously snapped back to the environment default and never took
+  effect without a container restart. These settings now persist across
+  reloads and apply immediately, with no restart required.
+
+### Changed
+- **Config-save diagnostics.** A slow settings save now logs a per-phase
+  timing breakdown so future latency issues self-diagnose in the logs.
+
 ## [1.9.2] - 2026-07-13
 
 ### Fixed
