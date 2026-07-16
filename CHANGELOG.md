@@ -5,6 +5,29 @@ All notable changes to Sublarr are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.9.4] - 2026-07-16
+
+### Fixed
+- **Slow first load of each settings page on low-power hosts.** The web UI's
+  per-page code was served uncompressed and re-validated on every navigation,
+  so on a NAS or Pi the first visit to each page downloaded a large raw chunk
+  (the main bundle alone was ~476 KB) and felt like a multi-second stall.
+  Static assets are now pre-compressed (brotli + gzip, ~77% smaller over the
+  wire) and content-hashed files are cached immutably — pages load fast and
+  subsequent navigation is instant.
+- **Provider-popularity telemetry under-counted default installs.** The
+  anonymous usage stat reported no providers for the common "all providers
+  enabled" default, so the public chart only reflected manually-curated
+  installs; it now reports the effective provider set. Anonymous, opt-in,
+  off by default.
+
+### Changed
+- **Anonymous usage payload extended (opt-in, GDPR-first).** When enabled, the
+  telemetry now also shares coarse feature usage, environment, and size classes
+  — all anonymous enums/buckets, never raw counts or identifiers. Withdrawing
+  consent deletes the install's data. Off by default; nothing is sent without
+  consent.
+
 ## [1.9.3] - 2026-07-16
 
 ### Fixed
