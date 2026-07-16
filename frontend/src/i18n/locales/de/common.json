@@ -697,7 +697,7 @@
   },
   "usageStats": {
     "title": "Anonyme Nutzungsstatistik senden?",
-    "body": "Hilf Sublarr besser zu werden: sende anonym Version, Plattform, aktive Provider und grobe Library-Größe. Keine IP, keine Pfade, keine Titel. Jederzeit in den Einstellungen abschaltbar.",
+    "body": "Hilf Sublarr besser zu werden: sende anonym Version, Plattform, aktive Provider, welche Funktionen du nutzt und grobe Größen-Kategorien deiner Library. Keine IP, keine Pfade, keine Titel, keine Schlüssel. Opt-in, standardmäßig aus — jederzeit in den Einstellungen abschaltbar; beim Abschalten werden deine Daten gelöscht.",
     "whatIsSent": "Was wird gesendet?",
     "accept": "Ja, anonym teilen",
     "decline": "Nein danke",

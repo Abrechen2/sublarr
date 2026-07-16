@@ -697,7 +697,7 @@
   },
   "usageStats": {
     "title": "Send anonymous usage statistics?",
-    "body": "Help make Sublarr better: anonymously share version, platform, active providers and a rough library-size bucket. No IP, no paths, no titles. You can turn it off any time in Settings.",
+    "body": "Help make Sublarr better: anonymously share version, platform, active providers, which features you use, and rough size buckets of your library. No IP, no paths, no titles, no keys. Opt-in and off by default — turn it off any time in Settings, which deletes your data.",
     "whatIsSent": "What is sent?",
     "accept": "Yes, share anonymously",
     "decline": "No thanks",

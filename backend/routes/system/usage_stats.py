@@ -8,7 +8,13 @@ from flask import current_app, jsonify, request
 
 from routes.system import bp
 from services.background_tasks import submit_background
-from services.usage_stats import get_consent, set_consent, usage_stats_tick
+from services.usage_stats import (
+    forget_install,
+    get_consent,
+    get_stats_endpoint,
+    set_consent,
+    usage_stats_tick,
+)
 
 
 @bp.route("/usage-stats/consent", methods=["GET"])
@@ -37,4 +43,17 @@ def usage_stats_consent_set():
                 usage_stats_tick()
 
         submit_background(_immediate_ping)
+    elif value == "denied":
+        # Right-to-erasure (GDPR Art. 17): withdrawing consent fires one
+        # best-effort forget so the stats service drops this install's row.
+        # No-op if no endpoint is configured (self-hoster kill-switch). Runs in
+        # the background pool, so it needs its own app context (get_or_create_
+        # install_id reads config_entries) — same contract as the ping above.
+        _app = current_app._get_current_object()
+
+        def _forget() -> None:
+            with _app.app_context():
+                forget_install(get_stats_endpoint())
+
+        submit_background(_forget)
     return jsonify({"consent": value})
