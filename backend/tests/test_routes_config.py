@@ -82,6 +82,53 @@ def test_put_config_rejects_empty_body(client):
     assert "error" in data
 
 
+def test_put_config_non_scheduler_key_skips_scheduler_restart(client, monkeypatch):
+    """A bare UI-only save (e.g. items_per_page) must NOT restart the scanner
+    scheduler.
+
+    Regression guard for the ~12s settings-lag reports: the unconditional
+    APScheduler jobstore trigger rewrite (~2.5s) fired on every save. The
+    scanner caches no settings, so only an interval change needs a restart.
+    """
+    import services.wanted_scanner as ws
+
+    calls = []
+
+    class _RecordingScanner:
+        def start_scheduler(self, *args, **kwargs):
+            calls.append(True)
+
+    monkeypatch.setattr(ws, "get_scanner", lambda: _RecordingScanner())
+    resp = client.put(
+        "/api/v1/config",
+        json={"items_per_page": 26},
+        content_type="application/json",
+    )
+    assert resp.status_code == 200
+    assert calls == [], "items_per_page save must not restart the scanner scheduler"
+
+
+def test_put_config_interval_key_restarts_scheduler(client, monkeypatch):
+    """Changing a scan/search interval MUST restart the scheduler so the new
+    trigger reaches APScheduler."""
+    import services.wanted_scanner as ws
+
+    calls = []
+
+    class _RecordingScanner:
+        def start_scheduler(self, *args, **kwargs):
+            calls.append(True)
+
+    monkeypatch.setattr(ws, "get_scanner", lambda: _RecordingScanner())
+    resp = client.put(
+        "/api/v1/config",
+        json={"wanted_search_interval_hours": 12},
+        content_type="application/json",
+    )
+    assert resp.status_code == 200
+    assert calls == [True], "interval change must restart the scanner scheduler"
+
+
 def test_put_config_rejects_invalid_enum(client):
     resp = client.put(
         "/api/v1/config",

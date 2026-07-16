@@ -38,6 +38,9 @@ const mockMutate = vi.fn()
 vi.mock('@/hooks/useApi', () => ({
   useConfig: () => ({ data: mockConfig, isLoading: false }),
   useUpdateConfig: () => ({ mutate: mockMutate, isPending: false }),
+  // Passthrough: exercise the page's save wiring synchronously. The debounce
+  // itself is covered in isolation in useDebouncedConfigSave.test.ts.
+  useDebouncedConfigSave: () => mockMutate,
 }))
 
 // ─── Test helpers ─────────────────────────────────────────────────────────────

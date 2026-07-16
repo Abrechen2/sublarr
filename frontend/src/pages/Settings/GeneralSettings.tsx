@@ -5,7 +5,7 @@ import { SettingsSection } from '@/components/settings/SettingsSection'
 import { FormGroup } from '@/components/settings/FormGroup'
 import { FormLayout } from '@/components/settings/layouts'
 import type { FormSectionDef } from '@/components/settings/layouts'
-import { useConfig, useUpdateConfig } from '@/hooks/useApi'
+import { useConfig, useDebouncedConfigSave } from '@/hooks/useApi'
 import { strVal } from '@/lib/configUtils'
 import { settingsInputStyle, INTERFACE_LANGUAGE_OPTIONS } from '@/styles/settingsShared'
 
@@ -36,7 +36,7 @@ const SECTIONS: readonly FormSectionDef[] = [
 
 export function GeneralSettings() {
   const { data: config, isLoading } = useConfig()
-  const { mutate: updateConfig, isPending } = useUpdateConfig()
+  const save = useDebouncedConfigSave()
   const { t, i18n } = useTranslation('settings')
 
   const librarySorts = [
@@ -48,8 +48,6 @@ export function GeneralSettings() {
     { value: 'relative', label: t('general_page.datetime_relative') },
     { value: 'absolute', label: t('general_page.datetime_absolute') },
   ]
-
-  const save = (patch: Record<string, unknown>) => updateConfig(patch)
 
   if (isLoading) {
     return (
@@ -109,7 +107,6 @@ export function GeneralSettings() {
                     // language can never drift apart.
                     i18n.changeLanguage(e.target.value)
                   }}
-                  disabled={isPending}
                 >
                   {INTERFACE_LANGUAGE_OPTIONS.map((o) => (
                     <option key={o.value} value={o.value}>
@@ -132,7 +129,6 @@ export function GeneralSettings() {
                   style={{ ...inputStyle, maxWidth: '120px' }}
                   value={Number(strVal(config, 'items_per_page', '25'))}
                   onChange={(e) => save({ items_per_page: Number(e.target.value) })}
-                  disabled={isPending}
                   min={10}
                   max={200}
                 />
@@ -150,7 +146,6 @@ export function GeneralSettings() {
                   style={inputStyle}
                   value={strVal(config, 'default_library_view', 'grid')}
                   onChange={(e) => save({ default_library_view: e.target.value })}
-                  disabled={isPending}
                 >
                   {LIBRARY_VIEWS.map((v) => (
                     <option key={v} value={v}>
@@ -172,7 +167,6 @@ export function GeneralSettings() {
                   style={inputStyle}
                   value={strVal(config, 'default_library_sort', 'alpha')}
                   onChange={(e) => save({ default_library_sort: e.target.value })}
-                  disabled={isPending}
                 >
                   {librarySorts.map((o) => (
                     <option key={o.value} value={o.value}>
@@ -194,7 +188,6 @@ export function GeneralSettings() {
                   style={inputStyle}
                   value={strVal(config, 'datetime_format', 'relative')}
                   onChange={(e) => save({ datetime_format: e.target.value })}
-                  disabled={isPending}
                 >
                   {datetimeFormats.map((o) => (
                     <option key={o.value} value={o.value}>
@@ -227,7 +220,6 @@ export function GeneralSettings() {
                       style={inputStyle}
                       value={strVal(config, 'base_url', '')}
                       onChange={(e) => save({ base_url: e.target.value })}
-                      disabled={isPending}
                       placeholder="/"
                     />
                   </FormGroup>
@@ -245,7 +237,6 @@ export function GeneralSettings() {
                       style={inputStyle}
                       value={strVal(config, 'db_path', '/config/sublarr.db')}
                       onChange={(e) => save({ db_path: e.target.value })}
-                      disabled={isPending}
                       placeholder="/config/sublarr.db"
                     />
                   </FormGroup>
@@ -265,7 +256,6 @@ export function GeneralSettings() {
                   style={inputStyle}
                   value={strVal(config, 'media_path', '/media')}
                   onChange={(e) => save({ media_path: e.target.value })}
-                  disabled={isPending}
                   placeholder="/media"
                 />
               </FormGroup>
@@ -283,7 +273,6 @@ export function GeneralSettings() {
                   style={{ ...inputStyle, maxWidth: '120px' }}
                   value={strVal(config, 'port', '5765')}
                   onChange={(e) => save({ port: Number(e.target.value) })}
-                  disabled={isPending}
                   min={1}
                   max={65535}
                 />
@@ -310,7 +299,6 @@ export function GeneralSettings() {
                   style={{ ...inputStyle, maxWidth: '160px' }}
                   value={strVal(config, 'log_level', 'INFO')}
                   onChange={(e) => save({ log_level: e.target.value })}
-                  disabled={isPending}
                 >
                   {LOG_LEVELS.map((l) => (
                     <option key={l} value={l}>
@@ -333,7 +321,6 @@ export function GeneralSettings() {
                   style={inputStyle}
                   value={strVal(config, 'log_file', '')}
                   onChange={(e) => save({ log_file: e.target.value })}
-                  disabled={isPending}
                   placeholder="/config/sublarr.log"
                 />
               </FormGroup>
@@ -350,7 +337,6 @@ export function GeneralSettings() {
                   style={{ ...inputStyle, maxWidth: '160px' }}
                   value={strVal(config, 'log_format', 'text')}
                   onChange={(e) => save({ log_format: e.target.value })}
-                  disabled={isPending}
                 >
                   {LOG_FORMATS.map((f) => (
                     <option key={f} value={f}>

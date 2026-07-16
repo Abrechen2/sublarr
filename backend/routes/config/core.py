@@ -350,7 +350,16 @@ def update_config():
         for k in saved_keys
     ):
         _inv_notifier()
-    invalidate_scanner()
+    # The scanner/scheduler only needs a restart when a scan/search interval
+    # changed. WantedScanner caches no settings (it reads get_settings() lazily
+    # at tick time), so provider/scoring/language/UI changes propagate to the
+    # next tick without invalidating or restarting anything. Restarting on
+    # EVERY save was the ~2.5s term (APScheduler SQLAlchemyJobStore trigger
+    # rewrites) behind the ~12s settings-lag reports.
+    _SCHEDULER_KEYS = {"wanted_scan_interval_hours", "wanted_search_interval_hours"}
+    _scheduler_relevant = any(k in _SCHEDULER_KEYS for k in saved_keys)
+    if _scheduler_relevant:
+        invalidate_scanner()
     invalidate_response_cache()
     _marks.append(("invalidate_clients", time.perf_counter()))
 
@@ -366,18 +375,23 @@ def update_config():
         except Exception as _exc:
             logger.warning("Failed to re-apply logging config after update: %s", _exc)
 
-    # Restart scanner scheduler so the new scanner instance has the Flask app
-    # reference. Without this, search_all() fails with "Working outside of
-    # application context" because invalidate_scanner() resets _app to None.
-    try:
-        from flask import current_app as _capp
+    # Restart scanner scheduler ONLY when an interval changed (see above).
+    # invalidate_scanner() nulled the scanner (dropping its _app ref), so the
+    # restart re-caches the Flask app + socketio and pushes the new interval
+    # into APScheduler. Without an interval change we skip this entirely,
+    # keeping a bare UI save (e.g. items_per_page) fast. Without the restart on
+    # the interval path, search_all() would fail with "Working outside of
+    # application context" because invalidate_scanner() reset _app to None.
+    if _scheduler_relevant:
+        try:
+            from flask import current_app as _capp
 
-        from extensions import socketio as _sock
-        from services.wanted_scanner import get_scanner as _get_scanner
+            from extensions import socketio as _sock
+            from services.wanted_scanner import get_scanner as _get_scanner
 
-        _get_scanner().start_scheduler(app=_capp._get_current_object(), socketio=_sock)
-    except Exception as _exc:
-        logger.warning("Failed to restart scanner scheduler after config update: %s", _exc)
+            _get_scanner().start_scheduler(app=_capp._get_current_object(), socketio=_sock)
+        except Exception as _exc:
+            logger.warning("Failed to restart scanner scheduler after config update: %s", _exc)
     _marks.append(("scheduler_restart", time.perf_counter()))
 
     # Reload media server instances with new config
@@ -459,8 +473,7 @@ def update_config():
     # Emit per-phase durations. INFO when the whole reconcile is slow (>1s) so
     # the ~12s-lag class of issue is always visible in prod logs; DEBUG otherwise.
     _deltas = {
-        label: round((t - _marks[i][1]) * 1000)
-        for i, (label, t) in enumerate(_marks[1:], start=0)
+        label: round((t - _marks[i][1]) * 1000) for i, (label, t) in enumerate(_marks[1:], start=0)
     }
     _total_ms = round((_marks[-1][1] - _marks[0][1]) * 1000)
     _phases = " ".join(f"{k}={v}ms" for k, v in _deltas.items())

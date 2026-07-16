@@ -1,3 +1,4 @@
+import { useCallback, useEffect, useRef } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { getSetupStatus, completeSetup, type SetupProfile } from '@/api/health'
 import {
@@ -145,6 +146,52 @@ export function useUpdateConfig() {
       }
     },
   })
+}
+
+/**
+ * Debounced autosave for settings pages.
+ *
+ * Each patch is written to the ['config'] cache immediately (optimistic echo,
+ * so controlled inputs reflect the keystroke without waiting for the network),
+ * then the real PUT is debounced per key so rapid edits to one field collapse
+ * into a single request. Every PUT triggers a full backend config reconcile,
+ * so the previous per-keystroke, non-debounced saves were the driver behind
+ * the ~12s settings-lag reports. Different keys still save independently.
+ */
+export function useDebouncedConfigSave(delayMs = 400) {
+  const queryClient = useQueryClient()
+  const { mutate } = useUpdateConfig()
+  const timers = useRef<Map<string, ReturnType<typeof setTimeout>>>(new Map())
+
+  useEffect(() => {
+    const map = timers.current
+    return () => {
+      map.forEach((timer) => clearTimeout(timer))
+      map.clear()
+    }
+  }, [])
+
+  return useCallback(
+    (patch: Record<string, unknown>) => {
+      // Instant optimistic echo so the input never freezes on the stale value.
+      queryClient.setQueryData<Record<string, unknown>>(['config'], (old) => ({
+        ...(old ?? {}),
+        ...patch,
+      }))
+      for (const [key, value] of Object.entries(patch)) {
+        const existing = timers.current.get(key)
+        if (existing) clearTimeout(existing)
+        timers.current.set(
+          key,
+          setTimeout(() => {
+            timers.current.delete(key)
+            mutate({ [key]: value })
+          }, delayMs),
+        )
+      }
+    },
+    [queryClient, mutate, delayMs],
+  )
 }
 
 /** Returns whether the translation feature is enabled. */
