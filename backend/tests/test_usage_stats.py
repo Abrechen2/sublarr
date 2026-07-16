@@ -69,6 +69,31 @@ class TestPayload:
     def test_db_backend_detect(self, app_ctx):
         assert usage_stats.detect_db_backend() in {"sqlite", "postgres"}
 
+    def test_enabled_providers_explicit_list(self, monkeypatch):
+        from types import SimpleNamespace
+
+        import config
+
+        monkeypatch.setattr(
+            config, "get_settings", lambda: SimpleNamespace(providers_enabled="addic7ed, subdl")
+        )
+        assert usage_stats._enabled_providers() == ["addic7ed", "subdl"]
+
+    def test_enabled_providers_empty_resolves_to_all_registered(self, monkeypatch):
+        """Empty providers_enabled means 'all registered' — must NOT report []."""
+        from types import SimpleNamespace
+
+        import config
+
+        monkeypatch.setattr(
+            config, "get_settings", lambda: SimpleNamespace(providers_enabled="")
+        )
+        from providers.registry import _PROVIDER_CLASSES
+
+        result = usage_stats._enabled_providers()
+        assert result == sorted(_PROVIDER_CLASSES.keys())
+        assert len(result) > 5, "registry should expose the full provider set, not empty"
+
 
 class TestTick:
     def test_tick_noop_when_not_granted(self, app_ctx):

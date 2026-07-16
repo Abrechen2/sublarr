@@ -91,10 +91,27 @@ def detect_db_backend() -> str:
 
 
 def _enabled_providers() -> list[str]:
+    """Effective enabled provider names for the anonymous provider-popularity stat.
+
+    ``providers_enabled`` is a comma-separated allow-list, but an EMPTY value
+    means "all registered providers enabled" (see ProviderManager) — which is the
+    default for most installs. Returning ``[]`` there made every default install
+    under-report as "no providers", so the public chart only ever reflected the
+    handful of users who manually curated a subset. Resolve empty to the full
+    registered set so the common case is represented faithfully.
+    """
     from config import get_settings
 
     raw = getattr(get_settings(), "providers_enabled", "") or ""
-    return [p.strip() for p in raw.split(",") if p.strip()]
+    if raw.strip():
+        return [p.strip() for p in raw.split(",") if p.strip()]
+    try:
+        from providers.registry import _PROVIDER_CLASSES
+
+        return sorted(_PROVIDER_CLASSES.keys())
+    except Exception:
+        # Telemetry is best-effort — never break a ping over provider resolution.
+        return []
 
 
 def build_usage_payload() -> dict:
