@@ -10,7 +10,11 @@ WORKDIR /build
 COPY frontend/package*.json ./
 RUN npm install --legacy-peer-deps
 COPY frontend/ .
-RUN npx vite build
+# Pre-compress the bundle (brotli+gzip) after the vite build so the backend can
+# serve .br/.gz with Content-Encoding — big first-load win on low-power hosts.
+# (Kept as vite build + compress rather than `npm run build` to skip the tsc
+# type-check in the image; typecheck runs in CI/pre-deploy instead.)
+RUN npx vite build && node scripts/compress-dist.mjs
 
 # Stage 2: Python Backend + Frontend Bundle
 FROM python:3.12-slim
