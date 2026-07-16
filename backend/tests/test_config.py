@@ -53,9 +53,7 @@ def test_reload_settings_applies_db_log_level_override():
 
 def test_reload_settings_applies_db_log_file_and_format_override():
     """log_file (the UI 'log path') and log_format are runtime-overridable too."""
-    settings = reload_settings(
-        {"log_file": "/tmp/sublarr-custom.log", "log_format": "json"}
-    )
+    settings = reload_settings({"log_file": "/tmp/sublarr-custom.log", "log_format": "json"})
     assert settings.log_file == "/tmp/sublarr-custom.log"
     assert settings.log_format == "json"
 
