@@ -5,9 +5,11 @@ Handles both standard naming (S01E02) and anime naming (absolute episodes,
 parent directories.
 """
 
+import copy
 import logging
 import os
 import re
+from functools import lru_cache
 
 from guessit import guessit
 
@@ -121,6 +123,34 @@ def detect_anime_indicators(filename: str) -> bool:
     return bool(has_absolute_ep and not re.search(r"S\d{1,2}E\d{1,2}", filename, re.IGNORECASE))
 
 
+@lru_cache(maxsize=2048)
+def _cached_guess_impl(filename: str, is_anime: bool) -> tuple:
+    """Run guessit once per (filename, anime-mode); store as an items-tuple.
+
+    guessit is pure-Python CPU that holds the GIL for the whole parse;
+    wanted-search rounds re-parse identical filenames every cycle.
+    """
+    if is_anime:
+        guess = guessit(filename, {"type": "episode", "episode_prefer_number": True})
+    else:
+        guess = guessit(filename, {"type": "episode"})
+        if "episode" not in guess and "season" not in guess:
+            movie_guess = guessit(filename, {"type": "movie"})
+            if "year" in movie_guess or movie_guess.get("type") == "movie":
+                guess = movie_guess
+    return tuple(dict(guess).items())
+
+
+def _cached_guess(filename: str, is_anime: bool) -> dict:
+    """Deep-copied view over the cached parse — safe to mutate, including
+    nested lists (guessit returns e.g. episode=[1, 2] for multi-episode files,
+    which parse_media_file consumes at :164-167)."""
+    return copy.deepcopy(dict(_cached_guess_impl(filename, is_anime)))
+
+
+_cached_guess.cache_clear = _cached_guess_impl.cache_clear  # test/ops hook
+
+
 def parse_media_file(file_path: str) -> dict:
     """Parse a media file path into structured metadata using guessit.
 
@@ -142,17 +172,8 @@ def parse_media_file(file_path: str) -> dict:
 
     is_anime = detect_anime_indicators(filename)
 
-    # Parse with guessit
-    if is_anime:
-        guess = guessit(filename, {"type": "episode", "episode_prefer_number": True})
-    else:
-        guess = guessit(filename, {"type": "episode"})
-        # If no episode info found, try as movie
-        if "episode" not in guess and "season" not in guess:
-            movie_guess = guessit(filename, {"type": "movie"})
-            # Use movie guess if it looks more like a movie (has year, no episode)
-            if "year" in movie_guess or movie_guess.get("type") == "movie":
-                guess = movie_guess
+    # Parse with guessit (cached)
+    guess = _cached_guess(filename, is_anime)
 
     # Determine media type
     guess_type = guess.get("type", "episode")
