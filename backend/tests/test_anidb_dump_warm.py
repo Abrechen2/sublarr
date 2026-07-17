@@ -38,3 +38,29 @@ def test_warm_title_index_builds(tmp_path, monkeypatch):
 
     anidb_mapper.warm_title_index()
     assert anidb_mapper.resolve_anidb_from_title_dump("One Piece") == 69
+
+
+def test_warm_title_index_clears_dump_miss_cache(tmp_path, monkeypatch):
+    """A fuzzy MISS cached before a dump refresh must not survive the rebuild.
+
+    Otherwise a title that missed pre-refresh keeps returning None for up to
+    _DUMP_TTL (36h) even after the refreshed index would now fuzzy-match it —
+    exactly the new-seasonal-anime case.
+    """
+    import gzip
+
+    import anidb_mapper
+
+    dump = tmp_path / "anime-titles.xml.gz"
+    xml = b'<animetitles><anime aid="69"><title>One Piece</title></anime></animetitles>'
+    with gzip.open(dump, "wb") as f:
+        f.write(xml)
+
+    monkeypatch.setattr(anidb_mapper, "_DUMP_CACHE_FILE", str(dump))
+    monkeypatch.setattr(anidb_mapper, "_title_index", {})
+    monkeypatch.setattr(anidb_mapper, "_title_index_loaded_at", 0.0)
+    monkeypatch.setattr(anidb_mapper, "_dump_miss_cache", {"some stale miss": 0.0})
+
+    anidb_mapper.warm_title_index()
+
+    assert anidb_mapper._dump_miss_cache == {}

@@ -298,6 +298,8 @@ def warm_title_index() -> None:
 
         _title_index = index
         _title_index_loaded_at = now
+        with _dump_miss_lock:
+            _dump_miss_cache.clear()
         logger.debug("AniDB title index loaded: %d title entries", len(index))
 
 
@@ -309,16 +311,17 @@ def _fuzzy_best_match(needle: str) -> tuple[int | None, float]:
     """
     from rapidfuzz import fuzz, process
 
+    idx = _title_index
     hit = process.extractOne(
         needle,
-        _title_index.keys(),
+        idx.keys(),
         scorer=fuzz.ratio,
         score_cutoff=_DUMP_MATCH_THRESHOLD * 100,
     )
     if hit is None:
         return None, 0.0
     title, score, _ = hit
-    return _title_index[title], score / 100.0
+    return idx[title], score / 100.0
 
 
 def resolve_anidb_from_title_dump(series_title: str, tvdb_id: int | None = None) -> int | None:

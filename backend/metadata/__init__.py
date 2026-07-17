@@ -8,7 +8,7 @@ import contextlib
 import json
 import logging
 
-from metadata.anilist_client import AniListClient
+from metadata.anilist_client import AniListClient, get_anilist_client
 from metadata.tmdb_client import TMDBClient
 from metadata.tvdb_client import TVDBClient
 
@@ -53,9 +53,15 @@ class MetadataResolver:
 
     @property
     def _anilist(self) -> AniListClient:
-        """Lazy AniList client creation. Always available (no key needed)."""
+        """Process-wide AniList client (singleton). Always available (no key needed).
+
+        Routed through get_anilist_client() so the shared 0.7s inter-request
+        rate-lock actually spans every AniList consumer in the process —
+        concurrent scanning + wanted-search must not jointly exceed AniList's
+        90 req/min budget via two independently-rate-limited clients.
+        """
         if self._anilist_instance is None:
-            self._anilist_instance = AniListClient()
+            self._anilist_instance = get_anilist_client()
         return self._anilist_instance
 
     @property
