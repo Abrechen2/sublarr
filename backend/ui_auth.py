@@ -9,11 +9,15 @@ import hmac
 import logging
 import os
 import secrets
+import time
 
 import bcrypt
 from flask import jsonify, request, session
 
 logger = logging.getLogger(__name__)
+
+_AUTH_FLAG_TTL = 30.0
+_auth_enabled_cache: tuple[float, bool] | None = None
 
 
 def _get_config_entry(key: str):
@@ -26,6 +30,9 @@ def _save_config_entry(key: str, value: str):
     from db.config import save_config_entry
 
     save_config_entry(key, value)
+    if key == "ui_auth_enabled":
+        global _auth_enabled_cache
+        _auth_enabled_cache = None
 
 
 def hash_password(password: str) -> str:
@@ -43,7 +50,15 @@ def is_ui_auth_configured() -> bool:
 
 
 def is_ui_auth_enabled() -> bool:
-    return _get_config_entry("ui_auth_enabled") == "true"
+    """Called by check_ui_session on EVERY /api request — cache the flag so
+    it costs one ORM query per 30s instead of one per request."""
+    global _auth_enabled_cache
+    now = time.monotonic()
+    if _auth_enabled_cache is not None and (now - _auth_enabled_cache[0]) < _AUTH_FLAG_TTL:
+        return _auth_enabled_cache[1]
+    enabled = _get_config_entry("ui_auth_enabled") == "true"
+    _auth_enabled_cache = (now, enabled)
+    return enabled
 
 
 def _get_or_create_secret_key() -> str:

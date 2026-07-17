@@ -15,6 +15,14 @@ from ui_auth import (
 )
 
 
+@pytest.fixture(autouse=True)
+def reset_auth_cache():
+    """Reset the auth flag cache before each test to ensure test isolation."""
+    ui_auth._auth_enabled_cache = None
+    yield
+    ui_auth._auth_enabled_cache = None
+
+
 def test_hash_password_returns_string():
     h = hash_password("secret123")
     assert isinstance(h, str)
@@ -188,3 +196,35 @@ def test_session_lifetime_defaults_to_8h_when_not_configured(monkeypatch):
     init_ui_auth(app)
 
     assert app.config["PERMANENT_SESSION_LIFETIME"] == timedelta(hours=8)
+
+
+def test_is_ui_auth_enabled_cached(monkeypatch):
+    ui_auth._auth_enabled_cache = None
+    calls = []
+
+    def fake_get(key):
+        calls.append(key)
+        return "true"
+
+    monkeypatch.setattr(ui_auth, "_get_config_entry", fake_get)
+    assert ui_auth.is_ui_auth_enabled() is True
+    assert ui_auth.is_ui_auth_enabled() is True
+    assert calls.count("ui_auth_enabled") == 1, "flag must be cached between requests"
+
+
+def test_saving_flag_invalidates_cache(monkeypatch):
+    import db.config
+
+    monkeypatch.setattr(db.config, "save_config_entry", lambda key, value: None)
+    ui_auth._auth_enabled_cache = (float("inf"), True)
+    ui_auth._save_config_entry("ui_auth_enabled", "false")
+    assert ui_auth._auth_enabled_cache is None, "write must drop the cached flag"
+
+
+def test_saving_other_key_keeps_cache(monkeypatch):
+    import db.config
+
+    monkeypatch.setattr(db.config, "save_config_entry", lambda key, value: None)
+    ui_auth._auth_enabled_cache = (float("inf"), True)
+    ui_auth._save_config_entry("ui_session_secret", "abc")
+    assert ui_auth._auth_enabled_cache is not None
