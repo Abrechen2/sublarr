@@ -15,6 +15,7 @@ module so tests can patch them via ``services.wanted_search_runner.X``.
 """
 
 import logging
+import os
 import time
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import UTC, datetime
@@ -47,6 +48,13 @@ logger = logging.getLogger(__name__)
 # realistic Sublarr wanted-item backlog (real libraries stay in the low
 # thousands) while keeping the ORDER BY + LIMIT query cheap.
 _ELIGIBILITY_FETCH_CAP = 10_000
+
+
+def _compute_max_workers(total: int, cpu_count: int | None) -> int:
+    """Search workers = min(4, cores - 2), floor 1 — a 4-core NAS keeps 2
+    cores free for API requests instead of saturating all of them."""
+    cores = cpu_count or 4
+    return max(1, min(4, cores - 2, total))
 
 
 def _search_with_ctx(app, item_id: int) -> dict:
@@ -330,7 +338,7 @@ def run_wanted_search(
 
     # Parallel provider search
     eligible = search_items
-    max_workers = min(4, total)
+    max_workers = _compute_max_workers(total, os.cpu_count())
     with ThreadPoolExecutor(max_workers=max_workers) as executor:
         if _app is not None:
             future_to_item = {
