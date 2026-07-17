@@ -228,3 +228,35 @@ def test_saving_other_key_keeps_cache(monkeypatch):
     ui_auth._auth_enabled_cache = (float("inf"), True)
     ui_auth._save_config_entry("ui_session_secret", "abc")
     assert ui_auth._auth_enabled_cache is not None
+
+
+class _RaceTuple(tuple):
+    """A cache tuple that simulates another thread invalidating the module
+    global (``ui_auth._auth_enabled_cache = None``) the instant its first
+    element is read.
+
+    ``is_ui_auth_enabled`` must capture ``_auth_enabled_cache`` into a local
+    exactly once before touching it. If it instead re-reads the global for
+    the ``[0]``/``[1]`` accesses (the pre-fix bug), the second access below
+    hits ``None[1]`` and raises ``TypeError: 'NoneType' object is not
+    subscriptable``.
+    """
+
+    def __getitem__(self, index):
+        if index == 0:
+            ui_auth._auth_enabled_cache = None
+        return tuple.__getitem__(self, index)
+
+
+def test_is_ui_auth_enabled_survives_concurrent_cache_invalidation(monkeypatch):
+    """Regression test for the race between is_ui_auth_enabled's cache reads
+    and _save_config_entry's cache invalidation (HIGH finding, Task 7).
+
+    Installs a _RaceTuple as the cache value so that reading its timestamp
+    ([0]) flips the module global to None mid-function, exactly as a
+    concurrent _save_config_entry call would. Because is_ui_auth_enabled
+    must capture the global into a local once, this must not raise and must
+    still return the cached value.
+    """
+    ui_auth._auth_enabled_cache = _RaceTuple((float("inf"), True))
+    assert ui_auth.is_ui_auth_enabled() is True

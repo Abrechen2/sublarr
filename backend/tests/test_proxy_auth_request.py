@@ -6,10 +6,38 @@ SQLite DB via ``create_app(testing=True)``, yielded inside an active
 ``app.app_context()``).
 """
 
+import pytest
+
 import proxy_auth
 import ui_auth
 from config_singleton import reload_settings
 from db.config import save_config_entry
+
+
+@pytest.fixture(autouse=True)
+def reset_auth_cache(app_ctx):
+    """Reset the UI-auth flag cache before and after each test.
+
+    Two independent staleness sources hit this cache in this file:
+
+    1. ``create_app()`` (invoked by the ``app_ctx`` fixture) itself calls
+       ``ui_auth.is_ui_auth_enabled()`` during startup (see app.py's
+       auth-warning check) against a fresh, empty DB — caching a ``False``
+       flag before any test body runs.
+    2. ``test_e2e_trusted_proxy_bypasses_ui_auth_gate`` writes
+       ``ui_auth_enabled`` directly via ``db.config.save_config_entry``,
+       bypassing the cache invalidation in ``ui_auth._save_config_entry``.
+
+    Depending on ``app_ctx`` here (rather than resetting unconditionally)
+    ensures pytest instantiates ``app_ctx`` — and therefore runs
+    ``create_app()``'s cache-poisoning call — first; this fixture's reset
+    then runs immediately before the test body, after that poisoning has
+    already happened, so the test always starts from a clean cache
+    regardless of run order or the 30s TTL.
+    """
+    ui_auth._auth_enabled_cache = None
+    yield
+    ui_auth._auth_enabled_cache = None
 
 
 def _enable(**over):

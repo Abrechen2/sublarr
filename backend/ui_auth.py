@@ -51,11 +51,20 @@ def is_ui_auth_configured() -> bool:
 
 def is_ui_auth_enabled() -> bool:
     """Called by check_ui_session on EVERY /api request — cache the flag so
-    it costs one ORM query per 30s instead of one per request."""
+    it costs one ORM query per 30s instead of one per request.
+
+    Reads the module global exactly once into a local variable before
+    inspecting it. ``_save_config_entry`` can reassign the global to
+    ``None`` from another thread (Flask's default threaded mode) at any
+    point; re-reading the global between the ``is not None`` check and the
+    subsequent subscript access would risk a ``TypeError`` if that
+    reassignment lands in between.
+    """
     global _auth_enabled_cache
+    cache = _auth_enabled_cache
     now = time.monotonic()
-    if _auth_enabled_cache is not None and (now - _auth_enabled_cache[0]) < _AUTH_FLAG_TTL:
-        return _auth_enabled_cache[1]
+    if cache is not None and (now - cache[0]) < _AUTH_FLAG_TTL:
+        return cache[1]
     enabled = _get_config_entry("ui_auth_enabled") == "true"
     _auth_enabled_cache = (now, enabled)
     return enabled
