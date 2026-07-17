@@ -8,6 +8,7 @@ interval through to APScheduler via ``scheduler.modify_trigger``.
 """
 
 import logging
+import threading
 
 from extensions import socketio
 
@@ -78,3 +79,13 @@ def _start_schedulers(settings, app=None):
             start_anidb_sync_scheduler(app)
         except Exception as e:
             logging.getLogger(__name__).warning("AniDB sync scheduler start failed: %s", e)
+
+    def _warm_anidb_index():
+        try:
+            from anidb_mapper import warm_title_index
+
+            warm_title_index()
+        except Exception:
+            logging.getLogger(__name__).debug("startup anidb index warm failed", exc_info=True)
+
+    threading.Thread(target=_warm_anidb_index, name="anidb-index-warm", daemon=True).start()

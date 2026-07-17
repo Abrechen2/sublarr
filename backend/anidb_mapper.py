@@ -249,7 +249,7 @@ def _fetch_dump() -> bool:
         return False
 
 
-def _load_title_index() -> None:
+def warm_title_index() -> None:
     """Build in-memory title → AID index from the cached dump file.
 
     Downloads the dump if missing or stale (>36 h).  Falls back to stale cache
@@ -333,7 +333,9 @@ def resolve_anidb_from_title_dump(series_title: str, tvdb_id: int | None = None)
     """
     if not series_title:
         return None
-    _load_title_index()
+    # Never build the index here: download + defusedxml parse of the dump is
+    # tens of seconds of GIL-held CPU on low-power hosts. warm_title_index()
+    # runs in the anidb_sync job and a startup warm thread instead.
     if not _title_index:
         return None
 

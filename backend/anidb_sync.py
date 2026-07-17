@@ -212,6 +212,13 @@ def anidb_sync_tick() -> None:
     app = current_app._get_current_object()
     run_sync(app)
 
+    try:
+        from anidb_mapper import warm_title_index
+
+        warm_title_index()
+    except Exception:
+        logger.warning("anidb_sync: title-index warm failed", exc_info=True)
+
 
 def start_anidb_sync_scheduler(app, interval_hours: int = DEFAULT_INTERVAL_HOURS) -> None:
     """Adapter retained for app_schedulers compatibility.

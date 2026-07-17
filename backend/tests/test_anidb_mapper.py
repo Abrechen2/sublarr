@@ -482,11 +482,11 @@ class TestFetchDump:
 
 
 # ===========================================================================
-# _load_title_index
+# warm_title_index
 # ===========================================================================
 
 
-class TestLoadTitleIndex:
+class TestWarmTitleIndex:
     """Tests for building the in-memory title index."""
 
     @patch("anidb_mapper._fetch_dump", return_value=True)
@@ -508,7 +508,7 @@ class TestLoadTitleIndex:
             patch("os.path.getmtime", return_value=9999999999.0),
             patch("time.time", return_value=9999999999.0),
         ):
-            anidb_mapper._load_title_index()
+            anidb_mapper.warm_title_index()
 
         assert anidb_mapper._title_index.get("naruto") == 100
         assert anidb_mapper._title_index.get("one piece") == 200
@@ -522,7 +522,7 @@ class TestLoadTitleIndex:
         anidb_mapper._title_index_loaded_at = _time.monotonic()  # just loaded
 
         with patch("anidb_mapper._fetch_dump") as mock_fetch:
-            anidb_mapper._load_title_index()
+            anidb_mapper.warm_title_index()
             mock_fetch.assert_not_called()
 
         assert anidb_mapper._title_index == {"test": 1}
@@ -531,7 +531,7 @@ class TestLoadTitleIndex:
     @patch("os.path.exists", return_value=False)
     def test_no_cache_file_and_download_fails(self, mock_exists, mock_fetch):
         """When download fails and no cache file exists, index stays empty."""
-        anidb_mapper._load_title_index()
+        anidb_mapper.warm_title_index()
         assert anidb_mapper._title_index == {}
 
     @patch("anidb_mapper._fetch_dump", return_value=True)
@@ -547,7 +547,7 @@ class TestLoadTitleIndex:
             patch("os.path.getmtime", return_value=9999999999.0),
             patch("time.time", return_value=9999999999.0),
         ):
-            anidb_mapper._load_title_index()
+            anidb_mapper.warm_title_index()
 
         assert anidb_mapper._title_index == {}
 
@@ -566,7 +566,7 @@ class TestLoadTitleIndex:
             patch("os.path.getmtime", return_value=0.0),
             patch("time.time", return_value=9999999999.0),
         ):
-            anidb_mapper._load_title_index()
+            anidb_mapper.warm_title_index()
 
         assert anidb_mapper._title_index.get("stale entry") == 999
 
@@ -599,7 +599,7 @@ class TestLoadTitleIndex:
             patch("os.path.getmtime", return_value=9999999999.0),
             patch("time.time", return_value=9999999999.0),
         ):
-            anidb_mapper._load_title_index()
+            anidb_mapper.warm_title_index()
 
         assert anidb_mapper._title_index.get("valid") == 100
         assert "zero" not in anidb_mapper._title_index
@@ -624,7 +624,7 @@ class TestLoadTitleIndex:
             patch("os.path.getmtime", return_value=current_time),
             patch("time.time", return_value=current_time),
         ):
-            anidb_mapper._load_title_index()
+            anidb_mapper.warm_title_index()
 
         # _fetch_dump should not be called (cache is fresh)
         mock_fetch.assert_not_called()
@@ -637,32 +637,33 @@ class TestLoadTitleIndex:
 
 
 class TestResolveAnidbFromTitleDump:
-    """Tests for offline title dump resolution."""
+    """Tests for offline title dump resolution.
 
-    @patch("anidb_mapper._load_title_index")
+    resolve_anidb_from_title_dump() never builds the index itself (Task 5) —
+    every test here pre-populates ``_title_index`` directly instead of
+    relying on a lazy build via a patched loader.
+    """
+
     @patch("anidb_mapper.save_anidb_mapping")
-    def test_exact_match(self, mock_save, mock_load):
+    def test_exact_match(self, mock_save):
         anidb_mapper._title_index = {"naruto": 100, "one piece": 200}
         result = anidb_mapper.resolve_anidb_from_title_dump("Naruto")
         assert result == 100
 
-    @patch("anidb_mapper._load_title_index")
     @patch("anidb_mapper.save_anidb_mapping")
-    def test_exact_match_caches_with_tvdb_id(self, mock_save, mock_load):
+    def test_exact_match_caches_with_tvdb_id(self, mock_save):
         anidb_mapper._title_index = {"naruto": 100}
         anidb_mapper.resolve_anidb_from_title_dump("Naruto", tvdb_id=999)
         mock_save.assert_called_once_with(999, 100)
 
-    @patch("anidb_mapper._load_title_index")
-    def test_exact_match_no_caching_without_tvdb_id(self, mock_load):
+    def test_exact_match_no_caching_without_tvdb_id(self):
         anidb_mapper._title_index = {"naruto": 100}
         with patch("anidb_mapper.save_anidb_mapping") as mock_save:
             anidb_mapper.resolve_anidb_from_title_dump("Naruto", tvdb_id=None)
             mock_save.assert_not_called()
 
-    @patch("anidb_mapper._load_title_index")
     @patch("anidb_mapper.save_anidb_mapping")
-    def test_fuzzy_match_above_threshold(self, mock_save, mock_load):
+    def test_fuzzy_match_above_threshold(self, mock_save):
         # "narutoo" vs "naruto" should be above 0.82 threshold
         anidb_mapper._title_index = {"naruto": 100}
         result = anidb_mapper.resolve_anidb_from_title_dump("Narutoo")
@@ -671,43 +672,40 @@ class TestResolveAnidbFromTitleDump:
         # rapidfuzz.fuzz.ratio (Task 4); outcome for this pair is unchanged.
         assert result == 100
 
-    @patch("anidb_mapper._load_title_index")
     @patch("anidb_mapper.save_anidb_mapping")
-    def test_fuzzy_match_below_threshold(self, mock_save, mock_load):
+    def test_fuzzy_match_below_threshold(self, mock_save):
         anidb_mapper._title_index = {"naruto": 100}
         result = anidb_mapper.resolve_anidb_from_title_dump("Completely Different Title")
         assert result is None
 
-    @patch("anidb_mapper._load_title_index")
-    def test_returns_none_for_empty_title(self, mock_load):
-        result = anidb_mapper.resolve_anidb_from_title_dump("")
+    def test_returns_none_for_empty_title(self):
+        # Task 5: empty title must short-circuit before even considering the
+        # index — and never trigger a warm build either.
+        with patch("anidb_mapper.warm_title_index") as mock_warm:
+            result = anidb_mapper.resolve_anidb_from_title_dump("")
         assert result is None
-        mock_load.assert_not_called()
+        mock_warm.assert_not_called()
 
-    @patch("anidb_mapper._load_title_index")
-    def test_returns_none_when_index_empty(self, mock_load):
+    def test_returns_none_when_index_empty(self):
         anidb_mapper._title_index = {}
         result = anidb_mapper.resolve_anidb_from_title_dump("Naruto")
         assert result is None
 
-    @patch("anidb_mapper._load_title_index")
     @patch("anidb_mapper.save_anidb_mapping")
-    def test_fuzzy_match_caches_with_tvdb_id(self, mock_save, mock_load):
+    def test_fuzzy_match_caches_with_tvdb_id(self, mock_save):
         anidb_mapper._title_index = {"naruto": 100}
         anidb_mapper.resolve_anidb_from_title_dump("Narutoo", tvdb_id=888)
         mock_save.assert_called_once_with(888, 100)
 
-    @patch("anidb_mapper._load_title_index")
     @patch("anidb_mapper.save_anidb_mapping", side_effect=Exception("DB error"))
-    def test_cache_save_failure_on_exact_match(self, mock_save, mock_load):
+    def test_cache_save_failure_on_exact_match(self, mock_save):
         """Cache save failure on exact match does not propagate."""
         anidb_mapper._title_index = {"naruto": 100}
         result = anidb_mapper.resolve_anidb_from_title_dump("Naruto", tvdb_id=999)
         assert result == 100
 
-    @patch("anidb_mapper._load_title_index")
     @patch("anidb_mapper.save_anidb_mapping", side_effect=Exception("DB error"))
-    def test_cache_save_failure_on_fuzzy_match(self, mock_save, mock_load):
+    def test_cache_save_failure_on_fuzzy_match(self, mock_save):
         """Cache save failure on fuzzy match does not propagate."""
         anidb_mapper._title_index = {"naruto": 100}
         result = anidb_mapper.resolve_anidb_from_title_dump("Narutoo", tvdb_id=888)
