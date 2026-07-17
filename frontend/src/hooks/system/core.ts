@@ -55,11 +55,13 @@ export function useStats() {
 
 // ─── Budget State ────────────────────────────────────────────────────────────
 
-export function useBudgetState() {
+export function useBudgetState(refetchMs = 30_000) {
   return useQuery({
     queryKey: ['system', 'budget'],
     queryFn: getBudgetState,
-    refetchInterval: 5_000,
+    // provider_budget_updated WS pushes are the primary feed; this poll is a
+    // reconciliation fallback, not the transport.
+    refetchInterval: refetchMs,
     staleTime: 2_000,
   })
 }
@@ -222,11 +224,11 @@ export function useContextWindowSize() {
 
 // ─── Logs ────────────────────────────────────────────────────────────────────
 
-export function useLogs(lines = 200, level?: string) {
+export function useLogs(lines = 200, level?: string, refetchMs: number | false = 10_000) {
   return useQuery({
     queryKey: ['logs', lines, level],
     queryFn: () => getLogs(lines, level),
-    refetchInterval: 10000,
+    refetchInterval: refetchMs,
   })
 }
 

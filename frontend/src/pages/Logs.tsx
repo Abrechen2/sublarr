@@ -37,9 +37,7 @@ export function LogsPage() {
   const [liveEntries, setLiveEntries] = useState<string[]>([])
   const parentRef = useRef<HTMLDivElement>(null)
 
-  const { data: logs } = useLogs(500)
-
-  useWebSocket({
+  const { connected } = useWebSocket({
     onLogEntry: (data: unknown) => {
       const entry = data as { message: string }
       if (entry?.message) {
@@ -48,6 +46,9 @@ export function LogsPage() {
     },
   })
 
+  // Live entries stream over the socket; poll only as disconnected fallback.
+  const { data: logs } = useLogs(500, undefined, connected ? false : 10_000)
+
   // Fix 6: deduplicate API-polled entries against live WebSocket entries by content
   const allEntries = useMemo(() => {
     const wsSet = new Set(liveEntries)
@@ -55,11 +56,15 @@ export function LogsPage() {
     return [...apiEntries, ...liveEntries]
   }, [logs?.entries, liveEntries])
   const minSeverity = level ? LEVEL_SEVERITY[level] ?? 0 : -1
-  const filtered = allEntries.filter((e) => {
-    if (level && LEVEL_SEVERITY[getLineLevel(e)] < minSeverity) return false
-    if (search && !e.toLowerCase().includes(search.toLowerCase())) return false
-    return true
-  })
+  const filtered = useMemo(
+    () =>
+      allEntries.filter((e) => {
+        if (level && LEVEL_SEVERITY[getLineLevel(e)] < minSeverity) return false
+        if (search && !e.toLowerCase().includes(search.toLowerCase())) return false
+        return true
+      }),
+    [allEntries, level, search, minSeverity],
+  )
 
   const logViewPrefs = useMemo(() => {
     try {
