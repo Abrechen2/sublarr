@@ -6,7 +6,7 @@
  * 2. Per-Language Scores  — per-language minimum score thresholds
  * 3. Fansub Preferences   — credit/OP window detection (advanced, collapsed)
  */
-import { lazy, Suspense } from 'react'
+import React from 'react'
 import { useTranslation } from 'react-i18next'
 import { Star, Sliders, Heart } from 'lucide-react'
 import { SettingsDetailLayout } from '@/components/settings/SettingsDetailLayout'
@@ -14,6 +14,7 @@ import { SettingsSection } from '@/components/settings/SettingsSection'
 import { FormGroup } from '@/components/settings/FormGroup'
 import { FormLayout } from '@/components/settings/layouts'
 import type { FormSectionDef } from '@/components/settings/layouts'
+import { ScoringTab } from './ScoringTab'
 
 import { useConfig, useUpdateConfig } from '@/hooks/useApi'
 import { strVal, numVal } from '@/lib/configUtils'
@@ -25,12 +26,6 @@ const SECTIONS: readonly FormSectionDef[] = [
   { id: 'per-language', titleKey: 'subtitles_scoring_page.per_language_section' },
   { id: 'fansub',       titleKey: 'subtitles_scoring_page.fansub_section' },
 ]
-
-// ─── Lazy sub-tabs ────────────────────────────────────────────────────────────
-
-const ScoringTab = lazy(() =>
-  import('./ScoringTab').then((m) => ({ default: m.ScoringTab })),
-)
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
@@ -191,9 +186,7 @@ export function SubtitlesScoringPage() {
           icon={<Star size={16} style={{ color: 'var(--accent)' }} />}
         >
           <div data-testid="scoring-content">
-            <Suspense fallback={<SectionSkeleton />}>
-              <ScoringTab />
-            </Suspense>
+            <ScoringTab />
           </div>
         </SettingsSection>
       </div>
