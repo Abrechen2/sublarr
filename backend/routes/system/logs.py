@@ -17,6 +17,33 @@ from routes.system import bp
 logger = logging.getLogger(__name__)
 
 
+def _tail_log_lines(log_file: str, lines: int, level: str) -> list[str]:
+    """Tail-read the log without decoding the whole file per poll.
+
+    Reads a growing tail window (64 KB, 256 KB, 1 MB, ... up to the full file)
+    until enough matching lines are collected. Fixed-size heuristics fail on
+    multiline stack traces and sparse level filters; growing until satisfied is
+    correct by construction — the worst case (filter matches nothing) equals
+    today's full read, every other case reads a fraction of it.
+    """
+    chunk_size = 64 * 1024
+    with open(log_file, "rb") as f:
+        f.seek(0, os.SEEK_END)
+        size = f.tell()
+        while True:
+            start = max(0, size - chunk_size)
+            f.seek(start)
+            raw = f.read(size - start)
+            recent = raw.decode("utf-8", errors="replace").splitlines()
+            if start > 0 and recent:
+                recent = recent[1:]  # first line is likely cut mid-way
+
+            matched = [line.strip() for line in recent if not level or f"[{level}]" in line]
+            if len(matched) >= lines or start == 0:
+                return matched[-lines:]
+            chunk_size *= 4
+
+
 @bp.route("/logs/download", methods=["GET"])
 def download_logs():
     """Download the log file as an attachment.
@@ -202,8 +229,6 @@ def get_logs():
                   total:
                     type: integer
     """
-    import collections
-
     from config import get_settings
 
     settings = get_settings()
@@ -217,12 +242,7 @@ def get_logs():
     log_entries = []
     if os.path.exists(log_file):
         try:
-            with open(log_file, encoding="utf-8", errors="replace") as f:
-                recent = list(collections.deque(f, maxlen=lines))
-                for line in recent:
-                    if level and f"[{level}]" not in line:
-                        continue
-                    log_entries.append(line.strip())
+            log_entries = _tail_log_lines(log_file, lines, level)
         except Exception as e:
             logger.warning("Failed to read log file: %s", e)
 
