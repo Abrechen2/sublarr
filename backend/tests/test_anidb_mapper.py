@@ -69,6 +69,19 @@ def _reset_title_res_cache():
     anidb_mapper._title_res_cache.clear()
 
 
+@pytest.fixture(autouse=True)
+def _reset_dump_miss_cache():
+    """Reset the Tier-4 title-dump fuzzy-miss cache between tests.
+
+    Without this, a "no match" result cached by one test could shadow a
+    genuine (differently-indexed) lookup for the same normalized title in a
+    later test.
+    """
+    anidb_mapper._dump_miss_cache.clear()
+    yield
+    anidb_mapper._dump_miss_cache.clear()
+
+
 # ===========================================================================
 # extract_anidb_from_custom_fields
 # ===========================================================================
@@ -653,7 +666,9 @@ class TestResolveAnidbFromTitleDump:
         # "narutoo" vs "naruto" should be above 0.82 threshold
         anidb_mapper._title_index = {"naruto": 100}
         result = anidb_mapper.resolve_anidb_from_title_dump("Narutoo")
-        # SequenceMatcher("naruto", "narutoo") ~ 0.923 — above threshold
+        # rapidfuzz fuzz.ratio("naruto", "narutoo") ~ 92.3 — above the 82
+        # score_cutoff. Metric switched from difflib.SequenceMatcher to
+        # rapidfuzz.fuzz.ratio (Task 4); outcome for this pair is unchanged.
         assert result == 100
 
     @patch("anidb_mapper._load_title_index")

@@ -64,3 +64,7 @@ scenedetect>=0.6.6,<1.0
 
 # Subtitle health analysis — content-based language detection
 lingua-language-detector==2.2.0
+
+# C-backed fuzzy string matching for Tier-4 AniDB title-dump resolution
+# (replaces a pure-Python difflib.SequenceMatcher loop over ~100k entries)
+rapidfuzz>=3.9

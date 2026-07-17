@@ -16,7 +16,6 @@ import re
 import tempfile
 import threading
 import time
-from difflib import SequenceMatcher
 from urllib.request import Request, urlopen
 
 # defusedxml hardens against XXE / Billion-Laughs / DTD-based attacks on
@@ -34,12 +33,19 @@ _DUMP_URL = "https://anidb.net/api/anime-titles.xml.gz"
 _DUMP_TTL = 36 * 3600  # seconds
 _DUMP_MIN_ENTRIES = 8_000  # sanity-check: valid dump has >8 k anime
 _DUMP_CACHE_FILE = os.path.join(tempfile.gettempdir(), "sublarr_anidb_titles.xml.gz")
-_DUMP_MATCH_THRESHOLD = 0.82  # SequenceMatcher ratio required for a title hit
+_DUMP_MATCH_THRESHOLD = 0.82  # rapidfuzz fuzz.ratio required for a title hit
 
 # { normalized_title: aid }
 _title_index: dict[str, int] = {}
 _title_index_lock = threading.Lock()
 _title_index_loaded_at: float = 0.0
+
+# Negative cache for Tier-4 fuzzy misses — { normalized_title: monotonic ts }.
+# A miss means "no title in the ~100k-entry index scored above threshold";
+# avoids re-running the (now C-backed, but still O(n)) fuzzy scan for the
+# same unmatched title within _DUMP_TTL.
+_dump_miss_cache: dict[str, float] = {}
+_dump_miss_lock = threading.Lock()
 
 logger = logging.getLogger(__name__)
 
@@ -295,11 +301,32 @@ def _load_title_index() -> None:
         logger.debug("AniDB title index loaded: %d title entries", len(index))
 
 
+def _fuzzy_best_match(needle: str) -> tuple[int | None, float]:
+    """Best fuzzy match over the title index via rapidfuzz (C-backed).
+
+    Replaces a pure-Python SequenceMatcher loop over ~100k entries that held
+    the GIL for seconds per call on low-power hosts.
+    """
+    from rapidfuzz import fuzz, process
+
+    hit = process.extractOne(
+        needle,
+        _title_index.keys(),
+        scorer=fuzz.ratio,
+        score_cutoff=_DUMP_MATCH_THRESHOLD * 100,
+    )
+    if hit is None:
+        return None, 0.0
+    title, score, _ = hit
+    return _title_index[title], score / 100.0
+
+
 def resolve_anidb_from_title_dump(series_title: str, tvdb_id: int | None = None) -> int | None:
     """Resolve AniDB ID via the offline anime-titles.xml.gz dump.
 
-    Tries exact match first, then fuzzy (SequenceMatcher ≥ 0.82).  Caches the
-    result in ``anidb_mappings`` when *tvdb_id* is provided.
+    Tries exact match first, then fuzzy (rapidfuzz fuzz.ratio ≥ 0.82).
+    Fuzzy misses are negative-cached for ``_DUMP_TTL`` in ``_dump_miss_cache``.
+    Caches the result in ``anidb_mappings`` when *tvdb_id* is provided.
 
     Returns:
         AniDB series ID as int, or None if not found.
@@ -325,16 +352,15 @@ def resolve_anidb_from_title_dump(series_title: str, tvdb_id: int | None = None)
                 )
         return aid
 
-    # Fuzzy match — find best scoring entry
-    best_aid: int | None = None
-    best_score = 0.0
-    for title, aid in _title_index.items():
-        score = SequenceMatcher(None, needle, title).ratio()
-        if score > best_score:
-            best_score = score
-            best_aid = aid
+    now = time.monotonic()
+    with _dump_miss_lock:
+        miss_ts = _dump_miss_cache.get(needle)
+        if miss_ts is not None and (now - miss_ts) < _DUMP_TTL:
+            return None
 
-    if best_score >= _DUMP_MATCH_THRESHOLD and best_aid:
+    best_aid, best_score = _fuzzy_best_match(needle)
+
+    if best_aid:
         logger.debug(
             "AniDB dump fuzzy match: %r → AID %d (score=%.2f)", series_title, best_aid, best_score
         )
@@ -347,12 +373,9 @@ def resolve_anidb_from_title_dump(series_title: str, tvdb_id: int | None = None)
                 )
         return best_aid
 
-    logger.debug(
-        "AniDB dump: no match for %r (best score=%.2f < %.2f)",
-        series_title,
-        best_score,
-        _DUMP_MATCH_THRESHOLD,
-    )
+    logger.debug("AniDB dump: no match for %r (best score=%.2f)", series_title, best_score)
+    with _dump_miss_lock:
+        _dump_miss_cache[needle] = now
     return None
 
 
