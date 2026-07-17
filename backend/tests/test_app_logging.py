@@ -87,3 +87,33 @@ def test_websocket_handler_never_forwards_below_info(restore_root_logger, tmp_pa
     ws_handlers = [h for h in logging.getLogger().handlers if isinstance(h, SocketIOLogHandler)]
     assert ws_handlers, "SocketIOLogHandler must be installed"
     assert all(h.level >= logging.INFO for h in ws_handlers)
+
+
+def test_ws_handler_skips_format_when_no_clients():
+    from unittest.mock import MagicMock
+
+    from app_logging import SocketIOLogHandler
+
+    sio = MagicMock()
+    sio.server.manager.rooms = {}  # no namespace → no clients
+    handler = SocketIOLogHandler(sio)
+    handler.format = MagicMock(side_effect=AssertionError("format ran with zero clients"))
+
+    record = logging.LogRecord("x", logging.INFO, __file__, 1, "hello", None, None)
+    handler.emit(record)
+    sio.emit.assert_not_called()
+
+
+def test_ws_handler_emits_when_client_connected():
+    from unittest.mock import MagicMock
+
+    from app_logging import SocketIOLogHandler
+
+    sio = MagicMock()
+    sio.server.manager.rooms = {"/": {None: {"sid1": True}}}
+    handler = SocketIOLogHandler(sio)
+    handler.setFormatter(logging.Formatter("%(message)s"))
+
+    record = logging.LogRecord("x", logging.INFO, __file__, 1, "hello", None, None)
+    handler.emit(record)
+    sio.emit.assert_called_once()
