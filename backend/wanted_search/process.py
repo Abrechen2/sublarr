@@ -1,6 +1,7 @@
 """Wanted search processing — item processing, downloading, and result helpers."""
 
 import contextlib
+import copy
 import logging
 import os
 
@@ -354,9 +355,7 @@ def _try_source_ass_translation(ctx: dict) -> dict | None:
     _pf = ctx["_pf"]
     file_path = ctx["file_path"]
 
-    source_query = build_query_from_wanted(item)
-    source_query.languages = [settings.source_language]
-    ctx["source_query"] = source_query
+    source_query = ctx["source_query"]
     try:
         result = manager.search_and_download_best(
             source_query,
@@ -980,6 +979,13 @@ def process_wanted_item(
     # Build primary target-language query shared across Step 1 / Step 3
     query = build_query_from_wanted(item)
     query.languages = [item_lang]
+
+    # Source-language copy for Steps 2/4 — taken before profile-specific
+    # hi/forced preferences are applied, matching the previous fresh-build
+    # behavior of _try_source_ass_translation.
+    source_query = copy.deepcopy(query)
+    source_query.languages = [settings.source_language]
+
     query.hi_preference = _pf.get("hi_preference", "include")
     query.forced_scoring = _pf.get("forced_scoring", "include")
 
@@ -999,7 +1005,7 @@ def process_wanted_item(
             else bool(auto_translate)
         ),
         "query": query,
-        "source_query": None,
+        "source_query": source_query,
         "ass_had_results": False,
         "dry_run": dry_run,
     }

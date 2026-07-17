@@ -1,5 +1,6 @@
 """Wanted search — provider search functions."""
 
+import copy
 import logging
 
 from config import get_settings
@@ -92,11 +93,13 @@ def search_wanted_item(item_id: int) -> dict:
     item_lang = item.get("target_language") or settings.target_language
     source_lang = settings.source_language
 
-    # Build queries (forced_only is set by build_query_from_wanted based on subtitle_type)
+    # Build the target query once; derive the source query as a copy so the
+    # enrichment pipeline (Sonarr HTTP, guessit, AniDB/AniList, file hash)
+    # runs a single time per item.
     target_query = build_query_from_wanted(item)
     target_query.languages = [item_lang]
 
-    source_query = build_query_from_wanted(item)
+    source_query = copy.deepcopy(target_query)
     source_query.languages = [source_lang]
 
     all_results = []
