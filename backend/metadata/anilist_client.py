@@ -6,6 +6,7 @@ Returns None on errors (never crashes).
 """
 
 import logging
+import threading
 import time
 
 import requests
@@ -89,12 +90,16 @@ class AniListClient:
         self.session.headers["Content-Type"] = "application/json"
         self.session.headers["Accept"] = "application/json"
         self._last_request_time = 0.0
+        self._request_lock = threading.Lock()
 
     def _query(self, query: str, variables: dict) -> dict | None:
         """Execute a GraphQL query with rate limiting.
 
         Enforces a minimum 0.7s gap between requests to stay within
-        AniList's 90 req/min rate limit.
+        AniList's 90 req/min rate limit. The gap check and the HTTP call are
+        serialized under a lock so concurrent callers (e.g. multiple search
+        workers) cannot both pass a stale gap check and fire overlapping
+        requests — the serialization itself IS the rate limit.
 
         Args:
             query: GraphQL query string.
@@ -103,29 +108,30 @@ class AniListClient:
         Returns:
             Response data dict or None on failure.
         """
-        # Rate limiting: ensure at least 0.7s between requests
-        now = time.time()
-        elapsed = now - self._last_request_time
-        if elapsed < 0.7:
-            time.sleep(0.7 - elapsed)
+        with self._request_lock:
+            # Rate limiting: ensure at least 0.7s between requests
+            now = time.time()
+            elapsed = now - self._last_request_time
+            if elapsed < 0.7:
+                time.sleep(0.7 - elapsed)
 
-        try:
-            resp = self.session.post(
-                self.ANILIST_URL,
-                json={"query": query, "variables": variables},
-                timeout=REQUEST_TIMEOUT,
-            )
-            self._last_request_time = time.time()
-            resp.raise_for_status()
-            result = resp.json()
-            if "errors" in result:
-                logger.warning("AniList GraphQL errors: %s", result["errors"])
+            try:
+                resp = self.session.post(
+                    self.ANILIST_URL,
+                    json={"query": query, "variables": variables},
+                    timeout=REQUEST_TIMEOUT,
+                )
+                self._last_request_time = time.time()
+                resp.raise_for_status()
+                result = resp.json()
+                if "errors" in result:
+                    logger.warning("AniList GraphQL errors: %s", result["errors"])
+                    return None
+                return result.get("data")
+            except requests.RequestException as e:
+                logger.warning("AniList query failed: %s", e)
+                self._last_request_time = time.time()
                 return None
-            return result.get("data")
-        except requests.RequestException as e:
-            logger.warning("AniList query failed: %s", e)
-            self._last_request_time = time.time()
-            return None
 
     def search_anime(self, title: str) -> dict | None:
         """Search for anime by title.
@@ -168,3 +174,21 @@ class AniListClient:
         if data and data.get("Media"):
             return data["Media"]
         return None
+
+
+_client_singleton: AniListClient | None = None
+_client_lock = threading.Lock()
+
+
+def get_anilist_client() -> AniListClient:
+    """Process-wide client so the 0.7s inter-request gap actually applies.
+
+    Per-call construction reset _last_request_time, letting bursts of
+    resolutions bypass AniList's 90 req/min budget entirely.
+    """
+    global _client_singleton
+    if _client_singleton is None:
+        with _client_lock:
+            if _client_singleton is None:
+                _client_singleton = AniListClient()
+    return _client_singleton

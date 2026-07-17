@@ -43,6 +43,23 @@ _title_index_loaded_at: float = 0.0
 
 logger = logging.getLogger(__name__)
 
+# ---------------------------------------------------------------------------
+# AniList title-resolution cache — module-level (positive 6h / negative 15min)
+# ---------------------------------------------------------------------------
+_TITLE_RES_TTL = 6 * 3600  # positive results
+# Misses get a SHORT TTL: resolve_anidb_from_anilist swallows exceptions and
+# returns None, so a "miss" can be a transient AniList failure. 15 min still
+# kills the per-search-round re-query storm without pinning a bad answer.
+_TITLE_RES_NEG_TTL = 15 * 60
+_title_res_cache: dict[str, tuple[float, int | None]] = {}
+_title_res_lock = threading.Lock()
+
+
+def _get_client():
+    from metadata.anilist_client import get_anilist_client
+
+    return get_anilist_client()
+
 
 def extract_anidb_from_custom_fields(series: dict, custom_field_name: str = None) -> int | None:
     """Extract AniDB ID from Sonarr series Custom Fields.
@@ -151,9 +168,7 @@ def resolve_anidb_from_anilist(anilist_id: int, tvdb_id: int | None = None) -> i
         AniDB series ID as int, or None if not found / API unavailable.
     """
     try:
-        from metadata.anilist_client import AniListClient
-
-        client = AniListClient()
+        client = _get_client()
         details = client.get_details(anilist_id)
         if not details:
             return None
@@ -354,26 +369,35 @@ def resolve_anidb_from_title(series_title: str, tvdb_id: int | None = None) -> i
     """
     if not series_title:
         return None
+
+    cache_key = _normalize(series_title)
+    now = time.monotonic()
+    with _title_res_lock:
+        entry = _title_res_cache.get(cache_key)
+        if entry:
+            ttl = _TITLE_RES_TTL if entry[1] is not None else _TITLE_RES_NEG_TTL
+            if (now - entry[0]) < ttl:
+                return entry[1]
+
+    resolved: int | None = None
     try:
-        from metadata.anilist_client import AniListClient
-
-        client = AniListClient()
+        client = _get_client()
         match = client.search_anime(series_title)
-        if not match:
+        if match and match.get("id"):
+            anilist_id = match["id"]
+            logger.debug(
+                "AniList title search: %r → AniList %d (%s)",
+                series_title,
+                anilist_id,
+                match.get("title", {}).get("romaji", ""),
+            )
+            resolved = resolve_anidb_from_anilist(anilist_id, tvdb_id=tvdb_id)
+        else:
             logger.debug("AniList title search returned no results for %r", series_title)
-            return None
-
-        anilist_id = match.get("id")
-        if not anilist_id:
-            return None
-
-        logger.debug(
-            "AniList title search: %r → AniList %d (%s)",
-            series_title,
-            anilist_id,
-            match.get("title", {}).get("romaji", ""),
-        )
-        return resolve_anidb_from_anilist(anilist_id, tvdb_id=tvdb_id)
     except Exception as e:
         logger.debug("AniList title search failed for %r: %s", series_title, e)
-    return None
+        return None  # transient failure — do NOT negative-cache
+
+    with _title_res_lock:
+        _title_res_cache[cache_key] = (now, resolved)
+    return resolved

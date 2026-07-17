@@ -57,6 +57,18 @@ def _reset_title_index():
     anidb_mapper._title_index_loaded_at = 0.0
 
 
+@pytest.fixture(autouse=True)
+def _reset_title_res_cache():
+    """Reset the AniList title-resolution TTL cache between tests.
+
+    Without this, resolve_anidb_from_title() calls from earlier tests leak
+    cached (hit or miss) entries into later tests using the same title.
+    """
+    anidb_mapper._title_res_cache.clear()
+    yield
+    anidb_mapper._title_res_cache.clear()
+
+
 # ===========================================================================
 # extract_anidb_from_custom_fields
 # ===========================================================================
@@ -249,7 +261,7 @@ class TestResolveAnidbFromAnilist:
 
         # Simpler approach: patch at the import point
         mock_module = MagicMock()
-        mock_module.AniListClient.return_value = mock_client
+        mock_module.get_anilist_client.return_value = mock_client
         with patch.dict(
             "sys.modules", {"metadata": MagicMock(), "metadata.anilist_client": mock_module}
         ):
@@ -262,7 +274,7 @@ class TestResolveAnidbFromAnilist:
         mock_client = MagicMock()
         mock_client.get_details.return_value = None
         mock_module = MagicMock()
-        mock_module.AniListClient.return_value = mock_client
+        mock_module.get_anilist_client.return_value = mock_client
         with patch.dict(
             "sys.modules", {"metadata": MagicMock(), "metadata.anilist_client": mock_module}
         ):
@@ -279,7 +291,7 @@ class TestResolveAnidbFromAnilist:
             ]
         }
         mock_module = MagicMock()
-        mock_module.AniListClient.return_value = mock_client
+        mock_module.get_anilist_client.return_value = mock_client
         with patch.dict(
             "sys.modules", {"metadata": MagicMock(), "metadata.anilist_client": mock_module}
         ):
@@ -295,7 +307,7 @@ class TestResolveAnidbFromAnilist:
             ]
         }
         mock_module = MagicMock()
-        mock_module.AniListClient.return_value = mock_client
+        mock_module.get_anilist_client.return_value = mock_client
         with patch.dict(
             "sys.modules", {"metadata": MagicMock(), "metadata.anilist_client": mock_module}
         ):
@@ -319,7 +331,7 @@ class TestResolveAnidbFromAnilist:
             ]
         }
         mock_module = MagicMock()
-        mock_module.AniListClient.return_value = mock_client
+        mock_module.get_anilist_client.return_value = mock_client
         with patch.dict(
             "sys.modules", {"metadata": MagicMock(), "metadata.anilist_client": mock_module}
         ):
@@ -335,7 +347,7 @@ class TestResolveAnidbFromAnilist:
             ]
         }
         mock_module = MagicMock()
-        mock_module.AniListClient.return_value = mock_client
+        mock_module.get_anilist_client.return_value = mock_client
         with patch.dict(
             "sys.modules", {"metadata": MagicMock(), "metadata.anilist_client": mock_module}
         ):
@@ -346,7 +358,7 @@ class TestResolveAnidbFromAnilist:
         mock_client = MagicMock()
         mock_client.get_details.return_value = {"externalLinks": []}
         mock_module = MagicMock()
-        mock_module.AniListClient.return_value = mock_client
+        mock_module.get_anilist_client.return_value = mock_client
         with patch.dict(
             "sys.modules", {"metadata": MagicMock(), "metadata.anilist_client": mock_module}
         ):
@@ -710,7 +722,7 @@ class TestResolveAnidbFromTitle:
             "title": {"romaji": "Naruto"},
         }
         mock_module = MagicMock()
-        mock_module.AniListClient.return_value = mock_client
+        mock_module.get_anilist_client.return_value = mock_client
 
         with (
             patch.dict(
@@ -727,7 +739,7 @@ class TestResolveAnidbFromTitle:
         mock_client = MagicMock()
         mock_client.search_anime.return_value = None
         mock_module = MagicMock()
-        mock_module.AniListClient.return_value = mock_client
+        mock_module.get_anilist_client.return_value = mock_client
 
         with patch.dict(
             "sys.modules", {"metadata": MagicMock(), "metadata.anilist_client": mock_module}
@@ -740,7 +752,7 @@ class TestResolveAnidbFromTitle:
         mock_client = MagicMock()
         mock_client.search_anime.return_value = {"title": {"romaji": "Test"}}
         mock_module = MagicMock()
-        mock_module.AniListClient.return_value = mock_client
+        mock_module.get_anilist_client.return_value = mock_client
 
         with patch.dict(
             "sys.modules", {"metadata": MagicMock(), "metadata.anilist_client": mock_module}
