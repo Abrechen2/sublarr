@@ -12,6 +12,25 @@ from extensions import socketio
 
 LOG_FORMAT = "%(asctime)s [%(levelname)s] %(name)s: %(message)s"
 
+# Noisy third-party loggers stay capped regardless of the user-selected level.
+# rebulk (guessit's rule engine) emits ~155 DEBUG records per filename parse;
+# at DEBUG root level a single wanted-search burst produced ~8k records/min,
+# each formatted twice (file + WebSocket handler), written to disk, and
+# emitted to every connected browser — enough to starve concurrent API
+# requests on low-power hosts (20s page opens on a Synology DS920+).
+# The user-selected level still applies to all of Sublarr's own loggers.
+_THIRD_PARTY_LOG_LEVELS = {
+    "rebulk": logging.WARNING,
+    "guessit": logging.WARNING,
+    "watchdog": logging.WARNING,
+    "urllib3": logging.WARNING,
+    "chardet": logging.WARNING,
+    "charset_normalizer": logging.WARNING,
+    "engineio": logging.WARNING,
+    "socketio": logging.WARNING,
+    "apscheduler": logging.INFO,  # job-run lines are useful — keep INFO
+}
+
 
 class StructuredJSONFormatter(logging.Formatter):
     """JSON log formatter for structured logging (ELK, Loki, etc.)."""
@@ -103,6 +122,9 @@ def _setup_logging(settings) -> None:
     # Set it explicitly to keep _setup_logging idempotent for level changes.
     root.setLevel(log_level)
 
+    for noisy_name, noisy_level in _THIRD_PARTY_LOG_LEVELS.items():
+        logging.getLogger(noisy_name).setLevel(noisy_level)
+
     from logging.handlers import RotatingFileHandler
 
     for existing in list(root.handlers):
@@ -135,6 +157,10 @@ def _setup_logging(settings) -> None:
         logging.getLogger(__name__).warning("Could not set up log file %s: %s", log_file, e)
 
     ws_handler = SocketIOLogHandler(socketio)
-    ws_handler.setLevel(log_level)
+    # Never stream DEBUG records to browsers: every record goes to ALL
+    # connected clients, and DEBUG volume floods both the server (per-record
+    # serialize + emit) and every open tab. The Logs page still shows DEBUG
+    # lines via its 10s file-backed API poll.
+    ws_handler.setLevel(max(log_level, logging.INFO))
     ws_handler.setFormatter(logging.Formatter(LOG_FORMAT))
     root.addHandler(ws_handler)
