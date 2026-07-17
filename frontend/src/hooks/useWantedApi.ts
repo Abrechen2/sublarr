@@ -118,11 +118,11 @@ export function useStartWantedBatch() {
   })
 }
 
-export function useWantedBatchStatus() {
+export function useWantedBatchStatus(idleRefetchMs: number | false = 10000) {
   return useQuery({
     queryKey: ['wanted-batch-status'],
     queryFn: getWantedBatchStatus,
-    refetchInterval: 10000,
+    refetchInterval: (query) => (query.state.data?.running ? 3000 : idleRefetchMs),
   })
 }
 

@@ -41,11 +41,11 @@ export function useProviderStats() {
   })
 }
 
-export function useProviderHealth() {
+export function useProviderHealth(refetchMs = 30_000) {
   return useQuery({
     queryKey: ['provider-health'],
     queryFn: getProviderHealth,
-    refetchInterval: 30_000,
+    refetchInterval: refetchMs,
   })
 }
 

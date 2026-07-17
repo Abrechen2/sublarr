@@ -16,10 +16,10 @@ const AUTOMATION_JOB_IDS = ['wanted_scanner', 'wanted_search'] as const
  * - 'partial' — some (not all) pipeline jobs are paused
  * - 'idle'    — armed and waiting for the next scheduled run
  */
-export function useAutomationState() {
+export function useAutomationState(refetchMs = 10000) {
   const { data: scannerStatus } = useScannerStatus()
-  const { data: scheduler } = useSchedulerJobs()
-  const { data: batchSearch } = useWantedBatchStatus()
+  const { data: scheduler } = useSchedulerJobs(refetchMs)
+  const { data: batchSearch } = useWantedBatchStatus(refetchMs)
   const { data: batchProbe } = useWantedBatchProbeStatus()
 
   const isRunning = Boolean(

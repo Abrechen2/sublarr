@@ -9,8 +9,9 @@ export function StatusBar() {
   const { t } = useTranslation('common')
   const { data: health } = useHealth()
   const { data: updateInfo } = useUpdateInfo()
-  const { state: automationState, pausedJobIds, scannerStatus, batchSearch, batchProbe } = useAutomationState()
-  const { data: providerHealth } = useProviderHealth()
+  const { state: automationState, pausedJobIds, scannerStatus, batchSearch, batchProbe } =
+    useAutomationState(60_000)
+  const { data: providerHealth } = useProviderHealth(60_000)
   const [popoverOpen, setPopoverOpen] = useState(false)
   const popoverRef = useRef<HTMLDivElement>(null)
 

@@ -3,11 +3,11 @@ import { getJob, listJobs } from '@/api/scheduler'
 
 // ─── Scheduler Jobs — Phase 5 Rollout 2 ──────────────────────────────────────
 
-export function useSchedulerJobs() {
+export function useSchedulerJobs(refetchMs = 10000) {
   return useQuery({
     queryKey: ['scheduler', 'jobs'],
     queryFn: listJobs,
-    refetchInterval: 10000,
+    refetchInterval: refetchMs,
     refetchOnWindowFocus: false,
   })
 }
