@@ -504,6 +504,18 @@ def create_app(testing=False):
         def handle_disconnect():
             logger.debug("WebSocket client disconnected")
 
+        @socketio.on("subscribe_logs")
+        def _subscribe_logs():
+            from flask_socketio import join_room
+
+            join_room("logs")
+
+        @socketio.on("unsubscribe_logs")
+        def _unsubscribe_logs():
+            from flask_socketio import leave_room
+
+            leave_room("logs")
+
         # Register UI auth blueprint
         app.register_blueprint(auth_ui_bp)
 

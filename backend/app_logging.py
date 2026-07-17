@@ -99,10 +99,10 @@ class SocketIOLogHandler(logging.Handler):
     def emit(self, record: logging.LogRecord) -> None:
         try:
             server = getattr(self.sio, "server", None)
-            if server is None or not server.manager.rooms.get("/"):
-                return  # nobody connected — skip format/sanitize/emit entirely
+            if server is None or not server.manager.rooms.get("/", {}).get("logs"):
+                return  # nobody watching the Logs page — skip all work
             msg = self._sanitize(self.format(record))
-            self.sio.emit("log_entry", {"message": msg})
+            self.sio.emit("log_entry", {"message": msg}, to="logs")
         except Exception:
             pass  # Never break the app because of log emission
 

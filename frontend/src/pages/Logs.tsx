@@ -37,7 +37,7 @@ export function LogsPage() {
   const [liveEntries, setLiveEntries] = useState<string[]>([])
   const parentRef = useRef<HTMLDivElement>(null)
 
-  const { connected } = useWebSocket({
+  const { connected, emit } = useWebSocket({
     onLogEntry: (data: unknown) => {
       const entry = data as { message: string }
       if (entry?.message) {
@@ -45,6 +45,12 @@ export function LogsPage() {
       }
     },
   })
+
+  useEffect(() => {
+    if (!connected) return
+    emit('subscribe_logs')
+    return () => emit('unsubscribe_logs')
+  }, [connected, emit])
 
   // Live entries stream over the socket; poll only as disconnected fallback.
   const { data: logs } = useLogs(500, undefined, connected ? false : 10_000)

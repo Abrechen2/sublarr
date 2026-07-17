@@ -110,10 +110,42 @@ def test_ws_handler_emits_when_client_connected():
     from app_logging import SocketIOLogHandler
 
     sio = MagicMock()
-    sio.server.manager.rooms = {"/": {None: {"sid1": True}}}
+    sio.server.manager.rooms = {"/": {"logs": {"sid1": True}}}
     handler = SocketIOLogHandler(sio)
     handler.setFormatter(logging.Formatter("%(message)s"))
 
     record = logging.LogRecord("x", logging.INFO, __file__, 1, "hello", None, None)
     handler.emit(record)
     sio.emit.assert_called_once()
+
+
+def test_ws_handler_emits_to_logs_room_only():
+    from unittest.mock import MagicMock
+
+    from app_logging import SocketIOLogHandler
+
+    sio = MagicMock()
+    sio.server.manager.rooms = {"/": {"logs": {"sid1": True}}}
+    handler = SocketIOLogHandler(sio)
+    handler.setFormatter(logging.Formatter("%(message)s"))
+
+    record = logging.LogRecord("x", logging.INFO, __file__, 1, "hello", None, None)
+    handler.emit(record)
+
+    _, kwargs = sio.emit.call_args
+    assert kwargs.get("to") == "logs", "log_entry must be scoped to the logs room"
+
+
+def test_ws_handler_skips_when_logs_room_empty():
+    from unittest.mock import MagicMock
+
+    from app_logging import SocketIOLogHandler
+
+    sio = MagicMock()
+    sio.server.manager.rooms = {"/": {None: {"sid1": True}}}  # connected, not subscribed
+    handler = SocketIOLogHandler(sio)
+    handler.format = MagicMock(side_effect=AssertionError("formatted for empty room"))
+
+    record = logging.LogRecord("x", logging.INFO, __file__, 1, "hello", None, None)
+    handler.emit(record)
+    sio.emit.assert_not_called()
