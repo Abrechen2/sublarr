@@ -50,7 +50,11 @@ const queryClient = new QueryClient({
     queries: {
       retry: 1,
       staleTime: 60_000,
-      refetchOnWindowFocus: true,
+      // Mutations invalidate their queries explicitly and config changes now
+      // invalidate via the config_updated WS event (see GlobalWebSocketListener) —
+      // focus refetch only re-fired whole pages (5+ GETs) on every alt-tab, which
+      // low-power hosts feel.
+      refetchOnWindowFocus: false,
     },
   },
 })
@@ -123,6 +127,7 @@ function GlobalWebSocketListener() {
       toast(t('global_toasts.retranslated', { count: Number(d.count ?? d.succeeded ?? 0) }), 'success')
     },
     onConfigUpdated: (data: unknown) => {
+      void queryClient.invalidateQueries({ queryKey: ['config'] })
       const d = data as Record<string, unknown>
       const keys = d.updated_keys as string[] | undefined
       toast(
