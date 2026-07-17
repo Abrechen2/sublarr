@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from flask import jsonify, request
 
+from cache_response import cached_get, invalidate_response_cache
 from routes.profiles import bp
 from services.profile_service import (
     ProfileNotFoundError,
@@ -15,6 +16,7 @@ from services.profile_service import (
 
 
 @bp.route("/prompt-presets", methods=["GET"])
+@cached_get(ttl_seconds=60)
 def list_prompt_presets():
     """Get all prompt presets.
     ---
@@ -116,6 +118,7 @@ def create_prompt_preset():
     except ProfileValidationError as exc:
         return jsonify({"error": str(exc)}), 400
 
+    invalidate_response_cache()
     return jsonify(preset), 201
 
 
@@ -168,6 +171,7 @@ def update_prompt_preset_endpoint(preset_id):
     except ProfileValidationError as exc:
         return jsonify({"error": str(exc)}), 400
 
+    invalidate_response_cache()
     return jsonify(preset)
 
 
@@ -208,4 +212,5 @@ def delete_prompt_preset_endpoint(preset_id):
     except ProfileNotFoundError as exc:
         return jsonify({"error": str(exc)}), 404
 
+    invalidate_response_cache()
     return jsonify(result)

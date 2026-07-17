@@ -2,12 +2,14 @@
 
 from flask import jsonify, request
 
+from cache_response import cached_get, invalidate_response_cache
 from routes.hooks import bp
 
 # ---- Scoring Weight endpoints ------------------------------------------------
 
 
 @bp.route("/scoring/weights", methods=["GET"])
+@cached_get(ttl_seconds=60)
 def get_weights():
     """Return all scoring weights (episode + movie) merged with defaults.
     ---
@@ -106,6 +108,7 @@ def update_weights():
         set_scoring_weights("movie", data["movie"])
 
     invalidate_scoring_cache()
+    invalidate_response_cache()
 
     weights = get_all_scoring_weights()
     from db.scoring import _DEFAULT_EPISODE_WEIGHTS, _DEFAULT_MOVIE_WEIGHTS
@@ -142,6 +145,7 @@ def reset_weights():
 
     reset_scoring_weights()
     invalidate_scoring_cache()
+    invalidate_response_cache()
     return "", 204
 
 
@@ -149,6 +153,7 @@ def reset_weights():
 
 
 @bp.route("/scoring/modifiers", methods=["GET"])
+@cached_get(ttl_seconds=60)
 def get_modifiers():
     """Return all provider score modifiers.
     ---
@@ -227,6 +232,7 @@ def update_modifiers():
         set_provider_modifier(provider_name, max(-100, min(mod_int, 100)))
 
     invalidate_scoring_cache()
+    invalidate_response_cache()
 
     modifiers = get_all_provider_modifiers()
     return jsonify(modifiers)
@@ -258,6 +264,7 @@ def delete_modifier(provider_name):
 
     delete_provider_modifier(provider_name)
     invalidate_scoring_cache()
+    invalidate_response_cache()
     return "", 204
 
 
@@ -265,6 +272,7 @@ def delete_modifier(provider_name):
 
 
 @bp.route("/scoring/presets", methods=["GET"])
+@cached_get(ttl_seconds=60)
 def list_presets():
     """Return metadata for all bundled scoring presets.
     ---
@@ -285,6 +293,7 @@ def list_presets():
 
 
 @bp.route("/scoring/presets/<name>", methods=["GET"])
+@cached_get(ttl_seconds=60)
 def get_preset(name: str):
     """Return a single bundled preset by name.
     ---
@@ -368,6 +377,7 @@ def import_preset():
         applied["provider_modifiers"][provider_name] = modifier
 
     invalidate_scoring_cache()
+    invalidate_response_cache()
 
     return jsonify({"status": "ok", "preset": data.get("name", "custom"), "applied": applied})
 
@@ -376,6 +386,7 @@ def import_preset():
 
 
 @bp.route("/scoring/penalty-rules", methods=["GET"])
+@cached_get(ttl_seconds=60)
 def list_penalty_rules():
     """Return all registered penalty rules with their metadata and current weight.
     ---
@@ -478,4 +489,5 @@ def update_penalty_rule(rule_id):
 
     set_penalty_rule_weight(rule_id, weight)
     invalidate_scoring_cache()
+    invalidate_response_cache()
     return jsonify({"rule_id": rule_id, "weight": weight})

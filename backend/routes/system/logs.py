@@ -12,6 +12,7 @@ import os
 
 from flask import jsonify, request, send_file
 
+from cache_response import cached_get, invalidate_response_cache
 from routes.system import bp
 
 logger = logging.getLogger(__name__)
@@ -78,6 +79,7 @@ def download_logs():
 
 
 @bp.route("/logs/rotation", methods=["GET"])
+@cached_get(ttl_seconds=60)
 def get_log_rotation():
     """Get current log rotation configuration.
     ---
@@ -175,6 +177,8 @@ def update_log_rotation():
 
     saved_max = int(get_config_entry("log_max_size_mb") or "10")
     saved_count = int(get_config_entry("log_backup_count") or "5")
+
+    invalidate_response_cache()
 
     logger.info(
         "Log rotation config updated: max_size_mb=%d, backup_count=%d", saved_max, saved_count
