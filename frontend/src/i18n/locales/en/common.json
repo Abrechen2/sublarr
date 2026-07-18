@@ -680,6 +680,16 @@
     "title": "What's new in {{version}}",
     "close": "Close",
     "got_it": "Got it",
+    "v194": {
+      "speed_title": "Much faster on low-power hardware",
+      "speed_desc": "On NAS or Pi systems, pages now open quickly — even while a search is running. The search pipeline does far less work.",
+      "load_title": "Faster load times",
+      "load_desc": "The UI is served pre-compressed (about 77% smaller) and cached permanently — the first visit to each page is noticeably faster.",
+      "load2_title": "Lower background load",
+      "load2_desc": "The UI polls less often and uses WebSocket as the primary channel for logs and budget.",
+      "stats_title": "Anonymous usage stats (opt-in)",
+      "stats_desc": "Optional and GDPR-first: anonymous, coarsely bucketed usage data helps guide development. Off by default."
+    },
     "v160": {
       "combined_title": "Combined subtitles",
       "combined_desc": "Compose two languages into one bilingual file — or generate a missing language on demand and combine.",

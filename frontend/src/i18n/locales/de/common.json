@@ -680,6 +680,16 @@
     "title": "Neu in {{version}}",
     "close": "Schließen",
     "got_it": "Verstanden",
+    "v194": {
+      "speed_title": "Deutlich schneller auf schwacher Hardware",
+      "speed_desc": "Auf NAS- oder Pi-Systemen öffnen sich Seiten jetzt schnell — auch während einer laufenden Suche. Die Suchpipeline wurde massiv entlastet.",
+      "load_title": "Schnellere Ladezeiten",
+      "load_desc": "Die Oberfläche wird vorkomprimiert ausgeliefert (rund 77% kleiner) und dauerhaft gecacht — der erste Aufruf jeder Seite ist spürbar schneller.",
+      "load2_title": "Weniger Hintergrundlast",
+      "load2_desc": "Die Oberfläche pollt seltener und nutzt WebSocket als primären Kanal für Logs und Budget.",
+      "stats_title": "Anonyme Nutzungsstatistik (opt-in)",
+      "stats_desc": "Optional und DSGVO-first: anonyme, grob zusammengefasste Nutzungsdaten helfen bei der Weiterentwicklung. Standardmäßig aus."
+    },
     "v160": {
       "combined_title": "Kombinierte Untertitel",
       "combined_desc": "Zwei Sprachen zu einer zweisprachigen Datei zusammenfügen — oder eine fehlende Sprache on-demand erzeugen und kombinieren.",

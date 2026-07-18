@@ -6,7 +6,10 @@
  * once. Highlight copy lives in i18n under the `common` namespace `whatsnew.*`.
  */
 import type { LucideIcon } from 'lucide-react'
-import { Layers, Columns2, BarChart3, Upload, ShieldCheck, KeyRound } from 'lucide-react'
+import {
+  Layers, Columns2, BarChart3, Upload, ShieldCheck, KeyRound,
+  Zap, Rocket, Activity,
+} from 'lucide-react'
 
 export interface WhatsNewItem {
   icon: LucideIcon
@@ -15,6 +18,12 @@ export interface WhatsNewItem {
 }
 
 export const WHATS_NEW: Record<string, WhatsNewItem[]> = {
+  '1.9.4': [
+    { icon: Zap, titleKey: 'whatsnew.v194.speed_title', descKey: 'whatsnew.v194.speed_desc' },
+    { icon: Rocket, titleKey: 'whatsnew.v194.load_title', descKey: 'whatsnew.v194.load_desc' },
+    { icon: Activity, titleKey: 'whatsnew.v194.load2_title', descKey: 'whatsnew.v194.load2_desc' },
+    { icon: BarChart3, titleKey: 'whatsnew.v194.stats_title', descKey: 'whatsnew.v194.stats_desc' },
+  ],
   '1.6.0': [
     { icon: Layers, titleKey: 'whatsnew.v160.combined_title', descKey: 'whatsnew.v160.combined_desc' },
     { icon: Columns2, titleKey: 'whatsnew.v160.sync_compare_title', descKey: 'whatsnew.v160.sync_compare_desc' },
