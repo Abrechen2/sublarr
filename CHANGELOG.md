@@ -20,6 +20,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   enabled" default, so the public chart only reflected manually-curated
   installs; it now reports the effective provider set. Anonymous, opt-in,
   off by default.
+- **Log noise and log-view accuracy on low-power hosts.** Third-party
+  libraries no longer flood DEBUG output that starved low-power CPUs, the
+  Logs view's level-filter count is now correct, and the WebSocket log stream
+  is skipped entirely when no client is connected.
 
 ### Changed
 - **Anonymous usage payload extended (opt-in, GDPR-first).** When enabled, the
@@ -27,6 +31,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   — all anonymous enums/buckets, never raw counts or identifiers. Withdrawing
   consent deletes the install's data. Off by default; nothing is sent without
   consent.
+- **Pages open fast again on low-power hosts during wanted-search bursts.**
+  On a NAS or Pi (Synology DS920+ class), opening any page while a wanted
+  search ran could stall for up to ~20 s because the search pipeline
+  saturated the CPU and every request carried avoidable overhead. The
+  pipeline no longer repeats work per item — the wanted query is built once,
+  guessit parses are LRU-cached, Tier-4 title matching uses rapidfuzz instead
+  of an O(n) pure-Python scan, and AniList title lookups reuse a shared client
+  with a result cache (hits and misses). The AniDB title index is built in a
+  background job instead of on the search hot path, and provider-search
+  workers scale to the host's core count while leaving headroom for the API.
+  The Flask request path also does less per call: the UI-auth flag is cached
+  instead of hitting the DB on every request, read-only scoring/preset/rotation
+  GETs are response-cached with write-invalidation, and the log file is
+  tail-read rather than fully decoded. Behaviour is unchanged — the app just
+  does far less redundant work under load.
+- **Lower standing load from the web UI.** The footer refreshes at 60 s
+  instead of forcing a 10 s cadence app-wide, refetch-on-window-focus is off
+  (mutations plus a `config_updated` WebSocket push keep data fresh), logs and
+  budget use the WebSocket as the primary transport with polling only as a
+  fallback, and log events are scoped to a room so only the Logs page receives
+  them. One settings route also lost a redundant serial round-trip.
 
 ## [1.9.3] - 2026-07-16
 
