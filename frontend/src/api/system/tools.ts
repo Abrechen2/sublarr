@@ -345,6 +345,25 @@ export async function fetchScenes(videoPath: string): Promise<ScenesResponse> {
   return data
 }
 
+export interface SpeechSegment {
+  start: number
+  end: number
+}
+
+export interface SpeechResponse {
+  /** Speech-activity windows (VAD), in seconds. */
+  segments: SpeechSegment[]
+  /** False when webrtcvad is unavailable server-side — omit the lane. */
+  available: boolean
+}
+
+export async function fetchSpeech(videoPath: string, track?: number): Promise<SpeechResponse> {
+  const { data } = await api.get<SpeechResponse>('/audio/speech', {
+    params: { file_path: videoPath, ...(track !== undefined ? { track } : {}) },
+  })
+  return data
+}
+
 // â”€â”€â”€ Subtitle Diff â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 export async function computeSubtitleDiff(

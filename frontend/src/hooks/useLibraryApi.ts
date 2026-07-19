@@ -131,6 +131,20 @@ export function useScenes(videoPath: string | null) {
   })
 }
 
+// VAD speech-activity segments (Waveform Phase 2). Same 1h cache as scenes —
+// running VAD over a full episode's audio takes a moment.
+export function useSpeech(videoPath: string | null) {
+  return useQuery({
+    queryKey: ['speech', videoPath],
+    queryFn: async () => {
+      const { fetchSpeech } = await import('@/api/system/tools')
+      return fetchSpeech(videoPath!)
+    },
+    enabled: !!videoPath,
+    staleTime: 60 * 60 * 1000,
+  })
+}
+
 export function useSubtitleBackup(filePath: string | null) {
   return useQuery({
     queryKey: ['subtitle-backup', filePath],
