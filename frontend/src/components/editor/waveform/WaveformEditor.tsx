@@ -28,6 +28,7 @@ import {
   Undo2,
   Redo2,
   Save,
+  AlertTriangle,
 } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 
@@ -37,6 +38,7 @@ import { extractWaveform } from '@/api/client'
 import { useWaveformRegions, type CuePatch, type WaveformCue } from './useWaveformRegions'
 import { detectGapsAndOverlaps } from './gapOverlap'
 import { findAdjacentMarker } from './waveformNavigation'
+import { summarizeIssues } from './issueSummary'
 import { WaveformHotkeys } from './WaveformHotkeys'
 import { WaveformShortcutHelp } from './WaveformShortcutHelp'
 import { WaveformAudioTrackPicker } from './WaveformAudioTrackPicker'
@@ -530,6 +532,10 @@ export function WaveformEditor({
     [parseData],
   )
 
+  // File-level quality summary (feature: issue overview). Reuses the same
+  // per-cue signals as the cue-list dots, aggregated across the whole file.
+  const issueSummary = useMemo(() => summarizeIssues(cueListRows), [cueListRows])
+
   if (extractError) {
     return (
       <div className="flex items-center justify-center h-full">
@@ -774,6 +780,29 @@ export function WaveformEditor({
         <span className="text-xs text-muted">
           {t('waveform.scene_cuts', { count: sceneMarkersMs.length })}
         </span>
+      )}
+
+      {issueSummary.total > 0 && (
+        <button
+          type="button"
+          onClick={() => {
+            if (issueSummary.firstIssueSec !== null) seekTo(issueSummary.firstIssueSec)
+          }}
+          className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded text-xs font-medium border bg-surface ${
+            issueSummary.overlaps > 0 || issueSummary.tooFast > 0
+              ? 'text-error border-error'
+              : 'text-warning border-warning'
+          }`}
+          title={t('waveform.issues_tooltip', {
+            overlaps: issueSummary.overlaps,
+            gaps: issueSummary.tightGaps,
+            fast: issueSummary.tooFast,
+            short: issueSummary.tooShort,
+          })}
+        >
+          <AlertTriangle size={12} aria-hidden="true" />
+          {t('waveform.issues_button', { count: issueSummary.total })}
+        </button>
       )}
     </div>
   )

@@ -142,6 +142,8 @@
     "cues_format": "{{count}} cues · {{format}}",
     "snap_keyframes": "Snap: {{count}} keyframes",
     "scene_cuts": "{{count}} scene cuts",
+    "issues_button": "{{count}} issues",
+    "issues_tooltip": "{{overlaps}} overlaps · {{gaps}} tight gaps · {{fast}} too fast · {{short}} too short — click to jump to the first",
     "extracting_audio": "Extracting audio…",
     "drawing": "Drawing waveform…"
   },

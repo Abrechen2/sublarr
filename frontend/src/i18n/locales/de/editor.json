@@ -142,6 +142,8 @@
     "cues_format": "{{count}} Cues · {{format}}",
     "snap_keyframes": "Einrasten: {{count}} Keyframes",
     "scene_cuts": "{{count}} Szenenwechsel",
+    "issues_button": "{{count}} Probleme",
+    "issues_tooltip": "{{overlaps}} Überlappungen · {{gaps}} enge Abstände · {{fast}} zu schnell · {{short}} zu kurz — klicken, um zum ersten zu springen",
     "extracting_audio": "Audio wird extrahiert…",
     "drawing": "Wellenform wird gezeichnet…"
   },
