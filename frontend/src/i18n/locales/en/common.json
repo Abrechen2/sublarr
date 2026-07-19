@@ -713,20 +713,6 @@
     "decline": "No thanks",
     "settingLabel": "Anonymous usage statistics"
   },
-  "damage_notice": {
-    "title": "Important: a bug in Sublarr damaged your subtitles",
-    "apology": "We are genuinely sorry. A bug in Sublarr deleted words from your downloaded subtitles. This should never have happened.",
-    "what_happened": "HI removal (hearing-impaired cleanup) used an English filler-word list containing \"um\", \"uh\", \"eh\" and \"nah\" — and cut those out of the text in every language. In German they are ordinary words; \"um\" is one of the most common prepositions there is.",
-    "example_before": "Original from the provider:",
-    "example_after": "What Sublarr turned it into:",
-    "who_is_affected": "Affected are subtitles downloaded while \"HI removal\" was enabled in auto-processing. If that option is off for you, nothing was altered.",
-    "fixed": "The cause is gone: filler-word removal has been removed outright. HI removal now only touches genuine markers — brackets, music symbols, speaker labels. New downloads are clean.",
-    "repair_available": "And we can repair the damage.",
-    "repair_how": "Repair brings the pristine original back — from a provably clean backup, or by re-downloading it. Nothing is overwritten without proving the real original is in hand. Files you edited yourself are left alone, and the sync is preserved.",
-    "later": "Later",
-    "open_repair": "Open repair",
-    "got_it": "Understood"
-  },
   "repair": {
     "title": "Repair damaged subtitles",
     "intro": "A bug in Sublarr (before 1.6.6) deleted words from subtitles. Repair brings the pristine original back — from a provably clean backup, or by re-downloading it from the provider where necessary.",

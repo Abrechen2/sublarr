@@ -713,20 +713,6 @@
     "decline": "Nein danke",
     "settingLabel": "Anonyme Nutzungsstatistik"
   },
-  "damage_notice": {
-    "title": "Wichtig: Fehler in Sublarr hat Untertitel beschädigt",
-    "apology": "Es tut uns aufrichtig leid. Ein Fehler in Sublarr hat Wörter aus deinen heruntergeladenen Untertiteln gelöscht. Das hätte nicht passieren dürfen.",
-    "what_happened": "Die HI-Entfernung (Untertitel für Hörgeschädigte) benutzte eine englische Wortliste mit Füllwörtern wie \"um\", \"uh\", \"eh\" und \"nah\" — und schnitt diese aus dem Text jeder Sprache. Im Deutschen sind das ganz normale Wörter. \"um\" ist eine der häufigsten Präpositionen überhaupt.",
-    "example_before": "Original vom Anbieter:",
-    "example_after": "Was Sublarr daraus gemacht hat:",
-    "who_is_affected": "Betroffen sind Untertitel, die heruntergeladen wurden, während \"HI-Entfernung\" in der automatischen Verarbeitung aktiv war. Ist die Option bei dir aus, wurde nichts verändert.",
-    "fixed": "Die Ursache ist beseitigt: Die Füllwort-Entfernung ist ersatzlos entfernt. Die HI-Entfernung fasst jetzt nur noch echte Marker an — Klammern, Musiksymbole, Sprecher-Labels. Neue Downloads sind sauber.",
-    "repair_available": "Und wir können den Schaden reparieren.",
-    "repair_how": "Die Reparatur holt das unversehrte Original zurück — aus einer nachweislich sauberen Sicherung oder per erneutem Download. Es wird nichts überschrieben, ohne bewiesen zu haben, dass das echte Original vorliegt. Selbst bearbeitete Dateien bleiben unangetastet, die Synchronisation bleibt erhalten.",
-    "later": "Später",
-    "open_repair": "Reparatur öffnen",
-    "got_it": "Verstanden"
-  },
   "repair": {
     "title": "Beschädigte Untertitel reparieren",
     "intro": "Ein Fehler in Sublarr (vor 1.6.6) hat Wörter aus Untertiteln gelöscht. Die Reparatur holt das unversehrte Original zurück — aus einer nachweislich sauberen Sicherung oder, falls nötig, per erneutem Download beim Anbieter.",
