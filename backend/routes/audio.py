@@ -16,6 +16,7 @@ from services.audio_visualizer import (
     list_keyframes,
 )
 from services.scene_detector import detect_scenes
+from services.speech_detector import detect_speech_segments
 
 bp = Blueprint("audio", __name__, url_prefix="/api/v1")
 logger = logging.getLogger(__name__)
@@ -412,3 +413,63 @@ def get_audio_scenes():
     except ImportError:
         available = False
     return jsonify({"scenes": scenes, "available": available}), 200
+
+
+@bp.route("/audio/speech", methods=["GET"])
+@limiter.limit("5 per minute")
+def get_audio_speech():
+    """Return speech-activity (VAD) segments for a video's audio.
+    ---
+    get:
+      tags:
+        - Audio
+      summary: List speech-activity segments
+      description: WebRTC VAD segments (dialogue windows). Response is
+        ``{"segments": [{"start","end"}], "available": bool}``; the speech lane
+        is omitted client-side when VAD is unavailable.
+      security:
+        - apiKeyAuth: []
+      parameters:
+        - in: query
+          name: file_path
+          required: true
+          schema:
+            type: string
+        - in: query
+          name: track
+          required: false
+          schema:
+            type: integer
+      responses:
+        200:
+          description: Speech-segment list (possibly empty)
+        400:
+          description: Missing file_path
+        403:
+          description: Path outside media root
+        404:
+          description: File not found
+    """
+    mapped_path, err, status = _resolve_media_path(request.args.get("file_path"))
+    if mapped_path is None:
+        return err, status
+    track_arg = request.args.get("track")
+    track_index: int | None = None
+    if track_arg is not None:
+        try:
+            track_index = int(track_arg)
+        except ValueError:
+            track_index = None
+    try:
+        segments = detect_speech_segments(mapped_path, track_index)
+    except Exception:
+        logger.exception("Unexpected error detecting speech segments")
+        return jsonify({"error": "Internal server error"}), 500
+    available = True
+    try:
+        from services.speech_detector import _import_webrtcvad
+
+        _import_webrtcvad()
+    except ImportError:
+        available = False
+    return jsonify({"segments": segments, "available": available}), 200

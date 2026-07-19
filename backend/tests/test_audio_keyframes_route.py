@@ -143,3 +143,36 @@ class TestScenesRoute:
         assert resp.status_code == 200
         body = resp.get_json()
         assert body == {"scenes": [], "available": False}
+
+
+class TestSpeechRoute:
+    def test_requires_file_path(self, client):
+        resp = client.get("/api/v1/audio/speech")
+        assert resp.status_code == 400
+
+    def test_rejects_path_traversal(self, client):
+        resp = client.get("/api/v1/audio/speech?file_path=/etc/passwd")
+        assert resp.status_code == 403
+
+    def test_returns_empty_when_webrtcvad_unavailable(self, client, tmp_path):
+        video = tmp_path / "ep.mkv"
+        video.write_bytes(b"\x00")
+        from services import speech_detector
+
+        with patch.object(speech_detector, "_import_webrtcvad", side_effect=ImportError()):
+            resp = client.get(f"/api/v1/audio/speech?file_path={video}")
+        assert resp.status_code == 200
+        assert resp.get_json() == {"segments": [], "available": False}
+
+    def test_returns_segments_when_available(self, client, tmp_path):
+        video = tmp_path / "ep.mkv"
+        video.write_bytes(b"\x00")
+        with patch(
+            "routes.audio.detect_speech_segments",
+            return_value=[{"start": 1.0, "end": 2.5}],
+        ):
+            resp = client.get(f"/api/v1/audio/speech?file_path={video}")
+        assert resp.status_code == 200
+        body = resp.get_json()
+        assert body["segments"] == [{"start": 1.0, "end": 2.5}]
+        assert body["available"] is True
