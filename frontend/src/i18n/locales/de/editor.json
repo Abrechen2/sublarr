@@ -97,6 +97,8 @@
       "nextKeyframe": "Zum nächsten Keyframe springen",
       "prevDefect": "Zum vorherigen Timing-Problem springen",
       "nextDefect": "Zum nächsten Timing-Problem springen",
+      "prevScene": "Zum vorherigen Szenenwechsel springen",
+      "nextScene": "Zum nächsten Szenenwechsel springen",
       "zoomIn": "Vergrößern",
       "zoomOut": "Verkleinern",
       "showHelp": "Diese Hilfe anzeigen"

@@ -97,6 +97,8 @@
       "nextKeyframe": "Jump to next keyframe",
       "prevDefect": "Jump to previous timing issue",
       "nextDefect": "Jump to next timing issue",
+      "prevScene": "Jump to previous scene cut",
+      "nextScene": "Jump to next scene cut",
       "zoomIn": "Zoom in",
       "zoomOut": "Zoom out",
       "showHelp": "Show this help"

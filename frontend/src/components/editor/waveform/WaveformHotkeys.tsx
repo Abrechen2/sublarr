@@ -40,6 +40,8 @@ export function WaveformHotkeys({ enabled, onAction }: WaveformHotkeysProps) {
   useHotkeys('shift+k', () => onAction('prevKeyframe'), opts)
   useHotkeys('n', () => onAction('nextDefect'), opts)
   useHotkeys('shift+n', () => onAction('prevDefect'), opts)
+  useHotkeys('c', () => onAction('nextScene'), opts)
+  useHotkeys('shift+c', () => onAction('prevScene'), opts)
   useHotkeys('+', () => onAction('zoomIn'), opts)
   useHotkeys('-', () => onAction('zoomOut'), opts)
   useHotkeys('shift+/', () => onAction('showHelp'), opts)

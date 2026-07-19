@@ -343,6 +343,7 @@ export function WaveformEditor({
   // in seconds; defect times are the start of each detected gap/overlap so
   // "next defect" lands the playhead on the next timing problem.
   const keyframesSec = useMemo<number[]>(() => keyframesData?.keyframes ?? [], [keyframesData])
+  const sceneTimesSec = useMemo<number[]>(() => scenesData?.scenes ?? [], [scenesData])
   const defectTimesSec = useMemo<number[]>(() => {
     const { overlaps, tightGaps } = detectGapsAndOverlaps(cues)
     return [...overlaps, ...tightGaps].map((d) => d.start).sort((a, b) => a - b)
@@ -491,6 +492,18 @@ export function WaveformEditor({
             if (target !== null) seekTo(target)
           }
           return
+        case 'nextScene':
+          if (ws) {
+            const target = findAdjacentMarker(sceneTimesSec, ws.getCurrentTime(), 'next')
+            if (target !== null) seekTo(target)
+          }
+          return
+        case 'prevScene':
+          if (ws) {
+            const target = findAdjacentMarker(sceneTimesSec, ws.getCurrentTime(), 'prev')
+            if (target !== null) seekTo(target)
+          }
+          return
         case 'zoomIn':
           stepZoom('in')
           return
@@ -510,6 +523,7 @@ export function WaveformEditor({
       seekBy,
       seekTo,
       keyframesSec,
+      sceneTimesSec,
       defectTimesSec,
       selectedCueIdx,
       onSplitCue,

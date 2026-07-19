@@ -32,6 +32,8 @@ export type WaveformAction =
   | 'nextKeyframe'
   | 'prevDefect'
   | 'nextDefect'
+  | 'prevScene'
+  | 'nextScene'
   | 'zoomIn'
   | 'zoomOut'
   | 'showHelp'
@@ -72,6 +74,8 @@ export const WAVEFORM_SHORTCUTS: readonly WaveformShortcut[] = [
   { keys: 'shift+k', display: 'Shift+K', action: 'prevKeyframe', labelKey: 'prevKeyframe', group: 'markers' },
   { keys: 'n', display: 'N', action: 'nextDefect', labelKey: 'nextDefect', group: 'markers' },
   { keys: 'shift+n', display: 'Shift+N', action: 'prevDefect', labelKey: 'prevDefect', group: 'markers' },
+  { keys: 'c', display: 'C', action: 'nextScene', labelKey: 'nextScene', group: 'markers' },
+  { keys: 'shift+c', display: 'Shift+C', action: 'prevScene', labelKey: 'prevScene', group: 'markers' },
   { keys: '+', display: '+', action: 'zoomIn', labelKey: 'zoomIn', group: 'zoom' },
   { keys: '-', display: '−', action: 'zoomOut', labelKey: 'zoomOut', group: 'zoom' },
   { keys: 'shift+/', display: '?', action: 'showHelp', labelKey: 'showHelp', group: 'help' },

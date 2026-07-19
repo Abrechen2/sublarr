@@ -83,6 +83,17 @@ describe('WaveformHotkeys', () => {
     expect(onAction).toHaveBeenCalledWith('prevKeyframe')
   })
 
+  it('dispatches scene-cut jumps on C and Shift+C', async () => {
+    const onAction = vi.fn()
+    render(<WaveformHotkeys enabled={true} onAction={onAction} />)
+
+    await userEvent.keyboard('c')
+    expect(onAction).toHaveBeenCalledWith('nextScene')
+
+    await userEvent.keyboard('{Shift>}c{/Shift}')
+    expect(onAction).toHaveBeenCalledWith('prevScene')
+  })
+
   it('does NOT dispatch when disabled', async () => {
     const onAction = vi.fn()
     render(<WaveformHotkeys enabled={false} onAction={onAction} />)
