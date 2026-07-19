@@ -56,7 +56,6 @@ const CREDENTIAL_TYPES: Record<string, CredentialType> = {
   opensubtitles_com: 'api_key',
   opensubtitlesvip: 'login',
   podnapisi: 'free',
-  subscene: 'free',
   subdl: 'api_key',
   zimuku: 'free',
   jimaku: 'api_key',

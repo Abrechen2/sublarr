@@ -20,7 +20,6 @@ ENABLED_PROVIDER_MODULES = [
     ("providers.kitsunekko", "KitsunekkoProvider"),
     ("providers.napisy24", "Napisy24Provider"),
     ("providers.titrari", "TitrariProvider"),
-    ("providers.subscene", "SubsceneProvider"),
     ("providers.addic7ed", "Addic7edProvider"),
     ("providers.tvsubtitles", "TVSubtitlesProvider"),
 ]

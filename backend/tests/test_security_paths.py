@@ -303,7 +303,6 @@ _PROVIDERS_WITH_INLINE_ZIP = [
     "providers.animetosho",
     "providers.kitsunekko",
     "providers.napisy24",
-    "providers.subscene",
     "providers.turkcealtyazi",
 ]
 

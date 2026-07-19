@@ -60,7 +60,6 @@ _BUILTIN_PROVIDERS: tuple[str, ...] = (
     "napisy24",
     "titrari",
     "legendasdivx",
-    "subscene",
     "addic7ed",
     "tvsubtitles",
     "turkcealtyazi",

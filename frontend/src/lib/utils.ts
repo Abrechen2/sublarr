@@ -48,7 +48,6 @@ const PROVIDER_DISPLAY_NAMES: Record<string, string> = {
   napisy24: 'Napisy24',
   betaseries: 'BetaSeries',
   subf2m: 'Subf2m',
-  subscene: 'Subscene',
   subsource: 'SubSource',
   tvsubtitles: 'TVsubtitles',
   embedded: 'Embedded',

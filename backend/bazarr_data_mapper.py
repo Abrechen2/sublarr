@@ -295,7 +295,6 @@ def import_bazarr_history(db_data: dict) -> dict:
 _PROVIDER_MAP = {
     "opensubtitles": "OpenSubtitles",
     "addic7ed": "Addic7ed",
-    "subscene": "Subscene",
     "podnapisi": "Podnapisi",
     "legendasdivx": "LegendasDivx",
     "subscenter": "SubsCenter",
