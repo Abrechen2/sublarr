@@ -225,6 +225,7 @@
     "edit_cue_aria": "Cue {{index}} bearbeiten",
     "empty_cue": "(leerer Cue)",
     "gap_tooltip": "Enger Abstand (< 80 ms) zum nächsten Cue",
-    "overlap_tooltip": "Überlappung mit nächstem Cue"
+    "overlap_tooltip": "Überlappung mit nächstem Cue",
+    "cps_tooltip": "Lesegeschwindigkeit: {{cps}} Zeichen/s ({{chars}} Zeichen) — evtl. zu schnell zum Lesen"
   }
 }

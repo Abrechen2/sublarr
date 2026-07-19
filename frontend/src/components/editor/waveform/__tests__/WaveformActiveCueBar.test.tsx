@@ -73,4 +73,34 @@ describe('WaveformActiveCueBar', () => {
     render(<WaveformActiveCueBar cueIndex={null} cueCount={0} startSec={0} endSec={0} text="" />)
     expect(screen.getByText(/keine Cues|no cues/i)).toBeInTheDocument()
   })
+
+  it('shows a CPS reading-speed badge for the selected cue', () => {
+    // "Hallo Welt" = 10 chars over 2 s = 5.0 CPS
+    render(
+      <WaveformActiveCueBar
+        cueIndex={0}
+        cueCount={1}
+        startSec={0}
+        endSec={2}
+        text="Hallo Welt"
+      />,
+    )
+    expect(screen.getByText(/5\.0 CPS/)).toBeInTheDocument()
+  })
+
+  it('flags an unreadable (too fast) cue in the CPS badge title', () => {
+    // 40 chars over 1 s = 40 CPS → tooFast
+    render(
+      <WaveformActiveCueBar
+        cueIndex={0}
+        cueCount={1}
+        startSec={0}
+        endSec={1}
+        text={'x'.repeat(40)}
+      />,
+    )
+    const badge = screen.getByText(/40\.0 CPS/)
+    expect(badge).toBeInTheDocument()
+    expect(badge.getAttribute('title')).toMatch(/too fast/i)
+  })
 })

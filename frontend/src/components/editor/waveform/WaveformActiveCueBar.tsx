@@ -8,6 +8,7 @@
  */
 
 import { formatCueTextForDisplay } from './cueTextDisplay'
+import { classifyReadingSpeed, formatCps, type ReadingSpeedLevel } from './readingSpeed'
 
 interface WaveformActiveCueBarProps {
   cueIndex: number | null
@@ -15,6 +16,14 @@ interface WaveformActiveCueBarProps {
   startSec: number
   endSec: number
   text: string
+}
+
+/** Tailwind text colour per reading-speed level. `ok` stays muted so the badge
+ * is informative-but-quiet; problems escalate to warning/error. */
+const CPS_LEVEL_CLASS: Record<ReadingSpeedLevel, string> = {
+  ok: 'text-muted',
+  fast: 'text-warning',
+  tooFast: 'text-error',
 }
 
 /** Format a non-negative number of seconds as `HH:MM:SS.mmm`. */
@@ -55,6 +64,7 @@ export function WaveformActiveCueBar({
 
   const lines = formatCueTextForDisplay(text).split('\n')
   const duration = Math.max(0, endSec - startSec)
+  const rs = classifyReadingSpeed(text, startSec, endSec)
 
   return (
     <div className="rounded border border-accent-dim bg-accent-bg/30 px-4 py-3">
@@ -64,6 +74,22 @@ export function WaveformActiveCueBar({
         <span aria-hidden="true">→</span>
         <span className="tabular-nums">{formatTimecode(endSec)}</span>
         <span className="text-muted/70">({duration.toFixed(3)} s)</span>
+        <span
+          className={`tabular-nums font-medium ${CPS_LEVEL_CLASS[rs.level]}`}
+          title={
+            `${rs.chars} Zeichen · Lesegeschwindigkeit ${formatCps(rs.cps)} Zeichen/s` +
+            (rs.tooShort ? ' · sehr kurze Standzeit' : '') +
+            ` — Reading speed: ${formatCps(rs.cps)} CPS` +
+            (rs.level === 'tooFast'
+              ? ' (too fast)'
+              : rs.level === 'fast'
+                ? ' (fast)'
+                : '')
+          }
+        >
+          {formatCps(rs.cps)} CPS
+          {rs.tooShort && <span aria-hidden="true"> ⏱</span>}
+        </span>
       </div>
       <div className="text-base leading-snug text-primary">
         {lines.length === 0 || (lines.length === 1 && lines[0] === '') ? (

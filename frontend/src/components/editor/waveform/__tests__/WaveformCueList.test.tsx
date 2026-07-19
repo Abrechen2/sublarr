@@ -181,4 +181,21 @@ describe('WaveformCueList — read-only first pass', () => {
     )
     expect(screen.getByText(/keine Cues|no cues/i)).toBeInTheDocument()
   })
+
+  it('shows a CPS chip only for too-fast cues, not comfortable ones', () => {
+    render(
+      <WaveformCueList
+        cues={[
+          { start: 0, end: 3, text: 'Comfortable line' }, // 16 chars / 3 s ≈ 5.3 CPS → ok
+          { start: 3, end: 4, text: 'x'.repeat(40) }, // 40 chars / 1 s = 40 CPS → too fast
+        ]}
+        selectedCueIdx={null}
+        onSelectCue={() => {}}
+      />,
+    )
+    expect(screen.queryByTestId('cue-cps-0')).not.toBeInTheDocument()
+    const chip = screen.getByTestId('cue-cps-1')
+    expect(chip).toBeInTheDocument()
+    expect(chip).toHaveTextContent('40')
+  })
 })

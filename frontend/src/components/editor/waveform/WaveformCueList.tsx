@@ -16,6 +16,7 @@ import { useEffect, useMemo, useRef, useState, useCallback } from 'react'
 import { useTranslation } from 'react-i18next'
 import { detectGapsAndOverlaps } from './gapOverlap'
 import { formatCueTextForDisplay } from './cueTextDisplay'
+import { classifyReadingSpeed, formatCps } from './readingSpeed'
 
 export interface CueListRow {
   start: number
@@ -151,6 +152,14 @@ export function WaveformCueList({
     return { gapIndices: gap, overlapIndices: overlap }
   }, [cues, gapToleranceMs])
 
+  // Per-cue reading speed (CPS). Memoised alongside the defect scan so a long
+  // list doesn't reclassify on every unrelated render. We surface it only for
+  // problem rows (fast / too-fast / too-short) to keep the lane quiet.
+  const readingSpeeds = useMemo(
+    () => cues.map((c) => classifyReadingSpeed(c.text, c.start, c.end)),
+    [cues],
+  )
+
   // Currently-playing cue: first cue whose [start, end) contains the
   // playhead. Recomputes on every prop change but we cap the search via
   // an early exit because cues are time-sorted in practice.
@@ -251,6 +260,11 @@ export function WaveformCueList({
           const isEditingThisRow = editingIdx === idx
           const hasGap = gapIndices.has(idx)
           const hasOverlap = overlapIndices.has(idx)
+          const rs = readingSpeeds[idx]
+          // Only draw the CPS chip when it signals a problem — a comfortable
+          // line shows nothing here, matching the always-on defect-dot logic.
+          const showCps = rs != null && (rs.level !== 'ok' || rs.tooShort)
+          const cpsClass = rs?.level === 'tooFast' ? 'text-error' : 'text-warning'
           // Sync-scroll highlight: cues that currently intersect the wave
           // viewport get a visible surface tint, so the editor can see what
           // is currently on screen without losing the active selection.
@@ -362,6 +376,19 @@ export function WaveformCueList({
                 )}
               </div>
               <div className="flex items-start justify-end gap-1.5 pt-1">
+                {showCps && (
+                  <span
+                    data-testid={`cue-cps-${idx}`}
+                    title={t('cue_list.cps_tooltip', {
+                      cps: formatCps(rs.cps),
+                      chars: rs.chars,
+                    })}
+                    className={`text-[10px] font-medium tabular-nums leading-none ${cpsClass}`}
+                  >
+                    {rs.cps === null ? '∞' : Math.round(rs.cps)}
+                    {rs.tooShort && <span aria-hidden="true"> ⏱</span>}
+                  </span>
+                )}
                 {hasGap && (
                   <span
                     data-testid={`quality-dot-gap-${idx}`}

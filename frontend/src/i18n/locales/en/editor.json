@@ -225,6 +225,7 @@
     "edit_cue_aria": "Edit cue {{index}}",
     "empty_cue": "(empty cue)",
     "gap_tooltip": "Tight gap (< 80 ms) to next cue",
-    "overlap_tooltip": "Overlap with next cue"
+    "overlap_tooltip": "Overlap with next cue",
+    "cps_tooltip": "Reading speed: {{cps}} chars/s ({{chars}} chars) — may be too fast to read"
   }
 }
