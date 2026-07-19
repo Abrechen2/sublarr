@@ -132,6 +132,8 @@
     "scrub": "Scrub",
     "keyframes_tooltip": "Show keyframe markers",
     "keyframes": "Keyframes",
+    "speech_tooltip": "Show speech activity (VAD) as a green lane — where dialogue is, separated from music/SFX",
+    "speech": "Speech",
     "list_show": "Show cue list",
     "list_hide": "Collapse cue list — more waveform",
     "list": "List",

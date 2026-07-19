@@ -29,10 +29,11 @@ import {
   Redo2,
   Save,
   AlertTriangle,
+  Mic,
 } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 
-import { useSubtitleParse, useKeyframes, useAudioTracks, useScenes } from '@/hooks/useApi'
+import { useSubtitleParse, useKeyframes, useAudioTracks, useScenes, useSpeech } from '@/hooks/useApi'
 import { extractWaveform } from '@/api/client'
 
 import { useWaveformRegions, type CuePatch, type WaveformCue } from './useWaveformRegions'
@@ -135,6 +136,7 @@ const ZOOM_STEP_FACTOR = 1.5
 const SPECTROGRAM_LS_KEY = 'sublarr.waveform.spectrogram'
 const SCRUB_LS_KEY = 'sublarr.waveform.scrub'
 const KEYFRAMES_LS_KEY = 'sublarr.waveform.keyframes'
+const SPEECH_LANE_LS_KEY = 'sublarr.waveform.speechLane'
 const AMP_ZOOM_LS_KEY = 'sublarr.waveform.ampZoom'
 const PLAYBACK_RATE_LS_KEY = 'sublarr.waveform.playbackRate'
 const CUE_LIST_COLLAPSED_LS_KEY = 'sublarr.waveform.cueListCollapsed'
@@ -232,6 +234,9 @@ export function WaveformEditor({
   const [showKeyframeMarkers, setShowKeyframeMarkers] = useState<boolean>(() =>
     readBoolPref(KEYFRAMES_LS_KEY, false),
   )
+  const [showSpeechLane, setShowSpeechLane] = useState<boolean>(() =>
+    readBoolPref(SPEECH_LANE_LS_KEY, false),
+  )
   const [ampZoom, setAmpZoom] = useState<number>(() =>
     readNumberPref(AMP_ZOOM_LS_KEY, AMP_DEFAULT, AMP_MIN, AMP_MAX),
   )
@@ -296,6 +301,14 @@ export function WaveformEditor({
     })
   }, [])
 
+  const toggleSpeechLane = useCallback(() => {
+    setShowSpeechLane((cur) => {
+      const next = !cur
+      writeBoolPref(SPEECH_LANE_LS_KEY, next)
+      return next
+    })
+  }, [])
+
   const updateAmpZoom = useCallback((value: number) => {
     setAmpZoom(value)
     writeNumberPref(AMP_ZOOM_LS_KEY, value)
@@ -310,6 +323,7 @@ export function WaveformEditor({
   const { data: keyframesData } = useKeyframes(videoPath || null)
   const { data: audioTracksData } = useAudioTracks(videoPath || null)
   const { data: scenesData } = useScenes(videoPath || null)
+  const { data: speechData } = useSpeech(videoPath || null)
   const audioTracks = audioTracksData?.tracks ?? []
 
   // Convert parsed cues -> stable WaveformCue array for the hook.
@@ -338,6 +352,9 @@ export function WaveformEditor({
     () => (scenesData?.scenes ?? []).map((s) => s * 1000),
     [scenesData],
   )
+
+  // VAD speech-activity segments (seconds) — painted as an opt-in green lane.
+  const speechSegments = useMemo(() => speechData?.segments ?? [], [speechData])
 
   // Marker-jump targets (jump navigation). Keyframes arrive from the backend
   // in seconds; defect times are the start of each detected gap/overlap so
@@ -383,6 +400,8 @@ export function WaveformEditor({
     showKeyframeMarkers,
     ampZoom,
     playbackRate,
+    speechSegments,
+    showSpeechLane,
   })
 
   // Multiplicative zoom step, clamped to the slider bounds. Used by the
@@ -694,6 +713,23 @@ export function WaveformEditor({
         <Film size={12} />
         {t('waveform.keyframes')}
       </button>
+
+      {speechData?.available && (
+        <button
+          type="button"
+          onClick={toggleSpeechLane}
+          aria-pressed={showSpeechLane}
+          className={`flex items-center gap-1.5 px-3 py-1.5 rounded text-xs font-medium transition-colors border ${
+            showSpeechLane
+              ? 'bg-accent-bg text-accent border-accent-dim'
+              : 'bg-surface text-primary border-border'
+          }`}
+          title={t('waveform.speech_tooltip')}
+        >
+          <Mic size={12} />
+          {t('waveform.speech')}
+        </button>
+      )}
 
       <button
         type="button"

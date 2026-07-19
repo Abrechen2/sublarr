@@ -131,6 +131,15 @@ export interface UseWaveformRegionsArgs {
    * stay above.
    */
   gapToleranceMs?: number
+  /**
+   * VAD speech-activity segments in seconds. Painted as a green strip just
+   * above the gap/overlap lane so the editor can see where dialogue is
+   * (anime mixes bury speech under BGM/SFX). Opt-in via `showSpeechLane`.
+   */
+  speechSegments?: { start: number; end: number }[]
+  /** Show the speech-activity lane. Default false — opt-in, never disturbs the
+   *  locked surfaces when off. */
+  showSpeechLane?: boolean
 }
 
 export interface UseWaveformRegionsResult {
@@ -211,6 +220,8 @@ export function useWaveformRegions({
   playbackRate,
   showGapOverlapMarkers = true,
   gapToleranceMs = 80,
+  speechSegments,
+  showSpeechLane = false,
 }: UseWaveformRegionsArgs): UseWaveformRegionsResult {
   const wsRef = useRef<WaveSurfer | null>(null)
   const regionsRef = useRef<RegionsPlugin | null>(null)
@@ -704,6 +715,58 @@ export function useWaveformRegions({
       if (!prevPosition) wrapper!.style.position = ''
     }
   }, [isReady, cues, showGapOverlapMarkers, gapToleranceMs])
+
+  // VAD speech-activity lane (Waveform Phase 2). Opt-in via `showSpeechLane`
+  // so it never touches the locked surfaces when off. Speech segments paint as
+  // a green strip just above the gap/overlap quality lane, using the same
+  // percent-of-duration DOM overlay so they scale with WaveSurfer's zoom.
+  useEffect(() => {
+    if (!isReady) return
+    if (!showSpeechLane) return
+    const ws = wsRef.current
+    if (!ws) return
+    const segs = speechSegments
+    if (!segs || segs.length === 0) return
+
+    let wrapper: HTMLElement | null = null
+    try {
+      wrapper = ws.getWrapper()
+    } catch {
+      return
+    }
+    if (!wrapper) return
+
+    const dur = ws.getDuration()
+    if (!Number.isFinite(dur) || dur <= 0) return
+
+    const prevPosition = wrapper.style.position
+    if (!prevPosition) wrapper.style.position = 'relative'
+
+    const created: HTMLDivElement[] = []
+    for (const seg of segs) {
+      const safeStart = Math.max(0, seg.start)
+      const safeEnd = Math.min(dur, seg.end)
+      if (safeEnd <= safeStart) continue
+      const el = document.createElement('div')
+      el.dataset.sublarrSpeechSegment = '1'
+      el.style.position = 'absolute'
+      el.style.bottom = '8px' // just above the 6 px gap/overlap lane
+      el.style.height = '5px'
+      el.style.left = `${(safeStart / dur) * 100}%`
+      el.style.width = `${((safeEnd - safeStart) / dur) * 100}%`
+      el.style.background = 'rgba(34, 197, 94, 0.55)' // green-500 @ 55 %
+      el.style.borderRadius = '2px'
+      el.style.pointerEvents = 'none'
+      el.style.zIndex = '4'
+      wrapper.appendChild(el)
+      created.push(el)
+    }
+
+    return () => {
+      for (const el of created) el.remove()
+      if (!prevPosition) wrapper!.style.position = ''
+    }
+  }, [isReady, showSpeechLane, speechSegments])
 
   // Plan B8 Task 7 — register/unregister the spectrogram plugin in
   // response to the toggle. Done outside the WaveSurfer-create effect so
