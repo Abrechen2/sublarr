@@ -504,14 +504,19 @@ def create_app(testing=False):
         def handle_disconnect():
             logger.debug("WebSocket client disconnected")
 
+        # Accept (and ignore) any payload the client sends with the event.
+        # flask-socketio forwards the emitted message data as a positional
+        # argument, so a zero-arg handler raises "takes 0 positional arguments
+        # but 1 was given" and the room join silently fails — dropping the Logs
+        # page back to polling. `*_args` keeps the handler tolerant either way.
         @socketio.on("subscribe_logs")
-        def _subscribe_logs():
+        def _subscribe_logs(*_args):
             from flask_socketio import join_room
 
             join_room("logs")
 
         @socketio.on("unsubscribe_logs")
-        def _unsubscribe_logs():
+        def _unsubscribe_logs(*_args):
             from flask_socketio import leave_room
 
             leave_room("logs")
