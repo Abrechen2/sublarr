@@ -823,13 +823,6 @@ export function WaveformEditor({
 
   return (
     <div className="flex flex-col gap-3 p-4 h-full min-h-0">
-      {showSpinner && (
-        <div className="flex items-center gap-2 text-sm text-muted">
-          <Loader2 size={14} className="animate-spin" />
-          {extractLoading ? t('waveform.extracting_audio') : t('waveform.drawing')}
-        </div>
-      )}
-
       {!showSpinner && toolbar}
 
       <WaveformActiveCueBar
@@ -852,8 +845,21 @@ export function WaveformEditor({
         }
       />
 
-      <div className="relative rounded overflow-hidden bg-primary border border-border flex-shrink-0">
+      <div
+        className={`relative rounded overflow-hidden bg-primary border border-border flex-shrink-0 ${
+          showSpinner ? 'min-h-[160px]' : ''
+        }`}
+      >
         <div ref={containerRef} />
+        {showSpinner && (
+          <div className="absolute inset-0 flex flex-col items-center justify-center gap-2.5 px-4 text-center bg-primary/70">
+            <Loader2 size={30} className="animate-spin text-accent" aria-hidden="true" />
+            <div className="text-sm font-medium text-primary">
+              {extractLoading ? t('waveform.extracting_audio') : t('waveform.drawing')}
+            </div>
+            <div className="max-w-xs text-xs text-muted">{t('waveform.loading_hint')}</div>
+          </div>
+        )}
         {parseData?.format === 'ass' &&
           selectedCueIdx !== null &&
           parseData.cues[selectedCueIdx]?.syllables &&

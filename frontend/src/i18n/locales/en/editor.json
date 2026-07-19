@@ -147,7 +147,8 @@
     "issues_button": "{{count}} issues",
     "issues_tooltip": "{{overlaps}} overlaps · {{gaps}} tight gaps · {{fast}} too fast · {{short}} too short — click to jump to the first",
     "extracting_audio": "Extracting audio…",
-    "drawing": "Drawing waveform…"
+    "drawing": "Drawing waveform…",
+    "loading_hint": "For long episodes this can take a moment — extracting the audio from the video and drawing the wave."
   },
   "sync_preview": {
     "before_start": "Before Start",

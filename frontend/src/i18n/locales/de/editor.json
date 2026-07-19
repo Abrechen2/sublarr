@@ -147,7 +147,8 @@
     "issues_button": "{{count}} Probleme",
     "issues_tooltip": "{{overlaps}} Überlappungen · {{gaps}} enge Abstände · {{fast}} zu schnell · {{short}} zu kurz — klicken, um zum ersten zu springen",
     "extracting_audio": "Audio wird extrahiert…",
-    "drawing": "Wellenform wird gezeichnet…"
+    "drawing": "Wellenform wird gezeichnet…",
+    "loading_hint": "Bei langen Folgen kann das einen Moment dauern — das Audio wird aus dem Video extrahiert und die Welle gezeichnet."
   },
   "sync_preview": {
     "before_start": "Vor Start",
