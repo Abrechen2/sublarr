@@ -183,9 +183,20 @@ foundation rather than client-side DSP.
 - ✅ File-level issue-summary chip in the toolbar (counts overlaps / tight gaps /
   too-fast / too-short; click → jump to first) — `issueSummary.ts` (`f52d2c6f`).
 
-Still open from Phase 1: scene-cut jump, one-click "fix safe defects" (needs a
-batch-apply + undo path through `SubtitleEditorModal`), loop audition (touches
-the hook's playback effect). Phases 2–4 unchanged.
+Scene-cut jump also shipped (`C`/`Shift+C`, `a05a67a9`). Still open from Phase 1:
+one-click "fix safe defects" (needs a batch-apply + undo path through
+`SubtitleEditorModal`), loop audition (touches the hook's playback effect).
+
+**2026-07-19 — Phase 2 (VAD foundation) shipped + verified on real anime:**
+- ✅ Backend `services/speech_detector.py` (WebRTC VAD, pure aggregator) +
+  `GET /audio/speech` (`295740ab`). No new dep — webrtcvad ships via ffsubsync.
+- ✅ FE data layer `fetchSpeech`/`useSpeech` (`a54d55d6`) + opt-in green speech
+  lane with the `Sprache` toggle (`8ee40674`, default OFF).
+- ✅ Verified on Beta (standalone, real Oshi no Ko episode): 172 segments in
+  1.1s, lane renders correctly, zero app errors. Also shipped: prominent
+  loading state (`863e9783`).
+- Still open in Phase 2: server-side multi-resolution waveform-peaks cache;
+  making the VAD lane an optional *snap* target (currently visual only).
 
 ## 7. Explicitly NOT in scope
 
