@@ -9,6 +9,7 @@ import { SettingRow } from '@/components/shared/SettingRow'
 import { Toggle } from '@/components/shared/Toggle'
 import { toast } from '@/components/shared/Toast'
 import { boolVal } from '@/lib/configUtils'
+import { cleanupRemuxBackups } from '@/api/library'
 
 export function RemuxTab() {
   const { t } = useTranslation('settings')
@@ -19,6 +20,34 @@ export function RemuxTab() {
   const arrPauseEnabled = boolVal(config, 'remux_arr_pause_enabled', false)
   const [localTrashDir, setLocalTrashDir] = useState<string>('')
   const [localRetentionDays, setLocalRetentionDays] = useState<string>('7')
+  // Manual backup cleanup: preview (dry-run count) then confirm the real delete.
+  const [cleanupBusy, setCleanupBusy] = useState(false)
+  const [cleanupPreview, setCleanupPreview] = useState<number | null>(null)
+
+  const previewCleanup = async () => {
+    setCleanupBusy(true)
+    try {
+      const r = await cleanupRemuxBackups(true)
+      setCleanupPreview(r.count ?? r.would_delete?.length ?? 0)
+    } catch {
+      toast(t('remux_tab.cleanup_failed'), 'error')
+    } finally {
+      setCleanupBusy(false)
+    }
+  }
+
+  const runCleanup = async () => {
+    setCleanupBusy(true)
+    try {
+      const r = await cleanupRemuxBackups(false)
+      toast(t('remux_tab.cleanup_done', { count: r.deleted?.length ?? 0 }))
+      setCleanupPreview(null)
+    } catch {
+      toast(t('remux_tab.cleanup_failed'), 'error')
+    } finally {
+      setCleanupBusy(false)
+    }
+  }
 
   useEffect(() => {
     const cfg = (config ?? {}) as Record<string, unknown>
@@ -108,6 +137,48 @@ export function RemuxTab() {
           onChange={(v) => saveToggle('remux_arr_pause_enabled', v)}
           disabled={updateConfig.isPending}
         />
+      </SettingRow>
+
+      <SettingRow
+        label={t('remux_tab.cleanup')}
+        description={t('remux_tab.cleanup_desc')}
+      >
+        <div className="flex items-center gap-3 flex-wrap">
+          {cleanupPreview === null ? (
+            <button
+              type="button"
+              onClick={previewCleanup}
+              disabled={cleanupBusy}
+              className="px-3 py-1.5 rounded-md text-xs font-medium border border-border bg-surface text-primary disabled:opacity-40"
+            >
+              {cleanupBusy ? t('remux_tab.cleanup_checking') : t('remux_tab.cleanup_preview')}
+            </button>
+          ) : cleanupPreview === 0 ? (
+            <span className="text-xs text-muted">{t('remux_tab.cleanup_none')}</span>
+          ) : (
+            <>
+              <span className="text-xs text-warning">
+                {t('remux_tab.cleanup_would_delete', { count: cleanupPreview })}
+              </span>
+              <button
+                type="button"
+                onClick={runCleanup}
+                disabled={cleanupBusy}
+                className="px-3 py-1.5 rounded-md text-xs font-medium border border-error text-error bg-surface disabled:opacity-40"
+              >
+                {t('remux_tab.cleanup_confirm')}
+              </button>
+              <button
+                type="button"
+                onClick={() => setCleanupPreview(null)}
+                disabled={cleanupBusy}
+                className="px-3 py-1.5 rounded-md text-xs text-muted disabled:opacity-40"
+              >
+                {t('remux_tab.cleanup_cancel')}
+              </button>
+            </>
+          )}
+        </div>
       </SettingRow>
     </div>
   )

@@ -2,7 +2,7 @@
  * RemuxTab.test.tsx — Tests for Remux settings tab.
  */
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { render, screen, fireEvent } from '@testing-library/react'
+import { render, screen, fireEvent, waitFor } from '@testing-library/react'
 import { RemuxTab } from '../RemuxTab'
 import { AdvancedSettingsProvider } from '@/contexts/AdvancedSettingsContext'
 
@@ -49,6 +49,11 @@ vi.mock('@/hooks/useApi', () => ({
 
 vi.mock('@/components/shared/Toast', () => ({
   toast: vi.fn(),
+}))
+
+const cleanupMock = vi.fn()
+vi.mock('@/api/library', () => ({
+  cleanupRemuxBackups: (dry: boolean) => cleanupMock(dry),
 }))
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
@@ -109,5 +114,28 @@ describe('RemuxTab', () => {
     const trashInput = inputs.find((el) => (el as HTMLInputElement).value === '/media/trash') as HTMLInputElement
     fireEvent.blur(trashInput)
     expect(mutateMock).toHaveBeenCalled()
+  })
+
+  it('previews (dry-run) then confirms remux backup cleanup', async () => {
+    cleanupMock.mockResolvedValueOnce({ count: 3, would_delete: ['a', 'b', 'c'] })
+    cleanupMock.mockResolvedValueOnce({ deleted: ['a', 'b', 'c'] })
+    renderTab()
+
+    fireEvent.click(screen.getByText('Check'))
+    // dry-run preview shows the count and a confirm button appears
+    expect(await screen.findByText('remux_tab.cleanup_would_delete:3')).toBeInTheDocument()
+    expect(cleanupMock).toHaveBeenCalledWith(true)
+
+    fireEvent.click(screen.getByText('Delete now'))
+    await waitFor(() => expect(cleanupMock).toHaveBeenCalledWith(false))
+  })
+
+  it('shows a "nothing to clean" message when the dry-run count is 0', async () => {
+    cleanupMock.mockResolvedValueOnce({ count: 0, would_delete: [] })
+    renderTab()
+    fireEvent.click(screen.getByText('Check'))
+    expect(
+      await screen.findByText('No backups older than the retention window.'),
+    ).toBeInTheDocument()
   })
 })

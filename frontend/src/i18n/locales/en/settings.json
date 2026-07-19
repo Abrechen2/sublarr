@@ -1184,7 +1184,17 @@
     "use_reflink": "Use Reflink",
     "use_reflink_desc": "Use CoW reflink copies instead of full copies",
     "arr_pause": "Pause Arr on Remux",
-    "arr_pause_desc": "Pause Sonarr/Radarr during remux operations"
+    "arr_pause_desc": "Pause Sonarr/Radarr during remux operations",
+    "cleanup": "Clean up old remux backups",
+    "cleanup_desc": "Deletes .bak backups older than the retention window — otherwise the scheduler does this automatically.",
+    "cleanup_preview": "Check",
+    "cleanup_checking": "Checking …",
+    "cleanup_none": "No backups older than the retention window.",
+    "cleanup_would_delete": "{{count}} backup(s) would be deleted.",
+    "cleanup_confirm": "Delete now",
+    "cleanup_cancel": "Cancel",
+    "cleanup_done": "Deleted {{count}} backup(s).",
+    "cleanup_failed": "Cleanup failed."
   },
   "standalone_tab": {
     "scan_interval": "Scan Interval (hours)",

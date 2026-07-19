@@ -186,6 +186,25 @@ export async function restoreRemuxBackup(backupPath: string, videoPath: string):
   return data
 }
 
+export interface RemuxBackupCleanupResult {
+  /** Dry-run: files that WOULD be deleted (older than retention). */
+  would_delete?: string[]
+  /** Dry-run: count of `would_delete`. */
+  count?: number
+  /** Real run: files actually deleted. */
+  deleted?: string[]
+  /** Real run: paths that errored. */
+  errors?: string[]
+  dry_run?: boolean
+}
+
+/** Clean up remux .bak backups older than the configured retention. Pass
+ *  `dryRun` to preview what would be deleted without touching anything. */
+export async function cleanupRemuxBackups(dryRun: boolean): Promise<RemuxBackupCleanupResult> {
+  const { data } = await api.post('/remux/backups/cleanup', { dry_run: dryRun })
+  return data
+}
+
 export async function listEpisodeSubtitles(epId: number): Promise<{ subtitles: import('@/lib/types').SidecarSubtitle[]; video_path: string }> {
   const { data } = await api.get(`/library/episodes/${epId}/subtitles`)
   return data

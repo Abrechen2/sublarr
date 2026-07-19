@@ -1184,7 +1184,17 @@
     "use_reflink": "Reflink verwenden",
     "use_reflink_desc": "CoW-Reflink-Kopien statt vollständiger Kopien verwenden",
     "arr_pause": "Arr während Remux pausieren",
-    "arr_pause_desc": "Sonarr/Radarr während Remux-Operationen pausieren"
+    "arr_pause_desc": "Sonarr/Radarr während Remux-Operationen pausieren",
+    "cleanup": "Alte Remux-Backups aufräumen",
+    "cleanup_desc": "Löscht .bak-Sicherungen, die älter als die Aufbewahrungsfrist sind — sonst erledigt das der Scheduler automatisch.",
+    "cleanup_preview": "Prüfen",
+    "cleanup_checking": "Prüfe …",
+    "cleanup_none": "Keine Backups älter als die Aufbewahrungsfrist.",
+    "cleanup_would_delete": "{{count}} Backup(s) würden gelöscht.",
+    "cleanup_confirm": "Jetzt löschen",
+    "cleanup_cancel": "Abbrechen",
+    "cleanup_done": "{{count}} Backup(s) gelöscht.",
+    "cleanup_failed": "Aufräumen fehlgeschlagen."
   },
   "standalone_tab": {
     "scan_interval": "Scan-Intervall (Stunden)",
