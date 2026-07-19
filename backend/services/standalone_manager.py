@@ -372,11 +372,10 @@ def launch_folder_scan(app, folder_id: int, folder_path: str) -> None:
 
 
 def get_standalone_status() -> dict:
-    """Return the status from StandaloneManager, or a not-implemented placeholder.
+    """Return the current standalone-scan status from the StandaloneManager.
 
     Raises:
-        ImportError: if StandaloneManager is not yet available.
-        Exception: for other unexpected failures.
+        ImportError: if the standalone module is unavailable.
     """
     from standalone import get_standalone_manager
 
