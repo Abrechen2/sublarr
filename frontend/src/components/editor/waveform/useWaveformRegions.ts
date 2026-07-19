@@ -249,6 +249,12 @@ export function useWaveformRegions({
   scenesMsRef.current = sceneMarkersMs
   const sceneTolRef = useRef(sceneToleranceMs)
   sceneTolRef.current = sceneToleranceMs
+  // Speech-edge snap targets — only active while the speech lane is shown, so
+  // enabling "Sprache" both draws the lane and lets boundaries snap to it.
+  const speechSegmentsRef = useRef(speechSegments)
+  speechSegmentsRef.current = speechSegments
+  const showSpeechLaneRef = useRef(showSpeechLane)
+  showSpeechLaneRef.current = showSpeechLane
   const selectedCueIdRef = useRef(selectedCueId)
   selectedCueIdRef.current = selectedCueId
   // Scrub-on-drag inputs read inside the long-lived region-update listener
@@ -270,6 +276,9 @@ export function useWaveformRegions({
       keyframesMs: keyframesMsRef.current ?? [],
       neighborsMs: deriveNeighborsMs(cuesRef.current, excludingId),
       scenesMs: scenesMsRef.current ?? [],
+      speechEdgesMs: showSpeechLaneRef.current
+        ? (speechSegmentsRef.current ?? []).flatMap((s) => [s.start * 1000, s.end * 1000])
+        : [],
       minGapMs: minGapMsRef.current ?? 0,
       keyframeToleranceMs: keyframeTolRef.current,
       neighborToleranceMs: neighborTolRef.current,

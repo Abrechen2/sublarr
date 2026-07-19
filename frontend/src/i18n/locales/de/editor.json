@@ -132,7 +132,7 @@
     "scrub": "Scrubbing",
     "keyframes_tooltip": "Keyframe-Marker einblenden",
     "keyframes": "Keyframes",
-    "speech_tooltip": "Sprach-Aktivität (VAD) als grünes Band anzeigen — wo Dialog ist, getrennt von Musik/Effekten",
+    "speech_tooltip": "Sprach-Aktivität (VAD) als grünes Band anzeigen — wo Dialog ist, getrennt von Musik/Effekten. Cue-Grenzen rasten dann auch an Sprach-Kanten ein.",
     "speech": "Sprache",
     "list_show": "Cue-Liste einblenden",
     "list_hide": "Cue-Liste einklappen — mehr Welle",

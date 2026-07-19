@@ -181,3 +181,80 @@ describe('snap()', () => {
     expect(r.snappedTo).toBe('scene')
   })
 })
+
+describe('snap() — speech edges (VAD)', () => {
+  it('snaps to a speech edge within tolerance', () => {
+    const r = snap(1000, {
+      keyframesMs: [],
+      neighborsMs: [],
+      speechEdgesMs: [1080],
+      minGapMs: 0,
+      speechToleranceMs: 120,
+    })
+    expect(r.value).toBe(1080)
+    expect(r.snappedTo).toBe('speech')
+  })
+
+  it('does not snap to a speech edge outside tolerance', () => {
+    const r = snap(1000, {
+      keyframesMs: [],
+      neighborsMs: [],
+      speechEdgesMs: [1200],
+      minGapMs: 0,
+      speechToleranceMs: 120,
+    })
+    expect(r.snappedTo).toBe('none')
+    expect(r.value).toBe(1000)
+  })
+
+  it('is inert when speechEdgesMs is omitted (backward compatible)', () => {
+    const r = snap(1000, {
+      keyframesMs: [950],
+      neighborsMs: [],
+      minGapMs: 0,
+      keyframeToleranceMs: 150,
+    })
+    expect(r.snappedTo).toBe('keyframe')
+  })
+
+  it('prefers a speech edge over an equidistant scene cut', () => {
+    // both 40 ms away; speech(1) beats scene(2) on the priority tie-break
+    const r = snap(1000, {
+      keyframesMs: [],
+      neighborsMs: [],
+      speechEdgesMs: [1040],
+      scenesMs: [960],
+      minGapMs: 0,
+      speechToleranceMs: 120,
+      sceneToleranceMs: 200,
+    })
+    expect(r.snappedTo).toBe('speech')
+    expect(r.value).toBe(1040)
+  })
+
+  it('lets a keyframe still win over an equidistant speech edge', () => {
+    const r = snap(1000, {
+      keyframesMs: [1040],
+      neighborsMs: [],
+      speechEdgesMs: [960],
+      minGapMs: 0,
+      keyframeToleranceMs: 150,
+      speechToleranceMs: 120,
+    })
+    expect(r.snappedTo).toBe('keyframe')
+    expect(r.value).toBe(1040)
+  })
+
+  it('takes the strictly closer speech edge over a farther keyframe', () => {
+    const r = snap(1000, {
+      keyframesMs: [1130], // 130 ms away
+      neighborsMs: [],
+      speechEdgesMs: [1030], // 30 ms away — closer wins regardless of priority
+      minGapMs: 0,
+      keyframeToleranceMs: 150,
+      speechToleranceMs: 120,
+    })
+    expect(r.snappedTo).toBe('speech')
+    expect(r.value).toBe(1030)
+  })
+})
