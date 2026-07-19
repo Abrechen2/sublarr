@@ -175,6 +175,52 @@ class TestHealthEndpoint:
         data = resp.get_json()
         assert data["status"] in ("healthy", "unhealthy")
 
+    @patch(
+        "routes.system.health._health_check_providers",
+        return_value=({"providers": "healthy"}, None),
+    )
+    @patch(
+        "routes.system.health._health_check_sonarr",
+        return_value=({"sonarr": "not configured"}, None),
+    )
+    @patch(
+        "routes.system.health._health_check_radarr",
+        return_value=({"radarr": "not configured"}, None),
+    )
+    @patch(
+        "routes.system.health._health_check_media_servers",
+        return_value=({"media_servers": "none configured"}, None),
+    )
+    def test_health_does_not_stall_on_hung_optional_check(
+        self, _ms, _rad, _son, _prov, client, monkeypatch
+    ):
+        """A hung optional dependency must not stall the liveness probe.
+
+        Regression for the prod incident where `ollama_url` pointed at an
+        unreachable host: `_health_check_ollama` blocked ~10s, pushing /health
+        past the 10s Docker healthcheck timeout and flapping the container to
+        `unhealthy`. The gather is now budgeted; the straggler is reported as a
+        `timeout` entry (informational — never fails the probe).
+        """
+        import routes.system.health as _mod
+
+        def _hang():
+            time.sleep(30)  # far beyond the liveness budget
+            return ({"ollama": "ok"}, None)
+
+        monkeypatch.setattr(_mod, "_health_check_ollama", _hang)
+        monkeypatch.setattr(_mod, "_HEALTH_LIVENESS_BUDGET_S", 0.5)
+
+        started = time.monotonic()
+        resp = client.get("/api/v1/health")
+        elapsed = time.monotonic() - started
+
+        assert resp.status_code == 200  # hung optional check ≠ unhealthy
+        assert elapsed < 5  # returned on the budget, not after the 30s hang
+        data = resp.get_json()
+        assert data["status"] == "healthy"
+        assert data["services"]["ollama"] == "timeout"
+
 
 # ───────────────────────────────────────────────────────────────────────────────
 # Individual health-check helpers

@@ -6,6 +6,7 @@ The /health/detailed route lives in routes/system/health_detailed.py (B1H split)
 import logging
 import time
 from concurrent.futures import ThreadPoolExecutor, as_completed
+from concurrent.futures import TimeoutError as FuturesTimeoutError
 from contextlib import nullcontext as _nullcontext
 
 from flask import current_app, jsonify, request
@@ -15,6 +16,14 @@ from routes.system import bp
 from version import __version__
 
 logger = logging.getLogger(__name__)
+
+# The basic /health endpoint backs the container HEALTHCHECK. It must return
+# well within the Docker healthcheck timeout regardless of how slow any single
+# optional dependency is, so the per-request gather of the service probes is
+# bounded by this hard budget (seconds). Kept comfortably below the deployed
+# healthcheck timeout (10s) so a straggler can never flap the container to
+# `unhealthy` while the app is actually serving.
+_HEALTH_LIVENESS_BUDGET_S = 3.0
 
 # ─── Update check (GitHub releases) ──────────────────────────────────────────
 
@@ -161,15 +170,21 @@ def health():
     results_by_name = {}
 
     _app = current_app._get_current_object()
-    with ThreadPoolExecutor(max_workers=5) as executor:
-        future_to_name = {
-            executor.submit(_health_check_ollama): "ollama",
-            executor.submit(_health_check_providers, _app): "providers",
-            executor.submit(_health_check_sonarr): "sonarr",
-            executor.submit(_health_check_radarr): "radarr",
-            executor.submit(_health_check_media_servers): "media_servers",
-        }
-        for fut in as_completed(future_to_name):
+    # Bound the gather with a hard budget (see _HEALTH_LIVENESS_BUDGET_S) and,
+    # crucially, do NOT use `with ThreadPoolExecutor(...)`: its __exit__ calls
+    # shutdown(wait=True), which would re-block on the very straggler we just
+    # stopped waiting for. Shut down with wait=False and let it finish (and
+    # self-expire on its own socket timeout) in the background.
+    executor = ThreadPoolExecutor(max_workers=5)
+    future_to_name = {
+        executor.submit(_health_check_ollama): "ollama",
+        executor.submit(_health_check_providers, _app): "providers",
+        executor.submit(_health_check_sonarr): "sonarr",
+        executor.submit(_health_check_radarr): "radarr",
+        executor.submit(_health_check_media_servers): "media_servers",
+    }
+    try:
+        for fut in as_completed(future_to_name, timeout=_HEALTH_LIVENESS_BUDGET_S):
             name = future_to_name[fut]
             try:
                 part, overall = fut.result()
@@ -177,6 +192,21 @@ def health():
             except Exception as exc:
                 logger.debug("Health check %s failed: %s", name, exc)
                 results_by_name[name] = ({name: "error"}, None)
+    except FuturesTimeoutError:
+        pass  # Stragglers recorded as informational "timeout" entries below.
+    finally:
+        executor.shutdown(wait=False, cancel_futures=True)
+
+    # A check that missed the budget is informational only (overall=None) — a
+    # slow optional dependency must never mark the liveness probe unhealthy.
+    for name in future_to_name.values():
+        if name not in results_by_name:
+            results_by_name[name] = ({name: "timeout"}, None)
+            logger.debug(
+                "Health check %s exceeded %.1fs liveness budget",
+                name,
+                _HEALTH_LIVENESS_BUDGET_S,
+            )
 
     for name, (part, overall) in results_by_name.items():
         service_status.update(part)
