@@ -173,6 +173,20 @@ foundation rather than client-side DSP.
 - **Undo model** for block/ripple ops — the existing undo stack must represent
   multi-cue transforms atomically.
 
+## 7a. Progress log
+
+**2026-07-19 — Phase 1 batch shipped (on master, not yet deployed):**
+- ✅ CPS / reading-speed diagnostics — `readingSpeed.ts` + active-cue-bar badge
+  + cue-list chip (`e810e2a9`).
+- ✅ Jump navigation — `K/Shift+K` keyframe, `N/Shift+N` next/prev timing defect,
+  new `waveformNavigation.ts` + `seekTo` on the hook (`45afc06f`).
+- ✅ File-level issue-summary chip in the toolbar (counts overlaps / tight gaps /
+  too-fast / too-short; click → jump to first) — `issueSummary.ts` (`f52d2c6f`).
+
+Still open from Phase 1: scene-cut jump, one-click "fix safe defects" (needs a
+batch-apply + undo path through `SubtitleEditorModal`), loop audition (touches
+the hook's playback effect). Phases 2–4 unchanged.
+
 ## 7. Explicitly NOT in scope
 
 - ASS `\k` karaoke retiming (stays in Aegisub).
