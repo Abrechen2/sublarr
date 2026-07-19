@@ -61,6 +61,28 @@ describe('WaveformHotkeys', () => {
     expect(onAction).toHaveBeenCalledWith('seekBack1s')
   })
 
+  it('dispatches "nextDefect" on N and "prevDefect" on Shift+N', async () => {
+    const onAction = vi.fn()
+    render(<WaveformHotkeys enabled={true} onAction={onAction} />)
+
+    await userEvent.keyboard('n')
+    expect(onAction).toHaveBeenCalledWith('nextDefect')
+
+    await userEvent.keyboard('{Shift>}n{/Shift}')
+    expect(onAction).toHaveBeenCalledWith('prevDefect')
+  })
+
+  it('dispatches keyframe jumps on K and Shift+K', async () => {
+    const onAction = vi.fn()
+    render(<WaveformHotkeys enabled={true} onAction={onAction} />)
+
+    await userEvent.keyboard('k')
+    expect(onAction).toHaveBeenCalledWith('nextKeyframe')
+
+    await userEvent.keyboard('{Shift>}k{/Shift}')
+    expect(onAction).toHaveBeenCalledWith('prevKeyframe')
+  })
+
   it('does NOT dispatch when disabled', async () => {
     const onAction = vi.fn()
     render(<WaveformHotkeys enabled={false} onAction={onAction} />)

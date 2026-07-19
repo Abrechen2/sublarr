@@ -35,6 +35,8 @@ import { useSubtitleParse, useKeyframes, useAudioTracks, useScenes } from '@/hoo
 import { extractWaveform } from '@/api/client'
 
 import { useWaveformRegions, type CuePatch, type WaveformCue } from './useWaveformRegions'
+import { detectGapsAndOverlaps } from './gapOverlap'
+import { findAdjacentMarker } from './waveformNavigation'
 import { WaveformHotkeys } from './WaveformHotkeys'
 import { WaveformShortcutHelp } from './WaveformShortcutHelp'
 import { WaveformAudioTrackPicker } from './WaveformAudioTrackPicker'
@@ -335,6 +337,15 @@ export function WaveformEditor({
     [scenesData],
   )
 
+  // Marker-jump targets (jump navigation). Keyframes arrive from the backend
+  // in seconds; defect times are the start of each detected gap/overlap so
+  // "next defect" lands the playhead on the next timing problem.
+  const keyframesSec = useMemo<number[]>(() => keyframesData?.keyframes ?? [], [keyframesData])
+  const defectTimesSec = useMemo<number[]>(() => {
+    const { overlaps, tightGaps } = detectGapsAndOverlaps(cues)
+    return [...overlaps, ...tightGaps].map((d) => d.start).sort((a, b) => a - b)
+  }, [cues])
+
   const selectedCueId = selectedCueIdx === null ? null : String(selectedCueIdx)
 
   // Default no-op — when caller doesn't pass onCueChange, drag is disabled
@@ -349,6 +360,7 @@ export function WaveformEditor({
     setStartAtPlayhead,
     setEndAtPlayhead,
     seekBy,
+    seekTo,
     visibleRange,
     playheadSec,
   } = useWaveformRegions({
@@ -453,6 +465,30 @@ export function WaveformEditor({
         case 'nextCue':
           onSelectAdjacentCue?.('next')
           return
+        case 'nextKeyframe':
+          if (ws) {
+            const target = findAdjacentMarker(keyframesSec, ws.getCurrentTime(), 'next')
+            if (target !== null) seekTo(target)
+          }
+          return
+        case 'prevKeyframe':
+          if (ws) {
+            const target = findAdjacentMarker(keyframesSec, ws.getCurrentTime(), 'prev')
+            if (target !== null) seekTo(target)
+          }
+          return
+        case 'nextDefect':
+          if (ws) {
+            const target = findAdjacentMarker(defectTimesSec, ws.getCurrentTime(), 'next')
+            if (target !== null) seekTo(target)
+          }
+          return
+        case 'prevDefect':
+          if (ws) {
+            const target = findAdjacentMarker(defectTimesSec, ws.getCurrentTime(), 'prev')
+            if (target !== null) seekTo(target)
+          }
+          return
         case 'zoomIn':
           stepZoom('in')
           return
@@ -470,6 +506,9 @@ export function WaveformEditor({
       setStartAtPlayhead,
       setEndAtPlayhead,
       seekBy,
+      seekTo,
+      keyframesSec,
+      defectTimesSec,
       selectedCueIdx,
       onSplitCue,
       onMergeWithNext,

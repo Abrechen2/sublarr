@@ -93,6 +93,10 @@
       "seekFwd1s": "1 s vor",
       "prevCue": "Vorherige Zeile",
       "nextCue": "Nächste Zeile",
+      "prevKeyframe": "Zum vorherigen Keyframe springen",
+      "nextKeyframe": "Zum nächsten Keyframe springen",
+      "prevDefect": "Zum vorherigen Timing-Problem springen",
+      "nextDefect": "Zum nächsten Timing-Problem springen",
       "zoomIn": "Vergrößern",
       "zoomOut": "Verkleinern",
       "showHelp": "Diese Hilfe anzeigen"
@@ -101,6 +105,7 @@
       "playback": "Wiedergabe",
       "timing": "Timing",
       "navigation": "Navigation",
+      "markers": "Marker-Sprünge",
       "zoom": "Zoom",
       "help": "Hilfe"
     },

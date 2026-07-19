@@ -28,11 +28,21 @@ export type WaveformAction =
   | 'seekFwd1s'
   | 'prevCue'
   | 'nextCue'
+  | 'prevKeyframe'
+  | 'nextKeyframe'
+  | 'prevDefect'
+  | 'nextDefect'
   | 'zoomIn'
   | 'zoomOut'
   | 'showHelp'
 
-export type WaveformShortcutGroup = 'playback' | 'timing' | 'navigation' | 'zoom' | 'help'
+export type WaveformShortcutGroup =
+  | 'playback'
+  | 'timing'
+  | 'navigation'
+  | 'markers'
+  | 'zoom'
+  | 'help'
 
 export interface WaveformShortcut {
   /** react-hotkeys-hook key string. Modifiers separated by `+`. */
@@ -58,6 +68,10 @@ export const WAVEFORM_SHORTCUTS: readonly WaveformShortcut[] = [
   { keys: 'shift+right', display: 'Shift+→', action: 'seekFwd1s', labelKey: 'seekFwd1s', group: 'navigation' },
   { keys: 'up', display: '↑', action: 'prevCue', labelKey: 'prevCue', group: 'navigation' },
   { keys: 'down', display: '↓', action: 'nextCue', labelKey: 'nextCue', group: 'navigation' },
+  { keys: 'k', display: 'K', action: 'nextKeyframe', labelKey: 'nextKeyframe', group: 'markers' },
+  { keys: 'shift+k', display: 'Shift+K', action: 'prevKeyframe', labelKey: 'prevKeyframe', group: 'markers' },
+  { keys: 'n', display: 'N', action: 'nextDefect', labelKey: 'nextDefect', group: 'markers' },
+  { keys: 'shift+n', display: 'Shift+N', action: 'prevDefect', labelKey: 'prevDefect', group: 'markers' },
   { keys: '+', display: '+', action: 'zoomIn', labelKey: 'zoomIn', group: 'zoom' },
   { keys: '-', display: '−', action: 'zoomOut', labelKey: 'zoomOut', group: 'zoom' },
   { keys: 'shift+/', display: '?', action: 'showHelp', labelKey: 'showHelp', group: 'help' },
@@ -68,6 +82,7 @@ export const WAVEFORM_SHORTCUT_GROUPS: readonly WaveformShortcutGroup[] = [
   'playback',
   'timing',
   'navigation',
+  'markers',
   'zoom',
   'help',
 ]

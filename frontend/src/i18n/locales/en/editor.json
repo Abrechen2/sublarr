@@ -93,6 +93,10 @@
       "seekFwd1s": "Seek forward 1 s",
       "prevCue": "Previous cue",
       "nextCue": "Next cue",
+      "prevKeyframe": "Jump to previous keyframe",
+      "nextKeyframe": "Jump to next keyframe",
+      "prevDefect": "Jump to previous timing issue",
+      "nextDefect": "Jump to next timing issue",
       "zoomIn": "Zoom in",
       "zoomOut": "Zoom out",
       "showHelp": "Show this help"
@@ -101,6 +105,7 @@
       "playback": "Playback",
       "timing": "Timing",
       "navigation": "Navigation",
+      "markers": "Marker jumps",
       "zoom": "Zoom",
       "help": "Help"
     },

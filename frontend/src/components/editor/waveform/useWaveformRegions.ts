@@ -150,6 +150,8 @@ export interface UseWaveformRegionsResult {
   setEndAtPlayhead: () => void
   /** Seek the playhead by `deltaSec` seconds; negative means back. */
   seekBy: (deltaSec: number) => void
+  /** Seek the playhead to an absolute time in seconds (clamped to [0, dur]). */
+  seekTo: (sec: number) => void
   /**
    * Currently visible [startSec, endSec] of the wave viewport. `null` until
    * WaveSurfer fires its first scroll event after `ready`. The cue list uses
@@ -891,6 +893,16 @@ export function useWaveformRegions({
     ws.setTime(next)
   }, [])
 
+  /** Seek the playhead to an absolute time in seconds. Clamped to [0, dur]. */
+  const seekTo = useCallback((sec: number) => {
+    const ws = wsRef.current
+    if (!ws) return
+    const dur = ws.getDuration()
+    if (!Number.isFinite(dur) || dur <= 0) return
+    if (!Number.isFinite(sec)) return
+    ws.setTime(Math.max(0, Math.min(dur, sec)))
+  }, [])
+
   return {
     ws: wsRef.current,
     regions: regionsRef.current,
@@ -902,6 +914,7 @@ export function useWaveformRegions({
     setStartAtPlayhead,
     setEndAtPlayhead,
     seekBy,
+    seekTo,
     visibleRange,
     playheadSec,
   }
