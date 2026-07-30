@@ -111,6 +111,9 @@ class SearchScoringMixin:
                 if any(g in r.release_info.lower() for g in _prefer):
                     r.score += bonus
                     r.matches.add("release_group_prefer")
+                    # Keep the breakdown in sync so the "why this score?"
+                    # tooltip accounts for every point of the final score.
+                    r.score_breakdown["release_group_prefer"] = bonus
 
         # Sort by format preference (ASS first), then by score descending
         all_results.sort(

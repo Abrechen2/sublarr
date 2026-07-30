@@ -64,6 +64,15 @@ vi.mock('@/hooks/useApi', () => ({
       ],
     },
   }),
+  useProviders: () => ({
+    data: { providers: [{ name: 'jimaku' }, { name: 'animetosho' }, { name: 'opensubtitles' }] },
+  }),
+  useScoringPresets: () => ({
+    data: [
+      { name: 'Anime', description: 'Optimised for anime', type: 'episode' },
+      { name: 'Movies', description: 'Optimised for movies', type: 'movie' },
+    ],
+  }),
 }))
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────

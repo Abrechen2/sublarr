@@ -37,6 +37,8 @@ def create_language_profile(
     combine_format: str = "ass",
     combine_languages: list = None,
     combine_position: dict = None,
+    enabled_providers: list = None,
+    scoring_preset: str = "",
 ) -> int:
     """Create a new language profile. Returns the profile ID."""
     return _get_repo().create_profile(
@@ -61,6 +63,8 @@ def create_language_profile(
         combine_format=combine_format,
         combine_languages=combine_languages,
         combine_position=combine_position,
+        enabled_providers=enabled_providers,
+        scoring_preset=scoring_preset,
     )
 
 

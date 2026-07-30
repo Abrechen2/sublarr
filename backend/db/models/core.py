@@ -212,6 +212,12 @@ class LanguageProfile(db.Model):
     combine_position_json: Mapped[str] = mapped_column(
         Text, nullable=False, default='{"primary": "bottom", "secondary": "top"}'
     )
+    # Provider profile: JSON list of provider names this profile searches.
+    # NULL / empty list = inherit the global providers_enabled selection.
+    enabled_providers_json: Mapped[str | None] = mapped_column(Text, default=None)
+    # Scoring preset name (bundled preset, e.g. "Anime"/"Movies"/"TV").
+    # NULL / "" = use the global scoring weights from scoring_weights.
+    scoring_preset: Mapped[str | None] = mapped_column(Text, default=None)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
 

@@ -40,6 +40,8 @@ def load_profile_filters(profile) -> dict:
         audio_exclude_languages: list[str]
         hi_preference: str  (include | prefer | exclude | only)
         forced_scoring: str  (include | prefer | exclude | only)
+        enabled_providers: list[str]  (empty = all globally enabled providers)
+        scoring_preset: str  (empty = global scoring weights)
     """
     if profile is None:
         return {
@@ -49,6 +51,8 @@ def load_profile_filters(profile) -> dict:
             "audio_exclude_languages": [],
             "hi_preference": "include",
             "forced_scoring": "include",
+            "enabled_providers": [],
+            "scoring_preset": "",
         }
 
     def _load(attr: str, default: str = "[]") -> list:
@@ -66,4 +70,6 @@ def load_profile_filters(profile) -> dict:
         "audio_exclude_languages": _load("audio_exclude_languages_json"),
         "hi_preference": getattr(profile, "hi_preference", "include") or "include",
         "forced_scoring": getattr(profile, "forced_scoring", "include") or "include",
+        "enabled_providers": _load("enabled_providers_json"),
+        "scoring_preset": getattr(profile, "scoring_preset", "") or "",
     }
