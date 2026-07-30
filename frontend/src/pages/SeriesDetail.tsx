@@ -611,7 +611,11 @@ export function SeriesDetailPage() {
         >
           <SeriesOverrideSettings
             seriesId={seriesId}
-            initial={{ priority_override: null, min_attempts_per_day: 0 }}
+            initial={{
+              priority_override: null,
+              min_attempts_per_day: 0,
+              subtitle_format_requirement: null,
+            }}
             onSave={(payload) => overrideMutation.mutate(payload)}
           />
         </div>

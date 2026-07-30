@@ -6,6 +6,8 @@ export interface SeriesOverridePayload {
   min_attempts_per_day?: number
   // 0.71.1: tri-state — true (force), false (skip), null (inherit global default).
   cleanup_foreign_tracks?: boolean | null
+  // null (inherit: ASS preferred, SRT fallback) | "require_ass" (never fall back to SRT)
+  subtitle_format_requirement?: string | null
 }
 
 export interface SeriesOverrideResponse {
@@ -13,6 +15,7 @@ export interface SeriesOverrideResponse {
   priority_override: string | null
   min_attempts_per_day: number
   cleanup_foreign_tracks: boolean | null
+  subtitle_format_requirement: string | null
 }
 
 /**
