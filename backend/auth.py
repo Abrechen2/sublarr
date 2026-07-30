@@ -14,7 +14,7 @@ import threading
 import time
 from collections import defaultdict
 
-from flask import jsonify, request
+from flask import jsonify, request, session
 
 from config import get_settings
 
@@ -180,6 +180,26 @@ def init_auth(app):
         # Skip auth for standalone poster endpoints — posters are public metadata
         # (is_safe_path() in the route prevents directory traversal)
         if re.match(r"^/api/v1/standalone/(series|movies)/\d+/poster$", path):
+            return None
+
+        # An authenticated UI session satisfies the API gate. ui_auth.py's
+        # contract is "API routes accept either a valid UI session OR an
+        # X-Api-Key header", but this hook used to enforce the key
+        # unconditionally: a browser that had just logged in (session cookie
+        # set, no key in localStorage yet) got 401 on every request, and the
+        # frontend's 401 interceptor bounced it back to /login in an endless
+        # loop. A session is only free when UI auth is disabled — and in that
+        # configuration /auth/bootstrap already hands out the key to any LAN
+        # client by design, so this adds no exposure beyond that.
+        if session.get("ui_authenticated"):
+            return None
+
+        # Same contract for reverse-proxy header auth (Authelia/authentik SSO):
+        # a request vouched for by the trusted proxy must not be rejected for
+        # lacking an X-Api-Key. Fails closed on any misconfiguration.
+        from proxy_auth import request_has_valid_proxy_auth
+
+        if request_has_valid_proxy_auth():
             return None
 
         ip = request.remote_addr or "unknown"
