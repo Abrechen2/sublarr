@@ -2197,6 +2197,23 @@
     "toast_save_failed": "Rangliste konnte nicht gespeichert werden",
     "toast_duplicate": "„{{name}}“ ist bereits in der Liste"
   },
+  "scoring_custom": {
+    "title": "Eigene Regex-Regeln",
+    "loading": "Regeln werden geladen...",
+    "section_desc": "Eigene Scoring-Bedingungen im Sonarr-Stil: Der Regex jeder Regel wird (case-insensitiv) gegen die Release-Info eines Ergebnisses geprüft; ein Treffer addiert das Gewicht der Regel zum Score. Negative Gewichte bestrafen.",
+    "empty": "Noch keine eigenen Regeln. Füge unten eine hinzu — z. B. Muster \"dual[ .-]?audio\" mit Gewicht +15.",
+    "name_placeholder": "Regelname",
+    "pattern_placeholder": "Regex, z. B. dual[ .-]?audio",
+    "add": "Hinzufügen",
+    "toggle": "Regel aktivieren/deaktivieren",
+    "delete": "Regel löschen",
+    "hint": "Muster werden beim Speichern validiert (max. 500 Zeichen). Gewichtsbereich: -999 bis 999; -999 entfernt ein Ergebnis faktisch.",
+    "toast_created": "Eigene Regel erstellt",
+    "toast_create_failed": "Regel konnte nicht erstellt werden",
+    "toast_update_failed": "Regel konnte nicht aktualisiert werden",
+    "toast_deleted": "Regel \"{{name}}\" gelöscht",
+    "toast_delete_failed": "Regel konnte nicht gelöscht werden"
+  },
   "glossary_panel": {
     "toast_setting_saved": "Glossar-Einstellung gespeichert",
     "toast_save_failed": "Speichern der Einstellung fehlgeschlagen",

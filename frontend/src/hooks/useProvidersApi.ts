@@ -6,6 +6,7 @@ import {
   getScoringPresets, importScoringPreset,
   getPenaltyRules, updatePenaltyRule,
   getReleaseGroupTiers, updateReleaseGroupTiers,
+  getCustomScoringRules, createCustomScoringRule, updateCustomScoringRule, deleteCustomScoringRule,
   getBlacklist, addToBlacklist, removeFromBlacklist, clearBlacklist,
   getLanguageProfiles, createLanguageProfile, updateLanguageProfile,
   deleteLanguageProfile, assignProfile, bulkAssignProfile, setProfileAsDefaultForAll,
@@ -14,6 +15,7 @@ import {
   searchInteractive, searchInteractiveEpisode,
 } from '@/api/client'
 import type { LanguageProfile } from '@/lib/types'
+import type { CustomScoringRule } from '@/api/settings'
 
 // ─── Providers ───────────────────────────────────────────────────────────────
 
@@ -135,6 +137,36 @@ export function useUpdateReleaseGroupTiers() {
   return useMutation({
     mutationFn: updateReleaseGroupTiers,
     onSuccess: () => { void qc.invalidateQueries({ queryKey: ['releaseGroupTiers'] }) },
+  })
+}
+
+// ─── Custom regex scoring rules ──────────────────────────────────────────────
+
+export function useCustomScoringRules() {
+  return useQuery({ queryKey: ['customScoringRules'], queryFn: getCustomScoringRules })
+}
+
+export function useCreateCustomScoringRule() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: createCustomScoringRule,
+    onSuccess: () => { void qc.invalidateQueries({ queryKey: ['customScoringRules'] }) },
+  })
+}
+
+export function useUpdateCustomScoringRule() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: ({ id, ...data }: CustomScoringRule) => updateCustomScoringRule(id, data),
+    onSuccess: () => { void qc.invalidateQueries({ queryKey: ['customScoringRules'] }) },
+  })
+}
+
+export function useDeleteCustomScoringRule() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: deleteCustomScoringRule,
+    onSuccess: () => { void qc.invalidateQueries({ queryKey: ['customScoringRules'] }) },
   })
 }
 

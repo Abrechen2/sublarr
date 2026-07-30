@@ -2197,6 +2197,23 @@
     "toast_save_failed": "Failed to save release group tiers",
     "toast_duplicate": "\"{{name}}\" is already in the list"
   },
+  "scoring_custom": {
+    "title": "Custom Regex Rules",
+    "loading": "Loading rules...",
+    "section_desc": "Your own scoring conditions, Sonarr-style: each rule's regex is matched (case-insensitive) against a result's release info; a hit adds the rule's weight to the score. Negative weights penalize.",
+    "empty": "No custom rules yet. Add one below — e.g. pattern \"dual[ .-]?audio\" with weight +15.",
+    "name_placeholder": "Rule name",
+    "pattern_placeholder": "Regex, e.g. dual[ .-]?audio",
+    "add": "Add",
+    "toggle": "Enable/disable rule",
+    "delete": "Delete rule",
+    "hint": "Patterns are validated when saving (max 500 chars). Weight range: -999 to 999; -999 effectively removes a result.",
+    "toast_created": "Custom rule created",
+    "toast_create_failed": "Failed to create rule",
+    "toast_update_failed": "Failed to update rule",
+    "toast_deleted": "Rule \"{{name}}\" deleted",
+    "toast_delete_failed": "Failed to delete rule"
+  },
   "glossary_panel": {
     "toast_setting_saved": "Glossary setting saved",
     "toast_save_failed": "Failed to save setting",

@@ -126,6 +126,30 @@ export const getReleaseGroupTiers = (): Promise<ReleaseGroupTiers> =>
 export const updateReleaseGroupTiers = (data: ReleaseGroupTiers): Promise<ReleaseGroupTiers> =>
   api.put('/scoring/release-group-tiers', data).then(r => r.data)
 
+// ─── Custom regex scoring rules ─────────────────────────────────────────────
+
+export interface CustomScoringRule {
+  id: number
+  name: string
+  pattern: string
+  weight: number
+  enabled: boolean
+}
+
+export type CustomScoringRuleInput = Omit<CustomScoringRule, 'id'>
+
+export const getCustomScoringRules = (): Promise<{ rules: CustomScoringRule[] }> =>
+  api.get('/scoring/custom-rules').then(r => r.data)
+
+export const createCustomScoringRule = (data: CustomScoringRuleInput): Promise<CustomScoringRule> =>
+  api.post('/scoring/custom-rules', data).then(r => r.data)
+
+export const updateCustomScoringRule = (id: number, data: CustomScoringRuleInput): Promise<CustomScoringRule> =>
+  api.put(`/scoring/custom-rules/${id}`, data).then(r => r.data)
+
+export const deleteCustomScoringRule = (id: number): Promise<{ id: number; deleted: boolean }> =>
+  api.delete(`/scoring/custom-rules/${id}`).then(r => r.data)
+
 // ─── Media Servers ──────────────────────────────────────────────────────────
 
 export async function getMediaServerTypes(): Promise<MediaServerType[]> {
