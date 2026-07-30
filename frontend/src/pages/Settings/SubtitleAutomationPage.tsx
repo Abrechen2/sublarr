@@ -31,6 +31,7 @@ type AutomationKeys =
   | 'subtitle_automation_drain_interval_minutes'
   | 'embedded_allow_sdh'
   | 'embedded_sdh_penalty'
+  | 'embedded_extract_remove_from_container'
   | 'cleanup_foreign_tracks_default'
   | 'cleanup_foreign_tracks_keep_und'
 
@@ -205,6 +206,21 @@ export function SubtitleAutomationPage() {
           'After extraction succeeds, remove non-target-language subtitle tracks from the container. Backups go to the trash folder — nothing is permanently deleted.'
         )}
       >
+        <SettingRow
+          label={t(
+            'subtitle_automation_page.cleanup.remove_extracted',
+            'Remove extracted streams from container'
+          )}
+          description={t(
+            'subtitle_automation_page.cleanup.remove_extracted_help',
+            'After extracting a stream to a sidecar, remux it out of the video file (backup goes to the trash folder). Off by default — keep-language streams are never removed, and hardlinked files follow the remux hardlink policy.'
+          )}
+        >
+          <Toggle
+            checked={Boolean(cfg.embedded_extract_remove_from_container)}
+            onChange={(v) => set('embedded_extract_remove_from_container', v)}
+          />
+        </SettingRow>
         <SettingRow
           label={t('subtitle_automation_page.cleanup.default', 'Strip by default')}
           description={t(

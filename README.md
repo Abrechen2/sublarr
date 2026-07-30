@@ -258,6 +258,10 @@ AnimeTosho, Subscene, Subf2m, Subsource, Kitsunekko, and most other providers wo
 | `SUBLARR_WANTED_SCAN_ON_STARTUP` | `false` | Run a full scan when the container starts |
 | `SUBLARR_WANTED_ANIME_ONLY` | `true` | Only scan anime series |
 | `SUBLARR_UPGRADE_ENABLED` | `true` | Replace low-quality subs with better versions |
+| `SUBLARR_EMBEDDED_EXTRACT_REMOVE_FROM_CONTAINER` | `false` | Remux extracted subtitle streams out of the container after extraction. Off by default; keep-language streams are never removed. |
+| `SUBLARR_REMUX_HARDLINK_POLICY` | `skip` | `skip` \| `warn` \| `allow` — what to do when a container remux would touch a **hardlinked** file. |
+
+> **⚠️ Hardlinks:** Most Sonarr/Radarr setups hardlink the media library to the torrent/usenet download folder. Any container remux (foreign-track cleanup, signs removal, stream removal after extraction) rewrites the file and **breaks that hardlink** — disk usage doubles and the seeding copy diverges from the library copy. The default `skip` policy refuses to remux hardlinked files; set `warn` or `allow` only if you accept the broken links.
 
 ### Path Mapping (remote *arr hosts)
 

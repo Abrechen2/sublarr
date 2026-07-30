@@ -1194,7 +1194,12 @@
     "cleanup_confirm": "Delete now",
     "cleanup_cancel": "Cancel",
     "cleanup_done": "Deleted {{count}} backup(s).",
-    "cleanup_failed": "Cleanup failed."
+    "cleanup_failed": "Cleanup failed.",
+    "hardlink_policy": "Hardlink policy",
+    "hardlink_policy_desc": "Remuxing rewrites the file and breaks hardlinks (the recommended *arr setup): disk usage doubles and the seeding copy diverges. \"Skip\" never remuxes hardlinked files; \"Warn\" remuxes but logs it; \"Allow\" is the old behaviour.",
+    "hardlink_skip": "Skip (never remux hardlinked files)",
+    "hardlink_warn": "Warn (remux, but log a warning)",
+    "hardlink_allow": "Allow (always remux)"
   },
   "standalone_tab": {
     "scan_interval": "Scan Interval (hours)",
@@ -1908,6 +1913,8 @@
     "cleanup": {
       "title": "Foreign-Track Cleanup",
       "description": "After extraction succeeds, remove non-target-language subtitle tracks from the container. Backups go to the trash folder — nothing is permanently deleted.",
+      "remove_extracted": "Remove extracted streams from container",
+      "remove_extracted_help": "After extracting a stream to a sidecar, remux it out of the video file (backup goes to the trash folder). Off by default — keep-language streams are never removed, and hardlinked files follow the remux hardlink policy.",
       "default": "Strip by default",
       "default_help": "Global default; per-series overrides live on the series settings panel.",
       "keep_und": "Keep undetermined (und)",

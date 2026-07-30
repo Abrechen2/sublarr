@@ -1194,7 +1194,12 @@
     "cleanup_confirm": "Jetzt löschen",
     "cleanup_cancel": "Abbrechen",
     "cleanup_done": "{{count}} Backup(s) gelöscht.",
-    "cleanup_failed": "Aufräumen fehlgeschlagen."
+    "cleanup_failed": "Aufräumen fehlgeschlagen.",
+    "hardlink_policy": "Hardlink-Policy",
+    "hardlink_policy_desc": "Ein Remux schreibt die Datei neu und bricht Hardlinks (das empfohlene *arr-Setup): Speicherverbrauch verdoppelt sich und die Seeding-Kopie weicht ab. \"Skip\" remuxt hardlinked Dateien nie; \"Warn\" remuxt, loggt aber eine Warnung; \"Allow\" ist das alte Verhalten.",
+    "hardlink_skip": "Skip (hardlinked Dateien nie remuxen)",
+    "hardlink_warn": "Warn (remuxen, aber Warnung loggen)",
+    "hardlink_allow": "Allow (immer remuxen)"
   },
   "standalone_tab": {
     "scan_interval": "Scan-Intervall (Stunden)",
@@ -1908,6 +1913,8 @@
     "cleanup": {
       "title": "Fremdspur-Cleanup",
       "description": "Nach erfolgreicher Extraktion die nicht benötigten Untertitel-Sprachspuren aus dem Container entfernen. Backups landen im Trash — nichts wird endgültig gelöscht.",
+      "remove_extracted": "Extrahierte Spuren aus dem Container entfernen",
+      "remove_extracted_help": "Nach der Extraktion in ein Sidecar die Spur per Remux aus der Videodatei entfernen (Backup landet im Trash). Standardmäßig aus — Keep-Sprachen werden nie entfernt, und hardlinked Dateien folgen der Remux-Hardlink-Policy.",
       "default": "Standardmäßig entfernen",
       "default_help": "Globaler Standard; Serien-spezifische Overrides gibt es im Serien-Einstellungspanel.",
       "keep_und": "Undetermined (und) behalten",

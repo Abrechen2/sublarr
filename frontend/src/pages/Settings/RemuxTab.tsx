@@ -140,6 +140,30 @@ export function RemuxTab() {
       </SettingRow>
 
       <SettingRow
+        label={t('remux_tab.hardlink_policy', 'Hardlink policy')}
+        description={t(
+          'remux_tab.hardlink_policy_desc',
+          'Remuxing rewrites the file and breaks hardlinks (the recommended *arr setup): disk usage doubles and the seeding copy diverges. "Skip" never remuxes hardlinked files; "Warn" remuxes but logs it; "Allow" is the old behaviour.'
+        )}
+      >
+        <select
+          value={String((config as Record<string, unknown> | undefined)?.['remux_hardlink_policy'] ?? 'skip')}
+          onChange={(e) => saveField('remux_hardlink_policy', e.target.value)}
+          className="px-3 py-2 rounded-md text-sm"
+          style={{
+            backgroundColor: 'var(--bg-primary)',
+            border: '1px solid var(--border)',
+            color: 'var(--text-primary)',
+            fontSize: '13px',
+          }}
+        >
+          <option value="skip">{t('remux_tab.hardlink_skip', 'Skip (never remux hardlinked files)')}</option>
+          <option value="warn">{t('remux_tab.hardlink_warn', 'Warn (remux, but log a warning)')}</option>
+          <option value="allow">{t('remux_tab.hardlink_allow', 'Allow (always remux)')}</option>
+        </select>
+      </SettingRow>
+
+      <SettingRow
         label={t('remux_tab.cleanup')}
         description={t('remux_tab.cleanup_desc')}
       >
