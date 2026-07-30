@@ -173,9 +173,7 @@ class TestFinalisePipeline:
         ]
         query = VideoQuery(file_path="/test/movie.mkv", languages=["de"], forced_only=False)
 
-        final = self._finalise(
-            monkeypatch, results, query, format_filter=SubtitleFormat.ASS
-        )
+        final = self._finalise(monkeypatch, results, query, format_filter=SubtitleFormat.ASS)
 
         assert [r.subtitle_id for r in final] == ["de-ass"]
         stages = {f["stage"]: f for f in decision_log.active().to_dict()["searches"][0]["filters"]}
@@ -223,7 +221,12 @@ class TestPersistence:
         decision_log.selected(_make_result(score=97))
 
         row_id = ProviderRepository().record_subtitle_download(
-            "jimaku", "sub-1", "de", "ass", "/media/show.mkv", 97,
+            "jimaku",
+            "sub-1",
+            "de",
+            "ass",
+            "/media/show.mkv",
+            97,
             decision_log_json=decision_log.snapshot_json(),
         )
         assert isinstance(row_id, int)
@@ -255,11 +258,21 @@ class TestPersistence:
         from db.repositories.providers import ProviderRepository
 
         ProviderRepository().record_subtitle_download(
-            "jimaku", "sub-1", "de", "ass", "/media/a.mkv", 97,
+            "jimaku",
+            "sub-1",
+            "de",
+            "ass",
+            "/media/a.mkv",
+            97,
             decision_log_json='{"version": 1}',
         )
         ProviderRepository().record_subtitle_download(
-            "subdl", "sub-2", "de", "srt", "/media/b.mkv", 44,
+            "subdl",
+            "sub-2",
+            "de",
+            "srt",
+            "/media/b.mkv",
+            44,
         )
         rows = {r["file_path"]: r for r in get_download_history()["data"]}
         assert rows["/media/a.mkv"]["has_decision_log"] is True
@@ -273,7 +286,12 @@ class TestRoutes:
 
         with client.application.app_context():
             row_id = ProviderRepository().record_subtitle_download(
-                "jimaku", "sub-1", "de", "ass", "/media/a.mkv", 97,
+                "jimaku",
+                "sub-1",
+                "de",
+                "ass",
+                "/media/a.mkv",
+                97,
                 decision_log_json=json.dumps({"version": 1, "final": {"provider": "jimaku"}}),
             )
         resp = client.get(f"/api/v1/history/{row_id}/decision")
@@ -297,9 +315,7 @@ class TestRoutes:
         assert resp.status_code == 404
 
         with client.application.app_context():
-            set_decision_log(
-                item_id, json.dumps({"version": 1, "final": {"status": "not_found"}})
-            )
+            set_decision_log(item_id, json.dumps({"version": 1, "final": {"status": "not_found"}}))
         resp = client.get(f"/api/v1/wanted/{item_id}/decision")
         assert resp.status_code == 200
         assert resp.get_json()["final"]["status"] == "not_found"

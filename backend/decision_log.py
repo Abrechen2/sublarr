@@ -151,9 +151,7 @@ class DecisionLog:
         entry: dict = {"stage": stage, "removed": removed, "remaining": remaining}
         entry.update({k: v for k, v in info.items() if v is not None})
         if rejected_samples:
-            entry["rejected"] = [
-                _result_brief(r) for r in rejected_samples[:MAX_REJECTED_SAMPLES]
-            ]
+            entry["rejected"] = [_result_brief(r) for r in rejected_samples[:MAX_REJECTED_SAMPLES]]
         s["filters"].append(entry)
 
     # ---- download / selection ----------------------------------------------------

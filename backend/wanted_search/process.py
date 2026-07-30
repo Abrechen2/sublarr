@@ -1076,6 +1076,7 @@ def process_wanted_item(
 def _run_search_steps(ctx: dict) -> dict:
     """Run search Steps 1-5 for one wanted item. Extracted from
     ``process_wanted_item`` so the decision log can wrap the whole sequence."""
+    item = ctx["item"]
     item_id = ctx["item_id"]
     settings = ctx["settings"]
 

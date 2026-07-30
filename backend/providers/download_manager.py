@@ -205,9 +205,7 @@ def search_and_download_best(
                     apply_auto_reranking()
                 except Exception as _rr_err:
                     logger.debug("Re-ranking trigger skipped: %s", _rr_err)
-                decision_log.download_attempt(
-                    result.provider_name, result.subtitle_id, "selected"
-                )
+                decision_log.download_attempt(result.provider_name, result.subtitle_id, "selected")
                 decision_log.selected(result)
                 return result
             else:
