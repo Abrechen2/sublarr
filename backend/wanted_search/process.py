@@ -306,6 +306,7 @@ def _try_target_ass_direct(ctx: dict) -> dict | None:
                 file_path,
                 result.score,
                 upgraded_from_id=_upgraded_from_id,
+                score_breakdown=result.score_breakdown,
             )
             logger.info(
                 "Wanted %d: Provider %s delivered target ASS directly",
@@ -406,6 +407,7 @@ def _try_source_ass_translation(ctx: dict) -> dict | None:
                 result.format.value if result.format.value != "unknown" else "ass",
                 file_path,
                 result.score,
+                score_breakdown=result.score_breakdown,
             )
         except DuplicateSubtitleError as dup_err:
             logger.info(
@@ -563,6 +565,7 @@ def _try_target_srt_direct(ctx: dict) -> dict | None:
                 result.format.value if result.format.value != "unknown" else "srt",
                 file_path,
                 result.score,
+                score_breakdown=result.score_breakdown,
             )
             logger.info(
                 "Wanted %d: Provider %s delivered target SRT directly",
@@ -662,6 +665,7 @@ def _try_source_srt_translation(ctx: dict) -> dict | None:
                 result.format.value if result.format.value != "unknown" else "srt",
                 file_path,
                 result.score,
+                score_breakdown=result.score_breakdown,
             )
         except DuplicateSubtitleError as dup_err:
             logger.info(

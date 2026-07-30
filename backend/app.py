@@ -63,6 +63,8 @@ def _patch_pre_alembic_columns(engine, inspect_fn) -> None:
             patches.append(
                 "ALTER TABLE subtitle_downloads ADD COLUMN source TEXT DEFAULT 'provider'"
             )
+        if "score_breakdown" not in existing:
+            patches.append("ALTER TABLE subtitle_downloads ADD COLUMN score_breakdown TEXT")
 
     if not patches:
         return

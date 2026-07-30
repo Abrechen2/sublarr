@@ -12,7 +12,9 @@
     "providers": "Provider",
     "ollama": "Ollama",
     "mediaservers": "Medienserver (Optional)",
-    "scan": "Erster Scan"
+    "scan": "Erster Scan",
+    "library": "Bibliothekstyp",
+    "performance": "Performance"
   },
   "step_info": "Schritt {{step}} von {{total}}",
   "mode_step": {
@@ -125,5 +127,30 @@
     "or": "oder",
     "setting_up": "Wird eingerichtet…",
     "set_password_btn": "Passwort setzen & Weiter"
+  },
+  "library_step": {
+    "description": "Was enthält deine Bibliothek hauptsächlich?",
+    "question": "Was möchtest du hauptsächlich verwalten? Sublarr wählt dazu passende Scoring-Voreinstellungen.",
+    "anime_title": "Anime",
+    "anime_description": "ASS-first-Scoring mit Fansub-Gruppen-Unterstützung — das klassische Sublarr-Setup.",
+    "movies_title": "Filme",
+    "movies_description": "Hash- und Titel/Jahr-Treffer stärker gewichtet — für Filmbibliotheken.",
+    "mixed_title": "Gemischte Bibliothek",
+    "mixed_description": "Serien und Filme zusammen — behält die ausgewogenen Standardwerte.",
+    "help": "Das setzt nur sinnvolle Scoring-Standards. Alles bleibt später unter Einstellungen → Scoring anpassbar.",
+    "preset_applied": "Scoring-Preset \"{{preset}}\" angewendet",
+    "preset_failed": "Scoring-Preset konnte nicht angewendet werden — Standardwerte bleiben aktiv"
+  },
+  "performance_step": {
+    "description": "Wie stark darf Sublarr diese Maschine auslasten?",
+    "light_title": "Leicht",
+    "light_description": "Sanfte Scan-Intervalle und wenig Parallelität — für NAS und kleine Server.",
+    "balanced_title": "Ausgewogen",
+    "balanced_description": "Sinnvoller Mittelweg für die meisten Setups.",
+    "aggressive_title": "Aggressiv",
+    "aggressive_description": "Häufige Scans und hohe Parallelität — für starke Hardware.",
+    "recommended": "Empfohlen",
+    "detected": "Erkannt: {{cpu}} CPU-Kerne, {{ram}} GB RAM",
+    "apply_failed": "Performance-Profil konnte nicht angewendet werden"
   }
 }

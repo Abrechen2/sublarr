@@ -5,6 +5,8 @@ import {
   CheckSquare, Square, Download, ScanSearch, FlaskConical,
 } from 'lucide-react'
 import { StatusBadge, SubtitleTypeBadge } from '@/components/shared/StatusBadge'
+import { ScoreBreakdown } from '@/components/shared/ScoreBreakdown'
+import { ResultFlagBadges } from '@/components/shared/SubtitleBadges'
 import { formatRelativeTime, truncatePath } from '@/lib/utils'
 import type { WantedSearchResponse } from '@/lib/types'
 import type { WantedItem } from '@/types/wanted'
@@ -60,18 +62,6 @@ interface SearchResultsRowProps {
   isLoading: boolean
   onBlacklist: (providerName: string, subtitleId: string, language: string) => void
   t: (key: string, opts?: Record<string, unknown>) => string
-}
-
-function ScoreBadge({ score }: { score: number }) {
-  const color = score >= 300 ? 'var(--success)' : score >= 200 ? 'var(--warning)' : 'var(--text-muted)'
-  return (
-    <span
-      className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-bold tabular-nums"
-      style={{ backgroundColor: `${color}18`, color, fontFamily: 'var(--font-mono)' }}
-    >
-      {score}
-    </span>
-  )
 }
 
 export function SearchResultsRow({ results, isLoading, onBlacklist, t }: SearchResultsRowProps) {
@@ -154,7 +144,10 @@ export function SearchResultsRow({ results, isLoading, onBlacklist, t }: SearchR
                     </span>
                   </td>
                   <td className="px-3 py-1.5">
-                    <ScoreBadge score={r.score} />
+                    <span className="inline-flex items-center gap-1.5">
+                      <ScoreBreakdown score={r.score} breakdown={r.score_breakdown ?? {}} />
+                      <ResultFlagBadges flags={r} />
+                    </span>
                   </td>
                   <td className="px-3 py-1.5 text-xs truncate max-w-[200px]" title={r.release_info || r.filename} style={{ color: 'var(--text-secondary)' }}>
                     {r.release_info || r.filename || '-'}

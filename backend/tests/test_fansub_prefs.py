@@ -176,3 +176,35 @@ class TestFansubRulesEmptyStringSafety:
             bonus=20,
         )
         assert score == 120
+
+
+class TestFansubRulesBreakdownSync:
+    """Fansub adjustments must be mirrored into score_breakdown so the UI
+    tooltip total matches the displayed score."""
+
+    @staticmethod
+    def _run(preferred, excluded, info, bonus=20):
+        from wanted_search.scoring import _apply_fansub_rules
+
+        results = [{"score": 100, "release_info": info, "score_breakdown": {"series": 100}}]
+        _apply_fansub_rules(results, preferred, excluded, bonus)
+        return results[0]
+
+    def test_preferred_bonus_recorded_in_breakdown(self):
+        r = self._run(preferred=["SubsPlease"], excluded=[], info="SubsPlease 1080p")
+        assert r["score"] == 120
+        assert r["score_breakdown"]["fansub_preferred"] == 20
+        assert sum(r["score_breakdown"].values()) == r["score"]
+
+    def test_excluded_penalty_recorded_in_breakdown(self):
+        r = self._run(preferred=[], excluded=["HorribleSubs"], info="HorribleSubs 1080p")
+        assert r["score"] == 100 - 999
+        assert r["score_breakdown"]["fansub_excluded"] == -999
+        assert sum(r["score_breakdown"].values()) == r["score"]
+
+    def test_missing_breakdown_is_tolerated(self):
+        from wanted_search.scoring import _apply_fansub_rules
+
+        results = [{"score": 100, "release_info": "SubsPlease 1080p"}]
+        _apply_fansub_rules(results, ["SubsPlease"], [], 20)
+        assert results[0]["score"] == 120

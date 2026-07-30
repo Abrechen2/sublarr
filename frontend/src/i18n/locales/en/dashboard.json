@@ -165,6 +165,13 @@
     "searching": "Searching...",
     "wantedList": "Wanted List",
     "viewLogs": "View Logs",
-    "runNow": "▶ Run Automation Now"
+    "runNow": "▶ Run Automation Now",
+    "systemHealth": "System Health",
+    "healthDatabase": "Database",
+    "healthDiskConfig": "Disk (config)",
+    "healthDiskMedia": "Disk (media)",
+    "healthFree": "free",
+    "healthConnected": "Connected",
+    "healthDegraded": "Some subsystems are degraded"
   }
 }

@@ -48,6 +48,10 @@ def _result_to_dict(result) -> dict:
         "score": result.score,
         "score_breakdown": result.score_breakdown,
         "hearing_impaired": result.hearing_impaired,
+        "forced": result.forced,
+        "machine_translated": getattr(result, "machine_translated", False),
+        "mt_confidence": getattr(result, "mt_confidence", 0.0),
+        "uploader_trust_bonus": getattr(result, "uploader_trust", 0.0),
         "matches": list(result.matches),
     }
 

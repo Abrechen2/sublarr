@@ -1,7 +1,7 @@
 import { useTranslation } from 'react-i18next'
 import { Loader2 } from 'lucide-react'
 import { formatRelativeTime } from '@/lib/utils'
-import { ScoreBadge } from './ScoreBadge'
+import { ScoreBreakdown } from '@/components/shared/ScoreBreakdown'
 import type { EpisodeHistoryEntry } from '@/lib/types'
 
 export interface EpisodeHistoryPanelProps {
@@ -87,7 +87,7 @@ export function EpisodeHistoryPanel({ entries, isLoading }: EpisodeHistoryPanelP
                   </span>
                 </td>
                 <td className="px-3 py-1.5">
-                  {entry.score > 0 ? <ScoreBadge score={entry.score} /> : <span className="text-xs" style={{ color: 'var(--text-muted)' }}>-</span>}
+                  {entry.score > 0 ? <ScoreBreakdown score={entry.score} breakdown={entry.score_breakdown ?? {}} /> : <span className="text-xs" style={{ color: 'var(--text-muted)' }}>-</span>}
                 </td>
                 <td className="px-3 py-1.5 text-xs" style={{ color: entry.status === 'completed' || entry.status === 'downloaded' ? 'var(--success)' : entry.error ? 'var(--error)' : 'var(--text-secondary)' }}>
                   {entry.error || entry.status || '-'}

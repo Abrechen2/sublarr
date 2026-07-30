@@ -41,8 +41,23 @@ def _apply_fansub_rules(
         info = result.get("release_info", "").lower()
         if excluded_lower and any(g in info for g in excluded_lower):
             result["score"] -= 999
+            _record_adjustment(result, "fansub_excluded", -999)
         elif preferred_lower and any(g in info for g in preferred_lower):
             result["score"] += bonus
+            _record_adjustment(result, "fansub_preferred", bonus)
+
+
+def _record_adjustment(result: dict, key: str, points: int) -> None:
+    """Mirror a post-scoring adjustment into the result's score_breakdown.
+
+    Adjustments applied after compute_score() must keep the breakdown in
+    sync — otherwise the UI tooltip total disagrees with the displayed
+    score. Missing/None breakdowns are tolerated (some tests build minimal
+    result dicts without one).
+    """
+    breakdown = result.get("score_breakdown")
+    if isinstance(breakdown, dict):
+        breakdown[key] = breakdown.get(key, 0) + points
 
 
 def _apply_release_group_tiers(results: list[dict], tiers: list[str], step: int) -> None:
@@ -99,3 +114,4 @@ def apply_video_codec_bonus(results: list[dict], video_codec: str, weight: int) 
         info = result.get("release_info", "").lower()
         if any(tag in info for tag in tags):
             result["score"] += weight
+            _record_adjustment(result, "video_codec_bonus", weight)

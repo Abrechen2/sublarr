@@ -103,6 +103,7 @@ def _process_forced_wanted_item(item, item_id, item_lang, manager):
                         result.format.value if result.format.value != "unknown" else fmt.value,
                         file_path,
                         result.score,
+                        score_breakdown=result.score_breakdown,
                     )
                     logger.info(
                         "Wanted %d: Forced subtitle downloaded from %s, skipping translation",
@@ -173,6 +174,7 @@ def _process_forced_wanted_item(item, item_id, item_lang, manager):
                         result.format.value if result.format.value != "unknown" else fmt.value,
                         file_path,
                         result.score,
+                        score_breakdown=result.score_breakdown,
                     )
                     logger.info(
                         "Wanted %d: Forced subtitle (source lang) downloaded from %s, skipping translation",
@@ -301,6 +303,7 @@ def download_specific_for_item(
                 fmt_ext,
                 file_path,
                 target_result.score,
+                score_breakdown=target_result.score_breakdown,
             )
         except DuplicateSubtitleError as dup_err:
             # existing_path is a PRE-EXISTING file on disk (often the user's
@@ -413,6 +416,7 @@ def download_specific_for_item(
             fmt_ext,
             file_path,
             target_result.score,
+            score_breakdown=target_result.score_breakdown,
         )
     except DuplicateSubtitleError as dup_err:
         delete_wanted_item(item_id)

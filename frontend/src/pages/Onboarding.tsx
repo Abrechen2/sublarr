@@ -1,14 +1,16 @@
 import { useState, useEffect, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
-import { updateConfig, completeOnboarding, getHealth, getMediaServerTypes, saveMediaServerInstances, testMediaServer, saveWatchedFolder, triggerStandaloneScan } from '@/api/client'
+import { updateConfig, completeOnboarding, getHealth, getMediaServerTypes, saveMediaServerInstances, testMediaServer, saveWatchedFolder, triggerStandaloneScan, getScoringPreset, importScoringPreset, getSetupStatus, completeSetup } from '@/api/client'
+import type { SetupBenchmark, SetupProfile } from '@/api/health'
 import { testSonarrInstance, testRadarrInstance, testApiKey } from '@/api/settings'
 import { toast } from '@/components/shared/Toast'
-import { Loader2, CheckCircle, ArrowRight, ArrowLeft, Server, Globe, Cpu, Search, Play, Monitor, Plus, TestTube, Trash2, Eye, EyeOff, FolderOpen, Languages, Zap, AlertCircle } from 'lucide-react'
+import { Loader2, CheckCircle, ArrowRight, ArrowLeft, Server, Globe, Cpu, Search, Play, Monitor, Plus, TestTube, Trash2, Eye, EyeOff, FolderOpen, Languages, Zap, AlertCircle, Clapperboard, Sparkles, Library, Gauge } from 'lucide-react'
 import type { MediaServerType, MediaServerInstance, MediaServerTestResult } from '@/lib/types'
 
 export const ALL_STEPS = [
   { id: 'mode', titleKey: 'steps.mode', icon: Server, descKey: 'mode_step.description' },
+  { id: 'library', titleKey: 'steps.library', icon: Library, descKey: 'library_step.description' },
   { id: 'arr', titleKey: 'steps.arr', icon: Server, descKey: 'arr_step.description' },
   { id: 'standalone', titleKey: 'steps.standalone', icon: FolderOpen, descKey: 'standalone_step.description' },
   { id: 'pathmapping', titleKey: 'steps.pathmapping', icon: Globe, descKey: 'pathmapping_step.description' },
@@ -17,6 +19,7 @@ export const ALL_STEPS = [
   { id: 'automation', titleKey: 'steps.automation', icon: Zap, descKey: 'automation_step.description' },
   { id: 'ollama', titleKey: 'steps.ollama', icon: Cpu, descKey: 'ollama_step.description' },
   { id: 'mediaservers', titleKey: 'steps.mediaservers', icon: Monitor, descKey: 'mediaservers_step.description' },
+  { id: 'performance', titleKey: 'steps.performance', icon: Gauge, descKey: 'performance_step.description' },
   { id: 'scan', titleKey: 'steps.scan', icon: Play, descKey: 'scan_step.description' },
 ]
 
@@ -24,13 +27,23 @@ export function getVisibleSteps(setupMode: 'arr' | 'standalone' | null) {
   if (!setupMode) return [ALL_STEPS[0]] // only setup mode step
   if (setupMode === 'arr') {
     return ALL_STEPS.filter(s =>
-      ['mode', 'arr', 'pathmapping', 'language', 'providers', 'automation', 'ollama', 'mediaservers', 'scan'].includes(s.id)
+      ['mode', 'library', 'arr', 'pathmapping', 'language', 'providers', 'automation', 'ollama', 'mediaservers', 'performance', 'scan'].includes(s.id)
     )
   }
   // standalone: skip arr and pathmapping
   return ALL_STEPS.filter(s =>
-    ['mode', 'standalone', 'language', 'providers', 'automation', 'ollama', 'mediaservers', 'scan'].includes(s.id)
+    ['mode', 'library', 'standalone', 'language', 'providers', 'automation', 'ollama', 'mediaservers', 'performance', 'scan'].includes(s.id)
   )
+}
+
+export type LibraryType = 'anime' | 'movies' | 'mixed'
+
+// Which bundled scoring preset each library type applies. `mixed` keeps the
+// (already anime-first, balanced) defaults untouched.
+export const LIBRARY_TYPE_PRESET: Record<LibraryType, string | null> = {
+  anime: 'Anime',
+  movies: 'Movies',
+  mixed: null,
 }
 
 const inputStyle = {
@@ -93,6 +106,11 @@ export default function Onboarding() {
   const [testing, setTesting] = useState<string | null>(null)
   const [scanStarted, setScanStarted] = useState(false)
   const [setupMode, setSetupMode] = useState<'arr' | 'standalone' | null>(null)
+  const [libraryType, setLibraryType] = useState<LibraryType | null>(null)
+
+  // Performance profile step (consolidates the former FirstRunWizard modal)
+  const [benchmark, setBenchmark] = useState<SetupBenchmark | null>(null)
+  const [perfProfile, setPerfProfile] = useState<SetupProfile | null>(null)
 
   const visibleSteps = getVisibleSteps(setupMode)
   const currentStepDef = visibleSteps[step] || visibleSteps[0]
@@ -150,6 +168,22 @@ export default function Onboarding() {
     }
   }, [currentStepDef.id, msTypes.length, msTypesError])
 
+  // Fetch the hardware benchmark when the performance step becomes visible so
+  // the recommended profile card is pre-selected.
+  useEffect(() => {
+    if (currentStepDef.id === 'performance' && !benchmark) {
+      getSetupStatus()
+        .then((s) => {
+          setBenchmark(s.benchmark)
+          setPerfProfile((prev) => prev ?? s.benchmark.recommended_profile)
+        })
+        .catch(() => {
+          // Benchmark unavailable — fall back to 'balanced' as selectable default.
+          setPerfProfile((prev) => prev ?? 'balanced')
+        })
+    }
+  }, [currentStepDef.id, benchmark])
+
   const set = (key: string, val: string) =>
     setValues((v) => ({ ...v, [key]: val }))
 
@@ -162,6 +196,36 @@ export default function Onboarding() {
   const saveAndNext = async () => {
     setSaving(true)
     try {
+      // Library-type step: apply the matching bundled scoring preset (if any)
+      // and advance. Nothing from `values` needs persisting here.
+      if (currentStepDef.id === 'library') {
+        const presetName = libraryType ? LIBRARY_TYPE_PRESET[libraryType] : null
+        if (presetName) {
+          try {
+            const preset = await getScoringPreset(presetName)
+            await importScoringPreset(preset)
+            toast(t('library_step.preset_applied', { preset: presetName }))
+          } catch {
+            toast(t('library_step.preset_failed'), 'error')
+          }
+        }
+        setStep((s) => s + 1)
+        return
+      }
+
+      // Performance step: apply the chosen scheduler profile via the same
+      // endpoint the former FirstRunWizard modal used. This also sets
+      // setup_wizard_completed=true so the modal never shows afterwards.
+      if (currentStepDef.id === 'performance') {
+        try {
+          await completeSetup(perfProfile ?? 'balanced')
+        } catch {
+          toast(t('performance_step.apply_failed'), 'error')
+        }
+        setStep((s) => s + 1)
+        return
+      }
+
       // Build the payload, then drop keys that belong to the *other* setup mode.
       const toSave: Record<string, string> = {}
       for (const [k, v] of Object.entries(values)) {
@@ -486,6 +550,91 @@ export default function Onboarding() {
                   </div>
                 </button>
               </div>
+            </div>
+          )}
+
+          {currentStepDef.id === 'library' && (
+            <div className="space-y-4">
+              <p className="text-sm" style={{ color: 'var(--text-secondary)' }}>
+                {t('library_step.question')}
+              </p>
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                {([
+                  { type: 'anime' as const, icon: Sparkles },
+                  { type: 'movies' as const, icon: Clapperboard },
+                  { type: 'mixed' as const, icon: Library },
+                ]).map(({ type, icon: TypeIcon }) => (
+                  <button
+                    key={type}
+                    data-testid={`library-type-${type}`}
+                    onClick={() => setLibraryType(type)}
+                    className="rounded-lg p-4 text-left space-y-2 transition-all duration-200"
+                    style={{
+                      backgroundColor: 'var(--bg-primary)',
+                      border: libraryType === type ? '2px solid var(--accent)' : '1px solid var(--border)',
+                    }}
+                  >
+                    <div className="flex items-center justify-between">
+                      <TypeIcon size={20} style={{ color: 'var(--accent)' }} />
+                      {libraryType === type && <CheckCircle size={16} style={{ color: 'var(--accent)' }} />}
+                    </div>
+                    <div className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>
+                      {t(`library_step.${type}_title`)}
+                    </div>
+                    <div className="text-xs" style={{ color: 'var(--text-secondary)' }}>
+                      {t(`library_step.${type}_description`)}
+                    </div>
+                  </button>
+                ))}
+              </div>
+              <p className="text-xs" style={{ color: 'var(--text-muted)' }}>
+                {t('library_step.help')}
+              </p>
+            </div>
+          )}
+
+          {currentStepDef.id === 'performance' && (
+            <div className="space-y-4">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                {(['light', 'balanced', 'aggressive'] as const).map((profile) => {
+                  const recommended = benchmark?.recommended_profile === profile
+                  const selected = perfProfile === profile
+                  return (
+                    <button
+                      key={profile}
+                      data-testid={`perf-profile-${profile}`}
+                      onClick={() => setPerfProfile(profile)}
+                      className="rounded-lg p-4 text-left space-y-2 transition-all duration-200"
+                      style={{
+                        backgroundColor: 'var(--bg-primary)',
+                        border: selected ? '2px solid var(--accent)' : '1px solid var(--border)',
+                      }}
+                    >
+                      <div className="flex items-center justify-between gap-1">
+                        <span className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>
+                          {t(`performance_step.${profile}_title`)}
+                        </span>
+                        {recommended && (
+                          <span
+                            className="text-[10px] font-semibold rounded-full px-1.5 py-0.5 shrink-0"
+                            style={{ backgroundColor: 'var(--accent)', color: '#fff' }}
+                          >
+                            {t('performance_step.recommended')}
+                          </span>
+                        )}
+                      </div>
+                      <div className="text-xs" style={{ color: 'var(--text-secondary)' }}>
+                        {t(`performance_step.${profile}_description`)}
+                      </div>
+                    </button>
+                  )
+                })}
+              </div>
+              {benchmark && (
+                <p className="text-xs" style={{ color: 'var(--text-muted)' }}>
+                  {t('performance_step.detected', { cpu: benchmark.cpu_count, ram: benchmark.ram_gb })}
+                </p>
+              )}
             </div>
           )}
 
@@ -981,9 +1130,9 @@ export default function Onboarding() {
           {step < visibleSteps.length - 1 ? (
             <button
               onClick={saveAndNext}
-              disabled={saving || currentStepDef.id === 'mode'}
+              disabled={saving || currentStepDef.id === 'mode' || (currentStepDef.id === 'library' && !libraryType)}
               className="flex items-center gap-1.5 px-4 py-2 rounded-md text-sm font-medium text-white"
-              style={{ backgroundColor: currentStepDef.id === 'mode' ? 'var(--text-muted)' : 'var(--accent)' }}
+              style={{ backgroundColor: currentStepDef.id === 'mode' || (currentStepDef.id === 'library' && !libraryType) ? 'var(--text-muted)' : 'var(--accent)' }}
             >
               {saving ? <Loader2 size={14} className="animate-spin" /> : null}
               {currentStepDef.id === 'mediaservers' ? (msInstances.length > 0 ? t('navigation.save_next') : t('navigation.skip')) : t('navigation.next')}

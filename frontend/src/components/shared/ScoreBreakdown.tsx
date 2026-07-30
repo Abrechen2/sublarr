@@ -7,26 +7,15 @@ interface Props {
   className?: string
 }
 
-const LABELS: Record<string, string> = {
-  series: 'Series title', hash: 'File hash', year: 'Year', title: 'Title',
-  season: 'Season', episode: 'Episode', release_group: 'Release group',
-  source: 'Source (BluRay/WEB)', audio_codec: 'Audio codec', resolution: 'Resolution',
-  video_codec: 'Video codec', hearing_impaired: 'Hearing impaired',
-  format_bonus: 'ASS format bonus', release_group_prefer: 'Preferred release group',
-  provider_modifier: 'Provider bonus/penalty', uploader_trust: 'Uploader trust',
-  hi_preference: 'HI preference', forced_preference: 'Forced preference',
-}
-
-// Penalty-pipeline entries arrive as "rule:<rule_id>" — render the rule id
-// as readable words instead of the raw key.
-function labelFor(key: string): string {
-  if (LABELS[key]) return LABELS[key]
-  if (key.startsWith('rule:')) {
-    const words = key.slice(5).replace(/_/g, ' ')
-    return `Rule: ${words.charAt(0).toUpperCase()}${words.slice(1)}`
-  }
-  return key
-}
+// Breakdown component keys — resolved via i18n (common:score_breakdown.labels.*).
+// Keys missing here (unknown providers/rules) fall back to the raw key.
+const KNOWN_KEYS = [
+  'series', 'title', 'hash', 'year', 'season', 'episode', 'release_group',
+  'source', 'audio_codec', 'resolution', 'video_codec', 'hearing_impaired',
+  'format_bonus', 'provider_modifier', 'uploader_trust', 'hi_preference',
+  'forced_preference', 'fansub_preferred', 'fansub_excluded', 'video_codec_bonus',
+  'release_group_prefer',
+] as const
 
 function badgeColor(score: number): 'success' | 'warning' | 'muted' {
   if (score >= 300) return 'success'
@@ -39,6 +28,16 @@ export function ScoreBreakdown({ score, breakdown, className }: Props) {
   const [visible, setVisible] = useState(false)
   const color = badgeColor(score)
   const hasEntries = Object.keys(breakdown).length > 0
+
+  const labelFor = (key: string): string => {
+    if (key.startsWith('rule:')) {
+      return tc('score_breakdown.rule', { id: key.slice(5) })
+    }
+    if ((KNOWN_KEYS as readonly string[]).includes(key)) {
+      return tc(`score_breakdown.labels.${key}`)
+    }
+    return key
+  }
 
   const badgeStyle: React.CSSProperties = {
     display: 'inline-flex', alignItems: 'center',
@@ -85,7 +84,7 @@ export function ScoreBreakdown({ score, breakdown, className }: Props) {
           }}
         >
           <div style={{ fontWeight: 600, marginBottom: '6px', color: 'var(--text-secondary)' }}>
-            Score breakdown
+            {tc('score_breakdown.title')}
           </div>
           {!hasEntries && (
             <div style={{ color: 'var(--text-muted)', fontStyle: 'italic' }}>{tc('ui.no_breakdown')}</div>

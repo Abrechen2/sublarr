@@ -40,6 +40,7 @@ const LoginPage = lazy(() => import('@/pages/Login').then(m => ({ default: m.Log
 const MovieDetailPage = lazy(() => import('@/pages/MovieDetail').then(m => ({ default: m.MovieDetailPage })))
 const StatisticsPage = lazy(() => import('@/pages/StatisticsPage').then(m => ({ default: m.StatisticsPage })))
 const HealthPage = lazy(() => import('@/pages/HealthPage').then(m => ({ default: m.HealthPage })))
+const ProvidersOverviewPage = lazy(() => import('@/pages/ProvidersOverview').then(m => ({ default: m.ProvidersOverviewPage })))
 const WantedPage = lazy(() => import('@/pages/Wanted').then(m => ({ default: m.WantedPage })))
 const TrashPage = lazy(() => import('@/pages/Trash').then(m => ({ default: m.TrashPage })))
 const LogsPage = lazy(() => import('@/pages/Logs').then(m => ({ default: m.LogsPage })))
@@ -90,6 +91,7 @@ function AnimatedRoutes() {
           <Route path="/movies/:id" element={<Suspense fallback={<FormSkeleton />}><MovieDetailPage /></Suspense>} />
           <Route path="/statistics" element={<Suspense fallback={<PageSkeleton />}><StatisticsPage /></Suspense>} />
           <Route path="/health" element={<Suspense fallback={<PageSkeleton />}><HealthPage /></Suspense>} />
+          <Route path="/providers" element={<Suspense fallback={<PageSkeleton />}><ProvidersOverviewPage /></Suspense>} />
           {/* Redirect old standalone pages into settings sub-routes */}
           <Route path="/tasks" element={<Navigate to="/settings/automation" replace />} />
           <Route path="/plugins" element={<Navigate to="/settings/providers" replace />} />
@@ -166,8 +168,14 @@ function GlobalShortcuts({ onToggleShortcutsModal }: { onToggleShortcutsModal: (
 }
 
 /** Renders the first-run wizard modal when the backend says it hasn't been
- *  completed and the user hasn't postponed it within the last 7 days. */
+ *  completed and the user hasn't postponed it within the last 7 days.
+ *
+ *  The onboarding wizard at /onboarding now contains its own performance
+ *  step backed by the same /system/setup/complete endpoint, so this modal is
+ *  only a fallback for users who skipped onboarding — never stack it on top
+ *  of the onboarding flow itself. */
 function FirstRunWizardMount() {
+  const location = useLocation()
   const { data: setupStatus } = useSetupStatus()
   const [wizardOpen, setWizardOpen] = useState(false)
 
@@ -177,7 +185,7 @@ function FirstRunWizardMount() {
     }
   }, [setupStatus])
 
-  if (!wizardOpen) return null
+  if (!wizardOpen || location.pathname === '/onboarding') return null
   return <FirstRunWizard onClose={() => setWizardOpen(false)} />
 }
 

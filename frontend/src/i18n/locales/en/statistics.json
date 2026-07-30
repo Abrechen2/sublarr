@@ -59,5 +59,38 @@
     "uptime": "Uptime",
     "db_size": "Database size",
     "recent_jobs": "Recent scheduler runs"
+  },
+  "providers_page": {
+    "title": "Providers",
+    "subtitle": "Per-provider statistics, health and API budget",
+    "summary_enabled": "Enabled",
+    "summary_healthy": "Healthy",
+    "summary_downloads": "Total downloads",
+    "summary_budget": "API budget",
+    "budget_on": "Active",
+    "budget_off": "Off",
+    "budget_day": "API budget (day)",
+    "download_rate": "Download rate",
+    "download_rate_tooltip": "Searches that ended in a downloaded subtitle",
+    "result_rate": "Hit rate",
+    "result_rate_tooltip": "Searches where this provider returned at least one result",
+    "downloads": "Downloads",
+    "avg_response": "Avg response",
+    "last_success": "Last success",
+    "last_failure": "Last failure",
+    "consecutive_failures": "{{count}} consecutive failures",
+    "test": "Test",
+    "testing": "Testing…",
+    "test_failed": "Provider test failed",
+    "status": {
+      "healthy": "Healthy",
+      "slow": "Slow",
+      "rate_limited": "Rate limit",
+      "circuit_open": "Circuit open",
+      "recovering": "Recovering",
+      "auto_disabled": "Auto-disabled",
+      "unreachable": "Unreachable",
+      "off": "Disabled"
+    }
   }
 }

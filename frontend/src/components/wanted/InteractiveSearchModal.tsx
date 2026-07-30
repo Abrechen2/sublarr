@@ -19,6 +19,7 @@ import {
 } from '@/hooks/useApi'
 import { toast } from '@/components/shared/Toast'
 import { ScoreBreakdown } from '@/components/shared/ScoreBreakdown'
+import { ResultFlagBadges } from '@/components/shared/SubtitleBadges'
 import type { InteractiveSearchResult } from '@/api/client'
 
 interface InteractiveSearchModalProps {
@@ -334,30 +335,7 @@ export function InteractiveSearchModal({
                         </td>
                         <td className="px-4 py-2.5 text-right">
                           <div className="flex items-center justify-end gap-1">
-                            {result.uploader_trust_bonus !== undefined && result.uploader_trust_bonus > 0 && (
-                              <span
-                                className="text-[10px] text-emerald-400 bg-emerald-400/10 px-1 rounded"
-                                title={result.uploader_name ? `Uploader: ${result.uploader_name}` : t('interactive_search.trusted_uploader')}
-                              >
-                                +{Math.round(result.uploader_trust_bonus)} Trust
-                              </span>
-                            )}
-                            {(result.machine_translated || (result.mt_confidence !== undefined && result.mt_confidence > 0)) && (
-                              <span
-                                className="text-[10px] text-orange-400 bg-orange-400/10 px-1 rounded"
-                                title={t('interactive_search.machine_translated')}
-                              >
-                                {result.mt_confidence !== undefined && result.mt_confidence > 0
-                                  ? `MT ${Math.round(result.mt_confidence)}%`
-                                  : 'MT'}
-                              </span>
-                            )}
-                            {result.hearing_impaired && (
-                              <span className="text-[10px] text-amber-400 bg-amber-400/10 px-1 rounded" title={t('interactive_search.hearing_impaired')}>HI</span>
-                            )}
-                            {result.forced && (
-                              <span className="text-[10px] text-blue-400 bg-blue-400/10 px-1 rounded" title={t('interactive_search.forced')}>F</span>
-                            )}
+                            <ResultFlagBadges flags={result} />
                           </div>
                         </td>
                         <td className="px-4 py-2.5 text-right">
