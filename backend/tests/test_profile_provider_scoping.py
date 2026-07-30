@@ -139,9 +139,9 @@ class TestPresetScoring:
         )
         compute_score(result, query)
 
-        ass_bonus = result.score_breakdown.get("rule:format_bonus_ass") or result.score_breakdown.get(
-            "format_bonus"
-        )
+        ass_bonus = result.score_breakdown.get(
+            "rule:format_bonus_ass"
+        ) or result.score_breakdown.get("format_bonus")
         assert ass_bonus == 80
         # Anime preset raises series weight to 180 (same as default) — sanity
         assert result.score_breakdown["series"] == 180
@@ -158,9 +158,9 @@ class TestPresetScoring:
         )
         compute_score(result, query)
 
-        ass_bonus = result.score_breakdown.get("rule:format_bonus_ass") or result.score_breakdown.get(
-            "format_bonus"
-        )
+        ass_bonus = result.score_breakdown.get(
+            "rule:format_bonus_ass"
+        ) or result.score_breakdown.get("format_bonus")
         assert ass_bonus == 50  # global default
 
     def test_no_preset_keeps_default_scoring(self, app_ctx):
@@ -169,9 +169,9 @@ class TestPresetScoring:
         query = VideoQuery(series_title="Test", season=1, episode=1, languages=["de"])
         compute_score(result, query)
 
-        ass_bonus = result.score_breakdown.get("rule:format_bonus_ass") or result.score_breakdown.get(
-            "format_bonus"
-        )
+        ass_bonus = result.score_breakdown.get(
+            "rule:format_bonus_ass"
+        ) or result.score_breakdown.get("format_bonus")
         assert ass_bonus == 50
 
 

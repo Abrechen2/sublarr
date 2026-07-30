@@ -143,9 +143,7 @@ class QualityRepository(BaseRepository):
 
     def is_user_modified(self, file_path: str) -> bool:
         """Whether a subtitle file carries the hand-edited marker."""
-        stmt = select(UserModifiedSubtitle.id).where(
-            UserModifiedSubtitle.file_path == file_path
-        )
+        stmt = select(UserModifiedSubtitle.id).where(UserModifiedSubtitle.file_path == file_path)
         return self.session.execute(stmt).scalar_one_or_none() is not None
 
     def clear_user_modified(self, file_path: str) -> int:

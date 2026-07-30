@@ -127,7 +127,6 @@ class LibraryRepository(BaseRepository):
         entry = self.session.get(SubtitleDownload, download_id)
         return self._to_dict(entry) if entry else None
 
-
     def _annotate_sync_status(self, rows: list[dict]) -> None:
         """Attach synced/sync_engine/synced_at to history rows in one query.
 

@@ -44,6 +44,7 @@ _SELF_HOSTED_PROVIDERS = {"subsdump", "customapi"}
 def _is_self_hosted_provider(provider_name: str) -> bool:
     return provider_name in _SELF_HOSTED_PROVIDERS or provider_name.startswith("customapi-")
 
+
 # Allowlists: a URL is accepted when netloc equals entry OR ends with ".<entry>".
 _PROVIDER_DOWNLOAD_DOMAINS: dict[str, set[str]] = {
     "opensubtitles": {"opensubtitles.com", "opensubtitles.org"},
