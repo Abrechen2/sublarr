@@ -166,8 +166,14 @@ function GlobalShortcuts({ onToggleShortcutsModal }: { onToggleShortcutsModal: (
 }
 
 /** Renders the first-run wizard modal when the backend says it hasn't been
- *  completed and the user hasn't postponed it within the last 7 days. */
+ *  completed and the user hasn't postponed it within the last 7 days.
+ *
+ *  The onboarding wizard at /onboarding now contains its own performance
+ *  step backed by the same /system/setup/complete endpoint, so this modal is
+ *  only a fallback for users who skipped onboarding — never stack it on top
+ *  of the onboarding flow itself. */
 function FirstRunWizardMount() {
+  const location = useLocation()
   const { data: setupStatus } = useSetupStatus()
   const [wizardOpen, setWizardOpen] = useState(false)
 
@@ -177,7 +183,7 @@ function FirstRunWizardMount() {
     }
   }, [setupStatus])
 
-  if (!wizardOpen) return null
+  if (!wizardOpen || location.pathname === '/onboarding') return null
   return <FirstRunWizard onClose={() => setWizardOpen(false)} />
 }
 
