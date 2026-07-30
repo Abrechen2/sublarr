@@ -154,7 +154,19 @@
     "loading_hint": "Bei langen Folgen kann das einen Moment dauern — das Audio wird aus dem Video extrahiert und die Welle gezeichnet.",
     "loop": "Loop",
     "loop_tooltip": "Ausgewählte Cue in Schleife abspielen, mit Vor-/Nachlauf (L)",
-    "loop_roll_tooltip": "Vor-/Nachlauf um die Cue herum"
+    "loop_roll_tooltip": "Vor-/Nachlauf um die Cue herum",
+    "fix": {
+      "title": "Sichere Defekte beheben",
+      "subtitle": "{{count}} sichere Timing-Korrekturen vorgeschlagen — prüfen und als eine rückgängig machbare Änderung anwenden.",
+      "skipped": "{{count}} Defekte sind nicht sicher automatisch behebbar und bleiben zur manuellen Bearbeitung.",
+      "kind_overlap": "Überlappung — frühere Cue kürzen",
+      "kind_tightGap": "Enger Abstand — vergrößern",
+      "kind_tooShort": "Zu kurz — verlängern",
+      "apply": "{{count}} Korrekturen anwenden",
+      "cancel": "Abbrechen",
+      "button": "Fix ({{count}})",
+      "button_tooltip": "Sichere Timing-Korrekturen prüfen und anwenden (Überlappungen, enge Abstände, zu kurze Cues)"
+    }
   },
   "sync_preview": {
     "before_start": "Vor Start",
@@ -215,7 +227,8 @@
     "convert_failed": "Konvertierung fehlgeschlagen",
     "convert_button": "Konvertieren",
     "loading_editor": "Editor wird geladen…",
-    "loading_content": "Inhalt wird geladen…"
+    "loading_content": "Inhalt wird geladen…",
+    "fix_defects_applied": "{{count}} Timing-Korrekturen angewendet"
   },
   "enable_translation_modal": {
     "title": "Übersetzung aktivieren",
