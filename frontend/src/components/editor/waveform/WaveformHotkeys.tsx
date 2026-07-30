@@ -26,6 +26,7 @@ export function WaveformHotkeys({ enabled, onAction }: WaveformHotkeysProps) {
   const opts = { enabled, preventDefault: true } as const
 
   useHotkeys('space', () => onAction('playPause'), opts)
+  useHotkeys('l', () => onAction('loopCue'), opts)
   useHotkeys('s', () => onAction('setStart'), opts)
   useHotkeys('d', () => onAction('setEnd'), opts)
   useHotkeys('f', () => onAction('splitAtCursor'), opts)

@@ -18,6 +18,7 @@
 
 export type WaveformAction =
   | 'playPause'
+  | 'loopCue'
   | 'setStart'
   | 'setEnd'
   | 'splitAtCursor'
@@ -60,6 +61,7 @@ export interface WaveformShortcut {
 
 export const WAVEFORM_SHORTCUTS: readonly WaveformShortcut[] = [
   { keys: 'space', display: 'Space', action: 'playPause', labelKey: 'playPause', group: 'playback' },
+  { keys: 'l', display: 'L', action: 'loopCue', labelKey: 'loopCue', group: 'playback' },
   { keys: 's', display: 'S', action: 'setStart', labelKey: 'setStart', group: 'timing' },
   { keys: 'd', display: 'D', action: 'setEnd', labelKey: 'setEnd', group: 'timing' },
   { keys: 'f', display: 'F', action: 'splitAtCursor', labelKey: 'splitAtCursor', group: 'timing' },

@@ -24,6 +24,7 @@ import {
   Headphones,
   Film,
   Gauge,
+  Repeat,
   List as ListIcon,
   Undo2,
   Redo2,
@@ -140,6 +141,7 @@ const SPEECH_LANE_LS_KEY = 'sublarr.waveform.speechLane'
 const AMP_ZOOM_LS_KEY = 'sublarr.waveform.ampZoom'
 const PLAYBACK_RATE_LS_KEY = 'sublarr.waveform.playbackRate'
 const CUE_LIST_COLLAPSED_LS_KEY = 'sublarr.waveform.cueListCollapsed'
+const LOOP_ROLL_LS_KEY = 'sublarr.waveform.loopRollSec'
 
 /** Vertical amplitude (bar-height) zoom — 1× default, up to 5× for quiet audio. */
 const AMP_MIN = 1
@@ -150,6 +152,10 @@ const AMP_DEFAULT = 1
 const RATE_MIN = 0.5
 const RATE_MAX = 2.0
 const RATE_DEFAULT = 1.0
+
+/** Loop-audition pre-/post-roll around the cue, in seconds. */
+const LOOP_ROLL_OPTIONS = [0, 0.25, 0.5, 1] as const
+const LOOP_ROLL_DEFAULT = 0.25
 
 function readNumberPref(key: string, fallback: number, min: number, max: number): number {
   if (typeof window === 'undefined') return fallback
@@ -243,6 +249,10 @@ export function WaveformEditor({
   const [playbackRate, setPlaybackRate] = useState<number>(() =>
     readNumberPref(PLAYBACK_RATE_LS_KEY, RATE_DEFAULT, RATE_MIN, RATE_MAX),
   )
+  // Loop-audition pre-/post-roll (seconds of context played around the cue).
+  const [loopRollSec, setLoopRollSec] = useState<number>(() =>
+    readNumberPref(LOOP_ROLL_LS_KEY, LOOP_ROLL_DEFAULT, 0, LOOP_ROLL_OPTIONS[LOOP_ROLL_OPTIONS.length - 1]),
+  )
   // 0-based audio-position to extract; the backend route picks `0:a:<idx>`.
   const [selectedAudioIdx, setSelectedAudioIdx] = useState<number>(0)
   // Stacked-Lanes layout: persisted collapse for the cue list under the wave.
@@ -319,6 +329,11 @@ export function WaveformEditor({
     writeNumberPref(PLAYBACK_RATE_LS_KEY, value)
   }, [])
 
+  const updateLoopRoll = useCallback((value: number) => {
+    setLoopRollSec(value)
+    writeNumberPref(LOOP_ROLL_LS_KEY, value)
+  }, [])
+
   const { data: parseData } = useSubtitleParse(subtitlePath)
   const { data: keyframesData } = useKeyframes(videoPath || null)
   const { data: audioTracksData } = useAudioTracks(videoPath || null)
@@ -377,6 +392,9 @@ export function WaveformEditor({
     isReady,
     isPlaying,
     playPause,
+    startLoop,
+    stopLoop,
+    isLooping,
     setStartAtPlayhead,
     setEndAtPlayhead,
     seekBy,
@@ -453,6 +471,17 @@ export function WaveformEditor({
         case 'playPause':
           playPause()
           return
+        case 'loopCue': {
+          if (isLooping) {
+            stopLoop()
+            return
+          }
+          if (selectedCueIdx === null) return
+          const cue = cues[selectedCueIdx]
+          if (!cue) return
+          startLoop(cue.start - loopRollSec, cue.end + loopRollSec)
+          return
+        }
         case 'setStart':
           setStartAtPlayhead()
           return
@@ -537,6 +566,11 @@ export function WaveformEditor({
     [
       ws,
       playPause,
+      isLooping,
+      startLoop,
+      stopLoop,
+      cues,
+      loopRollSec,
       setStartAtPlayhead,
       setEndAtPlayhead,
       seekBy,
@@ -594,6 +628,38 @@ export function WaveformEditor({
         {isPlaying ? <Pause size={12} /> : <Play size={12} />}
         {isPlaying ? t('waveform.pause') : t('waveform.play')}
       </button>
+
+      {/* Loop-audition (`L`): repeat the selected cue with pre-/post-roll. */}
+      <div className="flex items-center gap-1">
+        <button
+          type="button"
+          onClick={() => handleAction('loopCue')}
+          disabled={!isLooping && selectedCueIdx === null}
+          aria-pressed={isLooping}
+          className={`flex items-center gap-1.5 px-3 py-1.5 rounded text-xs font-medium transition-colors border disabled:opacity-40 disabled:cursor-not-allowed ${
+            isLooping
+              ? 'bg-accent-bg text-accent border-accent-dim'
+              : 'bg-surface text-primary border-border'
+          }`}
+          title={t('waveform.loop_tooltip')}
+        >
+          <Repeat size={12} />
+          {t('waveform.loop')}
+        </button>
+        <select
+          value={loopRollSec}
+          onChange={(e) => updateLoopRoll(Number(e.target.value))}
+          className="px-1 py-1.5 rounded text-xs bg-surface text-primary border border-border"
+          title={t('waveform.loop_roll_tooltip')}
+          aria-label={t('waveform.loop_roll_tooltip')}
+        >
+          {LOOP_ROLL_OPTIONS.map((sec) => (
+            <option key={sec} value={sec}>
+              ±{sec}s
+            </option>
+          ))}
+        </select>
+      </div>
 
       {onCueChange && (
         <button

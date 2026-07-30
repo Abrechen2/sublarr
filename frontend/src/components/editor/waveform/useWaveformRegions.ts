@@ -151,6 +151,16 @@ export interface UseWaveformRegionsResult {
   pause: () => void
   playPause: () => void
   /**
+   * Loop-audition (`L` key): repeat the [fromSec, toSec] window until
+   * stopped. Any other transport action (play/pause/seek) cancels the loop
+   * so the user never gets "stuck" inside it.
+   */
+  startLoop: (fromSec: number, toSec: number) => void
+  /** Stop a running loop-audition and pause playback. */
+  stopLoop: () => void
+  /** True while a loop-audition window is active. */
+  isLooping: boolean
+  /**
    * Snap-and-set the selected cue's start to the current playhead. Used by
    * the keyboard `S` hotkey (Aegisub convention).
    */
@@ -264,9 +274,13 @@ export function useWaveformRegions({
   scrubWindowSecRef.current = scrubWindowSec
   // Last scrub timestamp (ms epoch); used by the throttle gate.
   const lastScrubAtRef = useRef<number>(0)
+  // Loop-audition window in seconds; null when no loop is active. Read by
+  // the long-lived pause/finish listeners to decide whether to restart.
+  const loopRef = useRef<{ from: number; to: number } | null>(null)
 
   const [isReady, setIsReady] = useState(false)
   const [isPlaying, setIsPlaying] = useState(false)
+  const [isLooping, setIsLooping] = useState(false)
   const [visibleRange, setVisibleRange] = useState<[number, number] | null>(null)
   const [playheadSec, setPlayheadSec] = useState<number>(0)
 
@@ -315,8 +329,26 @@ export function useWaveformRegions({
     wsRef.current = ws
 
     const onPlay = () => setIsPlaying(true)
-    const onPause = () => setIsPlaying(false)
-    const onFinish = () => setIsPlaying(false)
+    // WaveSurfer's play(from, to) pauses when the window ends; if a
+    // loop-audition is active and the playhead landed at (or past) the
+    // window's end, restart it. A manual pause mid-window falls through
+    // and just pauses — the loop flag stays set until explicitly cleared.
+    const restartLoopIfEnded = () => {
+      const loop = loopRef.current
+      const ws2 = wsRef.current
+      if (!loop || !ws2) return false
+      if (ws2.getCurrentTime() < loop.to - 0.05) return false
+      void ws2.play(loop.from, loop.to)
+      return true
+    }
+    const onPause = () => {
+      if (restartLoopIfEnded()) return
+      setIsPlaying(false)
+    }
+    const onFinish = () => {
+      if (restartLoopIfEnded()) return
+      setIsPlaying(false)
+    }
     const onReady = () => {
       setIsReady(true)
     }
@@ -427,8 +459,10 @@ export function useWaveformRegions({
       ws.destroy()
       wsRef.current = null
       regionsRef.current = null
+      loopRef.current = null
       setIsReady(false)
       setIsPlaying(false)
+      setIsLooping(false)
       setVisibleRange(null)
       setPlayheadSec(0)
     }
@@ -927,15 +961,44 @@ export function useWaveformRegions({
     }
   }, [container, isReady, enableDrag, applySetStart, applySetEnd])
 
+  /** Drop the loop window without touching playback. Called by every other
+   *  transport action so a running loop never "captures" them. */
+  const clearLoop = useCallback(() => {
+    if (loopRef.current === null) return
+    loopRef.current = null
+    setIsLooping(false)
+  }, [])
+
   const play = useCallback(() => {
+    clearLoop()
     void wsRef.current?.play()
-  }, [])
+  }, [clearLoop])
   const pause = useCallback(() => {
+    clearLoop()
     wsRef.current?.pause()
-  }, [])
+  }, [clearLoop])
   const playPause = useCallback(() => {
+    clearLoop()
     void wsRef.current?.playPause()
+  }, [clearLoop])
+
+  const startLoop = useCallback((fromSec: number, toSec: number) => {
+    const ws = wsRef.current
+    if (!ws) return
+    const dur = ws.getDuration()
+    if (!Number.isFinite(dur) || dur <= 0) return
+    const from = Math.max(0, Math.min(dur, fromSec))
+    const to = Math.max(0, Math.min(dur, toSec))
+    if (to - from < 0.01) return
+    loopRef.current = { from, to }
+    setIsLooping(true)
+    void ws.play(from, to)
   }, [])
+
+  const stopLoop = useCallback(() => {
+    clearLoop()
+    wsRef.current?.pause()
+  }, [clearLoop])
 
   /** Set the start of the currently selected cue at the playhead position. */
   const setStartAtPlayhead = useCallback(() => {
@@ -983,6 +1046,9 @@ export function useWaveformRegions({
     play,
     pause,
     playPause,
+    startLoop,
+    stopLoop,
+    isLooping,
     setStartAtPlayhead,
     setEndAtPlayhead,
     seekBy,

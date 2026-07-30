@@ -52,6 +52,15 @@ describe('WaveformHotkeys', () => {
     expect(onAction).toHaveBeenCalledWith('playPause')
   })
 
+  it('dispatches "loopCue" on L keypress', async () => {
+    const onAction = vi.fn()
+    render(<WaveformHotkeys enabled={true} onAction={onAction} />)
+
+    await userEvent.keyboard('l')
+
+    expect(onAction).toHaveBeenCalledWith('loopCue')
+  })
+
   it('dispatches "seekBack1s" on Shift+Left', async () => {
     const onAction = vi.fn()
     render(<WaveformHotkeys enabled={true} onAction={onAction} />)
