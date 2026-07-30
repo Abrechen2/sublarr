@@ -46,6 +46,7 @@ dev.log
 dev-pids.txt
 log/
 backend/venv/
+backend/.venv/
 backend/dev/
 dev-media/
 

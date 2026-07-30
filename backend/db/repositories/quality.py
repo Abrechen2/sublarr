@@ -9,7 +9,7 @@ from datetime import UTC, datetime, timedelta
 
 from sqlalchemy import func, select
 
-from db.models.quality import SubtitleHealthResult
+from db.models.quality import SubtitleHealthResult, UserModifiedSubtitle
 from db.repositories.base import BaseRepository
 
 logger = logging.getLogger(__name__)
@@ -123,3 +123,41 @@ class QualityRepository(BaseRepository):
         if count > 0:
             self._commit()
         return count
+
+    # ── User-modified markers (editor trust guard) ──────────────────────────
+
+    def mark_user_modified(self, file_path: str, source: str = "editor") -> dict:
+        """Mark a subtitle file as hand-edited (upsert on file_path)."""
+        stmt = select(UserModifiedSubtitle).where(UserModifiedSubtitle.file_path == file_path)
+        entry = self.session.execute(stmt).scalar_one_or_none()
+        if entry is None:
+            entry = UserModifiedSubtitle(
+                file_path=file_path, marked_at=datetime.now(UTC), source=source
+            )
+            self.session.add(entry)
+        else:
+            entry.marked_at = datetime.now(UTC)
+            entry.source = source
+        self._commit()
+        return self._to_dict(entry)
+
+    def is_user_modified(self, file_path: str) -> bool:
+        """Whether a subtitle file carries the hand-edited marker."""
+        stmt = select(UserModifiedSubtitle.id).where(
+            UserModifiedSubtitle.file_path == file_path
+        )
+        return self.session.execute(stmt).scalar_one_or_none() is not None
+
+    def clear_user_modified(self, file_path: str) -> int:
+        """Remove the hand-edited marker (e.g. after a deliberate replace).
+
+        Returns:
+            Count of deleted markers (0 or 1).
+        """
+        stmt = select(UserModifiedSubtitle).where(UserModifiedSubtitle.file_path == file_path)
+        entries = self.session.execute(stmt).scalars().all()
+        for entry in entries:
+            self.session.delete(entry)
+        if entries:
+            self._commit()
+        return len(entries)

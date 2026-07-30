@@ -291,6 +291,16 @@ def save_file_content():
 
         new_mtime = os.path.getmtime(abs_path)
 
+        # Trust guard: a manual save marks the file as hand-edited so the
+        # upgrade automation won't silently replace it later. Non-fatal —
+        # the save itself already succeeded.
+        try:
+            from db.quality import mark_user_modified
+
+            mark_user_modified(abs_path, source="editor")
+        except Exception as mark_err:  # noqa: BLE001 — never fail a completed save
+            logger.warning("Could not record user-modified marker for %s: %s", abs_path, mark_err)
+
         logger.info("Content saved: %s (backup: %s)", abs_path, bak_path)
 
         return jsonify(

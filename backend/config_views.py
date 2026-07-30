@@ -209,6 +209,7 @@ class ScanningSettings(_SettingsView):
             "upgrade_min_score_delta",
             "upgrade_window_days",
             "upgrade_prefer_ass",
+            "upgrade_protect_user_modified",
             "upgrade_scan_interval_hours",
             "hi_removal_enabled",
             "hi_preference",

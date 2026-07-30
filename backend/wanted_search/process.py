@@ -223,6 +223,14 @@ def _try_target_ass_direct(ctx: dict) -> dict | None:
             from translator import get_output_path_for_lang
 
             existing_srt = get_output_path_for_lang(file_path, "srt", item_lang)
+            if getattr(settings, "upgrade_protect_user_modified", True):
+                from db.quality import is_user_modified
+
+                if is_user_modified(existing_srt):
+                    reason = "existing subtitle was hand-edited (user-modified guard)"
+                    logger.info("Wanted %d: Upgrade rejected — %s", item_id, reason)
+                    update_wanted_status(item_id, "wanted")
+                    return {"wanted_id": item_id, "status": "skipped", "reason": reason}
             do_upgrade, reason = should_upgrade(
                 "srt",
                 current_score,
@@ -249,6 +257,14 @@ def _try_target_ass_direct(ctx: dict) -> dict | None:
             if os.path.exists(old_srt):
                 os.remove(old_srt)
                 logger.info("Wanted %d: Removed old SRT: %s", item_id, old_srt)
+                # The file is gone — drop any stale hand-edited marker with it
+                # (only reachable with the user-modified guard disabled).
+                try:
+                    from db.quality import clear_user_modified
+
+                    clear_user_modified(old_srt)
+                except Exception:  # noqa: BLE001 — marker cleanup must not fail the upgrade
+                    logger.debug("Could not clear user-modified marker for %s", old_srt)
             record_upgrade(
                 file_path=file_path,
                 old_format="srt",

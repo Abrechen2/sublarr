@@ -23,6 +23,7 @@ import { assLanguage } from './lang-ass'
 import { srtLanguage } from './lang-srt'
 import { sublarrTheme } from './editor-theme'
 import { useSaveSubtitle, useValidateSubtitle } from '@/hooks/useApi'
+import { useEditorDraft } from '@/components/editor/useEditorDraft'
 import { toast } from '@/components/shared/Toast'
 import { ConfirmModal } from '@/components/shared/ConfirmModal'
 import type { SubtitleValidation } from '@/lib/types'
@@ -140,6 +141,11 @@ export function SubtitleEditor({
       }
     }
   }, [content, hasChanges, initialContent, runValidation])
+
+  // Crash-recovery: mirror dirty edits into localStorage (debounced) so a
+  // browser crash loses at most ~1s of typing. The modal offers the draft
+  // for restore on the next open; a successful save clears it.
+  useEditorDraft(filePath, content, currentMtime, hasChanges)
 
   // Unsaved changes guard
   useEffect(() => {

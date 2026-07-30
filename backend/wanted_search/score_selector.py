@@ -39,6 +39,11 @@ def evaluate_upgrade(
     from translator import get_output_path_for_lang
 
     existing_srt = get_output_path_for_lang(file_path, existing_format, "")
+    if getattr(settings, "upgrade_protect_user_modified", True):
+        from db.quality import is_user_modified
+
+        if is_user_modified(existing_srt):
+            return False, "existing subtitle was hand-edited (user-modified guard)"
     do_upgrade, reason = should_upgrade(
         existing_format,
         current_score,

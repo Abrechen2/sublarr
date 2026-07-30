@@ -23,6 +23,14 @@ import {
   applyCueText,
   CueTextHasStylingError,
 } from '@/components/editor/waveform/applyCueText'
+import {
+  clearDraft,
+  loadDraft,
+  pruneStaleDrafts,
+  shouldOfferDraft,
+  type EditorDraft,
+} from '@/components/editor/editorDraft'
+import { useEditorDraft } from '@/components/editor/useEditorDraft'
 
 // Lazy-loaded editor components -- CodeMirror stays in separate chunks
 const SubtitlePreview = lazy(() => import('@/components/editor/SubtitlePreview'))
@@ -89,6 +97,9 @@ export default function SubtitleEditorModal({
   // are different surfaces with different edit semantics.
   const [waveformUndoStack, setWaveformUndoStack] = useState<string[]>([])
   const [waveformRedoStack, setWaveformRedoStack] = useState<string[]>([])
+  // Crash-recovery: a draft left behind by a crashed/killed session that is
+  // offered for restore. Cleared on decision or when the file changes.
+  const [offeredDraft, setOfferedDraft] = useState<EditorDraft | null>(null)
 
   // Reset state when filePath or initialMode changes — "adjust during render" pattern
   // avoids a double-render cycle that useEffect would cause for prop-derived state
@@ -105,6 +116,7 @@ export default function SubtitleEditorModal({
     setSelectedCueIdx(null)
     setWaveformUndoStack([])
     setWaveformRedoStack([])
+    setOfferedDraft(null)
   }
 
   // Plan B8 Task 11: WaveformEditor drag-end / click-set / S/D hotkey
@@ -235,8 +247,42 @@ export default function SubtitleEditorModal({
       setBaselineContent(contentData.content)
       setLastModified(contentData.last_modified)
       setFormat(contentData.format)
+      // Crash-recovery: offer a leftover draft, but only while the on-disk
+      // mtime still matches what the draft was based on — restoring against
+      // a file that changed since would let a later save clobber it.
+      if (filePath) {
+        const draft = loadDraft(filePath)
+        setOfferedDraft(
+          shouldOfferDraft(draft, contentData.last_modified, contentData.content) ? draft : null
+        )
+      }
     }
   }
+
+  // Mirror dirty edits into localStorage (debounced) so a crash loses ~1s of
+  // work at most; cleans the draft up again on save / undo-to-baseline.
+  useEditorDraft(filePath, content, lastModified, hasUnsavedChanges)
+
+  // Housekeeping: drop drafts older than 14 days once per opened file.
+  useEffect(() => {
+    if (filePath) pruneStaleDrafts()
+  }, [filePath])
+
+  const handleDraftRestore = useCallback(() => {
+    if (!offeredDraft || content === null) return
+    // Same undo contract as any waveform edit: snapshot the pre-restore
+    // content so the restore itself is undoable.
+    setWaveformUndoStack((stack) => [...stack, content])
+    setWaveformRedoStack([])
+    setContent(offeredDraft.content)
+    setOfferedDraft(null)
+    toast(t('editor_modal.draft_restored'))
+  }, [offeredDraft, content, t])
+
+  const handleDraftDiscard = useCallback(() => {
+    if (filePath) clearDraft(filePath)
+    setOfferedDraft(null)
+  }, [filePath])
 
   // Prevent body scroll when modal is open
   useEffect(() => {
@@ -468,6 +514,49 @@ export default function SubtitleEditorModal({
             </button>
           </div>
         </div>
+
+        {/* Crash-recovery banner — a leftover draft can be restored or discarded */}
+        {offeredDraft && (
+          <div
+            className="flex items-center gap-3 px-4 py-2 flex-shrink-0 text-xs"
+            style={{
+              backgroundColor: 'var(--warning-bg)',
+              color: 'var(--warning)',
+              borderBottom: '1px solid var(--border)',
+            }}
+            data-testid="draft-recovery-banner"
+          >
+            <span>
+              {t('editor_modal.draft_found', {
+                when: new Date(offeredDraft.savedAt).toLocaleString(),
+              })}
+            </span>
+            <button
+              onClick={handleDraftRestore}
+              className="px-2 py-0.5 rounded font-medium"
+              style={{
+                backgroundColor: 'var(--bg-surface)',
+                color: 'var(--text-primary)',
+                border: '1px solid var(--border)',
+              }}
+              data-testid="draft-restore-btn"
+            >
+              {t('editor_modal.draft_restore')}
+            </button>
+            <button
+              onClick={handleDraftDiscard}
+              className="px-2 py-0.5 rounded font-medium"
+              style={{
+                backgroundColor: 'transparent',
+                color: 'var(--text-muted)',
+                border: '1px solid var(--border)',
+              }}
+              data-testid="draft-discard-btn"
+            >
+              {t('editor_modal.draft_discard')}
+            </button>
+          </div>
+        )}
 
         {/* Quality fix toolbar — visible in edit mode only */}
         {mode === 'edit' && (

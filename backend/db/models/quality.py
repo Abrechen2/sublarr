@@ -28,3 +28,22 @@ class SubtitleHealthResult(db.Model):
         Index("idx_health_results_path", "file_path"),
         Index("idx_health_results_score", "score"),
     )
+
+
+class UserModifiedSubtitle(db.Model):
+    """Marks a subtitle file as hand-edited (saved from the editor).
+
+    The upgrade automation refuses to replace marked files while the
+    ``upgrade_protect_user_modified`` setting is enabled, so manual timing
+    work is never silently overwritten by a "better" provider download.
+    The marker is cleared when the file is deliberately replaced.
+    """
+
+    __tablename__ = "user_modified_subtitles"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    file_path: Mapped[str] = mapped_column(Text, nullable=False)
+    marked_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    source: Mapped[str] = mapped_column(Text, nullable=False, default="editor")
+
+    __table_args__ = (Index("idx_user_modified_path", "file_path", unique=True),)

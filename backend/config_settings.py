@@ -369,6 +369,8 @@ class UISettings(BaseModel):
     upgrade_min_score_delta: int = 50
     upgrade_window_days: int = 7
     upgrade_prefer_ass: bool = True  # SRT->ASS always upgrade
+    # Never auto-replace subtitles the user hand-edited in the editor
+    upgrade_protect_user_modified: bool = True
 
     # Hearing Impaired
     hi_removal_enabled: bool = False
