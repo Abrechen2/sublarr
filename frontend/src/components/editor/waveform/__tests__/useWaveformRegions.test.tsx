@@ -822,4 +822,125 @@ describe('useWaveformRegions', () => {
       expect(fakeWsWrapperEl.querySelectorAll('[data-sublarr-scene-marker="1"]')).toHaveLength(0)
     })
   })
+
+  // ─── Loop audition (L key) ────────────────────────────────────────────
+
+  describe('loop audition', () => {
+    interface LoopApi {
+      startLoop: (from: number, to: number) => void
+      stopLoop: () => void
+      playPause: () => void
+      isLooping: boolean
+    }
+
+    function LoopHarness({ apiRef }: { apiRef: { current: LoopApi | null } }) {
+      const containerRef = useRef<HTMLDivElement>(null)
+      const result = useWaveformRegions({
+        container: containerRef,
+        audioUrl: '/fake.wav',
+        cues: SAMPLE_CUES,
+        onCueChange: vi.fn(),
+      })
+      apiRef.current = result
+      return <div ref={containerRef} />
+    }
+
+    it('startLoop plays the window and restarts when playback pauses at its end', () => {
+      const apiRef = { current: null as LoopApi | null }
+      render(<LoopHarness apiRef={apiRef} />)
+      act(() => {
+        fireWs('ready')
+      })
+
+      act(() => {
+        apiRef.current!.startLoop(1.0, 2.0)
+      })
+      expect(fakeWs.play).toHaveBeenCalledWith(1.0, 2.0)
+      expect(apiRef.current!.isLooping).toBe(true)
+
+      // WaveSurfer pauses at the window end -> the hook restarts the loop.
+      fakeWs.play.mockClear()
+      fakeWs.getCurrentTime.mockReturnValue(2.0)
+      act(() => {
+        fireWs('pause')
+      })
+      expect(fakeWs.play).toHaveBeenCalledWith(1.0, 2.0)
+      fakeWs.getCurrentTime.mockReturnValue(0)
+    })
+
+    it('does not restart on a manual pause mid-window', () => {
+      const apiRef = { current: null as LoopApi | null }
+      render(<LoopHarness apiRef={apiRef} />)
+      act(() => {
+        fireWs('ready')
+      })
+
+      act(() => {
+        apiRef.current!.startLoop(1.0, 2.0)
+      })
+      fakeWs.play.mockClear()
+      fakeWs.getCurrentTime.mockReturnValue(1.4)
+      act(() => {
+        fireWs('pause')
+      })
+      expect(fakeWs.play).not.toHaveBeenCalled()
+      fakeWs.getCurrentTime.mockReturnValue(0)
+    })
+
+    it('stopLoop pauses and clears the looping flag', () => {
+      const apiRef = { current: null as LoopApi | null }
+      render(<LoopHarness apiRef={apiRef} />)
+      act(() => {
+        fireWs('ready')
+      })
+
+      act(() => {
+        apiRef.current!.startLoop(1.0, 2.0)
+      })
+      act(() => {
+        apiRef.current!.stopLoop()
+      })
+      expect(fakeWs.pause).toHaveBeenCalled()
+      expect(apiRef.current!.isLooping).toBe(false)
+
+      // A pause event at the old window end must NOT restart the loop.
+      fakeWs.play.mockClear()
+      fakeWs.getCurrentTime.mockReturnValue(2.0)
+      act(() => {
+        fireWs('pause')
+      })
+      expect(fakeWs.play).not.toHaveBeenCalled()
+      fakeWs.getCurrentTime.mockReturnValue(0)
+    })
+
+    it('other transport actions cancel a running loop', () => {
+      const apiRef = { current: null as LoopApi | null }
+      render(<LoopHarness apiRef={apiRef} />)
+      act(() => {
+        fireWs('ready')
+      })
+
+      act(() => {
+        apiRef.current!.startLoop(1.0, 2.0)
+      })
+      act(() => {
+        apiRef.current!.playPause()
+      })
+      expect(apiRef.current!.isLooping).toBe(false)
+    })
+
+    it('rejects a degenerate window', () => {
+      const apiRef = { current: null as LoopApi | null }
+      render(<LoopHarness apiRef={apiRef} />)
+      act(() => {
+        fireWs('ready')
+      })
+
+      act(() => {
+        apiRef.current!.startLoop(2.0, 2.0)
+      })
+      expect(apiRef.current!.isLooping).toBe(false)
+      expect(fakeWs.play).not.toHaveBeenCalled()
+    })
+  })
 })

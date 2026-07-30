@@ -101,7 +101,8 @@
       "nextScene": "Zum nächsten Szenenwechsel springen",
       "zoomIn": "Vergrößern",
       "zoomOut": "Verkleinern",
-      "showHelp": "Diese Hilfe anzeigen"
+      "showHelp": "Diese Hilfe anzeigen",
+      "loopCue": "Ausgewählte Cue loopen (mit Vor-/Nachlauf)"
     },
     "shortcut_group": {
       "playback": "Wiedergabe",
@@ -150,7 +151,10 @@
     "issues_tooltip": "{{overlaps}} Überlappungen · {{gaps}} enge Abstände · {{fast}} zu schnell · {{short}} zu kurz — klicken, um zum ersten zu springen",
     "extracting_audio": "Audio wird extrahiert…",
     "drawing": "Wellenform wird gezeichnet…",
-    "loading_hint": "Bei langen Folgen kann das einen Moment dauern — das Audio wird aus dem Video extrahiert und die Welle gezeichnet."
+    "loading_hint": "Bei langen Folgen kann das einen Moment dauern — das Audio wird aus dem Video extrahiert und die Welle gezeichnet.",
+    "loop": "Loop",
+    "loop_tooltip": "Ausgewählte Cue in Schleife abspielen, mit Vor-/Nachlauf (L)",
+    "loop_roll_tooltip": "Vor-/Nachlauf um die Cue herum"
   },
   "sync_preview": {
     "before_start": "Vor Start",

@@ -101,7 +101,8 @@
       "nextScene": "Jump to next scene cut",
       "zoomIn": "Zoom in",
       "zoomOut": "Zoom out",
-      "showHelp": "Show this help"
+      "showHelp": "Show this help",
+      "loopCue": "Loop selected cue (with pre-/post-roll)"
     },
     "shortcut_group": {
       "playback": "Playback",
@@ -150,7 +151,10 @@
     "issues_tooltip": "{{overlaps}} overlaps · {{gaps}} tight gaps · {{fast}} too fast · {{short}} too short — click to jump to the first",
     "extracting_audio": "Extracting audio…",
     "drawing": "Drawing waveform…",
-    "loading_hint": "For long episodes this can take a moment — extracting the audio from the video and drawing the wave."
+    "loading_hint": "For long episodes this can take a moment — extracting the audio from the video and drawing the wave.",
+    "loop": "Loop",
+    "loop_tooltip": "Loop the selected cue with pre-/post-roll (L)",
+    "loop_roll_tooltip": "Pre-/post-roll played around the cue"
   },
   "sync_preview": {
     "before_start": "Before Start",
