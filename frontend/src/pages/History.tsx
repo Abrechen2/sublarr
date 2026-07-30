@@ -36,7 +36,6 @@ type HistoryEntry = {
   sync_engine?: string
   downloaded_at: string | null
   subtitle_id?: string
-  source?: string
   upgraded_from_id?: number | null
   previous_score?: number | null
   previous_format?: string | null
