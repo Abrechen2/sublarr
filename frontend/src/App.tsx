@@ -39,6 +39,7 @@ const SetupPage = lazy(() => import('@/pages/Setup').then(m => ({ default: m.Set
 const LoginPage = lazy(() => import('@/pages/Login').then(m => ({ default: m.LoginPage })))
 const MovieDetailPage = lazy(() => import('@/pages/MovieDetail').then(m => ({ default: m.MovieDetailPage })))
 const StatisticsPage = lazy(() => import('@/pages/StatisticsPage').then(m => ({ default: m.StatisticsPage })))
+const ProvidersOverviewPage = lazy(() => import('@/pages/ProvidersOverview').then(m => ({ default: m.ProvidersOverviewPage })))
 const WantedPage = lazy(() => import('@/pages/Wanted').then(m => ({ default: m.WantedPage })))
 const TrashPage = lazy(() => import('@/pages/Trash').then(m => ({ default: m.TrashPage })))
 const LogsPage = lazy(() => import('@/pages/Logs').then(m => ({ default: m.LogsPage })))
@@ -88,6 +89,7 @@ function AnimatedRoutes() {
           <Route path="/language-profiles" element={<Navigate to="/settings/subtitles/languages" replace />} />
           <Route path="/movies/:id" element={<Suspense fallback={<FormSkeleton />}><MovieDetailPage /></Suspense>} />
           <Route path="/statistics" element={<Suspense fallback={<PageSkeleton />}><StatisticsPage /></Suspense>} />
+          <Route path="/providers" element={<Suspense fallback={<PageSkeleton />}><ProvidersOverviewPage /></Suspense>} />
           {/* Redirect old standalone pages into settings sub-routes */}
           <Route path="/tasks" element={<Navigate to="/settings/automation" replace />} />
           <Route path="/plugins" element={<Navigate to="/settings/providers" replace />} />

@@ -54,5 +54,38 @@
     "uptime": "Laufzeit",
     "db_size": "Datenbankgröße",
     "recent_jobs": "Letzte Scheduler-Läufe"
+  },
+  "providers_page": {
+    "title": "Provider",
+    "subtitle": "Statistiken, Zustand und API-Budget pro Provider",
+    "summary_enabled": "Aktiviert",
+    "summary_healthy": "Gesund",
+    "summary_downloads": "Downloads gesamt",
+    "summary_budget": "API-Budget",
+    "budget_on": "Aktiv",
+    "budget_off": "Aus",
+    "budget_day": "API-Budget (Tag)",
+    "download_rate": "Download-Quote",
+    "download_rate_tooltip": "Suchen, die in einem heruntergeladenen Untertitel endeten",
+    "result_rate": "Trefferquote",
+    "result_rate_tooltip": "Suchen, bei denen dieser Provider mindestens ein Ergebnis lieferte",
+    "downloads": "Downloads",
+    "avg_response": "Ø Antwortzeit",
+    "last_success": "Letzter Erfolg",
+    "last_failure": "Letzter Fehler",
+    "consecutive_failures": "{{count}} Fehler in Folge",
+    "test": "Testen",
+    "testing": "Teste…",
+    "test_failed": "Provider-Test fehlgeschlagen",
+    "status": {
+      "healthy": "Gesund",
+      "slow": "Langsam",
+      "rate_limited": "Rate-Limit",
+      "circuit_open": "Circuit offen",
+      "recovering": "Erholt sich",
+      "auto_disabled": "Auto-deaktiviert",
+      "unreachable": "Nicht erreichbar",
+      "off": "Deaktiviert"
+    }
   }
 }

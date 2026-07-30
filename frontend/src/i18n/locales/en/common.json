@@ -14,7 +14,8 @@
     "plugins": "Plugins",
     "trash": "Trash",
     "toggle_menu": "Toggle menu",
-    "log_out": "Log out"
+    "log_out": "Log out",
+    "providers": "Providers"
   },
   "nav_groups": {
     "content": "Content",
