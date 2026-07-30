@@ -293,6 +293,7 @@ def download_specific_for_item(
             actual_source_path = manager.save_subtitle(
                 target_result, tmp_source_path, series_id=item.get("sonarr_series_id")
             )
+            source_created_this_run = True
             record_subtitle_download(
                 provider_name,
                 subtitle_id,
@@ -302,7 +303,10 @@ def download_specific_for_item(
                 target_result.score,
             )
         except DuplicateSubtitleError as dup_err:
+            # existing_path is a PRE-EXISTING file on disk (often the user's
+            # own sidecar) — it must never be deleted as "temp cleanup".
             actual_source_path = dup_err.existing_path
+            source_created_this_run = False
         except (OSError, RuntimeError) as e:
             return {"success": False, "error": f"Failed to save subtitle: {e}"}
 
@@ -346,14 +350,16 @@ def download_specific_for_item(
             update_job(job["id"], "failed", error=error_msg)
             record_stat(success=False)
             try:
-                if os.path.exists(actual_source_path):
+                if source_created_this_run and os.path.exists(actual_source_path):
                     os.remove(actual_source_path)
             except OSError as cleanup_err:
                 logger.debug("Temp file cleanup failed: %s", cleanup_err)
             return {"success": False, "error": f"Translation failed: {error_msg}"}
 
+        # Only delete the source file if this run created it — the duplicate
+        # branch above rebinds actual_source_path to a pre-existing user file.
         try:
-            if os.path.exists(actual_source_path):
+            if source_created_this_run and os.path.exists(actual_source_path):
                 os.remove(actual_source_path)
         except OSError as e:
             logger.debug("Temp file cleanup failed: %s", e)
