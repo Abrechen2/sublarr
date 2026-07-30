@@ -5,6 +5,17 @@ All notable changes to Sublarr are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Added
+- **Custom HTTP/JSON provider (`customapi`).** Connect private subtitle
+  servers or adapt any REST API without writing a plugin: a small documented
+  search/download contract (see `docs/CUSTOM_PROVIDER_API.md`), configurable
+  auth header, response field mapping (dot-notation), extra query params, and
+  multiple independent instances via `customapi_instances_json` — each with
+  its own stats, health state, and circuit breaker. Pure configuration, no
+  third-party code execution.
+
 ## [1.9.4] - 2026-07-16
 
 ### Fixed
