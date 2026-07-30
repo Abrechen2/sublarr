@@ -2180,6 +2180,23 @@
     "default_short": "Std.: {{value}}",
     "save": "Speichern"
   },
+  "scoring_tiers": {
+    "title": "Release-Gruppen-Rangliste",
+    "loading": "Rangliste wird geladen...",
+    "section_desc": "Globale geordnete Rangliste von Release-/Fansub-Gruppen (beste zuerst). Ein Treffer auf Rang i von N erhält Schrittweite × (N − i) Bonuspunkte — höher platzierte Gruppen gewinnen bei Gleichstand. Serien-spezifische Fansub-Einstellungen wirken zusätzlich.",
+    "empty": "Keine Ränge konfiguriert. Füge unten Gruppen hinzu — z. B. Erai-raws, SubsPlease, Judas.",
+    "add_placeholder": "Gruppenname (z. B. Erai-raws)",
+    "add": "Hinzufügen",
+    "move_up": "Nach oben",
+    "move_down": "Nach unten",
+    "remove": "Entfernen",
+    "step_label": "Punkte pro Rangstufe",
+    "step_hint": "Bonus-Differenz zwischen benachbarten Rängen. Der letzte Rang erhält genau diese Punktzahl.",
+    "save": "Speichern",
+    "toast_saved": "Release-Gruppen-Rangliste gespeichert",
+    "toast_save_failed": "Rangliste konnte nicht gespeichert werden",
+    "toast_duplicate": "„{{name}}“ ist bereits in der Liste"
+  },
   "glossary_panel": {
     "toast_setting_saved": "Glossar-Einstellung gespeichert",
     "toast_save_failed": "Speichern der Einstellung fehlgeschlagen",

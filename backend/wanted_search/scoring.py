@@ -45,6 +45,32 @@ def _apply_fansub_rules(
             result["score"] += bonus
 
 
+def _apply_release_group_tiers(results: list[dict], tiers: list[str], step: int) -> None:
+    """Adjust scores in-place based on the global release-group tier ranking.
+
+    ``tiers`` is an ordered list (best first). A result matching the group at
+    index ``i`` (case-insensitive substring on release_info) gets
+    ``step * (len(tiers) - i)`` bonus points — the top tier earns the most,
+    the last tier still earns ``step``. Only the best (lowest-index) matching
+    tier counts per result.
+
+    Empty/whitespace entries are dropped for the same reason as in
+    ``_apply_fansub_rules``: ``"" in info`` is always True and would grant
+    the bonus to every candidate.
+    """
+    tiers_lower = [g.strip().lower() for g in tiers if g and g.strip()]
+    if not tiers_lower or step <= 0:
+        return
+
+    n = len(tiers_lower)
+    for result in results:
+        info = result.get("release_info", "").lower()
+        for idx, group in enumerate(tiers_lower):
+            if group in info:
+                result["score"] += step * (n - idx)
+                break
+
+
 # Codec family aliases — result release_info uses various spellings
 _CODEC_ALIASES: dict[str, list[str]] = {
     "x265": ["x265", "hevc", "h265"],

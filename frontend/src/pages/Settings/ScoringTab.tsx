@@ -24,6 +24,7 @@ import { toast } from '@/components/shared/Toast'
 import type { ScoringWeights, ScoringPreset } from '@/lib/types'
 import { settingsInputStyle } from '@/styles/settingsShared'
 import { ScoringPenaltyRules } from './ScoringPenaltyRules'
+import { ScoringReleaseGroupTiers } from './ScoringReleaseGroupTiers'
 
 const inputStyle: React.CSSProperties = { ...settingsInputStyle, outline: 'none' }
 
@@ -440,6 +441,9 @@ export function ScoringTab() {
 
       {/* ── 4. Penalty Rules (Plan B4) ─────────────────────────────────── */}
       <ScoringPenaltyRules />
+
+      {/* ── 4b. Release-Group Tiers ────────────────────────────────────── */}
+      <ScoringReleaseGroupTiers />
 
       {/* ── 5. Advanced ────────────────────────────────────────────────── */}
       <div

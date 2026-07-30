@@ -491,3 +491,87 @@ def update_penalty_rule(rule_id):
     invalidate_scoring_cache()
     invalidate_response_cache()
     return jsonify({"rule_id": rule_id, "weight": weight})
+
+
+# ---- Release-group tier endpoints --------------------------------------------
+
+
+@bp.route("/scoring/release-group-tiers", methods=["GET"])
+def get_release_group_tiers():
+    """Return the global release-group tier ranking.
+    ---
+    get:
+      security:
+        - apiKeyAuth: []
+      tags:
+        - Events
+      summary: Get release-group tiers
+      description: >-
+        Returns the ordered global release-group tier list (best first) and
+        the per-tier step weight. A result matching the group at index ``i``
+        of ``N`` tiers earns ``step * (N - i)`` bonus points in wanted-search
+        scoring.
+      responses:
+        200:
+          description: Tier configuration
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  tiers:
+                    type: array
+                    items: { type: string }
+                  step:
+                    type: integer
+    """
+    from services.release_group_tiers import get_tier_config
+
+    return jsonify(get_tier_config())
+
+
+@bp.route("/scoring/release-group-tiers", methods=["PUT"])
+def update_release_group_tiers():
+    """Replace the global release-group tier ranking.
+    ---
+    put:
+      security:
+        - apiKeyAuth: []
+      tags:
+        - Events
+      summary: Update release-group tiers
+      description: >-
+        Replaces the ordered tier list and per-tier step weight. Entries are
+        trimmed, empties dropped, and duplicates removed case-insensitively
+        (first occurrence wins). An empty list disables tier scoring.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                tiers:
+                  type: array
+                  items: { type: string }
+                step:
+                  type: integer
+      responses:
+        200:
+          description: Stored tier configuration
+        400:
+          description: Invalid tiers or step
+    """
+    from services.release_group_tiers import DEFAULT_STEP, set_tier_config
+
+    data = request.get_json(silent=True) or {}
+    try:
+        step = data.get("step", DEFAULT_STEP)
+        if isinstance(step, str) and step.strip().lstrip("-").isdigit():
+            step = int(step)
+        config = set_tier_config(data.get("tiers", []), step)
+    except ValueError as e:
+        return jsonify({"error": str(e)}), 400
+
+    invalidate_response_cache()
+    return jsonify(config)

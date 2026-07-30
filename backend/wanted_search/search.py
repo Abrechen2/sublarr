@@ -8,7 +8,11 @@ from db.wanted import get_wanted_item, update_wanted_search
 from providers import get_provider_manager
 from providers.base import SubtitleFormat
 from wanted_search.metadata import build_query_from_wanted
-from wanted_search.scoring import _apply_fansub_rules, _get_priority_key
+from wanted_search.scoring import (
+    _apply_fansub_rules,
+    _apply_release_group_tiers,
+    _get_priority_key,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -146,6 +150,22 @@ def search_wanted_item(item_id: int) -> dict:
             seen.add(key)
             deduped.append(r)
     all_results = deduped
+
+    # Apply the global release-group tier ranking (best-first ordered list;
+    # higher tiers earn a larger bonus). Per-series fansub preferences below
+    # stack on top; an excluded group's -999 dominates any tier bonus.
+    try:
+        from services.release_group_tiers import get_tier_config
+
+        tier_config = get_tier_config()
+        if tier_config["tiers"]:
+            _apply_release_group_tiers(
+                all_results,
+                tiers=tier_config["tiers"],
+                step=tier_config["step"],
+            )
+    except Exception as e:
+        logger.warning("Release-group tier scoring failed for wanted %d: %s", item_id, e)
 
     # Apply per-series fansub group preferences
     series_id = item.get("sonarr_series_id")
