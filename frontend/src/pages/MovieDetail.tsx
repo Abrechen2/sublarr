@@ -3,7 +3,7 @@
  * Shows poster, metadata, and subtitle wanted items.
  */
 import { useParams, useNavigate } from 'react-router-dom'
-import { Loader2, FileVideo, ArrowLeft, Film, Search, SkipForward, RotateCcw } from 'lucide-react'
+import { Loader2, FileVideo, ArrowLeft, Film, Search, SkipForward, RotateCcw, Copy } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import { useMovieDetail, useWantedItems, useSearchWantedItem, useUpdateWantedStatus, useLanguageProfiles, useAssignProfile } from '@/hooks/useApi'
 import { useMovieSubtitles } from '@/hooks/useLibraryApi'
@@ -11,6 +11,8 @@ import { Breadcrumb } from '@/components/shared/Breadcrumb'
 import { SubtitleActionsMenu } from '@/components/processing/SubtitleActionsMenu'
 import type { MovieDetail, WantedItem } from '@/lib/types'
 import type { SidecarSubtitle } from '@/types/library'
+import { copyToClipboard } from '@/lib/clipboard'
+import { toast } from '@/components/shared/Toast'
 
 // ─── MovieHero ────────────────────────────────────────────────────────────────
 
@@ -262,6 +264,20 @@ export function MovieDetailPage() {
             >
               {movie.file_path}
             </span>
+            <button
+              onClick={() => {
+                void copyToClipboard(movie.file_path).then((ok) => {
+                  toast(ok ? t('episode_actions.path_copied') : t('episode_actions.copy_failed'), ok ? 'success' : 'error')
+                })
+              }}
+              className="p-1 rounded transition-colors flex-shrink-0"
+              style={{ color: 'var(--text-muted)' }}
+              title={t('episode_actions.copy_path')}
+              onMouseEnter={(e) => { e.currentTarget.style.color = 'var(--accent)' }}
+              onMouseLeave={(e) => { e.currentTarget.style.color = 'var(--text-muted)' }}
+            >
+              <Copy size={13} />
+            </button>
           </div>
           {movie.tmdb_id && (
             <div className="flex items-center gap-2">

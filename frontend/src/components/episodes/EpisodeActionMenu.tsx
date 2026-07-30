@@ -1,9 +1,11 @@
 import { useState, useRef, useEffect } from 'react'
 import { useTranslation } from 'react-i18next'
 import {
-  Search, MoreHorizontal, Columns2, Database, ScanSearch, Clock, Loader2, ChevronUp, Layers,
+  Search, MoreHorizontal, Columns2, Database, ScanSearch, Clock, Loader2, ChevronUp, Layers, Copy,
 } from 'lucide-react'
 import type { EpisodeInfo } from '@/lib/types'
+import { copyToClipboard } from '@/lib/clipboard'
+import { toast } from '@/components/shared/Toast'
 
 interface EpisodeActionMenuProps {
   ep: EpisodeInfo
@@ -157,6 +159,20 @@ export function EpisodeActionMenu({
                 label={t('episode_actions.history')}
                 onClick={() => { onHistory(); setDropdownOpen(false) }}
                 active={isExpanded && mode === 'history'}
+              />
+            )}
+
+            {/* Copy file path — for jumping to the file in external tools */}
+            {ep.has_file && ep.file_path && (
+              <DropdownItem
+                icon={<Copy size={13} />}
+                label={t('episode_actions.copy_path')}
+                onClick={() => {
+                  void copyToClipboard(ep.file_path).then((ok) => {
+                    toast(ok ? t('episode_actions.path_copied') : t('episode_actions.copy_failed'), ok ? 'success' : 'error')
+                  })
+                  setDropdownOpen(false)
+                }}
               />
             )}
           </div>

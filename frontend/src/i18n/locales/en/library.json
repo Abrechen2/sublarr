@@ -152,7 +152,10 @@
     "search_subtitle": "Search Subtitle",
     "interactive_search": "Interactive Search",
     "history": "History",
-    "back_to_library": "Back to Library"
+    "back_to_library": "Back to Library",
+    "copy_path": "Copy File Path",
+    "path_copied": "File path copied to clipboard",
+    "copy_failed": "Could not copy to clipboard"
   },
   "sync_compare": {
     "title": "Compare sync",
