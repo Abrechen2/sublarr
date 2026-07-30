@@ -16,11 +16,32 @@ branch_labels = None
 depends_on = None
 
 
+_TABLE = "subtitle_downloads"
+_COLUMN = "score_breakdown"
+
+
+def _columns() -> set[str]:
+    """Existing columns of the target table (empty if the table is absent).
+
+    Guarded with column inspection: the schema is also created straight from
+    the models via create_all() on fresh installs, so the column can already
+    exist when this migration runs — the add must be idempotent.
+    """
+    insp = sa.inspect(op.get_bind())
+    if not insp.has_table(_TABLE):
+        return set()
+    return {c["name"] for c in insp.get_columns(_TABLE)}
+
+
 def upgrade():
-    with op.batch_alter_table("subtitle_downloads") as batch_op:
-        batch_op.add_column(sa.Column("score_breakdown", sa.Text(), nullable=True))
+    if _COLUMN in _columns():
+        return
+    with op.batch_alter_table(_TABLE) as batch_op:
+        batch_op.add_column(sa.Column(_COLUMN, sa.Text(), nullable=True))
 
 
 def downgrade():
-    with op.batch_alter_table("subtitle_downloads") as batch_op:
-        batch_op.drop_column("score_breakdown")
+    if _COLUMN not in _columns():
+        return
+    with op.batch_alter_table(_TABLE) as batch_op:
+        batch_op.drop_column(_COLUMN)

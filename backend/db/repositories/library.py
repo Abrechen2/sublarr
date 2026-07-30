@@ -90,7 +90,10 @@ class LibraryRepository(BaseRepository):
             data_stmt = data_stmt.where(cond)
         entries = self.session.execute(data_stmt).scalars().all()
 
-        data = [self._to_dict(e) for e in entries]
+        # Build once via _history_entry_to_dict (decodes score_breakdown JSON),
+        # then enrich in place — a second `_to_dict` rebuild here would discard
+        # the previous_score/previous_format fields added just below.
+        data = [self._history_entry_to_dict(e) for e in entries]
 
         # Enrich upgrade rows with the replaced download's score/format so the
         # UI can show WHY the entry exists ("Upgrade +40" vs. plain download)
@@ -112,7 +115,6 @@ class LibraryRepository(BaseRepository):
             row["previous_format"] = prev[1] if prev else None
 
         total_pages = max(1, (count + per_page - 1) // per_page)
-        data = [self._history_entry_to_dict(e) for e in entries]
         self._annotate_sync_status(data)
         return {
             "data": data,
