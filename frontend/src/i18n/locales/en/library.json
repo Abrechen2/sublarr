@@ -126,7 +126,11 @@
       "last_search_at": "Last searched",
       "current_score": "Score",
       "search_count": "Search count"
-    }
+    },
+    "export": "Export",
+    "export_csv": "Export as CSV",
+    "export_json": "Export as JSON",
+    "export_failed": "Export failed"
   },
   "auto_sync": "Auto-sync",
   "more_actions": "More actions",

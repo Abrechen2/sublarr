@@ -323,3 +323,35 @@ export async function rejectMtPending(itemId: number): Promise<{ status: string;
   const { data } = await api.post(`/wanted/${itemId}/mt-pending/reject`)
   return data
 }
+
+// ─── Export ─────────────────────────────────────────────────────────────
+
+/** Downloads the wanted list (with the given filters applied) as CSV or JSON. */
+export async function exportWantedItems(opts: {
+  format: 'csv' | 'json'
+  itemType?: string
+  status?: string
+  subtitleType?: string
+  search?: string
+}): Promise<void> {
+  const params: Record<string, unknown> = { format: opts.format }
+  if (opts.itemType) params.item_type = opts.itemType
+  if (opts.status) params.status = opts.status
+  if (opts.subtitleType) params.subtitle_type = opts.subtitleType
+  if (opts.search) params.search = opts.search
+  const { data, headers } = await api.get('/wanted/export', {
+    params,
+    responseType: 'blob',
+  })
+  const disposition: string = headers['content-disposition'] ?? ''
+  const match = disposition.match(/filename[^;=\n]*=["']?([^"';\n]+)["']?/)
+  const filename = match ? match[1].trim() : `sublarr-wanted.${opts.format}`
+  const url = URL.createObjectURL(data as Blob)
+  const a = document.createElement('a')
+  a.href = url
+  a.download = filename
+  document.body.appendChild(a)
+  a.click()
+  document.body.removeChild(a)
+  URL.revokeObjectURL(url)
+}
