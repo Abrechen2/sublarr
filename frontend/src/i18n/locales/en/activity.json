@@ -113,7 +113,12 @@
     "blacklist_confirm_action": "Blacklist",
     "blacklist_also_delete": "Also delete the file",
     "blacklisted_success": "Added to blacklist",
-    "deleted_and_blacklisted": "Subtitle deleted and blacklisted"
+    "deleted_and_blacklisted": "Subtitle deleted and blacklisted",
+    "ai_quality": {
+      "green": "AI quality check: no issues found",
+      "yellow": "AI quality check: minor issues found",
+      "red": "AI quality check: serious issues found"
+    }
   },
   "blacklist": {
     "title": "Blacklist",

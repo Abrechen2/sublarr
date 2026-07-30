@@ -27,6 +27,16 @@ export interface PaginatedBlacklist {
 
 // â”€â”€â”€ History â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
+/** Advisory LLM quality verdict for a downloaded subtitle (experimental). */
+export interface AIQualityInfo {
+  verdict: 'green' | 'yellow' | 'red' | string
+  scores?: Record<string, number>
+  reasons?: string[]
+  model?: string
+  sampled_cues?: number
+  created_at?: string | null
+}
+
 export interface HistoryEntry {
   id: number
   provider_name: string
@@ -36,6 +46,7 @@ export interface HistoryEntry {
   file_path: string
   score: number
   downloaded_at: string
+  ai_quality?: AIQualityInfo | null
 }
 
 export interface PaginatedHistory {

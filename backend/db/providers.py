@@ -123,6 +123,14 @@ def record_subtitle_download(
             record_stat(success=True, fmt=fmt, source=provider_name)
         except Exception:
             logger.debug("Could not record download in daily_stats", exc_info=True)
+    # Advisory AI quality spot-check of the saved sidecar (no-op unless
+    # ai_quality_enabled; runs in the background pool; never raises).
+    try:
+        from services.ai_quality import maybe_queue_analysis
+
+        maybe_queue_analysis(file_path, language, fmt)
+    except Exception:
+        logger.debug("Could not queue AI quality analysis", exc_info=True)
     return result
 
 

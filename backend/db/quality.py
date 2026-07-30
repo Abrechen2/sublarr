@@ -43,3 +43,36 @@ def get_quality_trends(days: int = 30) -> list:
 def delete_health_results(file_path: str) -> int:
     """Delete all health results for a file path."""
     return _get_repo().delete_health_results(file_path)
+
+
+# ---- AI quality verdicts (advisory) ------------------------------------------
+
+
+def save_ai_quality_result(
+    file_path: str,
+    language: str,
+    verdict: str,
+    scores_json: str,
+    reasons_json: str,
+    model: str,
+    sampled_cues: int,
+) -> dict:
+    """Save the AI quality verdict for a sidecar, replacing any previous row."""
+    return _get_repo().save_ai_quality_result(
+        file_path, language, verdict, scores_json, reasons_json, model, sampled_cues
+    )
+
+
+def get_ai_quality_result(file_path: str):
+    """Get the AI quality verdict for a sidecar path, or None."""
+    return _get_repo().get_ai_quality_result(file_path)
+
+
+def get_ai_quality_results_for_paths(paths: list) -> dict:
+    """Batch-fetch AI verdicts keyed by sidecar path."""
+    return _get_repo().get_ai_quality_results_for_paths(paths)
+
+
+def delete_ai_quality_result(file_path: str) -> int:
+    """Delete AI verdicts for a sidecar path."""
+    return _get_repo().delete_ai_quality_result(file_path)

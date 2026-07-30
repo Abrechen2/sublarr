@@ -140,6 +140,17 @@ Webhook auth: Exempt from API key check. Each handler validates HMAC signature f
 
 ---
 
+## Quality (AI, advisory)
+
+| Method | Path | Auth | Description |
+|--------|------|------|-------------|
+| GET | `/quality/ai` | Yes | Stored AI quality verdict for a subtitle sidecar. Param: `path` (absolute sidecar path). `result` is `null` when not analyzed |
+| POST | `/quality/ai/analyze` | Yes | Queue background AI quality analysis of a sidecar. Body: `path`, optional `language`. Requires `ai_quality_enabled`; 202 on queue |
+
+History rows (`GET /history`) carry the verdict inline as `ai_quality` (`verdict`, `scores`, `reasons`, `model`, `sampled_cues`, `created_at`) or `null`.
+
+---
+
 ## System / Health
 
 | Method | Path | Auth | Description |

@@ -8,6 +8,7 @@ register_blueprints() which imports and registers all blueprints.
 def register_blueprints(app):
     """Import and register all API blueprints on the Flask app."""
     from routes.activity import bp as activity_bp
+    from routes.ai_quality import bp as ai_quality_bp
     from routes.anidb_mapping import bp as anidb_mapping_bp
     from routes.api_keys import bp as api_keys_bp
     from routes.audio import bp as audio_bp
@@ -60,6 +61,7 @@ def register_blueprints(app):
 
     for blueprint in [
         activity_bp,
+        ai_quality_bp,
         translate_bp,
         providers_bp,
         providers_keys_bp,

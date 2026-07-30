@@ -10,6 +10,8 @@ import {
   CheckSquare, Square, MinusSquare, X,
 } from 'lucide-react'
 import SubtitleEditorModal from '@/components/editor/SubtitleEditorModal'
+import { AIQualityBadge } from '@/components/shared/AIQualityBadge'
+import type { AIQualityInfo } from '@/types/system'
 import { FilterBar } from '@/components/filters/FilterBar'
 import type { FilterDef, ActiveFilter } from '@/components/filters/FilterBar'
 import { BatchActionBar } from '@/components/batch/BatchActionBar'
@@ -29,6 +31,7 @@ type HistoryEntry = {
   score: number
   downloaded_at: string | null
   subtitle_id?: string
+  ai_quality?: AIQualityInfo | null
 }
 
 const HistoryTableRow = memo(function HistoryTableRow({
@@ -105,15 +108,18 @@ const HistoryTableRow = memo(function HistoryTableRow({
         </span>
       </td>
       <td className="px-3 py-2.5">
-        <span
-          className="text-[10px] px-1.5 py-0.5 rounded uppercase font-bold"
-          style={{
-            backgroundColor: entry.format === 'ass' ? 'var(--success)18' : 'var(--bg-primary)',
-            color: entry.format === 'ass' ? 'var(--success)' : 'var(--text-secondary)',
-            fontFamily: 'var(--font-mono)',
-          }}
-        >
-          {entry.format || '?'}
+        <span className="inline-flex items-center gap-1.5">
+          <span
+            className="text-[10px] px-1.5 py-0.5 rounded uppercase font-bold"
+            style={{
+              backgroundColor: entry.format === 'ass' ? 'var(--success)18' : 'var(--bg-primary)',
+              color: entry.format === 'ass' ? 'var(--success)' : 'var(--text-secondary)',
+              fontFamily: 'var(--font-mono)',
+            }}
+          >
+            {entry.format || '?'}
+          </span>
+          <AIQualityBadge quality={entry.ai_quality} />
         </span>
       </td>
       <td className="px-3 py-2.5 hidden sm:table-cell">

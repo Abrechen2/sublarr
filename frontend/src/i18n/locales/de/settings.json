@@ -1307,6 +1307,17 @@
     "auto_cues_label": "Cue-Mindestzahl (Auto)",
     "auto_cues_desc": "Nur unbeaufsichtigt. Ein Track braucht beim geplanten Sweep mindestens so viele Cues, damit ein dünner Track keinen Zufallstreffer landet."
   },
+  "ai_quality_page": {
+    "title": "KI-Qualitätsprüfung",
+    "description": "Experimentell: Nach jedem Download prüft ein lokales LLM eine Stichprobe von Zeilen auf Maschinenübersetzung, OCR-Artefakte und Grammatik. Das Ergebnis erscheint als Badge im Verlauf — rein informativ, verändert nie Dateien oder Scores.",
+    "enabled_label": "KI-Qualitäts-Badge",
+    "enabled_desc": "Neue Downloads im Hintergrund über die konfigurierte Ollama-Instanz analysieren. Benötigt einen erreichbaren Ollama-Server (Einstellungen → Übersetzung).",
+    "model_label": "Modell-Override",
+    "model_desc": "Ollama-Modell für die Prüfung. Leer lassen, um das Übersetzungsmodell zu verwenden.",
+    "model_placeholder": "leer = Übersetzungsmodell",
+    "max_cues_label": "Zeilen-Stichprobe",
+    "max_cues_desc": "Wie viele Zeilen pro Datei geprüft werden (10–60). Mehr Zeilen = besseres Urteil, langsamere Prüfung."
+  },
   "subtitles_scoring_page": {
     "scoring_section": "Scoring",
     "per_language_section": "Sprach-spezifische Scores",

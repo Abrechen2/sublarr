@@ -113,7 +113,12 @@
     "blacklist_confirm_action": "Sperren",
     "blacklist_also_delete": "Datei ebenfalls löschen",
     "blacklisted_success": "Zur Sperrliste hinzugefügt",
-    "deleted_and_blacklisted": "Untertitel gelöscht und gesperrt"
+    "deleted_and_blacklisted": "Untertitel gelöscht und gesperrt",
+    "ai_quality": {
+      "green": "KI-Qualitätsprüfung: keine Auffälligkeiten",
+      "yellow": "KI-Qualitätsprüfung: kleinere Auffälligkeiten",
+      "red": "KI-Qualitätsprüfung: deutliche Mängel"
+    }
   },
   "blacklist": {
     "title": "Sperrliste",
