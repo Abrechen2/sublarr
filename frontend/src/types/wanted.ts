@@ -67,6 +67,10 @@ export interface SearchResult {
   score: number
   score_breakdown?: Record<string, number>
   hearing_impaired: boolean
+  forced?: boolean
+  machine_translated?: boolean
+  mt_confidence?: number
+  uploader_trust_bonus?: number
   matches: string[]
 }
 

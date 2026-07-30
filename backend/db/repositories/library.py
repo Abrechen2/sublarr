@@ -91,13 +91,67 @@ class LibraryRepository(BaseRepository):
         entries = self.session.execute(data_stmt).scalars().all()
 
         total_pages = max(1, (count + per_page - 1) // per_page)
+        data = [self._history_entry_to_dict(e) for e in entries]
+        self._annotate_sync_status(data)
         return {
-            "data": [self._history_entry_to_dict(e) for e in entries],
+            "data": data,
             "page": page,
             "per_page": per_page,
             "total": count,
             "total_pages": total_pages,
         }
+
+    def _annotate_sync_status(self, rows: list[dict]) -> None:
+        """Attach synced/sync_engine/synced_at to history rows in one query.
+
+        The sidecar path is derived the same way the frontend does for
+        preview: <media base>.<language>.<format>. Rows whose derived path
+        has at least one successful sync_job_runs entry are marked synced.
+        Failures here must never break the history endpoint.
+        """
+        try:
+            from db.models.core import SyncJobRun
+
+            path_by_row: dict[int, str] = {}
+            for i, row in enumerate(rows):
+                fp, lang, fmt = row.get("file_path"), row.get("language"), row.get("format")
+                if not (fp and lang and fmt):
+                    row["synced"] = False
+                    continue
+                base = fp.rsplit(".", 1)[0] if "." in fp else fp
+                path_by_row[i] = f"{base}.{lang}.{fmt}"
+                row["synced"] = False
+
+            if not path_by_row:
+                return
+
+            sync_rows = self.session.execute(
+                select(
+                    SyncJobRun.subtitle_path,
+                    SyncJobRun.engine,
+                    func.max(SyncJobRun.created_at),
+                )
+                .where(
+                    SyncJobRun.status == "ok",
+                    SyncJobRun.subtitle_path.in_(set(path_by_row.values())),
+                )
+                .group_by(SyncJobRun.subtitle_path, SyncJobRun.engine)
+            ).all()
+
+            latest: dict[str, tuple] = {}
+            for sub_path, engine, created in sync_rows:
+                ts = created.isoformat() if isinstance(created, datetime) else created
+                if sub_path not in latest or (ts and ts > latest[sub_path][1]):
+                    latest[sub_path] = (engine, ts)
+
+            for i, sub_path in path_by_row.items():
+                hit = latest.get(sub_path)
+                if hit:
+                    rows[i]["synced"] = True
+                    rows[i]["sync_engine"] = hit[0]
+                    rows[i]["synced_at"] = hit[1]
+        except Exception:
+            logger.debug("Could not annotate sync status on history rows", exc_info=True)
 
     def _history_entry_to_dict(self, entry) -> dict:
         """Serialize a SubtitleDownload row, decoding score_breakdown JSON.

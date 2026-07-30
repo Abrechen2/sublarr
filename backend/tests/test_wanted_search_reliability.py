@@ -107,6 +107,7 @@ class TestProviderErrorHandling:
         mock_result.provider_name = "test_provider"
         mock_result.format = SubtitleFormat.ASS
         mock_result.score = 100
+        mock_result.score_breakdown = {"series": 100}
         mock_result.language = "de"
 
         mock_manager = Mock()
@@ -231,6 +232,7 @@ class TestTranslationPipelineResilience:
         mock_result.subtitle_id = "test_sub_id"
         mock_result.format = SubtitleFormat.ASS
         mock_result.score = 100
+        mock_result.score_breakdown = {"series": 100}
         mock_result.language = "en"
 
         mock_manager = Mock()
@@ -367,6 +369,7 @@ class TestAutoTranslateGuard:
         mock_result.provider_name = "opensubtitles"
         mock_result.format = SubtitleFormat.ASS
         mock_result.score = 100
+        mock_result.score_breakdown = {"series": 100}
         mock_result.subtitle_id = "abc"
 
         mock_manager = MagicMock()

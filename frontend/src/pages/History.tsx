@@ -11,6 +11,7 @@ import {
 } from 'lucide-react'
 import SubtitleEditorModal from '@/components/editor/SubtitleEditorModal'
 import { ScoreBreakdown } from '@/components/shared/ScoreBreakdown'
+import { SourceBadge, SyncedBadge } from '@/components/shared/SubtitleBadges'
 import { FilterBar } from '@/components/filters/FilterBar'
 import type { FilterDef, ActiveFilter } from '@/components/filters/FilterBar'
 import { BatchActionBar } from '@/components/batch/BatchActionBar'
@@ -29,6 +30,9 @@ type HistoryEntry = {
   format: string
   score: number
   score_breakdown?: Record<string, number> | null
+  source?: string | null
+  synced?: boolean
+  sync_engine?: string
   downloaded_at: string | null
   subtitle_id?: string
 }
@@ -107,15 +111,19 @@ const HistoryTableRow = memo(function HistoryTableRow({
         </span>
       </td>
       <td className="px-3 py-2.5">
-        <span
-          className="text-[10px] px-1.5 py-0.5 rounded uppercase font-bold"
-          style={{
-            backgroundColor: entry.format === 'ass' ? 'var(--success)18' : 'var(--bg-primary)',
-            color: entry.format === 'ass' ? 'var(--success)' : 'var(--text-secondary)',
-            fontFamily: 'var(--font-mono)',
-          }}
-        >
-          {entry.format || '?'}
+        <span className="inline-flex items-center gap-1">
+          <span
+            className="text-[10px] px-1.5 py-0.5 rounded uppercase font-bold"
+            style={{
+              backgroundColor: entry.format === 'ass' ? 'var(--success)18' : 'var(--bg-primary)',
+              color: entry.format === 'ass' ? 'var(--success)' : 'var(--text-secondary)',
+              fontFamily: 'var(--font-mono)',
+            }}
+          >
+            {entry.format || '?'}
+          </span>
+          <SourceBadge source={entry.source} />
+          {entry.synced && <SyncedBadge engine={entry.sync_engine} />}
         </span>
       </td>
       <td className="px-3 py-2.5 hidden sm:table-cell">

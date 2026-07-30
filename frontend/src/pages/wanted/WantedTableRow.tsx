@@ -6,6 +6,7 @@ import {
 } from 'lucide-react'
 import { StatusBadge, SubtitleTypeBadge } from '@/components/shared/StatusBadge'
 import { ScoreBreakdown } from '@/components/shared/ScoreBreakdown'
+import { ResultFlagBadges } from '@/components/shared/SubtitleBadges'
 import { formatRelativeTime, truncatePath } from '@/lib/utils'
 import type { WantedSearchResponse } from '@/lib/types'
 import type { WantedItem } from '@/types/wanted'
@@ -143,7 +144,10 @@ export function SearchResultsRow({ results, isLoading, onBlacklist, t }: SearchR
                     </span>
                   </td>
                   <td className="px-3 py-1.5">
-                    <ScoreBreakdown score={r.score} breakdown={r.score_breakdown ?? {}} />
+                    <span className="inline-flex items-center gap-1.5">
+                      <ScoreBreakdown score={r.score} breakdown={r.score_breakdown ?? {}} />
+                      <ResultFlagBadges flags={r} />
+                    </span>
                   </td>
                   <td className="px-3 py-1.5 text-xs truncate max-w-[200px]" title={r.release_info || r.filename} style={{ color: 'var(--text-secondary)' }}>
                     {r.release_info || r.filename || '-'}

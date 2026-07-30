@@ -759,5 +759,18 @@
       "fansub_excluded": "Excluded fansub group",
       "video_codec_bonus": "Video codec bonus"
     }
+  },
+  "badges": {
+    "trusted_uploader": "Trusted uploader",
+    "machine_translated": "Machine-translated subtitle",
+    "hearing_impaired": "Hearing impaired (SDH)",
+    "forced": "Forced subtitle",
+    "synced": "Synced",
+    "synced_with": "Synced with {{engine}}",
+    "source_whisper": "Whisper",
+    "source_manual": "Manual",
+    "source_mt": "AI translation",
+    "source_combined": "Combined",
+    "source_tooltip": "How this subtitle was created"
   }
 }
