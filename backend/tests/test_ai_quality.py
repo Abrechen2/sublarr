@@ -76,10 +76,22 @@ def test_clamp_scores_tolerates_garbage():
 @pytest.mark.parametrize(
     "scores,expected",
     [
-        ({"machine_translation": 0, "ocr_artifacts": 0, "grammar": 0, "encoding_damage": 0}, "green"),
-        ({"machine_translation": 1, "ocr_artifacts": 1, "grammar": 0, "encoding_damage": 0}, "green"),
-        ({"machine_translation": 2, "ocr_artifacts": 0, "grammar": 0, "encoding_damage": 0}, "yellow"),
-        ({"machine_translation": 1, "ocr_artifacts": 1, "grammar": 1, "encoding_damage": 0}, "yellow"),
+        (
+            {"machine_translation": 0, "ocr_artifacts": 0, "grammar": 0, "encoding_damage": 0},
+            "green",
+        ),
+        (
+            {"machine_translation": 1, "ocr_artifacts": 1, "grammar": 0, "encoding_damage": 0},
+            "green",
+        ),
+        (
+            {"machine_translation": 2, "ocr_artifacts": 0, "grammar": 0, "encoding_damage": 0},
+            "yellow",
+        ),
+        (
+            {"machine_translation": 1, "ocr_artifacts": 1, "grammar": 1, "encoding_damage": 0},
+            "yellow",
+        ),
         ({"machine_translation": 3, "ocr_artifacts": 0, "grammar": 0, "encoding_damage": 0}, "red"),
         ({"machine_translation": 2, "ocr_artifacts": 2, "grammar": 2, "encoding_damage": 0}, "red"),
     ],
@@ -113,7 +125,12 @@ def test_analyze_file_success(tmp_path, monkeypatch):
         aq,
         "_call_ollama",
         lambda cues, language, settings: (
-            {"machine_translation": 2, "ocr_artifacts": 0, "grammar": 1, "reasons": ["klingt wörtlich"]},
+            {
+                "machine_translation": 2,
+                "ocr_artifacts": 0,
+                "grammar": 1,
+                "reasons": ["klingt wörtlich"],
+            },
             "test-model",
         ),
     )
