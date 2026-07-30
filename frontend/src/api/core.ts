@@ -103,6 +103,11 @@ api.interceptors.response.use(
     }
 
     if (error.response?.status === 401 && !error.config.url?.includes('/auth/')) {
+      // A 401 despite a stored key means the key is stale (e.g. the backend
+      // regenerated it). Drop it so bootstrapApiKey() fetches a fresh one on
+      // the reload — otherwise its early-return keeps re-sending the dead key
+      // and the app loops between /login and the dashboard forever.
+      localStorage.removeItem('sublarr_api_key')
       window.location.href = '/login'
     }
     return Promise.reject(error)

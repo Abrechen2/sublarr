@@ -124,3 +124,69 @@ def test_ip_allowlist_empty_allows_all():
     with patch("auth.get_settings", return_value=settings_mock), app.test_client() as client:
         resp = client.get("/api/v1/health")
         assert resp.status_code != 403
+
+
+def _protected_app():
+    """Flask app with init_auth and a protected /api/v1 route + session support."""
+    app = Flask(__name__)
+    app.config["SECRET_KEY"] = "test-secret"
+
+    @app.route("/api/v1/protected")
+    def protected():
+        return {"status": "ok"}
+
+    init_auth(app)
+    return app
+
+
+def _settings(api_key="server-key", allowed_ip_ranges=""):
+    settings_mock = MagicMock()
+    settings_mock.api_key = api_key
+    settings_mock.allowed_ip_ranges = allowed_ip_ranges
+    settings_mock.max_login_attempts = 20
+    return settings_mock
+
+
+def test_ui_session_satisfies_api_key_gate():
+    """A logged-in UI session must pass the API gate without an X-Api-Key.
+
+    Regression test for the 1.6.0 login loop: the SPA logs in (session cookie
+    set) but has no key in localStorage yet; every API call got 401 and the
+    frontend's 401 interceptor bounced back to /login forever.
+    """
+    app = _protected_app()
+    with patch("auth.get_settings", return_value=_settings()), app.test_client() as client:
+        with client.session_transaction() as sess:
+            sess["ui_authenticated"] = True
+        resp = client.get("/api/v1/protected")
+        assert resp.status_code == 200
+
+
+def test_no_session_no_key_still_401():
+    """Without a session and without a key the gate must still reject."""
+    app = _protected_app()
+    with patch("auth.get_settings", return_value=_settings()), app.test_client() as client:
+        resp = client.get("/api/v1/protected")
+        assert resp.status_code == 401
+
+
+def test_unauthenticated_session_cookie_does_not_bypass():
+    """A session cookie without the ui_authenticated flag must not pass."""
+    app = _protected_app()
+    with patch("auth.get_settings", return_value=_settings()), app.test_client() as client:
+        with client.session_transaction() as sess:
+            sess["some_other_flag"] = True
+        resp = client.get("/api/v1/protected")
+        assert resp.status_code == 401
+
+
+def test_valid_proxy_auth_satisfies_api_key_gate():
+    """A trusted-proxy-authenticated request must pass without an X-Api-Key."""
+    app = _protected_app()
+    with (
+        patch("auth.get_settings", return_value=_settings()),
+        patch("proxy_auth.request_has_valid_proxy_auth", return_value=True),
+        app.test_client() as client,
+    ):
+        resp = client.get("/api/v1/protected")
+        assert resp.status_code == 200
