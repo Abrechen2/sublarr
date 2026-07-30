@@ -21,7 +21,7 @@ from flask import Blueprint, current_app, jsonify, request
 from config import get_settings, map_path
 from security_utils import is_safe_path
 from services.background_tasks import submit_background
-from subtitle_filename import bak_path_for, find_existing_bak
+from subtitle_filename import find_existing_bak
 
 bp = Blueprint("subtitle_processor", __name__, url_prefix="/api/v1")
 logger = logging.getLogger(__name__)
@@ -122,56 +122,13 @@ def undo_process():
     if ext not in (".srt", ".ass", ".ssa"):
         return jsonify({"error": "Only .srt, .ass, and .ssa files are supported"}), 400
 
-    # Resolve where the bak actually lives. find_existing_bak checks the
-    # canonical hidden location first, then the legacy sibling location
-    # so pre-migration backups still restore correctly.
-    bak_path = find_existing_bak(abs_path)
-    if bak_path is None:
-        return jsonify({"error": "No backup found for this file"}), 404
+    from services.subtitle_restore import RestoreError, restore_from_bak
 
-    # Where new baks must land going forward — different from bak_path
-    # when we're restoring a legacy sibling-located backup.
-    canonical_bak_path = bak_path_for(abs_path)
-
-    if not os.path.exists(abs_path):
-        # Active sub gone — simple rename, nothing to swap.
-        try:
-            os.replace(bak_path, abs_path)
-        except OSError as e:
-            return jsonify({"error": f"Could not restore backup: {e}"}), 409
-        return jsonify({"status": "restored", "path": abs_path, "swapped": False}), 200
-
-    # Atomic swap via temp path. If step 2 or 3 fails we roll back step 1.
-    # Step 3 always lands the new bak in the canonical hidden location,
-    # even when the source bak was a legacy sibling — every restore
-    # opportunistically migrates the layout.
-    os.makedirs(os.path.dirname(canonical_bak_path), exist_ok=True)
-    tmp_path = f"{bak_path}.swap-tmp"
     try:
-        os.replace(abs_path, tmp_path)  # step 1: active -> tmp
-    except OSError as e:
-        return jsonify({"error": f"Could not stage active file: {e}"}), 409
-    try:
-        os.replace(bak_path, abs_path)  # step 2: bak -> active
-    except OSError as e:
-        try:
-            os.replace(tmp_path, abs_path)  # rollback step 1
-        except OSError:
-            logger.error(
-                "undo: rollback failed; left tmp at %s, active gone", tmp_path, exc_info=True
-            )
-        return jsonify({"error": f"Could not restore backup: {e}"}), 409
-    try:
-        os.replace(tmp_path, canonical_bak_path)  # step 3: tmp -> canonical bak
-    except OSError as e:
-        # Active is restored but new bak failed to land. Active state is
-        # correct; surface the partial outcome so the caller can decide.
-        logger.warning("undo: swap completed but new bak rename failed: %s", e)
-        return jsonify(
-            {"status": "restored", "path": abs_path, "swapped": False, "warning": str(e)}
-        ), 200
-
-    return jsonify({"status": "restored", "path": abs_path, "swapped": True}), 200
+        result = restore_from_bak(abs_path)
+    except RestoreError as e:
+        return jsonify({"error": str(e)}), e.http_status
+    return jsonify(result), 200
 
 
 @bp.route("/tools/process/bak-exists", methods=["GET"])

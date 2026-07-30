@@ -10,6 +10,7 @@ from routes.system import (  # noqa: E402, F401
     budget,
     health,
     health_detailed,
+    health_library,
     logs,
     maintenance,
     notifications,

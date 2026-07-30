@@ -173,6 +173,25 @@ export async function searchAllWanted(): Promise<{ status: string }> {
   return data
 }
 
+/** One item's dry-run (pipeline preview) outcome — nothing was written. */
+export interface WantedDryRunResult {
+  wanted_id: number
+  status: 'found' | 'not_found' | 'skipped' | 'failed' | 'error'
+  dry_run?: boolean
+  provider?: string
+  score?: number
+  format?: string
+  output_path?: string
+  reason?: string
+  error?: string
+}
+
+/** Preview what the automation pipeline would download, without writing anything. */
+export async function dryRunWanted(itemIds: number[]): Promise<{ results: WantedDryRunResult[] }> {
+  const { data } = await api.post('/wanted/dry-run', { item_ids: itemIds }, { timeout: 300_000 })
+  return data
+}
+
 export interface BatchProbeStatus {
   running: boolean
   total: number

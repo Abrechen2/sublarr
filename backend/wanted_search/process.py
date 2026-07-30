@@ -251,10 +251,15 @@ def _try_target_ass_direct(ctx: dict) -> dict | None:
 
         output_path = get_output_path_for_lang(file_path, "ass", item_lang)
 
-        # If upgrading from SRT, remove old SRT file
+        # If upgrading from SRT, retire the old SRT file. Preserve it into
+        # its single-slot .bak first (when that slot is free) so the History
+        # rollback endpoint can restore the pre-upgrade state.
         if is_upgrade:
             old_srt = get_output_path_for_lang(file_path, "srt", item_lang)
             if os.path.exists(old_srt):
+                from services.subtitle_restore import backup_before_replace
+
+                backup_before_replace(old_srt)
                 os.remove(old_srt)
                 logger.info("Wanted %d: Removed old SRT: %s", item_id, old_srt)
                 # The file is gone — drop any stale hand-edited marker with it

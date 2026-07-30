@@ -1,6 +1,7 @@
-"""Download history routes — /history, /history/stats."""
+"""Download history routes — /history, /history/stats, /history/<id>/rollback."""
 
 import logging
+import os
 
 from flask import jsonify, request
 
@@ -124,6 +125,134 @@ def list_history():
         sort_dir=sort_dir,
     )
     return jsonify(result)
+
+
+def _resolve_sidecar_path(entry: dict) -> str:
+    """Derive the sidecar path a history entry produced (mapped + validated).
+
+    History rows store the VIDEO file path; the sidecar lives at
+    ``<video_base>.<lang>.<fmt>``. Raises ValueError when the derived path
+    falls outside media_path.
+    """
+    from config import get_settings, map_path
+    from security_utils import is_safe_path
+    from translator import get_output_path_for_lang
+
+    fmt = entry.get("format") or "srt"
+    path = get_output_path_for_lang(map_path(entry["file_path"]), fmt, entry.get("language"))
+    if not is_safe_path(path, get_settings().media_path):
+        raise ValueError(f"Derived sidecar path {path!r} is outside media_path")
+    return path
+
+
+@bp.route("/history/<int:download_id>/rollback", methods=["POST"])
+def rollback_history_entry(download_id):
+    """Roll back a history entry: restore the previously replaced subtitle.
+    ---
+    post:
+      security:
+        - apiKeyAuth: []
+      tags:
+        - Blacklist
+      summary: Roll back a subtitle download
+      description: >
+        Restores the subtitle version that this download replaced, using the
+        single-slot .bak backup written at replacement time. Same-format
+        entries swap active and backup (invoking rollback again flips them
+        back). Format-upgrade entries (e.g. SRT->ASS) restore the old-format
+        sidecar and retire the current one into its own backup slot.
+      parameters:
+        - in: path
+          name: download_id
+          required: true
+          schema:
+            type: integer
+      responses:
+        200:
+          description: Restored
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                  path:
+                    type: string
+        404:
+          description: Entry or backup not found
+        409:
+          description: Restore failed
+    """
+    from db.activity import log_activity
+    from db.library import get_download_by_id
+    from db.models.activity import EVENT_DOWNLOAD
+    from services.subtitle_restore import RestoreError, backup_before_replace, restore_from_bak
+    from subtitle_filename import find_existing_bak
+
+    entry = get_download_by_id(download_id)
+    if not entry:
+        return jsonify({"error": "History entry not found"}), 404
+
+    try:
+        active_path = _resolve_sidecar_path(entry)
+    except ValueError as e:
+        return jsonify({"error": str(e)}), 403
+
+    prev = None
+    if entry.get("upgraded_from_id"):
+        prev = get_download_by_id(entry["upgraded_from_id"])
+
+    cross_format = bool(
+        prev
+        and (
+            (prev.get("format") or "srt") != (entry.get("format") or "srt")
+            or prev.get("language") != entry.get("language")
+        )
+    )
+
+    if cross_format:
+        # Format upgrade (e.g. SRT->ASS): the previous version lives at a
+        # DIFFERENT sidecar path. Restore its bak, retire the current file.
+        try:
+            prev_active = _resolve_sidecar_path(prev)
+        except ValueError as e:
+            return jsonify({"error": str(e)}), 403
+
+        bak_path = find_existing_bak(prev_active)
+        if bak_path is None:
+            return jsonify({"error": "No backup of the previous subtitle exists"}), 404
+
+        if os.path.isfile(active_path):
+            # Keep the retired file recoverable: park it in its own bak slot.
+            backup_before_replace(active_path)
+            try:
+                os.remove(active_path)
+            except OSError as e:
+                return jsonify({"error": f"Could not remove current subtitle: {e}"}), 409
+        try:
+            os.replace(bak_path, prev_active)
+        except OSError as e:
+            return jsonify({"error": f"Could not restore backup: {e}"}), 409
+        result = {"status": "restored", "path": prev_active, "removed": active_path}
+    else:
+        try:
+            result = restore_from_bak(active_path)
+        except RestoreError as e:
+            return jsonify({"error": str(e)}), e.http_status
+
+    log_activity(
+        EVENT_DOWNLOAD,
+        file_path=entry["file_path"],
+        status="rollback",
+        details={
+            "provider": entry.get("provider_name"),
+            "language": entry.get("language"),
+            "restored_path": result.get("path"),
+        },
+    )
+    logger.info("History %d rolled back: %s", download_id, result.get("path"))
+    return jsonify(result), 200
 
 
 @bp.route("/history/stats", methods=["GET"])

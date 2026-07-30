@@ -39,6 +39,11 @@ def get_download_history(
     )
 
 
+def get_download_by_id(download_id: int) -> dict | None:
+    """Get one download-history entry by its DB id, or None."""
+    return _get_repo().get_download_by_id(download_id)
+
+
 def get_download_stats() -> dict:
     """Get aggregated download statistics."""
     return _get_repo().get_download_stats()

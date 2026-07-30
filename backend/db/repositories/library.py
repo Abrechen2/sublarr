@@ -90,14 +90,40 @@ class LibraryRepository(BaseRepository):
             data_stmt = data_stmt.where(cond)
         entries = self.session.execute(data_stmt).scalars().all()
 
+        data = [self._to_dict(e) for e in entries]
+
+        # Enrich upgrade rows with the replaced download's score/format so the
+        # UI can show WHY the entry exists ("Upgrade +40" vs. plain download)
+        # without a per-row lookup. One batch query for the whole page.
+        prev_ids = {e.upgraded_from_id for e in entries if e.upgraded_from_id}
+        prev_map: dict[int, tuple] = {}
+        if prev_ids:
+            prev_rows = self.session.execute(
+                select(
+                    SubtitleDownload.id,
+                    SubtitleDownload.score,
+                    SubtitleDownload.format,
+                ).where(SubtitleDownload.id.in_(prev_ids))
+            ).all()
+            prev_map = {row[0]: (row[1], row[2]) for row in prev_rows}
+        for row in data:
+            prev = prev_map.get(row.get("upgraded_from_id"))
+            row["previous_score"] = prev[0] if prev else None
+            row["previous_format"] = prev[1] if prev else None
+
         total_pages = max(1, (count + per_page - 1) // per_page)
         return {
-            "data": [self._to_dict(e) for e in entries],
+            "data": data,
             "page": page,
             "per_page": per_page,
             "total": count,
             "total_pages": total_pages,
         }
+
+    def get_download_by_id(self, download_id: int) -> dict | None:
+        """Return one subtitle_downloads row as a dict, or None."""
+        entry = self.session.get(SubtitleDownload, download_id)
+        return self._to_dict(entry) if entry else None
 
     def get_download_stats(self) -> dict:
         """Get aggregated download statistics.

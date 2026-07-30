@@ -10,6 +10,9 @@ export interface SubtitlesStats {
   by_provider: Record<string, number>
   by_language: Record<string, number>
   avg_score: number
+  sync_runs: number
+  sync_ok: number
+  sync_rate: number | null
 }
 
 export interface TranslationStats {

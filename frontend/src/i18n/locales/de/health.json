@@ -1,0 +1,55 @@
+{
+  "title": "Health",
+  "subtitle": "Wo es in der Bibliothek klemmt: fehlende Untertitel, nicht gematchte Episoden, fehlschlagende Provider",
+  "refresh_note": "Aktualisiert sich automatisch jede Minute.",
+  "totals": {
+    "wanted": "Fehlende Untertitel",
+    "problems": "Problem-Einträge",
+    "unmatched": "Nicht gematcht",
+    "series_affected": "Betroffene Serien",
+    "providers_degraded": "Provider beeinträchtigt"
+  },
+  "series": {
+    "title": "Serien & Filme mit fehlenden Untertiteln",
+    "col_title": "Titel",
+    "col_type": "Typ",
+    "col_missing": "Fehlend",
+    "col_problems": "Probleme",
+    "type_episode": "Serie",
+    "type_movie": "Film",
+    "empty": "Keine fehlenden Untertitel — alles abgedeckt.",
+    "hint": "Details und Aktionen pro Episode gibt es auf der",
+    "wanted_link": "Wanted-Seite"
+  },
+  "problems": {
+    "title": "Fehlgeschlagene & nicht gematchte Einträge",
+    "col_item": "Eintrag",
+    "col_lang": "Sprache",
+    "col_kind": "Grund",
+    "col_error": "Fehler",
+    "col_attempts": "Versuche",
+    "col_updated": "Aktualisiert",
+    "empty": "Keine fehlgeschlagenen oder nicht gematchten Einträge."
+  },
+  "failure": {
+    "no_result": "Kein Treffer",
+    "no_result_slow": "Kein Treffer (langsamer Retry)",
+    "provider_error": "Provider-Fehler",
+    "unsourceable": "Nicht gematcht",
+    "failed": "Fehlgeschlagen"
+  },
+  "providers": {
+    "title": "Provider-Gesundheit",
+    "col_provider": "Provider",
+    "col_state": "Status",
+    "col_searches": "Suchen",
+    "col_hit_rate": "Trefferquote",
+    "col_failed_downloads": "Fehlgeschlagene Downloads",
+    "col_breaker_failures": "Breaker-Fehler",
+    "state_closed": "OK",
+    "state_open": "Offen",
+    "state_half_open": "Halb offen",
+    "auto_disabled": "Auto-deaktiviert",
+    "empty": "Noch keine Provider-Aktivität aufgezeichnet."
+  }
+}

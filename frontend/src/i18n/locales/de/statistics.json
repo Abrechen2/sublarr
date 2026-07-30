@@ -27,7 +27,12 @@
     "title": "Untertitel",
     "by_source": "Nach Quelle",
     "by_language": "Nach Sprache",
-    "by_provider": "Nach Provider"
+    "by_provider": "Nach Provider",
+    "sync_rate": "Sync-Erfolgsrate",
+    "sync_runs_one": "{{count}} Sync-Lauf",
+    "sync_runs_other": "{{count}} Sync-Läufe",
+    "sync_ok": "Syncs OK",
+    "sync_failed": "Syncs fehlgeschlagen"
   },
   "translation": {
     "title": "Übersetzung",
