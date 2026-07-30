@@ -165,6 +165,13 @@
     "searching": "Suche...",
     "wantedList": "Wanted-Liste",
     "viewLogs": "Logs ansehen",
-    "runNow": "▶ Automation jetzt ausführen"
+    "runNow": "▶ Automation jetzt ausführen",
+    "systemHealth": "Systemzustand",
+    "healthDatabase": "Datenbank",
+    "healthDiskConfig": "Speicher (Config)",
+    "healthDiskMedia": "Speicher (Medien)",
+    "healthFree": "frei",
+    "healthConnected": "Verbunden",
+    "healthDegraded": "Einige Subsysteme sind beeinträchtigt"
   }
 }

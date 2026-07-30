@@ -23,6 +23,21 @@ vi.mock('@/hooks/useApi', () => ({
     },
     isLoading: false,
   }),
+  useDetailedHealth: () => ({
+    data: {
+      status: 'healthy',
+      subsystems: {
+        database: { healthy: true, backend: 'sqlite', size_bytes: 1048576, wal_mode: true },
+        disk_media: { healthy: true, percent: 42, free_bytes: 107374182400 },
+        arr_connectivity: {
+          healthy: true,
+          sonarr: [{ instance_name: 'Default', healthy: true, message: 'ok' }],
+          radarr: [],
+        },
+      },
+    },
+    isLoading: false,
+  }),
   useCleanupStats: () => ({
     data: { total_files: 8200, duplicate_files: 12, potential_savings_bytes: 52428800 },
     isLoading: false,
@@ -112,5 +127,14 @@ describe('DashboardSidebar', () => {
   it('renders batch search button', () => {
     wrap(<DashboardSidebar />)
     expect(screen.getByTestId('btn-batch-search')).toBeInTheDocument()
+  })
+
+  it('renders system health panel with subsystem rows', () => {
+    wrap(<DashboardSidebar />)
+    expect(screen.getByTestId('panel-system-health')).toBeInTheDocument()
+    expect(screen.getByTestId('health-dot-database')).toHaveAttribute('data-healthy', 'true')
+    expect(screen.getByTestId('health-dot-disk_media')).toHaveAttribute('data-healthy', 'true')
+    expect(screen.getByTestId('health-dot-sonarr-Default')).toHaveAttribute('data-healthy', 'true')
+    expect(screen.queryByTestId('system-health-degraded')).not.toBeInTheDocument()
   })
 })

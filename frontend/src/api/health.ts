@@ -18,6 +18,50 @@ export async function getStats(): Promise<Stats> {
   return data
 }
 
+// ─── Detailed Health (per-subsystem) ─────────────────────────────────────────
+
+export interface ArrInstanceCheck {
+  instance_name: string
+  healthy: boolean
+  message: string
+}
+
+export interface MediaServerCheck {
+  type: string
+  name: string
+  healthy: boolean
+  message: string
+}
+
+export interface DetailedSubsystem {
+  healthy: boolean
+  message?: string
+  backend?: string
+  size_bytes?: number
+  wal_mode?: boolean
+  percent?: number
+  free_bytes?: number
+  sonarr?: ArrInstanceCheck[]
+  radarr?: ArrInstanceCheck[]
+  instances?: MediaServerCheck[]
+  backends?: Record<string, { healthy: boolean; message: string }>
+  active_backend?: string | null
+}
+
+export interface DetailedHealth {
+  status: 'healthy' | 'degraded'
+  subsystems: Record<string, DetailedSubsystem>
+}
+
+export async function getDetailedHealth(): Promise<DetailedHealth> {
+  // 503 is a valid, fully-populated "degraded" response — don't treat it as
+  // an error or the dev-mock interceptor would swallow the real payload.
+  const { data } = await api.get('/health/detailed', {
+    validateStatus: (s) => s === 200 || s === 503,
+  })
+  return data
+}
+
 // ─── Budget State ────────────────────────────────────────────────────────────
 
 export interface BudgetWindow {

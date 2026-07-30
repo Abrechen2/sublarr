@@ -3,6 +3,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { getSetupStatus, completeSetup, type SetupProfile } from '@/api/health'
 import {
   getBudgetState,
+  getDetailedHealth,
   getHealth, getUpdateInfo, getStats, getJobs,
   getBatchStatus, getConfig, updateConfig, disableTranslation,
   getLogs,
@@ -29,6 +30,15 @@ export function useHealth() {
     queryKey: ['health'],
     queryFn: getHealth,
     refetchInterval: 30000,
+  })
+}
+
+export function useDetailedHealth() {
+  return useQuery({
+    queryKey: ['health', 'detailed'],
+    queryFn: getDetailedHealth,
+    refetchInterval: 60_000,
+    staleTime: 30_000,
   })
 }
 

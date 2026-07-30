@@ -4,12 +4,14 @@ import { useTranslation } from 'react-i18next'
 import {
   useProviders,
   useHealth,
+  useDetailedHealth,
   useCleanupStats,
   useRefreshWanted,
   useStartWantedBatch,
   useWantedBatchStatus,
   useWantedSummary,
 } from '@/hooks/useApi'
+import type { DetailedSubsystem } from '@/api/health'
 import { formatBytes } from '@/lib/diskUtils'
 import { formatProviderName, formatNumber } from '@/lib/utils'
 
@@ -264,6 +266,158 @@ function ServiceStatusPanel() {
   )
 }
 
+// ─── System Health Panel (from /health/detailed) ─────────────────────────────
+
+interface HealthRow {
+  key: string
+  label: string
+  healthy: boolean
+  detail: string
+}
+
+function buildHealthRows(
+  subsystems: Record<string, DetailedSubsystem>,
+  t: (key: string, opts?: Record<string, unknown>) => string,
+): HealthRow[] {
+  const rows: HealthRow[] = []
+
+  const db = subsystems.database
+  if (db) {
+    rows.push({
+      key: 'database',
+      label: t('sidebar.healthDatabase'),
+      healthy: db.healthy,
+      detail: db.healthy
+        ? [db.backend, db.size_bytes ? formatBytes(db.size_bytes) : '']
+            .filter(Boolean)
+            .join(' · ')
+        : db.message ?? '',
+    })
+  }
+
+  for (const diskKey of ['disk_config', 'disk_media'] as const) {
+    const disk = subsystems[diskKey]
+    if (disk && disk.percent !== undefined) {
+      rows.push({
+        key: diskKey,
+        label: diskKey === 'disk_config' ? t('sidebar.healthDiskConfig') : t('sidebar.healthDiskMedia'),
+        healthy: disk.healthy,
+        detail: `${Math.round(disk.percent)}%${disk.free_bytes ? ` · ${formatBytes(disk.free_bytes)} ${t('sidebar.healthFree')}` : ''}`,
+      })
+    }
+  }
+
+  const arr = subsystems.arr_connectivity
+  if (arr) {
+    for (const inst of arr.sonarr ?? []) {
+      rows.push({
+        key: `sonarr-${inst.instance_name}`,
+        label: `Sonarr · ${inst.instance_name}`,
+        healthy: inst.healthy,
+        detail: inst.healthy ? t('sidebar.healthConnected') : inst.message,
+      })
+    }
+    for (const inst of arr.radarr ?? []) {
+      rows.push({
+        key: `radarr-${inst.instance_name}`,
+        label: `Radarr · ${inst.instance_name}`,
+        healthy: inst.healthy,
+        detail: inst.healthy ? t('sidebar.healthConnected') : inst.message,
+      })
+    }
+  }
+
+  const ms = subsystems.media_servers
+  for (const inst of ms?.instances ?? []) {
+    rows.push({
+      key: `ms-${inst.type}-${inst.name}`,
+      label: inst.name || inst.type,
+      healthy: inst.healthy,
+      detail: inst.healthy ? t('sidebar.healthConnected') : inst.message,
+    })
+  }
+
+  return rows
+}
+
+function SystemHealthPanel() {
+  const { t } = useTranslation('dashboard')
+  const { data: detailed, isLoading } = useDetailedHealth()
+
+  if (isLoading || !detailed?.subsystems) {
+    return (
+      <Panel testId="panel-system-health" title={t('sidebar.systemHealth')}>
+        {[1, 2].map((i) => (
+          <div
+            key={i}
+            style={{
+              height: '16px',
+              background: 'var(--bg-secondary)',
+              borderRadius: '4px',
+              marginBottom: '4px',
+            }}
+          />
+        ))}
+      </Panel>
+    )
+  }
+
+  const rows = buildHealthRows(detailed.subsystems, t)
+  const degraded = detailed.status !== 'healthy'
+
+  return (
+    <Panel testId="panel-system-health" title={t('sidebar.systemHealth')}>
+      {degraded && (
+        <div
+          data-testid="system-health-degraded"
+          style={{
+            fontSize: '10px',
+            fontWeight: 600,
+            color: 'var(--warning)',
+            marginBottom: '6px',
+          }}
+        >
+          {t('sidebar.healthDegraded')}
+        </div>
+      )}
+      {rows.map((row) => (
+        <div
+          key={row.key}
+          style={{ display: 'flex', alignItems: 'center', gap: '7px', marginBottom: '5px' }}
+        >
+          <span
+            data-testid={`health-dot-${row.key}`}
+            data-healthy={String(row.healthy)}
+            style={{
+              width: 6,
+              height: 6,
+              borderRadius: '50%',
+              background: row.healthy ? 'var(--success)' : 'var(--error)',
+              flexShrink: 0,
+            }}
+          />
+          <span style={{ flex: 1, fontSize: '12px', color: 'var(--text-secondary)' }}>
+            {row.label}
+          </span>
+          <span
+            title={row.detail}
+            style={{
+              fontSize: '11px',
+              color: row.healthy ? 'var(--text-muted)' : 'var(--error)',
+              maxWidth: '110px',
+              overflow: 'hidden',
+              textOverflow: 'ellipsis',
+              whiteSpace: 'nowrap',
+            }}
+          >
+            {row.detail}
+          </span>
+        </div>
+      ))}
+    </Panel>
+  )
+}
+
 // ─── Disk Space Panel ─────────────────────────────────────────────────────────
 
 function DiskSpacePanel() {
@@ -444,6 +598,7 @@ export function DashboardSidebar() {
     >
       <ProviderHealthPanel />
       <ServiceStatusPanel />
+      <SystemHealthPanel />
       <DiskSpacePanel />
       <QuickActionsPanel />
     </div>
