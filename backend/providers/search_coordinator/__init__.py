@@ -18,6 +18,7 @@ import logging
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from concurrent.futures import TimeoutError as FutureTimeoutError
 
+import decision_log
 from db.repositories.provider_account_pool import ProviderAccountPoolRepository
 from providers.base import (
     ProviderRateLimitError,
@@ -98,17 +99,20 @@ class SearchCoordinatorMixin(SearchRetryMixin, SearchScoringMixin, SearchCacheMi
             # Check auto-disable status
             if is_provider_auto_disabled(name):
                 logger.debug("Skipping provider %s -- auto-disabled", name)
+                decision_log.provider_skipped(name, "auto_disabled")
                 continue
 
             # Check circuit breaker
             cb = self._circuit_breakers.get(name)
             if cb and not cb.allow_request():
                 logger.debug("Skipping provider %s -- circuit breaker OPEN", name)
+                decision_log.provider_skipped(name, "circuit_open")
                 continue
 
             # Check rate limit
             if not self._check_rate_limit(name):
                 logger.debug("Skipping provider %s due to rate limit", name)
+                decision_log.provider_skipped(name, "rate_limited")
                 continue
 
             # Budget gate — skip silently when exhausted (same pattern as
@@ -155,6 +159,9 @@ class SearchCoordinatorMixin(SearchRetryMixin, SearchScoringMixin, SearchCacheMi
                             decision.reason,
                             decision.wait_seconds,
                         )
+                        decision_log.provider_skipped(
+                            name, "budget_exhausted", detail=decision.reason
+                        )
                         continue
 
                     # Phase 4a: pick a key from the pool before we commit the call.
@@ -170,6 +177,7 @@ class SearchCoordinatorMixin(SearchRetryMixin, SearchScoringMixin, SearchCacheMi
                             "bypass the gate for this provider.",
                             name,
                         )
+                        decision_log.provider_skipped(name, "no_pool_key")
                         continue
 
                     # Credential injection + mark_used happen INSIDE the worker
@@ -192,6 +200,7 @@ class SearchCoordinatorMixin(SearchRetryMixin, SearchScoringMixin, SearchCacheMi
                     futures_to_key[future] = key["id"]
             except Exception as exc:  # noqa: BLE001
                 logger.warning("submit failed for %s: %s -- refunding budget", name, exc)
+                decision_log.provider_failed(name, "error", detail=f"submit failed: {exc}")
                 if getattr(self.settings, "provider_budget_enabled", True):
                     try:
                         # Pass key_id so the per-key dimension is also rolled
@@ -246,6 +255,7 @@ class SearchCoordinatorMixin(SearchRetryMixin, SearchScoringMixin, SearchCacheMi
                 try:
                     results, elapsed_ms = future.result()
                     all_results.extend(results)
+                    decision_log.provider_searched(name, len(results), elapsed_ms)
 
                     # Update circuit breaker and stats
                     # NOTE: empty results are NOT a failure — the provider responded
@@ -272,10 +282,12 @@ class SearchCoordinatorMixin(SearchRetryMixin, SearchScoringMixin, SearchCacheMi
 
                         if perfect_match_found:
                             # Cancel remaining futures (they'll complete but we won't wait)
+                            decision_log.early_exit(name, result.score)
                             break
 
                 except FutureTimeoutError:
                     logger.warning("Provider %s search timed out", name)
+                    decision_log.provider_failed(name, "timeout")
                     cb = self._circuit_breakers.get(name)
                     if cb:
                         cb.record_failure()
@@ -296,6 +308,11 @@ class SearchCoordinatorMixin(SearchRetryMixin, SearchScoringMixin, SearchCacheMi
                     self._check_auto_disable(name)
                 except Exception as e:
                     logger.warning("Provider %s search failed: %s", name, e)
+                    decision_log.provider_failed(
+                        name,
+                        "rate_limited" if isinstance(e, ProviderRateLimitError) else "error",
+                        detail=str(e),
+                    )
                     cb = self._circuit_breakers.get(name)
                     if cb:
                         cb.record_failure()
@@ -329,6 +346,7 @@ class SearchCoordinatorMixin(SearchRetryMixin, SearchScoringMixin, SearchCacheMi
                 ", ".join(unfinished),
                 len(all_results),
             )
+            decision_log.providers_unfinished(unfinished)
         return all_results
 
     def _handle_rate_limit_exception(self, e, name: str, future, futures_to_key: dict) -> None:
@@ -458,6 +476,9 @@ class SearchCoordinatorMixin(SearchRetryMixin, SearchScoringMixin, SearchCacheMi
         Returns:
             List of SubtitleResult sorted by score (highest first)
         """
+        # One decision-log search entry per search() call (no-op when inactive).
+        decision_log.search_started(query.languages, format_filter, min_score)
+
         # Check cache first (two-tier: fast app cache, then persistent DB cache)
         cache_key = self._make_cache_key(query, format_filter)
         cache_ttl_minutes = getattr(self.settings, "provider_cache_ttl_minutes", 5)
@@ -468,6 +489,7 @@ class SearchCoordinatorMixin(SearchRetryMixin, SearchScoringMixin, SearchCacheMi
             cache_key, format_filter, app_cache_key, cache_backend, cache_ttl_minutes
         )
         if cached_results is not None:
+            decision_log.search_cache_hit(len(cached_results))
             return cached_results
 
         all_results: list[SubtitleResult] = []
@@ -533,9 +555,11 @@ class SearchCoordinatorMixin(SearchRetryMixin, SearchScoringMixin, SearchCacheMi
             executor.shutdown(wait=False, cancel_futures=True)
 
         # Score + classify + filter + sort — delegated to _finalise_search_results.
+        _total_before_filters = len(all_results)
         all_results = self._finalise_search_results(
             all_results, query, format_filter, min_score, must_contain, must_not_contain
         )
+        decision_log.search_finished(_total_before_filters, len(all_results))
 
         # Cache results in both tiers (delegated to _write_search_cache).
         self._write_search_cache(

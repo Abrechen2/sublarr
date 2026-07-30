@@ -5,6 +5,7 @@ import copy
 import logging
 import os
 
+import decision_log
 from config import get_settings
 from db.jobs import create_job, record_stat, update_job
 from db.library import record_upgrade
@@ -192,6 +193,7 @@ def _try_target_ass_direct(ctx: dict) -> dict | None:
     is_upgrade = ctx["is_upgrade"]
     current_score = ctx["current_score"]
 
+    decision_log.set_step("target_ass_direct")
     try:
         result = manager.search_and_download_best(
             query,
@@ -241,6 +243,7 @@ def _try_target_ass_direct(ctx: dict) -> dict | None:
                 upgrade_window_days=settings.upgrade_window_days,
                 existing_file_path=existing_srt,
             )
+            decision_log.upgrade_decision(do_upgrade, reason, current_score, new_score)
             if not do_upgrade:
                 logger.info("Wanted %d: Upgrade rejected — %s", item_id, reason)
                 update_wanted_status(item_id, "wanted")
@@ -378,6 +381,7 @@ def _try_source_ass_translation(ctx: dict) -> dict | None:
     file_path = ctx["file_path"]
 
     source_query = ctx["source_query"]
+    decision_log.set_step("source_ass_translation")
     try:
         result = manager.search_and_download_best(
             source_query,
@@ -528,6 +532,7 @@ def _try_target_srt_direct(ctx: dict) -> dict | None:
     file_path = ctx["file_path"]
     query = ctx["query"]
 
+    decision_log.set_step("target_srt_direct")
     try:
         result = manager.search_and_download_best(
             query,
@@ -639,6 +644,7 @@ def _try_source_srt_translation(ctx: dict) -> dict | None:
         source_query.languages = [settings.source_language]
         ctx["source_query"] = source_query
 
+    decision_log.set_step("source_srt_translation")
     try:
         result = manager.search_and_download_best(
             source_query,
@@ -1053,6 +1059,26 @@ def process_wanted_item(
         "dry_run": dry_run,
     }
 
+    # Decision log: record the whole selection pipeline for this item so the
+    # user can later see WHY a subtitle was chosen (or why none was found).
+    _dlog_enabled = getattr(settings, "decision_log_enabled", True)
+    if _dlog_enabled:
+        decision_log.start(item)
+    try:
+        result = _run_search_steps(ctx)
+        if _dlog_enabled:
+            _finalize_decision_log(item_id, result, dry_run)
+        return result
+    finally:
+        decision_log.finish()
+
+
+def _run_search_steps(ctx: dict) -> dict:
+    """Run search Steps 1-5 for one wanted item. Extracted from
+    ``process_wanted_item`` so the decision log can wrap the whole sequence."""
+    item_id = ctx["item_id"]
+    settings = ctx["settings"]
+
     # Step 1: target-language ASS direct
     result = _try_target_ass_direct(ctx)
     if result is not None:
@@ -1065,6 +1091,7 @@ def process_wanted_item(
             return result
     else:
         logger.debug("Wanted %d: auto_translate disabled, skipping source ASS translation", item_id)
+        decision_log.step_skipped("source_ass_translation", "auto_translate disabled")
 
     # Per-series format requirement: "require_ass" never falls back to SRT
     # provider results, regardless of what Steps 1+2 returned.
@@ -1073,6 +1100,9 @@ def process_wanted_item(
     _require_ass = get_series_format_requirement(item.get("sonarr_series_id")) == REQUIRE_ASS
     if _require_ass:
         logger.info("Wanted %d: series requires ASS subtitles, skipping SRT steps", item_id)
+        decision_log.step_skipped(
+            "target_srt_direct", "series requires ASS (never falls back to SRT)"
+        )
 
     # Phase 2: skip SRT steps if no ASS was found in Steps 1+2 (providers likely have nothing)
     _skip_srt = _require_ass or (
@@ -1080,6 +1110,9 @@ def process_wanted_item(
     )
     if _skip_srt and not _require_ass:
         logger.debug("Wanted %d: No ASS found in Steps 1+2, skipping SRT steps", item_id)
+        decision_log.step_skipped(
+            "target_srt_direct", "no ASS results in steps 1+2 (wanted_skip_srt_on_no_ass)"
+        )
     if not _skip_srt:
         # Step 3: target-language SRT direct
         result = _try_target_srt_direct(ctx)
@@ -1091,6 +1124,8 @@ def process_wanted_item(
             result = _try_source_srt_translation(ctx)
             if result is not None:
                 return result
+        else:
+            decision_log.step_skipped("source_srt_translation", "auto_translate disabled")
 
     # Step 5: fallback to translate_file (embedded subtitle pipeline).
     # NOT preview-safe (extraction/translation happen as a side effect of
@@ -1101,4 +1136,35 @@ def process_wanted_item(
             "Wanted %d: dry_run stops before the embedded/translate fallback (Step 5)", item_id
         )
         return {"wanted_id": item_id, "status": "not_found", "dry_run": True}
+    decision_log.set_step("translate_fallback")
     return _fallback_translate_file(ctx)
+
+
+def _finalize_decision_log(item_id: int, result: dict, dry_run: bool) -> None:
+    """Attach the outcome to the active decision log and persist it on the
+    wanted row when no subtitle was downloaded.
+
+    Successful downloads already carry their snapshot on the
+    ``subtitle_downloads`` row (attached inside ``record_subtitle_download``);
+    the wanted row is deleted in that path, so persistence here only matters
+    for the not_found / failed / upgrade-rejected outcomes the user will ask
+    "why?" about. Best-effort: never raises into the caller.
+    """
+    try:
+        decision_log.set_outcome(
+            result.get("status", ""),
+            provider=result.get("provider"),
+            reason=result.get("reason"),
+            error=result.get("error"),
+            output_path=result.get("output_path"),
+        )
+        if dry_run:
+            return
+        if result.get("status") in ("not_found", "failed", "skipped"):
+            payload = decision_log.snapshot_json()
+            if payload:
+                from db.wanted import set_decision_log
+
+                set_decision_log(item_id, payload)
+    except Exception:  # noqa: BLE001 — logging must never break item processing
+        logger.debug("Decision log persistence failed for wanted %d", item_id, exc_info=True)

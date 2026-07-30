@@ -17,6 +17,7 @@ import { StatusBadge } from '@/components/shared/StatusBadge'
 import SubtitleEditorModal from '@/components/editor/SubtitleEditorModal'
 import { InteractiveSearchModal } from '@/components/wanted/InteractiveSearchModal'
 import { DryRunModal } from '@/components/wanted/DryRunModal'
+import { DecisionLogModal } from '@/components/activity/DecisionLogModal'
 import type { FilterDef, ActiveFilter } from '@/components/filters/FilterBar'
 import { BatchActionBar } from '@/components/batch/BatchActionBar'
 import { useSelectionStore } from '@/stores/selectionStore'
@@ -90,6 +91,7 @@ export function WantedPage() {
   const [previewFilePath, setPreviewFilePath] = useState<string | null>(null)
   const [interactiveItem, setInteractiveItem] = useState<{ id: number; title: string } | null>(null)
   const [dryRunItem, setDryRunItem] = useState<{ id: number; title: string } | null>(null)
+  const [decisionItem, setDecisionItem] = useState<{ id: number; title: string } | null>(null)
 
   // FilterBar state
   const [activeFilters, setActiveFilters] = useState<ActiveFilter[]>([])
@@ -585,6 +587,7 @@ export function WantedPage() {
                       onPreview={setPreviewFilePath}
                       onInteractiveSearch={setInteractiveItem}
                       onDryRun={setDryRunItem}
+                      onDecisionLog={setDecisionItem}
                       onBlacklist={(itemId, providerName, subtitleId, language) => {
                         const item = wantedData.find(d => d.id === itemId)
                         addBlacklist.mutate({
@@ -647,6 +650,16 @@ export function WantedPage() {
         itemTitle={dryRunItem?.title ?? ''}
         onClose={() => setDryRunItem(null)}
       />
+
+      {/* Decision Log Modal — "why was nothing found?" */}
+      {decisionItem && (
+        <DecisionLogModal
+          mode="wanted"
+          id={decisionItem.id}
+          title={decisionItem.title}
+          onClose={() => setDecisionItem(null)}
+        />
+      )}
 
       {/* Pending-Original Review Modal (feature #8b) */}
       <MtPendingModal open={showMtPendingModal} onClose={() => setShowMtPendingModal(false)} />

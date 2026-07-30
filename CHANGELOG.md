@@ -28,6 +28,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   interactive search shows scores computed with the item's profile preset,
   and preset weights now survive the penalty-rule pipeline (previously a
   preset's `format_bonus` was silently replaced by the rule's weight).
+- **Decision log — "Why was this subtitle chosen?"** Every wanted-item search
+  now records its full selection pipeline: which providers were searched (hit
+  counts, latency, skip reasons like circuit breaker / rate limit / budget),
+  how many candidates each filter stage rejected and why (language, format,
+  score threshold, blacklist, profile rules, release-group blocks), download
+  attempts, the upgrade decision, and the final pick with its score breakdown.
+  The log is stored with the download (History → new "why?" action opens a
+  modal with a compact view plus an expert mode showing per-candidate
+  rejections and provider timings) and, when nothing was found, on the wanted
+  item ("Why was nothing found?" action). New API endpoints
+  `GET /api/v1/history/<id>/decision` and `GET /api/v1/wanted/<id>/decision`
+  serve the payload — handy for sharing in support threads instead of log
+  files. Recording can be turned off with the `decision_log_enabled` setting
+  (on by default).
 
 ### Fixed
 - **Score breakdown now accounts for every point.** The preferred-release-group

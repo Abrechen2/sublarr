@@ -154,6 +154,22 @@ class _WantedUpdatesMixin:
         self._commit()
         return True
 
+    def set_decision_log(self, item_id: int, payload: str | None) -> bool:
+        """Store (or clear) the last search decision-log JSON for an item."""
+        item = self.session.get(WantedItem, item_id)
+        if not item:
+            return False
+        item.last_decision_log_json = payload
+        self._commit()
+        return True
+
+    def get_decision_log(self, item_id: int) -> str | None:
+        """Return the raw decision-log JSON for a wanted item, or None."""
+        item = self.session.get(WantedItem, item_id)
+        if not item:
+            return None
+        return item.last_decision_log_json
+
     def set_mt_pending_original(self, item_id: int, payload: str | None) -> bool:
         """Record (or clear, with ``payload=None``) the pending-original JSON
         signal set by a ``mt_on_original_found="notify"`` re-seek match."""

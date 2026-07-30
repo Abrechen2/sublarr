@@ -50,6 +50,11 @@ class SubtitleDownload(db.Model):
     )  # "provider" | "whisper" | "manual"
     downloaded_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
     upgraded_from_id: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    # JSON snapshot of the selection decision log (see decision_log.py).
+    # NULL for rows recorded outside a wanted-search run or with the
+    # decision_log_enabled setting off. Stripped from list responses —
+    # served via GET /history/<id>/decision only.
+    decision_log_json: Mapped[str | None] = mapped_column(Text, nullable=True)
 
     __table_args__ = (
         # idx_subtitle_downloads_path dropped in migration h1i2j3k4l5m6 —

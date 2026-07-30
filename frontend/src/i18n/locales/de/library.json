@@ -542,7 +542,8 @@
     "dry_run_skipped": "Eintrag würde übersprungen",
     "dry_run_failed": "Testlauf fehlgeschlagen",
     "dry_run_target": "Zielpfad",
-    "dry_run_note": "Nur Vorschau: Die Provider wurden real abgefragt, aber keine Datei gespeichert und keine Historie geschrieben."
+    "dry_run_note": "Nur Vorschau: Die Provider wurden real abgefragt, aber keine Datei gespeichert und keine Historie geschrieben.",
+    "decision_log": "Warum wurde nichts gefunden?"
   },
   "mt_pending": {
     "toolbar_button": "Ausstehende Originale",

@@ -1,5 +1,5 @@
 import { api } from '../core'
-import type { PaginatedBlacklist, PaginatedHistory, HistoryStats } from '@/lib/types'
+import type { PaginatedBlacklist, PaginatedHistory, HistoryStats, DecisionLog } from '@/lib/types'
 
 // ─── Blacklist ────────────────────────────────────────────────────────────────
 
@@ -46,5 +46,17 @@ export async function rollbackHistoryEntry(
   id: number
 ): Promise<{ status: string; path: string; removed?: string; warning?: string }> {
   const { data } = await api.post(`/history/${id}/rollback`)
+  return data
+}
+
+// ─── Decision Log ─────────────────────────────────────────────────────────────
+
+export async function getHistoryDecision(downloadId: number): Promise<DecisionLog> {
+  const { data } = await api.get(`/history/${downloadId}/decision`)
+  return data
+}
+
+export async function getWantedDecision(itemId: number): Promise<DecisionLog> {
+  const { data } = await api.get(`/wanted/${itemId}/decision`)
   return data
 }

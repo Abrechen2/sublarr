@@ -545,6 +545,9 @@ class WantedRepository(BaseRepository, _WantedUpsertMixin, _WantedUpdatesMixin):
     def _row_to_wanted(self, item: WantedItem) -> dict:
         """Convert a WantedItem model to a dict. Parse missing_languages and embedded_languages JSON."""
         d = self._to_dict(item)
+        # The decision-log blob can be large — replace it with a flag and
+        # serve the payload via GET /wanted/<id>/decision on demand.
+        d["has_decision_log"] = bool(d.pop("last_decision_log_json", None))
         if d.get("missing_languages"):
             try:
                 d["missing_languages"] = json.loads(d["missing_languages"])

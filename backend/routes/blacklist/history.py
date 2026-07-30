@@ -255,6 +255,51 @@ def rollback_history_entry(download_id):
     return jsonify(result), 200
 
 
+@bp.route("/history/<int:download_id>/decision", methods=["GET"])
+def get_history_decision(download_id: int):
+    """Get the selection decision log for a download.
+    ---
+    get:
+      security:
+        - apiKeyAuth: []
+      tags:
+        - Blacklist
+      summary: Get download decision log
+      description: >
+        Returns the recorded selection pipeline for a downloaded subtitle:
+        which providers were searched (hits, latency, skip reasons), which
+        candidates each filter stage rejected, the upgrade decision, download
+        attempts, and the final selection with its score breakdown.
+      parameters:
+        - in: path
+          name: download_id
+          required: true
+          schema:
+            type: integer
+      responses:
+        200:
+          description: Decision log payload
+          content:
+            application/json:
+              schema:
+                type: object
+        404:
+          description: No decision log recorded for this download
+    """
+    import json
+
+    from db.providers import get_download_decision_log
+
+    raw = get_download_decision_log(download_id)
+    if not raw:
+        return jsonify({"error": "No decision log recorded for this download"}), 404
+    try:
+        return jsonify(json.loads(raw))
+    except ValueError:
+        logger.warning("Corrupt decision log JSON for download %d", download_id)
+        return jsonify({"error": "Decision log is corrupt"}), 500
+
+
 @bp.route("/history/stats", methods=["GET"])
 def history_stats():
     """Get aggregated download statistics.

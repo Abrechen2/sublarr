@@ -37,6 +37,7 @@ interface WantedGroupedRowProps {
   onPreview: (filePath: string) => void
   onInteractiveSearch: (item: { id: number; title: string }) => void
   onDryRun: (item: { id: number; title: string }) => void
+  onDecisionLog?: (item: { id: number; title: string }) => void
   onBlacklist: (itemId: number, providerName: string, subtitleId: string, language: string) => void
 }
 
@@ -62,6 +63,7 @@ export function WantedGroupedRow({
   onPreview,
   onInteractiveSearch,
   onDryRun,
+  onDecisionLog,
   onBlacklist,
 }: WantedGroupedRowProps) {
   const { t } = useTranslation('library')
@@ -253,6 +255,7 @@ export function WantedGroupedRow({
                   onPreview={onPreview}
                   onInteractiveSearch={onInteractiveSearch}
                   onDryRun={onDryRun}
+                  onDecisionLog={onDecisionLog}
                 />
               </td>
             </tr>

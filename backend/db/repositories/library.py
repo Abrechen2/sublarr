@@ -113,6 +113,9 @@ class LibraryRepository(BaseRepository):
             prev = prev_map.get(row.get("upgraded_from_id"))
             row["previous_score"] = prev[0] if prev else None
             row["previous_format"] = prev[1] if prev else None
+            # The decision-log blob can be large — replace it with a flag and
+            # serve the payload via GET /history/<id>/decision on demand.
+            row["has_decision_log"] = bool(row.pop("decision_log_json", None))
 
         total_pages = max(1, (count + per_page - 1) // per_page)
         self._annotate_sync_status(data)

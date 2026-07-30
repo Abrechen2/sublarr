@@ -542,7 +542,8 @@
     "dry_run_skipped": "Item would be skipped",
     "dry_run_failed": "Dry run failed",
     "dry_run_target": "Target path",
-    "dry_run_note": "Preview only: providers were queried for real, but no file was saved and no history was recorded."
+    "dry_run_note": "Preview only: providers were queried for real, but no file was saved and no history was recorded.",
+    "decision_log": "Why was nothing found?"
   },
   "mt_pending": {
     "toolbar_button": "Pending originals",
