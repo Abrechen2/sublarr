@@ -273,8 +273,13 @@ class TestExtractEmbeddedSubResolvesSetting:
             patch("db.wanted.update_existing_sub"),
             patch("db.wanted.update_wanted_status"),
             patch("ass_utils.get_media_streams", return_value={"streams": []}),
-            patch("services.embedded_extractor.resolve_profile_for_item", return_value={"target_languages": ["de"]}),
-            patch("services.embedded_extractor.extract_and_cleanup", return_value=fake_result) as mock_eac,
+            patch(
+                "services.embedded_extractor.resolve_profile_for_item",
+                return_value={"target_languages": ["de"]},
+            ),
+            patch(
+                "services.embedded_extractor.extract_and_cleanup", return_value=fake_result
+            ) as mock_eac,
             patch("services.embedded_extractor.emit_event"),
             patch("services.embedded_extractor.log_activity"),
         ):

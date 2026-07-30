@@ -64,18 +64,14 @@ def _run(app_ctx, embedded_item, provider_calls):
 
 
 class TestWantedSearchEmbeddedGating:
-    def test_both_toggles_off_embedded_items_are_searched_not_extracted(
-        self, app_ctx, monkeypatch
-    ):
+    def test_both_toggles_off_embedded_items_are_searched_not_extracted(self, app_ctx, monkeypatch):
         """THE #159 regression test: with automation and the legacy toggle
         both off, an embedded-sub item must go through the normal provider
         search — extract_embedded_sub must never run."""
         _configure_settings(monkeypatch, automation=False, auto_extract=False)
         provider_calls: list[int] = []
 
-        with patch(
-            "services.wanted_search_filters.extract_embedded_sub"
-        ) as mock_extract:
+        with patch("services.wanted_search_filters.extract_embedded_sub") as mock_extract:
             summary = _run(app_ctx, _item(1), provider_calls)
 
         mock_extract.assert_not_called()
@@ -127,9 +123,7 @@ class TestWantedSearchEmbeddedGating:
         assert provider_calls == []
         assert summary["found"] == 1
 
-    def test_enqueue_failure_falls_back_to_search_when_legacy_off(
-        self, app_ctx, monkeypatch
-    ):
+    def test_enqueue_failure_falls_back_to_search_when_legacy_off(self, app_ctx, monkeypatch):
         """Automation on but the queue insert raises: the item must not be
         dropped silently — with the legacy toggle off it falls back to the
         provider search (and is still never extracted inline)."""

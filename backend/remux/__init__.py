@@ -636,9 +636,7 @@ def remove_foreign_subtitle_streams(
     # language because the container used a 3-letter tag.
     from config_language_data import normalize_language_code
 
-    normalized_targets = {
-        normalize_language_code(str(t).lower()) for t in target_languages if t
-    }
+    normalized_targets = {normalize_language_code(str(t).lower()) for t in target_languages if t}
     normalized_targets.discard("")
 
     streams_to_remove: list[tuple[int, int]] = []
@@ -648,8 +646,7 @@ def remove_foreign_subtitle_streams(
             continue
         lang = (stream.get("tags", {}).get("language", "und") or "und").lower()
         is_foreign = (
-            lang not in target_languages
-            and normalize_language_code(lang) not in normalized_targets
+            lang not in target_languages and normalize_language_code(lang) not in normalized_targets
         )
         if is_foreign and not (keep_und and lang == "und"):
             global_idx = stream.get("index")

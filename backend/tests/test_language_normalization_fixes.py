@@ -64,9 +64,7 @@ class TestComputeKeepLangs:
     def test_und_only_targets_produce_empty_keep_set(self):
         from services.embedded_extractor import compute_keep_langs
 
-        keep = compute_keep_langs(
-            {"target_languages": ["und", "und1", "und2"]}, self._settings()
-        )
+        keep = compute_keep_langs({"target_languages": ["und", "und1", "und2"]}, self._settings())
         assert keep == set(), "an und-only keep set must trigger the empty-set no-op guards"
 
     def test_source_language_added_when_auto_translate(self):
@@ -157,9 +155,7 @@ class TestResolveCombineSources:
             {"language": "eng", "format": "ass", "path": str(tmp_path / "ep.eng.ass")},
         ]
 
-        with patch(
-            "services.sidecar_scan.scan_subtitle_sidecars", return_value=sidecars
-        ):
+        with patch("services.sidecar_scan.scan_subtitle_sidecars", return_value=sidecars):
             present, missing = resolve_combine_sources(str(tmp_path / "ep.mkv"), ["de", "en"])
 
         assert missing == []

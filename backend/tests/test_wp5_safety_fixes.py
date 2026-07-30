@@ -72,9 +72,7 @@ class TestSubtitleHealthSweepGate:
                     subtitle_health_auto_fix=False,
                 ),
             ),
-            patch(
-                "services.subtitle_health.sweep.get_sonarr_client", return_value=client
-            ),
+            patch("services.subtitle_health.sweep.get_sonarr_client", return_value=client),
         ):
             sweep_mod.subtitle_health_sweep_tick()
 
@@ -124,9 +122,7 @@ class TestSignsPurgeScope:
 
         trashed = [c.args[0] for c in trash.call_args_list]
         assert str(extracted_signs) in trashed
-        assert str(preexisting_forced) not in trashed, (
-            "pre-existing sidecars are not purge fodder"
-        )
+        assert str(preexisting_forced) not in trashed, "pre-existing sidecars are not purge fodder"
 
 
 class TestAutoModsSkipVariants:
@@ -140,6 +136,4 @@ class TestAutoModsSkipVariants:
     def test_combined_file_is_exempt(self, tmp_path):
         from routes.subtitle_processor import _is_processing_exempt_sidecar
 
-        assert (
-            _is_processing_exempt_sidecar(str(tmp_path / "Ep.de-en.combined.ass")) is True
-        )
+        assert _is_processing_exempt_sidecar(str(tmp_path / "Ep.de-en.combined.ass")) is True
