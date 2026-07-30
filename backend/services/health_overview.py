@@ -134,9 +134,7 @@ def get_library_health() -> dict:
     # ── totals ──────────────────────────────────────────────────────────────
     wanted_total = (
         session.execute(
-            select(func.count(WantedItem.id)).where(
-                WantedItem.status.notin_(_EXCLUDED_STATUSES)
-            )
+            select(func.count(WantedItem.id)).where(WantedItem.status.notin_(_EXCLUDED_STATUSES))
         ).scalar_one()
         or 0
     )

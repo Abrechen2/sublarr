@@ -113,9 +113,7 @@ class TestLibraryHealthService:
         assert providers["brokenprov"]["breaker_failures"] == 7
         # Degraded providers sort first.
         listed = [p["provider"] for p in resp.get_json()["providers"]]
-        assert listed.index("goodprov") > max(
-            listed.index("deadprov"), listed.index("brokenprov")
-        )
+        assert listed.index("goodprov") > max(listed.index("deadprov"), listed.index("brokenprov"))
 
 
 class TestSyncRateInSubtitlesStats:

@@ -209,6 +209,7 @@ export interface WantedTableRowProps {
   onUpdateStatus: (itemId: number, status: string) => void
   onPreview: (filePath: string) => void
   onInteractiveSearch: (item: { id: number; title: string }) => void
+  onDryRun: (item: { id: number; title: string }) => void
   onBlacklist: (itemId: number, providerName: string, subtitleId: string, language: string) => void
 }
 
@@ -375,6 +376,7 @@ export function WantedTableRow({
   onUpdateStatus,
   onPreview,
   onInteractiveSearch,
+  onDryRun,
   onBlacklist,
 }: WantedTableRowProps) {
   const { t } = useTranslation('library')
@@ -499,6 +501,7 @@ export function WantedTableRow({
             onUpdateStatus={onUpdateStatus}
             onPreview={onPreview}
             onInteractiveSearch={onInteractiveSearch}
+            onDryRun={onDryRun}
           />
         </td>
       </tr>
