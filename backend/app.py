@@ -66,6 +66,22 @@ def _patch_pre_alembic_columns(engine, inspect_fn) -> None:
         if "score_breakdown" not in existing:
             patches.append("ALTER TABLE subtitle_downloads ADD COLUMN score_breakdown TEXT")
 
+    # Per-series ASS-only requirement (migration a4b5c6d7e8f9)
+    if insp.has_table("series_settings"):
+        existing = {c["name"] for c in insp.get_columns("series_settings")}
+        if "subtitle_format_requirement" not in existing:
+            patches.append(
+                "ALTER TABLE series_settings ADD COLUMN subtitle_format_requirement TEXT"
+            )
+
+    # Per-profile provider selection + scoring preset (migration f8b2c3d4e5a6)
+    if insp.has_table("language_profiles"):
+        existing = {c["name"] for c in insp.get_columns("language_profiles")}
+        if "enabled_providers_json" not in existing:
+            patches.append("ALTER TABLE language_profiles ADD COLUMN enabled_providers_json TEXT")
+        if "scoring_preset" not in existing:
+            patches.append("ALTER TABLE language_profiles ADD COLUMN scoring_preset TEXT")
+
     if not patches:
         return
 
