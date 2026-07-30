@@ -23,6 +23,8 @@ import {
   applyCueText,
   CueTextHasStylingError,
 } from '@/components/editor/waveform/applyCueText'
+import type { CueTimingFix } from '@/components/editor/waveform/fixSafeDefects'
+import type { SubtitleParseResult } from '@/types/system'
 
 // Lazy-loaded editor components -- CodeMirror stays in separate chunks
 const SubtitlePreview = lazy(() => import('@/components/editor/SubtitlePreview'))
@@ -171,6 +173,54 @@ export default function SubtitleEditorModal({
       }
     },
     [content, format, t],
+  )
+
+  // One-click "fix safe defects": apply the whole batch as ONE atomic edit —
+  // a single undo-stack entry restores the pre-batch content. Also patches
+  // the cached parse result so regions, defect lanes, and the issue chip
+  // reflect the fixed timings immediately (the parse query reads from disk
+  // and would otherwise stay stale until save).
+  const handleApplyTimingFixes = useCallback(
+    (fixes: CueTimingFix[]) => {
+      if (!content || !format || fixes.length === 0) return
+      try {
+        let next = content
+        for (const fix of fixes) {
+          next = applyCueTiming({
+            content: next,
+            format,
+            cueIndex: fix.cueIndex,
+            start: fix.after.start,
+            end: fix.after.end,
+          })
+        }
+        if (next === content) return
+        setWaveformUndoStack((stack) => [...stack, content])
+        setWaveformRedoStack([])
+        setContent(next)
+        queryClient.setQueryData<SubtitleParseResult>(
+          ['subtitle-parse', filePath],
+          (old) => {
+            if (!old) return old
+            const cues = [...old.cues]
+            for (const fix of fixes) {
+              const cue = cues[fix.cueIndex]
+              if (cue) cues[fix.cueIndex] = { ...cue, start: fix.after.start, end: fix.after.end }
+            }
+            return { ...old, cues }
+          },
+        )
+        toast(t('editor_modal.fix_defects_applied', { count: fixes.length }))
+      } catch (err) {
+        if (err instanceof UnsupportedFormatError) {
+          toast(t('editor_modal.waveform_unsupported_format', { format }), 'info')
+          return
+        }
+        const msg = err instanceof Error ? err.message : t('editor_modal.cue_update_failed')
+        toast(msg, 'error')
+      }
+    },
+    [content, format, filePath, queryClient, t],
   )
 
   const handleWaveformUndo = useCallback(() => {
@@ -641,6 +691,7 @@ export default function SubtitleEditorModal({
                 onSave={handleWaveformSave}
                 hasUnsavedChanges={hasUnsavedChanges}
                 saveInFlight={saveInFlight}
+                onApplyTimingFixes={handleApplyTimingFixes}
               />
             )}
           </Suspense>

@@ -30,6 +30,7 @@ import {
   Save,
   AlertTriangle,
   Mic,
+  Wrench,
 } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 
@@ -40,8 +41,10 @@ import { useWaveformRegions, type CuePatch, type WaveformCue } from './useWavefo
 import { detectGapsAndOverlaps } from './gapOverlap'
 import { findAdjacentMarker } from './waveformNavigation'
 import { summarizeIssues } from './issueSummary'
+import { planSafeDefectFixes, type CueTimingFix } from './fixSafeDefects'
 import { WaveformHotkeys } from './WaveformHotkeys'
 import { WaveformShortcutHelp } from './WaveformShortcutHelp'
+import { WaveformFixDefectsDialog } from './WaveformFixDefectsDialog'
 import { WaveformAudioTrackPicker } from './WaveformAudioTrackPicker'
 import { AssKaraokeOverlay } from './AssKaraokeOverlay'
 import { WaveformActiveCueBar } from './WaveformActiveCueBar'
@@ -116,6 +119,12 @@ interface WaveformEditorProps {
   hasUnsavedChanges?: boolean
   /** Spinner indicator while a save round-trip is in flight. */
   saveInFlight?: boolean
+  /**
+   * Apply a batch of safe timing fixes (one-click "fix safe defects") as a
+   * single atomic edit. The toolbar shows the Fix button only when this is
+   * set, the editor is unlocked, and at least one safe fix exists.
+   */
+  onApplyTimingFixes?: (fixes: CueTimingFix[]) => void
 }
 
 /** Minimum cue duration enforced by the snap helper, in ms. */
@@ -210,6 +219,7 @@ export function WaveformEditor({
   onSave,
   hasUnsavedChanges = false,
   saveInFlight = false,
+  onApplyTimingFixes,
 }: WaveformEditorProps) {
   const { t } = useTranslation('editor')
 
@@ -223,6 +233,7 @@ export function WaveformEditor({
   // unlock dragging, click-set, S/D hotkeys.
   const [editingEnabled, setEditingEnabled] = useState<boolean>(false)
   const [helpOpen, setHelpOpen] = useState(false)
+  const [fixDialogOpen, setFixDialogOpen] = useState(false)
   const [zoomPxPerSec, setZoomPxPerSec] = useState<number>(ZOOM_DEFAULT_PX_PER_SEC)
   const [autoCenter, setAutoCenter] = useState<boolean>(true)
   const [spectrogramEnabled, setSpectrogramEnabled] = useState<boolean>(() =>
@@ -569,6 +580,20 @@ export function WaveformEditor({
   // per-cue signals as the cue-list dots, aggregated across the whole file.
   const issueSummary = useMemo(() => summarizeIssues(cueListRows), [cueListRows])
 
+  // One-click "fix safe defects": planned fixes for the fixable defect
+  // classes (overlaps, tight gaps, too-short). CPS-only issues are never
+  // timing-fixable and don't count toward `fixSkippedCount`.
+  const fixPlan = useMemo(() => planSafeDefectFixes(cueListRows), [cueListRows])
+  const fixSkippedCount = Math.max(
+    0,
+    issueSummary.overlaps + issueSummary.tightGaps + issueSummary.tooShort - fixPlan.length,
+  )
+
+  const handleApplyFixes = useCallback(() => {
+    setFixDialogOpen(false)
+    if (fixPlan.length > 0) onApplyTimingFixes?.(fixPlan)
+  }, [fixPlan, onApplyTimingFixes])
+
   if (extractError) {
     return (
       <div className="flex items-center justify-center h-full">
@@ -854,6 +879,19 @@ export function WaveformEditor({
           {t('waveform.issues_button', { count: issueSummary.total })}
         </button>
       )}
+
+      {editingEnabled && onApplyTimingFixes && fixPlan.length > 0 && (
+        <button
+          type="button"
+          data-testid="fix-defects-open"
+          onClick={() => setFixDialogOpen(true)}
+          className="flex items-center gap-1.5 px-2.5 py-1.5 rounded text-xs font-medium border bg-surface text-accent border-accent-dim"
+          title={t('waveform.fix.button_tooltip')}
+        >
+          <Wrench size={12} aria-hidden="true" />
+          {t('waveform.fix.button', { count: fixPlan.length })}
+        </button>
+      )}
     </div>
   )
 
@@ -923,8 +961,15 @@ export function WaveformEditor({
         />
       )}
 
-      <WaveformHotkeys enabled={isReady && !helpOpen} onAction={handleAction} />
+      <WaveformHotkeys enabled={isReady && !helpOpen && !fixDialogOpen} onAction={handleAction} />
       <WaveformShortcutHelp open={helpOpen} onClose={() => setHelpOpen(false)} />
+      <WaveformFixDefectsDialog
+        open={fixDialogOpen}
+        fixes={fixPlan}
+        skippedCount={fixSkippedCount}
+        onApply={handleApplyFixes}
+        onClose={() => setFixDialogOpen(false)}
+      />
     </div>
   )
 }

@@ -150,7 +150,19 @@
     "issues_tooltip": "{{overlaps}} overlaps · {{gaps}} tight gaps · {{fast}} too fast · {{short}} too short — click to jump to the first",
     "extracting_audio": "Extracting audio…",
     "drawing": "Drawing waveform…",
-    "loading_hint": "For long episodes this can take a moment — extracting the audio from the video and drawing the wave."
+    "loading_hint": "For long episodes this can take a moment — extracting the audio from the video and drawing the wave.",
+    "fix": {
+      "title": "Fix safe defects",
+      "subtitle": "{{count}} safe timing fixes proposed — review, then apply as one undoable edit.",
+      "skipped": "{{count}} defects are not safely auto-fixable and stay for manual editing.",
+      "kind_overlap": "Overlap — trim earlier cue",
+      "kind_tightGap": "Tight gap — widen",
+      "kind_tooShort": "Too short — extend",
+      "apply": "Apply {{count}} fixes",
+      "cancel": "Cancel",
+      "button": "Fix ({{count}})",
+      "button_tooltip": "Preview and apply safe timing fixes (overlaps, tight gaps, too-short cues)"
+    }
   },
   "sync_preview": {
     "before_start": "Before Start",
@@ -207,7 +219,8 @@
     "convert_failed": "Convert failed",
     "convert_button": "Convert",
     "loading_editor": "Loading editor…",
-    "loading_content": "Loading content…"
+    "loading_content": "Loading content…",
+    "fix_defects_applied": "{{count}} timing fixes applied"
   },
   "enable_translation_modal": {
     "title": "Enable Translation",
