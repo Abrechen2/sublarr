@@ -304,6 +304,9 @@ def remove_streams_from_container(
             use_reflink=getattr(settings, "remux_use_reflink", True),
             trash_dir=getattr(settings, "remux_trash_dir", ".sublarr"),
         )
+        if bak is None:
+            # Hardlink policy refused the rewrite (already logged in remux).
+            return
         logger.info(
             "[%s]: removed %d stream(s) from container (backup: %s)",
             log_label,

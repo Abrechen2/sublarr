@@ -250,6 +250,7 @@ class ScanningSettings(_SettingsView):
             "remux_backup_retention_days",
             "remux_use_reflink",
             "remux_arr_pause_enabled",
+            "remux_hardlink_policy",
         )
     )
 
