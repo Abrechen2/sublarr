@@ -292,6 +292,28 @@ def _build_pipeline_mods(cfg: dict):
     return mods
 
 
+def _is_processing_exempt_sidecar(subtitle_path: str) -> bool:
+    """True for sidecars the auto-mods must never rewrite.
+
+    - Modifier variants (``.hi``, ``.sdh``, ``.cc``, ``.forced``): running
+      HI-removal over a ``.hi`` file destroys the whole point of that
+      variant (its non-HI twin usually sits right next to it).
+    - Combined bilingual files (``.de-en.combined.ass``): composed
+      artefacts, not processing fodder.
+    """
+    try:
+        from subtitle_filename import parse_combined_filename, parse_subtitle_filename
+
+        if parse_combined_filename(subtitle_path) is not None:
+            return True
+        parsed = parse_subtitle_filename(subtitle_path)
+        if parsed is not None and parsed.primary_modifier in ("hi", "sdh", "cc", "forced"):
+            return True
+    except Exception:
+        logger.debug("[pipeline] sidecar classification failed for %s", subtitle_path)
+    return False
+
+
 def _run_pipeline_for_path(subtitle_path: str, series_id: int | None) -> None:
     """Run the configured processing pipeline for one subtitle file.
 
@@ -300,6 +322,8 @@ def _run_pipeline_for_path(subtitle_path: str, series_id: int | None) -> None:
     """
     ext = os.path.splitext(subtitle_path)[1].lower()
     if ext not in (".srt", ".ass", ".ssa"):
+        return
+    if _is_processing_exempt_sidecar(subtitle_path):
         return
 
     from db.models.core import SeriesSettings
@@ -378,6 +402,16 @@ def _batch_process_series(series_id: int) -> None:
         sidecars = scan_subtitle_sidecars(video_path)
         for sidecar in sidecars:
             sub_path = sidecar["path"]
+            # Never rewrite modifier variants (.hi/.sdh/.cc/.forced) or
+            # combined bilingual files — HI-removal over a .hi sidecar
+            # destroys the variant it exists to provide.
+            if sidecar.get("combined") or sidecar.get("modifier") in (
+                "hi",
+                "sdh",
+                "cc",
+                "forced",
+            ):
+                continue
             result = None
             try:
                 result = apply_mods(sub_path, mods)

@@ -65,6 +65,9 @@ SUBTITLE_EXTS: frozenset[str] = frozenset({"srt", "ass", "ssa", "vtt"})
 # Modifier tokens that may appear between the language and the extension.
 # Order does not matter; the parser collects them all into a sorted list.
 # Keep aligned with the regex in dedup_engine.py.
+# NOTE: deliberately diverges from remux._SIDECAR_MODIFIERS (has bak, lacks
+# sign/signs; stacks unbounded vs. single trailing token there). The remux
+# table's divergences all err toward NOT parsing = never trashing.
 MODIFIERS: frozenset[str] = frozenset({"hi", "bak", "forced", "sdh", "cc"})
 
 # Lowercase ISO-639-1 (2 letters) and ISO-639-2 (3 letters). The lookup

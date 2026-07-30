@@ -181,4 +181,6 @@ def test_extract_and_cleanup_invokes_signs_purge_when_extracted(tmp_path):
             keep_langs={"en"},
         )
 
-    purge_mock.assert_called_once_with(str(video), log_label="extractor")
+    purge_mock.assert_called_once_with(
+        str(video), log_label="extractor", extracted_paths=[str(out)]
+    )

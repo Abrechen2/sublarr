@@ -48,7 +48,7 @@ def delete_subtitles():
 
     settings = get_settings()
     media_path = getattr(settings, "media_path", "/media")
-    retention = getattr(settings, "subtitle_trash_retention_days", 7)
+    retention = getattr(settings, "subtitle_trash_retention_days", 30)
     _auto_purge_old_trash(media_path, retention)
 
     batch_id = uuid.uuid4().hex
@@ -147,7 +147,7 @@ def batch_delete_series_subtitles(series_id: int):
 
     settings = get_settings()
     media_path = getattr(settings, "media_path", "/media")
-    retention = getattr(settings, "subtitle_trash_retention_days", 7)
+    retention = getattr(settings, "subtitle_trash_retention_days", 30)
     _auto_purge_old_trash(media_path, retention)
 
     batch_id = uuid.uuid4().hex
@@ -194,9 +194,12 @@ def list_trash():
     """
     settings = get_settings()
     media_path = getattr(settings, "media_path", "/media")
+    # retention is only used to COMPUTE expires_at below — no auto-purge
+    # here: this is a read-only GET, and merely opening the Trash page must
+    # never rmtree expired batches before the user can see and restore
+    # them. Expiry runs on the destructive POST routes and the scheduled
+    # cleanup rule instead.
     retention = getattr(settings, "subtitle_trash_retention_days", 30)
-    _auto_purge_old_trash(media_path, retention)
-
     trash_root = _get_trash_root(media_path)
     if not os.path.isdir(trash_root):
         return jsonify({"batches": []}), 200

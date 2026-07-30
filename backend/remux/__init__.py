@@ -787,6 +787,10 @@ _SIDECAR_EXTS = (".ass", ".srt", ".vtt", ".sub")
 # Modifier suffixes that can appear between lang and extension:
 #   show.en.forced.srt, show.de.sdh.ass, show.en.hi.vtt
 # We preserve them so the cleanup knows "lang=en" even when there's a modifier.
+# NOTE: deliberately diverges from subtitle_filename.MODIFIERS (adds
+# sign/signs, lacks bak; single trailing token vs. unbounded stacking).
+# Every divergence errs toward NOT parsing — an unparsed sidecar is never
+# trashed — so keep it that way when editing either table.
 _SIDECAR_MODIFIERS = ("forced", "sdh", "hi", "cc", "sign", "signs")
 
 

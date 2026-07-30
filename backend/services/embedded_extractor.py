@@ -375,12 +375,19 @@ def purge_signs_after_extract(
     video_path: str,
     *,
     log_label: str = "extractor",
+    extracted_paths: list[str] | None = None,
 ) -> int:
     """Trash freshly-extracted sidecars that classify as signs/forced/songs.
 
     Runs the same SignsRemovalLevel classifier as the library-wide cleanup rule
     (services.cleanup_signs) so newly extracted sidecars do not re-accumulate
     after the retroactive sweep.
+
+    ``extracted_paths`` limits the purge to the sidecars THIS pass produced.
+    Without it the purge globbed every sidecar next to the video — including
+    pre-existing, hand-downloaded files (e.g. a user's ``.de.forced.srt``),
+    which were trashed as collateral of an unrelated extract. The last-sub
+    guard still counts ALL sidecars on disk so it stays correct.
 
     Last-sub guard: a sidecar is never trashed if it would leave the
     (video_base, canonical_lang) pair with zero subtitles on disk.
@@ -412,10 +419,17 @@ def purge_signs_after_extract(
     video_base = os.path.splitext(video_path)[0]
 
     # Enumerate all sidecars belonging to this video (same glob pattern used
-    # by trash_non_target_sidecars in remux).
-    candidates: list[str] = []
+    # by trash_non_target_sidecars in remux) — needed for the last-sub guard
+    # even when the purge itself is scoped to extracted_paths.
+    all_sidecars: list[str] = []
     for ext in _SIDECAR_EXTS:
-        candidates.extend(_glob.glob(f"{video_base}.*{ext}"))
+        all_sidecars.extend(_glob.glob(f"{video_base}.*{ext}"))
+
+    if extracted_paths is not None:
+        extracted_set = {os.path.abspath(p) for p in extracted_paths}
+        candidates = [p for p in all_sidecars if os.path.abspath(p) in extracted_set]
+    else:
+        candidates = all_sidecars
 
     if not candidates:
         return 0
@@ -432,7 +446,7 @@ def purge_signs_after_extract(
         return (vb, lang)
 
     per_key: dict[tuple, int] = {}
-    for p in candidates:
+    for p in all_sidecars:
         key = _guard_key(p)
         per_key[key] = per_key.get(key, 0) + 1
 
@@ -574,9 +588,14 @@ def extract_and_cleanup(
 
     # Going-forward signs purge: trash signs/forced/songs sidecars produced by
     # this extract pass so the library does not re-accumulate them after the
-    # retroactive sweep (Task 9).
+    # retroactive sweep (Task 9). Scoped to this pass's output — pre-existing
+    # sidecars (e.g. hand-downloaded forced subs) are not purge fodder.
     if any_extracted:
-        sidecars_trashed += purge_signs_after_extract(file_path, log_label=log_label)
+        sidecars_trashed += purge_signs_after_extract(
+            file_path,
+            log_label=log_label,
+            extracted_paths=[e["output_path"] for e in extracted],
+        )
 
     primary_output_path, primary_format, primary_language = _pick_primary(
         extracted, target_language
