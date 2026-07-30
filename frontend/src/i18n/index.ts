@@ -23,6 +23,8 @@ import enEditor from './locales/en/editor.json'
 import deEditor from './locales/de/editor.json'
 import enSetup from './locales/en/setup.json'
 import deSetup from './locales/de/setup.json'
+import enHealth from './locales/en/health.json'
+import deHealth from './locales/de/health.json'
 
 i18n
   .use(LanguageDetector)
@@ -40,6 +42,7 @@ i18n
         onboarding: enOnboarding,
         editor: enEditor,
         setup: enSetup,
+        health: enHealth,
       },
       de: {
         common: deCommon,
@@ -52,11 +55,12 @@ i18n
         onboarding: deOnboarding,
         editor: deEditor,
         setup: deSetup,
+        health: deHealth,
       },
     },
     fallbackLng: 'de',
     defaultNS: 'common',
-    ns: ['common', 'dashboard', 'settings', 'library', 'activity', 'logs', 'statistics', 'onboarding', 'editor', 'setup'],
+    ns: ['common', 'dashboard', 'settings', 'library', 'activity', 'logs', 'statistics', 'onboarding', 'editor', 'setup', 'health'],
     interpolation: {
       escapeValue: false, // React already escapes
     },

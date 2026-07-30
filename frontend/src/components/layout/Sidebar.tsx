@@ -16,6 +16,7 @@ import {
   BarChart3,
   ListChecks,
   Heart,
+  HeartPulse,
   Star,
   LogOut,
   Puzzle,
@@ -63,6 +64,7 @@ const navGroups: NavGroup[] = [
     items: [
       { to: '/settings', labelKey: 'nav.settings', icon: Settings },
       { to: '/statistics', labelKey: 'nav.statistics', icon: BarChart3 },
+      { to: '/health', labelKey: 'nav.health', icon: HeartPulse },
       { to: '/tasks', labelKey: 'nav.tasks', icon: ListChecks },
       { to: '/logs', labelKey: 'nav.logs', icon: ScrollText },
       { to: '/plugins', labelKey: 'nav.plugins', icon: Puzzle },

@@ -1,0 +1,55 @@
+{
+  "title": "Health",
+  "subtitle": "Where the library hurts: missing subtitles, unmatched episodes, failing providers",
+  "refresh_note": "Refreshes automatically every minute.",
+  "totals": {
+    "wanted": "Missing subtitles",
+    "problems": "Problem items",
+    "unmatched": "Unmatched",
+    "series_affected": "Series affected",
+    "providers_degraded": "Providers degraded"
+  },
+  "series": {
+    "title": "Series & movies with missing subtitles",
+    "col_title": "Title",
+    "col_type": "Type",
+    "col_missing": "Missing",
+    "col_problems": "Problems",
+    "type_episode": "Series",
+    "type_movie": "Movie",
+    "empty": "No missing subtitles — everything is covered.",
+    "hint": "Details and actions per episode live on the",
+    "wanted_link": "Wanted page"
+  },
+  "problems": {
+    "title": "Failed & unmatched items",
+    "col_item": "Item",
+    "col_lang": "Lang",
+    "col_kind": "Reason",
+    "col_error": "Error",
+    "col_attempts": "Attempts",
+    "col_updated": "Updated",
+    "empty": "No failed or unmatched items."
+  },
+  "failure": {
+    "no_result": "No result",
+    "no_result_slow": "No result (slow retry)",
+    "provider_error": "Provider error",
+    "unsourceable": "Unmatched",
+    "failed": "Failed"
+  },
+  "providers": {
+    "title": "Provider health",
+    "col_provider": "Provider",
+    "col_state": "State",
+    "col_searches": "Searches",
+    "col_hit_rate": "Hit rate",
+    "col_failed_downloads": "Failed downloads",
+    "col_breaker_failures": "Breaker failures",
+    "state_closed": "OK",
+    "state_open": "Open",
+    "state_half_open": "Half-open",
+    "auto_disabled": "Auto-disabled",
+    "empty": "No provider activity recorded yet."
+  }
+}

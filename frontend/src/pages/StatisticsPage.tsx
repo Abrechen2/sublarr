@@ -116,6 +116,19 @@ export function StatisticsPage() {
 
           {/* Subtitles breakdowns */}
           <Section title={t('subtitles.title')}>
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-2 mb-2">
+              <StatTile
+                label={t('subtitles.sync_rate')}
+                value={subtitles.data?.sync_rate != null ? `${Math.round(subtitles.data.sync_rate * 100)}%` : '—'}
+                sub={t('subtitles.sync_runs', { count: subtitles.data?.sync_runs ?? 0 })}
+              />
+              <StatTile label={t('subtitles.sync_ok')} value={fmtNum(subtitles.data?.sync_ok ?? 0)} />
+              <StatTile
+                label={t('subtitles.sync_failed')}
+                value={fmtNum((subtitles.data?.sync_runs ?? 0) - (subtitles.data?.sync_ok ?? 0))}
+              />
+              <StatTile label={t('overview.avg_score')} value={subtitles.data?.avg_score ?? 0} />
+            </div>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
               {(['by_source', 'by_language', 'by_provider'] as const).map((k) => (
                 <div key={k} className="rounded-lg p-3 bg-surface border border-border">

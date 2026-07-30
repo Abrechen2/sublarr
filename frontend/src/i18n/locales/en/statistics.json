@@ -27,7 +27,12 @@
     "title": "Subtitles",
     "by_source": "By source",
     "by_language": "By language",
-    "by_provider": "By provider"
+    "by_provider": "By provider",
+    "sync_rate": "Sync success rate",
+    "sync_runs_one": "{{count}} sync run",
+    "sync_runs_other": "{{count}} sync runs",
+    "sync_ok": "Syncs OK",
+    "sync_failed": "Syncs failed"
   },
   "translation": {
     "title": "Translation",

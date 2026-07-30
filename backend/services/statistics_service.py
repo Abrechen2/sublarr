@@ -31,6 +31,7 @@ def _range_start(range_key: str) -> datetime | None:
 
 
 def get_subtitles_stats(range_key: str = "30d") -> dict:
+    from db.models.core import SyncJobRun
     from db.models.providers import SubtitleDownload
     from extensions import db
 
@@ -51,6 +52,14 @@ def get_subtitles_stats(range_key: str = "30d") -> dict:
         if r.score is not None:
             scores.append(r.score)
 
+    # Sync success rate over the same range (ffsubsync/alass audit rows).
+    sync_stmt = select(SyncJobRun.status, func.count()).group_by(SyncJobRun.status)
+    if start is not None:
+        sync_stmt = sync_stmt.where(SyncJobRun.created_at >= start)
+    sync_by_status = {row[0]: row[1] for row in db.session.execute(sync_stmt).all()}
+    sync_runs = sum(sync_by_status.values())
+    sync_ok = sync_by_status.get("ok", 0)
+
     return {
         "range": range_key,
         "total": len(rows),
@@ -58,6 +67,9 @@ def get_subtitles_stats(range_key: str = "30d") -> dict:
         "by_provider": dict(by_provider),
         "by_language": dict(by_language),
         "avg_score": round(sum(scores) / len(scores), 1) if scores else 0,
+        "sync_runs": int(sync_runs),
+        "sync_ok": int(sync_ok),
+        "sync_rate": round(sync_ok / sync_runs, 3) if sync_runs else None,
     }
 
 
