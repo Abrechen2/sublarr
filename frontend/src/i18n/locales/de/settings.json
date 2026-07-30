@@ -1554,6 +1554,9 @@
     "standard": "Standard",
     "backlog": "Backlog",
     "min_attempts": "Mindestversuche pro Tag",
+    "format_requirement": "Untertitel-Format",
+    "format_inherit": "Erben (ASS bevorzugt, SRT-Fallback)",
+    "format_require_ass": "Nur ASS (nie auf SRT ausweichen)",
     "save": "Speichern"
   },
   "scoring": {

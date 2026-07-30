@@ -3,10 +3,15 @@ import { useTranslation } from 'react-i18next'
 
 export interface SeriesOverrideSettingsProps {
   readonly seriesId: number
-  readonly initial: { priority_override: string | null; min_attempts_per_day: number }
+  readonly initial: {
+    priority_override: string | null
+    min_attempts_per_day: number
+    subtitle_format_requirement?: string | null
+  }
   readonly onSave: (payload: {
     priority_override: string | null
     min_attempts_per_day: number
+    subtitle_format_requirement: string | null
   }) => void
 }
 
@@ -27,15 +32,18 @@ export default function SeriesOverrideSettings({
   const { t } = useTranslation('settings')
   const [priority, setPriority] = useState<string>(initial.priority_override ?? '')
   const [min, setMin] = useState<number>(initial.min_attempts_per_day)
+  const [formatReq, setFormatReq] = useState<string>(initial.subtitle_format_requirement ?? '')
 
   const dirty =
     priority !== (initial.priority_override ?? '') ||
-    min !== initial.min_attempts_per_day
+    min !== initial.min_attempts_per_day ||
+    formatReq !== (initial.subtitle_format_requirement ?? '')
 
   const handleSave = () => {
     onSave({
       priority_override: priority === '' ? null : priority,
       min_attempts_per_day: min,
+      subtitle_format_requirement: formatReq === '' ? null : formatReq,
     })
   }
 
@@ -69,6 +77,17 @@ export default function SeriesOverrideSettings({
             setMin(clamped)
           }}
         />
+      </label>
+      <label>
+        {t('series_override.format_requirement')}
+        <select
+          data-testid="format-requirement-select"
+          value={formatReq}
+          onChange={(e) => setFormatReq(e.target.value)}
+        >
+          <option value="">{t('series_override.format_inherit')}</option>
+          <option value="require_ass">{t('series_override.format_require_ass')}</option>
+        </select>
       </label>
       <button data-testid="save-override" disabled={!dirty} onClick={handleSave}>
         {t('series_override.save')}

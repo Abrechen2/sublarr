@@ -15,6 +15,7 @@ logger = logging.getLogger(__name__)
 bp = Blueprint("series_settings_overrides", __name__, url_prefix="/api/v1/series")
 
 _ALLOWED_PRIORITY = {"premium", "standard", "backlog"}
+_ALLOWED_FORMAT_REQUIREMENTS = {"require_ass"}
 _MIN_ATTEMPTS_MIN = 0
 _MIN_ATTEMPTS_MAX = 50
 
@@ -55,6 +56,19 @@ def patch_series_settings(series_id: int):
         if cv is not None and not isinstance(cv, bool):
             return jsonify({"error": "cleanup_foreign_tracks must be true, false, or null"}), 400
 
+    # Validate subtitle_format_requirement — null (inherit) or "require_ass"
+    if "subtitle_format_requirement" in data:
+        fv = data["subtitle_format_requirement"]
+        if fv is not None and fv not in _ALLOWED_FORMAT_REQUIREMENTS:
+            return jsonify(
+                {
+                    "error": (
+                        "subtitle_format_requirement must be one of "
+                        f"{sorted(_ALLOWED_FORMAT_REQUIREMENTS)} or null"
+                    )
+                }
+            ), 400
+
     now = datetime.now(UTC)
     row = db.session.get(SeriesSettings, series_id)
     if row is None:
@@ -72,6 +86,8 @@ def patch_series_settings(series_id: int):
         row.min_attempts_per_day = int(data["min_attempts_per_day"])
     if "cleanup_foreign_tracks" in data:
         row.cleanup_foreign_tracks = data["cleanup_foreign_tracks"]
+    if "subtitle_format_requirement" in data:
+        row.subtitle_format_requirement = data["subtitle_format_requirement"]
     row.updated_at = now
     db.session.commit()
 
@@ -81,5 +97,6 @@ def patch_series_settings(series_id: int):
             "priority_override": row.priority_override,
             "min_attempts_per_day": row.min_attempts_per_day,
             "cleanup_foreign_tracks": row.cleanup_foreign_tracks,
+            "subtitle_format_requirement": row.subtitle_format_requirement,
         }
     ), 200

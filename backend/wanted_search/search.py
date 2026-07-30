@@ -106,6 +106,14 @@ def search_wanted_item(item_id: int) -> dict:
     source_query = copy.deepcopy(target_query)
     source_query.languages = [source_lang]
 
+    # Per-series format requirement: "require_ass" skips the SRT searches
+    # (3+4) entirely so no SRT candidates are ever offered for this series.
+    from services.series_format import REQUIRE_ASS, get_series_format_requirement
+
+    require_ass = get_series_format_requirement(item.get("sonarr_series_id")) == REQUIRE_ASS
+    if require_ass:
+        logger.info("Wanted %d: series requires ASS subtitles, skipping SRT searches", item_id)
+
     all_results = []
 
     # Search 1: target_language ASS (Priority 1)
@@ -124,21 +132,22 @@ def search_wanted_item(item_id: int) -> dict:
         logger.warning("Source ASS search failed for wanted %d: %s", item_id, e, exc_info=True)
         # Continue with other searches - don't fail entire operation
 
-    # Search 3: target_language SRT (Priority 3)
-    try:
-        results = manager.search(target_query, format_filter=SubtitleFormat.SRT)
-        all_results.extend([_result_to_dict(r) for r in results[:20]])
-    except Exception as e:
-        logger.warning("Target SRT search failed for wanted %d: %s", item_id, e, exc_info=True)
-        # Continue with other searches - don't fail entire operation
+    if not require_ass:
+        # Search 3: target_language SRT (Priority 3)
+        try:
+            results = manager.search(target_query, format_filter=SubtitleFormat.SRT)
+            all_results.extend([_result_to_dict(r) for r in results[:20]])
+        except Exception as e:
+            logger.warning("Target SRT search failed for wanted %d: %s", item_id, e, exc_info=True)
+            # Continue with other searches - don't fail entire operation
 
-    # Search 4: source_language SRT (Priority 4)
-    try:
-        results = manager.search(source_query, format_filter=SubtitleFormat.SRT)
-        all_results.extend([_result_to_dict(r) for r in results[:20]])
-    except Exception as e:
-        logger.warning("Source SRT search failed for wanted %d: %s", item_id, e, exc_info=True)
-        # Continue with other searches - don't fail entire operation
+        # Search 4: source_language SRT (Priority 4)
+        try:
+            results = manager.search(source_query, format_filter=SubtitleFormat.SRT)
+            all_results.extend([_result_to_dict(r) for r in results[:20]])
+        except Exception as e:
+            logger.warning("Source SRT search failed for wanted %d: %s", item_id, e, exc_info=True)
+            # Continue with other searches - don't fail entire operation
 
     # Deduplicate by (provider, subtitle_id) — four separate searches can return the same result
     # This happens especially when item_lang == source_lang (e.g. both configured as "de")

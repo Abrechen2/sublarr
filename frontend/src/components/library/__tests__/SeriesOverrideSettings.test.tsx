@@ -37,6 +37,7 @@ describe('SeriesOverrideSettings', () => {
     expect(onSave).toHaveBeenCalledWith({
       priority_override: 'premium',
       min_attempts_per_day: 5,
+      subtitle_format_requirement: null,
     })
   })
 
@@ -56,6 +57,7 @@ describe('SeriesOverrideSettings', () => {
     expect(onSave).toHaveBeenCalledWith({
       priority_override: null,
       min_attempts_per_day: 0,
+      subtitle_format_requirement: null,
     })
   })
 
@@ -75,6 +77,26 @@ describe('SeriesOverrideSettings', () => {
     expect(onSave).toHaveBeenCalledWith({
       priority_override: null,
       min_attempts_per_day: 50,
+      subtitle_format_requirement: null,
+    })
+  })
+  test('format requirement select maps to subtitle_format_requirement', () => {
+    const onSave = vi.fn()
+    render(
+      <SeriesOverrideSettings
+        seriesId={1}
+        initial={{ priority_override: null, min_attempts_per_day: 0 }}
+        onSave={onSave}
+      />,
+    )
+    fireEvent.change(screen.getByTestId('format-requirement-select'), {
+      target: { value: 'require_ass' },
+    })
+    fireEvent.click(screen.getByTestId('save-override'))
+    expect(onSave).toHaveBeenCalledWith({
+      priority_override: null,
+      min_attempts_per_day: 0,
+      subtitle_format_requirement: 'require_ass',
     })
   })
 })

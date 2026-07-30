@@ -443,6 +443,12 @@ class SeriesSettings(db.Model):
     audio_exclude_languages_override: Mapped[str | None] = mapped_column(
         Text, nullable=True, default=None
     )  # JSON array string
+    # Per-series subtitle format requirement. NULL = inherit global behavior
+    # (ASS preferred with SRT fallback). "require_ass" = never fall back to
+    # SRT provider results for this series.
+    subtitle_format_requirement: Mapped[str | None] = mapped_column(
+        Text, nullable=True, default=None
+    )
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
 
 

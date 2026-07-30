@@ -1023,11 +1023,21 @@ def process_wanted_item(
     else:
         logger.debug("Wanted %d: auto_translate disabled, skipping source ASS translation", item_id)
 
+    # Per-series format requirement: "require_ass" never falls back to SRT
+    # provider results, regardless of what Steps 1+2 returned.
+    from services.series_format import REQUIRE_ASS, get_series_format_requirement
+
+    _require_ass = get_series_format_requirement(item.get("sonarr_series_id")) == REQUIRE_ASS
+    if _require_ass:
+        logger.info("Wanted %d: series requires ASS subtitles, skipping SRT steps", item_id)
+
     # Phase 2: skip SRT steps if no ASS was found in Steps 1+2 (providers likely have nothing)
-    _skip_srt = getattr(settings, "wanted_skip_srt_on_no_ass", True) and not ctx["ass_had_results"]
-    if _skip_srt:
+    _skip_srt = _require_ass or (
+        getattr(settings, "wanted_skip_srt_on_no_ass", True) and not ctx["ass_had_results"]
+    )
+    if _skip_srt and not _require_ass:
         logger.debug("Wanted %d: No ASS found in Steps 1+2, skipping SRT steps", item_id)
-    else:
+    if not _skip_srt:
         # Step 3: target-language SRT direct
         result = _try_target_srt_direct(ctx)
         if result is not None:

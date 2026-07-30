@@ -1554,6 +1554,9 @@
     "standard": "Standard",
     "backlog": "Backlog",
     "min_attempts": "Minimum attempts per day",
+    "format_requirement": "Subtitle format",
+    "format_inherit": "Inherit (ASS preferred, SRT fallback)",
+    "format_require_ass": "ASS only (never fall back to SRT)",
     "save": "Save"
   },
   "scoring": {
