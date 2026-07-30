@@ -169,6 +169,7 @@ class CacheRepository(BaseRepository):
                 SubtitleDownload.provider_name,
                 SubtitleDownload.format,
                 SubtitleDownload.score,
+                SubtitleDownload.score_breakdown,
                 SubtitleDownload.downloaded_at,
                 SubtitleDownload.upgraded_from_id,
             )
@@ -178,12 +179,22 @@ class CacheRepository(BaseRepository):
         ).all()
 
         for r in dl_rows:
+            breakdown = None
+            if r.score_breakdown:
+                try:
+                    import json
+
+                    parsed = json.loads(r.score_breakdown)
+                    breakdown = parsed if isinstance(parsed, dict) else None
+                except (TypeError, ValueError):
+                    breakdown = None
             results.append(
                 {
                     "action": "download",
                     "provider_name": r.provider_name,
                     "format": r.format,
                     "score": r.score,
+                    "score_breakdown": breakdown,
                     "date": r.downloaded_at,
                     "status": "completed",
                     "error": "",

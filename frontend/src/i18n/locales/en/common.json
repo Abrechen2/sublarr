@@ -733,5 +733,31 @@
     "quota_exhausted": "The provider's daily allowance is spent. The next run picks up where this one stopped.",
     "quota_resume": "The provider's daily allowance is spent. The run resumes automatically at {{time}} — nothing is downloaded twice.",
     "unprovable": "Unprovable (skipped)"
+  },
+  "score_breakdown": {
+    "title": "Score breakdown",
+    "rule": "Rule: {{id}}",
+    "labels": {
+      "series": "Series title",
+      "title": "Title match",
+      "hash": "File hash",
+      "year": "Year",
+      "season": "Season",
+      "episode": "Episode",
+      "release_group": "Release group",
+      "source": "Source (BluRay/WEB)",
+      "audio_codec": "Audio codec",
+      "resolution": "Resolution",
+      "video_codec": "Video codec",
+      "hearing_impaired": "Hearing impaired",
+      "format_bonus": "ASS format bonus",
+      "provider_modifier": "Provider bonus/penalty",
+      "uploader_trust": "Uploader trust",
+      "hi_preference": "HI preference",
+      "forced_preference": "Forced preference",
+      "fansub_preferred": "Preferred fansub group",
+      "fansub_excluded": "Excluded fansub group",
+      "video_codec_bonus": "Video codec bonus"
+    }
   }
 }

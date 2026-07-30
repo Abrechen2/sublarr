@@ -10,6 +10,7 @@ import {
   CheckSquare, Square, MinusSquare, X,
 } from 'lucide-react'
 import SubtitleEditorModal from '@/components/editor/SubtitleEditorModal'
+import { ScoreBreakdown } from '@/components/shared/ScoreBreakdown'
 import { FilterBar } from '@/components/filters/FilterBar'
 import type { FilterDef, ActiveFilter } from '@/components/filters/FilterBar'
 import { BatchActionBar } from '@/components/batch/BatchActionBar'
@@ -27,6 +28,7 @@ type HistoryEntry = {
   language: string
   format: string
   score: number
+  score_breakdown?: Record<string, number> | null
   downloaded_at: string | null
   subtitle_id?: string
 }
@@ -117,15 +119,7 @@ const HistoryTableRow = memo(function HistoryTableRow({
         </span>
       </td>
       <td className="px-3 py-2.5 hidden sm:table-cell">
-        <span
-          className="text-xs tabular-nums"
-          style={{
-            fontFamily: 'var(--font-mono)',
-            color: entry.score >= 300 ? 'var(--success)' : entry.score >= 200 ? 'var(--warning)' : 'var(--text-muted)',
-          }}
-        >
-          {entry.score}
-        </span>
+        <ScoreBreakdown score={entry.score} breakdown={entry.score_breakdown ?? {}} />
       </td>
       <td
         className="px-3 py-2.5 text-xs tabular-nums hidden md:table-cell"

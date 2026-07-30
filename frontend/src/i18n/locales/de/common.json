@@ -733,5 +733,31 @@
     "quota_exhausted": "Das Tageskontingent des Anbieters ist aufgebraucht. Der nächste Lauf macht dort weiter, wo dieser aufgehört hat.",
     "quota_resume": "Das Tageskontingent des Anbieters ist aufgebraucht. Der Lauf setzt am {{time}} automatisch fort — nichts wird doppelt heruntergeladen.",
     "unprovable": "Nicht beweisbar (übersprungen)"
+  },
+  "score_breakdown": {
+    "title": "Score-Aufschlüsselung",
+    "rule": "Regel: {{id}}",
+    "labels": {
+      "series": "Serientitel",
+      "title": "Titel-Treffer",
+      "hash": "Datei-Hash",
+      "year": "Jahr",
+      "season": "Staffel",
+      "episode": "Episode",
+      "release_group": "Release-Gruppe",
+      "source": "Quelle (BluRay/WEB)",
+      "audio_codec": "Audio-Codec",
+      "resolution": "Auflösung",
+      "video_codec": "Video-Codec",
+      "hearing_impaired": "Hörgeschädigt (HI)",
+      "format_bonus": "ASS-Format-Bonus",
+      "provider_modifier": "Provider-Bonus/-Malus",
+      "uploader_trust": "Uploader-Vertrauen",
+      "hi_preference": "HI-Präferenz",
+      "forced_preference": "Forced-Präferenz",
+      "fansub_preferred": "Bevorzugte Fansub-Gruppe",
+      "fansub_excluded": "Ausgeschlossene Fansub-Gruppe",
+      "video_codec_bonus": "Video-Codec-Bonus"
+    }
   }
 }

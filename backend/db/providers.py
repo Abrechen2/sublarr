@@ -83,6 +83,7 @@ def record_subtitle_download(
     source: str = "provider",
     upgraded_from_id: int | None = None,
     record_stats: bool = True,
+    score_breakdown: dict | None = None,
 ):
     """Record a subtitle download for history tracking.
 
@@ -94,6 +95,8 @@ def record_subtitle_download(
             double-count a translation already recorded elsewhere (e.g. the
             MT provisional row recorded on top of the site subtitle's own
             record_stat call -- see services.mt_provisional.finalize_translation).
+        score_breakdown: Per-component score points, persisted as JSON for
+            the History score tooltip.
     """
     result = _get_repo().record_subtitle_download(
         provider_name,
@@ -104,6 +107,7 @@ def record_subtitle_download(
         score,
         source=source,
         upgraded_from_id=upgraded_from_id,
+        score_breakdown=score_breakdown,
     )
     # Machine-translation rows get their own History category instead of
     # being lumped under Downloads (bug found 2026-07-08) -- every other

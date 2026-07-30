@@ -41,6 +41,9 @@ class SubtitleDownload(db.Model):
     format: Mapped[str | None] = mapped_column(Text, default="")
     file_path: Mapped[str] = mapped_column(Text, nullable=False)
     score: Mapped[int | None] = mapped_column(Integer, default=0)
+    # JSON dict of per-component score points ({"hash": 359, ...});
+    # NULL for rows recorded before the column existed or non-provider sources.
+    score_breakdown: Mapped[str | None] = mapped_column(Text, nullable=True)
     subtitle_type: Mapped[str | None] = mapped_column(Text, default="full")
     source: Mapped[str | None] = mapped_column(
         Text, default="provider"

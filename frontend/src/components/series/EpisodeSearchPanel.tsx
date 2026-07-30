@@ -1,6 +1,6 @@
 import { useTranslation } from 'react-i18next'
 import { Loader2, Download } from 'lucide-react'
-import { ScoreBadge } from './ScoreBadge'
+import { ScoreBreakdown } from '@/components/shared/ScoreBreakdown'
 import type { WantedSearchResponse } from '@/lib/types'
 
 export interface EpisodeSearchPanelProps {
@@ -107,7 +107,7 @@ export function EpisodeSearchPanel({ results, isLoading, onProcess }: EpisodeSea
                   </span>
                 </td>
                 <td className="px-3 py-1.5">
-                  <ScoreBadge score={r.score} />
+                  <ScoreBreakdown score={r.score} breakdown={r.score_breakdown ?? {}} />
                 </td>
                 <td className="px-3 py-1.5 text-xs truncate max-w-[200px]" title={r.release_info || r.filename} style={{ color: 'var(--text-secondary)' }}>
                   {r.release_info || r.filename || '-'}

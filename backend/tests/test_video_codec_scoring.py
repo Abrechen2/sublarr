@@ -38,6 +38,15 @@ class TestApplyVideoCodecBonus:
         apply_video_codec_bonus(results, video_codec="x265", weight=2)
         assert results[0]["score"] == 102
 
+    def test_bonus_recorded_in_score_breakdown(self):
+        from wanted_search.scoring import apply_video_codec_bonus
+
+        result = self._make_result("Show.S01E01.BluRay.x265")
+        result["score_breakdown"] = {"series": 180}
+        apply_video_codec_bonus([result], video_codec="x265", weight=2)
+        assert result["score_breakdown"]["video_codec_bonus"] == 2
+        assert sum(result["score_breakdown"].values()) == 182
+
     def test_x264_match_adds_bonus(self):
         from wanted_search.scoring import apply_video_codec_bonus
 

@@ -144,6 +144,7 @@ class ProviderRepository(BaseRepository):
         score: int,
         source: str = "provider",
         upgraded_from_id: int | None = None,
+        score_breakdown: dict | None = None,
     ):
         """Record a subtitle download for history tracking.
 
@@ -156,8 +157,18 @@ class ProviderRepository(BaseRepository):
             score: Provider score (0 for Whisper-generated).
             source: Source type -- "provider" (default), "whisper", or "manual".
             upgraded_from_id: DB id of the previous SubtitleDownload this one replaces.
+            score_breakdown: Per-component score points dict, stored as JSON so
+                History can explain why this subtitle won.
         """
+        import json
+
         now = self._now()
+        breakdown_json = None
+        if score_breakdown:
+            try:
+                breakdown_json = json.dumps(score_breakdown)
+            except (TypeError, ValueError):
+                breakdown_json = None
         entry = SubtitleDownload(
             provider_name=provider_name,
             subtitle_id=subtitle_id,
@@ -165,6 +176,7 @@ class ProviderRepository(BaseRepository):
             format=fmt,
             file_path=file_path,
             score=score,
+            score_breakdown=breakdown_json,
             source=source,
             downloaded_at=now,
             upgraded_from_id=upgraded_from_id,

@@ -94,6 +94,7 @@ export interface EpisodeHistoryEntry {
   provider_name: string
   format: string
   score: number
+  score_breakdown?: Record<string, number> | null
   date: string
   status: string
   error: string

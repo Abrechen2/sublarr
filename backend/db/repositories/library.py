@@ -92,12 +92,33 @@ class LibraryRepository(BaseRepository):
 
         total_pages = max(1, (count + per_page - 1) // per_page)
         return {
-            "data": [self._to_dict(e) for e in entries],
+            "data": [self._history_entry_to_dict(e) for e in entries],
             "page": page,
             "per_page": per_page,
             "total": count,
             "total_pages": total_pages,
         }
+
+    def _history_entry_to_dict(self, entry) -> dict:
+        """Serialize a SubtitleDownload row, decoding score_breakdown JSON.
+
+        The column stores a JSON string; the API contract is a dict (or None
+        for legacy rows / unparseable data) so the frontend never has to
+        JSON.parse itself.
+        """
+        import json
+
+        d = self._to_dict(entry)
+        raw = d.get("score_breakdown")
+        if raw:
+            try:
+                parsed = json.loads(raw)
+                d["score_breakdown"] = parsed if isinstance(parsed, dict) else None
+            except (TypeError, ValueError):
+                d["score_breakdown"] = None
+        else:
+            d["score_breakdown"] = None
+        return d
 
     def get_download_stats(self) -> dict:
         """Get aggregated download statistics.
