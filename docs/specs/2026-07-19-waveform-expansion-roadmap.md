@@ -195,11 +195,67 @@ one-click "fix safe defects" (needs a batch-apply + undo path through
 - ✅ Verified on Beta (standalone, real Oshi no Ko episode): 172 segments in
   1.1s, lane renders correctly, zero app errors. Also shipped: prominent
   loading state (`863e9783`).
-- Still open in Phase 2: server-side multi-resolution waveform-peaks cache;
-  making the VAD lane an optional *snap* target (currently visual only).
+- ✅ VAD snapping shipped (`9212c5f5`): fourth snap pool — cue boundary drags
+  and L/R click-sets snap to speech-segment edges while the lane is on.
+  Priority keyframe > speech > scene > neighbor, 120 ms default tolerance.
+- Still open in Phase 2: server-side multi-resolution waveform-peaks cache
+  (see the 2026-07-30 note below — measure before building).
+
+**2026-07-30 — Third-pass review (Claude, code-verified):** additions and
+re-weightings in section 8. Trust package (user-modified guard + draft
+recovery) inserted ahead of the remaining Phase 1 items.
 
 ## 7. Explicitly NOT in scope
 
 - ASS `\k` karaoke retiming (stays in Aegisub).
 - Removing or hiding any of the seven locked surfaces.
 - Heavy always-on client-side DSP.
+
+---
+
+## 8. Third-pass additions (2026-07-30, code-verified)
+
+Gaps neither model caught in the 07-19 brainstorm, plus two re-weightings.
+Verified against the code as of `9212c5f5`.
+
+### 8.1 Trust package (new — do FIRST, before remaining Phase 1)
+
+| Idea | Why | Effort | Value |
+|---|---|---|---|
+| **User-modified guard** — editor save marks the subtitle as hand-edited; the upgrade system skips (or warns on) replacing such files | The save endpoint already has optimistic concurrency (mtime check in `routes/tools/content.py`), but the *reverse* direction is open: a user hand-times for an hour, saves, and the upgrade scheduler later silently replaces the file with a "better" provider download. Same trust cluster as issue #159. | S/M | high |
+| **Draft recovery** — persist dirty cue state / undo stack to browser storage keyed `(file, mtime)`, offer restore on reopen | `beforeunload` guard exists, but a browser crash or tab kill discards hours of work. This doc itself says "editors spend hours here". | S/M | high |
+
+Rationale for ordering: every other editor feature *creates* manual work;
+these two protect it. Ship them before generating more of it.
+
+### 8.2 New feature ideas
+
+| Idea | Why | Effort | Value |
+|---|---|---|---|
+| **Split-at-speech-gap assist** | CPS *diagnoses* "too fast" but the usual fix is splitting/rebreaking — no assist exists. VAD lane now provides the natural split point: one keystroke, split at the nearest speech gap inside the cue. Builds on existing split (F). | S/M | high |
+| **Batch offset across episodes** | Anime batches from one release group share a constant offset. After a manual fix: "you shifted everything by +2.0 s — apply to the other 11 episodes?" (backend shift, preview list). Leverages one manual fix across the library; the 07-19 doc thinks strictly single-file. | M | high |
+| **Post-MT review queue** | Subtitle-health already deep-links "open editor" per finding; the translation side has no equivalent. A queue of flagged cues (CPS violation, high expansion ratio, glossary miss) worked through in the editor is the concrete path for translation to graduate from "experimental". | M/L | high |
+
+### 8.3 Re-weightings of the 07-19 plan
+
+- **Peaks cache: measure before building.** The decode runs in the *user's
+  browser*, not on the NAS — the NAS only does the (already cached) Opus
+  extraction. And the spectrogram toggle needs raw audio client-side anyway,
+  which erases the peaks benefit for spectrogram users. Measure editor open
+  time on a realistic client first; expected to fall below auto-sync override
+  in priority. ("Biggest low-power payoff" from 07-19 is likely overstated.)
+- **VAD quality gate before Phase 4.** `webrtcvad` is energy-based and weak
+  exactly where this doc says anime is hard (dialogue under BGM/SFX); it has
+  been verified on one episode. Before auto-trim: build a small eval — a
+  handful of hand-timed episodes as ground truth, measure boundary error.
+  Middle path missed on 07-19: **Silero-VAD has an ONNX variant** (no Torch,
+  CPU-friendly, a few MB) — fits the low-power constraint as an opt-in
+  accuracy upgrade.
+
+### 8.4 Revised order
+
+1. Trust package (8.1) — small, protects the work everything else creates.
+2. Remaining Phase 1 (loop audition, fix-safe-defects).
+3. Auto-sync override (Phase 3) — best value/effort of the large features.
+4. Split-at-speech-gap (8.2) — small, VAD is in place.
+5. VAD eval, then Phase 4; peaks cache only after measurement.
