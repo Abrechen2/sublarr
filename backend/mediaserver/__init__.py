@@ -291,6 +291,14 @@ def invalidate_media_server_manager() -> None:
     """Destroy the singleton instance (for testing or config reload)."""
     global _manager
     _manager = None
+    # Shoko shares media_servers_json; drop its memoized config too so the
+    # wanted-search enricher re-reads it after any media-server change.
+    try:
+        from config_instances import invalidate_shoko_config_cache
+
+        invalidate_shoko_config_cache()
+    except Exception:  # noqa: BLE001 — cache invalidation is best-effort
+        pass
 
 
 def _register_builtin_servers(manager: MediaServerManager) -> None:

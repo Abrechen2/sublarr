@@ -239,6 +239,79 @@ class TestShokoServer:
 
 
 # ---------------------------------------------------------------------------
+# get_shoko_config — optionality: cached, and None when Shoko isn't configured
+# ---------------------------------------------------------------------------
+class TestShokoConfigOptional:
+    def test_none_when_no_shoko_instance(self):
+        import config_instances
+
+        config_instances.invalidate_shoko_config_cache()
+        with patch(
+            "config_instances.get_media_server_instances",
+            return_value=[{"type": "jellyfin", "name": "JF", "url": "http://jf:8096"}],
+        ):
+            assert config_instances.get_shoko_config() is None
+        config_instances.invalidate_shoko_config_cache()
+
+    def test_returns_enabled_shoko_instance(self):
+        import config_instances
+
+        config_instances.invalidate_shoko_config_cache()
+        shoko = {"type": "shoko", "name": "S", "enabled": True, "url": "http://shoko:8111"}
+        with patch("config_instances.get_media_server_instances", return_value=[shoko]):
+            assert config_instances.get_shoko_config() == shoko
+        config_instances.invalidate_shoko_config_cache()
+
+    def test_disabled_shoko_instance_ignored(self):
+        import config_instances
+
+        config_instances.invalidate_shoko_config_cache()
+        shoko = {"type": "shoko", "name": "S", "enabled": False, "url": "http://shoko:8111"}
+        with patch("config_instances.get_media_server_instances", return_value=[shoko]):
+            assert config_instances.get_shoko_config() is None
+        config_instances.invalidate_shoko_config_cache()
+
+    def test_result_is_cached_no_repeat_db_reads(self):
+        import config_instances
+
+        config_instances.invalidate_shoko_config_cache()
+        mock = MagicMock(return_value=[])
+        with patch("config_instances.get_media_server_instances", mock):
+            config_instances.get_shoko_config()
+            config_instances.get_shoko_config()
+            config_instances.get_shoko_config()
+        # Cached after the first call -> config read exactly once.
+        assert mock.call_count == 1
+        config_instances.invalidate_shoko_config_cache()
+
+    def test_invalidation_forces_recompute(self):
+        import config_instances
+
+        config_instances.invalidate_shoko_config_cache()
+        mock = MagicMock(return_value=[])
+        with patch("config_instances.get_media_server_instances", mock):
+            config_instances.get_shoko_config()
+            config_instances.invalidate_shoko_config_cache()
+            config_instances.get_shoko_config()
+        assert mock.call_count == 2
+        config_instances.invalidate_shoko_config_cache()
+
+    def test_media_server_invalidate_clears_shoko_cache(self):
+        """The manager's invalidate hook must also drop the memoized Shoko config."""
+        import config_instances
+        from mediaserver import invalidate_media_server_manager
+
+        config_instances.invalidate_shoko_config_cache()
+        mock = MagicMock(return_value=[])
+        with patch("config_instances.get_media_server_instances", mock):
+            config_instances.get_shoko_config()
+            invalidate_media_server_manager()  # simulates a media-server config change
+            config_instances.get_shoko_config()
+        assert mock.call_count == 2
+        config_instances.invalidate_shoko_config_cache()
+
+
+# ---------------------------------------------------------------------------
 # Enricher — Tier-0 Shoko AniDB resolution
 # ---------------------------------------------------------------------------
 class TestShokoEnricher:
