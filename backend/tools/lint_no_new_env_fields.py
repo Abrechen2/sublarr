@@ -156,7 +156,7 @@ def main(argv: list[str]) -> int:
     for msg in violations:
         print(f"  - {msg}")
     print()
-    print("UI-first convention (since v0.88.0-beta): only the 11 fields in")
+    print("UI-first convention (since v0.88.0-beta): only the 12 fields in")
     print("_ALLOWED_BOOT_FIELDS are env-loadable. Everything else is UI-only.")
     return 1
 

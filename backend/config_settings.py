@@ -67,6 +67,11 @@ _ALLOWED_BOOT_FIELDS: frozenset[str] = frozenset(
         "log_format",
         "cors_origins",
         "redis_url",
+        # Pre-DB by design: the anonymous-stats kill-switch must work via env
+        # before any UI/DB exists (self-hoster redirect/disable). Was declared
+        # on BootSettings since the opt-in stats feature but missed here when
+        # the linter allowlist was introduced.
+        "stats_endpoint",
     }
 )
 
