@@ -67,6 +67,10 @@ _ALLOWED_BOOT_FIELDS: frozenset[str] = frozenset(
         "log_format",
         "cors_origins",
         "redis_url",
+        # Env-only kill-switch for anonymous usage stats (see BootSettings
+        # docstring on the field) — must stay env-loadable so self-hosters
+        # can disable/redirect sending before the UI ever loads.
+        "stats_endpoint",
     }
 )
 
