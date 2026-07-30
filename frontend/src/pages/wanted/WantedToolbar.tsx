@@ -1,5 +1,6 @@
+import { useEffect, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { RefreshCw, Search, ScanSearch, Download, Languages, Bell } from 'lucide-react'
+import { RefreshCw, Search, ScanSearch, Download, Languages, Bell, FileDown } from 'lucide-react'
 
 export interface WantedToolbarProps {
   summaryTotal: number
@@ -21,6 +22,8 @@ export interface WantedToolbarProps {
   onBatchTranslate: () => void
   /** Opens the pending-original review modal. Omit if the feature is not wired up. */
   onOpenMtPending?: () => void
+  /** Downloads the wanted list (current filters applied) as CSV or JSON. */
+  onExport: (format: 'csv' | 'json') => void
 }
 
 export function WantedToolbar({
@@ -41,9 +44,23 @@ export function WantedToolbar({
   onShowCleanupConfirm,
   onBatchTranslate,
   onOpenMtPending,
+  onExport,
 }: WantedToolbarProps) {
   const { t } = useTranslation('library')
   const { t: tc } = useTranslation('common')
+  const [exportOpen, setExportOpen] = useState(false)
+  const exportRef = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    if (!exportOpen) return
+    const handle = (e: MouseEvent) => {
+      if (exportRef.current && !exportRef.current.contains(e.target as Node)) {
+        setExportOpen(false)
+      }
+    }
+    document.addEventListener('mousedown', handle)
+    return () => document.removeEventListener('mousedown', handle)
+  }, [exportOpen])
 
   return (
     <div className="flex items-center justify-between flex-wrap gap-4">
@@ -85,6 +102,42 @@ export function WantedToolbar({
           <ScanSearch size={14} />
           {probeRunning ? t('wanted.scanning') : t('wanted.scan_embedded')}
         </button>
+        <div className="relative" ref={exportRef}>
+          <button
+            onClick={() => setExportOpen((v) => !v)}
+            className="flex items-center gap-2 px-4 py-2 rounded-md text-sm font-medium hover:opacity-90"
+            title={t('wanted.export')}
+            data-testid="wanted-export-btn"
+            style={{
+              backgroundColor: 'var(--bg-surface)',
+              color: 'var(--text-primary)',
+              border: '1px solid var(--border)',
+            }}
+          >
+            <FileDown size={14} />
+            {t('wanted.export')}
+          </button>
+          {exportOpen && (
+            <div
+              className="absolute right-0 top-11 z-50 rounded-lg shadow-lg py-1 min-w-36"
+              style={{ backgroundColor: 'var(--bg-surface)', border: '1px solid var(--border)' }}
+            >
+              {(['csv', 'json'] as const).map((format) => (
+                <button
+                  key={format}
+                  data-testid={`wanted-export-${format}`}
+                  onClick={() => { onExport(format); setExportOpen(false) }}
+                  className="w-full flex items-center gap-2 px-3 py-1.5 text-xs text-left transition-colors"
+                  style={{ color: 'var(--text-secondary)' }}
+                  onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = 'var(--bg-surface-hover)'; e.currentTarget.style.color = 'var(--text-primary)' }}
+                  onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = ''; e.currentTarget.style.color = 'var(--text-secondary)' }}
+                >
+                  {t(`wanted.export_${format}`)}
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
         <button
           onClick={onShowCleanupConfirm}
           disabled={cleanupPending}

@@ -22,6 +22,7 @@ import { useSelectionStore } from '@/stores/selectionStore'
 import { useWebSocket } from '@/hooks/useWebSocket'
 import { useQueryClient, useQuery } from '@tanstack/react-query'
 import { getConfig } from '@/api/settings'
+import { exportWantedItems } from '@/api/wanted'
 import { WantedToolbar } from './wanted/WantedToolbar'
 import { MtPendingModal } from './wanted/MtPendingModal'
 import { WantedFilterPanel } from './wanted/WantedFilterPanel'
@@ -306,6 +307,18 @@ export function WantedPage() {
     startBatch.mutate(undefined)
   }
 
+  const handleExport = (format: 'csv' | 'json') => {
+    exportWantedItems({
+      format,
+      itemType: typeFilter,
+      status: statusFilter,
+      subtitleType: subtitleTypeFilter,
+      search: debouncedSearch || undefined,
+    }).catch(() => {
+      toast(t('wanted.export_failed'), 'error')
+    })
+  }
+
   const handleCleanup = () => {
     cleanupSidecars.mutate(undefined, {
       onSuccess: (result) => {
@@ -438,6 +451,7 @@ export function WantedPage() {
         onShowCleanupConfirm={() => setShowCleanupConfirm(true)}
         onBatchTranslate={() => batchTranslate.mutate([])}
         onOpenMtPending={() => setShowMtPendingModal(true)}
+        onExport={handleExport}
       />
 
       {/* Filter Panel: Summary Cards + Filters + Search + Sort + FilterBar */}

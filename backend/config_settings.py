@@ -67,6 +67,9 @@ _ALLOWED_BOOT_FIELDS: frozenset[str] = frozenset(
         "log_format",
         "cors_origins",
         "redis_url",
+        # Anonymous-stats kill-switch/redirect — must be env-overridable
+        # pre-DB so self-hosters can disable sending before first boot.
+        "stats_endpoint",
     }
 )
 
