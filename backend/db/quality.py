@@ -43,3 +43,18 @@ def get_quality_trends(days: int = 30) -> list:
 def delete_health_results(file_path: str) -> int:
     """Delete all health results for a file path."""
     return _get_repo().delete_health_results(file_path)
+
+
+def mark_user_modified(file_path: str, source: str = "editor") -> dict:
+    """Mark a subtitle file as hand-edited (editor save)."""
+    return _get_repo().mark_user_modified(file_path, source)
+
+
+def is_user_modified(file_path: str) -> bool:
+    """Whether a subtitle file carries the hand-edited marker."""
+    return _get_repo().is_user_modified(file_path)
+
+
+def clear_user_modified(file_path: str) -> int:
+    """Remove the hand-edited marker (after a deliberate replace)."""
+    return _get_repo().clear_user_modified(file_path)
