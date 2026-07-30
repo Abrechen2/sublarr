@@ -10,6 +10,8 @@ them independently testable and re-usable outside of ProviderManager.
 import logging
 import os
 
+import decision_log
+
 # Plan B6 — post-processing pipeline trigger (module-level import so tests can
 # patch("providers.download_manager.run_trigger")).
 from post_processing.pipeline import run_trigger
@@ -192,6 +194,9 @@ def search_and_download_best(
                         result.provider_name,
                         result.subtitle_id,
                     )
+                    decision_log.download_attempt(
+                        result.provider_name, result.subtitle_id, "hash_blacklisted"
+                    )
                     continue
                 update_stats_fn(result.provider_name, success=True, score=result.score)
                 try:
@@ -200,12 +205,22 @@ def search_and_download_best(
                     apply_auto_reranking()
                 except Exception as _rr_err:
                     logger.debug("Re-ranking trigger skipped: %s", _rr_err)
+                decision_log.download_attempt(
+                    result.provider_name, result.subtitle_id, "selected"
+                )
+                decision_log.selected(result)
                 return result
             else:
                 update_stats_fn(result.provider_name, success=False, score=0)
+                decision_log.download_attempt(
+                    result.provider_name, result.subtitle_id, "download_failed"
+                )
         except Exception as e:
             logger.warning("Download failed for %s: %s", result.subtitle_id, e)
             update_stats_fn(result.provider_name, success=False, score=0)
+            decision_log.download_attempt(
+                result.provider_name, result.subtitle_id, "error", detail=str(e)
+            )
 
     return None
 

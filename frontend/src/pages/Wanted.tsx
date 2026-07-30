@@ -16,6 +16,7 @@ import { Loader2, CheckSquare, Square, MinusSquare, Download, RefreshCw } from '
 import { StatusBadge } from '@/components/shared/StatusBadge'
 import SubtitleEditorModal from '@/components/editor/SubtitleEditorModal'
 import { InteractiveSearchModal } from '@/components/wanted/InteractiveSearchModal'
+import { DecisionLogModal } from '@/components/activity/DecisionLogModal'
 import type { FilterDef, ActiveFilter } from '@/components/filters/FilterBar'
 import { BatchActionBar } from '@/components/batch/BatchActionBar'
 import { useSelectionStore } from '@/stores/selectionStore'
@@ -87,6 +88,7 @@ export function WantedPage() {
   const [searchingItems, setSearchingItems] = useState<Set<number>>(new Set())
   const [previewFilePath, setPreviewFilePath] = useState<string | null>(null)
   const [interactiveItem, setInteractiveItem] = useState<{ id: number; title: string } | null>(null)
+  const [decisionItem, setDecisionItem] = useState<{ id: number; title: string } | null>(null)
 
   // FilterBar state
   const [activeFilters, setActiveFilters] = useState<ActiveFilter[]>([])
@@ -568,6 +570,7 @@ export function WantedPage() {
                       onUpdateStatus={(id, status) => updateStatus.mutate({ itemId: id, status })}
                       onPreview={setPreviewFilePath}
                       onInteractiveSearch={setInteractiveItem}
+                      onDecisionLog={setDecisionItem}
                       onBlacklist={(itemId, providerName, subtitleId, language) => {
                         const item = wantedData.find(d => d.id === itemId)
                         addBlacklist.mutate({
@@ -622,6 +625,16 @@ export function WantedPage() {
         onClose={() => setInteractiveItem(null)}
         onDownloaded={() => setInteractiveItem(null)}
       />
+
+      {/* Decision Log Modal — "why was nothing found?" */}
+      {decisionItem && (
+        <DecisionLogModal
+          mode="wanted"
+          id={decisionItem.id}
+          title={decisionItem.title}
+          onClose={() => setDecisionItem(null)}
+        />
+      )}
 
       {/* Pending-Original Review Modal (feature #8b) */}
       <MtPendingModal open={showMtPendingModal} onClose={() => setShowMtPendingModal(false)} />

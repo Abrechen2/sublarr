@@ -6,9 +6,16 @@ Extracted from providers/search_coordinator.py. Pure mixin: used by
 
 import logging
 
+import decision_log
 from providers.base import SubtitleFormat, compute_score
 
 logger = logging.getLogger(__name__)
+
+
+def _rejected(before: list, after: list) -> list:
+    """Return the results dropped between two pipeline stages (identity diff)."""
+    kept = {id(r) for r in after}
+    return [r for r in before if id(r) not in kept]
 
 
 class SearchScoringMixin:
@@ -30,6 +37,9 @@ class SearchScoringMixin:
         must_contain / must_not_contain → release-group exclude/prefer →
         final sort (ASS first, then score desc). Returns the filtered +
         sorted list.
+
+        Every gate reports its rejections to the decision log (no-op when
+        no log is active) so users can see why candidates were discarded.
         """
         # Score all results (noop for anything that was already scored)
         for result in all_results:
@@ -52,38 +62,92 @@ class SearchScoringMixin:
 
         # Post-filter: if query requests forced_only, remove non-forced results
         if query.forced_only:
+            before = all_results
             all_results = [r for r in all_results if r.forced]
+            decision_log.filter_stage(
+                "forced_only",
+                len(before) - len(all_results),
+                len(all_results),
+                _rejected(before, all_results),
+            )
 
         # Filter by language (if query specifies languages)
         if query.languages:
+            before = all_results
             all_results = [r for r in all_results if r.language in query.languages]
+            decision_log.filter_stage(
+                "language",
+                len(before) - len(all_results),
+                len(all_results),
+                _rejected(before, all_results),
+                wanted=list(query.languages),
+            )
 
         # Filter by format — include UNKNOWN since some providers omit format metadata
         if format_filter:
+            before = all_results
             all_results = [
                 r
                 for r in all_results
                 if r.format == format_filter or r.format == SubtitleFormat.UNKNOWN
             ]
+            decision_log.filter_stage(
+                "format",
+                len(before) - len(all_results),
+                len(all_results),
+                _rejected(before, all_results),
+                wanted=format_filter.value,
+            )
 
         # Filter by min score
         if min_score > 0:
+            before = all_results
             all_results = [r for r in all_results if r.score >= min_score]
+            decision_log.filter_stage(
+                "min_score",
+                len(before) - len(all_results),
+                len(all_results),
+                _rejected(before, all_results),
+                threshold=min_score,
+            )
 
         # Filter blacklisted subtitles
         from db.blacklist import is_blacklisted
 
+        before = all_results
         all_results = [r for r in all_results if not is_blacklisted(r.provider_name, r.subtitle_id)]
+        decision_log.filter_stage(
+            "blacklist",
+            len(before) - len(all_results),
+            len(all_results),
+            _rejected(before, all_results),
+        )
 
         # mustContain / mustNotContain filtering (language profile)
         if must_contain:
             from wanted_search.profile_filters import apply_must_contain
 
+            before = all_results
             all_results = apply_must_contain(all_results, must_contain)
+            decision_log.filter_stage(
+                "profile_must_contain",
+                len(before) - len(all_results),
+                len(all_results),
+                _rejected(before, all_results),
+                rule=list(must_contain),
+            )
         if must_not_contain:
             from wanted_search.profile_filters import apply_must_not_contain
 
+            before = all_results
             all_results = apply_must_not_contain(all_results, must_not_contain)
+            decision_log.filter_stage(
+                "profile_must_not_contain",
+                len(before) - len(all_results),
+                len(all_results),
+                _rejected(before, all_results),
+                rule=list(must_not_contain),
+            )
 
         # Release group filtering: exclude blocked groups, boost preferred groups
         from config import get_settings
@@ -95,6 +159,7 @@ class SearchScoringMixin:
         _prefer = [g.strip().lower() for g in settings.release_group_prefer.split(",") if g.strip()]
 
         if _exclude:
+            before_list = all_results
             before = len(all_results)
             all_results = [
                 r for r in all_results if not any(g in r.release_info.lower() for g in _exclude)
@@ -104,6 +169,13 @@ class SearchScoringMixin:
                 logger.debug(
                     "Release group filter: excluded %d result(s) matching %s", filtered, _exclude
                 )
+            decision_log.filter_stage(
+                "release_group_exclude",
+                filtered,
+                len(all_results),
+                _rejected(before_list, all_results),
+                rule=_exclude,
+            )
 
         if _prefer:
             bonus = settings.release_group_prefer_bonus

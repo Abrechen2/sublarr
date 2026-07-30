@@ -36,6 +36,7 @@ interface WantedGroupedRowProps {
   onUpdateStatus: (itemId: number, status: string) => void
   onPreview: (filePath: string) => void
   onInteractiveSearch: (item: { id: number; title: string }) => void
+  onDecisionLog?: (item: { id: number; title: string }) => void
   onBlacklist: (itemId: number, providerName: string, subtitleId: string, language: string) => void
 }
 
@@ -60,6 +61,7 @@ export function WantedGroupedRow({
   onUpdateStatus,
   onPreview,
   onInteractiveSearch,
+  onDecisionLog,
   onBlacklist,
 }: WantedGroupedRowProps) {
   const { t } = useTranslation('library')
@@ -250,6 +252,7 @@ export function WantedGroupedRow({
                   onUpdateStatus={onUpdateStatus}
                   onPreview={onPreview}
                   onInteractiveSearch={onInteractiveSearch}
+                  onDecisionLog={onDecisionLog}
                 />
               </td>
             </tr>

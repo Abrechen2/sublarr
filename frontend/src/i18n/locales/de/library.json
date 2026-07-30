@@ -526,7 +526,8 @@
     "col_score": "Score",
     "col_release": "Release",
     "preview_subtitle": "Untertitel-Vorschau",
-    "interactive_search": "Interaktive Suche"
+    "interactive_search": "Interaktive Suche",
+    "decision_log": "Warum wurde nichts gefunden?"
   },
   "mt_pending": {
     "toolbar_button": "Ausstehende Originale",

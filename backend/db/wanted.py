@@ -153,6 +153,16 @@ def update_existing_sub(item_id: int, value: str) -> bool:
     return _get_repo().update_existing_sub(item_id, value)
 
 
+def set_decision_log(item_id: int, payload: str | None) -> bool:
+    """Store (or clear) the last search decision-log JSON for a wanted item."""
+    return _get_repo().set_decision_log(item_id, payload)
+
+
+def get_decision_log(item_id: int) -> str | None:
+    """Return the raw decision-log JSON for a wanted item, or None."""
+    return _get_repo().get_decision_log(item_id)
+
+
 def set_mt_pinned(item_id: int, pinned: bool) -> bool:
     """Pin/unpin a provisional MT (feature #8b) — see ``WantedRepository.set_mt_pinned``."""
     return _get_repo().set_mt_pinned(item_id, pinned)

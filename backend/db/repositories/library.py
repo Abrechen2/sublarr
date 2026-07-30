@@ -91,8 +91,15 @@ class LibraryRepository(BaseRepository):
         entries = self.session.execute(data_stmt).scalars().all()
 
         total_pages = max(1, (count + per_page - 1) // per_page)
+        data = []
+        for e in entries:
+            d = self._to_dict(e)
+            # The decision-log blob can be large — replace it with a flag and
+            # serve the payload via GET /history/<id>/decision on demand.
+            d["has_decision_log"] = bool(d.pop("decision_log_json", None))
+            data.append(d)
         return {
-            "data": [self._to_dict(e) for e in entries],
+            "data": data,
             "page": page,
             "per_page": per_page,
             "total": count,

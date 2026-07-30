@@ -7,9 +7,10 @@ import { formatRelativeTime, formatProviderName, parseMediaTitle } from '@/lib/u
 import { toast } from '@/components/shared/Toast'
 import {
   Clock, Download, ChevronLeft, ChevronRight, Ban, Eye, GitCompare,
-  CheckSquare, Square, MinusSquare, X,
+  CheckSquare, Square, MinusSquare, X, ListTree,
 } from 'lucide-react'
 import SubtitleEditorModal from '@/components/editor/SubtitleEditorModal'
+import { DecisionLogModal } from '@/components/activity/DecisionLogModal'
 import { FilterBar } from '@/components/filters/FilterBar'
 import type { FilterDef, ActiveFilter } from '@/components/filters/FilterBar'
 import { BatchActionBar } from '@/components/batch/BatchActionBar'
@@ -29,6 +30,7 @@ type HistoryEntry = {
   score: number
   downloaded_at: string | null
   subtitle_id?: string
+  has_decision_log?: boolean
 }
 
 const HistoryTableRow = memo(function HistoryTableRow({
@@ -40,6 +42,7 @@ const HistoryTableRow = memo(function HistoryTableRow({
   onPreview,
   onDiff,
   onBlacklist,
+  onDecision,
   isBlacklistPending,
   t,
 }: {
@@ -51,6 +54,7 @@ const HistoryTableRow = memo(function HistoryTableRow({
   onPreview: (path: string) => void
   onDiff: (path: string) => void
   onBlacklist: (entry: HistoryEntry) => void
+  onDecision: (entry: HistoryEntry) => void
   isBlacklistPending: boolean
   t: (key: string) => string
 }) {
@@ -167,6 +171,18 @@ const HistoryTableRow = memo(function HistoryTableRow({
               </button>
             </>
           )}
+          {entry.has_decision_log && (
+            <button
+              onClick={() => onDecision(entry)}
+              className="p-1 rounded transition-colors duration-150"
+              title={t('decision.action_title')}
+              style={{ color: 'var(--text-muted)' }}
+              onMouseEnter={(e) => (e.currentTarget.style.color = 'var(--accent)')}
+              onMouseLeave={(e) => (e.currentTarget.style.color = 'var(--text-muted)')}
+            >
+              <ListTree size={14} />
+            </button>
+          )}
           <button
             onClick={() => onBlacklist(entry)}
             disabled={isBlacklistPending}
@@ -234,6 +250,7 @@ export function HistoryPage() {
   const [activeFilters, setActiveFilters] = useState<ActiveFilter[]>([])
   const [blacklistConfirm, setBlacklistConfirm] = useState<HistoryEntry | null>(null)
   const [blacklistAlsoDelete, setBlacklistAlsoDelete] = useState(false)
+  const [decisionEntry, setDecisionEntry] = useState<HistoryEntry | null>(null)
   const queryClient = useQueryClient()
 
   // Zustand selection store: subscribe only to this scope to avoid re-renders from other pages
@@ -297,6 +314,10 @@ export function HistoryPage() {
   const onBlacklistEntry = useCallback((entry: HistoryEntry) => {
     setBlacklistAlsoDelete(false)
     setBlacklistConfirm(entry)
+  }, [])
+
+  const onDecisionEntry = useCallback((entry: HistoryEntry) => {
+    setDecisionEntry(entry)
   }, [])
 
   const handleBlacklistConfirm = useCallback(async () => {
@@ -461,6 +482,7 @@ export function HistoryPage() {
                     onPreview={onPreviewPath}
                     onDiff={onDiffPath}
                     onBlacklist={onBlacklistEntry}
+                    onDecision={onDecisionEntry}
                     isBlacklistPending={addBlacklist.isPending}
                     t={t}
                   />
@@ -517,6 +539,19 @@ export function HistoryPage() {
 
       {/* Floating BatchActionBar */}
       <BatchActionBar scope={SCOPE} actions={['export']} />
+
+      {/* Decision Log Modal */}
+      {decisionEntry && (
+        <DecisionLogModal
+          mode="history"
+          id={decisionEntry.id}
+          title={(() => {
+            const media = parseMediaTitle(decisionEntry.file_path)
+            return `${media.title}${media.episodeCode ? ` · ${media.episodeCode}` : ''}`
+          })()}
+          onClose={() => setDecisionEntry(null)}
+        />
+      )}
 
       {/* Subtitle Editor Modal */}
       {editorFilePath && (

@@ -95,6 +95,17 @@ def record_subtitle_download(
             MT provisional row recorded on top of the site subtitle's own
             record_stat call -- see services.mt_provisional.finalize_translation).
     """
+    # Attach the active decision log (if any) — records WHY this subtitle was
+    # chosen. Contextvar-based, so callers outside a wanted-search run
+    # (manual upload, whisper, ...) simply get None here.
+    _decision_json = None
+    try:
+        import decision_log as _decision_log
+
+        _decision_json = _decision_log.snapshot_json()
+    except Exception:
+        logger.debug("Decision log snapshot unavailable", exc_info=True)
+
     result = _get_repo().record_subtitle_download(
         provider_name,
         subtitle_id,
@@ -104,6 +115,7 @@ def record_subtitle_download(
         score,
         source=source,
         upgraded_from_id=upgraded_from_id,
+        decision_log_json=_decision_json,
     )
     # Machine-translation rows get their own History category instead of
     # being lumped under Downloads (bug found 2026-07-08) -- every other
@@ -129,6 +141,11 @@ def record_subtitle_download(
 def get_latest_download_id(file_path: str) -> int | None:
     """Return the DB id of the most recent download for this file path."""
     return _get_repo().get_latest_download_id(file_path)
+
+
+def get_download_decision_log(download_id: int) -> str | None:
+    """Return the raw decision-log JSON for a download row, or None."""
+    return _get_repo().get_decision_log(download_id)
 
 
 # ---- Provider Statistics ----

@@ -129,6 +129,12 @@ class WantedItem(db.Model):
     # found_at). NULL when there is no pending original. Set by
     # services.mt_reseek, read/cleared by the Task-3 approve/reject API.
     mt_pending_original: Mapped[str | None] = mapped_column(Text, nullable=True)
+    # JSON snapshot of the most recent search decision log for items where NO
+    # subtitle was downloaded (not_found / failed / upgrade-rejected) — answers
+    # "why was nothing found?". Successful downloads carry their snapshot on
+    # subtitle_downloads.decision_log_json instead (the wanted row is deleted).
+    # Stripped from list responses; served via GET /wanted/<id>/decision.
+    last_decision_log_json: Mapped[str | None] = mapped_column(Text, nullable=True)
 
     __table_args__ = (
         Index("idx_wanted_status", "status"),

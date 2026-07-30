@@ -2,7 +2,7 @@ import { Fragment } from 'react'
 import { useTranslation } from 'react-i18next'
 import {
   Search, RefreshCw, Eye, EyeOff, Play, Loader2,
-  CheckSquare, Square, Download, ScanSearch,
+  CheckSquare, Square, Download, ScanSearch, ListTree,
 } from 'lucide-react'
 import { StatusBadge, SubtitleTypeBadge } from '@/components/shared/StatusBadge'
 import { formatRelativeTime, truncatePath } from '@/lib/utils'
@@ -231,6 +231,7 @@ interface WantedRowActionsProps {
   onUpdateStatus: (itemId: number, status: string) => void
   onPreview: (filePath: string) => void
   onInteractiveSearch: (item: { id: number; title: string }) => void
+  onDecisionLog?: (item: { id: number; title: string }) => void
 }
 
 export function WantedRowActions({
@@ -246,10 +247,23 @@ export function WantedRowActions({
   onUpdateStatus,
   onPreview,
   onInteractiveSearch,
+  onDecisionLog,
 }: WantedRowActionsProps) {
   const { t } = useTranslation('library')
   return (
     <div className="flex items-center justify-end gap-1">
+      {onDecisionLog && item.has_decision_log && (
+        <button
+          onClick={() => onDecisionLog({ id: item.id, title: item.title })}
+          className="p-1 rounded transition-colors duration-150"
+          title={t('wanted_row.decision_log')}
+          style={{ color: 'var(--text-muted)' }}
+          onMouseEnter={(e) => (e.currentTarget.style.color = 'var(--accent)')}
+          onMouseLeave={(e) => (e.currentTarget.style.color = 'var(--text-muted)')}
+        >
+          <ListTree size={14} />
+        </button>
+      )}
       {(item.existing_sub === 'ass' || item.existing_sub === 'srt') && item.file_path && item.target_language && (
         <button
           onClick={() => onPreview(deriveSubtitlePath(item.file_path, item.target_language, item.existing_sub))}

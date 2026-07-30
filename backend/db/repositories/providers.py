@@ -144,8 +144,9 @@ class ProviderRepository(BaseRepository):
         score: int,
         source: str = "provider",
         upgraded_from_id: int | None = None,
-    ):
-        """Record a subtitle download for history tracking.
+        decision_log_json: str | None = None,
+    ) -> int | None:
+        """Record a subtitle download for history tracking. Returns the row id.
 
         Args:
             provider_name: Name of the provider (use "whisper" for Whisper-generated subs).
@@ -156,6 +157,7 @@ class ProviderRepository(BaseRepository):
             score: Provider score (0 for Whisper-generated).
             source: Source type -- "provider" (default), "whisper", or "manual".
             upgraded_from_id: DB id of the previous SubtitleDownload this one replaces.
+            decision_log_json: JSON snapshot of the selection decision log, or None.
         """
         now = self._now()
         entry = SubtitleDownload(
@@ -168,9 +170,18 @@ class ProviderRepository(BaseRepository):
             source=source,
             downloaded_at=now,
             upgraded_from_id=upgraded_from_id,
+            decision_log_json=decision_log_json,
         )
         self.session.add(entry)
         self._commit()
+        return entry.id
+
+    def get_decision_log(self, download_id: int) -> str | None:
+        """Return the raw decision-log JSON for a download row, or None."""
+        entry = self.session.get(SubtitleDownload, download_id)
+        if not entry:
+            return None
+        return entry.decision_log_json
 
     def get_latest_download_id(self, file_path: str) -> int | None:
         """Return the id of the most recent SubtitleDownload for this file, or None."""

@@ -357,3 +357,49 @@ def delete_wanted(item_id):
 
     delete_wanted_item(item_id)
     return jsonify({"status": "deleted", "id": item_id})
+
+
+@bp.route("/wanted/<int:item_id>/decision", methods=["GET"])
+def get_wanted_decision(item_id: int):
+    """Get the last search decision log for a wanted item.
+    ---
+    get:
+      tags:
+        - Wanted
+      summary: Get wanted-item decision log
+      description: >
+        Returns the recorded selection pipeline of the most recent search for
+        this item where NO subtitle was downloaded — which providers were
+        searched (hits, latency, skip reasons), which candidates each filter
+        stage rejected, and why the search ended without a download.
+      security:
+        - apiKeyAuth: []
+      parameters:
+        - in: path
+          name: item_id
+          required: true
+          schema:
+            type: integer
+          description: Wanted item ID
+      responses:
+        200:
+          description: Decision log payload
+          content:
+            application/json:
+              schema:
+                type: object
+        404:
+          description: No decision log recorded for this item
+    """
+    import json
+
+    from db.wanted import get_decision_log
+
+    raw = get_decision_log(item_id)
+    if not raw:
+        return jsonify({"error": "No decision log recorded for this item"}), 404
+    try:
+        return jsonify(json.loads(raw))
+    except ValueError:
+        logger.warning("Corrupt decision log JSON for wanted %d", item_id)
+        return jsonify({"error": "Decision log is corrupt"}), 500

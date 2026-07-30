@@ -24,6 +24,8 @@ export interface WantedItem {
   current_score: number
   instance_name?: string
   subtitle_type: 'full' | 'forced'
+  /** True when a search decision log is stored (GET /wanted/<id>/decision). */
+  has_decision_log?: boolean
 }
 
 export interface WantedGroup {

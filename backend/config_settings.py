@@ -370,6 +370,11 @@ class UISettings(BaseModel):
     upgrade_window_days: int = 7
     upgrade_prefer_ass: bool = True  # SRT->ASS always upgrade
 
+    # Decision Log — record the full selection pipeline per wanted-item search
+    # (provider hits/skips, filter rejections, final pick) and store it on the
+    # download row / wanted item so "why was this chosen?" is answerable in the UI.
+    decision_log_enabled: bool = True
+
     # Hearing Impaired
     hi_removal_enabled: bool = False
     hi_preference: str = "include"  # include | prefer | exclude | only

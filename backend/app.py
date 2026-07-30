@@ -63,6 +63,13 @@ def _patch_pre_alembic_columns(engine, inspect_fn) -> None:
             patches.append(
                 "ALTER TABLE subtitle_downloads ADD COLUMN source TEXT DEFAULT 'provider'"
             )
+        if "decision_log_json" not in existing:
+            patches.append("ALTER TABLE subtitle_downloads ADD COLUMN decision_log_json TEXT")
+
+    if insp.has_table("wanted_items"):
+        existing = {c["name"] for c in insp.get_columns("wanted_items")}
+        if "last_decision_log_json" not in existing:
+            patches.append("ALTER TABLE wanted_items ADD COLUMN last_decision_log_json TEXT")
 
     if not patches:
         return

@@ -36,6 +36,94 @@ export interface HistoryEntry {
   file_path: string
   score: number
   downloaded_at: string
+  has_decision_log?: boolean
+}
+
+// ─── Decision Log ─────────────────────────────────────────────────────────────
+
+export interface DecisionLogProvider {
+  name: string
+  status: 'ok' | 'skipped' | 'timeout' | 'rate_limited' | 'error'
+  reason?: string
+  detail?: string
+  hits?: number
+  elapsed_ms?: number
+}
+
+export interface DecisionLogRejectedSample {
+  provider: string
+  filename: string
+  language: string
+  format: string
+  score: number
+  release_info: string
+}
+
+export interface DecisionLogFilterStage {
+  stage: string
+  removed: number
+  remaining: number
+  rejected?: DecisionLogRejectedSample[]
+  wanted?: string | string[]
+  threshold?: number
+  rule?: string[]
+}
+
+export interface DecisionLogDownloadAttempt {
+  provider: string
+  subtitle_id: string
+  status: string
+  detail?: string
+}
+
+export interface DecisionLogSearch {
+  step: string
+  languages: string[]
+  format: string
+  min_score: number
+  cache_hit: boolean
+  providers: DecisionLogProvider[]
+  results_total: number
+  filters: DecisionLogFilterStage[]
+  results_final: number
+  download_attempts: DecisionLogDownloadAttempt[]
+  unfinished_providers?: string[]
+  early_exit?: { provider: string; score: number }
+}
+
+export interface DecisionLogFinal {
+  status?: string
+  provider?: string
+  subtitle_id?: string
+  language?: string
+  format?: string
+  score?: number
+  score_breakdown?: Record<string, number>
+  filename?: string
+  release_info?: string
+  step?: string
+  reason?: string
+  error?: string
+  output_path?: string
+}
+
+export interface DecisionLog {
+  version: number
+  started_at: string
+  finished_at: string
+  item: {
+    wanted_id?: number
+    title?: string
+    season_episode?: string
+    file_path?: string
+    target_language?: string
+    is_upgrade?: boolean
+  }
+  steps: { step: string; skipped: boolean; reason: string }[]
+  searches: DecisionLogSearch[]
+  upgrade?: { approved: boolean; reason: string; old_score: number; new_score: number }
+  final?: DecisionLogFinal
+  truncated?: boolean
 }
 
 export interface PaginatedHistory {
