@@ -490,10 +490,22 @@ def create_app(testing=False):
         # Register SocketIO events
         @socketio.on("connect")
         def handle_connect(auth):
+            from flask import session as _session
+
             from config import get_settings as _gs
 
             _api_key = getattr(_gs(), "api_key", None)
             if _api_key:
+                # Same contract as the HTTP API gate: a logged-in UI session
+                # counts. The Socket.IO handshake is an ordinary HTTP request
+                # carrying the session cookie, so a browser that authenticated
+                # via /auth/login but holds no key in localStorage (fresh
+                # profile, or stale key after a server-side key change) must
+                # not lose the WebSocket silently — that degraded log
+                # streaming and live updates without any visible error.
+                if _session.get("ui_authenticated"):
+                    logger.debug("WebSocket client connected (UI session)")
+                    return None
                 provided = (auth or {}).get("apikey", "")
                 if not hmac.compare_digest(provided, _api_key):
                     logger.warning("WebSocket connection rejected: invalid API key")
