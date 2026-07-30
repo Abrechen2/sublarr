@@ -152,7 +152,10 @@
     "search_subtitle": "Untertitel suchen",
     "interactive_search": "Interaktive Suche",
     "history": "Verlauf",
-    "back_to_library": "Zurück zur Bibliothek"
+    "back_to_library": "Zurück zur Bibliothek",
+    "copy_path": "Dateipfad kopieren",
+    "path_copied": "Dateipfad in Zwischenablage kopiert",
+    "copy_failed": "Kopieren in Zwischenablage fehlgeschlagen"
   },
   "sync_compare": {
     "title": "Sync vergleichen",
