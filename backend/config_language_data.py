@@ -12,11 +12,14 @@ _LANGUAGE_TAGS: dict[str, set[str]] = {
     "fr": {"fr", "fra", "fre", "french"},
     "es": {"es", "spa", "spanish"},
     "it": {"it", "ita", "italian"},
-    "pt": {"pt", "por", "portuguese"},
+    # "pob"/"pb" are the Bazarr/OpenSubtitles conventions for pt-BR.
+    "pt": {"pt", "por", "portuguese", "pt-br", "pob", "pb"},
     "nl": {"nl", "nld", "dut", "dutch"},
     "sv": {"sv", "swe", "swedish"},
     "da": {"da", "dan", "danish"},
-    "no": {"no", "nor", "norwegian"},
+    # Bokmål (nb/nob) and Nynorsk (nn/nno) tags are common in real releases
+    # and must map onto the generic Norwegian target.
+    "no": {"no", "nor", "norwegian", "nb", "nob", "nn", "nno"},
     "fi": {"fi", "fin", "finnish"},
     "is": {"is", "isl", "ice", "icelandic"},
     "eu": {"eu", "eus", "baq", "basque"},
@@ -147,8 +150,24 @@ SUPPORTED_LANGUAGES: list[dict] = [
 
 
 def _get_language_tags(lang_code: str) -> set[str]:
-    """Get all known tags for a language code."""
-    return _LANGUAGE_TAGS.get(lang_code, {lang_code})
+    """Get all known tags for a language code.
+
+    The input is canonicalised first, so 3-letter/legacy codes ("ger",
+    "eng") expand exactly like their 2-letter equivalents — previously a
+    keep-list entry of "ger" produced the 1-element set {"ger"}, which
+    failed to match "de"/"deu"-tagged tracks on destructive cleanup paths.
+
+    Script-variant codes (zh-hans, zh-hant) additionally include their base
+    language's tags: real containers tag Chinese tracks "chi"/"zho"/"zh",
+    and a zh-hans target must never classify those as foreign/disposable.
+    """
+    key = (lang_code or "").lower().strip()
+    canonical = _REVERSE_LANGUAGE_TAGS.get(key, key)
+    tags = set(_LANGUAGE_TAGS.get(canonical, {key}))
+    if "-" in canonical:
+        base = canonical.split("-", 1)[0]
+        tags |= _LANGUAGE_TAGS.get(base, set())
+    return tags
 
 
 # Reverse lookup: any known tag -> canonical ISO 639-1 code.

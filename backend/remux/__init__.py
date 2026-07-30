@@ -577,13 +577,27 @@ def remove_foreign_subtitle_streams(
     except Exception as exc:
         raise RemuxError(f"ffprobe failed on {video_path}: {exc}") from exc
 
+    # Defence in depth: callers are documented to pass a fully expanded tag
+    # set ({"de","deu","ger",...}), but compare canonical forms as well so a
+    # caller that passes bare 2-letter codes can never strip its own target
+    # language because the container used a 3-letter tag.
+    from config_language_data import normalize_language_code
+
+    normalized_targets = {
+        normalize_language_code(str(t).lower()) for t in target_languages if t
+    }
+    normalized_targets.discard("")
+
     streams_to_remove: list[tuple[int, int]] = []
     sub_only_idx = 0
     for stream in probe.get("streams", []):
         if stream.get("codec_type") != "subtitle":
             continue
         lang = (stream.get("tags", {}).get("language", "und") or "und").lower()
-        is_foreign = lang not in target_languages
+        is_foreign = (
+            lang not in target_languages
+            and normalize_language_code(lang) not in normalized_targets
+        )
         if is_foreign and not (keep_und and lang == "und"):
             global_idx = stream.get("index")
             if global_idx is not None:

@@ -471,13 +471,22 @@ def _pick_primary(
     back to the first sidecar in the list if none match. ``ass`` wins
     over ``srt`` when both languages match (.ass plays better with
     advanced styling).
+
+    Matching is canonical-code equality, not prefix comparison: the old
+    ``startswith(target[:2])`` missed "ger" for target "de" (picking a
+    random first track as primary) and false-matched "est" (Estonian)
+    for target "es".
     """
     if not extracted:
         return None, None, None
 
-    target_lc = (target_language or "").lower() or None
+    from config_language_data import normalize_language_code
+
+    target_lc = normalize_language_code((target_language or "").lower()) or None
     if target_lc:
-        target_matches = [e for e in extracted if e["language"].startswith(target_lc[:2])]
+        target_matches = [
+            e for e in extracted if normalize_language_code(e["language"]) == target_lc
+        ]
         if target_matches:
             ass_first = sorted(target_matches, key=lambda e: 0 if e["format"] == "ass" else 1)
             chosen = ass_first[0]
@@ -889,13 +898,31 @@ def compute_keep_langs(profile: dict, settings) -> set[str]:
     Always includes the profile's ``target_languages``. Adds
     ``settings.source_language`` when ``wanted_auto_translate`` is enabled
     so the source-lang sidecar survives long enough to be translated.
+
+    Script-variant targets (zh-hans, zh-hant) also keep their base code —
+    containers/sidecars are usually tagged with the generic language
+    ("chi"/"zho"/"zh" → "zh"), and those must never be trashed for a
+    zh-hans profile.
+
+    ``und``/``und1``/``und2`` placeholders are dropped: a keep-set of just
+    "undetermined" would pass the non-empty guards downstream and turn the
+    "empty set → no-op" safety design into "trash every recognised
+    language".
     """
     from config_language_data import normalize_language_code
 
-    keep = {normalize_language_code(code) for code in profile.get("target_languages", []) if code}
+    keep: set[str] = set()
+    codes = list(profile.get("target_languages", []))
     if getattr(settings, "wanted_auto_translate", False):
         src = getattr(settings, "source_language", "") or ""
         if src:
-            keep.add(normalize_language_code(src))
-    keep.discard("")
+            codes.append(src)
+    for code in codes:
+        if not code:
+            continue
+        normalised = normalize_language_code(code)
+        keep.add(normalised)
+        if "-" in normalised:
+            keep.add(normalised.split("-", 1)[0])
+    keep.difference_update({"", "und", "und1", "und2"})
     return keep

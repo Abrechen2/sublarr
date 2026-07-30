@@ -493,9 +493,32 @@ def save_subtitle(
         if _video:
             from services.foreign_track_cleanup import maybe_run_foreign_track_cleanup
 
+            # The keep-set must cover ALL of the profile's target languages,
+            # not just the language of the sub that happened to land first —
+            # a de+ja profile lost its embedded Japanese track the moment the
+            # German sidecar arrived.
+            _profile_targets: set[str] | None = None
+            try:
+                from config import get_settings as _ftc_get_settings
+                from services.embedded_extractor import (
+                    compute_keep_langs,
+                    resolve_profile_for_item,
+                )
+
+                _ftc_settings = _ftc_get_settings()
+                _item_stub = {"sonarr_series_id": series_id}
+                _profile = resolve_profile_for_item(_item_stub, _ftc_settings)
+                _profile_targets = compute_keep_langs(_profile, _ftc_settings)
+                if result.language:
+                    _profile_targets.add(str(result.language).lower())
+            except Exception as _prof_exc:
+                logger.debug("[foreign-track] profile keep-set fallback: %s", _prof_exc)
+                _profile_targets = None
+
             maybe_run_foreign_track_cleanup(
                 {"sonarr_series_id": series_id, "target_language": result.language},
                 _video,
+                target_languages=_profile_targets,
             )
     except Exception as _exc:
         logger.debug("[foreign-track] post-download hook skipped: %s", _exc)

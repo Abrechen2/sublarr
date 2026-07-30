@@ -29,16 +29,24 @@ def resolve_combine_sources(video_path: str, languages: list[str]) -> tuple[list
     match ``languages`` (primary first), each the best sidecar for that language
     by ``plain > hi > forced`` priority.
     """
+    from config_language_data import normalize_language_code
     from services.sidecar_scan import scan_subtitle_sidecars
 
+    # Group by canonical code: extracted sidecars usually carry 3-letter
+    # filename tags (.ger.ass/.eng.ass) while combine_languages come from
+    # the profile as 2-letter codes — a raw-key lookup never matched and
+    # silently disabled auto-combine for extracted sidecars.
     by_lang: dict[str, list[dict]] = {}
     for side in scan_subtitle_sidecars(video_path):
-        by_lang.setdefault(side.get("language"), []).append(side)
+        if side.get("combined"):
+            continue
+        key = normalize_language_code(str(side.get("language") or "").lower())
+        by_lang.setdefault(key, []).append(side)
 
     present: list[dict] = []
     missing: list[str] = []
     for lang in languages:
-        best = pick_best_sidecar(by_lang.get(lang, []))
+        best = pick_best_sidecar(by_lang.get(normalize_language_code(str(lang).lower()), []))
         if best is None:
             missing.append(lang)
         else:
