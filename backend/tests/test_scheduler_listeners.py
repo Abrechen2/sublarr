@@ -129,8 +129,12 @@ def test_listener_error_does_not_crash_scheduler(scheduler, caplog):
         scheduled_run_time=datetime.now(UTC),
     )
     with (
+        # Patch the module-global the listener closure actually references —
+        # services.scheduler.core imports _write_job_run at module top, so
+        # patching the package re-export (services.scheduler._write_job_run)
+        # would leave the listener on the real function.
         patch(
-            "services.scheduler._write_job_run",
+            "services.scheduler.core._write_job_run",
             side_effect=RuntimeError("db down"),
         ),
         caplog.at_level(logging.ERROR, logger="services.scheduler"),
