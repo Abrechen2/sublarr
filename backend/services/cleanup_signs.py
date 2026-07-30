@@ -154,9 +154,12 @@ def execute_signs_cleanup(media_path: str, config: dict, dry_run: bool = False) 
             * ``strip_embedded`` (bool, default False) — when True, also probe
               video files and remux out embedded streams that classify as
               signs/forced/songs.
-            * ``keep_languages`` (list[str], default ["de","en"]) — ISO-639-1
-              codes; the last keep-language embedded track per language is
-              never dropped.
+            * ``keep_languages`` — accepted for backwards compatibility but
+              NOT used: the embedded pass is deliberately language-agnostic.
+              The only protection is the last-track guard (never drop the
+              last text sub of a file), which is stricter than a language
+              filter — signs/forced tracks are removed regardless of
+              language, full-dialogue tracks are never touched.
         dry_run: When True nothing is deleted; returns counts + examples only.
 
     Returns:

@@ -581,11 +581,32 @@ def _cleanup_series_sidecars(episode_files: dict, keep_langs: set, keep_format: 
         keep_format: "ass" | "srt" | "any" — if "ass", delete SRT when ASS exists for same lang
 
     Returns:
-        Number of files deleted.
+        Number of files moved to the trash.
     """
+    from config_language_data import _REVERSE_LANGUAGE_TAGS, normalize_language_code
     from routes.subtitles import scan_subtitle_sidecars  # noqa: I001
+    from services.cleanup_executors import _trash_path
+
+    # Sidecar tags come straight from filenames (often 3-letter: "eng",
+    # "ger") while the setting documents 2-letter codes ("de,en") — both
+    # sides MUST be canonicalised or the comparison deletes everything the
+    # batch extract just produced, target language included.
+    keep_normalised = {normalize_language_code(code) for code in keep_langs if code}
+    keep_normalised.discard("")
+    if not keep_normalised:
+        return 0
 
     deleted = 0
+
+    def _trash(path: str, reason: str) -> int:
+        # Recoverable trash, never a hard delete — this cleanup runs
+        # automatically after batch-extract and used to os.unlink files
+        # (including the target language, via the eng-vs-en mismatch).
+        if _trash_path(path):
+            logger.debug("[auto-cleanup] trashed %s (%s)", path, reason)
+            return 1
+        logger.warning("[auto-cleanup] could not trash %s", path)
+        return 0
 
     for file_info in episode_files.values():
         raw_path = file_info.get("path")
@@ -605,25 +626,24 @@ def _cleanup_series_sidecars(episode_files: dict, keep_langs: set, keep_format: 
             fmt = sidecar["format"]
             path = sidecar["path"]
 
-            # Delete if language not in keep list
-            if lang not in keep_langs:
-                try:
-                    os.unlink(path)
-                    deleted += 1
-                    logger.debug("[auto-cleanup] removed %s (not in keep_languages)", path)
-                except OSError as exc:
-                    logger.warning("[auto-cleanup] could not remove %s: %s", path, exc)
+            # Combined/bilingual artefacts (Show.de-en.combined.ass) are
+            # deliberately produced by combine_service — never cleanup fodder.
+            if sidecar.get("combined"):
                 continue
 
-            # Prefer-ASS: delete SRT when ASS exists for same language
+            normalised = normalize_language_code(lang)
+
+            # Trash if language not in keep list. Unknown/und tags are kept —
+            # cannot prove they are disposable.
+            if normalised not in keep_normalised:
+                if (lang or "").lower() in _REVERSE_LANGUAGE_TAGS:
+                    deleted += _trash(path, "not in keep_languages")
+                continue
+
+            # Prefer-ASS: trash SRT when ASS exists for same language
             if keep_format == "ass" and fmt == "srt":
                 if (lang, "ass") in existing:
-                    try:
-                        os.unlink(path)
-                        deleted += 1
-                        logger.debug("[auto-cleanup] removed SRT %s (ASS exists)", path)
-                    except OSError as exc:
-                        logger.warning("[auto-cleanup] could not remove %s: %s", path, exc)
+                    deleted += _trash(path, "SRT redundant, ASS exists")
 
     return deleted
 

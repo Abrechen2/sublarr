@@ -339,6 +339,11 @@ class UISettings(BaseModel):
     embedded_allow_sdh: bool = True
     embedded_sdh_penalty: int = 5
 
+    # Issue #159: container stream removal after extraction used to be an
+    # unconditional side effect. Opt-in now; even when enabled, streams in
+    # the keep-languages set are never removed.
+    embedded_extract_remove_from_container: bool = False
+
     # Dubtitle detection (roadmap A4 / issue #146). Off by default: surfaces
     # the dubtitle among multiple English tracks; suggest-then-confirm, never
     # silently applied. dubtitle_min_score is the Tier-2 audio-match threshold.
@@ -516,6 +521,11 @@ class UISettings(BaseModel):
     remux_backup_retention_days: int = 7  # 0 = keep forever
     remux_use_reflink: bool = True  # CoW reflink on Btrfs/XFS for zero-cost backups
     remux_arr_pause_enabled: bool = True  # Pause Sonarr/Radarr during remux
+    # Issue #160: rewriting a hardlinked file (the recommended *arr setup)
+    # breaks the link — disk usage doubles and the seeding copy diverges.
+    # "skip" refuses the remux and logs; "warn" proceeds with an auditable
+    # warning; "allow" is the pre-1.9.5 behaviour.
+    remux_hardlink_policy: str = "skip"  # skip | warn | allow
 
     # Subtitle backup files (.bak.srt/.bak.ass)
     subtitle_bak_retention_days: int = 30  # 0 = keep forever

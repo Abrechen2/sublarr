@@ -26,8 +26,10 @@ def test_default_signs_rule_seeded(app_ctx):
     cfg = signs["config_json"]
     assert cfg.get("strip_embedded") is True
     assert cfg.get("permanent_delete") is False
-    assert "de" in cfg.get("keep_languages", [])
-    assert "en" in cfg.get("keep_languages", [])
+    # keep_languages is intentionally NOT seeded: the signs executor never
+    # read it (language-agnostic last-track guard only), and seeding it
+    # implied a protection that does not exist.
+    assert "keep_languages" not in cfg
 
 
 def test_ensure_default_rules_is_idempotent(app_ctx):

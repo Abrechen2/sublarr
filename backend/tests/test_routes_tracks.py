@@ -830,8 +830,8 @@ class TestCleanupSeriesSidecars:
         deleted = _cleanup_series_sidecars(episode_files, {"de"}, "any")
         assert deleted == 0
 
-    def test_handles_os_error_on_unlink(self, tmp_path):
-        """OSError during unlink is caught and does not crash."""
+    def test_handles_trash_failure(self, tmp_path):
+        """A failed trash move is not counted and does not crash."""
         video = tmp_path / "ep.mkv"
         video.write_text("fake video")
 
@@ -844,11 +844,113 @@ class TestCleanupSeriesSidecars:
         with (
             patch("routes.tracks.map_path", side_effect=lambda p: p),
             patch("routes.subtitles.scan_subtitle_sidecars", return_value=sidecars),
-            patch("os.unlink", side_effect=OSError("permission denied")),
+            patch("services.cleanup_executors._trash_path", return_value=False),
         ):
             deleted = _cleanup_series_sidecars(episode_files, {"de"}, "any")
 
-        assert deleted == 0  # unlink failed, so count stays 0
+        assert deleted == 0  # trash failed, so count stays 0
+
+    def test_three_letter_tags_match_two_letter_keep_list(self, tmp_path):
+        """F2 regression: sidecar tags from filenames are often 3-letter
+        ("eng", "ger") while the setting documents 2-letter codes ("de,en").
+        The old raw comparison hard-deleted every file the batch extract had
+        just produced — target language included."""
+        video = tmp_path / "ep.mkv"
+        video.write_text("fake video")
+        eng = tmp_path / "ep.eng.srt"
+        eng.write_text("content")
+        ger = tmp_path / "ep.ger.srt"
+        ger.write_text("content")
+        jpn = tmp_path / "ep.jpn.srt"
+        jpn.write_text("content")
+
+        sidecars = [
+            {"language": "eng", "format": "srt", "path": str(eng)},
+            {"language": "ger", "format": "srt", "path": str(ger)},
+            {"language": "jpn", "format": "srt", "path": str(jpn)},
+        ]
+        episode_files = {1: {"path": str(video)}}
+
+        with (
+            patch("routes.tracks.map_path", side_effect=lambda p: p),
+            patch("routes.subtitles.scan_subtitle_sidecars", return_value=sidecars),
+            patch("services.cleanup_executors._trash_path", return_value=True) as mock_trash,
+        ):
+            deleted = _cleanup_series_sidecars(episode_files, {"de", "en"}, "any")
+
+        assert deleted == 1
+        trashed_paths = [c.args[0] for c in mock_trash.call_args_list]
+        assert trashed_paths == [str(jpn)], "eng/ger must map onto the en/de keep list"
+
+    def test_combined_bilingual_files_are_never_trashed(self, tmp_path):
+        """Combined artefacts (ep.de-en.combined.ass) are produced on purpose
+        by combine_service — the keep-language cleanup must skip them."""
+        video = tmp_path / "ep.mkv"
+        video.write_text("fake video")
+        combined = tmp_path / "ep.de-en.combined.ass"
+        combined.write_text("content")
+
+        sidecars = [
+            {
+                "language": "de-en",
+                "format": "ass",
+                "path": str(combined),
+                "combined": True,
+            },
+        ]
+        episode_files = {1: {"path": str(video)}}
+
+        with (
+            patch("routes.tracks.map_path", side_effect=lambda p: p),
+            patch("routes.subtitles.scan_subtitle_sidecars", return_value=sidecars),
+            patch("services.cleanup_executors._trash_path", return_value=True) as mock_trash,
+        ):
+            deleted = _cleanup_series_sidecars(episode_files, {"de"}, "any")
+
+        assert deleted == 0
+        mock_trash.assert_not_called()
+
+    def test_unknown_language_tags_are_kept(self, tmp_path):
+        video = tmp_path / "ep.mkv"
+        video.write_text("fake video")
+        weird = tmp_path / "ep.zxx.srt"
+        weird.write_text("content")
+
+        sidecars = [
+            {"language": "zxx", "format": "srt", "path": str(weird)},
+        ]
+        episode_files = {1: {"path": str(video)}}
+
+        with (
+            patch("routes.tracks.map_path", side_effect=lambda p: p),
+            patch("routes.subtitles.scan_subtitle_sidecars", return_value=sidecars),
+            patch("services.cleanup_executors._trash_path", return_value=True) as mock_trash,
+        ):
+            deleted = _cleanup_series_sidecars(episode_files, {"de"}, "any")
+
+        assert deleted == 0
+        mock_trash.assert_not_called()
+
+    def test_empty_keep_list_is_a_noop(self, tmp_path):
+        video = tmp_path / "ep.mkv"
+        video.write_text("fake video")
+        fr = tmp_path / "ep.fr.srt"
+        fr.write_text("content")
+
+        episode_files = {1: {"path": str(video)}}
+
+        with (
+            patch("routes.tracks.map_path", side_effect=lambda p: p),
+            patch(
+                "routes.subtitles.scan_subtitle_sidecars",
+                return_value=[{"language": "fr", "format": "srt", "path": str(fr)}],
+            ),
+            patch("services.cleanup_executors._trash_path", return_value=True) as mock_trash,
+        ):
+            deleted = _cleanup_series_sidecars(episode_files, set(), "any")
+
+        assert deleted == 0
+        mock_trash.assert_not_called()
 
 
 # ===================================================================

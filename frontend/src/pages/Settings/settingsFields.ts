@@ -142,6 +142,13 @@ export const FIELDS: FieldConfig[] = [
   { key: 'remux_arr_pause_enabled', label: 'Pause *arr during Remux', type: 'toggle', tab: 'Automation',
     description: 'Sonarr/Radarr-Ordner-Monitoring während des Remux pausieren.',
     advanced: true },
+  { key: 'remux_hardlink_policy', label: 'Hardlink Policy', type: 'select', tab: 'Automation',
+    options: [
+      { value: 'skip', label: 'Skip (hardlinked Dateien nie remuxen)' },
+      { value: 'warn', label: 'Warn (remuxen, aber Warnung loggen)' },
+      { value: 'allow', label: 'Allow (immer remuxen)' },
+    ],
+    description: 'Jeder Remux bricht Hardlinks (Standard bei *arr-Setups mit Torrent-Seeding): Speicherverbrauch verdoppelt sich und die Seeding-Kopie weicht ab. "Skip" (Standard) überspringt Container-Remuxe für Dateien mit mehreren Links.' },
   // Automation — Search Scheduler
   { key: 'wanted_search_interval_hours', label: 'Search Interval (hours, 0=disabled)', type: 'number', placeholder: '24', tab: 'Automation',
     description: 'Interval für automatische Provider-Suche. 0 = deaktiviert.',

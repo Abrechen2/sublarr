@@ -34,7 +34,27 @@ def _is_stable(path: str) -> bool:
     return age > 300  # at least 5 minutes since last write
 
 
+def _sweep_enabled() -> bool:
+    """Honour the feature toggle AND the sweep toggle.
+
+    Both settings existed in config but were never read — a user who
+    disabled the sweep still had sidecars rewritten nightly whenever
+    auto-fix was on.
+    """
+    from config import get_settings
+
+    try:
+        settings = get_settings()
+    except Exception:
+        return False
+    return bool(getattr(settings, "subtitle_health_enabled", True)) and bool(
+        getattr(settings, "subtitle_health_sweep_enabled", True)
+    )
+
+
 def subtitle_health_sweep_tick() -> None:
+    if not _sweep_enabled():
+        return
     client = get_sonarr_client()
     if client is None:
         return

@@ -108,6 +108,45 @@ def _filter_eligible(items: list[dict], settings) -> list[dict]:
     return eligible
 
 
+def _enqueue_embedded_items(embedded_items, settings) -> tuple[list[dict], int]:
+    """Enqueue embedded-sub items to the subtitle-automation queue.
+
+    Mirrors the scan-time routing in
+    ``wanted_scanner_sources._maybe_auto_extract``: when automation is on,
+    the drain worker owns extraction. Returns ``(leftover, enqueued)`` —
+    leftovers are items that could not be enqueued (no resolvable target
+    language, or the repository raised); the caller decides whether they
+    fall back to inline extraction or to the normal provider search.
+    """
+    from db.repositories.subtitle_automation_queue import (
+        SubtitleAutomationQueueRepository,
+    )
+
+    leftover: list[dict] = []
+    enqueued = 0
+    repo = SubtitleAutomationQueueRepository()
+    for item in embedded_items:
+        target_lang = item.get("target_language") or getattr(settings, "target_language", "")
+        if not target_lang:
+            leftover.append(item)
+            continue
+        try:
+            repo.enqueue(
+                wanted_item_id=item["id"],
+                file_path=item["file_path"],
+                target_language=target_lang,
+            )
+            enqueued += 1
+        except Exception as exc:  # noqa: BLE001 — enqueue must never break the search tick
+            logger.warning(
+                "[search_all] automation enqueue failed for item %d: %s — falling back",
+                item["id"],
+                exc,
+            )
+            leftover.append(item)
+    return leftover, enqueued
+
+
 def _extract_embedded_items(
     embedded_items, processed, found, failed, total, socketio, settings
 ) -> tuple[int, int, int]:

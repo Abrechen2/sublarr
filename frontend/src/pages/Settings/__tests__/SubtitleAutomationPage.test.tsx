@@ -139,12 +139,13 @@ describe('SubtitleAutomationPage', () => {
     expect(screen.getByText('Allow SDH as source')).toBeInTheDocument()
     expect(screen.getByText('SDH score penalty')).toBeInTheDocument()
     // Cleanup section
+    expect(screen.getByText('Remove extracted streams from container')).toBeInTheDocument()
     expect(screen.getByText('Strip by default')).toBeInTheDocument()
     expect(screen.getByText('Keep undetermined (und)')).toBeInTheDocument()
 
-    // 5 toggles (master + queue + SDH + 2x cleanup) — interval + penalty are numbers
+    // 6 toggles (master + queue + SDH + 3x cleanup) — interval + penalty are numbers
     const toggles = screen.getAllByRole('switch')
-    expect(toggles).toHaveLength(5)
+    expect(toggles).toHaveLength(6)
   })
 
   it('shows queue counts, last_run_at and last_error', () => {

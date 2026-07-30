@@ -420,12 +420,56 @@ def _verify(original_path: str, remuxed_path: str, n_removed: int = 1) -> None:
 # ---------------------------------------------------------------------------
 
 
+def check_hardlink_policy(video_path: str) -> bool:
+    """Gate every container rewrite on ``remux_hardlink_policy`` (issue #160).
+
+    Most Sonarr/Radarr setups hardlink the library to the download folder;
+    a remux rewrites via temp + atomic replace and silently breaks that
+    link (disk usage doubles, the seeding copy diverges).
+
+    Returns True when the remux may proceed:
+      - ``allow``: always proceed (pre-1.9.5 behaviour).
+      - ``warn``:  proceed, but log an auditable warning for linked files.
+      - ``skip``:  refuse the remux for files with st_nlink > 1 (default).
+    A failed stat never blocks — the remux itself will surface the error.
+    """
+    try:
+        from config import get_settings
+
+        policy = (getattr(get_settings(), "remux_hardlink_policy", "skip") or "skip").lower()
+    except Exception:
+        policy = "skip"
+    if policy == "allow":
+        return True
+    try:
+        nlink = os.stat(video_path).st_nlink
+    except OSError:
+        return True
+    if nlink <= 1:
+        return True
+    if policy == "warn":
+        logger.warning(
+            "Remux: %s has %d hardlinks — proceeding anyway "
+            "(remux_hardlink_policy=warn); the hardlink will break",
+            video_path,
+            nlink,
+        )
+        return True
+    logger.info(
+        "Remux: skipped — %s has %d hardlinks (remux_hardlink_policy=skip; "
+        "set to 'warn' or 'allow' to remux hardlinked files)",
+        video_path,
+        nlink,
+    )
+    return False
+
+
 def remove_subtitle_streams(
     video_path: str,
     streams: list[tuple[int, int]],
     use_reflink: bool = True,
     trash_dir: str = ".sublarr",
-) -> str:
+) -> str | None:
     """Remove one or more subtitle streams from a video container in one pass.
 
     Parameters
@@ -444,8 +488,9 @@ def remove_subtitle_streams(
 
     Returns
     -------
-    str
-        Path to the created backup file.
+    str | None
+        Path to the created backup file, or None when the remux was skipped
+        by ``remux_hardlink_policy`` (hardlinked file, policy "skip").
 
     Raises
     ------
@@ -454,6 +499,9 @@ def remove_subtitle_streams(
     """
     if not streams:
         raise RemuxError("No streams specified for removal")
+
+    if not check_hardlink_policy(video_path):
+        return None
 
     backend = _detect_backend(video_path)
     video_dir = os.path.dirname(video_path)
@@ -506,7 +554,7 @@ def remove_subtitle_stream(
     subtitle_track_index: int,
     use_reflink: bool = True,
     trash_dir: str = ".sublarr",
-) -> str:
+) -> str | None:
     """Remove a single subtitle stream. Convenience wrapper around remove_subtitle_streams."""
     return remove_subtitle_streams(
         video_path=video_path,
@@ -572,10 +620,24 @@ def remove_foreign_subtitle_streams(
         )
         return None
 
+    # Early hardlink gate — avoids the probe and a misleading "stripping N
+    # tracks" log line when the policy would refuse the rewrite anyway.
+    if not check_hardlink_policy(video_path):
+        return None
+
     try:
         probe = get_media_streams(video_path)
     except Exception as exc:
         raise RemuxError(f"ffprobe failed on {video_path}: {exc}") from exc
+
+    # Defence in depth: callers are documented to pass a fully expanded tag
+    # set ({"de","deu","ger",...}), but compare canonical forms as well so a
+    # caller that passes bare 2-letter codes can never strip its own target
+    # language because the container used a 3-letter tag.
+    from config_language_data import normalize_language_code
+
+    normalized_targets = {normalize_language_code(str(t).lower()) for t in target_languages if t}
+    normalized_targets.discard("")
 
     streams_to_remove: list[tuple[int, int]] = []
     sub_only_idx = 0
@@ -583,7 +645,9 @@ def remove_foreign_subtitle_streams(
         if stream.get("codec_type") != "subtitle":
             continue
         lang = (stream.get("tags", {}).get("language", "und") or "und").lower()
-        is_foreign = lang not in target_languages
+        is_foreign = (
+            lang not in target_languages and normalize_language_code(lang) not in normalized_targets
+        )
         if is_foreign and not (keep_und and lang == "und"):
             global_idx = stream.get("index")
             if global_idx is not None:
@@ -635,6 +699,9 @@ def remove_subtitle_streams_by_index(
         On backup failure, mkvmerge error, or verification failure.
     """
     if not drop_indices:
+        return None
+
+    if not check_hardlink_policy(video_path):
         return None
 
     # Map subtitle-relative positions (sub_index) -> global ffprobe stream index.
@@ -717,6 +784,10 @@ _SIDECAR_EXTS = (".ass", ".srt", ".vtt", ".sub")
 # Modifier suffixes that can appear between lang and extension:
 #   show.en.forced.srt, show.de.sdh.ass, show.en.hi.vtt
 # We preserve them so the cleanup knows "lang=en" even when there's a modifier.
+# NOTE: deliberately diverges from subtitle_filename.MODIFIERS (adds
+# sign/signs, lacks bak; single trailing token vs. unbounded stacking).
+# Every divergence errs toward NOT parsing — an unparsed sidecar is never
+# trashed — so keep it that way when editing either table.
 _SIDECAR_MODIFIERS = ("forced", "sdh", "hi", "cc", "sign", "signs")
 
 

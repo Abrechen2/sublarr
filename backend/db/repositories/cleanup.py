@@ -241,9 +241,12 @@ class CleanupRepository(BaseRepository):
             "rule_type": "signs_cleanup",
             "enabled": False,
             "schedule": "weekly",
+            # NOTE: keep_languages is intentionally absent — the signs
+            # executor is language-agnostic (last-track guard only) and
+            # never read the key; seeding it implied a protection that
+            # does not exist.
             "config_json": _json.dumps(
                 {
-                    "keep_languages": ["de", "en"],
                     "strip_embedded": True,
                     "permanent_delete": False,
                 }
