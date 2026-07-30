@@ -146,3 +146,24 @@ def get_media_server_instances() -> list[dict]:
         return migrated
 
     return []
+
+
+def get_shoko_config() -> dict | None:
+    """Return the first enabled Shoko instance config, or None.
+
+    Shoko is configured as a ``shoko``-typed entry in the shared
+    ``media_servers_json`` blob (same store the media-server manager uses for
+    the rescan role), so the enricher/library-sync code and the media-server
+    rescan share a single source of truth. Returns a dict with at least
+    ``url`` plus ``api_key``/``username``/``password`` when configured.
+    """
+    for entry in get_media_server_instances():
+        if not isinstance(entry, dict):
+            continue
+        if entry.get("type") != "shoko":
+            continue
+        if not entry.get("enabled", True):
+            continue
+        if entry.get("url"):
+            return entry
+    return None

@@ -62,9 +62,60 @@ def _enrich_from_sonarr(query: VideoQuery, wanted_item: dict) -> bool:
         return False
 
 
+def _resolve_anidb_from_shoko(query: VideoQuery) -> bool:
+    """Tier 0: set AniDB IDs from Shoko's authoritative file→AniDB mapping.
+
+    Shoko already matches every physical file to its exact AniDB anime,
+    AniDB episode and (for Normal episodes) absolute-episode number, so when
+    a Shoko instance is configured this short-circuits the fuzzy resolution
+    chain below. No-op (returns False) when Shoko is disabled/unreachable or
+    the file is unknown to Shoko.
+    """
+    if not query.file_path:
+        return False
+    try:
+        from config import get_shoko_config
+
+        shoko_cfg = get_shoko_config()
+        if not shoko_cfg:
+            return False
+
+        from metadata.shoko_client import ShokoClient
+
+        client = ShokoClient(
+            url=shoko_cfg.get("url", ""),
+            api_key=shoko_cfg.get("api_key", ""),
+            username=shoko_cfg.get("username", ""),
+            password=shoko_cfg.get("password", ""),
+        )
+        ids = client.get_file_ids_by_path(query.file_path)
+        if not ids or not ids.anidb_anime_id:
+            return False
+
+        query.anidb_id = ids.anidb_anime_id
+        if ids.anidb_episode_id:
+            query.anidb_episode_id = ids.anidb_episode_id
+        if ids.absolute_episode is not None and query.absolute_episode is None:
+            query.absolute_episode = ids.absolute_episode
+        logger.debug(
+            "Resolved AniDB ID %d (ep %s, abs %s) from Shoko for %s",
+            ids.anidb_anime_id,
+            ids.anidb_episode_id,
+            ids.absolute_episode,
+            query.file_path,
+        )
+        return True
+    except Exception as _e:  # noqa: BLE001 — Shoko lookup is best-effort
+        logger.debug("Shoko AniDB resolution failed for %s: %s", query.file_path, _e)
+        return False
+
+
 def _resolve_anidb_id_for_standalone(query: VideoQuery, wanted_item: dict) -> None:
-    """Try to set ``query.anidb_id`` using cache → AniList → title search → title dump."""
+    """Try to set ``query.anidb_id`` using Shoko → cache → AniList → title search → title dump."""
     if query.anidb_id:
+        return
+    # Tier 0: authoritative Shoko file→AniDB mapping (short-circuits the rest).
+    if _resolve_anidb_from_shoko(query):
         return
     try:
         # Tier 1: TVDB→AniDB cache
@@ -261,6 +312,10 @@ def _enrich_from_filename(query: VideoQuery, wanted_item: dict) -> None:
 
 def _resolve_anidb_absolute_episode(query: VideoQuery, wanted_item: dict) -> None:
     """Set query.absolute_episode from the AniDB mapping when absolute_order is enabled."""
+    # Shoko (or another authoritative source) may already have set the absolute
+    # episode; its per-file AniDB number beats the TVDB→AniDB range mapping.
+    if query.absolute_episode is not None:
+        return
     if not (
         wanted_item["item_type"] == "episode"
         and query.tvdb_id is not None

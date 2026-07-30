@@ -292,6 +292,20 @@ Point Sublarr at your media folder in *Settings → Library Sources*. It will wa
 2. Enter your server URL and API key
 3. Sublarr will trigger a library refresh after each subtitle download
 
+### Shoko Server (anime — AniDB matching)
+
+1. *Sublarr → Settings → Connections → Add Media Server → Shoko Server*
+2. Enter your Shoko URL (default port `8111`) and an API key — or a username/password
+3. (Optional) Set a *Path Mapping* (`from:to`) if Sublarr and Shoko mount the media under different roots
+
+What it does:
+- **Authoritative AniDB matching** — Shoko already knows the exact AniDB anime, episode
+  and absolute-episode number for every file it manages, so Sublarr uses that instead of
+  guessing via titles. This directly improves Jimaku (AniDB-ID-based) results and fixes
+  alternate episode ordering. An explicit Sonarr `anidb_id` custom field still wins.
+- **Rescan after download** — like Jellyfin/Emby, Shoko is told to rescan the file after
+  a subtitle is written so it picks up the new external subtitle.
+
 ### Ollama (Local LLM — translation beta)
 
 > ⚠️ Translation quality is variable. Only enable if you need it.

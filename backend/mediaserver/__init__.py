@@ -311,3 +311,8 @@ def _register_builtin_servers(manager: MediaServerManager) -> None:
     from mediaserver.kodi import KodiServer
 
     manager.register_server_type(KodiServer)
+
+    # Shoko: uses stdlib requests (always available)
+    from mediaserver.shoko import ShokoServer
+
+    manager.register_server_type(ShokoServer)
