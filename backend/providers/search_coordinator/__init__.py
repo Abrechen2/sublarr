@@ -85,9 +85,16 @@ class SearchCoordinatorMixin(SearchRetryMixin, SearchScoringMixin, SearchCacheMi
         futures: dict = {}
         futures_to_key: dict = {}
 
+        # Provider profile: a language profile can restrict which providers a
+        # search may query. Empty/absent = no restriction (global selection).
+        allowed = set(getattr(query, "allowed_providers", None) or [])
+
         for name, provider in self._providers.items():
             # Reset per-iteration key tracking (Phase 4a).
             key: dict | None = None
+            if allowed and name not in allowed:
+                logger.debug("Skipping provider %s -- not in profile provider list", name)
+                continue
             # Check auto-disable status
             if is_provider_auto_disabled(name):
                 logger.debug("Skipping provider %s -- auto-disabled", name)

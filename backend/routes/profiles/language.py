@@ -102,6 +102,14 @@ def create_language_profile_endpoint():
                   type: string
                   enum: [disabled, separate, auto]
                   default: disabled
+                enabled_providers:
+                  type: array
+                  items:
+                    type: string
+                  description: Provider names this profile searches. Empty = all globally enabled providers.
+                scoring_preset:
+                  type: string
+                  description: Bundled scoring preset name (e.g. Anime). Empty = global scoring weights.
       responses:
         201:
           description: Profile created
@@ -175,6 +183,14 @@ def update_language_profile_endpoint(profile_id):
                 forced_preference:
                   type: string
                   enum: [disabled, separate, auto]
+                enabled_providers:
+                  type: array
+                  items:
+                    type: string
+                  description: Provider names this profile searches. Empty = all globally enabled providers.
+                scoring_preset:
+                  type: string
+                  description: Bundled scoring preset name (e.g. Anime). Empty = global scoring weights.
       responses:
         200:
           description: Updated profile

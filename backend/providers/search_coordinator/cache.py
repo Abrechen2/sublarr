@@ -190,6 +190,10 @@ class SearchCacheMixin:
             ",".join(sorted(query.languages)) if query.languages else "",
             format_filter.value if format_filter else "",
             str(query.anidb_id) if query.anidb_id else "",
+            # Profile-scoped provider list + scoring preset change both the
+            # candidate set and the scores — they must partition the cache.
+            ",".join(sorted(getattr(query, "allowed_providers", None) or [])),
+            getattr(query, "scoring_preset", "") or "",
         ]
         key_str = "|".join(key_parts)
         return hashlib.md5(key_str.encode(), usedforsecurity=False).hexdigest()  # noqa: S324

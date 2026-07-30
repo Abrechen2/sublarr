@@ -15,6 +15,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   multiple independent instances via `customapi_instances_json` — each with
   its own stats, health state, and circuit breaker. Pure configuration, no
   third-party code execution.
+- **Provider profiles.** A language profile can now carry its own provider
+  selection: items assigned to the profile only query the selected providers
+  (e.g. Jimaku/AnimeTosho/Kitsunekko for anime, OpenSubtitles/Addic7ed for
+  films), while an empty selection keeps today's behaviour of using all
+  globally enabled providers. Configured per profile under Settings →
+  Subtitles → Languages.
+- **Per-profile scoring presets.** A profile can pin one of the bundled
+  scoring presets (Anime / Movies / TV) instead of the global weights, so an
+  anime profile scores with a stronger ASS/release-group preference while a
+  film profile keeps the movie weights — no more global either/or. The
+  interactive search shows scores computed with the item's profile preset,
+  and preset weights now survive the penalty-rule pipeline (previously a
+  preset's `format_bonus` was silently replaced by the rule's weight).
+
+### Fixed
+- **Score breakdown now accounts for every point.** The preferred-release-group
+  bonus is included in the "why this score?" breakdown instead of being added
+  silently, and the breakdown tooltip renders readable labels for the video
+  codec component and all penalty-rule entries instead of raw keys.
 
 ## [1.9.4] - 2026-07-16
 

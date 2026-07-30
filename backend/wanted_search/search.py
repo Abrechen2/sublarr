@@ -103,6 +103,14 @@ def search_wanted_item(item_id: int) -> dict:
     target_query = build_query_from_wanted(item)
     target_query.languages = [item_lang]
 
+    # Provider profile: restrict providers + swap the scoring weight set.
+    # Applied before the deepcopy so the source query inherits both.
+    from wanted_search.process import _load_profile_filters
+
+    _pf = _load_profile_filters(item, item_id)
+    target_query.allowed_providers = list(_pf.get("enabled_providers") or [])
+    target_query.scoring_preset = _pf.get("scoring_preset", "") or ""
+
     source_query = copy.deepcopy(target_query)
     source_query.languages = [source_lang]
 
@@ -226,6 +234,14 @@ def search_providers_for_item(item_id: int) -> dict:
     # Search without language restriction so the modal shows all available languages
     query = build_query_from_wanted(item)
     query.languages = []
+
+    # Interactive search is the manual escape hatch: the profile's provider
+    # restriction is NOT applied here, but its scoring preset is, so the
+    # scores shown match what the automatic search would compute.
+    from wanted_search.process import _load_profile_filters
+
+    _pf = _load_profile_filters(item, item_id)
+    query.scoring_preset = _pf.get("scoring_preset", "") or ""
 
     all_results = []
     try:

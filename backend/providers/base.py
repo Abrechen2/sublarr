@@ -107,6 +107,14 @@ class VideoQuery:
     # Forced scoring preference from the language profile
     forced_scoring: str = "include"  # include | prefer | exclude | only
 
+    # Provider profile from the language profile: names of providers this
+    # search may query. Empty = all globally enabled providers.
+    allowed_providers: list[str] = field(default_factory=list)
+
+    # Scoring preset name from the language profile (bundled preset, e.g.
+    # "Anime"). Empty = global scoring weights from the database.
+    scoring_preset: str = ""
+
     @property
     def is_episode(self) -> bool:
         return self.season is not None and self.episode is not None
@@ -284,6 +292,40 @@ def invalidate_scoring_cache() -> None:
         _modifier_cache["expires"] = 0
 
 
+# Bundled presets are static files — cache resolved weight maps for the
+# process lifetime, keyed by (preset_name, score_type).
+_preset_weights_cache: dict[tuple[str, str], dict] = {}
+
+
+def _get_preset_weights(preset_name: str, score_type: str) -> dict | None:
+    """Resolve a bundled scoring preset to a full weight map.
+
+    Preset weights are merged over the hardcoded defaults so a preset only
+    needs to override the keys it cares about. Returns None when the preset
+    is unknown or has no weights for this score_type, so the caller can fall
+    back to the global DB-backed weights.
+    """
+    cache_key = (preset_name, score_type)
+    if cache_key in _preset_weights_cache:
+        return _preset_weights_cache[cache_key]
+
+    resolved: dict | None = None
+    try:
+        from scoring_presets import get_bundled_preset
+
+        preset = get_bundled_preset(preset_name)
+        if preset:
+            preset_weights = (preset.get("weights") or {}).get(score_type)
+            if isinstance(preset_weights, dict) and preset_weights:
+                defaults = EPISODE_SCORES if score_type == "episode" else MOVIE_SCORES
+                resolved = {**defaults, **preset_weights}
+    except Exception:
+        resolved = None  # fall back to global weights
+
+    _preset_weights_cache[cache_key] = resolved
+    return resolved
+
+
 def compute_score(result: SubtitleResult, query: VideoQuery) -> int:
     """Compute match score for a subtitle result against a video query.
 
@@ -293,7 +335,14 @@ def compute_score(result: SubtitleResult, query: VideoQuery) -> int:
     Populates result.score_breakdown with per-component point values.
     """
     score_type = "episode" if query.is_episode else "movie"
-    weights = _get_cached_weights(score_type)
+    # A profile-scoped preset replaces the global weight map for this query
+    weights = None
+    preset_name = getattr(query, "scoring_preset", "") or ""
+    if preset_name:
+        weights = _get_preset_weights(preset_name, score_type)
+    preset_active = weights is not None
+    if weights is None:
+        weights = _get_cached_weights(score_type)
     breakdown: dict[str, int] = {}
 
     for match in result.matches:
@@ -363,6 +412,20 @@ def compute_score(result: SubtitleResult, query: VideoQuery) -> int:
         pipeline_breakdown = apply_penalty_pipeline(result, query)
         for rule_id, applied in pipeline_breakdown.items():
             breakdown[f"rule:{rule_id}"] = int(applied)
+        # When a profile preset is active, the port rules must carry the
+        # preset's weight for the legacy key they supersede — otherwise the
+        # pipeline would silently swap e.g. the anime preset's format_bonus=80
+        # back to the global rule weight. Only positive match bonuses are
+        # rewritten; -999 kill switches stay untouched.
+        if preset_active:
+            from wanted_search.penalty_rules import _RULE_SUPERSEDES
+
+            for rule_id, applied in pipeline_breakdown.items():
+                if applied <= 0:
+                    continue
+                for key in _RULE_SUPERSEDES.get(rule_id, ()):
+                    if key in weights:
+                        breakdown[f"rule:{rule_id}"] = int(weights[key])
         for legacy_key in superseded_legacy_keys(pipeline_breakdown):
             breakdown.pop(legacy_key, None)
     except Exception:

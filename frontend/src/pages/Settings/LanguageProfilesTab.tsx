@@ -7,6 +7,8 @@ import {
   useDeleteProfile,
   useSetProfileAsDefaultForAll,
   useBackends,
+  useProviders,
+  useScoringPresets,
 } from '@/hooks/useApi'
 import { BackendSelect } from '@/components/settings/BackendSelect'
 import {
@@ -47,6 +49,8 @@ const EMPTY_FORM = {
   combine_languages: [] as string[],
   combine_primary: 'bottom' as CombineVertical,
   combine_secondary: 'top' as CombineVertical,
+  enabled_providers: [] as string[],
+  scoring_preset: '',
 }
 
 // ─── Language Profiles Tab ────────────────────────────────────────────────────
@@ -60,6 +64,9 @@ export function LanguageProfilesTab() {
   const setAsDefaultForAll = useSetProfileAsDefaultForAll()
   const { data: backendsData } = useBackends()
   const backends = backendsData?.backends ?? []
+  const { data: providersData } = useProviders()
+  const providerNames = (providersData?.providers ?? []).map((p) => p.name)
+  const { data: scoringPresets } = useScoringPresets()
   const [editingId, setEditingId] = useState<number | null>(null)
   const [showAdd, setShowAdd] = useState(false)
   const [form, setForm] = useState({ ...EMPTY_FORM })
@@ -89,6 +96,8 @@ export function LanguageProfilesTab() {
       combine_languages: p.combine_languages ?? [],
       combine_primary: p.combine_position?.primary ?? 'bottom',
       combine_secondary: p.combine_position?.secondary ?? 'top',
+      enabled_providers: p.enabled_providers ?? [],
+      scoring_preset: p.scoring_preset ?? '',
     })
     setEditingId(p.id)
     setShowAdd(false)
@@ -132,6 +141,8 @@ export function LanguageProfilesTab() {
       combine_format: form.combine_format,
       combine_languages: combineLangs,
       combine_position: { primary: form.combine_primary, secondary: form.combine_secondary },
+      enabled_providers: form.enabled_providers,
+      scoring_preset: form.scoring_preset,
     }
 
     if (editingId) {
@@ -423,6 +434,56 @@ export function LanguageProfilesTab() {
                 )}
               </div>
             )}
+
+            {/* Provider profile: per-profile provider selection + scoring preset */}
+            <div className="space-y-2 md:col-span-2 pt-1" style={{ borderTop: '1px solid var(--border)' }}>
+              <div className="text-xs font-medium pt-2" style={{ color: 'var(--text-secondary)' }}>
+                {t('language_profiles.provider_scoring_title')}
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                {/* Providers this profile searches */}
+                <div className="space-y-1 md:col-span-2">
+                  <label className="text-xs font-medium" style={{ color: 'var(--text-secondary)' }}>
+                    {t('language_profiles.enabled_providers_label')}
+                  </label>
+                  <LanguagePillSelector
+                    value={form.enabled_providers.filter((p) => providerNames.includes(p))}
+                    options={providerNames.map((n) => ({ value: n, label: n }))}
+                    onChange={(names) => setForm((f) => ({ ...f, enabled_providers: names }))}
+                    placeholder={t('language_profiles.enabled_providers_placeholder')}
+                  />
+                  <p className="text-[11px]" style={{ color: 'var(--text-muted)' }}>
+                    {form.enabled_providers.length === 0
+                      ? t('language_profiles.enabled_providers_inherit_desc')
+                      : t('language_profiles.enabled_providers_restricted_desc', { count: form.enabled_providers.length })}
+                  </p>
+                </div>
+
+                {/* Scoring preset */}
+                <div className="space-y-1">
+                  <label className="text-xs font-medium" style={{ color: 'var(--text-secondary)' }}>
+                    {t('language_profiles.scoring_preset_label')}
+                  </label>
+                  <select
+                    value={form.scoring_preset}
+                    onChange={(e) => setForm((f) => ({ ...f, scoring_preset: e.target.value }))}
+                    className="w-full px-2.5 py-1.5 rounded text-xs"
+                    style={{ backgroundColor: 'var(--bg-primary)', border: '1px solid var(--border)', color: 'var(--text-primary)' }}
+                  >
+                    <option value="">{t('language_profiles.scoring_preset_global')}</option>
+                    {(scoringPresets ?? []).map((p: { name: string; description?: string }) => (
+                      <option key={p.name} value={p.name}>{p.name}</option>
+                    ))}
+                  </select>
+                  <p className="text-[11px]" style={{ color: 'var(--text-muted)' }}>
+                    {form.scoring_preset
+                      ? (scoringPresets ?? []).find((p: { name: string; description?: string }) => p.name === form.scoring_preset)?.description ?? t('language_profiles.scoring_preset_help')
+                      : t('language_profiles.scoring_preset_help')}
+                  </p>
+                </div>
+              </div>
+            </div>
 
             {/* Combined / bilingual subtitles (V1.6 #1) */}
             <div className="space-y-2 md:col-span-2 pt-1" style={{ borderTop: '1px solid var(--border)' }}>

@@ -23,6 +23,10 @@ export interface LanguageProfile {
   combine_format?: 'ass' | 'srt'
   combine_languages?: string[]
   combine_position?: CombinePosition
+  // Provider profile: providers this profile searches (empty = all globally
+  // enabled) and per-profile scoring preset (empty = global weights)
+  enabled_providers?: string[]
+  scoring_preset?: string
 }
 
 export type CombineVerticalPosition = 'top' | 'middle' | 'bottom'

@@ -74,9 +74,47 @@ UPDATABLE_PROFILE_KEYS = (
     "mt_keep_seeking_original",
     "mt_on_original_found",
     "mt_min_original_score",
+    # Provider profile (feature "Regel-Engine und Profile"): per-profile
+    # provider selection + scoring preset. Empty = inherit global settings.
+    "enabled_providers",
+    "scoring_preset",
 )
 
 VALID_COMBINE_FORMATS = ("ass", "srt")
+
+# Provider names are lowercase identifiers (registry keys); keep validation
+# shape-based so plugin providers pass without a registry round-trip.
+_PROVIDER_NAME_RE = _re.compile(r"^[a-z0-9_\-]{1,64}\Z")
+
+
+def _clean_enabled_providers(value) -> list[str]:
+    """Validate a profile's provider list. Empty list = inherit global selection."""
+    if value is None:
+        return []
+    if not isinstance(value, list):
+        raise ProfileValidationError("enabled_providers must be a list of provider names")
+    names = [str(v).strip().lower() for v in value if str(v).strip()]
+    for name in names:
+        if not _PROVIDER_NAME_RE.match(name):
+            raise ProfileValidationError(f"Invalid provider name: '{name}'")
+    # Preserve order, drop duplicates
+    return list(dict.fromkeys(names))
+
+
+def _clean_scoring_preset(value) -> str:
+    """Validate a profile's scoring preset name against the bundled presets."""
+    if value is None:
+        return ""
+    if not isinstance(value, str):
+        raise ProfileValidationError("scoring_preset must be a string")
+    name = value.strip()
+    if not name:
+        return ""
+    from scoring_presets import get_bundled_preset
+
+    if get_bundled_preset(name) is None:
+        raise ProfileValidationError(f"Unknown scoring preset: '{name}'")
+    return name
 
 
 # ─── Language Profile Logic ──────────────────────────────────────────────────
@@ -145,6 +183,9 @@ def validate_create_profile_data(data: dict) -> dict:
     combine_languages = _clean_combine_languages(data.get("combine_languages", []))
     combine_position = data.get("combine_position")
 
+    enabled_providers = _clean_enabled_providers(data.get("enabled_providers"))
+    scoring_preset = _clean_scoring_preset(data.get("scoring_preset"))
+
     return {
         "name": name,
         "source_lang": data.get("source_language", "en"),
@@ -169,6 +210,8 @@ def validate_create_profile_data(data: dict) -> dict:
         "combine_format": combine_format,
         "combine_languages": combine_languages,
         "combine_position": combine_position if isinstance(combine_position, dict) else None,
+        "enabled_providers": enabled_providers,
+        "scoring_preset": scoring_preset,
     }
 
 
@@ -240,6 +283,12 @@ def validate_update_profile_fields(data: dict) -> dict:
 
     if "combine_languages" in fields:
         fields["combine_languages"] = _clean_combine_languages(fields["combine_languages"])
+
+    if "enabled_providers" in fields:
+        fields["enabled_providers"] = _clean_enabled_providers(fields["enabled_providers"])
+
+    if "scoring_preset" in fields:
+        fields["scoring_preset"] = _clean_scoring_preset(fields["scoring_preset"])
 
     return fields
 

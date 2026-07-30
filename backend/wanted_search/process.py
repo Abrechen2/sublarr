@@ -1013,6 +1013,12 @@ def process_wanted_item(
     query = build_query_from_wanted(item)
     query.languages = [item_lang]
 
+    # Provider profile: restrict providers + swap the scoring weight set for
+    # every search of this item (target and source language alike), so these
+    # are applied before the source_query deepcopy below.
+    query.allowed_providers = list(_pf.get("enabled_providers") or [])
+    query.scoring_preset = _pf.get("scoring_preset", "") or ""
+
     # Source-language copy for Steps 2/4 — taken before profile-specific
     # hi/forced preferences are applied, matching the previous fresh-build
     # behavior of _try_source_ass_translation.

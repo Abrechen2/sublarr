@@ -62,6 +62,8 @@ class ProfileRepository(BaseRepository):
         combine_format: str = "ass",
         combine_languages: list = None,
         combine_position: dict = None,
+        enabled_providers: list = None,
+        scoring_preset: str = "",
     ) -> int:
         """Create a new language profile. Returns the profile ID."""
         _validate_combine_format(combine_format)
@@ -120,6 +122,8 @@ class ProfileRepository(BaseRepository):
             combine_position_json=json.dumps(
                 combine_position if combine_position is not None else _DEFAULT_COMBINE_POSITION
             ),
+            enabled_providers_json=(json.dumps(enabled_providers) if enabled_providers else None),
+            scoring_preset=(scoring_preset or None),
         )
         self.session.add(profile)
         self._commit()
@@ -195,6 +199,8 @@ class ProfileRepository(BaseRepository):
             "mt_keep_seeking_original",
             "mt_on_original_found",
             "mt_min_original_score",
+            "enabled_providers",
+            "scoring_preset",
         }
 
         # Validate combine_format if provided
@@ -263,6 +269,13 @@ class ProfileRepository(BaseRepository):
                 profile.combine_position_json = json.dumps(
                     value if isinstance(value, dict) else _DEFAULT_COMBINE_POSITION
                 )
+            elif key == "enabled_providers":
+                # NULL (not "[]") when empty so the column reads as "inherit global"
+                profile.enabled_providers_json = (
+                    json.dumps(value) if isinstance(value, list) and value else None
+                )
+            elif key == "scoring_preset":
+                profile.scoring_preset = (value or None) if isinstance(value, str) else None
             else:
                 setattr(profile, key, value)
 
@@ -511,5 +524,15 @@ class ProfileRepository(BaseRepository):
         except (json.JSONDecodeError, TypeError):
             d["combine_position"] = dict(_DEFAULT_COMBINE_POSITION)
             d.pop("combine_position_json", None)
+
+        # Provider profile fields — empty list = inherit global providers_enabled
+        try:
+            d["enabled_providers"] = json.loads(d.pop("enabled_providers_json", None) or "[]")
+        except (json.JSONDecodeError, TypeError):
+            d["enabled_providers"] = []
+            d.pop("enabled_providers_json", None)
+        if not isinstance(d["enabled_providers"], list):
+            d["enabled_providers"] = []
+        d["scoring_preset"] = d.get("scoring_preset", "") or ""
 
         return d
