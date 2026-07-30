@@ -1320,6 +1320,17 @@
     "auto_cues_label": "Auto cue floor",
     "auto_cues_desc": "Unattended only. A track needs at least this many cues during the scheduled sweep, so a sparse track cannot fluke a match."
   },
+  "ai_quality_page": {
+    "title": "AI Quality Check",
+    "description": "Experimental: after each download, a local LLM samples a few lines and rates machine-translation likelihood, OCR artifacts and grammar. Shown as a badge in History — advisory only, never changes files or scores.",
+    "enabled_label": "AI quality badge",
+    "enabled_desc": "Analyze new downloads in the background using the configured Ollama instance. Requires a reachable Ollama server (Settings → Translation).",
+    "model_label": "Model override",
+    "model_desc": "Ollama model used for the check. Leave empty to reuse the translation model.",
+    "model_placeholder": "empty = translation model",
+    "max_cues_label": "Sampled lines",
+    "max_cues_desc": "How many lines are sampled per file (10–60). More lines = better judgement, slower check."
+  },
   "subtitles_scoring_page": {
     "scoring_section": "Scoring",
     "per_language_section": "Per-Language Scores",

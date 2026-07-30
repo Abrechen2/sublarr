@@ -9,7 +9,7 @@ from datetime import UTC, datetime, timedelta
 
 from sqlalchemy import func, select
 
-from db.models.quality import SubtitleHealthResult, UserModifiedSubtitle
+from db.models.quality import AIQualityResult, SubtitleHealthResult, UserModifiedSubtitle
 from db.repositories.base import BaseRepository
 
 logger = logging.getLogger(__name__)
@@ -108,6 +108,74 @@ class QualityRepository(BaseRepository):
                 }
             )
         return trends
+
+    # ---- AI quality verdicts (advisory) --------------------------------------
+
+    def save_ai_quality_result(
+        self,
+        file_path: str,
+        language: str,
+        verdict: str,
+        scores_json: str,
+        reasons_json: str,
+        model: str,
+        sampled_cues: int,
+    ) -> dict:
+        """Save the AI quality verdict for a sidecar, replacing any previous row."""
+        stmt = select(AIQualityResult).where(AIQualityResult.file_path == file_path)
+        for old in self.session.execute(stmt).scalars().all():
+            self.session.delete(old)
+        entry = AIQualityResult(
+            file_path=file_path,
+            language=language,
+            verdict=verdict,
+            scores_json=scores_json,
+            reasons_json=reasons_json,
+            model=model,
+            sampled_cues=sampled_cues,
+            created_at=datetime.now(UTC),
+        )
+        self.session.add(entry)
+        self._commit()
+        return self._to_dict(entry)
+
+    def get_ai_quality_result(self, file_path: str) -> dict | None:
+        """Get the AI quality verdict for a sidecar path, or None."""
+        stmt = (
+            select(AIQualityResult)
+            .where(AIQualityResult.file_path == file_path)
+            .order_by(AIQualityResult.id.desc())
+            .limit(1)
+        )
+        return self._to_dict(self.session.execute(stmt).scalar_one_or_none())
+
+    def get_ai_quality_results_for_paths(self, paths: list[str]) -> dict[str, dict]:
+        """Batch-fetch AI verdicts for a list of sidecar paths.
+
+        Returns:
+            Dict keyed by file_path (paths without a verdict are absent).
+        """
+        if not paths:
+            return {}
+        stmt = (
+            select(AIQualityResult)
+            .where(AIQualityResult.file_path.in_(paths))
+            .order_by(AIQualityResult.id)
+        )
+        results: dict[str, dict] = {}
+        for entry in self.session.execute(stmt).scalars().all():
+            results[entry.file_path] = self._to_dict(entry)
+        return results
+
+    def delete_ai_quality_result(self, file_path: str) -> int:
+        """Delete AI verdicts for a sidecar path. Returns deleted count."""
+        stmt = select(AIQualityResult).where(AIQualityResult.file_path == file_path)
+        entries = self.session.execute(stmt).scalars().all()
+        for entry in entries:
+            self.session.delete(entry)
+        if entries:
+            self._commit()
+        return len(entries)
 
     def delete_health_results(self, file_path: str) -> int:
         """Delete all health results for a file path.

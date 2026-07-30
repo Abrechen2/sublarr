@@ -126,7 +126,12 @@
     "rollback_confirm_text": "Der aktuelle Untertitel wird mit seinem Backup getauscht — ein erneuter Rollback stellt die aktuelle Version wieder her.",
     "rollback_confirm_action": "Wiederherstellen",
     "rollback_success": "Vorherige Untertitel-Version wiederhergestellt",
-    "rollback_failed": "Rollback fehlgeschlagen"
+    "rollback_failed": "Rollback fehlgeschlagen",
+    "ai_quality": {
+      "green": "KI-Qualitätsprüfung: keine Auffälligkeiten",
+      "yellow": "KI-Qualitätsprüfung: kleinere Auffälligkeiten",
+      "red": "KI-Qualitätsprüfung: deutliche Mängel"
+    }
   },
   "blacklist": {
     "title": "Sperrliste",

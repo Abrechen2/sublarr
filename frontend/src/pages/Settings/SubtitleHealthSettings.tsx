@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { getHealthReport } from '@/api/subtitleHealth'
 import type { HealthReport } from '@/lib/types'
+import { AIQualitySettings } from './AIQualitySettings'
 
 export function SubtitleHealthSettings() {
   const { t } = useTranslation('library')
@@ -42,6 +43,7 @@ export function SubtitleHealthSettings() {
           ))}
         </ul>
       )}
+      <AIQualitySettings />
     </div>
   )
 }

@@ -259,6 +259,16 @@ def create_app(testing=False):
                 # weeks: the chain was pinned one revision behind head and
                 # every subsequent migration silently skipped.
                 logger.warning("Alembic auto-upgrade failed (non-fatal): %s", _e, exc_info=True)
+        # ai_quality_results is created idempotently instead of via a migration:
+        # the migration chain currently has diverged heads (upgrade head fails
+        # on them), and a checkfirst create works on both fresh and tracked DBs.
+        # TODO: fold into a real migration once the heads are merged (ROADMAP).
+        try:
+            from db.models.quality import AIQualityResult
+
+            AIQualityResult.__table__.create(bind=sa_db.engine, checkfirst=True)
+        except Exception as _e:
+            logger.warning("Could not ensure ai_quality_results table: %s", _e)
         # Enable SQLite WAL mode if using SQLite (match existing behavior)
         if not settings.database_url or settings.database_url.startswith("sqlite"):
             from sqlalchemy import text

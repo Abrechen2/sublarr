@@ -47,3 +47,30 @@ class UserModifiedSubtitle(db.Model):
     source: Mapped[str] = mapped_column(Text, nullable=False, default="editor")
 
     __table_args__ = (Index("idx_user_modified_path", "file_path", unique=True),)
+
+
+class AIQualityResult(db.Model):
+    """Advisory LLM language-quality verdict for a subtitle sidecar file.
+
+    One row per (sidecar path) — re-analysis replaces the previous row.
+    Purely advisory: nothing in the pipeline reads this to make decisions.
+    """
+
+    __tablename__ = "ai_quality_results"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    # Path of the subtitle sidecar that was sampled (not the video file).
+    file_path: Mapped[str] = mapped_column(Text, nullable=False)
+    language: Mapped[str] = mapped_column(Text, default="")
+    # "green" | "yellow" | "red" — derived deterministically from the scores.
+    verdict: Mapped[str] = mapped_column(Text, nullable=False, default="green")
+    # {"machine_translation": 0-3, "ocr_artifacts": 0-3, "grammar": 0-3,
+    #  "encoding_damage": 0-3} — higher is worse.
+    scores_json: Mapped[str] = mapped_column(Text, default="{}")
+    # Short free-text findings from the model (capped list of strings).
+    reasons_json: Mapped[str] = mapped_column(Text, default="[]")
+    model: Mapped[str] = mapped_column(Text, default="")
+    sampled_cues: Mapped[int] = mapped_column(Integer, default=0)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+
+    __table_args__ = (Index("idx_ai_quality_path", "file_path"),)

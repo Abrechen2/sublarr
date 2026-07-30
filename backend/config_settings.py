@@ -362,6 +362,17 @@ class UISettings(BaseModel):
     # is unavailable.
     dubtitle_verify_on_download: bool = False
 
+    # AI subtitle-quality badge (advisory, experimental). After a download, an
+    # LLM samples ~ai_quality_max_cues cues from the saved sidecar and rates
+    # machine-translation likelihood, OCR artifacts and grammar; the verdict is
+    # shown as a green/yellow/red badge in History. Read-only by design: the
+    # verdict never modifies files and never feeds into scoring or upgrades.
+    # Uses the configured Ollama instance (local-first); ai_quality_model
+    # empty = reuse ollama_model.
+    ai_quality_enabled: bool = False
+    ai_quality_model: str = ""
+    ai_quality_max_cues: int = 30
+
     # Foreign-track cleanup. Destructive (remuxes the MKV with backup-to-trash).
     cleanup_foreign_tracks_default: bool = False
     cleanup_foreign_tracks_keep_und: bool = False

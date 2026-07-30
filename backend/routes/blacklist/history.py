@@ -124,6 +124,13 @@ def list_history():
         sort_by=sort_by,
         sort_dir=sort_dir,
     )
+    # Attach advisory AI quality verdicts (one batch query; best-effort).
+    try:
+        from services.ai_quality import attach_ai_quality
+
+        attach_ai_quality(result.get("data") or [])
+    except Exception:
+        logger.debug("Could not attach AI quality verdicts", exc_info=True)
     return jsonify(result)
 
 

@@ -126,7 +126,12 @@
     "rollback_confirm_text": "The current subtitle is swapped with its backup — running the rollback again restores the current version.",
     "rollback_confirm_action": "Restore",
     "rollback_success": "Previous subtitle version restored",
-    "rollback_failed": "Rollback failed"
+    "rollback_failed": "Rollback failed",
+    "ai_quality": {
+      "green": "AI quality check: no issues found",
+      "yellow": "AI quality check: minor issues found",
+      "red": "AI quality check: serious issues found"
+    }
   },
   "blacklist": {
     "title": "Blacklist",

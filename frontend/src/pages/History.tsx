@@ -14,6 +14,8 @@ import SubtitleEditorModal from '@/components/editor/SubtitleEditorModal'
 import { ScoreBreakdown } from '@/components/shared/ScoreBreakdown'
 import { SourceBadge, SyncedBadge } from '@/components/shared/SubtitleBadges'
 import { DecisionLogModal } from '@/components/activity/DecisionLogModal'
+import { AIQualityBadge } from '@/components/shared/AIQualityBadge'
+import type { AIQualityInfo } from '@/types/system'
 import { FilterBar } from '@/components/filters/FilterBar'
 import type { FilterDef, ActiveFilter } from '@/components/filters/FilterBar'
 import { BatchActionBar } from '@/components/batch/BatchActionBar'
@@ -41,6 +43,7 @@ type HistoryEntry = {
   previous_score?: number | null
   previous_format?: string | null
   has_decision_log?: boolean
+  ai_quality?: AIQualityInfo | null
 }
 
 /** "Why does this entry exist" badge: upgrade (with score delta) vs. plain download. */
@@ -153,7 +156,7 @@ const HistoryTableRow = memo(function HistoryTableRow({
         </span>
       </td>
       <td className="px-3 py-2.5">
-        <span className="inline-flex items-center gap-1">
+        <span className="inline-flex items-center gap-1.5">
           <span
             className="text-[10px] px-1.5 py-0.5 rounded uppercase font-bold"
             style={{
@@ -166,6 +169,7 @@ const HistoryTableRow = memo(function HistoryTableRow({
           </span>
           <SourceBadge source={entry.source} />
           {entry.synced && <SyncedBadge engine={entry.sync_engine} />}
+          <AIQualityBadge quality={entry.ai_quality} />
         </span>
       </td>
       <td className="px-3 py-2.5 hidden lg:table-cell">

@@ -51,7 +51,7 @@ from db.models.providers import (
     ScoringWeights,
     SubtitleDownload,
 )
-from db.models.quality import SubtitleHealthResult, UserModifiedSubtitle
+from db.models.quality import AIQualityResult, SubtitleHealthResult, UserModifiedSubtitle
 from db.models.repair import SubtitleRepair  # noqa: F401
 from db.models.scheduler import JobRun  # noqa: F401
 from db.models.standalone import (
@@ -117,6 +117,7 @@ __all__ = [
     # quality
     "SubtitleHealthResult",
     "UserModifiedSubtitle",
+    "AIQualityResult",
     # scheduler
     "JobRun",
     # filter presets
