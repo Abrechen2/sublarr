@@ -2,7 +2,7 @@ import { Fragment } from 'react'
 import { useTranslation } from 'react-i18next'
 import {
   Search, RefreshCw, Eye, EyeOff, Play, Loader2,
-  CheckSquare, Square, Download, ScanSearch,
+  CheckSquare, Square, Download, ScanSearch, FlaskConical,
 } from 'lucide-react'
 import { StatusBadge, SubtitleTypeBadge } from '@/components/shared/StatusBadge'
 import { formatRelativeTime, truncatePath } from '@/lib/utils'
@@ -231,6 +231,7 @@ interface WantedRowActionsProps {
   onUpdateStatus: (itemId: number, status: string) => void
   onPreview: (filePath: string) => void
   onInteractiveSearch: (item: { id: number; title: string }) => void
+  onDryRun: (item: { id: number; title: string }) => void
 }
 
 export function WantedRowActions({
@@ -246,6 +247,7 @@ export function WantedRowActions({
   onUpdateStatus,
   onPreview,
   onInteractiveSearch,
+  onDryRun,
 }: WantedRowActionsProps) {
   const { t } = useTranslation('library')
   return (
@@ -298,6 +300,17 @@ export function WantedRowActions({
         onMouseLeave={(e) => (e.currentTarget.style.color = 'var(--text-muted)')}
       >
         <ScanSearch size={14} />
+      </button>
+      <button
+        data-testid="wanted-dry-run-btn"
+        onClick={() => onDryRun({ id: item.id, title: item.title })}
+        className="p-1 rounded transition-colors duration-150"
+        title={t('wanted_row.dry_run')}
+        style={{ color: 'var(--text-muted)' }}
+        onMouseEnter={(e) => (e.currentTarget.style.color = 'var(--accent)')}
+        onMouseLeave={(e) => (e.currentTarget.style.color = 'var(--text-muted)')}
+      >
+        <FlaskConical size={14} />
       </button>
       <button
         data-testid="wanted-process-btn"

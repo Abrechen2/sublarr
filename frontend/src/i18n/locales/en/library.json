@@ -526,7 +526,16 @@
     "col_score": "Score",
     "col_release": "Release",
     "preview_subtitle": "Preview subtitle",
-    "interactive_search": "Interactive search"
+    "interactive_search": "Interactive search",
+    "dry_run": "Dry run (preview)",
+    "dry_run_title": "Dry Run",
+    "dry_run_running": "Searching providers — nothing will be written…",
+    "dry_run_found": "A subtitle would be downloaded",
+    "dry_run_not_found": "No matching subtitle would be found",
+    "dry_run_skipped": "Item would be skipped",
+    "dry_run_failed": "Dry run failed",
+    "dry_run_target": "Target path",
+    "dry_run_note": "Preview only: providers were queried for real, but no file was saved and no history was recorded."
   },
   "mt_pending": {
     "toolbar_button": "Pending originals",

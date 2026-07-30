@@ -526,7 +526,16 @@
     "col_score": "Score",
     "col_release": "Release",
     "preview_subtitle": "Untertitel-Vorschau",
-    "interactive_search": "Interaktive Suche"
+    "interactive_search": "Interaktive Suche",
+    "dry_run": "Testlauf (Vorschau)",
+    "dry_run_title": "Testlauf",
+    "dry_run_running": "Provider werden durchsucht — es wird nichts geschrieben…",
+    "dry_run_found": "Ein Untertitel würde heruntergeladen",
+    "dry_run_not_found": "Es würde kein passender Untertitel gefunden",
+    "dry_run_skipped": "Eintrag würde übersprungen",
+    "dry_run_failed": "Testlauf fehlgeschlagen",
+    "dry_run_target": "Zielpfad",
+    "dry_run_note": "Nur Vorschau: Die Provider wurden real abgefragt, aber keine Datei gespeichert und keine Historie geschrieben."
   },
   "mt_pending": {
     "toolbar_button": "Ausstehende Originale",

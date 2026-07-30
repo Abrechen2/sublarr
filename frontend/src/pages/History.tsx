@@ -3,11 +3,12 @@ import { useTranslation } from 'react-i18next'
 import { useQueryClient } from '@tanstack/react-query'
 import { useHistory, useHistoryStats, useAddToBlacklist } from '@/hooks/useApi'
 import { deleteSubtitles } from '@/api/client'
+import { rollbackHistoryEntry } from '@/api/system/history'
 import { formatRelativeTime, formatProviderName, parseMediaTitle } from '@/lib/utils'
 import { toast } from '@/components/shared/Toast'
 import {
   Clock, Download, ChevronLeft, ChevronRight, Ban, Eye, GitCompare,
-  CheckSquare, Square, MinusSquare, X,
+  CheckSquare, Square, MinusSquare, X, RotateCcw, ArrowUpCircle,
 } from 'lucide-react'
 import SubtitleEditorModal from '@/components/editor/SubtitleEditorModal'
 import { FilterBar } from '@/components/filters/FilterBar'
@@ -29,6 +30,42 @@ type HistoryEntry = {
   score: number
   downloaded_at: string | null
   subtitle_id?: string
+  source?: string
+  upgraded_from_id?: number | null
+  previous_score?: number | null
+  previous_format?: string | null
+}
+
+/** "Why does this entry exist" badge: upgrade (with score delta) vs. plain download. */
+function ReasonBadge({ entry, t }: { entry: HistoryEntry; t: (key: string, opts?: Record<string, unknown>) => string }) {
+  if (entry.upgraded_from_id) {
+    const delta = entry.previous_score != null ? entry.score - entry.previous_score : null
+    const formatChange = entry.previous_format && entry.previous_format !== entry.format
+      ? `${entry.previous_format}→${entry.format}`.toUpperCase()
+      : null
+    const parts = [formatChange, delta != null ? `${delta >= 0 ? '+' : ''}${delta}` : null].filter(Boolean)
+    return (
+      <span
+        className="inline-flex items-center gap-1 text-[10px] px-1.5 py-0.5 rounded font-bold"
+        style={{ backgroundColor: 'var(--accent-bg)', color: 'var(--accent)', fontFamily: 'var(--font-mono)' }}
+        title={t('history.reason_upgrade_tooltip')}
+      >
+        <ArrowUpCircle size={10} />
+        {t('history.reason_upgrade')}{parts.length ? ` ${parts.join(' ')}` : ''}
+      </span>
+    )
+  }
+  return (
+    <span
+      className="text-[10px] px-1.5 py-0.5 rounded font-medium"
+      style={{ backgroundColor: 'var(--bg-primary)', color: 'var(--text-muted)', fontFamily: 'var(--font-mono)' }}
+    >
+      {entry.source === 'manual' ? t('history.reason_manual')
+        : entry.source === 'whisper' ? t('history.reason_whisper')
+        : entry.source === 'machine_translation' ? t('history.reason_mt')
+        : t('history.reason_new')}
+    </span>
+  )
 }
 
 const HistoryTableRow = memo(function HistoryTableRow({
@@ -40,6 +77,7 @@ const HistoryTableRow = memo(function HistoryTableRow({
   onPreview,
   onDiff,
   onBlacklist,
+  onRollback,
   isBlacklistPending,
   t,
 }: {
@@ -51,8 +89,9 @@ const HistoryTableRow = memo(function HistoryTableRow({
   onPreview: (path: string) => void
   onDiff: (path: string) => void
   onBlacklist: (entry: HistoryEntry) => void
+  onRollback: (entry: HistoryEntry) => void
   isBlacklistPending: boolean
-  t: (key: string) => string
+  t: (key: string, opts?: Record<string, unknown>) => string
 }) {
   return (
     <tr
@@ -116,6 +155,9 @@ const HistoryTableRow = memo(function HistoryTableRow({
           {entry.format || '?'}
         </span>
       </td>
+      <td className="px-3 py-2.5 hidden lg:table-cell">
+        <ReasonBadge entry={entry} t={t} />
+      </td>
       <td className="px-3 py-2.5 hidden sm:table-cell">
         <span
           className="text-xs tabular-nums"
@@ -167,6 +209,16 @@ const HistoryTableRow = memo(function HistoryTableRow({
               </button>
             </>
           )}
+          <button
+            onClick={() => onRollback(entry)}
+            className="p-1 rounded transition-colors duration-150"
+            title={t('history.rollback')}
+            style={{ color: 'var(--text-muted)' }}
+            onMouseEnter={(e) => (e.currentTarget.style.color = 'var(--warning)')}
+            onMouseLeave={(e) => (e.currentTarget.style.color = 'var(--text-muted)')}
+          >
+            <RotateCcw size={14} />
+          </button>
           <button
             onClick={() => onBlacklist(entry)}
             disabled={isBlacklistPending}
@@ -234,6 +286,8 @@ export function HistoryPage() {
   const [activeFilters, setActiveFilters] = useState<ActiveFilter[]>([])
   const [blacklistConfirm, setBlacklistConfirm] = useState<HistoryEntry | null>(null)
   const [blacklistAlsoDelete, setBlacklistAlsoDelete] = useState(false)
+  const [rollbackConfirm, setRollbackConfirm] = useState<HistoryEntry | null>(null)
+  const [rollbackPending, setRollbackPending] = useState(false)
   const queryClient = useQueryClient()
 
   // Zustand selection store: subscribe only to this scope to avoid re-renders from other pages
@@ -298,6 +352,27 @@ export function HistoryPage() {
     setBlacklistAlsoDelete(false)
     setBlacklistConfirm(entry)
   }, [])
+
+  const onRollbackEntry = useCallback((entry: HistoryEntry) => {
+    setRollbackConfirm(entry)
+  }, [])
+
+  const handleRollbackConfirm = useCallback(async () => {
+    if (!rollbackConfirm) return
+    const entry = rollbackConfirm
+    setRollbackConfirm(null)
+    setRollbackPending(true)
+    try {
+      await rollbackHistoryEntry(entry.id)
+      queryClient.invalidateQueries({ queryKey: ['history'] })
+      toast(t('history.rollback_success'), 'success')
+    } catch (err) {
+      const detail = (err as { response?: { data?: { error?: string } } })?.response?.data?.error
+      toast(detail ?? t('history.rollback_failed'), 'error')
+    } finally {
+      setRollbackPending(false)
+    }
+  }, [rollbackConfirm, queryClient, t])
 
   const handleBlacklistConfirm = useCallback(async () => {
     if (!blacklistConfirm) return
@@ -430,6 +505,7 @@ export function HistoryPage() {
                 <th scope="col" className="text-left text-[11px] font-semibold uppercase tracking-wider px-3 py-2.5" style={{ color: 'var(--text-muted)' }}>{t('history.table.provider')}</th>
                 <th scope="col" className="text-left text-[11px] font-semibold uppercase tracking-wider px-3 py-2.5" style={{ color: 'var(--text-muted)' }}>{t('history.table.lang')}</th>
                 <th scope="col" className="text-left text-[11px] font-semibold uppercase tracking-wider px-3 py-2.5" style={{ color: 'var(--text-muted)' }}>{t('history.table.format')}</th>
+                <th scope="col" className="text-left text-[11px] font-semibold uppercase tracking-wider px-3 py-2.5 hidden lg:table-cell" style={{ color: 'var(--text-muted)' }}>{t('history.table.reason')}</th>
                 <th scope="col" className="text-left text-[11px] font-semibold uppercase tracking-wider px-3 py-2.5 hidden sm:table-cell" style={{ color: 'var(--text-muted)' }}>{t('history.table.score')}</th>
                 <th scope="col" className="text-left text-[11px] font-semibold uppercase tracking-wider px-3 py-2.5 hidden md:table-cell" style={{ color: 'var(--text-muted)' }}>{t('history.table.date')}</th>
                 <th scope="col" className="text-right text-[11px] font-semibold uppercase tracking-wider px-4 py-2.5" style={{ color: 'var(--text-muted)' }}>{t('history.table.actions')}</th>
@@ -444,6 +520,7 @@ export function HistoryPage() {
                     <td className="px-3 py-3"><div className="skeleton h-4 w-20 rounded" /></td>
                     <td className="px-3 py-3"><div className="skeleton h-4 w-8 rounded" /></td>
                     <td className="px-3 py-3"><div className="skeleton h-4 w-10 rounded" /></td>
+                    <td className="px-3 py-3 hidden lg:table-cell"><div className="skeleton h-4 w-14 rounded" /></td>
                     <td className="px-3 py-3 hidden sm:table-cell"><div className="skeleton h-4 w-8 rounded" /></td>
                     <td className="px-3 py-3 hidden md:table-cell"><div className="skeleton h-4 w-14 rounded" /></td>
                     <td className="px-4 py-3"><div className="skeleton h-4 w-6 rounded ml-auto" /></td>
@@ -461,13 +538,14 @@ export function HistoryPage() {
                     onPreview={onPreviewPath}
                     onDiff={onDiffPath}
                     onBlacklist={onBlacklistEntry}
+                    onRollback={onRollbackEntry}
                     isBlacklistPending={addBlacklist.isPending}
                     t={t}
                   />
                 ))
               ) : (
                 <tr>
-                  <td colSpan={8} className="px-4 py-8 text-center text-sm" style={{ color: 'var(--text-secondary)' }}>
+                  <td colSpan={9} className="px-4 py-8 text-center text-sm" style={{ color: 'var(--text-secondary)' }}>
                     {t('history.no_history')}
                   </td>
                 </tr>
@@ -525,6 +603,72 @@ export function HistoryPage() {
           initialMode={editorMode}
           onClose={() => setEditorFilePath(null)}
         />
+      )}
+
+      {/* Rollback Confirmation Dialog */}
+      {rollbackConfirm && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center"
+          style={{ backgroundColor: 'rgba(0,0,0,0.6)' }}
+          onClick={(e) => { if (e.target === e.currentTarget) setRollbackConfirm(null) }}
+        >
+          <div
+            className="w-full max-w-sm mx-4 rounded-xl p-5 space-y-4"
+            style={{ backgroundColor: 'var(--bg-surface)', border: '1px solid var(--border)' }}
+          >
+            <div className="flex items-start justify-between gap-3">
+              <div className="flex items-center gap-2">
+                <RotateCcw size={16} style={{ color: 'var(--warning)' }} />
+                <h3 className="font-semibold text-sm" style={{ color: 'var(--text-primary)' }}>
+                  {t('history.rollback_confirm_title')}
+                </h3>
+              </div>
+              <button
+                onClick={() => setRollbackConfirm(null)}
+                className="p-1 rounded"
+                style={{ color: 'var(--text-muted)' }}
+              >
+                <X size={14} />
+              </button>
+            </div>
+
+            <div className="space-y-1.5">
+              <div className="text-xs" style={{ color: 'var(--text-secondary)' }}>
+                {t('history.rollback_confirm_text')}
+              </div>
+              <div
+                className="text-xs px-2 py-1.5 rounded font-medium truncate"
+                style={{ backgroundColor: 'var(--bg-primary)', color: 'var(--text-primary)', fontFamily: 'var(--font-mono)' }}
+              >
+                {(() => {
+                  const media = parseMediaTitle(rollbackConfirm.file_path)
+                  return `${media.title}${media.episodeCode ? ` · ${media.episodeCode}` : ''}`
+                })()}
+              </div>
+              <div className="text-xs capitalize" style={{ color: 'var(--text-muted)' }}>
+                {formatProviderName(rollbackConfirm.provider_name)} · {rollbackConfirm.language} · {rollbackConfirm.format?.toUpperCase()}
+              </div>
+            </div>
+
+            <div className="flex gap-2 justify-end pt-1">
+              <button
+                onClick={() => setRollbackConfirm(null)}
+                className="px-3 py-1.5 rounded-md text-sm transition-colors"
+                style={{ border: '1px solid var(--border)', color: 'var(--text-secondary)', backgroundColor: 'var(--bg-primary)' }}
+              >
+                {tc('actions.cancel')}
+              </button>
+              <button
+                onClick={handleRollbackConfirm}
+                disabled={rollbackPending}
+                className="px-3 py-1.5 rounded-md text-sm font-medium transition-colors"
+                style={{ backgroundColor: 'var(--warning)', color: 'white', opacity: rollbackPending ? 0.7 : 1 }}
+              >
+                {t('history.rollback_confirm_action')}
+              </button>
+            </div>
+          </div>
+        </div>
       )}
 
       {/* Blacklist Confirmation Dialog */}

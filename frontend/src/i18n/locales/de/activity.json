@@ -101,7 +101,8 @@
       "format": "Format",
       "score": "Score",
       "date": "Datum",
-      "actions": "Aktionen"
+      "actions": "Aktionen",
+      "reason": "Grund"
     },
     "no_history": "Noch kein Download-Verlauf",
     "preview_subtitle": "Untertitel vorschau",
@@ -113,7 +114,19 @@
     "blacklist_confirm_action": "Sperren",
     "blacklist_also_delete": "Datei ebenfalls löschen",
     "blacklisted_success": "Zur Sperrliste hinzugefügt",
-    "deleted_and_blacklisted": "Untertitel gelöscht und gesperrt"
+    "deleted_and_blacklisted": "Untertitel gelöscht und gesperrt",
+    "reason_upgrade": "Upgrade",
+    "reason_upgrade_tooltip": "Hat einen zuvor geladenen Untertitel durch einen besseren ersetzt",
+    "reason_new": "Neu",
+    "reason_manual": "Manuell",
+    "reason_whisper": "Whisper",
+    "reason_mt": "MT",
+    "rollback": "Vorherige Version wiederherstellen",
+    "rollback_confirm_title": "Vorherige Version wiederherstellen?",
+    "rollback_confirm_text": "Der aktuelle Untertitel wird mit seinem Backup getauscht — ein erneuter Rollback stellt die aktuelle Version wieder her.",
+    "rollback_confirm_action": "Wiederherstellen",
+    "rollback_success": "Vorherige Untertitel-Version wiederhergestellt",
+    "rollback_failed": "Rollback fehlgeschlagen"
   },
   "blacklist": {
     "title": "Sperrliste",

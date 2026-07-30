@@ -41,3 +41,10 @@ export async function getHistoryStats(): Promise<HistoryStats> {
   const { data } = await api.get('/history/stats')
   return data
 }
+
+export async function rollbackHistoryEntry(
+  id: number
+): Promise<{ status: string; path: string; removed?: string; warning?: string }> {
+  const { data } = await api.post(`/history/${id}/rollback`)
+  return data
+}

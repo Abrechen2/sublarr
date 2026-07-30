@@ -414,6 +414,15 @@ def save_subtitle(
         logger.error("Failed to create directory for %s: %s", output_path, e)
         raise RuntimeError(f"Cannot create directory for subtitle: {e}") from e
 
+    # Preserve an existing sidecar into the single-slot .bak before it is
+    # replaced (re-download, upgrade) so the History rollback endpoint can
+    # bring it back. No-op when a bak already exists — that slot holds the
+    # oldest preserved version and must never be overwritten.
+    if os.path.isfile(output_path):
+        from services.subtitle_restore import backup_before_replace
+
+        backup_before_replace(output_path)
+
     # Write file with error handling. Atomic (tmp + os.replace) so a crash mid-
     # write can't replace a previously-good sidecar with a truncated one.
     try:

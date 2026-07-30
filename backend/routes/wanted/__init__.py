@@ -8,6 +8,7 @@ import routes.wanted.automation  # noqa: E402, F401
 import routes.wanted.batch_extract  # noqa: E402, F401
 import routes.wanted.batch_probe  # noqa: E402, F401
 import routes.wanted.bulk_actions  # noqa: E402, F401
+import routes.wanted.dry_run  # noqa: E402, F401
 import routes.wanted.extract  # noqa: E402, F401
 import routes.wanted.list  # noqa: E402, F401
 import routes.wanted.mt_pending  # noqa: E402, F401

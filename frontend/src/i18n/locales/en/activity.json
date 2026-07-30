@@ -101,7 +101,8 @@
       "format": "Format",
       "score": "Score",
       "date": "Date",
-      "actions": "Actions"
+      "actions": "Actions",
+      "reason": "Reason"
     },
     "no_history": "No download history yet",
     "preview_subtitle": "Preview subtitle",
@@ -113,7 +114,19 @@
     "blacklist_confirm_action": "Blacklist",
     "blacklist_also_delete": "Also delete the file",
     "blacklisted_success": "Added to blacklist",
-    "deleted_and_blacklisted": "Subtitle deleted and blacklisted"
+    "deleted_and_blacklisted": "Subtitle deleted and blacklisted",
+    "reason_upgrade": "Upgrade",
+    "reason_upgrade_tooltip": "Replaced a previously downloaded subtitle with a better one",
+    "reason_new": "New",
+    "reason_manual": "Manual",
+    "reason_whisper": "Whisper",
+    "reason_mt": "MT",
+    "rollback": "Restore previous version",
+    "rollback_confirm_title": "Restore previous version?",
+    "rollback_confirm_text": "The current subtitle is swapped with its backup — running the rollback again restores the current version.",
+    "rollback_confirm_action": "Restore",
+    "rollback_success": "Previous subtitle version restored",
+    "rollback_failed": "Rollback failed"
   },
   "blacklist": {
     "title": "Blacklist",
