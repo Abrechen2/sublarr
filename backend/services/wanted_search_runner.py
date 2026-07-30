@@ -26,6 +26,7 @@ from db.models.activity import EVENT_SEARCH
 from services.wanted_search_filters import (  # noqa: F401 — re-exported for back-compat
     _EMBEDDED_TYPES,
     _apply_backlog_reserve_gate,
+    _enqueue_embedded_items,
     _extract_embedded_items,
     _filter_eligible,
     _split_local_translate_items,
@@ -304,9 +305,36 @@ def run_wanted_search(
     if not eligible and not local_translate_items:
         return {"total": 0, "processed": 0, "found": 0, "failed": 0, "skipped": 0}
 
-    # Split: embedded subs → extraction, rest → provider search
-    embedded_items = [i for i in eligible if i.get("existing_sub") in _EMBEDDED_TYPES]
-    search_items = [i for i in eligible if i.get("existing_sub") not in _EMBEDDED_TYPES]
+    # Split: embedded subs → extraction, rest → provider search.
+    # Issue #159: the split only happens when the user opted into an
+    # extraction path. With subtitle_automation_enabled and
+    # wanted_auto_extract both off, embedded items stay in the normal
+    # provider search and their files are never touched.
+    automation_on = bool(getattr(settings, "subtitle_automation_enabled", False))
+    auto_extract_on = bool(getattr(settings, "wanted_auto_extract", False))
+
+    if automation_on or auto_extract_on:
+        embedded_items = [i for i in eligible if i.get("existing_sub") in _EMBEDDED_TYPES]
+        search_items = [i for i in eligible if i.get("existing_sub") not in _EMBEDDED_TYPES]
+    else:
+        embedded_items = []
+        search_items = list(eligible)
+
+    enqueued_count = 0
+    if automation_on and embedded_items:
+        # Preferred path: hand embedded items to the automation queue — the
+        # drain worker owns extraction (and respects its own gates). Items
+        # that could not be enqueued fall through to the legacy inline path,
+        # or back to the provider search when that toggle is off too.
+        embedded_items, enqueued_count = _enqueue_embedded_items(embedded_items, settings)
+        if enqueued_count:
+            logger.info(
+                "[search_all] %d items have embedded subs — enqueued for the automation drain",
+                enqueued_count,
+            )
+    if embedded_items and not auto_extract_on:
+        search_items = embedded_items + search_items
+        embedded_items = []
 
     if embedded_items:
         logger.info(
@@ -325,6 +353,10 @@ def run_wanted_search(
     found = 0
     failed = 0
     skipped = 0
+
+    # Enqueued items are handed off to the drain worker, not searched this tick.
+    processed += enqueued_count
+    skipped += enqueued_count
 
     # Translate local-sidecar items first — no provider involved at all.
     processed, found, failed = _translate_local_sidecar_items(

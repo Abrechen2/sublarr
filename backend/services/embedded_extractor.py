@@ -27,6 +27,7 @@ from __future__ import annotations
 
 import logging
 import os
+import re
 from dataclasses import dataclass
 
 from flask import current_app
@@ -40,6 +41,9 @@ from services.background_tasks import submit_background
 from services.cleanup_executors import _trash_path  # module-level so tests can patch it
 
 logger = logging.getLogger(__name__)
+
+# ISO-639 shape for container language tags (mirrors routes/tracks._LANG_RE).
+_LANG_TAG_RE = re.compile(r"^[a-z]{2,3}(-[a-z]{2,4})?$")
 
 
 # ---------------------------------------------------------------------------
@@ -111,6 +115,11 @@ def collect_subtitle_streams(probe_data: dict) -> list[dict]:
             sub_index += 1
             continue
         lang = (stream.get("tags", {}).get("language", "und") or "und").lower()
+        # The tag is interpolated into the sidecar output path — reject
+        # anything that does not look like an ISO-639 code (path-traversal
+        # defence, same rule as routes/tracks._safe_language).
+        if not _LANG_TAG_RE.match(lang):
+            lang = "und"
         sub_streams.append(
             {
                 "sub_index": sub_index,
@@ -143,15 +152,22 @@ def extract_streams(
                              pre-existing from an earlier run).
         streams_to_remove    list of (global_stream_index, sub_index)
                              tuples to feed back into
-                             ``remove_streams_from_container``.
+                             ``remove_streams_from_container``. Contains
+                             ONLY streams that were freshly extracted in
+                             this pass — a stream whose sidecar already
+                             existed, or that was skipped as a duplicate,
+                             is never a removal candidate (issue #159:
+                             repeat runs kept remuxing, and duplicate
+                             (lang, fmt) tracks — e.g. anime "Full" +
+                             "Signs" both tagged eng — were removed
+                             without ever being extracted).
         extracted            list of dicts {language, format, sub_index,
                              output_path} describing every sidecar that
                              ended up on disk — used by callers to decide
                              which one is "primary".
 
     Duplicate (lang, fmt) combinations are collapsed: only the first
-    occurrence is extracted, the rest are still scheduled for container
-    removal so the MKV ends up clean.
+    occurrence is extracted; the rest stay in the container untouched.
     """
     from ass_utils import extract_subtitle_stream, get_subtitle_stream_output_path
 
@@ -165,9 +181,11 @@ def extract_streams(
         out = get_subtitle_stream_output_path(file_path, stream_info)
 
         if os.path.exists(out):
+            # Sidecar already on disk from an earlier run — nothing was
+            # extracted now, so the stream must NOT become a removal
+            # candidate (a repeat run would otherwise remux the container
+            # again and again).
             any_extracted = True
-            if stream_info.get("stream_index") is not None:
-                streams_to_remove.append((stream_info["stream_index"], stream_info["sub_index"]))
             if lang_fmt not in seen_lang_fmt:
                 extracted.append(
                     {
@@ -181,8 +199,10 @@ def extract_streams(
             continue
 
         if lang_fmt in seen_lang_fmt:
-            if stream_info.get("stream_index") is not None:
-                streams_to_remove.append((stream_info["stream_index"], stream_info["sub_index"]))
+            # Duplicate (lang, fmt): this stream's content is NOT in the
+            # sidecar written for the first occurrence (distinct tracks —
+            # e.g. "Full Dialogue" vs "Signs & Songs" — collapse to the
+            # same output path). It stays in the container.
             continue
 
         try:
@@ -219,6 +239,46 @@ def extract_streams(
 # ---------------------------------------------------------------------------
 # Container cleanup
 # ---------------------------------------------------------------------------
+
+
+def filter_streams_safe_to_remove(
+    sub_streams: list[dict],
+    streams_to_remove: list[tuple[int, int]],
+    keep_langs: set[str],
+) -> list[tuple[int, int]]:
+    """Drop removal candidates whose language must be kept.
+
+    Defence in depth for the container rewrite (issue #159: the eng target
+    stream was remuxed out along with everything else):
+
+      - A stream whose ``normalize_language_code(language)`` is in
+        ``keep_langs`` is never removed.
+      - Unknown/``und`` tags are treated as KEEP (cannot prove they are
+        disposable).
+      - An empty ``keep_langs`` removes NOTHING — mirrors the
+        "empty target set → no-op" guard in
+        ``remux.remove_foreign_subtitle_streams``: never strip blind.
+    """
+    if not streams_to_remove:
+        return []
+    if not keep_langs:
+        return []
+
+    from config_language_data import _REVERSE_LANGUAGE_TAGS, normalize_language_code
+
+    lang_by_stream_index = {
+        s.get("stream_index"): (s.get("language") or "und") for s in sub_streams
+    }
+    safe: list[tuple[int, int]] = []
+    for stream_index, sub_index in streams_to_remove:
+        raw = (lang_by_stream_index.get(stream_index) or "und").lower()
+        if raw not in _REVERSE_LANGUAGE_TAGS:
+            # Unknown or und tag — cannot prove it is disposable, keep it.
+            continue
+        if normalize_language_code(raw) in keep_langs:
+            continue
+        safe.append((stream_index, sub_index))
+    return safe
 
 
 def remove_streams_from_container(
@@ -434,14 +494,18 @@ def extract_and_cleanup(
     *,
     target_language: str | None = None,
     log_label: str = "extractor",
+    remove_from_container: bool = False,
 ) -> ExtractResult:
     """Run the full extract-and-cleanup pipeline against a container.
 
     Pipeline:
       1. Classify every text-based subtitle stream
       2. Extract each one to a sidecar (skipping duplicates)
-      3. Remove the extracted streams from the container in one mkvmerge
-         pass (with backup into ``remux_trash_dir``)
+      3. Only when ``remove_from_container`` is True: remove the freshly
+         extracted streams from the container in one mkvmerge pass (with
+         backup into ``remux_trash_dir``). Streams whose language is in
+         ``keep_langs`` are never removed, and an empty ``keep_langs``
+         removes nothing (see ``filter_streams_safe_to_remove``).
       4. Trash sidecars on disk whose language is not in ``keep_langs``
 
     Args:
@@ -457,6 +521,11 @@ def extract_and_cleanup(
             trashed.
         log_label: Tag prepended to log lines so each call site is
             identifiable in production logs.
+        remove_from_container: Opt-in for the container rewrite (step 3).
+            Defaults to False — issue #159: the rewrite used to be an
+            unconditional side effect of extraction, stripping streams
+            (including target-language ones) from users who never asked
+            for it and breaking *arr hardlinks.
 
     Returns:
         ExtractResult — see dataclass docstring.
@@ -476,7 +545,16 @@ def extract_and_cleanup(
         file_path, sub_streams, log_label=log_label
     )
 
-    remove_streams_from_container(file_path, streams_to_remove, log_label=log_label)
+    if remove_from_container:
+        safe_to_remove = filter_streams_safe_to_remove(sub_streams, streams_to_remove, keep_langs)
+        remove_streams_from_container(file_path, safe_to_remove, log_label=log_label)
+    elif streams_to_remove:
+        logger.debug(
+            "[%s]: container removal disabled — keeping %d extracted stream(s) in %s",
+            log_label,
+            len(streams_to_remove),
+            file_path,
+        )
 
     sidecars_trashed = 0
     if any_extracted and keep_langs:
@@ -538,7 +616,13 @@ def validate_extract_target(file_path: str) -> str | None:
     return None
 
 
-def extract_embedded_sub(item_id: int, file_path: str, auto_translate: bool = False) -> dict:
+def extract_embedded_sub(
+    item_id: int,
+    file_path: str,
+    auto_translate: bool = False,
+    *,
+    remove_from_container: bool | None = None,
+) -> dict:
     """Extract embedded subtitles for a wanted item.
 
     Callable from outside a Flask request context (e.g. from the scanner).
@@ -552,8 +636,11 @@ def extract_embedded_sub(item_id: int, file_path: str, auto_translate: bool = Fa
     Behaviour (rev. with shared embedded_extractor pipeline):
       - Extracts EVERY text-based subtitle stream the container offers,
         not just the "best" one. Image subtitles (PGS/VobSub) are skipped.
-      - Removes all extracted streams from the container in a single
-        mkvmerge pass with a backup in ``remux_trash_dir`` (recoverable).
+      - Container stream removal is OPT-IN (issue #159): only when
+        ``embedded_extract_remove_from_container`` is enabled (or the
+        caller passes ``remove_from_container=True``) are freshly
+        extracted streams remuxed out — with a backup in
+        ``remux_trash_dir``, and never streams in the keep-languages set.
       - Trashes any sidecar whose language is not in the wanted item's
         profile target_languages — also into ``remux_trash_dir``.
       - Returns the "primary" sidecar (the target-lang match, falling
@@ -567,6 +654,9 @@ def extract_embedded_sub(item_id: int, file_path: str, auto_translate: bool = Fa
             extracted SRT after extraction. Translation is a Beta-gated
             feature in production; the scheduler-driven drain passes
             False so it stays manual.
+        remove_from_container: Tri-state opt-in for the container rewrite.
+            None (default) resolves to the
+            ``embedded_extract_remove_from_container`` setting.
     """
     # Lazy imports below are intentional: tests patch these at their source
     # modules (e.g. ``patch("ass_utils.get_media_streams")``,
@@ -602,12 +692,18 @@ def extract_embedded_sub(item_id: int, file_path: str, auto_translate: bool = Fa
 
     probe_data = get_media_streams(file_path, use_cache=True)
 
+    if remove_from_container is None:
+        remove_from_container = bool(
+            getattr(settings, "embedded_extract_remove_from_container", False)
+        )
+
     result = extract_and_cleanup(
         file_path=file_path,
         probe_data=probe_data,
         keep_langs=keep_langs,
         target_language=target_language,
         log_label=f"auto-extract item {item_id}",
+        remove_from_container=remove_from_container,
     )
 
     if not result.any_extracted or result.primary_output_path is None:

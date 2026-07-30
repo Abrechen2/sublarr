@@ -324,6 +324,11 @@ class UISettings(BaseModel):
     embedded_allow_sdh: bool = True
     embedded_sdh_penalty: int = 5
 
+    # Issue #159: container stream removal after extraction used to be an
+    # unconditional side effect. Opt-in now; even when enabled, streams in
+    # the keep-languages set are never removed.
+    embedded_extract_remove_from_container: bool = False
+
     # Dubtitle detection (roadmap A4 / issue #146). Off by default: surfaces
     # the dubtitle among multiple English tracks; suggest-then-confirm, never
     # silently applied. dubtitle_min_score is the Tier-2 audio-match threshold.

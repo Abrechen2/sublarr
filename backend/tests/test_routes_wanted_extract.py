@@ -1099,7 +1099,9 @@ class TestRunBatchProbe:
             assert _batch_probe_state["failed"] == 1
 
     def test_existing_output_file_skips_extraction(self, app_client, tmp_path):
-        """When output file already exists, extraction is skipped but stream is scheduled for removal."""
+        """When the output file already exists, extraction is skipped AND the
+        stream stays in the container (issue #159: pre-existing sidecars used
+        to re-trigger a container remux on every run)."""
         app, _ = app_client
         from routes.wanted.batch_probe import _run_batch_probe
 
@@ -1140,8 +1142,9 @@ class TestRunBatchProbe:
 
         # Extraction should NOT have been called (file already exists)
         mock_ext.assert_not_called()
-        # But remux should still be called to remove the stream from the container
-        mock_remux.assert_called_once()
+        # And the container must NOT be rewritten — nothing was extracted in
+        # this pass, so there is nothing that may be removed.
+        mock_remux.assert_not_called()
 
     def test_emits_completion_event_with_duration(self, app_client):
         app, _ = app_client

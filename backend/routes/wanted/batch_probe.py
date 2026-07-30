@@ -133,6 +133,9 @@ def _process_probe_result(item: dict, future) -> None:
                 keep_langs=keep_langs,
                 target_language=target_lang,
                 log_label=f"batch-probe item {item_id}",
+                remove_from_container=bool(
+                    getattr(settings, "embedded_extract_remove_from_container", False)
+                ),
             )
 
             if not result.any_extracted:

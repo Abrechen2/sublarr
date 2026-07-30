@@ -186,6 +186,7 @@ class ScanningSettings(_SettingsView):
             "subtitle_automation_drain_interval_minutes",
             "embedded_allow_sdh",
             "embedded_sdh_penalty",
+            "embedded_extract_remove_from_container",
             "cleanup_foreign_tracks_default",
             "cleanup_foreign_tracks_keep_und",
             "cleanup_signs_removal_level",
