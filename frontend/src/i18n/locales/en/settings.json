@@ -2187,6 +2187,23 @@
     "default_short": "def: {{value}}",
     "save": "Save"
   },
+  "scoring_tiers": {
+    "title": "Release Group Tiers",
+    "loading": "Loading tiers...",
+    "section_desc": "Global ordered ranking of release/fansub groups (best first). A result matching tier i of N earns step × (N − i) bonus points, so higher-ranked groups win ties. Per-series fansub preferences stack on top.",
+    "empty": "No tiers configured. Add groups below — e.g. Erai-raws, SubsPlease, Judas.",
+    "add_placeholder": "Group name (e.g. Erai-raws)",
+    "add": "Add",
+    "move_up": "Move up",
+    "move_down": "Move down",
+    "remove": "Remove",
+    "step_label": "Points per tier step",
+    "step_hint": "Bonus difference between adjacent tiers. The lowest tier earns exactly this many points.",
+    "save": "Save",
+    "toast_saved": "Release group tiers saved",
+    "toast_save_failed": "Failed to save release group tiers",
+    "toast_duplicate": "\"{{name}}\" is already in the list"
+  },
   "glossary_panel": {
     "toast_setting_saved": "Glossary setting saved",
     "toast_save_failed": "Failed to save setting",

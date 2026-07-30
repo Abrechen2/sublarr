@@ -55,6 +55,9 @@ vi.mock('@/hooks/useApi', () => ({
   // Plan B4 — penalty rules hooks consumed by ScoringPenaltyRules section
   usePenaltyRules: () => ({ data: { rules: [] }, isLoading: false }),
   useUpdatePenaltyRule: () => ({ mutate: vi.fn(), isPending: false }),
+  // Release-group tiers hooks consumed by ScoringReleaseGroupTiers section
+  useReleaseGroupTiers: () => ({ data: { tiers: [], step: 10 }, isLoading: false }),
+  useUpdateReleaseGroupTiers: () => ({ mutate: vi.fn(), isPending: false }),
 }))
 
 vi.mock('@/components/shared/Toast', () => ({ toast: vi.fn() }))

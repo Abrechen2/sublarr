@@ -5,6 +5,7 @@ import {
   getProviderModifiers, updateProviderModifiers,
   getScoringPresets, importScoringPreset,
   getPenaltyRules, updatePenaltyRule,
+  getReleaseGroupTiers, updateReleaseGroupTiers,
   getBlacklist, addToBlacklist, removeFromBlacklist, clearBlacklist,
   getLanguageProfiles, createLanguageProfile, updateLanguageProfile,
   deleteLanguageProfile, assignProfile, bulkAssignProfile, setProfileAsDefaultForAll,
@@ -120,6 +121,20 @@ export function useUpdatePenaltyRule() {
     mutationFn: ({ ruleId, weight }: { ruleId: string; weight: number }) =>
       updatePenaltyRule(ruleId, weight),
     onSuccess: () => { void qc.invalidateQueries({ queryKey: ['penaltyRules'] }) },
+  })
+}
+
+// ─── Release-group tiers ─────────────────────────────────────────────────────
+
+export function useReleaseGroupTiers() {
+  return useQuery({ queryKey: ['releaseGroupTiers'], queryFn: getReleaseGroupTiers })
+}
+
+export function useUpdateReleaseGroupTiers() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: updateReleaseGroupTiers,
+    onSuccess: () => { void qc.invalidateQueries({ queryKey: ['releaseGroupTiers'] }) },
   })
 }
 

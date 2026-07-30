@@ -113,6 +113,19 @@ export const getPenaltyRules = (): Promise<{ rules: PenaltyRule[] }> =>
 export const updatePenaltyRule = (rule_id: string, weight: number): Promise<{ rule_id: string; weight: number }> =>
   api.put(`/scoring/penalty-rules/${encodeURIComponent(rule_id)}`, { weight }).then(r => r.data)
 
+// ─── Release-group tiers ────────────────────────────────────────────────────
+
+export interface ReleaseGroupTiers {
+  tiers: string[]
+  step: number
+}
+
+export const getReleaseGroupTiers = (): Promise<ReleaseGroupTiers> =>
+  api.get('/scoring/release-group-tiers').then(r => r.data)
+
+export const updateReleaseGroupTiers = (data: ReleaseGroupTiers): Promise<ReleaseGroupTiers> =>
+  api.put('/scoring/release-group-tiers', data).then(r => r.data)
+
 // ─── Media Servers ──────────────────────────────────────────────────────────
 
 export async function getMediaServerTypes(): Promise<MediaServerType[]> {
