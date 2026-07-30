@@ -67,6 +67,7 @@ _ALLOWED_BOOT_FIELDS: frozenset[str] = frozenset(
         "log_format",
         "cors_origins",
         "redis_url",
+        "stats_endpoint",
     }
 )
 
