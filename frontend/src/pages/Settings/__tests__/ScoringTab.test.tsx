@@ -58,6 +58,11 @@ vi.mock('@/hooks/useApi', () => ({
   // Release-group tiers hooks consumed by ScoringReleaseGroupTiers section
   useReleaseGroupTiers: () => ({ data: { tiers: [], step: 10 }, isLoading: false }),
   useUpdateReleaseGroupTiers: () => ({ mutate: vi.fn(), isPending: false }),
+  // Custom regex rule hooks consumed by ScoringCustomRules section
+  useCustomScoringRules: () => ({ data: { rules: [] }, isLoading: false }),
+  useCreateCustomScoringRule: () => ({ mutate: vi.fn(), isPending: false }),
+  useUpdateCustomScoringRule: () => ({ mutate: vi.fn(), isPending: false }),
+  useDeleteCustomScoringRule: () => ({ mutate: vi.fn(), isPending: false }),
 }))
 
 vi.mock('@/components/shared/Toast', () => ({ toast: vi.fn() }))

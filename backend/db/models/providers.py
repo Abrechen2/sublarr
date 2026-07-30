@@ -5,7 +5,7 @@ All column types and defaults match the existing SCHEMA DDL in db/__init__.py ex
 
 from datetime import datetime
 
-from sqlalchemy import DateTime, Float, Index, Integer, Text, UniqueConstraint
+from sqlalchemy import Boolean, DateTime, Float, Index, Integer, Text, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column
 
 from extensions import db
@@ -105,10 +105,30 @@ class ScoringWeights(db.Model):
     __table_args__ = (UniqueConstraint("score_type", "weight_key"),)
 
 
+class CustomScoringRule(db.Model):
+    """User-defined regex scoring rule (Sonarr-style release profile condition).
+
+    ``pattern`` is matched case-insensitively against a candidate's
+    release_info during penalty-pipeline scoring; a hit adds the signed
+    ``weight`` to the candidate's score.
+    """
+
+    __tablename__ = "custom_scoring_rules"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    name: Mapped[str] = mapped_column(Text, nullable=False)
+    pattern: Mapped[str] = mapped_column(Text, nullable=False)
+    weight: Mapped[int] = mapped_column(Integer, nullable=False)
+    enabled: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+
+
 __all__ = [
     "ProviderCache",
     "SubtitleDownload",
     "ProviderStats",
     "ProviderScoreModifier",
     "ScoringWeights",
+    "CustomScoringRule",
 ]

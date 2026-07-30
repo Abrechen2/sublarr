@@ -575,3 +575,189 @@ def update_release_group_tiers():
 
     invalidate_response_cache()
     return jsonify(config)
+
+
+# ---- Custom regex scoring rule endpoints -------------------------------------
+
+
+@bp.route("/scoring/custom-rules", methods=["GET"])
+def list_custom_rules():
+    """Return all user-defined regex scoring rules.
+    ---
+    get:
+      security:
+        - apiKeyAuth: []
+      tags:
+        - Events
+      summary: List custom scoring rules
+      description: >-
+        Returns every user-defined regex rule. Enabled rules are matched
+        case-insensitively against a candidate's release_info during
+        penalty-pipeline scoring; a hit adds the signed weight.
+      responses:
+        200:
+          description: Custom rules list
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  rules:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        id: { type: integer }
+                        name: { type: string }
+                        pattern: { type: string }
+                        weight: { type: integer }
+                        enabled: { type: boolean }
+    """
+    from db.repositories.custom_rules import CustomScoringRuleRepository
+
+    return jsonify({"rules": CustomScoringRuleRepository().list_rules()})
+
+
+def _parse_custom_rule_payload(data: dict) -> tuple[str, str, int, bool]:
+    """Extract (name, pattern, weight, enabled) from a request body.
+
+    Raises ``ValueError`` for non-integer weight; field validation proper
+    happens in the repository.
+    """
+    name = data.get("name", "")
+    pattern = data.get("pattern", "")
+    weight = data.get("weight", 0)
+    if isinstance(weight, str) and weight.strip().lstrip("-").isdigit():
+        weight = int(weight)
+    enabled = bool(data.get("enabled", True))
+    return name, pattern, weight, enabled
+
+
+@bp.route("/scoring/custom-rules", methods=["POST"])
+def create_custom_rule():
+    """Create a custom regex scoring rule.
+    ---
+    post:
+      security:
+        - apiKeyAuth: []
+      tags:
+        - Events
+      summary: Create a custom scoring rule
+      description: >-
+        Validates the regex (must compile, max 500 chars) and weight
+        (-999..999) and inserts the rule. At most 200 rules are allowed.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name: { type: string }
+                pattern: { type: string }
+                weight: { type: integer }
+                enabled: { type: boolean }
+      responses:
+        200:
+          description: Created rule
+        400:
+          description: Invalid name, pattern, or weight
+    """
+    from db.repositories.custom_rules import CustomScoringRuleRepository
+    from wanted_search.penalty_rules import invalidate_custom_rules_cache
+
+    data = request.get_json(silent=True) or {}
+    try:
+        name, pattern, weight, enabled = _parse_custom_rule_payload(data)
+        rule = CustomScoringRuleRepository().create_rule(name, pattern, weight, enabled)
+    except ValueError as e:
+        return jsonify({"error": str(e)}), 400
+
+    invalidate_custom_rules_cache()
+    invalidate_response_cache()
+    return jsonify(rule)
+
+
+@bp.route("/scoring/custom-rules/<int:rule_id>", methods=["PUT"])
+def update_custom_rule(rule_id: int):
+    """Update a custom regex scoring rule.
+    ---
+    put:
+      security:
+        - apiKeyAuth: []
+      tags:
+        - Events
+      summary: Update a custom scoring rule
+      parameters:
+        - in: path
+          name: rule_id
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name: { type: string }
+                pattern: { type: string }
+                weight: { type: integer }
+                enabled: { type: boolean }
+      responses:
+        200:
+          description: Updated rule
+        400:
+          description: Invalid name, pattern, or weight
+        404:
+          description: Unknown rule id
+    """
+    from db.repositories.custom_rules import CustomScoringRuleRepository
+    from wanted_search.penalty_rules import invalidate_custom_rules_cache
+
+    data = request.get_json(silent=True) or {}
+    try:
+        name, pattern, weight, enabled = _parse_custom_rule_payload(data)
+        rule = CustomScoringRuleRepository().update_rule(rule_id, name, pattern, weight, enabled)
+    except ValueError as e:
+        return jsonify({"error": str(e)}), 400
+    if rule is None:
+        return jsonify({"error": "unknown rule id", "id": rule_id}), 404
+
+    invalidate_custom_rules_cache()
+    invalidate_response_cache()
+    return jsonify(rule)
+
+
+@bp.route("/scoring/custom-rules/<int:rule_id>", methods=["DELETE"])
+def delete_custom_rule(rule_id: int):
+    """Delete a custom regex scoring rule.
+    ---
+    delete:
+      security:
+        - apiKeyAuth: []
+      tags:
+        - Events
+      summary: Delete a custom scoring rule
+      parameters:
+        - in: path
+          name: rule_id
+          required: true
+          schema:
+            type: integer
+      responses:
+        200:
+          description: Deleted
+        404:
+          description: Unknown rule id
+    """
+    from db.repositories.custom_rules import CustomScoringRuleRepository
+    from wanted_search.penalty_rules import invalidate_custom_rules_cache
+
+    if not CustomScoringRuleRepository().delete_rule(rule_id):
+        return jsonify({"error": "unknown rule id", "id": rule_id}), 404
+
+    invalidate_custom_rules_cache()
+    invalidate_response_cache()
+    return jsonify({"id": rule_id, "deleted": True})

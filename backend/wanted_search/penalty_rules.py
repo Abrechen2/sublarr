@@ -133,6 +133,78 @@ _RULE_SUPERSEDES: dict[str, tuple[str, ...]] = {
 }
 
 
+# Custom regex rules — user-defined Sonarr-style release-profile conditions
+# stored in the ``custom_scoring_rules`` table. Compiled patterns are cached
+# with the same 60 s TTL as rule-weight overrides; the CRUD routes call
+# ``invalidate_custom_rules_cache()`` so edits apply immediately.
+#
+# Matching input is capped to bound worst-case regex backtracking on
+# adversarial provider strings.
+_CUSTOM_RULES_CACHE_TTL = 60  # seconds
+_MAX_MATCH_INPUT_LEN = 300
+_custom_rules_cache: dict = {"data": None, "expires": 0.0}
+_custom_rules_cache_lock = threading.Lock()
+
+
+def _get_cached_custom_rules() -> list[tuple[int, re.Pattern, int]]:
+    """Return enabled custom rules as ``[(id, compiled_pattern, weight)]``.
+
+    Falls back to an empty list on any DB error; rules whose pattern no
+    longer compiles (edited DB row, downgrade artifacts) are skipped.
+    """
+    with _custom_rules_cache_lock:
+        now = time.time()
+        cached = _custom_rules_cache["data"]
+        if cached is not None and now < _custom_rules_cache["expires"]:
+            return cached
+
+        compiled: list[tuple[int, re.Pattern, int]] = []
+        try:
+            from db.repositories.custom_rules import CustomScoringRuleRepository
+
+            for rule in CustomScoringRuleRepository().list_rules(enabled_only=True):
+                try:
+                    compiled.append(
+                        (rule["id"], re.compile(rule["pattern"], re.IGNORECASE), rule["weight"])
+                    )
+                except re.error:
+                    logger.warning(
+                        "Custom scoring rule %d has invalid pattern; skipped", rule["id"]
+                    )
+        except Exception:
+            logger.debug("Custom rule load failed", exc_info=True)
+
+        _custom_rules_cache["data"] = compiled
+        _custom_rules_cache["expires"] = now + _CUSTOM_RULES_CACHE_TTL
+        return compiled
+
+
+def invalidate_custom_rules_cache() -> None:
+    """Clear the custom-rule cache so the next pipeline call reloads from the DB."""
+    with _custom_rules_cache_lock:
+        _custom_rules_cache["data"] = None
+        _custom_rules_cache["expires"] = 0.0
+
+
+def apply_custom_regex_rules(candidate: SubtitleResult, query: VideoQuery) -> dict[str, int]:
+    """Apply user-defined regex rules to the candidate's release_info.
+
+    Returns ``{"custom_<id>": weight}`` entries for every matching enabled
+    rule. Pure function — does not mutate the candidate.
+    """
+    breakdown: dict[str, int] = {}
+    info = (candidate.release_info or "")[:_MAX_MATCH_INPUT_LEN]
+    if not info:
+        return breakdown
+    for rule_id, pattern, weight in _get_cached_custom_rules():
+        try:
+            if weight != 0 and pattern.search(info):
+                breakdown[f"custom_{rule_id}"] = int(weight)
+        except Exception as e:
+            logger.warning("Custom scoring rule %d raised: %s", rule_id, e)
+    return breakdown
+
+
 def apply_penalty_pipeline(
     candidate: SubtitleResult,
     query: VideoQuery,
@@ -152,6 +224,9 @@ def apply_penalty_pipeline(
     4. Call ``rule.weight(candidate, query)``. If the rule returned its
        own ``default_weight`` (the simple path), scale by the configured
        override; otherwise keep the dynamic value the rule computed.
+
+    User-defined custom regex rules (``custom_scoring_rules`` table) run
+    after the registry rules and contribute ``custom_<id>`` entries.
     """
     breakdown: dict[str, int] = {}
 
@@ -173,6 +248,8 @@ def apply_penalty_pipeline(
             breakdown[rule_cls.rule_id] = int(applied)
         except Exception as e:
             logger.warning("Penalty rule %s raised: %s", rule_cls.rule_id, e)
+
+    breakdown.update(apply_custom_regex_rules(candidate, query))
 
     return breakdown
 

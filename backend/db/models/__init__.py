@@ -44,6 +44,7 @@ from db.models.plugins import (
     MarketplaceCache,
 )
 from db.models.providers import (
+    CustomScoringRule,
     ProviderCache,
     ProviderScoreModifier,
     ProviderStats,
@@ -94,6 +95,7 @@ __all__ = [
     "ProviderStats",
     "ProviderScoreModifier",
     "ScoringWeights",
+    "CustomScoringRule",
     # translation
     "TranslationConfigHistory",
     "GlossaryEntry",

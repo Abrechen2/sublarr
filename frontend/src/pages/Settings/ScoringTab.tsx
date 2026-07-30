@@ -25,6 +25,7 @@ import type { ScoringWeights, ScoringPreset } from '@/lib/types'
 import { settingsInputStyle } from '@/styles/settingsShared'
 import { ScoringPenaltyRules } from './ScoringPenaltyRules'
 import { ScoringReleaseGroupTiers } from './ScoringReleaseGroupTiers'
+import { ScoringCustomRules } from './ScoringCustomRules'
 
 const inputStyle: React.CSSProperties = { ...settingsInputStyle, outline: 'none' }
 
@@ -444,6 +445,9 @@ export function ScoringTab() {
 
       {/* ── 4b. Release-Group Tiers ────────────────────────────────────── */}
       <ScoringReleaseGroupTiers />
+
+      {/* ── 4c. Custom Regex Rules ─────────────────────────────────────── */}
+      <ScoringCustomRules />
 
       {/* ── 5. Advanced ────────────────────────────────────────────────── */}
       <div
