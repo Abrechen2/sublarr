@@ -36,7 +36,13 @@ _LOCAL_PROVIDERS = {"embedded", "whisper"}
 
 # Providers that are self-hosted (operator chooses the URL).
 # Scheme must be http/https, but any hostname is accepted.
-_SELF_HOSTED_PROVIDERS = {"subsdump"}
+# The generic Custom HTTP/JSON provider ("customapi") and its dynamically
+# registered instances ("customapi-<name>") fall in this class too.
+_SELF_HOSTED_PROVIDERS = {"subsdump", "customapi"}
+
+
+def _is_self_hosted_provider(provider_name: str) -> bool:
+    return provider_name in _SELF_HOSTED_PROVIDERS or provider_name.startswith("customapi-")
 
 # Allowlists: a URL is accepted when netloc equals entry OR ends with ".<entry>".
 _PROVIDER_DOWNLOAD_DOMAINS: dict[str, set[str]] = {
@@ -72,7 +78,7 @@ def validate_download_url(url: str, provider_name: str) -> tuple[bool, str | Non
     if provider_name in _LOCAL_PROVIDERS:
         return True, None
 
-    if provider_name in _SELF_HOSTED_PROVIDERS:
+    if _is_self_hosted_provider(provider_name):
         if not url:
             return False, "Self-hosted provider download URL must not be empty"
         try:

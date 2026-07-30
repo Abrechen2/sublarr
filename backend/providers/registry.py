@@ -17,6 +17,7 @@ PROVIDER_METADATA: dict[str, dict] = {
     "animetosho": {"rate_limit": (50, 30), "timeout": 10, "retries": 2},
     "subdl": {"rate_limit": (30, 10), "timeout": 10, "retries": 2},
     "subsdump": {"rate_limit": (0, 0), "timeout": 30, "retries": 2},
+    "customapi": {"rate_limit": (0, 0), "timeout": 20, "retries": 2},
 }
 
 import logging
@@ -54,6 +55,7 @@ _BUILTIN_PROVIDERS: tuple[str, ...] = (
     "animetosho",
     "subdl",
     "subsdump",
+    "customapi",
     "gestdown",
     "podnapisi",
     "kitsunekko",
@@ -90,6 +92,15 @@ def import_builtin_providers() -> None:
             importlib.import_module(f"providers.{name}")
         except ImportError as e:
             logger.debug("Provider %s not available: %s", name, e)
+
+    # Re-sync dynamically registered Custom API instances (customapi-<name>)
+    # so ProviderManager re-initialization picks up config changes.
+    try:
+        from providers.customapi import sync_instances
+
+        sync_instances()
+    except Exception as e:
+        logger.debug("Custom API instance sync skipped: %s", e)
 
 
 __all__ = [

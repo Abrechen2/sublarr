@@ -50,6 +50,7 @@ It follows the *arr-suite design philosophy: connect it to Sonarr/Radarr, set up
 
 ### 🔍 Subtitle Search & Download
 - **21 providers** — AnimeTosho, Jimaku, OpenSubtitles, SubDL, Subscene, Subf2m, Subsource, SubsDump, Addic7ed, BetaSeries, Titlovi, Titrari, TVSubtitles, Gestdown, Kitsunekko, Napisy24, Podnapisi, YIFY, Zimuku, LegendasDivX, TurkceAltyazi — plus embedded subtitle extraction
+- **Custom HTTP/JSON provider** — connect private subtitle servers or adapt any REST API via configuration (field mapping, multiple instances, no code required) — see [docs/CUSTOM_PROVIDER_API.md](docs/CUSTOM_PROVIDER_API.md)
 - **ASS-first scoring** — ASS/SSA gets +50 bonus over SRT; format, dialect, sync quality, and uploader reputation scored
 - **Smart deduplication** — avoids re-downloading identical files via SHA-256 hashing
 - **Machine translation detection** — flags OpenSubtitles mt/ai-tagged uploads with an orange badge

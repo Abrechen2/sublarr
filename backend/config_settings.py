@@ -260,6 +260,18 @@ class UISettings(BaseModel):
     subsdump_url: str = "http://192.168.178.195"
     subsdump_api_key: str = ""
 
+    # Custom HTTP/JSON provider (generic, user-configured REST endpoint —
+    # see docs/CUSTOM_PROVIDER_API.md for the contract)
+    customapi_base_url: str = ""
+    customapi_api_key: str = ""
+    customapi_api_key_header: str = "X-API-Key"
+    customapi_search_path: str = "/search"
+    customapi_download_path: str = "/download/{id}"
+    customapi_results_path: str = "results"
+    customapi_field_map: str = ""  # JSON object: SubtitleResult field -> response path
+    customapi_extra_params: str = ""  # JSON object: extra query params sent on search
+    customapi_instances_json: str = ""  # JSON array of additional instances
+
     # Sonarr (optional)
     sonarr_url: str = ""
     sonarr_api_key: str = ""
