@@ -36,6 +36,7 @@ from config_singleton import get_settings, reload_settings  # noqa: E402, F401
 from config_instances import (  # noqa: E402, F401
     get_media_server_instances,
     get_radarr_instances,
+    get_shoko_config,
     get_sonarr_instances,
     is_standalone_mode,
 )

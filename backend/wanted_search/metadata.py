@@ -134,6 +134,7 @@ from wanted_search.metadata_enrichers import (  # noqa: F401 — re-exported for
     _enrich_from_standalone_series,
     _enrich_release_metadata,
     _resolve_anidb_absolute_episode,
+    _resolve_anidb_from_shoko,
     _resolve_anidb_id_for_standalone,
     _validate_minimum_query_data,
 )
@@ -171,6 +172,13 @@ def build_query_from_wanted(wanted_item: dict) -> VideoQuery:
 
     if not metadata_available:
         _enrich_from_filename(query, wanted_item)
+
+    # Authoritative Shoko file→AniDB lookup for anime episodes. Fills the gap
+    # for the Sonarr/filename paths (the standalone path already tries Shoko as
+    # Tier 0 in its own chain). Only runs when no AniDB ID is set yet, so an
+    # explicit Sonarr custom-field tag still wins.
+    if wanted_item["item_type"] == "episode" and not query.anidb_id:
+        _resolve_anidb_from_shoko(query)
 
     _resolve_anidb_absolute_episode(query, wanted_item)
     _enrich_release_metadata(query, wanted_item)
