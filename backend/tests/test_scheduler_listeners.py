@@ -129,8 +129,11 @@ def test_listener_error_does_not_crash_scheduler(scheduler, caplog):
         scheduled_run_time=datetime.now(UTC),
     )
     with (
+        # Patch the name in core's namespace — core.py binds _write_job_run
+        # at import time, so patching the package re-export never reaches
+        # the listener.
         patch(
-            "services.scheduler._write_job_run",
+            "services.scheduler.core._write_job_run",
             side_effect=RuntimeError("db down"),
         ),
         caplog.at_level(logging.ERROR, logger="services.scheduler"),
