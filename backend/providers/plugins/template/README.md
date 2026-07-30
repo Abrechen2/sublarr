@@ -78,11 +78,11 @@ Each config field is a dict with these keys:
 
 ```python
 {
-    "key": "api_key",          # Internal key, passed as kwarg to __init__
-    "label": "API Key",        # Human-readable label in the Settings UI
-    "type": "password",        # "text", "password", or "number"
-    "required": True,          # If True, provider needs this to function
-    "default": "",             # Default value (optional)
+    "key": "api_key",  # Internal key, passed as kwarg to __init__
+    "label": "API Key",  # Human-readable label in the Settings UI
+    "type": "password",  # "text", "password", or "number"
+    "required": True,  # If True, provider needs this to function
+    "default": "",  # Default value (optional)
 }
 ```
 
@@ -93,8 +93,20 @@ Config values are stored in the database under `plugin.<name>.<key>` namespace. 
 ```python
 config_fields = [
     {"key": "api_key", "label": "API Key", "type": "password", "required": True},
-    {"key": "base_url", "label": "Base URL", "type": "text", "required": False, "default": "https://api.example.com"},
-    {"key": "results_per_page", "label": "Results Per Page", "type": "number", "required": False, "default": "50"},
+    {
+        "key": "base_url",
+        "label": "Base URL",
+        "type": "text",
+        "required": False,
+        "default": "https://api.example.com",
+    },
+    {
+        "key": "results_per_page",
+        "label": "Results Per Page",
+        "type": "number",
+        "required": False,
+        "default": "50",
+    },
 ]
 ```
 
@@ -201,9 +213,9 @@ result.matches = {"series", "season", "episode"}
 Set `rate_limit = (max_requests, window_seconds)` on your class. The `ProviderManager` enforces this limit across all search and download calls. Example:
 
 ```python
-rate_limit = (5, 1)    # 5 requests per second (OpenSubtitles-style)
-rate_limit = (100, 60) # 100 requests per minute
-rate_limit = (0, 0)    # No rate limiting
+rate_limit = (5, 1)  # 5 requests per second (OpenSubtitles-style)
+rate_limit = (100, 60)  # 100 requests per minute
+rate_limit = (0, 0)  # No rate limiting
 ```
 
 The `RetryingSession` from `create_session()` also handles HTTP 429 responses automatically (reads `Retry-After` header).
@@ -220,10 +232,10 @@ Sublarr provides three specialized exceptions in `providers.base`:
 
 ```python
 from providers.base import (
-    ProviderAuthError,       # 401/403 -- authentication failed
+    ProviderAuthError,  # 401/403 -- authentication failed
     ProviderRateLimitError,  # 429 -- rate limit exceeded
-    ProviderTimeoutError,    # Request timed out
-    ProviderError,           # Generic provider error (base class)
+    ProviderTimeoutError,  # Request timed out
+    ProviderError,  # Generic provider error (base class)
 )
 ```
 
@@ -252,10 +264,11 @@ Use `create_session()` from `providers.http_session` for HTTP calls:
 ```python
 from providers.http_session import create_session
 
+
 def initialize(self):
     self.session = create_session(
-        max_retries=self.max_retries,   # From class attribute
-        timeout=self.timeout,           # From class attribute
+        max_retries=self.max_retries,  # From class attribute
+        timeout=self.timeout,  # From class attribute
         user_agent="Sublarr-Plugin/1.0",
     )
     # Set authentication headers
@@ -276,17 +289,18 @@ The session provides:
 import zipfile
 import io
 
+
 def download(self, result):
     resp = self.session.get(result.download_url)
     resp.raise_for_status()
     content = resp.content
 
-    if content[:4] == b'PK\x03\x04':  # ZIP magic bytes
+    if content[:4] == b"PK\x03\x04":  # ZIP magic bytes
         with zipfile.ZipFile(io.BytesIO(content)) as zf:
             for name in zf.namelist():
-                if name.endswith(('.srt', '.ass', '.ssa')):
+                if name.endswith((".srt", ".ass", ".ssa")):
                     content = zf.read(name)
-                    if name.endswith(('.ass', '.ssa')):
+                    if name.endswith((".ass", ".ssa")):
                         result.format = SubtitleFormat.ASS
                     break
 
@@ -299,12 +313,13 @@ def download(self, result):
 ```python
 import lzma
 
+
 def download(self, result):
     resp = self.session.get(result.download_url)
     resp.raise_for_status()
     content = resp.content
 
-    if content[:6] == b'\xfd7zXZ\x00':  # XZ magic bytes
+    if content[:6] == b"\xfd7zXZ\x00":  # XZ magic bytes
         content = lzma.decompress(content)
 
     result.content = content
@@ -317,15 +332,16 @@ def download(self, result):
 import rarfile
 import io
 
+
 def download(self, result):
     resp = self.session.get(result.download_url)
     resp.raise_for_status()
     content = resp.content
 
-    if content[:4] == b'Rar!':  # RAR magic bytes
+    if content[:4] == b"Rar!":  # RAR magic bytes
         with rarfile.RarFile(io.BytesIO(content)) as rf:
             for name in rf.namelist():
-                if name.endswith(('.srt', '.ass', '.ssa')):
+                if name.endswith((".srt", ".ass", ".ssa")):
                     content = rf.read(name)
                     break
 
@@ -342,6 +358,7 @@ def search(self, query):
     elif query.is_movie:
         return self._search_movie(query)
     return []
+
 
 def _search_episode(self, query):
     params = {
