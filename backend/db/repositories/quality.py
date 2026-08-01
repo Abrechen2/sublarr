@@ -85,19 +85,25 @@ class QualityRepository(BaseRepository):
         Returns:
             List of dicts with date, avg_score, total_issues, check_count.
         """
-        # Portable across SQLite + Postgres: Postgres has no
-        # substr(timestamptz, …) overload, so the timestamp must be cast to
-        # text first (same pattern as statistics.get_downloads_per_day).
-        # Without the cast this raises UndefinedFunction on Postgres while
-        # passing on SQLite — i.e. green in CI, 500 in production.
+        # Both the bucket AND the cutoff work on a text cast of checked_at,
+        # because the column's physical type differs per install:
+        #   * DBs created from the current models  -> TIMESTAMP WITH TIME ZONE
+        #   * DBs predating the timestamp cleanup  -> TEXT (prod/RC are these)
+        # Postgres rejects each type in the opposite expression — substr() has
+        # no timestamptz overload, and `text > timestamptz` has no operator —
+        # so touching the raw column 500s on one install or the other. Casting
+        # to text normalises both to a leading "YYYY-MM-DD", where a string
+        # comparison is also a chronological one. SQLite is happy either way,
+        # which is why CI never caught this.
         day_expr = func.substr(cast(SubtitleHealthResult.checked_at, String), 1, 10)
+        cutoff_day = (datetime.now(UTC) - timedelta(days=days)).strftime("%Y-%m-%d")
         stmt = (
             select(
                 day_expr.label("date"),
                 func.round(func.avg(SubtitleHealthResult.score), 1).label("avg_score"),
                 func.count().label("check_count"),
             )
-            .where(SubtitleHealthResult.checked_at > (datetime.now(UTC) - timedelta(days=days)))
+            .where(day_expr >= cutoff_day)
             .group_by(day_expr)
             .order_by(day_expr)
         )

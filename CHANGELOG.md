@@ -89,10 +89,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   the gate. The 401 interceptor additionally drops a stale key before
   redirecting and no longer redirects when already on `/login`, so a single
   background 401 can never re-enter the loop.
-- **Quality trends returned a server error on PostgreSQL.** The daily bucket
-  grouped on `substr(checked_at, …)`, and PostgreSQL has no `substr` overload
-  for timestamps — so `/api/v1/tools/quality-trends` failed there while
-  passing on SQLite. The timestamp is now cast to text first.
+- **Quality trends returned a server error on PostgreSQL.**
+  `/api/v1/tools/quality-trends` failed on every PostgreSQL install, in two
+  different ways depending on how old the database was: installs created from
+  the current models store `checked_at` as a timestamp and choked on
+  `substr(<timestamp>)`, while older installs store it as text and choked on
+  comparing that text against a datetime cutoff. Both the day bucket and the
+  cutoff now work on a text cast, which is valid for either column type.
+  SQLite accepted both forms, which is why the test suite never caught it.
 - **Plugin marketplace errored when the registry was unreachable.** The update
   check returned a server error whenever the community registry was offline,
   while the plugin list degraded gracefully for the identical failure. Both

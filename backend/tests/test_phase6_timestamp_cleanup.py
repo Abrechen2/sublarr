@@ -97,6 +97,15 @@ def test_quality_trend_query_casts_timestamp_before_substr(app_ctx):
         "get_quality_trends calls substr() directly on the timestamp column; "
         "this raises UndefinedFunction on Postgres."
     )
+    # The WHERE cutoff must compare the same text expression, not the raw
+    # column: checked_at is TEXT on installs predating the timestamp cleanup
+    # (prod + RC are), where `checked_at > <datetime>` has no Postgres operator.
+    assert "SubtitleHealthResult.checked_at >" not in source, (
+        "get_quality_trends compares the raw checked_at column against a "
+        "datetime; on installs where the column is TEXT this raises "
+        "UndefinedFunction (operator does not exist: text > timestamptz). "
+        "Compare the cast day expression against a 'YYYY-MM-DD' string."
+    )
 
 
 # ── Test 4: Whisper queue passes datetime to update_whisper_job ───────────────
