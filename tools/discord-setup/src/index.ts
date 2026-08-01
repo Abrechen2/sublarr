@@ -60,13 +60,15 @@ async function main(): Promise<void> {
     return;
   }
 
-  const dryRun = process.argv.includes("--dry-run");
-  const { token, guildId } = loadEnv();
-  const client = createClient();
-
   if (command === "read") {
-    const channelName = process.argv[3] ?? null;
-    const limit = parseLimit(process.argv[4]);
+    // Routed through parseArgs like `reply`/`announce` even though `read`
+    // takes no flags today — one extraction path for all three commands
+    // instead of `read` alone still reading process.argv positionally.
+    const { positional } = parseArgs(process.argv.slice(3), [], []);
+    const channelName = positional[0] ?? null;
+    const limit = parseLimit(positional[1]);
+    const { token, guildId } = loadEnv();
+    const client = createClient();
     await runRead(client, token, guildId, channelName, limit);
     return; // runRead owns login + destroy
   }
@@ -80,7 +82,11 @@ async function main(): Promise<void> {
     // `--dry-run` / `--file <path>` can appear anywhere on the command line —
     // `reply --dry-run general "msg"` and `reply general "msg" --dry-run`
     // parse identically.
-    const { positional, values } = parseArgs(process.argv.slice(3), ["--file"], ["--dry-run"]);
+    const { positional, values, flags } = parseArgs(
+      process.argv.slice(3),
+      ["--file"],
+      ["--dry-run"],
+    );
     const targetQuery = positional[0];
     const filePath = values["--file"];
     const message =
@@ -93,14 +99,18 @@ async function main(): Promise<void> {
       process.exitCode = 1;
       return;
     }
-    await runReply(client, token, guildId, targetQuery, message, dryRun);
+    // `reply --dry-run` still resolves the target against the live guild
+    // (see runReply's docstring), so it needs credentials regardless.
+    const { token, guildId } = loadEnv();
+    const client = createClient();
+    await runReply(client, token, guildId, targetQuery, message, flags["--dry-run"]);
     return; // runReply owns login + destroy
   }
 
   if (command === "announce") {
     // Same flag-placement rule as `reply`: flags are filtered out before the
     // positional arguments (type, version) are read.
-    const { positional, values } = parseArgs(
+    const { positional, values, flags } = parseArgs(
       process.argv.slice(3),
       ["--notes-file", "--notes"],
       ["--dry-run"],
@@ -135,7 +145,21 @@ async function main(): Promise<void> {
       notes = changelog ? extractChangelogEntry(changelog, version) : null;
     }
 
-    await runAnnounce(client, token, guildId, type, version, notes, dryRun);
+    const dryRun = flags["--dry-run"];
+    if (dryRun) {
+      // A dry-run preview builds and prints the embed without ever calling
+      // login() (see runAnnounce's docstring) — it needs neither the bot
+      // token nor the guild id, so loadEnv() must not run ahead of this
+      // branch. It used to, which meant previewing an announcement failed
+      // outright without a working `.env`, even though the preview path
+      // never connects to Discord at all.
+      await runAnnounce(createClient(), "", "", type, version, notes, true);
+      return;
+    }
+
+    const { token, guildId } = loadEnv();
+    const client = createClient();
+    await runAnnounce(client, token, guildId, type, version, notes, false);
     return; // runAnnounce owns login + destroy
   }
 }

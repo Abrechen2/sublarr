@@ -71,4 +71,20 @@ describe("parseArgs", () => {
     expect(positional).toEqual(["general"]);
     expect(values["--file"]).toBeUndefined();
   });
+
+  it("reports a declared boolean flag as true when present, from any position", () => {
+    // index.ts derives its dryRun value from this field instead of a second,
+    // separate `process.argv.includes("--dry-run")` scan — one parse, one
+    // source of truth for whether the flag was given.
+    expect(parseArgs(["general", "--dry-run", "hi"], [], ["--dry-run"]).flags["--dry-run"]).toBe(
+      true,
+    );
+    expect(parseArgs(["--dry-run", "general", "hi"], [], ["--dry-run"]).flags["--dry-run"]).toBe(
+      true,
+    );
+  });
+
+  it("reports a declared boolean flag as false when absent, not undefined", () => {
+    expect(parseArgs(["general", "hi"], [], ["--dry-run"]).flags["--dry-run"]).toBe(false);
+  });
 });
