@@ -51,9 +51,17 @@ describe("extractChangelogEntry", () => {
     expect(extractChangelogEntry(SAMPLE, "9.9.9")).toBeNull();
   });
 
-  it("does not let 1.1.0 match the 1.10.0 heading", () => {
-    // A naive prefix match would: "1.10.0" starts with "1.1". The word boundary
-    // in the heading regex is what prevents announcing the wrong release notes.
+  it("does not let a truncated version match a longer heading via word boundary", () => {
+    // The word boundary \b after the version is load-bearing. Without it, "1.1" would
+    // match the heading "## [1.10.0]" because the regex would find "1.1" and continue.
+    // The \b requires a word boundary after the version digits, preventing "1.1" from
+    // matching when followed by another digit "0" in "1.10.0".
+    expect(extractChangelogEntry(SAMPLE, "1.1")).toBeNull();
+  });
+
+  it("correctly escapes dots in version strings", () => {
+    // Dot-escaping ensures "1.1.0" (with literal dots) does not accidentally match
+    // "1.10.0" via a literal dot in the version string. Separate concern from word boundary.
     expect(extractChangelogEntry(SAMPLE, "1.1.0")).toBeNull();
   });
 
