@@ -7,7 +7,7 @@ and cleanup operations for SubtitleHealthResult records.
 import logging
 from datetime import UTC, datetime, timedelta
 
-from sqlalchemy import func, select
+from sqlalchemy import String, cast, func, select
 
 from db.models.quality import AIQualityResult, SubtitleHealthResult, UserModifiedSubtitle
 from db.repositories.base import BaseRepository
@@ -85,16 +85,21 @@ class QualityRepository(BaseRepository):
         Returns:
             List of dicts with date, avg_score, total_issues, check_count.
         """
-        # Use SQLite date() function to group by day
+        # Portable across SQLite + Postgres: Postgres has no
+        # substr(timestamptz, …) overload, so the timestamp must be cast to
+        # text first (same pattern as statistics.get_downloads_per_day).
+        # Without the cast this raises UndefinedFunction on Postgres while
+        # passing on SQLite — i.e. green in CI, 500 in production.
+        day_expr = func.substr(cast(SubtitleHealthResult.checked_at, String), 1, 10)
         stmt = (
             select(
-                func.substr(SubtitleHealthResult.checked_at, 1, 10).label("date"),
+                day_expr.label("date"),
                 func.round(func.avg(SubtitleHealthResult.score), 1).label("avg_score"),
                 func.count().label("check_count"),
             )
             .where(SubtitleHealthResult.checked_at > (datetime.now(UTC) - timedelta(days=days)))
-            .group_by(func.substr(SubtitleHealthResult.checked_at, 1, 10))
-            .order_by(func.substr(SubtitleHealthResult.checked_at, 1, 10))
+            .group_by(day_expr)
+            .order_by(day_expr)
         )
         rows = self.session.execute(stmt).all()
 

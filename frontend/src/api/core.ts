@@ -108,7 +108,13 @@ api.interceptors.response.use(
       // the reload — otherwise its early-return keeps re-sending the dead key
       // and the app loops between /login and the dashboard forever.
       localStorage.removeItem('sublarr_api_key')
-      window.location.href = '/login'
+      // Only hard-navigate when we are NOT already on /login. Redirecting
+      // /login → /login is a full page reload, so a single background 401
+      // (e.g. a request that raced the freshly-issued session cookie) puts
+      // the UI into an endless reload loop instead of showing the form once.
+      if (window.location.pathname !== '/login') {
+        window.location.href = '/login'
+      }
     }
     return Promise.reject(error)
   }

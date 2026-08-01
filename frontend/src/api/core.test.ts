@@ -123,4 +123,45 @@ describe('401 response interceptor', () => {
     ).rejects.toBeTruthy()
     expect(localStorage.getItem('sublarr_api_key')).toBe('valid-key')
   })
+
+  describe('redirect behaviour', () => {
+    const original = window.location
+    let assigned: string | null
+
+    const stubLocation = (pathname: string) => {
+      assigned = null
+      Object.defineProperty(window, 'location', {
+        configurable: true,
+        value: {
+          pathname,
+          get href() {
+            return `http://localhost${pathname}`
+          },
+          set href(value: string) {
+            assigned = value
+          },
+        },
+      })
+    }
+
+    afterEach(() => {
+      Object.defineProperty(window, 'location', { configurable: true, value: original })
+    })
+
+    it('redirects to /login on a 401 raised from another page', async () => {
+      stubLocation('/wanted')
+      await expect(
+        rejected({ response: { status: 401 }, config: { url: '/wanted' } })
+      ).rejects.toBeTruthy()
+      expect(assigned).toBe('/login')
+    })
+
+    it('does NOT redirect when already on /login (would reload-loop)', async () => {
+      stubLocation('/login')
+      await expect(
+        rejected({ response: { status: 401 }, config: { url: '/wanted' } })
+      ).rejects.toBeTruthy()
+      expect(assigned).toBeNull()
+    })
+  })
 })

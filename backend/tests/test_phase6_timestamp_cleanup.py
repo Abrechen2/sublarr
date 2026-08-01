@@ -77,6 +77,28 @@ def test_quality_trend_query_does_not_isoformat(app_ctx):
     )
 
 
+def test_quality_trend_query_casts_timestamp_before_substr(app_ctx):
+    """The day bucket must substr() a *text* cast, not the raw timestamp column.
+
+    Postgres has no substr(timestamptz, int, int) overload, so grouping on the
+    bare column raises UndefinedFunction there while working fine on SQLite —
+    CI is SQLite-backed, so only production surfaces the 500. Guard the cast.
+    """
+    import inspect
+
+    from db.repositories.quality import QualityRepository
+
+    source = inspect.getsource(QualityRepository.get_quality_trends)
+    assert "cast(" in source, (
+        "get_quality_trends must wrap checked_at in cast(..., String) before "
+        "substr() — a bare substr(timestamptz, ...) 500s on Postgres."
+    )
+    assert "func.substr(SubtitleHealthResult.checked_at" not in source, (
+        "get_quality_trends calls substr() directly on the timestamp column; "
+        "this raises UndefinedFunction on Postgres."
+    )
+
+
 # ── Test 4: Whisper queue passes datetime to update_whisper_job ───────────────
 
 

@@ -233,7 +233,11 @@ def create_app(testing=False):
 
         if not _inspect(sa_db.engine).has_table("alembic_version"):
             sa_db.create_all()
-            logger.info("Fresh DB: ran create_all()")
+            # NB: "untracked", not necessarily "new" — any DB that was first
+            # created by create_all() never gets an alembic_version table, so
+            # it takes this branch on every start for its whole lifetime and
+            # relies on _patch_pre_alembic_columns() below for new columns.
+            logger.info("Alembic-untracked DB: ran create_all()")
             # Pre-Alembic DB: patch any columns that were added via Alembic migrations
             # but are missing because create_all() is a no-op on existing tables.
             _patch_pre_alembic_columns(sa_db.engine, _inspect)
@@ -259,10 +263,14 @@ def create_app(testing=False):
                 # weeks: the chain was pinned one revision behind head and
                 # every subsequent migration silently skipped.
                 logger.warning("Alembic auto-upgrade failed (non-fatal): %s", _e, exc_info=True)
-        # ai_quality_results is created idempotently instead of via a migration:
-        # the migration chain currently has diverged heads (upgrade head fails
-        # on them), and a checkfirst create works on both fresh and tracked DBs.
-        # TODO: fold into a real migration once the heads are merged (ROADMAP).
+        # ai_quality_results is created idempotently rather than via a migration.
+        # This dates from the 2026-07-30 beta batch, when the chain still had
+        # diverged heads; they were unified in eeb79287c3b6 and `upgrade head`
+        # now succeeds, so the original reason no longer applies. The checkfirst
+        # create is kept because it is also what gives Alembic-untracked DBs
+        # (see the create_all branch above) this table at all.
+        # TODO: fold into a real migration and drop this once untracked DBs are
+        # stamped and migrated like every other install (ROADMAP).
         try:
             from db.models.quality import AIQualityResult
 

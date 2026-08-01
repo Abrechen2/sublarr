@@ -197,6 +197,10 @@ def check_marketplace_updates():
         updates = marketplace.check_updates(installed)
 
         return jsonify({"updates": updates}), 200
-    except Exception:
-        logger.exception("Failed to check updates")
-        return jsonify({"error": "Internal server error"}), 500
+    except Exception as exc:
+        # An unreachable registry is an expected offline state, not a server
+        # fault: browse_plugins() already degrades to an empty list plus a
+        # warning for the same failure. 500ing here made the plugin page error
+        # out whenever the community registry was down or unpublished.
+        logger.warning("Marketplace update check unavailable: %s", exc)
+        return jsonify({"updates": {}, "registry_available": False}), 200
