@@ -30,6 +30,14 @@ and avatar, so announcements appeared to come from a real person instead of
 the project. `announce` posts under the bot's identity instead, and only on
 explicit approval.
 
+`announce` has three lanes, each with its own channel (`beta` →
+`#beta-channel`, `rc` → `#release-candidate`, `release` → `#announcements`;
+see `ANNOUNCE_CHANNELS` in `src/channels.ts`). `#changelog` is deliberately
+not one of them — the retired workflow used to mirror every release there
+too, and the owner chose to leave that channel without automation rather
+than replace it. The sibling TravStats project's `#changelog` is in the same
+state.
+
 ## Setup
 
 ```bash

@@ -10,13 +10,23 @@
 export const ANNOUNCE_CHANNELS = {
   beta: "beta-channel",
   /**
-   * Sublarr has no dedicated release-candidate channel, so RC announcements
-   * share the beta channel — that is where the testers already are. This is a
-   * deliberate choice, not a missing constant: do not invent a #release-candidate.
+   * `#release-candidate` was created 2026-08-01 in the same `BETA` category as
+   * `#beta-channel`, so RC announcements now have their own lane while still
+   * reaching the same testers (the category's permissions carry over).
    */
-  rc: "beta-channel",
+  rc: "release-candidate",
   release: "announcements",
 } as const;
+
+/**
+ * `#changelog` is deliberately NOT an announce lane. A GitHub Actions
+ * workflow used to mirror every release and pre-release there; it was
+ * retired 2026-08-01 and nothing writes the channel now. That is the owner's
+ * decision, not an oversight — the sibling TravStats project's `#changelog`
+ * is in the same state (topic says "Release notes mirrored from
+ * CHANGELOG.md", no automation behind it). Do not add a `changelog` key here
+ * to "fix" it.
+ */
 
 /**
  * Where announcements ask people to report back. Lives in the #BETA category,
