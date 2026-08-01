@@ -64,11 +64,19 @@ Every write is dry-run first, shown to the owner, and sent only after an
 explicit go-ahead. A public post cannot be taken back. Reading needs no
 approval.
 
-Two rails back this up in code:
+Three rails back this up in code:
 
 - `announce --dry-run` returns **before** `login()` — no connection, no send.
 - Text channels resolve by **exact** name only. A substring match would
   resolve `general` to `#general-dev`.
+- `read` and `announce` resolve channels through the same exact-name rule
+  (`channelResolve.ts`), restricted to message-capable types (text,
+  announcement, forum, thread) and aborting — logging every candidate — on an
+  ambiguous match instead of guessing. This matters in practice, not just in
+  theory: the guild has a real lowercase collision, a text `#general` and a
+  voice `#General`, and voice channels satisfy discord.js's `isTextBased()`
+  too. `reply` applies the equivalent rule itself (`resolveReplyTarget`),
+  since it also needs to search forum threads.
 
 ## Troubleshooting
 
