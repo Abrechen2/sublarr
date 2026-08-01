@@ -78,12 +78,24 @@ class TestIntervalApplication:
         resumed = {c.args[0] for c in scheduler.resume_job.call_args_list}
         assert resumed == {"wanted_scanner", "wanted_search"}
 
-    def test_trigger_is_still_applied_on_startup(self):
-        """Skipping the resume must not skip picking up an interval change."""
+    def test_paused_job_is_not_even_rescheduled_on_startup(self):
+        """modify_trigger alone revives a job — APScheduler's reschedule_job
+        computes a fresh next_run_time, and a job with a next_run_time is by
+        definition not paused. Skipping only resume_job was not enough; the
+        first attempt at this fix shipped that way and the pause still did not
+        survive a restart on the RC instance."""
         app, scheduler = _app_with_job(None)
+        _apply_intervals_to_apscheduler(app, 6, 24, on_startup=True)
+        scheduler.modify_trigger.assert_not_called()
+        scheduler.resume_job.assert_not_called()
+
+    def test_running_job_still_picks_up_an_interval_change_on_startup(self):
+        """A job the user left running must still get the configured trigger."""
+        app, scheduler = _app_with_job("2026-08-02T00:00:00+00:00")
         _apply_intervals_to_apscheduler(app, 6, 24, on_startup=True)
         modified = {c.args[0] for c in scheduler.modify_trigger.call_args_list}
         assert modified == {"wanted_scanner", "wanted_search"}
+        scheduler.resume_job.assert_not_called()
 
     def test_zero_interval_still_pauses_on_startup(self):
         app, scheduler = _app_with_job("2026-08-02T00:00:00+00:00")

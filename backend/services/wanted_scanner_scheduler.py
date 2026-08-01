@@ -143,12 +143,17 @@ def _apply_intervals_to_apscheduler(
     When interval is 0 the job is paused; otherwise the trigger is
     replaced.
 
-    Resuming a job is a *settings-save* action, never a startup one. This
-    routine runs on both paths, and resuming unconditionally meant a
-    deliberate pause in Settings → System → Scheduler was silently undone
-    by the next container restart: the job came back with a fresh
-    next_run_time and started firing again. On startup the persisted pause
-    state is the user's decision and wins.
+    Reviving a job is a *settings-save* action, never a startup one. This
+    routine runs on both paths, and on startup it silently undid a
+    deliberate pause in Settings → System → Scheduler: the job came back
+    with a fresh next_run_time and started firing again.
+
+    Note that ``modify_trigger`` is itself enough to do that — APScheduler's
+    reschedule_job() computes a new next_run_time, which *is* the unpaused
+    state. Skipping only the explicit ``resume_job`` call is therefore not
+    sufficient; a paused job has to be left alone entirely on startup. The
+    trigger is still applied on the settings-save path, which is the only
+    place an interval can actually change.
     """
     if app is None:
         return
@@ -171,9 +176,13 @@ def _apply_intervals_to_apscheduler(
                         "%s: pause_job failed (job may not exist yet)", job_id, exc_info=True
                     )
                 continue
+            if on_startup and _job_is_paused(app, job_id):
+                # Leave it completely untouched: modify_trigger would already
+                # reschedule it, and rescheduling IS unpausing.
+                logger.info("%s: paused by the user — leaving it paused", job_id)
+                continue
             scheduler.modify_trigger(job_id, IntervalTrigger(hours=max(1, interval)))
             if on_startup:
-                # Keep whatever the store says — do not revive a paused job.
                 continue
             try:
                 scheduler.resume_job(job_id)
