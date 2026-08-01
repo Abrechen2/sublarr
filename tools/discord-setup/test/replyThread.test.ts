@@ -42,6 +42,20 @@ describe("resolveThread", () => {
     expect(resolveThread(THREADS, "nonexistent")).toBeNull();
   });
 
+  it("logs a diagnostic when diagnose is true and nothing matches", () => {
+    // No production caller passes `diagnose: true` today (the caller in
+    // `resolveReplyTarget` deliberately leaves it false — see the docstring),
+    // but the branch is reachable through the exported function and must
+    // behave correctly if a future caller does pass it.
+    const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+    try {
+      expect(resolveThread(THREADS, "nonexistent", true)).toBeNull();
+      expect(logSpy).toHaveBeenCalledWith('No forum thread matches "nonexistent".');
+    } finally {
+      logSpy.mockRestore();
+    }
+  });
+
   it("prefers an id match over a substring match", () => {
     const threads = [
       { id: "111", name: "about 222 really" },
