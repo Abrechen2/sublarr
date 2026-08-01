@@ -177,7 +177,7 @@ export async function runReply(
   return new Promise<void>((resolve, reject) => {
     client.once("clientReady", async () => {
       try {
-        const guild = await (await client.guilds.fetch(guildId)).fetch();
+        const guild = await client.guilds.fetch(guildId);
         await guild.channels.fetch();
 
         const forums = [...guild.channels.cache.values()].filter(

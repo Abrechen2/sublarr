@@ -127,7 +127,7 @@ export async function runAnnounce(
   return new Promise<void>((resolve, reject) => {
     client.once("clientReady", async () => {
       try {
-        const guild = await (await client.guilds.fetch(guildId)).fetch();
+        const guild = await client.guilds.fetch(guildId);
         await guild.channels.fetch();
         const channel = guild.channels.cache.find((c) => c.name === channelName);
         if (!channel || !channel.isTextBased()) {
