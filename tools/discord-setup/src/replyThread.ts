@@ -55,12 +55,93 @@ export function resolveTextChannel<T extends NamedChannel>(
   return channels.find((c) => c.id === query || c.name.toLowerCase() === needle) ?? null;
 }
 
-/** Every forum post in the guild, active plus archived, best-effort per forum. */
+/** True when `item` matches `query` by id, or by exact name once a leading `#` is stripped. */
+function isExactMatch(item: ThreadLike, query: string): boolean {
+  const needle = query.replace(/^#/, "").toLowerCase();
+  return item.id === query || item.name.toLowerCase() === needle;
+}
+
+/** One exact-match candidate, tagged with which collection it came from — needed to render it in an ambiguity report. */
+export interface ExactMatch<T extends ThreadLike> {
+  readonly kind: "thread" | "channel";
+  readonly value: T;
+}
+
+/**
+ * Every exact match (by id or exact name) across both threads and channels
+ * for one query. Exported as its own pure step because "exact beats fuzzy" is
+ * exactly the rule the safety rails depend on: a query that exact-matches a
+ * text channel must not lose to a thread that only substring-matches it.
+ */
+export function findExactMatches<T extends ThreadLike, U extends NamedChannel>(
+  threads: readonly T[],
+  channels: readonly U[],
+  query: string,
+): Array<ExactMatch<T> | ExactMatch<U>> {
+  return [
+    ...threads.filter((t) => isExactMatch(t, query)).map((value) => ({ kind: "thread" as const, value })),
+    ...channels.filter((c) => isExactMatch(c, query)).map((value) => ({ kind: "channel" as const, value })),
+  ];
+}
+
+/**
+ * Resolve the reply target across both forum threads and text channels, exact
+ * matches first. This is the actual safety-critical ordering:
+ *
+ * 1. Every exact match (by id or exact name) across BOTH collections is
+ *    collected first. Exactly one -> that is the target, regardless of
+ *    whether a thread also substring-matches the same query.
+ * 2. More than one exact match (e.g. a thread named "support" AND a channel
+ *    "#support") aborts and lists every candidate — picking one here would be
+ *    the same kind of guess the substring rules exist to prevent.
+ * 3. Only when there is no exact match anywhere does a unique thread-title
+ *    substring win (the existing `resolveThread` behaviour, unchanged).
+ *
+ * Without this ordering, a thread that only substring-matches (e.g. "Support
+ * ticket: xyz issue") could beat a text channel that matches exactly
+ * (`#support`), since the fuzzy resolver ran before the exact one. That
+ * silently misdirects a reply into an unrelated public thread.
+ */
+export function resolveReplyTarget<T extends ThreadLike, U extends NamedChannel>(
+  threads: readonly T[],
+  channels: readonly U[],
+  query: string,
+): T | U | null {
+  const exact = findExactMatches(threads, channels, query);
+  if (exact.length === 1) return exact[0].value;
+
+  if (exact.length > 1) {
+    log(`"${query}" is ambiguous — ${exact.length} exact matches. Use the id:`);
+    for (const m of exact) log(`  - "${m.value.name}"  (${m.kind}, id ${m.value.id})`);
+    return null;
+  }
+
+  return resolveThread(threads, query);
+}
+
+/**
+ * Every forum post in the guild, active plus archived, best-effort per forum.
+ * A fetch failure (permission, rate limit, transient network error) drops
+ * that forum's threads from the search rather than aborting the whole reply,
+ * but it is logged as a WARNING naming the forum and the error — silently
+ * dropping threads would make a genuine match report as "Nothing matches"
+ * with no hint that the search was incomplete.
+ */
 async function collectForumThreads(forums: ForumChannel[]): Promise<ThreadChannel[]> {
   const threads: ThreadChannel[] = [];
   for (const forum of forums) {
-    const active = await forum.threads.fetchActive().catch(() => null);
-    const archived = await forum.threads.fetchArchived().catch(() => null);
+    const active = await forum.threads.fetchActive().catch((err: unknown) => {
+      log(
+        `WARNING: failed to fetch active threads in #${forum.name}: ${err instanceof Error ? err.message : String(err)}`,
+      );
+      return null;
+    });
+    const archived = await forum.threads.fetchArchived().catch((err: unknown) => {
+      log(
+        `WARNING: failed to fetch archived threads in #${forum.name}: ${err instanceof Error ? err.message : String(err)}`,
+      );
+      return null;
+    });
     if (active) threads.push(...active.threads.values());
     if (archived) threads.push(...archived.threads.values());
   }
@@ -107,8 +188,11 @@ export async function runReply(
         );
         const threads = await collectForumThreads(forums);
 
-        const target: ThreadChannel | TextChannel | null =
-          resolveThread(threads, targetQuery) ?? resolveTextChannel(texts, targetQuery);
+        const target: ThreadChannel | TextChannel | null = resolveReplyTarget(
+          threads,
+          texts,
+          targetQuery,
+        );
 
         if (!target) {
           log(`Nothing matches "${targetQuery}". Run \`npm run read\` to list channels.`);
