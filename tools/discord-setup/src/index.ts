@@ -1,5 +1,5 @@
 import { createClient, loadEnv } from "./client.js";
-import { runRead } from "./readChannel.js";
+import { parseLimit, runRead } from "./readChannel.js";
 import { log } from "./log.js";
 
 const USAGE =
@@ -14,8 +14,7 @@ async function main(): Promise<void> {
 
   if (command === "read") {
     const channelName = process.argv[3] ?? null;
-    const parsed = Number(process.argv[4] ?? "20");
-    const limit = Number.isInteger(parsed) && parsed > 0 && parsed <= 100 ? parsed : 20;
+    const limit = parseLimit(process.argv[4]);
     await runRead(client, token, guildId, channelName, limit);
     return; // runRead owns login + destroy
   }
