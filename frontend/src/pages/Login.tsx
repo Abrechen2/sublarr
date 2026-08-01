@@ -31,7 +31,9 @@ export function LoginPage() {
 
   return (
     <div className="flex min-h-screen items-center justify-center" style={{ backgroundColor: 'var(--bg-base)' }}>
-      <div className="w-full max-w-sm rounded-xl p-8 shadow-xl" style={{ backgroundColor: 'var(--bg-surface)', border: '1px solid var(--border)' }}>
+      {/* "narrow" tier — auth cards stay deliberately small and centred.
+          Same token as Setup so the two first-contact screens match. */}
+      <div className="w-full max-w-narrow rounded-xl p-8 shadow-xl" style={{ backgroundColor: 'var(--bg-surface)', border: '1px solid var(--border)' }}>
         <div className="mb-8 text-center">
           <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-full" style={{ backgroundColor: 'var(--accent-muted)' }}>
             <Lock size={24} style={{ color: 'var(--accent)' }} />

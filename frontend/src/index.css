@@ -72,6 +72,42 @@
   /* Fonts */
   --font-sans: var(--font-body);
   --font-mono: var(--font-mono);
+
+  /* ---------------------------------------------------------------
+     Page width scale — generates max-w-narrow / max-w-form utilities.
+
+     Before this existed, every surface picked its own cap (384 / 448 /
+     576 / 780 / 1024 px) with no relation between them, so wide monitors
+     showed a cramped column with dead space on both sides.
+
+     Three semantic tiers, one per kind of surface:
+       narrow — auth + first-run cards. Deliberately small and centred;
+                widening a login box makes it look worse, not better.
+       form   — settings + onboarding. Grows with the viewport (see the
+                media queries below) so a 1080p+ monitor is actually used,
+                while label/control pairs stay close enough to scan.
+       wide   — data surfaces (dashboard, library, wanted, statistics):
+                no cap at all, so they just use `w-full`.
+     --------------------------------------------------------------- */
+  --container-narrow: 26rem; /* 416px */
+  --container-form: var(--width-form);
+}
+
+/* The form tier is the only responsive one. Kept as a plain custom
+   property (not a @theme token) because @theme values cannot themselves
+   depend on media queries. */
+:root {
+  --width-form: 780px;
+}
+@media (min-width: 1280px) {
+  :root {
+    --width-form: 960px;
+  }
+}
+@media (min-width: 1536px) {
+  :root {
+    --width-form: 1100px;
+  }
 }
 
 :root {

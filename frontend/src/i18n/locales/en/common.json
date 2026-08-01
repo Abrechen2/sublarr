@@ -378,14 +378,6 @@
         "ignoreLanguages": "Ignore Languages",
         "ignoreLanguagesHint": "JSON array of ISO-639-1 codes to exclude from scan"
       },
-      "perLanguageScores": {
-        "title": "Per-Language Score Thresholds",
-        "description": "Override the global minimum score for specific languages.",
-        "label": "Score Thresholds (JSON)",
-        "hint": "JSON object mapping ISO-639-1 code to minimum score. Empty object uses global threshold for all languages.",
-        "example": "Example: {\"de\": 80, \"fr\": 70} — German subtitles require score ≥ 80, French ≥ 70.",
-        "fallback": "Leave as {} to use the global threshold for all languages."
-      },
       "languagesPage": {
         "title": "Languages & Profiles",
         "subtitle": "Configure which subtitle languages Sublarr searches for and how multi-language setups are managed."

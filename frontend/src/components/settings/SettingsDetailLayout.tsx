@@ -32,10 +32,13 @@ export function SettingsDetailLayout({
   ]
 
   return (
+    // max-w-form is the shared responsive tier (780 → 960 → 1100px), not a
+    // per-page number. Widened from the fixed 780px on 2026-08-01 with the
+    // owner's approval — see docs/PROTECTED.md. Only this outer container
+    // changes; SettingsSection / FormGroup / SettingsCard are untouched.
     <div
       data-testid="settings-detail-layout"
-      className={cn('mx-auto w-full', className)}
-      style={{ maxWidth: '780px' }}
+      className={cn('mx-auto w-full max-w-form', className)}
     >
       <PageHeader
         title={title}

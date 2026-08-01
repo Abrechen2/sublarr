@@ -378,14 +378,6 @@
         "ignoreLanguages": "Sprachen ignorieren",
         "ignoreLanguagesHint": "JSON-Array von ISO-639-1-Codes, die vom Scan ausgeschlossen werden"
       },
-      "perLanguageScores": {
-        "title": "Sprachspezifische Score-Schwellwerte",
-        "description": "Den globalen Mindest-Score für bestimmte Sprachen überschreiben.",
-        "label": "Score-Schwellwerte (JSON)",
-        "hint": "JSON-Objekt mit ISO-639-1-Code als Schlüssel und Mindest-Score als Wert. Leeres Objekt verwendet den globalen Schwellwert.",
-        "example": "Beispiel: {\"de\": 80, \"fr\": 70} — Deutsche Untertitel erfordern Score ≥ 80, Französische ≥ 70.",
-        "fallback": "Leer lassen {} um den globalen Schwellwert für alle Sprachen zu verwenden."
-      },
       "languagesPage": {
         "title": "Sprachen & Profile",
         "subtitle": "Konfiguriere, welche Untertitelsprachen Sublarr sucht und wie Mehrsprachigkeit verwaltet wird."

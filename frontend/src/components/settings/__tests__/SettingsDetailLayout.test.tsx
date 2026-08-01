@@ -103,10 +103,15 @@ describe('SettingsDetailLayout', () => {
     expect(screen.getByTestId('save-btn')).toBeInTheDocument()
   })
 
-  it('applies max-width constraint of 780px', () => {
+  it('constrains width via the shared responsive form tier', () => {
+    // The cap used to be a hardcoded inline `maxWidth: 780px`. It is now the
+    // shared `max-w-form` tier (780 → 960 → 1100px across breakpoints, see the
+    // width scale in index.css), so assert the contract — the class — rather
+    // than a single pixel value that is only correct on small viewports.
     renderWithRouter(<SettingsDetailLayout title="General">content</SettingsDetailLayout>)
     const root = screen.getByTestId('settings-detail-layout')
-    expect(root).toHaveStyle({ maxWidth: '780px' })
+    expect(root).toHaveClass('max-w-form')
+    expect(root.style.maxWidth).toBe('')
   })
 
   it('applies additional className to root element', () => {

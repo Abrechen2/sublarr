@@ -2053,6 +2053,14 @@
         "creditThresholdHint": "Duration in seconds used to detect credit/OP/ED segments during subtitle processing.",
         "opWindow": "OP/ED Window (seconds)",
         "opWindowHint": "Seconds from the start/end of the file considered as the opening/ending window."
+      },
+      "perLanguageScores": {
+        "title": "Per-Language Score Thresholds",
+        "description": "Override the global minimum score for specific languages.",
+        "label": "Score Thresholds (JSON)",
+        "hint": "JSON object mapping ISO-639-1 code to minimum score. Empty object uses global threshold for all languages.",
+        "example": "Example: {\"de\": 80, \"fr\": 70} — German subtitles require score ≥ 80, French ≥ 70.",
+        "fallback": "Leave as {} to use the global threshold for all languages."
       }
     },
     "system": {

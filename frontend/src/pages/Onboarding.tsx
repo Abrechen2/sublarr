@@ -449,7 +449,10 @@ export default function Onboarding() {
 
   return (
     <div className="min-h-screen flex items-center justify-center p-6" style={{ backgroundColor: 'var(--bg-primary)' }}>
-      <div className="w-full max-w-xl space-y-6">
+      {/* Shared "form" width tier, not a bespoke max-w-xl: the wizard carries
+          real content (library type, scheduler profile) that was cramped into
+          576px on any desktop screen. */}
+      <div className="w-full max-w-form space-y-6">
         {/* Header */}
         <div className="text-center space-y-2">
           <h1 className="text-2xl font-bold" style={{ color: 'var(--text-primary)' }}>

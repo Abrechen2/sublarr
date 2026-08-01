@@ -52,7 +52,8 @@ export function SetupPage() {
 
   return (
     <div className="flex min-h-screen items-center justify-center" style={{ backgroundColor: 'var(--bg-base)' }}>
-      <div className="w-full max-w-md rounded-xl p-8 shadow-xl" style={{ backgroundColor: 'var(--bg-surface)', border: '1px solid var(--border)' }}>
+      {/* "narrow" tier — matches Login, see index.css width scale. */}
+      <div className="w-full max-w-narrow rounded-xl p-8 shadow-xl" style={{ backgroundColor: 'var(--bg-surface)', border: '1px solid var(--border)' }}>
         <div className="mb-8 text-center">
           <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-full" style={{ backgroundColor: 'var(--accent-muted)' }}>
             <Lock size={24} style={{ color: 'var(--accent)' }} />

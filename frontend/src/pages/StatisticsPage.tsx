@@ -54,7 +54,9 @@ export function StatisticsPage() {
   const loading = subtitles.isLoading || library.isLoading
 
   return (
-    <div className="max-w-5xl mx-auto p-4 space-y-6">
+    // Data surface — charts and tables read better with the full canvas, so
+    // this joins the "wide" tier instead of keeping its own 1024px cap.
+    <div className="w-full p-4 space-y-6">
       <div className="flex items-center justify-between flex-wrap gap-2">
         <div className="flex items-center gap-2">
           <BarChart3 size={18} style={{ color: 'var(--accent)' }} />

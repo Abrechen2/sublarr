@@ -2053,6 +2053,14 @@
         "creditThresholdHint": "Dauer in Sekunden zur Erkennung von Credit/OP/ED-Segmenten beim Untertitel-Processing.",
         "opWindow": "OP/ED-Fenster (Sekunden)",
         "opWindowHint": "Sekunden vom Datei-Start/Ende, die als Opening/Ending-Fenster gelten."
+      },
+      "perLanguageScores": {
+        "title": "Sprachspezifische Score-Schwellwerte",
+        "description": "Den globalen Mindest-Score für bestimmte Sprachen überschreiben.",
+        "label": "Score-Schwellwerte (JSON)",
+        "hint": "JSON-Objekt mit ISO-639-1-Code als Schlüssel und Mindest-Score als Wert. Leeres Objekt verwendet den globalen Schwellwert.",
+        "example": "Beispiel: {\"de\": 80, \"fr\": 70} — Deutsche Untertitel erfordern Score ≥ 80, Französische ≥ 70.",
+        "fallback": "Leer lassen {} um den globalen Schwellwert für alle Sprachen zu verwenden."
       }
     },
     "system": {
