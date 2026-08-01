@@ -351,7 +351,7 @@ def get_audio_duration(audio_path: str) -> float:
     cmd = [
         "ffprobe",
         "-v",
-        "quiet",
+        "error",
         "-show_entries",
         "format=duration",
         "-of",

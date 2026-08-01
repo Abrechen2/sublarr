@@ -299,7 +299,7 @@ def _probe(path: str) -> dict:
     cmd = [
         "ffprobe",
         "-v",
-        "quiet",
+        "error",
         "-print_format",
         "json",
         "-show_streams",
