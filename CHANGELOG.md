@@ -107,6 +107,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   migration revision. The table is now created on startup if absent, and the
   health overview degrades to "no breaker state known" instead of failing when
   it cannot be read.
+- **System health no longer reports "degraded" for an unused Ollama.**
+  `ollama_url` defaults to localhost, so any install translating via DeepL,
+  ChatGPT or Claude — or not translating at all — permanently had an
+  unreachable Ollama, which pinned `/api/v1/health/detailed` at 503 and
+  produced a console error on every page load. Ollama now only counts against
+  overall health when it is the configured translation backend or its
+  fallback; it is still reported truthfully, with a new `in_use` flag.
+- **Untranslated text on the Format & Naming and Scoring settings pages.**
+  Both pages read the `settings` translation namespace while their strings
+  lived in `common`, and no namespace fallback is configured, so i18next
+  printed raw keys like `settings.subtitles.scanFilters.minFileSize` at the
+  user. Twenty strings moved to the namespace the pages actually read, and a
+  stale duplicate translation block was removed.
 - **Health probe could flap the container.** The liveness probe is bounded, so
   a hung optional check (e.g. an unreachable Ollama host) can no longer push
   it past the Docker health-check timeout.

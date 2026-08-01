@@ -695,11 +695,15 @@ class TestHealthDetailedEndpoint:
         assert data["subsystems"]["database"]["healthy"] is False
         assert "db gone" in data["subsystems"]["database"]["message"]
 
-    def test_detailed_ollama_unhealthy(self, client):
+    def test_detailed_ollama_unhealthy_while_in_use(self, client):
+        """An unreachable Ollama degrades overall health — but only if it is used."""
         patches = _make_detailed_patches(
             **{
                 "ollama_client.check_ollama_health": MagicMock(
                     return_value=(False, "connection refused"),
+                ),
+                "routes.system.health_detailed._ollama_in_backend_chain": MagicMock(
+                    return_value=True,
                 ),
             }
         )
@@ -708,6 +712,29 @@ class TestHealthDetailedEndpoint:
         assert resp.status_code == 503
         data = resp.get_json()
         assert data["subsystems"]["ollama"]["healthy"] is False
+        assert data["subsystems"]["ollama"]["in_use"] is True
+
+    def test_detailed_ollama_unhealthy_but_not_configured(self, client):
+        """ollama_url defaults to localhost, so an install translating via DeepL
+        always has an unreachable Ollama. That must not report the whole system
+        as degraded — it used to pin /health/detailed at 503 for those users."""
+        patches = _make_detailed_patches(
+            **{
+                "ollama_client.check_ollama_health": MagicMock(
+                    return_value=(False, "connection refused"),
+                ),
+                "routes.system.health_detailed._ollama_in_backend_chain": MagicMock(
+                    return_value=False,
+                ),
+            }
+        )
+        with _apply_patches(patches):
+            resp = client.get("/api/v1/health/detailed")
+        assert resp.status_code == 200
+        data = resp.get_json()
+        # Still reported truthfully, just not counted against overall health.
+        assert data["subsystems"]["ollama"]["healthy"] is False
+        assert data["subsystems"]["ollama"]["in_use"] is False
 
     def test_detailed_ollama_exception(self, client):
         patches = _make_detailed_patches(

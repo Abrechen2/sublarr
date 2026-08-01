@@ -2061,6 +2061,28 @@
         "hint": "JSON object mapping ISO-639-1 code to minimum score. Empty object uses global threshold for all languages.",
         "example": "Example: {\"de\": 80, \"fr\": 70} — German subtitles require score ≥ 80, French ≥ 70.",
         "fallback": "Leave as {} to use the global threshold for all languages."
+      },
+      "subtitleNaming": {
+        "title": "Subtitle Naming",
+        "description": "Language code format and suffix conventions for saved subtitle files.",
+        "langCodeFormat": "Language Code Format",
+        "langCodeFormatHint": "Format used for the language suffix in subtitle filenames",
+        "suffixSeparator": "Suffix Separator",
+        "suffixSeparatorHint": "Character between the base filename and the language suffix",
+        "hiSuffix": "HI Subtitle Suffix",
+        "hiSuffixHint": "Suffix appended to hearing-impaired subtitle filenames",
+        "forcedSuffix": "Forced Subtitle Suffix",
+        "forcedSuffixHint": "Suffix appended to forced subtitle filenames"
+      },
+      "scanFilters": {
+        "title": "Scan Filters",
+        "description": "Exclude files and languages from subtitle scans.",
+        "ignorePatterns": "Ignore Patterns",
+        "ignorePatternsHint": "JSON array of glob patterns to skip during scan",
+        "minFileSize": "Minimum File Size (MB)",
+        "minFileSizeHint": "Skip media files smaller than this size during scan",
+        "ignoreLanguages": "Ignore Languages",
+        "ignoreLanguagesHint": "JSON array of ISO-639-1 codes to exclude from scan"
       }
     },
     "system": {

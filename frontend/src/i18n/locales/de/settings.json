@@ -2061,6 +2061,28 @@
         "hint": "JSON-Objekt mit ISO-639-1-Code als Schlüssel und Mindest-Score als Wert. Leeres Objekt verwendet den globalen Schwellwert.",
         "example": "Beispiel: {\"de\": 80, \"fr\": 70} — Deutsche Untertitel erfordern Score ≥ 80, Französische ≥ 70.",
         "fallback": "Leer lassen {} um den globalen Schwellwert für alle Sprachen zu verwenden."
+      },
+      "subtitleNaming": {
+        "title": "Untertitel-Benennung",
+        "description": "Sprachcode-Format und Suffix-Konventionen für gespeicherte Untertiteldateien.",
+        "langCodeFormat": "Sprachcode-Format",
+        "langCodeFormatHint": "Format für das Sprachsuffix in Untertiteldateinamen",
+        "suffixSeparator": "Suffix-Trennzeichen",
+        "suffixSeparatorHint": "Zeichen zwischen Dateiname und Sprachsuffix",
+        "hiSuffix": "HI-Untertitel-Suffix",
+        "hiSuffixHint": "Suffix für Hörgeschädigten-Untertiteldateien",
+        "forcedSuffix": "Forced-Untertitel-Suffix",
+        "forcedSuffixHint": "Suffix für Forced-Untertiteldateien"
+      },
+      "scanFilters": {
+        "title": "Scan-Filter",
+        "description": "Dateien und Sprachen vom Untertitel-Scan ausschließen.",
+        "ignorePatterns": "Ignorier-Muster",
+        "ignorePatternsHint": "JSON-Array von Glob-Mustern, die beim Scan übersprungen werden",
+        "minFileSize": "Minimale Dateigröße (MB)",
+        "minFileSizeHint": "Mediendateien kleiner als dieser Wert beim Scan überspringen",
+        "ignoreLanguages": "Sprachen ignorieren",
+        "ignoreLanguagesHint": "JSON-Array von ISO-639-1-Codes, die vom Scan ausgeschlossen werden"
       }
     },
     "system": {

@@ -9,6 +9,24 @@ from routes.system import bp
 logger = logging.getLogger(__name__)
 
 
+def _ollama_in_backend_chain() -> bool:
+    """True when Ollama is the configured translation backend or its fallback.
+
+    Mirrors the resolution order translator._helpers uses: the config entries
+    win over the Pydantic default. Returns True on any failure so a config
+    lookup problem cannot silently hide a genuinely broken Ollama.
+    """
+    try:
+        from db.config import get_config_entry
+
+        primary = (get_config_entry("translation_default_backend") or "ollama").strip().lower()
+        fallback = (get_config_entry("translation_default_fallback") or "").strip().lower()
+        return "ollama" in (primary, fallback)
+    except Exception:
+        logger.debug("Could not resolve translation backend chain", exc_info=True)
+        return True
+
+
 @bp.route("/health/detailed", methods=["GET"])
 def health_detailed():
     """Detailed health check with subsystem status (authenticated).
@@ -68,15 +86,30 @@ def health_detailed():
         subsystems["database"] = {"healthy": False, "message": str(exc)}
         overall_healthy = False
 
-    # Ollama
+    # Ollama — reported always, but it only gates overall health when Ollama is
+    # actually a configured translation backend. `ollama_url` defaults to
+    # localhost:11434, so an install translating via DeepL/ChatGPT (or not
+    # translating at all) has an unreachable Ollama by definition; counting that
+    # as a fault made /health/detailed answer 503 for those users forever, which
+    # is also what the UI surfaces as a console error on every page load.
+    ollama_is_configured = _ollama_in_backend_chain()
     try:
         ollama_ok, ollama_msg = check_ollama_health()
-        subsystems["ollama"] = {"healthy": ollama_ok, "message": ollama_msg}
-        if not ollama_ok:
+        subsystems["ollama"] = {
+            "healthy": ollama_ok,
+            "message": ollama_msg,
+            "in_use": ollama_is_configured,
+        }
+        if not ollama_ok and ollama_is_configured:
             overall_healthy = False
     except Exception as exc:
-        subsystems["ollama"] = {"healthy": False, "message": str(exc)}
-        overall_healthy = False
+        subsystems["ollama"] = {
+            "healthy": False,
+            "message": str(exc),
+            "in_use": ollama_is_configured,
+        }
+        if ollama_is_configured:
+            overall_healthy = False
 
     # Providers + circuit breakers
     try:
