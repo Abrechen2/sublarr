@@ -657,7 +657,9 @@
       "login_title": "Login-Schleife behoben",
       "login_desc": "Nach dem Anmelden konnte die Oberfläche in einer Endlosschleife auf die Login-Seite zurückspringen. Eine gültige Sitzung wird jetzt überall akzeptiert — auch hinter einem Reverse-Proxy mit SSO.",
       "export_title": "Wanted-Liste exportieren und Vorschau laufen lassen",
-      "export_desc": "Die Wanted-Liste als CSV oder JSON herunterladen, und per Probelauf sehen, was die Automatik wählen würde — ohne dass etwas geschrieben wird."
+      "export_desc": "Die Wanted-Liste als CSV oder JSON herunterladen, und per Probelauf sehen, was die Automatik wählen würde — ohne dass etwas geschrieben wird.",
+      "pause_title": "Pausierte Aufgaben bleiben pausiert",
+      "pause_desc": "Ein im Zeitplaner angehaltener Job lief nach einem Neustart wieder an — bei aktivem Übersetzungs-Backend konnte das unbemerkt Kosten verursachen. Eine Pausierung überdauert jetzt Neustarts."
     },
     "v194": {
       "speed_title": "Deutlich schneller auf schwacher Hardware",

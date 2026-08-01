@@ -9,6 +9,7 @@ import type { LucideIcon } from 'lucide-react'
 import {
   Layers, Columns2, BarChart3, Upload, ShieldCheck, KeyRound,
   Zap, Rocket, Activity, AudioLines, SlidersHorizontal, LogIn, FileDown,
+  PauseCircle,
 } from 'lucide-react'
 
 export interface WhatsNewItem {
@@ -24,6 +25,7 @@ export const WHATS_NEW: Record<string, WhatsNewItem[]> = {
     { icon: SlidersHorizontal, titleKey: 'whatsnew.v1100.scoring_title', descKey: 'whatsnew.v1100.scoring_desc' },
     { icon: LogIn, titleKey: 'whatsnew.v1100.login_title', descKey: 'whatsnew.v1100.login_desc' },
     { icon: FileDown, titleKey: 'whatsnew.v1100.export_title', descKey: 'whatsnew.v1100.export_desc' },
+    { icon: PauseCircle, titleKey: 'whatsnew.v1100.pause_title', descKey: 'whatsnew.v1100.pause_desc' },
   ],
   '1.9.4': [
     { icon: Zap, titleKey: 'whatsnew.v194.speed_title', descKey: 'whatsnew.v194.speed_desc' },

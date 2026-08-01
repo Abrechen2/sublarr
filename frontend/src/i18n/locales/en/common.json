@@ -657,7 +657,9 @@
       "login_title": "Login loop fixed",
       "login_desc": "After signing in, the UI could bounce back to the login page in an endless loop. A valid session is now accepted everywhere — including behind a reverse proxy with SSO.",
       "export_title": "Export the wanted list and run a preview",
-      "export_desc": "Download the wanted list as CSV or JSON, and use a dry run to see what automation would pick — without writing anything."
+      "export_desc": "Download the wanted list as CSV or JSON, and use a dry run to see what automation would pick — without writing anything.",
+      "pause_title": "Paused jobs stay paused",
+      "pause_desc": "A job you halted in the scheduler started running again after a restart — with a translation backend configured, that could quietly cost money. A pause now survives restarts."
     },
     "v194": {
       "speed_title": "Much faster on low-power hardware",
