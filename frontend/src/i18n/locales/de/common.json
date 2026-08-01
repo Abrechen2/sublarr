@@ -682,6 +682,18 @@
     "title": "Neu in {{version}}",
     "close": "Schließen",
     "got_it": "Verstanden",
+    "v1100": {
+      "waveform_title": "Waveform-Editor: Sprache sehen, Timing prüfen, sicher reparieren",
+      "waveform_desc": "Eine optionale Sprachspur zeigt, wo tatsächlich geredet wird — Cue-Grenzen rasten daran ein. Dazu Lesegeschwindigkeit (CPS) in der Cue-Leiste, Sprung zu Szenenschnitten und Timing-Fehlern, Loop-Anhören einzelner Cues und ein Klick für „sichere Fehler beheben“ mit Vorschau und Rückgängig.",
+      "decision_title": "Warum wurde dieser Untertitel gewählt?",
+      "decision_desc": "Jede Suche protokolliert ihren kompletten Entscheidungsweg: welche Provider gefragt wurden, was jede Filterstufe warum verworfen hat, und wie der finale Score zustande kam. In der Historie über die Aktion „Warum?“ einsehbar — auch wenn nichts gefunden wurde.",
+      "scoring_title": "Eigene Scoring-Regeln und Release-Group-Ränge",
+      "scoring_desc": "Eigene Regex-Regeln mit Gewicht belohnen oder bestrafen, was dir wichtig ist. Release-Groups lassen sich global in Ränge einsortieren, und eine Serie kann ASS als Format erzwingen.",
+      "login_title": "Login-Schleife behoben",
+      "login_desc": "Nach dem Anmelden konnte die Oberfläche in einer Endlosschleife auf die Login-Seite zurückspringen. Eine gültige Sitzung wird jetzt überall akzeptiert — auch hinter einem Reverse-Proxy mit SSO.",
+      "export_title": "Wanted-Liste exportieren und Vorschau laufen lassen",
+      "export_desc": "Die Wanted-Liste als CSV oder JSON herunterladen, und per Probelauf sehen, was die Automatik wählen würde — ohne dass etwas geschrieben wird."
+    },
     "v194": {
       "speed_title": "Deutlich schneller auf schwacher Hardware",
       "speed_desc": "Auf NAS- oder Pi-Systemen öffnen sich Seiten jetzt schnell — auch während einer laufenden Suche. Die Suchpipeline wurde massiv entlastet.",

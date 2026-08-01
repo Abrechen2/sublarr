@@ -5,9 +5,45 @@ All notable changes to Sublarr are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [1.10.0] - 2026-08-01
 
 ### Added
+- **Waveform editor — speech detection, diagnostics and safe repairs.** The
+  editor gained a full timing-review toolkit: an opt-in VAD lane showing where
+  speech actually is (backed by a new `/audio/speech` endpoint), snapping of
+  cue boundaries to those speech edges, CPS reading-speed diagnostics in the
+  active-cue bar and cue list, a file-level issue summary chip, jump navigation
+  to scene cuts (`C` / `Shift+C`), keyframes and timing defects, loop-audition
+  of the selected cue with pre-/post-roll, and a one-click "fix safe defects"
+  action with preview and atomic undo.
+- **Custom regex scoring rules.** Define your own scoring adjustments with a
+  regex and a signed weight — e.g. reward a favourite fansub group or push
+  down a release tag you dislike. Patterns are validated on save (must
+  compile, max 500 characters) and applied in the penalty-rule pipeline.
+- **Global release-group tier ranking.** Rank release groups into tiers once
+  and have every search prefer them, instead of maintaining per-series
+  preferences.
+- **Per-series subtitle format requirement.** A series can require ASS only,
+  so styled anime subtitles are never silently replaced by an SRT.
+- **Wanted list export.** Download the current wanted list as CSV or JSON.
+- **Wanted dry-run preview.** Preview what the automation pipeline *would*
+  pick for a batch of wanted items — the full pipeline runs, but nothing is
+  written to disk or the database.
+- **History rollback and reason column.** Undo a download from History and see
+  at a glance why each item was picked.
+- **Library health dashboard.** A System Health panel wired to
+  `/health/detailed`, plus a sync success-rate statistic and a dedicated
+  Providers overview page.
+- **Advisory AI subtitle-quality badge.** An experimental, off-by-default
+  quality verdict for downloaded subtitles.
+- **Editor safety.** Hand-edited subtitles are marked and never auto-replaced
+  by the automation, and unsaved edits survive a crash via draft recovery.
+- **Hardlink-aware remux.** Container rewrites preserve hardlinks, container
+  removal is opt-in, and old backups can be cleaned up manually with a dry-run
+  preview.
+- **Unified subtitle flag badges and sync status** in list views, plus a
+  copy-file-path action on episodes and the movie detail page.
+- **Consolidated first-run onboarding** with a library-type step.
 - **Custom HTTP/JSON provider (`customapi`).** Connect private subtitle
   servers or adapt any REST API without writing a plugin: a small documented
   search/download contract (see `docs/CUSTOM_PROVIDER_API.md`), configurable
@@ -44,6 +80,34 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   (on by default).
 
 ### Fixed
+- **Login looped back to the login page.** The API-key gate enforced
+  `X-Api-Key` unconditionally, although the documented contract is "a valid UI
+  session *or* an API key". A freshly logged-in browser holds a session cookie
+  but no key yet, so every request 401'd and the frontend bounced back to
+  `/login` in an endless loop — with the dashboard flashing briefly first. An
+  authenticated session (and a trusted reverse-proxy SSO request) now satisfies
+  the gate. The 401 interceptor additionally drops a stale key before
+  redirecting and no longer redirects when already on `/login`, so a single
+  background 401 can never re-enter the loop.
+- **Quality trends returned a server error on PostgreSQL.** The daily bucket
+  grouped on `substr(checked_at, …)`, and PostgreSQL has no `substr` overload
+  for timestamps — so `/api/v1/tools/quality-trends` failed there while
+  passing on SQLite. The timestamp is now cast to text first.
+- **Plugin marketplace errored when the registry was unreachable.** The update
+  check returned a server error whenever the community registry was offline,
+  while the plugin list degraded gracefully for the identical failure. Both
+  now degrade.
+- **Health probe could flap the container.** The liveness probe is bounded, so
+  a hung optional check (e.g. an unreachable Ollama host) can no longer push
+  it past the Docker health-check timeout.
+- **Pre-existing user sidecars are never hard-deleted**, and language codes are
+  normalised on every destructive keep-language path.
+- **Embedded extraction is gated and container removal is opt-in**, closing the
+  data-loss paths found in the #159 audit.
+- **Waveform audio loading** now shows a prominent state while audio extracts
+  and draws, instead of appearing to hang.
+- **Databases created before Alembic** get the new profile and series columns
+  patched in at startup, so upgrades work on untracked databases too.
 - **Score breakdown now accounts for every point.** The preferred-release-group
   bonus is included in the "why this score?" breakdown instead of being added
   silently, and the breakdown tooltip renders readable labels for the video

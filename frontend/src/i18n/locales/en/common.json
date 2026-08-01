@@ -682,6 +682,18 @@
     "title": "What's new in {{version}}",
     "close": "Close",
     "got_it": "Got it",
+    "v1100": {
+      "waveform_title": "Waveform editor: see speech, check timing, repair safely",
+      "waveform_desc": "An optional speech lane shows where people actually talk — cue boundaries snap to it. Plus reading speed (CPS) in the cue bar, jumps to scene cuts and timing defects, loop-audition of single cues, and one-click “fix safe defects” with preview and undo.",
+      "decision_title": "Why was this subtitle chosen?",
+      "decision_desc": "Every search now records its full decision path: which providers were queried, what each filter stage rejected and why, and how the final score came together. Open it from History via the “why?” action — also available when nothing was found.",
+      "scoring_title": "Custom scoring rules and release-group tiers",
+      "scoring_desc": "Write your own regex rules with a weight to reward or penalise what matters to you. Rank release groups globally into tiers, and require ASS format per series.",
+      "login_title": "Login loop fixed",
+      "login_desc": "After signing in, the UI could bounce back to the login page in an endless loop. A valid session is now accepted everywhere — including behind a reverse proxy with SSO.",
+      "export_title": "Export the wanted list and run a preview",
+      "export_desc": "Download the wanted list as CSV or JSON, and use a dry run to see what automation would pick — without writing anything."
+    },
     "v194": {
       "speed_title": "Much faster on low-power hardware",
       "speed_desc": "On NAS or Pi systems, pages now open quickly — even while a search is running. The search pipeline does far less work.",
