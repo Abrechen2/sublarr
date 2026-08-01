@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from "vitest";
-import { resolveThread, resolveTextChannel, resolveReplyTarget } from "../src/replyThread.js";
+import { resolveThread, findExactMatches, resolveReplyTarget } from "../src/replyThread.js";
 
 const THREADS = [
   { id: "111", name: "Subtitles not downloading for anime" },
@@ -65,7 +65,12 @@ describe("resolveThread", () => {
   });
 });
 
-describe("resolveTextChannel", () => {
+describe("findExactMatches — the exact-name channel rail `reply` actually runs", () => {
+  // findExactMatches (via its private isExactMatch helper) is what actually
+  // executes in production, reached through resolveReplyTarget. These five
+  // cases used to pin a same-purpose but uncalled resolveTextChannel instead
+  // — a design guarantee ("text channels resolve by exact name only") tested
+  // against a function nothing ran. Moved onto the function that is live.
   const CHANNELS = [
     { id: "a1", name: "general" },
     { id: "a2", name: "general-dev" },
@@ -73,25 +78,25 @@ describe("resolveTextChannel", () => {
   ];
 
   it("matches an exact name", () => {
-    expect(resolveTextChannel(CHANNELS, "general")?.id).toBe("a1");
+    expect(findExactMatches([], CHANNELS, "general").map((m) => m.value.id)).toEqual(["a1"]);
   });
 
   it("tolerates a leading hash", () => {
-    expect(resolveTextChannel(CHANNELS, "#general")?.id).toBe("a1");
+    expect(findExactMatches([], CHANNELS, "#general").map((m) => m.value.id)).toEqual(["a1"]);
   });
 
   it("is case-insensitive on the exact name", () => {
-    expect(resolveTextChannel(CHANNELS, "General")?.id).toBe("a1");
+    expect(findExactMatches([], CHANNELS, "General").map((m) => m.value.id)).toEqual(["a1"]);
   });
 
   it("never matches a substring", () => {
     // Substring matching would resolve "general" to "#general-dev" depending on
     // iteration order. Exact only.
-    expect(resolveTextChannel(CHANNELS, "gener")).toBeNull();
+    expect(findExactMatches([], CHANNELS, "gener")).toEqual([]);
   });
 
   it("matches an id", () => {
-    expect(resolveTextChannel(CHANNELS, "a3")?.id).toBe("a3");
+    expect(findExactMatches([], CHANNELS, "a3").map((m) => m.value.id)).toEqual(["a3"]);
   });
 });
 
