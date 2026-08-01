@@ -86,9 +86,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   but no key yet, so every request 401'd and the frontend bounced back to
   `/login` in an endless loop — with the dashboard flashing briefly first. An
   authenticated session (and a trusted reverse-proxy SSO request) now satisfies
-  the gate. The 401 interceptor additionally drops a stale key before
-  redirecting and no longer redirects when already on `/login`, so a single
-  background 401 can never re-enter the loop.
+  the gate, in all three places that enforced it: the global request hook, the
+  `require_api_key` decorator (video streaming, profile overrides, sync) and
+  the Socket.IO handshake — the last of which had been dropping the WebSocket
+  silently, degrading log streaming and live updates with no visible error. The
+  401 interceptor additionally drops a stale key before redirecting and no
+  longer redirects when already on `/login`, so a single background 401 can
+  never re-enter the loop.
 - **Quality trends returned a server error on PostgreSQL.**
   `/api/v1/tools/quality-trends` failed on every PostgreSQL install, in two
   different ways depending on how old the database was: installs created from

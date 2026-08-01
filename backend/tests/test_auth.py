@@ -190,3 +190,53 @@ def test_valid_proxy_auth_satisfies_api_key_gate():
     ):
         resp = client.get("/api/v1/protected")
         assert resp.status_code == 200
+
+
+def test_require_api_key_decorator_accepts_ui_session():
+    """The decorator must honour the same session-OR-key contract as the hook."""
+    app = Flask(__name__)
+    app.config["SECRET_KEY"] = "test-secret"
+
+    @app.route("/decorated")
+    @require_api_key
+    def decorated_route():
+        return {"status": "ok"}
+
+    os.environ["SUBLARR_API_KEY"] = "test-key-123"
+    reload_settings()
+    try:
+        with app.test_client() as client:
+            resp = client.get("/decorated")
+            assert resp.status_code == 401
+
+            with client.session_transaction() as sess:
+                sess["ui_authenticated"] = True
+            resp = client.get("/decorated")
+            assert resp.status_code == 200
+    finally:
+        os.environ.pop("SUBLARR_API_KEY", None)
+        reload_settings()
+
+
+def test_require_api_key_decorator_accepts_proxy_auth():
+    """Trusted-proxy SSO requests must pass decorated routes without a key."""
+    app = Flask(__name__)
+    app.config["SECRET_KEY"] = "test-secret"
+
+    @app.route("/decorated")
+    @require_api_key
+    def decorated_route():
+        return {"status": "ok"}
+
+    os.environ["SUBLARR_API_KEY"] = "test-key-123"
+    reload_settings()
+    try:
+        with (
+            patch("proxy_auth.request_has_valid_proxy_auth", return_value=True),
+            app.test_client() as client,
+        ):
+            resp = client.get("/decorated")
+            assert resp.status_code == 200
+    finally:
+        os.environ.pop("SUBLARR_API_KEY", None)
+        reload_settings()
