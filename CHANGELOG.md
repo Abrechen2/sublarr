@@ -120,6 +120,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   printed raw keys like `settings.subtitles.scanFilters.minFileSize` at the
   user. Twenty strings moved to the namespace the pages actually read, and a
   stale duplicate translation block was removed.
+- **A paused wanted job came back after a restart.** Pausing
+  `wanted_search` (or `wanted_scanner`) in Settings → System → Scheduler
+  held only until the container restarted. Two paths revived it: the
+  interval adapter resumed every job with a non-zero interval — and it runs
+  on startup, not just on save — while the "search on startup" one-shot
+  spawned its run thread without consulting the pause state at all. On an
+  instance holding real translation credentials this meant billed work
+  nobody asked for. A pause now survives restarts, and the startup one-shot
+  respects it.
 - **Health probe could flap the container.** The liveness probe is bounded, so
   a hung optional check (e.g. an unreachable Ollama host) can no longer push
   it past the Docker health-check timeout.
