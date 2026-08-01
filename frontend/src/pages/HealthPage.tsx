@@ -149,7 +149,9 @@ export function HealthPage() {
   const healthyProviders = (data?.providers ?? []).filter((p) => !p.degraded)
 
   return (
-    <div className="max-w-5xl mx-auto p-4 space-y-6">
+    // Data surface — tables of problem items benefit from the full canvas, so
+    // this joins the "wide" tier rather than keeping its own 1024px cap.
+    <div className="w-full p-4 space-y-6">
       <PageHeader title={t('title')} subtitle={t('subtitle')} className="mb-0" />
 
       {/* Totals */}
