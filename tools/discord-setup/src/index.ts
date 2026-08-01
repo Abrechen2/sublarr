@@ -2,8 +2,9 @@ import { readFileSync } from "node:fs";
 import { createClient, loadEnv } from "./client.js";
 import { parseLimit, runRead } from "./readChannel.js";
 import { runReply } from "./replyThread.js";
-import { runAnnounce, readRepoVersion, readRepoChangelog, AnnounceType } from "./announce.js";
+import { runAnnounce, readRepoVersion, readRepoChangelog } from "./announce.js";
 import { extractChangelogEntry } from "./changelog.js";
+import { parseArgs } from "./args.js";
 import { log } from "./log.js";
 
 const USAGE =
@@ -15,8 +16,34 @@ const USAGE =
   "  announce <beta|rc|release> [version] [--notes-file <path> | --notes <text>] [--dry-run]\n" +
   "                             post a release announcement embed";
 
+/**
+ * Read a file passed via a CLI flag (`--file`, `--notes-file`), with an error
+ * that names the flag and the path. Without this, an unreadable path surfaces
+ * only through the generic top-level `FATAL:` handler as a bare ENOENT/EACCES
+ * message that does not say which flag or file it came from.
+ */
+function readFlagFile(flagName: string, path: string): string {
+  try {
+    return readFileSync(path, "utf8");
+  } catch (err) {
+    throw new Error(
+      `Could not read ${flagName} file "${path}": ${err instanceof Error ? err.message : String(err)}`,
+    );
+  }
+}
+
 async function main(): Promise<void> {
+  // The command is validated BEFORE the environment is loaded: an unknown
+  // command with no `.env` present must print the usage text, not
+  // "FATAL: DISCORD_BOT_TOKEN is missing…" — that points the reader at the
+  // wrong problem.
   const command = process.argv[2];
+  if (command !== "read" && command !== "reply" && command !== "announce") {
+    log(USAGE);
+    process.exitCode = 1;
+    return;
+  }
+
   const dryRun = process.argv.includes("--dry-run");
   const { token, guildId } = loadEnv();
   const client = createClient();
@@ -29,18 +56,21 @@ async function main(): Promise<void> {
   }
 
   if (command === "reply") {
-    const targetQuery = process.argv[3];
     // Multi-line messages do not survive shell/npm argument passing reliably,
     // so `--file <path>` reads the message verbatim from a UTF-8 file. That is
     // the preferred form for anything with newlines.
-    const fileIdx = process.argv.indexOf("--file");
+    //
+    // Flags are filtered out before positional arguments are read, so
+    // `--dry-run` / `--file <path>` can appear anywhere on the command line —
+    // `reply --dry-run general "msg"` and `reply general "msg" --dry-run`
+    // parse identically.
+    const { positional, values } = parseArgs(process.argv.slice(3), ["--file"], ["--dry-run"]);
+    const targetQuery = positional[0];
+    const filePath = values["--file"];
     const message =
-      fileIdx !== -1 && process.argv[fileIdx + 1]
-        ? readFileSync(process.argv[fileIdx + 1], "utf8").replace(/\s+$/, "")
-        : process.argv
-            .slice(4)
-            .filter((a) => a !== "--dry-run")
-            .join(" ");
+      filePath !== undefined
+        ? readFlagFile("--file", filePath).replace(/\s+$/, "")
+        : positional.slice(1).join(" ");
 
     if (!targetQuery || !message) {
       log("Usage: tsx src/index.ts reply <thread|channel> (<message…> | --file <path>) [--dry-run]");
@@ -52,14 +82,22 @@ async function main(): Promise<void> {
   }
 
   if (command === "announce") {
-    const type = process.argv[3];
+    // Same flag-placement rule as `reply`: flags are filtered out before the
+    // positional arguments (type, version) are read.
+    const { positional, values } = parseArgs(
+      process.argv.slice(3),
+      ["--notes-file", "--notes"],
+      ["--dry-run"],
+    );
+    const type = positional[0];
     if (type !== "beta" && type !== "rc" && type !== "release") {
-      log("Usage: tsx src/index.ts announce <beta|rc|release> [version] [--notes-file <path> | --notes <text>]");
+      log(
+        "Usage: tsx src/index.ts announce <beta|rc|release> [version] [--notes-file <path>|--notes <text>]",
+      );
       process.exitCode = 1;
       return;
     }
-    const versionArg = process.argv[4];
-    const version = versionArg && !versionArg.startsWith("--") ? versionArg : readRepoVersion();
+    const version = positional[1] ?? readRepoVersion();
     if (!version) {
       log("No version given and backend/VERSION could not be read.");
       process.exitCode = 1;
@@ -69,24 +107,21 @@ async function main(): Promise<void> {
     // A beta ships from master HEAD, whose version has no CHANGELOG entry yet,
     // so `--notes-file <path>` (or inline `--notes "…"`) lets the announcement
     // carry real notes instead of the generic fallback.
-    const notesFileIdx = process.argv.indexOf("--notes-file");
-    const notesInlineIdx = process.argv.indexOf("--notes");
+    const notesFile = values["--notes-file"];
+    const notesInline = values["--notes"];
     let notes: string | null;
-    if (notesFileIdx !== -1 && process.argv[notesFileIdx + 1]) {
-      notes = readFileSync(process.argv[notesFileIdx + 1], "utf8").replace(/\s+$/, "");
-    } else if (notesInlineIdx !== -1 && process.argv[notesInlineIdx + 1]) {
-      notes = process.argv[notesInlineIdx + 1];
+    if (notesFile !== undefined) {
+      notes = readFlagFile("--notes-file", notesFile).replace(/\s+$/, "");
+    } else if (notesInline !== undefined) {
+      notes = notesInline;
     } else {
       const changelog = readRepoChangelog();
       notes = changelog ? extractChangelogEntry(changelog, version) : null;
     }
 
-    await runAnnounce(client, token, guildId, type as AnnounceType, version, notes, dryRun);
+    await runAnnounce(client, token, guildId, type, version, notes, dryRun);
     return; // runAnnounce owns login + destroy
   }
-
-  log(USAGE);
-  process.exitCode = 1;
 }
 
 main().catch((err: unknown) => {
