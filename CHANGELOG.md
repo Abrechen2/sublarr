@@ -5,6 +5,22 @@ All notable changes to Sublarr are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.10.1] - 2026-08-01
+
+### Fixed
+- **Scheduled searches kept their rhythm across restarts.** A job configured to
+  search every 4 hours was re-anchored to boot time on every container start, so
+  on a day with several restarts the real gaps stretched to 6.5 and 7.7 hours.
+  Startup now leaves an already-correct schedule alone; only an actual interval
+  change reschedules the job.
+- **The cleanup job stopped reporting false timeouts.** Its one-hour ceiling sat
+  below what a large library legitimately needs, so long-but-healthy runs were
+  logged as failures even though the work completed. The limit now reflects the
+  measured runtime.
+- **Failed media probes say what went wrong.** Probe errors were reported with an
+  empty reason because the underlying ffprobe call suppressed its own diagnostics.
+  The cause — a missing file, an unreadable container — now appears in the log.
+
 ## [1.10.0] - 2026-08-01
 
 ### Added
