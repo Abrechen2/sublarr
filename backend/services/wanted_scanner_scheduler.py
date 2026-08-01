@@ -17,7 +17,7 @@ invoked via JobSpecs registered by ``services.scheduler._build_default_jobs``.
 
 import logging
 import threading
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 
 from config import get_settings
 
@@ -133,6 +133,38 @@ def _job_is_paused(app, job_id: str) -> bool:
     return job is not None and getattr(job, "next_run_time", None) is None
 
 
+def _stored_interval_matches(app, job_id: str, hours: int) -> bool:
+    """True when the persisted trigger already fires every ``hours`` hours.
+
+    Used to skip a pointless reschedule on startup. Rescheduling is not free:
+    the trigger handed to ``modify_trigger`` is a fresh ``IntervalTrigger``,
+    and APScheduler anchors such a trigger at *now + interval*, so re-applying
+    an unchanged interval silently pushes the next run out to boot time plus a
+    full interval (prod 2026-08-01: a 4h search job drifting to 6.5h and 7.7h
+    gaps across redeploys).
+
+    Returns False whenever the answer cannot be established — a missing job, a
+    non-interval trigger, or anything unreadable. Uncertainty must fall through
+    to applying the trigger, never to skipping it.
+    """
+    if app is None:
+        return False
+    scheduler = app.extensions.get("scheduler") if hasattr(app, "extensions") else None
+    if scheduler is None:
+        return False
+    try:
+        job = scheduler._scheduler.get_job(job_id)
+    except Exception:
+        logger.debug("%s: could not read stored trigger", job_id, exc_info=True)
+        return False
+    if job is None:
+        return False
+    interval = getattr(getattr(job, "trigger", None), "interval", None)
+    if not isinstance(interval, timedelta):
+        return False
+    return interval == timedelta(hours=hours)
+
+
 def _apply_intervals_to_apscheduler(
     app, scan_interval: int, search_interval: int, *, on_startup: bool = False
 ) -> None:
@@ -180,6 +212,12 @@ def _apply_intervals_to_apscheduler(
                 # Leave it completely untouched: modify_trigger would already
                 # reschedule it, and rescheduling IS unpausing.
                 logger.info("%s: paused by the user — leaving it paused", job_id)
+                continue
+            if on_startup and _stored_interval_matches(app, job_id, max(1, interval)):
+                # Nothing to change, and rescheduling would re-anchor the job to
+                # boot time. The interval can only actually change on the
+                # settings-save path, so on startup a correct trigger is final.
+                logger.debug("%s: interval unchanged — keeping the existing anchor", job_id)
                 continue
             scheduler.modify_trigger(job_id, IntervalTrigger(hours=max(1, interval)))
             if on_startup:
