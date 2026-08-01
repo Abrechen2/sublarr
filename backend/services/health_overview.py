@@ -20,6 +20,7 @@ from __future__ import annotations
 import logging
 
 from sqlalchemy import case, func, select
+from sqlalchemy.exc import SQLAlchemyError
 
 logger = logging.getLogger(__name__)
 
@@ -97,9 +98,23 @@ def get_library_health() -> dict:
     ]
 
     # ── provider health: circuit breaker ⋈ provider_stats ───────────────────
-    breakers = {
-        row.name: row for row in session.execute(select(CircuitBreakerState)).scalars().all()
-    }
+    # circuit_breaker_states is absent on installs whose schema drifted from
+    # their alembic_version (prod and RC are both stamped downstream of the
+    # migration that creates it, yet lack the table). A health overview must
+    # never be the thing that 500s, so treat the breaker join as optional and
+    # fall back to "no breaker known" — every consumer already defaults to
+    # "closed" for a provider without a breaker row.
+    try:
+        breakers = {
+            row.name: row for row in session.execute(select(CircuitBreakerState)).scalars().all()
+        }
+    except SQLAlchemyError:
+        session.rollback()
+        logger.warning(
+            "circuit_breaker_states unavailable — reporting provider health without breaker state",
+            exc_info=True,
+        )
+        breakers = {}
     stats_rows = session.execute(select(ProviderStats)).scalars().all()
     provider_names = sorted(set(breakers) | {r.provider_name for r in stats_rows})
     providers = []

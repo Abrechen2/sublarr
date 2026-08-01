@@ -25,9 +25,16 @@ describe("parseEnv", () => {
 
   it("does not put the token value in the error message", () => {
     // A thrown error can end up in a log or a transcript. It may name the key,
-    // never the value.
-    expect(() => parseEnv({ DISCORD_BOT_TOKEN: "t", DISCORD_GUILD_ID: "" })).toThrow(
-      expect.not.stringContaining("t"),
-    );
+    // never the value. Uses a distinctive value (not the single-char "t" used
+    // elsewhere in this file) because a single common letter is a substring of
+    // ordinary English words in the error copy ("to", "it"), which would make
+    // this assertion pass vacuously regardless of what parseEnv actually does.
+    const secretTokenValue = "sk-should-never-leak-into-message";
+    try {
+      parseEnv({ DISCORD_BOT_TOKEN: secretTokenValue, DISCORD_GUILD_ID: "" });
+      expect.fail("expected parseEnv to throw");
+    } catch (err) {
+      expect((err as Error).message).not.toContain(secretTokenValue);
+    }
   });
 });

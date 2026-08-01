@@ -277,6 +277,18 @@ def create_app(testing=False):
             AIQualityResult.__table__.create(bind=sa_db.engine, checkfirst=True)
         except Exception as _e:
             logger.warning("Could not ensure ai_quality_results table: %s", _e)
+        # circuit_breaker_states is created by migration d5e6f7a8b9c0, but prod
+        # and RC are stamped *downstream* of it and still lack the table — their
+        # schema and alembic_version drifted apart at some point, so Alembic
+        # considers a migration applied that never ran. Repair it idempotently
+        # instead of hand-stamping revisions: checkfirst is a no-op wherever the
+        # table is already present.
+        try:
+            from db.models.circuit_breaker import CircuitBreakerState
+
+            CircuitBreakerState.__table__.create(bind=sa_db.engine, checkfirst=True)
+        except Exception as _e:
+            logger.warning("Could not ensure circuit_breaker_states table: %s", _e)
         # Enable SQLite WAL mode if using SQLite (match existing behavior)
         if not settings.database_url or settings.database_url.startswith("sqlite"):
             from sqlalchemy import text

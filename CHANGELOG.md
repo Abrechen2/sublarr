@@ -101,6 +101,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   check returned a server error whenever the community registry was offline,
   while the plugin list degraded gracefully for the identical failure. Both
   now degrade.
+- **Library health page failed on long-lived installs.** `/api/v1/health/library`
+  returned a server error wherever the `circuit_breaker_states` table was
+  missing — which is every install whose schema drifted from its recorded
+  migration revision. The table is now created on startup if absent, and the
+  health overview degrades to "no breaker state known" instead of failing when
+  it cannot be read.
 - **Health probe could flap the container.** The liveness probe is bounded, so
   a hung optional check (e.g. an unreachable Ollama host) can no longer push
   it past the Docker health-check timeout.
