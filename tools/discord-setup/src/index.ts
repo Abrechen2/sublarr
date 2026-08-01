@@ -1,4 +1,5 @@
 import { readFileSync } from "node:fs";
+import { pathToFileURL } from "node:url";
 import { createClient, loadEnv } from "./client.js";
 import { parseLimit, runRead } from "./readChannel.js";
 import { runReply } from "./replyThread.js";
@@ -22,7 +23,7 @@ const USAGE =
  * only through the generic top-level `FATAL:` handler as a bare ENOENT/EACCES
  * message that does not say which flag or file it came from.
  */
-function readFlagFile(flagName: string, path: string): string {
+export function readFlagFile(flagName: string, path: string): string {
   try {
     return readFileSync(path, "utf8");
   } catch (err) {
@@ -32,13 +33,28 @@ function readFlagFile(flagName: string, path: string): string {
   }
 }
 
+export type Command = "read" | "reply" | "announce";
+
+/**
+ * True for the three known subcommands, false for anything else — including
+ * `undefined` (no command given at all). Extracted as its own predicate so
+ * the command-before-environment ordering in `main()` (an unknown command
+ * must print USAGE, not "DISCORD_BOT_TOKEN is missing") is unit-testable:
+ * `main()` itself is not exported and runs as a module-level side effect at
+ * the bottom of this file, so this pure boundary check is what stands in for
+ * testing that behaviour directly.
+ */
+export function isKnownCommand(c: string | undefined): c is Command {
+  return c === "read" || c === "reply" || c === "announce";
+}
+
 async function main(): Promise<void> {
   // The command is validated BEFORE the environment is loaded: an unknown
   // command with no `.env` present must print the usage text, not
   // "FATAL: DISCORD_BOT_TOKEN is missing…" — that points the reader at the
   // wrong problem.
   const command = process.argv[2];
-  if (command !== "read" && command !== "reply" && command !== "announce") {
+  if (!isKnownCommand(command)) {
     log(USAGE);
     process.exitCode = 1;
     return;
@@ -124,7 +140,15 @@ async function main(): Promise<void> {
   }
 }
 
-main().catch((err: unknown) => {
-  log(`FATAL: ${err instanceof Error ? err.message : String(err)}`);
-  process.exitCode = 1;
-});
+// `main()` runs only when this file is the CLI entry point (`tsx src/index.ts
+// ...`), not when it is imported — e.g. by tests, which import `isKnownCommand`
+// and `readFlagFile` above without wanting the CLI to actually execute against
+// `process.argv`.
+const isEntryPoint = process.argv[1] !== undefined && import.meta.url === pathToFileURL(process.argv[1]).href;
+
+if (isEntryPoint) {
+  main().catch((err: unknown) => {
+    log(`FATAL: ${err instanceof Error ? err.message : String(err)}`);
+    process.exitCode = 1;
+  });
+}
