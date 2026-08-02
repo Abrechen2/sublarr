@@ -494,6 +494,70 @@ def test_cleanup_handles_missing_dir():
 
 
 # ---------------------------------------------------------------------------
+# backup age is the backup's own age, not the source file's
+#
+# ``_make_backup`` copies with ``shutil.copy2``, which preserves the source
+# mtime. Remuxing a file that has sat in the library for months therefore
+# produces a brand-new .bak whose mtime is months old — and the retention
+# sweep deleted it on its next nightly run, hours after it was created.
+# The creation time is already encoded in the filename (``.<epoch>.bak``).
+# ---------------------------------------------------------------------------
+
+
+def test_cleanup_keeps_backup_created_recently_despite_old_mtime(tmp_path):
+    created = int(time.time())
+    bak = tmp_path / f"show.mkv.{created}.bak"
+    bak.write_bytes(b"x" * 100)
+    ancient = time.time() - 400 * 86400
+    os.utime(str(bak), (ancient, ancient))
+
+    result = cleanup_old_backups([str(tmp_path)], retention_days=7)
+
+    assert result["deleted"] == []
+    assert bak.exists()
+
+
+def test_cleanup_deletes_backup_created_long_ago_despite_fresh_mtime(tmp_path):
+    created = int(time.time() - 10 * 86400)
+    bak = tmp_path / f"show.mkv.{created}.bak"
+    bak.write_bytes(b"x" * 100)
+    # mtime is now — irrelevant, the filename carries the creation time
+
+    result = cleanup_old_backups([str(tmp_path)], retention_days=7)
+
+    assert len(result["deleted"]) == 1
+    assert not bak.exists()
+
+
+def test_cleanup_falls_back_to_mtime_for_future_timestamp(tmp_path):
+    """A nonsensical (future) stamp must not pin a backup forever."""
+    future = int(time.time() + 365 * 86400)
+    bak = tmp_path / f"show.mkv.{future}.bak"
+    bak.write_bytes(b"x" * 100)
+    ancient = time.time() - 400 * 86400
+    os.utime(str(bak), (ancient, ancient))
+
+    result = cleanup_old_backups([str(tmp_path)], retention_days=7)
+
+    assert len(result["deleted"]) == 1
+    assert not bak.exists()
+
+
+def test_list_backups_expiry_uses_creation_time_not_mtime(tmp_path):
+    from datetime import UTC, datetime
+
+    created = int(time.time())
+    bak = tmp_path / f"show.mkv.{created}.bak"
+    bak.write_bytes(b"x" * 100)
+    ancient = time.time() - 400 * 86400
+    os.utime(str(bak), (ancient, ancient))
+
+    entry = list_backups([str(tmp_path)], retention_days=7)[0]
+
+    assert datetime.fromisoformat(entry["expires_at"]) > datetime.now(UTC)
+
+
+# ---------------------------------------------------------------------------
 # _make_backup — trash directory layout
 # ---------------------------------------------------------------------------
 

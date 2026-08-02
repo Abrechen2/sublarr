@@ -42,6 +42,30 @@ def _derive_video_path(bak_path: str) -> str | None:
     return candidate
 
 
+def backup_created_at(bak_path: str) -> float:
+    """Return the epoch seconds at which this backup was created.
+
+    ``_make_backup`` writes ``<basename>.<epoch>.bak`` and copies with
+    ``shutil.copy2``, which preserves the *source* file's mtime. For a video
+    that has been in the library for months the resulting .bak is therefore
+    months "old" the moment it is written, and a plain mtime check expires it
+    on the very next sweep. The epoch in the filename is the only trustworthy
+    creation time, so prefer it.
+
+    Falls back to mtime when the stamp is missing (legacy ``*.bak`` names) or
+    implausible — a corrupt far-future stamp must not pin a backup forever.
+
+    Raises OSError if the file cannot be stat'ed and carries no usable stamp.
+    """
+    match = re.search(r"\.(\d{7,})\.bak$", os.path.basename(bak_path))
+    if match:
+        stamp = float(match.group(1))
+        # Allow a day of clock skew; anything beyond that is not a real stamp.
+        if stamp <= time.time() + 86400:
+            return stamp
+    return os.path.getmtime(bak_path)
+
+
 def _iter_bak_files(media_paths: list[str]):
     """Yield absolute paths of all .bak files found under the given directories."""
     for base_dir in media_paths:
@@ -69,8 +93,8 @@ def cleanup_old_backups(media_paths: list[str], retention_days: int) -> dict:
 
     for bak_path in _iter_bak_files(media_paths):
         try:
-            mtime = os.path.getmtime(bak_path)
-            if mtime < cutoff:
+            created = backup_created_at(bak_path)
+            if created < cutoff:
                 os.unlink(bak_path)
                 deleted.append(bak_path)
                 logger.info("Remux backup deleted (age > %d days): %s", retention_days, bak_path)
@@ -103,9 +127,11 @@ def list_backups(media_paths: list[str], retention_days: int = 0) -> list[dict]:
             if retention_days > 0:
                 from datetime import UTC, datetime, timedelta
 
-                expires_dt = datetime.fromtimestamp(stat.st_mtime, tz=UTC) + timedelta(
-                    days=retention_days
-                )
+                # Same clock as the sweep — otherwise the UI promises a
+                # retention window the cleanup does not honour.
+                expires_dt = datetime.fromtimestamp(
+                    backup_created_at(bak_path), tz=UTC
+                ) + timedelta(days=retention_days)
                 expires_at = expires_dt.isoformat()
 
             result.append(
