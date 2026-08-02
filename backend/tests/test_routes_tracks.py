@@ -753,6 +753,22 @@ class TestUseTrackAsSource:
 class TestCleanupSeriesSidecars:
     """Tests for _cleanup_series_sidecars."""
 
+    @pytest.fixture(autouse=True)
+    def _trash_inside_tmp(self, tmp_path, monkeypatch):
+        """Resolve the trash directory inside ``tmp_path`` instead of ``/media``.
+
+        The tests below that exercise the real ``_trash_path`` (rather than
+        patching it) inherit ``settings.media_path``, which defaults to
+        ``/media``. That directory is root-owned on the CI runner, so
+        ``os.makedirs("/media/.sublarr/trash/...")`` raised PermissionError,
+        ``_trash_path`` returned False and nothing was counted as trashed —
+        the same tests passed on any machine where ``/media`` happens to be
+        writable. Pinning media_path to the per-test directory keeps the real
+        move under test everywhere.
+        """
+        monkeypatch.setenv("SUBLARR_MEDIA_PATH", str(tmp_path))
+        reload_settings()
+
     def test_deletes_unwanted_languages(self, tmp_path):
         video = tmp_path / "ep.mkv"
         video.write_text("fake video")
