@@ -212,3 +212,208 @@ def test_seeded_foreign_tracks_rule_is_runnable_without_extra_config(app_ctx, tm
 
     assert result.get("aborted") is None
     assert result["would_strip_files"] == 1
+
+
+# ---------------------------------------------------------------------------
+# 4. Retroactive-sweep controls: path scope, disk floor, verify-then-recycle
+#    (first bulk run on a 16.85 TB backlog with 14 TB free — the sweep must
+#    be scopeable, must stop before it fills the array, and must be able to
+#    recycle each file's backup after verifying the rewrite).
+# ---------------------------------------------------------------------------
+
+
+def _clean_probe(*_args, **_kwargs):
+    """Post-strip container: targets + und only, no foreign tracks left."""
+    return {
+        "streams": [
+            {"codec_type": "video", "index": 0},
+            {"codec_type": "subtitle", "index": 1, "tags": {"language": "ger"}},
+            {"codec_type": "subtitle", "index": 2, "tags": {"language": "eng"}},
+            {"codec_type": "subtitle", "index": 3, "tags": {"language": "und"}},
+        ]
+    }
+
+
+def test_include_paths_limits_sweep_to_listed_subdirs(tmp_path):
+    from services.cleanup_executors import execute_foreign_tracks
+
+    (tmp_path / "_Anime").mkdir()
+    (tmp_path / "_Anime" / "in.mkv").write_bytes(b"video")
+    (tmp_path / "_Downloads").mkdir()
+    (tmp_path / "_Downloads" / "out.mkv").write_bytes(b"video")
+
+    strip = MagicMock(return_value="bak")
+    with (
+        patch("config.get_settings", return_value=_settings(["de", "en"], True)),
+        patch("remux.get_media_streams", _probe),
+        patch("remux.remove_foreign_subtitle_streams", strip),
+    ):
+        result = execute_foreign_tracks(str(tmp_path), {"include_paths": ["_Anime"]}, dry_run=False)
+
+    assert result["stripped_files"] == 1
+    stripped = strip.call_args.kwargs["video_path"]
+    assert "_Anime" in stripped and "_Downloads" not in stripped
+
+
+def test_exclude_paths_skips_listed_subdirs(tmp_path):
+    from services.cleanup_executors import execute_foreign_tracks
+
+    (tmp_path / "_Serien").mkdir()
+    (tmp_path / "_Serien" / "keepme.mkv").write_bytes(b"video")
+    (tmp_path / "_SAbnzbd").mkdir()
+    (tmp_path / "_SAbnzbd" / "staging.mkv").write_bytes(b"video")
+
+    strip = MagicMock(return_value="bak")
+    with (
+        patch("config.get_settings", return_value=_settings(["de", "en"], True)),
+        patch("remux.get_media_streams", _probe),
+        patch("remux.remove_foreign_subtitle_streams", strip),
+    ):
+        result = execute_foreign_tracks(
+            str(tmp_path), {"exclude_paths": ["_SAbnzbd"]}, dry_run=False
+        )
+
+    assert result["stripped_files"] == 1
+    assert "_Serien" in strip.call_args.kwargs["video_path"]
+
+
+def test_disk_floor_stops_execute_run_with_partial_result(tmp_path):
+    """When free space drops below min_free_gb the sweep stops mid-run and
+    says so, instead of remuxing the array to 100%."""
+    from services.cleanup_executors import execute_foreign_tracks
+
+    (tmp_path / "a.mkv").write_bytes(b"video")
+    (tmp_path / "b.mkv").write_bytes(b"video")
+
+    free_states = iter([200 * 1024**3, 10 * 1024**3])  # 200 GB, then 10 GB
+
+    def _disk_usage(_path):
+        from collections import namedtuple
+
+        du = namedtuple("usage", "total used free")
+        free = next(free_states)
+        return du(total=1024**5, used=0, free=free)
+
+    strip = MagicMock(return_value="bak")
+    with (
+        patch("config.get_settings", return_value=_settings(["de", "en"], True)),
+        patch("remux.get_media_streams", _probe),
+        patch("remux.remove_foreign_subtitle_streams", strip),
+        patch("shutil.disk_usage", _disk_usage),
+    ):
+        result = execute_foreign_tracks(str(tmp_path), {"min_free_gb": 50}, dry_run=False)
+
+    assert result["stripped_files"] == 1
+    assert "disk" in result.get("aborted", "")
+    assert strip.call_count == 1
+
+
+def test_disk_floor_ignored_in_dry_run(tmp_path):
+    """A dry run writes nothing; the floor must not abort the report."""
+    from services.cleanup_executors import execute_foreign_tracks
+
+    (tmp_path / "a.mkv").write_bytes(b"video")
+
+    def _disk_usage(_path):
+        from collections import namedtuple
+
+        du = namedtuple("usage", "total used free")
+        return du(total=1024**5, used=0, free=0)
+
+    with (
+        patch("config.get_settings", return_value=_settings(["de", "en"], True)),
+        patch("remux.get_media_streams", _probe),
+        patch("shutil.disk_usage", _disk_usage),
+    ):
+        result = execute_foreign_tracks(str(tmp_path), {"min_free_gb": 50}, dry_run=True)
+
+    assert result.get("aborted") is None
+    assert result["would_strip_files"] == 1
+
+
+def test_verify_then_delete_backup_removes_backup_on_clean_rewrite(tmp_path):
+    from services.cleanup_executors import execute_foreign_tracks
+
+    video = tmp_path / "show.mkv"
+    video.write_bytes(b"video")
+    backup = tmp_path / "show.mkv.bak"
+
+    def _strip(**kwargs):
+        backup.write_bytes(b"original")
+        return str(backup)
+
+    probes = {"post": False}
+
+    def _probe_by_phase(path, *args, **kwargs):
+        if probes["post"]:
+            return _clean_probe()
+        return _probe()
+
+    def _strip_and_flip(**kwargs):
+        result = _strip(**kwargs)
+        probes["post"] = True
+        return result
+
+    with (
+        patch("config.get_settings", return_value=_settings(["de", "en"], True)),
+        patch("remux.get_media_streams", _probe_by_phase),
+        patch("remux.remove_foreign_subtitle_streams", _strip_and_flip),
+    ):
+        result = execute_foreign_tracks(
+            str(tmp_path), {"verify_then_delete_backup": True}, dry_run=False
+        )
+
+    assert result["stripped_files"] == 1
+    assert result["backups_recycled"] == 1
+    assert not backup.exists(), "verified rewrite must recycle its backup"
+
+
+def test_verify_failure_keeps_backup(tmp_path):
+    """If the rewritten file still shows a foreign track (or the probe
+    fails), the backup must survive."""
+    from services.cleanup_executors import execute_foreign_tracks
+
+    video = tmp_path / "show.mkv"
+    video.write_bytes(b"video")
+    backup = tmp_path / "show.mkv.bak"
+
+    def _strip(**kwargs):
+        backup.write_bytes(b"original")
+        return str(backup)
+
+    # Post-strip probe still reports the dirty container -> verification fails
+    with (
+        patch("config.get_settings", return_value=_settings(["de", "en"], True)),
+        patch("remux.get_media_streams", _probe),
+        patch("remux.remove_foreign_subtitle_streams", lambda **kw: _strip(**kw)),
+    ):
+        result = execute_foreign_tracks(
+            str(tmp_path), {"verify_then_delete_backup": True}, dry_run=False
+        )
+
+    assert result["stripped_files"] == 1
+    assert result["backups_recycled"] == 0
+    assert result["verify_failed"] == 1
+    assert backup.exists(), "unverified rewrite must keep its backup"
+
+
+def test_backup_untouched_without_verify_flag(tmp_path):
+    from services.cleanup_executors import execute_foreign_tracks
+
+    video = tmp_path / "show.mkv"
+    video.write_bytes(b"video")
+    backup = tmp_path / "show.mkv.bak"
+
+    def _strip(**kwargs):
+        backup.write_bytes(b"original")
+        return str(backup)
+
+    with (
+        patch("config.get_settings", return_value=_settings(["de", "en"], True)),
+        patch("remux.get_media_streams", _probe),
+        patch("remux.remove_foreign_subtitle_streams", lambda **kw: _strip(**kw)),
+    ):
+        result = execute_foreign_tracks(str(tmp_path), {}, dry_run=False)
+
+    assert result["stripped_files"] == 1
+    assert backup.exists(), "default semantics keep every backup"

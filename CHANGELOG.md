@@ -5,6 +5,27 @@ All notable changes to Sublarr are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Added
+- **The foreign-tracks sweep is ready for large first runs.** The cleanup rule
+  that strips embedded foreign-language subtitle tracks from existing files
+  gained three controls for sweeping a big backlog safely: it can be scoped to
+  specific subfolders (and exclude download staging or disc-rip masters), it
+  stops itself before free disk space drops below a configurable floor, and an
+  opt-in verify-then-release mode re-checks every rewritten file — video stream
+  present, no foreign tracks left — before releasing that file's safety backup,
+  so the sweep no longer needs to hold a backup of every touched file at once.
+
+### Fixed
+- **The upgrade scan works again.** Triggering it — manually or on its
+  schedule — crashed immediately with a `TypeError` because the scan (and the
+  provider re-ranking engine) still used the pre-migration database handle as
+  a context manager. Nobody noticed while the scan was off by default; the
+  first real run hit it instantly. Both paths now use the session the way the
+  rest of the codebase does, and regression tests run them against the real
+  session so mocks can't hide this class of bug again.
+
 ## [1.10.1] - 2026-08-01
 
 ### Fixed
