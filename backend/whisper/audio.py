@@ -55,7 +55,7 @@ def get_audio_streams(file_path: str) -> list[dict]:
     cmd = [
         "ffprobe",
         "-v",
-        "quiet",
+        "error",
         "-select_streams",
         "a",
         "-print_format",

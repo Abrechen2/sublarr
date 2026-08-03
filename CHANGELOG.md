@@ -5,6 +5,43 @@ All notable changes to Sublarr are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Added
+- **The foreign-tracks sweep is ready for large first runs.** The cleanup rule
+  that strips embedded foreign-language subtitle tracks from existing files
+  gained three controls for sweeping a big backlog safely: it can be scoped to
+  specific subfolders (and exclude download staging or disc-rip masters), it
+  stops itself before free disk space drops below a configurable floor, and an
+  opt-in verify-then-release mode re-checks every rewritten file — video stream
+  present, no foreign tracks left — before releasing that file's safety backup,
+  so the sweep no longer needs to hold a backup of every touched file at once.
+
+### Fixed
+- **The upgrade scan works again.** Triggering it — manually or on its
+  schedule — crashed immediately with a `TypeError` because the scan (and the
+  provider re-ranking engine) still used the pre-migration database handle as
+  a context manager. Nobody noticed while the scan was off by default; the
+  first real run hit it instantly. Both paths now use the session the way the
+  rest of the codebase does, and regression tests run them against the real
+  session so mocks can't hide this class of bug again.
+
+## [1.10.1] - 2026-08-01
+
+### Fixed
+- **Scheduled searches kept their rhythm across restarts.** A job configured to
+  search every 4 hours was re-anchored to boot time on every container start, so
+  on a day with several restarts the real gaps stretched to 6.5 and 7.7 hours.
+  Startup now leaves an already-correct schedule alone; only an actual interval
+  change reschedules the job.
+- **The cleanup job stopped reporting false timeouts.** Its one-hour ceiling sat
+  below what a large library legitimately needs, so long-but-healthy runs were
+  logged as failures even though the work completed. The limit now reflects the
+  measured runtime.
+- **Failed media probes say what went wrong.** Probe errors were reported with an
+  empty reason because the underlying ffprobe call suppressed its own diagnostics.
+  The cause — a missing file, an unreadable container — now appears in the log.
+
 ## [1.10.0] - 2026-08-01
 
 ### Added
@@ -86,9 +123,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   but no key yet, so every request 401'd and the frontend bounced back to
   `/login` in an endless loop — with the dashboard flashing briefly first. An
   authenticated session (and a trusted reverse-proxy SSO request) now satisfies
-  the gate. The 401 interceptor additionally drops a stale key before
-  redirecting and no longer redirects when already on `/login`, so a single
-  background 401 can never re-enter the loop.
+  the gate, in all three places that enforced it: the global request hook, the
+  `require_api_key` decorator (video streaming, profile overrides, sync) and
+  the Socket.IO handshake — the last of which had been dropping the WebSocket
+  silently, degrading log streaming and live updates with no visible error. The
+  401 interceptor additionally drops a stale key before redirecting and no
+  longer redirects when already on `/login`, so a single background 401 can
+  never re-enter the loop.
 - **Quality trends returned a server error on PostgreSQL.**
   `/api/v1/tools/quality-trends` failed on every PostgreSQL install, in two
   different ways depending on how old the database was: installs created from
@@ -120,6 +161,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   printed raw keys like `settings.subtitles.scanFilters.minFileSize` at the
   user. Twenty strings moved to the namespace the pages actually read, and a
   stale duplicate translation block was removed.
+- **A paused wanted job came back after a restart.** Pausing
+  `wanted_search` (or `wanted_scanner`) in Settings → System → Scheduler
+  held only until the container restarted. Two paths revived it: the
+  interval adapter resumed every job with a non-zero interval — and it runs
+  on startup, not just on save — while the "search on startup" one-shot
+  spawned its run thread without consulting the pause state at all. On an
+  instance holding real translation credentials this meant billed work
+  nobody asked for. A pause now survives restarts, and the startup one-shot
+  respects it.
 - **Health probe could flap the container.** The liveness probe is bounded, so
   a hung optional check (e.g. an unreachable Ollama host) can no longer push
   it past the Docker health-check timeout.

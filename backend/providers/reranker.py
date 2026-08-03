@@ -131,7 +131,6 @@ def compute_reranking_preview(
         }
     """
     from config import get_settings
-    from db import get_db
     from db.repositories.providers import ProviderRepository
     from db.repositories.scoring import ScoringRepository
 
@@ -141,12 +140,14 @@ def compute_reranking_preview(
     if max_modifier is None:
         max_modifier = settings.provider_reranking_max_modifier
 
-    with get_db() as db:
-        provider_repo = ProviderRepository(db)
-        scoring_repo = ScoringRepository(db)
+    # get_db() returns the scoped session, not a context manager, and the
+    # repositories bind to it themselves (same contract note as
+    # upgrade_scheduler._execute_scan).
+    provider_repo = ProviderRepository()
+    scoring_repo = ScoringRepository()
 
-        all_stats = provider_repo.get_all_provider_stats()
-        current_modifiers = scoring_repo.get_all_provider_modifiers()
+    all_stats = provider_repo.get_all_provider_stats()
+    current_modifiers = scoring_repo.get_all_provider_modifiers()
 
     global_avg = _compute_global_avg_score(all_stats)
 
@@ -209,7 +210,6 @@ def apply_auto_reranking(force: bool = False) -> dict:
 
     _last_rerank_ts = now
 
-    from db import get_db
     from db.repositories.providers import ProviderRepository
     from db.repositories.scoring import ScoringRepository
     from providers.base import invalidate_scoring_cache
@@ -217,30 +217,30 @@ def apply_auto_reranking(force: bool = False) -> dict:
     min_downloads = settings.provider_reranking_min_downloads
     max_modifier = settings.provider_reranking_max_modifier
 
-    with get_db() as db:
-        provider_repo = ProviderRepository(db)
-        scoring_repo = ScoringRepository(db)
+    # Same scoped-session contract as compute_reranking_preview above.
+    provider_repo = ProviderRepository()
+    scoring_repo = ScoringRepository()
 
-        all_stats = provider_repo.get_all_provider_stats()
-        global_avg = _compute_global_avg_score(all_stats)
+    all_stats = provider_repo.get_all_provider_stats()
+    global_avg = _compute_global_avg_score(all_stats)
 
-        applied = 0
-        skipped = 0
-        changes = []
+    applied = 0
+    skipped = 0
+    changes = []
 
-        for stats in all_stats:
-            name = stats["provider_name"]
-            proposed = compute_modifier_from_stats(stats, global_avg, min_downloads, max_modifier)
+    for stats in all_stats:
+        name = stats["provider_name"]
+        proposed = compute_modifier_from_stats(stats, global_avg, min_downloads, max_modifier)
 
-            if proposed is None:
-                skipped += 1
-                continue
+        if proposed is None:
+            skipped += 1
+            continue
 
-            current = scoring_repo.get_provider_modifier(name)
-            if proposed != current:
-                scoring_repo.set_provider_modifier(name, proposed)
-                changes.append(f"{name}: {current:+d} → {proposed:+d}")
-                applied += 1
+        current = scoring_repo.get_provider_modifier(name)
+        if proposed != current:
+            scoring_repo.set_provider_modifier(name, proposed)
+            changes.append(f"{name}: {current:+d} → {proposed:+d}")
+            applied += 1
 
     if applied:
         invalidate_scoring_cache()

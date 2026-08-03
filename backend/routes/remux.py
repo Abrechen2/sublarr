@@ -297,13 +297,14 @@ def trigger_backup_cleanup():
         # Just list what would be deleted
         import time
 
-        from remux.backup_cleanup import _iter_bak_files
+        from remux.backup_cleanup import _iter_bak_files, backup_created_at
 
         cutoff = time.time() - retention_days * 86400
         would_delete = []
         for bak_path in _iter_bak_files(_trash_paths()):
             try:
-                if os.path.getmtime(bak_path) < cutoff:
+                # Must match cleanup_old_backups exactly, or the preview lies.
+                if backup_created_at(bak_path) < cutoff:
                     would_delete.append(bak_path)
             except OSError:
                 pass

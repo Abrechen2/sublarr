@@ -15,6 +15,7 @@ DBUSER="sublarr"
 RC_COMPOSE_DIR="/mnt/user/appdata/sublarr-rc"
 RC_PROJECT="sublarr-rc"
 RC_APP="sublarr-rc"
+RC_PORT="5766"  # RC's port on the Cardinal host (container itself listens on 5765)
 # Config-at-rest encryption key lives in {config_dir}/.encryption_key, deliberately
 # OUTSIDE the DB — so a DB clone alone can't decrypt prod's encrypted config values
 # and the RC app crashes on boot ("Failed to decrypt"). Copy prod's key too.
@@ -49,4 +50,31 @@ $SSH "docker exec $TARGET_PG psql -U $DBUSER -d postgres -c 'DROP DATABASE IF EX
 $SSH "docker exec $SOURCE_PG pg_dump -U $DBUSER -d $DB --no-owner --no-privileges | docker exec -i $TARGET_PG psql -U $DBUSER -d $DB"
 $SSH "cp -a '$PROD_KEY' '$RC_KEY' && chmod 600 '$RC_KEY'"
 $SSH "cd $RC_COMPOSE_DIR && docker compose -p $RC_PROJECT up -d $RC_APP"
-echo "Done. RC now mirrors prod DB (config_entries included)."
+
+# --- Silence the automation the clone just armed -------------------------
+# The dump carries config_entries, and the encryption key copied above makes
+# them decryptable — so RC comes up holding prod's *real* DeepL/OpenSubtitles
+# credentials, pointed at prod's full backlog (thousands of wanted items).
+# subtitle_automation then re-translates that backlog on RC, billing the
+# owner's live DeepL quota for work prod already paid for. Observed
+# 2026-08-01: 1468 DeepL calls in six hours from a single staging round.
+#
+# Pause every job that can reach a paid API. Everything else (cleanup,
+# stats, health sweeps) is local and stays running so the RC still behaves
+# like a real instance. Unpause individually in Settings → System →
+# Scheduler when a round genuinely needs to exercise translation.
+# NB: 5766 is RC's port *on the host* — the container listens on 5765, but
+# these curls run on Cardinal, not inside it.
+echo "Waiting for RC to accept requests ..."
+$SSH "for i in \$(seq 1 60); do curl -sf --max-time 3 http://localhost:${RC_PORT}/api/v1/health >/dev/null 2>&1 && exit 0; sleep 2; done; exit 1" || {
+  echo "REFUSE: RC did not become healthy — pause the paid-API jobs by hand" >&2
+  exit 6
+}
+
+echo "Pausing paid-API scheduler jobs on RC ..."
+for _job in subtitle_automation wanted_search mt_reseek upgrade_scan; do
+  $SSH "curl -sS -X POST 'http://localhost:${RC_PORT}/api/v1/scheduler/jobs/${_job}/pause' -o /dev/null -w '  ${_job}: %{http_code}\n'" || \
+    echo "  ${_job}: pause failed (non-fatal — pause it by hand)" >&2
+done
+
+echo "Done. RC mirrors prod DB (config_entries included); paid-API jobs paused."

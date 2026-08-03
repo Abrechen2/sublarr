@@ -586,6 +586,31 @@ class TestTriggerBackupCleanup:
         assert data["count"] == 0
         assert data["would_delete"] == []
 
+    def test_cleanup_dry_run_agrees_with_sweep_on_creation_time(self, client):
+        """The preview must use the same clock as the sweep.
+
+        A backup created seconds ago carries the source file's old mtime
+        (copy2). If the preview still judged by mtime it would announce the
+        deletion of a backup the sweep now correctly keeps.
+        """
+        fresh = f"/trash/show.mkv.{int(time.time())}.bak"
+        with (
+            patch("routes.remux._trash_paths", return_value=["/tmp/trash"]),
+            patch("routes.remux.get_settings") as mock_settings,
+            patch("remux.backup_cleanup._iter_bak_files", return_value=[fresh]),
+            patch("routes.remux.os.path.getmtime", return_value=0),  # ancient mtime
+        ):
+            s = MagicMock()
+            s.remux_backup_retention_days = 7
+            mock_settings.return_value = s
+
+            rv = client.post("/api/v1/remux/backups/cleanup", json={"dry_run": True})
+
+        assert rv.status_code == 200
+        data = rv.get_json()
+        assert data["count"] == 0
+        assert data["would_delete"] == []
+
     def test_cleanup_dry_run_getmtime_oserror(self, client):
         """Files that raise OSError on getmtime are silently skipped."""
         with (

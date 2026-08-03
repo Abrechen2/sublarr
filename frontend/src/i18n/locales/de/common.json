@@ -632,6 +632,15 @@
     "inactive": "Inaktiv",
     "keep_languages": "Sprachen behalten",
     "keep_undetermined": "Unbestimmte Sprache (und) behalten",
+    "include_paths": "Nur diese Unterordner (leer = gesamte Bibliothek)",
+    "include_paths_placeholder": "z. B. _Anime, _Serien",
+    "exclude_paths": "Unterordner ausschließen",
+    "exclude_paths_placeholder": "z. B. _SAbnzbd, MakeMKV",
+    "paths_hint": "Kommagetrennt, relativ zum Medienpfad",
+    "min_free_gb": "Mindest-Speicherplatz (GB)",
+    "min_free_gb_hint": "Lauf stoppt, bevor der freie Platz darunter fällt (0 = aus)",
+    "verify_recycle": "Backup nach geprüftem Umbau sofort freigeben",
+    "verify_recycle_hint": "Neue Datei wird geprüft (Video-Spur, keine Fremd-Subs), erst dann wird das Backup gelöscht — empfohlen für große Erstläufe",
     "preferred_format": "Bevorzugtes Format",
     "retention_days": "Aufbewahrung (Tage)",
     "retention_hint": "0 = für immer behalten (Waisen werden trotzdem sofort entfernt)",
@@ -657,7 +666,9 @@
       "login_title": "Login-Schleife behoben",
       "login_desc": "Nach dem Anmelden konnte die Oberfläche in einer Endlosschleife auf die Login-Seite zurückspringen. Eine gültige Sitzung wird jetzt überall akzeptiert — auch hinter einem Reverse-Proxy mit SSO.",
       "export_title": "Wanted-Liste exportieren und Vorschau laufen lassen",
-      "export_desc": "Die Wanted-Liste als CSV oder JSON herunterladen, und per Probelauf sehen, was die Automatik wählen würde — ohne dass etwas geschrieben wird."
+      "export_desc": "Die Wanted-Liste als CSV oder JSON herunterladen, und per Probelauf sehen, was die Automatik wählen würde — ohne dass etwas geschrieben wird.",
+      "pause_title": "Pausierte Aufgaben bleiben pausiert",
+      "pause_desc": "Ein im Zeitplaner angehaltener Job lief nach einem Neustart wieder an — bei aktivem Übersetzungs-Backend konnte das unbemerkt Kosten verursachen. Eine Pausierung überdauert jetzt Neustarts."
     },
     "v194": {
       "speed_title": "Deutlich schneller auf schwacher Hardware",

@@ -322,12 +322,17 @@ def run_ffprobe(file_path, use_cache=True):
     # Audit Gemini-2026-05-09 R3: wrap ``file_path`` with ``_safe_arg_path``
     # so a leading ``-`` in the basename can't be interpreted as a flag by
     # ffprobe. Same defence ``extract_subtitle_stream`` already applied.
+    # Loglevel is ``error``, not ``quiet``: ``quiet`` suppresses stderr entirely,
+    # so the RuntimeError below interpolated an empty string and every failure
+    # logged as a bare "ffprobe failed:" with no reason (prod 2026-08-01, where
+    # the real cause — files deleted from disk — stayed invisible). ``error``
+    # stays silent on success and only speaks up when something actually broke.
     from remux import _safe_arg_path
 
     cmd = [
         "ffprobe",
         "-v",
-        "quiet",
+        "error",
         "-print_format",
         "json",
         "-show_streams",

@@ -12,6 +12,7 @@ import type { CleanupRule } from '@/types/system'
 import { useRunCleanupRule, useRulePreview } from '@/hooks/useSystemApi'
 import { LanguageFilterConfig } from './LanguageFilterConfig'
 import { FormatUpgradeConfig } from './FormatUpgradeConfig'
+import { PathListInput } from './PathListInput'
 import { SchedulePicker } from './SchedulePicker'
 import { toast } from '@/components/shared/Toast'
 
@@ -444,6 +445,57 @@ export function CleanupOpCard({ meta, rule, onToggle, onUpdate }: CleanupOpCardP
                     onChange={(e) => updateConfig({ keep_und: e.target.checked })}
                   />
                   {t('cleanup_card.keep_undetermined')}
+                </label>
+
+                <PathListInput
+                  label={t('cleanup_card.include_paths')}
+                  placeholder={t('cleanup_card.include_paths_placeholder')}
+                  hint={t('cleanup_card.paths_hint')}
+                  value={(config.include_paths as string[]) ?? []}
+                  onChange={(paths) => updateConfig({ include_paths: paths })}
+                />
+                <PathListInput
+                  label={t('cleanup_card.exclude_paths')}
+                  placeholder={t('cleanup_card.exclude_paths_placeholder')}
+                  hint={t('cleanup_card.paths_hint')}
+                  value={(config.exclude_paths as string[]) ?? []}
+                  onChange={(paths) => updateConfig({ exclude_paths: paths })}
+                />
+
+                <div
+                  className="text-[10px] font-semibold uppercase tracking-wider mt-4 mb-2"
+                  style={{ color: 'var(--text-muted)' }}
+                >
+                  {t('cleanup_card.min_free_gb')}
+                </div>
+                <input
+                  type="number"
+                  min={0}
+                  value={(config.min_free_gb as number) ?? 0}
+                  onChange={(e) =>
+                    updateConfig({ min_free_gb: Math.max(0, parseInt(e.target.value, 10) || 0) })
+                  }
+                  className="px-3 py-2 rounded-lg text-sm focus:outline-none"
+                  style={{
+                    width: 110,
+                    background: 'var(--bg-surface)',
+                    border: '1px solid var(--border)',
+                    color: 'var(--text-primary)',
+                  }}
+                  title={t('cleanup_card.min_free_gb_hint')}
+                />
+
+                <label
+                  className="flex items-center gap-2 mt-3 text-sm cursor-pointer"
+                  style={{ color: 'var(--text-secondary)' }}
+                  title={t('cleanup_card.verify_recycle_hint')}
+                >
+                  <input
+                    type="checkbox"
+                    checked={(config.verify_then_delete_backup as boolean) ?? false}
+                    onChange={(e) => updateConfig({ verify_then_delete_backup: e.target.checked })}
+                  />
+                  {t('cleanup_card.verify_recycle')}
                 </label>
               </div>
             )}

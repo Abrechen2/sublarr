@@ -59,10 +59,20 @@ describe("extractChangelogEntry", () => {
     expect(extractChangelogEntry(SAMPLE, "1.1")).toBeNull();
   });
 
-  it("correctly escapes dots in version strings", () => {
-    // Dot-escaping ensures "1.1.0" (with literal dots) does not accidentally match
-    // "1.10.0" via a literal dot in the version string. Separate concern from word boundary.
-    expect(extractChangelogEntry(SAMPLE, "1.1.0")).toBeNull();
+  it("escapes a regex-metacharacter version so it matches the heading literally", () => {
+    // "1.5+0" is not realistic semver, but that's irrelevant to what's under
+    // test: extractChangelogEntry takes any string. Unescaped, "+" means
+    // "one or more of the preceding char" and "." means "any char" — the
+    // pattern built from the RAW string "1.5+0" would be `1.5+0`, which
+    // requires "1" + any-char + one-or-more "5"s + "0". The literal text
+    // "1.5+0" has only a single "5", so that pattern does NOT match it: an
+    // unescaped implementation reports this real entry as missing (null).
+    // With escaping, the pattern is the literal string `1\.5\+0` and matches
+    // directly. This is proven by mutation, not by this comment: temporarily
+    // removing the `.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")` escaping call in
+    // changelog.ts makes this exact test fail (see fix report).
+    const sample = `## [1.5+0] - 2026-01-01\n\n### Added\n- Something with a plus in the version.\n`;
+    expect(extractChangelogEntry(sample, "1.5+0")).toContain("Something with a plus");
   });
 
   it("handles a heading without brackets", () => {

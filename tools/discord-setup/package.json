@@ -4,6 +4,9 @@
   "private": true,
   "type": "module",
   "description": "Read, reply and announce on the Sublarr Discord",
+  "engines": {
+    "node": ">=22"
+  },
   "scripts": {
     "read": "tsx src/index.ts read",
     "reply": "tsx src/index.ts reply",

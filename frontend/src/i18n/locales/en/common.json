@@ -632,6 +632,15 @@
     "inactive": "Inactive",
     "keep_languages": "Keep languages",
     "keep_undetermined": "Keep undetermined language (und)",
+    "include_paths": "Only these subfolders (empty = entire library)",
+    "include_paths_placeholder": "e.g. _Anime, _Serien",
+    "exclude_paths": "Exclude subfolders",
+    "exclude_paths_placeholder": "e.g. _SAbnzbd, MakeMKV",
+    "paths_hint": "Comma-separated, relative to the media path",
+    "min_free_gb": "Minimum free disk space (GB)",
+    "min_free_gb_hint": "The run stops before free space drops below this (0 = off)",
+    "verify_recycle": "Release each backup right after a verified rewrite",
+    "verify_recycle_hint": "The new file is checked (video stream, no foreign subs) before its backup is deleted — recommended for large first runs",
     "preferred_format": "Preferred format",
     "retention_days": "Retention (days)",
     "retention_hint": "0 = keep forever (orphans still purged immediately)",
@@ -657,7 +666,9 @@
       "login_title": "Login loop fixed",
       "login_desc": "After signing in, the UI could bounce back to the login page in an endless loop. A valid session is now accepted everywhere — including behind a reverse proxy with SSO.",
       "export_title": "Export the wanted list and run a preview",
-      "export_desc": "Download the wanted list as CSV or JSON, and use a dry run to see what automation would pick — without writing anything."
+      "export_desc": "Download the wanted list as CSV or JSON, and use a dry run to see what automation would pick — without writing anything.",
+      "pause_title": "Paused jobs stay paused",
+      "pause_desc": "A job you halted in the scheduler started running again after a restart — with a translation backend configured, that could quietly cost money. A pause now survives restarts."
     },
     "v194": {
       "speed_title": "Much faster on low-power hardware",
