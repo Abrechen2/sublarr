@@ -40,6 +40,13 @@ class _BudgetCounterStoreMixin:
 
         ``provider``/``window`` are optional to preserve the old no-factor API
         for tests that predate Phase 3 — pass them to apply learned adjustments.
+
+        A positive ``raw`` never scales below 1: the margin and the learned
+        factor exist to THROTTLE a provider, not to disable it. Plain rounding
+        floors ``raw=1`` to 0 for any margin >= 1%, and ``check()`` then denies
+        the first call outright ("second limit reached (0/0)") — which stalled
+        every provider declaring ``"second": 1`` (see #181). ``raw=0`` keeps
+        meaning "no calls allowed" and is passed through untouched.
         """
         factor = 1.0
         if provider is not None and window is not None:
@@ -47,6 +54,8 @@ class _BudgetCounterStoreMixin:
         scaled = raw * factor
         if self._safety > 0:
             scaled = scaled * (100 - self._safety) / 100
+        if raw > 0:
+            return max(1, int(scaled))
         return max(0, int(scaled))
 
     def _key(self, provider: str, window, now: datetime) -> tuple[str, str, datetime]:

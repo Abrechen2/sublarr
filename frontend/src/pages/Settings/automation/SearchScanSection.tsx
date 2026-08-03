@@ -152,27 +152,45 @@ export function SearchScanAdvancedContent() {
       </FormGroup>
 
       <FormGroup
-        label={tS('automation_page.stretch_mode')}
-        hint={tS('automation_page.stretch_mode_hint')}
-        htmlFor="provider-budget-stretch-mode"
+        label={tS('automation_page.provider_budget_enabled')}
+        hint={tS('automation_page.provider_budget_enabled_hint')}
         advanced
-        data-testid="form-group-provider-budget-stretch-mode"
+        htmlFor="provider-budget-enabled"
+        data-testid="form-group-provider-budget-enabled"
       >
-        <select
-          id="provider-budget-stretch-mode"
-          data-testid="input-provider-budget-stretch-mode"
-          style={{ ...inputStyle, maxWidth: '320px' }}
-          value={strVal(config, 'provider_budget_stretch_mode', 'stretch')}
-          onChange={(e) => save({ provider_budget_stretch_mode: e.target.value })}
+        <Toggle
+          checked={boolVal(config, 'provider_budget_enabled', true)}
+          onChange={(v) => save({ provider_budget_enabled: v })}
           disabled={updateConfig.isPending}
-        >
-          <option value="stretch">{tS('automation_page.stretch_mode_stretch')}</option>
-          <option value="burst">{tS('automation_page.stretch_mode_burst')}</option>
-          <option value="adaptive">{tS('automation_page.stretch_mode_adaptive')}</option>
-        </select>
+        />
       </FormGroup>
 
-      {strVal(config, 'provider_budget_stretch_mode', 'stretch') === 'burst' && (
+      {/* Pacing only means something while the budget gate is on. */}
+      {boolVal(config, 'provider_budget_enabled', true) && (
+        <FormGroup
+          label={tS('automation_page.stretch_mode')}
+          hint={tS('automation_page.stretch_mode_hint')}
+          htmlFor="provider-budget-stretch-mode"
+          advanced
+          data-testid="form-group-provider-budget-stretch-mode"
+        >
+          <select
+            id="provider-budget-stretch-mode"
+            data-testid="input-provider-budget-stretch-mode"
+            style={{ ...inputStyle, maxWidth: '320px' }}
+            value={strVal(config, 'provider_budget_stretch_mode', 'stretch')}
+            onChange={(e) => save({ provider_budget_stretch_mode: e.target.value })}
+            disabled={updateConfig.isPending}
+          >
+            <option value="stretch">{tS('automation_page.stretch_mode_stretch')}</option>
+            <option value="burst">{tS('automation_page.stretch_mode_burst')}</option>
+            <option value="adaptive">{tS('automation_page.stretch_mode_adaptive')}</option>
+          </select>
+        </FormGroup>
+      )}
+
+      {boolVal(config, 'provider_budget_enabled', true) &&
+        strVal(config, 'provider_budget_stretch_mode', 'stretch') === 'burst' && (
         <FormGroup
           label={tS('automation_page.burst_window_hours')}
           hint={tS('automation_page.burst_window_hours_hint')}

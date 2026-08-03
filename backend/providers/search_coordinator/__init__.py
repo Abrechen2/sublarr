@@ -173,8 +173,8 @@ class SearchCoordinatorMixin(SearchRetryMixin, SearchScoringMixin, SearchCacheMi
                         logger.warning(
                             "%s: no usable key in pool (all exhausted, 429-cooling, "
                             "or pool row deleted). Add a pool row via Settings → "
-                            "Providers, or set provider_budget_enabled=false to "
-                            "bypass the gate for this provider.",
+                            "Providers, or turn off Settings → Automation → "
+                            "Provider budget to bypass the gate for this provider.",
                             name,
                         )
                         decision_log.provider_skipped(name, "no_pool_key")

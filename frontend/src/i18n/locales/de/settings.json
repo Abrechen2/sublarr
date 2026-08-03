@@ -856,6 +856,8 @@
     "order_fair": "Faire Rotation (empfohlen)",
     "order_newest_first": "Neueste zuerst",
     "order_weighted": "Gewichtet (neue Episoden priorisiert)",
+    "provider_budget_enabled": "Provider-Budget",
+    "provider_budget_enabled_hint": "Hält die deklarierten Rate-Limits der Provider ein und verteilt die Anfragen darauf. Ausschalten nur, wenn ein Provider dadurch fälschlich blockiert wird — ohne Budget läuft Sublarr ungebremst gegen die Provider-Limits und riskiert 429-Sperren.",
     "stretch_mode": "API-Pacing-Modus",
     "stretch_mode_hint": "Verteilt das tägliche API-Budget. 'Stretch' verteilt gleichmäßig über 24h, 'Burst' läuft N Stunden am Stück voll, 'Adaptiv' richtet sich nach deinem beobachteten Suchmuster.",
     "stretch_mode_stretch": "Stretch (gleichmäßig)",

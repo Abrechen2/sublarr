@@ -83,6 +83,51 @@ class TestBudgetDecisions:
         assert decision.allow is False
 
 
+class TestSafetyMarginNeverFloorsToZero:
+    """A declared positive limit must survive the margin as at least 1.
+
+    Regression for #181: ``effective = int(raw * (100 - margin) / 100)`` turned
+    a raw limit of 1 into 0 for ANY margin >= 1%, so ``used(0) >= effective(0)``
+    denied the very first call with "second limit reached (0/0)". Six providers
+    plus the ``ProviderBase`` default declare ``"second": 1``, so on a stock
+    install the whole wanted backlog stalled.
+    """
+
+    @pytest.mark.parametrize("margin", [1, 10, 20, 40, 99])
+    def test_raw_one_still_allows_one_call(self, margin):
+        mgr = ProviderBudgetManager(redis=None, safety_margin_pct=margin)
+        assert mgr._effective_limit(1) == 1
+
+    @pytest.mark.parametrize("margin", [1, 20, 40, 99])
+    def test_first_call_is_allowed_with_second_limit_of_one(self, margin):
+        mgr = ProviderBudgetManager(redis=None, safety_margin_pct=margin)
+        now = datetime(2026, 4, 16, 12, 0, 0, tzinfo=UTC)
+        decision = mgr.check("gestdown", limits={"second": 1, "hour": 30, "day": 300}, now=now)
+        assert decision.allow is True
+
+    def test_second_call_in_same_second_still_blocks(self):
+        """Flooring to 1 must throttle, not disable the window entirely."""
+        mgr = ProviderBudgetManager(redis=None, safety_margin_pct=20)
+        now = datetime(2026, 4, 16, 12, 0, 0, tzinfo=UTC)
+        sec_start = window_start_for(BudgetWindow.SECOND, now)
+        mgr._in_memory_counts[("gestdown", "second", sec_start)] = 1
+        decision = mgr.check("gestdown", limits={"second": 1}, now=now)
+        assert decision.allow is False
+        assert decision.reason == "second limit reached (1/1)"
+
+    def test_learned_factor_cannot_floor_a_positive_limit_to_zero(self):
+        """A 429-learned factor throttles down to 1, never to a hard block."""
+        mgr = ProviderBudgetManager(redis=None, safety_margin_pct=20)
+        mgr._factors_loaded = True
+        mgr._factors[("opensubtitles", "second")] = 0.1  # learning floor
+        assert mgr._effective_limit(5, provider="opensubtitles", window=BudgetWindow.SECOND) == 1
+
+    def test_explicit_zero_limit_still_blocks(self):
+        """0 means "no calls allowed" and must not be rounded up to 1."""
+        mgr = ProviderBudgetManager(redis=None, safety_margin_pct=20)
+        assert mgr._effective_limit(0) == 0
+
+
 class TestConsumeAndUsage:
     """consume() increments all three windows; get_usage() returns live counts."""
 
