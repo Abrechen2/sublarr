@@ -111,8 +111,8 @@ class TestUpgradeSchedulerScanLogic:
             patch("db.get_db") as mock_db_ctx,
             patch("db.repositories.wanted.WantedRepository", return_value=mock_wanted_repo),
         ):
-            mock_db_ctx.return_value.__enter__ = MagicMock(return_value=mock_db)
-            mock_db_ctx.return_value.__exit__ = MagicMock(return_value=False)
+            # get_db() hands back the scoped session directly (no context manager)
+            mock_db_ctx.return_value = mock_db
 
             result = scheduler._execute_scan()
 
@@ -247,8 +247,8 @@ class TestUpgradeSchedulerScanLogic:
             patch("db.get_db") as mock_db_ctx,
             patch("db.repositories.wanted.WantedRepository"),
         ):
-            mock_db_ctx.return_value.__enter__ = MagicMock(return_value=mock_db)
-            mock_db_ctx.return_value.__exit__ = MagicMock(return_value=False)
+            # get_db() hands back the scoped session directly (no context manager)
+            mock_db_ctx.return_value = mock_db
             scheduler._execute_scan()
 
         assert scheduler.last_run_at is not None
@@ -265,8 +265,8 @@ class TestUpgradeSchedulerScanLogic:
             patch("db.get_db") as mock_db_ctx,
             patch("db.repositories.wanted.WantedRepository"),
         ):
-            mock_db_ctx.return_value.__enter__ = MagicMock(return_value=mock_db)
-            mock_db_ctx.return_value.__exit__ = MagicMock(return_value=False)
+            # get_db() hands back the scoped session directly (no context manager)
+            mock_db_ctx.return_value = mock_db
             scheduler._execute_scan()
 
         assert not scheduler.is_executing
@@ -283,3 +283,27 @@ class TestUpgradeSchedulerScanLogic:
 
         # High score + SSA/ASS → skipped (not an upgrade candidate)
         assert result["skipped"] == 1
+
+
+class TestExecuteScanRealSession:
+    """Regression: _execute_scan against the real Flask-SQLAlchemy session.
+
+    The mock-based tests above patch ``db.get_db`` with a MagicMock, which
+    silently satisfies the context-manager protocol — so ``with get_db() as
+    db:`` passed every test while crashing in production with ``TypeError:
+    'scoped_session' object does not support the context manager protocol``
+    (get_db() has returned the plain scoped session since the SQLAlchemy
+    migration). These tests run the scan against the real session so the
+    contract can never drift apart from the mocks again.
+    """
+
+    def test_scan_runs_against_real_session(self, client):
+        from upgrade_scheduler import _execute_scan
+
+        with (
+            client.application.app_context(),
+            patch("config.get_settings", return_value=_make_settings()),
+        ):
+            result = _execute_scan()
+
+        assert result == {"queued": 0, "skipped": 0}

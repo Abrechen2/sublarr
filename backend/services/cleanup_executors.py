@@ -49,6 +49,11 @@ except ImportError:  # pragma: no cover
 SUBTITLE_EXTENSIONS = {".ass", ".ssa", ".srt", ".vtt", ".sub"}
 VIDEO_EXTENSIONS = {".mkv", ".mp4", ".avi", ".mov", ".m4v", ".ts", ".wmv"}
 
+#: Default free-space floor for the foreign-tracks sweep, in GB. 0 keeps the
+#: guard off unless the rule config sets ``min_free_gb`` explicitly — a
+#: baked-in floor would also fire on small test/CI filesystems.
+DEFAULT_SWEEP_MIN_FREE_GB = 0
+
 # Trash/backup subtree name (matches the default ``remux_trash_dir``). Cleanup
 # walks must never descend into it: it holds already-removed sidecars and
 # video ``.bak`` backups, so re-walking it makes language_filter try to
@@ -468,14 +473,49 @@ def execute_foreign_tracks(media_path: str, config: dict, dry_run: bool = False)
 
     from remux import RemuxError, get_media_streams, remove_foreign_subtitle_streams
 
+    # Retroactive-sweep controls (first bulk run over a pre-cleanup library):
+    #   include_paths/exclude_paths — subdirs of media_path; scopes the sweep
+    #     so download staging (_SAbnzbd) or disc-rip masters (MakeMKV) are
+    #     never rewritten. Exclude wins over include.
+    #   min_free_gb — hard floor: stop stripping before the backups fill the
+    #     array. Execute-mode only; a dry run writes nothing.
+    #   verify_then_delete_backup — after each rewrite, re-probe the new file
+    #     and recycle its backup only when the rewrite verifies. Bounds the
+    #     sweep's extra disk usage to roughly one file instead of the whole
+    #     backlog (16.85 TB affected vs 14 TB free on the first real run).
+    include_paths = [p for p in (config.get("include_paths") or []) if p]
+    exclude_paths = [p for p in (config.get("exclude_paths") or []) if p]
+    raw_floor = config.get("min_free_gb", DEFAULT_SWEEP_MIN_FREE_GB)
+    try:
+        min_free_gb = max(0, int(raw_floor))
+    except (TypeError, ValueError):
+        min_free_gb = DEFAULT_SWEEP_MIN_FREE_GB
+    verify_recycle = bool(config.get("verify_then_delete_backup"))
+
+    def _scope_root(sub: str) -> str:
+        return os.path.normpath(os.path.join(media_path, sub))
+
+    def _in_scope(path: str) -> bool:
+        norm = os.path.normpath(path)
+        if include_paths and not any(
+            norm.startswith(_scope_root(p) + os.sep) for p in include_paths
+        ):
+            return False
+        return not any(norm.startswith(_scope_root(p) + os.sep) for p in exclude_paths)
+
     stripped_files = 0
     tracks_removed = 0
     bytes_freed = 0
+    backups_recycled = 0
+    verify_failed = 0
     would_strip_files = 0
     would_strip_tracks = 0
     examples: list[dict] = []
+    aborted: str | None = None
 
     for video in _video_files(media_path):
+        if not _in_scope(video):
+            continue
         try:
             probe = get_media_streams(video)
         except Exception as exc:  # noqa: BLE001 — one bad probe must not abort the batch
@@ -509,6 +549,21 @@ def execute_foreign_tracks(media_path: str, config: dict, dry_run: bool = False)
                 )
             logger.debug("Would strip (foreign_tracks): %s (%s)", video, foreign_langs)
             continue
+
+        if min_free_gb:
+            import shutil
+
+            try:
+                free = shutil.disk_usage(media_path).free
+            except OSError:
+                free = 0
+            if free < min_free_gb * 1024**3:
+                aborted = (
+                    f"disk floor reached ({free / 1024**3:.0f} GB free < "
+                    f"min_free_gb={min_free_gb}) — stopped before this file"
+                )
+                logger.warning("execute_foreign_tracks: %s", aborted)
+                break
 
         try:
             size_before = os.path.getsize(video)
@@ -554,17 +609,77 @@ def execute_foreign_tracks(media_path: str, config: dict, dry_run: bool = False)
             except Exception:  # noqa: BLE001 — best-effort, never abort the batch
                 logger.debug("foreign_tracks: media-server refresh skipped", exc_info=True)
 
+            if verify_recycle:
+                if _verify_stripped_container(video, keep_languages, keep_und, get_media_streams):
+                    try:
+                        os.remove(backup)
+                        backups_recycled += 1
+                        logger.debug("foreign_tracks: recycled backup %s", backup)
+                    except OSError as exc:
+                        verify_failed += 1
+                        logger.warning(
+                            "foreign_tracks: verified %s but could not recycle backup %s: %s",
+                            video,
+                            backup,
+                            exc,
+                        )
+                else:
+                    verify_failed += 1
+                    logger.error(
+                        "foreign_tracks: rewrite of %s did not verify — keeping backup %s",
+                        video,
+                        backup,
+                    )
+
     if dry_run:
         return {
             "would_strip_files": would_strip_files,
             "would_strip_tracks": would_strip_tracks,
             "examples": examples,
         }
-    return {
+    result = {
         "stripped_files": stripped_files,
         "tracks_removed": tracks_removed,
         "bytes_freed": bytes_freed,
+        "backups_recycled": backups_recycled,
+        "verify_failed": verify_failed,
     }
+    if aborted:
+        result["aborted"] = aborted
+    return result
+
+
+def _verify_stripped_container(
+    video: str, keep_languages: set[str], keep_und: bool, probe_fn
+) -> bool:
+    """Post-rewrite check before a backup may be recycled.
+
+    The rewritten container must probe cleanly, still carry a video stream,
+    be non-empty on disk, and contain no subtitle track outside the keep
+    set. Anything less keeps the backup — a false negative costs disk for a
+    while, a false positive costs the original.
+    """
+    try:
+        if os.path.getsize(video) <= 0:
+            return False
+        post = probe_fn(video, use_cache=False)
+    except Exception:  # noqa: BLE001 — an unprobeable rewrite must never recycle
+        logger.debug("foreign_tracks verify: probe failed for %s", video, exc_info=True)
+        return False
+
+    streams = post.get("streams", [])
+    if not any(s.get("codec_type") == "video" for s in streams):
+        return False
+    for stream in streams:
+        if stream.get("codec_type") != "subtitle":
+            continue
+        lang = (stream.get("tags", {}).get("language", "und") or "und").lower()
+        if lang in keep_languages:
+            continue
+        if keep_und and lang == "und":
+            continue
+        return False
+    return True
 
 
 def execute_format_upgrade(media_path: str, config: dict, dry_run: bool = False) -> dict:

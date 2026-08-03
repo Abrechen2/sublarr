@@ -3,6 +3,8 @@ import { readFileSync, existsSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
 import { ANNOUNCE_CHANNELS, FEEDBACK_CHANNEL } from "./channels.js";
+import { resolveChannelByExactName } from "./channelResolve.js";
+import { typeName } from "./readChannel.js";
 import { log } from "./log.js";
 
 // The three lanes mirror the deployment tiers (CLAUDE.local.md):
@@ -127,9 +129,17 @@ export async function runAnnounce(
   return new Promise<void>((resolve, reject) => {
     client.once("clientReady", async () => {
       try {
-        const guild = await (await client.guilds.fetch(guildId)).fetch();
+        const guild = await client.guilds.fetch(guildId);
         await guild.channels.fetch();
-        const channel = guild.channels.cache.find((c) => c.name === channelName);
+        // Same exact-name, ambiguity-aborting, message-capable-only rule as
+        // `read` — this used to be a case-sensitive first-match `.find()`
+        // across every channel type, safe only by coincidence today. See
+        // channelResolve.ts.
+        const channel = resolveChannelByExactName(
+          [...guild.channels.cache.values()],
+          channelName,
+          typeName,
+        );
         if (!channel || !channel.isTextBased()) {
           log(`Target channel #${channelName} not found or not a text channel.`);
           process.exitCode = 1;

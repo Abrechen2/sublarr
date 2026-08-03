@@ -41,20 +41,6 @@ export function resolveThread<T extends ThreadLike>(
   return null;
 }
 
-/**
- * Resolve a plain text channel by id or EXACT name. Deliberately stricter than
- * the thread lookup: a substring match would happily resolve "general" to
- * "#general-dev", and posting to the wrong public channel is not undoable in
- * any way that matters.
- */
-export function resolveTextChannel<T extends NamedChannel>(
-  channels: readonly T[],
-  query: string,
-): T | null {
-  const needle = query.replace(/^#/, "").toLowerCase();
-  return channels.find((c) => c.id === query || c.name.toLowerCase() === needle) ?? null;
-}
-
 /** True when `item` matches `query` by id, or by exact name once a leading `#` is stripped. */
 function isExactMatch(item: ThreadLike, query: string): boolean {
   const needle = query.replace(/^#/, "").toLowerCase();
@@ -177,7 +163,7 @@ export async function runReply(
   return new Promise<void>((resolve, reject) => {
     client.once("clientReady", async () => {
       try {
-        const guild = await (await client.guilds.fetch(guildId)).fetch();
+        const guild = await client.guilds.fetch(guildId);
         await guild.channels.fetch();
 
         const forums = [...guild.channels.cache.values()].filter(

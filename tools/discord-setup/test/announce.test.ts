@@ -9,12 +9,13 @@ describe("channelForType", () => {
     expect(channelForType("release")).toBe(ANNOUNCE_CHANNELS.release);
   });
 
-  // rc deliberately shares #beta-channel with beta (no dedicated RC channel
-  // in the guild). Pinned separately so a future edit that accidentally
-  // collapses beta and rc onto the same lane by mistake is distinguishable
-  // from this intentional choice.
-  it("shares the beta channel with rc on purpose", () => {
-    expect(channelForType("rc")).toBe(channelForType("beta"));
+  // Each lane has its own channel since #release-candidate was created
+  // 2026-08-01. Pinned separately so a future edit that accidentally
+  // collapses two lanes onto the same channel is caught here, distinct from
+  // the "routes each lane to its configured channel" check above.
+  it("resolves the three lanes to three distinct channels", () => {
+    const targets = (["beta", "rc", "release"] as const).map(channelForType);
+    expect(new Set(targets).size).toBe(3);
   });
 });
 

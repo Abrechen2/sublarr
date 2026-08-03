@@ -47,13 +47,28 @@ def _record_failure(ip: str) -> None:
 
 
 def require_api_key(f):
-    """Decorator to enforce API key authentication on a route."""
+    """Decorator to enforce API key authentication on a route.
+
+    Honours the same contract as the global check_api_key hook: a valid
+    UI session or trusted-proxy SSO request passes without an X-Api-Key.
+    Without this, session-authenticated browsers (which may hold no key in
+    localStorage) got 401 on decorated routes — e.g. /media/stream-token,
+    breaking video playback and re-triggering the /login redirect loop.
+    """
 
     @functools.wraps(f)
     def decorated(*args, **kwargs):
         settings = get_settings()
         if not settings.api_key:
             # No API key configured — allow all requests
+            return f(*args, **kwargs)
+
+        if session.get("ui_authenticated"):
+            return f(*args, **kwargs)
+
+        from proxy_auth import request_has_valid_proxy_auth
+
+        if request_has_valid_proxy_auth():
             return f(*args, **kwargs)
 
         # Check header first, then query parameter

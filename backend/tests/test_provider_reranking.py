@@ -345,3 +345,29 @@ class TestRerankingThrottle:
                 result = reranker.apply_auto_reranking(force=True)
 
         assert "throttled" not in result["reason"]
+
+
+class TestRerankerRealSession:
+    """Regression: reranker DB access against the real scoped session.
+
+    Mirrors TestExecuteScanRealSession in test_upgrade_scheduler.py — the
+    mock-based tests above satisfy ``with get_db() as db:`` via MagicMock's
+    auto-created ``__enter__``, so the production TypeError ('scoped_session'
+    is not a context manager) never surfaced here.
+    """
+
+    def test_preview_runs_against_real_session(self, client):
+        from providers.reranker import compute_reranking_preview
+
+        with client.application.app_context():
+            result = compute_reranking_preview()
+
+        assert result["providers"] == {}
+
+    def test_apply_runs_against_real_session(self, client):
+        from providers import reranker
+
+        with client.application.app_context():
+            result = reranker.apply_auto_reranking(force=True)
+
+        assert result["applied"] == 0

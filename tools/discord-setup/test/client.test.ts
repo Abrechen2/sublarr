@@ -29,12 +29,20 @@ describe("parseEnv", () => {
     // elsewhere in this file) because a single common letter is a substring of
     // ordinary English words in the error copy ("to", "it"), which would make
     // this assertion pass vacuously regardless of what parseEnv actually does.
+    //
+    // The must-throw guard lives OUTSIDE the try/catch: putting it inside (as
+    // `expect.fail()` in the try block) would let its own AssertionError be
+    // swallowed by the same catch, and the message assertion below would then
+    // pass vacuously against "expected parseEnv to throw" if parseEnv ever
+    // stopped throwing.
     const secretTokenValue = "sk-should-never-leak-into-message";
+    let caught: Error | null = null;
     try {
       parseEnv({ DISCORD_BOT_TOKEN: secretTokenValue, DISCORD_GUILD_ID: "" });
-      expect.fail("expected parseEnv to throw");
     } catch (err) {
-      expect((err as Error).message).not.toContain(secretTokenValue);
+      caught = err as Error;
     }
+    expect(caught).not.toBeNull();
+    expect(caught?.message).not.toContain(secretTokenValue);
   });
 });

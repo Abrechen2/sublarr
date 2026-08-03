@@ -1,4 +1,5 @@
-import { ChannelType, Client, ForumChannel, GuildBasedChannel } from "discord.js";
+import { ChannelType, Client, Collection, ForumChannel, GuildBasedChannel, Message } from "discord.js";
+import { resolveChannelByExactName } from "./channelResolve.js";
 import { log } from "./log.js";
 
 const MAX_FORUM_THREADS = 15;
@@ -17,6 +18,13 @@ export function formatMessage(authorTag: string, iso: string, content: string): 
 /** One channel as a line of the `read`-without-arguments listing. */
 export function formatChannelLine(name: string, type: string, id: string): string {
   return `  #${name}  [${type}]  id ${id}`;
+}
+
+/** Print a fetched message page oldest-first — shared by the channel and forum-thread readers. */
+function logMessagesOldestFirst(messages: Collection<string, Message>): void {
+  for (const message of [...messages.values()].reverse()) {
+    log(formatMessage(message.author.tag, message.createdAt.toISOString(), message.content));
+  }
 }
 
 const DEFAULT_LIMIT = 20;
@@ -40,7 +48,7 @@ export function parseLimit(raw: string | undefined): number {
 }
 
 /** Human-readable channel type, used only by the listing. */
-function typeName(channel: GuildBasedChannel): string {
+export function typeName(channel: GuildBasedChannel): string {
   switch (channel.type) {
     case ChannelType.GuildText:
       return "text";
@@ -52,6 +60,10 @@ function typeName(channel: GuildBasedChannel): string {
       return "voice";
     case ChannelType.GuildCategory:
       return "category";
+    case ChannelType.PublicThread:
+    case ChannelType.PrivateThread:
+    case ChannelType.AnnouncementThread:
+      return "thread";
     default:
       return `type-${channel.type}`;
   }
@@ -96,19 +108,17 @@ async function readForum(forum: ForumChannel, perThreadLimit: number): Promise<v
     ...(archived ? [...archived.threads.values()] : []),
   ];
   if (threads.length === 0) {
-    log(`#${forum.name} has no posts yet.`);
+    log(`#${forum.name} (id ${forum.id}) has no posts yet.`);
     return;
   }
 
   const shown = threads.slice(0, MAX_FORUM_THREADS);
   const suffix = threads.length > MAX_FORUM_THREADS ? ` of ${threads.length}` : "";
-  log(`=== ${shown.length}${suffix} post(s) in forum #${forum.name} ===`);
+  log(`=== ${shown.length}${suffix} post(s) in forum #${forum.name} (id ${forum.id}) ===`);
   for (const thread of shown) {
     log(`\n--- post: "${thread.name}" ---`);
     const messages = await thread.messages.fetch({ limit: perThreadLimit });
-    for (const message of [...messages.values()].reverse()) {
-      log(formatMessage(message.author.tag, message.createdAt.toISOString(), message.content));
-    }
+    logMessagesOldestFirst(messages);
   }
 }
 
@@ -134,7 +144,7 @@ export async function runRead(
   return new Promise<void>((resolve, reject) => {
     client.once("clientReady", async () => {
       try {
-        const guild = await (await client.guilds.fetch(guildId)).fetch();
+        const guild = await client.guilds.fetch(guildId);
         await guild.channels.fetch();
         const all = [...guild.channels.cache.values()].filter(
           (c): c is GuildBasedChannel => c !== null,
@@ -143,31 +153,32 @@ export async function runRead(
         if (channelName === null) {
           await listChannels(all);
         } else {
-          const needle = channelName.replace(/^#/, "").toLowerCase();
-          const channel = all.find((c) => c.name.toLowerCase() === needle);
+          // Restricted to message-capable types (text, announcement, forum,
+          // thread) and aborts on an ambiguous match — see channelResolve.ts.
+          // Plain `isTextBased()` is not enough here: voice channels satisfy
+          // it too, and this guild has a real lowercase collision, `#general`
+          // (text) vs `#General` (voice), that a type-agnostic lookup picks
+          // wrong.
+          const channel = resolveChannelByExactName(all, channelName, typeName);
           if (!channel) {
-            log(`Channel #${channelName} not found. Run \`npm run read\` to list every channel.`);
+            log(
+              `Channel #${channelName} not found or ambiguous. Run \`npm run read\` to list every channel.`,
+            );
             process.exitCode = 1;
           } else if (channel instanceof ForumChannel) {
             await readForum(channel, limit);
           } else if (!channel.isTextBased()) {
-            log(`#${channelName} is not a readable text or forum channel.`);
+            log(`#${channel.name} (id ${channel.id}) is not a readable text or forum channel.`);
             process.exitCode = 1;
           } else {
             const messages = await channel.messages.fetch({ limit });
             if (messages.size === 0) {
-              log(`#${channelName} has no messages yet.`);
+              log(`#${channel.name} (id ${channel.id}) has no messages yet.`);
             } else {
-              log(`=== last ${messages.size} message(s) in #${channelName} (oldest first) ===`);
-              for (const message of [...messages.values()].reverse()) {
-                log(
-                  formatMessage(
-                    message.author.tag,
-                    message.createdAt.toISOString(),
-                    message.content,
-                  ),
-                );
-              }
+              log(
+                `=== last ${messages.size} message(s) in #${channel.name} (id ${channel.id}, oldest first) ===`,
+              );
+              logMessagesOldestFirst(messages);
             }
           }
         }

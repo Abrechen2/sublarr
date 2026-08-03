@@ -165,80 +165,83 @@ def _execute_scan() -> dict:
         # Don't re-queue items that were already searched recently
         cutoff_search = datetime.now(UTC) - timedelta(hours=max(interval_h, 24))
 
-        with get_db() as db:
-            wanted_repo = WantedRepository(db)
+        # get_db() returns the Flask-SQLAlchemy scoped session — it is NOT a
+        # context manager ("with get_db() as db:" raises TypeError), and
+        # repositories bind to that session themselves (no constructor arg).
+        db = get_db()
+        wanted_repo = WantedRepository()
 
-            # Find subtitle_downloads older than window_days
-            stmt = select(SubtitleDownload).where(SubtitleDownload.downloaded_at < cutoff_download)
-            downloads = db.execute(stmt).scalars().all()
+        # Find subtitle_downloads older than window_days
+        stmt = select(SubtitleDownload).where(SubtitleDownload.downloaded_at < cutoff_download)
+        downloads = db.execute(stmt).scalars().all()
 
-            for dl in downloads:
-                # Phase-1 provisional-MT guard (feature #8): defense-in-depth
-                # skip of the MT row itself. The PRIMARY/complete guard is the
-                # "provisional" status check below -- a translation also writes
-                # a second subtitle_downloads row for the site-provider subtitle
-                # (source="provider", file_path=the video path), which resolves
-                # back to the same wanted item and is NOT source==
-                # "machine_translation", so it would slip past this check alone.
-                # The original-only re-seek of these rows is feature #8b.
-                if (dl.source or "") == "machine_translation":
-                    skipped += 1
-                    continue
+        for dl in downloads:
+            # Phase-1 provisional-MT guard (feature #8): defense-in-depth
+            # skip of the MT row itself. The PRIMARY/complete guard is the
+            # "provisional" status check below -- a translation also writes
+            # a second subtitle_downloads row for the site-provider subtitle
+            # (source="provider", file_path=the video path), which resolves
+            # back to the same wanted item and is NOT source==
+            # "machine_translation", so it would slip past this check alone.
+            # The original-only re-seek of these rows is feature #8b.
+            if (dl.source or "") == "machine_translation":
+                skipped += 1
+                continue
 
-                # Only consider low-score downloads or non-ASS formats
-                is_low_score = (dl.score or 0) < UPGRADE_SCORE_THRESHOLD
-                is_not_ass = (dl.format or "").lower() not in ("ass", "ssa")
-                if not (is_low_score or is_not_ass):
-                    skipped += 1
-                    continue
+            # Only consider low-score downloads or non-ASS formats
+            is_low_score = (dl.score or 0) < UPGRADE_SCORE_THRESHOLD
+            is_not_ass = (dl.format or "").lower() not in ("ass", "ssa")
+            if not (is_low_score or is_not_ass):
+                skipped += 1
+                continue
 
-                # Find corresponding wanted item by file_path
-                item = wanted_repo.get_wanted_by_file_path(dl.file_path)
-                if not item:
-                    skipped += 1
-                    continue
+            # Find corresponding wanted item by file_path
+            item = wanted_repo.get_wanted_by_file_path(dl.file_path)
+            if not item:
+                skipped += 1
+                continue
 
-                # Skip if already in "wanted" / "searching" / "provisional" state.
-                # "provisional" is the primary guard against re-reactivating an
-                # MT-kept-seeking item via its sibling site-provider download row
-                # (see the machine_translation early-skip comment above).
-                if item.get("status") in ("wanted", "searching", "provisional"):
-                    skipped += 1
-                    continue
+            # Skip if already in "wanted" / "searching" / "provisional" state.
+            # "provisional" is the primary guard against re-reactivating an
+            # MT-kept-seeking item via its sibling site-provider download row
+            # (see the machine_translation early-skip comment above).
+            if item.get("status") in ("wanted", "searching", "provisional"):
+                skipped += 1
+                continue
 
-                # Skip if searched too recently
-                last_search = item.get("last_search_at")
-                if last_search:
-                    try:
-                        last_dt = datetime.fromisoformat(last_search)
-                        if last_dt.tzinfo is None:
-                            last_dt = last_dt.replace(tzinfo=UTC)
-                        if last_dt > cutoff_search:
-                            skipped += 1
-                            continue
-                    except Exception:
-                        pass
+            # Skip if searched too recently
+            last_search = item.get("last_search_at")
+            if last_search:
+                try:
+                    last_dt = datetime.fromisoformat(last_search)
+                    if last_dt.tzinfo is None:
+                        last_dt = last_dt.replace(tzinfo=UTC)
+                    if last_dt > cutoff_search:
+                        skipped += 1
+                        continue
+                except Exception:
+                    pass
 
-                # Re-queue as upgrade candidate
-                db.execute(
-                    sa_update(WantedItem)
-                    .where(WantedItem.id == item["id"])
-                    .values(
-                        status="wanted",
-                        upgrade_candidate=1,
-                        current_score=dl.score or 0,
-                        updated_at=datetime.now(UTC),
-                    )
+            # Re-queue as upgrade candidate
+            db.execute(
+                sa_update(WantedItem)
+                .where(WantedItem.id == item["id"])
+                .values(
+                    status="wanted",
+                    upgrade_candidate=1,
+                    current_score=dl.score or 0,
+                    updated_at=datetime.now(UTC),
                 )
-                db.commit()
-                logger.debug(
-                    "Upgrade candidate queued: wanted_id=%d file=%s score=%d format=%s",
-                    item["id"],
-                    dl.file_path,
-                    dl.score or 0,
-                    dl.format or "?",
-                )
-                queued += 1
+            )
+            db.commit()
+            logger.debug(
+                "Upgrade candidate queued: wanted_id=%d file=%s score=%d format=%s",
+                item["id"],
+                dl.file_path,
+                dl.score or 0,
+                dl.format or "?",
+            )
+            queued += 1
 
     finally:
         _state["executing"] = False

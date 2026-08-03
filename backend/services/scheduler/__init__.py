@@ -170,7 +170,17 @@ def _build_default_jobs() -> list[JobSpec]:
             id="cleanup",
             func=cleanup_tick,
             default_trigger=CronTrigger(hour=3, minute=45),
-            timeout_s=3600,
+            # 2h, not 1h. This tick walks the whole media library, so its
+            # runtime tracks library size and filesystem latency rather than
+            # anything Sublarr controls. Measured over 31 consecutive runs on a
+            # ~750-season library (prod, 2026-07/08): median ~18 min, slowest
+            # successful run 51.5 min, two runs over 60 min. At 3600s those two
+            # were recorded as "timeout" even though the work ran to completion
+            # — _tick_wrapper's future.result(timeout=...) stops *waiting*, it
+            # cannot cancel a thread that already started. So a too-tight
+            # ceiling produced false alarms, not protection. 7200s still traps a
+            # genuine hang while leaving the observed tail room to finish.
+            timeout_s=7200,
             owner_module="cleanup_scheduler",
             description=("Run enabled cleanup rules (dedup, orphan files, format upgrade, ...)."),
         ),

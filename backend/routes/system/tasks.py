@@ -370,9 +370,13 @@ def trigger_upgrade_scan():
         return jsonify({"error": "Upgrade scheduler not initialized"}), 503
     if us.is_executing:
         return jsonify({"error": "Upgrade scan already running"}), 409
+    # The scan touches the scoped session, which needs an app context in the
+    # background thread — same pattern as trigger_cleanup_jobs above.
+    app = current_app._get_current_object()
 
     def _run():
-        us._execute_scan()
+        with app.app_context():
+            us._execute_scan()
 
     submit_background(_run)
     return jsonify({"status": "started"})
