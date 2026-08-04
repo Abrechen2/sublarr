@@ -110,4 +110,13 @@ HEALTHCHECK --interval=30s --timeout=10s --start-period=30s --retries=3 \
 STOPSIGNAL SIGTERM
 
 ENTRYPOINT ["/usr/local/bin/docker-entrypoint.sh"]
-CMD ["gunicorn", "--bind", "0.0.0.0:5765", "--worker-class", "gthread", "--workers", "1", "--threads", "4", "--timeout", "300", "--graceful-timeout", "15", "app:create_app()"]
+# --timeout is gunicorn's worker LIVENESS ceiling, not a per-request limit. The
+# APScheduler ticks run inside this worker, and the longest of them (`cleanup`,
+# JobSpec.timeout_s=7200) walks the whole media library — on a ~750-season
+# library that is routinely 18-51 min. At the old 300s the arbiter SIGKILLed the
+# worker mid-tick (prod, 2026-08-04 03:56, 11 min into the cleanup run): the tick
+# died before _tick_wrapper could write its scheduler_job_runs row, so the run
+# left no history entry, no timeout row and no traceback -- it simply vanished.
+# Keep this >= the largest JobSpec.timeout_s so the app's own timeout fires
+# first and gets recorded properly.
+CMD ["gunicorn", "--bind", "0.0.0.0:5765", "--worker-class", "gthread", "--workers", "1", "--threads", "4", "--timeout", "7200", "--graceful-timeout", "15", "app:create_app()"]
