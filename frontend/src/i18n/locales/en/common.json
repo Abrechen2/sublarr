@@ -656,6 +656,16 @@
     "title": "What's new in {{version}}",
     "close": "Close",
     "got_it": "Got it",
+    "v1110": {
+      "sweep_title": "Clean up foreign-language tracks — even on a large library",
+      "sweep_desc": "The cleanup rule that strips embedded foreign-language subtitle tracks can now be scoped to specific subfolders, stops itself before free disk space drops below a limit you choose, and can verify every rewritten file before releasing its safety backup. A first pass over a large library is finally safe to run.",
+      "deepl_title": "Translating into English works again",
+      "deepl_desc": "DeepL no longer accepts the plain target code “EN”, so every translation into English failed and the whole load fell through to the slower fallback backend. English targets are now sent as “EN-US”.",
+      "limits_title": "Providers with a tight rate limit are usable again",
+      "limits_desc": "The safety margin rounded a limit of one request per second down to zero — seven providers were skipped on every search with an unhelpful “0/0” message. A margin can now throttle a limit, but never erase it.",
+      "upgrade_title": "The upgrade scan runs again",
+      "upgrade_desc": "The scan crashed the moment it was triggered, by hand or on its schedule. Both the scan and the provider re-ranking now talk to the database correctly again."
+    },
     "v1100": {
       "waveform_title": "Waveform editor: see speech, check timing, repair safely",
       "waveform_desc": "An optional speech lane shows where people actually talk — cue boundaries snap to it. Plus reading speed (CPS) in the cue bar, jumps to scene cuts and timing defects, loop-audition of single cues, and one-click “fix safe defects” with preview and undo.",

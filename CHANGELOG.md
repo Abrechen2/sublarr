@@ -5,7 +5,7 @@ All notable changes to Sublarr are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [1.11.0] - 2026-08-04
 
 ### Added
 - **The foreign-tracks sweep is ready for large first runs.** The cleanup rule
@@ -25,6 +25,29 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   first real run hit it instantly. Both paths now use the session the way the
   rest of the codebase does, and regression tests run them against the real
   session so mocks can't hide this class of bug again.
+- **Translating into English works again.** DeepL now rejects the plain `EN`
+  target code and demands a regional variant, so every translation into English
+  failed, the provider's circuit breaker latched open, and the whole load fell
+  through to the slower fallback backend. English targets are sent as `EN-US`,
+  while source codes and glossary lookups keep the plain form those two APIs
+  require.
+- **Providers with a one-per-second limit are usable again.** The safety margin
+  was applied to the declared rate limit by rounding down, which turned a limit
+  of one request per second into zero — seven providers (among them addic7ed,
+  gestdown and tvsubtitles) were then skipped on every search with a confusing
+  "0/0" message, and the backlog stalled with no usable diagnostic. A margin can
+  now throttle a limit but never erase it.
+- **Remux safety backups survive their retention window.** A backup inherited
+  the modification date of the file it copied, so remuxing a title that had sat
+  in the library for months produced a rollback copy that counted as months old
+  the moment it was written — the nightly sweep deleted some of them within
+  hours. Backups now expire by their own age.
+
+### Security
+- **Pinned a patched WebSocket library.** The real-time connection pulled in a
+  transitive dependency version affected by a memory-exhaustion advisory. It is
+  now pinned to a fixed release on the production path only, leaving the
+  development toolchain untouched.
 
 ## [1.10.1] - 2026-08-01
 

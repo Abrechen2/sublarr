@@ -656,6 +656,16 @@
     "title": "Neu in {{version}}",
     "close": "Schließen",
     "got_it": "Verstanden",
+    "v1110": {
+      "sweep_title": "Fremdsprachige Spuren aufräumen — auch im großen Bestand",
+      "sweep_desc": "Die Aufräum-Regel, die eingebettete Untertitelspuren fremder Sprachen entfernt, lässt sich jetzt auf einzelne Unterordner eingrenzen, stoppt von selbst bevor der freie Speicher unter eine gewählte Grenze fällt, und kann jede umgeschriebene Datei prüfen, bevor deren Sicherungskopie freigegeben wird. Damit ist ein erster Durchlauf über eine große Bibliothek gefahrlos möglich.",
+      "deepl_title": "Übersetzen ins Englische funktioniert wieder",
+      "deepl_desc": "DeepL akzeptiert den einfachen Zielcode „EN“ nicht mehr. Dadurch schlug jede Übersetzung ins Englische fehl und die gesamte Last fiel auf das langsamere Ersatz-Backend zurück. Englische Ziele werden jetzt als „EN-US“ übermittelt.",
+      "limits_title": "Provider mit knappem Limit werden wieder genutzt",
+      "limits_desc": "Der Sicherheitsabstand rechnete ein Limit von einer Anfrage pro Sekunde auf null herunter — sieben Provider wurden dadurch bei jeder Suche übersprungen, mit der wenig hilfreichen Meldung „0/0“. Ein Abstand darf ein Limit jetzt drosseln, aber nicht mehr streichen.",
+      "upgrade_title": "Der Upgrade-Scan läuft wieder",
+      "upgrade_desc": "Der Scan brach sofort ab, sobald man ihn anstieß — von Hand wie nach Zeitplan. Sowohl der Scan als auch die Neubewertung der Provider arbeiten jetzt wieder korrekt mit der Datenbank."
+    },
     "v1100": {
       "waveform_title": "Waveform-Editor: Sprache sehen, Timing prüfen, sicher reparieren",
       "waveform_desc": "Eine optionale Sprachspur zeigt, wo tatsächlich geredet wird — Cue-Grenzen rasten daran ein. Dazu Lesegeschwindigkeit (CPS) in der Cue-Leiste, Sprung zu Szenenschnitten und Timing-Fehlern, Loop-Anhören einzelner Cues und ein Klick für „sichere Fehler beheben“ mit Vorschau und Rückgängig.",
