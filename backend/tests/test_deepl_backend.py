@@ -30,10 +30,27 @@ class TestToDeeplLang:
         assert _to_deepl_lang("en") == "EN"
         assert _to_deepl_lang("de") == "DE"
 
-    def test_portuguese_maps_to_pt_br(self):
+    def test_portuguese_source_stays_bare(self):
         from translation.deepl_backend import _to_deepl_lang
 
-        assert _to_deepl_lang("pt") == "PT-BR"
+        assert _to_deepl_lang("pt") == "PT"
+
+    def test_english_target_uses_regional_variant(self):
+        """DeepL rejects bare EN as a target: 'deprecated, use EN-GB or EN-US'."""
+        from translation.deepl_backend import _to_deepl_lang
+
+        assert _to_deepl_lang("en", target=True) == "EN-US"
+
+    def test_portuguese_target_uses_regional_variant(self):
+        from translation.deepl_backend import _to_deepl_lang
+
+        assert _to_deepl_lang("pt", target=True) == "PT-BR"
+
+    def test_target_flag_does_not_affect_other_languages(self):
+        from translation.deepl_backend import _to_deepl_lang
+
+        assert _to_deepl_lang("de", target=True) == "DE"
+        assert _to_deepl_lang("ja", target=True) == "JA"
 
     def test_norwegian_maps_to_nb(self):
         from translation.deepl_backend import _to_deepl_lang
@@ -179,6 +196,41 @@ class TestTranslateBatch:
         # Verify glossary was passed to translate_text
         call_kwargs = mock_client.translate_text.call_args[1]
         assert "glossary" in call_kwargs
+
+    @patch("translation.deepl_backend._DEEPL_AVAILABLE", True)
+    def test_english_target_sent_as_regional_variant(self):
+        """Prod incident: DeepL 400s on target_lang="EN" and the breaker latched OPEN."""
+        backend = _make_backend()
+        mock_client = MagicMock()
+        mock_result = MagicMock()
+        mock_result.text = "Hello"
+        mock_client.translate_text.return_value = [mock_result]
+        backend._client = mock_client
+
+        result = backend.translate_batch(["Hallo"], "de", "en")
+
+        assert result.success is True
+        call_kwargs = mock_client.translate_text.call_args[1]
+        assert call_kwargs["target_lang"] == "EN-US"
+        assert call_kwargs["source_lang"] == "DE"
+
+    @patch("translation.deepl_backend._DEEPL_AVAILABLE", True)
+    def test_glossary_uses_base_target_code(self):
+        """DeepL's glossary API rejects the regional variant translate_text requires."""
+        backend = _make_backend()
+        mock_client = MagicMock()
+        mock_result = MagicMock()
+        mock_result.text = "Hello"
+        mock_client.translate_text.return_value = [mock_result]
+        mock_client.create_glossary.return_value = MagicMock()
+        backend._client = mock_client
+
+        glossary = [{"source_term": "hallo", "target_term": "hello"}]
+        backend.translate_batch(["Hallo"], "de", "en", glossary_entries=glossary)
+
+        glossary_kwargs = mock_client.create_glossary.call_args[1]
+        assert glossary_kwargs["target_lang"] == "EN"
+        assert glossary_kwargs["source_lang"] == "DE"
 
     @patch("translation.deepl_backend._DEEPL_AVAILABLE", True)
     def test_hung_call_is_abandoned_after_timeout(self):

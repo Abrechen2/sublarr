@@ -37,7 +37,7 @@ _DEEPL_LANG_MAP = {
     "ja": "JA",
     "zh": "ZH",
     "ko": "KO",
-    "pt": "PT-BR",  # Default to Brazilian Portuguese
+    "pt": "PT",
     "ru": "RU",
     "pl": "PL",
     "nl": "NL",
@@ -62,13 +62,32 @@ _DEEPL_LANG_MAP = {
 }
 
 
-def _to_deepl_lang(iso_code: str) -> str:
+# DeepL's source and target vocabularies differ for the languages that have
+# regional variants. As a *target*, bare "EN" and "PT" are rejected outright
+# ('target_lang="EN" is deprecated, please use "EN-GB" or "EN-US" instead');
+# as a *source*, only the bare code is accepted and the variant is rejected.
+# One map cannot serve both directions — hence the target-side overrides.
+_DEEPL_TARGET_OVERRIDES = {
+    "en": "EN-US",
+    "pt": "PT-BR",  # Default to Brazilian Portuguese
+}
+
+
+def _to_deepl_lang(iso_code: str, *, target: bool = False) -> str:
     """Map ISO 639-1 language code to DeepL language code.
 
     DeepL uses uppercase codes with some regional variants (EN-US, PT-BR).
     Falls back to uppercased ISO code for unmapped languages.
+
+    Args:
+        iso_code: ISO 639-1 code, case-insensitive.
+        target: True when the code is used as ``target_lang``, which
+            requires the regional variant for English and Portuguese.
     """
-    return _DEEPL_LANG_MAP.get(iso_code.lower(), iso_code.upper())
+    code = iso_code.lower()
+    if target and code in _DEEPL_TARGET_OVERRIDES:
+        return _DEEPL_TARGET_OVERRIDES[code]
+    return _DEEPL_LANG_MAP.get(code, iso_code.upper())
 
 
 class DeepLBackend(TranslationBackend):
@@ -169,13 +188,17 @@ class DeepLBackend(TranslationBackend):
                 client = self._get_client()
 
                 source = _to_deepl_lang(source_lang)
-                target = _to_deepl_lang(target_lang)
+                target = _to_deepl_lang(target_lang, target=True)
 
                 kwargs = {"source_lang": source, "target_lang": target}
 
-                # Handle glossary if entries provided
+                # Handle glossary if entries provided. Glossaries are keyed by
+                # the *base* target code — DeepL rejects the regional variant
+                # here even though translate_text above requires it.
                 if glossary_entries:
-                    glossary = self._get_or_create_glossary(source, target, glossary_entries)
+                    glossary = self._get_or_create_glossary(
+                        source, _to_deepl_lang(target_lang), glossary_entries
+                    )
                     if glossary:
                         kwargs["glossary"] = glossary
 
