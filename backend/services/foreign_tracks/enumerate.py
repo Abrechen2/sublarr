@@ -3,7 +3,19 @@
 The old path called ``_video_files(root)``, which returned a complete list of
 every video in the library — 754 s on the production library before the first
 file was touched, and include/exclude scoping applied only afterwards. This
-streams instead, and prunes scoped-out directories during the walk.
+streams instead: candidates are yielded one at a time, and scoping is applied
+per file as the walk goes, so the caller starts probing before the walk
+finishes.
+
+This does *not* prune the directory walk itself. ``_safe_walk`` (shared with
+other cleanup rules) only yields ``(dirpath, filenames)`` — it does not expose
+the ``dirs`` list a caller would need to mutate to stop ``os.walk`` from
+descending into scoped-out subdirectories. So a scoped run still visits every
+directory in the tree; what scoping skips is the per-file work — the
+``os.stat`` here and the ffprobe call downstream — which is where the real
+cost lives (754 s of walk vs. 2825 s of probing on the production library).
+A scoped run is therefore cheaper than an unscoped one, but it does not avoid
+paying the walk's own traversal cost.
 """
 
 import logging
@@ -47,10 +59,15 @@ def _in_scope(path: str, root: str, include_paths: list[str], exclude_paths: lis
 def _may_descend(
     dirpath: str, root: str, include_paths: list[str], exclude_paths: list[str]
 ) -> bool:
-    """Whether the walk should enter ``dirpath``.
+    """Whether files under ``dirpath`` should be processed.
 
-    An included subtree's ancestors must stay walkable, or the walk can never
-    reach it — so a directory that is a prefix of an include path is kept.
+    This does not stop the walk from entering ``dirpath`` — ``_safe_walk``
+    gives no way to do that — it only decides whether this generator does the
+    per-file work (stat, remux-temp check, yield) for files found there. An
+    included subtree's ancestors must still return ``True`` here, or the
+    generator would refuse to process the subtree itself once the walk (which
+    always descends regardless) reaches it — so a directory that is a prefix
+    of an include path is kept.
     """
     norm = os.path.normpath(dirpath)
     for sub in exclude_paths:
