@@ -29,6 +29,7 @@ from db.models.core import (
     UpgradeHistory,
     WantedItem,
 )
+from db.models.foreign_tracks import ForeignTrackScan  # noqa: F401
 from db.models.hooks import (
     HookConfig,
     HookLog,
@@ -126,6 +127,8 @@ __all__ = [
     "SubtitleHash",
     "CleanupRule",
     "CleanupHistory",
+    # foreign track sweep
+    "ForeignTrackScan",
     # notifications
     "NotificationTemplate",
     "NotificationHistory",
