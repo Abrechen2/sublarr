@@ -81,6 +81,7 @@ def _build_default_jobs() -> list[JobSpec]:
     from anidb_sync import anidb_sync_tick
     from cleanup_scheduler import cleanup_tick
     from services.dubtitle.sweep import dubtitle_scan_tick
+    from services.foreign_tracks.sweep import foreign_track_sweep_tick
     from services.mt_reseek import mt_reseek_tick
     from services.repair.resume import repair_resume_tick
     from services.stats_rollup import stats_rollup_tick
@@ -300,6 +301,20 @@ def _build_default_jobs() -> list[JobSpec]:
                 "standalone_scan_interval_hours=0; otherwise drives independent "
                 "filesystem rediscovery cadence (the wanted_scanner still covers "
                 "standalone when this job is paused, for backwards compat)."
+            ),
+        ),
+        JobSpec(
+            id="foreign_track_sweep",
+            func=foreign_track_sweep_tick,
+            default_trigger=IntervalTrigger(hours=6),
+            # 3600s = twice the default 1800s budget. The budget is checked
+            # after each completed file, so a single large remux can overshoot;
+            # a ceiling at the budget itself would log false timeouts the way
+            # the cleanup job's 3600s did, without ever cancelling anything.
+            timeout_s=3600,
+            owner_module="services.foreign_tracks.sweep",
+            description=(
+                "Strip embedded foreign-language subtitle tracks in bounded, resumable slices."
             ),
         ),
     ]
