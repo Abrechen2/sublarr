@@ -246,7 +246,16 @@ class OllamaBackend(LLMBackend):
         """
         # Explicit no-op to silence unused-argument lints; drift-prevention note above.
         del lookback, lookahead
-        user_content = build_translation_prompt(lines, source_lang, target_lang, glossary_entries)
+        # ``strict`` must reach the USER message. LLMBackend puts the retry
+        # constraint in the system message, but generate mode drops that — so
+        # a strict retry would otherwise re-send a byte-identical prompt and
+        # fail on the same line count it just failed on. It is threaded into
+        # the prompt builder rather than appended, because a trailing
+        # instruction gets echoed back as an extra output line by the
+        # fine-tune (measured 4/10 on anime-translator-en-de-v15).
+        user_content = build_translation_prompt(
+            lines, source_lang, target_lang, glossary_entries, strict=strict
+        )
         if self._use_chat_api:
             system_content = self._build_system_prompt(series_context)
             return [

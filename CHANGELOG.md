@@ -5,6 +5,36 @@ All notable changes to Sublarr are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Fixed
+- **Local LLM translation of single lines works again.** When a batch held
+  exactly one subtitle line, the prompt sent to Ollama dropped the whole
+  prompt template and asked, verbatim, `Translate to German: <line>` — with no
+  rule about the answer's shape, and with the target language hardcoded
+  regardless of what the language profile asked for. General-purpose models
+  answered that with an essay ("There are a few ways to translate this ..."),
+  which the line-count check rejects, so every such job failed. Measured
+  against the models in use, the old prompt got 0 of 10 single lines through
+  on `gemma3:12b`; the new one, which keeps the template and names the
+  expected line count, gets 10 of 10 — and 10 of 10 on the fine-tuned model
+  the single-line path was built for, which the old prompt also did not
+  improve on. Batches now name their line count too, which measurably helped
+  the fine-tune.
+- **The retry after a line-count mismatch actually retries differently.** The
+  hardened "return exactly N lines" instruction was only ever put in the
+  system message, which the Ollama generate API discards — so the retry
+  re-sent a byte-identical prompt and failed the same way. It now travels in
+  the message the model actually reads, ahead of the subtitle text rather than
+  after it, because a trailing instruction gets echoed back as an extra output
+  line.
+- **Glossary terms that don't occur in the lines are no longer sent.** They
+  cannot change the translation, and they actively damaged it: with a single
+  non-matching entry, `gemma3:12b` returned the glossary line itself
+  ("Onii-sama → Bruder") instead of a translation in 8 of 16 runs over short
+  subtitle lines. That answer is one line, so it passed the line-count check
+  and was written straight into the subtitle file.
+
 ## [1.11.0] - 2026-08-04
 
 ### Added

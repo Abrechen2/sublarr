@@ -137,6 +137,8 @@ def build_prompt_with_glossary(
     prompt_template: str,
     glossary_entries: list[dict] | None,
     lines: list[str],
+    *,
+    strict: bool = False,
 ) -> str:
     """Build a translation prompt with glossary terms prepended.
 
@@ -145,18 +147,25 @@ def build_prompt_with_glossary(
     the V8 fine-tuned model was trained on:
       ``Glossary: term1 → trans1, term2 → trans2``
 
-    Single-line mode: when only one subtitle line is provided the prompt uses
-    a direct ``Translate to German: <line>`` format (no numbering) so the
-    model returns a single un-numbered translation.
+    Single-line mode: when only one subtitle line is provided the line is
+    appended to the template un-numbered, so the model returns a single
+    un-numbered translation. The template itself is always included — it
+    carries the output-format constraint and the target language.
 
     Args:
-        prompt_template: Base prompt template (used for multi-line batches)
+        prompt_template: Base prompt template (used for every batch size)
         glossary_entries: List of {source_term, target_term[, approved]} dicts
         lines: List of subtitle lines to translate
+        strict: Harden the line-count constraint — used by the retry after a
+            count mismatch, so the retry does not re-send an identical prompt
 
     Returns:
-        Complete prompt with optional glossary prefix and numbered lines
+        Complete prompt with optional glossary prefix, the expected line
+        count, and the subtitle lines (numbered for batches)
     """
+    # Escape subtitle lines to prevent prompt injection via embedded newlines
+    escaped_lines = [_escape_subtitle_line(line) for line in lines]
+
     # Filter out non-approved entries (approved == 0 means pending suggestion)
     # Also reject entries whose terms contain newlines or exceed the max length
     approved_entries: list[dict] = []
@@ -167,6 +176,21 @@ def build_prompt_with_glossary(
             if e.get("approved", 1) != 0
             and _is_valid_glossary_entry(e.get("source_term", ""))
             and _is_valid_glossary_entry(e.get("target_term", ""))
+        ]
+
+    # Drop entries whose source term does not occur in the lines being
+    # translated. Such an entry cannot change the output, and it measurably
+    # harms it: with a glossary of one non-occurring entry, gemma3:12b
+    # returned the glossary line itself ("Onii-sama → Bruder") instead of a
+    # translation in 8 of 16 runs over short subtitle lines — a one-line
+    # answer, so _verify_line_count accepts it and the garbage is written to
+    # the subtitle file. Three entries, or none, showed 0 of 16. Matching is
+    # done against the escaped lines because that is exactly what the model
+    # sees, and case-insensitively so inflected/lower-cased mentions count.
+    if approved_entries:
+        haystack = "\n".join(escaped_lines).lower()
+        approved_entries = [
+            e for e in approved_entries if e.get("source_term", "").lower() in haystack
         ]
 
     # Build glossary prefix (V8-compatible comma-separated format, max 15 entries).
@@ -186,15 +210,41 @@ def build_prompt_with_glossary(
         )
         glossary_str = f"Glossary: {pairs}\n\n"
 
-    # Escape subtitle lines to prevent prompt injection via embedded newlines
-    escaped_lines = [_escape_subtitle_line(line) for line in lines]
+    # Name the expected line count explicitly. Every instruction has to sit
+    # BEFORE the subtitle input: the fine-tune echoes a trailing instruction
+    # back as an extra output line, which is itself a count mismatch.
+    count = len(escaped_lines)
+    plural = "lines" if count != 1 else "line"
+    if strict:
+        constraint = (
+            f"Return exactly {count} {plural} — no more, no fewer. "
+            "No commentary, no alternatives, no numbering.\n\n"
+        )
+    else:
+        constraint = f"Return exactly {count} {plural}.\n\n"
 
-    # Single-line mode: V8 expects direct "Translate to German: <line>" format
-    if len(escaped_lines) == 1:
-        return f"{glossary_str}Translate to German: {escaped_lines[0]}"
+    # Single-line batches pass the line un-numbered (the V8 fine-tune was
+    # trained that way); batches stay numbered.
+    #
+    # Both keep the template + the count line. The former single-line shape
+    # was a bare f"Translate to German: {line}" that dropped the template
+    # entirely, and with it the output-format rule and the real target
+    # language. Measured against the two deployed models, 10 real subtitle
+    # lines each, scored the way LLMBackend._verify_line_count scores them:
+    #   gemma3:12b (prod)           bare 0/10 — answered with prose,
+    #                               "There are a few ways to translate ..."
+    #                               template only 7/10, + count line 10/10
+    #   anime-translator-en-de-v15  bare 9/10, template only 10/10,
+    #                               + count line 10/10
+    # The 0/10 is what produced the prod "expected 1" storm. On numbered
+    # batches the count line measured neutral (identical hit rate), so both
+    # paths carry it and there is one shape to reason about.
+    if count == 1:
+        body = escaped_lines[0]
+    else:
+        body = "\n".join(f"{i + 1}: {line}" for i, line in enumerate(escaped_lines))
 
-    numbered = "\n".join(f"{i + 1}: {line}" for i, line in enumerate(escaped_lines))
-    return glossary_str + prompt_template + numbered
+    return glossary_str + prompt_template + constraint + body
 
 
 def build_translation_prompt(
@@ -203,6 +253,8 @@ def build_translation_prompt(
     target_lang: str,
     glossary_entries: list[dict] | None = None,
     prompt_template: str | None = None,
+    *,
+    strict: bool = False,
 ) -> str:
     """Build a complete translation prompt for LLM backends.
 
@@ -215,6 +267,8 @@ def build_translation_prompt(
         target_lang: ISO 639-1 target language code
         glossary_entries: Optional glossary terms
         prompt_template: Optional explicit prompt template
+        strict: Harden the line-count constraint (used by the retry after a
+            count mismatch)
 
     Returns:
         Complete prompt ready to send to an LLM
@@ -224,7 +278,7 @@ def build_translation_prompt(
 
         prompt_template = get_settings().get_prompt_template()
 
-    return build_prompt_with_glossary(prompt_template, glossary_entries, lines)
+    return build_prompt_with_glossary(prompt_template, glossary_entries, lines, strict=strict)
 
 
 def build_evaluation_prompt(

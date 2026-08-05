@@ -321,6 +321,33 @@ class TestLLMBackendHooks:
         assert msgs[1]["role"] == "user"
         assert "You translate" in msgs[0]["content"]
 
+    def test_strict_retry_reaches_the_model_in_generate_mode(self):
+        """The line-count retry must actually change the prompt.
+
+        LLMBackend._verify_line_count retries with strict=True after a
+        mismatch. The base class puts that instruction in the system message,
+        which generate mode drops — so without an explicit constraint in the
+        user message the retry re-sends a byte-identical prompt and fails the
+        same way.
+        """
+        backend = _make_backend(use_chat_api="false")
+        normal = backend._assemble_messages(
+            ["Hello"], "en", "de", glossary_entries=None, series_context=None
+        )
+        strict = backend._assemble_messages(
+            ["Hello"], "en", "de", glossary_entries=None, series_context=None, strict=True
+        )
+        assert strict[0]["content"] != normal[0]["content"]
+        assert "exactly 1 line" in strict[0]["content"]
+
+    def test_strict_retry_reaches_the_model_in_chat_mode(self):
+        backend = _make_backend(use_chat_api="true", system_prompt="You translate.")
+        strict = backend._assemble_messages(
+            ["Hello", "World"], "en", "de", glossary_entries=None, series_context=None, strict=True
+        )
+        combined = " ".join(m["content"] for m in strict)
+        assert "exactly 2 lines" in combined
+
     def test_build_request_generate_mode(self):
         backend = _make_backend(use_chat_api="false")
         msgs = [{"role": "user", "content": "TRAINED PROMPT"}]
