@@ -89,10 +89,10 @@ def _free_bytes(root: str) -> int:
 def _media_root_reachable(root: str) -> bool:
     """Mirror ``cleanup_executors._media_path_reachable``.
 
-    A brief NFS hiccup makes every ffprobe call fail, which looks
+    A brief NFS hiccup makes every ffprobe/remux call fail, which looks
     indistinguishable from every file genuinely being broken. Probing the
-    root once before entering the probe phase converts that into a logged
-    pause instead of a backlog full of false failures.
+    root once before entering the probe or strip phase converts that into a
+    logged pause instead of a backlog full of false failures.
     """
     if not root:
         return False
@@ -172,7 +172,18 @@ def _run_slice_locked(media_root: str, config: dict, budget_s: int, now_fn, repo
 
     state = load_state()
 
-    current_hash = config_hash(config, media_root)
+    # Hash the RESOLVED configured codes, not the raw rule config, and not
+    # the expanded tag set. A rule seeded with config_json="{}" has no
+    # keep_languages of its own — the global setting is the ONLY control —
+    # so hashing `config` directly would never notice an operator changing
+    # it, and every cached clean/stripped verdict would survive forever.
+    # Hashing the *expanded* tag set instead of the configured codes would
+    # churn the hash whenever the tag-expansion table changes, for no
+    # config change at all.
+    hashed_config = dict(config)
+    hashed_config["keep_languages"] = raw_keep
+    hashed_config["keep_und"] = keep_und
+    current_hash = config_hash(hashed_config, media_root)
     if state.config_hash and state.config_hash != current_hash:
         reset = repo.reset_all_to_pending()
         logger.info("foreign_track_sweep: config changed — reset %d cached verdicts", reset)
@@ -310,6 +321,16 @@ def _probe_phase(
 def _strip_phase(
     media_root, config, state, repo, keep_languages, keep_und, deadline, now_fn, result
 ) -> None:
+    if not _media_root_reachable(media_root):
+        # A sweep can resume directly at PHASE_STRIP on a later tick —
+        # persisted state, not something this call derived — so it needs
+        # the same guard as the probe phase: a mount that died between
+        # ticks must pause the sweep, not park the affected backlog failed
+        # at MAX_ATTEMPTS per row.
+        state.paused_reason = f"media root unreachable: {media_root}"
+        logger.warning("foreign_track_sweep: %s", state.paused_reason)
+        return
+
     min_free_gb = _min_free_gb(config)
 
     while now_fn() < deadline:

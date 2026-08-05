@@ -432,3 +432,91 @@ def test_concurrent_run_slice_raises_sweep_busy_error(app, repo, tmp_path, monke
             sw.run_slice(str(tmp_path), CFG, budget_s=60, now_fn=FakeClock(), repo=repo)
     finally:
         sw._sweep_lock.release()
+
+
+# ---------------------------------------------------------------------------
+# The strip phase needs the same media-root reachability guard as the probe
+# phase — a sweep can resume directly at PHASE_STRIP on a later tick, never
+# passing through probe's guard at all (out-of-scope for finding 3, pulled
+# in deliberately in re-review).
+# ---------------------------------------------------------------------------
+
+
+def test_unreachable_media_root_pauses_the_strip_and_fails_no_row(app, repo, tmp_path, monkeypatch):
+    """Mirrors the probe-phase guard, but for a sweep that resumes directly
+    at PHASE_STRIP — persisted state from a prior tick, not something this
+    call derives — so it must not park the affected backlog failed just
+    because the mount died between ticks."""
+    from services.foreign_tracks.state import SweepState, config_hash, save_state
+
+    repo.upsert_seen("/media/a.mkv", 10, 1.0, generation=1)
+    repo.mark_probed("/media/a.mkv", ["spa"])  # AFFECTED
+    monkeypatch.setattr(sw, "iter_video_files", lambda *a, **k: iter([]))
+
+    missing_root = str(tmp_path / "does-not-exist")
+    # Persist state already at PHASE_STRIP with a matching config_hash, so
+    # this slice resumes straight into _strip_phase without ever visiting
+    # ENUMERATE or PROBE.
+    save_state(
+        SweepState(
+            generation=1,
+            phase=PHASE_STRIP,
+            enumeration_complete=True,
+            config_hash=config_hash(CFG, missing_root),
+        )
+    )
+
+    result = sw.run_slice(missing_root, CFG, budget_s=60, now_fn=FakeClock(), repo=repo)
+    assert result["phase"] == PHASE_STRIP
+    assert result["paused_reason"]
+    counts = repo.counts_by_state()
+    assert counts.get(ft.STATE_FAILED, 0) == 0
+    assert counts[ft.STATE_AFFECTED] == 1
+
+
+# ---------------------------------------------------------------------------
+# config_hash must reflect the RESOLVED keep_languages/keep_und, not the raw
+# rule config, or a config_json="{}" rule can never notice a global setting
+# change (the review's follow-up to finding 1).
+# ---------------------------------------------------------------------------
+
+
+def test_global_keep_languages_change_resets_cached_verdicts_for_an_empty_rule_config(
+    app, repo, tmp_path, monkeypatch
+):
+    """A config_json="{}" rule has no keep_languages of its own — the global
+    setting is the ONLY control. Changing it between two slices must still
+    invalidate cached verdicts: hashing the raw (empty) rule config would
+    never notice the change, and a file probed clean under the old globals
+    would stay clean forever."""
+    repo.upsert_seen("/media/a.mkv", 10, 1.0, generation=1)
+    monkeypatch.setattr(sw, "iter_video_files", lambda *a, **k: iter([]))
+    monkeypatch.setattr(
+        sw,
+        "_probe_file",
+        lambda path: {"streams": [{"codec_type": "subtitle", "tags": {"language": "spa"}}]},
+    )
+    monkeypatch.setattr(sw, "_strip_file", lambda path, keep, keep_und: ("/trash/a.bak", 5))
+
+    monkeypatch.setattr(
+        "config.get_settings",
+        lambda: SimpleNamespace(
+            cleanup_foreign_tracks_keep_languages=["spa"],  # spa is kept for now
+            cleanup_foreign_tracks_keep_und=True,
+        ),
+    )
+    sw.run_slice(str(tmp_path), {}, budget_s=60, now_fn=FakeClock(), repo=repo)
+    assert repo.counts_by_state()[ft.STATE_CLEAN] == 1
+
+    # Operator narrows the global keep-list; the rule's config is still {}.
+    monkeypatch.setattr(
+        "config.get_settings",
+        lambda: SimpleNamespace(
+            cleanup_foreign_tracks_keep_languages=["de", "en"],
+            cleanup_foreign_tracks_keep_und=True,
+        ),
+    )
+    sw.run_slice(str(tmp_path), {}, budget_s=60, now_fn=FakeClock(), repo=repo)
+    counts = repo.counts_by_state()
+    assert counts.get(ft.STATE_CLEAN, 0) == 0
+    assert counts.get(ft.STATE_STRIPPED, 0) == 1
