@@ -452,9 +452,9 @@ def execute_foreign_tracks(media_path: str, config: dict, dry_run: bool = False)
     if raw_keep_und is None:
         raw_keep_und = getattr(settings, "cleanup_foreign_tracks_keep_und", False)
 
-    keep_languages: set[str] = set()
-    for lang in raw_keep:
-        keep_languages.update(_get_language_tags(lang.lower()))
+    from services.foreign_tracks.probe import expand_keep_languages
+
+    keep_languages = expand_keep_languages(raw_keep)
     if not keep_languages:
         # Mirror the language_filter C0-2 guard: an empty keep set would
         # strip every subtitle track in the library.
@@ -522,16 +522,9 @@ def execute_foreign_tracks(media_path: str, config: dict, dry_run: bool = False)
             logger.debug("execute_foreign_tracks: probe failed for %s: %s", video, exc)
             continue
 
-        foreign_langs: list[str] = []
-        for stream in probe.get("streams", []):
-            if stream.get("codec_type") != "subtitle":
-                continue
-            lang = (stream.get("tags", {}).get("language", "und") or "und").lower()
-            if lang in keep_languages:
-                continue
-            if keep_und and lang == "und":
-                continue
-            foreign_langs.append(lang)
+        from services.foreign_tracks.probe import foreign_languages
+
+        foreign_langs = foreign_languages(probe, keep_languages, keep_und)
 
         if not foreign_langs:
             continue
