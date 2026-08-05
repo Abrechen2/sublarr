@@ -84,3 +84,26 @@ def test_sweep_stale_temp_files_removes_only_old_corpses(tmp_path):
     assert sweep_stale_temp_files(str(tmp_path), max_age_s=86_400, now=NOW) == 1
     assert os.path.exists(str(tmp_path / "Show" / "tmpfresh.mkv"))
     assert not os.path.exists(str(tmp_path / "Show" / "tmpold.mkv"))
+
+
+def test_sweep_stale_temp_files_ignores_non_video_tmp_files(tmp_path):
+    """is_remux_temp only inspects the stem, so an old tmpXYZ.jpg must not be
+    deleted — remux corpses are recognisable by carrying the real video
+    suffix, not just the mkstemp name pattern."""
+    _touch(str(tmp_path / "Show" / "tmpXYZ.jpg"), mtime=NOW - 200_000)
+    assert sweep_stale_temp_files(str(tmp_path), max_age_s=86_400, now=NOW) == 0
+    assert os.path.exists(str(tmp_path / "Show" / "tmpXYZ.jpg"))
+
+
+def test_sweep_stale_temp_files_ignores_extensionless_tmp_file(tmp_path):
+    _touch(str(tmp_path / "Show" / "tmp"), mtime=NOW - 200_000)
+    assert sweep_stale_temp_files(str(tmp_path), max_age_s=86_400, now=NOW) == 0
+    assert os.path.exists(str(tmp_path / "Show" / "tmp"))
+
+
+def test_sweep_stale_temp_files_still_deletes_old_video_temp_and_spares_real_video(tmp_path):
+    _touch(str(tmp_path / "Show" / "tmpXYZ.mkv"), mtime=NOW - 200_000)
+    _touch(str(tmp_path / "Show" / "episode.mkv"), mtime=NOW - 200_000)
+    assert sweep_stale_temp_files(str(tmp_path), max_age_s=86_400, now=NOW) == 1
+    assert not os.path.exists(str(tmp_path / "Show" / "tmpXYZ.mkv"))
+    assert os.path.exists(str(tmp_path / "Show" / "episode.mkv"))

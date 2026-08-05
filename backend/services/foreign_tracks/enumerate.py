@@ -124,13 +124,20 @@ def sweep_stale_temp_files(root: str, max_age_s: int, now: float) -> int:
     """Delete abandoned remux temp files older than ``max_age_s``.
 
     A remux in flight writes into one of these, so only clearly-dead ones are
-    removed. Returns the number deleted.
+    removed. A file is deleted only when it BOTH carries a video extension
+    (the same ``VIDEO_EXTENSIONS`` check ``iter_video_files`` applies) AND
+    matches the mkstemp name pattern — ``is_remux_temp`` alone only inspects
+    the stem, so without the extension check any old ``tmp*`` file anywhere
+    under the media root (a stray ``.jpg``, a ``.log``, or a bare ``tmp``)
+    would be unlinked. Returns the number deleted.
     """
-    from services.cleanup_executors import _safe_walk
+    from services.cleanup_executors import VIDEO_EXTENSIONS, _safe_walk
 
     removed = 0
     for dirpath, filenames in _safe_walk(root):
         for fname in filenames:
+            if os.path.splitext(fname)[1].lower() not in VIDEO_EXTENSIONS:
+                continue
             if not is_remux_temp(fname):
                 continue
             full = os.path.join(dirpath, fname)
