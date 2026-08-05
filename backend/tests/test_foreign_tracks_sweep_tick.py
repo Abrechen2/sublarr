@@ -1,6 +1,7 @@
 """Tests for the batched foreign-track sweep state machine."""
 
 import os
+from types import SimpleNamespace
 
 import pytest
 
@@ -73,8 +74,16 @@ def test_enumerate_creates_rows_from_the_walk(app, repo, tmp_path, monkeypatch):
 
 def test_interrupted_enumeration_does_not_prune_unvisited_rows(app, repo, tmp_path, monkeypatch):
     """The most dangerous failure mode: a walk that dies halfway must not make
-    every file it never reached look deleted."""
-    repo.upsert_seen("/media/old.mkv", 10, 1.0, generation=1)
+    every file it never reached look deleted.
+
+    Seeded at generation=0 deliberately: `_enumerate` bumps `state.generation`
+    to 1 before the walk starts, so `prune_stale(1)` deletes `generation < 1`.
+    A row seeded at generation=1 would survive a wrongly-placed prune too
+    (1 is never < 1), making the assertion pass regardless of whether the
+    guard actually works. generation=0 is the only seed that can catch a
+    prune hoisted above the try — verified by temporarily hoisting it (see
+    the fix report)."""
+    repo.upsert_seen("/media/old.mkv", 10, 1.0, generation=0)
 
     def _explode(*a, **k):
         yield ("/media/a.mkv", 10, 1.0)
@@ -213,3 +222,213 @@ def test_one_slice_chains_enumerate_probe_and_strip_to_idle(app, repo, tmp_path,
     assert result["phase"] == PHASE_IDLE
     assert result["stripped_files"] == 1
     assert repo.counts_by_state()[ft.STATE_STRIPPED] == 1
+
+
+# ---------------------------------------------------------------------------
+# Global-settings inheritance for keep_languages / keep_und (finding 1).
+#
+# Mirrors cleanup_executors.execute_foreign_tracks: rules are created with
+# config_json="{}", so an ABSENT key must inherit the global
+# cleanup_foreign_tracks_* setting, or a freshly-seeded rule aborts forever.
+# An EXPLICITLY empty/False value always wins over the global.
+# ---------------------------------------------------------------------------
+
+
+def test_absent_keep_und_inherits_the_global_true(app, repo, tmp_path, monkeypatch):
+    repo.upsert_seen("/media/a.mkv", 10, 1.0, generation=1)
+    monkeypatch.setattr(sw, "iter_video_files", lambda *a, **k: iter([]))
+    monkeypatch.setattr(
+        sw,
+        "_probe_file",
+        lambda path: {"streams": [{"codec_type": "subtitle", "tags": {"language": "und"}}]},
+    )
+    monkeypatch.setattr(
+        "config.get_settings",
+        lambda: SimpleNamespace(cleanup_foreign_tracks_keep_und=True),
+    )
+    cfg = {"keep_languages": ["de", "en"]}  # keep_und intentionally absent
+    sw.run_slice(str(tmp_path), cfg, budget_s=60, now_fn=FakeClock(), repo=repo)
+    counts = repo.counts_by_state()
+    # A kept `und` track means the file is clean, not affected/stripped.
+    assert counts.get(ft.STATE_CLEAN, 0) == 1
+    assert counts.get(ft.STATE_AFFECTED, 0) == 0
+    assert counts.get(ft.STATE_STRIPPED, 0) == 0
+
+
+def test_explicit_keep_und_false_beats_a_true_global(app, repo, tmp_path, monkeypatch):
+    repo.upsert_seen("/media/a.mkv", 10, 1.0, generation=1)
+    monkeypatch.setattr(sw, "iter_video_files", lambda *a, **k: iter([]))
+    monkeypatch.setattr(
+        sw,
+        "_probe_file",
+        lambda path: {"streams": [{"codec_type": "subtitle", "tags": {"language": "und"}}]},
+    )
+    monkeypatch.setattr(sw, "_strip_file", lambda path, keep, keep_und: ("/trash/a.bak", 5))
+    monkeypatch.setattr(
+        "config.get_settings",
+        lambda: SimpleNamespace(cleanup_foreign_tracks_keep_und=True),
+    )
+    cfg = {"keep_languages": ["de", "en"], "keep_und": False}
+    sw.run_slice(str(tmp_path), cfg, budget_s=60, now_fn=FakeClock(), repo=repo)
+    # An explicit False must strip the und track despite the True global —
+    # chaining carries the now-affected file through to stripped.
+    assert repo.counts_by_state()[ft.STATE_STRIPPED] == 1
+
+
+def test_absent_keep_languages_inherits_the_global_list(app, repo, tmp_path, monkeypatch):
+    repo.upsert_seen("/media/a.mkv", 10, 1.0, generation=1)
+    monkeypatch.setattr(sw, "iter_video_files", lambda *a, **k: iter([]))
+    monkeypatch.setattr(
+        sw,
+        "_probe_file",
+        lambda path: {"streams": [{"codec_type": "subtitle", "tags": {"language": "spa"}}]},
+    )
+    monkeypatch.setattr(sw, "_strip_file", lambda path, keep, keep_und: ("/trash/a.bak", 5))
+    monkeypatch.setattr(
+        "config.get_settings",
+        lambda: SimpleNamespace(
+            cleanup_foreign_tracks_keep_languages=["de", "en"],
+            cleanup_foreign_tracks_keep_und=True,
+        ),
+    )
+    # A seeded rule's config_json is "{}" — no keep_languages key at all.
+    result = sw.run_slice(str(tmp_path), {}, budget_s=60, now_fn=FakeClock(), repo=repo)
+    assert result["paused_reason"] is None, "an absent key must inherit, not abort"
+    assert repo.counts_by_state()[ft.STATE_STRIPPED] == 1
+
+
+def test_explicit_empty_keep_languages_still_aborts_despite_a_global_list(
+    app, repo, tmp_path, monkeypatch
+):
+    repo.upsert_seen("/media/a.mkv", 10, 1.0, generation=1)
+    monkeypatch.setattr(sw, "iter_video_files", lambda *a, **k: iter([]))
+    monkeypatch.setattr(
+        "config.get_settings",
+        lambda: SimpleNamespace(cleanup_foreign_tracks_keep_languages=["de", "en"]),
+    )
+    result = sw.run_slice(
+        str(tmp_path), {"keep_languages": []}, budget_s=60, now_fn=FakeClock(), repo=repo
+    )
+    assert "keep" in (result["paused_reason"] or "").lower()
+    assert repo.counts_by_state()[ft.STATE_PENDING] == 1
+
+
+# ---------------------------------------------------------------------------
+# A config change must not silently truncate an in-progress enumeration
+# (finding 2).
+# ---------------------------------------------------------------------------
+
+
+def test_config_change_during_an_incomplete_enumeration_does_not_reach_idle_completed(
+    app, repo, tmp_path, monkeypatch
+):
+    """An interrupted enumeration, followed by a config change before the
+    walk finishes, must not let the slice reach `idle` with `completed_at`
+    stamped — that would suppress re-enumeration for
+    `foreign_track_sweep_rescan_days` and silently skip every file the walk
+    never reached. Both slices see the same still-broken walk: the only way
+    to reach `idle` at all would be by skipping straight from the reset to
+    PROBE/STRIP without ever retrying ENUMERATE — which is exactly the bug
+    this test pins."""
+
+    def _explode(*a, **k):
+        yield ("/media/a.mkv", 10, 1.0)
+        raise OSError("share went away")
+
+    monkeypatch.setattr(sw, "iter_video_files", _explode)
+    # First slice: enumeration starts and is interrupted.
+    sw.run_slice(str(tmp_path), CFG, budget_s=60, now_fn=FakeClock(), repo=repo)
+
+    from services.foreign_tracks.state import load_state
+
+    state = load_state()
+    assert state.enumeration_complete is False
+    assert state.completed_at is None
+
+    # Second slice: config changes before the walk ever resumes, and the
+    # share is still unreachable.
+    result = sw.run_slice(
+        str(tmp_path), dict(CFG, keep_languages=["de"]), budget_s=60, now_fn=FakeClock(), repo=repo
+    )
+    assert result["phase"] == PHASE_ENUMERATE
+    assert load_state().completed_at is None
+
+
+# ---------------------------------------------------------------------------
+# The probe phase must degrade gracefully instead of parking the backlog
+# `failed` (finding 3).
+# ---------------------------------------------------------------------------
+
+
+def test_unreachable_media_root_pauses_the_probe_and_fails_no_row(app, repo, tmp_path, monkeypatch):
+    """Mirrors cleanup_executors' C0-3 guard: an NFS blip must pause the
+    sweep, not make every pending row look genuinely broken."""
+    repo.upsert_seen("/media/a.mkv", 10, 1.0, generation=1)
+    monkeypatch.setattr(sw, "iter_video_files", lambda *a, **k: iter([]))
+    missing_root = str(tmp_path / "does-not-exist")
+    result = sw.run_slice(missing_root, CFG, budget_s=60, now_fn=FakeClock(), repo=repo)
+    assert result["paused_reason"]
+    counts = repo.counts_by_state()
+    assert counts.get(ft.STATE_FAILED, 0) == 0
+    assert counts[ft.STATE_PENDING] == 1
+
+
+def test_ten_consecutive_probe_failures_pause_the_slice_with_rows_left_unparked(
+    app, repo, tmp_path, monkeypatch
+):
+    for i in range(12):
+        repo.upsert_seen(f"/media/{i}.mkv", 10, 1.0, generation=1)
+    monkeypatch.setattr(sw, "iter_video_files", lambda *a, **k: iter([]))
+
+    def _always_fails(path):
+        raise RuntimeError("ffprobe failed: simulated NFS blip")
+
+    monkeypatch.setattr(sw, "_probe_file", _always_fails)
+    result = sw.run_slice(str(tmp_path), CFG, budget_s=60, now_fn=FakeClock(), repo=repo)
+    assert result["paused_reason"]
+    counts = repo.counts_by_state()
+    # None of the 12 rows reach `failed` — each was only attempted once, well
+    # under MAX_ATTEMPTS — the circuit breaker stops the tick, not the file.
+    assert counts.get(ft.STATE_FAILED, 0) == 0
+    assert counts[ft.STATE_PENDING] == 12
+
+
+def test_a_single_probe_failure_among_successes_does_not_trip_the_breaker(
+    app, repo, tmp_path, monkeypatch
+):
+    """The consecutive-failure counter resets on any success, so one bad
+    file scattered among healthy ones must not pause the sweep — it still
+    exhausts its own MAX_ATTEMPTS retries and parks `failed` (the frozen
+    test clock lets the slice re-fetch and retry it to exhaustion within
+    this one call), which is the pre-existing per-file mechanism, distinct
+    from the new systemic circuit breaker."""
+    for i in range(11):
+        repo.upsert_seen(f"/media/{i}.mkv", 10, 1.0, generation=1)
+
+    def _probe(path):
+        if path == "/media/5.mkv":
+            raise RuntimeError("transient blip")
+        return {"streams": []}
+
+    monkeypatch.setattr(sw, "iter_video_files", lambda *a, **k: iter([]))
+    monkeypatch.setattr(sw, "_probe_file", _probe)
+    result = sw.run_slice(str(tmp_path), CFG, budget_s=60, now_fn=FakeClock(), repo=repo)
+    assert result["paused_reason"] is None
+    counts = repo.counts_by_state()
+    assert counts[ft.STATE_CLEAN] == 10
+    assert counts.get(ft.STATE_FAILED, 0) == 1
+
+
+# ---------------------------------------------------------------------------
+# `run_slice` is the sweep's serialisation point (finding 5).
+# ---------------------------------------------------------------------------
+
+
+def test_concurrent_run_slice_raises_sweep_busy_error(app, repo, tmp_path, monkeypatch):
+    monkeypatch.setattr(sw, "iter_video_files", lambda *a, **k: iter([]))
+    sw._sweep_lock.acquire()
+    try:
+        with pytest.raises(sw.SweepBusyError):
+            sw.run_slice(str(tmp_path), CFG, budget_s=60, now_fn=FakeClock(), repo=repo)
+    finally:
+        sw._sweep_lock.release()

@@ -35,6 +35,13 @@ _TEMP_MAX_AGE_S = 86_400
 
 _PROBE_BATCH = 50
 
+# An NFS blip makes every ffprobe fail fast, and `next_pending` has no
+# backoff predicate (that needs a column this task does not own) — so
+# without a circuit breaker, one bad mount would park the entire backlog
+# `failed` inside a single tick. A single bad file must not trip this: the
+# counter resets on any success within the same slice.
+_MAX_CONSECUTIVE_PROBE_FAILURES = 10
+
 
 class SweepBusyError(RuntimeError):
     """Raised when a sweep slice is already running."""
@@ -79,6 +86,23 @@ def _free_bytes(root: str) -> int:
         return 0
 
 
+def _media_root_reachable(root: str) -> bool:
+    """Mirror ``cleanup_executors._media_path_reachable``.
+
+    A brief NFS hiccup makes every ffprobe call fail, which looks
+    indistinguishable from every file genuinely being broken. Probing the
+    root once before entering the probe phase converts that into a logged
+    pause instead of a backlog full of false failures.
+    """
+    if not root:
+        return False
+    try:
+        os.stat(root)
+        return True
+    except OSError:
+        return False
+
+
 def _now_iso() -> str:
     return datetime.now(UTC).isoformat()
 
@@ -91,7 +115,25 @@ def run_slice(
     now_fn=time.monotonic,
     repo=None,
 ) -> dict:
-    """Run one bounded slice of the sweep and return what it did."""
+    """Run one bounded slice of the sweep and return what it did.
+
+    Raises:
+        SweepBusyError: another slice is already running. `run_slice` is the
+        sweep's single serialisation point — `claim_next_affected`'s safety
+        depends on callers being serialised, and a concurrent call would let
+        `release_stripping()` hand one caller's in-flight remux back to
+        `affected` for a second caller to claim.
+    """
+    if not _sweep_lock.acquire(blocking=False):
+        raise SweepBusyError("a sweep slice is already running")
+    try:
+        return _run_slice_locked(media_root, config, budget_s, now_fn, repo)
+    finally:
+        _sweep_lock.release()
+
+
+def _run_slice_locked(media_root: str, config: dict, budget_s: int, now_fn, repo) -> dict:
+    from config import get_settings
     from db.repositories.foreign_track_scan import ForeignTrackScanRepository
 
     repo = repo or ForeignTrackScanRepository()
@@ -108,23 +150,41 @@ def run_slice(
         "paused_reason": None,
     }
 
-    keep_languages = expand_keep_languages(config.get("keep_languages") or [])
+    # An ABSENT key inherits the global cleanup_foreign_tracks_* setting —
+    # rules are created with config_json="{}", so without this the seeded
+    # sweep rule would abort forever. An EXPLICITLY empty keep_languages
+    # still aborts below: inheriting there would strip every subtitle track
+    # in the library. Mirrors cleanup_executors.execute_foreign_tracks.
+    settings = get_settings()
+    raw_keep = config.get("keep_languages")
+    if raw_keep is None:
+        raw_keep = getattr(settings, "cleanup_foreign_tracks_keep_languages", None) or []
+    keep_languages = expand_keep_languages(raw_keep)
     if not keep_languages:
-        # Mirrors the executor's guard: an empty keep set would strip every
-        # embedded subtitle track in the library.
         result["paused_reason"] = "empty keep_languages — refusing to sweep"
         logger.warning("foreign_track_sweep: %s", result["paused_reason"])
         return result
 
-    keep_und = bool(config.get("keep_und"))
+    raw_keep_und = config.get("keep_und")
+    if raw_keep_und is None:
+        raw_keep_und = getattr(settings, "cleanup_foreign_tracks_keep_und", False)
+    keep_und = bool(raw_keep_und)
+
     state = load_state()
 
     current_hash = config_hash(config, media_root)
     if state.config_hash and state.config_hash != current_hash:
         reset = repo.reset_all_to_pending()
         logger.info("foreign_track_sweep: config changed — reset %d cached verdicts", reset)
-        state.phase = PHASE_PROBE
-        state.enumeration_complete = False
+        # A narrowed keep-list invalidates every verdict, but NOT the
+        # enumeration itself — the set of files on disk didn't change. If
+        # the previous walk had already completed, jump straight to
+        # re-probing the existing worklist. If it was still in progress
+        # (interrupted, or config changed mid-walk), resuming at PROBE would
+        # silently skip every file the walk never reached and — because
+        # `_strip_phase` stamps `completed_at` once the worklist drains —
+        # suppress re-enumeration for `foreign_track_sweep_rescan_days`.
+        state.phase = PHASE_PROBE if state.enumeration_complete else PHASE_ENUMERATE
     state.config_hash = current_hash
     state.paused_reason = None
 
@@ -141,7 +201,7 @@ def run_slice(
         save_state(state)
 
     if state.phase == PHASE_PROBE:
-        _probe_phase(state, repo, keep_languages, keep_und, deadline, now_fn, result)
+        _probe_phase(media_root, state, repo, keep_languages, keep_und, deadline, now_fn, result)
         save_state(state)
 
     if state.phase == PHASE_STRIP:
@@ -167,7 +227,7 @@ def _rescan_due(state, config) -> bool:
     days = int(getattr(get_settings(), "foreign_track_sweep_rescan_days", 7))
     try:
         completed = datetime.fromisoformat(state.completed_at)
-    except ValueError:
+    except (ValueError, TypeError):
         return True
     return (datetime.now(UTC) - completed).total_seconds() >= days * 86_400
 
@@ -190,9 +250,8 @@ def _enumerate(media_root: str, config: dict, state, repo) -> None:
     state.completed_at = None
     save_state(state)
 
-    sweep_stale_temp_files(media_root, _TEMP_MAX_AGE_S, time.time())
-
     try:
+        sweep_stale_temp_files(media_root, _TEMP_MAX_AGE_S, time.time())
         for path, size, mtime in iter_video_files(
             media_root,
             config.get("include_paths") or [],
@@ -213,7 +272,15 @@ def _enumerate(media_root: str, config: dict, state, repo) -> None:
     state.phase = PHASE_PROBE
 
 
-def _probe_phase(state, repo, keep_languages, keep_und, deadline, now_fn, result) -> None:
+def _probe_phase(
+    media_root, state, repo, keep_languages, keep_und, deadline, now_fn, result
+) -> None:
+    if not _media_root_reachable(media_root):
+        state.paused_reason = f"media root unreachable: {media_root}"
+        logger.warning("foreign_track_sweep: %s", state.paused_reason)
+        return
+
+    consecutive_failures = 0
     while now_fn() < deadline:
         rows = repo.next_pending(limit=_PROBE_BATCH)
         if not rows:
@@ -226,7 +293,16 @@ def _probe_phase(state, repo, keep_languages, keep_und, deadline, now_fn, result
                 probe = _probe_file(row.path)
             except Exception as exc:  # noqa: BLE001 — one bad probe must not stop the sweep
                 repo.mark_failed(row.path, str(exc), ERROR_PROBE)
+                consecutive_failures += 1
+                if consecutive_failures >= _MAX_CONSECUTIVE_PROBE_FAILURES:
+                    state.paused_reason = (
+                        f"{consecutive_failures} consecutive probe failures — pausing "
+                        "before more of the backlog gets parked failed"
+                    )
+                    logger.warning("foreign_track_sweep: %s", state.paused_reason)
+                    return
                 continue
+            consecutive_failures = 0
             repo.mark_probed(row.path, foreign_languages(probe, keep_languages, keep_und))
             result["probed"] += 1
 
@@ -247,7 +323,12 @@ def _strip_phase(
         row = repo.claim_next_affected()
         if row is None:
             state.phase = PHASE_IDLE
-            state.completed_at = _now_iso()
+            # Only stamp completed_at for a genuinely complete pass. Doing
+            # so for an interrupted enumeration would make `_rescan_due`
+            # suppress re-enumeration for `foreign_track_sweep_rescan_days`,
+            # silently skipping every file the walk never reached.
+            if state.enumeration_complete:
+                state.completed_at = _now_iso()
             return
 
         try:
@@ -274,7 +355,12 @@ def _min_free_gb(config: dict) -> int:
 
 
 def foreign_track_sweep_tick() -> None:
-    """APScheduler entry point. Module-level and closure-free so it pickles."""
+    """APScheduler entry point. Module-level and closure-free so it pickles.
+
+    Does not acquire `_sweep_lock` itself — `run_slice` is the sweep's single
+    serialisation point (a plain `Lock`, not reentrant, so a second acquire
+    here would deadlock a nested call and is redundant besides).
+    """
     from config import get_settings
     from db.repositories.cleanup import CleanupRepository
 
@@ -282,26 +368,26 @@ def foreign_track_sweep_tick() -> None:
     if not getattr(settings, "foreign_track_sweep_enabled", False):
         return
 
-    if not _sweep_lock.acquire(blocking=False):
+    rule = _find_rule(CleanupRepository())
+    if rule is None:
+        logger.debug("foreign_track_sweep: no foreign_tracks rule configured")
+        return
+
+    budget = int(getattr(settings, "foreign_track_sweep_budget_s", 1800))
+    try:
+        result = run_slice(settings.media_path, rule.get("config_json") or {}, budget)
+    except SweepBusyError:
         logger.info("foreign_track_sweep: another slice is running, skipping this tick")
         return
-    try:
-        rule = _find_rule(CleanupRepository())
-        if rule is None:
-            logger.debug("foreign_track_sweep: no foreign_tracks rule configured")
-            return
-        budget = int(getattr(settings, "foreign_track_sweep_budget_s", 1800))
-        result = run_slice(settings.media_path, rule.get("config_json") or {}, budget)
-        logger.info(
-            "foreign_track_sweep: phase=%s probed=%d stripped=%d pending=%d affected=%d",
-            result["phase"],
-            result["probed"],
-            result["stripped_files"],
-            result["pending"],
-            result["affected"],
-        )
-    finally:
-        _sweep_lock.release()
+
+    logger.info(
+        "foreign_track_sweep: phase=%s probed=%d stripped=%d pending=%d affected=%d",
+        result["phase"],
+        result["probed"],
+        result["stripped_files"],
+        result["pending"],
+        result["affected"],
+    )
 
 
 def _find_rule(repo) -> dict | None:
