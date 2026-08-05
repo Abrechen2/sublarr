@@ -104,10 +104,36 @@ def test_mark_failed_parks_the_row_after_the_attempt_cap(repo):
     assert repo.next_pending(limit=10) == []
 
 
+def test_mark_failed_on_a_claimed_row_returns_it_to_affected_for_retry(repo):
+    repo.upsert_seen("/media/a.mkv", 1, 1.0, generation=1)
+    repo.mark_probed("/media/a.mkv", ["spa"])
+    repo.claim_next_affected()
+    repo.mark_failed("/media/a.mkv", "remux boom", ft.ERROR_REMUX)
+    assert repo.counts_by_state()[ft.STATE_AFFECTED] == 1
+    row = repo.claim_next_affected()
+    assert row.path == "/media/a.mkv"
+    assert row.attempts == 1
+
+
 def test_verify_failures_park_immediately(repo):
     repo.upsert_seen("/media/a.mkv", 1, 1.0, generation=1)
     repo.mark_failed("/media/a.mkv", "bad", ft.ERROR_VERIFY)
     assert repo.counts_by_state()[ft.STATE_FAILED] == 1
+
+
+def test_mark_probed_on_a_missing_path_is_a_no_op(repo):
+    repo.mark_probed("/media/missing.mkv", ["spa"])
+    assert repo.counts_by_state() == {}
+
+
+def test_mark_stripped_on_a_missing_path_is_a_no_op(repo):
+    repo.mark_stripped("/media/missing.mkv")
+    assert repo.counts_by_state() == {}
+
+
+def test_mark_failed_on_a_missing_path_is_a_no_op(repo):
+    repo.mark_failed("/media/missing.mkv", "boom", ft.ERROR_PROBE)
+    assert repo.counts_by_state() == {}
 
 
 def test_reset_all_to_pending_includes_stripped_rows(repo):

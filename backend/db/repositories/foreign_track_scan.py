@@ -91,6 +91,7 @@ class ForeignTrackScanRepository(BaseRepository):
     def mark_probed(self, path: str, foreign_langs: list[str]) -> None:
         row = self._get(path)
         if row is None:
+            logger.warning("mark_probed: no row for path %s, ignoring", path)
             return
         row.probed_at = self._now()
         row.error = None
@@ -106,7 +107,15 @@ class ForeignTrackScanRepository(BaseRepository):
         self._commit()
 
     def claim_next_affected(self) -> ForeignTrackScan | None:
-        """Move one affected row to ``stripping`` and return it."""
+        """Move one affected row to ``stripping`` and return it.
+
+        The select-then-update here is NOT row-locked (no ``FOR UPDATE SKIP
+        LOCKED``) — that was deliberately rejected: this runs in a single
+        process behind a single lock, and SQLite in CI would need a
+        divergent fallback. Safety instead relies on callers being
+        serialised by the sweep's own lock (added in a later task). Do not
+        call this concurrently.
+        """
         row = self.session.execute(
             select(ForeignTrackScan)
             .where(ForeignTrackScan.state == STATE_AFFECTED)
@@ -123,6 +132,7 @@ class ForeignTrackScanRepository(BaseRepository):
     def mark_stripped(self, path: str) -> None:
         row = self._get(path)
         if row is None:
+            logger.warning("mark_stripped: no row for path %s, ignoring", path)
             return
         row.state = STATE_STRIPPED
         row.processed_at = self._now()
@@ -138,6 +148,7 @@ class ForeignTrackScanRepository(BaseRepository):
         """
         row = self._get(path)
         if row is None:
+            logger.warning("mark_failed: no row for path %s, ignoring", path)
             return
         row.attempts += 1
         row.error = error[:2000]
