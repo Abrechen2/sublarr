@@ -381,6 +381,18 @@ class UISettings(BaseModel):
     # only German is the download target. Empty list = target languages only.
     cleanup_foreign_tracks_keep_languages: list[str] = ["de", "en"]
 
+    # Batched foreign-track sweep. Off by default: it rewrites media files, so
+    # it is enabled deliberately, not inherited by an upgrade.
+    foreign_track_sweep_enabled: bool = False
+    # Wall-clock budget per tick, checked after each completed file. Overshoot
+    # is bounded by the slowest single file, which for a large remux is minutes.
+    foreign_track_sweep_budget_s: int = 1800
+    # Idle time before a new generation walks the library again.
+    foreign_track_sweep_rescan_days: int = 7
+    # Files modified more recently than this are skipped, so an import that is
+    # still being written is never probed or rewritten mid-write.
+    foreign_track_min_file_age_s: int = 600
+
     # Signs/forced/songs removal level (cleanup_signs rule + extract hook).
     # off | signs | signs_forced | signs_forced_songs. Default off.
     cleanup_signs_removal_level: str = "off"
