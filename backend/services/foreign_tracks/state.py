@@ -67,7 +67,10 @@ def config_hash(config: dict, media_root: str) -> str:
     """Hash every input that can change a file's verdict.
 
     Normalised so a cosmetic edit — reordering the keep-list, a trailing
-    slash, a case difference — does not throw away 19,000 cached verdicts.
+    slash, or a language-code case difference — does not throw away 19,000
+    cached verdicts. Path case is NOT cosmetic: the deployment filesystem
+    (Linux/Docker) is case-sensitive, so a path differing only by case is a
+    genuine scope change and deliberately does change the hash.
     """
     payload = {
         "keep_languages": sorted({str(x).lower() for x in (config.get("keep_languages") or [])}),
