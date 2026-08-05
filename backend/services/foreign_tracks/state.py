@@ -55,7 +55,12 @@ def save_state(state: SweepState) -> None:
 
 
 def _norm_path(value: str) -> str:
-    return os.path.normpath(str(value)).replace("\\", "/").rstrip("/").lower()
+    # Deliberately NOT case-folded: Sublarr runs on Linux/Docker, where the
+    # filesystem is case-sensitive, so "_Filme" and "_filme" are genuinely
+    # different scopes and must hash differently. Language codes ARE
+    # case-insensitive (see the keep_languages normalisation below), but
+    # paths are not — folding case here would mask a real scope change.
+    return os.path.normpath(str(value)).replace("\\", "/").rstrip("/")
 
 
 def config_hash(config: dict, media_root: str) -> str:

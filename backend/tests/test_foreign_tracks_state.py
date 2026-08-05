@@ -91,3 +91,51 @@ def test_hash_changes_with_the_media_root():
     a = config_hash({"keep_languages": ["de"]}, "/media")
     b = config_hash({"keep_languages": ["de"]}, "/other")
     assert a != b
+
+
+def test_hash_changes_when_a_path_differs_only_by_case():
+    # Sublarr runs on Linux/Docker, a case-sensitive filesystem: "_Filme" and
+    # "_filme" are genuinely different scopes and must hash differently,
+    # unlike language codes which are legitimately case-insensitive.
+    a = config_hash({"keep_languages": ["de"], "include_paths": ["_Filme"]}, "/media")
+    b = config_hash({"keep_languages": ["de"], "include_paths": ["_filme"]}, "/media")
+    assert a != b
+
+    c = config_hash({"keep_languages": ["de"]}, "/Media")
+    d = config_hash({"keep_languages": ["de"]}, "/media")
+    assert c != d
+
+
+def test_load_returns_a_fresh_state_on_invalid_json(app):
+    from db.repositories.config import ConfigRepository
+
+    ConfigRepository().save_config_entry("foreign_track_sweep_state", "not json")
+
+    state = load_state()
+
+    assert state == SweepState()
+
+
+def test_load_returns_a_fresh_state_on_non_object_json(app):
+    from db.repositories.config import ConfigRepository
+
+    ConfigRepository().save_config_entry("foreign_track_sweep_state", "[1, 2, 3]")
+
+    state = load_state()
+
+    assert state == SweepState()
+
+
+def test_load_returns_a_fresh_state_on_unknown_field(app):
+    from db.repositories.config import ConfigRepository
+
+    # A legacy blob from an older SweepState shape must be discarded rather
+    # than partially loaded — a fresh state is recoverable, a half-loaded one
+    # is not.
+    ConfigRepository().save_config_entry(
+        "foreign_track_sweep_state", '{"generation": 1, "bogus_field": 1}'
+    )
+
+    state = load_state()
+
+    assert state == SweepState()
