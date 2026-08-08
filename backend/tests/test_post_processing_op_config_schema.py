@@ -36,6 +36,13 @@ VALID_TYPES = {"text", "password", "number"}
     ],
 )
 def test_op_has_expected_schema_keys(op_id: str, expected_keys: set[str]):
+    # Import the package, not just the registry: @register_op fires on module
+    # import, and only `post_processing.ops` pulls in discord_notify and
+    # media_server_refresh. Without this the test passes only when some other
+    # test happened to import them first in the same process — so under xdist it
+    # failed or passed depending on how cases were distributed across workers,
+    # and run on its own every case failed.
+    import post_processing.ops  # noqa: F401 — triggers @register_op for every op
     from post_processing.base_op import _OP_REGISTRY
 
     cls = next((c for c in _OP_REGISTRY if c.op_id == op_id), None)
