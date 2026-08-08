@@ -94,6 +94,81 @@ def test_websocket_handler_never_forwards_below_info(restore_root_logger, tmp_pa
     assert all(h.level >= logging.INFO for h in ws_handlers)
 
 
+class TestLogFingerprint:
+    """The log file must identify the instance that produced it.
+
+    Real cost of not doing this: two users attached `sublarr.log` to Discord
+    bug reports and establishing which machine each came from took hours of
+    forensics — one turned out not to be from the reporter's instance at all.
+    A header written only at startup is not enough, because rotation pushes it
+    out of the file the user actually uploads, so it is re-emitted into every
+    new file on rollover.
+    """
+
+    def test_fresh_log_starts_with_a_fingerprint(self, restore_root_logger, tmp_path):
+        _setup_logging(_settings(tmp_path))
+        logging.getLogger("probe").info("first real line")
+
+        first = (tmp_path / "sublarr.log").read_text(encoding="utf-8").splitlines()[0]
+        assert "sublarr-instance:" in first
+
+    def test_fingerprint_reports_the_triage_facts(self, restore_root_logger, tmp_path):
+        settings = _settings(tmp_path)
+        settings.standalone_enabled = True
+        settings.sonarr_url = ""
+        settings.log_max_size_mb = 12
+        settings.log_backup_count = 4
+        _setup_logging(settings)
+
+        first = (tmp_path / "sublarr.log").read_text(encoding="utf-8").splitlines()[0]
+        # The three questions actually asked in every Discord bug report.
+        assert "version=" in first
+        assert "os=" in first
+        assert "mode=standalone" in first
+        assert "rotation=12MBx4" in first
+
+    def test_fingerprint_names_the_arr_mode_when_sonarr_is_configured(
+        self, restore_root_logger, tmp_path
+    ):
+        settings = _settings(tmp_path)
+        settings.standalone_enabled = False
+        settings.sonarr_url = "http://sonarr:8989"
+        _setup_logging(settings)
+
+        first = (tmp_path / "sublarr.log").read_text(encoding="utf-8").splitlines()[0]
+        assert "mode=arr" in first
+
+    def test_rollover_writes_the_fingerprint_into_the_new_file(
+        self, restore_root_logger, tmp_path
+    ):
+        # The durability property: the file a user uploads after weeks of
+        # uptime is a ROTATED one, which a startup-only header never reaches.
+        settings = _settings(tmp_path, level="INFO")
+        settings.log_max_size_mb = 1
+        _setup_logging(settings)
+
+        handler = _rotating_handler()
+        handler.doRollover()
+        logging.getLogger("probe").info("line after rollover")
+
+        lines = (tmp_path / "sublarr.log").read_text(encoding="utf-8").splitlines()
+        assert "sublarr-instance:" in lines[0], (
+            "a rotated-into file must re-state the fingerprint, or the log a user "
+            "uploads carries no identity at all"
+        )
+
+    def test_fingerprint_failure_never_breaks_logging(self, restore_root_logger, tmp_path):
+        # Diagnostics must never be able to take down the thing they describe.
+        from unittest.mock import patch
+
+        with patch("app_logging._fingerprint_payload", side_effect=RuntimeError("boom")):
+            _setup_logging(_settings(tmp_path))
+            logging.getLogger("probe").warning("still logging")
+
+        text = (tmp_path / "sublarr.log").read_text(encoding="utf-8")
+        assert "still logging" in text
+
+
 class TestRotatedLogPaths:
     """Consumers of the rotated log files must follow the configured backup count.
 

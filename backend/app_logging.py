@@ -7,6 +7,7 @@ and the idempotent _setup_logging() routine called by create_app().
 
 import logging
 import os
+from logging.handlers import RotatingFileHandler
 
 from extensions import socketio
 
@@ -81,6 +82,118 @@ def _clamped_int_setting(settings, name: str, default: int, low: int, high: int)
         )
         return default
     return max(low, min(value, high))
+
+
+def _in_container() -> bool:
+    """Best-effort container detection. Cheap, and wrong-answer-safe."""
+    if os.path.exists("/.dockerenv"):
+        return True
+    try:
+        with open("/proc/1/cgroup", encoding="utf-8") as fh:
+            return any(marker in fh.read() for marker in ("docker", "kubepods", "containerd"))
+    except OSError:
+        return False
+
+
+def _fingerprint_payload(settings) -> str:
+    """One line identifying the instance that wrote this log file.
+
+    Answers, without a round trip to the reporter, the questions every bug
+    report needs: which version, on what, in which deployment mode, against
+    which database, and how much history this file can hold. Two Discord
+    reports were stalled for weeks on exactly these facts.
+    """
+    import platform
+
+    from version import __version__
+
+    if getattr(settings, "database_url", ""):
+        backend = "postgres" if "postgres" in settings.database_url.lower() else "external"
+    else:
+        backend = "sqlite"
+
+    if getattr(settings, "standalone_enabled", False):
+        mode = "standalone"
+    elif getattr(settings, "sonarr_url", "") or getattr(settings, "radarr_url", ""):
+        mode = "arr"
+    else:
+        mode = "unconfigured"
+
+    max_size_mb = _clamped_int_setting(
+        settings,
+        "log_max_size_mb",
+        LOG_MAX_SIZE_MB_DEFAULT,
+        LOG_MAX_SIZE_MB_MIN,
+        LOG_MAX_SIZE_MB_MAX,
+    )
+    backup_count = _clamped_int_setting(
+        settings,
+        "log_backup_count",
+        LOG_BACKUP_COUNT_DEFAULT,
+        LOG_BACKUP_COUNT_MIN,
+        LOG_BACKUP_COUNT_MAX,
+    )
+
+    fields = [
+        f"version={__version__}",
+        f"python={platform.python_version()}",
+        f"os={platform.system()} {platform.release()} ({platform.machine()})",
+        f"container={'yes' if _in_container() else 'no'}",
+        f"db={backend}",
+        f"mode={mode}",
+        f"level={getattr(settings, 'log_level', '?')}",
+        f"rotation={max_size_mb}MBx{backup_count}",
+    ]
+    return "sublarr-instance: " + " ".join(fields)
+
+
+class FingerprintedRotatingFileHandler(RotatingFileHandler):
+    """RotatingFileHandler that stamps its instance fingerprint into every file.
+
+    Writing the fingerprint once at startup is not durable: rotation moves it
+    to `sublarr.log.1` and eventually off the end of the backup chain, so the
+    file a user uploads after a long uptime carries no identity. Re-stamping on
+    every rollover makes each file self-describing on its own.
+
+    The stamp is written through this handler's own formatter, so it obeys the
+    text/JSON choice, and it is built with the live LogRecord factory so any
+    attribute other filters or formats rely on is present.
+    """
+
+    def __init__(self, *args, fingerprint: str = "", **kwargs):
+        self._fingerprint = fingerprint
+        super().__init__(*args, **kwargs)
+
+    def _write_fingerprint(self) -> None:
+        if not self._fingerprint or self.stream is None:
+            return
+        try:
+            record = logging.getLogRecordFactory()(
+                "app_logging",
+                logging.INFO,
+                __file__,
+                0,
+                self._fingerprint,
+                None,
+                None,
+            )
+            self.stream.write(self.format(record) + self.terminator)
+            self.flush()
+        except Exception:
+            # A diagnostic aid must never be able to break the log it annotates.
+            pass
+
+    def stamp_if_new(self) -> None:
+        """Stamp an empty target file — called once after setup."""
+        try:
+            if self.stream is not None and self.stream.tell() == 0:
+                self._write_fingerprint()
+        except Exception:
+            pass
+
+    def doRollover(self) -> None:  # noqa: N802 — stdlib camelCase override
+        super().doRollover()
+        self._write_fingerprint()
 
 
 def rotated_log_candidates(settings=None) -> list[str]:
@@ -206,8 +319,6 @@ def _setup_logging(settings) -> None:
     for noisy_name, noisy_level in _THIRD_PARTY_LOG_LEVELS.items():
         logging.getLogger(noisy_name).setLevel(noisy_level)
 
-    from logging.handlers import RotatingFileHandler
-
     for existing in list(root.handlers):
         if isinstance(existing, (RotatingFileHandler, SocketIOLogHandler)):
             root.removeHandler(existing)
@@ -242,15 +353,25 @@ def _setup_logging(settings) -> None:
             LOG_BACKUP_COUNT_MIN,
             LOG_BACKUP_COUNT_MAX,
         )
-        fh = RotatingFileHandler(
+        # Built before the handler so a broken fingerprint cannot stop logging
+        # from being set up at all.
+        try:
+            fingerprint = _fingerprint_payload(settings)
+        except Exception as exc:
+            logging.getLogger(__name__).debug("Could not build log fingerprint: %s", exc)
+            fingerprint = ""
+
+        fh = FingerprintedRotatingFileHandler(
             log_file,
             maxBytes=max_size_mb * 1024 * 1024,
             backupCount=backup_count,
             encoding="utf-8",
+            fingerprint=fingerprint,
         )
         fh.setLevel(log_level)
         fh.setFormatter(formatter)
         root.addHandler(fh)
+        fh.stamp_if_new()
     except Exception as e:
         logging.getLogger(__name__).warning("Could not set up log file %s: %s", log_file, e)
 
