@@ -213,9 +213,7 @@ class TestLogFingerprint:
         first = (tmp_path / "sublarr.log").read_text(encoding="utf-8").splitlines()[0]
         assert "mode=arr" in first
 
-    def test_rollover_writes_the_fingerprint_into_the_new_file(
-        self, restore_root_logger, tmp_path
-    ):
+    def test_rollover_writes_the_fingerprint_into_the_new_file(self, restore_root_logger, tmp_path):
         # The durability property: the file a user uploads after weeks of
         # uptime is a ROTATED one, which a startup-only header never reaches.
         settings = _settings(tmp_path, level="INFO")
@@ -231,6 +229,58 @@ class TestLogFingerprint:
             "a rotated-into file must re-state the fingerprint, or the log a user "
             "uploads carries no identity at all"
         )
+
+    def test_existing_log_file_gets_stamped_on_startup(self, restore_root_logger, tmp_path):
+        """The upgrade case — and the one that matters most.
+
+        Found on a real RC deploy, not in tests: the first stamp was written only
+        into an EMPTY file, so an instance upgrading with a populated
+        /config/sublarr.log got no fingerprint at all until the file happened to
+        rotate. That is precisely the user who upgrades and immediately attaches
+        their log to a bug report. Every earlier test used a fresh tmp_path file,
+        so none of them could see it.
+        """
+        import app_logging
+
+        app_logging._stamped_log_paths.clear()
+        log = tmp_path / "sublarr.log"
+        log.write_text(
+            "2026-07-31 01:51:46,996 [INFO] [-] apscheduler: pre-existing line\n",
+            encoding="utf-8",
+        )
+
+        _setup_logging(_settings(tmp_path))
+
+        text = log.read_text(encoding="utf-8")
+        assert "pre-existing line" in text, "must append, not truncate the existing log"
+        assert "sublarr-instance:" in text, (
+            "an upgraded instance with a populated log file must still be identifiable"
+        )
+
+    def test_repeated_setup_stamps_the_same_file_only_once(self, restore_root_logger, tmp_path):
+        # _setup_logging re-runs on every config save. Stamping per call would
+        # bury the log in fingerprints — which is why the too-narrow
+        # empty-file-only check existed in the first place.
+        import app_logging
+
+        app_logging._stamped_log_paths.clear()
+        for _ in range(4):
+            _setup_logging(_settings(tmp_path))
+
+        text = (tmp_path / "sublarr.log").read_text(encoding="utf-8")
+        assert text.count("sublarr-instance:") == 1
+
+    def test_changing_the_log_path_stamps_the_new_file(self, restore_root_logger, tmp_path):
+        import app_logging
+
+        app_logging._stamped_log_paths.clear()
+        _setup_logging(_settings(tmp_path))
+
+        second = tmp_path / "moved"
+        second.mkdir()
+        _setup_logging(_settings(second))
+
+        assert "sublarr-instance:" in (second / "sublarr.log").read_text(encoding="utf-8")
 
     def test_fingerprint_failure_never_breaks_logging(self, restore_root_logger, tmp_path):
         # Diagnostics must never be able to take down the thing they describe.

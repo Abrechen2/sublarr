@@ -208,6 +208,12 @@ def _fingerprint_payload(settings) -> str:
     return "sublarr-instance: " + " ".join(fields)
 
 
+# Log paths already stamped in this process. Module-level because the handler is
+# torn down and rebuilt on every _setup_logging call, so per-handler state cannot
+# tell a genuine restart from a config save.
+_stamped_log_paths: set[str] = set()
+
+
 class FingerprintedRotatingFileHandler(RotatingFileHandler):
     """RotatingFileHandler that stamps its instance fingerprint into every file.
 
@@ -244,13 +250,27 @@ class FingerprintedRotatingFileHandler(RotatingFileHandler):
             # A diagnostic aid must never be able to break the log it annotates.
             pass
 
-    def stamp_if_new(self) -> None:
-        """Stamp an empty target file — called once after setup."""
-        try:
-            if self.stream is not None and self.stream.tell() == 0:
-                self._write_fingerprint()
-        except Exception:
-            pass
+    def stamp_startup(self) -> None:
+        """Stamp the target file once per process, per log path.
+
+        The obvious guard — "only stamp an empty file" — was wrong, and wrong in
+        exactly the case this feature exists for. On an upgrade the log file in
+        /config already holds months of lines, so an empty-file check writes
+        nothing and the instance stays unidentifiable until the file happens to
+        rotate. That is the user who upgrades and immediately attaches their log
+        to a bug report. Found on a live RC deploy; every test until then used a
+        fresh file and could not see it.
+
+        Keying on the path rather than a plain flag keeps two behaviours right:
+        `_setup_logging` re-runs on every config save and must not stamp again
+        (which is what the empty-file check was really protecting against), while
+        a changed `log_file` genuinely starts a new file that does need one.
+        """
+        path = getattr(self, "baseFilename", None)
+        if path is None or path in _stamped_log_paths:
+            return
+        _stamped_log_paths.add(path)
+        self._write_fingerprint()
 
     def doRollover(self) -> None:  # noqa: N802 — stdlib camelCase override
         super().doRollover()
@@ -435,7 +455,7 @@ def _setup_logging(settings) -> None:
         fh.setLevel(log_level)
         fh.setFormatter(formatter)
         root.addHandler(fh)
-        fh.stamp_if_new()
+        fh.stamp_startup()
     except Exception as e:
         logging.getLogger(__name__).warning("Could not set up log file %s: %s", log_file, e)
 
