@@ -420,6 +420,15 @@ class UISettings(BaseModel):
     # download row / wanted item so "why was this chosen?" is answerable in the UI.
     decision_log_enabled: bool = True
 
+    # Log rotation — how much history the log file keeps. UI-configurable via
+    # /api/v1/logs/rotation, consumed by app_logging._setup_logging. Declared
+    # here because UISettings uses extra="ignore": while these keys were absent
+    # they were persisted to config_entries and then silently dropped on
+    # overlay, so the setting could never reach the handler. Bounds and
+    # defaults live in app_logging (LOG_MAX_SIZE_MB_*, LOG_BACKUP_COUNT_*).
+    log_max_size_mb: int = 10
+    log_backup_count: int = 5
+
     # Hearing Impaired
     hi_removal_enabled: bool = False
     hi_preference: str = "include"  # include | prefer | exclude | only

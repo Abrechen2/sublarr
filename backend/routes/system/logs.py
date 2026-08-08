@@ -103,10 +103,11 @@ def get_log_rotation():
                   backup_count:
                     type: integer
     """
+    from app_logging import LOG_BACKUP_COUNT_DEFAULT, LOG_MAX_SIZE_MB_DEFAULT
     from db.config import get_config_entry
 
-    max_size_mb = int(get_config_entry("log_max_size_mb") or "10")
-    backup_count = int(get_config_entry("log_backup_count") or "5")
+    max_size_mb = int(get_config_entry("log_max_size_mb") or LOG_MAX_SIZE_MB_DEFAULT)
+    backup_count = int(get_config_entry("log_backup_count") or LOG_BACKUP_COUNT_DEFAULT)
 
     return jsonify(
         {
@@ -150,6 +151,14 @@ def update_log_rotation():
         400:
           description: Invalid parameter values
     """
+    from app_logging import (
+        LOG_BACKUP_COUNT_DEFAULT,
+        LOG_BACKUP_COUNT_MAX,
+        LOG_BACKUP_COUNT_MIN,
+        LOG_MAX_SIZE_MB_DEFAULT,
+        LOG_MAX_SIZE_MB_MAX,
+        LOG_MAX_SIZE_MB_MIN,
+    )
     from db.config import save_config_entry
 
     data = request.get_json() or {}
@@ -158,11 +167,23 @@ def update_log_rotation():
 
     errors = []
     if max_size_mb is not None:
-        if not isinstance(max_size_mb, (int, float)) or max_size_mb < 1 or max_size_mb > 100:
-            errors.append("max_size_mb must be between 1 and 100")
+        if (
+            not isinstance(max_size_mb, (int, float))
+            or max_size_mb < LOG_MAX_SIZE_MB_MIN
+            or max_size_mb > LOG_MAX_SIZE_MB_MAX
+        ):
+            errors.append(
+                f"max_size_mb must be between {LOG_MAX_SIZE_MB_MIN} and {LOG_MAX_SIZE_MB_MAX}"
+            )
     if backup_count is not None:
-        if not isinstance(backup_count, (int, float)) or backup_count < 1 or backup_count > 20:
-            errors.append("backup_count must be between 1 and 20")
+        if (
+            not isinstance(backup_count, (int, float))
+            or backup_count < LOG_BACKUP_COUNT_MIN
+            or backup_count > LOG_BACKUP_COUNT_MAX
+        ):
+            errors.append(
+                f"backup_count must be between {LOG_BACKUP_COUNT_MIN} and {LOG_BACKUP_COUNT_MAX}"
+            )
 
     if errors:
         return jsonify({"error": "; ".join(errors)}), 400
@@ -175,8 +196,8 @@ def update_log_rotation():
     # Read back saved values
     from db.config import get_config_entry
 
-    saved_max = int(get_config_entry("log_max_size_mb") or "10")
-    saved_count = int(get_config_entry("log_backup_count") or "5")
+    saved_max = int(get_config_entry("log_max_size_mb") or LOG_MAX_SIZE_MB_DEFAULT)
+    saved_count = int(get_config_entry("log_backup_count") or LOG_BACKUP_COUNT_DEFAULT)
 
     invalidate_response_cache()
 

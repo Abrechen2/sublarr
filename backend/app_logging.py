@@ -32,6 +32,57 @@ _THIRD_PARTY_LOG_LEVELS = {
 }
 
 
+# Rotation bounds and defaults. Single source of truth: PUT/GET
+# /api/v1/logs/rotation imports these to validate input and to report the
+# current window. They lived in two places before, and drifted — the API
+# advertised 10 MB / 5 backups while the handler was hardcoded to 5 MB / 3, so
+# the setting had no effect at all.
+LOG_MAX_SIZE_MB_DEFAULT = 10
+LOG_MAX_SIZE_MB_MIN = 1
+LOG_MAX_SIZE_MB_MAX = 100
+LOG_BACKUP_COUNT_DEFAULT = 5
+LOG_BACKUP_COUNT_MIN = 1
+LOG_BACKUP_COUNT_MAX = 20
+
+# Config keys whose change requires _setup_logging() to run again. Two callers
+# gate on this: the startup DB-overlay in app.py (logging is first configured
+# from ENV/defaults before the DB is read) and the live-apply on config save in
+# routes/config/core.py. Both previously hardcoded the level/file/format triple,
+# which is why adding a rotation setting was not enough to make it take effect.
+# tests/test_app_logging.py asserts this covers every `log_*` settings field.
+LOGGING_CONFIG_KEYS = frozenset(
+    {
+        "log_level",
+        "log_file",
+        "log_format",
+        "log_max_size_mb",
+        "log_backup_count",
+    }
+)
+
+
+def _clamped_int_setting(settings, name: str, default: int, low: int, high: int) -> int:
+    """Read an integer rotation setting, clamped to [low, high].
+
+    The value arrives from ``config_entries``, which is writable outside the
+    route's validation (a direct DB edit, or a row written by a different
+    version). Two failure modes are handled deliberately: a non-numeric row
+    falls back to the default instead of stopping logging altogether, and the
+    lower bound is never 0 because ``RotatingFileHandler`` reads
+    ``maxBytes=0`` as "never roll over" — which would turn a size cap into
+    unbounded growth.
+    """
+    raw = getattr(settings, name, default)
+    try:
+        value = int(raw)
+    except (TypeError, ValueError):
+        logging.getLogger(__name__).warning(
+            "Invalid %s=%r in config; falling back to %d", name, raw, default
+        )
+        return default
+    return max(low, min(value, high))
+
+
 class StructuredJSONFormatter(logging.Formatter):
     """JSON log formatter for structured logging (ELK, Loki, etc.)."""
 
@@ -150,8 +201,25 @@ def _setup_logging(settings) -> None:
         if log_dir:
             os.makedirs(log_dir, exist_ok=True)
 
+        max_size_mb = _clamped_int_setting(
+            settings,
+            "log_max_size_mb",
+            LOG_MAX_SIZE_MB_DEFAULT,
+            LOG_MAX_SIZE_MB_MIN,
+            LOG_MAX_SIZE_MB_MAX,
+        )
+        backup_count = _clamped_int_setting(
+            settings,
+            "log_backup_count",
+            LOG_BACKUP_COUNT_DEFAULT,
+            LOG_BACKUP_COUNT_MIN,
+            LOG_BACKUP_COUNT_MAX,
+        )
         fh = RotatingFileHandler(
-            log_file, maxBytes=5 * 1024 * 1024, backupCount=3, encoding="utf-8"
+            log_file,
+            maxBytes=max_size_mb * 1024 * 1024,
+            backupCount=backup_count,
+            encoding="utf-8",
         )
         fh.setLevel(log_level)
         fh.setFormatter(formatter)

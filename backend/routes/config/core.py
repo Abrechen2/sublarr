@@ -363,11 +363,13 @@ def update_config():
     invalidate_response_cache()
     _marks.append(("invalidate_clients", time.perf_counter()))
 
-    # Live-apply logging changes (level / file path / format) without a restart.
-    # _setup_logging is idempotent — it tears down and rebuilds the file +
-    # WebSocket handlers — so re-running it with the reloaded settings makes a
-    # UI change to log_level/log_file/log_format take effect immediately.
-    if any(k in ("log_level", "log_file", "log_format") for k in saved_keys):
+    # Live-apply logging changes (level / file path / format / rotation) without
+    # a restart. _setup_logging is idempotent — it tears down and rebuilds the
+    # file + WebSocket handlers — so re-running it with the reloaded settings
+    # makes a UI change to any logging setting take effect immediately.
+    from app_logging import LOGGING_CONFIG_KEYS
+
+    if any(k in LOGGING_CONFIG_KEYS for k in saved_keys):
         try:
             from app_logging import _setup_logging
 

@@ -425,9 +425,11 @@ def create_app(testing=False):
             logger.info("Applying %d config overrides from database", len(_db_overrides))
             settings = reload_settings(_db_overrides)
             # Logging was set up above from ENV/defaults, before the DB was
-            # read. Re-apply now so a UI-persisted log_level/log_file/log_format
-            # takes effect on startup (idempotent handler rebuild).
-            if any(k in _db_overrides for k in ("log_level", "log_file", "log_format")):
+            # read. Re-apply now so any UI-persisted logging setting takes
+            # effect on startup (idempotent handler rebuild).
+            from app_logging import LOGGING_CONFIG_KEYS
+
+            if any(k in _db_overrides for k in LOGGING_CONFIG_KEYS):
                 _setup_logging(settings)
         else:
             logger.info("No config overrides in database, using env/defaults")
