@@ -98,6 +98,18 @@ Gateway Intents → enable **Message Content**. The placeholder exists
 precisely so this failure is visible; a blank line would otherwise look like
 an empty channel.
 
+Note the two placeholders differ on purpose. The same Message Content intent
+gates `content` **and** `attachments`, so `(attachment only)` — followed by an
+indented `attachment:` line with the file name, size and CDN URL — means the
+intent is on and the message genuinely carried no text. Only
+`(no text content)` with no attachment line points at the missing intent.
+
+**A message shows no `attachment:` line but has a file in Discord** — the CDN
+URLs are signed and expire (`?ex=` in the query string), so re-run `read` to
+get a fresh one rather than reusing an old URL. Embeds are still not rendered:
+bot posts in `#announcements` and `#changelog` are embed-only and therefore
+read as `(no text content)`.
+
 **`Unknown Guild`** — the guild id is wrong. Discord → Settings → Advanced →
 Developer Mode on, right-click the server icon → Copy Server ID.
 

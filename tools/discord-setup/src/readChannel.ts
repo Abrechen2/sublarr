@@ -4,15 +4,62 @@ import { log } from "./log.js";
 
 const MAX_FORUM_THREADS = 15;
 
+const BYTE_UNITS = ["B", "KB", "MB", "GB"] as const;
+
 /**
- * One fetched message as a readable line. Falls back to a visible placeholder
- * when the content is empty — that happens when the bot lacks the privileged
- * MessageContent intent, and a blank line would misreport it as an empty
- * channel rather than a missing permission.
+ * A file size for display. `size` arrives from the Discord API, so a negative
+ * or non-finite value is possible and must not render as a bogus unit string.
+ * Values past the largest unit stay in that unit — an oversized number is
+ * still readable, an invented unit is not.
  */
-export function formatMessage(authorTag: string, iso: string, content: string): string {
-  const body = content.trim().length > 0 ? content : "(no text content)";
-  return `[${iso}] ${authorTag}: ${body}`;
+export function formatBytes(size: number): string {
+  if (!Number.isFinite(size) || size < 0) {
+    return "unknown size";
+  }
+  let value = size;
+  let unit = 0;
+  while (value >= 1024 && unit < BYTE_UNITS.length - 1) {
+    value = value / 1024;
+    unit += 1;
+  }
+  // One decimal, but only when it carries information: "1.5 KB", not "2.0 KB".
+  const rendered = Number.isInteger(value) ? String(value) : value.toFixed(1).replace(/\.0$/, "");
+  return `${rendered} ${BYTE_UNITS[unit]}`;
+}
+
+/** The attachment fields this module renders — a structural subset of discord.js's `Attachment`. */
+export interface MessageAttachment {
+  name: string;
+  size: number;
+  url: string;
+}
+
+/**
+ * One fetched message as readable output: a header line, then one indented
+ * line per attachment. Attachments are rendered because they routinely carry
+ * the entire point of a message — a support-export ZIP or a screenshot in
+ * #bug-report — and dropping them made such a message read as if the user had
+ * sent nothing usable.
+ *
+ * Empty content gets a visible placeholder rather than a blank line, and which
+ * placeholder matters diagnostically. Discord gates `content` and `attachments`
+ * behind the same privileged MessageContent intent: with no text AND no
+ * attachment, the likely cause is that missing intent; with an attachment
+ * present the intent is demonstrably on and the message simply carried no text.
+ */
+export function formatMessage(
+  authorTag: string,
+  iso: string,
+  content: string,
+  attachments: readonly MessageAttachment[] = [],
+): string {
+  const emptyBody = attachments.length > 0 ? "(attachment only)" : "(no text content)";
+  const body = content.trim().length > 0 ? content : emptyBody;
+  const lines = [
+    `[${iso}] ${authorTag}: ${body}`,
+    ...attachments.map((a) => `  attachment: ${a.name} (${formatBytes(a.size)}) ${a.url}`),
+  ];
+  return lines.join("\n");
 }
 
 /** One channel as a line of the `read`-without-arguments listing. */
@@ -23,7 +70,19 @@ export function formatChannelLine(name: string, type: string, id: string): strin
 /** Print a fetched message page oldest-first — shared by the channel and forum-thread readers. */
 function logMessagesOldestFirst(messages: Collection<string, Message>): void {
   for (const message of [...messages.values()].reverse()) {
-    log(formatMessage(message.author.tag, message.createdAt.toISOString(), message.content));
+    const attachments = [...message.attachments.values()].map((a) => ({
+      name: a.name,
+      size: a.size,
+      url: a.url,
+    }));
+    log(
+      formatMessage(
+        message.author.tag,
+        message.createdAt.toISOString(),
+        message.content,
+        attachments,
+      ),
+    );
   }
 }
 
