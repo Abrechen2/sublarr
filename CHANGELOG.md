@@ -5,9 +5,61 @@ All notable changes to Sublarr are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [1.11.0] - 2026-08-04
+
+### Added
+- **The foreign-tracks sweep now runs in batches and can resume.** A pass over a
+  large library ran as one piece and started from the beginning after a restart.
+  The sweep now keeps its progress in its own table, works in batches, and picks
+  up exactly where it stopped — keyed to a hash of the resolved configuration, so
+  a changed setting cannot silently continue a run made under the old one. File
+  enumeration streams instead of loading everything into memory and prunes
+  excluded folders while walking rather than afterwards. A dedicated scheduler job
+  is registered. The feature ships **disabled**.
+- **Log files now say where they came from.** Every log file opens with a line
+  naming the version, platform, whether it runs in a container, the database
+  backend, the deployment mode and the rotation window — and it is written again
+  on every rotation, so a rotated file explains itself too. Establishing which
+  machine an attached log came from previously took hours of guesswork.
+- **The request id now appears in the ordinary text log.** Only the error line
+  carried it before, which made everything a request did *before* failing
+  impossible to find.
+- **The foreign-tracks sweep is ready for large first runs.** The cleanup rule
+  that strips embedded foreign-language subtitle tracks from existing files
+  gained three controls for sweeping a big backlog safely: it can be scoped to
+  specific subfolders (and exclude download staging or disc-rip masters), it
+  stops itself before free disk space drops below a configurable floor, and an
+  opt-in verify-then-release mode re-checks every rewritten file — video stream
+  present, no foreign tracks left — before releasing that file's safety backup,
+  so the sweep no longer needs to hold a backup of every touched file at once.
+
+### Changed
+- **`GET /api/v1/logs/download` now returns the anonymised support bundle**
+  instead of the raw log file. The raw log exposes host paths, IP addresses and
+  the hostname that the export redacts, and it arrives without the context a
+  diagnosis needs — version, platform, deployment mode, top errors. Pass `?raw=1`
+  for the previous, unredacted file. Scripted callers of this endpoint need that
+  parameter; the response changes from text to a ZIP.
+- **An unconfigured provider is no longer a warning.** Sublarr ships around 29
+  providers and a typical install configures a handful; every other one logged at
+  WARNING that it had no credentials, roughly a dozen benign lines on every
+  startup. In one real user log 91% of all WARNING lines were this single class,
+  which is what made scanning a submitted log for warnings pointless. The lines
+  remain, one level down.
 
 ### Fixed
+- **The log rotation setting now actually takes effect.** Log file size and
+  backup count could be saved, the UI displayed them, and the API answered
+  "changes take effect on next application restart" — but nothing ever read them
+  and the handler was pinned to 5 MB × 3. With debug logging enabled that window
+  reached only about twenty minutes back, so a user asked to reproduce a problem
+  and send the log had often already lost the incident by the time they fetched
+  it. Raising the window was the one lever that did nothing.
+- **The support bundle contains every rotated log file again.** It read a fixed
+  depth of three files, which stopped matching once rotation became configurable,
+  so an uploaded bundle silently omitted log history that existed on disk.
+- **Long scheduler runs are no longer killed mid-flight.** The Gunicorn worker
+  timeout sat below the runtime of the longest job.
 - **Local LLM translation of single lines works again.** When a batch held
   exactly one subtitle line, the prompt sent to Ollama dropped the whole
   prompt template and asked, verbatim, `Translate to German: <line>` — with no
@@ -34,20 +86,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   ("Onii-sama → Bruder") instead of a translation in 8 of 16 runs over short
   subtitle lines. That answer is one line, so it passed the line-count check
   and was written straight into the subtitle file.
-
-## [1.11.0] - 2026-08-04
-
-### Added
-- **The foreign-tracks sweep is ready for large first runs.** The cleanup rule
-  that strips embedded foreign-language subtitle tracks from existing files
-  gained three controls for sweeping a big backlog safely: it can be scoped to
-  specific subfolders (and exclude download staging or disc-rip masters), it
-  stops itself before free disk space drops below a configurable floor, and an
-  opt-in verify-then-release mode re-checks every rewritten file — video stream
-  present, no foreign tracks left — before releasing that file's safety backup,
-  so the sweep no longer needs to hold a backup of every touched file at once.
-
-### Fixed
 - **The upgrade scan works again.** Triggering it — manually or on its
   schedule — crashed immediately with a `TypeError` because the scan (and the
   provider re-ranking engine) still used the pre-migration database handle as
