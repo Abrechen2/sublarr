@@ -34,30 +34,92 @@ export interface MessageAttachment {
   url: string;
 }
 
+/** The embed fields this module renders — a structural subset of discord.js's `Embed`. */
+export interface MessageEmbed {
+  title?: string | null;
+  description?: string | null;
+  url?: string | null;
+  fields?: readonly { name: string; value: string }[];
+  footer?: { text: string } | null;
+}
+
+/**
+ * One embed as indented lines. Bot posts in #announcements and #changelog carry
+ * their entire content in an embed and none in `content`, so the release
+ * history was unreadable from the CLI without this.
+ *
+ * An embed with nothing renderable still yields a line: it may hold only an
+ * image or an author block, and emitting nothing would recreate exactly the
+ * "message looks empty" bug this exists to fix. Descriptions are printed in
+ * full rather than truncated — reading them is the point, and `limit` already
+ * bounds how many messages come back.
+ */
+export function formatEmbed(embed: MessageEmbed): string[] {
+  const lines: string[] = [];
+  if (embed.title) {
+    lines.push(`  embed: ${embed.title}`);
+  }
+  if (embed.url) {
+    lines.push(`  embed url: ${embed.url}`);
+  }
+  if (embed.description) {
+    // Blank lines stay blank rather than becoming indent-only whitespace.
+    lines.push(...embed.description.split("\n").map((l) => (l.length > 0 ? `    ${l}` : "")));
+  }
+  for (const field of embed.fields ?? []) {
+    lines.push(`  embed field: ${field.name} = ${field.value}`);
+  }
+  if (embed.footer?.text) {
+    lines.push(`  embed footer: ${embed.footer.text}`);
+  }
+  return lines.length > 0 ? lines : ["  embed: (empty)"];
+}
+
+/**
+ * The placeholder for a message with no text. Which one is used carries
+ * diagnostic weight: Discord gates `content`, `attachments` and `embeds` behind
+ * the same privileged MessageContent intent, so anything visible here proves
+ * the intent is on and the message simply had no text. Only the bare
+ * "(no text content)" is ambiguous enough to suspect the missing intent.
+ */
+function emptyBodyPlaceholder(hasAttachments: boolean, hasEmbeds: boolean): string {
+  if (hasAttachments && hasEmbeds) {
+    return "(attachment and embed only)";
+  }
+  if (hasAttachments) {
+    return "(attachment only)";
+  }
+  if (hasEmbeds) {
+    return "(embed only)";
+  }
+  return "(no text content)";
+}
+
 /**
  * One fetched message as readable output: a header line, then one indented
- * line per attachment. Attachments are rendered because they routinely carry
- * the entire point of a message — a support-export ZIP or a screenshot in
- * #bug-report — and dropping them made such a message read as if the user had
- * sent nothing usable.
+ * line per attachment, then the embeds. Both are rendered because they
+ * routinely carry the entire point of a message — a support-export ZIP in
+ * #bug-report, or a whole release note in #announcements — and dropping them
+ * made such a message read as if nothing usable had been sent.
  *
- * Empty content gets a visible placeholder rather than a blank line, and which
- * placeholder matters diagnostically. Discord gates `content` and `attachments`
- * behind the same privileged MessageContent intent: with no text AND no
- * attachment, the likely cause is that missing intent; with an attachment
- * present the intent is demonstrably on and the message simply carried no text.
+ * Empty content gets a visible placeholder rather than a blank line; see
+ * `emptyBodyPlaceholder` for why the wording differs per case.
  */
 export function formatMessage(
   authorTag: string,
   iso: string,
   content: string,
   attachments: readonly MessageAttachment[] = [],
+  embeds: readonly MessageEmbed[] = [],
 ): string {
-  const emptyBody = attachments.length > 0 ? "(attachment only)" : "(no text content)";
-  const body = content.trim().length > 0 ? content : emptyBody;
+  const body =
+    content.trim().length > 0
+      ? content
+      : emptyBodyPlaceholder(attachments.length > 0, embeds.length > 0);
   const lines = [
     `[${iso}] ${authorTag}: ${body}`,
     ...attachments.map((a) => `  attachment: ${a.name} (${formatBytes(a.size)}) ${a.url}`),
+    ...embeds.flatMap(formatEmbed),
   ];
   return lines.join("\n");
 }
@@ -75,12 +137,20 @@ function logMessagesOldestFirst(messages: Collection<string, Message>): void {
       size: a.size,
       url: a.url,
     }));
+    const embeds = message.embeds.map((e) => ({
+      title: e.title,
+      description: e.description,
+      url: e.url,
+      fields: e.fields.map((f) => ({ name: f.name, value: f.value })),
+      footer: e.footer ? { text: e.footer.text } : null,
+    }));
     log(
       formatMessage(
         message.author.tag,
         message.createdAt.toISOString(),
         message.content,
         attachments,
+        embeds,
       ),
     );
   }

@@ -87,6 +87,73 @@ describe("formatMessage attachments", () => {
   });
 });
 
+describe("formatMessage embeds", () => {
+  const iso = "2026-08-01T17:28:34.880Z";
+
+  it("renders title, indented description and footer of a release embed", () => {
+    // The real case: #announcements and #changelog are embed-only bot posts,
+    // so before this the entire release history read as "(no text content)".
+    const line = formatMessage("Sublarr Release Bot", iso, "", [], [
+      {
+        title: "🚀 Sublarr 1.10.1 released",
+        description: "A new version is out.\n\nA maintenance release.",
+        footer: { text: "sublarr-release-1.10.1" },
+      },
+    ]);
+    expect(line.split("\n")).toEqual([
+      `[${iso}] Sublarr Release Bot: (embed only)`,
+      "  embed: 🚀 Sublarr 1.10.1 released",
+      "    A new version is out.",
+      "",
+      "    A maintenance release.",
+      "  embed footer: sublarr-release-1.10.1",
+    ]);
+  });
+
+  it("renders a url and named fields", () => {
+    const line = formatMessage("bot", iso, "see below", [], [
+      { title: "T", url: "https://example.test/x", fields: [{ name: "Version", value: "1.2.3" }] },
+    ]);
+    expect(line.split("\n")).toEqual([
+      `[${iso}] bot: see below`,
+      "  embed: T",
+      "  embed url: https://example.test/x",
+      "  embed field: Version = 1.2.3",
+    ]);
+  });
+
+  it("keeps an embed visible even when it carries nothing renderable", () => {
+    // An image-only or author-only embed still proves something was posted;
+    // rendering no line at all would reproduce the bug this fixes.
+    const line = formatMessage("bot", iso, "", [], [{}]);
+    expect(line.split("\n")).toEqual([`[${iso}] bot: (embed only)`, "  embed: (empty)"]);
+  });
+
+  it("renders several embeds in order", () => {
+    const line = formatMessage("bot", iso, "x", [], [{ title: "one" }, { title: "two" }]);
+    expect(line.split("\n")).toEqual([`[${iso}] bot: x`, "  embed: one", "  embed: two"]);
+  });
+
+  it("lists attachments before embeds and names both in the placeholder", () => {
+    const line = formatMessage(
+      "bot",
+      iso,
+      "",
+      [{ name: "a.png", size: 10, url: "https://cdn.test/a.png" }],
+      [{ title: "T" }],
+    );
+    expect(line.split("\n")).toEqual([
+      `[${iso}] bot: (attachment and embed only)`,
+      "  attachment: a.png (10 B) https://cdn.test/a.png",
+      "  embed: T",
+    ]);
+  });
+
+  it("treats a missing embed list like an empty one", () => {
+    expect(formatMessage("bot", iso, "hi")).toBe(`[${iso}] bot: hi`);
+  });
+});
+
 describe("formatBytes", () => {
   it("renders bytes below one kilobyte with the byte unit", () => {
     expect(formatBytes(0)).toBe("0 B");
