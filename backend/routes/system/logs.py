@@ -47,26 +47,52 @@ def _tail_log_lines(log_file: str, lines: int, level: str) -> list[str]:
 
 @bp.route("/logs/download", methods=["GET"])
 def download_logs():
-    """Download the log file as an attachment.
+    """Download the anonymised support bundle (or the raw log with ?raw=1).
     ---
     get:
       tags:
         - System
-      summary: Download log file
-      description: Downloads the Sublarr log file as a text attachment.
+      summary: Download logs as a support bundle
+      description: >
+        Returns the anonymised support bundle as a ZIP — the rotated log files
+        with IPs, API keys, e-mail addresses and the hostname redacted, plus a
+        diagnostic report (version, platform, deployment mode, top errors).
+        This is the file to attach to a bug report. Pass `raw=1` for the plain,
+        unredacted log file, which was this endpoint's behaviour before 1.11.0.
       security:
         - apiKeyAuth: []
+      parameters:
+        - in: query
+          name: raw
+          schema:
+            type: string
+            enum: ["1", "true"]
+          description: Serve the unredacted log file instead of the support bundle
       responses:
         200:
-          description: Log file download
+          description: Support bundle ZIP, or the raw log file when raw=1
           content:
+            application/zip:
+              schema:
+                type: string
+                format: binary
             text/plain:
               schema:
                 type: string
                 format: binary
         404:
-          description: Log file not found
+          description: Log file not found (raw mode only)
     """
+    # Serving the raw log by default was actively unhelpful: users attached it to
+    # bug reports, which leaked host paths and addresses the export would have
+    # redacted, and arrived without the version/platform/mode context needed to
+    # act on it. Delegating means there is one bundle builder, so the two paths
+    # cannot drift in what they redact.
+    if request.args.get("raw", "").lower() not in ("1", "true"):
+        from routes.system.support import support_export
+
+        return support_export()
+
     from config import get_settings
 
     log_file = get_settings().log_file

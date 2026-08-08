@@ -5,5 +5,6 @@
   "auto_scroll_off": "Auto-scroll OFF",
   "no_logs": "No log entries",
   "no_logs_for_level": "No log entries for level {{level}}",
-  "download_log_file": "Download log file"
+  "download_support_bundle": "Download support bundle (anonymised — safe to share)",
+  "download_failed": "Could not build the support bundle"
 }

@@ -5,6 +5,8 @@ import { useLogs } from '@/hooks/useApi'
 import { useWebSocket } from '@/hooks/useWebSocket'
 import { Pause, Search, ArrowDown, Download } from 'lucide-react'
 import { PageHeader } from '@/components/layout/PageHeader'
+import { downloadSupportBundle } from '@/api/system/logs'
+import { toast } from '@/components/shared/Toast'
 
 const ESTIMATED_ROW_HEIGHT = 24
 const OVERSCAN = 10
@@ -35,6 +37,7 @@ export function LogsPage() {
   const [search, setSearch] = useState('')
   const [autoScroll, setAutoScroll] = useState(true)
   const [liveEntries, setLiveEntries] = useState<string[]>([])
+  const [downloading, setDownloading] = useState(false)
   const parentRef = useRef<HTMLDivElement>(null)
 
   const { connected, emit } = useWebSocket({
@@ -128,8 +131,21 @@ export function LogsPage() {
     return 'var(--text-primary)'
   }
 
-  const handleDownload = () => {
-    window.open('/api/v1/logs/download', '_blank')
+  // Downloads the anonymised support bundle, not the raw log. Users kept
+  // attaching raw sublarr.log to bug reports — which leaks paths and IPs, and
+  // carries none of the diagnostic context — so the obvious button now yields
+  // the file that is actually useful to send. Goes through the shared axios
+  // client rather than window.open, so the X-Api-Key header is sent and the
+  // filename from Content-Disposition is honoured.
+  const handleDownload = async () => {
+    setDownloading(true)
+    try {
+      await downloadSupportBundle()
+    } catch {
+      toast(t('download_failed'), 'error')
+    } finally {
+      setDownloading(false)
+    }
   }
 
   return (
@@ -183,13 +199,9 @@ export function LogsPage() {
           {/* Download */}
           <button
             onClick={handleDownload}
-            className="p-1.5 rounded-md transition-all duration-150"
-            style={{
-              border: '1px solid var(--border)',
-              color: 'var(--text-secondary)',
-              backgroundColor: 'var(--bg-surface)',
-            }}
-            title={t('download_log_file')}
+            disabled={downloading}
+            className="p-1.5 rounded-md border border-border bg-surface text-secondary transition-all duration-150 disabled:opacity-50"
+            title={t('download_support_bundle')}
           >
             <Download size={14} />
           </button>

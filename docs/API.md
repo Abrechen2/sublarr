@@ -162,7 +162,7 @@ History rows (`GET /history`) carry the verdict inline as `ai_quality` (`verdict
 | GET | `/statistics` | Yes | Detailed usage statistics |
 | GET | `/statistics/export` | Yes | Export statistics as CSV |
 | GET | `/logs` | Yes | Recent log entries |
-| GET | `/logs/download` | Yes | Download log file |
+| GET | `/logs/download` | Yes | Download the anonymised support bundle (ZIP). Add `?raw=1` for the plain log file — the pre-1.11.0 behaviour |
 | GET | `/logs/rotation` | Yes | Get log rotation config |
 | PUT | `/logs/rotation` | Yes | Update log rotation config |
 | GET | `/database/health` | Yes | Database health status |

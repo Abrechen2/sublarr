@@ -5,5 +5,6 @@
   "auto_scroll_off": "Auto-Scrollen AUS",
   "no_logs": "Keine Protokolleinträge",
   "no_logs_for_level": "Keine Protokolleinträge für Stufe {{level}}",
-  "download_log_file": "Protokolldatei herunterladen"
+  "download_support_bundle": "Support-Paket herunterladen (anonymisiert — zum Verschicken geeignet)",
+  "download_failed": "Support-Paket konnte nicht erstellt werden"
 }
