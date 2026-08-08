@@ -180,7 +180,7 @@ class SubDLProvider(SubtitleProvider):
 
     def initialize(self):
         if not self.api_key:
-            logger.warning("SubDL: no API key configured, provider will be disabled")
+            logger.info("SubDL: no API key configured, provider will be disabled")
             return
 
         logger.debug("SubDL: initializing with API key (length: %d)", len(self.api_key))

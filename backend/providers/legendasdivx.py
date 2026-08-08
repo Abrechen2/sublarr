@@ -78,7 +78,7 @@ class LegendasDivxProvider(SubtitleProvider, _LegendasDivxParseMixin):
     def initialize(self):
         """Initialize HTTP session. Login is deferred to first search (lazy auth)."""
         if not self.username or not self.password:
-            logger.warning("LegendasDivx: no credentials configured, provider will be disabled")
+            logger.info("LegendasDivx: no credentials configured, provider will be disabled")
             return
 
         logger.debug("LegendasDivx: initializing (lazy auth — login deferred to first search)")

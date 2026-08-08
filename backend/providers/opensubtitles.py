@@ -120,7 +120,7 @@ class OpenSubtitlesProvider(SubtitleProvider, _OpenSubtitlesFetchMixin):
 
     def initialize(self):
         if not self.api_key:
-            logger.warning("OpenSubtitles: no API key configured, provider will be disabled")
+            logger.info("OpenSubtitles: no API key configured, provider will be disabled")
             return
 
         logger.debug("OpenSubtitles: initializing with API key (length: %d)", len(self.api_key))

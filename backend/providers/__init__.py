@@ -197,9 +197,12 @@ class ProviderManager(SearchCoordinatorMixin, ConfigResolvingMixin, StatusReport
 
                 # Check if provider was actually initialized
                 if hasattr(provider, "session") and provider.session is None:
-                    logger.warning(
-                        "Provider %s initialized but session is None (likely missing API key)", name
-                    )
+                    # INFO, not WARNING: the provider has already logged WHY it
+                    # disabled itself, so this line is a duplicate for an expected
+                    # state. Emitting ~one WARNING per unconfigured provider on
+                    # every startup is what made `grep WARNING` worthless on logs
+                    # users send.
+                    logger.info("Provider %s not active (no credentials configured)", name)
                 else:
                     self._providers[name] = provider
                     self._circuit_breakers[name] = CircuitBreaker(
@@ -230,9 +233,12 @@ class ProviderManager(SearchCoordinatorMixin, ConfigResolvingMixin, StatusReport
 
                 # Check if provider was actually initialized
                 if hasattr(provider, "session") and provider.session is None:
-                    logger.warning(
-                        "Provider %s initialized but session is None (likely missing API key)", name
-                    )
+                    # INFO, not WARNING: the provider has already logged WHY it
+                    # disabled itself, so this line is a duplicate for an expected
+                    # state. Emitting ~one WARNING per unconfigured provider on
+                    # every startup is what made `grep WARNING` worthless on logs
+                    # users send.
+                    logger.info("Provider %s not active (no credentials configured)", name)
                 else:
                     self._providers[name] = provider
                     self._circuit_breakers[name] = CircuitBreaker(

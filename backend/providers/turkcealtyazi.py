@@ -87,7 +87,9 @@ class TurkcealtyaziProvider(SubtitleProvider):
 
     def initialize(self):
         if not self.username or not self.password:
-            logger.warning("Turkcealtyazi: username and password are required")
+            logger.info(
+                "Turkcealtyazi: username and password are required, provider will be disabled"
+            )
             return
 
         self.session = create_session(
