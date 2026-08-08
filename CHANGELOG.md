@@ -16,11 +16,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   enumeration streams instead of loading everything into memory and prunes
   excluded folders while walking rather than afterwards. A dedicated scheduler job
   is registered. The feature ships **disabled**.
-- **Log files now say where they came from.** Every log file opens with a line
-  naming the version, platform, whether it runs in a container, the database
-  backend, the deployment mode and the rotation window — and it is written again
-  on every rotation, so a rotated file explains itself too. Establishing which
-  machine an attached log came from previously took hours of guesswork.
+- **Log files now say where they came from.** A line naming the version,
+  platform, whether it runs in a container, the database backend, the deployment
+  mode and the rotation window is written when the app starts and again on every
+  rotation — so a rotated file explains itself too, and an instance that upgrades
+  with an existing log file is identifiable from the next line onwards.
+  Establishing which machine an attached log came from previously took hours of
+  guesswork.
 - **The request id now appears in the ordinary text log.** Only the error line
   carried it before, which made everything a request did *before* failing
   impossible to find.
