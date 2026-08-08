@@ -94,14 +94,10 @@ class ProviderRepository(BaseRepository):
     def get_provider_cache_stats(self) -> dict:
         """Get aggregated cache stats per provider (total entries, active/expired)."""
         now = datetime.now(UTC)
-        (
-            select(
-                ProviderCache.provider_name,
-                func.count().label("total"),
-                func.sum(func.cast(ProviderCache.expires_at > now, type_=None)).label("active"),
-            ).group_by(ProviderCache.provider_name)
-        )
-        # Use manual approach for SQLite compatibility
+        # Counted in Python rather than with a SQL GROUP BY: the aggregate form
+        # needs a boolean-to-integer cast that SQLite and Postgres spell
+        # differently, and the row count here is small enough that the manual
+        # pass is not worth a dialect branch.
         all_entries = self.session.execute(
             select(ProviderCache.provider_name, ProviderCache.expires_at)
         ).all()
