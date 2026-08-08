@@ -83,6 +83,33 @@ def _clamped_int_setting(settings, name: str, default: int, low: int, high: int)
     return max(low, min(value, high))
 
 
+def rotated_log_candidates(settings=None) -> list[str]:
+    """The active log file plus one path per configured backup, newest first.
+
+    Every consumer that reads log history — the support ZIP, the top-error
+    parser, the redaction preview — must agree with the handler about how many
+    rotated files exist. They each hardcoded a depth of 3, which was correct
+    only while ``backupCount`` was itself hardcoded to 3; once rotation became
+    user-configurable the bundle silently dropped everything from ``.4`` on.
+
+    Paths are returned whether or not they exist: callers already skip missing
+    files, and probing here would race with a rollover happening mid-read.
+    """
+    if settings is None:
+        from config import get_settings
+
+        settings = get_settings()
+    log_file = getattr(settings, "log_file", "log/sublarr.log")
+    backup_count = _clamped_int_setting(
+        settings,
+        "log_backup_count",
+        LOG_BACKUP_COUNT_DEFAULT,
+        LOG_BACKUP_COUNT_MIN,
+        LOG_BACKUP_COUNT_MAX,
+    )
+    return [log_file] + [f"{log_file}.{i}" for i in range(1, backup_count + 1)]
+
+
 class StructuredJSONFormatter(logging.Formatter):
     """JSON log formatter for structured logging (ELK, Loki, etc.)."""
 

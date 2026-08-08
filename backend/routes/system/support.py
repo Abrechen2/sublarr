@@ -115,9 +115,8 @@ def _extract_top_errors(max_errors: int = 10) -> list[dict]:
     import collections as _coll
     import datetime as _dt3
 
-    from config import get_settings as _gs3
+    from app_logging import rotated_log_candidates
 
-    log_path = getattr(_gs3(), "log_file", "log/sublarr.log")
     cutoff = _dt3.datetime.now() - _dt3.timedelta(hours=24)
 
     _ts_re = re.compile(r"^(\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}),\d+\s+\[(ERROR|WARNING)\]")
@@ -138,7 +137,7 @@ def _extract_top_errors(max_errors: int = 10) -> list[dict]:
     except Exception:
         hostname = None
 
-    candidates = [log_path] + [f"{log_path}.{i}" for i in range(1, 4)]
+    candidates = rotated_log_candidates()
     for path in candidates:
         try:
             with open(path, encoding="utf-8", errors="replace") as fh:
@@ -320,9 +319,10 @@ def support_export():
     if not _is_support_caller_authorized():
         return jsonify({"error": "Unauthorized"}), 401
 
+    from app_logging import rotated_log_candidates
+
     _s = get_settings()
-    log_path = getattr(_s, "log_file", "log/sublarr.log")
-    candidates = [log_path] + [f"{log_path}.{i}" for i in range(1, 4)]
+    candidates = rotated_log_candidates(_s)
     ts = datetime.now(UTC).strftime("%Y-%m-%dT%H-%M-%SZ")
     zip_name = f"sublarr-support-{ts}.zip"
 
@@ -437,11 +437,12 @@ def support_preview():
     if not _is_support_caller_authorized():
         return jsonify({"error": "Unauthorized"}), 401
 
+    from app_logging import rotated_log_candidates
+
     _s = get_settings()
     diagnostic = _build_diagnostic()
 
-    log_path = getattr(_s, "log_file", "log/sublarr.log")
-    candidates = [log_path] + [f"{log_path}.{i}" for i in range(1, 4)]
+    candidates = rotated_log_candidates(_s)
 
     counts: collections.Counter = collections.Counter()
     path_example: tuple[str, str] | None = None

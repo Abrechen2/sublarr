@@ -17,7 +17,12 @@ from types import SimpleNamespace
 
 import pytest
 
-from app_logging import SocketIOLogHandler, _setup_logging
+from app_logging import (
+    LOG_BACKUP_COUNT_DEFAULT,
+    LOG_BACKUP_COUNT_MAX,
+    SocketIOLogHandler,
+    _setup_logging,
+)
 
 
 @pytest.fixture
@@ -87,6 +92,58 @@ def test_websocket_handler_never_forwards_below_info(restore_root_logger, tmp_pa
     ws_handlers = [h for h in logging.getLogger().handlers if isinstance(h, SocketIOLogHandler)]
     assert ws_handlers, "SocketIOLogHandler must be installed"
     assert all(h.level >= logging.INFO for h in ws_handlers)
+
+
+class TestRotatedLogPaths:
+    """Consumers of the rotated log files must follow the configured backup count.
+
+    `routes/system/support.py` hardcoded `range(1, 4)` in three places — the
+    top-error parser, the support ZIP, and the redaction preview. That matched
+    exactly while backupCount was itself hardcoded to 3. Once rotation became
+    configurable (default 5, up to 20), all three silently skipped every file
+    from `.4` on, so the support bundle a user sends would be missing log
+    history that exists on disk.
+    """
+
+    def test_lists_the_active_file_plus_one_entry_per_backup(self, tmp_path):
+        from app_logging import rotated_log_candidates
+
+        settings = _settings(tmp_path)
+        settings.log_backup_count = 5
+        paths = rotated_log_candidates(settings)
+
+        base = str(tmp_path / "sublarr.log")
+        assert paths == [base] + [f"{base}.{i}" for i in range(1, 6)]
+
+    def test_follows_a_raised_backup_count(self, tmp_path):
+        from app_logging import rotated_log_candidates
+
+        settings = _settings(tmp_path)
+        settings.log_backup_count = 20
+        assert len(rotated_log_candidates(settings)) == 21
+
+    def test_applies_the_same_clamping_as_the_handler(self, tmp_path):
+        # A junk value must not produce a zero-length or absurd candidate list.
+        from app_logging import rotated_log_candidates
+
+        settings = _settings(tmp_path)
+        settings.log_backup_count = 999
+        assert len(rotated_log_candidates(settings)) == 1 + LOG_BACKUP_COUNT_MAX
+
+        settings.log_backup_count = "nonsense"
+        assert len(rotated_log_candidates(settings)) == 1 + LOG_BACKUP_COUNT_DEFAULT
+
+    def test_support_module_does_not_hardcode_a_rotation_depth(self):
+        """Guard the actual defect: a literal range(1, 4) over the log path."""
+        from pathlib import Path
+
+        import routes.system.support as support_mod
+
+        source = Path(support_mod.__file__).read_text(encoding="utf-8")
+        assert "range(1, 4)" not in source, (
+            "support.py must derive rotated log paths from the configured backup "
+            "count, not a hardcoded depth"
+        )
 
 
 def test_logging_config_keys_cover_every_log_setting():
