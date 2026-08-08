@@ -11,7 +11,68 @@ from logging.handlers import RotatingFileHandler
 
 from extensions import socketio
 
-LOG_FORMAT = "%(asctime)s [%(levelname)s] %(name)s: %(message)s"
+# `[%(request_id)s]` sits AFTER the level and BEFORE the logger name on purpose.
+# Two consumers parse these lines with anchored regexes — support._extract_top_errors
+# matches `^<ts>,\d+\s+\[(ERROR|WARNING)\]\s+[^:]+:` and the frontend Logs page
+# tests `line.includes('[ERROR]')`. Placing the id before the level would break
+# the first; placing it in this slot leaves both intact, because `[^:]+` happily
+# spans `[<id>] <logger>` and the request id never contains a colon.
+LOG_FORMAT = "%(asctime)s [%(levelname)s] [%(request_id)s] %(name)s: %(message)s"
+
+# Rendered for any record logged outside a Flask request context — scheduler
+# ticks, background threads, third-party libraries.
+NO_REQUEST_ID = "-"
+
+
+def _current_request_id() -> str:
+    """The active request's id, or a placeholder outside a request context."""
+    if not _has_app_context():
+        return NO_REQUEST_ID
+    try:
+        from flask import g
+
+        return str(getattr(g, "request_id", NO_REQUEST_ID) or NO_REQUEST_ID)
+    except Exception:
+        return NO_REQUEST_ID
+
+
+class RequestIdFilter(logging.Filter):
+    """Backstop that guarantees `record.request_id` exists before formatting.
+
+    The record factory below covers everything logged through the normal
+    `Logger.*` path. This filter covers what it cannot: records built by direct
+    `logging.LogRecord(...)` construction, which bypasses the factory entirely.
+    Without one of the two, `%(request_id)s` raises inside `Formatter.format`,
+    the record is dropped, and the traceback goes to stderr — a logging change
+    that loses logs.
+    """
+
+    def filter(self, record: logging.LogRecord) -> bool:
+        if not hasattr(record, "request_id"):
+            record.request_id = _current_request_id()
+        return True
+
+
+def _install_request_id_factory() -> None:
+    """Make every record carry `request_id`, idempotently.
+
+    Idempotence is not optional here: _setup_logging runs again on every config
+    save and on the startup DB overlay, and a wrapper installed per call would
+    nest N deep. The marker attribute makes re-installation a no-op.
+    """
+    existing = logging.getLogRecordFactory()
+    if getattr(existing, "_sublarr_request_id", False):
+        return
+
+    def factory(*args, **kwargs):
+        record = existing(*args, **kwargs)
+        if not hasattr(record, "request_id"):
+            record.request_id = _current_request_id()
+        return record
+
+    factory._sublarr_request_id = True  # type: ignore[attr-defined]
+    logging.setLogRecordFactory(factory)
+
 
 # Noisy third-party loggers stay capped regardless of the user-selected level.
 # rebulk (guessit's rule engine) emits ~155 DEBUG records per filename parse;
@@ -308,6 +369,9 @@ def _setup_logging(settings) -> None:
     duplicated log lines.
     """
     log_level = getattr(logging, settings.log_level.upper(), logging.INFO)
+    # Before basicConfig: LOG_FORMAT references %(request_id)s, and the handler
+    # basicConfig installs would format records that do not have it yet.
+    _install_request_id_factory()
     logging.basicConfig(level=log_level, format=LOG_FORMAT)
 
     root = logging.getLogger()
@@ -383,3 +447,10 @@ def _setup_logging(settings) -> None:
     ws_handler.setLevel(max(log_level, logging.INFO))
     ws_handler.setFormatter(logging.Formatter(LOG_FORMAT))
     root.addHandler(ws_handler)
+
+    # Every handler on root, not just ours: basicConfig installs a console
+    # StreamHandler using LOG_FORMAT too, and a record reaching it without
+    # `request_id` would raise inside Formatter.format.
+    for handler in root.handlers:
+        if not any(isinstance(f, RequestIdFilter) for f in handler.filters):
+            handler.addFilter(RequestIdFilter())

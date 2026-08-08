@@ -94,6 +94,81 @@ def test_websocket_handler_never_forwards_below_info(restore_root_logger, tmp_pa
     assert all(h.level >= logging.INFO for h in ws_handlers)
 
 
+class TestRequestIdInTextFormat:
+    """A request's ordinary lines must be correlatable, not just its error line.
+
+    request_id was assigned per request and stored on flask.g, but only
+    interpolated by hand into error messages. The default text format — the one
+    users actually send — carried it nowhere, so an error could be traced back
+    to its request id while everything that request did before failing could
+    not be found.
+
+    The trap this guards: `%(request_id)s` raises while FORMATTING any record
+    that lacks the attribute, which is every record from a thread, the
+    scheduler, or a third-party library. A formatting error inside logging is
+    especially bad — the record is lost and the traceback goes to stderr.
+    """
+
+    def _lines(self, tmp_path):
+        return (tmp_path / "sublarr.log").read_text(encoding="utf-8").splitlines()
+
+    def test_format_carries_the_request_id(self):
+        from app_logging import LOG_FORMAT
+
+        assert "%(request_id)s" in LOG_FORMAT
+
+    def test_records_outside_a_request_get_a_placeholder(self, restore_root_logger, tmp_path):
+        _setup_logging(_settings(tmp_path, "INFO"))
+        logging.getLogger("services.scheduler.ticks").info("scheduler tick")
+
+        line = [ln for ln in self._lines(tmp_path) if "scheduler tick" in ln][0]
+        assert "[-]" in line
+
+    def test_records_inside_a_request_carry_its_id(self, restore_root_logger, tmp_path):
+        from flask import Flask, g
+
+        _setup_logging(_settings(tmp_path, "INFO"))
+        app = Flask(__name__)
+        with app.test_request_context("/api/v1/wanted"):
+            g.request_id = "abc123def456"
+            logging.getLogger("routes.wanted").info("listing wanted")
+
+        line = [ln for ln in self._lines(tmp_path) if "listing wanted" in ln][0]
+        assert "abc123def456" in line
+
+    def test_a_directly_constructed_record_still_formats(self, restore_root_logger, tmp_path):
+        # Bypasses the LogRecord factory entirely, the way a library that builds
+        # its own records does. Must not raise, and must not lose the record.
+        _setup_logging(_settings(tmp_path, "INFO"))
+        handler = _rotating_handler()
+        record = logging.LogRecord(
+            "third_party", logging.WARNING, __file__, 1, "raw record", None, None
+        )
+        handler.handle(record)
+
+        assert any("raw record" in ln for ln in self._lines(tmp_path))
+
+    def test_repeated_setup_does_not_nest_the_factory(self, restore_root_logger, tmp_path):
+        # _setup_logging runs on every config save and on startup re-apply.
+        # A factory wrapper installed each time would stack N deep.
+        for _ in range(3):
+            _setup_logging(_settings(tmp_path, "INFO"))
+        logging.getLogger("probe").info("after three setups")
+
+        line = [ln for ln in self._lines(tmp_path) if "after three setups" in ln][0]
+        assert line.count("[-]") == 1
+
+    def test_fingerprint_survives_the_new_format(self, restore_root_logger, tmp_path):
+        # The interaction that would otherwise break silently: the fingerprint is
+        # written by calling handler.format() directly, bypassing handler filters,
+        # so it must still obtain a request_id from somewhere or vanish into the
+        # swallow-all except in _write_fingerprint.
+        _setup_logging(_settings(tmp_path, "INFO"))
+
+        first = self._lines(tmp_path)[0]
+        assert "sublarr-instance:" in first, "the fingerprint must survive the format change"
+
+
 class TestLogFingerprint:
     """The log file must identify the instance that produced it.
 
