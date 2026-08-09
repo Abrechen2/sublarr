@@ -5,6 +5,7 @@ from __future__ import annotations
 import logging
 import os
 
+from services.scheduler.cancellation import abort_requested
 from services.subtitle_health import store
 from services.subtitle_health.apply import apply_fix
 from services.subtitle_health.scan import scan_episode
@@ -59,15 +60,32 @@ def subtitle_health_sweep_tick() -> None:
     if client is None:
         return
     auto = _auto_fix_enabled()
+    scanned = 0
     for series in client.get_series() or []:
+        if abort_requested():
+            logger.info(
+                "subtitle_health sweep: stopping as asked after %d episode(s)", scanned
+            )
+            return
         sid = series.get("id")
         for ep in client.get_episodes(sid) or []:
+            # One episode is the unit of work: the ffprobe and any extraction
+            # inside scan_episode cannot be interrupted, so a stop takes effect
+            # between episodes. This sweep is why cancellation exists — without
+            # the check it ran sixteen hours past its ceiling, one stream index
+            # at a time, and a container restart was the only way to end it.
+            if abort_requested():
+                logger.info(
+                    "subtitle_health sweep: stopping as asked after %d episode(s)", scanned
+                )
+                return
             ep_id = ep.get("id")
             path = client.get_episode_file_path(ep_id) if ep_id else None
             if not path or not os.path.exists(path):
                 continue
             try:
                 scan_episode(episode_id=ep_id, video_path=path)
+                scanned += 1
             except Exception:
                 logger.exception("subtitle_health sweep: scan failed ep %s", ep_id)
                 continue

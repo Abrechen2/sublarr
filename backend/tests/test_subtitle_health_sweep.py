@@ -3,6 +3,53 @@ from unittest.mock import MagicMock, patch
 from services.subtitle_health import sweep
 
 
+def test_sweep_stops_at_the_next_episode_when_asked(app_ctx):
+    """This is the job that ran sixteen hours past its ceiling (#183, bug 3).
+
+    The sweep walks every episode of every series and ffprobes each one, so a
+    stop can only take effect between episodes — that is the unit, and the test
+    pins exactly that: the episode being scanned when the request arrives is
+    allowed to finish, the next one is never started.
+
+    The tick is driven for real here. A test that looped over its own list and
+    checked the flag itself would pass whether or not `subtitle_health_sweep_tick`
+    ever asks.
+    """
+    import threading
+
+    from services.scheduler import cancellation
+
+    client = MagicMock()
+    client.get_series.return_value = [{"id": 1}]
+    client.get_episodes.return_value = [{"id": 11}, {"id": 12}, {"id": 13}]
+    client.get_episode_file_path.side_effect = lambda ep_id: f"/m/e{ep_id}.mkv"
+
+    scanned: list[int] = []
+    event = threading.Event()
+
+    def fake_scan(*, episode_id, video_path):
+        scanned.append(episode_id)
+        event.set()  # the stop arrives while the first episode is in flight
+
+    token = cancellation.activate(event)
+    try:
+        with (
+            patch("services.subtitle_health.sweep.get_sonarr_client", return_value=client),
+            patch("services.subtitle_health.sweep.os.path.exists", return_value=True),
+            patch("services.subtitle_health.sweep.scan_episode", side_effect=fake_scan),
+            patch("services.subtitle_health.sweep._auto_fix_enabled", return_value=False),
+        ):
+            sweep.subtitle_health_sweep_tick()
+    finally:
+        cancellation.deactivate(token)
+
+    assert scanned == [11], (
+        f"the sweep kept going after being asked to stop: scanned {scanned}. "
+        "Without a check point the run is recorded as abandoned and the library "
+        "reads continue until the container restarts."
+    )
+
+
 def test_sweep_reports_only_by_default(app_ctx):
     client = MagicMock()
     client.get_series.return_value = [{"id": 1}]
