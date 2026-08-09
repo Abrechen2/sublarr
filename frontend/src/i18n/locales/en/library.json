@@ -524,6 +524,8 @@
     "attempts_one": "{{count}} attempt",
     "attempts_other": "{{count}} attempts",
     "next_retry": "Next retry in {{countdown}}",
+    "parked": "Parked · in {{when}}",
+    "parked_title": "The scheduler skips this item until its wait window elapses. Release it now with the “Reset search attempts” batch action.",
     "col_type": "Type",
     "col_lang": "Lang",
     "target": "Target",

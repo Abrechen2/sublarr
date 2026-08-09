@@ -22,6 +22,43 @@ export function formatRetryCountdown(retryAfter: string | null): string | null {
   return hours > 0 ? `${hours}h ${minutes}m` : `${minutes}m`
 }
 
+/**
+ * How long an item is parked, in a unit a human reads at a glance.
+ *
+ * `formatRetryCountdown` speaks hours and minutes, which is right for the
+ * short adaptive backoff and useless for slow mode: a 30-day window renders as
+ * "720h 0m". Days below a day would be equally wrong, so each range keeps its
+ * own unit.
+ */
+export function formatParkedFor(retryAfter: string | null): string | null {
+  if (!retryAfter) return null
+  const diff = new Date(retryAfter).getTime() - Date.now()
+  if (diff <= 0) return null
+  if (diff < 86_400_000) return formatRetryCountdown(retryAfter)
+  return `${String(Math.round(diff / 86_400_000))}d`
+}
+
+/**
+ * Marks an item the scheduler will not touch yet.
+ *
+ * Without this the parked portion of a queue was invisible on the list — the
+ * state lived only inside the dry-run modal, one item at a time — so a queue
+ * idling after an outage looked exactly like a queue that was still broken.
+ */
+export function ParkedBadge({ retryAfter }: { retryAfter: string | null }) {
+  const { t } = useTranslation('library')
+  const when = formatParkedFor(retryAfter)
+  if (!when) return null
+  return (
+    <span
+      className="inline-flex items-center rounded-full bg-elevated px-1.5 py-0.5 text-[10px] font-medium text-muted"
+      title={t('wanted_row.parked_title')}
+    >
+      {t('wanted_row.parked', { when })}
+    </span>
+  )
+}
+
 interface FailureReasonRowProps {
   error: string
   retryAfter: string | null
@@ -457,6 +494,7 @@ export function WantedTableRow({
             <div className="flex items-center gap-1.5">
               <StatusBadge status={item.status} />
               <SubtitleTypeBadge subtitleType={item.subtitle_type} />
+              {item.status !== 'found' && <ParkedBadge retryAfter={item.retry_after} />}
             </div>
             {item.status === 'failed' && (
               <FailureReasonRow

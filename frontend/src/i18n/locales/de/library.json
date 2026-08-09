@@ -524,6 +524,8 @@
     "attempts_one": "{{count}} Versuch",
     "attempts_other": "{{count}} Versuche",
     "next_retry": "Nächster Versuch in {{countdown}}",
+    "parked": "Pausiert · in {{when}}",
+    "parked_title": "Der Planer überspringt diesen Eintrag bis zum Ablauf des Wartefensters. Über die Stapelaktion „Suchversuche zurücksetzen“ sofort freigeben.",
     "col_type": "Typ",
     "col_lang": "Sprache",
     "target": "Ziel",

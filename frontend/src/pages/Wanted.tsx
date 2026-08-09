@@ -31,7 +31,12 @@ import { WantedFilterPanel } from './wanted/WantedFilterPanel'
 import { WantedGroupedRow } from './wanted/WantedGroupedRow'
 import type { WantedGroup } from '@/types/wanted'
 // Re-exported for backward compat — existing tests import from here.
-export { FailureReasonRow, formatRetryCountdown } from './wanted/WantedTableRow'
+export {
+  FailureReasonRow,
+  formatRetryCountdown,
+  formatParkedFor,
+  ParkedBadge,
+} from './wanted/WantedTableRow'
 
 const SCOPE = 'wanted' as const
 
