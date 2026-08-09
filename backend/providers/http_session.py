@@ -104,7 +104,10 @@ class RetryingSession(requests.Session):
         if resp.status_code in (401, 403):
             from providers.base import ProviderAuthError
 
-            raise ProviderAuthError(f"Authentication failed for {url}: HTTP {resp.status_code}")
+            raise ProviderAuthError(
+                f"Authentication failed for {url}: HTTP {resp.status_code}",
+                status_code=resp.status_code,
+            )
 
         # Check remaining rate limit headers
         remaining = resp.headers.get("X-RateLimit-Remaining") or resp.headers.get(

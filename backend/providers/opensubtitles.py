@@ -10,12 +10,14 @@ License: GPL-3.0
 import contextlib
 import logging
 import os
+import threading
 from typing import ClassVar
 
 from werkzeug.utils import secure_filename as _secure_filename
 
 from providers import _stream_download, register_provider
 from providers.base import (
+    ProviderAuthError,
     ProviderError,
     ProviderRateLimitError,
     SubtitleProvider,
@@ -117,6 +119,8 @@ class OpenSubtitlesProvider(SubtitleProvider, _OpenSubtitlesFetchMixin):
         self.password = password
         self.session = None
         self._token: str | None = None
+        self._token_generation = 0
+        self._token_refresh_lock = threading.Lock()
 
     def initialize(self):
         if not self.api_key:
@@ -153,7 +157,7 @@ class OpenSubtitlesProvider(SubtitleProvider, _OpenSubtitlesFetchMixin):
             logger.warning("OpenSubtitles: tier detection failed, defaulting to free: %s", e)
             self.tier = "free"
 
-    def _login(self):
+    def _login(self, *, refresh: bool = False) -> bool:
         """Authenticate to get a user token (higher rate limits)."""
         try:
             resp = self.session.post(
@@ -165,14 +169,64 @@ class OpenSubtitlesProvider(SubtitleProvider, _OpenSubtitlesFetchMixin):
             )
             if resp.status_code == 200:
                 data = resp.json()
-                self._token = data.get("token")
-                if self._token:
+                token = data.get("token")
+                if token:
+                    self._token = token
                     self.session.headers["Authorization"] = f"Bearer {self._token}"
-                    logger.info("OpenSubtitles: logged in as %s", self.username)
+                    if refresh:
+                        logger.info("OpenSubtitles: refreshed download token for %s", self.username)
+                    else:
+                        logger.info("OpenSubtitles: logged in as %s", self.username)
+                    return True
+                logger.warning("OpenSubtitles login failed: token missing")
             else:
                 logger.warning("OpenSubtitles login failed: %s", resp.status_code)
         except Exception as e:
             logger.warning("OpenSubtitles login error: %s", e)
+        return False
+
+    def _refresh_download_token_after_auth_error(
+        self, failed_token: str | None, failed_generation: int
+    ) -> bool:
+        """Re-authenticate once after a 401, and return whether a token is now held.
+
+        Several download workers share this provider instance, so a token that
+        expires takes every in-flight download down at the same moment. Without
+        coordination each of them would log in, and the last one to write the
+        header would leave the others holding a bearer that is already replaced.
+
+        The caller passes the token and generation it *failed with*. Under the
+        lock, a differing generation means another thread already did the work,
+        so this one simply reports whether a token exists and retries with it.
+        The generation advances even when the login fails, so the threads
+        queued behind a genuinely bad credential do not each try again — they
+        see the new generation, find no token, and let their original error
+        surface, which is what opens the circuit breaker.
+        """
+        if not self.username or not self.password:
+            return False
+
+        with self._token_refresh_lock:
+            if self._token_generation != failed_generation:
+                return bool(self._token)
+            if self._token and self._token != failed_token:
+                return True
+
+            # Search works with only Api-Key, but /download also needs the expiring JWT.
+            # A 401 here means the cached bearer must not poison future download attempts.
+            self._token = None
+            self.session.headers.pop("Authorization", None)
+            refreshed = self._login(refresh=True)
+            self._token_generation += 1
+            return refreshed
+
+    def _request_download_link(self, file_id: str):
+        return self.session.post(
+            f"{API_BASE}/download",
+            json={
+                "file_id": file_id,
+            },
+        )
 
     def detect_tier(self, *, force: bool = False) -> str:
         """Query /api/v1/infos/user to determine the current account tier.
@@ -373,12 +427,20 @@ class OpenSubtitlesProvider(SubtitleProvider, _OpenSubtitlesFetchMixin):
             raise ValueError("No file_id in provider_data")
 
         # Request download link
-        resp = self.session.post(
-            f"{API_BASE}/download",
-            json={
-                "file_id": file_id,
-            },
-        )
+        token_before_request = self._token
+        generation_before_request = self._token_generation
+        try:
+            resp = self._request_download_link(file_id)
+        except ProviderAuthError as auth_error:
+            # 401 only. A 403 means the account may not have this file, and
+            # logging in again would just spend a request to be told so twice.
+            if auth_error.status_code != 401:
+                raise
+            if not self._refresh_download_token_after_auth_error(
+                token_before_request, generation_before_request
+            ):
+                raise
+            resp = self._request_download_link(file_id)
 
         if resp.status_code == 406:
             # 406 = daily download quota exhausted

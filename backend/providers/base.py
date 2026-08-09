@@ -20,9 +20,21 @@ class ProviderError(Exception):
 
 
 class ProviderAuthError(ProviderError):
-    """Authentication or authorization failed."""
+    """Authentication or authorization failed.
 
-    pass
+    ``status_code`` carries the HTTP status when the failure came from a
+    response. Callers need it to tell an expired credential (401 — worth one
+    silent re-login) from a forbidden resource (403 — re-authenticating changes
+    nothing). Without it the only discriminator is the message text, which
+    makes a recovery path depend on the wording of a log string somewhere else.
+
+    It stays optional: most providers raise this from their own login handling,
+    where there is no response status to attach.
+    """
+
+    def __init__(self, message: str = "", status_code: int | None = None):
+        super().__init__(message)
+        self.status_code = status_code
 
 
 class ProviderRateLimitError(ProviderError):

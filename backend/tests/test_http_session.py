@@ -194,6 +194,32 @@ class TestRetryingSessionAuth:
         with pytest.raises(ProviderAuthError, match="HTTP 403"):
             session.request("GET", "https://example.com")
 
+    @pytest.mark.parametrize("status", [401, 403])
+    @patch.object(requests.Session, "request")
+    def test_the_status_travels_on_the_error(self, mock_request, status):
+        """Callers recover differently from 401 and 403, and need to tell them apart.
+
+        OpenSubtitles re-logs-in and retries once on 401, because its download
+        token expires after 24h while search keeps working on the API key alone.
+        On 403 it must not: the account simply may not have that file, and a
+        second login only spends a request to be refused again.
+
+        This assertion is the contract that makes that possible. Without the
+        status on the exception the only discriminator is the message text, so
+        rewording the line below would silently disable the recovery — and the
+        provider's own tests, which build the exception themselves, would not
+        notice.
+        """
+        from providers.base import ProviderAuthError
+
+        mock_request.return_value = MagicMock(status_code=status, headers={})
+        session = RetryingSession()
+
+        with pytest.raises(ProviderAuthError) as excinfo:
+            session.request("GET", "https://example.com")
+
+        assert excinfo.value.status_code == status
+
 
 # ---------------------------------------------------------------------------
 # RetryingSession.request — X-RateLimit headers
