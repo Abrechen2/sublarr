@@ -76,6 +76,15 @@ def test_provider(provider_name):
             schema:
               type: object
               properties:
+                test_download:
+                  type: boolean
+                  description: >
+                    Fetch one real subtitle from the top search result and
+                    discard it, to exercise the download path. Requires
+                    `test_search`. Nothing is stored and no statistics are
+                    recorded. Worth using because a provider can pass every
+                    search while its download path is dead — search and
+                    download use different credentials.
                 test_search:
                   type: boolean
                   default: false
@@ -205,6 +214,53 @@ def test_provider(provider_name):
                     "error": "search_failed",
                     "message": str(e),
                 }
+
+            # Optional download test — only meaningful on top of a search.
+            #
+            # A search-only test passes while the download path is dead, and
+            # that is not hypothetical: an OpenSubtitles token expires after
+            # 24h while search keeps working on the API key alone, which hid a
+            # three-day outage. Fetching one real subtitle is the only way to
+            # answer the question people press this button to answer.
+            #
+            # Nothing is recorded and nothing is written to disk: the bytes are
+            # measured and dropped. A test that bumped `successful_downloads`
+            # would inflate the very counter an operator reads to decide
+            # whether downloads work.
+            if data.get("test_download"):
+                found = result.get("search_test", {}).get("success") and search_results
+                if not found:
+                    result["download_test"] = {
+                        "success": False,
+                        "error": "no_results_to_download",
+                        "message": "The search returned nothing, so there was nothing to fetch.",
+                    }
+                else:
+                    try:
+                        payload = provider.download(search_results[0])
+                        result["download_test"] = {
+                            "success": True,
+                            "bytes": len(payload or b""),
+                            "filename": search_results[0].filename,
+                        }
+                    except ProviderAuthError as e:
+                        result["download_test"] = {
+                            "success": False,
+                            "error": "authentication_failed",
+                            "message": str(e),
+                        }
+                    except ProviderRateLimitError as e:
+                        result["download_test"] = {
+                            "success": False,
+                            "error": "rate_limit_exceeded",
+                            "message": str(e),
+                        }
+                    except Exception as e:
+                        result["download_test"] = {
+                            "success": False,
+                            "error": "download_failed",
+                            "message": str(e),
+                        }
 
         return jsonify(result)
     except Exception:

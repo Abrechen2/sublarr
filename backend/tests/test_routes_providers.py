@@ -288,3 +288,106 @@ def test_clear_cache_specific_provider(client):
     assert resp.status_code == 200
     assert data["provider"] == "animetosho"
     mock_clear.assert_called_once_with("animetosho")
+
+
+# ---------------------------------------------------------------------------
+# POST /api/v1/providers/test/<name> with test_download (#185)
+# ---------------------------------------------------------------------------
+
+
+def _searchable_provider(results):
+    prov = MagicMock()
+    prov.health_check.return_value = (True, "OK")
+    prov.session = MagicMock()
+    prov.search.return_value = results
+    return prov
+
+
+def _result(filename="Show.S01E01.en.srt"):
+    from providers.base import SubtitleFormat, SubtitleResult
+
+    r = SubtitleResult(
+        provider_name="opensubtitles",
+        subtitle_id="1",
+        language="en",
+        filename=filename,
+        format=SubtitleFormat.SRT,
+    )
+    r.score = 90
+    return r
+
+
+def test_download_test_exercises_the_download_path(client, mock_provider_manager):
+    """A search-only test shows green while the download path is dead.
+
+    That asymmetry is real — an OpenSubtitles token expires after 24h while
+    search keeps working on the API key alone — so a provider test that only
+    searches cannot answer the question people run it to answer.
+    """
+    prov = _searchable_provider([_result()])
+    prov.download.return_value = b"1\n00:00:01,000 --> 00:00:02,000\nhi\n"
+    mock_provider_manager._providers = {"opensubtitles": prov}
+
+    resp = client.post(
+        "/api/v1/providers/test/opensubtitles",
+        json={"test_search": True, "test_download": True, "query": {"title": "Test"}},
+    )
+
+    data = resp.get_json()
+    assert resp.status_code == 200
+    assert data["download_test"]["success"] is True
+    assert data["download_test"]["bytes"] > 0
+    assert prov.download.call_count == 1
+
+
+def test_download_test_reports_an_expired_token_distinctly(client, mock_provider_manager):
+    """The 401-after-24h case must be named, not folded into "failed"."""
+    from providers.base import ProviderAuthError
+
+    prov = _searchable_provider([_result()])
+    prov.download.side_effect = ProviderAuthError(
+        "Authentication failed: HTTP 401", status_code=401
+    )
+    mock_provider_manager._providers = {"opensubtitles": prov}
+
+    resp = client.post(
+        "/api/v1/providers/test/opensubtitles",
+        json={"test_search": True, "test_download": True},
+    )
+
+    data = resp.get_json()
+    assert data["download_test"]["success"] is False
+    assert data["download_test"]["error"] == "authentication_failed"
+
+
+def test_download_test_says_so_when_the_search_found_nothing(client, mock_provider_manager):
+    """No result is not a download failure — reporting it as one would send
+    someone hunting credentials over an empty search."""
+    prov = _searchable_provider([])
+    mock_provider_manager._providers = {"opensubtitles": prov}
+
+    resp = client.post(
+        "/api/v1/providers/test/opensubtitles",
+        json={"test_search": True, "test_download": True},
+    )
+
+    data = resp.get_json()
+    assert data["download_test"]["success"] is False
+    assert data["download_test"]["error"] == "no_results_to_download"
+    assert prov.download.call_count == 0
+
+
+def test_download_test_writes_no_history(client, mock_provider_manager):
+    """The test must not look like a real download afterwards: it would inflate
+    the very counters an operator reads to judge whether downloads work."""
+    prov = _searchable_provider([_result()])
+    prov.download.return_value = b"payload"
+    mock_provider_manager._providers = {"opensubtitles": prov}
+
+    with patch("db.providers.record_download") as recorded:
+        client.post(
+            "/api/v1/providers/test/opensubtitles",
+            json={"test_search": True, "test_download": True},
+        )
+
+    assert recorded.call_count == 0
