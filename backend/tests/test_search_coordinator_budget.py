@@ -9,6 +9,7 @@ Covers the budget-gate block added to providers/search_coordinator.py:
 
 from __future__ import annotations
 
+import logging
 from unittest.mock import MagicMock
 
 import pytest
@@ -32,18 +33,34 @@ def _make_result(provider_name: str = "test_provider") -> SubtitleResult:
     )
 
 
-def _make_provider(name: str = "test_provider", tier: str = "free", rate_limits=None):
-    """Build a lightweight fake provider with tier + rate_limits on its class.
+def _make_provider(
+    name: str = "test_provider",
+    tier: str = "free",
+    rate_limits=None,
+    config_fields=None,
+):
+    """Build a lightweight fake provider with gate metadata on its class.
 
-    The gate reads ``type(provider).rate_limits`` so a real class with that
-    ClassVar is required (a bare ``MagicMock().rate_limits`` would be read via
-    ``type(mock).rate_limits`` and return a MagicMock, not a dict).
+    The gate reads ``type(provider).rate_limits`` / ``type(provider).config_fields``
+    so a real class with ClassVars is required (a bare ``MagicMock`` would be read
+    via ``type(mock)`` and return a MagicMock, not declarative provider metadata).
     """
     _rate_limits = rate_limits or {"free": {"second": 5, "hour": 200, "day": 1000}}
+    _config_fields = config_fields
+    if _config_fields is None:
+        _config_fields = [
+            {
+                "key": f"{name}_api_key",
+                "label": "API Key",
+                "type": "password",
+                "required": True,
+            }
+        ]
     _result = _make_result(name)
 
     class _FakeProvider:
         rate_limits = _rate_limits
+        config_fields = _config_fields
 
         def __init__(self):
             self.name = name
@@ -292,6 +309,76 @@ class TestRecord429Hook:
 
 class TestKeySelectorIntegration:
     """Phase 4a: SearchCoordinator routes each call through KeySelector."""
+
+    def test_keyless_provider_without_pool_rows_searches_anonymously(
+        self, app_ctx, monkeypatch, budget_allows, caplog
+    ):
+        provider = _make_provider("gestdown", config_fields=[])
+        manager = _build_manager(monkeypatch, provider)
+        monkeypatch.setattr(
+            "providers.search_coordinator.get_budget_manager", lambda: budget_allows
+        )
+        ks_mock = MagicMock()
+        ks_mock.pick.return_value = None
+        ks_mock.has_pool_rows.return_value = False
+        monkeypatch.setattr("providers.search_coordinator.get_key_selector", lambda: ks_mock)
+        skipped = MagicMock()
+        monkeypatch.setattr("providers.search_coordinator.decision_log.provider_skipped", skipped)
+        caplog.set_level(logging.WARNING, logger="providers.search_coordinator")
+
+        results = manager.search(_make_query())
+
+        provider.search.assert_called_once()
+        assert [result.provider_name for result in results] == ["gestdown"]
+        budget_allows.consume.assert_called_once_with("gestdown", key_id=None)
+        skipped.assert_not_called()
+        assert "no usable key in pool" not in caplog.text
+
+    def test_credentialed_provider_without_pool_rows_is_still_skipped(
+        self, app_ctx, monkeypatch, budget_allows, caplog
+    ):
+        provider = _make_provider("opensubtitles")
+        manager = _build_manager(monkeypatch, provider)
+        monkeypatch.setattr(
+            "providers.search_coordinator.get_budget_manager", lambda: budget_allows
+        )
+        ks_mock = MagicMock()
+        ks_mock.pick.return_value = None
+        ks_mock.has_pool_rows.return_value = False
+        monkeypatch.setattr("providers.search_coordinator.get_key_selector", lambda: ks_mock)
+        skipped = MagicMock()
+        monkeypatch.setattr("providers.search_coordinator.decision_log.provider_skipped", skipped)
+        caplog.set_level(logging.WARNING, logger="providers.search_coordinator")
+
+        manager.search(_make_query())
+
+        provider.search.assert_not_called()
+        budget_allows.consume.assert_not_called()
+        skipped.assert_called_once_with("opensubtitles", "no_pool_key")
+        assert "opensubtitles: no usable key in pool" in caplog.text
+
+    def test_keyless_provider_with_unusable_pool_rows_is_still_skipped(
+        self, app_ctx, monkeypatch, budget_allows, caplog
+    ):
+        provider = _make_provider("gestdown", config_fields=[])
+        manager = _build_manager(monkeypatch, provider)
+        monkeypatch.setattr(
+            "providers.search_coordinator.get_budget_manager", lambda: budget_allows
+        )
+        ks_mock = MagicMock()
+        ks_mock.pick.return_value = None
+        ks_mock.has_pool_rows.return_value = True
+        monkeypatch.setattr("providers.search_coordinator.get_key_selector", lambda: ks_mock)
+        skipped = MagicMock()
+        monkeypatch.setattr("providers.search_coordinator.decision_log.provider_skipped", skipped)
+        caplog.set_level(logging.WARNING, logger="providers.search_coordinator")
+
+        manager.search(_make_query())
+
+        provider.search.assert_not_called()
+        budget_allows.consume.assert_not_called()
+        skipped.assert_called_once_with("gestdown", "no_pool_key")
+        assert "gestdown: no usable key in pool" in caplog.text
 
     def test_allowed_budget_consumes_with_key_id(self, app_ctx, monkeypatch, budget_allows):
         provider = _make_provider("opensubtitles")

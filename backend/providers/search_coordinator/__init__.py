@@ -49,6 +49,34 @@ _RATE_LIMIT_WINDOW_THRESHOLD_S = 120
 __all__ = ["SearchCoordinatorMixin"]
 
 
+def _provider_can_search_without_pool_key(provider) -> bool:
+    """Whether this provider can search with no account pool row at all.
+
+    Roughly half the fleet needs no account — gestdown, podnapisi, tvsubtitles,
+    animetosho, the subliminal wrappers. Requiring a pool row from them gated
+    them out of every search and told operators to "add a pool row", which is
+    unfollowable when there is no credential to put in one. One user measured a
+    search going from 2 participating providers to 23 once the gate was
+    bypassed wholesale.
+
+    The declarative contract is `config_fields`. A field marked `required` is a
+    credential the provider cannot work without; optional fields (an account
+    that merely raises limits) must not force a pool row. A malformed entry is
+    read as "assume credentials are needed" — the safe direction here is to
+    keep gating rather than to search anonymously against an account API.
+    """
+    config_fields = getattr(type(provider), "config_fields", getattr(provider, "config_fields", []))
+    if not config_fields:
+        return True
+
+    for field in config_fields:
+        if not isinstance(field, dict):
+            return False
+        if field.get("required"):
+            return False
+    return True
+
+
 class SearchCoordinatorMixin(SearchRetryMixin, SearchScoringMixin, SearchCacheMixin):
     """Mixin providing parallel search orchestration, caching, and retry logic.
 
@@ -165,26 +193,35 @@ class SearchCoordinatorMixin(SearchRetryMixin, SearchScoringMixin, SearchCacheMi
                         continue
 
                     # Phase 4a: pick a key from the pool before we commit the call.
-                    key = get_key_selector().pick(
+                    key_selector = get_key_selector()
+                    key = key_selector.pick(
                         name,
                         provider_rate_limits=rate_limits_dict,
                     )
                     if key is None:
-                        logger.warning(
-                            "%s: no usable key in pool (all exhausted, 429-cooling, "
-                            "or pool row deleted). Add a pool row via Settings → "
-                            "Providers, or turn off Settings → Automation → "
-                            "Provider budget to bypass the gate for this provider.",
-                            name,
-                        )
-                        decision_log.provider_skipped(name, "no_pool_key")
-                        continue
+                        pool_rows_exist = key_selector.has_pool_rows(name)
+                        if not pool_rows_exist and _provider_can_search_without_pool_key(provider):
+                            # ``pick() is None`` also means every configured row is
+                            # exhausted/cooling; only the separate row-existence check
+                            # may open the anonymous path.
+                            budget.consume(name, key_id=None)
+                        else:
+                            logger.warning(
+                                "%s: no usable key in pool (all exhausted, 429-cooling, "
+                                "or pool row deleted). Add a pool row via Settings -> "
+                                "Providers, or turn off Settings -> Automation -> "
+                                "Provider budget to bypass the gate for this provider.",
+                                name,
+                            )
+                            decision_log.provider_skipped(name, "no_pool_key")
+                            continue
 
                     # Credential injection + mark_used happen INSIDE the worker
                     # thread (see _search_provider_with_retry) under a per-provider
                     # lock, so two concurrent search() calls cannot clobber the
                     # singleton provider's credentials.
-                    budget.consume(name, key_id=key["id"])
+                    if key is not None:
+                        budget.consume(name, key_id=key["id"])
 
             # Submit search task — refund budget if submit fails synchronously
             # (e.g. executor shut down, memory pressure). Without the refund the

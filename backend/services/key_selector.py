@@ -48,6 +48,12 @@ class KeySelector:
             self._cache[provider] = (rows, now)
         return rows
 
+    def has_pool_rows(self, provider: str, *, now: datetime | None = None) -> bool:
+        """Return whether enabled rows exist, regardless of current cooldown or budget."""
+        if now is None:
+            now = datetime.now(UTC)
+        return bool(self._load(provider, now))
+
     def pick(
         self,
         provider: str,
