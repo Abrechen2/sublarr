@@ -133,8 +133,13 @@ def wanted_batch_action():
                   description: List of wanted item IDs (max 500)
                 action:
                   type: string
-                  enum: [ignore, unignore, blacklist, export]
-                  description: Action to perform
+                  enum: [ignore, unignore, blacklist, export, reset_attempts]
+                  description: >
+                    Action to perform. `reset_attempts` clears the search
+                    backoff (attempt count, retry window, slow-mode marker and
+                    error state) so the scheduler picks the items up again —
+                    for use after an install-level problem was fixed. It
+                    touches only items still in `wanted`.
       responses:
         200:
           description: Action completed
@@ -158,7 +163,7 @@ def wanted_batch_action():
     """
     from db.repositories.wanted import WantedRepository
 
-    ALLOWED_ACTIONS = {"ignore", "unignore", "blacklist", "export"}
+    ALLOWED_ACTIONS = {"ignore", "unignore", "blacklist", "export", "reset_attempts"}
 
     data = request.get_json() or {}
     item_ids = data.get("item_ids")
@@ -194,6 +199,13 @@ def wanted_batch_action():
         items_map = wr.get_wanted_items_by_ids(item_ids)
         ignored_ids = [i for i in item_ids if items_map.get(i, {}).get("status") == "ignored"]
         affected = wr.update_wanted_status_bulk(ignored_ids, "wanted") if ignored_ids else 0
+
+    elif action == "reset_attempts":
+        # "Circumstances changed, try again." Slow mode assumes the subtitle is
+        # unavailable; when the real cause was the install (dead credentials, a
+        # gated provider fleet), the 30-day wait outlives the problem and the
+        # idle queue looks the same as a broken one.
+        affected = WantedRepository().reset_search_attempts(item_ids)
 
     elif action == "blacklist":
         try:

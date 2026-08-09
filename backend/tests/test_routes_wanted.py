@@ -446,3 +446,51 @@ def test_search_upgrades_emits_failure_event_when_worker_crashes(client, monkeyp
     failure_events = [e for e in captured if e[0] == "wanted_search_failed"]
     assert failure_events
     assert failure_events[0][1]["include_upgrades"] is True
+
+
+def test_batch_action_reset_attempts_unparks_the_queue(app_and_client):
+    """#184: after an install-level fix, the operator says "try again now".
+
+    Items that burned their attempts during a provider outage sit in slow mode
+    for 30 days. The backoff outlives its cause, and a healthy fleet idles.
+    """
+    app, client = app_and_client
+    item_id = _insert_wanted_item(app, "Parked By Outage")
+    with app.app_context():
+        db = get_db()
+        db.execute(
+            text(
+                "UPDATE wanted_items SET search_count = 12, error_count = 4,"
+                " failure_kind = 'no_result_slow',"
+                " retry_after = datetime('now', '+27 days') WHERE id = :i"
+            ),
+            {"i": item_id},
+        )
+        db.commit()
+
+    resp = client.post(
+        "/api/v1/wanted/batch-action",
+        json={"item_ids": [item_id], "action": "reset_attempts"},
+    )
+
+    assert resp.status_code == 200
+    data = resp.get_json()
+    assert data["success"] is True
+    assert data["affected"] == 1
+
+    with app.app_context():
+        row = (
+            get_db()
+            .execute(
+                text(
+                    "SELECT search_count, error_count, failure_kind, retry_after"
+                    " FROM wanted_items WHERE id = :i"
+                ),
+                {"i": item_id},
+            )
+            .fetchone()
+        )
+    assert row[0] == 0
+    assert row[1] == 0
+    assert row[2] is None
+    assert row[3] is None

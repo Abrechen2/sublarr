@@ -446,6 +446,47 @@ class WantedRepository(BaseRepository, _WantedUpsertMixin, _WantedUpdatesMixin):
         self._commit()
         return result.rowcount
 
+    def reset_search_attempts(self, item_ids: list[int]) -> int:
+        """Clear the search backoff on the given items. Returns count updated.
+
+        Slow mode is the right answer while the problem is the subtitle's
+        availability, and the wrong one once the problem was the install: items
+        that burned their attempts during an outage keep waiting out a 30-day
+        window that outlived its cause. This is the operator saying
+        "circumstances changed, try again".
+
+        The cleared set is exactly what `_filter_eligible` reads —
+        `search_count` against the cap, `retry_after`, and the
+        `no_result_slow` marker — plus the error state. `error_count` does not
+        gate eligibility on its own, but it sets the LENGTH of the next backoff
+        via `compute_retry_after_for_error`, so leaving it would drop the item
+        back into a long wait on its first hiccup after the recovery. The stale
+        `error` text goes too: describing a fault that has been fixed is worse
+        than saying nothing.
+
+        Only items still `wanted` are touched. A bulk action driven by a filter
+        can easily include found rows, and re-opening settled work is not what
+        the operator asked for.
+        """
+        if not item_ids:
+            return 0
+        stmt = (
+            update(WantedItem)
+            .where(WantedItem.id.in_(item_ids), WantedItem.status == "wanted")
+            .values(
+                search_count=0,
+                retry_after=None,
+                failure_kind=None,
+                error_count=0,
+                last_error_at=None,
+                error="",
+                updated_at=self._now(),
+            )
+        )
+        result = self.session.execute(stmt)
+        self._commit()
+        return result.rowcount
+
     def delete_wanted_items_by_ids(self, item_ids: list) -> int:
         """Delete wanted items by their IDs (batch). Returns count deleted."""
         if not item_ids:
