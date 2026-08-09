@@ -6,7 +6,7 @@ import type { SchedulerStatus } from '@/lib/types'
 import { StatusBadge } from './StatusBadge'
 
 const STATUS_FILTERS: (SchedulerStatus | 'all')[] = [
-  'all', 'ok', 'error', 'timeout', 'missed', 'skipped_overlap',
+  'all', 'ok', 'error', 'timeout', 'timeout_abandoned', 'missed', 'skipped_overlap',
 ]
 
 export function JobHistoryDrawer({

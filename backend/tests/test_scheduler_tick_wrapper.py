@@ -78,7 +78,18 @@ def test_exception_writes_error_row(flask_app, db_session, caplog):
     assert "deliberate" in (rows[0].error_msg or "")
 
 
-def test_timeout_writes_timeout_row(flask_app, db_session):
+def test_timeout_of_an_uninterruptible_job_is_recorded_as_abandoned(flask_app, db_session):
+    """A `time.sleep` cannot be asked to stop, and the row now says so.
+
+    This test asserted `status == "timeout"` until cooperative cancellation
+    landed. That reading was the problem it was documenting: the scheduler
+    cannot end a running thread, so "timeout" told operators the work had
+    stopped when it had not — one user's sweep kept reading their library for
+    sixteen hours after such a row was written.
+
+    A job that polls `abort_requested()` and returns during the grace period
+    still gets `timeout`; see test_scheduler_cancellation.py for both branches.
+    """
     from db.models.scheduler import JobRun
 
     def slow():
@@ -89,7 +100,7 @@ def test_timeout_writes_timeout_row(flask_app, db_session):
 
     rows = db_session.query(JobRun).filter_by(job_id="test_job").all()
     assert len(rows) == 1
-    assert rows[0].status == "timeout"
+    assert rows[0].status == "timeout_abandoned"
     assert rows[0].error_type == "TimeoutError"
 
 

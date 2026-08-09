@@ -1481,6 +1481,7 @@
       "ok": "OK",
       "error": "Error",
       "timeout": "Timeout",
+      "timeout_abandoned": "Timed out — still running",
       "missed": "Missed",
       "skipped_overlap": "Skipped"
     },

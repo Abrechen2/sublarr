@@ -1470,6 +1470,7 @@
       "ok": "OK",
       "error": "Fehler",
       "timeout": "Timeout",
+      "timeout_abandoned": "Zeitlimit — läuft weiter",
       "missed": "Verpasst",
       "skipped_overlap": "Übersprungen"
     },

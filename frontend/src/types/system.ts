@@ -779,7 +779,19 @@ export type TriggerCron = {
 
 export type Trigger = TriggerInterval | TriggerCron
 
-export type SchedulerStatus = 'ok' | 'error' | 'timeout' | 'missed' | 'skipped_overlap'
+/**
+ * `timeout_abandoned` is worse than `timeout`, not a variant of it: the job
+ * exceeded its ceiling, was asked to stop, and was still running afterwards.
+ * The scheduler cannot end a thread, so the work continues until the job
+ * reaches a check point — which is exactly what an operator needs told.
+ */
+export type SchedulerStatus =
+  | 'ok'
+  | 'error'
+  | 'timeout'
+  | 'timeout_abandoned'
+  | 'missed'
+  | 'skipped_overlap'
 export type SchedulerTriggeredBy = 'schedule' | 'manual' | 'startup'
 
 export type SchedulerJobRun = {

@@ -8,6 +8,9 @@ const STATUS_COLOR: Record<SchedulerStatus, string> = {
   ok: 'bg-success-bg text-success',
   error: 'bg-error-bg text-error',
   timeout: 'bg-warning-bg text-warning',
+  // Not a warning: the run did not end. Reading this as a finished-with-warning
+  // run is what let a sweep keep grinding for sixteen hours unnoticed.
+  timeout_abandoned: 'bg-error-bg text-error',
   missed: 'bg-warning-bg text-warning',
   skipped_overlap: 'bg-elevated text-muted',
 }

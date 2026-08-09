@@ -22,7 +22,10 @@ function statusDotColor(status?: string | null): string {
   switch (status) {
     case 'ok':
       return 'var(--success)'
+    // 'timeout_abandoned' belongs here rather than with the warnings: the run
+    // never ended — the job was asked to stop and did not.
     case 'error':
+    case 'timeout_abandoned':
       return 'var(--error)'
     case 'timeout':
     case 'missed':
