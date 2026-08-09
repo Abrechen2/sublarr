@@ -63,9 +63,7 @@ def subtitle_health_sweep_tick() -> None:
     scanned = 0
     for series in client.get_series() or []:
         if abort_requested():
-            logger.info(
-                "subtitle_health sweep: stopping as asked after %d episode(s)", scanned
-            )
+            logger.info("subtitle_health sweep: stopping as asked after %d episode(s)", scanned)
             return
         sid = series.get("id")
         for ep in client.get_episodes(sid) or []:
@@ -75,9 +73,7 @@ def subtitle_health_sweep_tick() -> None:
             # the check it ran sixteen hours past its ceiling, one stream index
             # at a time, and a container restart was the only way to end it.
             if abort_requested():
-                logger.info(
-                    "subtitle_health sweep: stopping as asked after %d episode(s)", scanned
-                )
+                logger.info("subtitle_health sweep: stopping as asked after %d episode(s)", scanned)
                 return
             ep_id = ep.get("id")
             path = client.get_episode_file_path(ep_id) if ep_id else None
