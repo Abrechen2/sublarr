@@ -5,9 +5,27 @@ All notable changes to Sublarr are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [1.11.0] - 2026-08-04
+## [1.11.0] - 2026-08-09
 
 ### Added
+- **Providers now report which gate is keeping them out of searches.** The
+  Providers page raised nothing for a provider held back by the request budget
+  or the credential pool: it answered, its breaker was closed, and it took part
+  in nothing. Those gates lived entirely inside the search loop. A provider in
+  that state now warns, naming the gate and the fix where one exists.
+- **Search and download times are recorded separately.** Both used to stamp the
+  same field, which made "searches fine, downloads dead" impossible to see —
+  the shape of a three-day provider outage reported from the field.
+- **The provider test can fetch a real subtitle.** A search-only test passes
+  while the download path is dead, because the two use different credentials.
+  It is a separate button: a download spends one unit of the daily allowance.
+- **A bulk "reset search attempts" action on the Wanted page.** Items that
+  exhaust their attempts wait 30 days, which is right while the subtitle is
+  what is missing and wrong once the install was. Parked items now also show
+  how long they are held, so the idle part of a queue is visible at a glance.
+- **Optional alerting when a provider degrades quietly** — auto-disabled, or
+  still searching while nothing downloads. Off by default, at most one alert
+  per provider per condition per day.
 - **The foreign-tracks sweep now runs in batches and can resume.** A pass over a
   large library ran as one piece and started from the beginning after a restart.
   The sweep now keeps its progress in its own table, works in batches, and picks
@@ -50,6 +68,33 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   remain, one level down.
 
 ### Fixed
+- **English hearing-impaired subtitles are no longer mistaken for Hindi.** The
+  cleanup rule read `Show.en.hi.srt` as language `hi`, so a library keeping only
+  English had every `.en.hi` sidecar on its delete list — 621 files on one
+  reported install. This was a data-loss path.
+- **OpenSubtitles downloads recover on their own.** The download token expires
+  after 24 hours while search keeps working on the API key alone, so downloads
+  failed indefinitely until the container was restarted. A refused download now
+  re-authenticates once and retries.
+- **Providers that need no account take part in searches again.** Every
+  credential-free provider was skipped whenever the request budget was on,
+  which is the default; one install measured a search going from 2
+  participating providers to 23.
+- **A job that overruns its time limit is asked to stop, and no longer claims
+  to have ended.** The scheduler cannot end a running thread, so a job past its
+  ceiling kept working while its run was recorded as finished — one sweep read
+  a library for sixteen hours after that, and pausing it did not help. Long
+  jobs now stop at their next safe point, and a run that did not stop is
+  reported as still running.
+- **The cleanup statistics page returns data again** instead of failing on
+  every call on the default database.
+- **The webhook warning fires once per path per start** rather than on every
+  event. Sonarr and Radarr cannot sign their webhooks, so this was hundreds of
+  identical lines about something the operator cannot change.
+- **Published images no longer carry the maintainer's development logs.** The
+  default log path is relative, so an install that did not override it appended
+  its own lines to a file that already contained a foreign machine's — and a
+  support bundle would have carried them.
 - **The log rotation setting now actually takes effect.** Log file size and
   backup count could be saved, the UI displayed them, and the API answered
   "changes take effect on next application restart" — but nothing ever read them
