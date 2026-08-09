@@ -161,6 +161,7 @@
     "clearSelection": "Clear selection",
     "extract": "Extract",
     "translate": "Translate",
+    "resetAttempts": "Reset search attempts",
     "extract_failed": "Batch extract failed",
     "translate_failed": "Batch translate failed",
     "queued_translation": "{{count}} queued for translation",

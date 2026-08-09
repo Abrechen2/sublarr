@@ -5,7 +5,7 @@
  * Disappears when selection count drops to 0.
  */
 import { useState, useRef, useEffect } from 'react'
-import { X, EyeOff, Eye, Ban, Download, Layers, Languages } from 'lucide-react'
+import { X, EyeOff, Eye, Ban, Download, Layers, Languages, RotateCcw } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import { useSelectionStore } from '@/stores/selectionStore'
 import { useBatchAction, useBatchTranslate } from '@/hooks/useApi'
@@ -44,6 +44,7 @@ export function BatchActionBar({ scope, actions = ['ignore', 'unignore', 'blackl
     { action: 'export',    label: t('batch.export'),     icon: <Download className="h-3.5 w-3.5" /> },
     { action: 'extract',   label: t('batch.extract'),    icon: <Layers className="h-3.5 w-3.5" /> },
     { action: 'translate', label: t('batch.translate'),  icon: <Languages className="h-3.5 w-3.5" /> },
+    { action: 'reset_attempts', label: t('batch.resetAttempts'), icon: <RotateCcw className="h-3.5 w-3.5" /> },
   ]
 
   // Fix 1: Clean up pending setTimeout on unmount to avoid state update on unmounted component

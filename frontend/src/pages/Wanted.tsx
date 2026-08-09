@@ -623,7 +623,18 @@ export function WantedPage() {
       </div>
 
       {/* Floating BatchActionBar */}
-      <BatchActionBar scope={SCOPE} actions={['ignore', 'unignore', 'blacklist', 'export', 'extract', 'translate']} />
+      <BatchActionBar
+        scope={SCOPE}
+        actions={[
+          'ignore',
+          'unignore',
+          'blacklist',
+          'export',
+          'extract',
+          'translate',
+          'reset_attempts',
+        ]}
+      />
 
       {/* Subtitle Preview Modal */}
       {previewFilePath && (

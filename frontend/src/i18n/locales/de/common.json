@@ -161,6 +161,7 @@
     "clearSelection": "Auswahl aufheben",
     "extract": "Extrahieren",
     "translate": "Übersetzen",
+    "resetAttempts": "Suchversuche zurücksetzen",
     "extract_failed": "Batch-Extraktion fehlgeschlagen",
     "translate_failed": "Batch-Übersetzung fehlgeschlagen",
     "queued_translation": "{{count}} zur Übersetzung eingereiht",

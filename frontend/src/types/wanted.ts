@@ -144,7 +144,19 @@ export interface GlobalSearchResults {
   subtitles: SearchResultSubtitle[]
 }
 
-export type BatchAction = 'ignore' | 'unignore' | 'blacklist' | 'export' | 'extract' | 'translate'
+export type BatchAction =
+  | 'ignore'
+  | 'unignore'
+  | 'blacklist'
+  | 'export'
+  | 'extract'
+  | 'translate'
+  /**
+   * Clears the search backoff so the scheduler picks the items up again. For
+   * after an install-level fix: slow mode assumes the subtitle is unavailable,
+   * and outlives its cause when what was actually broken was the install.
+   */
+  | 'reset_attempts'
 
 export interface BatchActionResult {
   success: boolean
