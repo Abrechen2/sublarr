@@ -185,13 +185,17 @@ def _detect_sidecar_language(path: str) -> str | None:
     language code returns None and is treated as "do not classify".
     """
     from config_language_data import _REVERSE_LANGUAGE_TAGS
-    from remux import _parse_sidecar_language
+    from remux import _SIDECAR_MODIFIERS, _parse_sidecar_language
 
     base = os.path.splitext(path)[0]
-    parts = os.path.basename(base).rsplit(".", 1)
+    basename = os.path.basename(base)
+    parts = basename.rsplit(".", 1)
     if len(parts) < 2:
         return None
-    video_base = base.rsplit(".", 1)[0]
+    if parts[-1].lower() in _SIDECAR_MODIFIERS and "." in parts[0]:
+        video_base = base.rsplit(".", 2)[0]
+    else:
+        video_base = base.rsplit(".", 1)[0]
     raw = _parse_sidecar_language(path, video_base)
     if not raw:
         return None

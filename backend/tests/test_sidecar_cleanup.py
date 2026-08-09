@@ -18,6 +18,7 @@ import pytest
 
 from config_language_data import normalize_language_code
 from remux import _parse_sidecar_language, trash_non_target_sidecars
+from services.cleanup_executors import _detect_sidecar_language, execute_language_filter
 
 # ---------------------------------------------------------------------------
 # normalize_language_code
@@ -83,6 +84,76 @@ def test_parse_sidecar_lang_rejects_unknown_ext(tmp_path):
     base = tmp_path / "Show.S01E01"
     sidecar = f"{base}.en.txt"
     assert _parse_sidecar_language(sidecar, str(base)) is None
+
+
+# ---------------------------------------------------------------------------
+# cleanup_executors._detect_sidecar_language
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.parametrize(
+    "filename,expected",
+    [
+        ("Show.S01E01.en.hi.srt", "en"),
+        ("Show.S01E01.ja.hi.srt", "ja"),
+        ("Show.S01E01.en.forced.srt", "en"),
+        ("Show.S01E01.en.srt", "en"),
+        ("Movie.S01E01.ass", None),
+        ("Show.S01E01.srt", None),
+    ],
+)
+def test_detect_sidecar_language_handles_modifiers_without_reopening_c1_guard(
+    tmp_path,
+    filename,
+    expected,
+):
+    assert _detect_sidecar_language(str(tmp_path / filename)) == expected
+
+
+def test_a_bare_hi_suffix_is_left_unclassified_after_an_episode_marker(tmp_path):
+    """``.hi`` is both a real ISO code (Hindi) and a modifier, and one token
+    cannot be both. Where the name gives no language to attach the modifier to,
+    the detector declines to classify — and an unclassified sidecar is KEPT.
+
+    That is the safe direction on a path that trashes files: refusing to guess
+    costs a Hindi user the ability to language-filter these, while guessing
+    wrong deletes hearing-impaired subtitles, which is the failure this whole
+    change exists to stop.
+
+    ``Show.hi.srt`` still reads as Hindi: with no further token there is no
+    modifier reading available, so the ambiguity does not arise.
+    """
+    assert _detect_sidecar_language(str(tmp_path / "Show.S01E01.hi.srt")) is None
+    assert _detect_sidecar_language(str(tmp_path / "Show.hi.srt")) == "hi"
+
+
+def test_language_filter_keeps_hearing_impaired_sidecar_when_language_is_kept(tmp_path):
+    (tmp_path / "Show.S01E01.en.hi.srt").write_text("english hi sub")
+
+    result = execute_language_filter(
+        str(tmp_path),
+        {"keep_languages": ["en"], "permanent_delete": True},
+        dry_run=True,
+    )
+
+    assert result == {"would_delete": 0, "would_keep": 1, "examples": []}
+
+
+def test_language_filter_can_delete_forced_sidecar_when_language_is_not_kept(tmp_path):
+    sidecar = tmp_path / "Show.S01E01.en.forced.srt"
+    sidecar.write_text("english forced sub")
+
+    result = execute_language_filter(
+        str(tmp_path),
+        {"keep_languages": ["de"], "permanent_delete": True},
+        dry_run=True,
+    )
+
+    assert result["would_delete"] == 1
+    assert result["would_keep"] == 0
+    assert result["examples"] == [
+        {"path": str(sidecar), "size_bytes": sidecar.stat().st_size, "reason": "lang:en"}
+    ]
 
 
 # ---------------------------------------------------------------------------
