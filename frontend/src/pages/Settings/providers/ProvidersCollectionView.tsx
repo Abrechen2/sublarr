@@ -104,12 +104,23 @@ export function ProvidersCollectionView({
   }, [selectedId])
 
   // ── Mutations ──────────────────────────────────────────────────────────────
-  const handleTest = (name: string) => {
+  const handleTest = (name: string, withDownload = false) => {
     setTestResults((prev) => ({ ...prev, [name]: 'testing' }))
-    testProviderMut.mutate(name, {
+    testProviderMut.mutate({ name, withDownload }, {
       onSuccess: (result) => {
+        // A search-only test passes while the download path is dead, so when a
+        // download was asked for, its outcome is the answer — reporting the
+        // health check instead would show green through the failure this test
+        // exists to catch.
+        const download = result.download
+        const message = download
+          ? download.success
+            ? tc('settings:providers_collection.download_ok', { bytes: download.bytes ?? 0 })
+            : (download.message ?? download.error ?? '')
+          : result.message
         setTestResults((prev) => ({
-          ...prev, [name]: { healthy: result.healthy, message: result.message },
+          ...prev,
+          [name]: { healthy: download ? download.success : result.healthy, message },
         }))
       },
       onError: () => {
@@ -374,6 +385,7 @@ export function ProvidersCollectionView({
                 testResult={testResults[provider.name]}
                 onFieldChange={onFieldChange}
                 onTest={() => handleTest(provider.name)}
+                onTestDownload={() => handleTest(provider.name, true)}
                 onToggle={() => handleToggle(provider.name, provider.enabled)}
                 onClearCache={() => handleClearCache(provider.name)}
                 onReEnable={() => handleReEnable(provider.name)}

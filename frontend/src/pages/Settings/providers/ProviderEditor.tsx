@@ -16,6 +16,9 @@ export interface ProviderEditorProps {
   testResult?: { healthy: boolean; message: string } | 'testing'
   onFieldChange: (key: string, value: string) => void
   onTest: () => void
+  /** Fetch one real subtitle. Costs the account a download, so it is a
+   *  separate action rather than part of the ordinary test. */
+  onTestDownload?: () => void
   onToggle: () => void
   onClearCache: () => void
   onReEnable: () => void
@@ -37,7 +40,7 @@ export interface ProviderEditorProps {
  */
 export function ProviderEditor({
   provider, cacheCount, fieldValues, testResult,
-  onFieldChange, onTest, onToggle, onClearCache, onReEnable, onRemove,
+  onFieldChange, onTest, onTestDownload, onToggle, onClearCache, onReEnable, onRemove,
   headerExtra, footerExtra, hideTitle,
 }: ProviderEditorProps) {
   const { t: tc } = useTranslation('common')
@@ -388,6 +391,18 @@ export function ProviderEditor({
             )}
             {tc('actions.test')}
           </button>
+          {onTestDownload && (
+            <button
+              onClick={onTestDownload}
+              disabled={!provider.enabled || testResult === 'testing'}
+              data-testid={`provider-editor-${provider.name}-test-download`}
+              title={ts('providers_tab.editor.test_download_hint')}
+              className="flex items-center gap-1.5 rounded border border-border bg-primary px-3 py-1.5 text-xs font-medium text-secondary transition-all hover:opacity-80 disabled:opacity-50"
+            >
+              <Download size={12} />
+              {ts('providers_tab.editor.test_download')}
+            </button>
+          )}
           {footerExtra}
         </div>
       </div>

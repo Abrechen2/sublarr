@@ -27,10 +27,17 @@ export function useProviders() {
   })
 }
 
+/**
+ * @remarks `withDownload` fetches one real subtitle. It is opt-in per call
+ * rather than always-on because a download consumes the account's daily
+ * allowance — small on free tiers — and a test button that quietly spends it
+ * on every click is not one people can use freely.
+ */
 export function useTestProvider() {
   const queryClient = useQueryClient()
   return useMutation({
-    mutationFn: (name: string) => testProvider(name),
+    mutationFn: ({ name, withDownload }: { name: string; withDownload?: boolean }) =>
+      testProvider(name, withDownload ?? false),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['providers'] })
     },

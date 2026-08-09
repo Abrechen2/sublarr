@@ -305,7 +305,9 @@
       "configured": "(konfiguriert)",
       "field_required_error": "{{label}} ist erforderlich",
       "not_configured": "Nicht konfiguriert",
-      "consecutive_failures": "{{count}}× Fehler hintereinander"
+      "consecutive_failures": "{{count}}× Fehler hintereinander",
+      "test_download": "Download testen",
+      "test_download_hint": "Lädt einen echten Untertitel und verwirft ihn. Ein reiner Suchtest meldet grün, auch wenn der Download-Pfad tot ist — Suche und Download nutzen verschiedene Zugangsdaten. Verbraucht eine Einheit des Tageskontingents."
     },
     "descriptions": {
       "fallback": "Untertitel-Provider",
@@ -2432,6 +2434,7 @@
     "gate_circuit_open": "Schutzschalter offen — der Anbieter wird vorübergehend übersprungen.",
     "gate_rate_limited": "Gedrosselt — wartet auf sein Zeitfenster.",
     "gate_budget_exhausted": "Anfragebudget erschöpft.",
-    "gate_no_pool_key": "Keine Zugangsdaten hinterlegt. Unter Einstellungen → Anbieter einen Schlüssel ergänzen."
+    "gate_no_pool_key": "Keine Zugangsdaten hinterlegt. Unter Einstellungen → Anbieter einen Schlüssel ergänzen.",
+    "download_ok": "Download erfolgreich ({{bytes}} Bytes)"
   }
 }

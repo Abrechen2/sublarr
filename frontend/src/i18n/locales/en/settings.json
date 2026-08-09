@@ -305,7 +305,9 @@
       "configured": "(configured)",
       "field_required_error": "{{label}} is required",
       "not_configured": "Not configured",
-      "consecutive_failures": "{{count}}× consecutive failures"
+      "consecutive_failures": "{{count}}× consecutive failures",
+      "test_download": "Test download",
+      "test_download_hint": "Fetches one real subtitle and discards it. A search-only test reports green even when the download path is dead — search and download use different credentials. Uses one unit of the daily allowance."
     },
     "descriptions": {
       "fallback": "Subtitle provider",
@@ -2432,6 +2434,7 @@
     "gate_circuit_open": "Circuit breaker open — the provider is skipped for now.",
     "gate_rate_limited": "Throttled — waiting for its window.",
     "gate_budget_exhausted": "Request budget exhausted.",
-    "gate_no_pool_key": "No credentials stored. Add a key under Settings → Providers."
+    "gate_no_pool_key": "No credentials stored. Add a key under Settings → Providers.",
+    "download_ok": "Download succeeded ({{bytes}} bytes)"
   }
 }

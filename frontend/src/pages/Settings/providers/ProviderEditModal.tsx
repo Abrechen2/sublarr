@@ -13,6 +13,7 @@ interface ProviderEditModalProps {
   testResult?: { healthy: boolean; message: string } | 'testing'
   onFieldChange: (key: string, value: string) => void
   onTest: () => void
+  onTestDownload?: () => void
   onToggle: () => void
   onClearCache: () => void
   onReEnable: () => void
@@ -30,7 +31,7 @@ interface ProviderEditModalProps {
 export function ProviderEditModal({
   provider, cacheCount,
   fieldValues, testResult,
-  onFieldChange, onTest, onToggle,
+  onFieldChange, onTest, onTestDownload, onToggle,
   onClearCache, onReEnable, onRemove, isNew, onClose,
 }: ProviderEditModalProps) {
   const { t } = useTranslation('settings')
@@ -93,6 +94,7 @@ export function ProviderEditModal({
             testResult={testResult}
             onFieldChange={onFieldChange}
             onTest={onTest}
+            onTestDownload={onTestDownload}
             onToggle={onToggle}
             onClearCache={onClearCache}
             onReEnable={onReEnable}
