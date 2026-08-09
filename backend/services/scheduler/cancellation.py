@@ -1,0 +1,105 @@
+"""Cooperative cancellation for scheduled jobs.
+
+`_tick_wrapper` bounds a job with `future.result(timeout=...)`, which bounds
+the *wait*, not the *work*: `concurrent.futures` cannot cancel a thread that
+has already started. A job that overran its ceiling was reported as finished
+and kept running — one user's `subtitle_health_sweep` was still reading their
+library sixteen hours after the scheduler logged its timeout, and pausing the
+job did not stop it either.
+
+Killing the thread is not an option: it would abandon a half-written file or a
+half-committed transaction. So cancellation here is cooperative. A job checks
+`abort_requested()` between work units and returns; the granularity of the stop
+is the size of one unit, and no caller may promise better than that.
+
+Job code needs nothing but `abort_requested()`. There is deliberately no
+"raise on abort" variant: a job that returns normally can still record what it
+completed, and a partial result that reaches the database beats a clean stack
+unwind that discards it.
+
+The plumbing that decides
+which event that call sees lives here, because getting it wrong is invisible:
+`ThreadPoolExecutor.submit` does NOT carry the caller's context into the worker
+thread, so a ContextVar set by the scheduler would leave every job reading the
+default and every check silently answering "keep going".
+"""
+
+from __future__ import annotations
+
+import contextvars
+import logging
+import threading
+
+logger = logging.getLogger(__name__)
+
+# The event belonging to the run executing on THIS thread. Set inside the
+# worker callable, never by the thread that submits it — see module docstring.
+_current_event: contextvars.ContextVar[threading.Event | None] = contextvars.ContextVar(
+    "sublarr_job_cancel_event", default=None
+)
+
+# Events for runs currently in flight, keyed by job id. The scheduler thread
+# needs to reach a running job's event from outside it (to signal a timeout or
+# a pause), which a ContextVar cannot do.
+_lock = threading.Lock()
+_events: dict[str, threading.Event] = {}
+
+
+def begin_run(job_id: str) -> threading.Event:
+    """Register a fresh event for a starting run and return it.
+
+    A previous event for the same id is dropped rather than reused: a run that
+    was abandoned still holds its own event object, and its thread must keep
+    seeing the set flag so it stops at its next check point. Handing the new
+    run that same, already-set event would make it abort immediately.
+    """
+    event = threading.Event()
+    with _lock:
+        _events[job_id] = event
+    return event
+
+
+def end_run(job_id: str, event: threading.Event) -> None:
+    """Drop the registry entry, but only if it is still this run's event.
+
+    An abandoned run finishing late must not unregister the event of the run
+    that replaced it.
+    """
+    with _lock:
+        if _events.get(job_id) is event:
+            del _events[job_id]
+
+
+def request_stop(job_id: str, *, reason: str) -> bool:
+    """Ask the run of ``job_id`` to stop at its next check point.
+
+    Returns False when no run is registered, which is the normal case for a
+    pause on an idle job.
+    """
+    with _lock:
+        event = _events.get(job_id)
+    if event is None:
+        return False
+    if not event.is_set():
+        logger.info("scheduler: asked %s to stop (%s)", job_id, reason)
+    event.set()
+    return True
+
+
+def activate(event: threading.Event) -> contextvars.Token:
+    """Bind ``event`` to the calling thread. Call this INSIDE the worker."""
+    return _current_event.set(event)
+
+
+def deactivate(token: contextvars.Token) -> None:
+    _current_event.reset(token)
+
+
+def abort_requested() -> bool:
+    """Whether the job running on this thread has been asked to stop.
+
+    Returns False outside a scheduled run, so the same job function stays
+    callable from a route, a test, or a manual script without special-casing.
+    """
+    event = _current_event.get()
+    return event is not None and event.is_set()

@@ -24,6 +24,8 @@ from apscheduler.triggers.base import BaseTrigger
 from apscheduler.triggers.interval import IntervalTrigger
 from flask import Flask
 
+from services.scheduler import cancellation
+
 logger = logging.getLogger(__name__)
 
 _MAX_ERROR_MSG_BYTES = 4096
@@ -227,10 +229,6 @@ def _tick_wrapper(
       - catches all exceptions, logs with exc_info, writes history row
     """
 
-    def _fn_with_ctx() -> None:
-        with app.app_context():
-            spec.func()
-
     def _runner() -> None:
         import time as _time
 
@@ -273,21 +271,61 @@ def _tick_wrapper(
         error_msg: str | None = None
         finished_at: datetime | None = None
 
+        # One event per run. Bound to the worker thread inside the callable
+        # below — ThreadPoolExecutor does not carry this thread's context
+        # across, so binding it here would leave every abort_requested() in
+        # every job reading the default and answering "keep going".
+        cancel_event = cancellation.begin_run(spec.id)
+
+        def _fn_with_ctx() -> None:
+            token = cancellation.activate(cancel_event)
+            try:
+                with app.app_context():
+                    spec.func()
+            finally:
+                cancellation.deactivate(token)
+                # Deregister only once the thread is genuinely leaving, not
+                # when the wait below gives up: an abandoned run must stay
+                # reachable, and its event must stay set, until it exits.
+                cancellation.end_run(spec.id, cancel_event)
+
         try:
             with app.app_context():
                 try:
                     future = _get_tick_executor().submit(_fn_with_ctx)
                     future.result(timeout=spec.timeout_s)
                 except FutureTimeoutError:
-                    status = "timeout"
+                    # The timeout bounded the wait, never the work. Ask the job
+                    # to stop and give it a bounded chance to reach its next
+                    # check point, so a cooperative job gets an honest ending.
+                    cancel_event.set()
+                    grace_s = max(1, min(60, spec.timeout_s // 10))
                     error_type = "TimeoutError"
-                    error_msg = f"tick exceeded {spec.timeout_s}s"
-                    logger.error(
-                        "scheduler: %s timed out after %ds",
-                        spec.id,
-                        spec.timeout_s,
-                        exc_info=True,
-                    )
+                    try:
+                        future.result(timeout=grace_s)
+                        status = "timeout"
+                        error_msg = f"tick exceeded {spec.timeout_s}s and stopped when asked"
+                        logger.error(
+                            "scheduler: %s timed out after %ds and stopped",
+                            spec.id,
+                            spec.timeout_s,
+                        )
+                    except FutureTimeoutError:
+                        # Recorded distinctly because "timeout" reads as "the
+                        # run ended". One user's sweep was still reading their
+                        # library sixteen hours after that line was logged.
+                        status = "timeout_abandoned"
+                        error_msg = (
+                            f"tick exceeded {spec.timeout_s}s, was asked to stop, and was "
+                            f"still running {grace_s}s later — the work continues until it "
+                            "reaches a check point"
+                        )
+                        logger.error(
+                            "scheduler: %s exceeded %ds and did NOT stop when asked — "
+                            "it is still running",
+                            spec.id,
+                            spec.timeout_s,
+                        )
                 except Exception as exc:
                     status = "error"
                     error_type = type(exc).__name__

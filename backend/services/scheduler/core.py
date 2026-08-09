@@ -376,8 +376,22 @@ class SublarrScheduler:
         )
 
     def pause_job(self, job_id: str) -> None:
+        """Stop future fires, and ask an in-flight run to stop too.
+
+        APScheduler's pause only removes scheduled fires. A user who pauses a
+        job that is currently grinding through their library reasonably expects
+        it to stop — in one report a tick was still logging seven minutes after
+        the pause was recorded, and only a container restart ended it.
+
+        The stop is cooperative, so it takes effect at the job's next check
+        point, and a job whose loop has no check point yet keeps running. That
+        is why the run is reported as abandoned rather than ended.
+        """
         self._require_registered(job_id)
         self._ensure_scheduler().pause_job(job_id)
+        from services.scheduler import cancellation
+
+        cancellation.request_stop(job_id, reason="paused by user")
 
     def resume_job(self, job_id: str) -> None:
         self._require_registered(job_id)
