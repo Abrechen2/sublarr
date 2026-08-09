@@ -22,6 +22,7 @@ from app_logging import (  # re-exported for back-compat (tests import from app)
     StructuredJSONFormatter,
     _has_app_context,
     _setup_logging,
+    stamp_log_fingerprint,
 )
 from app_routes_core import _register_app_routes
 from app_schedulers import _start_schedulers
@@ -122,8 +123,12 @@ def create_app(testing=False):
 
     settings = get_settings()
 
-    # Set up logging
-    _setup_logging(settings)
+    # Set up logging. Everything below needs a logger, so this runs before the
+    # config_entries overlay is read — which means `settings` here still holds
+    # only ENV and defaults. The instance fingerprint is therefore NOT stamped
+    # yet (stamp=False); it goes in once the overlay has been applied, further
+    # down, or it would describe a half-loaded config.
+    _setup_logging(settings, stamp=False)
 
     logger = logging.getLogger(__name__)
 
@@ -433,6 +438,10 @@ def create_app(testing=False):
                 _setup_logging(settings)
         else:
             logger.info("No config overrides in database, using env/defaults")
+
+        # Settings are complete now, so the log file can state which instance
+        # wrote it. A no-op if the re-apply above already stamped this path.
+        stamp_log_fingerprint()
 
         # Auto-generate API key on first start if not set via env or DB.
         # Skip when SUBLARR_API_KEY is explicitly set (even to "") — that means

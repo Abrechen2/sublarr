@@ -222,25 +222,30 @@ class FingerprintedRotatingFileHandler(RotatingFileHandler):
     file a user uploads after a long uptime carries no identity. Re-stamping on
     every rollover makes each file self-describing on its own.
 
+    The payload is built at write time from the live settings singleton, not
+    captured when the handler is constructed. Most of what it reports comes
+    from `config_entries` and can change without the handler ever being
+    rebuilt — saving a Sonarr URL is not a logging change, so nothing re-runs
+    `_setup_logging`. A frozen payload would keep re-stating the startup answer
+    on every rollover for the whole uptime.
+
     The stamp is written through this handler's own formatter, so it obeys the
     text/JSON choice, and it is built with the live LogRecord factory so any
     attribute other filters or formats rely on is present.
     """
 
-    def __init__(self, *args, fingerprint: str = "", **kwargs):
-        self._fingerprint = fingerprint
-        super().__init__(*args, **kwargs)
-
     def _write_fingerprint(self) -> None:
-        if not self._fingerprint or self.stream is None:
+        if self.stream is None:
             return
         try:
+            from config import get_settings
+
             record = logging.getLogRecordFactory()(
                 "app_logging",
                 logging.INFO,
                 __file__,
                 0,
-                self._fingerprint,
+                _fingerprint_payload(get_settings()),
                 None,
                 None,
             )
@@ -275,6 +280,25 @@ class FingerprintedRotatingFileHandler(RotatingFileHandler):
     def doRollover(self) -> None:  # noqa: N802 — stdlib camelCase override
         super().doRollover()
         self._write_fingerprint()
+
+
+def stamp_log_fingerprint() -> None:
+    """Stamp the startup fingerprint into the active log file.
+
+    Split out of `_setup_logging` because of *when* it may run. Startup reads
+    its configuration in two phases — ENV and defaults, then the
+    `config_entries` overlay — and `_setup_logging` runs in phase one, because
+    everything after it needs a logger. A stamp written there can only describe
+    the half-loaded config: `mode` came out as `unconfigured` on every instance
+    whose Sonarr/Radarr URL lives in the database, which is all of them.
+
+    `create_app` therefore calls this once the overlay has been applied. The
+    per-path guard in `stamp_startup` keeps it a no-op when the overlay already
+    triggered a logging re-apply, so either route yields exactly one stamp.
+    """
+    for handler in logging.getLogger().handlers:
+        if isinstance(handler, FingerprintedRotatingFileHandler):
+            handler.stamp_startup()
 
 
 def rotated_log_candidates(settings=None) -> list[str]:
@@ -379,7 +403,7 @@ class SocketIOLogHandler(logging.Handler):
             pass  # Never break the app because of log emission
 
 
-def _setup_logging(settings) -> None:
+def _setup_logging(settings, *, stamp: bool = True) -> None:
     """Set up file handler and WebSocket handler on the root logger.
 
     Idempotent: removes any previously-installed Sublarr handlers before
@@ -387,6 +411,14 @@ def _setup_logging(settings) -> None:
     process (tests, WSGI reloaders) — without this guard each invocation
     leaks another RotatingFileHandler + SocketIOLogHandler, producing N-fold
     duplicated log lines.
+
+    Args:
+        stamp: Write the instance fingerprint into the log file. Callers that
+            run before the `config_entries` overlay pass False and stamp later
+            via `stamp_log_fingerprint()`; a stamp taken at that point would
+            describe a config that is only half loaded. Every other caller
+            (a settings save re-applying logging, a changed log path) already
+            has the final settings and stamps here — see `stamp_log_fingerprint`.
     """
     log_level = getattr(logging, settings.log_level.upper(), logging.INFO)
     # Before basicConfig: LOG_FORMAT references %(request_id)s, and the handler
@@ -437,25 +469,17 @@ def _setup_logging(settings) -> None:
             LOG_BACKUP_COUNT_MIN,
             LOG_BACKUP_COUNT_MAX,
         )
-        # Built before the handler so a broken fingerprint cannot stop logging
-        # from being set up at all.
-        try:
-            fingerprint = _fingerprint_payload(settings)
-        except Exception as exc:
-            logging.getLogger(__name__).debug("Could not build log fingerprint: %s", exc)
-            fingerprint = ""
-
         fh = FingerprintedRotatingFileHandler(
             log_file,
             maxBytes=max_size_mb * 1024 * 1024,
             backupCount=backup_count,
             encoding="utf-8",
-            fingerprint=fingerprint,
         )
         fh.setLevel(log_level)
         fh.setFormatter(formatter)
         root.addHandler(fh)
-        fh.stamp_startup()
+        if stamp:
+            fh.stamp_startup()
     except Exception as e:
         logging.getLogger(__name__).warning("Could not set up log file %s: %s", log_file, e)
 

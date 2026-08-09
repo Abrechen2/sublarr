@@ -13,6 +13,7 @@ third-party libraries stay capped.
 """
 
 import logging
+import os
 from types import SimpleNamespace
 
 import pytest
@@ -188,11 +189,17 @@ class TestLogFingerprint:
         assert "sublarr-instance:" in first
 
     def test_fingerprint_reports_the_triage_facts(self, restore_root_logger, tmp_path):
+        import config_singleton
+
         settings = _settings(tmp_path)
         settings.standalone_enabled = True
         settings.sonarr_url = ""
         settings.log_max_size_mb = 12
         settings.log_backup_count = 4
+        # The payload is read from the live settings at write time, which in
+        # production is always this singleton (create_app and the settings-save
+        # path both hand _setup_logging the object they just installed).
+        config_singleton._settings = settings
         _setup_logging(settings)
 
         first = (tmp_path / "sublarr.log").read_text(encoding="utf-8").splitlines()[0]
@@ -205,9 +212,12 @@ class TestLogFingerprint:
     def test_fingerprint_names_the_arr_mode_when_sonarr_is_configured(
         self, restore_root_logger, tmp_path
     ):
+        import config_singleton
+
         settings = _settings(tmp_path)
         settings.standalone_enabled = False
         settings.sonarr_url = "http://sonarr:8989"
+        config_singleton._settings = settings
         _setup_logging(settings)
 
         first = (tmp_path / "sublarr.log").read_text(encoding="utf-8").splitlines()[0]
@@ -292,6 +302,93 @@ class TestLogFingerprint:
 
         text = (tmp_path / "sublarr.log").read_text(encoding="utf-8")
         assert "still logging" in text
+
+
+class TestFingerprintSurvivesTheTwoPhaseStart:
+    """`mode=` must describe the instance, not the half-loaded config.
+
+    Startup reads its configuration in two phases: ENV and defaults first,
+    then the `config_entries` overlay from the database. `sonarr_url` is a UI
+    field, so it exists ONLY in phase two. Stamping the fingerprint during
+    phase one therefore reported `mode=unconfigured` on an instance with
+    Sonarr wired up — the single field the stamp exists to answer, wrong on
+    exactly the installs that ask for support. Seen on RC 1.11.0-rc.3; every
+    unit test until then handed `_setup_logging` a fully-populated settings
+    object and so could not reproduce it.
+    """
+
+    def test_startup_stamp_names_arr_mode_configured_only_in_the_database(
+        self, restore_root_logger, temp_db, tmp_path
+    ):
+        import app_logging
+        import config_singleton
+        from app import create_app
+        from app_shutdown import shutdown_event_dispatchers
+        from db.config import save_config_entry
+
+        os.environ["SUBLARR_LOG_FILE"] = str(tmp_path / "seed" / "sublarr.log")
+        os.environ["SUBLARR_LOG_LEVEL"] = "INFO"
+        config_singleton._settings = None
+
+        # Phase one of the real story: an operator configures Sonarr through
+        # the UI, which lands in config_entries and nowhere else.
+        seed = create_app(testing=True)
+        try:
+            with seed.app_context():
+                save_config_entry("sonarr_url", "http://sonarr:8989")
+        finally:
+            shutdown_event_dispatchers(seed)
+
+        # Phase two: the container restarts against that database. A genuinely
+        # fresh process — drop the cached singleton and the per-path stamp
+        # guard so nothing carries over from the seed app.
+        log_file = tmp_path / "config" / "sublarr.log"
+        os.environ["SUBLARR_LOG_FILE"] = str(log_file)
+        config_singleton._settings = None
+        app_logging._stamped_log_paths.clear()
+
+        app = create_app(testing=True)
+        try:
+            stamps = [
+                line
+                for line in log_file.read_text(encoding="utf-8").splitlines()
+                if "sublarr-instance:" in line
+            ]
+        finally:
+            shutdown_event_dispatchers(app)
+
+        assert len(stamps) == 1, f"exactly one startup stamp expected, got {len(stamps)}"
+        assert "mode=arr" in stamps[0], (
+            "the startup stamp must be written after the config_entries overlay, "
+            f"otherwise it reports an unconfigured instance: {stamps[0]}"
+        )
+
+    def test_rollover_stamp_reflects_config_saved_since_startup(
+        self, restore_root_logger, tmp_path
+    ):
+        """A rollover weeks later must describe the instance as it is now.
+
+        `sonarr_url` is not a logging key, so saving it never rebuilds the
+        handler. A payload frozen at handler-construction time would keep
+        re-stating the startup answer for the whole uptime.
+        """
+        import config_singleton
+
+        boot = _settings(tmp_path, level="INFO")
+        boot.standalone_enabled = False
+        boot.sonarr_url = ""
+        config_singleton._settings = boot
+        _setup_logging(boot)
+
+        live = _settings(tmp_path, level="INFO")
+        live.standalone_enabled = False
+        live.sonarr_url = "http://sonarr:8989"
+        config_singleton._settings = live
+
+        _rotating_handler().doRollover()
+
+        first = (tmp_path / "sublarr.log").read_text(encoding="utf-8").splitlines()[0]
+        assert "mode=arr" in first
 
 
 class TestRotatedLogPaths:
