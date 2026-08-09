@@ -248,6 +248,13 @@ def provider_health():
                 "successful_searches": stats.get("successful_searches", 0),
                 "avg_response_time_ms": stats.get("avg_response_time_ms", 0),
                 "last_response_time_ms": stats.get("last_response_time_ms", 0),
+                # Separate on purpose: a provider can pass every search while
+                # its download path is dead — an expiring token, a quota — and
+                # a health signal built on searches alone shows green straight
+                # through that. "last search 4 minutes ago, last download three
+                # days ago" is the sentence that names the failure.
+                "last_search_at": stats.get("last_search_at"),
+                "last_download_at": stats.get("last_download_at"),
                 "auto_disabled": stats.get("auto_disabled", False),
                 "disabled_until": stats.get("disabled_until", ""),
                 "consecutive_failures": stats.get("consecutive_failures", 0),

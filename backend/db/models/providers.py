@@ -78,6 +78,14 @@ class ProviderStats(db.Model):
     failed_downloads: Mapped[int | None] = mapped_column(Integer, default=0)
     avg_score: Mapped[float | None] = mapped_column(Float, default=0)
     last_success_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    # Search and download are separate paths with separate credentials, and one
+    # can die while the other keeps working — an OpenSubtitles download token
+    # expires after 24h while search runs on the API key alone. Both used to
+    # stamp last_success_at, which made that failure invisible for three days.
+    last_search_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    last_download_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
     last_failure_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     consecutive_failures: Mapped[int | None] = mapped_column(Integer, default=0)
     avg_response_time_ms: Mapped[float | None] = mapped_column(Float, default=0)

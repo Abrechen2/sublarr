@@ -241,6 +241,7 @@ class ProviderRepository(BaseRepository):
 
             if success:
                 existing.last_success_at = now
+                existing.last_search_at = now
                 existing.successful_searches = (existing.successful_searches or 0) + 1
             else:
                 existing.failed_downloads = (existing.failed_downloads or 0) + 1
@@ -267,6 +268,7 @@ class ProviderRepository(BaseRepository):
                 failed_downloads=0 if success else 1,
                 avg_score=0,
                 last_success_at=now if success else None,
+                last_search_at=now if success else None,
                 last_failure_at=now if not success else None,
                 consecutive_failures=0 if success else 1,
                 avg_response_time_ms=response_time_ms or 0,
@@ -295,6 +297,7 @@ class ProviderRepository(BaseRepository):
                 existing.avg_score = (old_avg * old_downloads + score) / new_downloads
 
             existing.last_success_at = now
+            existing.last_download_at = now
             existing.consecutive_failures = 0
             existing.updated_at = now
         else:
@@ -305,6 +308,7 @@ class ProviderRepository(BaseRepository):
                 failed_downloads=0,
                 avg_score=score,
                 last_success_at=now,
+                last_download_at=now,
                 consecutive_failures=0,
                 avg_response_time_ms=0,
                 last_response_time_ms=0,

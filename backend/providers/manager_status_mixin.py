@@ -67,6 +67,12 @@ class StatusReportingMixin:
                 "avg_score": perf_stats.get("avg_score", 0),
                 "consecutive_failures": perf_stats.get("consecutive_failures", 0),
                 "last_success_at": perf_stats.get("last_success_at"),
+                # Kept apart from last_success_at, which cannot say which path
+                # produced it. Search and download use different credentials
+                # and fail independently — searches passing while downloads
+                # 401 is a real, and previously invisible, outage shape.
+                "last_search_at": perf_stats.get("last_search_at"),
+                "last_download_at": perf_stats.get("last_download_at"),
                 "last_failure_at": perf_stats.get("last_failure_at"),
                 "avg_response_time_ms": perf_stats.get("avg_response_time_ms", 0) or 0,
                 "last_response_time_ms": perf_stats.get("last_response_time_ms", 0) or 0,
