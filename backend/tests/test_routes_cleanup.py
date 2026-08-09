@@ -2,6 +2,7 @@
 
 import os
 import sys
+from datetime import UTC, datetime
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -549,6 +550,32 @@ class TestCleanupStats:
         assert data["by_format"][0]["format"] == "srt"
         assert data["by_format"][0]["count"] == 5
         assert data["by_format"][0]["size_bytes"] == 100
+
+    def test_stats_cleanup_trends_bucket_sqlite_datetime(self, client):
+        """Cleanup history trend buckets SQLite datetimes without DATE result processing."""
+        from db.models.cleanup import CleanupHistory
+        from extensions import db
+
+        performed_at = datetime.now(UTC).replace(hour=12, minute=30, second=0, microsecond=0)
+        expected_day = performed_at.strftime("%Y-%m-%d")
+        with client.application.app_context():
+            db.session.add(
+                CleanupHistory(
+                    action_type="test_cleanup",
+                    files_processed=1,
+                    files_deleted=1,
+                    bytes_freed=1234,
+                    details_json="{}",
+                    performed_at=performed_at,
+                )
+            )
+            db.session.commit()
+
+        rv = client.get("/api/v1/cleanup/stats")
+
+        assert rv.status_code == 200
+        data = rv.get_json()
+        assert {"date": expected_day, "bytes_freed": 1234} in data["trends"]
 
     def test_stats_handles_repo_error(self, client):
         mock_repo = MagicMock()

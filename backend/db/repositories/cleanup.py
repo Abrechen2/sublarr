@@ -10,7 +10,7 @@ import os
 import re
 from datetime import UTC, datetime, timedelta
 
-from sqlalchemy import Date, cast, delete, func, select
+from sqlalchemy import String, cast, delete, func, select
 
 from db.models.cleanup import CleanupHistory, CleanupRule, SubtitleHash
 from db.repositories.base import BaseRepository
@@ -582,14 +582,21 @@ class CleanupRepository(BaseRepository):
             potential_savings += sum(sizes[:-1])
 
         # Recent cleanup trend (last 30 days)
+        # Keep the bucket and cutoff on a text cast of performed_at because
+        # installs may store this column as TIMESTAMP or legacy TEXT. SQLite
+        # turns CAST(... AS DATE) into numeric affinity and SQLAlchemy's Date
+        # processor then receives a non-string; the leading YYYY-MM-DD text
+        # form is portable and chronological for day comparisons.
+        day_expr = func.substr(cast(CleanupHistory.performed_at, String), 1, 10)
+        cutoff_day = (datetime.now(UTC) - timedelta(days=30)).strftime("%Y-%m-%d")
         trend_stmt = (
             select(
-                cast(CleanupHistory.performed_at, Date).label("date"),
+                day_expr.label("date"),
                 func.coalesce(func.sum(CleanupHistory.bytes_freed), 0).label("freed"),
             )
-            .where(CleanupHistory.performed_at > datetime.now(UTC) - timedelta(days=30))
-            .group_by(cast(CleanupHistory.performed_at, Date))
-            .order_by(cast(CleanupHistory.performed_at, Date))
+            .where(day_expr >= cutoff_day)
+            .group_by(day_expr)
+            .order_by(day_expr)
         )
         trend_rows = self.session.execute(trend_stmt).all()
         recent_cleanups = [{"date": row[0], "bytes_freed": row[1]} for row in trend_rows]
