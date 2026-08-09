@@ -265,6 +265,41 @@ class TestWebhookExemptionWarning:
         with app.test_client() as c:
             yield c
 
+    @pytest.fixture(autouse=True)
+    def _forget_warned_paths(self):
+        """The warning fires once per path per process, so it has memory.
+
+        Without clearing it these tests would pass or fail depending on which
+        of them ran first in the worker — the exact order-dependent flake the
+        suite is run with xdist to expose.
+        """
+        import auth as auth_module
+
+        auth_module._webhook_warned_paths.clear()
+        yield
+        auth_module._webhook_warned_paths.clear()
+
+    def test_the_warning_fires_once_per_path_not_once_per_event(self, client_with_api_key):
+        """Sonarr and Radarr cannot send a signature, so every legitimate event hit
+        this branch: 219 warnings in one user's log (#183) for a condition they
+        could do nothing about. The warning is a note that verification is not
+        implemented — one per path per boot says that just as well.
+        """
+        from unittest.mock import MagicMock, patch
+
+        import auth as auth_module
+
+        mock_logger = MagicMock()
+        with patch.object(auth_module, "logger", mock_logger):
+            for _ in range(5):
+                client_with_api_key.post("/api/v1/webhook/sonarr", json={})
+            client_with_api_key.post("/api/v1/webhook/radarr", json={})
+
+        footgun = [c for c in mock_logger.warning.call_args_list if "X-Signature" in str(c)]
+        assert len(footgun) == 2, (
+            f"expected one warning per distinct path, got {len(footgun)}: {footgun}"
+        )
+
     def test_warning_logged_for_webhook_without_signature(self, client_with_api_key):
         """Webhook request without X-Signature header produces a warning log."""
         from unittest.mock import MagicMock, patch

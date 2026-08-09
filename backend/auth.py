@@ -28,6 +28,15 @@ _failed_attempts: dict[str, list[float]] = defaultdict(list)
 # this window is for API key brute-force protection.
 _FAIL_WINDOW = 60  # seconds — fixed sliding window
 
+# Webhook paths already warned about in this process. The warning below records
+# that a route is exempt from API-key auth and owes its own verification — a
+# property of the route, not of the request — so it needs saying once, not on
+# every event. Sonarr and Radarr cannot sign their webhooks at all, so firing
+# per request produced hundreds of identical lines an operator could do nothing
+# about, drowning the log the same warning was meant to make readable.
+_webhook_warn_lock = threading.Lock()
+_webhook_warned_paths: set[str] = set()
+
 
 def _is_rate_limited(ip: str) -> bool:
     """Return True if ip has exceeded the failed-auth rate limit."""
@@ -179,12 +188,17 @@ def init_auth(app):
             if not request.headers.get("X-Signature") and not request.headers.get(
                 "X-Bazarr-Signature"
             ):
-                logger.warning(
-                    "Webhook request to %s from %s has no X-Signature header — "
-                    "ensure the handler implements HMAC verification",
-                    path,
-                    request.remote_addr,
-                )
+                with _webhook_warn_lock:
+                    first_time = path not in _webhook_warned_paths
+                    _webhook_warned_paths.add(path)
+                if first_time:
+                    logger.warning(
+                        "Webhook request to %s from %s has no X-Signature header — "
+                        "ensure the handler implements HMAC verification. Logged once "
+                        "per path per start; further unsigned requests stay silent.",
+                        path,
+                        request.remote_addr,
+                    )
             return None
 
         # Skip auth for UI auth endpoints (login, setup, status, logout)
