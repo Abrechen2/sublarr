@@ -68,6 +68,26 @@ export interface ProviderHealthItem {
   circuit_breaker_state: string
   throttled_until: string | null
   throttle_reason: string | null
+  /**
+   * Kept apart because search and download use different credentials and fail
+   * independently — a provider can pass every search while its download path
+   * is dead, and a signal built on searches alone shows green straight through
+   * that.
+   */
+  last_search_at: string | null
+  last_download_at: string | null
+  /**
+   * The one gate currently keeping this provider out of searches, resolved in
+   * the order the search path applies them. 'ok' when nothing is blocking.
+   */
+  gate:
+    | 'ok'
+    | 'auto_disabled'
+    | 'circuit_open'
+    | 'rate_limited'
+    | 'budget_exhausted'
+    | 'no_pool_key'
+    | 'not_initialised'
 }
 
 export interface ProviderStats {

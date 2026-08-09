@@ -2426,6 +2426,12 @@
     "active_count": "{{active}} active / {{total}} configured",
     "clear_all_caches": "Clear all caches",
     "empty_detail": "Select a provider from the list or click \"+ Add\".",
-    "empty_list": "No provider configured yet."
+    "empty_list": "No provider configured yet.",
+    "health_gated": "{{name}} is taking part in no searches",
+    "gate_auto_disabled": "Auto-disabled after repeated failures.",
+    "gate_circuit_open": "Circuit breaker open — the provider is skipped for now.",
+    "gate_rate_limited": "Throttled — waiting for its window.",
+    "gate_budget_exhausted": "Request budget exhausted.",
+    "gate_no_pool_key": "No credentials stored. Add a key under Settings → Providers."
   }
 }

@@ -246,6 +246,19 @@ export function ProvidersCollectionView({
           title: tc('settings:providers_collection.health_circuit', { name: displayName, state: cbState }),
           fix: { onClick: () => setSelectedId(p.name), label: tc('settings:providers_collection.inspect') },
         })
+      } else if (h.gate && h.gate !== 'ok' && h.gate !== 'not_initialised') {
+        // A gated provider is healthy in every sense the old checks measured —
+        // it answers, its breaker is closed — and still takes part in nothing.
+        // One user had ~20 providers skipped on every search with nothing
+        // anywhere saying so, because the budget and pool gates lived entirely
+        // inside the search loop.
+        items.push({
+          id: `provider-${p.name}-gated`,
+          severity: 'warn',
+          title: tc('settings:providers_collection.health_gated', { name: displayName }),
+          body: tc(`settings:providers_collection.gate_${h.gate}`, { defaultValue: h.gate }),
+          fix: { onClick: () => setSelectedId(p.name), label: tc('settings:providers_collection.inspect') },
+        })
       } else {
         items.push({
           id: `provider-${p.name}-ok`,

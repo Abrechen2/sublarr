@@ -2426,6 +2426,12 @@
     "active_count": "{{active}} aktiv / {{total}} konfiguriert",
     "clear_all_caches": "Alle Caches leeren",
     "empty_detail": "Wähle einen Provider aus der Liste oder klicke auf „+ Hinzufügen“.",
-    "empty_list": "Noch kein Provider konfiguriert."
+    "empty_list": "Noch kein Provider konfiguriert.",
+    "health_gated": "{{name}} nimmt an keiner Suche teil",
+    "gate_auto_disabled": "Automatisch deaktiviert nach wiederholten Fehlern.",
+    "gate_circuit_open": "Schutzschalter offen — der Anbieter wird vorübergehend übersprungen.",
+    "gate_rate_limited": "Gedrosselt — wartet auf sein Zeitfenster.",
+    "gate_budget_exhausted": "Anfragebudget erschöpft.",
+    "gate_no_pool_key": "Keine Zugangsdaten hinterlegt. Unter Einstellungen → Anbieter einen Schlüssel ergänzen."
   }
 }

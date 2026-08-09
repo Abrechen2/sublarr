@@ -8,12 +8,31 @@ export async function getProviders(): Promise<{ providers: ProviderInfo[] }> {
   return data
 }
 
-export async function testProvider(name: string): Promise<{ provider: string; healthy: boolean; message: string }> {
-  const { data } = await api.post(`/providers/test/${name}`, {})
+export interface ProviderTestOutcome {
+  provider: string
+  healthy: boolean
+  message: string
+  /** Present only when a download was requested. */
+  download?: { success: boolean; error?: string; message?: string; bytes?: number }
+}
+
+/**
+ * @param withDownload also fetch one real subtitle and discard it. Worth the
+ * extra call because search and download use different credentials: a provider
+ * can pass every search while its download path is dead, and a search-only
+ * test reports that provider as healthy.
+ */
+export async function testProvider(
+  name: string,
+  withDownload = false,
+): Promise<ProviderTestOutcome> {
+  const body = withDownload ? { test_search: true, test_download: true } : {}
+  const { data } = await api.post(`/providers/test/${name}`, body)
   return {
     provider: data.provider,
     healthy: data.health_check?.healthy ?? false,
     message: data.health_check?.message ?? 'No response',
+    download: data.download_test,
   }
 }
 
