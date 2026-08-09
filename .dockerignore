@@ -12,6 +12,17 @@ __pycache__
 **/.env.*
 .ruff_cache/
 **/.ruff_cache/
+# Log files from the dev machine must never be baked into the image. The
+# default `log_file` is the RELATIVE path "log/sublarr.log", which resolves to
+# /app/log/sublarr.log in the container — so any install that does not set
+# SUBLARR_LOG_FILE appends its own lines to whatever shipped there. Images
+# built before this rule carried 17 MB of the maintainer's Windows logs, and a
+# user's support bundle would have contained them, complete with a foreign
+# machine's platform and paths.
+log/
+**/log/
+*.log
+**/*.log
 Modelfile
 scripts/
 node_modules/
