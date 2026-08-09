@@ -113,10 +113,15 @@ export function ProvidersCollectionView({
         // health check instead would show green through the failure this test
         // exists to catch.
         const download = result.download
+        // The backend's prose is English. Translate on the error CODE — the
+        // stable part of the contract — and fall back to the raw text only for
+        // a code we do not know, where an English sentence beats none.
         const message = download
           ? download.success
             ? tc('settings:providers_collection.download_ok', { bytes: download.bytes ?? 0 })
-            : (download.message ?? download.error ?? '')
+            : tc(`settings:providers_collection.download_err_${download.error ?? 'unknown'}`, {
+                defaultValue: download.message ?? download.error ?? '',
+              })
           : result.message
         setTestResults((prev) => ({
           ...prev,

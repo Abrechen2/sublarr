@@ -2435,6 +2435,10 @@
     "gate_rate_limited": "Gedrosselt — wartet auf sein Zeitfenster.",
     "gate_budget_exhausted": "Anfragebudget erschöpft.",
     "gate_no_pool_key": "Keine Zugangsdaten hinterlegt. Unter Einstellungen → Anbieter einen Schlüssel ergänzen.",
-    "download_ok": "Download erfolgreich ({{bytes}} Bytes)"
+    "download_ok": "Download erfolgreich ({{bytes}} Bytes)",
+    "download_err_no_results_to_download": "Die Suche fand nichts — es gab nichts herunterzuladen. Das sagt nichts über den Download-Pfad aus.",
+    "download_err_authentication_failed": "Anmeldung beim Download abgelehnt. Suche und Download nutzen verschiedene Zugangsdaten — prüfe Benutzername und Passwort, nicht nur den API-Schlüssel.",
+    "download_err_rate_limit_exceeded": "Kontingent erschöpft. Der Download-Pfad selbst ist in Ordnung.",
+    "download_err_download_failed": "Der Download schlug fehl."
   }
 }

@@ -1,6 +1,7 @@
 """Provider management routes: list, test, enable, cache/clear."""
 
 import logging
+import re
 
 from flask import jsonify, request
 
@@ -49,6 +50,42 @@ def list_providers():
 
     manager = get_provider_manager()
     return jsonify({"providers": manager.get_provider_status()})
+
+
+def _probe_query_from_wanted() -> dict:
+    """Build a search query from the first wanted item, or return {}.
+
+    A provider test is only informative against something the provider might
+    plausibly have. Inventing a famous title would test a provider's catalogue
+    rather than this install's; the wanted list is by definition what the
+    operator cares about and expects to be found.
+    """
+    try:
+        from db.repositories.wanted import WantedRepository
+
+        page = WantedRepository().get_wanted_items(page=1, per_page=1, status="wanted")
+        items = page.get("data") or page.get("items") or []
+        if not items:
+            return {}
+        item = items[0]
+        season_episode = item.get("season_episode") or ""
+        season = episode = None
+        match = re.match(r"[Ss](\d+)[Ee](\d+)", season_episode)
+        if match:
+            season, episode = int(match.group(1)), int(match.group(2))
+        title = item.get("title") or ""
+        # Titles are stored as "Series — S01E02"; the provider wants the series.
+        series_title = title.split("—")[0].strip() if "—" in title else title
+        return {
+            "series_title": series_title,
+            "title": series_title,
+            "season": season,
+            "episode": episode,
+            "language": item.get("target_language") or "en",
+        }
+    except Exception:  # noqa: BLE001 — a probe that cannot be built is not a test failure
+        logger.debug("provider test: could not build a probe query", exc_info=True)
+        return {}
 
 
 @bp.route("/providers/test/<provider_name>", methods=["POST"])
@@ -169,6 +206,13 @@ def test_provider(provider_name):
         data = request.get_json(force=True, silent=True) or {}
         if data.get("test_search"):
             query_data = data.get("query", {})
+            if not query_data:
+                # Probe with something the install actually wants. A caller
+                # that sends no query searches for the empty string, finds
+                # nothing, and the download path — the whole point of the
+                # download test — is never reached, so the button answers a
+                # question nobody asked.
+                query_data = _probe_query_from_wanted()
             test_query = VideoQuery(
                 series_title=query_data.get("series_title", ""),
                 title=query_data.get("title", ""),

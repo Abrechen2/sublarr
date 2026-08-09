@@ -2435,6 +2435,10 @@
     "gate_rate_limited": "Throttled — waiting for its window.",
     "gate_budget_exhausted": "Request budget exhausted.",
     "gate_no_pool_key": "No credentials stored. Add a key under Settings → Providers.",
-    "download_ok": "Download succeeded ({{bytes}} bytes)"
+    "download_ok": "Download succeeded ({{bytes}} bytes)",
+    "download_err_no_results_to_download": "The search found nothing, so there was nothing to fetch. This says nothing about the download path.",
+    "download_err_authentication_failed": "The download was refused at authentication. Search and download use different credentials — check the username and password, not just the API key.",
+    "download_err_rate_limit_exceeded": "Allowance exhausted. The download path itself is fine.",
+    "download_err_download_failed": "The download failed."
   }
 }
