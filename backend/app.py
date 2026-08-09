@@ -85,6 +85,23 @@ def _patch_pre_alembic_columns(engine, inspect_fn) -> None:
         if "scoring_preset" not in existing:
             patches.append("ALTER TABLE language_profiles ADD COLUMN scoring_preset TEXT")
 
+    # Split search/download success times (migration b7c8d9e0f1a2).
+    # A column added by a migration MUST be repeated here: an install whose
+    # alembic_version was stamped at head never replays the migration, and
+    # create_all() adds missing tables but never missing columns — so the model
+    # queries a column the database does not have and every worker dies at
+    # boot. That is exactly how the beta instance went down on 2026-08-09.
+    if insp.has_table("provider_stats"):
+        existing = {c["name"] for c in insp.get_columns("provider_stats")}
+        # The model declares DateTime(timezone=True). Spelling that as a bare
+        # TIMESTAMP on Postgres would create a column the ORM then compares
+        # against aware datetimes — the mixed-type trap that has produced 500s
+        # in this codebase before.
+        ts = "TIMESTAMP WITH TIME ZONE" if engine.dialect.name == "postgresql" else "TIMESTAMP"
+        for column in ("last_search_at", "last_download_at"):
+            if column not in existing:
+                patches.append(f"ALTER TABLE provider_stats ADD COLUMN {column} {ts}")
+
     # Decision log snapshots (migration a7d3c9e1f5b2)
     if insp.has_table("wanted_items"):
         existing = {c["name"] for c in insp.get_columns("wanted_items")}
