@@ -491,6 +491,12 @@ class UISettings(BaseModel):
     wanted_scheduler_priority_weighting_enabled: bool = True
     wanted_scheduler_backlog_reserve_pct: int = 50
     provider_budget_enabled: bool = True
+    # Push a notification when a provider degrades quietly — auto-disabled, or
+    # still searching while nothing downloads. Off by default: the conditions
+    # are heuristics about a fleet whose shape varies a lot between installs,
+    # and an unasked-for alert is a support ticket. Detection runs regardless
+    # and writes the finding to the log.
+    provider_degradation_alerts_enabled: bool = False
     provider_budget_stretch_mode: str = "stretch"  # 'stretch' | 'burst' | 'off'
     provider_budget_burst_window_hours: int = 6
     # Reserve this % below each provider's declared limit. Must be a declared

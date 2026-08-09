@@ -39,6 +39,7 @@ standalone_scan_complete = sublarr_signals.signal("standalone_scan_complete")
 standalone_file_detected = sublarr_signals.signal("standalone_file_detected")
 wanted_item_searched = sublarr_signals.signal("wanted_item_searched")
 provider_state_changed = sublarr_signals.signal("provider_state_changed")
+provider_degraded = sublarr_signals.signal("provider_degraded")
 provider_budget_updated = sublarr_signals.signal("provider_budget_updated")
 
 # ---- Catalog dict (machine-readable metadata) ----------------------------------
@@ -100,6 +101,21 @@ EVENT_CATALOG: dict[str, dict] = {
             "season",
             "episode",
             "movie_title",
+        ],
+    },
+    "provider_degraded": {
+        "signal": provider_degraded,
+        "label": "Provider Degraded",
+        "description": (
+            "A provider stopped working without failing loudly — auto-disabled, or "
+            "still searching while nothing downloads. Raised at most once per provider "
+            "per condition per day."
+        ),
+        "payload_keys": [
+            "provider_name",
+            "condition",
+            "detail",
+            "since",
         ],
     },
     "provider_failed": {

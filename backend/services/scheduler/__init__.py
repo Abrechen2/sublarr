@@ -83,6 +83,7 @@ def _build_default_jobs() -> list[JobSpec]:
     from services.dubtitle.sweep import dubtitle_scan_tick
     from services.foreign_tracks.sweep import foreign_track_sweep_tick
     from services.mt_reseek import mt_reseek_tick
+    from services.provider_degradation import provider_degradation_tick
     from services.repair.resume import repair_resume_tick
     from services.stats_rollup import stats_rollup_tick
     from services.subtitle_automation_runner import subtitle_automation_tick
@@ -131,6 +132,18 @@ def _build_default_jobs() -> list[JobSpec]:
             timeout_s=60,
             owner_module="services.scheduler",
             description="Delete old scheduler_job_runs rows per retention policy.",
+        ),
+        JobSpec(
+            id="provider_degradation_check",
+            func=provider_degradation_tick,
+            # Hourly. The conditions are measured in hours, and the alert is
+            # deduplicated to one per provider per condition per day, so a
+            # tighter cadence buys nothing and a looser one delays the first
+            # ping past the point of being useful.
+            default_trigger=IntervalTrigger(hours=1),
+            timeout_s=60,
+            owner_module="services.provider_degradation",
+            description="Notice a provider that stopped working without failing loudly.",
         ),
         JobSpec(
             id="usage_stats_ping",
