@@ -63,7 +63,9 @@ class TestDownloadServesTheBundle:
 
     def test_raw_escape_hatch_still_serves_the_plain_file(self, client, tmp_path, monkeypatch):
         # Scripted callers predate the change; ?raw=1 is their migration path.
-        _point_log_file_at(tmp_path, monkeypatch, content="2026-08-08 10:00:00,000 [INFO] a.b: hi\n")
+        _point_log_file_at(
+            tmp_path, monkeypatch, content="2026-08-08 10:00:00,000 [INFO] a.b: hi\n"
+        )
 
         resp = client.get("/api/v1/logs/download?raw=1")
 
@@ -74,9 +76,7 @@ class TestDownloadServesTheBundle:
     def test_raw_download_reports_a_missing_log_file(self, client, tmp_path, monkeypatch):
         from config import get_settings
 
-        monkeypatch.setattr(
-            get_settings(), "log_file", str(tmp_path / "absent.log"), raising=False
-        )
+        monkeypatch.setattr(get_settings(), "log_file", str(tmp_path / "absent.log"), raising=False)
 
         resp = client.get("/api/v1/logs/download?raw=1")
 
