@@ -185,6 +185,65 @@ def provider_stats():
     )
 
 
+def _active_gate(manager, status: dict, stats: dict) -> str:
+    """Which gate is keeping this provider out of searches right now.
+
+    A provider can sit behind several at once, so the order is not cosmetic:
+    it is the order `_submit_provider_searches` actually applies, because
+    naming a gate the search path never reaches would send an operator to fix
+    something that is not the cause. Kept in this order deliberately —
+    auto-disable, breaker, rate limit, budget, pool.
+
+    Returns "ok" when nothing is blocking. Best-effort: a gate that cannot be
+    evaluated is reported as open rather than guessed at, since claiming a
+    provider is blocked when it is not is the more misleading error.
+    """
+    name = status["name"]
+
+    if stats.get("auto_disabled"):
+        return "auto_disabled"
+
+    cb = manager._circuit_breakers.get(name)
+    if cb is not None and not cb.allow_request():
+        return "circuit_open"
+
+    if status.get("throttled_until"):
+        return "rate_limited"
+
+    provider = manager._providers.get(name)
+    if provider is None:
+        # Not initialised — it cannot be gated because it never runs.
+        return "not_initialised"
+
+    try:
+        from config import get_settings
+        from providers.search_coordinator import _provider_can_search_without_pool_key
+        from services.key_selector import get_key_selector
+        from services.provider_budget import get_budget_manager
+
+        settings = get_settings()
+        if not getattr(settings, "provider_budget_enabled", True):
+            return "ok"
+
+        rate_limits = getattr(type(provider), "rate_limits", None)
+        rate_limits_dict = rate_limits if isinstance(rate_limits, dict) else {}
+        tier = getattr(provider, "tier", "free")
+        limits = rate_limits_dict.get(tier) or rate_limits_dict.get("free") or {}
+        if limits:
+            decision = get_budget_manager().check(name, limits)
+            if not decision.allow:
+                return "budget_exhausted"
+
+            if not get_key_selector().has_pool_rows(
+                name
+            ) and not _provider_can_search_without_pool_key(provider):
+                return "no_pool_key"
+    except Exception:  # noqa: BLE001 — a dashboard must not 500 on a gate probe
+        logger.debug("provider health: gate probe failed for %s", name, exc_info=True)
+
+    return "ok"
+
+
 @bp.route("/providers/health", methods=["GET"])
 def provider_health():
     """Get health overview for all providers (dashboard-oriented endpoint).
@@ -236,6 +295,7 @@ def provider_health():
     health_data = []
     for s in statuses:
         stats = s.get("stats", {})
+        gate = _active_gate(manager, s, stats)
         health_data.append(
             {
                 "name": s["name"],
@@ -262,6 +322,7 @@ def provider_health():
                 "circuit_breaker_state": s.get("circuit_breaker_state", "closed"),
                 "throttled_until": s.get("throttled_until"),
                 "throttle_reason": s.get("throttle_reason"),
+                "gate": gate,
             }
         )
 
