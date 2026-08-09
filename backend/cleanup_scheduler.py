@@ -148,7 +148,6 @@ def _execute_cleanup():
     from db.repositories.cleanup import CleanupRepository
     from dedup_engine import scan_for_duplicates, scan_orphaned_subtitles
     from services.cleanup_executors import (
-        execute_foreign_tracks,
         execute_format_upgrade,
         execute_language_filter,
         execute_orphan_db,
@@ -242,25 +241,39 @@ def _execute_cleanup():
                     )
 
                 elif rule_type == "foreign_tracks":
-                    result = execute_foreign_tracks(media_path, config, dry_run=False)
-                    if result.get("aborted"):
-                        # Guard fired — nothing swept. Leave last_run_at untouched so
-                        # a no-op cannot masquerade as a successful sweep.
-                        logger.warning("Scheduled foreign_tracks aborted: %s", result["aborted"])
+                    from services.cleanup_rule_runner import _run_foreign_track_slice
+
+                    result = _run_foreign_track_slice(media_path, config)
+                    paused = result.get("paused_reason")
+                    stripped = result.get("stripped_files", 0)
+                    if paused and not stripped:
+                        # Nothing swept — leave last_run_at untouched so a no-op
+                        # cannot masquerade as a sweep. A pause that FOLLOWS real
+                        # work falls through and is recorded: the disk floor is
+                        # checked inside the strip loop, not before it.
+                        logger.warning("Scheduled foreign_tracks paused: %s", paused)
                         continue
+                    if paused:
+                        logger.warning(
+                            "Scheduled foreign_tracks paused after %d file(s): %s",
+                            stripped,
+                            paused,
+                        )
                     repo.update_rule_last_run(rule_id)
                     repo.log_cleanup(
                         action_type="scheduled_foreign_tracks",
-                        files_deleted=result.get("stripped_files", 0),
+                        files_deleted=stripped,
                         bytes_freed=result.get("bytes_freed", 0),
                         rule_id=rule_id,
                     )
                     logger.info(
-                        "Scheduled foreign_tracks: %d files stripped, %d tracks removed, "
-                        "%d bytes freed",
+                        "Scheduled foreign_tracks: phase=%s, %d file(s) stripped, "
+                        "%d track(s) removed, %d pending, %d still affected",
+                        result.get("phase"),
                         result.get("stripped_files", 0),
                         result.get("tracks_removed", 0),
-                        result.get("bytes_freed", 0),
+                        result.get("pending", 0),
+                        result.get("affected", 0),
                     )
 
                 elif rule_type == "dedup":

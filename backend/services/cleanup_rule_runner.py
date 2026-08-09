@@ -26,6 +26,28 @@ class CleanupBusyError(RuntimeError):
     """Raised when a cleanup rule is already executing."""
 
 
+def _run_foreign_track_slice(media_path: str, config: dict) -> dict:
+    """Run one budgeted sweep slice. Split out so tests can substitute it.
+
+    Acquires the sweep's own lock, not just ``_rule_runner_lock``: the
+    scheduler tick does not go through the rule runner at all, so those two
+    locks would not serialise a manual "Run now" against a tick already
+    remuxing a file.
+    """
+    from config import get_settings
+    from services.foreign_tracks.sweep import SweepBusyError, run_slice
+
+    # `run_slice` takes the sweep lock itself (corrected in Task 6 — the lock
+    # used to guard only the scheduler tick, leaving this path unprotected).
+    # Do NOT acquire it here as well: `_sweep_lock` is a plain Lock, not an
+    # RLock, and a second acquire would deadlock.
+    budget = int(getattr(get_settings(), "foreign_track_sweep_budget_s", 1800))
+    try:
+        return run_slice(media_path, config, budget)
+    except SweepBusyError as exc:
+        raise CleanupBusyError(str(exc)) from exc
+
+
 def execute_rule(rule_id: int, *, socketio=None) -> dict:
     """Execute a cleanup rule by ID and log the result.
 
@@ -46,7 +68,6 @@ def _execute_rule_locked(rule_id: int, *, socketio=None) -> dict:
     from config import get_settings
     from dedup_engine import scan_for_duplicates, scan_orphaned_subtitles
     from services.cleanup_executors import (
-        execute_foreign_tracks,
         execute_format_upgrade,
         execute_language_filter,
         execute_orphan_db,
@@ -73,20 +94,32 @@ def _execute_rule_locked(rule_id: int, *, socketio=None) -> dict:
     elif rule_type == "orphan_db":
         result = execute_orphan_db(config, dry_run=False)
     elif rule_type == "foreign_tracks":
-        result = execute_foreign_tracks(media_path, config, dry_run=False)
-        if result.get("aborted"):
-            # A guard fired (unreachable media_path, empty keep-set): nothing was
-            # swept. Stamping last_run_at here would make a no-op indistinguishable
-            # from a successful sweep in the UI.
-            logger.warning("foreign_tracks rule %s aborted: %s", rule_id, result["aborted"])
+        # One budgeted slice, not the whole library: the sweep is resumable and
+        # the next slice picks up where this one stopped. The returned counts
+        # therefore describe this slice, and `pending` / `affected` tell the UI
+        # how much is left so it does not read as "the rule finished".
+        result = _run_foreign_track_slice(media_path, config)
+        paused = result.get("paused_reason")
+        stripped = result.get("stripped_files", 0)
+        # A pause is not automatically a no-op: the disk-floor check sits inside
+        # the strip loop, so a slice can rewrite files and only then stop. Record
+        # whatever it managed; only a slice that swept nothing leaves no trace,
+        # which is what keeps a no-op distinguishable from a real sweep.
+        if paused and not stripped:
+            logger.warning("foreign_tracks rule %s paused: %s", rule_id, paused)
             return {"status": "aborted", "result": result}
         repo.update_rule_last_run(rule_id)
         repo.log_cleanup(
             action_type=rule_type,
             rule_id=rule_id,
-            files_deleted=result.get("stripped_files", 0),
+            files_deleted=stripped,
             bytes_freed=result.get("bytes_freed", 0),
         )
+        if paused:
+            logger.warning(
+                "foreign_tracks rule %s paused after %d file(s): %s", rule_id, stripped, paused
+            )
+            return {"status": "aborted", "result": result}
         return {"status": "ok", "result": result}
     elif rule_type == "signs_cleanup":
         from services.cleanup_signs import execute_signs_cleanup
@@ -171,7 +204,6 @@ def preview_rule(rule_id: int) -> dict:
     """
     from config import get_settings
     from services.cleanup_executors import (
-        execute_foreign_tracks,
         execute_format_upgrade,
         execute_language_filter,
         execute_orphan_db,
@@ -197,7 +229,11 @@ def preview_rule(rule_id: int) -> dict:
     elif rule_type == "orphan_db":
         result = execute_orphan_db(config, dry_run=True)
     elif rule_type == "foreign_tracks":
-        result = execute_foreign_tracks(media_path, config, dry_run=True)
+        # Deliberately NOT execute_foreign_tracks(dry_run=True): that walks and
+        # ffprobes the entire library inside the request — 754 s and 2,825 s on
+        # the production library, so the endpoint could only ever time out. The
+        # sweep's scan table already holds a verdict per file.
+        result = _preview_foreign_tracks()
     elif rule_type == "signs_cleanup":
         from services.cleanup_signs import execute_signs_cleanup
 
@@ -351,6 +387,11 @@ def _preview_by_rule(params: dict, media_path: str) -> dict:
         result["action"] = "rule"
         result["rule"] = rule["name"]
         return result
+    elif rule["rule_type"] == "foreign_tracks":
+        result = _preview_foreign_tracks()
+        result["action"] = "rule"
+        result["rule"] = rule["name"]
+        return result
     else:
         return {
             "action": "rule",
@@ -359,3 +400,43 @@ def _preview_by_rule(params: dict, media_path: str) -> dict:
             "total_size": 0,
             "message": f"Preview not available for rule type: {rule['rule_type']}",
         }
+
+
+def _preview_foreign_tracks() -> dict:
+    """Answer from the scan table instead of walking the library.
+
+    A synchronous scan is not an option at library scale — 754 s to enumerate
+    and 2,825 s to probe on the production library. The sweep already stores
+    per-file verdicts, so the preview is a set of counts.
+    """
+    from db.repositories.foreign_track_scan import ForeignTrackScanRepository
+    from services.foreign_tracks.state import load_state
+
+    scan = ForeignTrackScanRepository()
+    counts = scan.counts_by_state()
+    total = sum(counts.values())
+    state = load_state()
+    affected = counts.get("affected", 0)
+
+    if not total:
+        message = "No scan has run yet — counts appear after the first sweep slice."
+    else:
+        message = f"{affected} file(s) still carry foreign tracks."
+
+    return {
+        "affected_files": affected,
+        "clean_files": counts.get("clean", 0),
+        "pending_files": counts.get("pending", 0),
+        "stripped_files": counts.get("stripped", 0),
+        "failed_files": counts.get("failed", 0),
+        # `would_strip_files` / `would_keep` / `would_strip_tracks` are the keys
+        # PreviewPanel already reads for every other rule type. Emitting them
+        # here means the table-backed preview renders in the existing UI without
+        # a frontend change, and the *_files names above stay for API callers.
+        "would_strip_files": affected,
+        "would_keep": counts.get("clean", 0),
+        "would_strip_tracks": scan.affected_track_total(),
+        "examples": scan.sample_affected(limit=20),
+        "scanned_at": state.started_at,
+        "message": message,
+    }

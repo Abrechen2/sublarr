@@ -194,6 +194,20 @@ class ForeignTrackScanRepository(BaseRepository):
         ).all()
         return {state: int(count) for state, count in rows}
 
+    def affected_track_total(self) -> int:
+        """Foreign tracks still to remove, across every affected row.
+
+        The preview shows this next to the file count: on the production
+        library it is 34,104 tracks over 2,375 files, and the track number is
+        what conveys the scale of the pending work.
+        """
+        total = self.session.execute(
+            select(func.sum(ForeignTrackScan.track_count)).where(
+                ForeignTrackScan.state == STATE_AFFECTED
+            )
+        ).scalar()
+        return int(total or 0)
+
     def sample_affected(self, limit: int) -> list[dict]:
         rows = self.session.execute(
             select(ForeignTrackScan)
