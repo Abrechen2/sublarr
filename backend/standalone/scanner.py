@@ -13,6 +13,7 @@ import time
 
 from sqlalchemy import text
 
+from services.scheduler.cancellation import abort_requested
 from standalone.scanner_process import _StandaloneProcessMixin  # noqa: F401 — re-exported
 
 logger = logging.getLogger(__name__)
@@ -161,6 +162,15 @@ class StandaloneScanner(_StandaloneProcessMixin):
                 }
 
             for folder in folders:
+                # One watched folder is the unit: _scan_folder walks a whole
+                # tree and cannot be interrupted part-way, so a stop takes
+                # effect between folders and the counts below stay truthful
+                # about what was actually scanned.
+                if abort_requested():
+                    logger.info(
+                        "Standalone scan stopping as asked after %d folder(s)", folders_scanned
+                    )
+                    break
                 try:
                     s, m, w = self._scan_folder(folder)
                     total_series += s

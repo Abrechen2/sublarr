@@ -167,3 +167,49 @@ def test_start_scheduler_on_startup_with_flags_off_does_not_spawn(monkeypatch):
     scanner.start_scheduler(on_startup=True)
 
     assert spawned == []
+
+
+def test_a_stopped_full_scan_never_prunes(app_ctx, monkeypatch):
+    """The hazard specific to this job (#183, bug 3).
+
+    A full scan removes every wanted item whose path it did not see. Stopping
+    after the Sonarr phase would leave every Radarr and standalone path unseen
+    — and deleting them is not a cosmetic wrong, it is the wanted queue.
+
+    So a scan that was cut short must neither prune nor advance the incremental
+    watermark: the phases it skipped were never looked at, and a watermark that
+    moved would mean their changes are never picked up either.
+    """
+    import threading
+
+    from services.scheduler import cancellation
+
+    scanner = WantedScanner()
+    event = threading.Event()
+    cleaned: list[object] = []
+
+    def _sonarr(settings, since):
+        event.set()  # the stop arrives while the first phase runs
+        return 1, 0, {"/media/show.mkv"}
+
+    def _fail(*a, **k):
+        raise AssertionError("a stopped scan must not start the next phase")
+
+    monkeypatch.setattr(scanner, "_scan_all_sonarr", _sonarr, raising=False)
+    monkeypatch.setattr(scanner, "_scan_all_radarr", _fail, raising=False)
+    monkeypatch.setattr(scanner, "_scan_all_standalone", _fail, raising=False)
+    monkeypatch.setattr(
+        scanner, "_cleanup", lambda paths: cleaned.append(paths) or 0, raising=False
+    )
+
+    token = cancellation.activate(event)
+    try:
+        summary = scanner.scan_all(incremental=False)
+    finally:
+        cancellation.deactivate(token)
+
+    assert cleaned == [], "a partial scan pruned the wanted queue against an incomplete path set"
+    assert summary.get("removed") == 0
+    assert scanner._last_scan_timestamp is None, (
+        "the incremental watermark advanced past phases that were never scanned"
+    )

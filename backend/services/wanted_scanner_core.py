@@ -22,6 +22,7 @@ from datetime import UTC, datetime
 from config import get_settings
 from db.activity import log_activity
 from db.models.activity import EVENT_SCAN
+from services.scheduler.cancellation import abort_requested
 from services.wanted_item_scanner import scan_radarr_movie, scan_sonarr_series
 from services.wanted_scanner_scheduler import (  # noqa: F401 — re-exported for back-compat
     _WantedSchedulerMixin,
@@ -124,25 +125,47 @@ class WantedScanner(_WantedSchedulerMixin, _WantedScanSourcesMixin):
 
             since = self._last_scan_timestamp if is_incremental else None
 
+            # One source is the unit of work. A stop between sources is safe;
+            # a stop *within* one is not, because the cleanup below removes
+            # every wanted item whose path this pass did not see, and the
+            # sources that were skipped account for all of theirs.
+            aborted = False
+
             # Scan all Sonarr instances
             a, u, paths = self._scan_all_sonarr(settings, since)
             added += a
             updated += u
             scanned_paths.update(paths)
 
-            # Scan all Radarr instances
-            a, u, paths = self._scan_all_radarr(settings, since)
-            added += a
-            updated += u
-            scanned_paths.update(paths)
+            if abort_requested():
+                aborted = True
+            else:
+                # Scan all Radarr instances
+                a, u, paths = self._scan_all_radarr(settings, since)
+                added += a
+                updated += u
+                scanned_paths.update(paths)
 
-            # Scan standalone items
-            a, u, paths = self._scan_all_standalone()
-            added += a
-            updated += u
-            scanned_paths.update(paths)
+            if not aborted and abort_requested():
+                aborted = True
+            elif not aborted:
+                # Scan standalone items
+                a, u, paths = self._scan_all_standalone()
+                added += a
+                updated += u
+                scanned_paths.update(paths)
 
-            removed = self._cleanup(scanned_paths if not is_incremental else set())
+            if aborted:
+                # Never prune against an incomplete path set — that would delete
+                # the wanted queue of every source this pass never reached.
+                logger.info(
+                    "Wanted scan stopping as asked: +%d added, ~%d updated, nothing pruned",
+                    added,
+                    updated,
+                )
+                removed = 0
+            else:
+                removed = self._cleanup(scanned_paths if not is_incremental else set())
 
             duration = round(time.time() - start, 1)
             from db.wanted import get_wanted_count
@@ -159,8 +182,13 @@ class WantedScanner(_WantedSchedulerMixin, _WantedScanSourcesMixin):
             }
 
             self._last_scan_at = datetime.now(UTC)
-            self._last_scan_timestamp = datetime.now(UTC)
-            self._scan_count += 1
+            if not aborted:
+                # The watermark must not move past sources that were never
+                # looked at: the next incremental pass would ask them for
+                # changes "since" a moment it never covered, and their edits in
+                # that window would be lost for good.
+                self._last_scan_timestamp = datetime.now(UTC)
+                self._scan_count += 1
             self._last_summary = summary
 
             logger.info(

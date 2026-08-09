@@ -23,6 +23,7 @@ from datetime import UTC, datetime
 from config import get_settings
 from db.activity import log_activity
 from db.models.activity import EVENT_SEARCH
+from services.scheduler.cancellation import abort_requested
 from services.wanted_search_filters import (  # noqa: F401 — re-exported for back-compat
     _EMBEDDED_TYPES,
     _apply_backlog_reserve_gate,
@@ -384,7 +385,11 @@ def run_wanted_search(
             }
 
         for future in as_completed(future_to_item):
-            if cancel_event and cancel_event.is_set():
+            # Two ways to be told to stop, one exit: the user's Cancel button
+            # sets cancel_event, while the scheduler sets its own signal on a
+            # timeout or a pause. Both mean "stop after the items already in
+            # flight", which is exactly what this branch already did.
+            if (cancel_event and cancel_event.is_set()) or abort_requested():
                 logger.info("Wanted search cancelled after %d/%d items", processed, total)
                 for f in future_to_item:
                     f.cancel()
