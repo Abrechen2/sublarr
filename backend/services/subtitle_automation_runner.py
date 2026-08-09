@@ -29,6 +29,7 @@ from db.repositories.subtitle_automation_queue import (
 
 # Aliased import: tests patch "services.subtitle_automation_runner._extract_embedded_sub".
 from services.embedded_extractor import extract_embedded_sub as _extract_embedded_sub
+from services.scheduler.cancellation import abort_requested
 
 logger = logging.getLogger(__name__)
 
@@ -127,6 +128,15 @@ class SubtitleAutomationRunner:
             return 0
         processed = 0
         while processed < max_items:
+            # One queue item is the unit of work: claiming the row starts a
+            # ffprobe/extract operation that cannot be interrupted, so a stop
+            # takes effect before the next item is claimed.
+            if abort_requested():
+                logger.info(
+                    "subtitle_automation_tick: stopping as asked after %d item(s)",
+                    processed,
+                )
+                return processed
             if not self.process_one():
                 break
             processed += 1

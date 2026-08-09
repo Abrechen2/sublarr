@@ -60,6 +60,20 @@ def repo(app):
 CFG = {"keep_languages": ["de", "en"], "keep_und": True}
 
 
+def _enable_foreign_track_tick(monkeypatch, media_path):
+    monkeypatch.setattr(
+        "config.get_settings",
+        lambda: SimpleNamespace(
+            foreign_track_sweep_enabled=True,
+            foreign_track_sweep_budget_s=60,
+            media_path=media_path,
+            cleanup_foreign_tracks_keep_languages=["de", "en"],
+            cleanup_foreign_tracks_keep_und=True,
+        ),
+    )
+    monkeypatch.setattr(sw, "_find_rule", lambda repo: {"config_json": CFG})
+
+
 def test_enumerate_creates_rows_from_the_walk(app, repo, tmp_path, monkeypatch):
     """The walk creates a row for every file it finds. `run_slice` chains
     phases within one call (bounded only by the wall-clock budget, not by
@@ -93,6 +107,46 @@ def test_interrupted_enumeration_does_not_prune_unvisited_rows(app, repo, tmp_pa
     sw.run_slice(str(tmp_path), CFG, budget_s=60, now_fn=FakeClock(), repo=repo)
     paths = {r.path for r in repo.next_pending(limit=10)}
     assert "/media/old.mkv" in paths
+
+
+def test_a_stop_during_enumeration_leaves_the_pass_incomplete(app, repo, tmp_path, monkeypatch):
+    """Enumeration is the longest uninterruptible stretch — 754 s on the
+    production library — so a stop that only takes effect afterwards is not a
+    stop the operator will believe.
+
+    Leaving the walk early must take the same exit as the OSError path: the
+    pass stays incomplete and nothing is pruned. Pruning after a partial walk
+    would mark every unvisited file as deleted and throw away its cached
+    verdict, which is the worst failure this design has to avoid.
+    """
+    import threading
+
+    from services.scheduler import cancellation
+
+    repo.upsert_seen("/media/old.mkv", 10, 1.0, generation=0)
+    event = threading.Event()
+    walked: list[str] = []
+
+    def _walk(*a, **k):
+        walked.append("/media/a.mkv")
+        yield ("/media/a.mkv", 10, 1.0)
+        event.set()  # the stop arrives mid-walk
+        walked.append("/media/b.mkv")
+        yield ("/media/b.mkv", 10, 1.0)
+
+    monkeypatch.setattr(sw, "iter_video_files", _walk)
+
+    token = cancellation.activate(event)
+    try:
+        sw.run_slice(str(tmp_path), CFG, budget_s=60, now_fn=FakeClock(), repo=repo)
+    finally:
+        cancellation.deactivate(token)
+
+    paths = {r.path for r in repo.next_pending(limit=10)}
+    assert "/media/old.mkv" in paths, (
+        "a partial walk must not prune — the unvisited rows are not deleted files"
+    )
+    assert "/media/b.mkv" not in paths, f"enumeration kept walking after the stop: {walked}"
 
 
 def test_probe_classifies_files_and_the_affected_one_gets_stripped(
@@ -134,6 +188,46 @@ def test_budget_stops_the_probe_pass_and_keeps_progress(app, repo, tmp_path, mon
     assert counts[ft.STATE_PENDING] == 3
 
 
+def test_stop_request_ends_the_probe_slice_like_the_budget(app, repo, tmp_path, monkeypatch):
+    """The stop arrives during the first ffprobe.
+
+    The real slice is driven; the second pending row must remain pending
+    because the production probe loop joins cancellation into the same
+    between-file boundary as the wall-clock budget.
+    """
+    import threading
+
+    from services.scheduler import cancellation
+
+    repo.upsert_seen("/media/a.mkv", 10, 1.0, generation=1)
+    repo.upsert_seen("/media/b.mkv", 10, 1.0, generation=1)
+    monkeypatch.setattr(sw, "iter_video_files", lambda *a, **k: iter([]))
+
+    event = threading.Event()
+    probed: list[str] = []
+
+    def fake_probe(path):
+        probed.append(path)
+        event.set()  # the stop arrives while the first ffprobe is in flight
+        return {"streams": []}
+
+    monkeypatch.setattr(sw, "_probe_file", fake_probe)
+    _enable_foreign_track_tick(monkeypatch, str(tmp_path))
+
+    token = cancellation.activate(event)
+    try:
+        sw.foreign_track_sweep_tick()
+    finally:
+        cancellation.deactivate(token)
+
+    assert probed == ["/media/a.mkv"], (
+        f"the sweep kept probing after being asked to stop: probed {probed}"
+    )
+    counts = repo.counts_by_state()
+    assert counts[ft.STATE_CLEAN] == 1
+    assert counts[ft.STATE_PENDING] == 1
+
+
 def test_strip_marks_rows_stripped(app, repo, tmp_path, monkeypatch):
     repo.upsert_seen("/media/a.mkv", 10, 1.0, generation=1)
     repo.mark_probed("/media/a.mkv", ["spa"])
@@ -142,6 +236,49 @@ def test_strip_marks_rows_stripped(app, repo, tmp_path, monkeypatch):
     result = sw.run_slice(str(tmp_path), CFG, budget_s=60, now_fn=FakeClock(), repo=repo)
     assert repo.counts_by_state()[ft.STATE_STRIPPED] == 1
     assert result["stripped_files"] == 1
+
+
+def test_stop_request_ends_the_strip_slice_like_the_budget(app, repo, tmp_path, monkeypatch):
+    """The stop arrives during the first remux.
+
+    The real slice is driven; the second affected row must remain affected
+    because the production strip loop joins cancellation into the same
+    between-file boundary as the wall-clock budget.
+    """
+    import threading
+
+    from services.scheduler import cancellation
+
+    repo.upsert_seen("/media/a.mkv", 10, 1.0, generation=1)
+    repo.upsert_seen("/media/b.mkv", 10, 1.0, generation=1)
+    repo.mark_probed("/media/a.mkv", ["spa"])
+    repo.mark_probed("/media/b.mkv", ["ita"])
+    monkeypatch.setattr(sw, "iter_video_files", lambda *a, **k: iter([]))
+    monkeypatch.setattr(sw, "_free_bytes", lambda root: 1_000 * 1024**3)
+    _enable_foreign_track_tick(monkeypatch, str(tmp_path))
+
+    event = threading.Event()
+    stripped: list[str] = []
+
+    def fake_strip(path, keep_languages, keep_und):
+        stripped.append(path)
+        event.set()  # the stop arrives while the first remux is in flight
+        return ("/trash/a.bak", 5)
+
+    monkeypatch.setattr(sw, "_strip_file", fake_strip)
+
+    token = cancellation.activate(event)
+    try:
+        sw.foreign_track_sweep_tick()
+    finally:
+        cancellation.deactivate(token)
+
+    assert stripped == ["/media/a.mkv"], (
+        f"the sweep kept remuxing after being asked to stop: stripped {stripped}"
+    )
+    counts = repo.counts_by_state()
+    assert counts[ft.STATE_STRIPPED] == 1
+    assert counts[ft.STATE_AFFECTED] == 1
 
 
 def test_disk_floor_pauses_the_sweep_and_fails_no_file(app, repo, tmp_path, monkeypatch):

@@ -23,6 +23,7 @@ from services.foreign_tracks.state import (
     load_state,
     save_state,
 )
+from services.scheduler.cancellation import abort_requested
 
 logger = logging.getLogger(__name__)
 
@@ -270,6 +271,15 @@ def _enumerate(media_root: str, config: dict, state, repo) -> None:
             min_age_s=min_age,
             now=time.time(),
         ):
+            # The walk itself is the longest uninterruptible stretch in the
+            # sweep — 754 s on the production library — so it has to be able to
+            # give up mid-way. Leaving here takes the same exit as the OSError
+            # path below: the pass stays incomplete and the prune is skipped,
+            # because every unvisited file would otherwise look deleted.
+            if abort_requested():
+                logger.info("foreign_track_sweep: enumeration stopping as asked — will restart")
+                state.paused_reason = "enumeration stopped on request"
+                return
             repo.upsert_seen(path, size, mtime, state.generation)
     except OSError as exc:
         logger.warning("foreign_track_sweep: enumeration interrupted (%s) — will restart", exc)
@@ -292,13 +302,16 @@ def _probe_phase(
         return
 
     consecutive_failures = 0
-    while now_fn() < deadline:
+    while now_fn() < deadline and not abort_requested():
         rows = repo.next_pending(limit=_PROBE_BATCH)
         if not rows:
             state.phase = PHASE_STRIP
             return
         for row in rows:
-            if now_fn() >= deadline:
+            # One pending row is the unit of work: ffprobe cannot be stopped
+            # once started, so the slice budget and stop requests are both
+            # honoured before the next file is probed.
+            if now_fn() >= deadline or abort_requested():
                 return
             try:
                 probe = _probe_file(row.path)
@@ -333,7 +346,10 @@ def _strip_phase(
 
     min_free_gb = _min_free_gb(config)
 
-    while now_fn() < deadline:
+    # One affected row is the unit of work: remuxing rewrites the file and
+    # cannot be interrupted safely, so budget and stop requests both take
+    # effect before the next file is claimed.
+    while now_fn() < deadline and not abort_requested():
         if min_free_gb and _free_bytes(media_root) < min_free_gb * 1024**3:
             state.paused_reason = (
                 f"disk floor reached (min_free_gb={min_free_gb}) — paused before the next file"

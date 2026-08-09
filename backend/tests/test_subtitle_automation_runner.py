@@ -18,6 +18,7 @@ from db.repositories.subtitle_automation_queue import (
 from services.subtitle_automation_runner import (
     SubtitleAutomationRunner,
     compute_backoff,
+    subtitle_automation_tick,
 )
 
 
@@ -111,6 +112,43 @@ class TestProcessOne:
 
 
 class TestDrain:
+    def test_tick_stops_at_the_next_queue_item_when_asked(self, repo, automation_on):
+        """A stop request lands while one extraction is running.
+
+        The tick is driven for real; the second queue row must remain pending
+        because the production drain loop checks cancellation before claiming
+        the next row.
+        """
+        import threading
+
+        from services.scheduler import cancellation
+
+        repo.enqueue(wanted_item_id=600, file_path="/m/a.mkv", target_language="ger")
+        repo.enqueue(wanted_item_id=601, file_path="/m/b.mkv", target_language="ger")
+
+        extracted: list[int] = []
+        event = threading.Event()
+
+        def fake_extract(wanted_item_id, file_path, auto_translate=False):
+            extracted.append(wanted_item_id)
+            event.set()  # the stop arrives while the first item is in flight
+            return {"status": "ok", "output_path": f"/m/{wanted_item_id}.ger.srt"}
+
+        token = cancellation.activate(event)
+        try:
+            with patch(
+                "services.subtitle_automation_runner._extract_embedded_sub",
+                side_effect=fake_extract,
+            ):
+                subtitle_automation_tick()
+        finally:
+            cancellation.deactivate(token)
+
+        assert extracted == [600], (
+            f"the drain kept going after being asked to stop: extracted {extracted}"
+        )
+        assert repo.get_by_wanted_item(601)["state"] == "pending"
+
     def test_drain_processes_all_pending_items(self, repo, runner, automation_on):
         for i in range(5):
             repo.enqueue(

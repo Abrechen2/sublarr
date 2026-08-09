@@ -40,6 +40,56 @@ class TestDubtitleScanTick:
         assert out["skipped"] == 1
         assert detected == [("/a.mkv", {"automated": True, "probe_data": {"_n": 2}})]
 
+    def test_stops_at_the_next_candidate_file_when_asked(self, monkeypatch):
+        """The stop arrives during the first candidate's probe.
+
+        The tick is driven for real; the next candidate must never reach
+        ffprobe because the production loop checks cancellation before each
+        candidate file.
+        """
+        import threading
+
+        from services.scheduler import cancellation
+
+        monkeypatch.setattr(
+            "config.get_settings", lambda: type("S", (), {"dubtitle_detection": True})()
+        )
+        monkeypatch.setattr("config.map_path", lambda p: p)
+        monkeypatch.setattr(sweep, "_candidate_file_paths", lambda lim: ["/a.mkv", "/b.mkv"])
+        monkeypatch.setattr(sweep.os.path, "exists", lambda p: True)
+        monkeypatch.setattr("services.dubtitle.get_cached_detection", lambda p: None)
+        monkeypatch.setattr(
+            "services.dubtitle.detector._english_subtitle_streams",
+            lambda probe: [{}] * probe["_n"],
+        )
+
+        event = threading.Event()
+        probed: list[str] = []
+        detected: list[str] = []
+
+        def fake_probe(path, use_cache=True):
+            probed.append(path)
+            event.set()  # the stop arrives while the first candidate is in flight
+            return {"_n": 2}
+
+        monkeypatch.setattr("ass_utils.get_media_streams", fake_probe)
+        monkeypatch.setattr(
+            "services.dubtitle.detect_dubtitle_cached",
+            lambda p, **k: detected.append(p) or {"dubtitle_sub_index": 1},
+        )
+
+        token = cancellation.activate(event)
+        try:
+            out = sweep.dubtitle_scan_tick()
+        finally:
+            cancellation.deactivate(token)
+
+        assert out["processed"] == 1
+        assert probed == ["/a.mkv"], (
+            f"the sweep kept probing after being asked to stop: probed {probed}"
+        )
+        assert detected == ["/a.mkv"]
+
     def test_skips_fresh_cache(self, monkeypatch):
         monkeypatch.setattr(
             "config.get_settings", lambda: type("S", (), {"dubtitle_detection": True})()

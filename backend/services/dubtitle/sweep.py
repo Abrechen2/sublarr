@@ -26,6 +26,8 @@ from __future__ import annotations
 import logging
 import os
 
+from services.scheduler.cancellation import abort_requested
+
 logger = logging.getLogger(__name__)
 
 _BATCH_CAP = 200  # max files newly detected per sweep run
@@ -76,6 +78,12 @@ def dubtitle_scan_tick() -> dict:
     for raw in paths:
         if processed >= _BATCH_CAP:
             break
+        # One candidate file is the unit of work: ffprobe and the optional
+        # Whisper-backed dubtitle pass cannot be interrupted once started, so a
+        # stop takes effect before the next file is probed.
+        if abort_requested():
+            logger.info("dubtitle sweep: stopping as asked after %d file(s)", processed)
+            return {"enabled": True, "processed": processed, "skipped": skipped}
         path = map_path(raw)
         if not os.path.exists(path):
             skipped += 1
