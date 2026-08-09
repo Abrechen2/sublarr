@@ -12,6 +12,7 @@ import {
   WantedRowActions,
   SearchResultsRow,
   FailureReasonRow,
+  ParkedBadge,
 } from '@/pages/wanted/WantedTableRow'
 import type { WantedGroup, WantedSearchResponse } from '@/types/wanted'
 
@@ -190,6 +191,7 @@ export function WantedGroupedRow({
                     </span>
                     <StatusBadge status={item.status} />
                     <SubtitleTypeBadge subtitleType={item.subtitle_type} />
+                    {item.status !== 'found' && <ParkedBadge retryAfter={item.retry_after} />}
                   </div>
                   {item.status === 'failed' && (
                     <FailureReasonRow
