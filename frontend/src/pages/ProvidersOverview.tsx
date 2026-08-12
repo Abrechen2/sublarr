@@ -86,7 +86,7 @@ function ProviderCard({ provider, budget }: { provider: ProviderInfo; budget?: P
 
   const onTest = async () => {
     try {
-      const res = await testProvider.mutateAsync(provider.name)
+      const res = await testProvider.mutateAsync({ name: provider.name })
       toast(`${formatProviderName(provider.name)}: ${res.message}`, res.healthy ? 'success' : 'error')
     } catch {
       toast(t('providers_page.test_failed'), 'error')
