@@ -23,7 +23,10 @@ class JobRun(db.Model):
     started_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
     finished_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     duration_ms: Mapped[int | None] = mapped_column(Integer, nullable=True)
-    status: Mapped[str] = mapped_column(String(16), nullable=False)
+    # 32, not 16: "timeout_abandoned" is 17 characters and silently failed to
+    # write on PostgreSQL while SQLite accepted it, so the status that marks a
+    # runaway job was the one status that never reached history.
+    status: Mapped[str] = mapped_column(String(32), nullable=False)
     triggered_by: Mapped[str] = mapped_column(
         String(16), nullable=False, server_default="schedule", default="schedule"
     )
