@@ -99,8 +99,12 @@ jobs:
             -k "not (test_sonarr_download_webhook or test_radarr_download_webhook or test_parse_llm_response_too_many_merge or test_record_backend_success)"
 
   # ─── Frontend ─────────────────────────────────────────────────────────────
+  # Node 24, not the 26 the Dockerfile builds with: on Node 26 jsdom leaves
+  # `window.localStorage` undefined, so every test touching storage dies with
+  # "Cannot read properties of undefined". Reproduced on jsdom 29 and 30 alike,
+  # so it is the runtime, not the bump. Raise this to 26 once that clears.
   frontend:
-    name: Frontend (Node 26)
+    name: Frontend (Node 24)
     needs: changes
     if: needs.changes.outputs.frontend == 'true' || github.event_name == 'workflow_call'
     runs-on: ubuntu-latest
@@ -109,7 +113,7 @@ jobs:
 
       - uses: actions/setup-node@v7
         with:
-          node-version: '26'
+          node-version: '24'
           cache: 'npm'
           cache-dependency-path: frontend/package-lock.json
 
@@ -164,7 +168,7 @@ jobs:
 
       - uses: actions/setup-node@v7
         with:
-          node-version: '26'
+          node-version: '24'
           cache: 'npm'
           cache-dependency-path: frontend/package-lock.json
 
