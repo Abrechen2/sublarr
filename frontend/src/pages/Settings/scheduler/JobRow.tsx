@@ -61,10 +61,20 @@ function relativeTime(
 ): string {
   if (!iso) return t('scheduler.never', { defaultValue: '—' })
   const diff = (Date.now() - new Date(iso).getTime()) / 1000
-  if (Math.abs(diff) < 60) return t('scheduler.just_now')
-  if (Math.abs(diff) < 3600)
-    return t('scheduler.minutes_ago', { n: Math.round(Math.abs(diff) / 60) })
-  return t('scheduler.hours_ago', { n: Math.round(Math.abs(diff) / 3600) })
+  // The sign matters: this same helper renders "Last run" (past) and "Next run"
+  // (future). Taking the absolute value and formatting both with the past-tense
+  // strings made every scheduled job read "2 h ago" — including one that had
+  // just run and was due again in two minutes.
+  const future = diff < 0
+  const abs = Math.abs(diff)
+  if (abs < 60) return t(future ? 'scheduler.due_now' : 'scheduler.just_now')
+  if (abs < 3600)
+    return t(future ? 'scheduler.in_minutes' : 'scheduler.minutes_ago', {
+      n: Math.round(abs / 60),
+    })
+  return t(future ? 'scheduler.in_hours' : 'scheduler.hours_ago', {
+    n: Math.round(abs / 3600),
+  })
 }
 
 export function JobRow({
