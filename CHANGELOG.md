@@ -5,6 +5,15 @@ All notable changes to Sublarr are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.11.1] - 2026-08-12
+
+### Fixed
+- **The provider test button on the Providers page works again.** Making the
+  download test opt-in per call changed how the test is invoked, and the
+  overview page was left calling it the old way. It sent no provider name at
+  all, so the test reported "failed" for every provider regardless of its
+  actual health. The Providers page in Settings was unaffected.
+
 ## [1.11.0] - 2026-08-09
 
 ### Added

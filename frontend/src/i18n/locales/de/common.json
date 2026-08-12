@@ -657,6 +657,10 @@
     "title": "Neu in {{version}}",
     "close": "Schließen",
     "got_it": "Verstanden",
+    "v1111": {
+      "provider_test_title": "Der Test-Knopf auf der Provider-Seite funktioniert wieder",
+      "provider_test_desc": "Seit der Download-Test einzeln zuschaltbar ist, rief die Übersichtsseite ihn auf die alte Art auf und übergab dabei gar keinen Provider-Namen. Der Test meldete deshalb für jeden Provider „fehlgeschlagen“, unabhängig von dessen tatsächlichem Zustand. Die Provider-Seite in den Einstellungen war nicht betroffen."
+    },
     "v1110": {
       "sweep_title": "Fremdsprachige Spuren aufräumen — auch im großen Bestand",
       "sweep_desc": "Die Aufräum-Regel, die eingebettete Untertitelspuren fremder Sprachen entfernt, lässt sich jetzt auf einzelne Unterordner eingrenzen, stoppt von selbst bevor der freie Speicher unter eine gewählte Grenze fällt, und kann jede umgeschriebene Datei prüfen, bevor deren Sicherungskopie freigegeben wird. Damit ist ein erster Durchlauf über eine große Bibliothek gefahrlos möglich.",
