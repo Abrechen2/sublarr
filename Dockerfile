@@ -31,6 +31,12 @@ LABEL org.opencontainers.image.version="${VERSION}"
 # build (e.g. "1.6.5-rc.2") reports its actual tag instead of the plain
 # backend/VERSION content, which never carries the -rc.N suffix.
 ENV SUBLARR_VERSION="${VERSION}"
+# The repo default is the relative "log/sublarr.log", which is right for a
+# source checkout and wrong for a container: it resolves under WORKDIR, so the
+# log lives inside the container layer and is gone on the next recreate — and
+# both the Logs page and the support export then read a file that resets on
+# every update. /config is the persistent volume, same as the database default.
+ENV SUBLARR_LOG_FILE="/config/sublarr.log"
 
 # Install system dependencies
 # postgresql-client provides pg_dump/pg_restore for optional PostgreSQL backup support

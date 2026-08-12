@@ -107,7 +107,9 @@ class BootSettings(BaseSettings):
 
     # Logging — needed before any log line can land in the right format.
     log_level: str = "INFO"
-    # In-Repo default; Docker: set SUBLARR_LOG_FILE=/config/sublarr.log
+    # Source-checkout default. The Docker image overrides it to
+    # /config/sublarr.log via ENV, so a container logs onto the persistent
+    # volume rather than into its own layer.
     log_file: str = "log/sublarr.log"
     log_format: str = "text"  # "text" or "json" (structured for log aggregation)
 
