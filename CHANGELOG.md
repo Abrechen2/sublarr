@@ -5,6 +5,34 @@ All notable changes to Sublarr are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.11.2] - 2026-08-13
+
+### Fixed
+- **Scheduled searches could stop for good after one long run.** A search tick
+  that found a large number of items with a translatable subtitle already on
+  disk took all of them at once and translated them one by one — thousands of
+  items, minutes each. Nothing bounded that phase, and it never looked at the
+  stop signal, so the scheduler's timeout could not end it: on one library it
+  ran for 21 hours. While it ran it held the lock that keeps two searches
+  apart, so every following scheduled search was skipped and no provider was
+  contacted at all. Both phases stop when asked now, and the local-translation
+  phase takes a bounded batch per run.
+- **A job that overran its timeout is recorded again.** `timeout_abandoned` is
+  17 characters and the column held 16, so on PostgreSQL every attempt to
+  record one was rejected and the row silently dropped — the one outcome an
+  operator most needs to see was the one that could never be written. SQLite
+  does not enforce the length, so this only ever surfaced on PostgreSQL
+  installs.
+- **Logs survive an update.** The default log path was relative and resolved
+  inside the container, so the file was discarded on every recreate — the Logs
+  page and the support export read a log that had just reset. The image now
+  writes to `/config` alongside the database. Installs that set the path
+  themselves are unaffected.
+- **The scheduler page says when a job runs next.** It dropped the sign of the
+  time difference before choosing its wording, so every future run was
+  announced in the past tense: a job due in two minutes read "2 h ago". Read
+  literally, the page claimed nothing was scheduled and everything overdue.
+
 ## [1.11.1] - 2026-08-12
 
 ### Fixed

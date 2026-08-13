@@ -657,6 +657,14 @@
     "title": "What's new in {{version}}",
     "close": "Close",
     "got_it": "Got it",
+    "v1112": {
+      "search_stall_title": "Scheduled searches no longer stall",
+      "search_stall_desc": "When a search run found many titles that already had a translatable subtitle on disk, it took all of them at once and translated them one after another — thousands of entries, minutes each. Nothing bounded that phase, and it never checked whether it had been asked to stop, so the scheduler's timeout could not end it. In one case it ran for 21 hours. While it ran it held the lock that keeps two searches apart, so every following scheduled search was skipped and no provider was contacted at all.",
+      "logs_title": "Logs survive an update",
+      "logs_desc": "The default path was relative and resolved inside the container, so the log file was discarded on every update — both the Logs page and the support export read a file that had just reset. The image now writes to /config, alongside the database. Anyone who set the path themselves is unaffected.",
+      "next_run_title": "The scheduler page says when a job runs next",
+      "next_run_desc": "It discarded the sign of the time difference before picking its wording, so every future run was announced in the past tense. A job due in two minutes read “2 h ago”. Taken literally, the page claimed nothing was scheduled and everything was overdue."
+    },
     "v1111": {
       "provider_test_title": "The test button on the Providers page works again",
       "provider_test_desc": "Since the download test became opt-in per call, the overview page was still calling it the old way and passed no provider name at all. The test therefore reported “failed” for every provider regardless of its actual health. The Providers page in Settings was unaffected."

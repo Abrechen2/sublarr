@@ -657,6 +657,14 @@
     "title": "Neu in {{version}}",
     "close": "Schließen",
     "got_it": "Verstanden",
+    "v1112": {
+      "search_stall_title": "Die geplante Suche bleibt nicht mehr stehen",
+      "search_stall_desc": "Fand ein Suchlauf viele Titel, für die bereits ein übersetzbarer Untertitel auf der Platte lag, nahm er sie alle auf einmal und übersetzte sie nacheinander — tausende Einträge, Minuten pro Stück. Nichts begrenzte diesen Abschnitt, und er sah nie nach, ob er aufhören sollte; das Zeitlimit des Planers konnte ihn deshalb nicht beenden. In einem Fall lief er 21 Stunden. Solange er lief, hielt er die Sperre, die zwei gleichzeitige Suchen verhindert — jede folgende geplante Suche wurde übersprungen und kein einziger Provider mehr gefragt.",
+      "logs_title": "Protokolle überleben ein Update",
+      "logs_desc": "Der voreingestellte Pfad war relativ und landete innerhalb des Containers. Damit war die Protokolldatei nach jedem Update weg, und sowohl die Protokoll-Seite als auch der Support-Export lasen eine Datei, die sich gerade zurückgesetzt hatte. Das Abbild schreibt jetzt nach /config, dorthin wo auch die Datenbank liegt. Wer den Pfad selbst gesetzt hat, ist nicht betroffen.",
+      "next_run_title": "Die Planer-Seite sagt, wann ein Auftrag als Nächstes läuft",
+      "next_run_desc": "Sie verwarf das Vorzeichen der Zeitdifferenz, bevor sie den Text wählte — jeder künftige Lauf wurde dadurch in der Vergangenheitsform angekündigt. Ein Auftrag, der in zwei Minuten fällig war, stand als „vor 2 Std.“ da. Wörtlich gelesen behauptete die Seite, nichts sei geplant und alles überfällig."
+    },
     "v1111": {
       "provider_test_title": "Der Test-Knopf auf der Provider-Seite funktioniert wieder",
       "provider_test_desc": "Seit der Download-Test einzeln zuschaltbar ist, rief die Übersichtsseite ihn auf die alte Art auf und übergab dabei gar keinen Provider-Namen. Der Test meldete deshalb für jeden Provider „fehlgeschlagen“, unabhängig von dessen tatsächlichem Zustand. Die Provider-Seite in den Einstellungen war nicht betroffen."
