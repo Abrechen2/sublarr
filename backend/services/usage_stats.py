@@ -114,6 +114,76 @@ def _enabled_providers() -> list[str]:
         return []
 
 
+_DELIVERING_WINDOW_DAYS = 30
+_PROVIDER_NAME_CAP = 40
+_PROVIDER_LIST_CAP = 50
+
+
+def _curated_providers() -> tuple[bool, list[str]]:
+    """``(curated, explicit_list)`` — did the operator pick a provider subset?
+
+    Deliberately the opposite of ``_enabled_providers()``: an empty allow-list
+    means "all registered", and that function resolves it to the full registry
+    so the core field describes what is actually in play. Useful, but it makes
+    every default install indistinguishable from one that hand-picked all 29 —
+    which is why the public popularity chart read 27-30 for nearly every
+    provider. Here an empty list is reported as what it is: no choice made.
+    """
+    from config import get_settings
+
+    raw = getattr(get_settings(), "providers_enabled", "") or ""
+    names = [p.strip()[:_PROVIDER_NAME_CAP] for p in raw.split(",") if p.strip()]
+    return (bool(names), names[:_PROVIDER_LIST_CAP])
+
+
+def _delivering_providers() -> list[str]:
+    """Provider names that produced at least one subtitle in the last 30 days.
+
+    Names only, no counts — the payload rule is enum/bool/bucket throughout,
+    and a per-provider tally would also be a rough fingerprint of library size.
+    Machine-translation rows carry a ``provider_name`` too (the translation
+    backend); they are not a provider result and are excluded.
+    """
+    from datetime import timedelta
+
+    from sqlalchemy import select
+
+    from db.models.providers import SubtitleDownload
+    from extensions import db
+
+    cutoff = datetime.now(UTC) - timedelta(days=_DELIVERING_WINDOW_DAYS)
+    try:
+        rows = db.session.execute(
+            select(SubtitleDownload.provider_name)
+            .where(
+                SubtitleDownload.downloaded_at >= cutoff,
+                SubtitleDownload.source == "provider",
+            )
+            .distinct()
+        ).all()
+    except Exception as e:
+        _safe_rollback()
+        logger.debug("usage-stats: delivering-providers query failed: %s", e)
+        return []
+    names = sorted({(r[0] or "").strip()[:_PROVIDER_NAME_CAP] for r in rows} - {""})
+    return names[:_PROVIDER_LIST_CAP]
+
+
+def _providers_group() -> dict:
+    """Curation and delivery, kept apart — see ``_curated_providers`` for why.
+
+    ``enabled`` is what the operator chose, ``delivering`` is what actually
+    earned its keep. The two answer different questions and the core
+    ``providers_enabled`` field answers neither.
+    """
+    curated, enabled = _curated_providers()
+    return {
+        "curated": curated,
+        "enabled": enabled,
+        "delivering": _delivering_providers(),
+    }
+
+
 # --- anonymous extension groups (features / env / scale) -------------------
 #
 # Every field below is an enum, bool, or bucket — never a raw count, URL,
@@ -348,6 +418,7 @@ def build_usage_payload() -> dict:
         ("features", lambda: _features(settings)),
         ("env", lambda: _env(settings, __version__)),
         ("scale", _scale_buckets),
+        ("providers", _providers_group),
         ("auto_disabled_count", _auto_disabled_count),
     ):
         try:

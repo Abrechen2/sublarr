@@ -58,6 +58,7 @@ class TestPayload:
             "features",
             "env",
             "scale",
+            "providers",
             "auto_disabled_count",
         }
 
