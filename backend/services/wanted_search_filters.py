@@ -9,8 +9,22 @@ import logging
 from datetime import UTC, datetime
 
 from services.embedded_extractor import extract_embedded_sub
+from services.scheduler.cancellation import abort_requested
 
 logger = logging.getLogger(__name__)
+
+
+def _stop_requested(cancel_event) -> bool:
+    """Whether this tick has been told to stop.
+
+    Two independent signals, one meaning: the user's Cancel button sets
+    ``cancel_event``, the scheduler sets its own event on the running thread
+    when a tick overruns its timeout. A phase that only watches one of them
+    keeps working through the other — which is how a 1800s ``wanted_search``
+    timeout turned into a 21-hour run on prod.
+    """
+    return (cancel_event is not None and cancel_event.is_set()) or abort_requested()
+
 
 # existing_sub values that already route through the embedded-extraction path
 # in run_wanted_search — these never need the local-sidecar split below since
@@ -148,11 +162,14 @@ def _enqueue_embedded_items(embedded_items, settings) -> tuple[list[dict], int]:
 
 
 def _extract_embedded_items(
-    embedded_items, processed, found, failed, total, socketio, settings
+    embedded_items, processed, found, failed, total, socketio, settings, cancel_event=None
 ) -> tuple[int, int, int]:
     """Extract embedded subtitles for items that have them."""
     auto_translate = getattr(settings, "wanted_auto_translate", False)
     for item in embedded_items:
+        if _stop_requested(cancel_event):
+            logger.info("[search_all] embedded extraction cancelled after %d items", processed)
+            break
         try:
             extract_embedded_sub(item["id"], item["file_path"], auto_translate=auto_translate)
             found += 1
@@ -219,18 +236,28 @@ def _split_local_translate_items(items: list[dict], settings) -> tuple[list[dict
 
 
 def _translate_local_sidecar_items(
-    local_items, processed, found, failed, total, socketio, settings
+    local_items, processed, found, failed, total, socketio, settings, cancel_event=None
 ) -> tuple[int, int, int]:
     """Translate items whose external source sidecar was found by the split above.
 
     Calls the same Step-5 fallback the normal per-item pipeline would
     eventually reach (``wanted_search.process._fallback_translate_file``) —
     no provider search, no retry_after gate, just the local translate.
+
+    Each item is a full LLM translation, so this loop is the most expensive
+    phase of the tick and the one most likely to be running when a timeout
+    fires. It checks the stop signal between items; the caller bounds how
+    many items it may be handed.
     """
     from wanted_search.process import _fallback_translate_file
 
     auto_translate = getattr(settings, "wanted_auto_translate", False)
     for item in local_items:
+        if _stop_requested(cancel_event):
+            logger.info(
+                "[search_all] local-sidecar translation cancelled after %d items", processed
+            )
+            break
         item_lang = item.get("target_language") or settings.target_language
         ctx = {
             "item": item,

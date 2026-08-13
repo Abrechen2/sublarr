@@ -303,6 +303,16 @@ def run_wanted_search(
     # items kept at the front) is preserved since we only slice the list.
     eligible = eligible[:max_items]
 
+    # The same cap applies to the sidecar phase. It is split off the raw fetch
+    # pool above, so without this it was the one workload a tick could take on
+    # without limit: 3124 items in a single tick on prod 2026-08-12, each a
+    # full LLM translation, and the tick never returned. Each phase gets the
+    # cap separately rather than sharing one budget — they spend different
+    # resources (local compute vs provider quota), and a shared budget would
+    # let a sidecar backlog starve provider search tick after tick, which is
+    # the failure this bound exists to prevent.
+    local_translate_items = local_translate_items[:max_items]
+
     if not eligible and not local_translate_items:
         return {"total": 0, "processed": 0, "found": 0, "failed": 0, "skipped": 0}
 
@@ -361,12 +371,12 @@ def run_wanted_search(
 
     # Translate local-sidecar items first — no provider involved at all.
     processed, found, failed = _translate_local_sidecar_items(
-        local_translate_items, processed, found, failed, total, socketio, settings
+        local_translate_items, processed, found, failed, total, socketio, settings, cancel_event
     )
 
     # Extract embedded-sub items next
     processed, found, failed = _extract_embedded_items(
-        embedded_items, processed, found, failed, total, socketio, settings
+        embedded_items, processed, found, failed, total, socketio, settings, cancel_event
     )
 
     # Parallel provider search
