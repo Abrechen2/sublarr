@@ -51,6 +51,19 @@ logger = logging.getLogger(__name__)
 # thousands) while keeping the ORDER BY + LIMIT query cheap.
 _ELIGIBILITY_FETCH_CAP = 10_000
 
+# Ceiling for the local-sidecar translate phase, on top of
+# `wanted_search_max_items_per_run`. That setting bounds the provider phase,
+# which is parallel and cheap per item — prod runs it at 2000. The sidecar
+# phase is serial and every item is a full LLM translation, so the same number
+# describes a tick that cannot finish inside any sane timeout.
+#
+# The primary bound on this phase is time, not count: it checks the
+# cancellation signal between items, so a scheduled tick stops when its budget
+# runs out. This ceiling is the count-bound for the paths that have no such
+# signal — a manual "search all" from the UI carries a cancel event nobody has
+# pressed yet, and would otherwise take on the entire backlog.
+_MAX_LOCAL_TRANSLATES_PER_TICK = 100
+
 
 def _compute_max_workers(total: int, cpu_count: int | None) -> int:
     """Search workers = min(4, cores - 2), floor 1 — a 4-core NAS keeps 2
@@ -303,15 +316,20 @@ def run_wanted_search(
     # items kept at the front) is preserved since we only slice the list.
     eligible = eligible[:max_items]
 
-    # The same cap applies to the sidecar phase. It is split off the raw fetch
-    # pool above, so without this it was the one workload a tick could take on
-    # without limit: 3124 items in a single tick on prod 2026-08-12, each a
-    # full LLM translation, and the tick never returned. Each phase gets the
-    # cap separately rather than sharing one budget — they spend different
-    # resources (local compute vs provider quota), and a shared budget would
-    # let a sidecar backlog starve provider search tick after tick, which is
-    # the failure this bound exists to prevent.
-    local_translate_items = local_translate_items[:max_items]
+    # The sidecar phase needs its own bound. It is split off the raw fetch pool
+    # above, so without one it was the single workload a tick could take on
+    # without limit: 3124 items on prod 2026-08-12, each a full LLM
+    # translation, and the tick never returned.
+    #
+    # `max_items` alone does not supply that bound — prod has it at 2000, which
+    # for a serial multi-minute phase is no bound at all. Hence the smaller
+    # ceiling, with `max_items` still respected when a user has set it lower.
+    #
+    # The two phases are bounded separately rather than sharing one budget:
+    # they spend different resources (local compute vs provider quota), and a
+    # shared budget would let a sidecar backlog starve provider search tick
+    # after tick — the failure this whole bound exists to prevent.
+    local_translate_items = local_translate_items[: min(max_items, _MAX_LOCAL_TRANSLATES_PER_TICK)]
 
     if not eligible and not local_translate_items:
         return {"total": 0, "processed": 0, "found": 0, "failed": 0, "skipped": 0}

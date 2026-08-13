@@ -104,6 +104,40 @@ class TestLocalSidecarPhaseIsBounded:
         assert len(calls) == 3, f"tick must translate at most max_items, got {len(calls)}"
         assert summary["total"] == 3, "total must report the bounded workload"
 
+    def test_prod_sized_max_items_does_not_bound_the_sidecar_phase(self, app_ctx, monkeypatch):
+        """``max_items`` is tuned for the parallel provider phase — prod runs it
+        at 2000. For a serial phase with a multi-minute LLM translation per item
+        that is not a bound at all, so the sidecar phase carries its own, much
+        smaller ceiling. Without this the 2026-08-12 runaway would have been
+        capped at 2000 items, which is the same failure with a longer fuse."""
+        from services.wanted_search_runner import _MAX_LOCAL_TRANSLATES_PER_TICK
+
+        _configure_settings(monkeypatch, max_items=2000)
+        calls: list[int] = []
+
+        def _fallback(ctx):
+            calls.append(ctx["item_id"])
+            return {"wanted_id": ctx["item_id"], "status": "found"}
+
+        items = [_item(i) for i in range(1, _MAX_LOCAL_TRANSLATES_PER_TICK + 50)]
+        _run_with_sidecars(app_ctx, items, _fallback)
+
+        assert len(calls) == _MAX_LOCAL_TRANSLATES_PER_TICK
+
+    def test_lower_max_items_still_wins(self, app_ctx, monkeypatch):
+        """A user who deliberately set a small per-run cap must keep it — the
+        ceiling is an upper bound, not a floor."""
+        _configure_settings(monkeypatch, max_items=2)
+        calls: list[int] = []
+
+        def _fallback(ctx):
+            calls.append(ctx["item_id"])
+            return {"wanted_id": ctx["item_id"], "status": "found"}
+
+        _run_with_sidecars(app_ctx, [_item(i) for i in range(1, 21)], _fallback)
+
+        assert len(calls) == 2
+
     def test_cap_leaves_provider_search_reachable(self, app_ctx, monkeypatch):
         """A backlog of sidecar items must not starve the provider phase: the
         two phases consume different resources and each gets the per-run cap.
