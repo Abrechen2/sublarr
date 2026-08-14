@@ -34,13 +34,33 @@ class SubtitleAutomationQueueRepository(BaseRepository):
     """CRUD + atomic claim for the subtitle automation drain queue."""
 
     # ----- reads ----------------------------------------------------------
-    def get_by_wanted_item(self, wanted_item_id: int) -> dict | None:
-        row = (
+    def get_by_wanted_item(
+        self, wanted_item_id: int, *, task_type: str | None = None
+    ) -> dict | None:
+        """One row for this item, optionally narrowed to a task type.
+
+        Since an item may hold both an extraction and a translation this can
+        no longer be ``one_or_none()`` — that raised MultipleResultsFound as
+        soon as the second row existed. Without ``task_type`` the oldest row
+        wins, which is the pre-1.11.3 row for any item that already had one.
+        """
+        q = self.session.query(SubtitleAutomationQueueEntry).filter(
+            SubtitleAutomationQueueEntry.wanted_item_id == wanted_item_id
+        )
+        if task_type is not None:
+            q = q.filter(SubtitleAutomationQueueEntry.task_type == task_type)
+        row = q.order_by(SubtitleAutomationQueueEntry.id.asc()).first()
+        return self._to_dict(row) if row else None
+
+    def list_for_item(self, wanted_item_id: int) -> list[dict]:
+        """Every queued task for one wanted item, oldest first."""
+        rows = (
             self.session.query(SubtitleAutomationQueueEntry)
             .filter(SubtitleAutomationQueueEntry.wanted_item_id == wanted_item_id)
-            .one_or_none()
+            .order_by(SubtitleAutomationQueueEntry.id.asc())
+            .all()
         )
-        return self._to_dict(row) if row else None
+        return [self._to_dict(r) for r in rows]
 
     def get_counts(self) -> dict[str, int]:
         """Return `{'pending': N, 'running': N, 'failed': N, 'done': N}`."""
@@ -61,19 +81,28 @@ class SubtitleAutomationQueueRepository(BaseRepository):
         wanted_item_id: int,
         file_path: str,
         target_language: str,
+        task_type: str = SubtitleAutomationQueueEntry.TASK_EMBEDDED_EXTRACT,
+        source_language: str | None = None,
     ) -> int:
-        """Idempotent enqueue by `wanted_item_id`.
+        """Idempotent enqueue by `(wanted_item_id, task_type)`.
 
         - No existing row → insert `pending` and return new id.
         - Existing `done` row → reset to `pending`, attempt_count=0, clear
           error/next_retry_at, return existing id.
         - Existing `pending`/`running`/`failed` row → return existing id
           unchanged.
+
+        The key is the pair, not the item: an item with an embedded track to
+        extract can also have a source sidecar to translate, and enqueueing
+        one must not be read as a duplicate of the other.
         """
         now = self._now()
         existing = (
             self.session.query(SubtitleAutomationQueueEntry)
-            .filter(SubtitleAutomationQueueEntry.wanted_item_id == wanted_item_id)
+            .filter(
+                SubtitleAutomationQueueEntry.wanted_item_id == wanted_item_id,
+                SubtitleAutomationQueueEntry.task_type == task_type,
+            )
             .one_or_none()
         )
         if existing is not None:
@@ -84,13 +113,16 @@ class SubtitleAutomationQueueRepository(BaseRepository):
                 existing.next_retry_at = None
                 existing.file_path = file_path
                 existing.target_language = target_language
+                existing.source_language = source_language
                 existing.updated_at = now
                 self._commit()
             return existing.id
         entry = SubtitleAutomationQueueEntry(
             wanted_item_id=wanted_item_id,
+            task_type=task_type,
             file_path=file_path,
             target_language=target_language,
+            source_language=source_language,
             state="pending",
             attempt_count=0,
             created_at=now,

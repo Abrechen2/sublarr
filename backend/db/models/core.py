@@ -500,12 +500,17 @@ class MovieSettings(db.Model):
 
 
 class SubtitleAutomationQueueEntry(db.Model):
-    """Persistent drain queue for auto-extract of embedded subtitles (0.71.0).
+    """Persistent drain queue for subtitle automation work (0.71.0).
 
-    One row per wanted_item that has an embedded target-language track waiting
-    to be extracted to a sidecar. The drain worker picks rows in order and
-    calls `_extract_embedded_sub`. Rows survive restarts so extraction can
-    resume across deploys without losing state.
+    One row per (wanted_item, task_type) waiting for the drain worker. Rows
+    survive restarts so work can resume across deploys without losing state.
+
+    `task_type` distinguishes the two kinds of work the worker performs:
+    `embedded_extract` (pull a target-language track out of the container,
+    the only thing this queue held before 1.11.3) and `sidecar_translate`
+    (translate an external source-language sidecar found on disk). The two
+    are not mutually exclusive for one item, which is why `wanted_item_id`
+    is no longer unique on its own.
 
     State machine: pending → running → done | failed. Failed rows carry
     `last_error` + `next_retry_at` for backoff-driven retries.
@@ -513,10 +518,21 @@ class SubtitleAutomationQueueEntry(db.Model):
 
     __tablename__ = "subtitle_automation_queue"
 
+    TASK_EMBEDDED_EXTRACT = "embedded_extract"
+    TASK_SIDECAR_TRANSLATE = "sidecar_translate"
+
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
-    wanted_item_id: Mapped[int] = mapped_column(Integer, nullable=False, unique=True)
+    wanted_item_id: Mapped[int] = mapped_column(Integer, nullable=False)
+    # String(24) fits both values with room to spare. The 1.11.2 incident was a
+    # VARCHAR(16) that a 17-character status did not fit — SQLite ignores the
+    # length, so CI would not have caught a repeat.
+    task_type: Mapped[str] = mapped_column(
+        String(24), nullable=False, default=TASK_EMBEDDED_EXTRACT
+    )
     file_path: Mapped[str] = mapped_column(Text, nullable=False)
     target_language: Mapped[str] = mapped_column(String(8), nullable=False)
+    # Only meaningful for sidecar_translate: the language of the source file.
+    source_language: Mapped[str | None] = mapped_column(String(8), nullable=True)
     state: Mapped[str] = mapped_column(String(10), nullable=False, default="pending")
     attempt_count: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     next_retry_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
@@ -534,6 +550,7 @@ class SubtitleAutomationQueueEntry(db.Model):
             "state",
             "next_retry_at",
         ),
+        UniqueConstraint("wanted_item_id", "task_type", name="uq_automation_queue_item_task"),
     )
 
 
