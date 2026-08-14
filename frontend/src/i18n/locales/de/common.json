@@ -657,6 +657,14 @@
     "title": "Neu in {{version}}",
     "close": "Schließen",
     "got_it": "Verstanden",
+    "v1120": {
+      "sidecar_queue_title": "Übersetzen blockiert die Suche nicht mehr",
+      "sidecar_queue_desc": "Lag für einen Titel bereits ein Untertitel in einer anderen Sprache auf der Platte, übersetzte ihn die geplante Suche an Ort und Stelle — Minuten pro Eintrag, und das mit der Sperre in der Hand, die zwei gleichzeitige Suchen verhindert. Ein Lauf mit hundert solchen Einträgen hielt diese Sperre etwa einen Tag lang, und in dieser Zeit wurde kein einziger Provider gefragt. Die Suche übergibt diese Arbeit jetzt der Untertitel-Automatik, die Wiederholung, Wartezeit und Abbruch ohnehin schon beherrscht, und ist selbst in Sekunden fertig. Wer die Automatik ausgeschaltet hat, übersetzt weiterhin während der Suche — aber nur noch für einen begrenzten Zeitraum je Lauf.",
+      "startup_search_title": "Die Suche beim Start lässt sich abbrechen",
+      "startup_search_desc": "Sie wurde am Planer vorbei gestartet und hatte als einzige Suche weder ein Zeitlimit noch eine Möglichkeit, sie zu stoppen — ausgerechnet dort ließ sich ein langer Lauf nicht beenden. Sie läuft jetzt über den Planer wie jede geplante Suche auch.",
+      "automation_timeout_title": "Die Untertitel-Automatik meldet nicht mehr jeden langen Lauf als Fehler",
+      "automation_timeout_desc": "Ihr Zeitlimit war kürzer als ein einzelner Arbeitsschritt, den sie selbst ausführt. Läufe, die genau das taten, worum man sie gebeten hatte, wurden deshalb als Zeitüberschreitung verbucht — im Verlauf war ein hängender Auftrag von einem beschäftigten nicht mehr zu unterscheiden. Bestehende Installationen behalten ihre gespeicherte Einstellung; über „Auf Standard zurücksetzen“ bei diesem Auftrag unter Einstellungen → System → Planer wird der neue Wert übernommen."
+    },
     "v1112": {
       "search_stall_title": "Die geplante Suche bleibt nicht mehr stehen",
       "search_stall_desc": "Fand ein Suchlauf viele Titel, für die bereits ein übersetzbarer Untertitel auf der Platte lag, nahm er sie alle auf einmal und übersetzte sie nacheinander — tausende Einträge, Minuten pro Stück. Nichts begrenzte diesen Abschnitt, und er sah nie nach, ob er aufhören sollte; das Zeitlimit des Planers konnte ihn deshalb nicht beenden. In einem Fall lief er 21 Stunden. Solange er lief, hielt er die Sperre, die zwei gleichzeitige Suchen verhindert — jede folgende geplante Suche wurde übersprungen und kein einziger Provider mehr gefragt.",

@@ -657,6 +657,14 @@
     "title": "What's new in {{version}}",
     "close": "Close",
     "got_it": "Got it",
+    "v1120": {
+      "sidecar_queue_title": "Translating no longer blocks the search",
+      "sidecar_queue_desc": "When an item already had a subtitle on disk in another language, the scheduled search translated it there and then — minutes per item, while holding the lock that keeps two searches apart. A run that picked up a hundred such items held that lock for about a day, and no provider was contacted in the meantime. The search now hands this work to the subtitle automation queue, which already handles retry, backoff and cancellation, and finishes in seconds itself. Installs with automation switched off keep translating during the search, but only for a bounded stretch per run.",
+      "startup_search_title": "The search that runs at startup can be stopped",
+      "startup_search_desc": "It was started outside the scheduler, so alone among the searches it had neither a timeout nor a way to be cancelled — the one entry point where a long run could not be ended. It now goes through the scheduler like every scheduled search.",
+      "automation_timeout_title": "Subtitle automation stops reporting every long run as a failure",
+      "automation_timeout_desc": "Its timeout was shorter than a single item of the work it performs, so runs doing exactly what they were asked to do were recorded as timeouts — in the history a stuck job became indistinguishable from a busy one. Existing installs keep their stored setting; use “Reset to default” on that job under Settings → System → Scheduler to pick up the new value."
+    },
     "v1112": {
       "search_stall_title": "Scheduled searches no longer stall",
       "search_stall_desc": "When a search run found many titles that already had a translatable subtitle on disk, it took all of them at once and translated them one after another — thousands of entries, minutes each. Nothing bounded that phase, and it never checked whether it had been asked to stop, so the scheduler's timeout could not end it. In one case it ran for 21 hours. While it ran it held the lock that keeps two searches apart, so every following scheduled search was skipped and no provider was contacted at all.",

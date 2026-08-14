@@ -5,6 +5,39 @@ All notable changes to Sublarr are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.12.0] - 2026-08-14
+
+### Fixed
+- **Translating a subtitle no longer blocks every later search.** When an item
+  already had a subtitle on disk in another language, the scheduled search
+  translated it there and then — minutes of work per item, while holding the
+  lock that keeps two searches apart. A run that picked up a hundred such items
+  held that lock for about a day, and no provider was contacted in the
+  meantime. The search now hands this work to the subtitle-automation queue,
+  which already runs extractions with retry, backoff and cancellation, and
+  finishes in seconds instead. Installs with subtitle automation switched off
+  keep translating during the search, but for a bounded stretch per run rather
+  than until the work is done.
+- **The search that runs at startup can be stopped like any other.** It was
+  started outside the scheduler, so alone among the searches it had neither a
+  timeout nor a way to be cancelled — the one entry point where a long run
+  could not be ended. It now goes through the scheduler like the scheduled
+  ones.
+- **The subtitle-automation job stops reporting a failure for every long run.**
+  Its timeout was shorter than a single item of its own work, so runs doing
+  exactly what they were asked to do were recorded as timeouts and the history
+  could not distinguish a stuck job from a busy one. Existing installs keep
+  their stored setting; use "Reset to default" on that job under
+  Settings → System → Scheduler to pick up the new one.
+
+### Added
+- **Usage statistics report which providers were chosen and which deliver.**
+  The existing field could not tell a deliberate selection from a default
+  install, because an empty allow-list means "all of them" — so nearly every
+  provider looked equally popular. The public chart now also shows whether an
+  operator curated a list at all, and which providers actually produced a
+  subtitle in the last 30 days. Names only, no counts.
+
 ## [1.11.2] - 2026-08-13
 
 ### Fixed
