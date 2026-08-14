@@ -8,8 +8,10 @@ invoked via JobSpecs registered by ``services.scheduler._build_default_jobs``.
 ``_WantedSchedulerMixin`` now only holds:
   - ``start_scheduler(socketio, app)`` — adapter that caches app/socketio
     on the scanner instance, optionally kicks off the ``*_on_startup``
-    runs in a daemon thread, and reschedules the APScheduler jobs with
-    the current interval from settings. Idempotent.
+    runs, and reschedules the APScheduler jobs with the current interval
+    from settings. Idempotent. The search one goes through
+    ``scheduler.run_now`` so it inherits the tick timeout and the
+    cancellation event; see ``_run_startup_search``.
   - ``stop_scheduler()`` — no-op (APScheduler owns lifecycle).
   - ``_run_scan_with_context`` / ``_run_search_with_context`` — helpers
     kept because the tick functions call them.
@@ -20,6 +22,7 @@ import threading
 from datetime import UTC, datetime, timedelta
 
 from config import get_settings
+from services.scheduler.errors import JobNotRegisteredError, OneshotAlreadyPendingError
 
 logger = logging.getLogger(__name__)
 
@@ -43,8 +46,8 @@ class _WantedSchedulerMixin:
         ``wanted_scanner`` and ``wanted_search`` JobSpecs.
 
         Only when ``on_startup=True`` honours the one-shot
-        ``wanted_scan_on_startup`` / ``wanted_search_on_startup`` flags by
-        spawning daemon threads. Without this guard, every settings save
+        ``wanted_scan_on_startup`` / ``wanted_search_on_startup`` flags.
+        Without this guard, every settings save
         re-triggered a full wanted_search (default flag is True), bypassing
         adaptive backoff, slow-mode, the backlog reserve gate, and fair
         ordering — burning provider budget invisibly.
@@ -78,12 +81,7 @@ class _WantedSchedulerMixin:
                 and settings.wanted_search_on_startup
                 and not _job_is_paused(app, "wanted_search")
             ):
-                thread = threading.Thread(
-                    target=self._run_search_with_context,
-                    args=(socketio,),
-                    daemon=True,
-                )
-                thread.start()
+                _run_startup_search(app)
             logger.info("Wanted search scheduler adapter (every %dh)", search_interval)
         else:
             logger.info("Wanted search scheduler disabled (interval=0)")
@@ -110,6 +108,50 @@ class _WantedSchedulerMixin:
             self.search_all(socketio, include_upgrades=include_upgrades)
 
 
+def _get_scheduler(app):
+    """The SublarrScheduler facade attached to ``app``, or None.
+
+    Same accessor ``routes/system/scheduler.py`` uses, taking the app
+    explicitly because this module also runs at boot, before any request
+    context exists. Returns None when the scheduler has not been attached
+    (bootstrap failed, replica has ``SUBLARR_SCHEDULER_ROLE=disabled``, or
+    a test never bootstrapped one).
+    """
+    if app is None:
+        return None
+    return app.extensions.get("scheduler") if hasattr(app, "extensions") else None
+
+
+def _run_startup_search(app) -> None:
+    """Queue the ``wanted_search_on_startup`` run through the scheduler.
+
+    Through the scheduler, not around it. This used to start a bare daemon
+    thread on the job body, which meant the startup run had no timeout and no
+    cancellation event: on production 2026-08-13 it took 100 local-sidecar
+    items at ~14.5 minutes each and held the global search lock for about a
+    day, while a scheduled tick doing byte-for-byte the same work would have
+    been asked to stop after 1800s. ``run_now`` puts it through
+    ``_tick_wrapper``, which is where both guarantees live.
+
+    Every failure mode here is "the startup run does not happen", never "the
+    app does not boot" — the periodic trigger still fires later.
+    """
+    scheduler = _get_scheduler(app)
+    if scheduler is None:
+        logger.warning("Startup search skipped — no scheduler on this replica")
+        return
+    try:
+        oneshot_id = scheduler.run_now("wanted_search")
+    except OneshotAlreadyPendingError:
+        logger.info("Startup search skipped — a one-shot is already queued")
+    except JobNotRegisteredError:
+        logger.warning("Startup search skipped — wanted_search is not registered yet")
+    except Exception:
+        logger.error("Startup search could not be queued", exc_info=True)
+    else:
+        logger.info("Startup search queued as %s", oneshot_id)
+
+
 def _job_is_paused(app, job_id: str) -> bool:
     """True when the persisted APScheduler job exists and is paused.
 
@@ -117,9 +159,7 @@ def _job_is_paused(app, job_id: str) -> bool:
     the scheduler or the job is not available yet, so a genuinely missing job
     never blocks a legitimate startup run.
     """
-    if app is None:
-        return False
-    scheduler = app.extensions.get("scheduler") if hasattr(app, "extensions") else None
+    scheduler = _get_scheduler(app)
     if scheduler is None:
         return False
     try:
@@ -147,9 +187,7 @@ def _stored_interval_matches(app, job_id: str, hours: int) -> bool:
     non-interval trigger, or anything unreadable. Uncertainty must fall through
     to applying the trigger, never to skipping it.
     """
-    if app is None:
-        return False
-    scheduler = app.extensions.get("scheduler") if hasattr(app, "extensions") else None
+    scheduler = _get_scheduler(app)
     if scheduler is None:
         return False
     try:
@@ -187,9 +225,7 @@ def _apply_intervals_to_apscheduler(
     trigger is still applied on the settings-save path, which is the only
     place an interval can actually change.
     """
-    if app is None:
-        return
-    scheduler = app.extensions.get("scheduler") if hasattr(app, "extensions") else None
+    scheduler = _get_scheduler(app)
     if scheduler is None:
         return
 

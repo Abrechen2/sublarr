@@ -110,11 +110,15 @@ def test_start_scheduler_without_on_startup_does_not_spawn_daemon_threads(monkey
     assert spawned == [], "start_scheduler() without on_startup=True must not spawn daemon threads"
 
 
-def test_start_scheduler_with_on_startup_spawns_daemon_threads(monkeypatch):
+def test_start_scheduler_with_on_startup_honours_both_flags(monkeypatch):
     """The boot path (``on_startup=True``) honours the on_startup flags.
 
-    Pins the legacy app-boot behaviour so we do not regress the
-    settings-save fix into "never run on-startup tasks".
+    Pins the app-boot behaviour so we do not regress the settings-save fix
+    into "never run on-startup tasks". The two flags reach their work by
+    different routes since 2026-08-14: the scan still starts a daemon
+    thread, the search goes through ``scheduler.run_now`` so it inherits
+    the tick timeout and cancellation event
+    (see tests/test_wanted_scanner_startup_path.py).
     """
     monkeypatch.setattr(
         "services.wanted_scanner_scheduler.get_settings",
@@ -141,13 +145,18 @@ def test_start_scheduler_with_on_startup_spawns_daemon_threads(monkeypatch):
 
     monkeypatch.setattr("services.wanted_scanner_scheduler.threading.Thread", _NoStartThread)
 
+    searches: list[object] = []
+    monkeypatch.setattr(
+        "services.wanted_scanner_scheduler._run_startup_search",
+        lambda app: searches.append(app),
+    )
+
     scanner = WantedScanner()
     scanner.start_scheduler(on_startup=True)
 
-    # One thread for scan_on_startup, one for search_on_startup.
-    assert len(started) == 2, "Expected scan + search daemons when on_startup=True"
-    for t in started:
-        assert t.daemon is True
+    assert len(started) == 1, "Expected exactly the scan daemon when on_startup=True"
+    assert started[0].daemon is True
+    assert len(searches) == 1, "Expected the startup search to be queued via the scheduler"
 
 
 def test_start_scheduler_on_startup_with_flags_off_does_not_spawn(monkeypatch):
