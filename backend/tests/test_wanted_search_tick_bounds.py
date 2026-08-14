@@ -247,3 +247,103 @@ class TestEmbeddedExtractPhaseStopsWhenAsked:
             run_wanted_search(app=app_ctx, include_upgrades=True, cancel_event=cancel_event)
 
         assert len(extracted) == 1, f"must stop at the next item after cancel, ran {len(extracted)}"
+
+
+class TestSidecarPhaseHasATimeBudget:
+    """A count cannot bound this phase.
+
+    ``_MAX_LOCAL_TRANSLATES_PER_TICK`` was justified as "small enough that a
+    tick finishes inside its budget". One item measured ~14.5 minutes on
+    production 2026-08-13, and the cost scales with subtitle length, so 100
+    items is roughly a day. The bound that matches the resource being spent
+    is wall clock.
+    """
+
+    def test_phase_stops_at_its_deadline(self, app_ctx, monkeypatch):
+        import time as _time
+
+        from services.wanted_search_filters import _translate_local_sidecar_items
+
+        s = _configure_settings(monkeypatch, max_items=50)
+        calls: list[int] = []
+
+        def _fallback(ctx):
+            calls.append(ctx["item_id"])
+            return {"wanted_id": ctx["item_id"], "status": "found"}
+
+        # Deadline already in the past: not one item may start.
+        with patch("wanted_search.process._fallback_translate_file", side_effect=_fallback):
+            _translate_local_sidecar_items(
+                [_item(i) for i in range(1, 6)],
+                0,
+                0,
+                0,
+                5,
+                None,
+                s,
+                deadline=_time.monotonic() - 1,
+            )
+
+        assert calls == []
+
+    def test_deadline_is_checked_between_items_not_only_before(self, app_ctx, monkeypatch):
+        import time as _time
+
+        from services.wanted_search_filters import _translate_local_sidecar_items
+
+        s = _configure_settings(monkeypatch, max_items=50)
+        calls: list[int] = []
+        deadline = _time.monotonic() + 3600
+
+        def _fallback(ctx):
+            nonlocal deadline
+            calls.append(ctx["item_id"])
+            deadline = _time.monotonic() - 1  # budget spent during this item
+            return {"wanted_id": ctx["item_id"], "status": "found"}
+
+        with patch("wanted_search.process._fallback_translate_file", side_effect=_fallback):
+            _translate_local_sidecar_items(
+                [_item(i) for i in range(1, 6)],
+                0,
+                0,
+                0,
+                5,
+                None,
+                s,
+                deadline=lambda: deadline,
+            )
+
+        assert len(calls) == 1
+
+    def test_no_deadline_means_no_budget(self, app_ctx, monkeypatch):
+        """``deadline=None`` must keep the phase's old behaviour intact —
+        the count cap stays the only bound for callers that pass nothing."""
+        from services.wanted_search_filters import _translate_local_sidecar_items
+
+        s = _configure_settings(monkeypatch, max_items=50)
+        calls: list[int] = []
+
+        def _fallback(ctx):
+            calls.append(ctx["item_id"])
+            return {"wanted_id": ctx["item_id"], "status": "found"}
+
+        with patch("wanted_search.process._fallback_translate_file", side_effect=_fallback):
+            _translate_local_sidecar_items(
+                [_item(i) for i in range(1, 6)], 0, 0, 0, 5, None, s, deadline=None
+            )
+
+        assert len(calls) == 5
+
+    def test_zero_budget_disables_the_phase_in_a_real_tick(self, app_ctx, monkeypatch):
+        """The setting is also the off switch: 0 means "never translate inline"."""
+        s = _configure_settings(monkeypatch, max_items=50)
+        monkeypatch.setattr(s, "wanted_search_sidecar_budget_s", 0, raising=False)
+        calls: list[int] = []
+
+        def _fallback(ctx):
+            calls.append(ctx["item_id"])
+            return {"wanted_id": ctx["item_id"], "status": "found"}
+
+        _run_with_sidecars(app_ctx, [_item(i) for i in range(1, 6)], _fallback)
+
+        assert calls == []

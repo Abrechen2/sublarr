@@ -6,6 +6,7 @@ only on arguments passed in.
 """
 
 import logging
+import time
 from datetime import UTC, datetime
 
 from services.embedded_extractor import extract_embedded_sub
@@ -24,6 +25,23 @@ def _stop_requested(cancel_event) -> bool:
     timeout turned into a 21-hour run on prod.
     """
     return (cancel_event is not None and cancel_event.is_set()) or abort_requested()
+
+
+def _deadline_passed(deadline) -> bool:
+    """Whether a phase's wall-clock budget is spent.
+
+    ``deadline`` is a monotonic timestamp, a callable returning one, or None
+    for "no budget". The callable form exists so a caller can move the
+    deadline while the phase is running.
+    """
+    if deadline is None:
+        return False
+    try:
+        value = deadline() if callable(deadline) else deadline
+    except Exception:  # noqa: BLE001 — an unreadable budget must not stop work
+        logger.debug("deadline callable raised — treating the budget as open", exc_info=True)
+        return False
+    return time.monotonic() >= value
 
 
 # existing_sub values that already route through the embedded-extraction path
@@ -236,7 +254,15 @@ def _split_local_translate_items(items: list[dict], settings) -> tuple[list[dict
 
 
 def _translate_local_sidecar_items(
-    local_items, processed, found, failed, total, socketio, settings, cancel_event=None
+    local_items,
+    processed,
+    found,
+    failed,
+    total,
+    socketio,
+    settings,
+    cancel_event=None,
+    deadline=None,
 ) -> tuple[int, int, int]:
     """Translate items whose external source sidecar was found by the split above.
 
@@ -246,16 +272,19 @@ def _translate_local_sidecar_items(
 
     Each item is a full LLM translation, so this loop is the most expensive
     phase of the tick and the one most likely to be running when a timeout
-    fires. It checks the stop signal between items; the caller bounds how
-    many items it may be handed.
+    fires. It checks the stop signal between items, and stops at ``deadline``
+    when the caller gives it one — a count cap cannot bound a phase whose
+    unit cost is minutes and varies with subtitle length.
     """
     from wanted_search.process import _fallback_translate_file
 
     auto_translate = getattr(settings, "wanted_auto_translate", False)
     for item in local_items:
-        if _stop_requested(cancel_event):
+        if _stop_requested(cancel_event) or _deadline_passed(deadline):
             logger.info(
-                "[search_all] local-sidecar translation cancelled after %d items", processed
+                "[search_all] local-sidecar translation stopped after %d items "
+                "(cancelled or out of budget)",
+                processed,
             )
             break
         item_lang = item.get("target_language") or settings.target_language

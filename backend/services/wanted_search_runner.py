@@ -331,6 +331,22 @@ def run_wanted_search(
     # after tick — the failure this whole bound exists to prevent.
     local_translate_items = local_translate_items[: min(max_items, _MAX_LOCAL_TRANSLATES_PER_TICK)]
 
+    # The count cap above was justified as "small enough that a tick finishes
+    # inside its budget", which assumed the unit cost is small. One item
+    # measured ~14.5 minutes on prod 2026-08-13, so 100 of them is about a day
+    # — bounded, and still far past any tick timeout. The bound that matches
+    # what this phase actually spends is wall clock; 0 turns the inline phase
+    # off entirely.
+    sidecar_budget_s = int(getattr(settings, "wanted_search_sidecar_budget_s", 600))
+    sidecar_deadline = time.monotonic() + sidecar_budget_s if sidecar_budget_s > 0 else None
+    if sidecar_budget_s <= 0 and local_translate_items:
+        logger.info(
+            "[search_all] %d local-sidecar items left for a later tick "
+            "(wanted_search_sidecar_budget_s=0)",
+            len(local_translate_items),
+        )
+        local_translate_items = []
+
     if not eligible and not local_translate_items:
         return {"total": 0, "processed": 0, "found": 0, "failed": 0, "skipped": 0}
 
@@ -389,7 +405,15 @@ def run_wanted_search(
 
     # Translate local-sidecar items first — no provider involved at all.
     processed, found, failed = _translate_local_sidecar_items(
-        local_translate_items, processed, found, failed, total, socketio, settings, cancel_event
+        local_translate_items,
+        processed,
+        found,
+        failed,
+        total,
+        socketio,
+        settings,
+        cancel_event,
+        deadline=sidecar_deadline,
     )
 
     # Extract embedded-sub items next

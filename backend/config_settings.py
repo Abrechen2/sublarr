@@ -489,6 +489,16 @@ class UISettings(BaseModel):
     wanted_search_interval_hours: int = 24  # 0 = disabled
     wanted_search_on_startup: bool = True
     wanted_search_max_items_per_run: int = 500
+    # Wall-clock budget for the local-sidecar translate phase inside one
+    # wanted_search run. A count cannot bound it: one item measured ~14.5
+    # minutes on production 2026-08-13 and the cost scales with subtitle
+    # length, so the 100-item cap still meant roughly a day of holding the
+    # global search lock. 0 disables the inline phase entirely.
+    wanted_search_sidecar_budget_s: int = Field(
+        default=600,
+        ge=0,
+        description="Seconds the inline local-sidecar translate phase may run per tick (0 = off)",
+    )
     wanted_search_order: str = "fair"  # 'fair' | 'newest_first' | 'weighted'
     wanted_scheduler_priority_weighting_enabled: bool = True
     wanted_scheduler_backlog_reserve_pct: int = 50
