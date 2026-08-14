@@ -28,6 +28,7 @@ from services.wanted_search_filters import (  # noqa: F401 — re-exported for b
     _EMBEDDED_TYPES,
     _apply_backlog_reserve_gate,
     _enqueue_embedded_items,
+    _enqueue_sidecar_items,
     _extract_embedded_items,
     _filter_eligible,
     _split_local_translate_items,
@@ -386,6 +387,25 @@ def run_wanted_search(
             "[search_all] %d items have embedded subs — extracting instead of searching",
             len(embedded_items),
         )
+    # Preferred path: hand local-sidecar items to the automation queue too.
+    # Each one is a full LLM translation, and doing them inline is what held
+    # the global search lock for 21 hours on prod 2026-08-12 — the drain
+    # worker already owns exactly this shape of work, with backoff, retry,
+    # its own timeout and its own cancellation.
+    #
+    # Only when automation is on: with the drain worker disabled nothing would
+    # ever pick a queued row up, so those installs keep translating inline,
+    # bounded by the wall-clock budget computed above.
+    sidecar_enqueued = 0
+    if automation_on and local_translate_items:
+        local_translate_items, sidecar_enqueued = _enqueue_sidecar_items(
+            local_translate_items, settings
+        )
+        if sidecar_enqueued:
+            logger.info(
+                "[search_all] %d items have a local source sidecar — enqueued for translation",
+                sidecar_enqueued,
+            )
     if local_translate_items:
         logger.info(
             "[search_all] %d items have a local source sidecar — translating "
@@ -393,15 +413,18 @@ def run_wanted_search(
             len(local_translate_items),
         )
 
-    total = len(eligible) + len(local_translate_items)
+    # Enqueued sidecars left `local_translate_items`, but they are still part
+    # of this tick's workload — the summary would otherwise under-report by
+    # exactly the items the fix moved off the inline path.
+    total = len(eligible) + len(local_translate_items) + sidecar_enqueued
     processed = 0
     found = 0
     failed = 0
     skipped = 0
 
     # Enqueued items are handed off to the drain worker, not searched this tick.
-    processed += enqueued_count
-    skipped += enqueued_count
+    processed += enqueued_count + sidecar_enqueued
+    skipped += enqueued_count + sidecar_enqueued
 
     # Translate local-sidecar items first — no provider involved at all.
     processed, found, failed = _translate_local_sidecar_items(

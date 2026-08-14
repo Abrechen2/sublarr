@@ -76,6 +76,42 @@ class SubtitleAutomationRunner:
     ) -> None:
         self._repo = repo or SubtitleAutomationQueueRepository()
 
+    def _translate_sidecar(self, wanted_item_id: int, file_path: str, target_language: str) -> None:
+        """Translate an item that has a source-language sidecar on disk.
+
+        The work `wanted_search` used to do inline while holding the global
+        search lock. It reaches the same Step-5 fallback the normal per-item
+        pipeline would eventually reach — no provider search, no retry_after
+        gate, just the local translate.
+
+        The wanted item is loaded here rather than snapshotted at enqueue
+        time: `_fallback_translate_file` dereferences it for the arr context
+        and the language profile, and a user who re-assigns a profile between
+        enqueue and drain should get the new one. Same reasoning for settings.
+        A `FileNotFoundError` for a vanished item is deliberate — `process_one`
+        already treats that as terminal rather than cycling a dead row through
+        the backoff ladder forever.
+        """
+        from config import get_settings
+        from db.wanted import get_wanted_item
+        from wanted_search.process import _fallback_translate_file
+
+        item = get_wanted_item(wanted_item_id)
+        if item is None:
+            raise FileNotFoundError(
+                f"wanted item {wanted_item_id} no longer exists; dropping its translation"
+            )
+        _fallback_translate_file(
+            {
+                "item": item,
+                "item_id": wanted_item_id,
+                "item_lang": item.get("target_language") or target_language,
+                "settings": get_settings(),
+                "auto_translate": True,
+                "file_path": file_path,
+            }
+        )
+
     def process_one(self) -> bool:
         """Claim and process a single queue entry.
 
@@ -89,10 +125,14 @@ class SubtitleAutomationRunner:
         entry_id = claim["id"]
         wanted_item_id = claim["wanted_item_id"]
         file_path = claim["file_path"]
+        task_type = claim.get("task_type") or "embedded_extract"
         # attempt_count BEFORE this attempt; mark_failed will increment it.
         prior_attempt = claim.get("attempt_count") or 0
         try:
-            _extract_embedded_sub(wanted_item_id, file_path, auto_translate=False)
+            if task_type == "sidecar_translate":
+                self._translate_sidecar(wanted_item_id, file_path, claim["target_language"])
+            else:
+                _extract_embedded_sub(wanted_item_id, file_path, auto_translate=False)
         except FileNotFoundError as exc:
             logger.warning(
                 "subtitle_automation: media file gone for wanted_item=%s (%s); "

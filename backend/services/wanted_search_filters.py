@@ -226,7 +226,11 @@ def _split_local_translate_items(items: list[dict], settings) -> tuple[list[dict
     target-language provider match for no benefit (nothing would translate
     the sidecar anyway).
 
-    Returns ``(local_translate_items, remaining_items)``.
+    Returns ``(local_translate_items, remaining_items)``. Items in the first
+    list carry ``_local_source_language`` — the language this probe already
+    resolved. Recording it here rather than probing the disk a second time in
+    ``_enqueue_sidecar_items`` keeps the cost at one filesystem scan per item;
+    the key is a copy, the caller's dicts are not mutated.
     """
     if not getattr(settings, "wanted_auto_translate", False):
         return [], items
@@ -240,17 +244,64 @@ def _split_local_translate_items(items: list[dict], settings) -> tuple[list[dict
             remaining.append(item)
             continue
         try:
-            src_path, _src_lang = find_any_source_sub(
+            src_path, src_lang = find_any_source_sub(
                 item["file_path"], target_language=item.get("target_language")
             )
         except Exception as exc:  # noqa: BLE001 — a probe failure must not block the item
             logger.debug("[search_all] local-sidecar probe failed for item %d: %s", item["id"], exc)
             src_path = None
+            src_lang = None
         if src_path:
-            local_items.append(item)
+            local_items.append({**item, "_local_source_language": src_lang})
         else:
             remaining.append(item)
     return local_items, remaining
+
+
+def _enqueue_sidecar_items(local_items, settings) -> tuple[list[dict], int]:
+    """Hand local-sidecar items to the automation queue.
+
+    The mirror of ``_enqueue_embedded_items``: the drain worker owns the work,
+    the search job only classifies. Items that cannot be enqueued come back as
+    leftovers so the caller can decide — the search job must never lose an
+    item because a queue insert failed.
+
+    ``file_path`` is the media file, not the source sidecar, exactly as it is
+    for the extraction rows: ``translate_file`` takes the media file and
+    rediscovers the sidecar itself (Case C2b), which is the whole reason
+    these items need no provider. ``source_language`` rides along from the
+    split's probe for diagnostics; the translate path resolves the direction
+    it will actually use from the item's language profile at run time.
+    """
+    from db.repositories.subtitle_automation_queue import (
+        SubtitleAutomationQueueRepository,
+    )
+
+    leftover: list[dict] = []
+    enqueued = 0
+    repo = SubtitleAutomationQueueRepository()
+    for item in local_items:
+        target_lang = item.get("target_language") or getattr(settings, "target_language", "")
+        if not target_lang:
+            leftover.append(item)
+            continue
+        try:
+            repo.enqueue(
+                wanted_item_id=item["id"],
+                file_path=item["file_path"],
+                target_language=target_lang,
+                task_type="sidecar_translate",
+                source_language=item.get("_local_source_language"),
+            )
+            enqueued += 1
+        except Exception as exc:  # noqa: BLE001 — enqueue must never break the search tick
+            logger.warning(
+                "[search_all] sidecar enqueue failed for item %d: %s — falling back",
+                item["id"],
+                exc,
+            )
+            leftover.append(item)
+    return leftover, enqueued
 
 
 def _translate_local_sidecar_items(
