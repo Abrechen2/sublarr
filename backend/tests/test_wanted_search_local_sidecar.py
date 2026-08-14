@@ -119,7 +119,7 @@ class TestRunWantedSearchLocalSidecarBypass:
 
         provider_calls: list[int] = []
 
-        def _fake_process(item_id: int) -> dict:
+        def _fake_process(item_id: int, **_kw) -> dict:
             provider_calls.append(item_id)
             return {"status": "found", "wanted_id": item_id}
 
@@ -160,7 +160,7 @@ class TestRunWantedSearchLocalSidecarBypass:
 
         provider_calls: list[int] = []
 
-        def _fake_process(item_id: int) -> dict:
+        def _fake_process(item_id: int, **_kw) -> dict:
             provider_calls.append(item_id)
             return {"status": "found", "wanted_id": item_id}
 

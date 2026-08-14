@@ -111,7 +111,7 @@ def test_phase1_full_cycle(app_ctx, monkeypatch):
 
     calls = {"n": 0}
 
-    def _fake_worker(_app, item_id: int) -> dict:
+    def _fake_worker(_app, item_id: int, *_args, **_kwargs) -> dict:
         # Mirror the real ``_search_with_ctx``: push an app context in the
         # worker thread so DB writes land on the same Flask app.
         with _app.app_context():

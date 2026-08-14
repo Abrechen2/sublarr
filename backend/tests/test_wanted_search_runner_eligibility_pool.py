@@ -65,7 +65,7 @@ def fake_worker(monkeypatch):
     """Replace the real provider search with a no-op recorder."""
     processed_ids: list[int] = []
 
-    def _fake_process(item_id: int) -> dict:
+    def _fake_process(item_id: int, **_kw) -> dict:
         processed_ids.append(item_id)
         return {"status": "found", "wanted_id": item_id}
 

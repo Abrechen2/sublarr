@@ -923,11 +923,25 @@ def process_wanted_item(
     auto_translate: bool | None = None,
     dry_run: bool = False,
     bypass_existing_target_check: bool = False,
+    allow_translate_fallback: bool = True,
 ) -> dict:
     """Full pipeline for one item: search -> download best -> translate.
 
     Args:
         item_id: The wanted item to process.
+        allow_translate_fallback: When ``False``, stop before Step 5 and
+            report ``not_found`` instead of running the embedded/translate
+            fallback. Step 5 is an ffmpeg extraction plus a full LLM
+            translation — minutes of work that cannot be interrupted once
+            started. The scheduled search passes ``False`` when the
+            subtitle-automation queue is enabled, so that work belongs to the
+            drain worker: run inside the search's thread pool it made the tick
+            unstoppable, because cancelling only cancels *pending* futures
+            while the pool's shutdown waits on whatever is in flight (prod
+            2026-08-14, recorded as ``timeout_abandoned``). Installs with
+            automation off keep the inline fallback — nothing would drain a
+            queued item there. Default ``True`` preserves the prior behaviour
+            for manual searches and the API.
         auto_translate: Override for the translate gate. ``None`` (default)
             reads ``settings.wanted_auto_translate`` as before. Passing
             ``False`` forces ORIGINAL-ONLY mode (skip the source-language
@@ -1057,6 +1071,7 @@ def process_wanted_item(
         "source_query": source_query,
         "ass_had_results": False,
         "dry_run": dry_run,
+        "allow_translate_fallback": allow_translate_fallback,
     }
 
     # Decision log: record the whole selection pipeline for this item so the
@@ -1137,6 +1152,20 @@ def _run_search_steps(ctx: dict) -> dict:
             "Wanted %d: dry_run stops before the embedded/translate fallback (Step 5)", item_id
         )
         return {"wanted_id": item_id, "status": "not_found", "dry_run": True}
+    if not ctx.get("allow_translate_fallback", True):
+        # The caller owns this work instead. Step 5 is an ffmpeg extraction
+        # plus a full LLM translation — minutes, and uninterruptible once
+        # started. Run inside the scheduled search's thread pool it made the
+        # tick unstoppable: on cancel the pool's shutdown(wait=True) blocks on
+        # whatever is in flight, so a 60s grace could never be met and the run
+        # was recorded as timeout_abandoned (prod 2026-08-14).
+        logger.debug("Wanted %d: translate fallback (Step 5) left to the caller", item_id)
+        decision_log.step_skipped("translate_fallback", "handed to the automation queue")
+        return {
+            "wanted_id": item_id,
+            "status": "not_found",
+            "reason": "translate fallback deferred to the automation queue",
+        }
     decision_log.set_step("translate_fallback")
     return _fallback_translate_file(ctx)
 

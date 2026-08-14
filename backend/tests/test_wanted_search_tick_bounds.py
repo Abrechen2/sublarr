@@ -69,7 +69,7 @@ def _run_with_sidecars(app_ctx, items, fallback, *, cancel_event=None):
     """Run a tick where every item has a local sidecar (no provider calls)."""
     provider_calls: list[int] = []
 
-    def _fake_process(item_id: int) -> dict:
+    def _fake_process(item_id: int, **_kw) -> dict:
         provider_calls.append(item_id)
         return {"status": "not_found", "wanted_id": item_id}
 
@@ -160,7 +160,7 @@ class TestLocalSidecarPhaseIsBounded:
 
         provider_calls: list[int] = []
 
-        def _fake_process(item_id: int) -> dict:
+        def _fake_process(item_id: int, **_kw) -> dict:
             provider_calls.append(item_id)
             return {"status": "not_found", "wanted_id": item_id}
 

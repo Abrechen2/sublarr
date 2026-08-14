@@ -73,12 +73,12 @@ def _compute_max_workers(total: int, cpu_count: int | None) -> int:
     return max(1, min(4, cores - 2, total))
 
 
-def _search_with_ctx(app, item_id: int) -> dict:
+def _search_with_ctx(app, item_id: int, allow_translate_fallback: bool = True) -> dict:
     """Worker wrapper: push a new Flask app context for each thread."""
     with app.app_context():
         from wanted_search import process_wanted_item
 
-        return process_wanted_item(item_id)
+        return process_wanted_item(item_id, allow_translate_fallback=allow_translate_fallback)
 
 
 def _series_min_attempts_config() -> dict[int, int]:
@@ -447,16 +447,31 @@ def run_wanted_search(
     # Parallel provider search
     eligible = search_items
     max_workers = _compute_max_workers(total, os.cpu_count())
+    # Step 5 of the per-item pipeline is an ffmpeg extraction plus a full LLM
+    # translation, and it cannot be interrupted once started. Cancelling this
+    # phase only cancels the *pending* futures — the pool's shutdown then waits
+    # on whatever is in flight, so a single item in Step 5 kept the tick alive
+    # far past its 60s grace and it was recorded as timeout_abandoned (prod
+    # 2026-08-14). Where a drain worker exists, that work is handed over and an
+    # in-flight item costs a provider search instead. Where it does not, the
+    # search keeps doing it: nothing would ever pick a queued item up there.
+    allow_translate_fallback = not automation_on
     with ThreadPoolExecutor(max_workers=max_workers) as executor:
         if _app is not None:
             future_to_item = {
-                executor.submit(_search_with_ctx, _app, item["id"]): item for item in eligible
+                executor.submit(_search_with_ctx, _app, item["id"], allow_translate_fallback): item
+                for item in eligible
             }
         else:
             from wanted_search import process_wanted_item
 
             future_to_item = {
-                executor.submit(process_wanted_item, item["id"]): item for item in eligible
+                executor.submit(
+                    process_wanted_item,
+                    item["id"],
+                    allow_translate_fallback=allow_translate_fallback,
+                ): item
+                for item in eligible
             }
 
         for future in as_completed(future_to_item):

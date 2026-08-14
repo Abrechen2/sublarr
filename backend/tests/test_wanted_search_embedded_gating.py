@@ -50,7 +50,7 @@ def _configure_settings(monkeypatch, *, automation: bool, auto_extract: bool):
 
 
 def _run(app_ctx, embedded_item, provider_calls):
-    def _fake_process(item_id: int) -> dict:
+    def _fake_process(item_id: int, **_kw) -> dict:
         provider_calls.append(item_id)
         return {"status": "not_found", "wanted_id": item_id}
 
