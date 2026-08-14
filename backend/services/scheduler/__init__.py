@@ -273,12 +273,25 @@ def _build_default_jobs() -> list[JobSpec]:
             id="subtitle_automation",
             func=subtitle_automation_tick,
             default_trigger=IntervalTrigger(minutes=automation_drain_minutes),
-            timeout_s=600,
+            # Prod, 7 days to 2026-08-14: 4536 ok runs with a max of 582s —
+            # right up against the old 600s budget — plus 41 `timeout` and 11
+            # `timeout_abandoned` rows clustered at 610-668s. Those were runs
+            # doing exactly the work they were asked to do, recorded as
+            # failures, which made the history useless for spotting a job that
+            # is genuinely stuck. The job now also drains sidecar
+            # translations, one of which measured ~870s, so 600s could not fit
+            # a single unit of its new work either.
+            #
+            # A timeout does not cancel; it stops waiting and sets the abort
+            # event, which drain() checks between items. So this bounds how
+            # long a tick may keep claiming new work, not how long one item
+            # may take.
+            timeout_s=2400,
             owner_module="services.subtitle_automation_runner",
             description=(
                 "Drain the subtitle_automation_queue: extract pending embedded "
-                "subtitles into sidecars. No-op when the master toggle "
-                "(subtitle_automation_enabled) is off."
+                "subtitles into sidecars and translate local source sidecars. "
+                "No-op when the master toggle (subtitle_automation_enabled) is off."
             ),
         ),
         JobSpec(
