@@ -33,6 +33,27 @@ class TestTimeoutsExceedOneUnitOfWork:
         assert isinstance(spec.timeout_s, int) and spec.timeout_s > 0
 
 
+class TestTimeoutIsNotPersisted:
+    def test_timeout_comes_from_code_not_the_jobstore(self):
+        """A changed timeout must reach existing installs on upgrade.
+
+        The JobStore persists trigger and next_run_time; ``_tick_wrapper``
+        reads ``timeout_s`` off the code-built JobSpec at fire time. If a
+        refactor ever moved the timeout into the persisted row, every
+        existing install would silently keep the old value and the release
+        notes ("applies as soon as you update") would become a lie.
+        """
+        import inspect
+
+        from services.scheduler import ticks
+
+        source = inspect.getsource(ticks._tick_wrapper)
+        assert "spec.timeout_s" in source, (
+            "the tick wrapper no longer reads the timeout from the code-built "
+            "JobSpec — check whether it is now persisted per install"
+        )
+
+
 class TestRegistryIsWellFormed:
     def test_job_ids_are_unique(self):
         from services.scheduler import _build_default_jobs

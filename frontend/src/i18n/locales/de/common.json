@@ -663,7 +663,7 @@
       "startup_search_title": "Die Suche beim Start lässt sich abbrechen",
       "startup_search_desc": "Sie wurde am Planer vorbei gestartet und hatte als einzige Suche weder ein Zeitlimit noch eine Möglichkeit, sie zu stoppen — ausgerechnet dort ließ sich ein langer Lauf nicht beenden. Sie läuft jetzt über den Planer wie jede geplante Suche auch.",
       "automation_timeout_title": "Die Untertitel-Automatik meldet nicht mehr jeden langen Lauf als Fehler",
-      "automation_timeout_desc": "Ihr Zeitlimit war kürzer als ein einzelner Arbeitsschritt, den sie selbst ausführt. Läufe, die genau das taten, worum man sie gebeten hatte, wurden deshalb als Zeitüberschreitung verbucht — im Verlauf war ein hängender Auftrag von einem beschäftigten nicht mehr zu unterscheiden. Bestehende Installationen behalten ihre gespeicherte Einstellung; über „Auf Standard zurücksetzen“ bei diesem Auftrag unter Einstellungen → System → Planer wird der neue Wert übernommen."
+      "automation_timeout_desc": "Ihr Zeitlimit war kürzer als ein einzelner Arbeitsschritt, den sie selbst ausführt. Läufe, die genau das taten, worum man sie gebeten hatte, wurden deshalb als Zeitüberschreitung verbucht — im Verlauf war ein hängender Auftrag von einem beschäftigten nicht mehr zu unterscheiden. Die neue Grenze gilt ab dem Update von selbst; es muss nichts von Hand zurückgesetzt werden."
     },
     "v1112": {
       "search_stall_title": "Die geplante Suche bleibt nicht mehr stehen",

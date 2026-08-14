@@ -26,9 +26,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **The subtitle-automation job stops reporting a failure for every long run.**
   Its timeout was shorter than a single item of its own work, so runs doing
   exactly what they were asked to do were recorded as timeouts and the history
-  could not distinguish a stuck job from a busy one. Existing installs keep
-  their stored setting; use "Reset to default" on that job under
-  Settings → System → Scheduler to pick up the new one.
+  could not distinguish a stuck job from a busy one. The new limit applies as
+  soon as you update; nothing needs to be reset by hand.
 
 ### Added
 - **Usage statistics report which providers were chosen and which deliver.**

@@ -663,7 +663,7 @@
       "startup_search_title": "The search that runs at startup can be stopped",
       "startup_search_desc": "It was started outside the scheduler, so alone among the searches it had neither a timeout nor a way to be cancelled — the one entry point where a long run could not be ended. It now goes through the scheduler like every scheduled search.",
       "automation_timeout_title": "Subtitle automation stops reporting every long run as a failure",
-      "automation_timeout_desc": "Its timeout was shorter than a single item of the work it performs, so runs doing exactly what they were asked to do were recorded as timeouts — in the history a stuck job became indistinguishable from a busy one. Existing installs keep their stored setting; use “Reset to default” on that job under Settings → System → Scheduler to pick up the new value."
+      "automation_timeout_desc": "Its timeout was shorter than a single item of the work it performs, so runs doing exactly what they were asked to do were recorded as timeouts — in the history a stuck job became indistinguishable from a busy one. The new limit applies as soon as you update; nothing needs to be reset by hand."
     },
     "v1112": {
       "search_stall_title": "Scheduled searches no longer stall",

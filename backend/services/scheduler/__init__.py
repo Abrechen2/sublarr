@@ -286,6 +286,12 @@ def _build_default_jobs() -> list[JobSpec]:
             # event, which drain() checks between items. So this bounds how
             # long a tick may keep claiming new work, not how long one item
             # may take.
+            #
+            # Unlike the trigger, this value is not persisted: the JobStore
+            # keeps trigger and next_run_time, while _tick_wrapper reads
+            # timeout_s off the code-built JobSpec at fire time. Changing it
+            # here therefore takes effect for every install on upgrade, with
+            # no "Reset to default" needed.
             timeout_s=2400,
             owner_module="services.subtitle_automation_runner",
             description=(
