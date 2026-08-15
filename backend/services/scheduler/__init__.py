@@ -266,17 +266,27 @@ def _build_default_jobs() -> list[JobSpec]:
             # Per-request HTTP timeouts (RetryingSession default 15 s) keep a
             # single hung provider from blocking the whole sweep.
             timeout_s=1800,
-            # Measured on prod 2026-08-15, two runs: the item loop stops
-            # promptly (it logged "cancelled after 172/2100 items"), but the
-            # provider phase then waits on the items already in flight, each
-            # finishing its own post-processing. Auto-sync dominates that
-            # tail — ffsubsync alone took 16-60s per file — times the pool
-            # width. Wind-downs came out at 31s and 175s, both cooperative,
-            # and both were recorded as `timeout_abandoned` against a 60s
-            # grace. 300s clears the longer one with room; it does not make
-            # the job stop faster, it stops the history from calling an
-            # orderly ending an abandonment.
-            cancel_grace_s=300,
+            # The grace has to fit ONE unit of work, because that is the
+            # granularity this cancellation design promises (see
+            # scheduler/cancellation.py): the item loop stops promptly — 71s
+            # in the last measurement, logged as "cancelled after 109/2100
+            # items" — and the phase then waits on the items already in
+            # flight to finish their chain.
+            #
+            # One unit here is a whole item: provider searches with retries,
+            # a download, a remux, and a sync that had already started (6-143s
+            # on its own). Prod 2026-08-15 measured four wind-downs across
+            # three builds: 31s, 175s, 197s, ~300s.
+            #
+            # 300s was tried first and still read `timeout_abandoned`. The
+            # number is not the lesson: until 126a703f the tail was
+            # *unbounded*, because a stop request never reached the worker
+            # threads and auto-sync kept starting new runs — four of them
+            # seven minutes past a cancel. No grace can be correct against
+            # that, and raising it was treating the symptom. With the tail
+            # bounded to one item, a value that fits one item is defensible;
+            # 900s matches subtitle_automation for the same reason.
+            cancel_grace_s=900,
             owner_module="services.wanted_scanner",
             description="Search providers for all wanted items.",
         ),
