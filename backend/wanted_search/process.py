@@ -19,6 +19,7 @@ from db.wanted import (
 from error_handler import DuplicateSubtitleError
 from providers import get_provider_manager
 from providers.base import SubtitleFormat
+from services.scheduler.cancellation import abort_requested
 from upgrade_scorer import should_upgrade
 from wanted_search.dubtitle_verify import verify_dubtitle_on_keep
 from wanted_search.metadata import _set_adaptive_retry_after, build_query_from_wanted
@@ -1088,17 +1089,53 @@ def process_wanted_item(
         decision_log.finish()
 
 
+def _stopped_result(item_id: int, next_step: str) -> dict:
+    """Leave the item where it is because a stop was requested.
+
+    Deliberately does NOT call ``record_search_outcome``: that sets
+    ``failure_kind`` and ``retry_after``, so charging a cancelled item for a
+    search it was never allowed to finish would push it into a backoff it did
+    not earn. The item keeps its state and the next run picks it up unchanged.
+
+    The status is neither ``found`` nor ``failed``, so the runner counts it as
+    skipped rather than recording a failure.
+    """
+    logger.info("Wanted %d: stop requested — not starting %s", item_id, next_step)
+    return {
+        "wanted_id": item_id,
+        "status": "stopped",
+        "reason": f"cancelled before {next_step}",
+    }
+
+
 def _run_search_steps(ctx: dict) -> dict:
     """Run search Steps 1-5 for one wanted item. Extracted from
-    ``process_wanted_item`` so the decision log can wrap the whole sequence."""
+    ``process_wanted_item`` so the decision log can wrap the whole sequence.
+
+    Each step is a full provider search — every enabled provider, with its own
+    retries — so the gaps between them are the only place inside an item where
+    a stop can take effect, and they are safe ones: a step searches and, on a
+    hit, downloads and saves, leaving nothing half-written at the boundary.
+
+    Without these checks an item that had already started ran all five steps
+    regardless. Prod 2026-08-15: after a cancelled tick's item loop stopped at
+    71s, the log carried eight more provider retries, downloads and a remux for
+    nearly four minutes — items finishing the steps they had left.
+    """
     item = ctx["item"]
     item_id = ctx["item_id"]
     settings = ctx["settings"]
+
+    if abort_requested():
+        return _stopped_result(item_id, "Step 1")
 
     # Step 1: target-language ASS direct
     result = _try_target_ass_direct(ctx)
     if result is not None:
         return result
+
+    if abort_requested():
+        return _stopped_result(item_id, "Step 2")
 
     # Step 2: source-language ASS + translate (guarded by auto_translate)
     if ctx["auto_translate"]:
@@ -1130,10 +1167,16 @@ def _run_search_steps(ctx: dict) -> dict:
             "target_srt_direct", "no ASS results in steps 1+2 (wanted_skip_srt_on_no_ass)"
         )
     if not _skip_srt:
+        if abort_requested():
+            return _stopped_result(item_id, "Step 3")
+
         # Step 3: target-language SRT direct
         result = _try_target_srt_direct(ctx)
         if result is not None:
             return result
+
+        if abort_requested():
+            return _stopped_result(item_id, "Step 4")
 
         # Step 4: source-language SRT + translate (guarded by auto_translate)
         if ctx["auto_translate"]:
@@ -1152,6 +1195,12 @@ def _run_search_steps(ctx: dict) -> dict:
             "Wanted %d: dry_run stops before the embedded/translate fallback (Step 5)", item_id
         )
         return {"wanted_id": item_id, "status": "not_found", "dry_run": True}
+    if abort_requested():
+        # The most important of these checks: Step 5 is an ffmpeg extraction
+        # plus a full LLM translation, minutes long and uninterruptible once
+        # started. Entering it after a stop request is the single worst thing
+        # this function can do to a wind-down.
+        return _stopped_result(item_id, "Step 5")
     if not ctx.get("allow_translate_fallback", True):
         # The caller owns this work instead. Step 5 is an ffmpeg extraction
         # plus a full LLM translation — minutes, and uninterruptible once
