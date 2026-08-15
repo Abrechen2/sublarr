@@ -1,8 +1,6 @@
 """Tests for database.py -- SQLite persistence."""
 
-import contextlib
 import os
-import tempfile
 
 import pytest
 
@@ -12,10 +10,14 @@ from db.jobs import create_job, get_job, get_stats_summary, record_stat, update_
 
 
 @pytest.fixture
-def temp_db():
-    """Create a temporary database for testing."""
-    with tempfile.NamedTemporaryFile(suffix=".db", delete=False) as f:
-        db_path = f.name
+def temp_db(tmp_path):
+    """Create a temporary database for testing.
+
+    Under ``tmp_path`` so a locked file is reclaimed by pytest on a later
+    session instead of leaking into ``%TEMP%`` forever — see the note on the
+    shared ``temp_db`` fixture in conftest.py.
+    """
+    db_path = str(tmp_path / "test.db")
 
     # Override db_path in settings
     os.environ["SUBLARR_DB_PATH"] = db_path
@@ -33,12 +35,9 @@ def temp_db():
 
     yield db_path
 
-    # Teardown
+    # Teardown — close the DB so pytest's tmp_path removal can succeed.
     ctx.pop()
     close_db()
-    if os.path.exists(db_path):
-        with contextlib.suppress(PermissionError):
-            os.unlink(db_path)
     for key in ("SUBLARR_DB_PATH", "SUBLARR_API_KEY", "SUBLARR_LOG_LEVEL"):
         os.environ.pop(key, None)
     reload_settings()

@@ -1,7 +1,6 @@
 """Tests for backend/routes/tracks.py."""
 
 import os
-import tempfile
 from unittest.mock import patch
 
 import pytest
@@ -37,9 +36,10 @@ SAMPLE_STREAMS = [
 
 
 @pytest.fixture
-def client():
-    with tempfile.NamedTemporaryFile(suffix=".db", delete=False) as f:
-        db_path = f.name
+def client(tmp_path):
+    # Temp DB under tmp_path so a locked file is reclaimed later instead of
+    # leaking into %TEMP% forever (see conftest.py temp_db).
+    db_path = str(tmp_path / "test.db")
     os.environ["SUBLARR_DB_PATH"] = db_path
     os.environ["SUBLARR_API_KEY"] = ""
     reload_settings()
@@ -48,11 +48,6 @@ def client():
     with app.test_client() as c:
         yield c
     close_db()
-    try:
-        if os.path.exists(db_path):
-            os.unlink(db_path)
-    except PermissionError:
-        pass  # Windows: SQLite WAL may hold a brief lock; file cleaned by OS
     os.environ.pop("SUBLARR_DB_PATH", None)
     os.environ.pop("SUBLARR_API_KEY", None)
 

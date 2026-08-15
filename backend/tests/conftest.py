@@ -15,7 +15,13 @@ _TEMP_DIR = os.path.realpath(tempfile.gettempdir())
 # writable on the CI runner → PermissionError. Pin it to a session-local tmp dir
 # at import time (before any create_app) so encryption always lands on a writable,
 # isolated path. setdefault so an explicit override still wins.
-os.environ.setdefault("SUBLARR_CONFIG_DIR", tempfile.mkdtemp(prefix="sublarr-cfg-"))
+# Only mint a dir when we actually own it — calling mkdtemp() unconditionally
+# leaked one per session even when an explicit override won (1888 of them here).
+if "SUBLARR_CONFIG_DIR" in os.environ:
+    _SESSION_CONFIG_DIR = None
+else:
+    _SESSION_CONFIG_DIR = tempfile.mkdtemp(prefix="sublarr-cfg-")
+    os.environ["SUBLARR_CONFIG_DIR"] = _SESSION_CONFIG_DIR
 
 import pytest
 
@@ -50,6 +56,8 @@ def pytest_sessionfinish(session, exitstatus):
         shutdown_background(wait=False)
     except Exception:  # noqa: BLE001 -- best-effort cleanup, never block exit
         pass
+    if _SESSION_CONFIG_DIR:
+        shutil.rmtree(_SESSION_CONFIG_DIR, ignore_errors=True)
 
 
 def _shutdown_event_dispatchers_for_test(app):
@@ -62,17 +70,31 @@ def _shutdown_event_dispatchers_for_test(app):
 
 
 @pytest.fixture
-def temp_db():
-    """Create a temporary database for testing."""
-    # Create temporary database file
-    with tempfile.NamedTemporaryFile(suffix=".db", delete=False) as f:
-        db_path = f.name
+def temp_db(tmp_path):
+    """Create a temporary database for testing.
+
+    Everything lives under pytest's ``tmp_path`` so cleanup is *self-healing*.
+    The previous ``NamedTemporaryFile(delete=False)`` + best-effort ``unlink``
+    lost the file permanently whenever SQLite still held the WAL lock at
+    teardown — and it never even tried to remove the ``-wal``/``-shm``
+    siblings. On Windows nothing else ever collects ``%TEMP%``, so that leaked
+    ~0.7 MB per test: 106k files / 71 GB in six weeks, still growing at ~3 GB
+    per day. Under ``tmp_path`` a failed removal is merely deferred — pytest
+    garbage-collects the whole session tree on a later run, by which time this
+    process has exited and the lock is gone.
+    """
+    db_path = str(tmp_path / "test.db")
+    # Pre-create the empty file so init_db() sees exactly what
+    # NamedTemporaryFile used to hand it.
+    Path(db_path).touch()
 
     # Set environment variable
     os.environ["SUBLARR_DB_PATH"] = db_path
     os.environ["SUBLARR_API_KEY"] = ""  # Disable auth for tests
     os.environ["SUBLARR_LOG_LEVEL"] = "ERROR"  # Reduce log noise in tests
-    os.environ["SUBLARR_PLUGINS_DIR"] = tempfile.mkdtemp()  # CI: /config not writable
+    plugins_dir = tmp_path / "plugins"  # CI: /config not writable
+    plugins_dir.mkdir()
+    os.environ["SUBLARR_PLUGINS_DIR"] = str(plugins_dir)
     # Allow video-sync path-security check to pass for tmp_path fixtures
     os.environ["SUBLARR_MEDIA_PATH"] = _TEMP_DIR
 
@@ -82,13 +104,10 @@ def temp_db():
 
     yield db_path
 
-    # Cleanup — close DB connection before deleting (Windows file locking)
+    # Cleanup — close the DB so pytest's own tmp_path removal can succeed.
+    # We deliberately do NOT unlink here: if this fails, pytest's retention
+    # sweep reclaims the tree later. Nothing is left behind permanently.
     close_db()
-    try:
-        if os.path.exists(db_path):
-            os.unlink(db_path)
-    except PermissionError:
-        pass  # Windows: SQLite WAL may hold a brief lock; file will be cleaned by OS
     if "SUBLARR_DB_PATH" in os.environ:
         del os.environ["SUBLARR_DB_PATH"]
     if "SUBLARR_API_KEY" in os.environ:

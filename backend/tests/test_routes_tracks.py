@@ -58,13 +58,16 @@ SAMPLE_STREAMS = [
 
 
 @pytest.fixture
-def client():
-    with tempfile.NamedTemporaryFile(suffix=".db", delete=False) as f:
-        db_path = f.name
+def client(tmp_path):
+    # DB and plugins dir under tmp_path so pytest reclaims them even when
+    # SQLite still holds the WAL lock (see conftest.py temp_db).
+    db_path = str(tmp_path / "test.db")
     os.environ["SUBLARR_DB_PATH"] = db_path
     os.environ["SUBLARR_API_KEY"] = ""
     os.environ["SUBLARR_LOG_LEVEL"] = "ERROR"
-    os.environ["SUBLARR_PLUGINS_DIR"] = tempfile.mkdtemp()
+    plugins_dir = tmp_path / "plugins"
+    plugins_dir.mkdir()
+    os.environ["SUBLARR_PLUGINS_DIR"] = str(plugins_dir)
     os.environ["SUBLARR_MEDIA_PATH"] = os.path.realpath(tempfile.gettempdir())
     reload_settings()
     init_db()
@@ -73,11 +76,6 @@ def client():
     with app.test_client() as c:
         yield c
     close_db()
-    try:
-        if os.path.exists(db_path):
-            os.unlink(db_path)
-    except PermissionError:
-        pass
     for key in (
         "SUBLARR_DB_PATH",
         "SUBLARR_API_KEY",

@@ -1,7 +1,6 @@
 """Tests for Flask API endpoints (app.py / Blueprint routes)."""
 
 import os
-import tempfile
 
 import pytest
 
@@ -11,11 +10,11 @@ from db import close_db
 
 
 @pytest.fixture
-def client():
+def client(tmp_path):
     """Create a test client."""
-    # Use temp DB for tests
-    with tempfile.NamedTemporaryFile(suffix=".db", delete=False) as f:
-        db_path = f.name
+    # Temp DB under tmp_path so pytest reclaims it even if SQLite still holds
+    # the WAL lock at teardown (see conftest.py temp_db).
+    db_path = str(tmp_path / "test.db")
     os.environ["SUBLARR_DB_PATH"] = db_path
     os.environ["SUBLARR_API_KEY"] = ""  # Disable auth for tests
     reload_settings()
@@ -26,13 +25,8 @@ def client():
     with app.test_client() as client:
         yield client
 
-    # Cleanup — close DB connection before deleting (Windows file locking)
+    # Cleanup — close the DB so pytest's tmp_path removal can succeed.
     close_db()
-    try:
-        if os.path.exists(db_path):
-            os.unlink(db_path)
-    except PermissionError:
-        pass  # Windows: SQLite WAL may hold a brief lock; file will be cleaned by OS
     if "SUBLARR_DB_PATH" in os.environ:
         del os.environ["SUBLARR_DB_PATH"]
 
