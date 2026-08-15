@@ -352,6 +352,30 @@ def _build_default_jobs() -> list[JobSpec]:
     ]
 
 
+def _reclaim_orphaned_automation_queue() -> None:
+    """Release drain-queue claims held by workers that died with the process.
+
+    The counterpart to `reconcile_stale_runs()` for the job-run table.
+    Without it, whatever item the drain worker held at shutdown stays
+    `running` forever — no retry, no error, silently out of the queue.
+    Best-effort: a failure here must not stop the scheduler from starting.
+    """
+    from db.repositories.subtitle_automation_queue import (
+        SubtitleAutomationQueueRepository,
+    )
+
+    try:
+        reclaimed = SubtitleAutomationQueueRepository().reclaim_orphaned()
+    except Exception:
+        logger.exception("Could not reclaim orphaned automation-queue rows")
+        return
+    if reclaimed:
+        logger.info(
+            "Automation queue: requeued %d row(s) orphaned by the last shutdown",
+            reclaimed,
+        )
+
+
 def bootstrap_scheduler(app: Flask) -> SublarrScheduler | None:
     """Full startup: honour SUBLARR_SCHEDULER_ROLE env, reconcile,
     register jobs, start.
@@ -373,6 +397,7 @@ def bootstrap_scheduler(app: Flask) -> SublarrScheduler | None:
 
     with app.app_context():
         reconcile_stale_runs(grace_minutes=10)
+        _reclaim_orphaned_automation_queue()
 
     global SCHEDULED_JOBS
     if not SCHEDULED_JOBS:

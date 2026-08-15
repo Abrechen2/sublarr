@@ -188,6 +188,56 @@ class SubtitleAutomationQueueRepository(BaseRepository):
         self.session.expire_all()
         return self.get_by_id(candidate.id)
 
+    def reclaim_orphaned(self, *, grace_minutes: int = 0) -> int:
+        """Return `running` rows whose worker is gone to `pending`.
+
+        `claim_next()` is the only way into `running`, and only
+        `mark_done()` / `mark_failed()` lead out of it. When the process
+        dies mid-item — restart, SIGKILL, shutdown timeout — the claim
+        outlives the thread that held it and nothing ever releases it.
+        `enqueue()` keeps an existing `running` row as-is by design, so a
+        fresh search does not rescue one either: the item is stranded for
+        good.
+
+        Called once at scheduler startup, mirroring
+        `scheduler.reconcile_stale_runs()` for the job-run table. At that
+        moment no drain worker exists yet in this process, so every
+        `running` row is by definition abandoned and the default grace of
+        0 is correct. `grace_minutes` exists for callers that run while a
+        worker may be live and must not steal an in-flight claim.
+
+        `attempt_count` is incremented: an item that kills the process on
+        every boot would otherwise be retried forever, and the counter is
+        the only signal the backoff ladder has. The row goes back to
+        `pending` (not `failed`) with `next_retry_at` cleared, so the work
+        resumes on the next drain rather than waiting out a backoff it
+        never earned.
+
+        Returns the number of rows reclaimed.
+        """
+        from datetime import timedelta
+
+        now = self._now()
+        cutoff = now - timedelta(minutes=grace_minutes)
+
+        stale = (
+            self.session.query(SubtitleAutomationQueueEntry)
+            .filter(SubtitleAutomationQueueEntry.state == "running")
+            .filter(SubtitleAutomationQueueEntry.last_started_at <= cutoff)
+            .all()
+        )
+        for row in stale:
+            row.state = "pending"
+            row.attempt_count = (row.attempt_count or 0) + 1
+            row.next_retry_at = None
+            row.last_error = (
+                "Interrupted: claimed by a worker that no longer exists "
+                "(process restart or shutdown timeout). Requeued."
+            )
+            row.updated_at = now
+        self._commit()
+        return len(stale)
+
     def get_by_id(self, entry_id: int) -> dict | None:
         row = self.session.get(SubtitleAutomationQueueEntry, entry_id)
         return self._to_dict(row) if row else None
