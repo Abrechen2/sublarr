@@ -64,6 +64,12 @@ class JobSpec:
       default_trigger: IntervalTrigger or CronTrigger used when no
         user override exists in the JobStore.
       timeout_s: enforced by _tick_wrapper via ThreadPoolExecutor.
+      cancel_grace_s: how long this job is given to leave after being asked
+        to stop, before the run is recorded as `timeout_abandoned`. None
+        means the proportional default, `max(1, min(60, timeout_s // 10))`.
+        Declare it when the job's wind-down has been *measured*: the time is
+        a property of the work in flight — one item finishing its
+        post-processing — not of the timeout the job happens to sit under.
       max_instances: APScheduler concurrency cap (defaults to 1).
       coalesce: collapse missed fires into one on resume.
       misfire_grace_time: None means computed at registration from
@@ -76,6 +82,7 @@ class JobSpec:
     func: Callable[[], None]
     default_trigger: BaseTrigger
     timeout_s: int = 300
+    cancel_grace_s: int | None = None
     max_instances: int = 1
     coalesce: bool = True
     misfire_grace_time: int | None = None
@@ -91,6 +98,24 @@ class JobSpec:
             raise ValueError(f"JobSpec.timeout_s must be > 0 (got {self.timeout_s!r})")
         if not isinstance(self.default_trigger, BaseTrigger):
             raise TypeError("JobSpec.default_trigger must be a BaseTrigger subclass")
+        if self.cancel_grace_s is not None and (
+            not isinstance(self.cancel_grace_s, int) or self.cancel_grace_s <= 0
+        ):
+            raise ValueError(
+                f"JobSpec.cancel_grace_s must be > 0 or None (got {self.cancel_grace_s!r})"
+            )
+
+    @property
+    def effective_cancel_grace_s(self) -> int:
+        """Seconds this job gets to leave after being asked to stop.
+
+        The default stays proportional-but-capped so unmeasured jobs behave
+        exactly as before. A declared value overrides it outright — the cap
+        is the thing that was wrong, and only evidence should lift it.
+        """
+        if self.cancel_grace_s is not None:
+            return self.cancel_grace_s
+        return max(1, min(60, self.timeout_s // 10))
 
 
 def _write_job_run(
@@ -299,7 +324,7 @@ def _tick_wrapper(
                     # to stop and give it a bounded chance to reach its next
                     # check point, so a cooperative job gets an honest ending.
                     cancel_event.set()
-                    grace_s = max(1, min(60, spec.timeout_s // 10))
+                    grace_s = spec.effective_cancel_grace_s
                     error_type = "TimeoutError"
                     try:
                         future.result(timeout=grace_s)

@@ -266,6 +266,17 @@ def _build_default_jobs() -> list[JobSpec]:
             # Per-request HTTP timeouts (RetryingSession default 15 s) keep a
             # single hung provider from blocking the whole sweep.
             timeout_s=1800,
+            # Measured on prod 2026-08-15, two runs: the item loop stops
+            # promptly (it logged "cancelled after 172/2100 items"), but the
+            # provider phase then waits on the items already in flight, each
+            # finishing its own post-processing. Auto-sync dominates that
+            # tail — ffsubsync alone took 16-60s per file — times the pool
+            # width. Wind-downs came out at 31s and 175s, both cooperative,
+            # and both were recorded as `timeout_abandoned` against a 60s
+            # grace. 300s clears the longer one with room; it does not make
+            # the job stop faster, it stops the history from calling an
+            # orderly ending an abandonment.
+            cancel_grace_s=300,
             owner_module="services.wanted_scanner",
             description="Search providers for all wanted items.",
         ),
@@ -293,6 +304,20 @@ def _build_default_jobs() -> list[JobSpec]:
             # here therefore takes effect for every install on upgrade, with
             # no "Reset to default" needed.
             timeout_s=2400,
+            # The comment above already says it: the abort event is checked
+            # *between* items, so the wind-down is however long the item in
+            # flight still needs. Prod 2026-08-15 measured that directly —
+            # cancel at 10:07:51, `stopping as asked after 2 item(s)` at
+            # 10:11:08, i.e. 197s — and it was recorded as
+            # `timeout_abandoned` anyway, against a 60s grace. The job
+            # announced its own cooperation in the same log the history
+            # accused it of skipping.
+            #
+            # 900s rather than the measured 197s because one unit of this
+            # job's work is a whole translation, and the queue's timings show
+            # those running up to ~16 minutes. The grace has to fit the unit,
+            # not the average.
+            cancel_grace_s=900,
             owner_module="services.subtitle_automation_runner",
             description=(
                 "Drain the subtitle_automation_queue: extract pending embedded "

@@ -17,6 +17,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   overdue. This work now belongs to the subtitle-automation queue. Installs with
   automation switched off keep translating during the search, since nothing else
   would pick the work up. Manual searches and the API are unchanged.
+- **The scheduler stops calling an orderly stop an abandonment.** A job that
+  overran its limit was asked to stop and given 60 seconds to leave. That is
+  less time than one item of work takes to finish: the search waits for the
+  files already in flight, and re-syncing a single subtitle to its video alone
+  takes up to a minute. Measured on a real library, both jobs stopped
+  cooperatively after one to three minutes — and both were logged as having
+  ignored the request. Since that entry is meant to warn about a run that is
+  genuinely still going, it had stopped meaning anything. Jobs now declare how
+  long their wind-down actually takes; every other job keeps the previous
+  behaviour unchanged. This does not make a job stop sooner, it makes the
+  history tell the truth about it.
 - **A restart no longer loses a queued item.** If subtitle automation had taken
   on an item and the service restarted meanwhile, the item stayed marked as in
   progress — for a worker that no longer existed. There was no way out of that
