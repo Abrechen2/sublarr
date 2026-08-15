@@ -14,3 +14,11 @@ liccheck>=0.9.0
 pytest-benchmark>=4.0.0
 locust>=2.24.0
 fakeredis==2.26.2
+# Parallel test execution. The documented pre-deploy command runs the suite
+# with `-n auto` (~11 min instead of ~50), so it is a hard requirement of that
+# workflow, not an optional extra — it was simply never listed here.
+pytest-xdist==3.8.0
+# Reads the stack of an ALREADY-RUNNING process without stopping it. The only
+# way to learn what a hung test is doing; killing it first destroys the answer.
+#   py-spy dump --pid <PID>
+py-spy>=0.4.0
