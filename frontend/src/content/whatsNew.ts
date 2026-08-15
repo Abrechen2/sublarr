@@ -23,6 +23,7 @@ export const WHATS_NEW: Record<string, WhatsNewItem[]> = {
     { icon: Languages, titleKey: 'whatsnew.v1121.search_translate_title', descKey: 'whatsnew.v1121.search_translate_desc' },
     { icon: Activity, titleKey: 'whatsnew.v1121.queue_orphan_title', descKey: 'whatsnew.v1121.queue_orphan_desc' },
     { icon: Gauge, titleKey: 'whatsnew.v1121.grace_title', descKey: 'whatsnew.v1121.grace_desc' },
+    { icon: Zap, titleKey: 'whatsnew.v1121.webhook_title', descKey: 'whatsnew.v1121.webhook_desc' },
   ],
   '1.12.0': [
     { icon: Search, titleKey: 'whatsnew.v1120.sidecar_queue_title', descKey: 'whatsnew.v1120.sidecar_queue_desc' },

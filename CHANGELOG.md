@@ -17,6 +17,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   overdue. This work now belongs to the subtitle-automation queue. Installs with
   automation switched off keep translating during the search, since nothing else
   would pick the work up. Manual searches and the API are unchanged.
+- **Sonarr and Radarr no longer report a failed notification for every
+  download.** When one of them announces a completed download whose own import
+  produced no file, there is no path to hand over — and Sublarr answered with
+  an error, which made the sender mark the whole notification as broken and
+  fill its log with failures. Nothing was wrong with the request; there was
+  simply nothing to do. Such events are now acknowledged and skipped, exactly
+  as the movie-file-deleted event already was. The skip is written to the log
+  with the event type, so a download chain that silently stopped delivering
+  files is still visible rather than merely quiet.
 - **The scheduler stops calling an orderly stop an abandonment.** A job that
   overran its limit was asked to stop and given 60 seconds to leave. That is
   less time than one item of work takes to finish: the search waits for the

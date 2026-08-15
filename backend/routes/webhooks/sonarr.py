@@ -54,7 +54,11 @@ def webhook_sonarr():
                       type: string
       responses:
         200:
-          description: Test webhook acknowledged or event ignored
+          description: |
+            Test acknowledged, or the event was ignored. A Download event
+            carrying no file path is ignored rather than rejected — Sonarr
+            fires one per completed download even when its own import
+            produced no file, and that is not a malformed request.
         202:
           description: Download pipeline queued
           content:
@@ -71,7 +75,7 @@ def webhook_sonarr():
                   auto_pipeline:
                     type: boolean
         400:
-          description: Missing file path in payload
+          description: file_path resolved outside the configured media_path
     """
     from config import get_settings, map_path
     from security_utils import is_safe_path
@@ -97,7 +101,26 @@ def webhook_sonarr():
     series = data.get("series", {})
 
     if not file_path:
-        return jsonify({"error": "No file path in webhook payload"}), 400
+        # Not a malformed request — a Download event that carries no file.
+        # Sonarr fires one per completed download even when its own import
+        # failed, and 4xx made it record the notification as broken (prod
+        # 2026-08-15: every import failing, every webhook logged as an error,
+        # with the real fault buried underneath).
+        #
+        # Logged at WARNING rather than dropped silently: that 400 storm was
+        # the only visible sign the import path was dead, and downgrading the
+        # status must not downgrade the visibility. The payload's top-level
+        # keys go into the line because Sonarr v4 also fires OnImportComplete,
+        # whose shape we have never captured — this way the next occurrence
+        # identifies itself instead of inviting a guess at their schema.
+        logger.warning(
+            "Sonarr webhook: %s event carried no file path — nothing to do. "
+            "This usually means Sonarr's own import did not produce a file. "
+            "Payload keys: %s",
+            event_type,
+            sorted(data.keys()),
+        )
+        return jsonify({"status": "ignored", "reason": "No file path in webhook payload"}), 200
 
     file_path = map_path(file_path)
     if not is_safe_path(file_path, _s.media_path):

@@ -88,7 +88,13 @@ class TestSonarrWebhook:
         assert resp.status_code == 200
         assert resp.get_json()["status"] == "ignored"
 
-    def test_400_when_download_has_no_file_path(self, client):
+    def test_download_without_a_file_path_is_ignored_not_rejected(self, client):
+        """Was a 400 until 2026-08-15. Sonarr fires a Download event for every
+        completed download, including ones whose import produced no file, and
+        rejecting those made it mark the notification broken. Full reasoning
+        and the surrounding cases live in
+        tests/test_webhook_no_file_path_is_ignored.py.
+        """
         with patch("config.get_settings", return_value=_settings_mock()):
             resp = client.post(
                 "/api/v1/webhook/sonarr",
@@ -99,8 +105,9 @@ class TestSonarrWebhook:
                 },
                 headers={"X-Api-Key": "test-api-key"},
             )
-        assert resp.status_code == 400
-        assert "file path" in resp.get_json()["error"].lower()
+        assert resp.status_code == 200
+        assert resp.get_json()["status"] == "ignored"
+        assert "file path" in resp.get_json()["reason"].lower()
 
     def test_400_when_path_outside_media(self, client):
         with (
@@ -176,7 +183,10 @@ class TestRadarrWebhook:
         assert resp.status_code == 200
         assert resp.get_json()["status"] == "ignored"
 
-    def test_400_download_no_file_path(self, client):
+    def test_download_no_file_path_is_ignored_not_rejected(self, client):
+        """Matches the Sonarr handler, and the MovieFileDelete branch that
+        already answered 200/ignored for the same situation.
+        """
         with patch("config.get_settings", return_value=_settings_mock()):
             resp = client.post(
                 "/api/v1/webhook/radarr",
@@ -187,7 +197,8 @@ class TestRadarrWebhook:
                 },
                 headers={"X-Api-Key": "test-api-key"},
             )
-        assert resp.status_code == 400
+        assert resp.status_code == 200
+        assert resp.get_json()["status"] == "ignored"
 
     def test_202_on_download_event(self, client):
         file_path = os.path.join(_TEMP_DIR, "movies", "film.mkv")
