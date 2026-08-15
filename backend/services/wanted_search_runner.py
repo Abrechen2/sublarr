@@ -14,6 +14,8 @@ min-attempts helpers (``_series_min_attempts_config``, ``_series_searches_today`
 module so tests can patch them via ``services.wanted_search_runner.X``.
 """
 
+import contextvars
+import functools
 import logging
 import os
 import time
@@ -23,6 +25,7 @@ from datetime import UTC, datetime
 from config import get_settings
 from db.activity import log_activity
 from db.models.activity import EVENT_SEARCH
+from services.scheduler import cancellation
 from services.scheduler.cancellation import abort_requested
 from services.wanted_search_filters import (  # noqa: F401 — re-exported for back-compat
     _EMBEDDED_TYPES,
@@ -71,6 +74,25 @@ def _compute_max_workers(total: int, cpu_count: int | None) -> int:
     cores free for API requests instead of saturating all of them."""
     cores = cpu_count or 4
     return max(1, min(4, cores - 2, total))
+
+
+def _submit_with_context(executor, fn, *args, **kwargs):
+    """Submit ``fn`` so it runs with this thread's contextvars.
+
+    `abort_requested()` reads a contextvar the scheduler binds to the tick
+    thread, and contextvars do NOT cross into ThreadPoolExecutor workers.
+    `_search_with_ctx` carried the Flask app context over but not the stop
+    signal, so every check below it saw "nobody asked us to stop" — prod
+    2026-08-15 recorded ffsubsync runs still *starting* seven minutes after a
+    cancel, which is what made the wind-down unbounded.
+
+    Copying the context is the idiomatic fix and deliberately keeps the call
+    signature of the submitted function untouched: the same seam already broke
+    six test doubles once, quietly, because the runner swallows per-item
+    exceptions.
+    """
+    ctx = contextvars.copy_context()
+    return executor.submit(ctx.run, functools.partial(fn, *args, **kwargs))
 
 
 def _search_with_ctx(app, item_id: int, allow_translate_fallback: bool = True) -> dict:
@@ -456,17 +478,29 @@ def run_wanted_search(
     # in-flight item costs a provider search instead. Where it does not, the
     # search keeps doing it: nothing would ever pick a queued item up there.
     allow_translate_fallback = not automation_on
-    with ThreadPoolExecutor(max_workers=max_workers) as executor:
+    # Bind a stop signal for the duration of this phase so the copied context
+    # below carries one either way. The scheduler binds its own event to this
+    # thread on a timeout; the Cancel button instead hands one in as
+    # `cancel_event`. Exactly one of the two is ever present, and preferring
+    # the already-bound one keeps a scheduler timeout authoritative.
+    _phase_event = cancellation.current_event() or cancel_event
+    with (
+        cancellation.bound(_phase_event),
+        ThreadPoolExecutor(max_workers=max_workers) as executor,
+    ):
         if _app is not None:
             future_to_item = {
-                executor.submit(_search_with_ctx, _app, item["id"], allow_translate_fallback): item
+                _submit_with_context(
+                    executor, _search_with_ctx, _app, item["id"], allow_translate_fallback
+                ): item
                 for item in eligible
             }
         else:
             from wanted_search import process_wanted_item
 
             future_to_item = {
-                executor.submit(
+                _submit_with_context(
+                    executor,
                     process_wanted_item,
                     item["id"],
                     allow_translate_fallback=allow_translate_fallback,

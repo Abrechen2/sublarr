@@ -15,6 +15,7 @@ from db.wanted import delete_wanted_item, get_wanted_item, update_wanted_status
 from error_handler import DuplicateSubtitleError
 from providers import get_provider_manager
 from providers.base import SubtitleFormat
+from services.scheduler.cancellation import abort_requested
 from translator import get_forced_output_path
 from wanted_search.metadata import build_query_from_wanted
 
@@ -40,6 +41,17 @@ def _try_auto_sync(subtitle_path: str, video_path: str, settings) -> None:
         return
     if not os.path.isfile(video_path):
         logger.warning("Auto-sync skipped: video path does not exist on disk: %s", video_path)
+        return
+    # Checked last, immediately before the expensive part: a sync measured
+    # 6-143s and cannot be interrupted once ffsubsync is running, so starting
+    # one after a stop request is pure overrun. Prod 2026-08-15 recorded four
+    # such starts in the seven minutes after a cancel, which is what made a
+    # tick's wind-down unbounded and no grace value defensible.
+    #
+    # The already-downloaded subtitle stays exactly where it is — only the
+    # optional timing correction is skipped, and the next run picks it up.
+    if abort_requested():
+        logger.info("Auto-sync: stop requested — not starting ffsubsync for %s", subtitle_path)
         return
     try:
         from services.video_sync import SyncUnavailableError, sync_with_ffsubsync

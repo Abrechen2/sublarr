@@ -26,6 +26,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   as the movie-file-deleted event already was. The skip is written to the log
   with the event type, so a download chain that silently stopped delivering
   files is still visible rather than merely quiet.
+- **Cancelling a search now actually stops it.** Asking a running search to
+  stop reached the loop that hands out work, but not the work itself: the
+  stop signal did not cross into the threads doing the searching, so every
+  check inside them read "carry on". Automatic subtitle timing correction,
+  which never asked in the first place, kept starting fresh runs — each up to
+  two minutes long, four of them measured in the seven minutes after a stop
+  was requested. A cancelled search therefore had no predictable end at all;
+  it lasted as long as the downloads still in progress felt like being
+  corrected. The signal now reaches the workers, and timing correction is
+  skipped once a stop has been asked for. Already-downloaded subtitles are
+  untouched — only the optional correction waits for the next run.
 - **The scheduler stops calling an orderly stop an abandonment.** A job that
   overran its limit was asked to stop and given 60 seconds to leave. That is
   less time than one item of work takes to finish: the search waits for the

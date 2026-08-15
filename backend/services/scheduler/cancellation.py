@@ -26,6 +26,7 @@ default and every check silently answering "keep going".
 
 from __future__ import annotations
 
+import contextlib
 import contextvars
 import logging
 import threading
@@ -93,6 +94,39 @@ def activate(event: threading.Event) -> contextvars.Token:
 
 def deactivate(token: contextvars.Token) -> None:
     _current_event.reset(token)
+
+
+def current_event() -> threading.Event | None:
+    """The stop event bound to this thread, or None outside a scheduled run.
+
+    Lets a caller that owns a nested pool re-bind the same event inside its
+    workers — see `bound`.
+    """
+    return _current_event.get()
+
+
+@contextlib.contextmanager
+def bound(event: threading.Event | None):
+    """Bind ``event`` for the duration of the block. No-op when None.
+
+    The hazard in the module docstring repeats itself one level down: a job
+    that runs its own ThreadPoolExecutor re-creates exactly the situation the
+    scheduler already works around, because the copy stops at *its* worker.
+    `wanted_search` did this, and every check inside an item silently read
+    "keep going" — auto-sync was still starting minute-long ffsubsync runs
+    seven minutes after a cancel (prod 2026-08-15).
+
+    Pair it with a context-copying submit so the binding actually reaches the
+    worker; binding alone only fixes the submitting thread.
+    """
+    if event is None:
+        yield
+        return
+    token = activate(event)
+    try:
+        yield
+    finally:
+        deactivate(token)
 
 
 def abort_requested() -> bool:
