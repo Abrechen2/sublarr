@@ -5,6 +5,25 @@ All notable changes to Sublarr are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.12.1] - 2026-08-15
+
+### Fixed
+- **The scheduled search no longer translates at all.** The previous release
+  stopped it from doing so in bulk, but not for single items: when no provider
+  had a subtitle for a title, the search pulled the track out of the file and
+  translated it on the spot, in the middle of the run. That extraction alone is
+  allowed five minutes, while a run gets sixty seconds to wind down — so a run
+  asked to stop kept waiting for the item it had started and was recorded as
+  overdue. This work now belongs to the subtitle-automation queue. Installs with
+  automation switched off keep translating during the search, since nothing else
+  would pick the work up. Manual searches and the API are unchanged.
+- **A restart no longer loses a queued item.** If subtitle automation had taken
+  on an item and the service restarted meanwhile, the item stayed marked as in
+  progress — for a worker that no longer existed. There was no way out of that
+  state: no retry, no error, and not even a fresh search brought it back; the
+  item simply fell out of the queue. Such items are now released at startup and
+  the next pass picks them up again.
+
 ## [1.12.0] - 2026-08-14
 
 ### Fixed

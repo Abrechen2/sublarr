@@ -657,6 +657,12 @@
     "title": "What's new in {{version}}",
     "close": "Close",
     "got_it": "Got it",
+    "v1121": {
+      "search_translate_title": "The scheduled search no longer translates at all",
+      "search_translate_desc": "Bulk handling was already fixed; single items were not. When no provider had a subtitle for a title, the search pulled the track out of the file and translated it on the spot — in the middle of the run. That extraction alone is allowed five minutes, while the run gets sixty seconds to wind down. Asked to stop, it still waited for the item it had started and was recorded as overdue. This work now belongs to the subtitle automation queue. Installs with automation switched off keep translating during the search, since nothing else would pick the work up. Manual searches are unchanged.",
+      "queue_orphan_title": "A restart no longer loses a queued item",
+      "queue_orphan_desc": "If automation had taken on an item and the service restarted meanwhile, the item stayed marked as in progress — for a worker that no longer existed. There was no way out of that state: no retry, no error, and not even a fresh search brought it back. It simply fell out of the queue. Such items are now released at startup and the next pass picks them up again."
+    },
     "v1120": {
       "sidecar_queue_title": "Translating no longer blocks the search",
       "sidecar_queue_desc": "When an item already had a subtitle on disk in another language, the scheduled search translated it there and then — minutes per item, while holding the lock that keeps two searches apart. A run that picked up a hundred such items held that lock for about a day, and no provider was contacted in the meantime. The search now hands this work to the subtitle automation queue, which already handles retry, backoff and cancellation, and finishes in seconds itself. Installs with automation switched off keep translating during the search, but only for a bounded stretch per run.",
