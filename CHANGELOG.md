@@ -18,14 +18,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   automation switched off keep translating during the search, since nothing else
   would pick the work up. Manual searches and the API are unchanged.
 - **Sonarr and Radarr no longer report a failed notification for every
-  download.** When one of them announces a completed download whose own import
-  produced no file, there is no path to hand over — and Sublarr answered with
-  an error, which made the sender mark the whole notification as broken and
-  fill its log with failures. Nothing was wrong with the request; there was
-  simply nothing to do. Such events are now acknowledged and skipped, exactly
-  as the movie-file-deleted event already was. The skip is written to the log
-  with the event type, so a download chain that silently stopped delivering
-  files is still visible rather than merely quiet.
+  download.** They send two notifications per import: one for each imported
+  file, and a second summarising the whole operation. Only the first carries a
+  file path, and Sublarr answered the second with an error — so every single
+  import left a stack trace in Sonarr's log, for something that was working
+  correctly. The summary is now acknowledged and skipped, as the
+  movie-file-deleted event already was, and recorded quietly since the files it
+  lists have already been handled one by one. A notification Sublarr does not
+  recognise is still reported, and now names what it contained, so a genuine
+  problem no longer has to compete with a permanent stream of harmless ones.
 - **Cancelling a search now actually stops it.** Asking a running search to
   stop reached the loop that hands out work, but not the work itself: the
   stop signal did not cross into the threads doing the searching, so every

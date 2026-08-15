@@ -111,11 +111,15 @@ def test_the_skip_is_logged_loudly_enough_to_notice(client, service, payload, ca
 
 
 def test_payload_keys_are_named_so_an_unseen_shape_identifies_itself(client, caplog):
-    """We never captured what Sonarr actually sends; the log should tell us.
+    """The log has to describe a payload nobody has seen before.
 
-    Sonarr v4 also fires `OnImportComplete`, and its payload shape was never
-    observed here. Naming the keys turns the next occurrence into evidence
-    instead of another round of guessing.
+    This diagnostic earned its keep immediately: written while Sonarr's
+    pathless payload was still unknown, it is what revealed the shape as
+    `episodeFiles` (plural) plus fileCount/sourcePath/destinationPath — the
+    import-summary companion, now recognised by name in
+    test_webhook_import_complete_companion.py. The example here therefore uses
+    a key that is still unknown, so the test keeps testing the unknown case
+    rather than the one we since identified.
     """
     with (
         caplog.at_level(logging.WARNING),
@@ -126,13 +130,13 @@ def test_payload_keys_are_named_so_an_unseen_shape_identifies_itself(client, cap
             json={
                 "eventType": "Download",
                 "series": {"id": 1},
-                "episodeFiles": [{"relativePath": "x.mkv"}],
+                "someFutureKey": {"relativePath": "x.mkv"},
             },
             headers={"X-Api-Key": "test-api-key"},
         )
 
     text = " ".join(r.getMessage() for r in caplog.records if r.levelno >= logging.WARNING)
-    assert "episodeFiles" in text, f"unknown key must be named, got: {text!r}"
+    assert "someFutureKey" in text, f"unknown key must be named, got: {text!r}"
 
 
 def test_a_real_path_still_goes_through(client, tmp_path):

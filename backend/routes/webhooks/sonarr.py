@@ -5,7 +5,7 @@ import hmac
 from flask import jsonify, request
 
 from extensions import limiter
-from routes.webhooks import _spawn_pipeline, bp, logger
+from routes.webhooks import _log_pathless_download, _spawn_pipeline, bp, logger
 
 
 @bp.route("/webhook/sonarr", methods=["POST"])
@@ -56,9 +56,11 @@ def webhook_sonarr():
         200:
           description: |
             Test acknowledged, or the event was ignored. A Download event
-            carrying no file path is ignored rather than rejected — Sonarr
-            fires one per completed download even when its own import
-            produced no file, and that is not a malformed request.
+            carrying no single file path is ignored rather than rejected:
+            Sonarr sends one notification per imported file and a second
+            one summarising the import operation under `episodeFiles`, and
+            only the per-file form has work attached. Neither is a
+            malformed request.
         202:
           description: Download pipeline queued
           content:
@@ -101,25 +103,20 @@ def webhook_sonarr():
     series = data.get("series", {})
 
     if not file_path:
-        # Not a malformed request — a Download event that carries no file.
-        # Sonarr fires one per completed download even when its own import
-        # failed, and 4xx made it record the notification as broken (prod
-        # 2026-08-15: every import failing, every webhook logged as an error,
-        # with the real fault buried underneath).
+        # Not a malformed request. Sonarr v4.0.19 sends two notifications per
+        # import, both with eventType "Download": one per file with
+        # `episodeFile`, and one for the operation with `episodeFiles` (plural)
+        # — and only the singular one is read here. Answering 4xx to the other
+        # made Sonarr record the notification as broken and fill its log with
+        # stack traces that meant nothing, which is how a real webhook failure
+        # would have gone unnoticed.
         #
-        # Logged at WARNING rather than dropped silently: that 400 storm was
-        # the only visible sign the import path was dead, and downgrading the
-        # status must not downgrade the visibility. The payload's top-level
-        # keys go into the line because Sonarr v4 also fires OnImportComplete,
-        # whose shape we have never captured — this way the next occurrence
-        # identifies itself instead of inviting a guess at their schema.
-        logger.warning(
-            "Sonarr webhook: %s event carried no file path — nothing to do. "
-            "This usually means Sonarr's own import did not produce a file. "
-            "Payload keys: %s",
-            event_type,
-            sorted(data.keys()),
-        )
+        # Not dropped silently: that 400 storm was the only visible sign the
+        # import path was dead, and downgrading the status must not downgrade
+        # the visibility. `_log_pathless_download` decides how loud to be — it
+        # recognises the import-summary companion (which is routine and
+        # harmless) and keeps a warning for anything it does not know.
+        _log_pathless_download("Sonarr", event_type, data)
         return jsonify({"status": "ignored", "reason": "No file path in webhook payload"}), 200
 
     file_path = map_path(file_path)

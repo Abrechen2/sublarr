@@ -5,7 +5,7 @@ import hmac
 from flask import jsonify, request
 
 from extensions import limiter
-from routes.webhooks import _spawn_pipeline, bp, logger
+from routes.webhooks import _log_pathless_download, _spawn_pipeline, bp, logger
 
 
 @bp.route("/webhook/radarr", methods=["POST"])
@@ -137,13 +137,7 @@ def webhook_radarr():
         # on is not a client error, and the MovieFileDelete branch above
         # already answers 200/ignored for exactly this case. Kept loud so the
         # skip stays visible.
-        logger.warning(
-            "Radarr webhook: %s event carried no file path — nothing to do. "
-            "This usually means Radarr's own import did not produce a file. "
-            "Payload keys: %s",
-            event_type,
-            sorted(data.keys()),
-        )
+        _log_pathless_download("Radarr", event_type, data)
         return jsonify({"status": "ignored", "reason": "No file path in webhook payload"}), 200
 
     file_path = map_path(file_path)

@@ -31,6 +31,55 @@ bp = Blueprint("webhooks", __name__, url_prefix="/api/v1")
 logger = logging.getLogger(__name__)
 
 
+# Keys under which Sonarr/Radarr list the files of a completed *import
+# operation*, as opposed to the single-file `episodeFile`/`movieFile` a
+# per-file notification carries.
+_COMPANION_FILE_KEYS = ("episodeFiles", "movieFiles")
+
+
+def _log_pathless_download(service: str, event_type: str, data: dict) -> None:
+    """Explain a Download event that carried no single file path.
+
+    Sonarr v4.0.19 sends two notifications per import, both with
+    ``eventType: "Download"``: one per file with the singular key, and one for
+    the operation carrying ``episodeFiles`` (plural) plus ``fileCount``,
+    ``sourcePath`` and ``destinationPath``. Prod 2026-08-15 showed them
+    arriving strictly paired, within a second, for the same series — so the
+    summary announces files that were already handled individually and
+    skipping it loses nothing.
+
+    Recognising that case matters for the log, not the response: both answer
+    200/ignored. The first version of this skip warned once per import and
+    claimed "Sonarr's own import did not produce a file", which is false —
+    the files are right there under the plural key. A permanent warning stream
+    of untrue warnings is exactly how a real webhook failure gets overlooked.
+
+    An unrecognised pathless payload still warns, with its keys named: that
+    diagnostic is what identified this shape in the first place, and the next
+    surprise deserves the same treatment.
+    """
+    files = next(
+        (data[k] for k in _COMPANION_FILE_KEYS if isinstance(data.get(k), list) and data[k]),
+        None,
+    )
+    if files is not None:
+        logger.info(
+            "%s webhook: %s event is the import-summary companion (%d file(s) under a "
+            "plural key) — the same files arrive individually and are handled there.",
+            service,
+            event_type,
+            len(files),
+        )
+        return
+    logger.warning(
+        "%s webhook: %s event carried no file path and no file list — nothing to do. "
+        "Payload keys: %s",
+        service,
+        event_type,
+        sorted(data.keys()),
+    )
+
+
 def _spawn_pipeline(
     file_path: str, title: str, series_id: int = None, movie_id: int = None
 ) -> None:
