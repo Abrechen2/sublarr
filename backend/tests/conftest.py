@@ -83,7 +83,20 @@ def temp_db(tmp_path):
     garbage-collects the whole session tree on a later run, by which time this
     process has exited and the lock is gone.
     """
-    db_path = str(tmp_path / "test.db")
+    # Beside tmp_path, not inside it. Many tests hand `tmp_path` to the app as
+    # a *media folder* and then assert on what it contains; `test.db` and its
+    # `-wal`/`-shm` siblings are files, so anywhere under that root they show
+    # up. A subdirectory is not enough — the standalone scanner walks
+    # recursively and counted them as media. Together that broke 19 tests in
+    # test_format_upgrade_alias and test_standalone_scanner.
+    #
+    # tmp_path.parent is pytest's numbered session directory, which pytest
+    # garbage-collects wholesale on a later run — so the self-healing cleanup
+    # this fixture is built around still holds. tmp_path.name is unique per
+    # test, so two tests cannot collide here.
+    db_dir = tmp_path.parent / f"{tmp_path.name}_db"
+    db_dir.mkdir(exist_ok=True)
+    db_path = str(db_dir / "test.db")
     # Pre-create the empty file so init_db() sees exactly what
     # NamedTemporaryFile used to hand it.
     Path(db_path).touch()
