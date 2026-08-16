@@ -395,7 +395,7 @@ class TestSaveSubtitleReturnPathPropagated:
 
         captured = {}
 
-        def _fake_try_auto_sync(subtitle_path, video_path, settings):
+        def _fake_try_auto_sync(subtitle_path, video_path, settings, **kwargs):
             captured["subtitle_path"] = subtitle_path
             captured["video_path"] = video_path
 
