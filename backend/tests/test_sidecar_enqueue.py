@@ -294,3 +294,98 @@ class TestDrainWorkerRunsTheTranslation:
 
         assert len(failures) == 1
         assert failures[0][1] is None, "a gone item must not be retried on a timer"
+
+
+class TestAFailedTranslationIsNotDone:
+    """A translation that failed must not leave the queue as a success.
+
+    `_fallback_translate_file` reports failure by *returning*
+    `{"status": "failed"}` — it has to, because the search's step chain
+    consumes that dict. `_translate_sidecar` ignored the return value, so
+    `process_one` saw no exception and called `mark_done()`.
+
+    Measured on production 2026-08-16: 176 failed translation jobs in 24h
+    against 160 successful ones, and not one `failed` row in the queue. The
+    cost is not the statistic — a row marked done is never retried, so the
+    backoff ladder never engages and the episode stays without its subtitle
+    permanently. Two spot checks that day found rows marked `done` whose
+    target-language file did not exist on disk.
+    """
+
+    def _repo(self, outcome: list):
+        class _Repo:
+            def claim_next(self, *, now=None, task_types=None):
+                return TestDrainWorkerRunsTheTranslation()._queue_row()
+
+            def mark_done(self, entry_id):
+                outcome.append(("done", None))
+
+            def mark_failed(self, entry_id, *, error, next_retry_at):
+                outcome.append(("failed", next_retry_at))
+
+        return _Repo()
+
+    def _run(self, monkeypatch, translate_result):
+        from services.subtitle_automation_runner import SubtitleAutomationRunner
+
+        outcome: list = []
+        runner = SubtitleAutomationRunner(repo=self._repo(outcome))
+        with (
+            patch(
+                "wanted_search.process._fallback_translate_file",
+                return_value=translate_result,
+            ),
+            patch("db.wanted.get_wanted_item", return_value=_item(1)),
+        ):
+            assert runner.process_one() is True
+        return outcome
+
+    def test_a_failed_translation_is_marked_failed(self, app_ctx, monkeypatch):
+        outcome = self._run(
+            monkeypatch,
+            {"wanted_id": 1, "status": "failed", "error": "ollama returned 29 lines, expected 15"},
+        )
+
+        assert [o[0] for o in outcome] == ["failed"]
+
+    def test_it_is_retried_rather_than_abandoned(self, app_ctx, monkeypatch):
+        """A line-count mismatch is the LLM having a bad day, not a verdict."""
+        outcome = self._run(
+            monkeypatch,
+            {"wanted_id": 1, "status": "failed", "error": "All backends failed"},
+        )
+
+        assert outcome[0][1] is not None, "a failed translation belongs on the backoff ladder"
+
+    def test_the_error_reaches_the_row(self, app_ctx, monkeypatch):
+        from services.subtitle_automation_runner import SubtitleAutomationRunner
+
+        errors: list[str] = []
+
+        class _Repo:
+            def claim_next(self, *, now=None, task_types=None):
+                return TestDrainWorkerRunsTheTranslation()._queue_row()
+
+            def mark_done(self, entry_id):
+                raise AssertionError("must not report success")
+
+            def mark_failed(self, entry_id, *, error, next_retry_at):
+                errors.append(error)
+
+        runner = SubtitleAutomationRunner(repo=_Repo())
+        with (
+            patch(
+                "wanted_search.process._fallback_translate_file",
+                return_value={"wanted_id": 1, "status": "failed", "error": "expected 15, got 29"},
+            ),
+            patch("db.wanted.get_wanted_item", return_value=_item(1)),
+        ):
+            runner.process_one()
+
+        assert "expected 15, got 29" in errors[0], "the row must say why, not just that"
+
+    def test_a_successful_translation_still_completes(self, app_ctx, monkeypatch):
+        """The guard must not turn a success into a retry."""
+        outcome = self._run(monkeypatch, {"wanted_id": 1, "status": "found"})
+
+        assert [o[0] for o in outcome] == ["done"]

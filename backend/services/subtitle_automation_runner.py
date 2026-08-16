@@ -167,7 +167,7 @@ class SubtitleAutomationRunner:
             raise FileNotFoundError(
                 f"wanted item {wanted_item_id} no longer exists; dropping its translation"
             )
-        _fallback_translate_file(
+        result = _fallback_translate_file(
             {
                 "item": item,
                 "item_id": wanted_item_id,
@@ -177,6 +177,22 @@ class SubtitleAutomationRunner:
                 "file_path": file_path,
             }
         )
+        # `_fallback_translate_file` reports failure by returning, not by
+        # raising — it has to, because the search's step chain consumes the
+        # dict it returns. Ignoring that return value made every failure look
+        # like a success to `process_one`, which then called `mark_done`.
+        #
+        # The cost was not the wrong number in the status panel: a row marked
+        # done is never claimed again, so the backoff ladder never engaged and
+        # the episode stayed without its subtitle for good. Prod 2026-08-16
+        # recorded 176 failed translation jobs against 160 successful ones in
+        # 24h, and not one `failed` row in this queue.
+        status = (result or {}).get("status")
+        if status != "found":
+            raise RuntimeError(
+                (result or {}).get("error")
+                or f"translation did not produce a subtitle (status={status!r})"
+            )
 
     def _auto_sync(self, subtitle_path: str, video_path: str | None) -> None:
         """Time a downloaded sidecar against its video.
