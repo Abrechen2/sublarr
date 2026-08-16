@@ -8,6 +8,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [1.12.1] - 2026-08-15
 
 ### Fixed
+- **An interrupted translation no longer starts from scratch.** Translated
+  lines were written to the translation memory only once the whole file was
+  finished, so a translation that stopped partway — a batch the model
+  answered badly, a restart, a timeout — kept nothing at all. A failure on the
+  last batch of a long episode discarded every batch before it; failures as
+  deep as batch 150 were observed. Each batch is now stored the moment its
+  result is verified, so a second attempt pays only for what is left. Nothing
+  is written twice and no extra work is done — only the timing of the write
+  changed.
 - **A failed translation is no longer recorded as finished.** When the
   subtitle-automation queue translated a file and the translation failed, the
   queue marked the item done anyway. Nothing retried it and nothing showed it
