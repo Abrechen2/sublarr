@@ -427,7 +427,11 @@ def download_specific_for_item(
         finalize_translation(item_id, item, out, item_lang, mt_fmt)
 
         if out:
-            _try_auto_sync(out, file_path, settings)
+            # `item_lang`, not `language`: what landed on disk here is the
+            # translation, not the source that was downloaded to make it.
+            _try_auto_sync(
+                out, file_path, settings, item_id=item_id, target_language=item_lang
+            )
         _try_auto_combine(item, file_path)
         return {
             "success": True,
@@ -453,7 +457,13 @@ def download_specific_for_item(
         )
     except DuplicateSubtitleError as dup_err:
         delete_wanted_item(item_id)
-        _try_auto_sync(dup_err.existing_path, file_path, settings)
+        _try_auto_sync(
+            dup_err.existing_path,
+            file_path,
+            settings,
+            item_id=item_id,
+            target_language=language,
+        )
         _try_auto_combine(item, file_path)
         return {
             "success": True,
@@ -466,7 +476,9 @@ def download_specific_for_item(
         return {"success": False, "error": f"Failed to save subtitle: {e}"}
 
     delete_wanted_item(item_id)
-    _try_auto_sync(actual_path, file_path, settings)
+    _try_auto_sync(
+        actual_path, file_path, settings, item_id=item_id, target_language=language
+    )
     _try_auto_combine(item, file_path)
     return {
         "success": True,

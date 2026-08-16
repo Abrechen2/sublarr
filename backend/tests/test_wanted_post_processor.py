@@ -581,7 +581,6 @@ class TestDownloadSpecificForItem:
         manager.save_subtitle.return_value = "/out/sub.srt"
 
         mock_delete = MagicMock()
-        mock_sync = MagicMock()
         mock_record = MagicMock()
 
         with (
@@ -591,7 +590,7 @@ class TestDownloadSpecificForItem:
             patch.object(mod, "build_query_from_wanted", return_value=MagicMock()),
             patch.object(mod, "get_provider_manager", return_value=manager),
             patch.object(mod, "delete_wanted_item", mock_delete),
-            patch.object(mod, "_try_auto_sync", mock_sync),
+            patch.object(mod, "_try_auto_sync", autospec=True) as mock_sync,
             patch.object(mod, "record_subtitle_download", mock_record),
         ):
             out = mod.download_specific_for_item(1, "test_provider", "sub123", "en", False)
@@ -623,7 +622,7 @@ class TestDownloadSpecificForItem:
             patch.object(mod, "build_query_from_wanted", return_value=MagicMock()),
             patch.object(mod, "get_provider_manager", return_value=manager),
             patch.object(mod, "delete_wanted_item"),
-            patch.object(mod, "_try_auto_sync"),
+            patch.object(mod, "_try_auto_sync", autospec=True),
             patch.object(mod, "record_subtitle_download"),
         ):
             out = mod.download_specific_for_item(1, "test_provider", "sub123", "de", True)
@@ -644,7 +643,6 @@ class TestDownloadSpecificForItem:
         manager.save_subtitle.side_effect = dup
 
         mock_delete = MagicMock()
-        mock_sync = MagicMock()
 
         with (
             self._patched_module(mock_translator) as mod,
@@ -653,7 +651,7 @@ class TestDownloadSpecificForItem:
             patch.object(mod, "build_query_from_wanted", return_value=MagicMock()),
             patch.object(mod, "get_provider_manager", return_value=manager),
             patch.object(mod, "delete_wanted_item", mock_delete),
-            patch.object(mod, "_try_auto_sync", mock_sync),
+            patch.object(mod, "_try_auto_sync", autospec=True) as mock_sync,
             patch.object(mod, "record_subtitle_download"),
         ):
             out = mod.download_specific_for_item(1, "test_provider", "sub123", "en", False)
@@ -705,7 +703,6 @@ class TestDownloadSpecificForItem:
         manager.download.return_value = result.content
         manager.save_subtitle.return_value = "/tmp/source.en.srt"
 
-        mock_sync = MagicMock()
         mock_finalize = MagicMock()
 
         with (
@@ -719,7 +716,7 @@ class TestDownloadSpecificForItem:
             patch.object(mod, "record_subtitle_download"),
             patch.object(mod, "delete_wanted_item"),
             patch("services.mt_provisional.finalize_translation", mock_finalize),
-            patch.object(mod, "_try_auto_sync", mock_sync),
+            patch.object(mod, "_try_auto_sync", autospec=True) as mock_sync,
             patch.object(mod, "create_job", return_value={"id": "job1"}),
             patch.object(mod, "update_job"),
             patch.object(mod, "record_stat"),
@@ -767,7 +764,7 @@ class TestDownloadSpecificForItem:
             patch.object(mod, "record_subtitle_download"),
             patch.object(mod, "delete_wanted_item"),
             patch("services.mt_provisional.finalize_translation"),
-            patch.object(mod, "_try_auto_sync"),
+            patch.object(mod, "_try_auto_sync", autospec=True),
             patch.object(mod, "create_job", return_value={"id": "job1"}),
             patch.object(mod, "update_job"),
             patch.object(mod, "record_stat"),
@@ -804,7 +801,7 @@ class TestDownloadSpecificForItem:
             patch.object(mod, "get_provider_manager", return_value=manager),
             patch.object(mod, "record_subtitle_download"),
             patch.object(mod, "delete_wanted_item"),
-            patch.object(mod, "_try_auto_sync"),
+            patch.object(mod, "_try_auto_sync", autospec=True),
             patch.object(mod, "create_job", return_value={"id": "job1"}),
             patch.object(mod, "update_job", mock_update_job),
             patch.object(mod, "record_stat", mock_record_stat),
@@ -844,7 +841,7 @@ class TestDownloadSpecificForItem:
             patch.object(mod, "get_provider_manager", return_value=manager),
             patch.object(mod, "record_subtitle_download"),
             patch.object(mod, "delete_wanted_item"),
-            patch.object(mod, "_try_auto_sync"),
+            patch.object(mod, "_try_auto_sync", autospec=True),
             patch.object(mod, "create_job", return_value={"id": "job1"}),
             patch.object(mod, "update_job"),
             patch.object(mod, "record_stat", mock_record_stat),
@@ -879,7 +876,7 @@ class TestDownloadSpecificForItem:
             patch.object(mod, "get_provider_manager", return_value=manager),
             patch.object(mod, "record_subtitle_download"),
             patch.object(mod, "delete_wanted_item"),
-            patch.object(mod, "_try_auto_sync"),
+            patch.object(mod, "_try_auto_sync", autospec=True),
             patch.object(mod, "create_job", return_value={"id": "job1"}),
             patch.object(mod, "update_job"),
             patch.object(mod, "record_stat"),
@@ -920,7 +917,7 @@ class TestDownloadSpecificForItem:
             patch.object(mod, "record_subtitle_download"),
             patch.object(mod, "delete_wanted_item"),
             patch("services.mt_provisional.finalize_translation"),
-            patch.object(mod, "_try_auto_sync"),
+            patch.object(mod, "_try_auto_sync", autospec=True),
             patch.object(mod, "create_job", return_value={"id": "job1"}),
             patch.object(mod, "update_job"),
             patch.object(mod, "record_stat"),
@@ -973,7 +970,7 @@ class TestDownloadSpecificForItem:
             patch.object(mod, "build_query_from_wanted", return_value=MagicMock()),
             patch.object(mod, "get_provider_manager", return_value=manager),
             patch.object(mod, "delete_wanted_item"),
-            patch.object(mod, "_try_auto_sync"),
+            patch.object(mod, "_try_auto_sync", autospec=True),
             patch.object(mod, "record_subtitle_download"),
         ):
             out = mod.download_specific_for_item(1, "test_provider", "sub123", "en", False)
@@ -1001,7 +998,7 @@ class TestDownloadSpecificForItem:
             patch.object(mod, "build_query_from_wanted", return_value=MagicMock()),
             patch.object(mod, "get_provider_manager", return_value=manager),
             patch.object(mod, "delete_wanted_item"),
-            patch.object(mod, "_try_auto_sync"),
+            patch.object(mod, "_try_auto_sync", autospec=True),
             patch.object(mod, "record_subtitle_download"),
         ):
             out = mod.download_specific_for_item(1, "test_provider", "sub123", "en", False)
@@ -1030,7 +1027,7 @@ class TestDownloadSpecificForItem:
             patch.object(mod, "get_provider_manager", return_value=manager),
             patch.object(mod, "record_subtitle_download"),
             patch.object(mod, "delete_wanted_item"),
-            patch.object(mod, "_try_auto_sync"),
+            patch.object(mod, "_try_auto_sync", autospec=True),
             patch.object(mod, "create_job", return_value={"id": "job1"}),
             patch.object(mod, "update_job"),
             patch.object(mod, "record_stat"),
@@ -1076,7 +1073,7 @@ class TestDownloadSpecificForItem:
             patch.object(mod, "record_subtitle_download"),
             patch.object(mod, "delete_wanted_item"),
             patch("services.mt_provisional.finalize_translation"),
-            patch.object(mod, "_try_auto_sync"),
+            patch.object(mod, "_try_auto_sync", autospec=True),
             patch.object(mod, "create_job", mock_create_job),
             patch.object(mod, "update_job"),
             patch.object(mod, "record_stat"),
