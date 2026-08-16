@@ -362,8 +362,6 @@ class StructuredJSONFormatter(logging.Formatter):
     def format(self, record: logging.LogRecord) -> str:
         import json as _json
 
-        from flask import g as _g
-
         entry = {
             "timestamp": self.formatTime(record, self.datefmt),
             "level": record.levelname,
@@ -374,9 +372,13 @@ class StructuredJSONFormatter(logging.Formatter):
             "line": record.lineno,
         }
 
-        request_id = getattr(_g, "request_id", None) if _has_app_context() else None
-        if request_id:
-            entry["request_id"] = request_id
+        # Read the id off the record rather than out of Flask's `g`: the record
+        # factory already resolved it, and it answers for background work too.
+        # Looking it up here a second time would see only requests and would
+        # silently drop the scheduler run label that the text format shows.
+        request_id = getattr(record, "request_id", None)
+        if request_id and request_id != NO_REQUEST_ID:
+            entry["request_id"] = str(request_id)
 
         if record.exc_info and record.exc_info[1]:
             entry["exception"] = {

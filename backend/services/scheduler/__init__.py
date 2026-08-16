@@ -347,8 +347,11 @@ def _build_default_jobs() -> list[JobSpec]:
             owner_module="services.subtitle_automation_runner",
             description=(
                 "Drain the subtitle_automation_queue: extract pending embedded "
-                "subtitles into sidecars and translate local source sidecars. "
-                "No-op when the master toggle (subtitle_automation_enabled) is off."
+                "subtitles into sidecars, translate local source sidecars, and "
+                "time freshly downloaded sidecars against their video. Each kind "
+                "of work follows its own setting — subtitle_automation_enabled "
+                "for the first two, auto_sync_after_download for the last — so "
+                "the job is only a full no-op when both are off."
             ),
         ),
         JobSpec(

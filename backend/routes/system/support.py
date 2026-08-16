@@ -120,8 +120,15 @@ def _extract_top_errors(max_errors: int = 10) -> list[dict]:
     cutoff = _dt3.datetime.now() - _dt3.timedelta(hours=24)
 
     _ts_re = re.compile(r"^(\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}),\d+\s+\[(ERROR|WARNING)\]")
+    # The bracketed id slot between level and logger name is consumed
+    # explicitly. It used to be skipped by `[^:]+` on the assumption that it
+    # holds no colon — true for a request id and for the `-` placeholder, but
+    # not for a scheduler run label like `[wanted_search:a1b2c3d4]`, which made
+    # the capture start mid-id and turned every scheduler error into its own
+    # distinct "message". Optional, because rotated logs may predate the slot.
     _msg_re = re.compile(
-        r"^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2},\d+\s+\[(?:ERROR|WARNING)\]\s+[^:]+:\s*(.*)"
+        r"^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2},\d+\s+\[(?:ERROR|WARNING)\]\s+"
+        r"(?:\[[^\]]*\]\s+)?[^:]+:\s*(.*)"
     )
 
     counts: _coll.Counter = _coll.Counter()

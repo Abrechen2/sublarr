@@ -8,6 +8,72 @@ import pytest
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
 
+class TestTopErrorsLineParsing:
+    """The top-errors list groups by message, so the message must be exact.
+
+    `_msg_re` skipped the bracketed id slot with `[^:]+`, which holds as long as
+    that slot contains no colon — true for a request id and for the `-`
+    placeholder. The scheduler run label added in 1.12.1 is `job_id:hex`, and
+    against that the capture started mid-id: every line came back as
+    `<hex>] <logger>: <message>`. Two harms, not one — the 80-char budget lost a
+    third of itself to a prefix, and since the hex differs per run, repeated
+    occurrences of one error stopped aggregating and the list degenerated into
+    one row per run. Precisely the errors worth counting are the scheduler's.
+    """
+
+    def _extract(self, tmp_path, monkeypatch, lines):
+        import app_logging
+        from routes.system.support import _extract_top_errors
+
+        log = tmp_path / "sublarr.log"
+        log.write_text("\n".join(lines) + "\n", encoding="utf-8")
+        monkeypatch.setattr(app_logging, "rotated_log_candidates", lambda: [str(log)])
+        return _extract_top_errors()
+
+    def _line(self, slot, message):
+        import datetime as dt
+
+        stamp = dt.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        return f"{stamp},123 [ERROR] {slot} wanted_search.process: {message}"
+
+    def test_a_run_label_does_not_bleed_into_the_message(self, tmp_path, monkeypatch):
+        errors = self._extract(
+            tmp_path, monkeypatch, [self._line("[wanted_search:a1b2c3d4]", "provider timed out")]
+        )
+
+        assert [e["message"] for e in errors] == ["provider timed out"]
+
+    def test_two_runs_of_one_job_aggregate_into_one_row(self, tmp_path, monkeypatch):
+        errors = self._extract(
+            tmp_path,
+            monkeypatch,
+            [
+                self._line("[wanted_search:a1b2c3d4]", "provider timed out"),
+                self._line("[wanted_search:99887766]", "provider timed out"),
+            ],
+        )
+
+        assert len(errors) == 1
+        assert errors[0]["count"] == 2
+
+    def test_the_placeholder_slot_still_parses(self, tmp_path, monkeypatch):
+        errors = self._extract(tmp_path, monkeypatch, [self._line("[-]", "provider timed out")])
+
+        assert [e["message"] for e in errors] == ["provider timed out"]
+
+    def test_a_line_predating_the_id_slot_still_parses(self, tmp_path, monkeypatch):
+        import datetime as dt
+
+        stamp = dt.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        errors = self._extract(
+            tmp_path,
+            monkeypatch,
+            [f"{stamp},123 [ERROR] wanted_search.process: provider timed out"],
+        )
+
+        assert [e["message"] for e in errors] == ["provider timed out"]
+
+
 class TestAnonymize:
     """Test the _anonymize() helper function."""
 

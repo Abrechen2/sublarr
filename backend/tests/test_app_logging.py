@@ -170,6 +170,57 @@ class TestRequestIdInTextFormat:
         assert "sublarr-instance:" in first, "the fingerprint must survive the format change"
 
 
+class TestRequestIdInJSONFormat:
+    """The JSON format has to answer the same question the text format does.
+
+    `StructuredJSONFormatter` looked the id up in `flask.g` itself instead of
+    reading the one the record factory had already resolved. That made it a
+    request-only field: scheduler runs, webhook follow-up and queue-drain work
+    — most of what Sublarr does — shipped to ELK/Loki with no correlation id at
+    all, while the text format showed one. Anyone on `log_format=json` would
+    have lost the run label added in 1.12.1 without a single test noticing.
+    """
+
+    def _entry(self, record):
+        import json
+
+        from app_logging import StructuredJSONFormatter
+
+        return json.loads(StructuredJSONFormatter().format(record))
+
+    def _record(self, **attrs):
+        record = logging.LogRecord(
+            "wanted_search.process", logging.INFO, __file__, 1, "searching", None, None
+        )
+        for key, value in attrs.items():
+            setattr(record, key, value)
+        return record
+
+    def test_carries_a_scheduler_run_label(self):
+        entry = self._entry(self._record(request_id="wanted_search:a1b2c3d4"))
+
+        assert entry["request_id"] == "wanted_search:a1b2c3d4"
+
+    def test_carries_a_request_id(self):
+        entry = self._entry(self._record(request_id="abc123def456"))
+
+        assert entry["request_id"] == "abc123def456"
+
+    def test_omits_the_placeholder_rather_than_shipping_it(self):
+        from app_logging import NO_REQUEST_ID
+
+        entry = self._entry(self._record(request_id=NO_REQUEST_ID))
+
+        assert "request_id" not in entry
+
+    def test_a_record_without_the_attribute_still_formats(self):
+        # A library that builds its own records never goes through the factory.
+        entry = self._entry(self._record())
+
+        assert "request_id" not in entry
+        assert entry["message"] == "searching"
+
+
 class TestLogFingerprint:
     """The log file must identify the instance that produced it.
 
