@@ -30,6 +30,7 @@ import contextlib
 import contextvars
 import logging
 import threading
+import uuid
 
 logger = logging.getLogger(__name__)
 
@@ -45,6 +46,18 @@ _current_event: contextvars.ContextVar[threading.Event | None] = contextvars.Con
 _lock = threading.Lock()
 _events: dict[str, threading.Event] = {}
 
+# A human-readable id per run, keyed by that run's event object. Keyed by the
+# event and not by the job id because an abandoned run and the run that
+# replaced it are both live at once and must not answer to the same name —
+# telling them apart in the log is the entire point.
+#
+# Riding on the event costs nothing and inherits its propagation: the event
+# already reaches exactly the threads that belong to the run, including nested
+# pool workers that re-bind it via `bound`. A second ContextVar would have to
+# be threaded through every one of those sites by hand, and the site that got
+# forgotten would be invisible.
+_labels: dict[threading.Event, str] = {}
+
 
 def begin_run(job_id: str) -> threading.Event:
     """Register a fresh event for a starting run and return it.
@@ -55,8 +68,12 @@ def begin_run(job_id: str) -> threading.Event:
     run that same, already-set event would make it abort immediately.
     """
     event = threading.Event()
+    # Short and unique-enough to separate two runs of one job in a log file;
+    # this is a correlation handle, not a security token.
+    label = f"{job_id}:{uuid.uuid4().hex[:8]}"
     with _lock:
         _events[job_id] = event
+        _labels[event] = label
     return event
 
 
@@ -69,6 +86,27 @@ def end_run(job_id: str, event: threading.Event) -> None:
     with _lock:
         if _events.get(job_id) is event:
             del _events[job_id]
+        # The label goes unconditionally: it belongs to THIS event, so an
+        # abandoned run cleaning up late drops its own name and not its
+        # successor's. Leaving it would leak one entry per run for the life
+        # of the process.
+        _labels.pop(event, None)
+
+
+def current_run_label() -> str | None:
+    """The id of the scheduled run executing on this thread, or None.
+
+    None for anything that is not scheduler work — a webhook, a route, a
+    manual script. That distinction is the reason this exists: sweep work and
+    webhook work log through the same modules from the same kind of
+    background thread, and on 2026-08-15 that made a `timeout_abandoned`
+    diagnosis impossible to close.
+    """
+    event = _current_event.get()
+    if event is None:
+        return None
+    with _lock:
+        return _labels.get(event)
 
 
 def request_stop(job_id: str, *, reason: str) -> bool:

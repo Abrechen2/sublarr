@@ -24,16 +24,44 @@ LOG_FORMAT = "%(asctime)s [%(levelname)s] [%(request_id)s] %(name)s: %(message)s
 NO_REQUEST_ID = "-"
 
 
-def _current_request_id() -> str:
-    """The active request's id, or a placeholder outside a request context."""
-    if not _has_app_context():
-        return NO_REQUEST_ID
-    try:
-        from flask import g
+def _current_run_label() -> str | None:
+    """The scheduled run this thread belongs to, if any.
 
-        return str(getattr(g, "request_id", NO_REQUEST_ID) or NO_REQUEST_ID)
+    Imported lazily: app_logging is set up before most of the app exists, and
+    a module-level import of a services package here would invert that order.
+    """
+    try:
+        from services.scheduler.cancellation import current_run_label
+
+        return current_run_label()
     except Exception:
-        return NO_REQUEST_ID
+        return None
+
+
+def _current_request_id() -> str:
+    """What to render in the id slot for this record.
+
+    Three answers, in order of specificity: the Flask request being served,
+    the scheduled run this thread belongs to, or the placeholder.
+
+    The middle one exists because everything outside a request rendered `-`,
+    which is most of what Sublarr does. Sweep work, webhook follow-up work
+    and queue-drain work all log from background threads through the same
+    module names, so `wanted_search.post_processor: …` named the module and
+    nothing about *which* piece of work produced it. On 2026-08-15 that left
+    a `timeout_abandoned` verdict unattributable: the activity continuing
+    after the cancel was indistinguishable from concurrent Sonarr webhooks.
+    """
+    if _has_app_context():
+        try:
+            from flask import g
+
+            request_id = getattr(g, "request_id", None)
+            if request_id:
+                return str(request_id)
+        except Exception:
+            pass
+    return _current_run_label() or NO_REQUEST_ID
 
 
 class RequestIdFilter(logging.Filter):
