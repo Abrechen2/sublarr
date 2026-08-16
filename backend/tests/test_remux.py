@@ -712,3 +712,110 @@ def test_inherit_file_mode_falls_back_when_source_gone(tmp_path):
 
     mode = _stat.S_IMODE(os.stat(dst).st_mode)
     assert mode & _stat.S_IROTH, f"fallback left it unreadable: {oct(mode)}"
+
+
+# ---------------------------------------------------------------------------
+# Orphaned temp files — a killed remux must not leave gigabytes behind forever
+# ---------------------------------------------------------------------------
+
+
+def test_remux_temp_is_hidden_and_namespaced(tmp_path):
+    """The work file lands in the user's library, so it must not look like media.
+
+    A bare ``tmpXXXX.mkv`` shows up in the library and in a media-server scan,
+    and cannot be told apart from anything else — which is what made the
+    leftovers unsafe to collect automatically.
+    """
+    from remux import _TMP_PREFIX, _new_remux_temp
+
+    fd, tmp = _new_remux_temp(str(tmp_path), ".mkv")
+    os.close(fd)
+
+    name = os.path.basename(tmp)
+    assert name.startswith(_TMP_PREFIX), name
+    assert name.startswith("."), "temp must be hidden from library scans"
+    assert name.endswith(".mkv")
+
+
+def test_sweep_removes_stale_temp(tmp_path):
+    from remux import _TMP_PREFIX, _sweep_orphaned_temps
+
+    stale = tmp_path / f"{_TMP_PREFIX}abc.mkv"
+    stale.write_bytes(b"x" * 100)
+    old = time.time() - (7 * 60 * 60)
+    os.utime(stale, (old, old))
+
+    assert _sweep_orphaned_temps(str(tmp_path)) == 1
+    assert not stale.exists()
+
+
+def test_sweep_spares_a_running_remux(tmp_path):
+    """A concurrent worker's temp is young — sweeping it would corrupt its run."""
+    from remux import _TMP_PREFIX, _sweep_orphaned_temps
+
+    fresh = tmp_path / f"{_TMP_PREFIX}xyz.mkv"
+    fresh.write_bytes(b"x" * 100)
+
+    assert _sweep_orphaned_temps(str(tmp_path)) == 0
+    assert fresh.exists()
+
+
+def test_sweep_never_touches_media(tmp_path):
+    """Only our own prefix is eligible — never the user's files."""
+    from remux import _sweep_orphaned_temps
+
+    episode = tmp_path / "Show - S01E01.mkv"
+    legacy = tmp_path / "tmpdeadbeef.mkv"  # pre-fix orphan, deliberately not ours
+    for f in (episode, legacy):
+        f.write_bytes(b"x" * 100)
+        old = time.time() - (99 * 60 * 60)
+        os.utime(f, (old, old))
+
+    assert _sweep_orphaned_temps(str(tmp_path)) == 0
+    assert episode.exists()
+    assert legacy.exists()
+
+
+def test_sweep_survives_undeletable_temp(tmp_path):
+    """A temp we cannot remove must not abort the remux the user asked for."""
+    from remux import _TMP_PREFIX, _sweep_orphaned_temps
+
+    stale = tmp_path / f"{_TMP_PREFIX}locked.mkv"
+    stale.write_bytes(b"x" * 100)
+    old = time.time() - (7 * 60 * 60)
+    os.utime(stale, (old, old))
+
+    with patch("os.unlink", side_effect=OSError("device busy")):
+        assert _sweep_orphaned_temps(str(tmp_path)) == 0
+    assert stale.exists()
+
+
+def test_sweep_tolerates_missing_directory():
+    from remux import _sweep_orphaned_temps
+
+    assert _sweep_orphaned_temps("/nonexistent/path/for/sure") == 0
+
+
+def test_remove_subtitle_streams_sweeps_before_remuxing(tmp_path):
+    """The sweep is wired into the real entry point, not just available."""
+    from remux import _TMP_PREFIX
+
+    video = str(tmp_path / "show.mkv")
+    with open(video, "wb") as f:
+        f.write(b"x" * 2000)
+
+    stale = tmp_path / f"{_TMP_PREFIX}leftover.mkv"
+    stale.write_bytes(b"y" * 500)
+    old = time.time() - (8 * 60 * 60)
+    os.utime(stale, (old, old))
+
+    with (
+        patch("remux._remux_mkvmerge", side_effect=_fake_remux_writing()),
+        patch("remux._verify"),
+        patch("remux._make_backup", return_value=video + ".bak"),
+        patch("remux._detect_backend", return_value="mkvmerge"),
+        patch("remux._which", return_value=True),
+    ):
+        remove_subtitle_streams(video, streams=[(2, 0)])
+
+    assert not stale.exists(), "orphan survived a remux in its own directory"

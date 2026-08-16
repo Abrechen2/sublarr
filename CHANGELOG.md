@@ -8,6 +8,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [1.12.1] - 2026-08-15
 
 ### Fixed
+- **An interrupted remux no longer leaves gigabytes behind in the library.**
+  A remux writes its output beside the episode rather than in a temporary
+  directory, and removes that work file if the remux fails. A process that is
+  killed outright — a container restart partway through, an out-of-memory kill
+  — never gets that far, so the half-finished file simply stayed there, at
+  full size, and nothing ever collected it. One library had accumulated
+  thirteen of them totalling 23 GB, the largest over 6 GB each. Work files are
+  now named so they are hidden from the library and recognisable as Sublarr's
+  own, and each remux clears any that an earlier run abandoned in the same
+  folder. Only files carrying that name and older than six hours are eligible,
+  so a remux running at the same time is never disturbed. Leftovers from before
+  this release are not covered by the automatic clean-up and can be removed by
+  hand — they match `tmp*.mkv` next to the episode.
 - **A remuxed episode no longer becomes unplayable in the media server.**
   Stripping a subtitle track writes the new file to a temporary one and swaps
   it into place. That temporary file is always created readable by its owner

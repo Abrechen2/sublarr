@@ -207,6 +207,69 @@ def _inherit_file_mode(source_path: str, target_path: str) -> None:
         os.chmod(target_path, mode)
 
 
+# A remux writes its output next to the episode, so the work-in-progress file
+# lands in the user's library rather than /tmp. The prefix makes it hidden (it
+# no longer shows up in the library or in a media-server scan) and unmistakably
+# ours, which is what lets _sweep_orphaned_temps delete by pattern safely.
+_TMP_PREFIX = ".sublarr-remux-"
+
+# Only reclaim temps older than this. A remux finishes in minutes, so anything
+# this stale belongs to a process that is gone. The margin matters because a
+# second worker may legitimately be remuxing another file in the same directory
+# right now — its temp must not be swept out from under it.
+_TMP_MAX_AGE_SECONDS = 6 * 60 * 60
+
+
+def _new_remux_temp(video_dir: str, suffix: str) -> tuple[int, str]:
+    """Create the temp file a remux writes into, next to the original."""
+    return tempfile.mkstemp(suffix=suffix, prefix=_TMP_PREFIX, dir=video_dir)
+
+
+def _sweep_orphaned_temps(video_dir: str) -> int:
+    """Delete stale remux temps left in ``video_dir``; return how many went.
+
+    The ``except`` branch around a remux unlinks its own temp, but a process
+    that is killed outright — a container recreate mid-remux, an OOM kill —
+    never reaches it, and a multi-gigabyte file stays behind next to the
+    episode forever. Nothing else ever collects them: 13 orphans totalling
+    23 GB were found in one library before this existed.
+
+    Sweeping here, just before a new remux in the same directory, keeps it
+    cheap and safe: no library-wide walk, and only files carrying our own
+    prefix are ever considered. Failures are logged and ignored — a temp we
+    cannot delete must not abort the remux the user actually asked for.
+    """
+    removed = 0
+    try:
+        entries = os.listdir(video_dir)
+    except OSError:
+        return 0
+
+    cutoff = _time_now() - _TMP_MAX_AGE_SECONDS
+    for name in entries:
+        if not name.startswith(_TMP_PREFIX):
+            continue
+        path = os.path.join(video_dir, name)
+        try:
+            if not os.path.isfile(path) or os.path.getmtime(path) > cutoff:
+                continue
+            size = os.path.getsize(path)
+            os.unlink(path)
+        except OSError as exc:
+            logger.warning("Remux: could not remove orphaned temp %s: %s", path, exc)
+            continue
+        removed += 1
+        logger.info("Remux: removed orphaned temp %s (%.1f MB)", path, size / 1024 / 1024)
+    return removed
+
+
+def _time_now() -> float:
+    """Wall clock as a float — indirection so tests can age files deterministically."""
+    import time as _time
+
+    return _time.time()
+
+
 # ---------------------------------------------------------------------------
 # Backend selection
 # ---------------------------------------------------------------------------
@@ -538,7 +601,8 @@ def remove_subtitle_streams(
     # For ffmpeg: use global stream indices
     stream_indices = [s[0] for s in streams]
 
-    fd, tmp_path = tempfile.mkstemp(suffix=suffix, dir=video_dir)
+    _sweep_orphaned_temps(video_dir)
+    fd, tmp_path = _new_remux_temp(video_dir, suffix)
     os.close(fd)
 
     try:
@@ -765,7 +829,8 @@ def remove_subtitle_streams_by_index(
     video_dir = os.path.dirname(video_path)
     suffix = os.path.splitext(video_path)[1]
 
-    fd, tmp_path = tempfile.mkstemp(suffix=suffix, dir=video_dir)
+    _sweep_orphaned_temps(video_dir)
+    fd, tmp_path = _new_remux_temp(video_dir, suffix)
     os.close(fd)
 
     try:
