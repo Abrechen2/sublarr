@@ -105,8 +105,13 @@ def current_run_label() -> str | None:
     event = _current_event.get()
     if event is None:
         return None
-    with _lock:
-        return _labels.get(event)
+    # Deliberately unlocked. This sits on the per-log-record path — every
+    # record logged outside a request context asks — and a dict lookup is
+    # atomic under the GIL, so the lock would buy nothing but contention
+    # between the very worker threads whose logs it exists to label. The
+    # writers still hold it: they mutate two structures and need them to
+    # agree with each other, a reader of one does not.
+    return _labels.get(event)
 
 
 def request_stop(job_id: str, *, reason: str) -> bool:
