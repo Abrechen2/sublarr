@@ -80,7 +80,14 @@ class TestTranslateWithManager:
             output, tr = _translate_with_manager(["Hello", "World"], "en", "de")
 
         assert output == ["Hallo", "Welt"]
-        mock_store_cache.assert_called_once_with(["World"], ["Welt"], "en", "de", backend="ollama")
+        # Storing moved into `_translate_in_batches` on 2026-08-16 so a run
+        # that dies partway keeps the batches it finished. This test mocks
+        # that function away, so the caller must no longer store — doing it
+        # here as well would write every line to the memory twice.
+        mock_store_cache.assert_not_called()
+        assert mock_batch.call_args.kwargs["cache_enabled"] is True, (
+            "the caller still owns the decision; it just no longer does the writing"
+        )
 
     @patch("translator.manager._load_glossary_entries", return_value=None)
     @patch("translator.manager._apply_translation_cache")

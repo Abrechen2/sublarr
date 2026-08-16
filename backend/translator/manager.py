@@ -88,6 +88,7 @@ def _translate_with_manager(lines, source_lang, target_lang, arr_context=None, s
         fallback_chain,
         glossary_entries,
         batch_size,
+        cache_enabled=cache_enabled,
     )
 
     # Merge cached + freshly translated lines in original order
@@ -95,16 +96,9 @@ def _translate_with_manager(lines, source_lang, target_lang, arr_context=None, s
     for out_idx, translated in zip(uncached_indices, all_translated):
         output[out_idx] = translated
 
-    # Persist newly translated lines to cache (Plan A follow-up: carry backend name
-    # so memory can be purged per-backend later)
-    if cache_enabled:
-        _store_translations_in_cache(
-            uncached_lines,
-            all_translated,
-            source_lang,
-            target_lang,
-            backend=getattr(result, "backend_name", None),
-        )
+    # No bulk write here any more. `_translate_in_batches` stores each batch
+    # the moment it is verified, so a run that dies partway keeps what it
+    # finished. Writing again here would store every line a second time.
 
     return output, result
 
@@ -155,6 +149,24 @@ def _load_glossary_entries(series_id):
     return None
 
 
+def _cache_batch(cache_enabled, source_lines, result, source_lang, target_lang):
+    """Write one verified batch to the translation memory.
+
+    The backend name comes off this batch's own result rather than the file's
+    last one: with a fallback chain, batches in a single file can legitimately
+    come from different backends, and the memory records which produced what.
+    """
+    if not cache_enabled:
+        return
+    _store_translations_in_cache(
+        list(source_lines),
+        list(result.translated_lines),
+        source_lang,
+        target_lang,
+        backend=getattr(result, "backend_name", None),
+    )
+
+
 def _translate_in_batches(
     manager,
     lines,
@@ -163,8 +175,20 @@ def _translate_in_batches(
     fallback_chain,
     glossary_entries,
     batch_size,
+    cache_enabled=True,
 ):
     """Translate lines via LLM, chunking into batches if needed.
+
+    Each batch is written to the translation memory as soon as it comes back
+    verified, rather than the whole file being written once at the end. A run
+    that stops partway — a line-count mismatch, a container restart, a
+    scheduler timeout — then keeps the batches it finished, and the next
+    attempt pays only for the remainder. The memory is the resume mechanism;
+    there is no progress column and no partial file on disk.
+
+    Prod 2026-08-16: 176 failed translation jobs against 160 successful in 24
+    hours, failures observed as deep as batch 150, every one of them
+    discarding everything before it.
 
     Args:
         manager: TranslationManager instance
@@ -174,6 +198,9 @@ def _translate_in_batches(
         fallback_chain: List of backend names to try in order
         glossary_entries: Optional glossary entries for translation
         batch_size: Maximum lines per LLM call
+        cache_enabled: Whether to write finished batches to the translation
+            memory. The caller has already resolved this; passing it avoids a
+            second config read per file.
 
     Returns:
         tuple[list[str], TranslationResult]: All translated lines and last result
@@ -185,6 +212,7 @@ def _translate_in_batches(
         )
         if not result.success:
             raise RuntimeError(f"Translation failed: {result.error}")
+        _cache_batch(cache_enabled, lines, result, source_lang, target_lang)
         return result.translated_lines, result
 
     # Multi-batch path: pre-chunk the file with lookback/lookahead context so
@@ -238,6 +266,9 @@ def _translate_in_batches(
                 f"expected {len(chunk.batch)}. Aborting to prevent cache pollution."
             )
         all_translated.extend(chunk_result.translated_lines)
+        # Written here, not after the loop: everything above this line is
+        # verified and paid for, and the next failure must not take it.
+        _cache_batch(cache_enabled, chunk.batch, chunk_result, source_lang, target_lang)
         last_result = chunk_result
 
     return all_translated, last_result

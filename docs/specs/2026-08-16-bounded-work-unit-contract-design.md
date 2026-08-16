@@ -122,6 +122,24 @@ source language, target language and source line — **not** by backend. Switchi
 translation backends returns previously cached lines. This is already true for
 completed files; after A1 it is also true for interrupted ones.
 
+Second known property, and the real cost of A1. `_apply_translation_cache`
+removes cache hits *before* chunking (`translator/manager.py:50`), so
+`_translate_in_batches` only ever sees the uncached subset and
+`build_chunks` draws lookback/lookahead from that subset — not from the
+original neighbours. A resumed translation therefore translates its tail with
+context taken from the tail. Today an interrupted file caches nothing, so its
+retry is a clean full pass with full context; after A1 it is not.
+
+This is a trade, and it is worth taking: a seam whose context is thinner
+against nine batches of paid LLM work thrown away. It is not free, and if
+seam quality ever proves to matter, the follow-up is to let the chunker see
+cached lines as *context* without re-translating them — a change to
+`build_chunks` and the cache split, not to A1.
+
+**Status: implemented 2026-08-16.** Each verified batch is written by
+`_cache_batch` from inside the loop; the bulk write after the loop is gone, so
+no line is stored twice.
+
 ### A2. A deadline over the whole file
 
 `_translate_in_batches` takes an absolute deadline and checks it at
