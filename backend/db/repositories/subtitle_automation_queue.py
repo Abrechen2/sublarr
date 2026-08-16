@@ -24,10 +24,22 @@ from __future__ import annotations
 
 from datetime import UTC, datetime
 
-from sqlalchemy import func, or_, select
+from sqlalchemy import case, func, or_, select
 
 from db.models.core import SubtitleAutomationQueueEntry
 from db.repositories.base import BaseRepository
+
+# Shortest job first. An `auto_sync` is capped at 600s by ffsubsync, while a
+# `sidecar_translate` on this same queue has been measured at ~16 minutes.
+# Without this, a sync queued the second its subtitle landed could sit behind
+# a run of translations and arrive hours late — and unlike a translation, its
+# whole point is that it happens close to the download. The cost is the
+# mirror image: a large backlog of syncs delays translations. That is the
+# trade this ordering deliberately makes.
+_TASK_PRIORITY = case(
+    (SubtitleAutomationQueueEntry.task_type == SubtitleAutomationQueueEntry.TASK_AUTO_SYNC, 0),
+    else_=1,
+)
 
 
 class SubtitleAutomationQueueRepository(BaseRepository):
@@ -85,7 +97,7 @@ class SubtitleAutomationQueueRepository(BaseRepository):
         source_language: str | None = None,
         video_path: str | None = None,
     ) -> int:
-        """Idempotent enqueue by `(wanted_item_id, task_type)`.
+        """Idempotent enqueue by `(wanted_item_id, task_type, file_path)`.
 
         - No existing row → insert `pending` and return new id.
         - Existing `done` row → reset to `pending`, attempt_count=0, clear
@@ -93,9 +105,15 @@ class SubtitleAutomationQueueRepository(BaseRepository):
         - Existing `pending`/`running`/`failed` row → return existing id
           unchanged.
 
-        The key is the pair, not the item: an item with an embedded track to
+        The key is not the item alone: an item with an embedded track to
         extract can also have a source sidecar to translate, and enqueueing
         one must not be read as a duplicate of the other.
+
+        `file_path` is in the key because `wanted_item_id` is not durable for
+        `auto_sync` — the item is deleted right after the row is written and
+        SQLite reuses its rowid, so a later item can inherit the id of a
+        still-pending sync. Without the path it would match that row, get it
+        back unchanged, and lose its own sync silently.
         """
         now = self._now()
         existing = (
@@ -103,6 +121,7 @@ class SubtitleAutomationQueueRepository(BaseRepository):
             .filter(
                 SubtitleAutomationQueueEntry.wanted_item_id == wanted_item_id,
                 SubtitleAutomationQueueEntry.task_type == task_type,
+                SubtitleAutomationQueueEntry.file_path == file_path,
             )
             .one_or_none()
         )
@@ -167,6 +186,7 @@ class SubtitleAutomationQueueRepository(BaseRepository):
         if task_types is not None:
             stmt = stmt.where(SubtitleAutomationQueueEntry.task_type.in_(sorted(task_types)))
         stmt = stmt.order_by(
+            _TASK_PRIORITY,
             SubtitleAutomationQueueEntry.next_retry_at.asc().nullsfirst(),
             SubtitleAutomationQueueEntry.created_at.asc(),
         ).limit(1)
@@ -247,6 +267,38 @@ class SubtitleAutomationQueueRepository(BaseRepository):
             row.updated_at = now
         self._commit()
         return len(stale)
+
+    def discard_waiting(self, task_types: set[str]) -> int:
+        """Drop rows of these types that are waiting for a worker.
+
+        A task type whose feature has been switched off is never claimed
+        again: `claim_next` filters on the types the drain is allowed to run,
+        so its rows sit `pending` forever, inflate the status counts, and
+        misreport work that will not happen as work that is about to.
+
+        Only `pending` and `failed` rows go. A `running` row belongs to a
+        worker that is still inside it, and `done` rows are history.
+
+        Deleting rather than parking them is deliberate: the queue is a work
+        list, not an audit log, and nothing is lost that the user did not just
+        switch off — the subtitle itself is already on disk, only its optional
+        follow-up work is dropped. Turning the feature back on queues fresh
+        rows from the next download.
+
+        Returns the number of rows removed.
+        """
+        if not task_types:
+            return 0
+        removed = (
+            self.session.query(SubtitleAutomationQueueEntry)
+            .filter(
+                SubtitleAutomationQueueEntry.task_type.in_(sorted(task_types)),
+                SubtitleAutomationQueueEntry.state.in_(("pending", "failed")),
+            )
+            .delete(synchronize_session=False)
+        )
+        self._commit()
+        return int(removed or 0)
 
     def get_by_id(self, entry_id: int) -> dict | None:
         row = self.session.get(SubtitleAutomationQueueEntry, entry_id)

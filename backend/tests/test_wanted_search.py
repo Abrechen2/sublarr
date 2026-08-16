@@ -395,9 +395,11 @@ class TestSaveSubtitleReturnPathPropagated:
 
         captured = {}
 
-        def _fake_try_auto_sync(subtitle_path, video_path, settings):
+        def _fake_try_auto_sync(subtitle_path, video_path, settings, *, item_id, target_language):
             captured["subtitle_path"] = subtitle_path
             captured["video_path"] = video_path
+            captured["item_id"] = item_id
+            captured["target_language"] = target_language
 
         monkeypatch.setattr("wanted_search.process.get_provider_manager", lambda: mock_mgr)
         monkeypatch.setattr("wanted_search.process._try_auto_sync", _fake_try_auto_sync)

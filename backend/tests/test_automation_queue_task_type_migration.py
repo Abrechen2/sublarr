@@ -164,11 +164,32 @@ class TestLegacyDatabase:
         assert n == 2
 
     def test_the_composite_unique_is_live(self, legacy_db):
+        """The key is (wanted_item_id, task_type, file_path) since d5b3c8a1f742.
+
+        It was the first two until then. `file_path` joined it because
+        `wanted_item_id` is not durable for an `auto_sync` row — SQLite reuses
+        the rowid of the wanted item that was deleted right after the row was
+        written, and the item that inherits it would otherwise collide with a
+        stranger's pending sync.
+        """
         engine, _ = legacy_db
         import sqlalchemy as sa
 
         with pytest.raises(sa.exc.IntegrityError), engine.begin() as conn:
-            conn.execute(text(_INSERT), {"wid": 42, "path": "/media/dupe.mkv"})
+            conn.execute(text(_INSERT), {"wid": 42, "path": "/media/x.mkv"})
+
+    def test_the_same_item_may_hold_two_paths(self, legacy_db):
+        engine, _ = legacy_db
+        with engine.begin() as conn:
+            conn.execute(text(_INSERT), {"wid": 42, "path": "/media/other.mkv"})
+        with engine.connect() as conn:
+            n = conn.execute(
+                text(  # noqa: S608 — constant table name
+                    f"SELECT COUNT(*) FROM {_TABLE} "
+                    "WHERE wanted_item_id = 42 AND task_type = 'embedded_extract'"
+                )
+            ).scalar()
+        assert n == 2
 
     def test_the_drain_index_survives_the_table_rebuild(self, legacy_db):
         engine, _ = legacy_db
@@ -179,6 +200,50 @@ class TestLegacyDatabase:
     def test_migration_is_idempotent(self, legacy_db):
         _, cfg = legacy_db
         command.upgrade(cfg, "head")  # second run must not raise
+
+    def test_the_widened_key_round_trips(self, legacy_db):
+        """Down and up again — the rollback path has to actually work.
+
+        The narrower key cannot hold while rows only the wider one allowed are
+        present, so the downgrade has to drop one row per group first. It picks
+        by how much is still owed on the row rather than by age: keeping the
+        oldest would routinely keep a `done` row and delete the `pending` one
+        beside it, which is the wrong half of the pair to lose.
+        """
+        engine, cfg = legacy_db
+        with engine.begin() as conn:
+            # Two rows the old key could never have held side by side.
+            conn.execute(
+                text(  # noqa: S608 — constant table name
+                    f"UPDATE {_TABLE} SET state = 'done' WHERE wanted_item_id = 42"
+                )
+            )
+            conn.execute(text(_INSERT), {"wid": 42, "path": "/media/newer.mkv"})
+
+        command.downgrade(cfg, "c7e1a9d4b6f3")
+
+        with engine.connect() as conn:
+            uniques = {
+                tuple(sorted(u["column_names"]))
+                for u in inspect(conn).get_unique_constraints(_TABLE)
+            }
+            survivors = conn.execute(
+                text(  # noqa: S608 — constant table name
+                    f"SELECT file_path, state FROM {_TABLE} WHERE wanted_item_id = 42"
+                )
+            ).fetchall()
+        assert ("task_type", "wanted_item_id") in uniques
+        assert ("file_path", "task_type", "wanted_item_id") not in uniques
+        # The pending row survived; the done one was the expendable half.
+        assert [tuple(r) for r in survivors] == [("/media/newer.mkv", "pending")]
+
+        command.upgrade(cfg, "head")
+        with engine.connect() as conn:
+            uniques = {
+                tuple(sorted(u["column_names"]))
+                for u in inspect(conn).get_unique_constraints(_TABLE)
+            }
+        assert ("file_path", "task_type", "wanted_item_id") in uniques
 
 
 class TestCreateAllDatabase:

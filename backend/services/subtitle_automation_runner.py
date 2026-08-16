@@ -31,14 +31,20 @@ from db.repositories.subtitle_automation_queue import (
 # Aliased import: tests patch "services.subtitle_automation_runner._extract_embedded_sub".
 from services.embedded_extractor import extract_embedded_sub as _extract_embedded_sub
 from services.scheduler.cancellation import abort_requested
-from services.video_sync import SyncSanityThresholdError, SyncUnavailableError
+from services.video_sync import SyncSanityThresholdError
 
 logger = logging.getLogger(__name__)
 
 # Failures that will fail identically on every retry. Sending these round the
 # backoff ladder burns a drain slot per attempt for a result that is already
 # known — and hides the rows that genuinely deserve another try.
-_TERMINAL_SYNC_ERRORS = (SyncUnavailableError, SyncSanityThresholdError)
+#
+# `SyncUnavailableError` is deliberately NOT here, though it looks the part.
+# It means "ffsubsync is not installed", which an operator fixes — and a
+# terminal row would then never be picked up again, so every sync queued
+# before the install would stay lost after it. The backoff ladder caps at 24h,
+# which is the right cadence for waiting on a human.
+_TERMINAL_SYNC_ERRORS = (SyncSanityThresholdError,)
 
 # 5m → 15m → 1h → 6h → 24h, then capped.
 _BACKOFF_LADDER: tuple[timedelta, ...] = (
@@ -74,21 +80,41 @@ def _automation_enabled() -> bool:
         return False
 
 
-def _auto_sync_enabled() -> bool:
-    """Read auto-sync's own toggle.
+def _auto_sync_enabled() -> bool | None:
+    """Read auto-sync's own toggle. None if it could not be read.
 
     Deliberately NOT `subtitle_automation_enabled`. Auto-sync is a separate
     feature that happens to share this queue, and the automation toggle
     defaults to off — gating auto-sync behind it would queue a sync after
     every download on a default install and drain none of them.
+
+    The third answer matters since `_discard_disabled` started deleting rows.
+    While "off" only meant "do not claim", collapsing an unreadable setting
+    into False was free. It is not free any more: a transient config or
+    database error would permanently delete queued work on the strength of a
+    question nobody managed to ask. None means "do not claim, and do not
+    touch anything either".
     """
     from config import get_settings
 
     try:
         return bool(get_settings().auto_sync_after_download)
     except Exception:
-        logger.exception("failed to read auto_sync_after_download; treating as off")
-        return False
+        logger.exception("failed to read auto_sync_after_download; skipping auto-sync this tick")
+        return None
+
+
+# Task types worth discarding when their feature is switched off, which is
+# NOT the same as "every task type". `embedded_extract` and
+# `sidecar_translate` rows are re-enqueued by the wanted scanner on its next
+# pass, so leaving them costs nothing and deleting them would throw away a
+# backlog the user gets back anyway — over a toggle they may flip for an hour.
+#
+# An `auto_sync` row has no such second chance: it is written once, at the
+# moment a download lands, against a wanted item that is deleted on the next
+# line. Nothing regenerates it. So it is the one type where "waiting for a
+# worker that will never come" is a permanent state rather than a pause.
+_DISCARDABLE_TASK_TYPES = {SubtitleAutomationQueueEntry.TASK_AUTO_SYNC}
 
 
 def _eligible_task_types() -> set[str]:
@@ -200,8 +226,9 @@ class SubtitleAutomationRunner:
             else:
                 _extract_embedded_sub(wanted_item_id, file_path, auto_translate=False)
         except _TERMINAL_SYNC_ERRORS as exc:
-            # Deterministic: a rejected shift is the same shift next time, and
-            # a missing ffsubsync needs an operator, not a backoff ladder.
+            # A rejected shift is the same shift next time — the sanity gate
+            # compares the measured offset against a configured threshold, and
+            # neither changes between attempts.
             logger.warning(
                 "subtitle_automation: auto-sync will not be retried for wanted_item=%s: %s",
                 wanted_item_id,
@@ -232,6 +259,33 @@ class SubtitleAutomationRunner:
         self._repo.mark_done(entry_id)
         return True
 
+    def _discard_disabled(self) -> None:
+        """Drop queued work whose feature is confirmed off.
+
+        Runs before the drain rather than on the toggle itself: a setting can
+        be changed by an API call, an env var or a direct database edit, and
+        only the drain sees all three.
+
+        `is False` rather than `not ...` on purpose — an unreadable setting
+        answers None, and deleting a user's queue because a config read failed
+        would be a far worse bug than the one this method exists to fix.
+        """
+        if _auto_sync_enabled() is not False:
+            return
+        disabled = set(_DISCARDABLE_TASK_TYPES)
+        try:
+            removed = self._repo.discard_waiting(disabled)
+        except Exception:
+            # Housekeeping must never cost the tick its actual work.
+            logger.exception("subtitle_automation: could not discard rows for disabled features")
+            return
+        if removed:
+            logger.info(
+                "subtitle_automation: discarded %d queued item(s) for switched-off features (%s)",
+                removed,
+                ", ".join(sorted(disabled)),
+            )
+
     def drain(self, *, max_items: int = 50) -> int:
         """Drain up to `max_items` entries. Returns the number processed.
 
@@ -239,8 +293,15 @@ class SubtitleAutomationRunner:
         feature is currently switched on — this queue serves two features
         with two independent toggles, so "off" is per task type, not for the
         whole drain.
+
+        Auto-sync rows belonging to a switched-off feature are dropped rather
+        than left waiting: nothing will ever claim them and nothing will ever
+        regenerate them, so leaving them makes the status counts promise work
+        that is not coming. The other task types are left alone — the scanner
+        re-enqueues those, so waiting really is only waiting.
         """
         task_types = _eligible_task_types()
+        self._discard_disabled()
         if not task_types:
             return 0
         if max_items <= 0:

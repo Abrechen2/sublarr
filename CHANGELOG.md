@@ -18,10 +18,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   instead of inside it. Nothing is lost and nothing is skipped: the subtitle
   is on disk either way, and the correction follows within the next couple of
   minutes. It also no longer depends on whether subtitle automation is
-  switched on — it follows its own setting, as it always appeared to.
-  Corrections that cannot succeed no matter how often they are repeated — a
-  timing shift so large it is rejected as implausible, or a missing ffsubsync
-  — are now recorded once instead of being retried on a schedule.
+  switched on — it follows its own setting, as it always appeared to, and
+  queued corrections are dropped rather than left waiting if you switch it
+  off. Corrections go ahead of queued translations, since a correction is
+  worth little long after its download and takes a fraction of the time. A
+  timing shift so large it is rejected as implausible is recorded once
+  instead of being retried on a schedule; a correction that found no
+  ffsubsync installed keeps trying, so installing it later still rescues
+  everything queued in the meantime.
 - **Log lines from a scheduled run now say which run they came from.** Every
   line produced outside a web request looked identical, whether it came from
   the scheduled search, from a Sonarr notification arriving at the same
@@ -30,6 +34,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   diagnose it and the noise obscuring it were indistinguishable. Lines
   belonging to a scheduled run now carry that run's name and id, and two runs
   of the same job are told apart. Everything else is unchanged.
+- **The support report counts errors correctly again**, and structured JSON
+  logs carry a correlation id. The report groups the last day's errors by
+  message; the newly added run id sat inside the part it read as the message,
+  so each run's errors were counted separately instead of together — exactly
+  the errors worth counting. Separately, JSON log output only ever carried an
+  id for web requests, so scheduled and queued work reached a log collector
+  with nothing to correlate on. Both now read the same id the plain-text log
+  shows.
 - **The scheduled search no longer translates at all.** The previous release
   stopped it from doing so in bulk, but not for single items: when no provider
   had a subtitle for a title, the search pulled the track out of the file and

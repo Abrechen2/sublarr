@@ -562,7 +562,19 @@ class SubtitleAutomationQueueEntry(db.Model):
             "state",
             "next_retry_at",
         ),
-        UniqueConstraint("wanted_item_id", "task_type", name="uq_automation_queue_item_task"),
+        # `file_path` is part of the key because `wanted_item_id` is not a
+        # durable identity for `auto_sync`: those rows are written on the line
+        # before the wanted item is deleted, and SQLite reuses the rowid of a
+        # deleted row. A later item inheriting that id would collide with a
+        # still-pending sync and lose its own — silently, since `enqueue`
+        # returns an existing pending row unchanged. The path is what the work
+        # is actually about, so it belongs in the key.
+        UniqueConstraint(
+            "wanted_item_id",
+            "task_type",
+            "file_path",
+            name="uq_automation_queue_item_task_file",
+        ),
     )
 
 

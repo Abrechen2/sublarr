@@ -86,68 +86,84 @@ class TestStopSignalCrossesIntoWorkers:
         assert got == (1, 2, 3)
 
 
-class TestAutoSyncHonoursTheStopRequest:
+class TestAutoSyncSurvivesAStopRequest:
+    """A stop must cost the sync nothing. It used to cost it entirely.
+
+    This class asserted the opposite until 2026-08-16, and both readings were
+    right for their design. While ffsubsync ran inline on the search thread,
+    the only way to bound a cancel was to refuse to start one — so a subtitle
+    that landed just before a stop silently never got its timing corrected,
+    and the next run had no memory that it was owed.
+
+    The refusal was never the goal, only the cheapest bound available. With
+    the sync on the automation queue the search does a single INSERT, which
+    is not worth refusing: a stop now defers the work instead of dropping it.
+    The wind-down is bounded because there is nothing long left to wind down.
+    """
+
     def _settings(self):
         s = MagicMock()
         s.auto_sync_after_download = True
         s.auto_sync_engine = "ffsubsync"
         return s
 
-    def test_does_not_start_a_new_sync_after_a_stop_request(self, tmp_path):
-        """The measured defect: new ffsubsync runs started minutes after cancel."""
-        from wanted_search.post_processor import _try_auto_sync
-
+    def _media(self, tmp_path):
         sub = tmp_path / "e.srt"
         vid = tmp_path / "e.mkv"
         sub.touch()
         vid.touch()
+        return str(sub), str(vid)
 
-        event = threading.Event()
-        event.set()
-        token = cancellation.activate(event)
-        try:
-            with patch("services.video_sync.sync_with_ffsubsync") as mock_sync:
-                _try_auto_sync(str(sub), str(vid), self._settings())
-        finally:
-            cancellation.deactivate(token)
+    def _queued(self, item_id):
+        from db.models.core import SubtitleAutomationQueueEntry
+        from db.repositories.subtitle_automation_queue import (
+            SubtitleAutomationQueueRepository,
+        )
+
+        return SubtitleAutomationQueueRepository().get_by_wanted_item(
+            item_id, task_type=SubtitleAutomationQueueEntry.TASK_AUTO_SYNC
+        )
+
+    def test_never_runs_ffsubsync_on_the_search_thread(self, app_ctx, tmp_path):
+        """The measured defect: ffsubsync runs started minutes after cancel.
+
+        It cannot happen from here any more, stop request or not — this path
+        no longer knows how to start one.
+        """
+        from wanted_search.post_processor import _try_auto_sync
+
+        sub, vid = self._media(tmp_path)
+
+        with patch("services.video_sync.sync_with_ffsubsync") as mock_sync:
+            _try_auto_sync(sub, vid, self._settings(), item_id=901, target_language="de")
 
         mock_sync.assert_not_called()
 
-    def test_the_skip_is_logged(self, tmp_path, caplog):
-        import logging
-
+    def test_a_pending_stop_still_queues_the_sync(self, app_ctx, tmp_path):
+        """Deferred, not dropped — the difference the old design could not make."""
         from wanted_search.post_processor import _try_auto_sync
 
-        sub = tmp_path / "e.srt"
-        vid = tmp_path / "e.mkv"
-        sub.touch()
-        vid.touch()
+        sub, vid = self._media(tmp_path)
 
         event = threading.Event()
         event.set()
         token = cancellation.activate(event)
         try:
-            with (
-                caplog.at_level(logging.INFO),
-                patch("services.video_sync.sync_with_ffsubsync"),
-            ):
-                _try_auto_sync(str(sub), str(vid), self._settings())
+            _try_auto_sync(sub, vid, self._settings(), item_id=902, target_language="de")
         finally:
             cancellation.deactivate(token)
 
-        text = " ".join(r.getMessage() for r in caplog.records)
-        assert "auto-sync" in text.lower() and "stop" in text.lower()
+        row = self._queued(902)
+        assert row is not None
+        assert row["state"] == "pending"
+        assert row["file_path"] == sub
 
-    def test_still_syncs_when_nobody_asked_to_stop(self, tmp_path):
-        """Guards the change: the normal path must be untouched."""
+    def test_the_normal_path_queues_it_too(self, app_ctx, tmp_path):
+        """Guards the change: nobody asking to stop must look the same."""
         from wanted_search.post_processor import _try_auto_sync
 
-        sub = tmp_path / "e.srt"
-        vid = tmp_path / "e.mkv"
-        sub.touch()
-        vid.touch()
+        sub, vid = self._media(tmp_path)
 
-        with patch("services.video_sync.sync_with_ffsubsync") as mock_sync:
-            _try_auto_sync(str(sub), str(vid), self._settings())
+        _try_auto_sync(sub, vid, self._settings(), item_id=903, target_language="de")
 
-        mock_sync.assert_called_once_with(str(sub), str(vid))
+        assert self._queued(903) is not None

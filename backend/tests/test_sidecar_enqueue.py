@@ -202,7 +202,7 @@ class TestDrainWorkerRunsTheTranslation:
         contexts: list[dict] = []
 
         class _Repo:
-            def claim_next(self, *, now=None):
+            def claim_next(self, *, now=None, task_types=None):
                 return TestDrainWorkerRunsTheTranslation()._queue_row()
 
             def mark_done(self, entry_id):
@@ -241,7 +241,7 @@ class TestDrainWorkerRunsTheTranslation:
         extracted: list[int] = []
 
         class _Repo:
-            def claim_next(self, *, now=None):
+            def claim_next(self, *, now=None, task_types=None):
                 return TestDrainWorkerRunsTheTranslation()._queue_row(
                     task_type="embedded_extract", source_language=None
                 )
@@ -278,7 +278,7 @@ class TestDrainWorkerRunsTheTranslation:
         failures: list[tuple[str, object]] = []
 
         class _Repo:
-            def claim_next(self, *, now=None):
+            def claim_next(self, *, now=None, task_types=None):
                 return TestDrainWorkerRunsTheTranslation()._queue_row()
 
             def mark_done(self, entry_id):
