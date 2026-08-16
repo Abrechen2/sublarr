@@ -72,84 +72,78 @@ def _make_wanted_item(**overrides):
 
 
 class TestTryAutoSync:
-    """Tests for _try_auto_sync — conditional auto-sync after download."""
+    """Guard behaviour of _try_auto_sync — the cheap checks before queueing.
+
+    The expensive half moved to the automation queue; what ffsubsync does with
+    the row afterwards is covered in tests/test_auto_sync_queue.py. What stays
+    here is the set of conditions under which nothing is queued at all.
+    """
+
+    def _enqueue_patch(self):
+        return patch(
+            "db.repositories.subtitle_automation_queue.SubtitleAutomationQueueRepository.enqueue"
+        )
 
     def test_disabled_does_nothing(self):
-        """When auto_sync_after_download is False, no sync is attempted."""
+        """When auto_sync_after_download is False, nothing is queued."""
         settings = _make_settings(auto_sync_after_download=False)
         from wanted_search.post_processor import _try_auto_sync
 
-        _try_auto_sync("/path/sub.srt", "/path/video.mkv", settings)
+        with self._enqueue_patch() as enqueue:
+            _try_auto_sync(
+                "/path/sub.srt", "/path/video.mkv", settings, item_id=1, target_language="de"
+            )
+        enqueue.assert_not_called()
 
     def test_alass_engine_skipped(self):
         """alass requires a reference track so auto-sync is skipped."""
         settings = _make_settings(auto_sync_after_download=True, auto_sync_engine="alass")
         from wanted_search.post_processor import _try_auto_sync
 
-        _try_auto_sync("/path/sub.srt", "/path/video.mkv", settings)
+        with self._enqueue_patch() as enqueue:
+            _try_auto_sync(
+                "/path/sub.srt", "/path/video.mkv", settings, item_id=2, target_language="de"
+            )
+        enqueue.assert_not_called()
 
-    def test_ffsubsync_called(self, tmp_path):
-        """When enabled + ffsubsync engine, sync_with_ffsubsync is invoked."""
-        settings = _make_settings(auto_sync_after_download=True, auto_sync_engine="ffsubsync")
-        # _try_auto_sync skips when the files do not exist on disk — provide
-        # real tmp files so the guard lets the call through.
-        sub = tmp_path / "sub.srt"
-        sub.write_text("1\n00:00:01,000 --> 00:00:02,000\nHi\n")
-        vid = tmp_path / "video.mkv"
-        vid.touch()
-
-        mock_sync_module = MagicMock()
-        mock_sync_module.SyncUnavailableError = type("SyncUnavailableError", (Exception,), {})
-
-        with patch.dict("sys.modules", {"services.video_sync": mock_sync_module}):
-            import wanted_search.post_processor as mod
-
-            reload(mod)
-            mod._try_auto_sync(str(sub), str(vid), settings)
-
-        mock_sync_module.sync_with_ffsubsync.assert_called_once_with(str(sub), str(vid))
-
-    def test_ffsubsync_sync_unavailable_error_logged(self, tmp_path):
-        """SyncUnavailableError is caught and logged, not propagated."""
+    def test_queues_when_enabled(self, tmp_path):
+        """Enabled + ffsubsync engine + both files present → one queued row."""
         settings = _make_settings(auto_sync_after_download=True, auto_sync_engine="ffsubsync")
         sub = tmp_path / "sub.srt"
         sub.write_text("1\n00:00:01,000 --> 00:00:02,000\nHi\n")
         vid = tmp_path / "video.mkv"
         vid.touch()
 
-        mock_sync_module = MagicMock()
+        from wanted_search.post_processor import _try_auto_sync
 
-        class FakeSyncUnavailableError(Exception):
-            pass
+        with self._enqueue_patch() as enqueue:
+            _try_auto_sync(str(sub), str(vid), settings, item_id=3, target_language="de")
 
-        mock_sync_module.SyncUnavailableError = FakeSyncUnavailableError
-        mock_sync_module.sync_with_ffsubsync.side_effect = FakeSyncUnavailableError("not installed")
+        assert enqueue.call_count == 1
+        kwargs = enqueue.call_args.kwargs
+        assert kwargs["file_path"] == str(sub)
+        assert kwargs["video_path"] == str(vid)
 
-        with patch.dict("sys.modules", {"services.video_sync": mock_sync_module}):
-            import wanted_search.post_processor as mod
+    def test_ffsubsync_is_not_run_inline(self, tmp_path):
+        """The regression this change exists for.
 
-            reload(mod)
-            # Should not raise
-            mod._try_auto_sync(str(sub), str(vid), settings)
-
-    def test_ffsubsync_generic_error_logged(self, tmp_path):
-        """Generic exceptions from ffsubsync are caught and logged."""
+        A single ffsubsync is capped at 600s and cannot be interrupted. Run
+        here, it sits inside a wanted_search item chain and blows past that
+        job's cancel grace — three prod sweeps in a row ended
+        `timeout_abandoned` (2026-08-15/16).
+        """
         settings = _make_settings(auto_sync_after_download=True, auto_sync_engine="ffsubsync")
         sub = tmp_path / "sub.srt"
         sub.write_text("1\n00:00:01,000 --> 00:00:02,000\nHi\n")
         vid = tmp_path / "video.mkv"
         vid.touch()
 
-        mock_sync_module = MagicMock()
-        mock_sync_module.SyncUnavailableError = type("SyncUnavailableError", (Exception,), {})
-        mock_sync_module.sync_with_ffsubsync.side_effect = RuntimeError("sync crashed")
+        from wanted_search.post_processor import _try_auto_sync
 
-        with patch.dict("sys.modules", {"services.video_sync": mock_sync_module}):
-            import wanted_search.post_processor as mod
+        with patch("services.video_sync.sync_with_ffsubsync") as sync, self._enqueue_patch():
+            _try_auto_sync(str(sub), str(vid), settings, item_id=4, target_language="de")
 
-            reload(mod)
-            # Should not raise
-            mod._try_auto_sync(str(sub), str(vid), settings)
+        sync.assert_not_called()
 
     def test_missing_subtitle_path_skipped_with_warning(self, tmp_path, caplog):
         """Guard test: if the subtitle path does not exist on disk, skip cleanly."""
@@ -162,19 +156,48 @@ class TestTryAutoSync:
 
         from wanted_search.post_processor import _try_auto_sync
 
-        with caplog.at_level(logging.WARNING, logger="wanted_search.post_processor"):
-            _try_auto_sync(ghost, str(vid), settings)
+        with (
+            caplog.at_level(logging.WARNING, logger="wanted_search.post_processor"),
+            self._enqueue_patch() as enqueue,
+        ):
+            _try_auto_sync(ghost, str(vid), settings, item_id=5, target_language="de")
 
+        enqueue.assert_not_called()
         assert any("subtitle path does not exist" in rec.message for rec in caplog.records), (
             "expected guard WARNING for missing subtitle path"
         )
+
+    def test_missing_video_path_skipped_with_warning(self, tmp_path, caplog):
+        """A sync needs something to sync against."""
+        import logging
+
+        settings = _make_settings(auto_sync_after_download=True, auto_sync_engine="ffsubsync")
+        sub = tmp_path / "sub.srt"
+        sub.write_text("1\n00:00:01,000 --> 00:00:02,000\nHi\n")
+
+        from wanted_search.post_processor import _try_auto_sync
+
+        with (
+            caplog.at_level(logging.WARNING, logger="wanted_search.post_processor"),
+            self._enqueue_patch() as enqueue,
+        ):
+            _try_auto_sync(
+                str(sub), str(tmp_path / "gone.mkv"), settings, item_id=6, target_language="de"
+            )
+
+        enqueue.assert_not_called()
+        assert any("video path does not exist" in rec.message for rec in caplog.records)
 
     def test_missing_auto_sync_attr_treated_as_false(self):
         """If settings lacks auto_sync_after_download, treat as disabled."""
         settings = MagicMock(spec=[])  # empty spec -> getattr returns default
         from wanted_search.post_processor import _try_auto_sync
 
-        _try_auto_sync("/path/sub.srt", "/path/video.mkv", settings)
+        with self._enqueue_patch() as enqueue:
+            _try_auto_sync(
+                "/path/sub.srt", "/path/video.mkv", settings, item_id=7, target_language="de"
+            )
+        enqueue.assert_not_called()
 
 
 # ===========================================================================

@@ -330,7 +330,9 @@ def _try_target_ass_direct(ctx: dict) -> dict | None:
             )
             if not verify_dubtitle_on_keep(saved_path, file_path, settings):
                 _flag_dub_mismatch(saved_path)
-            _try_auto_sync(saved_path, file_path, settings)
+            _try_auto_sync(
+                saved_path, file_path, settings, item_id=item_id, target_language=item_lang
+            )
             delete_wanted_item(item_id)
             return {
                 "wanted_id": item_id,
@@ -489,7 +491,13 @@ def _try_source_ass_translation(ctx: dict) -> dict | None:
                 item_id,
                 result.provider_name,
             )
-            _try_auto_sync(translate_result.get("output_path"), file_path, settings)
+            _try_auto_sync(
+                translate_result.get("output_path"),
+                file_path,
+                settings,
+                item_id=item_id,
+                target_language=item_lang,
+            )
 
             from services.mt_provisional import finalize_translation
 
@@ -591,7 +599,9 @@ def _try_target_srt_direct(ctx: dict) -> dict | None:
             )
             if not verify_dubtitle_on_keep(saved_path, file_path, settings):
                 _flag_dub_mismatch(saved_path)
-            _try_auto_sync(saved_path, file_path, settings)
+            _try_auto_sync(
+                saved_path, file_path, settings, item_id=item_id, target_language=item_lang
+            )
             delete_wanted_item(item_id)
             return {
                 "wanted_id": item_id,
@@ -749,7 +759,13 @@ def _try_source_srt_translation(ctx: dict) -> dict | None:
                 item_id,
                 result.provider_name,
             )
-            _try_auto_sync(translate_result.get("output_path"), file_path, settings)
+            _try_auto_sync(
+                translate_result.get("output_path"),
+                file_path,
+                settings,
+                item_id=item_id,
+                target_language=item_lang,
+            )
 
             from services.mt_provisional import finalize_translation
 

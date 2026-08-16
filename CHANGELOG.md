@@ -8,6 +8,28 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [1.12.1] - 2026-08-15
 
 ### Fixed
+- **Automatic timing correction no longer holds up the scheduled search.**
+  Correcting one subtitle's timing is allowed to take ten minutes, and it
+  cannot be interrupted once it has started. It ran in the middle of the
+  search, so a search asked to stop had to sit and wait for it — three
+  scheduled searches in a row were recorded as overdue for this reason alone,
+  even though every other part of them stopped promptly. The correction now
+  goes on the subtitle-automation queue and happens just after the search
+  instead of inside it. Nothing is lost and nothing is skipped: the subtitle
+  is on disk either way, and the correction follows within the next couple of
+  minutes. It also no longer depends on whether subtitle automation is
+  switched on — it follows its own setting, as it always appeared to.
+  Corrections that cannot succeed no matter how often they are repeated — a
+  timing shift so large it is rejected as implausible, or a missing ffsubsync
+  — are now recorded once instead of being retried on a schedule.
+- **Log lines from a scheduled run now say which run they came from.** Every
+  line produced outside a web request looked identical, whether it came from
+  the scheduled search, from a Sonarr notification arriving at the same
+  moment, or from the queue worker. When a search overran its budget there was
+  no way to tell which of the three was still working — the evidence needed to
+  diagnose it and the noise obscuring it were indistinguishable. Lines
+  belonging to a scheduled run now carry that run's name and id, and two runs
+  of the same job are told apart. Everything else is unchanged.
 - **The scheduled search no longer translates at all.** The previous release
   stopped it from doing so in bulk, but not for single items: when no provider
   had a subtitle for a title, the search pulled the track out of the file and

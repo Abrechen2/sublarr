@@ -505,12 +505,17 @@ class SubtitleAutomationQueueEntry(db.Model):
     One row per (wanted_item, task_type) waiting for the drain worker. Rows
     survive restarts so work can resume across deploys without losing state.
 
-    `task_type` distinguishes the two kinds of work the worker performs:
+    `task_type` distinguishes the kinds of work the worker performs:
     `embedded_extract` (pull a target-language track out of the container,
-    the only thing this queue held before 1.11.3) and `sidecar_translate`
-    (translate an external source-language sidecar found on disk). The two
-    are not mutually exclusive for one item, which is why `wanted_item_id`
-    is no longer unique on its own.
+    the only thing this queue held before 1.11.3), `sidecar_translate`
+    (translate an external source-language sidecar found on disk) and
+    `auto_sync` (time a freshly downloaded sidecar against its video). None
+    of them are mutually exclusive for one item, which is why
+    `wanted_item_id` is no longer unique on its own.
+
+    `file_path` means whatever the task needs it to mean: the video for
+    `embedded_extract`, the source sidecar for `sidecar_translate`, the
+    downloaded sidecar for `auto_sync`.
 
     State machine: pending → running → done | failed. Failed rows carry
     `last_error` + `next_retry_at` for backoff-driven retries.
@@ -520,6 +525,7 @@ class SubtitleAutomationQueueEntry(db.Model):
 
     TASK_EMBEDDED_EXTRACT = "embedded_extract"
     TASK_SIDECAR_TRANSLATE = "sidecar_translate"
+    TASK_AUTO_SYNC = "auto_sync"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     wanted_item_id: Mapped[int] = mapped_column(Integer, nullable=False)
@@ -530,6 +536,12 @@ class SubtitleAutomationQueueEntry(db.Model):
         String(24), nullable=False, default=TASK_EMBEDDED_EXTRACT
     )
     file_path: Mapped[str] = mapped_column(Text, nullable=False)
+    # Only meaningful for auto_sync: the video to time the sidecar against.
+    # Snapshotted at enqueue rather than resolved from `wanted_item_id` at
+    # drain time, because two of the four enqueue sites in
+    # `wanted_search/process.py` delete the wanted item on the next line — a
+    # lookup would find nothing in exactly the successful case.
+    video_path: Mapped[str | None] = mapped_column(Text, nullable=True)
     target_language: Mapped[str] = mapped_column(String(8), nullable=False)
     # Only meaningful for sidecar_translate: the language of the source file.
     source_language: Mapped[str | None] = mapped_column(String(8), nullable=True)

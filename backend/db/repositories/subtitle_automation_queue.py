@@ -83,6 +83,7 @@ class SubtitleAutomationQueueRepository(BaseRepository):
         target_language: str,
         task_type: str = SubtitleAutomationQueueEntry.TASK_EMBEDDED_EXTRACT,
         source_language: str | None = None,
+        video_path: str | None = None,
     ) -> int:
         """Idempotent enqueue by `(wanted_item_id, task_type)`.
 
@@ -112,6 +113,7 @@ class SubtitleAutomationQueueRepository(BaseRepository):
                 existing.last_error = None
                 existing.next_retry_at = None
                 existing.file_path = file_path
+                existing.video_path = video_path
                 existing.target_language = target_language
                 existing.source_language = source_language
                 existing.updated_at = now
@@ -121,6 +123,7 @@ class SubtitleAutomationQueueRepository(BaseRepository):
             wanted_item_id=wanted_item_id,
             task_type=task_type,
             file_path=file_path,
+            video_path=video_path,
             target_language=target_language,
             source_language=source_language,
             state="pending",
@@ -132,13 +135,22 @@ class SubtitleAutomationQueueRepository(BaseRepository):
         self._commit()
         return entry.id
 
-    def claim_next(self, *, now: datetime | None = None) -> dict | None:
+    def claim_next(
+        self, *, now: datetime | None = None, task_types: set[str] | None = None
+    ) -> dict | None:
         """Atomically claim one eligible row and transition it to `running`.
 
         Eligibility:
             state = 'pending'
           OR
             state = 'failed' AND next_retry_at <= now
+
+        `task_types` narrows the claim to those kinds of work. The drain
+        worker needs it because the task types on this queue no longer share
+        one master toggle: `auto_sync` belongs to `auto_sync_after_download`,
+        the other two to `subtitle_automation_enabled`. Claiming a row the
+        caller is not allowed to run would park it in `running` with nobody
+        to finish it. None means no filter.
 
         Returns the claimed row as a dict, or None if the queue is
         empty / everyone is running / all failures still back off.
@@ -151,15 +163,13 @@ class SubtitleAutomationQueueRepository(BaseRepository):
         retry_clause = (SubtitleAutomationQueueEntry.state == "failed") & (
             SubtitleAutomationQueueEntry.next_retry_at <= now
         )
-        stmt = (
-            select(SubtitleAutomationQueueEntry)
-            .where(or_(pending_clause, retry_clause))
-            .order_by(
-                SubtitleAutomationQueueEntry.next_retry_at.asc().nullsfirst(),
-                SubtitleAutomationQueueEntry.created_at.asc(),
-            )
-            .limit(1)
-        )
+        stmt = select(SubtitleAutomationQueueEntry).where(or_(pending_clause, retry_clause))
+        if task_types is not None:
+            stmt = stmt.where(SubtitleAutomationQueueEntry.task_type.in_(sorted(task_types)))
+        stmt = stmt.order_by(
+            SubtitleAutomationQueueEntry.next_retry_at.asc().nullsfirst(),
+            SubtitleAutomationQueueEntry.created_at.asc(),
+        ).limit(1)
         candidate = self.session.execute(stmt).scalars().first()
         if candidate is None:
             return None

@@ -274,9 +274,8 @@ def _build_default_jobs() -> list[JobSpec]:
             # flight to finish their chain.
             #
             # One unit here is a whole item: provider searches with retries,
-            # a download, a remux, and a sync that had already started (6-143s
-            # on its own). Prod 2026-08-15 measured four wind-downs across
-            # three builds: 31s, 175s, 197s, ~300s.
+            # a download and a remux. Prod 2026-08-15 measured four wind-downs
+            # across three builds: 31s, 175s, 197s, ~300s.
             #
             # 300s was tried first and still read `timeout_abandoned`. The
             # number is not the lesson: until 126a703f the tail was
@@ -286,6 +285,16 @@ def _build_default_jobs() -> list[JobSpec]:
             # that, and raising it was treating the symptom. With the tail
             # bounded to one item, a value that fits one item is defensible;
             # 900s matches subtitle_automation for the same reason.
+            #
+            # This comment used to count "a sync that had already started
+            # (6-143s on its own)" as part of the unit, and that was the flaw
+            # the number inherited: `sync_with_ffsubsync` caps a single run at
+            # 600s, so the real unit was four times what was budgeted for it
+            # and three consecutive sweeps ended `timeout_abandoned`
+            # (2026-08-15/16). Rather than grow the grace to fit, auto-sync
+            # moved to the subtitle_automation queue, which restores the unit
+            # this value was chosen for. Anything added back into the per-item
+            # chain has to be measured against 900s before it goes in.
             cancel_grace_s=900,
             owner_module="services.wanted_scanner",
             description="Search providers for all wanted items.",
@@ -327,6 +336,13 @@ def _build_default_jobs() -> list[JobSpec]:
             # job's work is a whole translation, and the queue's timings show
             # those running up to ~16 minutes. The grace has to fit the unit,
             # not the average.
+            #
+            # Auto-sync joined this queue in 1.12.1, which adds a unit capped
+            # at 600s — inside the ~16 minutes already budgeted for, so the
+            # number does not move. Note that 900s does NOT fit the 16-minute
+            # translation it was sized against: prod 2026-08-15/16 recorded 5
+            # `timeout_abandoned` against 7 `timeout` over twelve runs. That
+            # gap is this job's own, older problem and is not addressed here.
             cancel_grace_s=900,
             owner_module="services.subtitle_automation_runner",
             description=(

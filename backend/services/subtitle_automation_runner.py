@@ -23,6 +23,7 @@ from __future__ import annotations
 import logging
 from datetime import UTC, datetime, timedelta
 
+from db.models.core import SubtitleAutomationQueueEntry
 from db.repositories.subtitle_automation_queue import (
     SubtitleAutomationQueueRepository,
 )
@@ -30,8 +31,14 @@ from db.repositories.subtitle_automation_queue import (
 # Aliased import: tests patch "services.subtitle_automation_runner._extract_embedded_sub".
 from services.embedded_extractor import extract_embedded_sub as _extract_embedded_sub
 from services.scheduler.cancellation import abort_requested
+from services.video_sync import SyncSanityThresholdError, SyncUnavailableError
 
 logger = logging.getLogger(__name__)
+
+# Failures that will fail identically on every retry. Sending these round the
+# backoff ladder burns a drain slot per attempt for a result that is already
+# known — and hides the rows that genuinely deserve another try.
+_TERMINAL_SYNC_ERRORS = (SyncUnavailableError, SyncSanityThresholdError)
 
 # 5m → 15m → 1h → 6h → 24h, then capped.
 _BACKOFF_LADDER: tuple[timedelta, ...] = (
@@ -65,6 +72,39 @@ def _automation_enabled() -> bool:
         # If settings can't load, act as if disabled — safe default.
         logger.exception("failed to read subtitle_automation_enabled; treating as off")
         return False
+
+
+def _auto_sync_enabled() -> bool:
+    """Read auto-sync's own toggle.
+
+    Deliberately NOT `subtitle_automation_enabled`. Auto-sync is a separate
+    feature that happens to share this queue, and the automation toggle
+    defaults to off — gating auto-sync behind it would queue a sync after
+    every download on a default install and drain none of them.
+    """
+    from config import get_settings
+
+    try:
+        return bool(get_settings().auto_sync_after_download)
+    except Exception:
+        logger.exception("failed to read auto_sync_after_download; treating as off")
+        return False
+
+
+def _eligible_task_types() -> set[str]:
+    """Which kinds of queued work this tick is allowed to run.
+
+    Two features live on one queue behind two independent toggles, so the
+    answer is a set rather than a boolean. An empty set means there is
+    nothing this tick may claim — see `drain`.
+    """
+    eligible: set[str] = set()
+    if _automation_enabled():
+        eligible.add(SubtitleAutomationQueueEntry.TASK_EMBEDDED_EXTRACT)
+        eligible.add(SubtitleAutomationQueueEntry.TASK_SIDECAR_TRANSLATE)
+    if _auto_sync_enabled():
+        eligible.add(SubtitleAutomationQueueEntry.TASK_AUTO_SYNC)
+    return eligible
 
 
 class SubtitleAutomationRunner:
@@ -112,14 +152,38 @@ class SubtitleAutomationRunner:
             }
         )
 
-    def process_one(self) -> bool:
+    def _auto_sync(self, subtitle_path: str, video_path: str | None) -> None:
+        """Time a downloaded sidecar against its video.
+
+        The work `wanted_search` used to do inline, in the middle of a
+        per-item chain. `sync_with_ffsubsync` caps a single run at 600s,
+        which alone is two thirds of that job's cancel grace — the reason
+        three consecutive prod sweeps were recorded `timeout_abandoned`.
+
+        Both paths come off the row rather than from the wanted item: the
+        item is usually deleted the moment its subtitle lands.
+        """
+        from services.video_sync import sync_with_ffsubsync
+
+        if not video_path:
+            # Only reachable for a row written before `video_path` existed.
+            # Guessing the video from the sidecar name is how sync ends up
+            # timing a subtitle against the wrong file.
+            raise FileNotFoundError(
+                f"auto_sync row for {subtitle_path} has no video_path; cannot sync"
+            )
+        logger.info("auto-sync: starting ffsubsync for %s against %s", subtitle_path, video_path)
+        sync_with_ffsubsync(subtitle_path, video_path)
+        logger.info("auto-sync: complete for %s", subtitle_path)
+
+    def process_one(self, *, task_types: set[str] | None = None) -> bool:
         """Claim and process a single queue entry.
 
         Returns True if a row was processed (success or failure), False if
         the queue is empty / everyone is running / all failures still in
         backoff.
         """
-        claim = self._repo.claim_next(now=datetime.now(UTC))
+        claim = self._repo.claim_next(now=datetime.now(UTC), task_types=task_types)
         if claim is None:
             return False
         entry_id = claim["id"]
@@ -129,10 +193,22 @@ class SubtitleAutomationRunner:
         # attempt_count BEFORE this attempt; mark_failed will increment it.
         prior_attempt = claim.get("attempt_count") or 0
         try:
-            if task_type == "sidecar_translate":
+            if task_type == SubtitleAutomationQueueEntry.TASK_SIDECAR_TRANSLATE:
                 self._translate_sidecar(wanted_item_id, file_path, claim["target_language"])
+            elif task_type == SubtitleAutomationQueueEntry.TASK_AUTO_SYNC:
+                self._auto_sync(file_path, claim.get("video_path"))
             else:
                 _extract_embedded_sub(wanted_item_id, file_path, auto_translate=False)
+        except _TERMINAL_SYNC_ERRORS as exc:
+            # Deterministic: a rejected shift is the same shift next time, and
+            # a missing ffsubsync needs an operator, not a backoff ladder.
+            logger.warning(
+                "subtitle_automation: auto-sync will not be retried for wanted_item=%s: %s",
+                wanted_item_id,
+                exc,
+            )
+            self._repo.mark_failed(entry_id, error=str(exc), next_retry_at=None)
+            return True
         except FileNotFoundError as exc:
             logger.warning(
                 "subtitle_automation: media file gone for wanted_item=%s (%s); "
@@ -159,25 +235,28 @@ class SubtitleAutomationRunner:
     def drain(self, *, max_items: int = 50) -> int:
         """Drain up to `max_items` entries. Returns the number processed.
 
-        Stops early if the queue is empty. Stops hard (no per-item retry
-        loop) if the master toggle is off.
+        Stops early if the queue is empty. Claims only the task types whose
+        feature is currently switched on — this queue serves two features
+        with two independent toggles, so "off" is per task type, not for the
+        whole drain.
         """
-        if not _automation_enabled():
+        task_types = _eligible_task_types()
+        if not task_types:
             return 0
         if max_items <= 0:
             return 0
         processed = 0
         while processed < max_items:
             # One queue item is the unit of work: claiming the row starts a
-            # ffprobe/extract operation that cannot be interrupted, so a stop
-            # takes effect before the next item is claimed.
+            # ffprobe/extract/ffsubsync operation that cannot be interrupted,
+            # so a stop takes effect before the next item is claimed.
             if abort_requested():
                 logger.info(
                     "subtitle_automation_tick: stopping as asked after %d item(s)",
                     processed,
                 )
                 return processed
-            if not self.process_one():
+            if not self.process_one(task_types=task_types):
                 break
             processed += 1
         return processed
@@ -191,8 +270,12 @@ def subtitle_automation_tick() -> None:
     per the JobSpec in `_build_default_jobs`.
     """
     runner = SubtitleAutomationRunner()
-    # Cap per tick so a very large backlog doesn't monopolize the worker.
-    # 50 items × a few seconds = ~minutes; runs every 2 minutes by default.
+    # Cap per tick so a very large backlog doesn't monopolize the worker. The
+    # cap bounds how many items are *claimed*, not how long the tick takes:
+    # the rows here range from a few-second extraction to a ~16-minute
+    # translation to a timing correction capped at 600s. What actually bounds
+    # the tick is the JobSpec's timeout, and what bounds its wind-down is the
+    # abort check between items in `drain`.
     processed = runner.drain(max_items=50)
     if processed:
         logger.info("subtitle_automation_tick: processed %d items", processed)

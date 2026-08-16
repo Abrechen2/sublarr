@@ -15,18 +15,37 @@ from db.wanted import delete_wanted_item, get_wanted_item, update_wanted_status
 from error_handler import DuplicateSubtitleError
 from providers import get_provider_manager
 from providers.base import SubtitleFormat
-from services.scheduler.cancellation import abort_requested
 from translator import get_forced_output_path
 from wanted_search.metadata import build_query_from_wanted
 
 logger = logging.getLogger(__name__)
 
 
-def _try_auto_sync(subtitle_path: str, video_path: str, settings) -> None:
-    """Enqueue a sync job if auto_sync_after_download is enabled.
+def _try_auto_sync(
+    subtitle_path: str,
+    video_path: str,
+    settings,
+    *,
+    item_id: int,
+    target_language: str,
+) -> None:
+    """Queue a sync job if auto_sync_after_download is enabled.
 
     Only ffsubsync is supported for auto-sync (alass requires a reference track).
     Errors are logged but never propagated — sync is best-effort.
+
+    This used to run ffsubsync right here, on the search thread. It cannot:
+    `sync_with_ffsubsync` caps a single run at 600s and cannot be interrupted
+    once started, so one item could hold a `wanted_search` tick for ten
+    minutes — against a cancel grace sized for the "6-143s" this comment used
+    to claim. Three consecutive prod sweeps ended `timeout_abandoned` on it
+    (2026-08-15/16). The drain worker owns the expensive part now; the search
+    only records that it is due, which is the same move that took sidecar
+    translation off this path in 1.11.3.
+
+    Both paths are written to the row. The video cannot be resolved from the
+    wanted item later: two of the four call sites delete the item on the very
+    next line.
     """
     if not getattr(settings, "auto_sync_after_download", False):
         return
@@ -36,33 +55,35 @@ def _try_auto_sync(subtitle_path: str, video_path: str, settings) -> None:
             "Auto-sync: alass requires a reference track — skipping auto-sync for %s", subtitle_path
         )
         return
-    if not os.path.isfile(subtitle_path):
+    if not subtitle_path or not os.path.isfile(subtitle_path):
         logger.warning("Auto-sync skipped: subtitle path does not exist on disk: %s", subtitle_path)
         return
     if not os.path.isfile(video_path):
         logger.warning("Auto-sync skipped: video path does not exist on disk: %s", video_path)
         return
-    # Checked last, immediately before the expensive part: a sync measured
-    # 6-143s and cannot be interrupted once ffsubsync is running, so starting
-    # one after a stop request is pure overrun. Prod 2026-08-15 recorded four
-    # such starts in the seven minutes after a cancel, which is what made a
-    # tick's wind-down unbounded and no grace value defensible.
-    #
-    # The already-downloaded subtitle stays exactly where it is — only the
-    # optional timing correction is skipped, and the next run picks it up.
-    if abort_requested():
-        logger.info("Auto-sync: stop requested — not starting ffsubsync for %s", subtitle_path)
-        return
+    # No abort check here any more. Enqueueing is a single INSERT, so there is
+    # nothing left worth refusing to start — and refusing would silently drop
+    # the sync instead of deferring it, which is what the old inline version
+    # had to do.
     try:
-        from services.video_sync import SyncUnavailableError, sync_with_ffsubsync
+        from db.models.core import SubtitleAutomationQueueEntry
+        from db.repositories.subtitle_automation_queue import (
+            SubtitleAutomationQueueRepository,
+        )
 
-        logger.info("Auto-sync: starting ffsubsync for %s against %s", subtitle_path, video_path)
-        sync_with_ffsubsync(subtitle_path, video_path)
-        logger.info("Auto-sync: complete for %s", subtitle_path)
-    except SyncUnavailableError as e:
-        logger.warning("Auto-sync skipped: %s", e)
+        SubtitleAutomationQueueRepository().enqueue(
+            wanted_item_id=item_id,
+            file_path=subtitle_path,
+            video_path=video_path,
+            target_language=target_language,
+            task_type=SubtitleAutomationQueueEntry.TASK_AUTO_SYNC,
+        )
+        logger.info("Auto-sync: queued %s against %s", subtitle_path, video_path)
     except Exception as e:
-        logger.error("Auto-sync failed for %s: %s", subtitle_path, e)
+        # A queue that is unavailable must not cost us the download that just
+        # succeeded — the sidecar is already on disk and usable, only its
+        # timing correction is lost.
+        logger.error("Auto-sync could not be queued for %s: %s", subtitle_path, e)
 
 
 def _try_auto_combine(item, video_path: str) -> None:
