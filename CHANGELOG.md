@@ -8,6 +8,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [1.12.1] - 2026-08-15
 
 ### Fixed
+- **A failed translation is no longer recorded as finished.** When the
+  subtitle-automation queue translated a file and the translation failed, the
+  queue marked the item done anyway. Nothing retried it and nothing showed it
+  had failed — the episode simply stayed without its subtitle while the queue
+  reported success. Measured on a production library, two thirds of the items
+  the queue reported as finished in one 50-minute window had produced no
+  subtitle at all. Failures now return to the retry schedule with the
+  translator's own error attached. Expect the queue to report more failures
+  than before: it is now reporting them.
 - **Automatic timing correction no longer holds up the scheduled search.**
   Correcting one subtitle's timing is allowed to take ten minutes, and it
   cannot be interrupted once it has started. It ran in the middle of the
