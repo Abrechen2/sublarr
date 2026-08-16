@@ -5,6 +5,23 @@ All notable changes to Sublarr are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Fixed
+- **A remuxed episode no longer becomes unplayable in the media server.**
+  Stripping a subtitle track writes the new file to a temporary one and swaps
+  it into place. That temporary file is always created readable by its owner
+  only — a detail of how temporary files work, independent of any configured
+  permissions — and the swap carried those permissions onto the episode.
+  Sublarr and the media server usually run as different users, so the server
+  lost the right to open the file: playback failed with "Permission denied"
+  while the library entry still looked perfectly healthy, with artwork,
+  subtitles and metadata all in place. Nothing in the logs pointed at Sublarr,
+  because from its side the remux had succeeded. The episode now keeps the
+  permissions it had before the remux. Files already affected keep their
+  permissions and need to be corrected once by hand; subtitle sidecars were
+  never affected.
+
 ## [1.12.1] - 2026-08-15
 
 ### Fixed

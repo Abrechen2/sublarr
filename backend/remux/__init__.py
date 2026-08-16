@@ -16,6 +16,7 @@ from __future__ import annotations
 import logging
 import os
 import shutil
+import stat
 import subprocess
 import tempfile
 
@@ -178,6 +179,32 @@ def _make_backup(video_path: str, use_reflink: bool, trash_dir: str = "") -> str
         return bak_path
     except OSError as exc:
         raise RemuxError(f"could not create backup in trash dir {dest_dir}: {exc}") from exc
+
+
+def _inherit_file_mode(source_path: str, target_path: str) -> None:
+    """Copy ``source_path``'s permission bits onto ``target_path``.
+
+    ``tempfile.mkstemp`` always creates its file 0600 regardless of umask, so a
+    remuxed video swapped into place from one silently drops the original's
+    permissions. The media server then fails to open the file with
+    ``Permission denied`` while the library entry still looks perfectly healthy
+    — the failure only surfaces at playback. Mirrors
+    ``utils.atomic_write._make_world_readable``, which solves the same problem
+    for subtitle sidecars.
+
+    Call this *before* ``os.replace``, while the original is still in place.
+    Falls back to 0644 minus the current umask when it can no longer be
+    stat'd. Ownership is deliberately left alone: the remux runs unprivileged,
+    so ``chown`` back to the original owner would fail anyway.
+    """
+    try:
+        mode = stat.S_IMODE(os.stat(source_path).st_mode)
+    except OSError:
+        current_umask = os.umask(0o022)
+        os.umask(current_umask)
+        mode = 0o644 & ~current_umask
+    with contextlib_suppress(OSError):
+        os.chmod(target_path, mode)
 
 
 # ---------------------------------------------------------------------------
@@ -537,6 +564,7 @@ def remove_subtitle_streams(
 
         # Atomic swap: original → trash dir, temp → original
         bak_path = _make_backup(video_path, use_reflink, trash_dir)
+        _inherit_file_mode(video_path, tmp_path)
         os.replace(tmp_path, video_path)
         logger.info("Remux: complete — %d stream(s) removed, backup at %s", len(streams), bak_path)
         return bak_path
@@ -752,6 +780,7 @@ def remove_subtitle_streams_by_index(
         _verify(video_path, tmp_path, n_removed=len(global_indices))
 
         bak_path = _make_backup(video_path, use_reflink, trash_dir)
+        _inherit_file_mode(video_path, tmp_path)
         os.replace(tmp_path, video_path)
         logger.info(
             "remove_subtitle_streams_by_index: complete — %d stream(s) removed, backup at %s",

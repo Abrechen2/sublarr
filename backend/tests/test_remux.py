@@ -601,3 +601,114 @@ def test_make_backup_raises_when_trash_dir_unavailable(tmp_path):
     # The sibling .bak that the legacy fallback would have produced
     # must NOT exist now.
     assert not os.path.exists(video + ".bak")
+
+
+# ---------------------------------------------------------------------------
+# _inherit_file_mode — permissions must survive the temp-file swap
+# ---------------------------------------------------------------------------
+
+
+def _fake_remux_writing(out_bytes: bytes = b"y" * 1500):
+    """Return a ``_remux_mkvmerge`` stand-in that actually produces output."""
+
+    def _run(_src, _indices, out_path):
+        with open(out_path, "wb") as fh:
+            fh.write(out_bytes)
+
+    return _run
+
+
+def test_remove_subtitle_streams_preserves_file_mode(tmp_path):
+    """A remux must not leave the video 0600.
+
+    ``tempfile.mkstemp`` creates its file 0600 regardless of umask. Swapping
+    that in unchanged made every remuxed episode unreadable for the media
+    server, which runs as a different user — Emby aborted playback with
+    "Permission denied" while the library entry still looked healthy.
+    """
+    import stat as _stat
+
+    video = str(tmp_path / "show.mkv")
+    with open(video, "wb") as f:
+        f.write(b"x" * 2000)
+    os.chmod(video, 0o644)
+
+    with (
+        patch("remux._remux_mkvmerge", side_effect=_fake_remux_writing()),
+        patch("remux._verify"),
+        patch("remux._make_backup", return_value=video + ".bak"),
+        patch("remux._detect_backend", return_value="mkvmerge"),
+        patch("remux._which", return_value=True),
+    ):
+        remove_subtitle_streams(video, streams=[(2, 0)])
+
+    mode = _stat.S_IMODE(os.stat(video).st_mode)
+    assert mode == 0o644, f"expected 0644, got {oct(mode)}"
+    assert mode & _stat.S_IROTH, "media server (different uid) could not read the file"
+
+
+def test_remove_subtitle_streams_by_index_preserves_file_mode(tmp_path):
+    """Same guarantee for the by-index twin — it has its own swap site."""
+    import stat as _stat
+
+    from remux import remove_subtitle_streams_by_index
+
+    video = str(tmp_path / "show.mkv")
+    with open(video, "wb") as f:
+        f.write(b"x" * 2000)
+    os.chmod(video, 0o644)
+
+    probe = {
+        "streams": [
+            {"index": 0, "codec_type": "video"},
+            {"index": 1, "codec_type": "audio"},
+            {"index": 2, "codec_type": "subtitle"},
+            {"index": 3, "codec_type": "subtitle"},
+        ]
+    }
+
+    with (
+        patch("remux.get_media_streams", return_value=probe),
+        patch("remux.check_hardlink_policy", return_value=True),
+        patch("remux._remux_mkvmerge", side_effect=_fake_remux_writing()),
+        patch("remux._verify"),
+        patch("remux._make_backup", return_value=video + ".bak"),
+    ):
+        remove_subtitle_streams_by_index(video, drop_indices=[1])
+
+    mode = _stat.S_IMODE(os.stat(video).st_mode)
+    assert mode == 0o644, f"expected 0644, got {oct(mode)}"
+
+
+def test_inherit_file_mode_copies_unusual_modes(tmp_path):
+    """The original's bits are copied verbatim, not forced to a fixed 0644."""
+    import stat as _stat
+
+    from remux import _inherit_file_mode
+
+    src = tmp_path / "orig.mkv"
+    dst = tmp_path / "new.mkv"
+    src.write_bytes(b"a")
+    dst.write_bytes(b"b")
+    os.chmod(src, 0o640)
+    os.chmod(dst, 0o600)
+
+    _inherit_file_mode(str(src), str(dst))
+
+    assert _stat.S_IMODE(os.stat(dst).st_mode) == 0o640
+
+
+def test_inherit_file_mode_falls_back_when_source_gone(tmp_path):
+    """A vanished original must not leave the replacement at 0600."""
+    import stat as _stat
+
+    from remux import _inherit_file_mode
+
+    dst = tmp_path / "new.mkv"
+    dst.write_bytes(b"b")
+    os.chmod(dst, 0o600)
+
+    _inherit_file_mode(str(tmp_path / "does-not-exist.mkv"), str(dst))
+
+    mode = _stat.S_IMODE(os.stat(dst).st_mode)
+    assert mode & _stat.S_IROTH, f"fallback left it unreadable: {oct(mode)}"
