@@ -5,7 +5,7 @@ All notable changes to Sublarr are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [1.12.1] - 2026-08-15
 
 ### Fixed
 - **A remuxed episode no longer becomes unplayable in the media server.**
@@ -21,10 +21,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   permissions it had before the remux. Files already affected keep their
   permissions and need to be corrected once by hand; subtitle sidecars were
   never affected.
-
-## [1.12.1] - 2026-08-15
-
-### Fixed
 - **An interrupted translation no longer starts from scratch.** Translated
   lines were written to the translation memory only once the whole file was
   finished, so a translation that stopped partway — a batch the model
