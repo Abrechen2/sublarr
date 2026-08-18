@@ -267,6 +267,54 @@ class TestTranslateInBatches:
                 manager, ["A", "B", "C"], "en", "de", ["ollama"], None, batch_size=2
             )
 
+    def test_single_batch_count_mismatch_raises(self):
+        from translator.manager import _translate_in_batches
+
+        manager = MagicMock()
+        # Return 1 line for a 2-line file that fits in a single batch
+        bad_result = _make_result(["only-one"])
+        manager.translate_with_fallback.return_value = bad_result
+
+        with pytest.raises(RuntimeError, match="expected 2"):
+            _translate_in_batches(
+                manager, ["Hello", "World"], "en", "de", ["ollama"], None, batch_size=10
+            )
+
+    def test_single_batch_chat_filler_raises_and_does_not_cache(self):
+        from translator.manager import _translate_in_batches
+
+        manager = MagicMock()
+        filler = _make_result(
+            ["Okay, please provide the English subtitle lines you want me to translate."]
+        )
+        manager.translate_with_fallback.return_value = filler
+
+        with (
+            patch("translator.manager._store_translations_in_cache") as mock_store,
+            pytest.raises(RuntimeError, match="chat filler"),
+        ):
+            _translate_in_batches(manager, ["Hello"], "en", "de", ["ollama"], None, batch_size=10)
+        mock_store.assert_not_called()
+
+    def test_chunk_chat_filler_raises_and_keeps_earlier_batches(self):
+        from translator.manager import _translate_in_batches
+
+        manager = MagicMock()
+        good = _make_result(["X", "Y"])
+        bad = _make_result(["Absolutely! Please provide the English subtitle lines."])
+        manager.translate_with_fallback.side_effect = [good, bad]
+
+        with (
+            patch("translator.manager._store_translations_in_cache") as mock_store,
+            pytest.raises(RuntimeError, match="chat filler"),
+        ):
+            _translate_in_batches(
+                manager, ["A", "B", "C"], "en", "de", ["ollama"], None, batch_size=2
+            )
+        # The verified first batch was cached; the filler batch was not.
+        assert mock_store.call_count == 1
+        assert mock_store.call_args[0][1] == ["X", "Y"]
+
     def test_glossary_forwarded(self):
         from translator.manager import _translate_in_batches
 

@@ -8,6 +8,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [1.12.1] - 2026-08-15
 
 ### Fixed
+- **The model's chat replies can no longer end up inside a subtitle file.**
+  Asked to translate a single line, the model would occasionally answer
+  conversationally — "Okay, please provide the English subtitle lines you
+  want me to translate" — and that reply was stored as the translation. The
+  existing line-count safeguard cannot catch this case, because a chat reply
+  is exactly one line. Worse, the reply also entered the translation memory,
+  from where it replayed into every later file whose English line matched:
+  on one production library, 1124 such lines had accumulated and episodes
+  finished weeks later still carried them. Every translated batch is now
+  screened for assistant-speak before it may reach the file or the memory;
+  a batch that fails the screen fails the translation, which is then retried
+  as usual. Single-batch files also gained the line-count check that larger
+  files already had. Existing poisoned memory entries have to be cleaned up
+  once by hand.
 - **An interrupted remux no longer leaves gigabytes behind in the library.**
   A remux writes its output beside the episode rather than in a temporary
   directory, and removes that work file if the remux fails. A process that is

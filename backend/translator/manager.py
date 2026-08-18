@@ -10,6 +10,7 @@ from translator._helpers import (
     _resolve_backend_for_context,
 )
 from translator.cache import _apply_translation_cache, _store_translations_in_cache
+from translator.output_guard import find_chat_filler
 
 logger = logging.getLogger(__name__)
 
@@ -167,6 +168,32 @@ def _cache_batch(cache_enabled, source_lines, result, source_lang, target_lang):
     )
 
 
+def _verify_batch(result, expected_count, batch_label):
+    """Verify one backend result before it may reach the file or the cache.
+
+    Checks line count and rejects chat filler. The count check alone cannot
+    catch a conversational reply in a single-line batch — that reply is
+    exactly one line — which is how 1124 chat replies reached the prod
+    translation memory during the batch_size=1 era.
+
+    Raises:
+        RuntimeError: If the count is off or a line is filler, so the batch
+            fails like any other translation failure and nothing is cached.
+    """
+    if len(result.translated_lines) != expected_count:
+        raise RuntimeError(
+            f"{batch_label} returned {len(result.translated_lines)} lines, "
+            f"expected {expected_count}. Aborting to prevent cache pollution."
+        )
+    suspects = find_chat_filler(result.translated_lines)
+    if suspects:
+        idx, text = suspects[0]
+        raise RuntimeError(
+            f"{batch_label} returned chat filler instead of a translation "
+            f"(line {idx + 1}: {text[:80]!r}). Aborting to prevent cache pollution."
+        )
+
+
 def _translate_in_batches(
     manager,
     lines,
@@ -212,6 +239,7 @@ def _translate_in_batches(
         )
         if not result.success:
             raise RuntimeError(f"Translation failed: {result.error}")
+        _verify_batch(result, len(lines), "Translation")
         _cache_batch(cache_enabled, lines, result, source_lang, target_lang)
         return result.translated_lines, result
 
@@ -260,11 +288,7 @@ def _translate_in_batches(
         )
         if not chunk_result.success:
             raise RuntimeError(f"Translation failed on batch {i + 1}: {chunk_result.error}")
-        if len(chunk_result.translated_lines) != len(chunk.batch):
-            raise RuntimeError(
-                f"Chunk translation returned {len(chunk_result.translated_lines)} lines, "
-                f"expected {len(chunk.batch)}. Aborting to prevent cache pollution."
-            )
+        _verify_batch(chunk_result, len(chunk.batch), "Chunk translation")
         all_translated.extend(chunk_result.translated_lines)
         # Written here, not after the loop: everything above this line is
         # verified and paid for, and the next failure must not take it.
