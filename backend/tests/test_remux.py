@@ -618,6 +618,15 @@ def _fake_remux_writing(out_bytes: bytes = b"y" * 1500):
     return _run
 
 
+# POSIX permission bits do not exist on Windows: os.chmod only toggles the
+# read-only flag and os.stat reports 0o666 for any writable file, so these
+# mode assertions can only hold on POSIX. Linux CI remains the authority.
+_POSIX_MODES_ONLY = pytest.mark.skipif(
+    os.name == "nt", reason="POSIX file modes are not representable on Windows"
+)
+
+
+@_POSIX_MODES_ONLY
 def test_remove_subtitle_streams_preserves_file_mode(tmp_path):
     """A remux must not leave the video 0600.
 
@@ -647,6 +656,7 @@ def test_remove_subtitle_streams_preserves_file_mode(tmp_path):
     assert mode & _stat.S_IROTH, "media server (different uid) could not read the file"
 
 
+@_POSIX_MODES_ONLY
 def test_remove_subtitle_streams_by_index_preserves_file_mode(tmp_path):
     """Same guarantee for the by-index twin — it has its own swap site."""
     import stat as _stat
@@ -680,6 +690,7 @@ def test_remove_subtitle_streams_by_index_preserves_file_mode(tmp_path):
     assert mode == 0o644, f"expected 0644, got {oct(mode)}"
 
 
+@_POSIX_MODES_ONLY
 def test_inherit_file_mode_copies_unusual_modes(tmp_path):
     """The original's bits are copied verbatim, not forced to a fixed 0644."""
     import stat as _stat
