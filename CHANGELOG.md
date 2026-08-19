@@ -8,6 +8,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [1.12.1] - 2026-08-15
 
 ### Fixed
+- **A fruitless search no longer makes the episode invisible to every later
+  search.** With the automation queue enabled, an episode whose provider
+  search came up empty was marked as being searched and then simply left
+  that way — never returned to the wanted pool, never given a retry, and
+  never handed to the queue either. Every four-hour search run stranded
+  every unsuccessful item this way (one production library accumulated
+  7,878 of them in a day), silently draining the backlog until nothing
+  searchable remained. An empty search now counts as a regular miss again —
+  the episode returns to the pool with the usual retry backoff — and a
+  safety net guarantees that no exit from a search, including cancellations
+  and crashes, can leave an episode stuck in the searching state. Episodes
+  already stranded by an affected version are returned to the wanted pool
+  automatically the next time Sublarr starts, keeping whatever retry backoff
+  they had earned.
 - **The model's chat replies can no longer end up inside a subtitle file.**
   Asked to translate a single line, the model would occasionally answer
   conversationally — "Okay, please provide the English subtitle lines you

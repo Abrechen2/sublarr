@@ -430,6 +430,29 @@ def _reclaim_orphaned_automation_queue() -> None:
         )
 
 
+def _reclaim_stranded_searching_items() -> None:
+    """Return wanted rows stuck in 'searching' to the pool at startup.
+
+    The scheduled selector only picks status='wanted', so a row left in
+    'searching' — by a process kill mid-search, or by the 1.12.1-rc.8/rc.9
+    deferred-fallback exit — is invisible to every future run. At bootstrap
+    no search can be running, so every such row is an orphan. Best-effort:
+    a failure here must not stop the scheduler from starting.
+    """
+    from db.repositories.wanted import WantedRepository
+
+    try:
+        reclaimed = WantedRepository().reclaim_stranded_searching()
+    except Exception:
+        logger.exception("Could not reclaim stranded 'searching' wanted rows")
+        return
+    if reclaimed:
+        logger.info(
+            "Wanted pool: returned %d row(s) stranded in 'searching' to the pool",
+            reclaimed,
+        )
+
+
 def bootstrap_scheduler(app: Flask) -> SublarrScheduler | None:
     """Full startup: honour SUBLARR_SCHEDULER_ROLE env, reconcile,
     register jobs, start.
@@ -452,6 +475,7 @@ def bootstrap_scheduler(app: Flask) -> SublarrScheduler | None:
     with app.app_context():
         reconcile_stale_runs(grace_minutes=10)
         _reclaim_orphaned_automation_queue()
+        _reclaim_stranded_searching_items()
 
     global SCHEDULED_JOBS
     if not SCHEDULED_JOBS:

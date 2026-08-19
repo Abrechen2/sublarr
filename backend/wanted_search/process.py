@@ -1029,11 +1029,47 @@ def process_wanted_item(
     if skip is not None:
         return skip
 
+    prior_status = item.get("status") or "wanted"
     update_wanted_status(item_id, "searching")
     # search_count + last_search_at are bumped at no-result exits via
     # record_search_outcome — keeping it the single mutation point keeps
     # failure_kind in sync with the count and avoids legacy_frozen rows.
+    # From here on, every exit must leave a real status behind: the scheduled
+    # selector only picks status='wanted', so a leaked 'searching' row is
+    # invisible to every future run. The finally-net below restores the
+    # pre-flip status on any exit (stop, exception, forgotten path) that
+    # would otherwise strand the row (prod 2026-08-19: 7,878 stranded rows).
+    try:
+        return _search_flipped_item(
+            item,
+            item_id,
+            item_lang,
+            _pf,
+            settings,
+            auto_translate=auto_translate,
+            dry_run=dry_run,
+            allow_translate_fallback=allow_translate_fallback,
+        )
+    finally:
+        _restore_if_left_searching(item_id, prior_status)
 
+
+def _search_flipped_item(
+    item: dict,
+    item_id: int,
+    item_lang: str,
+    _pf: dict,
+    settings,
+    *,
+    auto_translate: bool | None,
+    dry_run: bool,
+    allow_translate_fallback: bool,
+) -> dict:
+    """Body of ``process_wanted_item`` after the flip to ``searching``.
+
+    Extracted so the caller can guarantee — in one ``finally`` — that no exit
+    leaves the row in ``searching``.
+    """
     file_path = item["file_path"]
     if not os.path.exists(file_path):
         update_wanted_status(item_id, "failed", error="File not found on disk")
@@ -1105,13 +1141,33 @@ def process_wanted_item(
         decision_log.finish()
 
 
+def _restore_if_left_searching(item_id: int, prior_status: str) -> None:
+    """Safety net: restore the pre-flip status when an exit leaked ``searching``.
+
+    Exits that wrote a real outcome ('failed', 'extracted', a successful
+    download that deleted the row) are left alone; anything still 'searching'
+    goes back to the status it had when the search began ('wanted' normally,
+    'provisional' for mt_reseek rows), so the next run can pick it up.
+    """
+    try:
+        current = get_wanted_item(item_id)
+        if current and current.get("status") == "searching":
+            update_wanted_status(item_id, prior_status)
+    except Exception:  # noqa: BLE001 — the net must never break the exit path
+        logger.warning(
+            "Wanted %d: could not restore row out of 'searching'", item_id, exc_info=True
+        )
+
+
 def _stopped_result(item_id: int, next_step: str) -> dict:
     """Leave the item where it is because a stop was requested.
 
     Deliberately does NOT call ``record_search_outcome``: that sets
     ``failure_kind`` and ``retry_after``, so charging a cancelled item for a
     search it was never allowed to finish would push it into a backoff it did
-    not earn. The item keeps its state and the next run picks it up unchanged.
+    not earn. The item keeps its state and the next run picks it up unchanged —
+    ``process_wanted_item``'s finally-net restores the pre-flip status, so the
+    row does not stay in 'searching'.
 
     The status is neither ``found`` nor ``failed``, so the runner counts it as
     skipped rather than recording a failure.
@@ -1218,18 +1274,30 @@ def _run_search_steps(ctx: dict) -> dict:
         # this function can do to a wind-down.
         return _stopped_result(item_id, "Step 5")
     if not ctx.get("allow_translate_fallback", True):
-        # The caller owns this work instead. Step 5 is an ffmpeg extraction
-        # plus a full LLM translation — minutes, and uninterruptible once
-        # started. Run inside the scheduled search's thread pool it made the
-        # tick unstoppable: on cancel the pool's shutdown(wait=True) blocks on
-        # whatever is in flight, so a 60s grace could never be met and the run
-        # was recorded as timeout_abandoned (prod 2026-08-14).
+        # Step 5 is an ffmpeg extraction plus a full LLM translation —
+        # minutes, and uninterruptible once started. Run inside the scheduled
+        # search's thread pool it made the tick unstoppable: on cancel the
+        # pool's shutdown(wait=True) blocks on whatever is in flight, so a 60s
+        # grace could never be met and the run was recorded as
+        # timeout_abandoned (prod 2026-08-14). Embedded/sidecar work reaches
+        # the automation queue through classification (scan-time routing and
+        # the tick's enqueue phase), NOT through this exit — nobody enqueues
+        # an item here. So this is a plain no-result exit and must be charged
+        # as one; skipping the bookkeeping stranded every such row in
+        # 'searching', invisible to all future runs (prod 2026-08-19: 7,878
+        # rows, ~1,600 per tick).
+        from services.wanted_search_runner import record_search_outcome
+
         logger.debug("Wanted %d: translate fallback (Step 5) left to the caller", item_id)
-        decision_log.step_skipped("translate_fallback", "handed to the automation queue")
+        decision_log.step_skipped(
+            "translate_fallback", "automation queue owns extraction/translation"
+        )
+        update_wanted_status(item_id, "wanted")
+        record_search_outcome(item_id, kind="no_result")
         return {
             "wanted_id": item_id,
             "status": "not_found",
-            "reason": "translate fallback deferred to the automation queue",
+            "reason": "no provider result; translate fallback belongs to the automation queue",
         }
     decision_log.set_step("translate_fallback")
     return _fallback_translate_file(ctx)
