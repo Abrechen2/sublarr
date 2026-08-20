@@ -1072,10 +1072,19 @@ def _search_flipped_item(
     """
     file_path = item["file_path"]
     if not os.path.exists(file_path):
-        update_wanted_status(item_id, "failed", error="File not found on disk")
+        # A vanished file is usually a mount/permission fault, not a property
+        # of the item — 'failed' would be terminal (the selector never picks
+        # it up again; RC 2026-08-20 buried 1,246 rows that way). Book it on
+        # the error-backoff curve and let the finally-net restore 'wanted'.
+        from services.wanted_search_runner import record_search_outcome
+
+        record_search_outcome(
+            item_id, kind="file_missing", error_message=f"File not found: {file_path}"
+        )
         return {
             "wanted_id": item_id,
-            "status": "failed",
+            "status": "skipped",
+            "reason": "file_missing",
             "error": f"File not found: {file_path}",
         }
 
