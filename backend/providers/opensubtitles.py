@@ -271,16 +271,35 @@ class OpenSubtitlesProvider(SubtitleProvider, _OpenSubtitlesFetchMixin):
             del self._cached_tier
 
     def health_check(self) -> tuple[bool, str]:
+        """Probe an endpoint the configured auth mode can actually satisfy.
+
+        ``/infos/user`` requires a user JWT, which an API-key-only install
+        never holds — probing it there reports 401 while search and download
+        work fine (seen 2026-08-20). With a user token the richer endpoint is
+        kept; without one (or when the token has gone stale) the key-only
+        ``/infos/formats`` probe validates the API key itself. No login is
+        attempted here: the download path owns token refresh.
+        """
         if not self.api_key:
             return False, "API key not configured"
         if not self.session:
             return False, "Not initialized"
         try:
-            resp = self.session.get(f"{API_BASE}/infos/user")
+            had_token = bool(self._token)
+            if had_token:
+                resp = self.session.get(f"{API_BASE}/infos/user")
+                if resp.status_code == 200:
+                    data = resp.json().get("data", {})
+                    remaining = data.get("remaining_downloads", "?")
+                    return True, f"OK (downloads remaining: {remaining})"
+                # Stale/rejected user session — fall through to the key probe.
+            # requests drops a session header when the per-request value is
+            # None; a stale bearer must not poison the key-only probe.
+            resp = self.session.get(f"{API_BASE}/infos/formats", headers={"Authorization": None})
             if resp.status_code == 200:
-                data = resp.json().get("data", {})
-                remaining = data.get("remaining_downloads", "?")
-                return True, f"OK (downloads remaining: {remaining})"
+                if had_token:
+                    return True, "OK (API key valid; user session stale, refreshes on demand)"
+                return True, "OK (API key valid, key-only session)"
             return False, f"HTTP {resp.status_code}"
         except Exception as e:
             return False, str(e)
