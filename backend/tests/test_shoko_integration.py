@@ -139,17 +139,51 @@ class TestShokoClientAuth:
         client = ShokoClient(url="http://shoko:8111")
         assert client._ensure_auth() is False
 
-    def test_ensure_auth_logs_in_with_user_pass(self):
+    def test_ensure_auth_signs_in_via_v3(self):
+        """User/pass login goes to the v3 SignIn endpoint first (#193)."""
         from metadata.shoko_client import ShokoClient
 
         client = ShokoClient(url="http://shoko:8111", username="u", password="p")
         resp = MagicMock()
-        resp.json.return_value = {"apikey": "fresh-key"}
-        resp.raise_for_status.return_value = None
+        resp.status_code = 200
+        resp.json.return_value = {"Token": "fresh-key"}
         with patch.object(client.session, "post", return_value=resp) as post:
             assert client._ensure_auth() is True
         assert client.session.headers.get("apikey") == "fresh-key"
-        assert post.call_args.args[0] == "http://shoko:8111/api/auth"
+        assert post.call_args.args[0] == "http://shoko:8111/api/v3/Auth/SignIn"
+        assert post.call_args.kwargs["json"] == {
+            "user": "u",
+            "password": "p",
+            "device": "Sublarr",
+        }
+
+    def test_ensure_auth_falls_back_to_legacy_auth(self):
+        """Older Shoko without /api/v3/Auth/SignIn still logs in via /api/auth."""
+        from metadata.shoko_client import ShokoClient
+
+        client = ShokoClient(url="http://shoko:8111", username="u", password="p")
+        v3_resp = MagicMock()
+        v3_resp.status_code = 404
+        v3_resp.json.return_value = {}
+        legacy_resp = MagicMock()
+        legacy_resp.status_code = 200
+        legacy_resp.json.return_value = {"apikey": "legacy-key"}
+        with patch.object(client.session, "post", side_effect=[v3_resp, legacy_resp]) as post:
+            assert client._ensure_auth() is True
+        assert client.session.headers.get("apikey") == "legacy-key"
+        assert post.call_args_list[0].args[0] == "http://shoko:8111/api/v3/Auth/SignIn"
+        assert post.call_args_list[1].args[0] == "http://shoko:8111/api/auth"
+
+    def test_ensure_auth_bad_credentials_fails(self):
+        from metadata.shoko_client import ShokoClient
+
+        client = ShokoClient(url="http://shoko:8111", username="u", password="wrong")
+        resp = MagicMock()
+        resp.status_code = 401
+        resp.json.return_value = {}
+        with patch.object(client.session, "post", return_value=resp):
+            assert client._ensure_auth() is False
+        assert "apikey" not in client.session.headers
 
     def test_health_check_unreachable(self):
         from metadata.shoko_client import ShokoClient
@@ -165,15 +199,46 @@ class TestShokoClientAuth:
         from metadata.shoko_client import ShokoClient
 
         client = ShokoClient(url="http://shoko:8111", api_key="abc")
-        client._get = MagicMock(
-            side_effect=lambda path, params=None, **kw: (
-                {"State": "Started"} if "Init/Status" in path else {"ok": True}
-            )
-        )
-
-        ok, msg = client.health_check()
+        client._get = MagicMock(return_value={"State": "Started"})
+        probe_resp = MagicMock()
+        probe_resp.status_code = 200
+        probe_resp.ok = True
+        with patch.object(client.session, "get", return_value=probe_resp) as get:
+            ok, msg = client.health_check()
         assert ok is True
         assert "Connected to Shoko" in msg
+        # The probe must hit a real, existing v3 endpoint — NOT the
+        # non-existent /api/v3/Dashboard controller root (#193).
+        assert get.call_args.args[0] == "http://shoko:8111/api/v3/ImportFolder"
+
+    def test_health_check_rejected_key(self):
+        """A 401/403 on the probe means the key is bad."""
+        from metadata.shoko_client import ShokoClient
+
+        client = ShokoClient(url="http://shoko:8111", api_key="stale")
+        client._get = MagicMock(return_value={"State": "Started"})
+        probe_resp = MagicMock()
+        probe_resp.status_code = 401
+        probe_resp.ok = False
+        with patch.object(client.session, "get", return_value=probe_resp):
+            ok, msg = client.health_check()
+        assert ok is False
+        assert "apikey rejected" in msg
+
+    def test_health_check_probe_404_is_not_reported_as_rejected_key(self):
+        """A 404 is an endpoint problem, not a credential problem (#193)."""
+        from metadata.shoko_client import ShokoClient
+
+        client = ShokoClient(url="http://shoko:8111", api_key="valid")
+        client._get = MagicMock(return_value={"State": "Started"})
+        probe_resp = MagicMock()
+        probe_resp.status_code = 404
+        probe_resp.ok = False
+        with patch.object(client.session, "get", return_value=probe_resp):
+            ok, msg = client.health_check()
+        assert ok is False
+        assert "rejected" not in msg
+        assert "404" in msg
 
 
 # ---------------------------------------------------------------------------

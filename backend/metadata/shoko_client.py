@@ -13,12 +13,16 @@ retry/429 handling, private ``_get``/``_post`` helpers that return ``None``
 on failure instead of raising, and typed public methods.
 
 Auth: Shoko v3 accepts an ``apikey`` — either supplied directly (a persistent
-API key) or obtained via ``POST /api/auth`` with user/pass/device. The key is
-sent as the ``apikey`` header on every request.
+API key) or obtained by logging in with user/pass/device. Login goes to
+``POST /api/v3/Auth/SignIn`` first and falls back to the legacy
+``POST /api/auth`` for older servers. The key is sent as the ``apikey``
+header on every request.
 
 Endpoints used (Shoko Server v3):
-    POST /api/auth                                  -> {"apikey": "..."}
+    POST /api/v3/Auth/SignIn                        -> {"Token": "..."}
+    POST /api/auth                                  -> {"apikey": "..."} (legacy fallback)
     GET  /api/v3/Init/Status                        -> server state (no auth)
+    GET  /api/v3/ImportFolder                       -> auth probe + scan targets
     GET  /api/v3/File/PathEndsWith?path=&include=XRefs
     GET  /api/v3/Series/{id}                        -> IDs.AniDB
     GET  /api/v3/Episode/{id}                       -> IDs.AniDB + AniDB.EpisodeNumber
@@ -81,32 +85,69 @@ class ShokoClient:
     def _ensure_auth(self) -> bool:
         """Ensure an apikey is set, logging in with user/pass if needed.
 
-        Returns True when an apikey is available on the session.
+        Tries the v3 ``Auth/SignIn`` endpoint first; older Shoko servers
+        without it (404) get the legacy ``/api/auth`` call. Returns True when
+        an apikey is available on the session (#193).
         """
         if self._api_key:
             return True
         if not (self._username and self._password):
             return False
+        key = self._sign_in_v3() or self._sign_in_legacy()
+        if key:
+            self._api_key = key
+            self.session.headers["apikey"] = key
+            return True
+        return False
+
+    def _sign_in_v3(self) -> str | None:
+        """``POST /api/v3/Auth/SignIn`` — current Shoko login, returns a token."""
+        data = self._post_login(
+            "/api/v3/Auth/SignIn",
+            {"user": self._username, "password": self._password, "device": "Sublarr"},
+        )
+        if not isinstance(data, dict):
+            return None
+        return data.get("Token") or data.get("token")
+
+    def _sign_in_legacy(self) -> str | None:
+        """``POST /api/auth`` — legacy login kept for older Shoko servers."""
+        data = self._post_login(
+            "/api/auth",
+            {"user": self._username, "pass": self._password, "device": "Sublarr"},
+        )
+        if not isinstance(data, dict):
+            return None
+        return data.get("apikey")
+
+    def _post_login(self, path: str, payload: dict) -> dict | None:
         try:
             resp = self.session.post(
-                f"{self.url}/api/auth",
-                json={
-                    "user": self._username,
-                    "pass": self._password,
-                    "device": "Sublarr",
-                },
+                f"{self.url}{path}",
+                json=payload,
                 timeout=REQUEST_TIMEOUT,
             )
-            resp.raise_for_status()
-            data = resp.json()
-            key = data.get("apikey") if isinstance(data, dict) else None
-            if key:
-                self._api_key = key
-                self.session.headers["apikey"] = key
-                return True
+            if resp.status_code == 404:
+                # Endpoint not present on this Shoko version — caller falls back.
+                logger.debug("Shoko login endpoint %s not available (404)", path)
+                return None
+            if resp.status_code in (400, 401):
+                logger.warning(
+                    "Shoko login at %s%s rejected (HTTP %d) — check username/password",
+                    self.url,
+                    path,
+                    resp.status_code,
+                )
+                return None
+            if resp.status_code >= 300:
+                logger.warning(
+                    "Shoko login at %s%s failed: HTTP %d", self.url, path, resp.status_code
+                )
+                return None
+            return resp.json()
         except Exception as e:  # noqa: BLE001 — auth failure is non-fatal
-            logger.warning("Shoko auth failed at %s: %s", self.url, e)
-        return False
+            logger.warning("Shoko auth failed at %s%s: %s", self.url, path, e)
+            return None
 
     # ------------------------------------------------------------------
     # HTTP helpers (return None on failure, never raise)
@@ -176,12 +217,33 @@ class ShokoClient:
         if self._api_key or (self._username and self._password):
             if not self._ensure_auth():
                 return False, "Shoko reachable but authentication failed"
-            # /api/v3/Dashboard requires a valid apikey — cheap auth probe.
-            if self._get("/api/v3/Dashboard") is None:
-                return False, "Shoko reachable but apikey rejected"
+            probe_ok, probe_detail = self._probe_auth()
+            if not probe_ok:
+                return False, f"Shoko reachable but {probe_detail}"
 
         suffix = f" ({state})" if state else ""
         return True, f"Connected to Shoko at {self.url}{suffix}"
+
+    def _probe_auth(self) -> tuple[bool, str]:
+        """Verify the apikey against an authenticated endpoint.
+
+        Uses ``/api/v3/ImportFolder`` — cheap, present on every Shoko v3, and
+        already part of this client's surface. The previous probe hit
+        ``/api/v3/Dashboard``, which has no root GET route and 404s on every
+        server, making a valid key look rejected (#193). Only a 401/403 is
+        reported as a bad key; other failures are named for what they are.
+        """
+        try:
+            resp = self.session.get(
+                f"{self.url}/api/v3/ImportFolder", timeout=REQUEST_TIMEOUT
+            )
+        except requests.RequestException as e:
+            return False, f"auth probe failed: {e}"
+        if resp.status_code in (401, 403):
+            return False, "apikey rejected"
+        if not resp.ok:
+            return False, f"auth probe got HTTP {resp.status_code}"
+        return True, ""
 
     def get_file_ids_by_path(self, file_path: str) -> ShokoFileIDs | None:
         """Resolve a physical file to its authoritative AniDB IDs.

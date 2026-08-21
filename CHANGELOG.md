@@ -8,6 +8,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [1.12.2] - 2026-08-21
 
 ### Fixed
+- **Shoko connection test no longer rejects a valid API key.** The test
+  probed an endpoint that does not exist on current Shoko servers, so
+  every connection attempt reported "apikey rejected" even when the key
+  was valid (#193). The probe now uses a real endpoint, and only an
+  actual 401/403 is reported as a rejected key. Username/password login
+  also uses the current Shoko sign-in endpoint, falling back to the
+  legacy one for older servers.
 - **A failed translation no longer buries the episode forever.** When the
   translation backend was unreachable (local LLM down, quota exhausted) or
   the translate step crashed, the episode was marked failed — a state the
