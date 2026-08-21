@@ -22,7 +22,7 @@ from providers.base import SubtitleFormat
 from services.scheduler.cancellation import abort_requested
 from upgrade_scorer import should_upgrade
 from wanted_search.dubtitle_verify import verify_dubtitle_on_keep
-from wanted_search.metadata import _set_adaptive_retry_after, build_query_from_wanted
+from wanted_search.metadata import build_query_from_wanted
 from wanted_search.post_processor import (
     _process_forced_wanted_item,
     _try_auto_sync,
@@ -807,7 +807,6 @@ def _fallback_translate_file(ctx: dict) -> dict:
     item = ctx["item"]
     item_id = ctx["item_id"]
     item_lang = ctx["item_lang"]
-    settings = ctx["settings"]
     auto_translate = ctx["auto_translate"]
     file_path = ctx["file_path"]
 
@@ -891,8 +890,16 @@ def _fallback_translate_file(ctx: dict) -> dict:
             error = translate_result.get("error", "Translation failed")
             update_job(job["id"], "failed", result=translate_result, error=error)
             record_stat(success=False)
-            update_wanted_status(item_id, "failed", error=error)
-            _set_adaptive_retry_after(item_id, item["search_count"] + 1, settings)
+            # A failed translation is an environment fault (LLM down, quota),
+            # not a property of the item — 'failed' would be terminal (the
+            # selector never picks it up again; prod 2026-08-04 buried 21
+            # rows that way during an Ollama outage). Book it on the
+            # error-backoff curve instead; the status stays untouched, so the
+            # row keeps 'wanted' on the sidecar/automation paths and the
+            # finally-net restores it on the search path.
+            from services.wanted_search_runner import record_search_outcome
+
+            record_search_outcome(item_id, kind="translation_error", error_message=error)
             return {
                 "wanted_id": item_id,
                 "status": "failed",
@@ -909,8 +916,11 @@ def _fallback_translate_file(ctx: dict) -> dict:
         with contextlib.suppress(Exception):
             record_stat(success=False)
         logger.exception("Wanted %d: Process failed: %s", item_id, error)
-        update_wanted_status(item_id, "failed", error=error)
-        _set_adaptive_retry_after(item_id, item["search_count"] + 1, settings)
+        # Same reasoning as the translate-failure exit above: transient
+        # fault, error backoff, never the terminal 'failed' status.
+        from services.wanted_search_runner import record_search_outcome
+
+        record_search_outcome(item_id, kind="translation_error", error_message=error)
         return {
             "wanted_id": item_id,
             "status": "failed",
@@ -1153,15 +1163,19 @@ def _search_flipped_item(
 def _restore_if_left_searching(item_id: int, prior_status: str) -> None:
     """Safety net: restore the pre-flip status when an exit leaked ``searching``.
 
-    Exits that wrote a real outcome ('failed', 'extracted', a successful
-    download that deleted the row) are left alone; anything still 'searching'
-    goes back to the status it had when the search began ('wanted' normally,
-    'provisional' for mt_reseek rows), so the next run can pick it up.
+    Exits that wrote a real status ('extracted', a successful download that
+    deleted the row, a manual 'failed') are left alone; anything still
+    'searching' goes back to the status it had when the search began
+    ('wanted' normally, 'provisional' for mt_reseek rows), so the next run
+    can pick it up. The row's current error text is carried over — outcome
+    exits (file_missing, translation_error) record their message just before
+    this net runs, and restoring with the default ``error=""`` used to wipe
+    it off the Health page.
     """
     try:
         current = get_wanted_item(item_id)
         if current and current.get("status") == "searching":
-            update_wanted_status(item_id, prior_status)
+            update_wanted_status(item_id, prior_status, error=current.get("error") or "")
     except Exception:  # noqa: BLE001 — the net must never break the exit path
         logger.warning(
             "Wanted %d: could not restore row out of 'searching'", item_id, exc_info=True

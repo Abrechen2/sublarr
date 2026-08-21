@@ -72,6 +72,11 @@ def record_search_outcome(
       permission fault (2026-08-01 prod incident class), not a provider miss.
       Same mechanics as ``'provider_error'`` but labelled apart, so the item
       self-heals when the mount returns instead of dying in ``'failed'``.
+    - ``'translation_error'``: the Step-5 translate fallback failed — LLM
+      backend down, quota exhausted, extraction crash (2026-08-04 prod Ollama
+      outage class). Same mechanics as ``'provider_error'``: the providers
+      were never the problem, so the item keeps its search budget and
+      self-heals when the translation backend recovers.
 
     Unknown ``kind`` values raise ``ValueError`` — silently accepting typos
     would mask scheduler bugs that only show up in production.
@@ -92,12 +97,12 @@ def record_search_outcome(
         )
         return
 
-    if kind in ("provider_error", "file_missing"):
-        # Both are environment faults, not misses: the providers were never
-        # meaningfully asked, so neither burns ``search_count``. They share
+    if kind in ("provider_error", "file_missing", "translation_error"):
+        # All three are environment faults, not misses: the providers were
+        # never meaningfully asked, so none burns ``search_count``. They share
         # the error-side backoff curve; ``failure_kind`` keeps them apart so
         # a mount outage (file_missing en masse) reads differently from a
-        # provider outage in the DB and the UI.
+        # provider or LLM-backend outage in the DB and the UI.
         item = get_wanted_item(item_id)
         if not item:
             logger.debug("record_search_outcome: item %d not found", item_id)

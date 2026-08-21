@@ -290,18 +290,22 @@ class TestProcessForcedWantedItem:
 
         assert out["status"] == "found"
 
+    @patch("services.wanted_search_runner.record_search_outcome")
     @patch("wanted_search.post_processor.get_settings")
     @patch("wanted_search.post_processor.update_wanted_status")
-    def test_no_forced_found_returns_failed(
+    def test_no_forced_found_is_a_no_result_not_terminal(
         self,
         mock_update_status,
         mock_get_settings,
+        mock_outcome,
         mock_build,
         mock_forced_path,
         mock_record,
         mock_delete,
     ):
-        """No forced subtitle found from any provider -> returns 'failed'."""
+        """No forced subtitle from any provider is a genuine miss: charge the
+        search budget and keep the row 'wanted' — never terminal 'failed'
+        (the scheduled selector only fetches status='wanted')."""
         from wanted_search.post_processor import _process_forced_wanted_item
 
         mock_get_settings.return_value = _make_settings()
@@ -313,15 +317,15 @@ class TestProcessForcedWantedItem:
         item = _make_wanted_item()
         out = _process_forced_wanted_item(item, 1, "de", manager)
 
-        assert out["status"] == "failed"
-        assert "No forced subtitle found" in out["error"]
+        assert out["status"] == "not_found"
         assert out["forced"] is True
-        mock_update_status.assert_called_once_with(1, "failed", error=out["error"])
+        mock_update_status.assert_called_once_with(1, "wanted")
+        mock_outcome.assert_called_once_with(1, kind="no_result")
 
     def test_search_exception_handled_gracefully(
         self, mock_build, mock_forced_path, mock_record, mock_delete
     ):
-        """Exception during search is caught, loop continues."""
+        """Exception during search is caught, loop continues to the miss exit."""
         from wanted_search.post_processor import _process_forced_wanted_item
 
         mock_build.return_value = MagicMock()
@@ -332,11 +336,12 @@ class TestProcessForcedWantedItem:
         with (
             patch("wanted_search.post_processor.get_settings", return_value=_make_settings()),
             patch("wanted_search.post_processor.update_wanted_status"),
+            patch("services.wanted_search_runner.record_search_outcome"),
         ):
             item = _make_wanted_item()
             out = _process_forced_wanted_item(item, 1, "de", manager)
 
-        assert out["status"] == "failed"
+        assert out["status"] == "not_found"
 
     @patch("wanted_search.post_processor.get_settings")
     def test_source_lang_fallback_found(
