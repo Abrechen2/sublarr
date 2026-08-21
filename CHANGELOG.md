@@ -8,6 +8,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [1.12.2] - 2026-08-21
 
 ### Fixed
+- **Titlovi actually works now — it authenticates.** The provider queried
+  the Titlovi API anonymously with English language names, but the API
+  requires a titlovi.com account (username/password, exchanged for a
+  token) and speaks native language names — every search came back empty
+  (#191). The provider now logs in, renews its token when it expires,
+  sends the request format the API expects, and picks the right episode
+  out of season-pack archives. Credentials are configured under
+  Settings → Providers; without them the provider disables itself with a
+  clear message instead of failing silently.
 - **Shoko connection test no longer rejects a valid API key.** The test
   probed an endpoint that does not exist on current Shoko servers, so
   every connection attempt reported "apikey rejected" even when the key

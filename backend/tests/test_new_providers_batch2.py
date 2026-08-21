@@ -573,18 +573,32 @@ class TestBetaSeriesProvider:
 
 
 class TestTitloviProvider:
-    """Tests for the Titlovi provider (Balkan subtitles)."""
+    """Tests for the Titlovi provider (Balkan subtitles, account required — #191)."""
 
-    def test_import_and_name(self):
+    def _provider(self, **kwargs):
         from providers.titlovi import TitloviProvider
 
-        p = TitloviProvider()
+        kwargs.setdefault("username", "user")
+        kwargs.setdefault("password", "pass")
+        return TitloviProvider(**kwargs)
+
+    @staticmethod
+    def _token_response(token="tok-1", user_id=7, expires="2099-01-01T00:00:00"):
+        resp = MagicMock()
+        resp.status_code = 200
+        resp.json.return_value = {
+            "Token": token,
+            "UserId": user_id,
+            "ExpirationDate": expires,
+        }
+        return resp
+
+    def test_import_and_name(self):
+        p = self._provider()
         assert p.name == "titlovi"
 
     def test_languages_balkan(self):
-        from providers.titlovi import TitloviProvider
-
-        p = TitloviProvider()
+        p = self._provider()
         assert "hr" in p.languages  # Croatian
         assert "sr" in p.languages  # Serbian
         assert "bs" in p.languages  # Bosnian
@@ -592,11 +606,19 @@ class TestTitloviProvider:
         assert "mk" in p.languages  # Macedonian
         assert "zh" not in p.languages
 
-    def test_no_credentials_required(self):
+    def test_credentials_required(self):
+        from providers.titlovi import TitloviProvider
+
+        keys = {f["key"]: f for f in TitloviProvider.config_fields}
+        assert keys["titlovi_username"]["required"] is True
+        assert keys["titlovi_password"]["required"] is True
+
+    def test_initialize_without_credentials_disables_provider(self):
         from providers.titlovi import TitloviProvider
 
         p = TitloviProvider()
-        assert p.config_fields == []
+        p.initialize()
+        assert p.session is None
 
     def test_health_check_not_initialized(self):
         from providers.titlovi import TitloviProvider
@@ -606,56 +628,211 @@ class TestTitloviProvider:
         assert not healthy
 
     def test_initialize_creates_session(self):
-        from providers.titlovi import TitloviProvider
-
-        p = TitloviProvider()
+        p = self._provider()
         with patch("providers.titlovi.create_session") as mock_cs:
             mock_cs.return_value = MagicMock()
             p.initialize()
             assert p.session is not None
 
     def test_terminate_closes_session(self):
-        from providers.titlovi import TitloviProvider
-
-        p = TitloviProvider()
+        p = self._provider()
         p.session = MagicMock()
         p.terminate()
         assert p.session is None
 
+    def test_login_obtains_token(self):
+        p = self._provider()
+        p.session = MagicMock()
+        p.session.post.return_value = self._token_response()
+
+        assert p._ensure_token() is True
+        assert p._token == "tok-1"
+        assert p._user_id == 7
+        call = p.session.post.call_args
+        assert call.args[0].endswith("/gettoken")
+        assert call.kwargs["params"]["username"] == "user"
+        assert call.kwargs["params"]["password"] == "pass"
+
+    def test_login_rejected_credentials(self):
+        p = self._provider(password="wrong")
+        p.session = MagicMock()
+        resp = MagicMock()
+        resp.status_code = 401
+        p.session.post.return_value = resp
+
+        assert p._ensure_token() is False
+        assert p._token is None
+
+    def test_cached_token_is_reused(self):
+        from datetime import UTC, datetime, timedelta
+
+        p = self._provider()
+        p.session = MagicMock()
+        p._token = "cached"
+        p._user_id = 1
+        p._token_expires = datetime.now(UTC) + timedelta(days=1)
+
+        assert p._ensure_token() is True
+        p.session.post.assert_not_called()
+
+    def test_expired_token_triggers_relogin(self):
+        from datetime import UTC, datetime, timedelta
+
+        p = self._provider()
+        p.session = MagicMock()
+        p.session.post.return_value = self._token_response(token="renewed")
+        p._token = "stale"
+        p._user_id = 1
+        p._token_expires = datetime.now(UTC) - timedelta(minutes=5)
+
+        assert p._ensure_token() is True
+        assert p._token == "renewed"
+
     def test_search_returns_empty_without_session(self):
         from providers.base import VideoQuery
-        from providers.titlovi import TitloviProvider
 
-        p = TitloviProvider()
+        p = self._provider()
         q = VideoQuery(title="Test", languages=["hr"])
         assert p.search(q) == []
 
     def test_search_skips_non_balkan_languages(self):
         from providers.base import VideoQuery
-        from providers.titlovi import TitloviProvider
 
-        p = TitloviProvider()
+        p = self._provider()
         p.session = MagicMock()
         result = p.search(VideoQuery(title="Test", languages=["en", "de", "fr"]))
         assert result == []
+        p.session.get.assert_not_called()
 
     def test_search_builds_correct_params(self):
         from providers.base import VideoQuery
-        from providers.titlovi import TitloviProvider
 
-        p = TitloviProvider()
+        p = self._provider()
         mock_session = MagicMock()
+        mock_session.post.return_value = self._token_response()
         mock_session.get.return_value = MagicMock(
             status_code=200,
-            json=lambda: {"subtitles": []},
+            json=lambda: {"SubtitleResults": [], "PagesAvailable": 1},
         )
         p.session = mock_session
-        q = VideoQuery(title="Squid Game", season=1, episode=1, languages=["hr"])
+        q = VideoQuery(title="Squid Game", season=1, episode=1, languages=["hr", "sr"])
         p.search(q)
         mock_session.get.assert_called_once()
-        call_kwargs = mock_session.get.call_args
-        params = call_kwargs.kwargs.get("params") or {}
-        assert params.get("title") == "Squid Game"
+        params = mock_session.get.call_args.kwargs.get("params") or {}
+        # The Kodi API takes `query` + titlovi language names + token/userid.
+        assert params.get("query") == "Squid Game"
+        assert set(params.get("lang", "").split("|")) == {"Hrvatski", "Srpski"}
+        assert params.get("token") == "tok-1"
+        assert params.get("userid") == 7
+        assert params.get("season") == 1
+        assert params.get("json") is True
+
+    def test_search_parses_results(self):
+        from providers.base import VideoQuery
+
+        p = self._provider()
+        mock_session = MagicMock()
+        mock_session.post.return_value = self._token_response()
+        mock_session.get.return_value = MagicMock(
+            status_code=200,
+            json=lambda: {
+                "SubtitleResults": [
+                    {
+                        "Id": 111,
+                        "Title": "Squid Game",
+                        "Link": "https://titlovi.com/download/?type=1&mediaid=111",
+                        "Release": "Squid.Game.S01E01.1080p.WEB",
+                        "Lang": "Hrvatski",
+                        "Season": 1,
+                        "Episode": 1,
+                    },
+                    {
+                        # Cyrillic Serbian maps back to "sr"
+                        "Id": 222,
+                        "Title": "Squid Game",
+                        "Link": "https://titlovi.com/download/?type=1&mediaid=222",
+                        "Release": "Squid.Game.S01E01.720p",
+                        "Lang": "Cirilica",
+                        "Season": 1,
+                        "Episode": 1,
+                    },
+                    {
+                        # Wrong episode — must be filtered out
+                        "Id": 333,
+                        "Title": "Squid Game",
+                        "Link": "https://titlovi.com/download/?type=1&mediaid=333",
+                        "Release": "Squid.Game.S01E02.1080p",
+                        "Lang": "Hrvatski",
+                        "Season": 1,
+                        "Episode": 2,
+                    },
+                ],
+                "PagesAvailable": 1,
+            },
+        )
+        p.session = mock_session
+        q = VideoQuery(title="Squid Game", season=1, episode=1, languages=["hr", "sr"])
+        results = p.search(q)
+
+        assert [r.subtitle_id for r in results] == ["111", "222"]
+        assert results[0].language == "hr"
+        assert results[1].language == "sr"
+        assert results[0].download_url == "https://titlovi.com/download/?type=1&mediaid=111"
+        assert results[0].release_info == "Squid.Game.S01E01.1080p.WEB"
+
+    def test_search_season_pack_is_kept_and_marked(self):
+        from providers.base import VideoQuery
+
+        p = self._provider()
+        mock_session = MagicMock()
+        mock_session.post.return_value = self._token_response()
+        mock_session.get.return_value = MagicMock(
+            status_code=200,
+            json=lambda: {
+                "SubtitleResults": [
+                    {
+                        "Id": 444,
+                        "Title": "Squid Game",
+                        "Link": "https://titlovi.com/download/?type=1&mediaid=444",
+                        "Release": "Squid.Game.S01.Complete",
+                        "Lang": "Srpski",
+                        "Season": 1,
+                        "Episode": 0,  # 0 == season pack
+                    }
+                ],
+                "PagesAvailable": 1,
+            },
+        )
+        p.session = mock_session
+        q = VideoQuery(title="Squid Game", season=1, episode=3, languages=["sr"])
+        results = p.search(q)
+
+        assert len(results) == 1
+        assert results[0].provider_data.get("is_pack") is True
+        assert results[0].provider_data.get("episode") == 3
+
+    def test_search_relogs_in_on_401(self):
+        from providers.base import VideoQuery
+
+        p = self._provider()
+        mock_session = MagicMock()
+        mock_session.post.return_value = self._token_response(token="renewed")
+        ok_resp = MagicMock(
+            status_code=200,
+            json=lambda: {"SubtitleResults": [], "PagesAvailable": 1},
+        )
+        unauth_resp = MagicMock(status_code=401)
+        mock_session.get.side_effect = [unauth_resp, ok_resp]
+        p.session = mock_session
+        p._token = "stale"
+        p._user_id = 1
+        p._token_expires = None  # unknown expiry — trusted until the API says 401
+
+        results = p.search(VideoQuery(title="Test", languages=["hr"]))
+
+        assert results == []
+        assert mock_session.get.call_count == 2
+        assert p._token == "renewed"
 
     def test_download_raises_without_session(self):
         import pytest
@@ -677,9 +854,8 @@ class TestTitloviProvider:
 
     def test_download_success_returns_content(self):
         from providers.base import SubtitleFormat, SubtitleResult
-        from providers.titlovi import TitloviProvider
 
-        p = TitloviProvider()
+        p = self._provider()
         srt_bytes = b"1\n00:00:01,000 --> 00:00:02,000\nHvala\n"
         mock_response = MagicMock()
         mock_response.status_code = 200
@@ -702,6 +878,42 @@ class TestTitloviProvider:
         content = p.download(r)
         assert content == srt_bytes
         assert r.content == content
+
+    def test_download_pack_zip_picks_matching_episode(self):
+        import io
+        import zipfile
+
+        from providers.base import SubtitleFormat, SubtitleResult
+
+        p = self._provider()
+        buf = io.BytesIO()
+        with zipfile.ZipFile(buf, "w") as zf:
+            zf.writestr("Show.S01E01.srt", "1\n00:00:01,000 --> 00:00:02,000\nEp1\n")
+            zf.writestr("Show.S01E03.srt", "1\n00:00:01,000 --> 00:00:02,000\nEp3\n")
+        zip_bytes = buf.getvalue()
+
+        mock_response = MagicMock()
+        mock_response.status_code = 200
+        mock_response.headers = {}
+        mock_response.iter_content.return_value = [zip_bytes]
+        mock_response.__enter__ = lambda s: s
+        mock_response.__exit__ = MagicMock(return_value=False)
+        mock_response.raise_for_status = MagicMock()
+        mock_session = MagicMock()
+        mock_session.get.return_value = mock_response
+        p.session = mock_session
+        r = SubtitleResult(
+            provider_name="titlovi",
+            subtitle_id="444",
+            language="sr",
+            format=SubtitleFormat.SRT,
+            filename="pack.zip",
+            download_url="https://titlovi.com/download/444",
+            provider_data={"is_pack": True, "season": 1, "episode": 3},
+        )
+        content = p.download(r)
+        assert b"Ep3" in content
+        assert "E03" in r.filename or "e03" in r.filename
 
 
 class TestEmbeddedSubtitlesProvider:

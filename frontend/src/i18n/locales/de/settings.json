@@ -329,7 +329,8 @@
       "whisperai": "Lokale KI-Transkription via Whisper-Modell",
       "addic7ed": "TV-Serien-Spezialist mit episodengenauen Untertiteln — optionaler Account",
       "tvsubtitles": "Klassischer Multi-Sprachen-Aggregator für TV-Serien",
-      "turkcealtyazi": "Größter türkischer Untertitel-Provider — Account erforderlich"
+      "turkcealtyazi": "Größter türkischer Untertitel-Provider — Account erforderlich",
+      "titlovi": "Balkan-Untertitel (Kroatisch, Serbisch, Bosnisch, Slowenisch, Mazedonisch) — Account mit API-Zugang erforderlich"
     },
     "field_help": {
       "fallback": "Konfigurationswert für „{{label}}\"",

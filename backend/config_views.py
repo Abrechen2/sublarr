@@ -128,6 +128,8 @@ class ProviderSettings(_SettingsView):
             "addic7ed_password",
             "turkcealtyazi_username",
             "turkcealtyazi_password",
+            "titlovi_username",
+            "titlovi_password",
             "opensubtitles_api_key",
             "opensubtitles_username",
             "opensubtitles_password",
