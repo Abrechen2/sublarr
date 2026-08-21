@@ -5,6 +5,34 @@ All notable changes to Sublarr are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.12.2] - 2026-08-21
+
+### Fixed
+- **A failed translation no longer buries the episode forever.** When the
+  translation backend was unreachable (local LLM down, quota exhausted) or
+  the translate step crashed, the episode was marked failed — a state the
+  search scheduler never looks at again, so it stayed without a subtitle
+  even after the backend recovered. One production outage buried 21
+  episodes this way. Such episodes now return to the wanted pool with an
+  escalating retry backoff (6 hours up to 30 days) and heal themselves
+  once translation works again. The same applies to forced-subtitle
+  episodes, which used to be failed permanently after a single empty
+  search — a miss now counts as a regular miss with the usual retry and
+  slow-mode escalation. Episodes already buried by earlier versions are
+  returned to the wanted pool automatically on upgrade, and the Health
+  page now labels these states ("File missing", "Translation error") and
+  keeps the error message visible.
+- **A vanished media file pauses the episode instead of failing it.** A
+  missing file is usually a mount or permission fault, not a property of
+  the episode. Instead of being marked failed permanently, the episode now
+  retries on the same escalating backoff and heals itself when the mount
+  returns.
+- **The OpenSubtitles connection test no longer reports a false error for
+  API-key-only setups.** The health check probed an endpoint that requires
+  a user login, which an API-key-only configuration never has — searches
+  and downloads worked while the provider showed red. The check now probes
+  what the configured auth mode can actually answer.
+
 ## [1.12.1] - 2026-08-20
 
 ### Fixed
