@@ -56,6 +56,7 @@ const PROVIDER_SKIP_KEYS: Record<string, string> = {
   rate_limited: 'decision.skip_rate_limited',
   budget_exhausted: 'decision.skip_budget',
   no_pool_key: 'decision.skip_no_pool_key',
+  languages_excluded: 'decision.skip_languages_excluded',
 }
 
 function ProviderStatusIcon({ status }: { status: DecisionLogProvider['status'] }) {

@@ -216,6 +216,9 @@ class UISettings(BaseModel):
     provider_priorities: str = "animetosho,jimaku,opensubtitles,subdl"
     providers_enabled: str = ""  # Empty = all registered providers enabled
     providers_hidden: str = ""  # Comma-separated provider names hidden from UI grid
+    # Per-provider language exclusion (#192): JSON object mapping provider
+    # name to ISO 639-1 codes it must never serve, e.g. {"opensubtitles": ["sr"]}
+    provider_language_excludes_json: str = ""
 
     # Reverse-proxy header authentication (Authelia/authentik SSO).
     # When enabled, a request whose DIRECT peer IP (request.remote_addr — no

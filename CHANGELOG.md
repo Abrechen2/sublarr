@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [1.12.2] - 2026-08-21
 
+### Added
+- **Languages can be excluded per provider.** When one provider does a
+  language well and another serves it in poor quality, the weaker source
+  can now be shut off for exactly that language: each provider's settings
+  page has an "Excluded languages" selector, and an excluded language is
+  neither searched nor accepted from that provider (#192). A provider
+  whose requested languages are all excluded is skipped and says so in
+  the search decision log.
+
 ### Fixed
 - **Titlovi actually works now — it authenticates.** The provider queried
   the Titlovi API anonymously with English language names, but the API

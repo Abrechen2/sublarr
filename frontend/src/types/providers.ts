@@ -44,6 +44,8 @@ export interface ProviderInfo {
   priority: number
   downloads: number
   config_fields: ProviderConfigField[]
+  /** ISO 639-1 codes the provider declares support for (since 1.12.2, #192). */
+  languages?: string[]
   stats: ProviderHealthStats
   // Sent by the /providers status endpoint for initialized providers.
   circuit_breaker_state?: string

@@ -106,6 +106,7 @@ class ProviderSettings(_SettingsView):
             "provider_priorities",
             "providers_enabled",
             "providers_hidden",
+            "provider_language_excludes_json",
             "provider_search_timeout",
             "provider_cache_ttl_minutes",
             "provider_auto_prioritize",
