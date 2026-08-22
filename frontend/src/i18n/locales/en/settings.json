@@ -1491,6 +1491,7 @@
       "error": "Error",
       "timeout": "Timeout",
       "timeout_abandoned": "Timed out — still running",
+      "timeout_not_started": "Timed out — never started",
       "missed": "Missed",
       "skipped_overlap": "Skipped"
     },

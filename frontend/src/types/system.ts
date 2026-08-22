@@ -784,12 +784,19 @@ export type Trigger = TriggerInterval | TriggerCron
  * exceeded its ceiling, was asked to stop, and was still running afterwards.
  * The scheduler cannot end a thread, so the work continues until the job
  * reaches a check point — which is exactly what an operator needs told.
+ *
+ * `timeout_not_started` is a different thing again and says nothing about the
+ * job named on the row: every scheduler worker was busy for its whole
+ * allowance, so the firing waited in the queue and never ran a line. It points
+ * at a saturated pool, which in practice means some *other* job is abandoning
+ * its worker.
  */
 export type SchedulerStatus =
   | 'ok'
   | 'error'
   | 'timeout'
   | 'timeout_abandoned'
+  | 'timeout_not_started'
   | 'missed'
   | 'skipped_overlap'
 export type SchedulerTriggeredBy = 'schedule' | 'manual' | 'startup'
