@@ -234,9 +234,7 @@ class ShokoClient:
         reported as a bad key; other failures are named for what they are.
         """
         try:
-            resp = self.session.get(
-                f"{self.url}/api/v3/ImportFolder", timeout=REQUEST_TIMEOUT
-            )
+            resp = self.session.get(f"{self.url}/api/v3/ImportFolder", timeout=REQUEST_TIMEOUT)
         except requests.RequestException as e:
             return False, f"auth probe failed: {e}"
         if resp.status_code in (401, 403):

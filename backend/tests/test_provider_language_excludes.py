@@ -128,9 +128,7 @@ class TestLanguageExcludeGate:
 
     def test_excluded_language_is_removed_from_provider_query(self, app_ctx, monkeypatch):
         provider = _make_provider()
-        manager = _build_manager(
-            monkeypatch, provider, excludes_json='{"test_provider": ["sr"]}'
-        )
+        manager = _build_manager(monkeypatch, provider, excludes_json='{"test_provider": ["sr"]}')
         original_query = VideoQuery(file_path="/test/movie.mkv", languages=["sr", "en"])
 
         manager.search(original_query)
@@ -143,9 +141,7 @@ class TestLanguageExcludeGate:
 
     def test_all_languages_excluded_skips_provider(self, app_ctx, monkeypatch):
         provider = _make_provider()
-        manager = _build_manager(
-            monkeypatch, provider, excludes_json='{"test_provider": ["sr"]}'
-        )
+        manager = _build_manager(monkeypatch, provider, excludes_json='{"test_provider": ["sr"]}')
 
         manager.search(VideoQuery(file_path="/test/movie.mkv", languages=["sr"]))
 
@@ -171,9 +167,7 @@ class TestLanguageExcludeGate:
                 _make_result("test_provider", "en"),
             ]
         )
-        manager = _build_manager(
-            monkeypatch, provider, excludes_json='{"test_provider": ["sr"]}'
-        )
+        manager = _build_manager(monkeypatch, provider, excludes_json='{"test_provider": ["sr"]}')
 
         results = manager.search(VideoQuery(file_path="/test/movie.mkv", languages=["sr", "en"]))
 
@@ -183,9 +177,7 @@ class TestLanguageExcludeGate:
 
     def test_skip_is_recorded_in_decision_log(self, app_ctx, monkeypatch):
         provider = _make_provider()
-        manager = _build_manager(
-            monkeypatch, provider, excludes_json='{"test_provider": ["sr"]}'
-        )
+        manager = _build_manager(monkeypatch, provider, excludes_json='{"test_provider": ["sr"]}')
         skipped = []
         monkeypatch.setattr(
             "providers.search_coordinator.decision_log.provider_skipped",

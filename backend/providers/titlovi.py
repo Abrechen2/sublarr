@@ -388,9 +388,7 @@ class TitloviProvider(SubtitleProvider):
         return data
 
     @staticmethod
-    def _pick_entry(
-        entries: list[tuple[str, bytes]], result: SubtitleResult
-    ) -> tuple[str, bytes]:
+    def _pick_entry(entries: list[tuple[str, bytes]], result: SubtitleResult) -> tuple[str, bytes]:
         """Pick the right file from a season-pack archive.
 
         Packs (``Episode == 0`` in the API) bundle a whole season; the wanted
