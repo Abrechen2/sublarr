@@ -16,7 +16,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   whose requested languages are all excluded is skipped and says so in
   the search decision log.
 
+### Security
+- **A config import or backup restore can no longer plant provider
+  credentials.** Both paths carried their own hand-written list of keys a
+  payload may not set, and neither had been extended when Addic7ed,
+  Turkcealtyazi and Titlovi added credentials of their own — so an import
+  could set them. Both now derive the list from the same classifier that
+  decides what gets encrypted at rest, which also covers whatever provider
+  is added next.
+
 ### Fixed
+- **A throttled Shoko server is no longer reported as a rejected API key.**
+  A 429 from Shoko was folded into the generic failure branch, so being rate
+  limited looked like a credential problem. It is named for what it is now.
+- **Turning on a language exclusion takes effect immediately.** Results
+  cached from before the change kept being served for the lifetime of the
+  cache entry, and a provider that answered with an unexpectedly capitalised
+  language code slipped past the filter entirely.
 - **Titlovi actually works now — it authenticates.** The provider queried
   the Titlovi API anonymously with English language names, but the API
   requires a titlovi.com account (username/password, exchanged for a
