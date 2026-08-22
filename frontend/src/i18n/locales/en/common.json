@@ -654,6 +654,14 @@
     "last_run": "Last: {{date}}"
   },
   "whatsnew": {
+    "v1130": {
+      "language_excludes_title": "Languages can now be excluded per provider",
+      "language_excludes_desc": "Some providers do one language well and another badly. Until now the only option was to switch the weaker provider off entirely — losing the languages it is good at too. Each provider's settings page now has “Excluded languages”: an excluded language is neither requested from that provider nor accepted from it, even if it returns one unasked. If every language a search wants is excluded for a provider, it is skipped and says so in the decision log.",
+      "titlovi_title": "Titlovi works again — the provider now signs in",
+      "titlovi_desc": "Titlovi was queried anonymously and with English language names. The API requires a titlovi.com account and speaks native language names, so every search came back empty. The provider now logs in, renews its session on its own, and picks the right episode out of season packs. Credentials live under Settings → Providers; without them the provider disables itself with a clear message instead of silently finding nothing.",
+      "shoko_title": "The Shoko connection test no longer rejects a valid key",
+      "shoko_desc": "The test probed an endpoint current Shoko servers no longer serve, so every attempt reported “API key rejected” — even for a perfectly valid key. It now probes an endpoint that really exists, and only an actual rejection is reported as one."
+    },
     "title": "What's new in {{version}}",
     "close": "Close",
     "got_it": "Got it",

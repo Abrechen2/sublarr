@@ -654,6 +654,14 @@
     "last_run": "Zuletzt: {{date}}"
   },
   "whatsnew": {
+    "v1130": {
+      "language_excludes_title": "Sprachen lassen sich jetzt einzeln pro Anbieter ausschließen",
+      "language_excludes_desc": "Manche Anbieter liefern eine Sprache gut und eine andere schlecht. Bisher blieb nur, den schwächeren Anbieter ganz abzuschalten — und damit auch die Sprachen zu verlieren, die er beherrscht. In den Einstellungen jedes Anbieters gibt es jetzt „Ausgeschlossene Sprachen“: eine so ausgeschlossene Sprache wird bei diesem Anbieter weder angefragt noch angenommen, selbst wenn er sie unaufgefordert zurückliefert. Sind für eine Suche alle gewünschten Sprachen ausgeschlossen, wird der Anbieter übersprungen und nennt den Grund im Entscheidungsprotokoll.",
+      "titlovi_title": "Titlovi funktioniert wieder — der Anbieter meldet sich jetzt an",
+      "titlovi_desc": "Titlovi wurde ohne Anmeldung und mit englischen Sprachnamen abgefragt. Die Schnittstelle verlangt aber ein titlovi.com-Konto und spricht die Landessprachen, deshalb kam jede Suche leer zurück. Der Anbieter meldet sich jetzt an, erneuert seine Sitzung selbstständig und holt die richtige Folge auch aus Staffelpaketen heraus. Die Zugangsdaten werden unter Einstellungen → Anbieter hinterlegt; ohne sie schaltet sich der Anbieter mit einem klaren Hinweis ab, statt still nichts zu finden.",
+      "shoko_title": "Der Shoko-Verbindungstest lehnt gültige Schlüssel nicht mehr ab",
+      "shoko_desc": "Der Test fragte einen Endpunkt ab, den aktuelle Shoko-Server nicht mehr anbieten. Jeder Verbindungsversuch meldete daraufhin „API-Schlüssel abgelehnt“ — auch bei völlig gültigem Schlüssel. Geprüft wird jetzt ein real vorhandener Endpunkt, und nur eine echte Ablehnung wird auch als solche gemeldet."
+    },
     "title": "Neu in {{version}}",
     "close": "Schließen",
     "got_it": "Verstanden",
