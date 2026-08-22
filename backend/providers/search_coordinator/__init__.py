@@ -330,7 +330,12 @@ class SearchCoordinatorMixin(SearchRetryMixin, SearchScoringMixin, SearchCacheMi
                     # language back in.
                     excluded = excludes.get(name)
                     if excluded:
-                        results = [r for r in results if r.language not in excluded]
+                        # parse_language_excludes normalises the configured
+                        # codes; normalise the result side too, or a provider
+                        # answering "SR" walks straight past the backstop.
+                        results = [
+                            r for r in results if (r.language or "").strip().lower() not in excluded
+                        ]
                     all_results.extend(results)
                     decision_log.provider_searched(name, len(results), elapsed_ms)
 

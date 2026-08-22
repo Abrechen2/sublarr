@@ -187,3 +187,57 @@ class TestLanguageExcludeGate:
         manager.search(VideoQuery(file_path="/test/movie.mkv", languages=["sr"]))
 
         assert ("test_provider", "languages_excluded") in skipped
+
+
+class TestBackstopNormalisesTheResultLanguage:
+    """parse_language_excludes lowercases the configured codes. The results
+    side was compared raw, so a provider answering "SR" for an excluded "sr"
+    walked straight past the backstop the exclusion exists to be."""
+
+    def test_uppercase_result_language_is_still_excluded(self, app_ctx, monkeypatch):
+        provider = _make_provider(
+            results=[
+                _make_result("test_provider", "SR"),
+                _make_result("test_provider", "en"),
+            ]
+        )
+        manager = _build_manager(monkeypatch, provider, excludes_json='{"test_provider": ["sr"]}')
+
+        results = manager.search(VideoQuery(file_path="/test/movie.mkv", languages=["sr", "en"]))
+
+        assert {r.language for r in results} == {"en"}
+
+    def test_padded_result_language_is_still_excluded(self, app_ctx, monkeypatch):
+        provider = _make_provider(results=[_make_result("test_provider", " sr ")])
+        manager = _build_manager(monkeypatch, provider, excludes_json='{"test_provider": ["sr"]}')
+
+        assert manager.search(VideoQuery(file_path="/test/movie.mkv", languages=["sr"])) == []
+
+
+class TestExclusionsPartitionTheSearchCache:
+    """The exclusions decide which providers are asked and which results
+    survive. A cache entry made under one set must not answer a search made
+    under another, or turning an exclusion on leaves the old results visible
+    for the whole TTL."""
+
+    def _key(self, monkeypatch, excludes_json):
+        provider = _make_provider()
+        manager = _build_manager(monkeypatch, provider, excludes_json=excludes_json)
+        return manager._make_cache_key(VideoQuery(file_path="/test/movie.mkv", languages=["sr"]))
+
+    def test_changing_an_exclusion_changes_the_key(self, app_ctx, monkeypatch):
+        without = self._key(monkeypatch, "")
+        with_excl = self._key(monkeypatch, '{"test_provider": ["sr"]}')
+        assert without != with_excl
+
+    def test_different_excluded_language_changes_the_key(self, app_ctx, monkeypatch):
+        a = self._key(monkeypatch, '{"test_provider": ["sr"]}')
+        b = self._key(monkeypatch, '{"test_provider": ["hr"]}')
+        assert a != b
+
+    def test_reformatting_the_same_config_keeps_the_key(self, app_ctx, monkeypatch):
+        """The token is built from the parsed map, so whitespace and key order
+        must not needlessly drop the whole cache."""
+        a = self._key(monkeypatch, '{"test_provider": ["sr", "hr"]}')
+        b = self._key(monkeypatch, '{ "test_provider" : [ "HR" , " sr " ] }')
+        assert a == b
