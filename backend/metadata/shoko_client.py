@@ -239,6 +239,12 @@ class ShokoClient:
             return False, f"auth probe failed: {e}"
         if resp.status_code in (401, 403):
             return False, "apikey rejected"
+        if resp.status_code == 429:
+            # Throttling says nothing about the key. This deliberately does not
+            # go through _request: that would sleep out the Retry-After inside
+            # a health check, and it collapses every failure into None, which
+            # is the distinction this probe exists to make.
+            return False, "shoko is rate limiting (try again shortly)"
         if not resp.ok:
             return False, f"auth probe got HTTP {resp.status_code}"
         return True, ""

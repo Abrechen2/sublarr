@@ -240,6 +240,21 @@ class TestShokoClientAuth:
         assert "rejected" not in msg
         assert "404" in msg
 
+    def test_health_check_probe_429_is_named_as_throttling(self):
+        """Being throttled says nothing about whether the key is valid."""
+        from metadata.shoko_client import ShokoClient
+
+        client = ShokoClient(url="http://shoko:8111", api_key="valid")
+        client._get = MagicMock(return_value={"State": "Started"})
+        probe_resp = MagicMock()
+        probe_resp.status_code = 429
+        probe_resp.ok = False
+        with patch.object(client.session, "get", return_value=probe_resp):
+            ok, msg = client.health_check()
+        assert ok is False
+        assert "rejected" not in msg
+        assert "rate limit" in msg.lower()
+
 
 # ---------------------------------------------------------------------------
 # ShokoServer media-server backend
