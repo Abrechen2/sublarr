@@ -26,6 +26,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   out of season-pack archives. Credentials are configured under
   Settings → Providers; without them the provider disables itself with a
   clear message instead of failing silently.
+- **The Titlovi password no longer reaches the log.** The provider sends
+  its credentials as query parameters, and a failed request quoted the
+  whole URL back in its error message — so any DNS hiccup or timeout wrote
+  the password in plaintext to the log file, the log viewer and the support
+  bundle, where the anonymizer's length threshold let short passwords
+  through. Credential-bearing parameters are now masked before anything is
+  logged. Anyone who configured Titlovi on an unreleased build should
+  rotate that password and clear old logs.
 - **Shoko connection test no longer rejects a valid API key.** The test
   probed an endpoint that does not exist on current Shoko servers, so
   every connection attempt reported "apikey rejected" even when the key
