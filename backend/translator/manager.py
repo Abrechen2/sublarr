@@ -3,6 +3,7 @@
 import logging
 import sys
 
+from services.scheduler.cancellation import abort_requested
 from translation import get_translation_manager
 from translation.context_windower import build_chunks
 from translator._helpers import (
@@ -10,6 +11,7 @@ from translator._helpers import (
     _resolve_backend_for_context,
 )
 from translator.cache import _apply_translation_cache, _store_translations_in_cache
+from translator.errors import TranslationAbortedError
 from translator.output_guard import find_chat_filler
 
 logger = logging.getLogger(__name__)
@@ -275,6 +277,17 @@ def _translate_in_batches(
     last_result = None
 
     for i, chunk in enumerate(chunks):
+        # The batch boundary is this job's only honest stopping point. The
+        # drain worker checks between queue items, but one item is a whole
+        # translation — prod measured those at ~16 minutes against a 900s
+        # grace, which is why 43 of 61 abandoned runs in the 30 days to
+        # 2026-08-22 were subtitle_automation. Everything above this line is
+        # already cached, so stopping here costs the remainder, not the file.
+        if abort_requested():
+            raise TranslationAbortedError(
+                f"asked to stop after {i} of {len(chunks)} batches; "
+                "the finished batches are cached and the next attempt resumes from them"
+            )
         chunk_result = manager.translate_with_fallback(
             chunk.batch,
             source_lang,
