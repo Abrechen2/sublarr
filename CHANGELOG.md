@@ -5,6 +5,31 @@ All notable changes to Sublarr are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Fixed
+- **A translation can now be interrupted, and the scheduler history says so
+  honestly.** Two separate faults produced the same misleading entry. The drain
+  worker could only stop between queue items, but one item is a whole
+  translation — measured at up to 16 minutes against a 15-minute allowance — so
+  a stop request landing early in one could never be honoured in time, and the
+  run was filed as "asked to stop and still running". It now stops at the next
+  batch boundary, keeps every batch it already finished, and resumes from there
+  on the next pass. The episode goes back in the queue instead of counting a
+  failed attempt: the scheduler running out of time is not the episode's fault,
+  and spending one of its attempts is how episodes end up buried.
+- **A scheduled job that never ran is no longer reported as one that refused to
+  stop.** When every scheduler worker was busy for a job's whole allowance, the
+  firing waited in the queue without executing a line — and was then recorded as
+  if it had ignored a stop request, sending you looking for runaway work that
+  did not exist. It is now named for what it is and points at the real cause,
+  which is a saturated worker pool.
+- **The provider test button now asks what the real search asks.** It built its
+  own simplified query, which providers that match through AniDB — AnimeTosho in
+  particular — could never answer, so a "no results" from the button told you
+  nothing about them. It now builds the query with the same code the scheduled
+  search uses, metadata enrichment and AniDB resolution included.
+
 ## [1.13.0] - 2026-08-22
 
 ### Added
