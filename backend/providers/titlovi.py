@@ -56,6 +56,40 @@ _LANG_MAP = {
 _LANG_REVERSE = {v: k for k, v in _LANG_MAP.items()}
 _LANG_REVERSE["Cirilica"] = "sr"
 
+# The API takes credentials and the session token as query parameters, and
+# requests puts the full URL — query string included — into the text of any
+# connection error it raises. Interpolating such an exception into a log line
+# writes the password out in plaintext, past the encryption-at-rest that the
+# ``_password`` suffix earns it. Every except-branch on a request in this
+# module therefore logs ``_safe_err(e)``, never ``e``.
+_SECRET_PARAM_RE = re.compile(
+    r"\b(username|password|token|userid)=[^&\s\"']*",
+    re.IGNORECASE,
+)
+
+
+def _safe_err(exc: Exception) -> str:
+    """Render an exception for the log with any credential-bearing query
+    parameter masked."""
+    masked = _SECRET_PARAM_RE.sub(r"\1=***", str(exc))
+    return f"{type(exc).__name__}: {masked}"
+
+
+def _as_int(value: object) -> int | None:
+    """Coerce an API field to int, tolerating the string forms the API has
+    been seen to use. Returns None when the value is not a number at all."""
+    if isinstance(value, bool):
+        return None
+    if isinstance(value, int):
+        return value
+    if isinstance(value, str):
+        try:
+            return int(value.strip())
+        except ValueError:
+            return None
+    return None
+
+
 _FORMAT_MAP = {
     ".ass": SubtitleFormat.ASS,
     ".ssa": SubtitleFormat.SSA,
@@ -117,6 +151,8 @@ class TitloviProvider(SubtitleProvider):
         self._token: str | None = None
         self._user_id: int | None = None
         self._token_expires: datetime | None = None
+        # The account the cached token was issued to; see _ensure_token.
+        self._token_account: str | None = None
 
     def initialize(self):
         if not (self.username and self.password):
@@ -140,6 +176,7 @@ class TitloviProvider(SubtitleProvider):
         self._token = None
         self._user_id = None
         self._token_expires = None
+        self._token_account = None
 
     # ------------------------------------------------------------------
     # Auth
@@ -149,10 +186,20 @@ class TitloviProvider(SubtitleProvider):
 
         A token without a parseable expiry is trusted until the API answers
         401 (the search path re-logs-in once on that).
+
+        The key selector swaps ``username``/``password`` onto this shared
+        instance per search, so a token is only reusable while it still
+        belongs to the account currently configured — otherwise searches
+        assigned to account B would go out under account A's token and
+        charge B's rate budget for A's traffic.
         """
-        if self._token and (
-            self._token_expires is None
-            or datetime.now(UTC) < self._token_expires - timedelta(seconds=60)
+        if (
+            self._token
+            and self._token_account == self.username
+            and (
+                self._token_expires is None
+                or datetime.now(UTC) < self._token_expires - timedelta(seconds=60)
+            )
         ):
             return True
         return self._login()
@@ -167,7 +214,7 @@ class TitloviProvider(SubtitleProvider):
                 timeout=self.timeout,
             )
         except Exception as e:
-            logger.warning("Titlovi: login request failed: %s", e)
+            logger.warning("Titlovi: login request failed: %s", _safe_err(e))
             return False
         if resp.status_code == 429:
             raise ProviderRateLimitError("Titlovi login rate limited", retry_after=60)
@@ -178,6 +225,7 @@ class TitloviProvider(SubtitleProvider):
                 resp.status_code,
             )
             self._token = None
+            self._token_account = None
             return False
         if resp.status_code != 200:
             logger.warning("Titlovi: login failed: HTTP %d", resp.status_code)
@@ -185,13 +233,14 @@ class TitloviProvider(SubtitleProvider):
         try:
             data = resp.json()
         except Exception as e:
-            logger.warning("Titlovi: login response unreadable: %s", e)
+            logger.warning("Titlovi: login response unreadable: %s", _safe_err(e))
             return False
         token = data.get("Token") if isinstance(data, dict) else None
         if not token:
             logger.warning("Titlovi: login response carried no token")
             return False
         self._token = token
+        self._token_account = self.username
         self._user_id = data.get("UserId")
         self._token_expires = _parse_expiration(data.get("ExpirationDate"))
         logger.debug("Titlovi: obtained API token (expires %s)", self._token_expires)
@@ -270,7 +319,7 @@ class TitloviProvider(SubtitleProvider):
             try:
                 resp = self.session.get(_SEARCH_URL, params=request_params, timeout=self.timeout)
             except Exception as e:
-                logger.debug("Titlovi: search request failed: %s", e)
+                logger.debug("Titlovi: search request failed: %s", _safe_err(e))
                 break
             if resp.status_code == 429:
                 raise ProviderRateLimitError("Titlovi rate limited", retry_after=60)
@@ -289,13 +338,15 @@ class TitloviProvider(SubtitleProvider):
             try:
                 data = resp.json()
             except Exception as e:
-                logger.debug("Titlovi: search response unreadable: %s", e)
+                logger.debug("Titlovi: search response unreadable: %s", _safe_err(e))
                 break
             page_results = data.get("SubtitleResults") if isinstance(data, dict) else None
             if not page_results:
                 break
             collected.extend(page_results)
-            if page >= int(data.get("PagesAvailable") or 1):
+            # PagesAvailable comes straight off the wire; a non-numeric value
+            # must end pagination, not raise out of the whole search.
+            if page >= (_as_int(data.get("PagesAvailable")) or 1):
                 break
             page += 1
         return collected
@@ -313,8 +364,11 @@ class TitloviProvider(SubtitleProvider):
 
         is_pack = False
         if query.is_episode:
-            season = sub.get("Season")
-            episode = sub.get("Episode")
+            # Coerce before comparing: the API has been seen to quote these
+            # numbers, and "1" != 1 would silently reject every result — the
+            # empty-search symptom this provider exists to fix.
+            season = _as_int(sub.get("Season"))
+            episode = _as_int(sub.get("Episode"))
             if query.season and season and season != query.season:
                 return None
             if query.episode and episode not in (None, 0, query.episode):

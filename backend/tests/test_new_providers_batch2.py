@@ -1,5 +1,6 @@
 """Unit tests for new subtitle providers (batch 2)."""
 
+import logging
 from unittest.mock import MagicMock, patch
 
 from providers.base import ProviderError
@@ -669,6 +670,7 @@ class TestTitloviProvider:
         p = self._provider()
         p.session = MagicMock()
         p._token = "cached"
+        p._token_account = p.username  # a cached token always belongs to an account
         p._user_id = 1
         p._token_expires = datetime.now(UTC) + timedelta(days=1)
 
@@ -914,6 +916,178 @@ class TestTitloviProvider:
         content = p.download(r)
         assert b"Ep3" in content
         assert "E03" in r.filename or "e03" in r.filename
+
+
+class TestTitloviDoesNotLeakCredentials:
+    """The API takes credentials as query parameters, and requests puts the
+    whole URL into the text of a connection error. Logging such an exception
+    verbatim writes the password out in plaintext."""
+
+    def _provider(self, password="s3cr3t"):
+        from providers.titlovi import TitloviProvider
+
+        p = TitloviProvider(username="alice", password=password)
+        p.session = MagicMock()
+        return p
+
+    def test_login_failure_does_not_log_the_password(self, caplog):
+        import requests
+
+        p = self._provider()
+        # The real shape of a requests connection error: it carries the full
+        # URL, query string included.
+        p.session.post.side_effect = requests.exceptions.ConnectionError(
+            "HTTPSConnectionPool(host='kodi.titlovi.com', port=443): Max retries "
+            "exceeded with url: /api/subtitles/gettoken?username=alice&"
+            "password=s3cr3t&json=True (Caused by NameResolutionError(...))"
+        )
+        with caplog.at_level(logging.DEBUG):
+            assert p._login() is False
+        assert "s3cr3t" not in caplog.text
+        assert "username=alice" not in caplog.text
+        # The diagnostic value survives: host and error type still readable.
+        assert "kodi.titlovi.com" in caplog.text
+        assert "ConnectionError" in caplog.text
+
+    def test_search_failure_does_not_log_the_token(self, caplog):
+        import requests
+
+        p = self._provider()
+        p._token = "tok-abcdef"
+        p._token_account = "alice"
+        p._user_id = 7
+        p.session.get.side_effect = requests.exceptions.ConnectionError(
+            "Max retries exceeded with url: /api/subtitles/search?query=x&"
+            "token=tok-abcdef&userid=7 (Caused by ReadTimeout(...))"
+        )
+        with caplog.at_level(logging.DEBUG):
+            assert p._fetch_all_pages({"query": "x"}) == []
+        assert "tok-abcdef" not in caplog.text
+        assert "userid=7" not in caplog.text
+
+    def test_safe_err_masks_every_credential_parameter(self):
+        from providers.titlovi import _safe_err
+
+        msg = _safe_err(
+            ValueError("url: /gettoken?username=bob&password=hunter2&token=T1&userid=9&json=True")
+        )
+        for secret in ("bob", "hunter2", "T1"):
+            assert secret not in msg
+        assert "json=True" in msg  # non-secret parameters are left alone
+
+
+class TestTitloviTokenIsBoundToItsAccount:
+    """The key selector swaps username/password onto the shared provider
+    instance per search; a token outliving that swap would send account A's
+    token for a search the selector assigned to account B."""
+
+    def _provider(self):
+        from providers.titlovi import TitloviProvider
+
+        p = TitloviProvider(username="alice", password="pw-a")
+        p.session = MagicMock()
+        return p
+
+    @staticmethod
+    def _token_response(token, user_id):
+        resp = MagicMock()
+        resp.status_code = 200
+        resp.json.return_value = {"Token": token, "UserId": user_id, "ExpirationDate": None}
+        return resp
+
+    def test_token_is_reused_for_the_same_account(self):
+        p = self._provider()
+        p.session.post.return_value = self._token_response("tok-a", 1)
+        assert p._ensure_token() is True
+        assert p._ensure_token() is True
+        assert p.session.post.call_count == 1
+
+    def test_credential_swap_forces_a_fresh_login(self):
+        p = self._provider()
+        p.session.post.return_value = self._token_response("tok-a", 1)
+        assert p._ensure_token() is True
+        assert p._token == "tok-a"
+
+        # What search_coordinator.retry does when a pool key is assigned.
+        p.username, p.password = "bob", "pw-b"
+        p.session.post.return_value = self._token_response("tok-b", 2)
+
+        assert p._ensure_token() is True
+        assert p._token == "tok-b"
+        assert p._user_id == 2
+        assert p.session.post.call_count == 2
+
+
+class TestTitloviToleratesQuotedNumbers:
+    """Season/episode/page numbers arrive straight off the wire. Comparing a
+    quoted "1" against an int 1 would reject every result and produce the
+    silent empty search this provider exists to fix (#191)."""
+
+    def _provider(self):
+        from providers.titlovi import TitloviProvider
+
+        return TitloviProvider(username="u", password="p")
+
+    @staticmethod
+    def _query():
+        from providers.base import VideoQuery
+
+        # is_episode is derived from season+episode being set.
+        return VideoQuery(title="Show", season=1, episode=3, languages=["hr"])
+
+    def test_string_season_and_episode_still_match(self):
+        p = self._provider()
+        sub = {
+            "Id": 1,
+            "Link": "https://titlovi.com/download/1",
+            "Lang": "Hrvatski",
+            "Season": "1",
+            "Episode": "3",
+            "Release": "Show.S01E03",
+        }
+        assert p._parse_result(sub, self._query()) is not None
+
+    def test_string_season_pack_is_still_recognised_as_a_pack(self):
+        p = self._provider()
+        sub = {
+            "Id": 2,
+            "Link": "https://titlovi.com/download/2",
+            "Lang": "Hrvatski",
+            "Season": "1",
+            "Episode": "0",
+            "Release": "Show.S01.COMPLETE",
+        }
+        result = p._parse_result(sub, self._query())
+        assert result is not None
+        assert result.provider_data.get("is_pack") is True
+
+    def test_wrong_season_is_still_rejected(self):
+        p = self._provider()
+        sub = {
+            "Id": 3,
+            "Link": "https://titlovi.com/download/3",
+            "Lang": "Hrvatski",
+            "Season": "2",
+            "Episode": "3",
+        }
+        assert p._parse_result(sub, self._query()) is None
+
+    def test_non_numeric_pages_available_ends_pagination_instead_of_raising(self):
+        p = self._provider()
+        p.session = MagicMock()
+        p._token = "t"
+        p._token_account = "u"
+        resp = MagicMock()
+        resp.status_code = 200
+        resp.json.return_value = {
+            "SubtitleResults": [{"Id": 1}],
+            "PagesAvailable": "not-a-number",
+        }
+        p.session.get.return_value = resp
+
+        # Must not raise ValueError out of the whole search.
+        assert p._fetch_all_pages({"query": "x"}) == [{"Id": 1}]
+        assert p.session.get.call_count == 1
 
 
 class TestEmbeddedSubtitlesProvider:
