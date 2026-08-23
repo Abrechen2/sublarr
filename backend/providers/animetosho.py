@@ -23,6 +23,7 @@ from providers.animetosho_parsers import (  # noqa: F401 — re-exported for bac
 from providers.base import (
     ProviderAuthError,
     ProviderError,
+    ProviderNotApplicableError,
     ProviderRateLimitError,
     SubtitleFormat,
     SubtitleProvider,
@@ -128,22 +129,31 @@ class AnimeToshoProvider(SubtitleProvider):
         )
         results = []
 
-        # Build search query
-        search_term = ""
+        # Build search query. The name is checked before the episode number is
+        # appended: without it the term would be a bare " 03", which is not a
+        # search anyone wants answered — AnimeTosho would return whatever
+        # matches a loose number across its whole index.
+        name = (query.series_title or query.title or "").strip() if query.is_episode else ""
+        if query.is_movie:
+            name = (query.title or "").strip()
+
+        if not name:
+            # Not an empty result — no request is made. Returning [] here made
+            # 3593 no-ops on one production instance look like 0 ms searches,
+            # which is what pulled this provider's timeout below its own median
+            # response time. See ProviderNotApplicableError.
+            raise ProviderNotApplicableError(
+                "no search term: the query carries neither a series title nor a title"
+            )
+
+        search_term = name
         if query.is_episode:
-            search_term = query.series_title or query.title
             # Prefer AniDB absolute episode when available (more precise for anime)
             if query.absolute_episode is not None:
                 search_term += f" {query.absolute_episode:02d}"
             elif query.episode is not None:
                 # AnimeTosho works best with episode number in search
                 search_term += f" {query.episode:02d}"
-        elif query.is_movie:
-            search_term = query.title
-
-        if not search_term:
-            logger.warning("AnimeTosho: insufficient search criteria - no search term")
-            return []
 
         # Search AnimeTosho feed API
         try:

@@ -22,6 +22,7 @@ from dataclasses import replace as dataclass_replace
 import decision_log
 from db.repositories.provider_account_pool import ProviderAccountPoolRepository
 from providers.base import (
+    ProviderNotApplicableError,
     ProviderRateLimitError,
     SubtitleFormat,
     SubtitleResult,
@@ -156,6 +157,35 @@ class SearchCoordinatorMixin(SearchRetryMixin, SearchScoringMixin, SearchCacheMi
                 if len(remaining_langs) != len(query.languages):
                     # New object — the original query is shared across providers.
                     provider_query = dataclass_replace(query, languages=remaining_langs)
+
+            # A provider that serves none of the requested languages is asked
+            # nothing. Every language-specific adapter already refuses these
+            # internally (`if "pl" not in query.languages: return []`), but it
+            # did so *after* being submitted and timed, so each one counted as
+            # a 0 ms search. Measured on prod 2026-08-23: napisy24 carried
+            # 29 345 "searches" averaging 0 ms, titrari 1 ms, kitsunekko 6 ms —
+            # impossible figures for an HTTP call, and the same pollution that
+            # drove animetosho's timeout below its own median response time.
+            #
+            # Only providers that declare a non-empty language set are gated:
+            # an adapter that declares nothing may serve anything, and must
+            # keep its chance to answer.
+            declared = getattr(provider, "languages", None)
+            if declared and provider_query.languages:
+                wanted = {lc.strip().lower() for lc in provider_query.languages if lc}
+                serves = {str(lc).strip().lower() for lc in declared if lc}
+                if wanted and serves and not (wanted & serves):
+                    logger.debug(
+                        "Skipping provider %s -- serves %s, search wants %s",
+                        name,
+                        ",".join(sorted(serves)),
+                        ",".join(sorted(wanted)),
+                    )
+                    decision_log.provider_skipped(
+                        name, "language_unsupported", detail=",".join(sorted(wanted))
+                    )
+                    continue
+
             # Check auto-disable status
             if is_provider_auto_disabled(name):
                 logger.debug("Skipping provider %s -- auto-disabled", name)
@@ -367,6 +397,17 @@ class SearchCoordinatorMixin(SearchRetryMixin, SearchScoringMixin, SearchCacheMi
                             decision_log.early_exit(name, result.score)
                             break
 
+                except ProviderNotApplicableError as e:
+                    # The provider left before making a request, so there is
+                    # nothing to record: not a search, not a failure. Counting
+                    # it either way corrupts the numbers the search path reads
+                    # back — the response-time average that sets the provider's
+                    # own timeout, and the success ratio shown on the Providers
+                    # page. It is neither a circuit-breaker failure nor an
+                    # auto-disable candidate; the provider is working fine, it
+                    # was simply asked something it cannot answer.
+                    logger.debug("Provider %s did not search: %s", name, e)
+                    decision_log.provider_skipped(name, "not_applicable", detail=str(e))
                 except FutureTimeoutError:
                     logger.warning("Provider %s search timed out", name)
                     decision_log.provider_failed(name, "timeout")

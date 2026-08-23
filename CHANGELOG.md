@@ -5,6 +5,38 @@ All notable changes to Sublarr are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Fixed
+- **AnimeTosho stopped throwing away half its own results.** The search
+  timeout each provider gets is derived from its average response time, and
+  AnimeTosho's average was being computed over a population that was two
+  thirds not-searches: when a wanted item reached it with no series title and
+  no title, it returned an empty result in zero milliseconds, and that counted
+  as a search. On one library, 3593 of 4998 recorded searches were these
+  no-ops. They pulled the average from 15.6 seconds down to 4.2, which set the
+  provider's ceiling to 14 seconds — below the 16.5-second median of a search
+  that actually happens. Nearly half of its genuine results were being
+  discarded as "too slow" because most of its "searches" never happened.
+
+  A provider that cannot answer a query now says so instead of returning an
+  empty result, and that answer is recorded as a skip rather than a search.
+  The Providers page also stops counting those as failed searches, so the
+  success rate shown there reflects real attempts.
+- **A provider is no longer asked for a language it does not serve.** Every
+  language-specific source already refused those queries — but only after
+  being started and timed, so each refusal was recorded as an instant search.
+  On one library that produced 29 345 "searches" for the Polish-only provider
+  averaging zero milliseconds, and similar figures for the Romanian and
+  Japanese ones. Those providers are now skipped before the request, with the
+  reason shown in the search decision log, and their statistics describe real
+  attempts. A provider that declares no language set is never skipped this
+  way, since it may serve anything.
+- **A query with no title is no longer sent to AnimeTosho as a bare episode
+  number.** The title was checked only after the episode number had been
+  appended, so an item with no series name searched for " 03" and matched
+  loosely against the whole index.
+
 ## [1.13.1] - 2026-08-22
 
 ### Fixed
