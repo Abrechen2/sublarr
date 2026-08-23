@@ -268,6 +268,8 @@
     "skip_budget": "skipped — daily budget exhausted",
     "skip_no_pool_key": "skipped — no usable API key",
     "skip_languages_excluded": "skipped — languages excluded for this provider",
+    "skip_language_unsupported": "skipped — serves none of the requested languages",
+    "skip_not_applicable": "skipped — had nothing to search for on this query",
     "skip_generic": "skipped",
     "stage_removed": "removed: {{label}}",
     "stage_remaining": "{{count}} left",

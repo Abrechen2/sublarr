@@ -50,13 +50,15 @@ const STAGE_KEYS: Record<string, string> = {
   release_group_exclude: 'decision.stage_release_group',
 }
 
-const PROVIDER_SKIP_KEYS: Record<string, string> = {
+export const PROVIDER_SKIP_KEYS: Record<string, string> = {
   auto_disabled: 'decision.skip_auto_disabled',
   circuit_open: 'decision.skip_circuit_open',
   rate_limited: 'decision.skip_rate_limited',
   budget_exhausted: 'decision.skip_budget',
   no_pool_key: 'decision.skip_no_pool_key',
   languages_excluded: 'decision.skip_languages_excluded',
+  language_unsupported: 'decision.skip_language_unsupported',
+  not_applicable: 'decision.skip_not_applicable',
 }
 
 function ProviderStatusIcon({ status }: { status: DecisionLogProvider['status'] }) {
