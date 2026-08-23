@@ -68,6 +68,15 @@ def record_search_outcome(
       the exponential backoff from ``compute_retry_after_for_error``. Stores
       the first 500 chars of ``error_message`` in the existing ``error``
       column for operator visibility.
+    - ``'file_missing'``: the media file is not on disk — usually a mount or
+      permission fault (2026-08-01 prod incident class), not a provider miss.
+      Same mechanics as ``'provider_error'`` but labelled apart, so the item
+      self-heals when the mount returns instead of dying in ``'failed'``.
+    - ``'translation_error'``: the Step-5 translate fallback failed — LLM
+      backend down, quota exhausted, extraction crash (2026-08-04 prod Ollama
+      outage class). Same mechanics as ``'provider_error'``: the providers
+      were never the problem, so the item keeps its search budget and
+      self-heals when the translation backend recovers.
 
     Unknown ``kind`` values raise ``ValueError`` — silently accepting typos
     would mask scheduler bugs that only show up in production.
@@ -88,7 +97,12 @@ def record_search_outcome(
         )
         return
 
-    if kind == "provider_error":
+    if kind in ("provider_error", "file_missing", "translation_error"):
+        # All three are environment faults, not misses: the providers were
+        # never meaningfully asked, so none burns ``search_count``. They share
+        # the error-side backoff curve; ``failure_kind`` keeps them apart so
+        # a mount outage (file_missing en masse) reads differently from a
+        # provider or LLM-backend outage in the DB and the UI.
         item = get_wanted_item(item_id)
         if not item:
             logger.debug("record_search_outcome: item %d not found", item_id)
@@ -98,7 +112,7 @@ def record_search_outcome(
         update_wanted_search_outcome(
             item_id,
             error_count_increment=1,
-            failure_kind="provider_error",
+            failure_kind=kind,
             retry_after=retry_at,
             last_error_at=now,
             # None means "leave error column alone" (don't clobber prior notes);

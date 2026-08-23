@@ -71,6 +71,7 @@ const CREDENTIAL_TYPES: Record<string, CredentialType> = {
   addic7ed: 'login',
   tvsubtitles: 'free',
   turkcealtyazi: 'login',
+  titlovi: 'login',
 }
 
 export function getCredentialBadge(providerName: string): CredentialType {

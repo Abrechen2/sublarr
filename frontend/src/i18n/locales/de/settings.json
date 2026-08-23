@@ -299,6 +299,9 @@
       "downloads_count": "{{count}} Downloads",
       "cached_count": "{{count}} gecacht",
       "no_credentials_required": "Keine Zugangsdaten erforderlich",
+      "excluded_languages": "Ausgeschlossene Sprachen",
+      "excluded_languages_hint": "Sprachen, die dieser Anbieter nie suchen oder liefern soll — z. B. wenn ein anderer Anbieter sie in besserer Qualität hat.",
+      "excluded_languages_placeholder": "— Sprache ausschließen —",
       "cache": "Cache",
       "required_field": "Erforderlich",
       "optional_field": "Optional",
@@ -329,7 +332,8 @@
       "whisperai": "Lokale KI-Transkription via Whisper-Modell",
       "addic7ed": "TV-Serien-Spezialist mit episodengenauen Untertiteln — optionaler Account",
       "tvsubtitles": "Klassischer Multi-Sprachen-Aggregator für TV-Serien",
-      "turkcealtyazi": "Größter türkischer Untertitel-Provider — Account erforderlich"
+      "turkcealtyazi": "Größter türkischer Untertitel-Provider — Account erforderlich",
+      "titlovi": "Balkan-Untertitel (Kroatisch, Serbisch, Bosnisch, Slowenisch, Mazedonisch) — Account mit API-Zugang erforderlich"
     },
     "field_help": {
       "fallback": "Konfigurationswert für „{{label}}\"",
@@ -1476,6 +1480,7 @@
       "error": "Fehler",
       "timeout": "Timeout",
       "timeout_abandoned": "Zeitlimit — läuft weiter",
+      "timeout_not_started": "Zeitlimit — nie gestartet",
       "missed": "Verpasst",
       "skipped_overlap": "Übersprungen"
     },

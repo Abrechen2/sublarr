@@ -108,6 +108,10 @@ class StatusReportingMixin:
                     throttled_until = disabled_until_str
                 throttle_reason = "auto_disabled"
 
+            # Declared language support — lets the UI offer only meaningful
+            # options for the per-provider language exclusion (#192).
+            supported_languages = sorted(getattr(cls, "languages", None) or [])
+
             if provider:
                 # Derive health from cached DB stats — no live HTTP requests.
                 consecutive_failures = perf_stats.get("consecutive_failures", 0) or 0
@@ -129,6 +133,7 @@ class StatusReportingMixin:
                         "priority": priority,
                         "downloads": downloads,
                         "config_fields": config_fields,
+                        "languages": supported_languages,
                         "stats": stats_dict,
                         "circuit_breaker_state": cb_state,
                         "throttled_until": throttled_until,
@@ -146,6 +151,7 @@ class StatusReportingMixin:
                         "priority": priority,
                         "downloads": downloads,
                         "config_fields": config_fields,
+                        "languages": supported_languages,
                         "stats": stats_dict,
                         "circuit_breaker_state": cb_state,
                         "throttled_until": throttled_until,

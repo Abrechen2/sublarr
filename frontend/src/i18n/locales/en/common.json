@@ -654,9 +654,25 @@
     "last_run": "Last: {{date}}"
   },
   "whatsnew": {
+    "v1130": {
+      "language_excludes_title": "Languages can now be excluded per provider",
+      "language_excludes_desc": "Some providers do one language well and another badly. Until now the only option was to switch the weaker provider off entirely — losing the languages it is good at too. Each provider's settings page now has “Excluded languages”: an excluded language is neither requested from that provider nor accepted from it, even if it returns one unasked. If every language a search wants is excluded for a provider, it is skipped and says so in the decision log.",
+      "titlovi_title": "Titlovi works again — the provider now signs in",
+      "titlovi_desc": "Titlovi was queried anonymously and with English language names. The API requires a titlovi.com account and speaks native language names, so every search came back empty. The provider now logs in, renews its session on its own, and picks the right episode out of season packs. Credentials live under Settings → Providers; without them the provider disables itself with a clear message instead of silently finding nothing.",
+      "shoko_title": "The Shoko connection test no longer rejects a valid key",
+      "shoko_desc": "The test probed an endpoint current Shoko servers no longer serve, so every attempt reported “API key rejected” — even for a perfectly valid key. It now probes an endpoint that really exists, and only an actual rejection is reported as one."
+    },
     "title": "What's new in {{version}}",
     "close": "Close",
     "got_it": "Got it",
+    "v1122": {
+      "translation_retry_title": "A failed translation no longer buries the entry for good",
+      "translation_retry_desc": "When the translation backend was unreachable — local LLM down, quota exhausted — the entry was marked failed. The scheduled search never looks at that state again: the entry stayed without a subtitle even after the backend had long recovered. A single outage buried 21 episodes this way on a real library. Such entries now return to the wanted pool with an escalating retry delay (6 hours up to 30 days) and heal themselves once translation works again. The same applies to forced subtitles, which used to be given up for good after a single empty search — a miss now counts as a regular miss with the usual retries. Entries already buried by earlier versions are brought back automatically on upgrade, and the Health page now names these states (\"File missing\", \"Translation error\") and shows the error message alongside.",
+      "file_missing_title": "A vanished video file pauses the entry instead of giving it up",
+      "file_missing_desc": "When the video file suddenly is not on disk, the cause is usually a network mount or a permission problem — not a property of the episode. Instead of being marked failed for good, the entry now retries with the same escalating delay and heals itself as soon as the file returns.",
+      "opensubtitles_test_title": "The OpenSubtitles connection test no longer reports a false error",
+      "opensubtitles_test_desc": "With only an API key configured and no user login, the connection test showed an error even though searching and downloading worked fine — it probed an endpoint that only a user login can answer. It now checks exactly what the configured authentication mode can actually answer."
+    },
     "v1121": {
       "search_translate_title": "The scheduled search no longer translates at all",
       "search_translate_desc": "Bulk handling was already fixed; single items were not. When no provider had a subtitle for a title, the search pulled the track out of the file and translated it on the spot — in the middle of the run. That extraction alone is allowed five minutes, while the run gets sixty seconds to wind down. Asked to stop, it still waited for the item it had started and was recorded as overdue. This work now belongs to the subtitle automation queue. Installs with automation switched off keep translating during the search, since nothing else would pick the work up. Manual searches are unchanged.",

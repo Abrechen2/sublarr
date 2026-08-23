@@ -487,6 +487,31 @@ class WantedRepository(BaseRepository, _WantedUpsertMixin, _WantedUpdatesMixin):
         self._commit()
         return result.rowcount
 
+    def reclaim_stranded_searching(self) -> int:
+        """Return rows stuck in ``status='searching'`` to the wanted pool.
+
+        Called at scheduler bootstrap only: at that moment no search can be
+        running, so every ``searching`` row is an orphan — left behind by a
+        process kill mid-search, or by the 1.12.1-rc.8/rc.9 deferred-fallback
+        exit that never restored the status (prod 2026-08-19: 7,878 rows,
+        ~1,600 stranded per tick). The counterpart to the automation queue's
+        ``reclaim_orphaned``.
+
+        Backoff state (``search_count``, ``failure_kind``, ``retry_after``) is
+        preserved — this restores visibility, it does not grant a free retry.
+        Rare edge: a ``provisional`` row killed mid-reseek comes back as
+        ``wanted`` (the pre-flip status is unknowable here); the existing-
+        sidecar gate then settles it on the next pass.
+        """
+        stmt = (
+            update(WantedItem)
+            .where(WantedItem.status == "searching")
+            .values(status="wanted", updated_at=self._now())
+        )
+        result = self.session.execute(stmt)
+        self._commit()
+        return result.rowcount
+
     def delete_wanted_items_by_ids(self, item_ids: list) -> int:
         """Delete wanted items by their IDs (batch). Returns count deleted."""
         if not item_ids:

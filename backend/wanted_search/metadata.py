@@ -6,7 +6,6 @@ import re
 from datetime import UTC, datetime, timedelta
 
 from config import get_settings
-from db.wanted import set_wanted_retry_after
 from providers.base import VideoQuery
 
 logger = logging.getLogger(__name__)
@@ -24,16 +23,6 @@ def _compute_retry_after(search_count: int, settings) -> datetime | None:
     cap = getattr(settings, "wanted_backoff_cap_hours", 168)
     delay_hours = min(base * (2 ** max(search_count - 1, 0)), cap)
     return datetime.now(UTC) + timedelta(hours=delay_hours)
-
-
-def _set_adaptive_retry_after(item_id: int, search_count: int, settings) -> None:
-    """Set retry_after on a wanted item (best-effort, never raises)."""
-    try:
-        retry_after = _compute_retry_after(search_count, settings)
-        if retry_after:
-            set_wanted_retry_after(item_id, retry_after)
-    except Exception as e:
-        logger.debug("_set_adaptive_retry_after failed for item %d (non-critical): %s", item_id, e)
 
 
 # Episode patterns for filename parsing (ordered by specificity)

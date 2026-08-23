@@ -58,6 +58,26 @@ class ProviderTimeoutError(ProviderError):
     pass
 
 
+class ProviderNotApplicableError(ProviderError):
+    """This provider cannot answer this particular query, and did not try.
+
+    Distinct from returning ``[]``, which means "I searched and found nothing".
+    A provider that leaves before making a request — no usable search term, a
+    movie query at a TV-only source — has produced no measurement of anything,
+    and recording it as a search is actively harmful: ``avg_response_time_ms``
+    is what ``_compute_dynamic_timeout`` multiplies to decide how long the
+    provider may take.
+
+    Measured on production 2026-08-23: 64.9% of animetosho's recorded searches
+    were 0 ms no-ops, which pulled its average from 15 567 ms down to 4157 ms
+    and its timeout ceiling to 14s — below the 16.5s median of a real search.
+    Nearly half of its genuine results were being thrown away as "too slow"
+    because two thirds of its "searches" never happened.
+    """
+
+    pass
+
+
 class SubtitleFormat(StrEnum):
     ASS = "ass"
     SRT = "srt"

@@ -338,6 +338,32 @@ class SubtitleAutomationQueueRepository(BaseRepository):
         row.updated_at = now
         self._commit()
 
+    def release_for_retry(self, entry_id: int, *, reason: str) -> None:
+        """Return a claimed row to ``pending`` without spending an attempt.
+
+        For work that stopped because the *scheduler* ran out of time, not
+        because the item misbehaved. ``mark_failed`` would increment
+        ``attempt_count`` and set a backoff, so an item that happens to be in
+        flight whenever the tick times out would climb the retry ladder and
+        eventually be buried for something that was never its fault — the same
+        shape as the terminal-``failed`` dead path closed in 1.12.2.
+
+        ``next_retry_at`` is cleared for the same reason ``reclaim_orphaned``
+        clears it: the item did not earn a wait, so the next drain should pick
+        it straight back up. A partly translated file resumes from the
+        translation memory, which is written per batch.
+        """
+        now = self._now()
+        row = self.session.get(SubtitleAutomationQueueEntry, entry_id)
+        if row is None:
+            return
+        row.state = "pending"
+        row.last_finished_at = now
+        row.last_error = (reason or "")[:1000]
+        row.next_retry_at = None
+        row.updated_at = now
+        self._commit()
+
     # ----- helpers --------------------------------------------------------
     def _now(self) -> datetime:
         return datetime.now(UTC)

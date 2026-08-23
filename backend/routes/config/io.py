@@ -6,8 +6,50 @@ from flask import jsonify, request
 
 from extensions import limiter
 from routes.config import bp
+from sensitive_keys import is_sensitive_key
 
 logger = logging.getLogger(__name__)
+
+# Keys that hold a secret without carrying a sensitive suffix, so
+# ``is_sensitive_key`` cannot recognise them: a PIN, and the JSON blobs that
+# embed per-instance API keys.
+_EXTRA_SECRET_IMPORT_KEYS: frozenset[str] = frozenset(
+    {
+        "tvdb_pin",
+        "notification_urls_json",
+        "sonarr_instances_json",
+        "radarr_instances_json",
+        "media_servers_json",
+    }
+)
+
+
+def _secret_import_keys() -> set[str]:
+    """Config keys an import or restore may never set.
+
+    Derived from ``is_sensitive_key`` over the real settings models rather
+    than enumerated by hand. The hand-written list this replaced had
+    drifted: it named ``opensubtitles_password`` but not the ``_password``
+    fields of the providers added after it, so an import could plant their
+    credentials. Deriving it means a provider added tomorrow is covered on
+    the day it lands.
+
+    It reads the field names off ``BootSettings``/``UISettings`` and not off
+    the caller's ``valid_keys``, which is empty in both call sites — the
+    composite ``Settings`` is a plain class and has no ``model_fields``.
+    Deriving from an empty set would have silently blocked nothing.
+
+    ``API_KEY_REGISTRY`` is a second source because not every secret is a
+    settings field: ``deepl_api_key`` lives only in ``config_entries`` and
+    would otherwise drop out of the set the hand-written list had covered.
+    """
+    from config_settings import BootSettings, UISettings
+    from routes.api_keys.helpers import API_KEY_REGISTRY
+
+    candidates = set(BootSettings.model_fields) | set(UISettings.model_fields)
+    for entry in API_KEY_REGISTRY.values():
+        candidates.update(entry.get("keys", ()))
+    return {key for key in candidates if is_sensitive_key(key)} | _EXTRA_SECRET_IMPORT_KEYS
 
 
 @bp.route("/config/export", methods=["GET"])
@@ -96,24 +138,7 @@ def import_config():
         return jsonify({"error": "No config data provided"}), 400
 
     valid_keys = set(Settings.model_fields.keys()) if hasattr(Settings, "model_fields") else set()
-    secret_keys = {
-        "api_key",
-        "sonarr_api_key",
-        "radarr_api_key",
-        "jellyfin_api_key",
-        "opensubtitles_api_key",
-        "opensubtitles_password",
-        "jimaku_api_key",
-        "subdl_api_key",
-        "tmdb_api_key",
-        "tvdb_api_key",
-        "tvdb_pin",
-        "deepl_api_key",
-        "notification_urls_json",
-        "sonarr_instances_json",
-        "radarr_instances_json",
-        "media_servers_json",
-    }
+    secret_keys = _secret_import_keys()
 
     # Fail-closed: if valid_keys cannot be determined, reject the import entirely
     if not valid_keys:

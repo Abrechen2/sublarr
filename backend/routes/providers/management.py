@@ -1,13 +1,14 @@
 """Provider management routes: list, test, enable, cache/clear."""
 
 import logging
-import re
 
 from flask import jsonify, request
 
 from cache_response import cached_get
 from extensions import limiter
+from providers.base import VideoQuery
 from routes.providers import bp
+from wanted_search.metadata import build_query_from_wanted
 
 logger = logging.getLogger(__name__)
 
@@ -52,40 +53,46 @@ def list_providers():
     return jsonify({"providers": manager.get_provider_status()})
 
 
-def _probe_query_from_wanted() -> dict:
-    """Build a search query from the first wanted item, or return {}.
+def _first_wanted_row() -> dict | None:
+    """The wanted item the probe searches for, or None if there is none."""
+    from db.repositories.wanted import WantedRepository
+
+    page = WantedRepository().get_wanted_items(page=1, per_page=1, status="wanted")
+    items = page.get("data") or page.get("items") or []
+    return items[0] if items else None
+
+
+def _probe_query_from_wanted() -> VideoQuery | None:
+    """Build the probe query the way the real search builds its own.
 
     A provider test is only informative against something the provider might
     plausibly have. Inventing a famous title would test a provider's catalogue
     rather than this install's; the wanted list is by definition what the
     operator cares about and expects to be found.
+
+    This calls ``build_query_from_wanted`` — the search pipeline's own builder —
+    rather than assembling a query from the item's title and season/episode.
+    That thin query was the limitation reported in #185: AnimeTosho and every
+    other provider that matches through AniDB needs the ``anidb_id`` and the
+    absolute episode number, which only the enrichment chain resolves. Without
+    them the probe searched for something no such provider could match, and its
+    "no results" said nothing at all about the download path. On the reference
+    instance it found 0 for a series the scheduler's own search found 18 for.
+
+    ``forced_only`` is deliberately cleared: it is right for the item but wrong
+    for a probe, which would then look for forced tracks almost nothing carries
+    and report a misleading empty result.
     """
     try:
-        from db.repositories.wanted import WantedRepository
-
-        page = WantedRepository().get_wanted_items(page=1, per_page=1, status="wanted")
-        items = page.get("data") or page.get("items") or []
-        if not items:
-            return {}
-        item = items[0]
-        season_episode = item.get("season_episode") or ""
-        season = episode = None
-        match = re.match(r"[Ss](\d+)[Ee](\d+)", season_episode)
-        if match:
-            season, episode = int(match.group(1)), int(match.group(2))
-        title = item.get("title") or ""
-        # Titles are stored as "Series — S01E02"; the provider wants the series.
-        series_title = title.split("—")[0].strip() if "—" in title else title
-        return {
-            "series_title": series_title,
-            "title": series_title,
-            "season": season,
-            "episode": episode,
-            "language": item.get("target_language") or "en",
-        }
+        row = _first_wanted_row()
+        if not row:
+            return None
+        query = build_query_from_wanted(row)
+        query.forced_only = False
+        return query
     except Exception:  # noqa: BLE001 — a probe that cannot be built is not a test failure
         logger.debug("provider test: could not build a probe query", exc_info=True)
-        return {}
+        return None
 
 
 @bp.route("/providers/test/<provider_name>", methods=["POST"])
@@ -171,7 +178,7 @@ def test_provider(provider_name):
     """
     try:
         from providers import get_provider_manager
-        from providers.base import ProviderAuthError, ProviderRateLimitError, VideoQuery
+        from providers.base import ProviderAuthError, ProviderRateLimitError
 
         manager = get_provider_manager()
         provider = manager._providers.get(provider_name)
@@ -206,20 +213,25 @@ def test_provider(provider_name):
         data = request.get_json(force=True, silent=True) or {}
         if data.get("test_search"):
             query_data = data.get("query", {})
-            if not query_data:
-                # Probe with something the install actually wants. A caller
-                # that sends no query searches for the empty string, finds
-                # nothing, and the download path — the whole point of the
-                # download test — is never reached, so the button answers a
-                # question nobody asked.
-                query_data = _probe_query_from_wanted()
-            test_query = VideoQuery(
-                series_title=query_data.get("series_title", ""),
-                title=query_data.get("title", ""),
-                season=query_data.get("season"),
-                episode=query_data.get("episode"),
-                languages=[query_data.get("language", "en")],
-            )
+            if query_data:
+                # An explicit query is honoured as sent — the caller asked for
+                # this exact search, so it is not enriched behind their back.
+                test_query = VideoQuery(
+                    series_title=query_data.get("series_title", ""),
+                    title=query_data.get("title", ""),
+                    season=query_data.get("season"),
+                    episode=query_data.get("episode"),
+                    languages=[query_data.get("language", "en")],
+                )
+            else:
+                # Probe with something the install actually wants, built by the
+                # search pipeline's own builder so AniDB-matching providers get
+                # the ids they need (#185). A caller that sends no query would
+                # otherwise search for the empty string, find nothing, and never
+                # reach the download path the test exists to exercise.
+                test_query = _probe_query_from_wanted() or VideoQuery(
+                    series_title="", title="", languages=["en"]
+                )
 
             try:
                 search_results = provider.search(test_query)

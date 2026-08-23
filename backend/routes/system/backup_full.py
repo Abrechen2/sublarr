@@ -15,6 +15,7 @@ from datetime import UTC, datetime
 
 from flask import jsonify, request, send_file
 
+from routes.config.io import _secret_import_keys
 from routes.system import bp
 from version import __version__
 
@@ -317,19 +318,10 @@ def restore_full_backup():
                         if hasattr(Settings, "model_fields")
                         else set()
                     )
-                    secret_keys = {
-                        "api_key",
-                        "sonarr_api_key",
-                        "radarr_api_key",
-                        "jellyfin_api_key",
-                        "opensubtitles_api_key",
-                        "opensubtitles_password",
-                        "jimaku_api_key",
-                        "subdl_api_key",
-                        "tmdb_api_key",
-                        "tvdb_api_key",
-                        "tvdb_pin",
-                    }
+                    # Same derivation as the config-import path — see
+                    # routes/config/io.py. Enumerating these by hand let the
+                    # list drift behind newly added providers.
+                    secret_keys = _secret_import_keys()
 
                     for key, value in config_data.items():
                         if key in secret_keys:

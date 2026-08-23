@@ -11,6 +11,10 @@ const STATUS_COLOR: Record<SchedulerStatus, string> = {
   // Not a warning: the run did not end. Reading this as a finished-with-warning
   // run is what let a sweep keep grinding for sixteen hours unnoticed.
   timeout_abandoned: 'bg-error-bg text-error',
+  // A warning, not an error: this job did nothing wrong — it never ran. The
+  // fault is a saturated worker pool, and the error colour belongs on whatever
+  // is holding those workers.
+  timeout_not_started: 'bg-warning-bg text-warning',
   missed: 'bg-warning-bg text-warning',
   skipped_overlap: 'bg-elevated text-muted',
 }

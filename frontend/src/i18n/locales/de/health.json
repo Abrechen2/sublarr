@@ -35,6 +35,8 @@
     "no_result": "Kein Treffer",
     "no_result_slow": "Kein Treffer (langsamer Retry)",
     "provider_error": "Provider-Fehler",
+    "file_missing": "Datei fehlt",
+    "translation_error": "Übersetzungsfehler",
     "unsourceable": "Nicht gematcht",
     "failed": "Fehlgeschlagen"
   },

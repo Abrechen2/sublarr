@@ -10,6 +10,14 @@ def test_provider_api_keys_are_sensitive():
 def test_passwords_and_tokens_are_sensitive():
     assert is_sensitive_key("addic7ed_password")
     assert is_sensitive_key("github_token")
+    assert is_sensitive_key("titlovi_password")
+    assert is_sensitive_key("turkcealtyazi_password")
+
+
+def test_provider_usernames_are_not_secrets():
+    """Only the password half is encrypted at rest — the username is shown
+    back in the settings form and must not be masked into ***configured***."""
+    assert not is_sensitive_key("titlovi_username")
 
 
 def test_bare_api_key_is_sensitive():

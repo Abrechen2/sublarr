@@ -27,8 +27,12 @@ function statusDotColor(status?: string | null): string {
     case 'error':
     case 'timeout_abandoned':
       return 'var(--error)'
+    // 'timeout_not_started' sits here because the job never ran: its own
+    // health is unknown rather than bad, and the pool that starved it is the
+    // thing to go and look at.
     case 'timeout':
     case 'missed':
+    case 'timeout_not_started':
       return 'var(--warning)'
     case 'skipped_overlap':
       return 'var(--text-muted)'

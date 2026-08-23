@@ -216,6 +216,9 @@ class UISettings(BaseModel):
     provider_priorities: str = "animetosho,jimaku,opensubtitles,subdl"
     providers_enabled: str = ""  # Empty = all registered providers enabled
     providers_hidden: str = ""  # Comma-separated provider names hidden from UI grid
+    # Per-provider language exclusion (#192): JSON object mapping provider
+    # name to ISO 639-1 codes it must never serve, e.g. {"opensubtitles": ["sr"]}
+    provider_language_excludes_json: str = ""
 
     # Reverse-proxy header authentication (Authelia/authentik SSO).
     # When enabled, a request whose DIRECT peer IP (request.remote_addr — no
@@ -232,6 +235,10 @@ class UISettings(BaseModel):
     # Turkcealtyazi (Turkish subtitles — account required)
     turkcealtyazi_username: str = ""
     turkcealtyazi_password: str = ""
+
+    # Titlovi (Balkan subtitles — account with API access required, #191)
+    titlovi_username: str = ""
+    titlovi_password: str = ""
     provider_search_timeout: int = 30  # Global timeout fallback (seconds)
     provider_cache_ttl_minutes: int = 5  # Cache TTL for provider search results
     provider_auto_prioritize: bool = True  # Auto-prioritize providers based on success rate

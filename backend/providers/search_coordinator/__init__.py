@@ -17,16 +17,19 @@ mixed in below.
 import logging
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from concurrent.futures import TimeoutError as FutureTimeoutError
+from dataclasses import replace as dataclass_replace
 
 import decision_log
 from db.repositories.provider_account_pool import ProviderAccountPoolRepository
 from providers.base import (
+    ProviderNotApplicableError,
     ProviderRateLimitError,
     SubtitleFormat,
     SubtitleResult,
     VideoQuery,
     compute_score,
 )
+from providers.language_excludes import parse_language_excludes
 from providers.search_coordinator.cache import SearchCacheMixin
 from providers.search_coordinator.retry import SearchRetryMixin
 from providers.search_coordinator.scoring import SearchScoringMixin
@@ -90,6 +93,12 @@ class SearchCoordinatorMixin(SearchRetryMixin, SearchScoringMixin, SearchCacheMi
     - self._check_auto_disable(name)
     """
 
+    def _get_language_excludes(self) -> dict[str, frozenset[str]]:
+        """Read the per-provider language-exclusion map from settings (#192)."""
+        return parse_language_excludes(
+            getattr(self.settings, "provider_language_excludes_json", "")
+        )
+
     def _submit_provider_searches(
         self,
         executor,
@@ -118,12 +127,65 @@ class SearchCoordinatorMixin(SearchRetryMixin, SearchScoringMixin, SearchCacheMi
         # search may query. Empty/absent = no restriction (global selection).
         allowed = set(getattr(query, "allowed_providers", None) or [])
 
+        # Per-provider language exclusion (#192): a provider never sees, and
+        # never serves, the languages excluded for it.
+        excludes = self._get_language_excludes()
+
         for name, provider in self._providers.items():
             # Reset per-iteration key tracking (Phase 4a).
             key: dict | None = None
             if allowed and name not in allowed:
                 logger.debug("Skipping provider %s -- not in profile provider list", name)
                 continue
+
+            # Language-exclusion gate: narrow the query to the languages this
+            # provider is allowed to serve; skip it when nothing remains.
+            provider_query = query
+            excluded = excludes.get(name)
+            if excluded and query.languages:
+                remaining_langs = [lc for lc in query.languages if lc not in excluded]
+                if not remaining_langs:
+                    logger.debug(
+                        "Skipping provider %s -- all requested languages excluded (%s)",
+                        name,
+                        ", ".join(sorted(excluded)),
+                    )
+                    decision_log.provider_skipped(
+                        name, "languages_excluded", detail=", ".join(sorted(excluded))
+                    )
+                    continue
+                if len(remaining_langs) != len(query.languages):
+                    # New object — the original query is shared across providers.
+                    provider_query = dataclass_replace(query, languages=remaining_langs)
+
+            # A provider that serves none of the requested languages is asked
+            # nothing. Every language-specific adapter already refuses these
+            # internally (`if "pl" not in query.languages: return []`), but it
+            # did so *after* being submitted and timed, so each one counted as
+            # a 0 ms search. Measured on prod 2026-08-23: napisy24 carried
+            # 29 345 "searches" averaging 0 ms, titrari 1 ms, kitsunekko 6 ms —
+            # impossible figures for an HTTP call, and the same pollution that
+            # drove animetosho's timeout below its own median response time.
+            #
+            # Only providers that declare a non-empty language set are gated:
+            # an adapter that declares nothing may serve anything, and must
+            # keep its chance to answer.
+            declared = getattr(provider, "languages", None)
+            if declared and provider_query.languages:
+                wanted = {lc.strip().lower() for lc in provider_query.languages if lc}
+                serves = {str(lc).strip().lower() for lc in declared if lc}
+                if wanted and serves and not (wanted & serves):
+                    logger.debug(
+                        "Skipping provider %s -- serves %s, search wants %s",
+                        name,
+                        ",".join(sorted(serves)),
+                        ",".join(sorted(wanted)),
+                    )
+                    decision_log.provider_skipped(
+                        name, "language_unsupported", detail=",".join(sorted(wanted))
+                    )
+                    continue
+
             # Check auto-disable status
             if is_provider_auto_disabled(name):
                 logger.debug("Skipping provider %s -- auto-disabled", name)
@@ -228,7 +290,7 @@ class SearchCoordinatorMixin(SearchRetryMixin, SearchScoringMixin, SearchCacheMi
             # just-consumed call leaks permanently.
             try:
                 future = executor.submit(
-                    self._search_provider_with_retry, name, provider, query, key
+                    self._search_provider_with_retry, name, provider, provider_query, key
                 )
                 futures[future] = name
                 # Phase 4a: track the key_id used for this future (if any),
@@ -286,11 +348,24 @@ class SearchCoordinatorMixin(SearchRetryMixin, SearchScoringMixin, SearchCacheMi
         provider is worse than returning what we have.
         """
         all_results = []
+        excludes = self._get_language_excludes()
         try:
             for future in as_completed(futures, timeout=max_timeout):
                 name = futures[future]
                 try:
                     results, elapsed_ms = future.result()
+                    # Language-exclusion backstop (#192): the query handed to
+                    # the provider was already narrowed, but a provider that
+                    # ignores requested languages must not smuggle an excluded
+                    # language back in.
+                    excluded = excludes.get(name)
+                    if excluded:
+                        # parse_language_excludes normalises the configured
+                        # codes; normalise the result side too, or a provider
+                        # answering "SR" walks straight past the backstop.
+                        results = [
+                            r for r in results if (r.language or "").strip().lower() not in excluded
+                        ]
                     all_results.extend(results)
                     decision_log.provider_searched(name, len(results), elapsed_ms)
 
@@ -322,6 +397,17 @@ class SearchCoordinatorMixin(SearchRetryMixin, SearchScoringMixin, SearchCacheMi
                             decision_log.early_exit(name, result.score)
                             break
 
+                except ProviderNotApplicableError as e:
+                    # The provider left before making a request, so there is
+                    # nothing to record: not a search, not a failure. Counting
+                    # it either way corrupts the numbers the search path reads
+                    # back — the response-time average that sets the provider's
+                    # own timeout, and the success ratio shown on the Providers
+                    # page. It is neither a circuit-breaker failure nor an
+                    # auto-disable candidate; the provider is working fine, it
+                    # was simply asked something it cannot answer.
+                    logger.debug("Provider %s did not search: %s", name, e)
+                    decision_log.provider_skipped(name, "not_applicable", detail=str(e))
                 except FutureTimeoutError:
                     logger.warning("Provider %s search timed out", name)
                     decision_log.provider_failed(name, "timeout")

@@ -336,8 +336,10 @@ class TestProcessWantedItem:
             os.environ.pop("SUBLARR_WANTED_AUTO_TRANSLATE", None)
             reload_settings()
 
-    def test_file_not_on_disk_returns_failed(self, app_ctx, monkeypatch, tmp_path):
-        """If the video file is missing, process_wanted_item returns status=failed."""
+    def test_file_not_on_disk_is_skipped_not_failed(self, app_ctx, monkeypatch, tmp_path):
+        """A missing video file is a transient environment fault: the item is
+        skipped with a ``file_missing`` backoff, never buried in ``failed``
+        (see test_missing_file_outcome.py for the full contract)."""
         from db.wanted import upsert_wanted_item
         from wanted_search import process_wanted_item
 
@@ -351,7 +353,8 @@ class TestProcessWantedItem:
 
         result = process_wanted_item(item_id)
         assert isinstance(result, dict)
-        assert result.get("status") == "failed"
+        assert result.get("status") == "skipped"
+        assert result.get("reason") == "file_missing"
         assert result.get("wanted_id") == item_id
 
 

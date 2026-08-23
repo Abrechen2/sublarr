@@ -181,6 +181,21 @@ class SearchCacheMixin:
             results.append(result)
         return results
 
+    def _language_excludes_cache_token(self) -> str:
+        """A stable token for the current per-provider language exclusions.
+
+        Built from the parsed map rather than the raw setting text so that
+        reformatting the JSON does not needlessly drop the whole cache, while
+        an actual change to the exclusions does.
+        """
+        try:
+            excludes = self._get_language_excludes()
+        except Exception:  # pragma: no cover - the parser is non-raising
+            return ""
+        return ";".join(
+            f"{name}:{','.join(sorted(langs))}" for name, langs in sorted(excludes.items())
+        )
+
     def _make_cache_key(
         self, query: VideoQuery, format_filter: SubtitleFormat | None = None
     ) -> str:
@@ -194,6 +209,10 @@ class SearchCacheMixin:
             # candidate set and the scores — they must partition the cache.
             ",".join(sorted(getattr(query, "allowed_providers", None) or [])),
             getattr(query, "scoring_preset", "") or "",
+            # Same reasoning: the exclusions decide which providers are asked
+            # and which results survive, so a cache entry made under one set
+            # of exclusions must not answer a search made under another.
+            self._language_excludes_cache_token(),
         ]
         key_str = "|".join(key_parts)
         return hashlib.md5(key_str.encode(), usedforsecurity=False).hexdigest()  # noqa: S324

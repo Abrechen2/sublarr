@@ -11,6 +11,7 @@ import threading
 from db.repositories.provider_account_pool import ProviderAccountPoolRepository
 from providers.base import (
     ProviderAuthError,
+    ProviderNotApplicableError,
     ProviderRateLimitError,
     ProviderTimeoutError,
     SubtitleResult,
@@ -149,6 +150,14 @@ class SearchRetryMixin:
                         results[0].format.value,
                     )
                 return results, elapsed_ms
+            except ProviderNotApplicableError:
+                # Nothing to retry: the answer will not change, because the
+                # provider never made a request. Raising past the retry loop
+                # also keeps it out of the timing line above — a no-op that
+                # logs "0 results in 0ms" is indistinguishable from a real
+                # empty search, and that is what corrupted the response-time
+                # average that sets this provider's own timeout.
+                raise
             except ProviderAuthError as e:
                 logger.error("Provider %s authentication failed: %s", name, e)
                 raise  # Propagate to caller for circuit breaker recording

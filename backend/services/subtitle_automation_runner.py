@@ -32,6 +32,7 @@ from db.repositories.subtitle_automation_queue import (
 from services.embedded_extractor import extract_embedded_sub as _extract_embedded_sub
 from services.scheduler.cancellation import abort_requested
 from services.video_sync import SyncSanityThresholdError
+from translator.errors import TranslationAbortedError
 
 logger = logging.getLogger(__name__)
 
@@ -241,6 +242,18 @@ class SubtitleAutomationRunner:
                 self._auto_sync(file_path, claim.get("video_path"))
             else:
                 _extract_embedded_sub(wanted_item_id, file_path, auto_translate=False)
+        except TranslationAbortedError as exc:
+            # The scheduler ran out of time; the item did nothing wrong. Put
+            # the row back as pending without spending an attempt — the
+            # finished batches are already in the translation memory, so the
+            # next drain resumes rather than starting the file again.
+            logger.info(
+                "subtitle_automation: stopped mid-translation for wanted_item=%s — requeued (%s)",
+                wanted_item_id,
+                exc,
+            )
+            self._repo.release_for_retry(entry_id, reason=str(exc))
+            return True
         except _TERMINAL_SYNC_ERRORS as exc:
             # A rejected shift is the same shift next time — the sanity gate
             # compares the measured offset against a configured threshold, and

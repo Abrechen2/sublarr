@@ -5,9 +5,175 @@ All notable changes to Sublarr are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [1.12.1] - 2026-08-15
+## [1.13.2] - 2026-08-23
 
 ### Fixed
+- **AnimeTosho stopped throwing away half its own results.** The search
+  timeout each provider gets is derived from its average response time, and
+  AnimeTosho's average was being computed over a population that was two
+  thirds not-searches: when a wanted item reached it with no series title and
+  no title, it returned an empty result in zero milliseconds, and that counted
+  as a search. On one library, 3593 of 4998 recorded searches were these
+  no-ops. They pulled the average from 15.6 seconds down to 4.2, which set the
+  provider's ceiling to 14 seconds — below the 16.5-second median of a search
+  that actually happens. Nearly half of its genuine results were being
+  discarded as "too slow" because most of its "searches" never happened.
+
+  A provider that cannot answer a query now says so instead of returning an
+  empty result, and that answer is recorded as a skip rather than a search.
+  The Providers page also stops counting those as failed searches, so the
+  success rate shown there reflects real attempts.
+- **A provider is no longer asked for a language it does not serve.** Every
+  language-specific source already refused those queries — but only after
+  being started and timed, so each refusal was recorded as an instant search.
+  On one library that produced 29 345 "searches" for the Polish-only provider
+  averaging zero milliseconds, and similar figures for the Romanian and
+  Japanese ones. Those providers are now skipped before the request, with the
+  reason shown in the search decision log, and their statistics describe real
+  attempts. A provider that declares no language set is never skipped this
+  way, since it may serve anything.
+- **A query with no title is no longer sent to AnimeTosho as a bare episode
+  number.** The title was checked only after the episode number had been
+  appended, so an item with no series name searched for " 03" and matched
+  loosely against the whole index.
+
+## [1.13.1] - 2026-08-22
+
+### Fixed
+- **A translation can now be interrupted, and the scheduler history says so
+  honestly.** Two separate faults produced the same misleading entry. The drain
+  worker could only stop between queue items, but one item is a whole
+  translation — measured at up to 16 minutes against a 15-minute allowance — so
+  a stop request landing early in one could never be honoured in time, and the
+  run was filed as "asked to stop and still running". It now stops at the next
+  batch boundary, keeps every batch it already finished, and resumes from there
+  on the next pass. The episode goes back in the queue instead of counting a
+  failed attempt: the scheduler running out of time is not the episode's fault,
+  and spending one of its attempts is how episodes end up buried.
+- **A scheduled job that never ran is no longer reported as one that refused to
+  stop.** When every scheduler worker was busy for a job's whole allowance, the
+  firing waited in the queue without executing a line — and was then recorded as
+  if it had ignored a stop request, sending you looking for runaway work that
+  did not exist. It is now named for what it is and points at the real cause,
+  which is a saturated worker pool.
+- **The provider test button now asks what the real search asks.** It built its
+  own simplified query, which providers that match through AniDB — AnimeTosho in
+  particular — could never answer, so a "no results" from the button told you
+  nothing about them. It now builds the query with the same code the scheduled
+  search uses, metadata enrichment and AniDB resolution included.
+
+## [1.13.0] - 2026-08-22
+
+### Added
+- **Languages can be excluded per provider.** When one provider does a
+  language well and another serves it in poor quality, the weaker source
+  can now be shut off for exactly that language: each provider's settings
+  page has an "Excluded languages" selector, and an excluded language is
+  neither searched nor accepted from that provider (#192). A provider
+  whose requested languages are all excluded is skipped and says so in
+  the search decision log.
+
+### Security
+- **A config import or backup restore can no longer plant provider
+  credentials.** Both paths carried their own hand-written list of keys a
+  payload may not set, and neither had been extended when Addic7ed,
+  Turkcealtyazi and Titlovi added credentials of their own — so an import
+  could set them. Both now derive the list from the same classifier that
+  decides what gets encrypted at rest, which also covers whatever provider
+  is added next.
+
+### Fixed
+- **A throttled Shoko server is no longer reported as a rejected API key.**
+  A 429 from Shoko was folded into the generic failure branch, so being rate
+  limited looked like a credential problem. It is named for what it is now.
+- **Turning on a language exclusion takes effect immediately.** Results
+  cached from before the change kept being served for the lifetime of the
+  cache entry, and a provider that answered with an unexpectedly capitalised
+  language code slipped past the filter entirely.
+- **Titlovi actually works now — it authenticates.** The provider queried
+  the Titlovi API anonymously with English language names, but the API
+  requires a titlovi.com account (username/password, exchanged for a
+  token) and speaks native language names — every search came back empty
+  (#191). The provider now logs in, renews its token when it expires,
+  sends the request format the API expects, and picks the right episode
+  out of season-pack archives. Credentials are configured under
+  Settings → Providers; without them the provider disables itself with a
+  clear message instead of failing silently.
+- **The Titlovi password no longer reaches the log.** The provider sends
+  its credentials as query parameters, and a failed request quoted the
+  whole URL back in its error message — so any DNS hiccup or timeout wrote
+  the password in plaintext to the log file, the log viewer and the support
+  bundle, where the anonymizer's length threshold let short passwords
+  through. Credential-bearing parameters are now masked before anything is
+  logged. Anyone who configured Titlovi on an unreleased build should
+  rotate that password and clear old logs.
+- **Shoko connection test no longer rejects a valid API key.** The test
+  probed an endpoint that does not exist on current Shoko servers, so
+  every connection attempt reported "apikey rejected" even when the key
+  was valid (#193). The probe now uses a real endpoint, and only an
+  actual 401/403 is reported as a rejected key. Username/password login
+  also uses the current Shoko sign-in endpoint, falling back to the
+  legacy one for older servers.
+
+## [1.12.2] - 2026-08-21
+
+### Fixed
+- **A failed translation no longer buries the episode forever.** When the
+  translation backend was unreachable (local LLM down, quota exhausted) or
+  the translate step crashed, the episode was marked failed — a state the
+  search scheduler never looks at again, so it stayed without a subtitle
+  even after the backend recovered. One production outage buried 21
+  episodes this way. Such episodes now return to the wanted pool with an
+  escalating retry backoff (6 hours up to 30 days) and heal themselves
+  once translation works again. The same applies to forced-subtitle
+  episodes, which used to be failed permanently after a single empty
+  search — a miss now counts as a regular miss with the usual retry and
+  slow-mode escalation. Episodes already buried by earlier versions are
+  returned to the wanted pool automatically on upgrade, and the Health
+  page now labels these states ("File missing", "Translation error") and
+  keeps the error message visible.
+- **A vanished media file pauses the episode instead of failing it.** A
+  missing file is usually a mount or permission fault, not a property of
+  the episode. Instead of being marked failed permanently, the episode now
+  retries on the same escalating backoff and heals itself when the mount
+  returns.
+- **The OpenSubtitles connection test no longer reports a false error for
+  API-key-only setups.** The health check probed an endpoint that requires
+  a user login, which an API-key-only configuration never has — searches
+  and downloads worked while the provider showed red. The check now probes
+  what the configured auth mode can actually answer.
+
+## [1.12.1] - 2026-08-20
+
+### Fixed
+- **A fruitless search no longer makes the episode invisible to every later
+  search.** With the automation queue enabled, an episode whose provider
+  search came up empty was marked as being searched and then simply left
+  that way — never returned to the wanted pool, never given a retry, and
+  never handed to the queue either. Every four-hour search run stranded
+  every unsuccessful item this way (one production library accumulated
+  7,878 of them in a day), silently draining the backlog until nothing
+  searchable remained. An empty search now counts as a regular miss again —
+  the episode returns to the pool with the usual retry backoff — and a
+  safety net guarantees that no exit from a search, including cancellations
+  and crashes, can leave an episode stuck in the searching state. Episodes
+  already stranded by an affected version are returned to the wanted pool
+  automatically the next time Sublarr starts, keeping whatever retry backoff
+  they had earned.
+- **The model's chat replies can no longer end up inside a subtitle file.**
+  Asked to translate a single line, the model would occasionally answer
+  conversationally — "Okay, please provide the English subtitle lines you
+  want me to translate" — and that reply was stored as the translation. The
+  existing line-count safeguard cannot catch this case, because a chat reply
+  is exactly one line. Worse, the reply also entered the translation memory,
+  from where it replayed into every later file whose English line matched:
+  on one production library, 1124 such lines had accumulated and episodes
+  finished weeks later still carried them. Every translated batch is now
+  screened for assistant-speak before it may reach the file or the memory;
+  a batch that fails the screen fails the translation, which is then retried
+  as usual. Single-batch files also gained the line-count check that larger
+  files already had. Existing poisoned memory entries have to be cleaned up
+  once by hand.
 - **An interrupted remux no longer leaves gigabytes behind in the library.**
   A remux writes its output beside the episode rather than in a temporary
   directory, and removes that work file if the remux fails. A process that is

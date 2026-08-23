@@ -654,9 +654,25 @@
     "last_run": "Zuletzt: {{date}}"
   },
   "whatsnew": {
+    "v1130": {
+      "language_excludes_title": "Sprachen lassen sich jetzt einzeln pro Anbieter ausschließen",
+      "language_excludes_desc": "Manche Anbieter liefern eine Sprache gut und eine andere schlecht. Bisher blieb nur, den schwächeren Anbieter ganz abzuschalten — und damit auch die Sprachen zu verlieren, die er beherrscht. In den Einstellungen jedes Anbieters gibt es jetzt „Ausgeschlossene Sprachen“: eine so ausgeschlossene Sprache wird bei diesem Anbieter weder angefragt noch angenommen, selbst wenn er sie unaufgefordert zurückliefert. Sind für eine Suche alle gewünschten Sprachen ausgeschlossen, wird der Anbieter übersprungen und nennt den Grund im Entscheidungsprotokoll.",
+      "titlovi_title": "Titlovi funktioniert wieder — der Anbieter meldet sich jetzt an",
+      "titlovi_desc": "Titlovi wurde ohne Anmeldung und mit englischen Sprachnamen abgefragt. Die Schnittstelle verlangt aber ein titlovi.com-Konto und spricht die Landessprachen, deshalb kam jede Suche leer zurück. Der Anbieter meldet sich jetzt an, erneuert seine Sitzung selbstständig und holt die richtige Folge auch aus Staffelpaketen heraus. Die Zugangsdaten werden unter Einstellungen → Anbieter hinterlegt; ohne sie schaltet sich der Anbieter mit einem klaren Hinweis ab, statt still nichts zu finden.",
+      "shoko_title": "Der Shoko-Verbindungstest lehnt gültige Schlüssel nicht mehr ab",
+      "shoko_desc": "Der Test fragte einen Endpunkt ab, den aktuelle Shoko-Server nicht mehr anbieten. Jeder Verbindungsversuch meldete daraufhin „API-Schlüssel abgelehnt“ — auch bei völlig gültigem Schlüssel. Geprüft wird jetzt ein real vorhandener Endpunkt, und nur eine echte Ablehnung wird auch als solche gemeldet."
+    },
     "title": "Neu in {{version}}",
     "close": "Schließen",
     "got_it": "Verstanden",
+    "v1122": {
+      "translation_retry_title": "Eine fehlgeschlagene Übersetzung begräbt den Eintrag nicht mehr endgültig",
+      "translation_retry_desc": "War das Übersetzungs-Backend nicht erreichbar — lokales LLM aus, Kontingent erschöpft — wurde der Eintrag als fehlgeschlagen markiert. Diesen Zustand schaut sich die geplante Suche nie wieder an: der Eintrag blieb ohne Untertitel, auch wenn das Backend längst wieder lief. Ein einziger Ausfall begrub in einer echten Bibliothek 21 Folgen auf diese Weise. Solche Einträge kehren jetzt mit ansteigender Wartezeit (6 Stunden bis 30 Tage) in den Suchpool zurück und heilen sich von selbst, sobald das Übersetzen wieder funktioniert. Dasselbe gilt für Forced-Untertitel, die bisher nach einer einzigen leeren Suche endgültig aufgegeben wurden — ein Fehlschlag zählt jetzt wie überall als normaler Fehlversuch mit Wiederholung. Bereits begrabene Einträge werden beim Update automatisch zurückgeholt, und die Gesundheitsseite benennt diese Zustände jetzt („Datei fehlt\", „Übersetzungsfehler\") und zeigt die Fehlermeldung dazu.",
+      "file_missing_title": "Eine verschwundene Videodatei pausiert den Eintrag, statt ihn aufzugeben",
+      "file_missing_desc": "Fehlt die Videodatei plötzlich auf der Platte, ist meist das Netzlaufwerk weg oder ein Rechteproblem — keine Eigenschaft der Folge. Statt endgültig als fehlgeschlagen markiert zu werden, versucht es der Eintrag jetzt mit derselben ansteigenden Wartezeit erneut und heilt sich von selbst, sobald die Datei zurückkehrt.",
+      "opensubtitles_test_title": "Der OpenSubtitles-Verbindungstest meldet keinen falschen Fehler mehr",
+      "opensubtitles_test_desc": "Wer nur einen API-Schlüssel hinterlegt hat, ohne Benutzer-Login, bekam beim Verbindungstest einen Fehler angezeigt, obwohl Suche und Download einwandfrei liefen — der Test fragte einen Endpunkt ab, den nur ein Benutzer-Login beantworten kann. Er prüft jetzt genau das, was die eingerichtete Anmeldeart tatsächlich beantworten kann."
+    },
     "v1121": {
       "search_translate_title": "Die geplante Suche übersetzt jetzt gar nicht mehr selbst",
       "search_translate_desc": "Für die Sammelverarbeitung war das bereits geregelt, für einzelne Einträge nicht: Fand die Suche für einen Titel nichts bei den Anbietern, holte sie die Tonspur aus der Datei und übersetzte sie an Ort und Stelle — mitten im Suchlauf. Eine solche Extraktion allein darf fünf Minuten dauern, der Lauf hat für sein Ende sechzig Sekunden. Bat man ihn zu stoppen, wartete er trotzdem, bis der begonnene Eintrag fertig war, und wurde als überfällig verbucht. Diese Arbeit gehört jetzt der Untertitel-Automatik. Wer die Automatik ausgeschaltet hat, bei dem übersetzt die Suche weiterhin selbst — sonst würde die Arbeit liegenbleiben. Manuelle Suchen sind unverändert.",

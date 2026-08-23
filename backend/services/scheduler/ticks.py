@@ -35,10 +35,19 @@ _MAX_ERROR_MSG_BYTES = 4096
 _tick_executor: ThreadPoolExecutor | None = None
 
 
+# Shared by every JobSpec. A run recorded `timeout_abandoned` keeps its worker
+# for as long as the work runs on, so a job that will not wind down costs a
+# slot from this pool until it does — which is why a saturated pool has to be
+# distinguishable in the history from a job that ignored its stop request.
+_TICK_EXECUTOR_WORKERS = 16
+
+
 def _get_tick_executor() -> ThreadPoolExecutor:
     global _tick_executor
     if _tick_executor is None:
-        _tick_executor = ThreadPoolExecutor(max_workers=16, thread_name_prefix="scheduler-tick")
+        _tick_executor = ThreadPoolExecutor(
+            max_workers=_TICK_EXECUTOR_WORKERS, thread_name_prefix="scheduler-tick"
+        )
     return _tick_executor
 
 
@@ -302,7 +311,17 @@ def _tick_wrapper(
         # every job reading the default and answering "keep going".
         cancel_event = cancellation.begin_run(spec.id)
 
+        # Set the instant the worker picks the job up. The timeout bounds the
+        # wait on the future, not the work, and this executor's 16 workers are
+        # shared by every job — so a submitted tick can still be *queued* when
+        # its timeout expires. Without this flag such a run was recorded
+        # `timeout_abandoned`, which tells an operator to go hunting for
+        # runaway work that never existed (prod 2026-08-21: a wanted_search run
+        # filed abandoned at 2700s with not one line of its own in the log).
+        started = threading.Event()
+
         def _fn_with_ctx() -> None:
+            started.set()
             token = cancellation.activate(cancel_event)
             try:
                 with app.app_context():
@@ -336,21 +355,42 @@ def _tick_wrapper(
                             spec.timeout_s,
                         )
                     except FutureTimeoutError:
-                        # Recorded distinctly because "timeout" reads as "the
-                        # run ended". One user's sweep was still reading their
-                        # library sixteen hours after that line was logged.
-                        status = "timeout_abandoned"
-                        error_msg = (
-                            f"tick exceeded {spec.timeout_s}s, was asked to stop, and was "
-                            f"still running {grace_s}s later — the work continues until it "
-                            "reaches a check point"
-                        )
-                        logger.error(
-                            "scheduler: %s exceeded %ds and did NOT stop when asked — "
-                            "it is still running",
-                            spec.id,
-                            spec.timeout_s,
-                        )
+                        if not started.is_set():
+                            # Never picked up by a worker: nothing ran, so
+                            # nothing ignored the stop request. Saying
+                            # "abandoned" here sends an operator looking for
+                            # runaway work that does not exist, and hides the
+                            # real fault, which is a saturated tick executor.
+                            status = "timeout_not_started"
+                            error_msg = (
+                                f"tick waited {spec.timeout_s}s + {grace_s}s without ever "
+                                "starting — every scheduler worker was busy, so the job "
+                                "never ran"
+                            )
+                            logger.error(
+                                "scheduler: %s never started — all %d tick workers were "
+                                "busy for %ds; the job did not run at all",
+                                spec.id,
+                                _TICK_EXECUTOR_WORKERS,
+                                spec.timeout_s + grace_s,
+                            )
+                        else:
+                            # Recorded distinctly because "timeout" reads as
+                            # "the run ended". One user's sweep was still
+                            # reading their library sixteen hours after that
+                            # line was logged.
+                            status = "timeout_abandoned"
+                            error_msg = (
+                                f"tick exceeded {spec.timeout_s}s, was asked to stop, and was "
+                                f"still running {grace_s}s later — the work continues until it "
+                                "reaches a check point"
+                            )
+                            logger.error(
+                                "scheduler: %s exceeded %ds and did NOT stop when asked — "
+                                "it is still running",
+                                spec.id,
+                                spec.timeout_s,
+                            )
                 except Exception as exc:
                     status = "error"
                     error_type = type(exc).__name__

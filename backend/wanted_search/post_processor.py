@@ -254,13 +254,20 @@ def _process_forced_wanted_item(item, item_id, item_lang, manager):
                 exc_info=True,
             )
 
-    # No forced subtitle found
-    error = "No forced subtitle found from any provider"
-    update_wanted_status(item_id, "failed", error=error)
+    # No forced subtitle found — a genuine provider miss, exactly like the
+    # non-forced no-result exit in ``_run_search_steps``: charge the search
+    # budget and let the tri-state escalation (backoff → slow-mode →
+    # unsourceable) govern retries. The old terminal ``'failed'`` write made
+    # every forced item a dead row after one empty search, because the
+    # scheduled selector only ever fetches ``status='wanted'``.
+    from services.wanted_search_runner import record_search_outcome
+
+    update_wanted_status(item_id, "wanted")
+    record_search_outcome(item_id, kind="no_result")
     return {
         "wanted_id": item_id,
-        "status": "failed",
-        "error": error,
+        "status": "not_found",
+        "reason": "No forced subtitle found from any provider",
         "forced": True,
     }
 

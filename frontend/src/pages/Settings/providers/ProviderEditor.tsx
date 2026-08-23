@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next'
 import { Loader2, TestTube, Trash2, Download, Database } from 'lucide-react'
 import { SettingRow } from '@/components/shared/SettingRow'
 import ProviderKeysPool from '@/components/settings/ProviderKeysPool'
+import { ProviderLanguageExcludes } from './ProviderLanguageExcludes'
 import type { ProviderInfo } from '@/lib/types'
 import {
   getStatusColor, getStatusLabel, getStatusBg,
@@ -310,6 +311,12 @@ export function ProviderEditor({
             {ts('providers_tab.editor.no_credentials_required')}
           </div>
         )}
+
+        {/* Per-provider language exclusion (#192) */}
+        <ProviderLanguageExcludes
+          providerName={provider.name}
+          providerLanguages={provider.languages}
+        />
 
         {/* Multi-key pool */}
         <ProviderKeysPool providerName={provider.name} />

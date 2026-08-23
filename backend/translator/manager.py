@@ -3,6 +3,7 @@
 import logging
 import sys
 
+from services.scheduler.cancellation import abort_requested
 from translation import get_translation_manager
 from translation.context_windower import build_chunks
 from translator._helpers import (
@@ -10,6 +11,8 @@ from translator._helpers import (
     _resolve_backend_for_context,
 )
 from translator.cache import _apply_translation_cache, _store_translations_in_cache
+from translator.errors import TranslationAbortedError
+from translator.output_guard import find_chat_filler
 
 logger = logging.getLogger(__name__)
 
@@ -167,6 +170,32 @@ def _cache_batch(cache_enabled, source_lines, result, source_lang, target_lang):
     )
 
 
+def _verify_batch(result, expected_count, batch_label):
+    """Verify one backend result before it may reach the file or the cache.
+
+    Checks line count and rejects chat filler. The count check alone cannot
+    catch a conversational reply in a single-line batch — that reply is
+    exactly one line — which is how 1124 chat replies reached the prod
+    translation memory during the batch_size=1 era.
+
+    Raises:
+        RuntimeError: If the count is off or a line is filler, so the batch
+            fails like any other translation failure and nothing is cached.
+    """
+    if len(result.translated_lines) != expected_count:
+        raise RuntimeError(
+            f"{batch_label} returned {len(result.translated_lines)} lines, "
+            f"expected {expected_count}. Aborting to prevent cache pollution."
+        )
+    suspects = find_chat_filler(result.translated_lines)
+    if suspects:
+        idx, text = suspects[0]
+        raise RuntimeError(
+            f"{batch_label} returned chat filler instead of a translation "
+            f"(line {idx + 1}: {text[:80]!r}). Aborting to prevent cache pollution."
+        )
+
+
 def _translate_in_batches(
     manager,
     lines,
@@ -212,6 +241,7 @@ def _translate_in_batches(
         )
         if not result.success:
             raise RuntimeError(f"Translation failed: {result.error}")
+        _verify_batch(result, len(lines), "Translation")
         _cache_batch(cache_enabled, lines, result, source_lang, target_lang)
         return result.translated_lines, result
 
@@ -247,6 +277,17 @@ def _translate_in_batches(
     last_result = None
 
     for i, chunk in enumerate(chunks):
+        # The batch boundary is this job's only honest stopping point. The
+        # drain worker checks between queue items, but one item is a whole
+        # translation — prod measured those at ~16 minutes against a 900s
+        # grace, which is why 43 of 61 abandoned runs in the 30 days to
+        # 2026-08-22 were subtitle_automation. Everything above this line is
+        # already cached, so stopping here costs the remainder, not the file.
+        if abort_requested():
+            raise TranslationAbortedError(
+                f"asked to stop after {i} of {len(chunks)} batches; "
+                "the finished batches are cached and the next attempt resumes from them"
+            )
         chunk_result = manager.translate_with_fallback(
             chunk.batch,
             source_lang,
@@ -260,11 +301,7 @@ def _translate_in_batches(
         )
         if not chunk_result.success:
             raise RuntimeError(f"Translation failed on batch {i + 1}: {chunk_result.error}")
-        if len(chunk_result.translated_lines) != len(chunk.batch):
-            raise RuntimeError(
-                f"Chunk translation returned {len(chunk_result.translated_lines)} lines, "
-                f"expected {len(chunk.batch)}. Aborting to prevent cache pollution."
-            )
+        _verify_batch(chunk_result, len(chunk.batch), "Chunk translation")
         all_translated.extend(chunk_result.translated_lines)
         # Written here, not after the loop: everything above this line is
         # verified and paid for, and the next failure must not take it.
