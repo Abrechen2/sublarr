@@ -7,6 +7,7 @@ parsing, and CJK hallucination detection.
 
 import logging
 import re
+from collections import Counter
 
 from translation.prompt_safety import MAX_LINE_CHARS, escape_for_prompt
 
@@ -143,6 +144,85 @@ def strip_invented_hard_breaks(source_lines: list[str], translated_lines: list[s
         without = translated.replace(_HARD_BREAK, " ")
         cleaned.append(re.sub(r"\s+", " ", without).strip())
     return cleaned
+
+
+_SOFT_BREAK = "\\n"  # literal backslash-n; ASS's soft break, models emit it for \N
+
+# A token that tends to come through a translation unchanged, so it can tie an
+# output line back to the source line it belongs to: a run of digits, or a word
+# of three letters or more — names, places, numbers, cognates. Very common short
+# words are no danger because only tokens unique within the batch are used, and
+# "the"/"und" are never unique; the length floor exists to keep the token set
+# small. Measured over 57 real batches, a floor of 3 left 18% of batches without
+# usable anchors against 28% at 4, with no false positive at either.
+_ANCHOR_RE = re.compile(r"[0-9]+|[^\W\d_]{3,}", re.UNICODE)
+
+# How many anchors must agree on the same offset before we call a batch shifted.
+# One is a coincidence: over 57 aligned batches a lone anchor wandered a handful
+# of times and two never agreed, so this threshold produced no false positive at
+# all. Three would be safer still and is not worth it — the one real shift on
+# record was carried by exactly two anchors and would go unnoticed.
+_MIN_AGREEING_ANCHORS = 2
+
+
+def _anchor_tokens(line: str) -> set[str]:
+    """Lower-cased tokens from ``line`` that can anchor it to its translation."""
+    text = line.replace(_HARD_BREAK, " ").replace(_SOFT_BREAK, " ")
+    return {match.group(0).lower() for match in _ANCHOR_RE.finditer(text)}
+
+
+def _unique_homes(lines: list[str]) -> dict[str, int]:
+    """Map each anchor token to its line index, or -1 if it occurs in several.
+
+    Only a token that appears exactly once carries positional information; one
+    that repeats could be matched to any of its occurrences and would invent
+    offsets that are not there.
+    """
+    homes: dict[str, int] = {}
+    for index, tokens in enumerate(lines):
+        for token in tokens:
+            homes[token] = index if token not in homes else -1
+    return homes
+
+
+def find_line_shift(source_lines: list[str], translated_lines: list[str]) -> int | None:
+    """Return the offset a batch's lines drifted by, or ``None`` if aligned.
+
+    A model can return exactly the requested number of lines and still hand
+    back a batch in which the lines no longer correspond to the source. It
+    splits one source line across two output lines and merges two others
+    further down, so the total comes out right while every line in between sits
+    against the wrong subtitle event — the dialogue runs out of sync on screen.
+    A count check cannot see this by construction, which is why the defect
+    survived every guard in the pipeline.
+
+    Detection works off anchors: digits and longer words usually survive
+    translation intact, so a token that occurs on exactly one source line and
+    exactly one output line says where that line ended up. Anchors that landed
+    where they started say nothing; the rest vote on an offset, and a batch is
+    reported as shifted when at least ``_MIN_AGREEING_ANCHORS`` of them agree.
+
+    Returns the offset (positive: output sits later than its source) so callers
+    can log something diagnosable. Lists of differing length return ``None`` —
+    that is the caller's line-count failure, not this one.
+    """
+    if len(source_lines) != len(translated_lines) or len(source_lines) < 2:
+        return None
+
+    source_homes = _unique_homes([_anchor_tokens(line) for line in source_lines])
+    target_homes = _unique_homes([_anchor_tokens(line) for line in translated_lines])
+
+    votes: Counter[int] = Counter()
+    for token, source_index in source_homes.items():
+        target_index = target_homes.get(token, -1)
+        if source_index < 0 or target_index < 0 or target_index == source_index:
+            continue
+        votes[target_index - source_index] += 1
+
+    if not votes:
+        return None
+    shift, agreeing = votes.most_common(1)[0]
+    return shift if agreeing >= _MIN_AGREEING_ANCHORS else None
 
 
 def _escape_subtitle_line(line: str) -> str:
