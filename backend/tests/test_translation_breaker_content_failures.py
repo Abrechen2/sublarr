@@ -19,7 +19,11 @@ import pytest
 from config import reload_settings
 from db import close_db, init_db
 from translation.base import TranslationBackend, TranslationResult
-from translation.llm_base import ContentFilterError, LineCountMismatchError
+from translation.llm_base import (
+    ContentFilterError,
+    LineCountMismatchError,
+    LineMisalignmentError,
+)
 
 
 @pytest.fixture(autouse=True)
@@ -87,6 +91,11 @@ class _ContentFilterBackend(_RaisingBackend):
     exc = ContentFilterError("content_filter refused with finish_reason=content_filter")
 
 
+class _MisalignedBackend(_RaisingBackend):
+    name = "misaligned"
+    exc = LineMisalignmentError("misaligned returned lines shifted by +1 after retry")
+
+
 class _UnreachableBackend(_RaisingBackend):
     name = "unreachable"
     exc = ConnectionError("connection refused")
@@ -115,6 +124,14 @@ def test_content_filter_refusal_does_not_open_the_breaker(manager):
 
     cb = manager._get_circuit_breaker(_ContentFilterBackend.name)
     assert cb.is_open is False, "a refusal is about the content, not the backend"
+
+
+def test_misaligned_lines_do_not_open_the_breaker(manager):
+    """Same reasoning, newer check — the backend answered, twice."""
+    _drive_failures(manager, _MisalignedBackend)
+
+    cb = manager._get_circuit_breaker(_MisalignedBackend.name)
+    assert cb.is_open is False, "lines against the wrong sources is a content defect"
 
 
 def test_poison_batches_do_not_stall_unrelated_translations(manager):

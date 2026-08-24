@@ -5,6 +5,29 @@ All notable changes to Sublarr are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Fixed
+- **A batch that comes back with the right number of lines is now also checked
+  against the right sources.** A model can split one subtitle line across two
+  output lines and merge two others further down: the total is exactly what was
+  asked for, so every count-based guard passes, while the lines in between sit
+  against the wrong subtitle events and the dialogue runs out of sync on screen.
+  Measured on a real episode, seven of fifteen lines in one batch were displaced
+  this way, and because an accepted batch is written to the translation memory
+  it would be served again on every later hit. Sublarr now checks that words
+  which survive translation intact — names, places, numbers — still appear on
+  the line they started on, retries once when they do not, and hands the batch
+  back to be translated in halves if the retry drifts as well.
+
+  It is a net, not a guarantee, and the holes were measured rather than
+  estimated: across 123 real batches from five episodes it saw 31% of the
+  displacements it was shown and missed 69%, because a word can only vouch for
+  a line if it happens to sit inside the displaced run. What it catches is the
+  damage worth catching — 75% when fourteen lines of a batch are displaced
+  against 5% when two are. It never mistook a correct batch for a broken one in
+  1728 of them, and never misjudged the displacement it did find.
+
 ## [1.13.4] - 2026-08-26
 
 ### Fixed

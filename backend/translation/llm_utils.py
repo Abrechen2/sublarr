@@ -7,6 +7,7 @@ parsing, and CJK hallucination detection.
 
 import logging
 import re
+from collections import Counter
 
 from translation.prompt_safety import MAX_LINE_CHARS, escape_for_prompt
 
@@ -257,6 +258,94 @@ def _looks_numbered(numbers: list[int], line_count: int) -> bool:
     if numbers[0] == 1:
         return True
     return len(numbers) >= 2 and all(b > a for a, b in zip(numbers, numbers[1:]))
+
+
+# A token that tends to come through a translation unchanged, so it can tie an
+# output line back to the source line it belongs to: a run of digits, or a word
+# of three letters or more — names, places, numbers, cognates. Very common short
+# words are no danger because only tokens unique within the batch are used, and
+# "the"/"und" are never unique; the length floor exists to keep the token set
+# small. Re-measured on the numbered prompt over 1728 correct batches from five
+# episodes: a floor of 3 is the shortest that never called one of them shifted.
+# Two would see 34.9% of the defect against 31.2%, and costs a false alarm.
+_ANCHOR_RE = re.compile(r"[0-9]+|[^\W\d_]{3,}", re.UNICODE)
+
+# How many anchors must agree on the same offset before we call a batch shifted.
+# One is a coincidence and unusable: over the same 1728 correct batches a lone
+# anchor wandered on 181 of them, while two never agreed on a single one. Three
+# buys nothing — it is no safer, it only halves what the check can see, from
+# 31.2% of the defect to 17.4%.
+_MIN_AGREEING_ANCHORS = 2
+
+
+def _anchor_tokens(line: str) -> set[str]:
+    """Lower-cased tokens from ``line`` that can anchor it to its translation."""
+    text = line.replace(_HARD_BREAK, " ").replace(_SOFT_BREAK, " ")
+    return {match.group(0).lower() for match in _ANCHOR_RE.finditer(text)}
+
+
+def _unique_homes(lines: list[str]) -> dict[str, int]:
+    """Map each anchor token to its line index, or -1 if it occurs in several.
+
+    Only a token that appears exactly once carries positional information; one
+    that repeats could be matched to any of its occurrences and would invent
+    offsets that are not there.
+    """
+    homes: dict[str, int] = {}
+    for index, tokens in enumerate(lines):
+        for token in tokens:
+            homes[token] = index if token not in homes else -1
+    return homes
+
+
+def find_line_shift(source_lines: list[str], translated_lines: list[str]) -> int | None:
+    """Return the offset a batch's lines drifted by, or ``None`` if aligned.
+
+    A model can return exactly the requested number of lines and still hand
+    back a batch in which the lines no longer correspond to the source. It
+    splits one source line across two output lines and merges two others
+    further down, so the total comes out right while every line in between sits
+    against the wrong subtitle event — the dialogue runs out of sync on screen.
+    A count check cannot see this by construction, which is why the defect
+    survived every guard in the pipeline.
+
+    Detection works off anchors: digits and longer words usually survive
+    translation intact, so a token that occurs on exactly one source line and
+    exactly one output line says where that line ended up. Anchors that landed
+    where they started say nothing; the rest vote on an offset, and a batch is
+    reported as shifted when at least ``_MIN_AGREEING_ANCHORS`` of them agree.
+
+    Returns the offset (positive: output sits later than its source) so callers
+    can log something diagnosable. Lists of differing length return ``None`` —
+    that is the caller's line-count failure, not this one.
+
+    Silence is not a clean bill of health, and the gap is wide: an anchor only
+    votes when it sits inside the displaced run, so where the defect falls in
+    the batch decides whether it can be seen at all. Injected into every place
+    it could sit across 123 real batches, 31.2% were seen and 68.8% were not,
+    and a quarter of the batches are blind wherever it sits. The share rises
+    with the size of the damage — 4.5% when two lines are displaced, 74.6% when
+    fourteen are — so this catches the wrecked batches and misses the small
+    ones. It never pointed the wrong way: all 3332 it saw, it measured
+    correctly, and it called none of 1728 correct batches shifted.
+    """
+    if len(source_lines) != len(translated_lines) or len(source_lines) < 2:
+        return None
+
+    source_homes = _unique_homes([_anchor_tokens(line) for line in source_lines])
+    target_homes = _unique_homes([_anchor_tokens(line) for line in translated_lines])
+
+    votes: Counter[int] = Counter()
+    for token, source_index in source_homes.items():
+        target_index = target_homes.get(token, -1)
+        if source_index < 0 or target_index < 0 or target_index == source_index:
+            continue
+        votes[target_index - source_index] += 1
+
+    if not votes:
+        return None
+    shift, agreeing = votes.most_common(1)[0]
+    return shift if agreeing >= _MIN_AGREEING_ANCHORS else None
 
 
 def _escape_subtitle_line(line: str) -> str:

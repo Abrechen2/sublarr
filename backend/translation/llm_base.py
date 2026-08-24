@@ -20,7 +20,7 @@ from decimal import Decimal
 from translation.base import TranslationBackend, TranslationContentError, TranslationResult
 from translation.concurrency import ConcurrencyTimeoutError, get_concurrency
 from translation.cost_tracker import calculate_llm_cost_micro_usd
-from translation.llm_utils import repair_line_mapping, strip_invented_hard_breaks
+from translation.llm_utils import find_line_shift, repair_line_mapping, strip_invented_hard_breaks
 from translation.prompt_safety import enforce_batch_size, escape_for_prompt
 from translator.events import write_translation_event
 
@@ -29,6 +29,10 @@ logger = logging.getLogger(__name__)
 
 class LineCountMismatchError(TranslationContentError, ValueError):
     """LLM returned wrong number of lines for the batch after retry."""
+
+
+class LineMisalignmentError(TranslationContentError, ValueError):
+    """LLM returned the right number of lines, but against the wrong sources."""
 
 
 class ContentFilterError(TranslationContentError, RuntimeError):
@@ -166,6 +170,16 @@ class LLMBackend(TranslationBackend):
                     lookback=lookback,
                     lookahead=lookahead,
                 )
+                resp = self._verify_line_alignment(
+                    resp,
+                    lines,
+                    source_lang,
+                    target_lang,
+                    glossary_entries,
+                    series_context,
+                    lookback=lookback,
+                    lookahead=lookahead,
+                )
         except ConcurrencyTimeoutError as exc:
             status = "timeout"
             error_type = "ConcurrencyTimeout"
@@ -179,6 +193,11 @@ class LLMBackend(TranslationBackend):
         except LineCountMismatchError as exc:
             status = "error"
             error_type = "LineCountMismatchError"
+            error_msg = str(exc)
+            raise
+        except LineMisalignmentError as exc:
+            status = "error"
+            error_type = "LineMisalignmentError"
             error_msg = str(exc)
             raise
         except JobCancelledError as exc:
@@ -337,6 +356,79 @@ class LLMBackend(TranslationBackend):
         resp_retry.tokens_out = resp.tokens_out + resp_retry.tokens_out
         resp_retry.cache_read_tokens = resp.cache_read_tokens + resp_retry.cache_read_tokens
         resp_retry.cache_write_tokens = resp.cache_write_tokens + resp_retry.cache_write_tokens
+        return resp_retry
+
+    def _verify_line_alignment(
+        self,
+        resp: LLMResponse,
+        lines: list[str],
+        source_lang: str,
+        target_lang: str,
+        glossary_entries: list[dict] | None,
+        series_context: str | None = None,
+        *,
+        lookback: list[str] | None = None,
+        lookahead: list[str] | None = None,
+    ) -> LLMResponse:
+        """Retry once when the lines came back against the wrong sources.
+
+        The count can be right while the mapping is not: the model splits one
+        line in two and merges two others further down, so the total matches
+        and every line in between belongs to a different subtitle event. It
+        renders as dialogue running out of sync, and because an accepted batch
+        is written to the translation memory it would be served again on every
+        later hit.
+
+        Treated exactly like a count mismatch — one strict retry, and a
+        :class:`TranslationContentError` if that does not fix it. The backend
+        answered, so this must not count against its circuit breaker, and the
+        batching layer halves a batch it cannot deliver rather than ending the
+        file, so a rejection here costs the batch a retry, not the episode.
+        """
+        shift = find_line_shift(lines, list(resp.translations))
+        if shift is None:
+            return resp
+
+        logger.warning(
+            "%s returned %d lines shifted by %+d against their sources — "
+            "retrying with strict prompt",
+            self.name,
+            len(lines),
+            shift,
+        )
+        resp_retry = self._attempt(
+            lines,
+            source_lang,
+            target_lang,
+            glossary_entries,
+            series_context=series_context,
+            is_retry=True,
+            lookback=lookback,
+            lookahead=lookahead,
+        )
+        # Sum onto the response the caller is still holding as well: when this
+        # method raises, that is the one the event row is written from, and it
+        # would otherwise report a single attempt's spend for two.
+        resp.tokens_in += resp_retry.tokens_in
+        resp.tokens_out += resp_retry.tokens_out
+        resp.cache_read_tokens += resp_retry.cache_read_tokens
+        resp.cache_write_tokens += resp_retry.cache_write_tokens
+        resp_retry.tokens_in = resp.tokens_in
+        resp_retry.tokens_out = resp.tokens_out
+        resp_retry.cache_read_tokens = resp.cache_read_tokens
+        resp_retry.cache_write_tokens = resp.cache_write_tokens
+
+        if len(resp_retry.translations) != len(lines):
+            raise LineCountMismatchError(
+                f"{self.name} returned {len(resp_retry.translations)} lines after an "
+                f"alignment retry, expected {len(lines)}"
+            )
+        retry_shift = find_line_shift(lines, list(resp_retry.translations))
+        if retry_shift is not None:
+            raise LineMisalignmentError(
+                f"{self.name} returned lines shifted by {retry_shift:+d} against their "
+                "sources after retry"
+            )
         return resp_retry
 
     def _assemble_messages(
