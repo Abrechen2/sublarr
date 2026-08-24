@@ -9,13 +9,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 - **Translations no longer come back with line breaks the original never
-  had.** Local models like to append a literal `\N` — an ASS hard line break —
-  to lines that had none, and because the line *count* is still correct
-  nothing in the pipeline could see it. One measured episode shipped with 158
-  such breaks against 28 in its English source, so the German subtitle wrapped
-  differently from the original throughout. Where the source line carries no
-  hard break, the translation no longer keeps one either; a break the subtitle
-  genuinely asked for is untouched.
+  had, and the ones already stored are repaired.** Local models append a
+  literal `\N` — an ASS hard line break — to lines that had none, and because
+  the line *count* is still correct nothing in the pipeline could see it. On
+  one measured file the model invented a break on 15 of 45 lines, and the
+  German subtitle that shipped carried 160 breaks where its English source had
+  28, so it wrapped differently from the original throughout. Where the source
+  line has no hard break the translation no longer keeps one either; a break
+  the subtitle genuinely asked for is untouched.
+
+  Every accepted batch was also written to the translation memory, so the
+  damage outlived the file that caused it: on one install 58 012 of 160 932
+  stored entries (36%) carried a break their source line does not have, and
+  each was re-served on every cache hit. A migration strips those in place on
+  upgrade, using the same rule as the live path.
+
 - **Opening and ending songs are no longer machine-translated.** Sublarr
   recognised a song style only when it was named exactly `OP` or `ED`, which
   misses the naming almost every release group uses — `OP Romaji`,
