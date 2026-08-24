@@ -20,6 +20,7 @@ from decimal import Decimal
 from translation.base import TranslationBackend, TranslationContentError, TranslationResult
 from translation.concurrency import ConcurrencyTimeoutError, get_concurrency
 from translation.cost_tracker import calculate_llm_cost_micro_usd
+from translation.llm_utils import strip_invented_hard_breaks
 from translation.prompt_safety import enforce_batch_size, escape_for_prompt
 from translator.events import write_translation_event
 
@@ -238,7 +239,10 @@ class LLMBackend(TranslationBackend):
         # resp is guaranteed non-None here — any exception path raised above
         assert resp is not None
         return TranslationResult(
-            translated_lines=list(resp.translations),
+            # Models like to append a hard line break the source never had.
+            # The line count still matches, so nothing downstream would catch
+            # it — but the subtitle renders differently from the original.
+            translated_lines=strip_invented_hard_breaks(lines, list(resp.translations)),
             backend_name=self.name,
             response_time_ms=float(latency_ms_mono),
             characters_used=chars_in,
