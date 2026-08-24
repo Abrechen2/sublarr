@@ -10,7 +10,7 @@ import threading
 import time
 
 from circuit_breaker import CircuitBreaker
-from translation.base import TranslationBackend, TranslationResult
+from translation.base import TranslationBackend, TranslationContentError, TranslationResult
 
 logger = logging.getLogger(__name__)
 
@@ -180,6 +180,16 @@ class TranslationManager:
                     last_error = result.error
                     cb.record_failure()
                     self._record_failure(backend_name, result.error or "Unknown error")
+            except TranslationContentError as e:
+                # The backend answered — only this batch's content was
+                # unusable. That is not a health signal, so it must not count
+                # towards the breaker: five pathological files are enough to
+                # reach the default threshold and would otherwise stall every
+                # unrelated translation behind an OPEN breaker. Still recorded
+                # in the stats so the failure stays visible.
+                last_error = str(e)
+                self._record_failure(backend_name, str(e))
+                logger.warning("Backend %s rejected the batch content: %s", backend_name, e)
             except Exception as e:
                 last_error = str(e)
                 cb.record_failure()

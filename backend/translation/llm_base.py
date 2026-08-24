@@ -17,7 +17,7 @@ from dataclasses import dataclass
 from datetime import UTC, datetime
 from decimal import Decimal
 
-from translation.base import TranslationBackend, TranslationResult
+from translation.base import TranslationBackend, TranslationContentError, TranslationResult
 from translation.concurrency import ConcurrencyTimeoutError, get_concurrency
 from translation.cost_tracker import calculate_llm_cost_micro_usd
 from translation.prompt_safety import enforce_batch_size, escape_for_prompt
@@ -26,11 +26,11 @@ from translator.events import write_translation_event
 logger = logging.getLogger(__name__)
 
 
-class LineCountMismatchError(ValueError):
+class LineCountMismatchError(TranslationContentError, ValueError):
     """LLM returned wrong number of lines for the batch after retry."""
 
 
-class ContentFilterError(RuntimeError):
+class ContentFilterError(TranslationContentError, RuntimeError):
     """LLM refused the request (finish_reason == 'content_filter')."""
 
 
