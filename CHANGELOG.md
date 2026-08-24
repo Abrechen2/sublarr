@@ -5,6 +5,27 @@ All notable changes to Sublarr are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.13.3] - 2026-08-24
+
+### Fixed
+- **A handful of stubborn subtitle files no longer stops every other
+  translation.** When a local LLM answers with the wrong number of lines for a
+  batch, that batch cannot be used — but the backend itself is plainly
+  healthy: it was reachable and answered twice, once normally and once on the
+  strict retry. Sublarr was nonetheless counting each of those as a backend
+  failure, and the circuit breaker opens after five consecutive ones. On one
+  library exactly five wanted items reproduced a line-count mismatch every
+  single day, which was enough to trip the breaker; with a fallback chain
+  holding a single backend, every unrelated translation queued behind it then
+  failed outright with "No usable translation backend". Translation on that
+  install had been stalled for three days for that reason alone.
+
+  A wrong-shaped answer, and likewise a refusal by a content filter, is now
+  treated as a property of the batch rather than of the backend. Such failures
+  are still recorded in the backend statistics so they remain visible, but they
+  no longer count towards the breaker. A backend that genuinely cannot be
+  reached still trips it exactly as before.
+
 ## [1.13.2] - 2026-08-23
 
 ### Fixed

@@ -654,6 +654,10 @@
     "last_run": "Zuletzt: {{date}}"
   },
   "whatsnew": {
+    "v1133": {
+      "breaker_title": "Ein paar hartnäckige Dateien legen nicht mehr die gesamte Übersetzung lahm",
+      "breaker_desc": "Antwortet ein lokales Sprachmodell mit der falschen Zeilenzahl, ist dieser Stapel unbrauchbar — das Backend selbst ist aber ersichtlich gesund: es war erreichbar und hat zweimal geantwortet, einmal normal und einmal auf den strengen Zweitversuch. Sublarr zählte das trotzdem als Ausfall des Backends, und nach fünf solchen Ausfällen in Folge schaltet die Sicherung ab. In einer echten Bibliothek stolperten genau fünf Einträge jeden Tag über dieselbe Zeilenzahl-Abweichung — das reichte. Weil die Ausweichkette dort nur ein einziges Backend enthielt, scheiterte danach jede andere Übersetzung sofort mit „Kein nutzbares Übersetzungs-Backend\". Drei Tage lang lief auf dieser Installation deshalb gar nichts mehr. Eine falsch geformte Antwort gilt jetzt als Eigenschaft des Stapels, nicht des Backends: sie bleibt in den Statistiken sichtbar, schaltet die Sicherung aber nicht mehr ab. Ein Backend, das wirklich nicht erreichbar ist, schaltet sie weiterhin genauso ab wie bisher."
+    },
     "v1130": {
       "language_excludes_title": "Sprachen lassen sich jetzt einzeln pro Anbieter ausschließen",
       "language_excludes_desc": "Manche Anbieter liefern eine Sprache gut und eine andere schlecht. Bisher blieb nur, den schwächeren Anbieter ganz abzuschalten — und damit auch die Sprachen zu verlieren, die er beherrscht. In den Einstellungen jedes Anbieters gibt es jetzt „Ausgeschlossene Sprachen“: eine so ausgeschlossene Sprache wird bei diesem Anbieter weder angefragt noch angenommen, selbst wenn er sie unaufgefordert zurückliefert. Sind für eine Suche alle gewünschten Sprachen ausgeschlossen, wird der Anbieter übersprungen und nennt den Grund im Entscheidungsprotokoll.",

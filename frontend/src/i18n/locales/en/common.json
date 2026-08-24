@@ -654,6 +654,10 @@
     "last_run": "Last: {{date}}"
   },
   "whatsnew": {
+    "v1133": {
+      "breaker_title": "A handful of stubborn files no longer stops every other translation",
+      "breaker_desc": "When a local language model answers with the wrong number of lines, that batch is unusable — but the backend itself is plainly healthy: it was reachable and answered twice, once normally and once on the strict retry. Sublarr counted that as a backend failure anyway, and after five such failures in a row the circuit breaker cuts out. On one real library exactly five items tripped over the same line-count mismatch every single day, which was enough. Because the fallback chain there held a single backend, every other translation then failed outright with “No usable translation backend”. Nothing ran on that install for three days for that reason alone. A wrong-shaped answer now counts as a property of the batch rather than of the backend: it stays visible in the statistics but no longer trips the breaker. A backend that genuinely cannot be reached still trips it exactly as before."
+    },
     "v1130": {
       "language_excludes_title": "Languages can now be excluded per provider",
       "language_excludes_desc": "Some providers do one language well and another badly. Until now the only option was to switch the weaker provider off entirely — losing the languages it is good at too. Each provider's settings page now has “Excluded languages”: an excluded language is neither requested from that provider nor accepted from it, even if it returns one unasked. If every language a search wants is excluded for a provider, it is skipped and says so in the decision log.",
