@@ -654,6 +654,12 @@
     "last_run": "Last: {{date}}"
   },
   "whatsnew": {
+    "v1134": {
+      "breaks_title": "Translations no longer come back with line breaks the original never had",
+      "breaks_desc": "Local language models like to append a literal `\\N` — an ASS hard line break — to lines that had none, and because the line *count* is still correct nothing in the pipeline could see it. One measured episode shipped with 158 such breaks against 28 in its English source, so the German subtitle wrapped differently from the original throughout. Where the source line carries no hard break, the translation no longer keeps one either; a break the subtitle genuinely asked for is left untouched.",
+      "songs_title": "Opening and ending songs are no longer machine-translated",
+      "songs_desc": "Sublarr recognised a song style only when it was named exactly `OP` or `ED`, which misses the naming almost every release group uses — `OP Romaji`, `ED English`. Those styles were treated as dialogue, so the romaji (transliterated Japanese, not a language anything can translate) went to the translation backend and came back as invented German. On one episode that was 92 of 403 lines. Such styles now join the signs and songs that are kept as-is. The match is deliberately narrow: a style named after a character — `Ed` or `Ed Smith` — stays dialogue."
+    },
     "v1133": {
       "breaker_title": "A handful of stubborn files no longer stops every other translation",
       "breaker_desc": "When a local language model answers with the wrong number of lines, that batch is unusable — but the backend itself is plainly healthy: it was reachable and answered twice, once normally and once on the strict retry. Sublarr counted that as a backend failure anyway, and after five such failures in a row the circuit breaker cuts out. On one real library exactly five items tripped over the same line-count mismatch every single day, which was enough. Because the fallback chain there held a single backend, every other translation then failed outright with “No usable translation backend”. Nothing ran on that install for three days for that reason alone. A wrong-shaped answer now counts as a property of the batch rather than of the backend: it stays visible in the statistics but no longer trips the breaker. A backend that genuinely cannot be reached still trips it exactly as before."

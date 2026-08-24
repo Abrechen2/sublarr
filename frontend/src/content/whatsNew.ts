@@ -19,6 +19,10 @@ export interface WhatsNewItem {
 }
 
 export const WHATS_NEW: Record<string, WhatsNewItem[]> = {
+  '1.13.4': [
+    { icon: Languages, titleKey: 'whatsnew.v1134.breaks_title', descKey: 'whatsnew.v1134.breaks_desc' },
+    { icon: AudioLines, titleKey: 'whatsnew.v1134.songs_title', descKey: 'whatsnew.v1134.songs_desc' },
+  ],
   '1.13.3': [
     { icon: Languages, titleKey: 'whatsnew.v1133.breaker_title', descKey: 'whatsnew.v1133.breaker_desc' },
   ],

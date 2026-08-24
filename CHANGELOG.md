@@ -5,6 +5,27 @@ All notable changes to Sublarr are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.13.4] - 2026-08-24
+
+### Fixed
+- **Translations no longer come back with line breaks the original never
+  had.** Local models like to append a literal `\N` — an ASS hard line break —
+  to lines that had none, and because the line *count* is still correct
+  nothing in the pipeline could see it. One measured episode shipped with 158
+  such breaks against 28 in its English source, so the German subtitle wrapped
+  differently from the original throughout. Where the source line carries no
+  hard break, the translation no longer keeps one either; a break the subtitle
+  genuinely asked for is untouched.
+- **Opening and ending songs are no longer machine-translated.** Sublarr
+  recognised a song style only when it was named exactly `OP` or `ED`, which
+  misses the naming almost every release group uses — `OP Romaji`,
+  `ED English`. Those styles were then treated as dialogue, so the romaji
+  (transliterated Japanese, not a language anything can translate) went to the
+  translation backend and came back as invented German. On one episode that
+  was 92 of 403 lines. Such styles now join the signs and songs that are kept
+  as-is. The match is deliberately narrow — a style named after a character,
+  `Ed` or `Ed Smith`, stays dialogue.
+
 ## [1.13.3] - 2026-08-24
 
 ### Fixed
