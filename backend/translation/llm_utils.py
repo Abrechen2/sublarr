@@ -46,7 +46,15 @@ def has_cjk_hallucination(text: str) -> bool:
 
 
 def parse_llm_response(response_text: str, expected_count: int) -> list[str] | None:
-    """Parse LLM response into individual lines.
+    """Parse LLM response into individual lines. **Legacy shim — unused.**
+
+    Kept importable for out-of-tree callers only. No backend has ever called
+    it: every LLM backend splits in its own ``_parse_response`` and the shared
+    repair lives in :func:`repair_line_mapping`, which is what
+    ``LLMBackend._attempt`` applies. Its merge-on-numbering branch was
+    therefore never reached in production, while the default prompt forbade
+    numbering outright — so even the shape it repairs could not occur.
+    Prefer :func:`repair_line_mapping` for new code.
 
     Handles numbered responses (e.g. "1: text") and plain lines.
     Attempts to merge split lines before truncating.
@@ -143,6 +151,112 @@ def strip_invented_hard_breaks(source_lines: list[str], translated_lines: list[s
         without = translated.replace(_HARD_BREAK, " ")
         cleaned.append(re.sub(r"\s+", " ", without).strip())
     return cleaned
+
+
+_SOFT_BREAK = "\\n"  # literal backslash-n; ASS's soft break, models emit it for \N
+
+_MARKER_ONLY = {_HARD_BREAK, _SOFT_BREAK, _HARD_BREAK * 2, "\\"}
+
+# "1: text", "1. text", "1) text", " 2: text", "3 : text" -- every shape the
+# model was measured to produce once the prompt asks it to number its output.
+_LINE_NUMBER_RE = re.compile(r"^\s*(\d+)\s*[.:)]\s*")
+
+# How far a line number may exceed the batch length before it stops looking
+# like an index into it. Two, because a batch can come back with a line or two
+# too many and its numbering still be real.
+_NUMBER_RANGE_SLACK = 2
+
+
+def repair_line_mapping(raw_lines: list[str]) -> list[str]:
+    """Turn a model's raw output lines into one line per source line.
+
+    The model writes a hard break and then a real newline after it. Depending
+    on where that happens the break marker ends up alone on a line of its own,
+    or it ends a content line whose remainder lands on the next one. Both look
+    like "too many lines" to every count-based check, and both are repairable
+    without guessing: a translation is never merely a line break, and a line
+    that carries no number of its own cannot be a line of its own once the
+    model has been asked to number them.
+
+    Measured against 65 recorded gemma3:12b batches: dropping marker-only
+    lines alone repaired 3 of the 5 over-long batches and altered none of the
+    57 correct ones. The looser rule of joining any line that ends in a break
+    marker was measured too and rejected -- it damaged 33 of those 57, because
+    a translation may legitimately end on a break.
+
+    Whether a batch is numbered at all is decided for the batch as a whole by
+    :func:`_looks_numbered`, never line by line — a single missing number would
+    otherwise send every number behind it into the finished subtitle, which is
+    what a per-line counter did on the live host. Where the batch is not
+    numbered, leading numbers stay: ``13: Das Bankett`` is a subtitle that
+    opens with a number, and the old ``^\\d+[.:]`` strip silently ate it.
+
+    Output that carries no numbering at all is returned untouched apart from
+    blank and marker-only lines, so a user template that forbids numbering
+    keeps working exactly as before.
+    """
+    kept = [raw for raw in raw_lines if raw.strip() and raw.strip() not in _MARKER_ONLY]
+    if not kept:
+        return []
+
+    matches = [_LINE_NUMBER_RE.match(raw) for raw in kept]
+    numbers = [int(m.group(1)) for m in matches if m is not None]
+    numbered = _looks_numbered(numbers, len(kept))
+
+    out: list[str] = []
+    for raw, match in zip(kept, matches, strict=True):
+        if numbered and match is not None:
+            out.append(_strip_repeated_number(raw, match))
+        elif numbered and out:
+            previous = out[-1].rstrip()
+            joiner = "" if previous.endswith((_HARD_BREAK, _SOFT_BREAK)) else " "
+            out[-1] = previous + joiner + raw.strip()
+        else:
+            out.append(raw)
+    return out
+
+
+def _strip_repeated_number(raw: str, match: re.Match) -> str:
+    """Remove the line's number, and a second copy of it if the model wrote one.
+
+    Asked to prefix each output line with the number of its input line, gemma3
+    copies the input's number and then adds its own: ``2: 2: Wenn wir jetzt
+    aufgeben, ...``. Measured live, 14 of one batch's 15 lines came back that
+    way. Removing one prefix leaves the other in the finished subtitle.
+
+    Only a repeat of the *same* number goes. ``5: 13: Das Bankett`` is line
+    five whose text opens with a number, and stripping greedily would eat it.
+    """
+    rest = raw[match.end() :]
+    repeat = _LINE_NUMBER_RE.match(rest)
+    if repeat is not None and repeat.group(1) == match.group(1):
+        return rest[repeat.end() :]
+    return rest
+
+
+def _looks_numbered(numbers: list[int], line_count: int) -> bool:
+    """Is this batch numbered, judged as a whole rather than line by line?
+
+    Deciding per line was measured wrong on the live host: gemma3 answered the
+    one-word line ``No.`` with ``Nein.`` and no number, then numbered 2 through
+    15 correctly. A counter waiting for a 1 never advanced, and all fourteen
+    numbers behind it reached the finished subtitle. Judging the batch as a
+    whole survives a single missing number.
+
+    Two independent signals have to agree, because either alone misfires:
+
+    * an ascending run of at least two numbers, or a first number of 1 — a
+      solitary ``13:`` is a subtitle that opens with a number, not numbering;
+    * numbers that could plausibly index these lines. Two content lines opening
+      with ``1995:`` and ``2001:`` ascend perfectly and are still just text.
+    """
+    if not numbers:
+        return False
+    if max(numbers) > line_count + _NUMBER_RANGE_SLACK:
+        return False
+    if numbers[0] == 1:
+        return True
+    return len(numbers) >= 2 and all(b > a for a, b in zip(numbers, numbers[1:]))
 
 
 def _escape_subtitle_line(line: str) -> str:
@@ -247,13 +361,28 @@ def build_prompt_with_glossary(
     # back as an extra output line, which is itself a count mismatch.
     count = len(escaped_lines)
     plural = "lines" if count != 1 else "line"
+    # A one-line batch is handed over un-numbered, which contradicts a template
+    # that says every input line carries a number. Saying so costs one sentence
+    # and matters more since a failed batch is split: the split bottoms out at
+    # exactly this shape, and this is the shape that answered the prod "expected
+    # 1" storm with conversation instead of a translation.
+    single = (
+        " The single line below is not numbered — reply with the translation only."
+        if count == 1
+        else ""
+    )
     if strict:
+        # "no numbering" used to stand here and contradicted the template,
+        # which asks for the input's numbers back. The retry now hardens the
+        # count and the numbering together instead of fighting the prompt it
+        # is retrying.
         constraint = (
             f"Return exactly {count} {plural} — no more, no fewer. "
-            "No commentary, no alternatives, no numbering.\n\n"
+            "Keep each line's own number and merge nothing. "
+            f"No commentary, no alternatives.{single}\n\n"
         )
     else:
-        constraint = f"Return exactly {count} {plural}.\n\n"
+        constraint = f"Return exactly {count} {plural}.{single}\n\n"
 
     # Single-line batches pass the line un-numbered (the V8 fine-tune was
     # trained that way); batches stay numbered.

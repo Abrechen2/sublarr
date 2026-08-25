@@ -5,6 +5,38 @@ All notable changes to Sublarr are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Fixed
+- **A single unusable batch no longer costs the whole episode.** Translation
+  stopped at the first batch a model could not deliver, and since those
+  failures are deterministic the next run died at the same place: the same
+  error texts recur on nine of the last ten days in production, i.e. the same
+  files failing nightly. A batch that survives neither the first attempt nor
+  the strict retry is now translated in halves instead, down to single lines
+  if it must. Only a line that still fails ends the file, and every result is
+  screened for chat filler on the way back however small the batch became.
+- **The model is now asked to number its output instead of being forbidden to.**
+  Measured over 65 real batches against the production model and host, that
+  single change took the batches that die even after the retry from 10 to 1,
+  and more than halved the invented hard breaks (319 lines to 129) as a side
+  effect. A blind third-model judge scored the old and new prompt level, so
+  the improvement costs nothing in German. The strict retry no longer
+  contradicts the prompt it is retrying by demanding "no numbering".
+- **Output that arrives with a stray line break is repaired rather than
+  rejected.** Models write a hard break and then a real newline after it, so
+  the marker lands alone on a line of its own or splits one translation across
+  two — both of which read as "too many lines" to every count check. Over the
+  same 65 batches, dropping the marker-only lines repaired three of the five
+  over-long batches and altered none of the 57 correct ones.
+- **A number that belongs to the subtitle is no longer eaten.** Line numbering
+  was stripped with a pattern that removed any leading number, so a line such
+  as `13: The Marionette's Banquet` lost its opening. Only the number a line is
+  actually expected to carry is removed now, and the shapes the old pattern
+  missed (`1)`, ` 1:`, `1 :`) are removed too instead of reaching the subtitle.
+  The repair moved to the shared path, so ChatGPT and Claude — which never
+  stripped numbering at all — are covered as well.
+
 ## [1.13.4] - 2026-08-24
 
 ### Fixed

@@ -418,7 +418,14 @@ class TestLLMBackendHooks:
         with pytest.raises(RuntimeError, match="rate limited"):
             backend._call_api({"_mode": "generate"}, timeout_s=10)
 
-    def test_parse_response_generate_splits_numbered_lines(self):
+    def test_parse_response_generate_splits_lines_without_touching_numbering(self):
+        """Splitting is all this hook does now.
+
+        Numbering, stray break markers and wrapped lines are repaired by
+        ``llm_utils.repair_line_mapping`` in ``LLMBackend._attempt``, so that
+        every LLM backend gets it — ChatGPT and Claude never stripped numbering
+        here at all. See ``tests/test_llm_line_mapping.py``.
+        """
         backend = _make_backend()
         from translation.llm_base import LLMResponse
 
@@ -432,7 +439,7 @@ class TestLLMBackendHooks:
         }
         resp = backend._parse_response(raw)
         assert isinstance(resp, LLMResponse)
-        assert resp.translations == ["Hallo", "Welt"]
+        assert resp.translations == ["1: Hallo", "2: Welt"]
         assert resp.tokens_in == 10
         assert resp.tokens_out == 12
         assert resp.finish_reason == "stop"

@@ -20,7 +20,7 @@ from decimal import Decimal
 from translation.base import TranslationBackend, TranslationContentError, TranslationResult
 from translation.concurrency import ConcurrencyTimeoutError, get_concurrency
 from translation.cost_tracker import calculate_llm_cost_micro_usd
-from translation.llm_utils import strip_invented_hard_breaks
+from translation.llm_utils import repair_line_mapping, strip_invented_hard_breaks
 from translation.prompt_safety import enforce_batch_size, escape_for_prompt
 from translator.events import write_translation_event
 
@@ -275,6 +275,11 @@ class LLMBackend(TranslationBackend):
         payload = self._build_request(messages, max_tokens=self._estimate_max_tokens(lines))
         raw = self._call_api(payload, timeout_s=self.timeout_s)
         resp = self._parse_response(raw)
+        # Every LLM backend passes through here, which is why the repair lives
+        # at this level rather than in each ``_parse_response``: ChatGPT and
+        # Claude never stripped output numbering at all, so a prompt that asks
+        # for numbers would otherwise write digits into their subtitles.
+        resp.translations = repair_line_mapping(resp.translations)
         if resp.finish_reason == "content_filter":
             raise ContentFilterError(f"{self.name} refused with finish_reason=content_filter")
         return resp

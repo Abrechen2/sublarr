@@ -254,28 +254,43 @@ class TestTranslateInBatches:
         with pytest.raises(RuntimeError, match="Translation failed"):
             _translate_in_batches(manager, ["Hello"], "en", "de", ["ollama"], None, batch_size=10)
 
-    def test_chunk_count_mismatch_raises(self):
+    def test_chunk_count_mismatch_that_survives_the_split_raises(self):
+        """A mismatch is split first; only one that persists to a single line raises.
+
+        The backend returns three lines whatever it is asked for, so no half
+        ever matches and the split bottoms out — which is exactly when the file
+        must still fail rather than come out short.
+        """
         from translator.manager import _translate_in_batches
 
         manager = MagicMock()
-        # Return 1 line for a 2-line chunk
-        bad_result = _make_result(["only-one"])
-        manager.translate_with_fallback.return_value = bad_result
+        manager.translate_with_fallback.return_value = _make_result(["a", "b", "c"])
 
-        with pytest.raises(RuntimeError, match="Chunk translation returned"):
+        with pytest.raises(RuntimeError, match="expected 1"):
             _translate_in_batches(
                 manager, ["A", "B", "C"], "en", "de", ["ollama"], None, batch_size=2
             )
+
+    def test_a_chunk_mismatch_is_retried_in_halves_before_it_raises(self):
+        from translator.manager import _translate_in_batches
+
+        manager = MagicMock()
+        manager.translate_with_fallback.return_value = _make_result(["a", "b", "c"])
+
+        with pytest.raises(RuntimeError):
+            _translate_in_batches(manager, ["A", "B"], "en", "de", ["ollama"], None, batch_size=2)
+
+        sizes = [len(call.args[0]) for call in manager.translate_with_fallback.call_args_list]
+        assert sizes == [2, 1], "the failing batch must be halved before giving up"
 
     def test_single_batch_count_mismatch_raises(self):
         from translator.manager import _translate_in_batches
 
         manager = MagicMock()
-        # Return 1 line for a 2-line file that fits in a single batch
-        bad_result = _make_result(["only-one"])
-        manager.translate_with_fallback.return_value = bad_result
+        # Three lines back for whatever is asked: the split cannot rescue this.
+        manager.translate_with_fallback.return_value = _make_result(["a", "b", "c"])
 
-        with pytest.raises(RuntimeError, match="expected 2"):
+        with pytest.raises(RuntimeError, match="expected 1"):
             _translate_in_batches(
                 manager, ["Hello", "World"], "en", "de", ["ollama"], None, batch_size=10
             )

@@ -266,7 +266,9 @@ class TestLLMBackendHooks:
         }
         resp = backend._parse_response(raw)
         assert isinstance(resp, LLMResponse)
-        assert resp.translations == ["Hallo", "Welt"]
+        # Splitting only — numbering is stripped centrally in
+        # LLMBackend._attempt (see tests/test_llm_line_mapping.py).
+        assert resp.translations == ["1: Hallo", "2: Welt"]
         assert resp.tokens_in == 15
         assert resp.tokens_out == 8
         assert resp.finish_reason == "stop"

@@ -101,9 +101,16 @@ def test_all_unapproved_no_prefix():
 
 
 def test_single_line_appends_line_to_template_unnumbered():
-    """When len(lines) == 1, the line follows the template un-numbered."""
+    """When len(lines) == 1, the line follows the template un-numbered.
+
+    The count line now says so out loud, because the default template tells the
+    model every input line carries a number and this one does not.
+    """
     result = build_prompt_with_glossary("Translate:\n", None, ["Guten Morgen"])
-    assert result == "Translate:\nReturn exactly 1 line.\n\nGuten Morgen"
+    assert result == (
+        "Translate:\nReturn exactly 1 line. The single line below is not numbered — "
+        "reply with the translation only.\n\nGuten Morgen"
+    )
 
 
 def test_single_line_with_glossary():

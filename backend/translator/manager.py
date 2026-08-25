@@ -196,6 +196,117 @@ def _verify_batch(result, expected_count, batch_label):
         )
 
 
+def _translate_batch_or_split(
+    manager,
+    batch_lines,
+    source_lang,
+    target_lang,
+    fallback_chain,
+    glossary_entries,
+    cache_enabled,
+    label,
+    *,
+    lookback=None,
+    lookahead=None,
+):
+    """Translate one batch; on failure translate its halves instead.
+
+    A batch the backend cannot deliver used to end the file. The failures are
+    deterministic, so the next run dies at the same place and the episode never
+    completes: production logged 882 line-count failures between 2026-07-10 and
+    2026-08-24, the same error texts recurring on nine of the last ten days.
+
+    Splitting is not a repair, it removes the opportunity: two source events
+    carrying one sentence can only be merged into one output line while they
+    sit in the same request. It also costs context, so it happens only after
+    the backend's own strict retry has already failed.
+
+    A single line that still fails raises, as before — a file translated short
+    would be worse than one that failed loudly. ``_verify_batch`` screens every
+    result on the way back however small the batch got: the batch_size=1 era
+    put 1124 chat-filler lines into the production translation memory.
+
+    Returns:
+        tuple[list[str], TranslationResult]: translated lines and the result
+            of the last successful (sub-)batch.
+    """
+    result = manager.translate_with_fallback(
+        batch_lines,
+        source_lang,
+        target_lang,
+        fallback_chain,
+        glossary_entries,
+        lookback=lookback,
+        lookahead=lookahead,
+    )
+    failure = None
+    if not result.success:
+        failure = result.error
+    else:
+        try:
+            _verify_batch(result, len(batch_lines), f"Batch {label}")
+        except RuntimeError as exc:
+            failure = str(exc)
+
+    if failure is None:
+        # Cached here, not after the loop: everything up to this point is
+        # verified and paid for, and a later failure must not take it.
+        _cache_batch(cache_enabled, batch_lines, result, source_lang, target_lang)
+        return list(result.translated_lines), result
+
+    if len(batch_lines) <= 1:
+        raise RuntimeError(f"Translation failed on batch {label}: {failure}")
+
+    middle = len(batch_lines) // 2
+    first, second = batch_lines[:middle], batch_lines[middle:]
+    logger.warning(
+        "Batch %s failed (%s) — retrying as %d + %d lines",
+        label,
+        failure,
+        len(first),
+        len(second),
+    )
+
+    # A split subdivides one chunk into a whole tree of requests, and the
+    # loop's own stop check only runs between chunks. Without this one, a
+    # batch halving its way down runs on past a stop request for the length of
+    # that tree — the delay behind 43 of the 61 abandoned runs in the 30 days
+    # to 2026-08-22. Whatever the halves already finished is cached.
+    if abort_requested():
+        raise TranslationAbortedError(
+            f"asked to stop while splitting batch {label}; "
+            "the finished batches are cached and the next attempt resumes from them"
+        )
+
+    # Each half gets the other as context, so splitting costs as little
+    # coherence as it can. LLM backends that ignore context are unaffected.
+    first_lines, _first_result = _translate_batch_or_split(
+        manager,
+        first,
+        source_lang,
+        target_lang,
+        fallback_chain,
+        glossary_entries,
+        cache_enabled,
+        f"{label}a",
+        lookback=lookback,
+        lookahead=second or None,
+    )
+    second_lines, second_result = _translate_batch_or_split(
+        manager,
+        second,
+        source_lang,
+        target_lang,
+        fallback_chain,
+        glossary_entries,
+        cache_enabled,
+        f"{label}b",
+        lookback=first or None,
+        lookahead=lookahead,
+    )
+    return first_lines + second_lines, second_result
+
+
 def _translate_in_batches(
     manager,
     lines,
@@ -236,14 +347,16 @@ def _translate_in_batches(
     """
     if len(lines) <= batch_size:
         # Single batch path: no surrounding lines to provide as context.
-        result = manager.translate_with_fallback(
-            lines, source_lang, target_lang, fallback_chain, glossary_entries
+        return _translate_batch_or_split(
+            manager,
+            lines,
+            source_lang,
+            target_lang,
+            fallback_chain,
+            glossary_entries,
+            cache_enabled,
+            "1",
         )
-        if not result.success:
-            raise RuntimeError(f"Translation failed: {result.error}")
-        _verify_batch(result, len(lines), "Translation")
-        _cache_batch(cache_enabled, lines, result, source_lang, target_lang)
-        return result.translated_lines, result
 
     # Multi-batch path: pre-chunk the file with lookback/lookahead context so
     # LLM backends can resolve pronouns and keep terminology consistent across
@@ -288,24 +401,21 @@ def _translate_in_batches(
                 f"asked to stop after {i} of {len(chunks)} batches; "
                 "the finished batches are cached and the next attempt resumes from them"
             )
-        chunk_result = manager.translate_with_fallback(
+        chunk_lines, chunk_result = _translate_batch_or_split(
+            manager,
             chunk.batch,
             source_lang,
             target_lang,
             fallback_chain,
             glossary_entries,
+            cache_enabled,
+            str(i + 1),
             # Empty list -> None so LLM prompt assembly skips context sections
             # entirely for the first (no lookback) and last (no lookahead) chunks.
             lookback=chunk.lookback or None,
             lookahead=chunk.lookahead or None,
         )
-        if not chunk_result.success:
-            raise RuntimeError(f"Translation failed on batch {i + 1}: {chunk_result.error}")
-        _verify_batch(chunk_result, len(chunk.batch), "Chunk translation")
-        all_translated.extend(chunk_result.translated_lines)
-        # Written here, not after the loop: everything above this line is
-        # verified and paid for, and the next failure must not take it.
-        _cache_batch(cache_enabled, chunk.batch, chunk_result, source_lang, target_lang)
+        all_translated.extend(chunk_lines)
         last_result = chunk_result
 
     return all_translated, last_result
