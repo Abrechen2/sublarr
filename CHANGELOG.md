@@ -5,7 +5,7 @@ All notable changes to Sublarr are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [1.13.4] - 2026-08-26
 
 ### Fixed
 - **A single unusable batch no longer costs the whole episode.** Translation
@@ -37,9 +37,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   The repair moved to the shared path, so ChatGPT and Claude — which never
   stripped numbering at all — are covered as well.
 
-## [1.13.4] - 2026-08-24
-
-### Fixed
 - **Translations no longer come back with line breaks the original never
   had, and the ones already stored are repaired.** Local models append a
   literal `\N` — an ASS hard line break — to lines that had none, and because
