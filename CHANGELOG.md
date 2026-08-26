@@ -19,10 +19,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **The model is now asked to number its output instead of being forbidden to.**
   Measured over 65 real batches against the production model and host, that
   single change took the batches that die even after the retry from 10 to 1,
-  and more than halved the invented hard breaks (319 lines to 129) as a side
-  effect. A blind third-model judge scored the old and new prompt level, so
-  the improvement costs nothing in German. The strict retry no longer
-  contradicts the prompt it is retrying by demanding "no numbering".
+  and cut the invented hard breaks from 319 lines to 39 as a side effect. A
+  blind third-model judge scored the old and new prompt level, so the
+  improvement costs nothing in German. The strict retry no longer contradicts
+  the prompt it is retrying by demanding "no numbering".
 - **Output that arrives with a stray line break is repaired rather than
   rejected.** Models write a hard break and then a real newline after it, so
   the marker lands alone on a line of its own or splits one translation across
