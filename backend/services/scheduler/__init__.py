@@ -95,7 +95,7 @@ def _build_default_jobs() -> list[JobSpec]:
     )
     from standalone import standalone_scan_tick
     from upgrade_scheduler import upgrade_tick
-    from utils.scheduler_retention import delete_old_job_runs
+    from utils.scheduler_retention import internal_history_cleanup
     from utils.scheduler_retention_translation import delete_old_translation_events
 
     # Read wanted scan/search intervals at build time, falling back to
@@ -127,11 +127,14 @@ def _build_default_jobs() -> list[JobSpec]:
     return [
         JobSpec(
             id="scheduler_history_cleanup",
-            func=delete_old_job_runs,
+            func=internal_history_cleanup,
             default_trigger=CronTrigger(hour=3, minute=15),
             timeout_s=60,
             owner_module="services.scheduler",
-            description="Delete old scheduler_job_runs rows per retention policy.",
+            description=(
+                "Delete old scheduler_job_runs rows and finished "
+                "subtitle_automation_queue rows per retention policy."
+            ),
         ),
         JobSpec(
             id="provider_degradation_check",
