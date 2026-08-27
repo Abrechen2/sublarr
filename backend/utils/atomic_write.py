@@ -15,10 +15,11 @@ This mirrors the proven pattern already used by the remux pipeline
 
 import contextlib
 import os
+import shutil
 import tempfile
 from collections.abc import Callable
 
-__all__ = ["atomic_write_bytes", "atomic_write_via", "atomic_save_subs"]
+__all__ = ["atomic_copyfile", "atomic_write_bytes", "atomic_write_via", "atomic_save_subs"]
 
 
 def _current_umask() -> int:
@@ -63,6 +64,33 @@ def atomic_write_bytes(path: str, data: bytes) -> None:
             os.fsync(fh.fileno())
         _make_world_readable(tmp_path)
         os.replace(tmp_path, path)
+    except BaseException:
+        with contextlib.suppress(OSError):
+            os.unlink(tmp_path)
+        raise
+
+
+def atomic_copyfile(src: str, dst: str) -> None:
+    """Copy ``src``'s contents onto ``dst`` atomically, ignoring ``dst``'s metadata.
+
+    ``shutil.copy2`` onto an *existing* dst owned by another uid (the PUID
+    changed over the years: 1000 in 2026-06, 99 today) writes the content and
+    then dies in ``copystat``/``utime`` with ``[Errno 1] Operation not
+    permitted`` — the caller sees a failure while dst is already half
+    overwritten. The temp-file + ``os.replace`` route never opens dst at all;
+    the rename needs only write permission on the directory.
+
+    Deliberately copies no metadata: a backup's mtime should say when the
+    backup was made, not when the source was.
+    """
+    fd, tmp_path = _same_dir_tempfile(dst)
+    try:
+        with os.fdopen(fd, "wb") as out, open(src, "rb") as inp:
+            shutil.copyfileobj(inp, out)
+            out.flush()
+            os.fsync(out.fileno())
+        _make_world_readable(tmp_path)
+        os.replace(tmp_path, dst)
     except BaseException:
         with contextlib.suppress(OSError):
             os.unlink(tmp_path)

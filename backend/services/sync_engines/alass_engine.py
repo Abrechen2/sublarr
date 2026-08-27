@@ -16,6 +16,21 @@ from services.sync_engines.base import BaseSyncEngine, SyncResult
 logger = logging.getLogger(__name__)
 
 
+def _backup_before_sync(subtitle_path: str) -> None:
+    """Safety backup into the hidden single-slot ``.sublarr/backups/`` bak.
+
+    Delegates to ``subtitle_restore.create_or_get_bak`` — an existing bak is
+    the undo point of the original text and stays untouched. A failed backup
+    is logged, not raised: the engine's contract is to sync regardless.
+    """
+    try:
+        from services.subtitle_restore import create_or_get_bak
+
+        create_or_get_bak(subtitle_path)
+    except OSError as exc:
+        logger.warning("sync backup failed for %s: %s", subtitle_path, exc)
+
+
 def _fire_after_sync_trigger(subtitle_path: str, video_or_ref: str, engine: str) -> None:
     """Fire Plan B6 post-processing after_sync trigger. Local import avoids circular deps."""
     try:
@@ -60,17 +75,7 @@ class AlassEngine(BaseSyncEngine):
             )
 
         src = Path(subtitle_path)
-        # Safety backup → hidden .sublarr/backups/ (not beside the active sub),
-        # so media servers don't read .bak as a Bashkir track and retention/UI
-        # can manage it. See subtitle_filename.bak_path_for.
-        from subtitle_filename import bak_path_for
-
-        backup = Path(bak_path_for(str(src)))
-        try:
-            backup.parent.mkdir(parents=True, exist_ok=True)
-            shutil.copy2(src, backup)
-        except Exception:
-            pass
+        _backup_before_sync(str(src))
 
         from security_utils import safe_subprocess_arg
         from services.sync_engines.concurrency import nice_prefix, sync_subprocess_lock
