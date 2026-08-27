@@ -2,6 +2,14 @@ name: Build & Push Docker Image
 
 on:
   workflow_dispatch:
+    inputs:
+      version:
+        description: >-
+          Version string baked into the image (SUBLARR_VERSION env, OCI version
+          label) and used as an additional image tag, e.g. 1.13.4-rc.4.
+          Leave empty for a plain branch/sha build without a version.
+        required: false
+        default: ''
 
 # Tag pushes (releases) are handled by release.yml, not here.
 
@@ -47,6 +55,7 @@ jobs:
           tags: |
             type=ref,event=branch
             type=sha,prefix=sha-,format=short
+            type=raw,value=${{ inputs.version }},enable=${{ inputs.version != '' }}
 
       - name: Build and push
         uses: docker/build-push-action@v7
@@ -56,6 +65,8 @@ jobs:
           push: ${{ github.event_name != 'pull_request' }}
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
+          build-args: |
+            VERSION=${{ inputs.version }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
           provenance: false
