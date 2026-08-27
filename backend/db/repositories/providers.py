@@ -437,10 +437,11 @@ class ProviderRepository(BaseRepository):
         logger.info("Provider %s manually re-enabled (auto-disable cleared)", provider_name)
         return True
 
-    def is_auto_disabled(self, provider_name: str) -> bool:
+    def is_auto_disabled(self, provider_name: str, now: datetime | None = None) -> bool:
         """Check if a provider is currently auto-disabled.
 
         If the disabled_until time has passed, automatically clears the flag.
+        ``now`` is injectable for fixed-clock callers (degradation check).
         """
         entry = self.session.get(ProviderStats, provider_name)
         if not entry:
@@ -451,7 +452,7 @@ class ProviderRepository(BaseRepository):
         # Check if cooldown has expired
         disabled_until = entry.disabled_until
         if disabled_until:
-            now = datetime.now(UTC)
+            now = now or datetime.now(UTC)
             if disabled_until.tzinfo is None:
                 disabled_until = disabled_until.replace(tzinfo=UTC)
             if disabled_until < now:

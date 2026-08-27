@@ -97,6 +97,26 @@ def test_an_auto_disabled_provider_is_reported(app_ctx):
     assert [(a["provider_name"], a["condition"]) for a in alerts] == [("jimaku", "auto_disabled")]
 
 
+def test_an_expired_auto_disable_is_healed_not_reported(app_ctx):
+    """The raw flag can outlive its cooldown for months.
+
+    ``is_auto_disabled`` clears an expired flag, but only search paths called
+    it — a provider that never gets searched (filtered out earlier) kept its
+    stale flag forever, and this check alerted on it daily. Prod exhibit:
+    jimaku, auto_disabled with disabled_until 2026-04-15, still alerting on
+    2026-08-27. The nightly check must use the expiry-aware read, which also
+    turns it into the healer for exactly these unreachable rows.
+    """
+    row = _stats("jimaku", auto_disabled=1, disabled_until=NOW - timedelta(hours=1))
+
+    alerts = check_provider_degradation(now=NOW)
+
+    assert alerts == []
+    db.session.refresh(row)
+    assert row.auto_disabled == 0
+    assert row.disabled_until is None
+
+
 def test_the_same_condition_is_reported_once_a_day(app_ctx):
     """The point is the first ping, not a stream. An alert that repeats every
     tick trains people to filter the channel."""

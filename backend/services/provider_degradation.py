@@ -75,7 +75,19 @@ def check_provider_degradation(now: datetime | None = None) -> list[dict]:
         last_search = _as_utc(row.last_search_at)
         last_download = _as_utc(row.last_download_at)
 
-        if row.auto_disabled and _should_alert(name, "auto_disabled", now):
+        # The expiry-aware read, not the raw flag: `is_provider_auto_disabled`
+        # clears a flag whose cooldown has passed. Search paths do that as a
+        # side effect, but a provider that never gets searched keeps its stale
+        # flag forever — jimaku sat "disabled" from April to August 2026 and
+        # this check alerted on it daily. Going through the repo makes the
+        # nightly check the healer for exactly those unreachable rows.
+        from db.providers import is_provider_auto_disabled
+
+        if (
+            row.auto_disabled
+            and is_provider_auto_disabled(name, now=now)
+            and _should_alert(name, "auto_disabled", now)
+        ):
             alerts.append(
                 {
                     "provider_name": name,

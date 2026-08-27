@@ -1,6 +1,7 @@
 """Provider cache and statistics database operations -- delegating to SQLAlchemy repository."""
 
 import logging
+from datetime import datetime
 
 from db.activity import log_activity
 from db.models.activity import EVENT_DOWNLOAD, EVENT_TRANSLATE
@@ -210,9 +211,13 @@ def auto_disable_provider(provider_name: str, cooldown_minutes: int = 30):
     return _get_repo().auto_disable_provider(provider_name, cooldown_minutes)
 
 
-def is_provider_auto_disabled(provider_name: str) -> bool:
-    """Check if a provider is currently auto-disabled."""
-    return _get_repo().is_auto_disabled(provider_name)
+def is_provider_auto_disabled(provider_name: str, now: datetime | None = None) -> bool:
+    """Check if a provider is currently auto-disabled.
+
+    ``now`` is injectable for callers that evaluate against a fixed clock
+    (the degradation check); it defaults to the current time.
+    """
+    return _get_repo().is_auto_disabled(provider_name, now=now)
 
 
 def clear_auto_disable(provider_name: str):
