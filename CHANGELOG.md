@@ -31,6 +31,29 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [1.13.4] - 2026-08-26
 
 ### Fixed
+- **Auto-sync no longer dies on — or destroys — backups from an earlier
+  install.** The sync path copied the subtitle onto its `.bak` with
+  `shutil.copy2`, which first overwrites the content and then fails setting
+  timestamps when the existing backup belongs to another uid (the container's
+  PUID changed over the years). 53 queue items failed that way daily for
+  weeks, each attempt corrupting its own undo point before erroring out.
+  Sync now honours the single-slot rule every other path already follows —
+  an existing backup is the original text and is never overwritten — and a
+  missing one is created via an atomic temp-file rename that never touches
+  the destination's metadata.
+- **Queue rows for deleted episodes stop retrying forever, and finished rows
+  are cleaned up.** An extract task whose wanted item had been removed raised
+  an error the worker read as retryable, so 25 rows for long-gone episodes
+  cycled the backoff ladder daily. A vanished item is now terminal, matching
+  the translate task's contract. The queue also gets retention at last: done
+  rows go after 7 days, terminally-failed ones after 30 — on one install
+  5 429 done rows had accumulated, 3 179 of them for items deleted months ago.
+- **A provider whose auto-disable cooldown expired months ago is re-enabled
+  again.** Clearing the flag only happened as a side effect of searching, so
+  a provider filtered out before that point kept its stale flag forever —
+  and the nightly degradation check alerted on it every day (one install:
+  disabled April, still "disabled" in August). The check now uses the
+  expiry-aware read and thereby heals exactly the rows nothing else touches.
 - **A single unusable batch no longer costs the whole episode.** Translation
   stopped at the first batch a model could not deliver, and since those
   failures are deterministic the next run died at the same place: the same
