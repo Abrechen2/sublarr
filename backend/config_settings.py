@@ -697,6 +697,51 @@ class UISettings(BaseModel):
     translation_series_glossary_auto: bool = False
 
     # Translation Context Window (Phase A4 — lookback/lookahead for LLM backends)
+    # Declared here because the settings UI writes them and GET /config only
+    # returns model fields — until they were declared the page could not read
+    # its own stored values back and rendered these defaults instead. Their
+    # readers (translator/_helpers.py) still go through config_entries, so the
+    # defaults below must match the ones written there.
+    translation_memory_enabled: bool = Field(
+        default=True,
+        description="Reuse previously translated lines from the translation memory.",
+    )
+    translation_memory_similarity_threshold: float = Field(
+        default=1.0,
+        ge=0.0,
+        le=1.0,
+        description=(
+            "How close a stored line must be to count as a hit. 1.0 is exact "
+            "match; lower values trade accuracy for reuse."
+        ),
+    )
+    translation_quality_enabled: bool = Field(
+        default=True,
+        description=(
+            "Score each translated line with the LLM and retry the ones below "
+            "the threshold. Costs one extra model call per line scored."
+        ),
+    )
+    translation_quality_threshold: int = Field(
+        default=50,
+        ge=0,
+        le=100,
+        description="Lines scoring below this are translated again.",
+    )
+    translation_quality_max_retries: int = Field(
+        default=2,
+        ge=0,
+        le=5,
+        description="How often a single low-scoring line may be retried.",
+    )
+    # NOTE: nothing in the backend reads this yet — no route, no template, no
+    # link builder. The settings page offers the field and stores it, which is
+    # why it is declared here rather than silently rejected, but running Sublarr
+    # under a path prefix is not implemented. Wire it up or drop the control.
+    base_url: str = Field(
+        default="",
+        description="Path prefix when served behind a reverse proxy. Not yet consumed.",
+    )
     translation_context_enabled: bool = Field(
         default=True,
         description=(

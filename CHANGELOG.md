@@ -8,6 +8,35 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Fixed
+- **A misspelled setting is refused instead of silently stored — and six
+  settings the UI offers finally work.** `PUT /config` checked its keys against
+  `Settings.model_fields`, an attribute the composite `Settings` class does not
+  have, so the list of valid keys was empty on every call and the guard read
+  `if not valid_keys or …` — which accepts anything. A typo answered `200 saved`
+  and wrote a key nothing ever reads, with no way to notice; the same hole let
+  the endpoint write keys it has no business writing, `ui_password_hash` among
+  them (verified, not assumed). Unknown keys now get a 400 that names the key.
+
+  Turning the check on required fixing what it exposed: six keys the settings
+  page writes were never declared as fields — the translation-memory and
+  translation-quality pairs, and `base_url`. Because `GET /config` returns the
+  declared fields only, the page could not read its own stored values back and
+  rendered its fallbacks instead: an install with a quality threshold of 35
+  displayed 50. All six are declared now, so they save *and* show correctly.
+  `base_url` is declared but still consumed by nothing — running under a path
+  prefix is not implemented, and the control has never done anything.
+
+- **Importing a configuration works again.** `POST /config/import` derived its
+  list of valid keys from `Settings.model_fields`, but `Settings` is a plain
+  composite class and has no such attribute, so the guarded expression fell
+  through to an empty set on every call. The endpoint is fail-closed, and an
+  empty set reads as "cannot determine valid keys" — it answered 500 to every
+  import that has ever been made. Nothing covered the route, which is how a
+  fully dead endpoint stayed unnoticed. The key set now comes from the two real
+  settings models plus whatever is already stored, so keys that live only in
+  the database — the quality thresholds, the usage-stats consent — survive a
+  restore instead of being dropped.
+
 - **A translation with an explicit source language keeps it to the end.** The
   first call honoured the language the subtitle is actually in; every step after
   it read the globally configured source instead — the retry after a failed
