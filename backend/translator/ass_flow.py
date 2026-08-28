@@ -99,11 +99,15 @@ def translate_ass(
 
         series_id = _core._extract_series_id(arr_context)
         tgt_lang = target_language or settings.target_language
+        # Resolved once: every step below must agree on the direction. The
+        # retries used to read settings.source_language directly, so a job
+        # with an explicit source silently changed language mid-file.
+        src_lang = source_language or settings.source_language
         # Access _translate_with_manager via package namespace for test patching
         _tw_manager = _core._pkg()._translate_with_manager
         translated_texts, translation_result = _tw_manager(
             dialog_texts,
-            source_lang=(source_language or settings.source_language),
+            source_lang=src_lang,
             target_lang=tgt_lang,
             arr_context=arr_context,
             series_id=series_id,
@@ -128,7 +132,7 @@ def translate_ass(
             translated_texts, quality_scores = _core._evaluate_and_retry_lines(
                 dialog_texts,
                 translated_texts,
-                settings.source_language,
+                src_lang,
                 tgt_lang,
                 _q_fallback_chain,
                 None,
@@ -272,10 +276,14 @@ def _translate_external_ass(
         # Extract series_id for glossary
         series_id = _core._extract_series_id(arr_context)
         tgt_lang = target_language or settings.target_language
+        # Resolved once: every step below must agree on the direction. The
+        # retries used to read settings.source_language directly, so a job
+        # with an explicit source silently changed language mid-file.
+        src_lang = source_language or settings.source_language
         _tw_manager = _core._pkg()._translate_with_manager
         translated_texts, translation_result = _tw_manager(
             dialog_texts,
-            source_lang=(source_language or settings.source_language),
+            source_lang=src_lang,
             target_lang=tgt_lang,
             arr_context=arr_context,
             series_id=series_id,
@@ -292,7 +300,7 @@ def _translate_external_ass(
                 logger.info("Retrying translation (attempt %d/2)...", retry + 1)
                 translated_texts, translation_result = _tw_manager(
                     dialog_texts,
-                    source_lang=(source_language or settings.source_language),
+                    source_lang=src_lang,
                     target_lang=tgt_lang,
                     arr_context=arr_context,
                     series_id=series_id,
@@ -328,7 +336,7 @@ def _translate_external_ass(
             translated_texts, quality_scores = _core._evaluate_and_retry_lines(
                 dialog_texts,
                 translated_texts,
-                settings.source_language,
+                src_lang,
                 tgt_lang,
                 _q_fallback_chain,
                 None,
@@ -375,7 +383,7 @@ def _translate_external_ass(
                 "translation_backend": translation_result.backend_name
                 if "translation_result" in dir()
                 else "",
-                "source_language": settings.source_language,
+                "source_language": src_lang,
                 "target_language": target_language or settings.target_language,
             },
         )

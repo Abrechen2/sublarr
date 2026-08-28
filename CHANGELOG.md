@@ -8,6 +8,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Fixed
+- **A translation with an explicit source language keeps it to the end.** The
+  first call honoured the language the subtitle is actually in; every step after
+  it read the globally configured source instead — the retry after a failed
+  validation, the per-line quality retry, and the language written into the
+  `.nfo`. Where the configured source is also a target language, that turned a
+  German-to-English job's retries into "English to English": German text went to
+  the model under the wrong instruction, and the result replaced the line
+  whenever it scored higher. On the reference install 13 447 such calls were
+  recorded between 16 July and 28 August. Every step now uses the same resolved
+  language, and the tests cover the retry path that no test had entered before.
 - **A database that predates Alembic gets the automation queue back.** Such an
   install has no `alembic_version` table, so it never replays migrations and
   builds its schema with `create_all()` instead — and that adds missing tables
