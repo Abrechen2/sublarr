@@ -7,6 +7,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- **Sublarr can run under a path prefix.** The Base URL field in the settings
+  has existed for a long time and did nothing: no route read it, no link used
+  it, and `GET /config` did not even return it. It is wired now, following the
+  convention of the applications Sublarr sits next to — Sublarr answers under
+  the prefix itself, so a reverse proxy forwards the path unchanged
+  (`proxy_pass http://host:5765;`, no trailing slash). The un-prefixed paths
+  keep working on purpose: a wrong value in that field would otherwise lock you
+  out of the page that fixes it. No restart is needed; the value takes effect
+  as soon as it is saved.
+
+  The bundle now uses relative asset URLs so one build serves any prefix, and
+  the served `index.html` carries a matching `<base>` element — without it a
+  reload on a deep route such as `/wanted/123` would look for the bundle under
+  `/wanted/`. The same value reaches the app through `window.__SUBLARR_BASE__`,
+  which the API client and the router read.
+
 ### Fixed
 - **A misspelled setting is refused instead of silently stored — and six
   settings the UI offers finally work.** `PUT /config` checked its keys against

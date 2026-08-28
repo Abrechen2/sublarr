@@ -328,3 +328,32 @@ def _reset_singleton_after_test():
     from config import reload_settings
 
     reload_settings()
+
+
+def test_peek_settings_never_builds_the_singleton():
+    """``peek_settings`` exists so callers outside an app context stay safe.
+
+    ``get_settings`` builds the singleton by overlaying the database entries on
+    the defaults, which needs a Flask application context. A caller without one
+    — WSGI middleware is the case this was written for — would cache a Settings
+    object with every stored setting missing, and every later reader would get
+    that object. ``peek_settings`` answers ``None`` instead of building, and
+    this test is what keeps it that way.
+    """
+    import config_singleton
+    from config import peek_settings
+
+    before = config_singleton._settings
+    try:
+        config_singleton._settings = None
+        assert peek_settings() is None
+        assert config_singleton._settings is None, "peek_settings built the singleton"
+    finally:
+        config_singleton._settings = before
+
+
+def test_peek_settings_returns_the_built_instance():
+    from config import get_settings, peek_settings
+
+    built = get_settings()
+    assert peek_settings() is built

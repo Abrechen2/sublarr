@@ -734,13 +734,17 @@ class UISettings(BaseModel):
         le=5,
         description="How often a single low-scoring line may be retried.",
     )
-    # NOTE: nothing in the backend reads this yet — no route, no template, no
-    # link builder. The settings page offers the field and stores it, which is
-    # why it is declared here rather than silently rejected, but running Sublarr
-    # under a path prefix is not implemented. Wire it up or drop the control.
+    # Read by base_path.PrefixMiddleware, which strips it from the request path,
+    # and injected into the served index.html as <base href>. Deliberately read
+    # off this settings object rather than through get_config_entry: the
+    # middleware runs before Flask pushes an application context.
     base_url: str = Field(
         default="",
-        description="Path prefix when served behind a reverse proxy. Not yet consumed.",
+        description=(
+            "Path prefix when served behind a reverse proxy, e.g. /sublarr. "
+            "Sublarr answers under the prefix and at the root, so a wrong "
+            "value cannot lock you out of the settings page."
+        ),
     )
     translation_context_enabled: bool = Field(
         default=True,

@@ -1,17 +1,20 @@
 <!DOCTYPE html>
 <html lang="en">
   <head>
+    <!-- Rewritten by the backend when Sublarr is served under a path prefix.
+         Must stay first in <head>: it governs every relative URL below. -->
+    <base href="/" />
     <meta charset="UTF-8" />
-    <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32.png" />
-    <link rel="icon" type="image/png" sizes="192x192" href="/logo-192.png" />
-    <link rel="apple-touch-icon" href="/logo-192.png" />
+    <link rel="icon" type="image/png" sizes="32x32" href="favicon-32.png" />
+    <link rel="icon" type="image/png" sizes="192x192" href="logo-192.png" />
+    <link rel="apple-touch-icon" href="logo-192.png" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="theme-color" content="#1DB8D4" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet" />
     <title>Sublarr</title>
-    <script src="/theme-init.js"></script>
+    <script src="theme-init.js"></script>
   </head>
   <body>
     <div id="root"></div>

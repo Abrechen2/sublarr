@@ -162,6 +162,14 @@ def create_app(testing=False):
     # catch-all serve_spa() can serve index.html. Static files are served by
     # serve_spa() itself via send_from_directory("static", ...).
     app = Flask(__name__, static_folder=None)
+
+    # Serve under the configured base_url as well as at the root. Reading the
+    # setting per request keeps it a normal setting — no restart to change it —
+    # and keeping the un-prefixed paths alive means a wrong value cannot lock
+    # the user out of the page that fixes it.
+    from base_path import PrefixMiddleware
+
+    app.wsgi_app = PrefixMiddleware(app.wsgi_app)
     app.config["MAX_CONTENT_LENGTH"] = 16 * 1024 * 1024  # 16 MB — prevent request body DoS
 
     # Load config

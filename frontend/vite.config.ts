@@ -8,6 +8,11 @@ const reactPath = path.resolve(projectRoot, 'node_modules/react')
 const reactDomPath = path.resolve(projectRoot, 'node_modules/react-dom')
 
 export default defineConfig({
+  // Relative asset URLs so the same build works at "/" and under any reverse
+  // proxy prefix. What makes them resolve on a deep client-side route is the
+  // <base> element in index.html, which the backend rewrites at serve time —
+  // without it "./assets/x.js" under /wanted/123 would look in /wanted/.
+  base: './',
   plugins: [react(), tailwindcss()],
   experimental: {
     // Vite 8.0.x bug: FullBundleDevEnvironment (Rolldown) does not replace
