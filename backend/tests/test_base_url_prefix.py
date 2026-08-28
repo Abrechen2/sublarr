@@ -218,3 +218,32 @@ class TestMiddlewareNeverBuildsSettings:
         with client.application.app_context():
             reload_settings(get_all_config_entries())
             assert get_settings().wanted_anime_only is False
+
+
+def _is_socketio_handshake(body: str) -> bool:
+    """Engine.IO opens a polling session with packet type 0 and a JSON payload."""
+    return body.startswith('0{"sid"')
+
+
+def test_socketio_handshake_reaches_socketio_under_the_prefix(prefixed):
+    """Socket.IO must see its own path, not the SPA catch-all.
+
+    ``socketio.init_app`` wraps ``app.wsgi_app`` in its own middleware, so
+    whichever layer is applied last ends up outermost. With the prefix stripper
+    applied first it sat *inside*: Socket.IO saw ``/sublarr/socket.io/...``, did
+    not recognise it and handed it on, the prefix was stripped afterwards, Flask
+    had no such route, and the caller got the SPA catch-all with status 200. A
+    websocket client cannot tell that apart from a server that is not there.
+
+    Asserting positively on the handshake matters. The first version of this
+    test checked that the body was not HTML and passed — in the test
+    environment the catch-all answers with JSON, so it never looked at the
+    thing it claimed to check. The bug was found on the beta container.
+    """
+    body = prefixed.get("/sublarr/socket.io/?EIO=4&transport=polling").get_data(as_text=True)
+    assert _is_socketio_handshake(body), f"not a handshake: {body[:120]!r}"
+
+
+def test_socketio_handshake_still_works_without_the_prefix(prefixed):
+    body = prefixed.get("/socket.io/?EIO=4&transport=polling").get_data(as_text=True)
+    assert _is_socketio_handshake(body), f"not a handshake: {body[:120]!r}"

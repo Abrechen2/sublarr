@@ -24,6 +24,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `/wanted/`. The same value reaches the app through `window.__SUBLARR_BASE__`,
   which the API client and the router read.
 
+  Socket.IO decides the order of the two middlewares: `socketio.init_app` wraps
+  the WSGI app itself, so the prefix has to come off the path before Socket.IO
+  looks at it. Applied the other way round, the handshake fell through to the
+  SPA catch-all and answered 200 with the page shell — which a websocket client
+  cannot tell from a server that is not there.
+
 ### Fixed
 - **The translation memory drops entries that were never translations.** The
   per-line quality retry recorded its work under the globally configured source

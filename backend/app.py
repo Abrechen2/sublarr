@@ -162,14 +162,6 @@ def create_app(testing=False):
     # catch-all serve_spa() can serve index.html. Static files are served by
     # serve_spa() itself via send_from_directory("static", ...).
     app = Flask(__name__, static_folder=None)
-
-    # Serve under the configured base_url as well as at the root. Reading the
-    # setting per request keeps it a normal setting — no restart to change it —
-    # and keeping the un-prefixed paths alive means a wrong value cannot lock
-    # the user out of the page that fixes it.
-    from base_path import PrefixMiddleware
-
-    app.wsgi_app = PrefixMiddleware(app.wsgi_app)
     app.config["MAX_CONTENT_LENGTH"] = 16 * 1024 * 1024  # 16 MB — prevent request body DoS
 
     # Load config
@@ -199,6 +191,20 @@ def create_app(testing=False):
     )
     _cors_origins = [o.strip() for o in _cors_origins_raw.split(",") if o.strip()]
     socketio.init_app(app, cors_allowed_origins=_cors_origins, async_mode="threading")
+
+    # Serve under the configured base_url as well as at the root. This has to
+    # come AFTER socketio.init_app: that call wraps app.wsgi_app in its own
+    # middleware, so whichever layer is applied last ends up outermost, and the
+    # prefix has to be off the path before Socket.IO looks at it. Applied
+    # first, Socket.IO saw "/<prefix>/socket.io/..." , did not recognise it and
+    # passed it on — the handshake then fell through to the SPA catch-all with
+    # status 200, which a websocket client cannot tell from a dead server.
+    # Reading the setting per request keeps it a normal setting (no restart),
+    # and leaving the un-prefixed paths alive means a wrong value cannot lock
+    # the user out of the page that fixes it.
+    from base_path import PrefixMiddleware
+
+    app.wsgi_app = PrefixMiddleware(app.wsgi_app)
 
     # Register structured error handlers (SublarrError -> JSON, generic 500)
     from error_handler import register_error_handlers
