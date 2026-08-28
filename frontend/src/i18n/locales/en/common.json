@@ -654,6 +654,16 @@
     "last_run": "Last: {{date}}"
   },
   "whatsnew": {
+    "v1140": {
+      "baseurl_title": "Sublarr can run under a path prefix",
+      "baseurl_desc": "The Base URL field in the settings never did anything. If you run Sublarr behind a reverse proxy under, say, /sublarr, you can set it now — the interface, the API and the live updates all follow the prefix. No restart is needed, and the un-prefixed paths keep working so a wrong value cannot lock you out.",
+      "settings_title": "Six settings finally show what you saved",
+      "settings_desc": "The translation-memory and quality sliders, and the base URL, were stored but never read back when the page opened, so it always showed the default instead. Anything you had configured there was invisible.",
+      "import_title": "Importing a configuration works again",
+      "import_desc": "The import answered with an error every single time and could not be used at all. Unknown keys are now refused rather than silently stored, so a misspelled setting shows up immediately instead of quietly doing nothing.",
+      "memory_title": "Bad entries leave the translation memory",
+      "memory_desc": "A wrongly passed source language put entries into the memory whose source and target language were the same and whose content did not match the text. The upgrade removes them; affected lines are translated cleanly again on the next run."
+    },
     "v1134": {
       "breaks_title": "Translations no longer come back with line breaks the original never had",
       "breaks_desc": "Local language models like to append a literal `\\N` — an ASS hard line break — to lines that had none, and because the line *count* is still correct nothing in the pipeline could see it. One measured episode shipped with 158 such breaks against 28 in its English source, so the German subtitle wrapped differently from the original throughout. Where the source line carries no hard break, the translation no longer keeps one either; a break the subtitle genuinely asked for is left untouched. The translation memory is repaired too: it held the invented breaks from earlier runs and re-served them on every cache hit — 58,012 of 160,932 entries (36%) on one install. The upgrade strips them using the same rule.",

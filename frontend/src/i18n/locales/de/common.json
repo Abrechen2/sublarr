@@ -654,6 +654,16 @@
     "last_run": "Zuletzt: {{date}}"
   },
   "whatsnew": {
+    "v1140": {
+      "baseurl_title": "Sublarr laeuft jetzt auch unter einem Pfad-Praefix",
+      "baseurl_desc": "Das Feld „Basis-URL“ in den Einstellungen war bisher wirkungslos. Wer Sublarr hinter einem Reverse-Proxy unter etwa /sublarr betreibt, kann es jetzt eintragen — Oberfläche, API und Live-Aktualisierung folgen dem Präfix. Ein Neustart ist nicht nötig, und der Zugriff ohne Präfix bleibt bestehen, damit ein falscher Wert niemanden aussperrt.",
+      "settings_title": "Sechs Einstellungen zeigen endlich ihren gespeicherten Wert",
+      "settings_desc": "Die Regler für Übersetzungsspeicher und Qualitätsprüfung sowie die Basis-URL wurden zwar gespeichert, aber beim Öffnen der Seite nie zurückgelesen — angezeigt wurde immer der Vorgabewert. Wer dort etwas eingestellt hatte, sah es nicht mehr.",
+      "import_title": "Konfiguration lässt sich wieder importieren",
+      "import_desc": "Der Import antwortete bislang ausnahmslos mit einem Fehler und war damit unbenutzbar. Unbekannte Schlüssel werden jetzt abgelehnt statt still gespeichert — ein Tippfehler in einer Einstellung fällt sofort auf, statt wirkungslos zu verschwinden.",
+      "memory_title": "Fehlerhafte Einträge verlassen den Übersetzungsspeicher",
+      "memory_desc": "Durch eine falsch übergebene Quellsprache landeten Einträge im Speicher, deren Quell- und Zielsprache identisch war und deren Inhalt nicht zum Text passte. Beim Aktualisieren werden sie entfernt; betroffene Zeilen entstehen bei der nächsten Übersetzung sauber neu."
+    },
     "v1134": {
       "breaks_title": "Übersetzungen bringen keine Zeilenumbrüche mehr mit, die das Original nie hatte",
       "breaks_desc": "Lokale Sprachmodelle hängen gern ein wörtliches `\\N` an — im ASS-Format ein harter Zeilenumbruch —, und zwar an Zeilen, die gar keinen hatten. Weil die Zeilen*zahl* dabei stimmt, konnte das nichts in der Verarbeitungskette bemerken. Eine nachgemessene Folge wurde mit 158 solchen Umbrüchen ausgeliefert, gegenüber 28 in der englischen Quelle — der deutsche Untertitel brach also durchgehend anders um als das Original. Trägt die Quellzeile keinen harten Umbruch, behält die Übersetzung jetzt auch keinen; einen Umbruch, den der Untertitel wirklich vorgibt, lässt Sublarr unangetastet. Zusätzlich wurde der Übersetzungsspeicher repariert: dort standen die erfundenen Umbrüche aus früheren Läufen und wurden bei jedem Treffer erneut ausgeliefert — auf einer Installation 58 012 von 160 932 Einträgen (36 %). Beim Update werden sie nach derselben Regel bereinigt.",
