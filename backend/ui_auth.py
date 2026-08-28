@@ -16,6 +16,13 @@ from flask import jsonify, request, session
 
 logger = logging.getLogger(__name__)
 
+# The config keys this module owns. They are set through the auth endpoints,
+# which know the rules — changing the password requires the current one, and
+# enabling auth requires a password to already exist. Declared here so the
+# generic config writer can refuse them instead of offering a second, ruleless
+# way to set a password hash.
+AUTH_OWNED_CONFIG_KEYS = frozenset({"ui_auth_enabled", "ui_password_hash", "ui_session_secret"})
+
 _AUTH_FLAG_TTL = 30.0
 _auth_enabled_cache: tuple[float, bool] | None = None
 

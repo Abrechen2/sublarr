@@ -42,11 +42,26 @@ def writable_config_keys() -> set[str]:
         keys |= set(get_all_config_entries() or {})
     except Exception:  # noqa: BLE001 — a missing DB must not empty the set
         pass
-    return keys
+    # Reading the stored keys is what makes the auth credentials a live
+    # concern rather than a theoretical one: on any install where a UI
+    # password has been set, ui_password_hash IS in config_entries and would
+    # otherwise become writable through the generic endpoint — a second way to
+    # set a password that skips "prove you know the current one".
+    from ui_auth import AUTH_OWNED_CONFIG_KEYS
+
+    return keys - AUTH_OWNED_CONFIG_KEYS
 
 
 def is_writable_config_key(key: str) -> bool:
-    """Dotted extension keys are always allowed; flat keys must be known."""
+    """Dotted extension keys are always allowed; flat keys must be known.
+
+    The auth-owned keys are refused on both paths — a dotted spelling must not
+    become a way around them either.
+    """
+    from ui_auth import AUTH_OWNED_CONFIG_KEYS
+
+    if key in AUTH_OWNED_CONFIG_KEYS:
+        return False
     if "." in key:
         return True
     return key in writable_config_keys()

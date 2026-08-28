@@ -17,6 +17,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   the endpoint write keys it has no business writing, `ui_password_hash` among
   them (verified, not assumed). Unknown keys now get a 400 that names the key.
 
+  The credentials that guard Sublarr itself — `ui_password_hash`,
+  `ui_session_secret`, `ui_auth_enabled` — are refused by name rather than by
+  being absent from the list. They have to be: the valid set includes keys
+  already stored, and on any install where a password has been set the hash is
+  a stored key, so it would otherwise have become writable through a route that
+  never asks for the current password. They keep their own endpoints, which do.
+
   Turning the check on required fixing what it exposed: six keys the settings
   page writes were never declared as fields — the translation-memory and
   translation-quality pairs, and `base_url`. Because `GET /config` returns the

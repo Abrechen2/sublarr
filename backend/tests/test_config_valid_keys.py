@@ -104,11 +104,41 @@ def test_dotted_extension_keys_are_still_accepted(client):
 
 
 def test_auth_secrets_cannot_be_written_through_config(client):
-    """A side effect worth keeping: ui_password_hash is not a settings field,
-    so with key validation live this endpoint stops being a way to set it."""
-    from db.config import get_config_entry
+    """The auth credentials keep their own door, on an install that has one.
 
-    resp = client.put("/api/v1/config", json={"ui_password_hash": "$2b$12$forged"})
+    Staging matters here. The writable set is "model fields plus keys already
+    stored", and on any install where a UI password has been set
+    ``ui_password_hash`` IS a stored key — so it would be writable through the
+    generic endpoint unless it is excluded by name. A test against an empty
+    database passes for the wrong reason and proves nothing; this one puts the
+    hash in the database first, the way a real install has it.
+    """
+    from db.config import get_config_entry, save_config_entry
 
-    assert resp.status_code == 400, resp.get_json()
-    assert get_config_entry("ui_password_hash") is None
+    with client.application.app_context():
+        save_config_entry("ui_password_hash", "$2b$12$original")
+        save_config_entry("ui_auth_enabled", "true")
+
+    for key, value in (
+        ("ui_password_hash", "$2b$12$forged"),
+        ("ui_session_secret", "forged"),
+        ("ui_auth_enabled", "false"),
+    ):
+        resp = client.put("/api/v1/config", json={key: value})
+        assert resp.status_code == 400, f"{key} was accepted: {resp.get_json()}"
+
+    with client.application.app_context():
+        assert get_config_entry("ui_password_hash") == "$2b$12$original"
+        assert get_config_entry("ui_auth_enabled") == "true"
+
+
+def test_stored_auth_keys_are_not_in_the_writable_set(client):
+    """Guards the derivation itself, not just the endpoint."""
+    from db.config import save_config_entry
+    from routes.config.keys import is_writable_config_key, writable_config_keys
+
+    with client.application.app_context():
+        save_config_entry("ui_password_hash", "$2b$12$original")
+
+        assert "ui_password_hash" not in writable_config_keys()
+        assert not is_writable_config_key("ui_password_hash")
