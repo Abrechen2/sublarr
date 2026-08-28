@@ -5,6 +5,27 @@ All notable changes to Sublarr are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Fixed
+- **A database that predates Alembic gets the automation queue back.** Such an
+  install has no `alembic_version` table, so it never replays migrations and
+  builds its schema with `create_all()` instead — and that adds missing tables
+  but never missing columns. The three columns the queue gained in August
+  (`task_type`, `source_language`, `video_path`) were never added to the list
+  that patches exactly this case, although the code says in so many words that
+  they must be. The result was a queue the ORM could not read at all: the drain
+  worker died at every boot with `no such column`, and nothing was extracted,
+  translated or synced through it. The columns are now patched in on startup,
+  and a test enforces the rule that was only written down before.
+
+  One part of those migrations cannot be repaired this way. They also widened
+  the queue's unique key from `(wanted_item_id)` to
+  `(wanted_item_id, task_type, file_path)`, and SQLite can only do that by
+  rebuilding the table. On such an install one item therefore still cannot hold
+  two different task types at once — a far narrower limit than the boot crash,
+  and it is not new.
+
 ## [1.13.4] - 2026-08-28
 
 ### Fixed

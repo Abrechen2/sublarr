@@ -102,6 +102,35 @@ def _patch_pre_alembic_columns(engine, inspect_fn) -> None:
             if column not in existing:
                 patches.append(f"ALTER TABLE provider_stats ADD COLUMN {column} {ts}")
 
+    # Automation-queue task types (migrations f3a9c1e7b5d4, c7e1a9d4b6f3).
+    # The queue only held embedded extractions until sidecar translation and
+    # auto-sync moved onto it, each needing columns of its own. Missing them,
+    # every read of the table dies with "no such column" and the drain worker
+    # is dead at boot — which is what happened to the beta instance on
+    # 2026-08-28, the second outage of this exact shape.
+    #
+    # What this cannot restore is the unique key: the migrations widened it
+    # from (wanted_item_id) to (wanted_item_id, task_type, file_path), and
+    # SQLite can only do that by rebuilding the table. An untracked DB
+    # therefore still refuses a second task type for the same item. That is a
+    # narrower failure than the boot crash and is tracked separately.
+    if insp.has_table("subtitle_automation_queue"):
+        existing = {c["name"] for c in insp.get_columns("subtitle_automation_queue")}
+        if "task_type" not in existing:
+            # NOT NULL needs the default in the same statement — SQLite rejects
+            # adding a NOT NULL column without one, and existing rows are all
+            # extractions, which is what the migration backfills them to.
+            patches.append(
+                "ALTER TABLE subtitle_automation_queue ADD COLUMN task_type "
+                "VARCHAR(24) NOT NULL DEFAULT 'embedded_extract'"
+            )
+        if "source_language" not in existing:
+            patches.append(
+                "ALTER TABLE subtitle_automation_queue ADD COLUMN source_language VARCHAR(8)"
+            )
+        if "video_path" not in existing:
+            patches.append("ALTER TABLE subtitle_automation_queue ADD COLUMN video_path TEXT")
+
     # Decision log snapshots (migration a7d3c9e1f5b2)
     if insp.has_table("wanted_items"):
         existing = {c["name"] for c in insp.get_columns("wanted_items")}
