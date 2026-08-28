@@ -38,6 +38,17 @@ class TestAtomicCopyfile:
 
         assert dst.read_text(encoding="utf-8") == "hello"
 
+    @pytest.mark.skipif(
+        os.name == "nt",
+        reason=(
+            "POSIX-only premise: os.replace onto a read-only file needs write "
+            "permission on the directory, not on the file. Windows refuses it "
+            "with WinError 5, so the scenario cannot be staged there. Sublarr "
+            "ships as a Linux container; this pins the behaviour that matters "
+            "in production. Without the marker the suite is permanently red on "
+            "a Windows dev machine, which costs the signal its meaning."
+        ),
+    )
     def test_replaces_dst_it_could_not_open_for_write(self, tmp_path):
         """A read-only dst breaks copy2 but not the atomic path.
 
