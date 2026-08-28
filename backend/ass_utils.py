@@ -19,6 +19,7 @@ import re
 from ass_probe import (  # noqa: F401 — re-exported for back-compat
     extract_subtitle_stream,
     get_all_subtitle_streams,
+    get_legacy_subtitle_stream_output_path,
     get_media_streams,
     get_subtitle_stream_output_path,
     has_target_language_audio,

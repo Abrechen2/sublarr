@@ -428,7 +428,30 @@ def _run_engine(file_path, engine):
 def get_subtitle_stream_output_path(media_path: str, stream_info: dict) -> str:
     """Build sidecar output path: {basename}.{lang}.{format} next to media file.
 
+    The container tag is ISO 639-2/B ("ger", "eng"); the name uses the
+    canonical ISO 639-1 code the rest of Sublarr works in. Writing the raw tag
+    grew a second German subtitle next to every existing ``.de`` one, and the
+    caller's "already extracted" guard — which keys off this very path — never
+    recognised the sidecar already sitting there. An unknown tag is passed
+    through unchanged rather than guessed at.
+
     Uses 'und' (undetermined) if language tag is missing.
+    """
+    from config_language_data import normalize_language_code
+
+    lang = normalize_language_code((stream_info.get("language") or "und").lower())
+    fmt = stream_info.get("format", "ass")
+    base = os.path.splitext(media_path)[0]
+    return f"{base}.{lang}.{fmt}"
+
+
+def get_legacy_subtitle_stream_output_path(media_path: str, stream_info: dict) -> str:
+    """The name this sidecar had before the language code was canonicalised.
+
+    Installs that ran the older code have their sidecars under the raw Matroska
+    tag (``.ger.srt``). Callers check this path too, so canonicalising the name
+    does not make Sublarr blind to a file it wrote itself and extract the same
+    track a second time.
     """
     lang = (stream_info.get("language") or "und").lower()
     fmt = stream_info.get("format", "ass")

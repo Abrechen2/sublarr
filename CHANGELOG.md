@@ -18,6 +18,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   whenever it scored higher. On the reference install 13 447 such calls were
   recorded between 16 July and 28 August. Every step now uses the same resolved
   language, and the tests cover the retry path that no test had entered before.
+- **An extracted subtitle is filed under the language code the rest of Sublarr
+  uses.** Matroska tags tracks `ger`/`eng`; that tag went into the filename
+  unchanged, so a `.ger.srt` appeared next to the `.de.srt` already there and
+  players offered the same language twice. Worse, the check that skips
+  extraction when a sidecar already exists looks at exactly that path, so it
+  never saw the file beside it and extracted the track again on every pass. On
+  the reference install 2 406 episodes carried German under more than one code,
+  1 946 of them with differing content. New extractions are named canonically
+  and the skip now works; an unrecognised tag is left alone rather than guessed
+  at. A sidecar already on disk under the old raw-tag name still counts as
+  extracted, so the rename does not make Sublarr blind to a file it wrote
+  itself and put the same track on disk twice. Duplicates already there are not
+  touched — they are two different subtitles, and which one to keep is not a
+  decision this can make.
+
 - **A database that predates Alembic gets the automation queue back.** Such an
   install has no `alembic_version` table, so it never replays migrations and
   builds its schema with `create_all()` instead — and that adds missing tables
