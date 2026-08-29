@@ -55,6 +55,13 @@ export interface WantedSummary {
   by_existing: Record<string, number>
   by_subtitle_type: Record<string, number>
   upgradeable: number
+  /**
+   * Wanted items the search will never pick up again: at the attempt cap
+   * without the slow-mode retry window (#199). Counted with the same
+   * predicate the search filter uses, so the number describes the behaviour
+   * rather than a nicer version of it.
+   */
+  exhausted: number
   scan_running: boolean
   last_scan_at: string
 }

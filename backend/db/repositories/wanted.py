@@ -351,12 +351,49 @@ class WantedRepository(BaseRepository, _WantedUpsertMixin, _WantedUpdatesMixin):
         )
         upgradeable = self.session.execute(upgradeable_stmt).scalar()
 
+        # Exhausted: wanted items the search will never pick up again (#199).
+        # Without this number the queue reads as a healthy backlog — on the
+        # install that reported it, 67% of "wanted" had quietly given up and
+        # every item sat under the same badge.
+        from config import get_settings
+        from services.wanted_search_filters import is_exhausted
+
+        settings = get_settings()
+        max_attempts = getattr(settings, "wanted_max_search_attempts", 3)
+        adaptive = getattr(settings, "wanted_adaptive_backoff_enabled", True)
+        capped = (
+            self.session.execute(
+                select(
+                    WantedItem.search_count, WantedItem.failure_kind, WantedItem.retry_after
+                ).where(
+                    WantedItem.status == "wanted",
+                    WantedItem.search_count >= max_attempts,
+                )
+            )
+            .tuples()
+            .all()
+        )
+        exhausted = sum(
+            1
+            for search_count, failure_kind, retry_after in capped
+            if is_exhausted(
+                search_count=search_count,
+                failure_kind=failure_kind,
+                # With adaptive backoff off the bypass cannot fire, exactly as
+                # in the search filter — the report has to describe the
+                # behaviour, not a nicer version of it.
+                retry_after=retry_after if adaptive else None,
+                max_attempts=max_attempts,
+            )
+        )
+
         return {
             "total": total,
             "by_type": by_type,
             "by_status": by_status,
             "by_existing": by_existing,
             "upgradeable": upgradeable,
+            "exhausted": exhausted,
         }
 
     def get_wanted_for_series(self, sonarr_series_id: int) -> list:

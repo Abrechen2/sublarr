@@ -130,7 +130,8 @@
     "export": "Export",
     "export_csv": "Als CSV exportieren",
     "export_json": "Als JSON exportieren",
-    "export_failed": "Export fehlgeschlagen"
+    "export_failed": "Export fehlgeschlagen",
+    "exhausted": "Aufgegeben"
   },
   "auto_sync": "Auto-Sync",
   "more_actions": "Weitere Aktionen",

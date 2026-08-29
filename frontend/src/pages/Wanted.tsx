@@ -188,6 +188,7 @@ export function WantedPage() {
   const totalEpisodes = summary?.by_type?.episode ?? 0
   const totalMovies = summary?.by_type?.movie ?? 0
   const upgradeable = summary?.upgradeable ?? 0
+  const exhausted = summary?.exhausted ?? 0
   const forcedCount = summary?.by_subtitle_type?.forced ?? 0
 
   // Flatten all loaded pages into a single array
@@ -471,6 +472,7 @@ export function WantedPage() {
         totalEpisodes={totalEpisodes}
         totalMovies={totalMovies}
         upgradeable={upgradeable}
+        exhausted={exhausted}
         forcedCount={forcedCount}
         statusFilter={statusFilter}
         typeFilter={typeFilter}

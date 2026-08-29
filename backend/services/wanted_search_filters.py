@@ -86,6 +86,30 @@ def _apply_backlog_reserve_gate(
     ]
 
 
+def is_exhausted(
+    *,
+    search_count: int,
+    failure_kind: str | None,
+    retry_after,
+    max_attempts: int,
+) -> bool:
+    """Has this item given up, or is it still being retried?
+
+    The single definition of "exhausted", used both by ``_filter_eligible``
+    below and by everything that reports the number. Defining it twice is how
+    a dashboard count stops describing the behaviour it claims to describe.
+
+    At or over the attempt cap an item is finished — unless it carries the
+    explicit slow-mode marker *and* a retry window, which is the deliberate
+    bypass that re-tries it roughly once a month. Either half alone is not
+    enough: a marker without a window is the "legacy frozen" shape that a
+    migration had to go back and rescue in May.
+    """
+    if (search_count or 0) < max_attempts:
+        return False
+    return not (failure_kind == "no_result_slow" and retry_after is not None)
+
+
 def _filter_eligible(items: list[dict], settings) -> list[dict]:
     """Filter items by adaptive backoff, fixed cooldown, and search-count cap.
 
@@ -127,14 +151,17 @@ def _filter_eligible(items: list[dict], settings) -> list[dict]:
                 except (ValueError, TypeError):
                     pass
 
-        if item["search_count"] < settings.wanted_max_search_attempts:
-            eligible.append(item)
-            continue
-
-        # Slow-mode bypass: at-or-above the cap, but the recorder explicitly
-        # marked this item for periodic retries. retry_at must already be set
-        # (and elapsed — checked above), otherwise the cap stands.
-        if item.get("failure_kind") == "no_result_slow" and retry_at is not None:
+        # Slow-mode bypass lives inside is_exhausted(): at-or-above the cap,
+        # but explicitly marked for periodic retries with a window that has
+        # already elapsed (checked above). ``retry_at`` rather than the raw
+        # field, so a disabled adaptive backoff closes the bypass here exactly
+        # as it always did.
+        if not is_exhausted(
+            search_count=item["search_count"],
+            failure_kind=item.get("failure_kind"),
+            retry_after=retry_at,
+            max_attempts=settings.wanted_max_search_attempts,
+        ):
             eligible.append(item)
 
     return eligible

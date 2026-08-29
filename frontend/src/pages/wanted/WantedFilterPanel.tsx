@@ -1,5 +1,5 @@
 import { useTranslation } from 'react-i18next'
-import { Search, Film, Tv, ArrowUpCircle, ArrowUp, ArrowDown } from 'lucide-react'
+import { Search, Film, Tv, ArrowUpCircle, ArrowUp, ArrowDown, Ban } from 'lucide-react'
 import { FilterBar } from '@/components/filters/FilterBar'
 import type { FilterDef, ActiveFilter } from '@/components/filters/FilterBar'
 import type { FilterCondition } from '@/lib/types'
@@ -66,6 +66,8 @@ export interface WantedFilterPanelProps {
   totalEpisodes: number
   totalMovies: number
   upgradeable: number
+  /** Wanted items the search will never pick up again (#199). */
+  exhausted: number
   forcedCount: number
   // Filter state
   statusFilter: string | undefined
@@ -98,6 +100,7 @@ export function WantedFilterPanel({
   totalEpisodes,
   totalMovies,
   upgradeable,
+  exhausted,
   forcedCount,
   statusFilter,
   typeFilter,
@@ -136,11 +139,20 @@ export function WantedFilterPanel({
   return (
     <>
       {/* Summary Cards */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+      <div className="grid grid-cols-2 lg:grid-cols-5 gap-3">
         <SummaryCard icon={Search} label={t('wanted.total_wanted')} value={totalWanted} color="var(--warning)" />
         <SummaryCard icon={Tv} label={t('wanted.episodes')} value={totalEpisodes} color="var(--accent)" />
         <SummaryCard icon={Film} label={t('wanted.movies')} value={totalMovies} color="var(--text-secondary)" />
         <SummaryCard icon={ArrowUpCircle} label={t('wanted.srt_upgradeable')} value={upgradeable} color="var(--success)" />
+        {/* #199: without this the queue reads as a healthy backlog. On the
+            install that reported it, 67% of "wanted" had quietly given up and
+            every item sat under the same badge. */}
+        <SummaryCard
+          icon={Ban}
+          label={t('wanted.exhausted')}
+          value={exhausted}
+          color="var(--text-muted)"
+        />
       </div>
 
       {/* Filters */}
