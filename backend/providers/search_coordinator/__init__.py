@@ -369,13 +369,26 @@ class SearchCoordinatorMixin(SearchRetryMixin, SearchScoringMixin, SearchCacheMi
                     all_results.extend(results)
                     decision_log.provider_searched(name, len(results), elapsed_ms)
 
-                    # Update circuit breaker and stats
+                    # Update circuit breaker and stats.
                     # NOTE: empty results are NOT a failure — the provider responded
-                    # correctly, it just found nothing for this query.
+                    # correctly, it just found nothing for this query. That is why
+                    # the breaker sees an unconditional success here.
+                    #
+                    # It is NOT why the statistics should. `successful_searches` is
+                    # the numerator of `result_rate`, and feeding it from "the call
+                    # returned" let a provider whose host stopped resolving in DNS
+                    # report a 100% result rate over 1,666 searches and zero
+                    # downloads (#198). The two axes are recorded separately.
                     cb = self._circuit_breakers.get(name)
                     if cb:
                         cb.record_success()
-                    update_provider_stats(name, success=True, score=0, response_time_ms=elapsed_ms)
+                    update_provider_stats(
+                        name,
+                        success=True,
+                        score=0,
+                        response_time_ms=elapsed_ms,
+                        had_results=bool(results),
+                    )
 
                     # Check for perfect match (early exit)
                     if early_exit and results:

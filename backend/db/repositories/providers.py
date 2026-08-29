@@ -223,12 +223,36 @@ class ProviderRepository(BaseRepository):
 
     # ---- Provider Statistics -----------------------------------------------------
 
-    def record_search(self, provider_name: str, success: bool, response_time_ms: float = None):
+    def record_search(
+        self,
+        provider_name: str,
+        success: bool,
+        response_time_ms: float = None,
+        had_results: bool | None = None,
+    ):
         """Record a search attempt and update provider statistics.
+
+        Two independent axes, deliberately not the same flag:
+
+        ``success`` — did the call complete? This drives
+        ``consecutive_failures`` (and through it auto-disable),
+        ``last_failure_at`` and the reliability picture. A provider that
+        answered correctly and simply found nothing is a **success** here;
+        counting it as a failure would auto-disable healthy providers.
+
+        ``had_results`` — did the search produce candidates? This drives
+        ``successful_searches``, the numerator of ``result_rate``. Feeding it
+        from ``success`` is what let a provider whose host no longer resolves
+        in DNS report a 100% result rate over 1,666 searches with zero
+        downloads (#198).
+
+        ``had_results=None`` means "caller cannot tell" and falls back to
+        ``success``, which keeps older call sites behaving as before.
 
         Uses weighted running average for response times:
             new_avg = (old_avg * (n-1) + new_time) / n
         """
+        produced_results = success if had_results is None else bool(had_results)
         now = self._now()
         existing = self.session.get(ProviderStats, provider_name)
 
@@ -242,7 +266,8 @@ class ProviderRepository(BaseRepository):
             if success:
                 existing.last_success_at = now
                 existing.last_search_at = now
-                existing.successful_searches = (existing.successful_searches or 0) + 1
+                if produced_results:
+                    existing.successful_searches = (existing.successful_searches or 0) + 1
             else:
                 existing.failed_downloads = (existing.failed_downloads or 0) + 1
                 existing.last_failure_at = now
@@ -263,7 +288,7 @@ class ProviderRepository(BaseRepository):
             entry = ProviderStats(
                 provider_name=provider_name,
                 total_searches=1,
-                successful_searches=1 if success else 0,
+                successful_searches=1 if (success and produced_results) else 0,
                 successful_downloads=0,
                 failed_downloads=0 if success else 1,
                 avg_score=0,
