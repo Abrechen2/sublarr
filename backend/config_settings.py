@@ -324,6 +324,25 @@ class UISettings(BaseModel):
     wanted_auto_extract: bool = False  # Auto-extract embedded subs during wanted scan
     wanted_auto_translate: bool = False  # Auto-translate after auto-extract
     wanted_max_search_attempts: int = 3
+    # Give exhausted items a bounded second chance (#199). Attempt exhaustion
+    # is otherwise permanent and provider-blind: an item that burned its
+    # attempts while a provider was broken stays parked forever, and fixing
+    # that provider afterwards does nothing for it. 0 = off, which is the
+    # default — reviving on its own schedule is a behaviour change nobody
+    # asked for on upgrade.
+    wanted_revive_exhausted_after_days: int = Field(
+        default=0,
+        ge=0,
+        le=3650,
+        description=(
+            "Reset search attempts on items that have been exhausted for this "
+            "many days, so they get another chance. 0 disables it."
+        ),
+    )
+    # Ceiling per revival run, so a large parked backlog comes back in
+    # predictable slices instead of flooding the next search cycle. The
+    # reporting install had 869 exhausted items at once.
+    wanted_revive_max_per_run: int = Field(default=200, ge=1, le=10000)
     # After ``wanted_max_search_attempts`` slow-mode cycles also fail, escalate
     # to status='unsourceable' so the row stops eating scheduler budget. Set
     # to a very high value to keep slow-mode forever (legacy behaviour).

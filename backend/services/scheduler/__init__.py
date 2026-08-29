@@ -89,6 +89,7 @@ def _build_default_jobs() -> list[JobSpec]:
     from services.subtitle_automation_runner import subtitle_automation_tick
     from services.subtitle_health.sweep import subtitle_health_sweep_tick
     from services.usage_stats import usage_stats_tick
+    from services.wanted_revive import revive_exhausted_by_age
     from services.wanted_scanner_scheduler import (
         wanted_scanner_tick,
         wanted_search_tick,
@@ -208,6 +209,22 @@ def _build_default_jobs() -> list[JobSpec]:
             timeout_s=3600,
             owner_module="upgrade_scheduler",
             description="Scan subtitle_downloads for re-queue eligible upgrade candidates.",
+        ),
+        JobSpec(
+            id="wanted_revive",
+            func=revive_exhausted_by_age,
+            # Daily, and inert unless wanted_revive_exhausted_after_days is set
+            # — reviving on its own is a behaviour change nobody asked for on
+            # upgrade. Cheap when off (one query, no rows), and capped per run
+            # when on, so a large parked backlog returns in slices rather than
+            # flooding the next search cycle.
+            default_trigger=IntervalTrigger(hours=24),
+            timeout_s=600,
+            owner_module="services.wanted_revive",
+            description=(
+                "Give wanted items that exhausted their search attempts a "
+                "bounded second chance after a configurable number of days."
+            ),
         ),
         JobSpec(
             id="mt_reseek",

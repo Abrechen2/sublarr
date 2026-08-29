@@ -483,6 +483,60 @@ class WantedRepository(BaseRepository, _WantedUpsertMixin, _WantedUpdatesMixin):
         self._commit()
         return result.rowcount
 
+    def find_exhausted_ids(
+        self,
+        *,
+        max_attempts: int,
+        adaptive: bool = True,
+        idle_since=None,
+        limit: int | None = None,
+    ) -> list[int]:
+        """Ids of wanted items the search will never pick up again (#199).
+
+        Selection only — the reset itself goes through
+        ``reset_search_attempts``, which already knows the full set of fields
+        that gate eligibility. Duplicating that here is how the two would
+        drift apart.
+
+        ``idle_since`` restricts to items whose last search is older than the
+        given moment, which is what makes a time-based revival bounded rather
+        than a permanent retry loop. ``limit`` caps one run so a large parked
+        backlog comes back in predictable slices.
+        """
+        from services.wanted_search_filters import is_exhausted
+
+        stmt = select(
+            WantedItem.id,
+            WantedItem.search_count,
+            WantedItem.failure_kind,
+            WantedItem.retry_after,
+        ).where(
+            WantedItem.status == "wanted",
+            WantedItem.search_count >= max_attempts,
+        )
+        if idle_since is not None:
+            # An item that has never been searched has no idle age to compare;
+            # it also cannot be at the cap, so excluding it costs nothing.
+            stmt = stmt.where(
+                WantedItem.last_search_at.is_not(None),
+                WantedItem.last_search_at < idle_since,
+            )
+
+        ids: list[int] = []
+        for item_id, search_count, failure_kind, retry_after in (
+            self.session.execute(stmt).tuples().all()
+        ):
+            if is_exhausted(
+                search_count=search_count,
+                failure_kind=failure_kind,
+                retry_after=retry_after if adaptive else None,
+                max_attempts=max_attempts,
+            ):
+                ids.append(item_id)
+                if limit is not None and len(ids) >= limit:
+                    break
+        return ids
+
     def reset_search_attempts(self, item_ids: list[int]) -> int:
         """Clear the search backoff on the given items. Returns count updated.
 

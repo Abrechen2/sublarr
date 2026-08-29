@@ -31,6 +31,34 @@ _INSTANCE_BLOB_KEYS = {
 _SECRET_SUBKEYS = ("api_key", "apikey", "token", "password", "secret", "auth")
 
 
+def _provider_keys(saved_keys) -> set[str]:
+    """Which of the saved settings belong to a provider?
+
+    Derived from the providers' own ``config_fields`` rather than a hardcoded
+    list, so a provider added later is covered without anyone remembering to
+    update this. ``providers_enabled`` counts too — switching one on is the
+    most direct way to make it usable again.
+    """
+    keys = {k for k in saved_keys if k == "providers_enabled"}
+    try:
+        from providers.registry import _PROVIDER_CLASSES
+
+        declared = {
+            field.get("key")
+            for cls in _PROVIDER_CLASSES.values()
+            for field in (getattr(cls, "config_fields", None) or [])
+            if field.get("key")
+        }
+        keys |= {k for k in saved_keys if k in declared}
+    except Exception:  # pragma: no cover — never break a settings save
+        logger.debug("could not read provider config fields", exc_info=True)
+    return keys
+
+
+def _provider_config_changed(saved_keys) -> bool:
+    return bool(_provider_keys(saved_keys))
+
+
 def _deep_unmask_instance_blob(new_raw: str, key: str) -> str | None:
     """Replace any masked secret subkeys in new_raw with the stored value.
 
@@ -463,6 +491,22 @@ def update_config():
                         pass
         except Exception as exc:
             logger.warning("standalone_scan trigger update failed: %s", exc)
+
+    # A provider that just became usable makes every "no result" verdict it
+    # was absent for stale (#197). Attempt exhaustion is otherwise permanent
+    # and provider-blind: items that burned their attempts while a provider was
+    # broken stay parked forever, and fixing it afterwards does nothing for
+    # them. Capped per run, so a large parked backlog returns in slices.
+    if _provider_config_changed(saved_keys):
+        try:
+            from services.wanted_revive import revive_after_provider_change
+
+            revived = revive_after_provider_change(sorted(_provider_keys(saved_keys)))
+            if revived:
+                logger.info("provider config changed — revived %d exhausted item(s)", revived)
+        except Exception as exc:
+            # Never let a bonus behaviour fail the settings save the user asked for.
+            logger.warning("revive after provider change failed: %s", exc, exc_info=True)
 
     logger.info("Config updated: %s — settings reloaded", saved_keys)
 

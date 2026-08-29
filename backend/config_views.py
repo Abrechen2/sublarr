@@ -181,6 +181,9 @@ class ScanningSettings(_SettingsView):
             "wanted_auto_extract",
             "wanted_auto_translate",
             "wanted_max_search_attempts",
+            # #199: bounded second chance for exhausted items (0 = off)
+            "wanted_revive_exhausted_after_days",
+            "wanted_revive_max_per_run",
             "use_embedded_subs",
             "scan_yield_ms",
             # 0.71.0 subtitle automation bundle (see config_settings.py)
