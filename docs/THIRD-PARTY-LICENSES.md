@@ -78,6 +78,9 @@ Anything outside this set fails CI and triggers a manual review.
 | stevedore | ≥5.2.0 | Apache-2.0 | `Apache-2.0` | ✅ |
 | lingua-language-detector | 2.2.0 | Apache-2.0 | `Apache-2.0` | ✅ |
 | rapidfuzz | ≥3.9 | MIT | `MIT` | ✅ (https://github.com/rapidfuzz/RapidFuzz) |
+| pytesseract | ≥0.3.10 | Apache-2.0 | `Apache-2.0` | ✅ (binding for the tesseract-ocr binary already in the image) |
+| Pillow | ≥10.0 | MIT-CMU | `HPND` | ✅ (permissive, GPL-3 compatible) |
+| pyenchant | ≥3.2 | LGPL-2.1-or-later | `LGPL-2.1-or-later` | ✅ (LGPL links fine into GPL-3; binding for the hunspell already in the image) |
 
 ### Vendored
 

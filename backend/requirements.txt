@@ -72,3 +72,14 @@ lingua-language-detector==2.2.0
 # C-backed fuzzy string matching for Tier-4 AniDB title-dump resolution
 # (replaces a pure-Python difflib.SequenceMatcher loop over ~100k entries)
 rapidfuzz>=3.9
+
+# OCR for image-based subtitle streams (PGS/VobSub) — services/ocr_extractor.py.
+# The Dockerfile already installs tesseract-ocr plus the deu/eng language packs;
+# without these bindings the binary sits in the image unreachable and every
+# PGS extraction fails with "ffmpeg extraction failed".
+pytesseract>=0.3.10
+Pillow>=10.0
+
+# Spell checking — services/spell_checker.py. Same shape as above: hunspell and
+# both dictionaries ship in the image already, only the binding was missing.
+pyenchant>=3.2

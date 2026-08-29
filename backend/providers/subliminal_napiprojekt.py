@@ -16,6 +16,11 @@ class NapiProjektSubliminalProvider(SubliminalProviderAdapter):
     languages = {"pl", "en"}
     config_fields = []
 
+    # NapiProjekt is hash-only: it has no text search, and its vendored
+    # ``list_subtitles`` reads ``video.hashes['napiprojekt']`` without a guard.
+    # Without this declaration the lookup raised KeyError on every search.
+    required_hashes = frozenset({"napiprojekt"})
+
     def __init__(self, **config):
         from subliminal.providers.napiprojekt import NapiProjektProvider
 

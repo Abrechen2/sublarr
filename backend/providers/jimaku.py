@@ -122,9 +122,14 @@ class JimakuProvider(SubtitleProvider):
             timeout=20,
             user_agent="Sublarr/1.0",
         )
+        # jimaku.cc declares an api_key-in-header scheme, explicitly NOT
+        # http/bearer — its own OpenAPI document names the header "Authorization"
+        # with the raw key as the value. A "Bearer " prefix 401s every request
+        # regardless of whether the key is valid, which then trips the
+        # consecutive-failure auto-disable and looks like an expired key.
         self.session.headers.update(
             {
-                "Authorization": f"Bearer {self.api_key}",
+                "Authorization": self.api_key,
             }
         )
         logger.debug("Jimaku: session created successfully")

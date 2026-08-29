@@ -30,6 +30,28 @@ from providers.base import SubtitleFormat, SubtitleProvider, SubtitleResult, Vid
 logger = logging.getLogger(__name__)
 
 
+def _release_info(s) -> str:
+    """Best available release string for a Subliminal subtitle.
+
+    Subliminal's provider classes do not share one attribute for this.
+    Gestdown sets ``release_group``; OpenSubtitles has no such attribute at
+    all and carries ``movie_release_name`` / ``filename`` instead. Reading
+    only ``release_group`` left ``release_info`` empty for the latter, no
+    scoring rule could match, and every opensubtitles_subliminal download was
+    written with score 0 and a NULL breakdown while its sibling wrapper
+    scored normally off the same code path.
+
+    ``info`` is Subliminal's own "describe this subtitle" property and is the
+    right last resort — OpenSubtitles implements it as
+    "whichever of movie_release_name / filename is longer".
+    """
+    for attr in ("release_group", "movie_release_name", "filename", "info"):
+        value = getattr(s, attr, None)
+        if value:
+            return str(value)
+    return ""
+
+
 def _to_sublarr_result(subliminal_subtitle, registered_name: str) -> SubtitleResult:
     """Convert a Subliminal Subtitle into a Sublarr SubtitleResult.
 
@@ -50,17 +72,61 @@ def _to_sublarr_result(subliminal_subtitle, registered_name: str) -> SubtitleRes
         hearing_impaired=bool(getattr(s, "hearing_impaired", False)),
         forced=bool(getattr(s, "foreign_only", False)),
         fps=getattr(s, "fps", None),
-        release_info=str(getattr(s, "release_group", "") or ""),
+        release_info=_release_info(s),
         provider_data={"subliminal_subtitle": s},  # keep reference for download()
     )
 
 
-def _to_subliminal_video(query: VideoQuery) -> Video:
+#: Hash name -> the vendored refiner function that computes it. Only the
+#: providers that declare a hash in ``required_hashes`` pay for it, because
+#: each of these reads a large chunk off disk.
+_HASH_FUNCTIONS = {"napiprojekt": "hash_napiprojekt", "opensubtitles": "hash_opensubtitles"}
+
+
+def _compute_hashes(file_path: str, wanted: set[str]) -> dict[str, str]:
+    """Compute the requested video hashes, skipping anything unavailable.
+
+    A provider that needs a hash it cannot get must degrade to "no results",
+    never to an exception. napiprojekt's vendored ``list_subtitles`` does a
+    bare ``video.hashes['napiprojekt']``, so an absent hash raised KeyError on
+    every single search — 499 times in 24h on the install that reported it.
+    """
+    if not file_path or not wanted:
+        return {}
+    hashes: dict[str, str] = {}
+    for name in wanted:
+        func_name = _HASH_FUNCTIONS.get(name)
+        if not func_name:
+            continue
+        try:
+            from subliminal.refiners import hash as _hash_refiner
+
+            value = getattr(_hash_refiner, func_name)(file_path)
+        except (OSError, ValueError, AttributeError) as e:
+            logger.debug("could not compute %s hash for %s: %s", name, file_path, e)
+            continue
+        if value:
+            hashes[name] = value
+    return hashes
+
+
+def _to_subliminal_video(query: VideoQuery, required_hashes: set[str] | None = None) -> Video:
     """Convert a Sublarr VideoQuery into a subliminal Video/Episode/Movie.
 
     Only fields that Subliminal scoring/matching actually reads are forwarded.
     Missing fields are left as Subliminal's defaults (usually None/empty).
+
+    ``required_hashes`` names the video hashes the wrapped provider needs.
+    It defaults to none: hashing reads megabytes off disk, so only a provider
+    that actually looks a hash up should trigger it.
     """
+    video = _build_video(query)
+    if required_hashes:
+        video.hashes.update(_compute_hashes(query.file_path or "", set(required_hashes)))
+    return video
+
+
+def _build_video(query: VideoQuery) -> Video:
     if query.is_episode:
         default_name = f"{query.series_title}.S{query.season:02d}E{query.episode:02d}.mkv"
         return Episode(
@@ -95,6 +161,11 @@ class SubliminalProviderAdapter(SubtitleProvider):
 
     # Instance-level overrides so each adapter instance can present a distinct name
     name: str = "subliminal_adapter"
+
+    #: Video hashes the wrapped provider looks up. Empty by default — computing
+    #: one reads megabytes off disk, so a provider opts in rather than every
+    #: search paying for it. See ``_compute_hashes``.
+    required_hashes: set[str] = frozenset()
 
     def __init__(
         self,
@@ -142,7 +213,7 @@ class SubliminalProviderAdapter(SubtitleProvider):
             logger.warning("Invalid language code in query for %s: %s", self.name, e)
             return []
 
-        video = _to_subliminal_video(query)
+        video = _to_subliminal_video(query, required_hashes=self.required_hashes)
 
         try:
             subliminal_subtitles = self._impl.list_subtitles(video, lang_set)
