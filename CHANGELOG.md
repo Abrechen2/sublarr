@@ -120,6 +120,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   two different task types at once — a far narrower limit than the boot crash,
   and it is not new.
 
+### Security
+- **socket.io-parser raised to 4.2.7.** The version pulled in by
+  `socket.io-client` was affected by GHSA-2m8v-j782-fhvr, in which a packet
+  announcing binary attachments but carrying none leaves the parser holding
+  the reconstruction buffer indefinitely — repeated, it exhausts memory in the
+  browser tab. Sublarr keeps a Socket.IO connection open on every page for
+  live progress, so the parser is always in the path. Only the transitive
+  dependency moves; `socket.io-client` stays on 4.8.3.
+
 ## [1.13.4] - 2026-08-28
 
 ### Fixed
