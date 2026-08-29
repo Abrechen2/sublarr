@@ -215,6 +215,21 @@ class SubliminalProviderAdapter(SubtitleProvider):
 
         video = _to_subliminal_video(query, required_hashes=self.required_hashes)
 
+        # A hash-only provider called without its hash does not fail politely:
+        # napiprojekt's vendored list_subtitles indexes video.hashes directly,
+        # so a missing entry raises on every single search. Computing the hash
+        # is not enough — when it could not be produced (unreadable path,
+        # remote mount, file gone) the search must not be attempted at all.
+        missing = set(self.required_hashes) - set(video.hashes)
+        if missing:
+            logger.debug(
+                "%s: skipping search, required hash(es) unavailable for %s: %s",
+                self.name,
+                query.file_path or "<no path>",
+                ", ".join(sorted(missing)),
+            )
+            return []
+
         try:
             subliminal_subtitles = self._impl.list_subtitles(video, lang_set)
         except Exception as e:

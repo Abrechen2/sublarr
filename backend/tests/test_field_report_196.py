@@ -177,6 +177,51 @@ class TestBug2NapiprojektHash:
         video = _to_subliminal_video(q, required_hashes={"napiprojekt"})
         assert video.hashes == {}
 
+    def test_search_is_skipped_when_the_hash_could_not_be_computed(self):
+        """The gap the first fix left, caught on the built beta image.
+
+        Computing the hash is not enough: with an unreadable file the hash
+        stays absent and the vendored ``list_subtitles`` indexes
+        ``video.hashes`` regardless, so the KeyError came straight back. The
+        adapter has to refuse the search outright.
+        """
+        from providers.base import VideoQuery
+        from providers.subliminal_adapter import SubliminalProviderAdapter
+
+        called = []
+
+        class _Impl:
+            def __init__(self, **kw):
+                pass
+
+            def initialize(self):
+                pass
+
+            def list_subtitles(self, video, languages):
+                called.append(video)
+                raise KeyError("napiprojekt")
+
+        adapter = SubliminalProviderAdapter(
+            subliminal_provider_cls=_Impl, provider_name="napiprojekt_subliminal"
+        )
+        adapter.required_hashes = frozenset({"napiprojekt"})
+        # Without this the adapter's _impl stays None, search() dies on
+        # NoneType before it ever reaches the guard, and the test would pass
+        # whether the guard exists or not.
+        adapter.initialize()
+
+        results = adapter.search(
+            VideoQuery(
+                file_path="/nonexistent/path/Show.S01E01.mkv",
+                series_title="My Show",
+                season=1,
+                episode=1,
+                languages=["pl"],
+            )
+        )
+        assert results == []
+        assert called == [], "the provider must not be reached without its hash"
+
     def test_default_is_no_hashing(self):
         """Hashing reads 10 MB off disk. Only the provider that needs it pays."""
         from providers.base import VideoQuery

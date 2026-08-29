@@ -55,6 +55,7 @@ RUN apt-get update && \
         hunspell \
         hunspell-de-de \
         hunspell-en-us \
+        libenchant-2-2 \
         fonts-liberation && \
     rm -rf /var/lib/apt/lists/*
 
