@@ -71,10 +71,28 @@ $SSH "for i in \$(seq 1 60); do curl -sf --max-time 3 http://localhost:${RC_PORT
   exit 6
 }
 
+# A pause alone does NOT hold. _apply_intervals_to_apscheduler runs on every
+# settings-save and on every boot, and re-arms any job whose configured
+# interval is greater than zero — so the next config write, or the next
+# restart, quietly puts the paused job back on the clock with prod's live
+# credentials. Setting the interval to 0 is what sticks: the boot path pauses
+# on interval <= 0.
+#
+# wanted_scan_interval_hours and wanted_auto_translate joined this list on
+# 2026-08-29, when prod switched both on. The clone carries them, and
+# wanted_scanner was in nobody's pause list.
+echo "Disabling the load- and quota-generating settings on RC ..."
+CFG_JSON='{"wanted_search_interval_hours":0,"upgrade_scan_interval_hours":0,"wanted_scan_interval_hours":0,"wanted_auto_translate":false,"subtitle_automation_enabled":false}'
+$SSH "docker exec $RC_APP sh -lc 'curl -sS -m 30 -o /dev/null -w \"  config: %{http_code}\n\" -X PUT -H \"X-Api-Key: \$SUBLARR_API_KEY\" -H \"Content-Type: application/json\" -d '\''$CFG_JSON'\'' http://localhost:5765/api/v1/config'" || \
+  echo "  config write failed — set the intervals to 0 by hand" >&2
+
+# Belt and braces: the pause bites immediately, the interval keeps it off
+# across restarts. mt_reseek has no interval setting, so there the pause is
+# all there is.
 echo "Pausing paid-API scheduler jobs on RC ..."
-for _job in subtitle_automation wanted_search mt_reseek upgrade_scan; do
+for _job in subtitle_automation wanted_search wanted_scanner mt_reseek upgrade_scan; do
   $SSH "curl -sS -X POST 'http://localhost:${RC_PORT}/api/v1/scheduler/jobs/${_job}/pause' -o /dev/null -w '  ${_job}: %{http_code}\n'" || \
     echo "  ${_job}: pause failed (non-fatal — pause it by hand)" >&2
 done
 
-echo "Done. RC mirrors prod DB (config_entries included); paid-API jobs paused."
+echo "Done. RC mirrors prod DB (config_entries included); paid-API jobs off."
