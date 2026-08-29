@@ -147,6 +147,15 @@ function ProviderCard({ provider, budget }: { provider: ProviderInfo; budget?: P
         />
         <Stat label={t('providers_page.downloads')} value={formatNumber(provider.downloads ?? 0)} />
         <Stat
+          label={t('providers_page.contribution')}
+          value={
+            provider.contribution_share === undefined
+              ? '—'
+              : `${Math.round(provider.contribution_share * 100)}%`
+          }
+          title={t('providers_page.contribution_tooltip')}
+        />
+        <Stat
           label={t('providers_page.avg_response')}
           value={stats?.avg_response_time_ms ? `${Math.round(stats.avg_response_time_ms)} ms` : '—'}
         />
@@ -159,6 +168,15 @@ function ProviderCard({ provider, budget }: { provider: ProviderInfo; budget?: P
           value={stats?.last_failure_at ? formatRelativeTime(stats.last_failure_at) : '—'}
         />
       </div>
+
+      {provider.earns_its_place === false && (
+        <div
+          data-testid={`provider-no-contribution-${provider.name}`}
+          style={{ marginTop: '8px', fontSize: '11px', color: 'var(--text-muted)' }}
+        >
+          {t('providers_page.earns_nothing')}
+        </div>
+      )}
 
       {(stats?.consecutive_failures ?? 0) > 0 && (
         <div style={{ marginTop: '8px', fontSize: '11px', color: 'var(--warning)' }}>
@@ -194,6 +212,12 @@ export function ProvidersOverviewPage() {
 
   const providers = [...(providersData?.providers ?? [])].sort((a, b) => {
     if (a.enabled !== b.enabled) return a.enabled ? -1 : 1
+    // Contribution first — the question the page exists to answer is "which
+    // of these earns its place?", and a high download rate over three
+    // searches says less than a real share of the library (#200). Falls back
+    // to the old ordering while a backend without the field is in play.
+    const byShare = (b.contribution_share ?? -1) - (a.contribution_share ?? -1)
+    if (byShare !== 0) return byShare
     return (b.stats?.download_rate ?? 0) - (a.stats?.download_rate ?? 0)
   })
   const budgets = new Map((budgetData?.providers ?? []).map((b) => [b.name, b]))

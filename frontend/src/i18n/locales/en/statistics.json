@@ -95,6 +95,9 @@
       "no_results": "Delivers nothing",
       "no_credentials": "No credentials",
       "not_initialized": "Not started"
-    }
+    },
+    "contribution": "Share",
+    "contribution_tooltip": "This provider's share of every subtitle downloaded",
+    "earns_nothing": "Has contributed nothing so far — it searches, but never wins"
   }
 }

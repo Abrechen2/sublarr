@@ -45,6 +45,28 @@ STATUS_REASONS = (
 )
 
 
+def _contribution(
+    downloads: int, total_downloads: int, total_searches: int
+) -> tuple[float, bool | None]:
+    """Return ``(share_of_all_downloads, earns_its_place)``.
+
+    Kept apart from health on purpose. A provider that answers, returns
+    candidates and simply never wins the ranking is working correctly — it is
+    just not earning its slot, which is a different question with a different
+    answer (drop it, or raise its priority).
+
+    ``earns_its_place`` is tri-state: ``None`` means "not enough evidence
+    yet". A provider added yesterday has contributed nothing either, and
+    flagging it would train the reader to ignore the flag.
+    """
+    share = downloads / total_downloads if total_downloads > 0 else 0.0
+    if downloads > 0:
+        return share, True
+    if total_searches >= DEAD_PROVIDER_SEARCH_THRESHOLD:
+        return share, False
+    return share, None
+
+
 def _classify_health(
     *,
     auto_disabled: bool,
@@ -130,6 +152,11 @@ class StatusReportingMixin:
 
         # Download stats from DB (single batch query)
         download_stats = get_provider_download_stats()
+        # Denominator for the contribution share. Read from subtitle_downloads
+        # rather than provider_stats.successful_downloads, so it survives the
+        # i198 counter reset — "who has ever contributed" is history worth
+        # keeping even when the rates start over.
+        all_downloads = sum(entry.get("total", 0) for entry in download_stats.values())
         # Performance stats — enriched form mirrors the auto_disabled cooldown
         # expiry without an extra DB write, so a provider whose disabled_until
         # has lapsed shows up as auto_disabled=False even before the next
@@ -140,6 +167,12 @@ class StatusReportingMixin:
         for name, cls in _PROVIDER_CLASSES.items():
             priority = priority_list.index(name) if name in priority_list else len(priority_list)
             downloads = download_stats.get(name, {}).get("total", 0)
+            contribution_share, earns_its_place = _contribution(
+                downloads=downloads,
+                total_downloads=all_downloads,
+                total_searches=(performance_stats.get(name, {}) or {}).get("total_searches", 0)
+                or 0,
+            )
             config_fields = self._get_provider_config_fields(name)
 
             # Read all stats from the already-fetched batch (no extra per-provider queries).
@@ -223,6 +256,8 @@ class StatusReportingMixin:
                         "status_reason": status_reason,
                         "priority": priority,
                         "downloads": downloads,
+                        "contribution_share": contribution_share,
+                        "earns_its_place": earns_its_place,
                         "config_fields": config_fields,
                         "languages": supported_languages,
                         "stats": stats_dict,
@@ -243,6 +278,8 @@ class StatusReportingMixin:
                         "status_reason": uninit_reason,
                         "priority": priority,
                         "downloads": downloads,
+                        "contribution_share": contribution_share,
+                        "earns_its_place": earns_its_place,
                         "config_fields": config_fields,
                         "languages": supported_languages,
                         "stats": stats_dict,

@@ -54,6 +54,14 @@ export interface ProviderInfo {
    * a value added there needs its label here or it renders blank.
    */
   status_reason?: ProviderStatusReason
+  /** Share of all downloads across every provider, 0..1 (#200). */
+  contribution_share?: number
+  /**
+   * Has this provider ever produced a download? `null`/undefined means "not
+   * enough evidence yet" — a provider added yesterday has contributed nothing
+   * either, and flagging it would train the reader to ignore the flag.
+   */
+  earns_its_place?: boolean | null
   // Sent by the /providers status endpoint for initialized providers.
   circuit_breaker_state?: string
   throttled_until?: string

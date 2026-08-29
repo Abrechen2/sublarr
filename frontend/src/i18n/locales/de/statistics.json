@@ -95,6 +95,9 @@
       "no_results": "Liefert nichts",
       "no_credentials": "Keine Zugangsdaten",
       "not_initialized": "Nicht gestartet"
-    }
+    },
+    "contribution": "Anteil",
+    "contribution_tooltip": "Anteil dieses Providers an allen heruntergeladenen Untertiteln",
+    "earns_nothing": "Hat bisher nichts beigetragen — sucht, gewinnt aber nie"
   }
 }
