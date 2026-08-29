@@ -10,7 +10,7 @@
 import { useTranslation } from 'react-i18next'
 import { Server } from 'lucide-react'
 import { useProviders, useBudgetState, useTestProvider } from '@/hooks/useApi'
-import type { ProviderInfo } from '@/types/providers'
+import type { ProviderInfo, ProviderStatusReason } from '@/types/providers'
 import type { ProviderBudget } from '@/api/health'
 import { formatProviderName, formatRelativeTime, formatNumber } from '@/lib/utils'
 import { toast } from '@/components/shared/Toast'
@@ -27,7 +27,25 @@ function providerTier(p: ProviderInfo): { tier: StatusTier; label: string } {
   if (p.throttled_until && p.throttle_reason === 'rate_limited') {
     return { tier: 'warn', label: 'rate_limited' }
   }
-  if (p.healthy === false) return { tier: 'error', label: 'unreachable' }
+  if (p.healthy === false) {
+    // Every unhealthy provider used to read "Unreachable", which pointed at
+    // the network whatever the actual cause was — a provider with no account
+    // configured looked like an outage (#201). The backend now names the
+    // reason; only fall back to the old label when it does not.
+    const byReason: Partial<Record<ProviderStatusReason, { tier: StatusTier; label: string }>> = {
+      auto_disabled: { tier: 'error', label: 'auto_disabled' },
+      circuit_open: { tier: 'error', label: 'circuit_open' },
+      consecutive_failures: { tier: 'error', label: 'consecutive_failures' },
+      // Answers fine, delivers nothing — useless, but not broken.
+      no_results: { tier: 'warn', label: 'no_results' },
+      // A form field away from working, so not an error state.
+      no_credentials: { tier: 'warn', label: 'no_credentials' },
+      not_initialized: { tier: 'error', label: 'not_initialized' },
+    }
+    return (
+      (p.status_reason && byReason[p.status_reason]) ?? { tier: 'error', label: 'unreachable' }
+    )
+  }
   if ((p.stats?.avg_response_time_ms ?? 0) > 5000) return { tier: 'warn', label: 'slow' }
   return { tier: 'ok', label: 'healthy' }
 }

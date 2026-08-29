@@ -90,7 +90,11 @@
       "recovering": "Recovering",
       "auto_disabled": "Auto-disabled",
       "unreachable": "Unreachable",
-      "off": "Disabled"
+      "off": "Disabled",
+      "consecutive_failures": "Repeated failures",
+      "no_results": "Delivers nothing",
+      "no_credentials": "No credentials",
+      "not_initialized": "Not started"
     }
   }
 }

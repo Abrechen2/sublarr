@@ -47,11 +47,27 @@ export interface ProviderInfo {
   /** ISO 639-1 codes the provider declares support for (since 1.12.2, #192). */
   languages?: string[]
   stats: ProviderHealthStats
+  /**
+   * Machine-readable reason behind `healthy` (#201). Branch on this rather
+   * than on `message`, which is free text meant for a human to read.
+   * Mirrors STATUS_REASONS in backend/providers/manager_status_mixin.py —
+   * a value added there needs its label here or it renders blank.
+   */
+  status_reason?: ProviderStatusReason
   // Sent by the /providers status endpoint for initialized providers.
   circuit_breaker_state?: string
   throttled_until?: string
   throttle_reason?: string
 }
+
+export type ProviderStatusReason =
+  | 'ok'
+  | 'auto_disabled'
+  | 'circuit_open'
+  | 'consecutive_failures'
+  | 'no_results'
+  | 'no_credentials'
+  | 'not_initialized'
 
 export interface ProviderHealthItem {
   name: string

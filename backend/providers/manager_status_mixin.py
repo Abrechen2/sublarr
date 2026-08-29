@@ -25,6 +25,76 @@ logger = logging.getLogger(__name__)
 DEAD_PROVIDER_SEARCH_THRESHOLD = 50
 
 
+#: Machine-readable reasons behind ``healthy``. The UI branches on these
+#: instead of guessing from a free-text message — before this, every
+#: ``healthy: false`` rendered as "Unreachable", so a provider with no account
+#: configured looked like a network outage and sent you hunting in the wrong
+#: place (#201).
+#:
+#: Keep in step with the frontend map in ProvidersOverview.tsx. A value added
+#: here without its counterpart there renders as a blank label; that mistake
+#: has been made twice in this codebase already.
+STATUS_REASONS = (
+    "ok",
+    "auto_disabled",
+    "circuit_open",
+    "consecutive_failures",
+    "no_results",
+    "no_credentials",
+    "not_initialized",
+)
+
+
+def _classify_health(
+    *,
+    auto_disabled: bool,
+    cb_state: str,
+    consecutive_failures: int,
+    total_searches: int,
+    results: int,
+    downloads: int,
+) -> tuple[bool, str, str]:
+    """Return ``(healthy, message, reason)`` for an initialised provider.
+
+    Order matters and is deliberate: a provider that is switched off, tripped
+    or actively failing has a more urgent explanation than "it never found
+    anything", and reporting the latter would hide the former.
+    """
+    if auto_disabled:
+        return False, "Auto-disabled", "auto_disabled"
+    if cb_state == "open":
+        return False, "Circuit breaker open", "circuit_open"
+    if consecutive_failures >= 3:
+        return False, f"{consecutive_failures} consecutive failures", "consecutive_failures"
+    if _looks_dead(total_searches=total_searches, results=results, downloads=downloads):
+        # Answering is not the same as working. Before #198 this read "OK"
+        # with a 100% success rate.
+        return (
+            False,
+            f"{total_searches} searches, no results, no downloads",
+            "no_results",
+        )
+    return True, "OK", "ok"
+
+
+def _uninitialized_reason(config_fields: list[dict], settings) -> tuple[str, str]:
+    """Explain why a provider never came up: ``(message, reason)``.
+
+    A provider whose required credentials are blank did not fail — it was
+    never asked to start. Saying "Unreachable" for that case is the single
+    most misleading label in the panel, because the fix is a form field, not
+    a network.
+    """
+    missing = [
+        f.get("key")
+        for f in config_fields or []
+        if f.get("required") and not (getattr(settings, f.get("key", ""), "") or "")
+    ]
+    if missing:
+        return f"No credentials stored ({', '.join(m for m in missing if m)})", "no_credentials"
+    return "Not initialized", "not_initialized"
+
+
 def _looks_dead(total_searches: int, results: int, downloads: int) -> bool:
     """Has this provider answered plenty and delivered nothing at all?
 
@@ -135,26 +205,14 @@ class StatusReportingMixin:
 
             if provider:
                 # Derive health from cached DB stats — no live HTTP requests.
-                consecutive_failures = perf_stats.get("consecutive_failures", 0) or 0
-                if auto_disabled:
-                    healthy, msg = False, "Auto-disabled"
-                elif cb_state == "open":
-                    healthy, msg = False, "Circuit breaker open"
-                elif consecutive_failures >= 3:
-                    healthy, msg = False, f"{consecutive_failures} consecutive failures"
-                elif _looks_dead(
+                healthy, msg, status_reason = _classify_health(
+                    auto_disabled=auto_disabled,
+                    cb_state=cb_state,
+                    consecutive_failures=perf_stats.get("consecutive_failures", 0) or 0,
                     total_searches=stats_dict.get("total_searches", 0) or 0,
                     results=stats_dict.get("successful_searches", 0) or 0,
                     downloads=downloads,
-                ):
-                    # Answering is not the same as working. Before #198 this
-                    # provider read "OK" with a 100% success rate.
-                    healthy, msg = (
-                        False,
-                        f"{stats_dict.get('total_searches', 0)} searches, no results, no downloads",
-                    )
-                else:
-                    healthy, msg = True, "OK"
+                )
                 statuses.append(
                     {
                         "name": name,
@@ -162,6 +220,7 @@ class StatusReportingMixin:
                         "initialized": True,
                         "healthy": healthy,
                         "message": msg,
+                        "status_reason": status_reason,
                         "priority": priority,
                         "downloads": downloads,
                         "config_fields": config_fields,
@@ -173,13 +232,15 @@ class StatusReportingMixin:
                     }
                 )
             else:
+                uninit_msg, uninit_reason = _uninitialized_reason(config_fields, self.settings)
                 statuses.append(
                     {
                         "name": name,
                         "enabled": name in enabled_set,
                         "initialized": False,
                         "healthy": False,
-                        "message": "Not initialized",
+                        "message": uninit_msg,
+                        "status_reason": uninit_reason,
                         "priority": priority,
                         "downloads": downloads,
                         "config_fields": config_fields,

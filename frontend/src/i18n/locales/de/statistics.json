@@ -90,7 +90,11 @@
       "recovering": "Erholt sich",
       "auto_disabled": "Auto-deaktiviert",
       "unreachable": "Nicht erreichbar",
-      "off": "Deaktiviert"
+      "off": "Deaktiviert",
+      "consecutive_failures": "Wiederholt fehlgeschlagen",
+      "no_results": "Liefert nichts",
+      "no_credentials": "Keine Zugangsdaten",
+      "not_initialized": "Nicht gestartet"
     }
   }
 }
