@@ -16,6 +16,27 @@ from providers.registry import _PROVIDER_CLASSES
 
 logger = logging.getLogger(__name__)
 
+#: How many searches a provider has to have answered before "it never found
+#: anything" becomes a verdict rather than a coincidence. Deliberately
+#: generous: a niche provider on an unusual library can legitimately miss for
+#: a long time, and a false accusation is worse than a late one. The cases
+#: this is meant to catch were far past it — podnapisi sat at 1,666 searches
+#: with a domain that had no DNS record (#198).
+DEAD_PROVIDER_SEARCH_THRESHOLD = 50
+
+
+def _looks_dead(total_searches: int, results: int, downloads: int) -> bool:
+    """Has this provider answered plenty and delivered nothing at all?
+
+    One download or one search that returned candidates, ever, is enough to
+    clear it — that provider works and is merely selective. What this catches
+    is the shape the health panel could not see before: a provider answering
+    every single call, politely, while returning nothing, forever.
+    """
+    if downloads > 0 or results > 0:
+        return False
+    return total_searches >= DEAD_PROVIDER_SEARCH_THRESHOLD
+
 
 class StatusReportingMixin:
     """Mixin for ProviderManager that owns read-only status/summary APIs."""
@@ -121,6 +142,17 @@ class StatusReportingMixin:
                     healthy, msg = False, "Circuit breaker open"
                 elif consecutive_failures >= 3:
                     healthy, msg = False, f"{consecutive_failures} consecutive failures"
+                elif _looks_dead(
+                    total_searches=stats_dict.get("total_searches", 0) or 0,
+                    results=stats_dict.get("successful_searches", 0) or 0,
+                    downloads=downloads,
+                ):
+                    # Answering is not the same as working. Before #198 this
+                    # provider read "OK" with a 100% success rate.
+                    healthy, msg = (
+                        False,
+                        f"{stats_dict.get('total_searches', 0)} searches, no results, no downloads",
+                    )
                 else:
                     healthy, msg = True, "OK"
                 statuses.append(

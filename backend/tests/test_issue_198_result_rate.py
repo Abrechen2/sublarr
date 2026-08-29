@@ -187,3 +187,101 @@ class TestResultRateReflectsHits:
             assert stats["result_rate"] == 0.4
         finally:
             _reset(p)
+
+
+class TestHealthVerdictUsesTheEvidence:
+    """A provider that answers, never finds anything and never downloads is
+    not healthy — however politely it answers.
+
+    This is the visible half of #198. The reporter's cleanest case: both
+    podnapisi providers reported healthy:true with a 100% success rate while
+    their upstream domain had no DNS record at all.
+    """
+
+    def test_dead_provider_is_not_reported_healthy(self, app_ctx, monkeypatch):
+        from providers.manager_status_mixin import _looks_dead
+
+        assert _looks_dead(total_searches=1666, results=0, downloads=0) is True
+
+    def test_a_provider_that_ever_delivered_is_left_alone(self, app_ctx):
+        from providers.manager_status_mixin import _looks_dead
+
+        assert _looks_dead(total_searches=1666, results=0, downloads=3) is False
+        assert _looks_dead(total_searches=1666, results=12, downloads=0) is False
+
+    def test_a_young_provider_is_not_accused(self, app_ctx):
+        """Below the threshold "found nothing yet" is normal, not a verdict."""
+        from providers.manager_status_mixin import _looks_dead
+
+        assert _looks_dead(total_searches=5, results=0, downloads=0) is False
+
+
+class TestCounterResetMigration:
+    """The write-path fix is inert on an existing install without this.
+
+    Every provider carries a historical successful_searches counted under the
+    old meaning; result_rate keeps mixing two definitions, and _looks_dead
+    never fires because results > 0 clears it immediately.
+    """
+
+    def test_counters_are_zeroed_and_the_baseline_is_kept(self, app_ctx):
+        import sqlalchemy as sa
+
+        from db.migrations.versions.i198_reset_provider_search_counters import (
+            BASELINE_TABLE,
+            reset_search_counters,
+        )
+        from db.providers import record_search
+
+        p = "i198_migration"
+        _reset(p)
+        try:
+            for _ in range(7):
+                record_search(p, success=True, response_time_ms=1.0, had_results=True)
+            row = db.session.get(ProviderStats, p)
+            assert row.successful_searches == 7
+
+            conn = db.session.connection()
+            reset_search_counters(conn)
+
+            db.session.expire_all()
+            row = db.session.get(ProviderStats, p)
+            assert row.total_searches == 0
+            assert row.successful_searches == 0
+
+            kept = conn.execute(
+                sa.text(
+                    f"SELECT successful_searches FROM {BASELINE_TABLE} WHERE provider_name = :p"
+                ),
+                {"p": p},
+            ).scalar()
+            assert kept == 7, "the pre-reset value must remain provable"
+        finally:
+            db.session.rollback()
+            _reset(p)
+
+    def test_current_state_columns_are_left_alone(self, app_ctx):
+        """Clearing auto-disable state would re-enable providers that are
+        switched off for a reason."""
+        from db.migrations.versions.i198_reset_provider_search_counters import (
+            reset_search_counters,
+        )
+        from db.providers import record_search
+
+        p = "i198_migration_state"
+        _reset(p)
+        try:
+            for _ in range(4):
+                record_search(p, success=False, response_time_ms=1.0)
+            before = db.session.get(ProviderStats, p)
+            failures, last_failure = before.consecutive_failures, before.last_failure_at
+
+            reset_search_counters(db.session.connection())
+            db.session.expire_all()
+
+            after = db.session.get(ProviderStats, p)
+            assert after.consecutive_failures == failures
+            assert after.last_failure_at == last_failure
+        finally:
+            db.session.rollback()
+            _reset(p)
