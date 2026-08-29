@@ -8,6 +8,63 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [1.14.0] - 2026-08-28
 
 ### Added
+- **Provider health finally reflects whether searches found anything.** A
+  provider whose upstream domain no longer resolved in DNS reported a 100 %
+  success rate across 1 666 searches and zero downloads, and the panel called
+  it healthy the whole time. `successful_searches` — the numerator of the
+  result rate, as its own migration says — was fed from "the call returned"
+  rather than "the call produced candidates". The two are now recorded
+  separately, because the same flag also drives the consecutive-failure count
+  and therefore auto-disable: reusing it would have switched off healthy
+  providers that legitimately found nothing for a query.
+
+  On top of the honest number, a provider that has answered at least fifty
+  searches and produced neither a result nor a download is no longer reported
+  as "OK". A single hit or download, ever, clears it — that provider works and
+  is merely selective.
+
+  Existing installs get their four rate counters reset on upgrade, because
+  otherwise the ratio would mix two meanings for months and the new verdict
+  would clear itself immediately on historical data. The pre-reset values are
+  preserved in `provider_stats_pre_i198`.
+
+- **The panel says why a provider is unhealthy.** Every failure used to render
+  as "Unreachable", so a provider that simply had no account configured looked
+  like a network outage — and the fix was a form field, not a network. Nine
+  explicit states now: working, auto-disabled, circuit open, repeated
+  failures, credentials rejected, host unreachable, no credentials stored, not
+  started, and delivers-nothing. "No credentials" is derived from the
+  provider's own declared fields, so a required field left blank is named as
+  what it is rather than counted as a failure.
+
+  Failures are classified when they happen — a rejected key, a host that
+  stopped resolving, a rate limit and a timeout are four different answers.
+  The classification looks at the exception type first and its message second,
+  because a DNS failure arrives wrapped in a generic connection error whose
+  class name says nothing.
+
+- **Which providers earn their place.** Working out which of two dozen enabled
+  providers actually contribute meant reading container logs and querying the
+  download table by hand. Each provider now shows its share of every subtitle
+  downloaded, the overview sorts by it, and one that has searched plenty and
+  never won is marked as contributing nothing. Deliberately separate from
+  health: a provider that answers, offers candidates and never wins is working
+  correctly — it is just not earning its slot, which has a different answer.
+
+- **Wanted items that have given up are visible as such.** Exhausted items kept
+  the status "wanted" and sat under the same badge as items still being
+  retried, so a queue where two thirds had quietly stopped looked like a
+  healthy backlog. The Wanted page now counts them separately, using the exact
+  same rule the search itself applies to decide eligibility.
+
+- **A bounded second chance for exhausted items.** Attempt exhaustion was
+  permanent and provider-blind: an item that burned its attempts while a
+  provider was broken stayed parked forever, and repairing that provider
+  afterwards did nothing for it. Two triggers now revive them — a configurable
+  number of days (off by default), and a provider becoming usable again, which
+  gives fixing one retroactive effect. Both are capped per run so a large
+  parked backlog returns in slices instead of flooding the next search cycle.
+
 - **Sublarr can run under a path prefix.** The Base URL field in the settings
   has existed for a long time and did nothing: no route read it, no link used
   it, and `GET /config` did not even return it. It is wired now, following the
@@ -31,6 +88,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   cannot tell from a server that is not there.
 
 ### Fixed
+- **Six bugs from a field report, all reproduced before being fixed.**
+  Two Subliminal-wrapped providers failed *every* search because the vendored
+  cache region was never configured — Sublarr does not run the command-line
+  entry point that configures it, so any cached lookup raised. NapiProjekt
+  raised on every search too: it is hash-only and Sublarr never computed the
+  hash, so an unguarded dictionary access threw hundreds of times a day; the
+  hash is computed now, and where it cannot be, the search is skipped rather
+  than attempted. OpenSubtitles results arrived through the Subliminal wrapper
+  with no score at all, because the result mapper read a release field that
+  class does not have. OCR and spell checking shipped as code with their
+  Python bindings missing from the image — the Tesseract binary, the hunspell
+  dictionaries and the language packs were all present and unreachable. And
+  jimaku sent its API key with a `Bearer` prefix the service rejects, so every
+  request failed whatever the key, which then looked like an expired
+  credential.
+
 - **The translation memory drops entries that were never translations.** The
   per-line quality retry recorded its work under the globally configured source
   language rather than the real one, so a job targeting English was stored as
