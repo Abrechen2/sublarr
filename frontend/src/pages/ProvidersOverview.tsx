@@ -36,6 +36,10 @@ function providerTier(p: ProviderInfo): { tier: StatusTier; label: string } {
       auto_disabled: { tier: 'error', label: 'auto_disabled' },
       circuit_open: { tier: 'error', label: 'circuit_open' },
       consecutive_failures: { tier: 'error', label: 'consecutive_failures' },
+      // The two the field report asked for by name: a rejected key and a
+      // host that no longer resolves need different answers.
+      credentials_rejected: { tier: 'error', label: 'credentials_rejected' },
+      host_unreachable: { tier: 'error', label: 'host_unreachable' },
       // Answers fine, delivers nothing — useless, but not broken.
       no_results: { tier: 'warn', label: 'no_results' },
       // A form field away from working, so not an error state.

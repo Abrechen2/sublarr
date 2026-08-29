@@ -39,6 +39,11 @@ STATUS_REASONS = (
     "auto_disabled",
     "circuit_open",
     "consecutive_failures",
+    # Refinements of consecutive_failures, from the last classified error.
+    # "Unhealthy" is not actionable; a rejected key, a host that no longer
+    # resolves and a rate limit need three different responses.
+    "credentials_rejected",
+    "host_unreachable",
     "no_results",
     "no_credentials",
     "not_initialized",
@@ -75,6 +80,7 @@ def _classify_health(
     total_searches: int,
     results: int,
     downloads: int,
+    last_failure_kind: str | None = None,
 ) -> tuple[bool, str, str]:
     """Return ``(healthy, message, reason)`` for an initialised provider.
 
@@ -87,6 +93,16 @@ def _classify_health(
     if cb_state == "open":
         return False, "Circuit breaker open", "circuit_open"
     if consecutive_failures >= 3:
+        # Refine with what actually went wrong, when we know. The kind is only
+        # consulted while the provider IS failing — a stale one from weeks ago
+        # must not make a working provider look broken.
+        refined = {
+            "auth": ("Credentials rejected", "credentials_rejected"),
+            "network": ("Host unreachable", "host_unreachable"),
+        }.get(last_failure_kind or "")
+        if refined:
+            label, reason = refined
+            return False, f"{label} ({consecutive_failures} consecutive failures)", reason
         return False, f"{consecutive_failures} consecutive failures", "consecutive_failures"
     if _looks_dead(total_searches=total_searches, results=results, downloads=downloads):
         # Answering is not the same as working. Before #198 this read "OK"
@@ -242,6 +258,7 @@ class StatusReportingMixin:
                     auto_disabled=auto_disabled,
                     cb_state=cb_state,
                     consecutive_failures=perf_stats.get("consecutive_failures", 0) or 0,
+                    last_failure_kind=perf_stats.get("last_failure_kind"),
                     total_searches=stats_dict.get("total_searches", 0) or 0,
                     results=stats_dict.get("successful_searches", 0) or 0,
                     downloads=downloads,

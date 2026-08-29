@@ -5,7 +5,7 @@ All column types and defaults match the existing SCHEMA DDL in db/__init__.py ex
 
 from datetime import datetime
 
-from sqlalchemy import Boolean, DateTime, Float, Index, Integer, Text, UniqueConstraint
+from sqlalchemy import Boolean, DateTime, Float, Index, Integer, String, Text, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column
 
 from extensions import db
@@ -88,6 +88,11 @@ class ProviderStats(db.Model):
     )
     last_failure_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     consecutive_failures: Mapped[int | None] = mapped_column(Integer, default=0)
+    # What the last failure actually was — auth / network / rate_limit /
+    # timeout / other. "Unhealthy" alone is not actionable: a rejected key,
+    # a host that stopped resolving and a rate limit need three different
+    # responses, and the panel could not tell them apart (#201).
+    last_failure_kind: Mapped[str | None] = mapped_column(String(16), nullable=True)
     avg_response_time_ms: Mapped[float | None] = mapped_column(Float, default=0)
     last_response_time_ms: Mapped[float | None] = mapped_column(Float, default=0)
     auto_disabled: Mapped[int | None] = mapped_column(Integer, default=0)

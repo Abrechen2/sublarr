@@ -229,6 +229,7 @@ class ProviderRepository(BaseRepository):
         success: bool,
         response_time_ms: float = None,
         had_results: bool | None = None,
+        failure_kind: str | None = None,
     ):
         """Record a search attempt and update provider statistics.
 
@@ -271,6 +272,8 @@ class ProviderRepository(BaseRepository):
             else:
                 existing.failed_downloads = (existing.failed_downloads or 0) + 1
                 existing.last_failure_at = now
+                if failure_kind:
+                    existing.last_failure_kind = failure_kind
 
             # Update response time averages
             if response_time_ms is not None:
@@ -289,6 +292,7 @@ class ProviderRepository(BaseRepository):
                 provider_name=provider_name,
                 total_searches=1,
                 successful_searches=1 if (success and produced_results) else 0,
+                last_failure_kind=None if success else failure_kind,
                 successful_downloads=0,
                 failed_downloads=0 if success else 1,
                 avg_score=0,

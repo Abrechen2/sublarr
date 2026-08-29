@@ -73,6 +73,8 @@ export type ProviderStatusReason =
   | 'auto_disabled'
   | 'circuit_open'
   | 'consecutive_failures'
+  | 'credentials_rejected'
+  | 'host_unreachable'
   | 'no_results'
   | 'no_credentials'
   | 'not_initialized'

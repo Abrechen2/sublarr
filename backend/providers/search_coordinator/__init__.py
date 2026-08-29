@@ -440,7 +440,7 @@ class SearchCoordinatorMixin(SearchRetryMixin, SearchScoringMixin, SearchCacheMi
                             self._emit_provider_state(
                                 name, "circuit_open", "timeout", cb.cooldown_seconds
                             )
-                    update_provider_stats(name, success=False, score=0)
+                    update_provider_stats(name, success=False, score=0, failure_kind="timeout")
                     self._check_auto_disable(name)
                 except Exception as e:
                     logger.warning("Provider %s search failed: %s", name, e)
@@ -468,7 +468,14 @@ class SearchCoordinatorMixin(SearchRetryMixin, SearchScoringMixin, SearchCacheMi
                     # Rate-limit exception → extended throttle (Bazarr throttle_map parity)
                     if isinstance(e, ProviderRateLimitError):
                         self._handle_rate_limit_exception(e, name, future, futures_to_key)
-                    update_provider_stats(name, success=False, score=0)
+                    # Name the cause, so the panel can say "credentials
+                    # rejected" or "host unreachable" instead of counting
+                    # failures nobody can act on (#201).
+                    from providers.error_classification import classify_provider_error
+
+                    update_provider_stats(
+                        name, success=False, score=0, failure_kind=classify_provider_error(e)
+                    )
                     self._check_auto_disable(name)
         except FutureTimeoutError:
             # as_completed() overall timeout expired — some providers did not finish.

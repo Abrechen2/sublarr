@@ -170,13 +170,14 @@ def update_provider_stats(
     score: int = 0,
     response_time_ms: float = None,
     had_results: bool | None = None,
+    failure_kind: str | None = None,
 ):
     """Update provider statistics after a search/download attempt.
 
     ``success`` and ``had_results`` are separate axes — see
     ``ProviderRepository.record_search``.
     """
-    _get_repo().record_search(provider_name, success, response_time_ms, had_results)
+    _get_repo().record_search(provider_name, success, response_time_ms, had_results, failure_kind)
     if success and score > 0:
         _get_repo().record_download(provider_name, score)
 
@@ -186,9 +187,12 @@ def record_search(
     success: bool,
     response_time_ms: float = None,
     had_results: bool | None = None,
+    failure_kind: str | None = None,
 ):
     """Record a search attempt."""
-    return _get_repo().record_search(provider_name, success, response_time_ms, had_results)
+    return _get_repo().record_search(
+        provider_name, success, response_time_ms, had_results, failure_kind
+    )
 
 
 def record_download(provider_name: str, score: int):

@@ -101,6 +101,11 @@ def _patch_pre_alembic_columns(engine, inspect_fn) -> None:
         for column in ("last_search_at", "last_download_at"):
             if column not in existing:
                 patches.append(f"ALTER TABLE provider_stats ADD COLUMN {column} {ts}")
+        # Classified cause of the last failure (migration i201_failure_kind).
+        # Same rule as above: a migration-added column MUST be repeated here or
+        # a stamped-at-head install queries a column it does not have.
+        if "last_failure_kind" not in existing:
+            patches.append("ALTER TABLE provider_stats ADD COLUMN last_failure_kind VARCHAR(16)")
 
     # Automation-queue task types (migrations f3a9c1e7b5d4, c7e1a9d4b6f3).
     # The queue only held embedded extractions until sidecar translation and

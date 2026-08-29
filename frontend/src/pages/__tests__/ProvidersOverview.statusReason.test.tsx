@@ -89,6 +89,16 @@ describe('ProvidersOverviewPage — status reason', () => {
     expect(screen.getByText('providers_page.status.consecutive_failures')).toBeTruthy()
   })
 
+  it('a rejected key says so, instead of pointing at the network', () => {
+    renderWith('credentials_rejected')
+    expect(screen.getByText('providers_page.status.credentials_rejected')).toBeTruthy()
+  })
+
+  it('a host that no longer resolves says that instead', () => {
+    renderWith('host_unreachable')
+    expect(screen.getByText('providers_page.status.host_unreachable')).toBeTruthy()
+  })
+
   it('falls back to the old label when the backend sends no reason', () => {
     renderWith(undefined)
     expect(screen.getByText('providers_page.status.unreachable')).toBeTruthy()
