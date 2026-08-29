@@ -169,7 +169,11 @@ def extract_streams(
     Duplicate (lang, fmt) combinations are collapsed: only the first
     occurrence is extracted; the rest stay in the container untouched.
     """
-    from ass_utils import extract_subtitle_stream, get_subtitle_stream_output_path
+    from ass_utils import (
+        extract_subtitle_stream,
+        get_legacy_subtitle_stream_output_path,
+        get_subtitle_stream_output_path,
+    )
 
     any_extracted = False
     streams_to_remove: list[tuple[int, int]] = []
@@ -179,6 +183,12 @@ def extract_streams(
     for stream_info in sub_streams:
         lang_fmt = (stream_info["language"], stream_info["format"])
         out = get_subtitle_stream_output_path(file_path, stream_info)
+        # A sidecar written before the code was canonicalised carries the raw
+        # container tag. Accept it as-is: re-extracting under the new name
+        # would put the same track on disk twice.
+        legacy = get_legacy_subtitle_stream_output_path(file_path, stream_info)
+        if not os.path.exists(out) and os.path.exists(legacy):
+            out = legacy
 
         if os.path.exists(out):
             # Sidecar already on disk from an earlier run — nothing was
@@ -700,7 +710,12 @@ def extract_embedded_sub(
 
     item = get_wanted_item(item_id)
     if not item:
-        raise ValueError(f"Wanted item {item_id} not found")
+        # FileNotFoundError, not ValueError: the drain worker treats it as
+        # terminal (same contract as _translate_sidecar), while ValueError
+        # kept 25 rows for deleted items cycling the backoff ladder daily.
+        # The single-item route maps both to 404 and pre-checks the item
+        # itself, so nothing user-facing changes.
+        raise FileNotFoundError(f"Wanted item {item_id} no longer exists")
 
     if not file_path or not os.path.exists(file_path):
         raise FileNotFoundError(f"Media file not found: {file_path}")

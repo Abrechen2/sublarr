@@ -30,7 +30,7 @@ from config_settings import (  # noqa: E402, F401
 )
 
 # Singleton accessors — re-exported via this module for backwards compatibility.
-from config_singleton import get_settings, reload_settings  # noqa: E402, F401
+from config_singleton import get_settings, peek_settings, reload_settings  # noqa: E402, F401
 
 # ─── Re-exports for backwards compatibility ──────────────────────────────────
 from config_instances import (  # noqa: E402, F401

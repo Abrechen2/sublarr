@@ -1,4 +1,5 @@
 import { lazy, Suspense, useState, useEffect, useCallback } from 'react'
+import { basePath } from '@/basePath'
 import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { useTranslation } from 'react-i18next'
@@ -291,7 +292,7 @@ function App() {
   return (
     <QueryClientProvider client={queryClient}>
       <WebSocketProvider>
-      <BrowserRouter>
+      <BrowserRouter basename={basePath || undefined}>
         <AppInner
           searchOpen={searchOpen}
           setSearchOpen={setSearchOpen}

@@ -11,7 +11,6 @@ OpenAI, Azure OpenAI, LM Studio, vLLM, and other compatible services.
 from __future__ import annotations
 
 import logging
-import re
 import threading
 from decimal import Decimal
 
@@ -277,9 +276,9 @@ class OpenAICompatBackend(LLMBackend):
             raise RuntimeError(f"OpenAI response missing 'message.content': {raw!r}")
 
         text = content.strip()
-        raw_lines = [ln for ln in text.split("\n") if ln.strip()]
-        cleaned = [re.sub(r"^\d+[\.:]\s*", "", ln) for ln in raw_lines]
-        translations = cleaned or [text]
+        # Splitting only — numbering, stray break markers and wrapped lines are
+        # repaired centrally by LLMBackend._attempt.
+        translations = text.split("\n") or [text]
 
         usage = raw.get("usage") or {}
         # usage may be a pydantic-ish object; accommodate both shapes.

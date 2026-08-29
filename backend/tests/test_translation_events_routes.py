@@ -30,7 +30,14 @@ def client(app):
 
 @pytest.fixture
 def seed_events(app):
-    """Seed 5 events: 3 ollama (zero cost) + 2 claude ($0.005 each)."""
+    """Seed 5 events: 3 ollama (zero cost) + 2 claude ($0.005 each).
+
+    Offsets are SECONDS, not hours: the "today" assertions compare against
+    the API's midnight-UTC window, and hour-sized offsets pushed events
+    onto yesterday whenever CI ran shortly after 00:00 UTC — the suite
+    failed at 00:09 and again at 01:15 on 2026-08-28 with two different
+    wrong counts, and passed the same commit during the day.
+    """
     from db.models.translation import TranslationEvent
     from extensions import db
 
@@ -47,7 +54,7 @@ def seed_events(app):
                     status="ok",
                     cost_estimate_micro_usd=0,
                     cache_hit=False,
-                    started_at=now - timedelta(hours=i),
+                    started_at=now - timedelta(seconds=i),
                 )
             )
         for i in range(2):
@@ -61,7 +68,7 @@ def seed_events(app):
                     status="ok",
                     cost_estimate_micro_usd=5000,  # $0.005
                     cache_hit=False,
-                    started_at=now - timedelta(hours=i),
+                    started_at=now - timedelta(seconds=i),
                 )
             )
         db.session.commit()

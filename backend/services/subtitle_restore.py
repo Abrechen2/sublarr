@@ -95,30 +95,47 @@ def restore_from_bak(abs_path: str) -> dict:
     return {"status": "restored", "path": abs_path, "swapped": True}
 
 
+def create_or_get_bak(active_path: str) -> str:
+    """Return the single-slot bak for ``active_path``, creating it if absent.
+
+    An existing bak (canonical or legacy location) is returned untouched —
+    it holds the *original* text and must never be overwritten (see
+    tests/test_processing_bak_is_never_overwritten.py for the incident that
+    rule comes from). Until 2026-08 the sync path violated this on every run
+    and, worse, did so via ``shutil.copy2`` onto bak files created under an
+    older PUID: the content was overwritten, then ``copystat`` raised
+    ``[Errno 1] Operation not permitted`` — 53 auto_sync items failed daily
+    while corrupting their own undo point.
+
+    Creation is atomic (``atomic_copyfile``) and never opens an existing
+    dst for write. Raises ``OSError`` when the bak cannot be created.
+    """
+    existing = find_existing_bak(active_path)
+    if existing is not None:
+        return existing
+    bak_path = bak_path_for(active_path)
+    os.makedirs(os.path.dirname(bak_path), exist_ok=True)
+    from utils.atomic_write import atomic_copyfile
+
+    atomic_copyfile(active_path, bak_path)
+    logger.info("Backed up %s -> %s", active_path, bak_path)
+    return bak_path
+
+
 def backup_before_replace(active_path: str) -> str | None:
     """Preserve ``active_path`` into the single-slot bak before it is replaced.
 
-    Only writes when NO backup exists yet (canonical or legacy) — the bak is
-    a single-slot undo and an existing one must never be overwritten (see
-    tests/test_processing_bak_is_never_overwritten.py for the incident that
-    rule comes from).
-
-    Returns the bak path when a backup was created, else ``None``. Never
-    raises: a failed backup must not abort the download/upgrade that
-    triggered it.
+    Same semantics as :func:`create_or_get_bak`, wrapped for the download/
+    upgrade path: returns the bak path only when a backup was *created*
+    (``None`` when one already existed or the active is gone), and never
+    raises — a failed backup must not abort the replacement that triggered it.
     """
     try:
         if not os.path.isfile(active_path):
             return None
         if find_existing_bak(active_path) is not None:
             return None
-        bak_path = bak_path_for(active_path)
-        os.makedirs(os.path.dirname(bak_path), exist_ok=True)
-        import shutil
-
-        shutil.copy2(active_path, bak_path)
-        logger.info("Backed up %s -> %s before replacement", active_path, bak_path)
-        return bak_path
+        return create_or_get_bak(active_path)
     except OSError as e:
         logger.warning("Could not back up %s before replacement: %s", active_path, e)
         return None

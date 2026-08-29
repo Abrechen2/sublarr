@@ -1,8 +1,10 @@
-"""Scheduler history retention cleanup.
+"""Internal history retention cleanup.
 
-Registered as the ``scheduler_history_cleanup`` JobSpec. Reads
-``settings.scheduler_history_retention_days`` at tick time so
-runtime settings changes take effect on next fire without restart.
+``internal_history_cleanup`` is registered as the ``scheduler_history_cleanup``
+JobSpec and covers both internal history tables: ``scheduler_job_runs`` and
+the finished rows of ``subtitle_automation_queue``. Reads
+``settings.scheduler_history_retention_days`` at tick time so runtime
+settings changes take effect on next fire without restart.
 """
 
 import logging
@@ -34,3 +36,29 @@ def delete_old_job_runs(retention_days: int | None = None) -> int:
         cutoff,
     )
     return deleted
+
+
+def internal_history_cleanup() -> None:
+    """Tick body for the ``scheduler_history_cleanup`` job.
+
+    Chains the two internal history purges. Each half is guarded on its
+    own: losing the queue purge to an error must not cost the job-run
+    purge, and vice versa.
+    """
+    try:
+        delete_old_job_runs()
+    except Exception:
+        logger.exception("scheduler_history_cleanup: job-run purge failed")
+    try:
+        from db.repositories.subtitle_automation_queue import (
+            SubtitleAutomationQueueRepository,
+        )
+
+        removed = SubtitleAutomationQueueRepository().purge_finished()
+        if removed:
+            logger.info(
+                "scheduler_history_cleanup: purged %d finished automation queue row(s)",
+                removed,
+            )
+    except Exception:
+        logger.exception("scheduler_history_cleanup: automation queue purge failed")

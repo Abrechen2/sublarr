@@ -7,6 +7,7 @@ parsing, and CJK hallucination detection.
 
 import logging
 import re
+from collections import Counter
 
 from translation.prompt_safety import MAX_LINE_CHARS, escape_for_prompt
 
@@ -46,7 +47,15 @@ def has_cjk_hallucination(text: str) -> bool:
 
 
 def parse_llm_response(response_text: str, expected_count: int) -> list[str] | None:
-    """Parse LLM response into individual lines.
+    """Parse LLM response into individual lines. **Legacy shim — unused.**
+
+    Kept importable for out-of-tree callers only. No backend has ever called
+    it: every LLM backend splits in its own ``_parse_response`` and the shared
+    repair lives in :func:`repair_line_mapping`, which is what
+    ``LLMBackend._attempt`` applies. Its merge-on-numbering branch was
+    therefore never reached in production, while the default prompt forbade
+    numbering outright — so even the shape it repairs could not occur.
+    Prefer :func:`repair_line_mapping` for new code.
 
     Handles numbered responses (e.g. "1: text") and plain lines.
     Attempts to merge split lines before truncating.
@@ -111,6 +120,232 @@ def parse_llm_response(response_text: str, expected_count: int) -> list[str] | N
         expected_count,
     )
     return None
+
+
+_HARD_BREAK = "\\N"  # literal backslash-N, the ASS hard line break
+
+
+def strip_invented_hard_breaks(source_lines: list[str], translated_lines: list[str]) -> list[str]:
+    """Drop hard line breaks the model added where the source had none.
+
+    Sublarr's contract with a translation backend is a 1:1 line mapping, and
+    where a subtitle event carries no hard break the translation must not
+    introduce one — it changes how the line renders against the original. LLMs
+    do it anyway: one measured episode went from 28 source lines carrying a
+    break to 158 in the German output. The line *count* stays correct, so no
+    other check in the pipeline can see it.
+
+    Only lines whose source has no break at all are touched, so a break the
+    subtitle actually asked for survives untouched. An inner break becomes a
+    single space (it was standing between two words); a trailing one simply
+    goes. Lists of differing length are returned unchanged — pairing would be
+    guesswork, and the caller already treats that as a failure.
+    """
+    if len(source_lines) != len(translated_lines):
+        return translated_lines
+
+    cleaned: list[str] = []
+    for source, translated in zip(source_lines, translated_lines, strict=True):
+        if _HARD_BREAK in source or _HARD_BREAK not in translated:
+            cleaned.append(translated)
+            continue
+        without = translated.replace(_HARD_BREAK, " ")
+        cleaned.append(re.sub(r"\s+", " ", without).strip())
+    return cleaned
+
+
+_SOFT_BREAK = "\\n"  # literal backslash-n; ASS's soft break, models emit it for \N
+
+_MARKER_ONLY = {_HARD_BREAK, _SOFT_BREAK, _HARD_BREAK * 2, "\\"}
+
+# "1: text", "1. text", "1) text", " 2: text", "3 : text" -- every shape the
+# model was measured to produce once the prompt asks it to number its output.
+_LINE_NUMBER_RE = re.compile(r"^\s*(\d+)\s*[.:)]\s*")
+
+# How far a line number may exceed the batch length before it stops looking
+# like an index into it. Two, because a batch can come back with a line or two
+# too many and its numbering still be real.
+_NUMBER_RANGE_SLACK = 2
+
+
+def repair_line_mapping(raw_lines: list[str]) -> list[str]:
+    """Turn a model's raw output lines into one line per source line.
+
+    The model writes a hard break and then a real newline after it. Depending
+    on where that happens the break marker ends up alone on a line of its own,
+    or it ends a content line whose remainder lands on the next one. Both look
+    like "too many lines" to every count-based check, and both are repairable
+    without guessing: a translation is never merely a line break, and a line
+    that carries no number of its own cannot be a line of its own once the
+    model has been asked to number them.
+
+    Measured against 65 recorded gemma3:12b batches: dropping marker-only
+    lines alone repaired 3 of the 5 over-long batches and altered none of the
+    57 correct ones. The looser rule of joining any line that ends in a break
+    marker was measured too and rejected -- it damaged 33 of those 57, because
+    a translation may legitimately end on a break.
+
+    Whether a batch is numbered at all is decided for the batch as a whole by
+    :func:`_looks_numbered`, never line by line — a single missing number would
+    otherwise send every number behind it into the finished subtitle, which is
+    what a per-line counter did on the live host. Where the batch is not
+    numbered, leading numbers stay: ``13: Das Bankett`` is a subtitle that
+    opens with a number, and the old ``^\\d+[.:]`` strip silently ate it.
+
+    Output that carries no numbering at all is returned untouched apart from
+    blank and marker-only lines, so a user template that forbids numbering
+    keeps working exactly as before.
+    """
+    kept = [raw for raw in raw_lines if raw.strip() and raw.strip() not in _MARKER_ONLY]
+    if not kept:
+        return []
+
+    matches = [_LINE_NUMBER_RE.match(raw) for raw in kept]
+    numbers = [int(m.group(1)) for m in matches if m is not None]
+    numbered = _looks_numbered(numbers, len(kept))
+
+    out: list[str] = []
+    for raw, match in zip(kept, matches, strict=True):
+        if numbered and match is not None:
+            out.append(_strip_repeated_number(raw, match))
+        elif numbered and out:
+            previous = out[-1].rstrip()
+            joiner = "" if previous.endswith((_HARD_BREAK, _SOFT_BREAK)) else " "
+            out[-1] = previous + joiner + raw.strip()
+        else:
+            out.append(raw)
+    return out
+
+
+def _strip_repeated_number(raw: str, match: re.Match) -> str:
+    """Remove the line's number, and a second copy of it if the model wrote one.
+
+    Asked to prefix each output line with the number of its input line, gemma3
+    copies the input's number and then adds its own: ``2: 2: Wenn wir jetzt
+    aufgeben, ...``. Measured live, 14 of one batch's 15 lines came back that
+    way. Removing one prefix leaves the other in the finished subtitle.
+
+    Only a repeat of the *same* number goes. ``5: 13: Das Bankett`` is line
+    five whose text opens with a number, and stripping greedily would eat it.
+    """
+    rest = raw[match.end() :]
+    repeat = _LINE_NUMBER_RE.match(rest)
+    if repeat is not None and repeat.group(1) == match.group(1):
+        return rest[repeat.end() :]
+    return rest
+
+
+def _looks_numbered(numbers: list[int], line_count: int) -> bool:
+    """Is this batch numbered, judged as a whole rather than line by line?
+
+    Deciding per line was measured wrong on the live host: gemma3 answered the
+    one-word line ``No.`` with ``Nein.`` and no number, then numbered 2 through
+    15 correctly. A counter waiting for a 1 never advanced, and all fourteen
+    numbers behind it reached the finished subtitle. Judging the batch as a
+    whole survives a single missing number.
+
+    Two independent signals have to agree, because either alone misfires:
+
+    * an ascending run of at least two numbers, or a first number of 1 — a
+      solitary ``13:`` is a subtitle that opens with a number, not numbering;
+    * numbers that could plausibly index these lines. Two content lines opening
+      with ``1995:`` and ``2001:`` ascend perfectly and are still just text.
+    """
+    if not numbers:
+        return False
+    if max(numbers) > line_count + _NUMBER_RANGE_SLACK:
+        return False
+    if numbers[0] == 1:
+        return True
+    return len(numbers) >= 2 and all(b > a for a, b in zip(numbers, numbers[1:]))
+
+
+# A token that tends to come through a translation unchanged, so it can tie an
+# output line back to the source line it belongs to: a run of digits, or a word
+# of three letters or more — names, places, numbers, cognates. Very common short
+# words are no danger because only tokens unique within the batch are used, and
+# "the"/"und" are never unique; the length floor exists to keep the token set
+# small. Re-measured on the numbered prompt over 1728 correct batches from five
+# episodes: a floor of 3 is the shortest that never called one of them shifted.
+# Two would see 34.9% of the defect against 31.2%, and costs a false alarm.
+_ANCHOR_RE = re.compile(r"[0-9]+|[^\W\d_]{3,}", re.UNICODE)
+
+# How many anchors must agree on the same offset before we call a batch shifted.
+# One is a coincidence and unusable: over the same 1728 correct batches a lone
+# anchor wandered on 181 of them, while two never agreed on a single one. Three
+# buys nothing — it is no safer, it only halves what the check can see, from
+# 31.2% of the defect to 17.4%.
+_MIN_AGREEING_ANCHORS = 2
+
+
+def _anchor_tokens(line: str) -> set[str]:
+    """Lower-cased tokens from ``line`` that can anchor it to its translation."""
+    text = line.replace(_HARD_BREAK, " ").replace(_SOFT_BREAK, " ")
+    return {match.group(0).lower() for match in _ANCHOR_RE.finditer(text)}
+
+
+def _unique_homes(lines: list[str]) -> dict[str, int]:
+    """Map each anchor token to its line index, or -1 if it occurs in several.
+
+    Only a token that appears exactly once carries positional information; one
+    that repeats could be matched to any of its occurrences and would invent
+    offsets that are not there.
+    """
+    homes: dict[str, int] = {}
+    for index, tokens in enumerate(lines):
+        for token in tokens:
+            homes[token] = index if token not in homes else -1
+    return homes
+
+
+def find_line_shift(source_lines: list[str], translated_lines: list[str]) -> int | None:
+    """Return the offset a batch's lines drifted by, or ``None`` if aligned.
+
+    A model can return exactly the requested number of lines and still hand
+    back a batch in which the lines no longer correspond to the source. It
+    splits one source line across two output lines and merges two others
+    further down, so the total comes out right while every line in between sits
+    against the wrong subtitle event — the dialogue runs out of sync on screen.
+    A count check cannot see this by construction, which is why the defect
+    survived every guard in the pipeline.
+
+    Detection works off anchors: digits and longer words usually survive
+    translation intact, so a token that occurs on exactly one source line and
+    exactly one output line says where that line ended up. Anchors that landed
+    where they started say nothing; the rest vote on an offset, and a batch is
+    reported as shifted when at least ``_MIN_AGREEING_ANCHORS`` of them agree.
+
+    Returns the offset (positive: output sits later than its source) so callers
+    can log something diagnosable. Lists of differing length return ``None`` —
+    that is the caller's line-count failure, not this one.
+
+    Silence is not a clean bill of health, and the gap is wide: an anchor only
+    votes when it sits inside the displaced run, so where the defect falls in
+    the batch decides whether it can be seen at all. Injected into every place
+    it could sit across 123 real batches, 31.2% were seen and 68.8% were not,
+    and a quarter of the batches are blind wherever it sits. The share rises
+    with the size of the damage — 4.5% when two lines are displaced, 74.6% when
+    fourteen are — so this catches the wrecked batches and misses the small
+    ones. It never pointed the wrong way: all 3332 it saw, it measured
+    correctly, and it called none of 1728 correct batches shifted.
+    """
+    if len(source_lines) != len(translated_lines) or len(source_lines) < 2:
+        return None
+
+    source_homes = _unique_homes([_anchor_tokens(line) for line in source_lines])
+    target_homes = _unique_homes([_anchor_tokens(line) for line in translated_lines])
+
+    votes: Counter[int] = Counter()
+    for token, source_index in source_homes.items():
+        target_index = target_homes.get(token, -1)
+        if source_index < 0 or target_index < 0 or target_index == source_index:
+            continue
+        votes[target_index - source_index] += 1
+
+    if not votes:
+        return None
+    shift, agreeing = votes.most_common(1)[0]
+    return shift if agreeing >= _MIN_AGREEING_ANCHORS else None
 
 
 def _escape_subtitle_line(line: str) -> str:
@@ -215,13 +450,28 @@ def build_prompt_with_glossary(
     # back as an extra output line, which is itself a count mismatch.
     count = len(escaped_lines)
     plural = "lines" if count != 1 else "line"
+    # A one-line batch is handed over un-numbered, which contradicts a template
+    # that says every input line carries a number. Saying so costs one sentence
+    # and matters more since a failed batch is split: the split bottoms out at
+    # exactly this shape, and this is the shape that answered the prod "expected
+    # 1" storm with conversation instead of a translation.
+    single = (
+        " The single line below is not numbered — reply with the translation only."
+        if count == 1
+        else ""
+    )
     if strict:
+        # "no numbering" used to stand here and contradicted the template,
+        # which asks for the input's numbers back. The retry now hardens the
+        # count and the numbering together instead of fighting the prompt it
+        # is retrying.
         constraint = (
             f"Return exactly {count} {plural} — no more, no fewer. "
-            "No commentary, no alternatives, no numbering.\n\n"
+            "Keep each line's own number and merge nothing. "
+            f"No commentary, no alternatives.{single}\n\n"
         )
     else:
-        constraint = f"Return exactly {count} {plural}.\n\n"
+        constraint = f"Return exactly {count} {plural}.{single}\n\n"
 
     # Single-line batches pass the line un-numbered (the V8 fine-tune was
     # trained that way); batches stay numbered.

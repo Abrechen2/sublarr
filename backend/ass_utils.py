@@ -19,6 +19,7 @@ import re
 from ass_probe import (  # noqa: F401 — re-exported for back-compat
     extract_subtitle_stream,
     get_all_subtitle_streams,
+    get_legacy_subtitle_stream_output_path,
     get_media_streams,
     get_subtitle_stream_output_path,
     has_target_language_audio,
@@ -29,9 +30,19 @@ from ass_probe import (  # noqa: F401 — re-exported for back-compat
 
 logger = logging.getLogger(__name__)
 
-# Patterns for style classification
+# Patterns for style classification.
+#
+# Deliberately narrow on the OP/ED front. Anything landing in the signs bucket
+# is not only left untranslated but also visible to cleanup_signs and
+# purge_signs_after_extract, which DELETE what they consider signs — so a
+# fansub style named after a character ("Ed", "Ed Smith") must never match.
+# Hence: bare "op"/"ed" only as the whole name, plus the unambiguous karaoke
+# pairing ("OP Romaji", "ED English"), plus romaji anywhere — transliterated
+# Japanese is never something to hand a translator.
 SIGNS_PATTERNS = re.compile(
-    r"sign|^op$|^ed$|song|karaoke|title|note|insert|logo|screen|board|card|letter",
+    r"sign|^op$|^ed$|romaji"
+    r"|^(?:op|ed)[\s_.-]+(?:english|eng|kanji|jp|jpn|lyrics|karaoke)\b"
+    r"|song|karaoke|title|note|insert|logo|screen|board|card|letter",
     re.IGNORECASE,
 )
 DIALOG_PATTERNS = re.compile(

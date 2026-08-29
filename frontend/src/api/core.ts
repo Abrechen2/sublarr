@@ -1,7 +1,10 @@
 import axios from 'axios'
+import { basePath } from '@/basePath'
 
 export const api = axios.create({
-  baseURL: '/api/v1',
+  // basePath is '' at the root; under a reverse-proxy prefix it makes the
+  // API calls land on the same prefix the page itself was served from.
+  baseURL: `${basePath}/api/v1`,
   headers: { 'Content-Type': 'application/json' },
 })
 

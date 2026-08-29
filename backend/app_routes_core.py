@@ -77,7 +77,11 @@ def _register_app_routes(app):
 
         index_path = os.path.join(static_dir, "index.html")
         if os.path.exists(index_path):
-            resp = send_from_directory(static_dir, "index.html")
+            from base_path import get_base_path, inject_base_into_index
+
+            with open(index_path, encoding="utf-8") as fh:
+                html = inject_base_into_index(fh.read(), get_base_path())
+            resp = app.response_class(html, mimetype="text/html")
             # index.html must always revalidate so a new deploy's hashed asset
             # references are picked up instead of a stale cached shell.
             resp.headers["Cache-Control"] = "no-cache"

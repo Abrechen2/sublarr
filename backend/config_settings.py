@@ -697,6 +697,55 @@ class UISettings(BaseModel):
     translation_series_glossary_auto: bool = False
 
     # Translation Context Window (Phase A4 — lookback/lookahead for LLM backends)
+    # Declared here because the settings UI writes them and GET /config only
+    # returns model fields — until they were declared the page could not read
+    # its own stored values back and rendered these defaults instead. Their
+    # readers (translator/_helpers.py) still go through config_entries, so the
+    # defaults below must match the ones written there.
+    translation_memory_enabled: bool = Field(
+        default=True,
+        description="Reuse previously translated lines from the translation memory.",
+    )
+    translation_memory_similarity_threshold: float = Field(
+        default=1.0,
+        ge=0.0,
+        le=1.0,
+        description=(
+            "How close a stored line must be to count as a hit. 1.0 is exact "
+            "match; lower values trade accuracy for reuse."
+        ),
+    )
+    translation_quality_enabled: bool = Field(
+        default=True,
+        description=(
+            "Score each translated line with the LLM and retry the ones below "
+            "the threshold. Costs one extra model call per line scored."
+        ),
+    )
+    translation_quality_threshold: int = Field(
+        default=50,
+        ge=0,
+        le=100,
+        description="Lines scoring below this are translated again.",
+    )
+    translation_quality_max_retries: int = Field(
+        default=2,
+        ge=0,
+        le=5,
+        description="How often a single low-scoring line may be retried.",
+    )
+    # Read by base_path.PrefixMiddleware, which strips it from the request path,
+    # and injected into the served index.html as <base href>. Deliberately read
+    # off this settings object rather than through get_config_entry: the
+    # middleware runs before Flask pushes an application context.
+    base_url: str = Field(
+        default="",
+        description=(
+            "Path prefix when served behind a reverse proxy, e.g. /sublarr. "
+            "Sublarr answers under the prefix and at the root, so a wrong "
+            "value cannot lock you out of the settings page."
+        ),
+    )
     translation_context_enabled: bool = Field(
         default=True,
         description=(
@@ -863,11 +912,27 @@ class Settings:
         if self._ui.prompt_template:
             return self._ui.prompt_template
 
+        # The input lines are numbered, and the output must carry the same
+        # numbers back. Measured over 65 real batches on gemma3:12b: asking
+        # for numbering instead of forbidding it took the batches that die
+        # even after the strict retry from 10 to 1, and cut invented hard
+        # breaks from 319 to 129. A blind third-model judge scored the two
+        # templates level, so the mapping costs nothing in German.
+        #
+        # The numbers are not themselves a mapping — the model renumbers
+        # contiguously once it merges two lines — they mark where one output
+        # line ends, which is what llm_utils.repair_line_mapping needs to undo
+        # a translation the model wrapped across two lines.
         return (
             f"Translate these anime subtitle lines from {self._ui.source_language_name} to {self._ui.target_language_name}.\n"
-            f"Return ONLY the translated lines, one per line, same count.\n"
+            f"Each input line is numbered. Return EXACTLY one output line per input line,\n"
+            f"prefixed with the same number, in the form 'N: translation'.\n"
+            f"Never renumber and never skip a number.\n"
+            f"Never merge two input lines into one output line: an input line that is only\n"
+            f"part of a sentence stays its own line, because the lines are timed subtitle\n"
+            f"events, not prose.\n"
             f"Preserve \\N exactly as \\N (hard line break).\n"
-            f"Do NOT add numbering or prefixes to the output lines.\n\n"
+            f"Return ONLY the numbered translations — no commentary.\n\n"
         )
 
     def get_target_patterns(self, fmt: str = "ass") -> list[str]:

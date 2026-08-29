@@ -544,13 +544,15 @@ class TestExtractEmbeddedSubHelper:
     """Unit tests for the _extract_embedded_sub standalone helper."""
 
     def test_item_not_found_raises(self, app_client):
+        """FileNotFoundError, not ValueError — the drain worker treats it as
+        terminal instead of retrying a vanished item daily (2026-08-27)."""
         app, _ = app_client
         from routes.wanted.extract import _extract_embedded_sub
 
         with (
             app.app_context(),
             patch(P_GET_WANTED_ITEM, return_value=None),
-            pytest.raises(ValueError, match="not found"),
+            pytest.raises(FileNotFoundError, match="no longer exists"),
         ):
             _extract_embedded_sub(999, "/fake/file.mkv")
 

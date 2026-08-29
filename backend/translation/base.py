@@ -9,6 +9,20 @@ from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
 
 
+class TranslationContentError(Exception):
+    """A backend answered, but the answer was unusable for *this* batch.
+
+    Marker base class for failures that say nothing about backend health: the
+    service was reachable and responded, only the content or shape of that
+    response was wrong (wrong line count, refusal by a content filter). Such
+    failures are per-batch and must not count towards the health circuit
+    breaker — otherwise a handful of pathological subtitle files can trip the
+    breaker and stall every unrelated translation behind it.
+
+    Mirrors ``providers.base.ProviderNotApplicableError`` on the search side.
+    """
+
+
 @dataclass
 class TranslationResult:
     """Result from a backend translation call."""

@@ -23,10 +23,17 @@ from translation.base import TranslationResult
 
 
 class _FailAtChunk:
-    """Echoes ``T_<line>`` per line, but fails once it reaches chunk N."""
+    """Echoes ``T_<line>`` per line, but fails on any batch holding ``poison``.
 
-    def __init__(self, fail_on_call: int) -> None:
-        self.fail_on_call = fail_on_call
+    Bound to a line rather than to a call number on purpose. Since a batch that
+    fails is now split and its halves retried, a fake that fails on "the third
+    call" simply succeeds on the fourth and stops testing anything. The real
+    defect is deterministic in the *content*: the same batch of the same file
+    fails again on every run, all the way down to the single line.
+    """
+
+    def __init__(self, poison: str | None = None) -> None:
+        self.poison = poison
         self.calls = 0
 
     def translate_with_fallback(
@@ -41,7 +48,7 @@ class _FailAtChunk:
         lookahead=None,
     ) -> TranslationResult:
         self.calls += 1
-        if self.calls == self.fail_on_call:
+        if self.poison is not None and self.poison in lines:
             return TranslationResult(
                 success=False,
                 translated_lines=[],
@@ -91,7 +98,7 @@ class TestPartialWorkSurvivesAFailure:
         """The whole point: batch 3 dying must not cost batches 1 and 2."""
         from translator.manager import _translate_in_batches
 
-        manager = _FailAtChunk(fail_on_call=3)
+        manager = _FailAtChunk(poison="line6")
 
         with pytest.raises(RuntimeError):
             _translate_in_batches(manager, _lines(10), "en", "de", ["fake"], None, 3)
@@ -104,7 +111,7 @@ class TestPartialWorkSurvivesAFailure:
     def test_the_cached_translations_belong_to_their_lines(self, stored, no_context):
         from translator.manager import _translate_in_batches
 
-        manager = _FailAtChunk(fail_on_call=3)
+        manager = _FailAtChunk(poison="line6")
 
         with pytest.raises(RuntimeError):
             _translate_in_batches(manager, _lines(10), "en", "de", ["fake"], None, 3)
@@ -116,7 +123,7 @@ class TestPartialWorkSurvivesAFailure:
         """A batch that returned the wrong line count is not usable memory."""
         from translator.manager import _translate_in_batches
 
-        manager = _FailAtChunk(fail_on_call=3)
+        manager = _FailAtChunk(poison="line6")
 
         with pytest.raises(RuntimeError):
             _translate_in_batches(manager, _lines(10), "en", "de", ["fake"], None, 3)
@@ -130,7 +137,7 @@ class TestTheHappyPathIsUnchanged:
     def test_every_line_still_reaches_the_cache(self, stored, no_context):
         from translator.manager import _translate_in_batches
 
-        manager = _FailAtChunk(fail_on_call=0)  # never fails
+        manager = _FailAtChunk()  # never fails
 
         translated, _ = _translate_in_batches(manager, _lines(10), "en", "de", ["fake"], None, 3)
 
@@ -142,7 +149,7 @@ class TestTheHappyPathIsUnchanged:
         """Files below one batch take a separate code path — it caches as well."""
         from translator.manager import _translate_in_batches
 
-        manager = _FailAtChunk(fail_on_call=0)
+        manager = _FailAtChunk()
 
         _translate_in_batches(manager, _lines(2), "en", "de", ["fake"], None, 15)
 
@@ -153,7 +160,7 @@ class TestTheHappyPathIsUnchanged:
         """The bulk write after the loop has to go, or every line is stored twice."""
         from translator.manager import _translate_in_batches
 
-        manager = _FailAtChunk(fail_on_call=0)
+        manager = _FailAtChunk()
 
         _translate_in_batches(manager, _lines(9), "en", "de", ["fake"], None, 3)
 

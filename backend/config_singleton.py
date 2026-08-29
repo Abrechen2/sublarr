@@ -45,6 +45,22 @@ def get_settings() -> Settings:
         return _settings
 
 
+def peek_settings() -> Settings | None:
+    """The active settings if they exist — never builds them.
+
+    ``get_settings()`` builds the singleton on first use by merging the
+    database overrides onto the defaults, which needs a Flask application
+    context. A caller that runs outside one — WSGI middleware, in particular —
+    would otherwise cache a Settings object with every stored setting missing,
+    and every later reader would get that object.
+
+    Callers in that position ask here instead and treat ``None`` as "too early,
+    use the default". The app builds the singleton during startup, so in
+    practice this returns it from the first request onwards.
+    """
+    return _settings
+
+
 def reload_settings(overrides: dict | None = None) -> Settings:
     """Force reload settings from environment/file, with optional DB overrides.
 

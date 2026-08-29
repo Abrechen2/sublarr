@@ -5,12 +5,13 @@ import { ErrorBoundary } from '@/components/shared/ErrorBoundary'
 import { bootstrapApiKey } from '@/api/client'
 import App from './App.tsx'
 import './index.css'
+import { withBase } from '@/basePath'
 
 // Register Service Worker for PWA (production only — dev HMR breaks with SW caching)
 if ('serviceWorker' in navigator && import.meta.env.PROD) {
   window.addEventListener('load', () => {
     navigator.serviceWorker
-      .register('/sw.js')
+      .register(withBase('/sw.js'))
       .then(() => {
         // registered
       })

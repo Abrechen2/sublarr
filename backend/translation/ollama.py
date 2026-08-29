@@ -343,10 +343,15 @@ class OllamaBackend(LLMBackend):
         """Extract translations + token counts from the Ollama response.
 
         Ollama returns prompt/eval token counts on both /api/generate and
-        /api/chat as ``prompt_eval_count`` / ``eval_count``. We use
-        :func:`parse_llm_response` to split numbered output into individual
-        lines; when parsing fails (line-count mismatch) we fall back to
-        a plain split-on-newline so the LLMBackend retry path can engage.
+        /api/chat as ``prompt_eval_count`` / ``eval_count``.
+
+        This hook splits and nothing else. It used to claim it called
+        :func:`translation.llm_utils.parse_llm_response`, which it never did —
+        that function has no caller in the production path at all, so the
+        merge repair it carries could not fire. Numbering, stray break markers
+        and wrapped lines are handled by
+        :func:`translation.llm_utils.repair_line_mapping` in
+        ``LLMBackend._attempt``, where every LLM backend passes through.
         """
         mode = raw.pop("_mode", "generate")
         if mode == "chat":
@@ -371,12 +376,12 @@ class OllamaBackend(LLMBackend):
             text = text[text.lower().rfind("</think>") + len("</think>") :]
         text = text.strip()
 
-        # LLMBackend._verify_line_count handles length validation and retry.
-        # Split on newlines and strip the V8-style "N: " / "N. " numbering
-        # the fine-tuned model emits.
-        raw_lines = [ln for ln in text.split("\n") if ln.strip()]
-        cleaned = [re.sub(r"^\d+[\.:]\s*", "", ln) for ln in raw_lines]
-        translations = cleaned or [text]
+        # Splitting is all this hook does. Numbering, stray break markers and
+        # wrapped lines are repaired by ``llm_utils.repair_line_mapping`` in
+        # LLMBackend._attempt, so every LLM backend gets the same treatment —
+        # ChatGPT and Claude never had any. Length validation and the retry
+        # stay with LLMBackend._verify_line_count.
+        translations = text.split("\n") or [text]
 
         tokens_in = int(raw.get("prompt_eval_count") or 0)
         tokens_out = int(raw.get("eval_count") or 0)

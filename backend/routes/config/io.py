@@ -125,7 +125,7 @@ def import_config():
         400:
           description: No config data provided
     """
-    from config import Settings, reload_settings
+    from config import reload_settings
     from db.config import get_all_config_entries, save_config_entry
     from security_utils import validate_service_url
     from services.wanted_scanner import invalidate_scanner
@@ -137,7 +137,9 @@ def import_config():
     if not data:
         return jsonify({"error": "No config data provided"}), 400
 
-    valid_keys = set(Settings.model_fields.keys()) if hasattr(Settings, "model_fields") else set()
+    from routes.config.keys import writable_config_keys
+
+    valid_keys = writable_config_keys()
     secret_keys = _secret_import_keys()
 
     # Fail-closed: if valid_keys cannot be determined, reject the import entirely

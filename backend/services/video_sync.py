@@ -376,19 +376,21 @@ def install_engine(engine: str) -> dict:
 
 
 def _make_backup(file_path: str) -> str:
-    """Copy file_path into the hidden .sublarr/backups/ dir; return the path.
+    """Return the single-slot bak for ``file_path``, creating it if absent.
 
     Backups live in ``<dir>/.sublarr/backups/<base>.bak<ext>`` rather than
     beside the active sub, so media servers don't read ``.bak`` as a Bashkir
     subtitle track and the retention/cleanup/UI tooling can manage them.
-    See ``subtitle_filename.bak_path_for``.
-    """
-    from subtitle_filename import bak_path_for
 
-    backup = bak_path_for(file_path)
-    os.makedirs(os.path.dirname(backup), exist_ok=True)
-    shutil.copy2(file_path, backup)
-    return backup
+    Delegates to ``subtitle_restore.create_or_get_bak``: an existing bak is
+    the undo point of the *original* text and is returned untouched — the
+    unconditional ``shutil.copy2`` this used to do both destroyed that undo
+    point on every sync run and raised EPERM on bak files created under an
+    older PUID (53 auto_sync items stuck for weeks, 2026-08).
+    """
+    from services.subtitle_restore import create_or_get_bak
+
+    return create_or_get_bak(file_path)
 
 
 def _safe_remove(path: str) -> None:

@@ -215,7 +215,7 @@ def update_config():
         400:
           description: No config values provided
     """
-    from config import Settings, reload_settings
+    from config import reload_settings
     from db.config import get_all_config_entries, save_config_entry
     from services.wanted_scanner import invalidate_scanner
 
@@ -226,8 +226,13 @@ def update_config():
     if not data:
         return jsonify({"error": "No config values provided"}), 400
 
-    # Validate that keys exist in Settings
-    valid_keys = set(Settings.model_fields.keys()) if hasattr(Settings, "model_fields") else set()
+    # Validate that keys are ones this install knows. This used to read
+    # Settings.model_fields — an attribute the composite Settings class does
+    # not have — so the guarded expression yielded an empty set on every call
+    # and the `not valid_keys` branch below accepted any key name at all.
+    from routes.config.keys import writable_config_keys
+
+    valid_keys = writable_config_keys()
     saved_keys = []
 
     _ENUM_FIELDS = {
@@ -276,15 +281,20 @@ def update_config():
             ), 400
         # Allow known config keys OR namespaced extension keys (dot-notation, e.g. translation.context_window_size)
         is_extension_key = "." in key
-        if not valid_keys or key in valid_keys or is_extension_key:
-            # Sanitize credentials: strip whitespace from API keys and passwords
-            sanitized_value = (
-                str(value).strip()
-                if isinstance(value, str) or "api_key" in key.lower() or "password" in key.lower()
-                else str(value)
-            )
-            save_config_entry(key, sanitized_value)
-            saved_keys.append(key)
+        if not (key in valid_keys or is_extension_key):
+            # Answer instead of silently storing it. A misspelled key used to
+            # report success and then do nothing, which is unfindable from the
+            # outside — and it let this endpoint write keys it has no business
+            # writing, ui_password_hash among them.
+            return jsonify({"error": f"Unknown config key: {key}"}), 400
+        # Sanitize credentials: strip whitespace from API keys and passwords
+        sanitized_value = (
+            str(value).strip()
+            if isinstance(value, str) or "api_key" in key.lower() or "password" in key.lower()
+            else str(value)
+        )
+        save_config_entry(key, sanitized_value)
+        saved_keys.append(key)
 
     # Perf markers — measure each reconcile phase so a slow save (see the
     # ~12s-lag reports) self-diagnoses in the logs instead of guessing which

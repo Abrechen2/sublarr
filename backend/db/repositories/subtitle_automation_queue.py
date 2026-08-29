@@ -22,7 +22,7 @@ The drain worker uses this repo to:
 
 from __future__ import annotations
 
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 
 from sqlalchemy import case, func, or_, select
 
@@ -294,6 +294,47 @@ class SubtitleAutomationQueueRepository(BaseRepository):
             .filter(
                 SubtitleAutomationQueueEntry.task_type.in_(sorted(task_types)),
                 SubtitleAutomationQueueEntry.state.in_(("pending", "failed")),
+            )
+            .delete(synchronize_session=False)
+        )
+        self._commit()
+        return int(removed or 0)
+
+    def purge_finished(
+        self,
+        *,
+        done_retention_days: int = 7,
+        failed_retention_days: int = 30,
+    ) -> int:
+        """Delete finished rows past their retention window.
+
+        The queue had no retention at all: on 2026-08-27 prod carried 5429
+        ``done`` rows (3179 of them for long-deleted wanted items) and
+        hundreds of terminal failures back to June. The queue is a work
+        list, not an audit log (see ``discard_waiting``).
+
+        Goes: ``done`` older than ``done_retention_days``, and ``failed``
+        rows that are *terminal* (``next_retry_at IS NULL``) older than
+        ``failed_retention_days`` — the longer window keeps them visible
+        for diagnosis. Stays: everything ``pending``/``running``, and every
+        ``failed`` row still on the backoff ladder — that is pending work,
+        however old.
+
+        Returns the number of rows removed.
+        """
+        now = self._now()
+        done_cutoff = now - timedelta(days=done_retention_days)
+        failed_cutoff = now - timedelta(days=failed_retention_days)
+        removed = (
+            self.session.query(SubtitleAutomationQueueEntry)
+            .filter(
+                or_(
+                    (SubtitleAutomationQueueEntry.state == "done")
+                    & (SubtitleAutomationQueueEntry.updated_at < done_cutoff),
+                    (SubtitleAutomationQueueEntry.state == "failed")
+                    & (SubtitleAutomationQueueEntry.next_retry_at.is_(None))
+                    & (SubtitleAutomationQueueEntry.updated_at < failed_cutoff),
+                )
             )
             .delete(synchronize_session=False)
         )
