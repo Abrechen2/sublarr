@@ -8,7 +8,7 @@
 
 *arr-compatible · Self-hosted · Open Source · Anime-first scoring
 
-[![Version](https://img.shields.io/badge/version-1.6.5-teal.svg)](https://github.com/Abrechen2/sublarr/releases)
+[![Version](https://img.shields.io/badge/version-1.13.4-teal.svg)](https://github.com/Abrechen2/sublarr/releases)
 [![License: GPL-3.0](https://img.shields.io/badge/License-GPL--3.0-blue.svg)](LICENSE)
 [![Python 3.12+](https://img.shields.io/badge/Python-3.12+-3776ab.svg)](https://www.python.org/)
 [![React 19](https://img.shields.io/badge/React-19-61dafb.svg)](https://react.dev/)
@@ -16,7 +16,7 @@
 
 ---
 
-**[Quick Start](#-quick-start)** · **[Configuration](#️-configuration)** · **[Integrations](#-integrations)** · **[Website](https://sublarr.de)** · **[Docs](https://sublarr.de/docs/)**
+**[Is it for you?](#-is-sublarr-for-you)** · **[Quick Start](#-quick-start)** · **[Configuration](#️-configuration)** · **[Limitations](#️-known-limitations)** · **[Integrations](#-integrations)** · **[Website](https://sublarr.de)** · **[Docs](https://sublarr.de/docs/)**
 
 **Community:** [Discord](https://discord.gg/WjatsKzHXz) · [Reddit r/Sublarr](https://www.reddit.com/r/Sublarr/) · [GitHub Issues](https://github.com/Abrechen2/sublarr/issues)
 
@@ -30,6 +30,27 @@ It follows the *arr-suite design philosophy: connect it to Sonarr/Radarr, set up
 
 > [!NOTE]
 > **V1.0 — stable core.** The subtitle search, scoring, download and *arr-integration paths are stable. **LLM translation remains experimental** (see below). Always keep backups of your subtitle files before enabling automation, and read the [CHANGELOG](CHANGELOG.md) before upgrading. Solo-maintained project — bug reports and contributions welcome.
+
+---
+
+## 🤔 Is Sublarr for you?
+
+Honest answer first, because your time is worth more than our install count.
+
+**You probably don't need Sublarr if:**
+
+- Your library is English-only live-action and [Bazarr](https://github.com/morpheus65535/bazarr) already keeps it covered. Bazarr is mature, well-staffed and does that job well — swapping a working setup for a younger tool buys you very little.
+- You never touch anime. Absolute episode numbering, AniDB resolution, ASS/signs handling and dubtitle detection are where most of Sublarr's engineering went; without anime you are paying for machinery you won't use.
+- You want subtitles fetched once and never thought about again. Sublarr rewards being tuned — profiles, scoring, automation rules. Set-and-forget works, but a simpler tool would too.
+- You need real multi-user access control today. Sublarr has one shared password, not accounts (see [Known limitations](#️-known-limitations)).
+
+**Sublarr's value compounds if:**
+
+- You run anime, especially releases with absolute ordering, signs/songs tracks, or several English subtitle tracks per file where picking the wrong one desyncs what you read from what you hear.
+- You care about the *format*, not just the presence, of a subtitle — ASS with styling preserved rather than a flattened SRT.
+- You maintain more than one language and want per-language rules rather than one global setting.
+- No subtitle exists at all for what you want, and you'd rather have a machine translation you can inspect than nothing.
+- You want to know *why* a particular file was chosen, and to change the answer.
 
 ---
 
@@ -111,6 +132,22 @@ If you want to try it, see the [translation docs](https://sublarr.de/docs/user-g
 - Real-time updates via WebSocket (activity feed, job progress)
 - Onboarding wizard for first-time setup (language, automation, connections)
 - Keyboard shortcuts throughout (`?` to view all)
+
+---
+
+## ⚠️ Known limitations
+
+Current as of **1.13.4**. These are real constraints, not roadmap teasers — worth reading before you install rather than after.
+
+- **LLM translation is experimental and off by default.** Quality varies sharply by backend, model and language pair. Cloud backends (DeepL, Claude, Gemini) are the reliable end; local Ollama models are usable but need tuning. Never point it at a library you have no backup of.
+- **One shared password, no user accounts.** Sublarr's UI auth is a single password — no usernames, no roles, no per-user audit trail. For genuine multi-user setups, put it behind a reverse proxy with forward-auth; Sublarr reads proxy auth headers natively (Authelia / authentik, `proxy_auth_enabled`).
+- **One instance per library.** The scheduler assumes a single primary. Extra replicas must run with `SUBLARR_SCHEDULER_ROLE=disabled` or every recurring job fires twice. There is no worker pool and no multi-host distribution.
+- **No auto-update, by design.** The UI tells you when a newer release exists; you run the upgrade. Read the [CHANGELOG](CHANGELOG.md) first — this project moves quickly.
+- **Docker is the supported path.** Running from source works and is documented for development, but bare-metal installation is not a path we test or support.
+- **Provider coverage depends on your accounts.** Of the 21 providers, several need credentials or an API key. With no keys configured you are effectively running a much smaller subset.
+- **Anime-first defaults.** ASS gets a large scoring bonus over SRT. That is deliberate and correct for anime; on an English live-action library it mostly means the scoring has less to say.
+- **Solo-maintained.** One person builds, tests and answers issues here. Bug reports get read; response time varies with real life.
+- **The docs are written by hand and can drift.** If [the documentation](https://sublarr.de/docs/) and the running app disagree, trust the app — and please [open an issue](https://github.com/Abrechen2/sublarr/issues).
 
 ---
 
