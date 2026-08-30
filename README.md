@@ -9,6 +9,9 @@
 *arr-compatible · Self-hosted · Open Source · Anime-first scoring
 
 [![Version](https://img.shields.io/badge/version-1.13.4-teal.svg)](https://github.com/Abrechen2/sublarr/releases)
+[![CI](https://github.com/Abrechen2/sublarr/actions/workflows/ci.yml/badge.svg?branch=master)](https://github.com/Abrechen2/sublarr/actions/workflows/ci.yml)
+[![tests](https://img.shields.io/badge/tests-8126_passing-22d3ee.svg)](#-development)
+[![security](https://img.shields.io/badge/ruff_%2B_bandit_%2B_pip--audit_%2B_Semgrep_%2B_Trivy_%2B_CodeQL-22c55e.svg)](#-security)
 [![License: GPL-3.0](https://img.shields.io/badge/License-GPL--3.0-blue.svg)](LICENSE)
 [![Python 3.12+](https://img.shields.io/badge/Python-3.12+-3776ab.svg)](https://www.python.org/)
 [![React 19](https://img.shields.io/badge/React-19-61dafb.svg)](https://react.dev/)
@@ -457,6 +460,51 @@ Every Sublarr instance ships its own interactive API reference:
 
 ---
 
+## 🔒 Security
+
+What runs on every push to `master`, and — the part that matters — which of it
+can actually turn the build red.
+
+**Blocks the build:**
+
+| Check | Scope |
+|---|---|
+| `ruff check` + `ruff format --check` | the entire `backend/` tree |
+| `pip-audit` | `requirements.txt`, not the ambient environment |
+| `bandit` | HIGH severity at HIGH confidence, config in [`backend/.bandit`](backend/.bandit) |
+| `npm audit --omit=dev` | production dependencies at `--audit-level=high` |
+| Custom lint gates | `is_safe_path()` argument order, UI-first config convention, no `routes` imports inside `services` |
+| Test suite | 8,126 tests |
+
+**Reports into the [Security tab](https://github.com/Abrechen2/sublarr/security/code-scanning), does not block:**
+
+Semgrep, Trivy (filesystem + Dockerfile), CodeQL (Python and TypeScript, plus a
+weekly scheduled run), bandit findings below the gate, and `npm audit` over the
+dev tree. These are new gates; promoting a scanner to blocking before its
+baseline has been triaged only teaches you to click past a red check.
+
+**One documented exception:** `PYSEC-2026-3447` (setuptools) is ignored on
+purpose. It affects building an sdist with `MANIFEST.in` exclude directives,
+which Sublarr never does, and the fix is out of reach because `requirements.txt`
+pins `setuptools<81` to keep ffsubsync's webrtcvad fallback working. The ignore
+is written down in `ci.yml` with that reasoning, not hidden in a config.
+
+**Two things this section used to get wrong**, fixed 2026-08-30 and worth naming
+because "we run security scans" is easy to claim and easy to get wrong:
+
+- Every step in the security job carried `continue-on-error: true`. The check
+  was mandatory in branch protection and *could not fail*. A green tick that
+  means nothing is worse than no tick.
+- CI invoked `bandit -c .bandit` — the YAML flag against an INI file. Bandit
+  errored out parsing it and never ran at all, and `continue-on-error` hid that.
+  There were also two bandit configs disagreeing with each other; there is now
+  one.
+
+Deeper material: [`PENTEST_FINDINGS.md`](PENTEST_FINDINGS.md), and the security
+architecture notes in [`CONTRIBUTING.md`](CONTRIBUTING.md).
+
+---
+
 ## 🤖 How AI was used in this project
 
 Honest answer, since it comes up: yes, AI was used as a coding assistant
@@ -466,8 +514,8 @@ about where it helped and where it didn't, so you can judge for yourself.
 **Where AI helped:**
 - Boilerplate and scaffolding — route handlers, repository classes,
   TypeScript types, config plumbing
-- Test generation — the bulk of the ~5000-test suite was AI-drafted, then
-  reviewed and corrected by hand
+- Test generation — the bulk of the 8,126-test suite (6,819 backend, 1,307
+  frontend) was AI-drafted, then reviewed and corrected by hand
 - Refactoring at scale — the route/service file splits, inline-style →
   Tailwind migration, and the i18n pass were AI-assisted sweeps
 - Documentation — README, changelog prose, and the docs site started as
