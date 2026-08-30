@@ -262,13 +262,16 @@ jobs:
       - uses: actions/checkout@v7
 
       - name: Trivy filesystem scan
-        uses: aquasecurity/trivy-action@0.33.1
+        uses: aquasecurity/trivy-action@v0.36.0
         with:
           scan-type: fs
           scan-ref: .
           format: sarif
           output: trivy.sarif
           severity: CRITICAL,HIGH
+          # Without this the SARIF carries every severity regardless of the
+          # filter above, and the Security tab fills with LOW noise.
+          limit-severities-for-sarif: true
           skip-dirs: backend/venv,backend/providers/_vendor,frontend/node_modules
         continue-on-error: true
 
