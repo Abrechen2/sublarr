@@ -34,6 +34,13 @@ echo ""
 echo "🔧 Pre-commit Hooks Setup..."
 if command -v pre-commit &> /dev/null; then
     echo "  - Installing pre-commit hooks..."
+    # pre-commit refuses to install while core.hooksPath is set. It was set here to
+    # git's own default, which changes nothing but blocked installation silently for
+    # months -- so the repo had a pre-commit config that never ran, and CI caught
+    # formatting drift instead. Clear it only when it points at the default.
+    if [ "$(git config --get core.hooksPath || true)" = "$(git rev-parse --git-path hooks)" ]; then
+        git config --unset-all core.hooksPath
+    fi
     pre-commit install
     echo "  - ✅ Pre-commit hooks installed"
 else
@@ -63,13 +70,13 @@ echo
 if [[ $REPLY =~ ^[Yy]$ ]]; then
     echo ""
     echo "🧪 Running tests..."
-    
+
     # Backend tests
     echo "  - Backend tests..."
     cd backend
     pytest tests/ -v --tb=short || echo "  - ⚠️  Some backend tests failed"
     cd ..
-    
+
     # Frontend tests
     echo "  - Frontend tests..."
     cd frontend

@@ -1,6 +1,19 @@
 # Pre-commit hooks configuration for Sublarr
+#
 # Install: pip install pre-commit && pre-commit install
 # Run manually: pre-commit run --all-files
+# Run the slow set:  pre-commit run --hook-stage manual --all-files
+#
+# What runs on commit is deliberately only what CI BLOCKS on -- ruff, ruff-format
+# and the cheap file checks. mypy, vulture, bandit, isort, eslint and prettier are
+# `stages: [manual]`: CI either treats them as informational or covers them in a
+# separate job, so failing a commit on them would be stricter than the build and
+# the hook would just get bypassed.
+#
+# If `pre-commit install` refuses with "Cowardly refusing to install hooks with
+# core.hooksPath set", run `git config --unset-all core.hooksPath` first. That
+# setting pointed at git's own default here and silently blocked installation for
+# months, while scripts/setup-dev-quick.sh swallowed the error with `|| true`.
 
 repos:
   # General file checks
@@ -34,6 +47,7 @@ repos:
     rev: 5.13.2
     hooks:
       - id: isort
+        stages: [manual]
         args: [--profile=black, --line-length=100]
 
   # Python: mypy (type checking, optional - can be slow)
@@ -41,6 +55,7 @@ repos:
     rev: v1.11.2
     hooks:
       - id: mypy
+        stages: [manual]
         additional_dependencies: [types-requests, types-PyYAML]
         args: [--ignore-missing-imports, --no-strict-optional]
         exclude: ^(tests/|migrations/)
@@ -50,49 +65,45 @@ repos:
     rev: v2.10
     hooks:
       - id: vulture
-        args: [--min-confidence, 80]
+        stages: [manual]
+        args: [--min-confidence, "80"]
         additional_dependencies: [toml]
 
   # Python: bandit (security scanning, optional - can be slow)
+  # Scope and suppressions come from backend/.bandit — the SAME config CI uses.
+  # Do not reintroduce a second config file here; the previous bandit.yml
+  # disagreed with backend/.bandit and CI passed `-c` (YAML) at an INI file,
+  # so bandit failed to parse and never actually ran.
   - repo: https://github.com/PyCQA/bandit
     rev: 1.7.5
     hooks:
       - id: bandit
-        args: [-c, bandit.yml, -r, .]
-        exclude: ^(tests/|venv/|env/)
+        stages: [manual]
+        args: [-r, backend, --ini, backend/.bandit]
         pass_filenames: false
         always_run: false  # Only run manually or in CI
 
-  # Frontend: ESLint
-  - repo: https://github.com/pre-commit/mirrors-eslint
-    rev: v9.15.0
-    hooks:
-      - id: eslint
-        types: [file]
-        types_or: [js, jsx, ts, tsx]
-        additional_dependencies:
-          - eslint@9.39.1
-          - '@eslint/js@9.39.1'
-          - 'globals@16.5.0'
-          - 'eslint-plugin-react-hooks@7.0.1'
-          - 'eslint-plugin-react-refresh@0.4.24'
-          - 'typescript-eslint@8.48.0'
-        files: ^frontend/
-        args: [--fix]
-
-  # Frontend: Prettier
-  - repo: https://github.com/pre-commit/mirrors-prettier
-    rev: v4.0.0-alpha.8
-    hooks:
-      - id: prettier
-        types_or: [file]
-        types: [css, javascript, jsx, ts, tsx, json, markdown, yaml, yml]
-        files: ^frontend/
-        exclude: ^frontend/(dist|node_modules|coverage)/
+  # Frontend: no hooks here on purpose.
+  #
+  # There used to be eslint and prettier entries. Neither had ever run: the
+  # eslint hook declared `types_or: [js, ...]` and `js` is not a valid identify
+  # tag (it is `javascript`), and prettier had `types` and `types_or` swapped.
+  # Both errors abort the WHOLE config with InvalidConfigError, so every hook in
+  # this file was dead, not just those two. mirrors-prettier is also archived
+  # upstream and was pinned at v4.0.0-alpha.8.
+  #
+  # CI's "Frontend (Node 24)" job already runs `npm run lint` and `npx tsc -b`
+  # against the real project config. Duplicating that here with a second, drifting
+  # eslint version bought nothing. Run `cd frontend && npm run lint` locally.
 
 # Default configuration
+# Must match what the project actually runs: the Dockerfile and CI both use
+# Python 3.12. This said python3.11, which does not exist on a current dev box,
+# so every hook environment failed to build with "failed to find interpreter".
+# (ruff's target-version=py311 is a separate thing: the syntax level it targets,
+# not the interpreter that runs the hook.)
 default_language_version:
-  python: python3.11
+  python: python3.12
   node: 20.18.0
 
 # Fail fast - stop on first failure
