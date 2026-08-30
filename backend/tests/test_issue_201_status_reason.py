@@ -148,8 +148,15 @@ class TestPayloadCarriesTheReason:
 
     @pytest.mark.parametrize(
         "reason",
-        ["ok", "auto_disabled", "circuit_open", "consecutive_failures", "no_results",
-         "no_credentials", "not_initialized"],
+        [
+            "ok",
+            "auto_disabled",
+            "circuit_open",
+            "consecutive_failures",
+            "no_results",
+            "no_credentials",
+            "not_initialized",
+        ],
     )
     def test_every_reason_is_declared_for_the_frontend(self, reason):
         """Guards the trap that has cost us twice: a new backend enum value

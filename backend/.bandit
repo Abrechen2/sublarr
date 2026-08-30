@@ -1,12 +1,28 @@
 [bandit]
-# Confirmed false positives — do not suppress real issues here
-skips =
-    # B104: Binding to 0.0.0.0 — expected for Docker container
-    B104,
-    # B608: SQL injection via f-string — all flagged queries use ? placeholders correctly
-    # (library.py, bazarr_migrator.py, database_health.py — parameterized, not user-interpolated)
-    B608,
-    # B108: Insecure temp dir — hooks.py uses cwd="/tmp" for subprocess, no mktemp()
-    B108,
-    # B314: XML from trusted subtitle provider APIs (AniDB, Podnapisi) — acceptable risk
-    B314
+# Single source of truth for bandit's scope and suppressions.
+# Used identically by CI (.github/workflows/ci.yml), by pre-commit, and by a
+# local `bandit -r . --ini .bandit`. Do not add a second config — a bandit.yml
+# used to sit next to this file with different rules, and the two silently
+# disagreed for months while CI passed the wrong flag and bandit never ran.
+#
+# Comments must stay OUTSIDE the values below: bandit parses each line of a
+# multi-line ini value as a test id, so an inline comment becomes an
+# "Unknown test found in profile" warning and the skip is lost.
+#
+# exclude — not ours to fix, or intentionally full of patterns bandit flags:
+#   venv, env         third-party installs, not shipped source
+#   tests             asserts, fixtures, deliberately malformed inputs
+#   providers/_vendor vendored subliminal; upstream's xmlrpc and md5 choices
+exclude = ./venv,./env,./tests,./providers/_vendor,./__pycache__,./node_modules
+
+# skips — confirmed false positives. Do not suppress real issues here.
+#   B104  binding to 0.0.0.0 — expected inside a Docker container
+#   B608  SQL injection via f-string — the flagged queries use ? placeholders
+#         (library.py, bazarr_migrator.py, database_health.py): parameterised,
+#         never user-interpolated
+#   B108  insecure temp dir — hooks.py passes cwd="/tmp" to subprocess, no mktemp()
+#   B314  XML from trusted subtitle provider APIs (AniDB, Podnapisi) — accepted risk
+#   B613  bidirectional control characters — flagged inside the very checker that
+#         exists to DETECT them (services/subtitle_health/checkers/unicode_*.py);
+#         the characters are its test corpus, not a trojan-source attack
+skips = B104,B608,B108,B314,B613

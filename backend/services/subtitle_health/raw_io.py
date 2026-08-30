@@ -31,7 +31,7 @@ _TEXT_CODECS = frozenset(_COPY_EXT)
 
 
 def md5_bytes(data: bytes) -> str:
-    return hashlib.md5(data).hexdigest()
+    return hashlib.md5(data, usedforsecurity=False).hexdigest()
 
 
 def is_text_codec(codec: str) -> bool:

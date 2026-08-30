@@ -1,0 +1,61 @@
+name: CodeQL
+
+# Deliberately its own workflow, not a job in ci.yml: branch protection
+# requires the three CI job names verbatim ("Security Scan", "Backend
+# (Python 3.12)", "Frontend (Node 24)"), and adding a fourth required check
+# by accident would block every push until it is configured.
+#
+# CodeQL reports into the Security tab. It does not gate a push — a scanner
+# that has never had its baseline triaged makes a red check people learn to
+# click past.
+
+on:
+  push:
+    branches: [master]
+  pull_request:
+    branches: [master]
+  schedule:
+    # Mondays 05:17 UTC — catches newly published queries against unchanged
+    # code, which is most of what CodeQL is actually good for.
+    - cron: '17 5 * * 1'
+
+concurrency:
+  group: codeql-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  analyze:
+    name: Analyze (${{ matrix.language }})
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    permissions:
+      contents: read
+      security-events: write
+    strategy:
+      fail-fast: false
+      matrix:
+        language: ['python', 'javascript-typescript']
+
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Initialize CodeQL
+        uses: github/codeql-action/init@v3
+        with:
+          language: ${{ matrix.language }}
+          queries: security-and-quality
+          config: |
+            paths-ignore:
+              - backend/venv
+              - backend/providers/_vendor
+              - frontend/node_modules
+              - frontend/dist
+              - '**/__pycache__'
+
+      - name: Autobuild
+        uses: github/codeql-action/autobuild@v3
+
+      - name: Perform CodeQL analysis
+        uses: github/codeql-action/analyze@v3
+        with:
+          category: /language:${{ matrix.language }}

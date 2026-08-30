@@ -33,7 +33,9 @@ def upgrade() -> None:
         return
     existing = {c["name"] for c in inspector.get_columns("provider_stats")}
     if "last_failure_kind" not in existing:
-        op.add_column("provider_stats", sa.Column("last_failure_kind", sa.String(16), nullable=True))
+        op.add_column(
+            "provider_stats", sa.Column("last_failure_kind", sa.String(16), nullable=True)
+        )
 
 
 def downgrade() -> None:
