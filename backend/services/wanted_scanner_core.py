@@ -174,9 +174,7 @@ class WantedScanner(_WantedSchedulerMixin, _WantedScanSourcesMixin):
                 # Same rule for a source that FAILED instead of being skipped:
                 # its items are all absent from scanned_paths through no fault
                 # of their own.
-                logger.warning(
-                    "Wanted scan: a source errored — skipping cleanup, nothing pruned"
-                )
+                logger.warning("Wanted scan: a source errored — skipping cleanup, nothing pruned")
                 removed = 0
             else:
                 removed = self._cleanup(scanned_paths if not is_incremental else set())

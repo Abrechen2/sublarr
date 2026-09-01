@@ -52,9 +52,7 @@ def _translate_with_manager(lines, source_lang, target_lang, arr_context=None, s
     _src_norm = normalize_language_code(source_lang or "")
     _tgt_norm = normalize_language_code(target_lang or "")
     if _src_norm and _src_norm == _tgt_norm:
-        raise ValueError(
-            f"refusing same-language translation ({source_lang} → {target_lang})"
-        )
+        raise ValueError(f"refusing same-language translation ({source_lang} → {target_lang})")
 
     _backend_name, fallback_chain = _resolve_backend_for_context(arr_context, target_lang)
 
