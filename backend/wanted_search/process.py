@@ -32,6 +32,21 @@ from wanted_search.post_processor import (
 logger = logging.getLogger(__name__)
 
 
+def _source_equals_target(item_lang: str | None, settings) -> bool:
+    """True when the item's target language IS the configured source language.
+
+    The source-download-and-translate steps (2 and 4) exist to bridge a
+    language gap; when there is no gap they would download a subtitle in the
+    target language and push it through the LLM as a "translation" onto
+    itself.
+    """
+    from config_language_data import normalize_language_code
+
+    source = normalize_language_code(getattr(settings, "source_language", "") or "")
+    target = normalize_language_code(item_lang or "")
+    return bool(source) and source == target
+
+
 # ---------------------------------------------------------------------------
 # Pre-flight checks
 # ---------------------------------------------------------------------------
@@ -383,6 +398,20 @@ def _try_source_ass_translation(ctx: dict) -> dict | None:
     _pf = ctx["_pf"]
     file_path = ctx["file_path"]
 
+    if _source_equals_target(item_lang, settings):
+        # Translating en→en is not a fallback, it is an LLM round-trip that
+        # mangles a perfectly good subtitle (prod 2026-08-30: 1326 same-language
+        # events, 1221 poisoned translation-memory rows). Step 1 already
+        # searched this language directly; there is nothing left to translate
+        # from.
+        logger.info(
+            "Wanted %d: skipping source-ASS translation — target language (%s) "
+            "is the source language",
+            item_id,
+            item_lang,
+        )
+        return None
+
     source_query = ctx["source_query"]
     decision_log.set_step("source_ass_translation")
     try:
@@ -446,6 +475,7 @@ def _try_source_ass_translation(ctx: dict) -> dict | None:
                 target_language=item_lang,
                 target_language_name=settings.target_language_name,
                 arr_context=arr_context if arr_context else None,
+                source_language=settings.source_language,
             )
         except Exception as trans_error:
             logger.error(
@@ -649,6 +679,17 @@ def _try_source_srt_translation(ctx: dict) -> dict | None:
     manager = ctx["manager"]
     _pf = ctx["_pf"]
     file_path = ctx["file_path"]
+
+    if _source_equals_target(item_lang, settings):
+        # Same rationale as Step 2 — see _try_source_ass_translation.
+        logger.info(
+            "Wanted %d: skipping source-SRT translation — target language (%s) "
+            "is the source language",
+            item_id,
+            item_lang,
+        )
+        return None
+
     source_query = ctx.get("source_query")
     if source_query is None:
         source_query = build_query_from_wanted(item)
@@ -714,6 +755,7 @@ def _try_source_srt_translation(ctx: dict) -> dict | None:
                 source="provider_source_srt",
                 target_language=item_lang,
                 arr_context=arr_context if arr_context else None,
+                source_language=settings.source_language,
             )
         except Exception as trans_error:
             logger.error(

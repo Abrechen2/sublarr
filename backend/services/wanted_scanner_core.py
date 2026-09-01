@@ -58,6 +58,7 @@ class WantedScanner(_WantedSchedulerMixin, _WantedScanSourcesMixin):
         self._last_summary = {}
         self._last_scan_timestamp = None
         self._scan_count = 0
+        self._scan_had_errors = False
         self._cancel_event = threading.Event()
 
     # ─── Properties ──────────────────────────────────────────────────────
@@ -106,6 +107,11 @@ class WantedScanner(_WantedSchedulerMixin, _WantedScanSourcesMixin):
         added = 0
         updated = 0
         scanned_paths = set()
+        # Set by the source mixins when a Sonarr/Radarr sweep raises. A failed
+        # source contributes no paths, so pruning this pass would delete that
+        # source's entire wanted queue (prod 2026-08-30, boot scan vs. an
+        # unready Postgres: 9 369 → 154 items).
+        self._scan_had_errors = False
 
         is_incremental = (
             incremental
@@ -164,6 +170,14 @@ class WantedScanner(_WantedSchedulerMixin, _WantedScanSourcesMixin):
                     updated,
                 )
                 removed = 0
+            elif self._scan_had_errors:
+                # Same rule for a source that FAILED instead of being skipped:
+                # its items are all absent from scanned_paths through no fault
+                # of their own.
+                logger.warning(
+                    "Wanted scan: a source errored — skipping cleanup, nothing pruned"
+                )
+                removed = 0
             else:
                 removed = self._cleanup(scanned_paths if not is_incremental else set())
 
@@ -182,11 +196,12 @@ class WantedScanner(_WantedSchedulerMixin, _WantedScanSourcesMixin):
             }
 
             self._last_scan_at = datetime.now(UTC)
-            if not aborted:
+            if not aborted and not self._scan_had_errors:
                 # The watermark must not move past sources that were never
-                # looked at: the next incremental pass would ask them for
-                # changes "since" a moment it never covered, and their edits in
-                # that window would be lost for good.
+                # looked at — whether skipped by a stop request or lost to an
+                # error: the next incremental pass would ask them for changes
+                # "since" a moment it never covered, and their edits in that
+                # window would be lost for good.
                 self._last_scan_timestamp = datetime.now(UTC)
                 self._scan_count += 1
             self._last_summary = summary

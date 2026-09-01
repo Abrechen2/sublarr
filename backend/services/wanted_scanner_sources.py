@@ -80,6 +80,11 @@ class _WantedScanSourcesMixin:
                     all_paths.update(paths)
         except Exception as e:
             logger.error("Wanted scan: Sonarr error: %s", e)
+            # A failed source contributes no paths — pruning against this pass
+            # would delete that source's entire wanted queue (prod 2026-08-30:
+            # a boot-time scan raced an unready Postgres and 9,2k items were
+            # wiped). The flag makes the cleanup step below skip this pass.
+            self._scan_had_errors = True
 
         return total_added, total_updated, all_paths
 
@@ -163,6 +168,8 @@ class _WantedScanSourcesMixin:
                     all_paths.update(paths)
         except Exception as e:
             logger.error("Wanted scan: Radarr error: %s", e)
+            # See the Sonarr twin above — never prune against a failed source.
+            self._scan_had_errors = True
 
         return total_added, total_updated, all_paths
 

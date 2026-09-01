@@ -202,8 +202,15 @@ def translate_file(
     emb_src = emb_lang or pref_source  # translation direction
     # In strict single-source mode, only use an embedded stream that IS the
     # preferred source (or has no language tag); in any-source mode accept it
-    # in whatever language it is.
-    emb_ok = best_stream is not None and (any_source or not emb_lang or emb_lang == pref_source)
+    # in whatever language it is. Never accept a stream whose (assumed)
+    # language IS the target: "translating" it would push a same-language
+    # file through the LLM — extraction is the right operation for that
+    # stream, and C2b/C3 below still get their chance at a real source.
+    emb_ok = (
+        best_stream is not None
+        and (any_source or not emb_lang or emb_lang == pref_source)
+        and normalize_language_code(emb_src) != normalize_language_code(tgt_lang)
+    )
     if best_stream and best_stream["format"] == "ass" and emb_ok:
         logger.info("Case C1: Translating source ASS (%s) to target ASS", emb_src)
         result = translate_ass(

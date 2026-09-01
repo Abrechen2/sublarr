@@ -41,7 +41,21 @@ def _translate_with_manager(lines, source_lang, target_lang, arr_context=None, s
 
     Raises:
         RuntimeError: If all backends in the fallback chain fail
+        ValueError: If source and target language are the same — a
+            same-language "translation" is an LLM round-trip that degrades
+            the subtitle and poisons the translation memory (prod
+            2026-08-30). Callers must not request it; raising loudly here
+            makes any future caller bug visible instead of destructive.
     """
+    from config_language_data import normalize_language_code
+
+    _src_norm = normalize_language_code(source_lang or "")
+    _tgt_norm = normalize_language_code(target_lang or "")
+    if _src_norm and _src_norm == _tgt_norm:
+        raise ValueError(
+            f"refusing same-language translation ({source_lang} → {target_lang})"
+        )
+
     _backend_name, fallback_chain = _resolve_backend_for_context(arr_context, target_lang)
 
     glossary_entries = _load_glossary_entries(series_id)
