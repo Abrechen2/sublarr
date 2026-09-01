@@ -33,6 +33,25 @@ adapted to Sublarr's media-locality (the library is local to Cardinal).
 - `:beta` is amd64-only for fast, frequent on-demand builds; RC and final tags stay
   multi-arch (amd64 + arm64) for Raspberry Pi / Apple-Silicon self-hosters.
 
+## Release gate — before `/release` promotes anything
+
+Check these in order. Any "no" blocks the promotion, not the next RC.
+
+1. **Data-changing migrations are declared.** Every migration in this release
+   that deletes or rewrites rows appears in the version's **Upgrade notes** by
+   revision id, with "back up your database before upgrading" above it.
+   Schema-only migrations just get a line. Deriving this from the changelog
+   prose does not count — the operator reads the notes to decide whether to
+   back up.
+2. **Each cleanup migration's writer is closed.** If a migration removes bad
+   data, the code that produced it is fixed in the same release. Otherwise the
+   next run recreates it and the migration silently becomes permanent.
+3. **The RC ran under real load long enough to be believed.** For releases
+   carrying data-path changes that means a multi-day watch on a full library,
+   not a smoke test — see `~/SUBLARR-WATCH.md` on CT142 for the running one.
+4. **The watch is green on its own terms**, i.e. `sublarr-findings.log` has no
+   unresolved `ERNST` line. Health endpoints being up is not the same thing.
+
 ## RC prod-data mirror
 
 Each RC round re-clones prod's Postgres into RC so the RC validates against real state:
