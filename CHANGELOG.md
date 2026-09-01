@@ -5,35 +5,6 @@ All notable changes to Sublarr are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
-
-### Fixed
-- **Same-language "translation" can no longer happen — anywhere.** On an
-  install whose source language is English, a wanted item whose *target* is
-  also English could reach the machine-translation fallback: Steps 2/4 of the
-  wanted search downloaded an English "source" subtitle and pushed it through
-  the LLM as an en→en translation, and the embedded path did the same when a
-  stream carried no language tag and the target equalled the assumed source.
-  The model, asked to do something senseless, answered with German under an
-  `.en` label (prod 2026-08-30/31: two subtitle files corrupted, 1 326
-  same-language translation events, 1 221 poisoned translation-memory rows —
-  the exact defect class 1.14.0's `tm2_drop_same_lang` migration cleans up
-  after). Three layers now prevent it: Steps 2/4 skip outright when the
-  item's target IS the source language, `translate_file` never uses an
-  embedded stream in the target language as a translation source, and the
-  translation manager refuses any same-language request loudly so a future
-  caller bug surfaces as an error instead of corrupted output.
-
-- **A wanted scan whose source errored no longer prunes the wanted queue.**
-  The scan already refused to prune after a stop request, but a source that
-  *failed* — e.g. the boot-time scan racing a Postgres that is not accepting
-  connections yet — contributed an empty path set and the cleanup deleted
-  that source's entire queue against it (prod 2026-08-30: 9 369 wanted items
-  dropped to 154 in one pass, returned 35 hours later as brand-new rows with
-  reset search counts, and re-searched an 11k backlog against provider
-  quotas). A failed source now skips the prune and freezes the incremental
-  watermark, exactly like an aborted scan.
-
 ## [1.14.0] - 2026-08-28
 
 ### Added
@@ -117,6 +88,32 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   cannot tell from a server that is not there.
 
 ### Fixed
+- **Same-language "translation" can no longer happen — anywhere.** On an
+  install whose source language is English, a wanted item whose *target* is
+  also English could reach the machine-translation fallback: Steps 2/4 of the
+  wanted search downloaded an English "source" subtitle and pushed it through
+  the LLM as an en→en translation, and the embedded path did the same when a
+  stream carried no language tag and the target equalled the assumed source.
+  The model, asked to do something senseless, answered with German under an
+  `.en` label (two subtitle files corrupted, 1 326 same-language translation
+  events, 1 221 poisoned translation-memory rows — the exact defect class
+  this release's `tm2_drop_same_lang` migration cleans up after). Three
+  layers now prevent it: Steps 2/4 skip outright when the item's target IS
+  the source language, `translate_file` never uses an embedded stream in the
+  target language as a translation source, and the translation manager
+  refuses any same-language request loudly so a future caller bug surfaces
+  as an error instead of corrupted output. Found by the rc.3 long-term watch.
+
+- **A wanted scan whose source errored no longer prunes the wanted queue.**
+  The scan already refused to prune after a stop request, but a source that
+  *failed* — e.g. the boot-time scan racing a Postgres that is not accepting
+  connections yet — contributed an empty path set and the cleanup deleted
+  that source's entire queue against it (9 369 wanted items dropped to 154
+  in one pass, returned 35 hours later as brand-new rows with reset search
+  counts, and re-searched an 11k backlog against provider quotas). A failed
+  source now skips the prune and freezes the incremental watermark, exactly
+  like an aborted scan.
+
 - **Six bugs from a field report, all reproduced before being fixed.**
   Two Subliminal-wrapped providers failed *every* search because the vendored
   cache region was never configured — Sublarr does not run the command-line
