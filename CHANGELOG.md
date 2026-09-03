@@ -9,14 +9,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Upgrade notes
 
-**Back up your database before upgrading.** This release runs three
-migrations, and two of them change data rather than schema:
+**Back up your database before upgrading.** This release runs four
+migrations, and three of them change data rather than schema:
 
 | Revision | What it does |
 |---|---|
 | `tm2_drop_same_lang` | **Deletes rows.** Removes every `translation_memory` entry whose source and target language are equal — see the entry below for why they are damage, not cache. |
 | `i198_reset_counters` | **Zeroes the four provider rate counters.** Pre-reset values are preserved in `provider_stats_pre_i198`; download history and `contribution_share` are untouched and stay comparable across the upgrade. |
 | `i201_failure_kind` | Schema only — adds the classified failure column. |
+| `tm3_strip_soft` | **Rewrites rows.** Removes soft line breaks from `translation_memory` entries whose source line had no break of either spelling — the same rule `tm1_strip_breaks` applied to hard breaks in 1.13.4, which is where the gap came from. Measured on one production install before the fix: 0 invented hard breaks left, 459 invented soft ones, still accumulating daily. Irreversible: the original output is not kept anywhere. |
 
 Two things worth expecting rather than discovering:
 
@@ -116,6 +117,36 @@ notes close.
   cannot tell from a server that is not there.
 
 ### Fixed
+
+- **A translation may no longer invent a line break in the other spelling.**
+  The guard that removes breaks a source line never had only ever looked at
+  ASS's hard break. The models emit the soft one too, it passed unfiltered
+  into the translation memory, and every cache hit re-served it. On one
+  production install: zero invented hard breaks left, **459 invented soft ones
+  out of 254 196 entries** — and still accumulating daily while the release
+  candidate ran. Both spellings are now treated as what they are, one break;
+  a line whose source carries a break of either kind is left alone, including
+  one the model merely re-spelled. `tm3_strip_soft` repairs the entries that
+  were already written (see Upgrade notes).
+
+- **`GET /api/v1/wanted?page=0` no longer answers 500.** The offset was
+  computed as `(page - 1) * per_page` without clamping and reached Postgres as
+  `OFFSET -50`, which it refuses outright; `per_page=0` divided by zero one
+  line further down. Both are clamped now, the same way
+  `db/repositories/blacklist.py` has clamped since before the bug existed.
+  Worth knowing why it survived a green suite: the tests run on SQLite, and
+  SQLite accepts a negative OFFSET silently and returns rows. Only a Postgres
+  install ever saw it — and every Sublarr install that uses Postgres did.
+
+- **A region subtag can no longer smuggle a same-language request past the
+  backstop.** `en-US → en` was let through: the language table maps the
+  aliases it knows (`eng`, `pt-br`) and hands anything else back untouched, so
+  `en-us` never equalled `en`. The comparison now uses the primary subtag.
+  Deliberate consequence: a script conversion such as `zh-Hans → zh-Hant` is
+  refused as well, because it is not translation — it is an LLM round-trip on
+  one and the same language, which is precisely what this guard exists to
+  prevent.
+
 - **Same-language "translation" can no longer happen — anywhere.** On an
   install whose source language is English, a wanted item whose *target* is
   also English could reach the machine-translation fallback: Steps 2/4 of the
@@ -4049,5 +4080,3 @@ Use `scripts/check_datetime_migration.py --db /config/sublarr.db --mode before/a
 - **Config Export/Import** — Backup and restore application configuration
 - **Docker Multi-Arch** — Builds for linux/amd64 and linux/arm64
 - **Unraid Template** — Community Applications template for Unraid
-
-

@@ -77,6 +77,15 @@ class WantedRepository(BaseRepository, _WantedUpsertMixin, _WantedUpdatesMixin):
         preset_conditions: dict = None,
     ) -> dict:
         """Get paginated wanted items with optional filters, sorting, and text search."""
+        # Clamp before arithmetic. An unclamped page reached Postgres as
+        # OFFSET -50 and answered HTTP 500 on prod (2026-09-03,
+        # GET /api/v1/wanted?page=0); an unclamped per_page divides by zero in
+        # the total_pages line below. SQLite accepts a negative OFFSET
+        # silently, so the suite cannot see the first one — the clamped page
+        # this returns is what both engines can be held to.
+        # Same shape as db/repositories/blacklist.py.
+        page = max(1, page)
+        per_page = max(1, per_page)
         offset = (page - 1) * per_page
 
         conditions = []

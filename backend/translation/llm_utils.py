@@ -123,10 +123,17 @@ def parse_llm_response(response_text: str, expected_count: int) -> list[str] | N
 
 
 _HARD_BREAK = "\\N"  # literal backslash-N, the ASS hard line break
+_SOFT_BREAK = "\\n"  # literal backslash-n; ASS's soft break, models emit it for \N
+
+#: Both spellings of a line break. A guard that knows only one of them is a
+#: guard the model walks around: 459 of prod's 254 196 memory entries carried
+#: an invented SOFT break on 2026-09-03, still growing daily, while invented
+#: hard breaks were already down to zero.
+_BREAKS = (_HARD_BREAK, _SOFT_BREAK)
 
 
 def strip_invented_hard_breaks(source_lines: list[str], translated_lines: list[str]) -> list[str]:
-    """Drop hard line breaks the model added where the source had none.
+    """Drop line breaks the model added where the source had none.
 
     Sublarr's contract with a translation backend is a 1:1 line mapping, and
     where a subtitle event carries no hard break the translation must not
@@ -135,26 +142,30 @@ def strip_invented_hard_breaks(source_lines: list[str], translated_lines: list[s
     break to 158 in the German output. The line *count* stays correct, so no
     other check in the pipeline can see it.
 
-    Only lines whose source has no break at all are touched, so a break the
-    subtitle actually asked for survives untouched. An inner break becomes a
-    single space (it was standing between two words); a trailing one simply
-    goes. Lists of differing length are returned unchanged — pairing would be
-    guesswork, and the caller already treats that as a failure.
+    Only lines whose source has no break **in either spelling** are touched, so
+    a break the subtitle actually asked for survives untouched — including one
+    the model merely re-spelled, where the source wanted a hard break and the
+    translation carries a soft one. An inner break becomes a single space (it
+    was standing between two words); a trailing one simply goes. Lists of
+    differing length are returned unchanged — pairing would be guesswork, and
+    the caller already treats that as a failure.
     """
     if len(source_lines) != len(translated_lines):
         return translated_lines
 
     cleaned: list[str] = []
     for source, translated in zip(source_lines, translated_lines, strict=True):
-        if _HARD_BREAK in source or _HARD_BREAK not in translated:
+        source_has_break = any(marker in source for marker in _BREAKS)
+        translated_has_break = any(marker in translated for marker in _BREAKS)
+        if source_has_break or not translated_has_break:
             cleaned.append(translated)
             continue
-        without = translated.replace(_HARD_BREAK, " ")
+        without = translated
+        for marker in _BREAKS:
+            without = without.replace(marker, " ")
         cleaned.append(re.sub(r"\s+", " ", without).strip())
     return cleaned
 
-
-_SOFT_BREAK = "\\n"  # literal backslash-n; ASS's soft break, models emit it for \N
 
 _MARKER_ONLY = {_HARD_BREAK, _SOFT_BREAK, _HARD_BREAK * 2, "\\"}
 

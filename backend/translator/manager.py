@@ -49,8 +49,22 @@ def _translate_with_manager(lines, source_lang, target_lang, arr_context=None, s
     """
     from config_language_data import normalize_language_code
 
-    _src_norm = normalize_language_code(source_lang or "")
-    _tgt_norm = normalize_language_code(target_lang or "")
+    def _primary_subtag(raw: str) -> str:
+        """Reduce a tag to the language itself, dropping any region or script.
+
+        normalize_language_code is a table lookup and hands an unknown tag back
+        unchanged, so ``en-US`` never equalled ``en`` and slipped past this
+        guard (found 2026-09-03 by probing the deployed 1.14.0-rc.4). The
+        table knows ``pt-br`` and a handful like it; everything else has to be
+        cut here. The trade-off is deliberate: a script conversion such as
+        zh-Hans → zh-Hant is refused too, because that is not what this
+        pipeline does — it would be an LLM round-trip on an identical
+        language, which is exactly what this guard exists to stop.
+        """
+        return normalize_language_code(raw or "").replace("_", "-").split("-")[0]
+
+    _src_norm = _primary_subtag(source_lang)
+    _tgt_norm = _primary_subtag(target_lang)
     if _src_norm and _src_norm == _tgt_norm:
         raise ValueError(f"refusing same-language translation ({source_lang} → {target_lang})")
 

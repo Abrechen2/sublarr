@@ -157,3 +157,47 @@ class TestEmbeddedStreamGuard:
 
         mock_translate_ass.assert_not_called()
         mock_translate_srt.assert_not_called()
+
+
+class TestRegionSubtags:
+    """A region subtag must not smuggle a same-language request past the guard.
+
+    Found on 2026-09-03 by probing the deployed 1.14.0-rc.4:
+    ``en-US -> en`` passed. ``normalize_language_code`` is a table lookup and
+    hands an unknown tag back unchanged, so ``en-us`` never equalled ``en``.
+    Nothing in the install produces region tags today — no wanted item, no
+    memory row, no event carries one — but the backstop is the layer that is
+    supposed to hold when a caller does something nobody planned for.
+    """
+
+    def test_region_subtag_on_the_source_is_still_the_same_language(self):
+        from translator.manager import _translate_with_manager
+
+        with pytest.raises(ValueError, match="same-language"):
+            _translate_with_manager(["Step aside!"], "en-US", "en")
+
+    def test_region_subtag_on_the_target(self):
+        from translator.manager import _translate_with_manager
+
+        with pytest.raises(ValueError, match="same-language"):
+            _translate_with_manager(["Step aside!"], "en", "en-GB")
+
+    def test_underscore_spelling(self):
+        from translator.manager import _translate_with_manager
+
+        with pytest.raises(ValueError, match="same-language"):
+            _translate_with_manager(["Step aside!"], "en_US", "en")
+
+    def test_two_regions_of_the_same_language(self):
+        from translator.manager import _translate_with_manager
+
+        with pytest.raises(ValueError, match="same-language"):
+            _translate_with_manager(["Step aside!"], "pt-BR", "pt-PT")
+
+    def test_a_real_direction_with_a_region_still_passes(self):
+        # Must get PAST the guard and fail later for another reason.
+        from translator.manager import _translate_with_manager
+
+        with pytest.raises(Exception) as excinfo:
+            _translate_with_manager(["Step aside!"], "en-US", "de")
+        assert "same-language" not in str(excinfo.value)
