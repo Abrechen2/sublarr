@@ -173,11 +173,23 @@ def is_safe_path(file_path: str, base_dir: str) -> bool:
         file_path: Path to validate.
         base_dir: Allowed base directory.
 
+    A path the operating system refuses to look at — an embedded NUL is the
+    one that reaches us from a query string — is not safe, so it is answered
+    with False rather than an exception. Letting ValueError out made every
+    caller responsible for catching it, and the one that did not turned a
+    rejected path into HTTP 500 (found 2026-09-03 on the deployed rc.5,
+    `file_path=/media%00/../../etc/passwd`). POSIX-only: Windows'
+    ``realpath`` does not raise on a NUL, so this can only be observed on a
+    Linux host — which is every install.
+
     Returns:
         True if file_path is inside base_dir after resolving symlinks.
     """
-    real_path = os.path.realpath(file_path)
-    real_base = os.path.realpath(base_dir)
+    try:
+        real_path = os.path.realpath(file_path)
+        real_base = os.path.realpath(base_dir)
+    except (ValueError, OSError):
+        return False
     # Normalize real_base to always end with sep so startswith works correctly
     # for root paths like "E:\" that already end with the separator.
     if not real_base.endswith(os.sep):

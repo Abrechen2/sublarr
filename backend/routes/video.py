@@ -328,6 +328,13 @@ def get_subtitle_webvtt():
     if not os.path.exists(mapped_path):
         return jsonify({"error": "File not found"}), 404
 
+    # A directory passes both checks above and then reaches ffmpeg, which
+    # fails with "Is a directory" and surfaced as HTTP 500 (found 2026-09-03
+    # on the deployed rc.5, file_path=/media). Not a way in — the caller has
+    # to be inside the library to get here — but a 500 where a 400 belongs.
+    if not os.path.isfile(mapped_path):
+        return jsonify({"error": "Not a file"}), 400
+
     try:
         vtt_path = convert_subtitle_to_webvtt(mapped_path)
 

@@ -118,6 +118,17 @@ notes close.
 
 ### Fixed
 
+- **Two hostile paths on the subtitle endpoint answer 4xx instead of 500.**
+  The access check itself was never in question — anything outside the media
+  library gets 403 — but two inputs reached code that was not expecting them.
+  A path carrying an embedded NUL raised out of `os.path.realpath` inside
+  `is_safe_path`; the guard now answers False for a path the operating system
+  refuses to look at, which fixes every caller rather than one route. And a
+  *directory* passed both checks and was handed to ffmpeg, which failed with
+  "Is a directory" — it is refused with 400 before the conversion now.
+  POSIX-only in effect: Windows' `realpath` does not raise on a NUL, so a
+  development box never saw the first one, and every Linux install did.
+
 - **A translation may no longer invent a line break in the other spelling.**
   The guard that removes breaks a source line never had only ever looked at
   ASS's hard break. The models emit the soft one too, it passed unfiltered
