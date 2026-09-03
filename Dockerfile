@@ -126,4 +126,16 @@ ENTRYPOINT ["/usr/local/bin/docker-entrypoint.sh"]
 # left no history entry, no timeout row and no traceback -- it simply vanished.
 # Keep this >= the largest JobSpec.timeout_s so the app's own timeout fires
 # first and gets recorded properly.
-CMD ["gunicorn", "--bind", "0.0.0.0:5765", "--worker-class", "gthread", "--workers", "1", "--threads", "4", "--timeout", "7200", "--graceful-timeout", "15", "app:create_app()"]
+#
+# --access-logfile - writes one line per request to stdout (hence into
+# `docker logs`). Without it gunicorn logs nothing per request, so a clean 4xx
+# left no trace anywhere and a whole probe campaign was invisible from the
+# inside (found 2026-09-03). The paired in-app metric (HTTP_REQUEST_TOTAL, wired
+# in app.py) gives the aggregate; this gives the individual line with its status.
+#
+# --access-logformat replaces %(r)s (the full request line) with %(m)s %(U)s:
+# method and URL PATH ONLY. The default format logs the query string, and the
+# API key may travel as ?apikey= (auth.py) — so the default would write the
+# key in clear text to every log line and every support bundle. %(U)s drops
+# the query; the path alone is what a request trace needs.
+CMD ["gunicorn", "--bind", "0.0.0.0:5765", "--worker-class", "gthread", "--workers", "1", "--threads", "4", "--timeout", "7200", "--graceful-timeout", "15", "--access-logfile", "-", "--access-logformat", "%(h)s %(t)s \"%(m)s %(U)s\" %(s)s %(b)s %(D)sus", "app:create_app()"]

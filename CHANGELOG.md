@@ -118,6 +118,21 @@ notes close.
 
 ### Fixed
 
+- **Every HTTP request now leaves a trace.** Sublarr recorded no requests at
+  all: `record_http_request` and its metrics existed but nothing called them,
+  and gunicorn ran without an access log — so a request answered cleanly with
+  a 4xx vanished without a line anywhere, which is exactly how an entire test
+  campaign, and by extension any user's report of a bad response, was
+  invisible from the inside. The existing recorder is now wired to the request
+  cycle (`sublarr_http_requests_total` carries method, route and status;
+  `sublarr_http_request_duration_seconds` the latency; the in-progress gauge no
+  longer drifts on error paths), and gunicorn writes one access line per
+  request into `docker logs`. The metric is labelled by the route template,
+  not the concrete path, so a per-id URL does not mint a new time series. The
+  access line logs the URL path only, never the query string — the API key may
+  travel as `?apikey=`, and the default gunicorn format would have written it
+  in clear text to every line and every support bundle.
+
 - **Two hostile paths on the subtitle endpoint answer 4xx instead of 500.**
   The access check itself was never in question — anything outside the media
   library gets 403 — but two inputs reached code that was not expecting them.

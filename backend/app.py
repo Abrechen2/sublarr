@@ -14,7 +14,7 @@ import hmac
 import logging
 import os
 
-from flask import Flask, request
+from flask import Flask, g, request
 
 from app_logging import (  # re-exported for back-compat (tests import from app)
     LOG_FORMAT,
@@ -215,6 +215,59 @@ def create_app(testing=False):
     from error_handler import register_error_handlers
 
     register_error_handlers(app)
+
+    # HTTP request observability. The metrics existed (metrics.py:
+    # HTTP_REQUEST_TOTAL with a status label, _IN_PROGRESS, and
+    # record_http_request) but nothing ever called them, so /api/v1/metrics
+    # only exposed in_progress and a rejected request left no trace at all —
+    # found 2026-09-03 stress-testing RC. Wiring the existing recorder here,
+    # plus --access-logfile on the gunicorn line, closes that blind spot.
+    import time as _time
+
+    try:
+        import metrics as _metrics
+    except Exception:  # noqa: BLE001 - metrics are optional (prometheus_client)
+        _metrics = None
+
+    if _metrics is not None and getattr(_metrics, "METRICS_AVAILABLE", False):
+
+        @app.before_request
+        def _track_request_start():
+            g._req_start = _time.monotonic()
+            try:
+                _metrics.HTTP_REQUESTS_IN_PROGRESS.inc()
+                g._req_counted = True
+            except Exception:  # noqa: BLE001 - never let telemetry break a request
+                pass
+
+        @app.teardown_request
+        def _track_request_end(exc):
+            # teardown always runs, even when a view raised, so the in-progress
+            # gauge cannot leak upward on an error path. But teardown can also
+            # fire for a request that never reached before_request, so only
+            # decrement what this request actually incremented — otherwise the
+            # gauge drifts negative.
+            if g.pop("_req_counted", False):
+                try:
+                    _metrics.HTTP_REQUESTS_IN_PROGRESS.dec()
+                except Exception:  # noqa: BLE001
+                    pass
+
+        @app.after_request
+        def _record_request_metric(response):
+            try:
+                start = g.pop("_req_start", None)
+                duration = _time.monotonic() - start if start is not None else 0.0
+                # Label by the ROUTE TEMPLATE, never the concrete path — the
+                # raw path would mint a series per id and explode cardinality.
+                # A 404 has no matched rule, so it collapses to one bucket.
+                endpoint = request.url_rule.rule if request.url_rule else "<unmatched>"
+                _metrics.record_http_request(
+                    request.method, endpoint, str(response.status_code), duration
+                )
+            except Exception:  # noqa: BLE001 - telemetry must not alter the response
+                pass
+            return response
 
     @app.after_request
     def add_security_headers(response):
