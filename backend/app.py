@@ -453,6 +453,11 @@ def create_app(testing=False):
             max_workers=getattr(settings, "translation_max_workers", 4),
             app=app,
         )
+        # Publish the media IO gate limit on /metrics from the first scrape on;
+        # the module is otherwise imported lazily by the first heavy subprocess.
+        from services.media_io_gate import media_io_gate
+
+        media_io_gate.refresh_from_settings()
         # Fail-loud on the silent-hang trap: an RQ backend with zero registered
         # workers accepts jobs and never runs them (no crash, no log). Surface
         # it at startup so a misconfigured deployment is obvious instead of

@@ -109,6 +109,17 @@ class MediaIOGate:
         if configured != self._limit:
             self.set_limit(configured)
 
+    def refresh_from_settings(self) -> None:
+        """Apply the configured limit and republish both gauges.
+
+        Called once from ``create_app`` so ``/metrics`` shows the real limit
+        from the first scrape on — the module is otherwise imported lazily by
+        the first heavy subprocess, and until then the gauges read 0.
+        """
+        self._sync_limit_from_settings()
+        self._limit_gauge.set(self._limit)
+        self._in_use_gauge.set(self._in_use)
+
     def cap_workers(self, requested: int) -> int:
         """Bound a thread-pool size by the gate so a probe batch cannot fan
         out wider than the gate would let its subprocesses run."""

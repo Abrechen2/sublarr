@@ -452,6 +452,29 @@ def test_sync_preview_waits_less_than_the_request_budget():
     assert sync_preview._LOCK_WAIT_TIMEOUT <= MediaIOGate.REQUEST_WAIT_S
 
 
+def test_refresh_publishes_the_configured_limit_to_the_gauges():
+    """rc.8 on RC read ``sublarr_media_io_gate_limit 0``: the gauges are only
+    set when the gate module is first imported, which happens lazily on the
+    first heavy subprocess. Startup must publish the configured limit."""
+    gate = MediaIOGate(limit=1)
+    in_use, limit = MagicMock(), MagicMock()
+    gate.wire_gauges(in_use, limit)
+    settings = MagicMock(media_io_max_parallel=2)
+    with patch("services.media_io_gate.peek_settings", return_value=settings):
+        gate.refresh_from_settings()
+    assert gate.limit == 2
+    limit.set.assert_called_with(2)
+    in_use.set.assert_called_with(0)
+
+
+def test_create_app_refreshes_the_gate_from_settings(temp_db):
+    from app import create_app
+
+    with patch.object(media_io_gate, "refresh_from_settings") as refresh:
+        create_app(testing=True)
+    refresh.assert_called_once_with()
+
+
 def test_setting_exists_with_a_conservative_default_and_is_in_the_media_view():
     from config_settings import UISettings
     from config_views import MediaServerSettings
