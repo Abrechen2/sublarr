@@ -662,7 +662,9 @@
       "import_title": "Importing a configuration works again",
       "import_desc": "The import answered with an error every single time and could not be used at all. Unknown keys are now refused rather than silently stored, so a misspelled setting shows up immediately instead of quietly doing nothing.",
       "memory_title": "Bad entries leave the translation memory",
-      "memory_desc": "A wrongly passed source language put entries into the memory whose source and target language were the same and whose content did not match the text. The upgrade removes them; affected lines are translated cleanly again on the next run."
+      "memory_desc": "A wrongly passed source language put entries into the memory whose source and target language were the same and whose content did not match the text. The upgrade removes them; affected lines are translated cleanly again on the next run.",
+      "mediagate_title": "Disk load under control",
+      "mediagate_desc": "After a reboot, several remuxes of large files could start at once and drag the array down for minutes. Remux, extraction, sync and metadata scans now share one cap: Parallel media processes under Automation → Search & Scan, default 1. Provider searches stay parallel; only the disk-heavy step waits."
     },
     "v1134": {
       "breaks_title": "Translations no longer come back with line breaks the original never had",

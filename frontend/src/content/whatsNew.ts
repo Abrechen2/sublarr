@@ -24,6 +24,7 @@ export const WHATS_NEW: Record<string, WhatsNewItem[]> = {
     { icon: SlidersHorizontal, titleKey: 'whatsnew.v1140.settings_title', descKey: 'whatsnew.v1140.settings_desc' },
     { icon: Upload, titleKey: 'whatsnew.v1140.import_title', descKey: 'whatsnew.v1140.import_desc' },
     { icon: Languages, titleKey: 'whatsnew.v1140.memory_title', descKey: 'whatsnew.v1140.memory_desc' },
+    { icon: Gauge, titleKey: 'whatsnew.v1140.mediagate_title', descKey: 'whatsnew.v1140.mediagate_desc' },
   ],
   '1.13.4': [
     { icon: Languages, titleKey: 'whatsnew.v1134.breaks_title', descKey: 'whatsnew.v1134.breaks_desc' },

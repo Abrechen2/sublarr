@@ -37,6 +37,18 @@ release's notes but not flagged as data-changing, which is the gap these
 notes close.
 
 ### Added
+- **One gate for disk-heavy media work.** After a reboot, a wanted search
+  could start three multi-GB container remuxes within 200 ms of each other
+  (foreign-track cleanup rewrites the whole file after every download)
+  while the automation queue read entire movies for ffsubsync — 81.8 GB
+  rewritten in an hour, the array at load 14, ffprobe calls timing out
+  behind it. Remux, subtitle extraction, ffsubsync/alass and metadata
+  probe batches now share one process-wide cap, **Parallel media
+  processes** (Settings → Automation → Search & Scan, default 1). Search
+  threads still query providers in parallel; only the disk-heavy step
+  behind a download queues up. Inside the UI a caller waits ten seconds
+  at most and then gets a clear "busy" instead of hanging. Exposed on
+  `/metrics` as `sublarr_media_io_gate_in_use` / `_limit`.
 - **Provider health finally reflects whether searches found anything.** A
   provider whose upstream domain no longer resolved in DNS reported a 100 %
   success rate across 1 666 searches and zero downloads, and the panel called

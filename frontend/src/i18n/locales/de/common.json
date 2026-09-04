@@ -662,7 +662,9 @@
       "import_title": "Konfiguration lässt sich wieder importieren",
       "import_desc": "Der Import antwortete bislang ausnahmslos mit einem Fehler und war damit unbenutzbar. Unbekannte Schlüssel werden jetzt abgelehnt statt still gespeichert — ein Tippfehler in einer Einstellung fällt sofort auf, statt wirkungslos zu verschwinden.",
       "memory_title": "Fehlerhafte Einträge verlassen den Übersetzungsspeicher",
-      "memory_desc": "Durch eine falsch übergebene Quellsprache landeten Einträge im Speicher, deren Quell- und Zielsprache identisch war und deren Inhalt nicht zum Text passte. Beim Aktualisieren werden sie entfernt; betroffene Zeilen entstehen bei der nächsten Übersetzung sauber neu."
+      "memory_desc": "Durch eine falsch übergebene Quellsprache landeten Einträge im Speicher, deren Quell- und Zielsprache identisch war und deren Inhalt nicht zum Text passte. Beim Aktualisieren werden sie entfernt; betroffene Zeilen entstehen bei der nächsten Übersetzung sauber neu.",
+      "mediagate_title": "Festplattenlast unter Kontrolle",
+      "mediagate_desc": "Nach einem Neustart konnten mehrere Remuxe großer Dateien gleichzeitig starten und das Datenarray minutenlang ausbremsen. Remux, Extraktion, Synchronisation und Metadaten-Scans teilen sich jetzt eine Obergrenze: „Parallele Medienprozesse“ unter Automatisierung → Suche & Scan, Vorgabe 1. Die Suche bei den Anbietern bleibt parallel, nur der festplattenintensive Schritt wartet."
     },
     "v1134": {
       "breaks_title": "Übersetzungen bringen keine Zeilenumbrüche mehr mit, die das Original nie hatte",
