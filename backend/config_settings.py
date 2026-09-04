@@ -312,6 +312,9 @@ class UISettings(BaseModel):
     # Scan Metadata Engine
     scan_metadata_engine: str = "auto"  # "ffprobe" | "mediainfo" | "auto"
     scan_metadata_max_workers: int = 2  # Parallel workers for batch metadata scans
+    # How many disk-heavy media subprocesses (remux, extraction, sync, probe
+    # batches) may run at once, process-wide. See services/media_io_gate.py.
+    media_io_max_parallel: int = 1
 
     # Translation Workers
     translation_max_workers: int = 4  # Parallel workers in the job queue thread pool

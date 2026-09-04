@@ -943,6 +943,8 @@
     "ffmpeg_timeout": "FFmpeg-Timeout (Sekunden)",
     "metadata_engine": "Metadaten-Engine",
     "metadata_worker": "Metadaten-Worker",
+    "media_io_max_parallel": "Parallele Medienprozesse",
+    "media_io_max_parallel_hint": "Wie viele festplattenintensive Prozesse (Remux, Extraktion, Sync, Metadaten-Scan) gleichzeitig laufen dürfen. 1 schont das Array, höhere Werte beschleunigen den Durchsatz auf schnellen Datenträgern.",
     "search_scan_section": "Suchen & Scannen",
     "upgrade_rules_section": "Upgrade-Regeln",
     "scheduled_tasks_section": "Geplante Aufgaben"

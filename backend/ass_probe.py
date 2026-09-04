@@ -506,15 +506,21 @@ def extract_subtitle_stream(mkv_path, stream_info, output_path):
         _safe_arg_path(tmp_path),
     ]
     _timeout = getattr(get_settings(), "ffmpeg_timeout", 300)
+    from services.media_io_gate import MediaGateBusyError, media_io_gate
+
     try:
-        result = subprocess.run(
-            cmd,
-            capture_output=True,
-            text=True,
-            encoding="utf-8",
-            errors="replace",
-            timeout=_timeout,
-        )
+        try:
+            with media_io_gate.slot("ffmpeg subtitle extraction"):
+                result = subprocess.run(
+                    cmd,
+                    capture_output=True,
+                    text=True,
+                    encoding="utf-8",
+                    errors="replace",
+                    timeout=_timeout,
+                )
+        except MediaGateBusyError as exc:
+            raise RuntimeError(str(exc)) from None
         if result.returncode != 0:
             raise RuntimeError(f"ffmpeg extraction failed: {result.stderr}")
         # Refuse zero-byte output — ffmpeg sometimes returns 0 on no-data

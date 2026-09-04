@@ -83,6 +83,27 @@ export function SearchScanAdvancedContent() {
       </FormGroup>
 
       <FormGroup
+        label={tS('automation_page.media_io_max_parallel')}
+        hint={tS('automation_page.media_io_max_parallel_hint')}
+        htmlFor="media-io-max-parallel"
+        advanced
+        data-testid="form-group-media-io-max-parallel"
+      >
+        <input
+          id="media-io-max-parallel"
+          type="number"
+          data-testid="input-media-io-max-parallel"
+          style={{ ...inputStyle, maxWidth: '120px' }}
+          value={strVal(config, 'media_io_max_parallel', '1')}
+          onChange={(e) => save({ media_io_max_parallel: Number(e.target.value) })}
+          disabled={updateConfig.isPending}
+          min={1}
+          max={8}
+          placeholder="1"
+        />
+      </FormGroup>
+
+      <FormGroup
         label={tS('automation_page.anime_series_only')}
         hint={tS('automation_page.anime_series_only_hint')}
         advanced

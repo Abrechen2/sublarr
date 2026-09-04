@@ -19,6 +19,7 @@ import shutil
 import stat
 import subprocess
 import tempfile
+from contextlib import contextmanager
 
 logger = logging.getLogger(__name__)
 
@@ -302,6 +303,22 @@ def _safe_arg_path(path: str) -> str:
 # ---------------------------------------------------------------------------
 
 
+@contextmanager
+def _media_slot(label: str):
+    """Run the remux subprocess inside the process-wide media IO gate.
+
+    A gate that stays full for the whole wait surfaces as ``RemuxError`` so
+    every caller's existing "remux failed, file untouched" path handles it.
+    """
+    from services.media_io_gate import MediaGateBusyError, media_io_gate
+
+    try:
+        with media_io_gate.slot(label):
+            yield
+    except MediaGateBusyError as exc:
+        raise RemuxError(str(exc)) from None
+
+
 def _remux_mkvmerge(video_path: str, stream_indices: list[int], output_path: str) -> None:
     """Remove subtitle streams using mkvmerge.
 
@@ -326,14 +343,15 @@ def _remux_mkvmerge(video_path: str, stream_indices: list[int], output_path: str
     logger.debug("Remux mkvmerge: %s", " ".join(cmd))
     from utils.io_timeout import compute_io_timeout
 
-    result = subprocess.run(
-        cmd,
-        capture_output=True,
-        text=True,
-        encoding="utf-8",
-        errors="replace",
-        timeout=compute_io_timeout(video_path),
-    )
+    with _media_slot("mkvmerge remux"):
+        result = subprocess.run(
+            cmd,
+            capture_output=True,
+            text=True,
+            encoding="utf-8",
+            errors="replace",
+            timeout=compute_io_timeout(video_path),
+        )
     if result.returncode not in (0, 1):  # mkvmerge exit 1 = warnings, still OK
         # mkvmerge writes hard errors to stdout, not stderr — include both so
         # failures are never logged with an empty reason.
@@ -365,14 +383,15 @@ def _remux_ffmpeg(video_path: str, stream_indices: list[int], output_path: str) 
     logger.debug("Remux ffmpeg: %s", " ".join(cmd))
     from utils.io_timeout import compute_io_timeout
 
-    result = subprocess.run(
-        cmd,
-        capture_output=True,
-        text=True,
-        encoding="utf-8",
-        errors="replace",
-        timeout=compute_io_timeout(video_path),
-    )
+    with _media_slot("ffmpeg remux"):
+        result = subprocess.run(
+            cmd,
+            capture_output=True,
+            text=True,
+            encoding="utf-8",
+            errors="replace",
+            timeout=compute_io_timeout(video_path),
+        )
     if result.returncode != 0:
         raise RemuxError(f"ffmpeg failed (exit {result.returncode}): {result.stderr[-500:]}")
 

@@ -165,6 +165,7 @@ class MediaServerSettings(_SettingsView):
             "ffmpeg_timeout",
             "scan_metadata_engine",
             "scan_metadata_max_workers",
+            "media_io_max_parallel",
         )
     )
 

@@ -66,6 +66,18 @@ translation_concurrency_limit = Gauge(
     labelnames=["backend"],
 )
 
+# Heavy media subprocesses (remux / extraction / sync) share one gate,
+# services.media_io_gate. In-use vs limit shows queueing behind array IO.
+media_io_gate_in_use = Gauge(
+    "sublarr_media_io_gate_in_use",
+    "Heavy media subprocesses currently running (remux, extraction, sync).",
+)
+
+media_io_gate_limit = Gauge(
+    "sublarr_media_io_gate_limit",
+    "Configured cap for concurrent heavy media subprocesses (media_io_max_parallel).",
+)
+
 # Subtitle sync (ffsubsync / alass) — counters + duration histogram.
 # Wired into ``services.sync_engines.events.write_sync_job_run`` so every
 # sync_job_runs audit row also bumps the matching Prometheus series, giving

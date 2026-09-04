@@ -32,10 +32,19 @@ def batch_probe(paths: list[str]) -> dict[str, object]:
 
     Returns dict mapping path -> probe_data (or None on error).
     """
-    max_workers = getattr(get_settings(), "scan_metadata_max_workers", 4)
+    from services.media_io_gate import media_io_gate
+
+    max_workers = media_io_gate.cap_workers(getattr(get_settings(), "scan_metadata_max_workers", 4))
+
+    def _gated_probe(path: str):
+        # Every probe holds a gate slot: sizing the pool alone would let two
+        # concurrent batches (two webhook scans) run 2x the limit.
+        with media_io_gate.slot("metadata probe"):
+            return get_media_streams(path, True)
+
     results = {}
     with ThreadPoolExecutor(max_workers=max_workers) as executor:
-        future_to_path = {executor.submit(get_media_streams, p, True): p for p in paths}
+        future_to_path = {executor.submit(_gated_probe, p): p for p in paths}
         for future in as_completed(future_to_path):
             path = future_to_path[future]
             try:

@@ -170,17 +170,27 @@ def _process_probe_result(item: dict, future) -> None:
     socketio.emit("batch_probe_progress", snapshot)
 
 
+def _gated_probe(file_path: str):
+    """One probe, one media-gate slot — the pool size alone cannot bound
+    concurrency across two batches running at once."""
+    from ass_utils import get_media_streams
+    from services.media_io_gate import media_io_gate
+
+    with media_io_gate.slot("batch probe"):
+        return get_media_streams(file_path, True)
+
+
 def _run_batch_probe(items, app):
     """Background thread: ffprobe all items, extract all embedded sub streams, update DB."""
-    from ass_utils import get_media_streams
+    from services.media_io_gate import media_io_gate
 
-    max_workers = getattr(get_settings(), "scan_metadata_max_workers", 4)
+    max_workers = media_io_gate.cap_workers(getattr(get_settings(), "scan_metadata_max_workers", 4))
     _init_batch_probe_state(len(items))
     start_time = time.time()
     try:
         with app.app_context(), ThreadPoolExecutor(max_workers=max_workers) as executor:
             future_to_item = {
-                executor.submit(get_media_streams, item["file_path"], True): item for item in items
+                executor.submit(_gated_probe, item["file_path"]): item for item in items
             }
             for future in as_completed(future_to_item):
                 _process_probe_result(future_to_item[future], future)

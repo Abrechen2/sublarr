@@ -37,8 +37,10 @@ logger = logging.getLogger(__name__)
 # worth blocking the app for.
 _FFSUBSYNC_PREVIEW_TIMEOUT = 180
 _ALASS_PREVIEW_TIMEOUT = 120
-# Refuse to queue behind a long-running sync rather than pile up on the lock.
-_LOCK_WAIT_TIMEOUT = 30
+# Refuse to queue behind a long-running sync (or, since the lock became the
+# process-wide media IO gate, a remux/extraction) rather than pile up on it:
+# four such requests would otherwise hold every gunicorn thread.
+_LOCK_WAIT_TIMEOUT = 10
 
 
 def _locked_subprocess(cmd: list[str], timeout: int):

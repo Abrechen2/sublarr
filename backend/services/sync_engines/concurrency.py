@@ -18,9 +18,13 @@ from __future__ import annotations
 
 import platform
 import shutil
-import threading
 
-sync_subprocess_lock = threading.BoundedSemaphore(1)
+from services.media_io_gate import media_io_gate
+
+# Since 1.14.0 the sync lock IS the process-wide media IO gate: one setting
+# (``media_io_max_parallel``) bounds sync, remux and extraction together, and
+# the gate keeps the ``with``/``acquire(timeout=)``/``release()`` protocol.
+sync_subprocess_lock = media_io_gate
 
 
 def nice_prefix() -> list[str]:

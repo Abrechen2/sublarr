@@ -943,6 +943,8 @@
     "ffmpeg_timeout": "FFmpeg timeout (seconds)",
     "metadata_engine": "Metadata engine",
     "metadata_worker": "Metadata worker",
+    "media_io_max_parallel": "Parallel media processes",
+    "media_io_max_parallel_hint": "How many disk-heavy processes (remux, extraction, sync, metadata scan) may run at once. 1 is gentle on the array; higher values speed things up on fast storage.",
     "search_scan_section": "Search & Scan",
     "upgrade_rules_section": "Upgrade Rules",
     "scheduled_tasks_section": "Scheduled Tasks"
