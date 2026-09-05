@@ -23,6 +23,9 @@ from db.repositories.wanted import WantedRepository
 from extensions import db
 
 NOW = datetime(2026, 8, 9, tzinfo=UTC)
+# The blocking retry_after must sit in the future relative to the REAL clock the
+# eligibility filter reads: anchored to NOW it expired on 2026-09-05 and the
+# precondition ("starts out blocked") silently stopped holding.
 
 
 def _make(file_path, **kwargs):
@@ -56,7 +59,7 @@ def test_reset_clears_every_field_that_holds_an_item_back(repo):
     item = _make(
         "/m/parked.mkv",
         search_count=12,
-        retry_after=NOW + timedelta(days=27),
+        retry_after=datetime.now(UTC) + timedelta(days=27),
         failure_kind="no_result_slow",
         error_count=4,
         last_error_at=NOW - timedelta(days=3),
@@ -91,7 +94,7 @@ def test_a_reset_item_is_eligible_to_search_again(repo):
     item = _make(
         "/m/parked.mkv",
         search_count=12,
-        retry_after=NOW + timedelta(days=27),
+        retry_after=datetime.now(UTC) + timedelta(days=27),
         failure_kind="no_result_slow",
     )
     settings = SimpleNamespace(wanted_max_search_attempts=10, wanted_adaptive_backoff_enabled=True)
@@ -106,8 +109,8 @@ def test_a_reset_item_is_eligible_to_search_again(repo):
 
 
 def test_only_the_named_items_are_reset(repo):
-    parked = _make("/m/a.mkv", search_count=12, retry_after=NOW + timedelta(days=27))
-    other = _make("/m/b.mkv", search_count=12, retry_after=NOW + timedelta(days=27))
+    parked = _make("/m/a.mkv", search_count=12, retry_after=datetime.now(UTC) + timedelta(days=27))
+    other = _make("/m/b.mkv", search_count=12, retry_after=datetime.now(UTC) + timedelta(days=27))
 
     repo.reset_search_attempts([parked.id])
 
