@@ -653,6 +653,15 @@ class WantedRepository(BaseRepository, _WantedUpsertMixin, _WantedUpdatesMixin):
             stmt = stmt.where(WantedItem.status == status)
         return self.session.execute(stmt).scalar()
 
+    def get_wanted_count_for_instance(self, instance_name: str) -> int:
+        """Rows that belong to one Sonarr/Radarr instance (by ``instance_name``)."""
+        stmt = (
+            select(func.count())
+            .select_from(WantedItem)
+            .where(WantedItem.instance_name == instance_name)
+        )
+        return self.session.execute(stmt).scalar() or 0
+
     def get_upgradeable_count(self) -> int:
         """Get count of items marked as upgrade candidates."""
         stmt = select(func.count()).select_from(WantedItem).where(WantedItem.upgrade_candidate == 1)

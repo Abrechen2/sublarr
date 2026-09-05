@@ -88,12 +88,44 @@ class _WantedScanSourcesMixin:
 
         return total_added, total_updated, all_paths
 
+    def _source_answered_empty(self, source: str, instance_name: str, items) -> bool:
+        """An empty list from a source that owns wanted rows is an outage.
+
+        Sonarr and Radarr answer ``200 []`` while they are still starting —
+        no exception, so the failed-source guard never fires — and on
+        2026-09-04 (and 2026-09-01) the boot-time full scan pruned every
+        Sonarr row against that empty answer: 11 862 items re-created as
+        fresh rows, 619 queued translations dropped. Treat it exactly like a
+        raised error: flag the scan, prune nothing, freeze the watermark.
+        A genuinely empty source (fresh install, everything removed) owns no
+        rows and passes through.
+        """
+        if items:
+            return False
+        from db.wanted import get_wanted_count_for_instance
+
+        known = get_wanted_count_for_instance(instance_name)
+        if not known:
+            return False
+        logger.error(
+            "Wanted scan: %s (%s) returned 0 items but %d wanted rows belong to it — "
+            "treating the source as unavailable, nothing will be pruned "
+            "(a source that is still starting answers with an empty list)",
+            source,
+            instance_name,
+            known,
+        )
+        self._scan_had_errors = True
+        return True
+
     def _scan_sonarr_instance(self, sonarr, settings, instance_name, since=None):
         """Scan a single Sonarr instance."""
         if settings.wanted_anime_only:
             series_list = sonarr.get_anime_series()
         else:
             series_list = sonarr.get_series()
+        if self._source_answered_empty("Sonarr", instance_name, series_list):
+            return 0, 0, set()
 
         if since:
             since_iso = since.isoformat() + "Z"
@@ -179,6 +211,8 @@ class _WantedScanSourcesMixin:
             movies = radarr.get_anime_movies()
         else:
             movies = radarr.get_movies()
+        if self._source_answered_empty("Radarr", instance_name, movies):
+            return 0, 0, set()
 
         if since:
             since_iso = since.isoformat() + "Z"

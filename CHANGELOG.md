@@ -129,6 +129,17 @@ notes close.
   cannot tell from a server that is not there.
 
 ### Fixed
+- **A source that answers empty can no longer wipe its wanted queue.** Sonarr
+  and Radarr answer `200 []` while they are still starting. When Sublarr
+  boots in the same second (a power-loss recovery, a stack restart), the
+  boot-time full scan saw zero series, and the cleanup that followed removed
+  every Sonarr wanted item whose path the scan "had not seen" — 11 862 rows
+  on 2026-09-04, 11 308 on 2026-09-01, re-created minutes later as fresh
+  rows with no search history, and every queued translation for them dropped
+  as an orphan. The 2026-08-30 guard only covered a source that raised.
+  Two guards now: a source returning nothing while rows still belong to it
+  is treated as unavailable (flagged, nothing pruned, watermark frozen), and
+  the cleanup itself refuses to remove more than half the table in one pass.
 
 - **Every HTTP request now leaves a trace.** Sublarr recorded no requests at
   all: `record_http_request` and its metrics existed but nothing called them,

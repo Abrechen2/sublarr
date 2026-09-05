@@ -35,6 +35,11 @@ from translator import detect_existing_target_for_lang
 
 logger = logging.getLogger(__name__)
 
+#: Cleanup fuse — see ``WantedScanner._cleanup``. Half the table in one pass
+#: is a wipe, not housekeeping; below the minimum the ratio means nothing.
+CLEANUP_FUSE_MAX_FRACTION = 0.5
+CLEANUP_FUSE_MIN_ITEMS = 20
+
 # Every Nth scan cycle forces a full scan regardless of incremental mode
 FULL_SCAN_INTERVAL = 6
 
@@ -320,7 +325,14 @@ class WantedScanner(_WantedSchedulerMixin, _WantedScanSourcesMixin):
     # services/wanted_scanner_sources.py.
 
     def _cleanup(self, scanned_paths: set) -> int:
-        """Remove wanted items whose files no longer exist or whose subs appeared."""
+        """Remove wanted items whose files no longer exist or whose subs appeared.
+
+        Fused: never removes more than ``CLEANUP_FUSE_MAX_FRACTION`` of the
+        table in one pass once it holds ``CLEANUP_FUSE_MIN_ITEMS`` rows. A
+        library does not lose half its files between two scans; a scan that
+        saw too little (a source answering empty mid-start, an unmounted
+        share) does — and that must never turn into a wipe.
+        """
         from db.wanted import get_wanted_items_for_cleanup
 
         items = get_wanted_items_for_cleanup()
@@ -353,6 +365,19 @@ class WantedScanner(_WantedSchedulerMixin, _WantedScanSourcesMixin):
                 continue
             if scanned_paths and path not in scanned_paths:
                 to_remove_ids.append(item["id"])
+
+        if len(items) >= CLEANUP_FUSE_MIN_ITEMS and len(
+            to_remove_ids
+        ) > CLEANUP_FUSE_MAX_FRACTION * len(items):
+            logger.error(
+                "Wanted cleanup fuse: refusing to remove %d of %d items in one pass "
+                "(limit %d%%) — a drop this size is a scan that saw too little, "
+                "not a library that shrank; nothing removed",
+                len(to_remove_ids),
+                len(items),
+                int(CLEANUP_FUSE_MAX_FRACTION * 100),
+            )
+            return 0
 
         if to_remove_ids:
             from db.wanted import delete_wanted_items_by_ids

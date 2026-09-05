@@ -201,6 +201,11 @@ def get_wanted_count(status: str = None) -> int:
     return _get_repo().get_wanted_count(status)
 
 
+def get_wanted_count_for_instance(instance_name: str) -> int:
+    """Rows that belong to one Sonarr/Radarr instance (by ``instance_name``)."""
+    return _get_repo().get_wanted_count_for_instance(instance_name)
+
+
 def get_wanted_summary() -> dict:
     """Get aggregated wanted counts by type, status, and existing_sub."""
     return _get_repo().get_wanted_summary()
