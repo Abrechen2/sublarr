@@ -95,12 +95,21 @@ def _submit_with_context(executor, fn, *args, **kwargs):
     return executor.submit(ctx.run, functools.partial(fn, *args, **kwargs))
 
 
-def _search_with_ctx(app, item_id: int, allow_translate_fallback: bool = True) -> dict:
+def _search_with_ctx(
+    app,
+    item_id: int,
+    allow_translate_fallback: bool = True,
+    defer_translation: bool = False,
+) -> dict:
     """Worker wrapper: push a new Flask app context for each thread."""
     with app.app_context():
         from wanted_search import process_wanted_item
 
-        return process_wanted_item(item_id, allow_translate_fallback=allow_translate_fallback)
+        return process_wanted_item(
+            item_id,
+            allow_translate_fallback=allow_translate_fallback,
+            defer_translation=defer_translation,
+        )
 
 
 def _series_min_attempts_config() -> dict[int, int]:
@@ -491,7 +500,12 @@ def run_wanted_search(
         if _app is not None:
             future_to_item = {
                 _submit_with_context(
-                    executor, _search_with_ctx, _app, item["id"], allow_translate_fallback
+                    executor,
+                    _search_with_ctx,
+                    _app,
+                    item["id"],
+                    allow_translate_fallback,
+                    automation_on,
                 ): item
                 for item in eligible
             }
@@ -504,6 +518,7 @@ def run_wanted_search(
                     process_wanted_item,
                     item["id"],
                     allow_translate_fallback=allow_translate_fallback,
+                    defer_translation=automation_on,
                 ): item
                 for item in eligible
             }

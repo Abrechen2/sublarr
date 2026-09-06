@@ -528,6 +528,20 @@ class UISettings(BaseModel):
         ge=0,
         description="Seconds the inline local-sidecar translate phase may run per tick (0 = off)",
     )
+    # Wall-clock bound for one subtitle-automation drain tick. `max_items`
+    # counts rows whose cost ranges from a few seconds to the ~870s of one
+    # sidecar translation, and the JobSpec's `timeout_s` does not cancel — it
+    # stops waiting and sets the abort event. So ticks doing exactly the work
+    # asked of them overran the wait and were booked as `timeout` (prod
+    # 2026-09-06: 12 of 70 in 24h). This bound fires first, before the next
+    # row is claimed, leaving the 2400s timeout as headroom for the item
+    # already in flight. No "off" value on purpose: unbounded is the bug.
+    subtitle_automation_budget_s: int = Field(
+        default=1800,
+        ge=60,
+        le=86400,
+        description="Seconds one subtitle-automation drain tick may keep claiming new rows",
+    )
     wanted_search_order: str = "fair"  # 'fair' | 'newest_first' | 'weighted'
     wanted_scheduler_priority_weighting_enabled: bool = True
     wanted_scheduler_backlog_reserve_pct: int = 50

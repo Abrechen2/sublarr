@@ -129,6 +129,32 @@ notes close.
   cannot tell from a server that is not there.
 
 ### Fixed
+- **The translator can no longer run away with the wanted search.** Steps 2
+  and 4 of the per-item pipeline download a source-language subtitle and then
+  push it through the LLM on the search thread. The guard that keeps the
+  scheduled search out of Step 5 covered only Step 5, so these two were never
+  bounded. Measured on one production install on 2026-09-06: a tick ran
+  03:13:51 to 04:04:03 against a 1800s timeout, finished its provider work
+  after roughly 90 seconds, and spent the remaining 49 minutes in
+  `translator.quality`, `translator.ass_flow` and `translation.llm_base`. An
+  LLM translation cannot be interrupted, so the tick could not honour its stop
+  request either, and was recorded as `timeout_abandoned`. Where a drain
+  worker exists, the search now keeps the download and queues the translation,
+  the same handoff the bulk sidecar phase already used. Items keep their route
+  to a subtitle; the expensive half just travels by the job that owns it.
+  Installs with automation off are unaffected and keep translating inline,
+  since nothing would pick a queued row up there.
+- **A subtitle-automation tick now stops claiming work before its deadline.**
+  The drain checked the abort signal between items but had no clock, so the
+  JobSpec timeout was the only bound, and a timeout does not cancel: it stops
+  waiting and sets the abort event. Ticks doing exactly the work asked of them
+  therefore overran the wait and were booked as failures, with their
+  deliberate wind-down logged as an error. Same install, same day: 12 of 70
+  ticks in 24 hours, mean 2549s against a 2400s timeout. The new
+  `subtitle_automation_budget_s` (default 1800) is checked before the next row
+  is claimed, leaving the timeout as headroom for the item already in flight.
+  Raising the timeout was tried once before, from 600s to 2400s, and only
+  moved the same effect.
 - **A source that answers empty can no longer wipe its wanted queue.** Sonarr
   and Radarr answer `200 []` while they are still starting. When Sublarr
   boots in the same second (a power-loss recovery, a stack restart), the

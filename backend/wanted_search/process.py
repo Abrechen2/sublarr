@@ -383,6 +383,96 @@ def _try_target_ass_direct(ctx: dict) -> dict | None:
     return None
 
 
+def _defer_source_translation(ctx: dict, source_path: str, fmt: str) -> dict | None:
+    """Hand a freshly downloaded source subtitle to the automation drain.
+
+    Steps 2 and 4 are "download a source-language subtitle, then push it
+    through the LLM". Only the first half is what a search job is for. The
+    second half is minutes long and uninterruptible, and running it on the
+    search thread is what made the scheduled tick unstoppable: prod 2026-09-06
+    tick 30ef4d64 finished its provider work in ~90s and then spent 49 minutes
+    in `translator.*`, overran its 1800s timeout and could not honour the stop
+    request that followed.
+
+    So the search keeps the download and queues the translation, exactly as
+    the bulk sidecar phase already does. `file_path` is the media file, not
+    the sidecar: `translate_file` rediscovers the sidecar itself (Case C2b),
+    which is why the download has to stay.
+
+    Returns a terminal result when the row was queued, or ``None`` to let the
+    caller translate inline. ``None`` is the safe direction — a failed enqueue
+    must never cost the item its route to a subtitle.
+    """
+    if not ctx.get("defer_translation"):
+        return None
+
+    item_id = ctx["item_id"]
+    settings = ctx["settings"]
+    file_path = ctx["file_path"]
+
+    target_lang = ctx.get("item_lang") or getattr(settings, "target_language", "")
+    if not target_lang:
+        logger.warning(
+            "Wanted %d: no target language to queue a %s translation with — translating inline",
+            item_id,
+            fmt,
+        )
+        return None
+
+    try:
+        from db.models.core import SubtitleAutomationQueueEntry
+        from db.repositories.subtitle_automation_queue import (
+            SubtitleAutomationQueueRepository,
+        )
+
+        SubtitleAutomationQueueRepository().enqueue(
+            wanted_item_id=item_id,
+            file_path=file_path,
+            target_language=target_lang,
+            task_type=SubtitleAutomationQueueEntry.TASK_SIDECAR_TRANSLATE,
+            source_language=getattr(settings, "source_language", None),
+        )
+    except Exception as exc:  # noqa: BLE001 — a queue fault must not lose the item
+        logger.warning(
+            "Wanted %d: could not queue the %s translation (%s) — translating inline",
+            item_id,
+            fmt,
+            exc,
+        )
+        return None
+
+    # Bookkeeping is not optional on an early exit. `process_wanted_item` set
+    # this row to 'searching'; leaving it there hides it from every future run.
+    # Step 5's gate skipped exactly this and stranded 7,878 rows on prod
+    # 2026-08-19.
+    #
+    # Deliberately no `record_search_outcome`: the search did NOT miss. It
+    # found source material and downloaded it. Charging a 'no_result' would
+    # burn the item's search budget and eventually mark a perfectly
+    # translatable item 'unsourceable'. The queued row is now responsible for
+    # the outcome, and the next tick re-classifies this item through
+    # `_split_local_translate_items` anyway — the sidecar is on disk, so it
+    # never re-enters this step and the idempotent enqueue makes a repeat a
+    # no-op.
+    update_wanted_status(item_id, "wanted")
+    decision_log.step_skipped(
+        f"source_{fmt}_translation",
+        "source subtitle downloaded; translation queued for the automation drain",
+    )
+    logger.info(
+        "Wanted %d: queued the source-%s translation for the drain (source at %s)",
+        item_id,
+        fmt.upper(),
+        source_path,
+    )
+    return {
+        "wanted_id": item_id,
+        "status": "queued_for_translation",
+        "source_path": source_path,
+        "reason": "source subtitle downloaded; the automation queue owns the translation",
+    }
+
+
 # ---------------------------------------------------------------------------
 # Step 2: source-language ASS download + translation
 # ---------------------------------------------------------------------------
@@ -463,6 +553,10 @@ def _try_source_ass_translation(ctx: dict) -> dict | None:
                 save_error,
             )
             raise  # skip to next step
+
+        deferred = _defer_source_translation(ctx, actual_source_path, "ass")
+        if deferred is not None:
+            return deferred
 
         arr_context = _build_arr_context(item)
 
@@ -744,6 +838,10 @@ def _try_source_srt_translation(ctx: dict) -> dict | None:
             )
             raise  # skip to next step
 
+        deferred = _defer_source_translation(ctx, actual_source_path, "srt")
+        if deferred is not None:
+            return deferred
+
         arr_context = _build_arr_context(item)
 
         job = create_job(file_path, force=False, arr_context=arr_context if arr_context else None)
@@ -993,11 +1091,17 @@ def process_wanted_item(
     dry_run: bool = False,
     bypass_existing_target_check: bool = False,
     allow_translate_fallback: bool = True,
+    defer_translation: bool = False,
 ) -> dict:
     """Full pipeline for one item: search -> download best -> translate.
 
     Args:
         item_id: The wanted item to process.
+        defer_translation: When ``True``, Steps 2 and 4 download the source
+            subtitle and hand the translation to the automation drain instead
+            of running it on this thread. Set by the scheduled search when a
+            drain exists; ``False`` everywhere else so manual and API callers
+            keep today's behaviour.
         allow_translate_fallback: When ``False``, stop before Step 5 and
             report ``not_found`` instead of running the embedded/translate
             fallback. Step 5 is an ffmpeg extraction plus a full LLM
@@ -1101,6 +1205,7 @@ def process_wanted_item(
             auto_translate=auto_translate,
             dry_run=dry_run,
             allow_translate_fallback=allow_translate_fallback,
+            defer_translation=defer_translation,
         )
     finally:
         _restore_if_left_searching(item_id, prior_status)
@@ -1116,6 +1221,7 @@ def _search_flipped_item(
     auto_translate: bool | None,
     dry_run: bool,
     allow_translate_fallback: bool,
+    defer_translation: bool = False,
 ) -> dict:
     """Body of ``process_wanted_item`` after the flip to ``searching``.
 
@@ -1186,6 +1292,7 @@ def _search_flipped_item(
         "ass_had_results": False,
         "dry_run": dry_run,
         "allow_translate_fallback": allow_translate_fallback,
+        "defer_translation": defer_translation,
     }
 
     # Decision log: record the whole selection pipeline for this item so the

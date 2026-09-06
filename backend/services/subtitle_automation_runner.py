@@ -21,8 +21,10 @@ Error taxonomy:
 from __future__ import annotations
 
 import logging
+import time
 from datetime import UTC, datetime, timedelta
 
+from config import get_settings
 from db.models.core import SubtitleAutomationQueueEntry
 from db.repositories.subtitle_automation_queue import (
     SubtitleAutomationQueueRepository,
@@ -79,6 +81,23 @@ def _automation_enabled() -> bool:
         # If settings can't load, act as if disabled — safe default.
         logger.exception("failed to read subtitle_automation_enabled; treating as off")
         return False
+
+
+def _configured_budget_s() -> int:
+    """Wall-clock seconds one drain tick may keep claiming new rows.
+
+    Indirected like `_automation_enabled` so tests can patch it, and
+    fail-safe: an unreadable setting falls back to the documented default
+    rather than to "unbounded", because unbounded is the behaviour this
+    budget exists to remove.
+    """
+    default = 1800
+    try:
+        value = int(getattr(get_settings(), "subtitle_automation_budget_s", default))
+    except Exception:
+        logger.exception("failed to read subtitle_automation_budget_s; using %ds", default)
+        return default
+    return value if value > 0 else default
 
 
 def _auto_sync_enabled() -> bool | None:
@@ -315,7 +334,7 @@ class SubtitleAutomationRunner:
                 ", ".join(sorted(disabled)),
             )
 
-    def drain(self, *, max_items: int = 50) -> int:
+    def drain(self, *, max_items: int = 50, budget_s: int | None = None) -> int:
         """Drain up to `max_items` entries. Returns the number processed.
 
         Stops early if the queue is empty. Claims only the task types whose
@@ -328,6 +347,23 @@ class SubtitleAutomationRunner:
         regenerate them, so leaving them makes the status counts promise work
         that is not coming. The other task types are left alone — the scanner
         re-enqueues those, so waiting really is only waiting.
+
+        `budget_s` bounds the tick by wall clock, defaulting to
+        `Settings.subtitle_automation_budget_s`. Two bounds were not enough:
+        `max_items` counts rows whose cost ranges from a few seconds to the
+        ~870s of one sidecar translation, and the JobSpec's `timeout_s` does
+        not cancel — it stops *waiting* and sets the abort event. A tick doing
+        exactly the work asked of it therefore overran the wait and was
+        recorded as `timeout`, with its deliberate wind-down surfacing as an
+        ERROR (prod 2026-09-06: 12 of 70 ticks in 24h, mean 2549s against the
+        2400s timeout). The JobSpec comment records the same complaint for the
+        old 600s bound; raising the ceiling only moves it.
+
+        The check sits *before* the claim, never after. Claiming a row and
+        then abandoning it is the very thing the abort check between items
+        exists to avoid, and it would leave the row `running` with nobody on
+        it. The item already in flight when the budget runs out still finishes
+        — that is what the headroom under `timeout_s` is for.
         """
         task_types = _eligible_task_types()
         self._discard_disabled()
@@ -335,6 +371,9 @@ class SubtitleAutomationRunner:
             return 0
         if max_items <= 0:
             return 0
+        if budget_s is None:
+            budget_s = _configured_budget_s()
+        deadline = time.monotonic() + budget_s
         processed = 0
         while processed < max_items:
             # One queue item is the unit of work: claiming the row starts a
@@ -343,6 +382,14 @@ class SubtitleAutomationRunner:
             if abort_requested():
                 logger.info(
                     "subtitle_automation_tick: stopping as asked after %d item(s)",
+                    processed,
+                )
+                return processed
+            if time.monotonic() >= deadline:
+                logger.info(
+                    "subtitle_automation_tick: %ds budget spent after %d item(s) — "
+                    "leaving the rest of the queue for the next tick",
+                    budget_s,
                     processed,
                 )
                 return processed
