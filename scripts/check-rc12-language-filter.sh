@@ -92,7 +92,8 @@ echo "^ translation batches refused (want 0 unless the model echoes)"
 
 echo
 echo "--- translation memory pairs (baseline en-de, de-en, ja-de, id-de, zh-de, vi-de; no NEW source) ---"
-psql "SELECT source_lang||'-'||target_lang||':'||COUNT(*) FROM translation_memory GROUP BY 1,2 ORDER BY COUNT(*) DESC;" | tr '\n' ' '; echo
+psql "SELECT source_lang||'-'||target_lang||':'||n FROM (SELECT source_lang, target_lang, COUNT(*) n FROM translation_memory GROUP BY 1,2) t ORDER BY n DESC;" | tr '
+' ' '; echo
 
 echo
 echo "--- HELL MODE S02E01/E04/E07: what landed as .de since the deploy ---"
