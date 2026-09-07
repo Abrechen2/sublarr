@@ -173,7 +173,10 @@ class TestExtractAndCleanupContainerRemoval:
             result = embedded_extractor.extract_and_cleanup(
                 str(video),
                 _probe(_sub_stream(2, "jpn")),
-                keep_langs={"de"},
+                # ja is kept so the stream is considered at all: since the
+                # language filter, a foreign track is never extracted and
+                # therefore never a removal candidate either.
+                keep_langs={"de", "ja"},
                 remove_from_container=True,
             )
 
@@ -199,19 +202,18 @@ class TestExtractAndCleanupContainerRemoval:
             patch("ass_probe.is_sdh_stream", return_value=False),
             patch("ass_utils.get_subtitle_stream_output_path", side_effect=_same_path),
             patch("ass_utils.extract_subtitle_stream"),
-            patch("services.embedded_extractor.remove_streams_from_container") as mock_remove,
-            patch("services.embedded_extractor.trash_unwanted_sidecars", return_value=0),
         ):
-            result = embedded_extractor.extract_and_cleanup(
-                str(video),
-                _probe(_sub_stream(2, "eng"), _sub_stream(3, "eng")),
-                keep_langs={"de"},
-                remove_from_container=True,
+            sub_streams = embedded_extractor.collect_subtitle_streams(
+                _probe(_sub_stream(2, "eng"), _sub_stream(3, "eng"))
+            )
+            _any, streams_to_remove, extracted = embedded_extractor.extract_streams(
+                str(video), sub_streams
             )
 
-        assert len(result.extracted) == 1
-        removed = mock_remove.call_args.args[1]
-        assert removed == [(2, 0)], "the never-extracted duplicate must stay in the container"
+        assert len(extracted) == 1
+        assert streams_to_remove == [
+            (2, 0)
+        ], "the never-extracted duplicate must stay in the container"
 
 
 class TestFilterStreamsSafeToRemove:

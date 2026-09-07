@@ -9,6 +9,7 @@ import sys
 # (a) ``translator.core.X`` is a valid patch target for tests, and (b) the
 # moved flow functions can resolve them through the ``_core.*`` namespace.
 from translator._helpers import (  # noqa: F401 — re-exported for patches
+    _FALLBACK_SOURCE_LANGUAGES,
     _extract_series_id,
     _fail_result,
     _get_whisper_fallback_min_score,
@@ -47,12 +48,6 @@ from translator.srt_flow import (  # noqa: F401 — re-exported for patches
 )
 
 logger = logging.getLogger(__name__)
-
-# Bounded fallback source languages for provider search when the preferred
-# source isn't available. Common subtitle source languages, ordered by how
-# often they carry a translatable original. The target language is always
-# excluded at the call site.
-_FALLBACK_SOURCE_LANGUAGES = ("en", "ja", "zh", "ko", "es", "fr", "de", "pt", "it", "ru")
 
 
 def _pkg():

@@ -159,6 +159,18 @@ def has_target_language_audio(ffprobe_data, target_language=None):
     return False
 
 
+def _source_candidate_tag_sets(settings) -> list[set[str]]:
+    """Tag sets for every candidate source language, in preference order."""
+    from config_language_data import _get_language_tags
+    from translator._helpers import source_language_candidates
+
+    try:
+        candidates = source_language_candidates(settings)
+    except Exception:  # noqa: BLE001 — a settings hiccup must not break stream selection
+        candidates = [settings.source_language] if getattr(settings, "source_language", "") else []
+    return [set(_get_language_tags(code)) for code in candidates if code]
+
+
 def select_best_subtitle_stream(ffprobe_data, format_filter=None):
     """Select the best source language subtitle stream from ffprobe data.
 
@@ -181,6 +193,17 @@ def select_best_subtitle_stream(ffprobe_data, format_filter=None):
     settings = get_settings()
     source_tags = settings.get_source_lang_tags()
     target_tags = settings.get_target_lang_tags()
+    # Every language a translation may start from, in preference order, as
+    # tag sets. A track outside this list is never picked as a source: the
+    # old "first SRT that is not the target" fallback returned the ARABIC
+    # track of a Blu-ray remux and it went through the pipeline as German.
+    candidate_tag_sets = _source_candidate_tag_sets(settings)
+    candidate_tags = set().union(*candidate_tag_sets) if candidate_tag_sets else set()
+
+    def _eligible(language: str) -> bool:
+        # An untagged track is the norm on fansub MKVs and cannot be judged
+        # by its tag; anything tagged must be a configured candidate.
+        return not language or language == "und" or language in candidate_tags
 
     streams = ffprobe_data.get("streams", [])
     ass_streams = []
@@ -215,9 +238,14 @@ def select_best_subtitle_stream(ffprobe_data, format_filter=None):
 
     # --- ASS Priority ---
     if ass_streams:
-        # P1: "Full" subtitle (not signs/songs only)
+        # P1: "Full" subtitle (not signs/songs only) in a candidate language
         for s in ass_streams:
-            if "full" in s["title"] and "sign" not in s["title"] and "song" not in s["title"]:
+            if (
+                _eligible(s["language"])
+                and "full" in s["title"]
+                and "sign" not in s["title"]
+                and "song" not in s["title"]
+            ):
                 logger.info("Selected stream %d: '%s' (Full ASS)", s["sub_index"], s["title"])
                 return s
 
@@ -239,14 +267,18 @@ def select_best_subtitle_stream(ffprobe_data, format_filter=None):
             )
             return src[0]
 
-        # P4: Non-signs/songs/OP/ED ASS without target lang tag
+        # P4: Non-signs/songs/OP/ED ASS in a candidate source language,
+        # candidates in configured order, untagged tracks last
         _SKIP_TITLE_PARTS = {"sign", "song", "op", "ed", "karaoke", "credit", "caption"}
-        for s in ass_streams:
-            if s["language"] not in target_tags and not any(
-                part in s["title"] for part in _SKIP_TITLE_PARTS
-            ):
-                logger.info("Selected stream %d: '%s' (non-signs ASS)", s["sub_index"], s["title"])
-                return s
+        for tags in [*candidate_tag_sets, {"", "und"}]:
+            for s in ass_streams:
+                if s["language"] in tags and not any(
+                    part in s["title"] for part in _SKIP_TITLE_PARTS
+                ):
+                    logger.info(
+                        "Selected stream %d: '%s' (non-signs ASS)", s["sub_index"], s["title"]
+                    )
+                    return s
 
     # --- SRT Fallback ---
     if srt_streams:
@@ -260,11 +292,15 @@ def select_best_subtitle_stream(ffprobe_data, format_filter=None):
             )
             return src_srt[0]
 
-        # P6: Any SRT without target lang tag
-        for s in srt_streams:
-            if s["language"] not in target_tags:
-                logger.info("Selected stream %d: '%s' (SRT fallback)", s["sub_index"], s["title"])
-                return s
+        # P6: SRT in a candidate source language, candidates in configured
+        # order, untagged tracks last
+        for tags in [*candidate_tag_sets, {"", "und"}]:
+            for s in srt_streams:
+                if s["language"] in tags and s["language"] not in target_tags:
+                    logger.info(
+                        "Selected stream %d: '%s' (SRT fallback)", s["sub_index"], s["title"]
+                    )
+                    return s
 
     # P7: target-language SRT as last resort (e.g. German dub in MP4)
     if srt_streams:
@@ -277,10 +313,11 @@ def select_best_subtitle_stream(ffprobe_data, format_filter=None):
             )
             return tgt_srt[0]
 
-    # Last resort: any ASS stream at all
-    if ass_streams:
-        logger.warning("No ideal stream, using first ASS: %s", ass_streams[0]["title"])
-        return ass_streams[0]
+    # Last resort: any ASS stream in a candidate language (or untagged)
+    for s in ass_streams:
+        if _eligible(s["language"]):
+            logger.warning("No ideal stream, using first eligible ASS: %s", s["title"])
+            return s
 
     return None
 

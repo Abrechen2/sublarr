@@ -40,3 +40,17 @@ def find_chat_filler(lines):
         empty when every line looks like an actual translation.
     """
     return [(i, line) for i, line in enumerate(lines) if line and _CHAT_FILLER_RE.search(line)]
+
+
+def find_script_mismatch(lines, target_lang):
+    """Return a reason when a batch came back in the wrong writing system.
+
+    The filler guard above catches the model talking; this catches the model
+    echoing. A Chinese source pushed through an "English → German" prompt
+    comes back Chinese, one line per line, and the line-count check is
+    satisfied. None when the target's script is unknown or the batch is too
+    short to judge.
+    """
+    from subtitle_script import find_script_mismatch as _find
+
+    return _find(lines, target_lang)

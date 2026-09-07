@@ -376,6 +376,19 @@ def save_subtitle(
 
     result.content = normalise_downloaded_content(result.content, result.format)
 
+    # The provider's language label is a claim; the letters are the evidence.
+    # Prod 2026-09-06: OpenSubtitles delivered "German" (score 4) that was
+    # Traditional Chinese, and it went to disk as ``.de.srt``. RuntimeError is
+    # the class every download step already treats as "this candidate failed".
+    from subtitle_script import script_mismatch
+
+    wrong_script = script_mismatch(result.content.decode("utf-8", "ignore"), result.language)
+    if wrong_script:
+        raise RuntimeError(
+            f"Downloaded subtitle rejected — {wrong_script} "
+            f"(provider={result.provider_name}, id={result.subtitle_id})"
+        )
+
     # Duplicate detection: skip write if identical content already exists on disk
     try:
         from config import get_settings as _get_settings_dedup

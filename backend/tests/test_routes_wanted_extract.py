@@ -543,6 +543,14 @@ class TestRemoveStreamFromContainer:
 class TestExtractEmbeddedSubHelper:
     """Unit tests for the _extract_embedded_sub standalone helper."""
 
+    @pytest.fixture(autouse=True)
+    def _profile_keeps_english(self):
+        """These scenarios extract an English track for a German item. Since
+        the language filter only tracks in the profile's keep-set are
+        extracted, so the profile here keeps English as a source too."""
+        with patch("services.embedded_extractor.compute_keep_langs", return_value={"de", "en"}):
+            yield
+
     def test_item_not_found_raises(self, app_client):
         """FileNotFoundError, not ValueError — the drain worker treats it as
         terminal instead of retrying a vanished item daily (2026-08-27)."""
@@ -894,6 +902,13 @@ class TestRunBatchExtract:
 
 class TestRunBatchProbe:
     """Unit tests for the _run_batch_probe background function."""
+
+    @pytest.fixture(autouse=True)
+    def _profile_keeps_english(self):
+        """See TestExtractEmbeddedSubHelper: the English track is only
+        extracted when the profile keeps English."""
+        with patch("routes.wanted.batch_probe.compute_keep_langs", return_value={"de", "en"}):
+            yield
 
     def test_target_language_audio_skipped(self, app_client):
         app, _ = app_client

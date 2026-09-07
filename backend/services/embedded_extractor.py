@@ -138,6 +138,83 @@ def collect_subtitle_streams(probe_data: dict) -> list[dict]:
 # ---------------------------------------------------------------------------
 
 
+_SIDECAR_SAMPLE_BYTES = 65536
+
+
+def _sidecar_matches_tag(path: str, language: str, log_label: str) -> bool:
+    """False when the sidecar's letters contradict the stream's language tag.
+
+    Reads at most 64 KB. A file that cannot be read or decoded, or that holds
+    too little text to judge, is trusted as before — the guard exists for the
+    gross case (Arabic under ``.de``), not to second-guess every file.
+    """
+    from subtitle_script import decode_sample, script_mismatch
+
+    try:
+        with open(path, "rb") as fh:
+            text = decode_sample(fh.read(_SIDECAR_SAMPLE_BYTES))
+    except OSError as exc:
+        logger.debug("[%s]: could not read %s for the script check: %s", log_label, path, exc)
+        return True
+    reason = script_mismatch(text, language)
+    if reason is None:
+        return True
+    logger.warning(
+        "[%s]: %s does not hold what its name says (%s) — not adopting it as the %s track",
+        log_label,
+        path,
+        reason,
+        language,
+    )
+    return False
+
+
+def _quarantine_mislabelled_sidecar(path: str, log_label: str) -> None:
+    """Move a sidecar whose content contradicts its name into the trash.
+
+    Recoverable like every other trash move. If the move fails the file stays
+    and the caller extracts over it, which is the same end state.
+    """
+    if _trash_path(path):
+        logger.info("[%s]: trashed mislabelled sidecar %s", log_label, path)
+    else:
+        logger.warning("[%s]: could not trash mislabelled sidecar %s", log_label, path)
+
+
+def split_streams_by_keep_langs(
+    sub_streams: list[dict], keep_langs: set[str]
+) -> tuple[list[dict], list[dict]]:
+    """Split text streams into (worth extracting, foreign).
+
+    A stream is worth extracting when its language is in ``keep_langs`` or
+    when its tag cannot be classified (``und``, ``enm``, …) — an unknown tag
+    might be the track the user wants, and the trash step keeps such sidecars
+    for the same reason. An empty ``keep_langs`` means "no opinion" and keeps
+    every stream, matching the empty-set no-op everywhere else in this module.
+
+    Before this split every text track was extracted and the foreign ones
+    trashed afterwards. On one Blu-ray remux that was thirteen full reads of a
+    7.7 GB file per pass, and because the nightly cleanup emptied the trash's
+    evidence, the next pass did it all again: 4 152 extract passes in one prod
+    day, 3 136 sidecars trashed. In the hours between extract and cleanup the
+    search found the Vietnamese sidecar and translated it into German.
+    """
+    if not keep_langs:
+        return list(sub_streams), []
+
+    from config_language_data import _REVERSE_LANGUAGE_TAGS, normalize_language_code
+
+    wanted: list[dict] = []
+    foreign: list[dict] = []
+    for stream in sub_streams:
+        raw = (stream.get("language") or "und").lower()
+        if raw not in _REVERSE_LANGUAGE_TAGS or normalize_language_code(raw) in keep_langs:
+            wanted.append(stream)
+        else:
+            foreign.append(stream)
+    return wanted, foreign
+
+
 def extract_streams(
     file_path: str,
     sub_streams: list[dict],
@@ -183,14 +260,32 @@ def extract_streams(
     for stream_info in sub_streams:
         lang_fmt = (stream_info["language"], stream_info["format"])
         out = get_subtitle_stream_output_path(file_path, stream_info)
-        # A sidecar written before the code was canonicalised carries the raw
-        # container tag. Accept it as-is: re-extracting under the new name
-        # would put the same track on disk twice.
-        legacy = get_legacy_subtitle_stream_output_path(file_path, stream_info)
-        if not os.path.exists(out) and os.path.exists(legacy):
-            out = legacy
-
+        # A sidecar on disk under this stream's name is only "already
+        # extracted" if its letters agree with the tag. Prod 2026-08-30: a
+        # spring-2026 extractor had written the first foreign track under the
+        # target-language name, and the name alone made the pipeline report an
+        # ARABIC ``.de.srt`` as the German output on every pass for a week.
+        # A rejected file is moved to the trash; if that move fails it is
+        # overwritten by the fresh extract below — it is never adopted.
+        adopt = False
         if os.path.exists(out):
+            if _sidecar_matches_tag(out, stream_info["language"], log_label):
+                adopt = True
+            else:
+                _quarantine_mislabelled_sidecar(out, log_label)
+        if not adopt:
+            # A sidecar written before the code was canonicalised carries the
+            # raw container tag. Accept it as-is: re-extracting under the new
+            # name would put the same track on disk twice.
+            legacy = get_legacy_subtitle_stream_output_path(file_path, stream_info)
+            if legacy != out and os.path.exists(legacy):
+                if _sidecar_matches_tag(legacy, stream_info["language"], log_label):
+                    out = legacy
+                    adopt = True
+                else:
+                    _quarantine_mislabelled_sidecar(legacy, log_label)
+
+        if adopt:
             # Sidecar already on disk from an earlier run — nothing was
             # extracted now, so the stream must NOT become a removal
             # candidate (a repeat run would otherwise remux the container
@@ -433,7 +528,7 @@ def purge_signs_after_extract(
     # even when the purge itself is scoped to extracted_paths.
     all_sidecars: list[str] = []
     for ext in _SIDECAR_EXTS:
-        all_sidecars.extend(_glob.glob(f"{video_base}.*{ext}"))
+        all_sidecars.extend(_glob.glob(f"{_glob.escape(video_base)}.*{ext}"))
 
     if extracted_paths is not None:
         extracted_set = {os.path.abspath(p) for p in extracted_paths}
@@ -536,12 +631,15 @@ def extract_and_cleanup(
 
     Pipeline:
       1. Classify every text-based subtitle stream
-      2. Extract each one to a sidecar (skipping duplicates)
+      2. Extract the ones whose language is in ``keep_langs`` (or cannot be
+         classified) to sidecars, skipping duplicates. Foreign tracks stay
+         in the container untouched — see ``split_streams_by_keep_langs``.
       3. Only when ``remove_from_container`` is True: remove the freshly
-         extracted streams from the container in one mkvmerge pass (with
-         backup into ``remux_trash_dir``). Streams whose language is in
-         ``keep_langs`` are never removed, and an empty ``keep_langs``
-         removes nothing (see ``filter_streams_safe_to_remove``).
+         extracted streams and the foreign tracks skipped in step 2 from
+         the container in one mkvmerge pass (with backup into
+         ``remux_trash_dir``). Streams whose language is in ``keep_langs``
+         or cannot be classified are never removed, and an empty
+         ``keep_langs`` removes nothing (see ``filter_streams_safe_to_remove``).
       4. Trash sidecars on disk whose language is not in ``keep_langs``
 
     Args:
@@ -549,7 +647,8 @@ def extract_and_cleanup(
         probe_data: Pre-computed ffprobe output for ``file_path``.
         keep_langs: Normalised ISO 639-1 language codes to retain (e.g.
             the profile's target_languages, plus source_language when
-            auto-translation is enabled). Empty set → no sidecar cleanup.
+            auto-translation is enabled). Decides what gets extracted and
+            what gets trashed. Empty set → extract everything, trash nothing.
         target_language: Optional hint for which language the caller
             considers "primary". Used solely to pick the
             ``primary_output_path``/``primary_format``/``primary_language``
@@ -577,12 +676,34 @@ def extract_and_cleanup(
             sidecars_trashed=0,
         )
 
+    wanted_streams, foreign_streams = split_streams_by_keep_langs(sub_streams, keep_langs)
+    if foreign_streams:
+        logger.debug(
+            "[%s]: leaving %d foreign track(s) in the container (%s)",
+            log_label,
+            len(foreign_streams),
+            ",".join(sorted({s["language"] for s in foreign_streams})),
+        )
+
     any_extracted, streams_to_remove, extracted = extract_streams(
-        file_path, sub_streams, log_label=log_label
+        file_path, wanted_streams, log_label=log_label
     )
 
     if remove_from_container:
-        safe_to_remove = filter_streams_safe_to_remove(sub_streams, streams_to_remove, keep_langs)
+        # The opt-in used to strip foreign tracks by extracting them first and
+        # trashing the sidecar. They are no longer extracted, so they are named
+        # here directly — otherwise the setting would silently stop doing the
+        # one thing it does. Issue #159's contract still holds for everything
+        # else: a kept or unknown track is only a candidate when it was
+        # freshly extracted, and ``filter_streams_safe_to_remove`` never lets
+        # a kept or unknown track through. The container backup in the trash
+        # dir is what makes the strip recoverable, exactly as before.
+        candidates = list(streams_to_remove) + [
+            (s["stream_index"], s["sub_index"])
+            for s in foreign_streams
+            if s.get("stream_index") is not None
+        ]
+        safe_to_remove = filter_streams_safe_to_remove(sub_streams, candidates, keep_langs)
         remove_streams_from_container(file_path, safe_to_remove, log_label=log_label)
     elif streams_to_remove:
         logger.debug(

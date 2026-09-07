@@ -962,9 +962,12 @@ def trash_non_target_sidecars(
     moved: list[tuple[str, str]] = []
 
     # Build a candidate list across supported extensions.
+    # ``glob.escape``: a ``[Group]`` in the directory or file name is a
+    # character class to glob. Without the escape the pattern matched nothing
+    # under such names and every foreign sidecar there survived every pass.
     candidates: list[str] = []
     for ext in _SIDECAR_EXTS:
-        candidates.extend(glob.glob(f"{video_base}.*{ext}"))
+        candidates.extend(glob.glob(f"{glob.escape(video_base)}.*{ext}"))
 
     for candidate in candidates:
         raw_lang = _parse_sidecar_language(candidate, video_base)

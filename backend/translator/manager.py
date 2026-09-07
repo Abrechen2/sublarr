@@ -12,7 +12,7 @@ from translator._helpers import (
 )
 from translator.cache import _apply_translation_cache, _store_translations_in_cache
 from translator.errors import TranslationAbortedError
-from translator.output_guard import find_chat_filler
+from translator.output_guard import find_chat_filler, find_script_mismatch
 
 logger = logging.getLogger(__name__)
 
@@ -196,17 +196,21 @@ def _cache_batch(cache_enabled, source_lines, result, source_lang, target_lang):
     )
 
 
-def _verify_batch(result, expected_count, batch_label):
+def _verify_batch(result, expected_count, batch_label, target_lang=None):
     """Verify one backend result before it may reach the file or the cache.
 
-    Checks line count and rejects chat filler. The count check alone cannot
-    catch a conversational reply in a single-line batch — that reply is
-    exactly one line — which is how 1124 chat replies reached the prod
-    translation memory during the batch_size=1 era.
+    Checks line count, rejects chat filler, and — when the target language
+    is known — rejects output in the wrong writing system. The count check
+    alone cannot catch a conversational reply in a single-line batch (that
+    reply is exactly one line — how 1124 chat replies reached the prod
+    translation memory during the batch_size=1 era), and neither check
+    catches the model echoing its input: a Chinese source sent through an
+    "English → German" prompt comes back Chinese, one line per line.
 
     Raises:
-        RuntimeError: If the count is off or a line is filler, so the batch
-            fails like any other translation failure and nothing is cached.
+        RuntimeError: If the count is off, a line is filler or the script is
+            wrong, so the batch fails like any other translation failure and
+            nothing is cached.
     """
     if len(result.translated_lines) != expected_count:
         raise RuntimeError(
@@ -220,6 +224,13 @@ def _verify_batch(result, expected_count, batch_label):
             f"{batch_label} returned chat filler instead of a translation "
             f"(line {idx + 1}: {text[:80]!r}). Aborting to prevent cache pollution."
         )
+    if target_lang:
+        wrong_script = find_script_mismatch(result.translated_lines, target_lang)
+        if wrong_script:
+            raise RuntimeError(
+                f"{batch_label} came back in the wrong script ({wrong_script}). "
+                "Aborting to prevent cache pollution."
+            )
 
 
 def _translate_batch_or_split(
@@ -270,7 +281,7 @@ def _translate_batch_or_split(
         failure = result.error
     else:
         try:
-            _verify_batch(result, len(batch_lines), f"Batch {label}")
+            _verify_batch(result, len(batch_lines), f"Batch {label}", target_lang=target_lang)
         except RuntimeError as exc:
             failure = str(exc)
 
