@@ -129,6 +129,53 @@ notes close.
   cannot tell from a server that is not there.
 
 ### Fixed
+- **The extractor only extracts the languages your profile keeps.** Every text
+  track in a container used to be extracted and the foreign ones trashed
+  afterwards — on a Blu-ray remux with 19 subtitle tracks that was thirteen
+  full reads of a 7.7 GB file per pass, and because the nightly cleanup
+  emptied the trash's evidence, the next day's pass did it all again. One
+  production install logged 4 152 extract passes and 3 136 trashed sidecars
+  in a single day. In the hours between extract and cleanup the wanted search
+  found the Vietnamese sidecar and translated it into German. Tracks outside
+  the profile's languages now stay in the container untouched; unclassifiable
+  tags (`und`) are still extracted. The container-removal opt-in keeps
+  stripping the foreign tracks it always stripped — they are named directly
+  now instead of being extracted first.
+- **A sidecar is only "already extracted" if its letters agree with its name.**
+  Fourteen `.de.srt` files next to Blu-ray remuxes held the container's
+  Arabic track (a spring-2026 extractor had written the first foreign track
+  under the target-language name), and since the canonical-name change in
+  1.14.0 the extractor adopted them as the German output on every pass while
+  the real German sat at `.ger.srt`. A sidecar whose script contradicts its
+  language tag is now moved to the trash and the track re-extracted (or the
+  other name used). Files that cannot be read or hold too little text are
+  trusted as before.
+- **Sidecar cleanup works under bracketed names.** `[Group] Show` in a
+  directory or file name is a character class to `glob`, so the extract-time
+  cleanup matched nothing there and every foreign sidecar under such names
+  survived every pass (`sidecars_trashed: 0` on all 13 episodes of one
+  series, daily). Same fix for the signs purge.
+- **A translation source is chosen from the configured candidate languages
+  only.** With no English sidecar present the fallback took the
+  alphabetically first language on disk — Arabic, then Vietnamese — and 24
+  episodes were translated vi → de. Sidecars and container tracks in a
+  language outside *Translation → Source languages* are no longer used;
+  candidates are tried in the configured order. The setting already
+  described itself that way; the code now agrees.
+- **Provider downloads and translation output are checked against the
+  language's writing system.** OpenSubtitles delivered "German" (score 4)
+  that was Traditional Chinese and it went to disk as `.de.srt`; a model that
+  echoes its input passes the line-count check one line at a time. A download
+  whose script contradicts the claimed language is refused and the search
+  moves on; a translation batch that comes back in the wrong script fails
+  like any other bad batch and never reaches the translation memory. Known
+  scripts: Latin, Cyrillic, Greek, Arabic, Hebrew, Thai, Devanagari; a
+  Japanese, Chinese or Korean label is never judged, because those releases
+  routinely carry romaji, karaoke and English lines. ASS files are judged on
+  their dialogue only, UTF-16 files are decoded first, and English under a
+  German name is not flagged — that is a language problem, not a script
+  problem.
+
 - **The translator can no longer run away with the wanted search.** Steps 2
   and 4 of the per-item pipeline download a source-language subtitle and then
   push it through the LLM on the search thread. The guard that keeps the
