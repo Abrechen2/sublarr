@@ -10,7 +10,7 @@ Endpoints:
 import logging
 import uuid
 
-from flask import jsonify, request
+from flask import current_app, jsonify, request
 
 from routes.cleanup import _scan_lock, _scan_state, bp
 from services.background_tasks import submit_background
@@ -68,23 +68,35 @@ def start_scan():
 
     settings = get_settings()
     media_path = settings.media_path
+    # The worker runs on the shared pool, outside the request that started it.
+    # Both the engine and the socket emit reach for app state, so the context
+    # has to be handed over explicitly — without it the thread dies on the
+    # first hash lookup with "Working outside of application context" while
+    # the endpoint has already answered 200 "scanning", and the failure only
+    # ever surfaces in the status endpoint.
+    app = current_app._get_current_object()
 
     def _run_scan():
         from dedup_engine import scan_for_duplicates
 
         try:
-            result = scan_for_duplicates(media_path, socketio=socketio)
-            with _scan_lock:
-                _scan_state["result"] = result
-                _scan_state["running"] = False
-            socketio.emit("scan_complete", result)
+            with app.app_context():
+                result = scan_for_duplicates(media_path, socketio=socketio)
+                with _scan_lock:
+                    _scan_state["result"] = result
+                    _scan_state["running"] = False
+                socketio.emit("scan_complete", result)
             logger.info("Dedup scan complete: %s", scan_id)
         except Exception as e:
-            logger.error("Dedup scan failed: %s", e)
+            logger.exception("Dedup scan failed: %s", e)
             with _scan_lock:
                 _scan_state["result"] = {"error": str(e)}
                 _scan_state["running"] = False
-            socketio.emit("scan_error", {"error": str(e)})
+            try:
+                with app.app_context():
+                    socketio.emit("scan_error", {"error": str(e)})
+            except Exception:
+                logger.debug("emit scan_error itself failed", exc_info=True)
 
     submit_background(_run_scan)
 

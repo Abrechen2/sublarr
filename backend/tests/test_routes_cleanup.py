@@ -879,3 +879,90 @@ class TestNonTargetSubs:
         finally:
             os.environ.pop("SUBLARR_MEDIA_PATH", None)
             reload_settings()
+
+
+# ---- TestScanWorkerContext -----------------------------------------------------
+
+
+class TestScanWorkerContext:
+    """The dedup worker runs off-request and needs its own app context.
+
+    Found by hand on RC 1.14.0-rc.12 (2026-09-08): POST /cleanup/scan answered
+    200 "scanning", the worker died immediately with "Working outside of
+    application context", and the only trace was `result.error` in the status
+    endpoint. The existing tests never ran the submitted callable, so nothing
+    caught it.
+
+    The worker is run on a real thread here on purpose: Flask contexts are
+    thread-local, so a thread is the only faithful stand-in for the pool. Call
+    it inline and the test client's own context papers over the bug.
+    """
+
+    def setup_method(self):
+        _reset_scan_state()
+
+    @staticmethod
+    def _run_on_thread(fn):
+        import threading
+
+        error = []
+
+        def target():
+            try:
+                fn()
+            except Exception as exc:  # pragma: no cover - only on regression
+                error.append(exc)
+
+        t = threading.Thread(target=target)
+        t.start()
+        t.join(timeout=30)
+        assert not t.is_alive(), "dedup worker hung"
+        return error
+
+    def test_worker_runs_with_an_app_context(self, client):
+        """The callable handed to the pool carries its own context."""
+        from flask import has_app_context
+
+        seen = {}
+
+        def fake_scan(media_path, socketio=None):
+            seen["had_context"] = has_app_context()
+            return {"duplicates_found": 0, "groups": [], "total_scanned": 0}
+
+        submitted = []
+        with (
+            patch("routes.cleanup.dedup.submit_background", submitted.append),
+            patch("dedup_engine.scan_for_duplicates", fake_scan),
+        ):
+            rv = client.post("/api/v1/cleanup/scan", json={})
+            assert rv.status_code == 200
+            assert len(submitted) == 1, "scan did not reach the background pool"
+
+            errors = self._run_on_thread(submitted[0])
+
+        assert not errors, f"worker raised: {errors[0]!r}"
+        assert seen.get("had_context") is True, (
+            "worker ran without an app context — the thread dies on the first "
+            "piece of app state it touches"
+        )
+
+    def test_worker_stores_the_result_not_an_error(self, client):
+        """A clean run leaves the result behind, and clears `running`."""
+        import routes.cleanup as cleanup_mod
+
+        result = {"duplicates_found": 0, "groups": [], "total_scanned": 3}
+        submitted = []
+        with (
+            patch("routes.cleanup.dedup.submit_background", submitted.append),
+            patch(
+                "dedup_engine.scan_for_duplicates",
+                lambda media_path, socketio=None: result,
+            ),
+        ):
+            client.post("/api/v1/cleanup/scan", json={})
+            self._run_on_thread(submitted[0])
+
+        state = cleanup_mod._scan_state
+        assert state["running"] is False
+        assert state["result"] == result
+        assert "error" not in state["result"]
