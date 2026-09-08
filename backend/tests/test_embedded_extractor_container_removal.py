@@ -211,9 +211,9 @@ class TestExtractAndCleanupContainerRemoval:
             )
 
         assert len(extracted) == 1
-        assert streams_to_remove == [
-            (2, 0)
-        ], "the never-extracted duplicate must stay in the container"
+        assert streams_to_remove == [(2, 0)], (
+            "the never-extracted duplicate must stay in the container"
+        )
 
 
 class TestFilterStreamsSafeToRemove:
