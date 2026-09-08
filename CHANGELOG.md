@@ -129,6 +129,15 @@ notes close.
   cannot tell from a server that is not there.
 
 ### Fixed
+- **Duplicate scan works again.** Starting a scan answered `200 scanning` and
+  then nothing happened: the worker runs on a background thread, where Flask's
+  request context no longer exists, and it died on the first piece of app state
+  it touched. Because the endpoint had already answered, the failure showed up
+  only if you polled the status endpoint and read `result.error` — from the UI
+  the scan simply never finished. SHA-256 deduplication was unreachable through
+  the API for the whole 1.14.0 RC cycle. The worker now carries its own
+  application context, and a regression test runs it on a real thread, since
+  calling it inline lets the test client's context hide the bug.
 - **The extractor only extracts the languages your profile keeps.** Every text
   track in a container used to be extracted and the foreign ones trashed
   afterwards — on a Blu-ray remux with 19 subtitle tracks that was thirteen
