@@ -136,9 +136,11 @@ notes close.
   ordinary for karaoke and sign typesetting, where the effect simply ends with
   the line — the search restarted at end-of-file for every opener. One
   production install hit a 25 MB translated ASS with 33 096 events, 24 073
-  openers and not a single closer: the search would have run for hours, and
-  because it holds Python's interpreter lock, the web UI, the API and the health
-  check went silent with it. The container looked alive and answered nothing.
+  openers and not a single closer: the search ran for 29 minutes on that one
+  file, and because it holds Python's interpreter lock, the web UI, the API and
+  the health check went silent for all of it. The container looked alive and
+  answered nothing. The cost grows with the square of the file size, so a larger
+  subtitle is not a longer wait but a different order of magnitude.
   Blocks are now found by walking each line's override tags once, which is also
   the correct reading — ASS resets override tags at every event, so a block
   cannot span two of them. The same file is now sanitized in under half a
