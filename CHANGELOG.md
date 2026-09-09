@@ -31,6 +31,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   docs pointed at Settings → General → Re-run onboarding; no settings page
   mentioned onboarding at all, and the wizard was reachable only by typing the
   `/onboarding` route by hand.
+- **Completing onboarding through the API silences the first-run modal.** The
+  modal reads `setup_wizard_completed` while onboarding writes
+  `onboarding_completed` — two independent flags. The UI happens to call both
+  endpoints, so anyone provisioning through the API got the setup dialog thrown
+  back at a finished install on every fresh browser session.
+- **The onboarding status counts the providers you actually have.** It tested
+  three hardcoded API-key fields, so an install running on a custom API
+  provider — or on any of the keyless ones — reported `has_providers: false`
+  while `/api/v1/providers` listed the same provider as enabled. Both answers
+  now come from the same place.
 - **A failed profile save says what the server said.** Saving a profile under a
   name that already exists answers 409 with the offending name in the message,
   and the UI replaced all of it with a generic "could not save". The four

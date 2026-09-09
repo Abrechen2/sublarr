@@ -9,6 +9,28 @@ from routes.config import bp
 logger = logging.getLogger(__name__)
 
 
+def _enabled_provider_names() -> list[str]:
+    """Providers this install actually has, by the same rule the provider list uses.
+
+    ``providers_enabled`` is an allow-list, and an EMPTY value means "every
+    registered provider is enabled" — the default for most installs. Asking
+    the manager keeps this answer identical to /api/v1/providers instead of
+    testing three hardcoded API-key fields, which reported ``has_providers:
+    false`` on an install running happily on customapi (forgejo #14).
+
+    Failure to build the manager is reported as "no providers" rather than
+    raised: the status endpoint's job is to describe the install, not to fail
+    with it.
+    """
+    try:
+        from providers import get_provider_manager
+
+        return [p["name"] for p in get_provider_manager().get_provider_status() if p.get("enabled")]
+    except Exception as exc:  # pragma: no cover - defensive
+        logger.debug("onboarding status could not read the provider list: %s", exc)
+        return []
+
+
 @bp.route("/onboarding/status", methods=["GET"])
 def onboarding_status():
     """Check if onboarding has been completed.
@@ -50,9 +72,7 @@ def onboarding_status():
             "has_sonarr": bool(settings.sonarr_url and settings.sonarr_api_key),
             "has_radarr": bool(settings.radarr_url and settings.radarr_api_key),
             "has_ollama": bool(settings.ollama_url),
-            "has_providers": bool(
-                settings.opensubtitles_api_key or settings.jimaku_api_key or settings.subdl_api_key
-            ),
+            "has_providers": bool(_enabled_provider_names()),
         }
     )
 
@@ -88,4 +108,11 @@ def onboarding_complete():
         return jsonify({"status": "already_completed"}), 200
 
     save_config_entry("onboarding_completed", "true")
+    # Onboarding is the superset of the first-run modal, so finishing it leaves
+    # that modal nothing to ask. The UI path happens to call
+    # /system/setup/complete on its own; a caller provisioning through the API
+    # did not, and got the setup dialog thrown back at a finished install
+    # (forgejo #14). Only the flag is set here -- the performance profile stays
+    # whatever it is, since nobody chose one.
+    save_config_entry("setup_wizard_completed", "true")
     return jsonify({"status": "completed"})
