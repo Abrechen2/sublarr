@@ -51,6 +51,13 @@ Check these in order. Any "no" blocks the promotion, not the next RC.
    not a smoke test — see `~/SUBLARR-WATCH.md` on CT142 for the running one.
 4. **The watch is green on its own terms**, i.e. `sublarr-findings.log` has no
    unresolved `ERNST` line. Health endpoints being up is not the same thing.
+5. **The version-stamped claims still hold.** The README's "Known limitations"
+   section and the docs' Scope & limitations page both carry a version
+   ("Current as of X.Y.Z"), and so do the counted claims next to them — number
+   of providers, the version badge. Re-read them against the release and move
+   the stamp; a stamp that is not moved is a claim nobody checked. Found stale
+   twice: the README badge sat at 1.6.5 while 1.9.4 shipped, and the provider
+   count still read 21 when 29 were registered (forgejo #13).
 
 ## RC prod-data mirror
 

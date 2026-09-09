@@ -8,7 +8,7 @@
 
 *arr-compatible · Self-hosted · Open Source · Anime-first scoring
 
-[![Version](https://img.shields.io/badge/version-1.13.4-teal.svg)](https://github.com/Abrechen2/sublarr/releases)
+[![Version](https://img.shields.io/badge/version-1.14.0-teal.svg)](https://github.com/Abrechen2/sublarr/releases)
 [![CI](https://github.com/Abrechen2/sublarr/actions/workflows/ci.yml/badge.svg?branch=master)](https://github.com/Abrechen2/sublarr/actions/workflows/ci.yml)
 [![tests](https://img.shields.io/badge/tests-8126_passing-22d3ee.svg)](#-development)
 [![security](https://img.shields.io/badge/ruff_%2B_bandit_%2B_pip--audit_%2B_Semgrep_%2B_Trivy_%2B_CodeQL-22c55e.svg)](#-security)
@@ -140,14 +140,14 @@ If you want to try it, see the [translation docs](https://sublarr.de/docs/user-g
 
 ## ⚠️ Known limitations
 
-Current as of **1.13.4**. These are real constraints, not roadmap teasers — worth reading before you install rather than after.
+Current as of **1.14.0**. These are real constraints, not roadmap teasers — worth reading before you install rather than after.
 
 - **LLM translation is experimental and off by default.** Quality varies sharply by backend, model and language pair. Cloud backends (DeepL, Claude, Gemini) are the reliable end; local Ollama models are usable but need tuning. Never point it at a library you have no backup of.
 - **One shared password, no user accounts.** Sublarr's UI auth is a single password — no usernames, no roles, no per-user audit trail. For genuine multi-user setups, put it behind a reverse proxy with forward-auth; Sublarr reads proxy auth headers natively (Authelia / authentik, `proxy_auth_enabled`).
 - **One instance per library.** The scheduler assumes a single primary. Extra replicas must run with `SUBLARR_SCHEDULER_ROLE=disabled` or every recurring job fires twice. There is no worker pool and no multi-host distribution.
 - **No auto-update, by design.** The UI tells you when a newer release exists; you run the upgrade. Read the [CHANGELOG](CHANGELOG.md) first — this project moves quickly.
 - **Docker is the supported path.** Running from source works and is documented for development, but bare-metal installation is not a path we test or support.
-- **Provider coverage depends on your accounts.** Of the 21 providers, several need credentials or an API key. With no keys configured you are effectively running a much smaller subset.
+- **Provider coverage depends on your accounts.** Of the 29 providers, several need credentials or an API key. With no keys configured you are effectively running a much smaller subset.
 - **Anime-first defaults.** ASS gets a large scoring bonus over SRT. That is deliberate and correct for anime; on an English live-action library it mostly means the scoring has less to say.
 - **Solo-maintained.** One person builds, tests and answers issues here. Bug reports get read; response time varies with real life.
 - **The docs are written by hand and can drift.** If [the documentation](https://sublarr.de/docs/) and the running app disagree, trust the app — and please [open an issue](https://github.com/Abrechen2/sublarr/issues).
