@@ -1107,7 +1107,12 @@
     "log_file": "Log File Path",
     "log_file_hint": "Write logs to this file path, e.g. /config/sublarr.log. Leave empty to disable.",
     "log_format": "Log Format",
-    "log_format_hint": "Output format for log entries. Use 'json' for log aggregation tools."
+    "log_format_hint": "Output format for log entries. Use 'json' for log aggregation tools.",
+    "onboarding_section": "Setup wizard",
+    "onboarding_desc": "Walk through the guided first-time setup again.",
+    "rerun_onboarding": "Re-run onboarding",
+    "rerun_onboarding_hint": "Opens the wizard from the start. Existing settings stay as they are until you change them in the wizard itself.",
+    "rerun_onboarding_action": "Open wizard"
   },
   "about_page": {
     "title": "About",

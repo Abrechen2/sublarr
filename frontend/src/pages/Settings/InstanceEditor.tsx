@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { Plus, Trash2 } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
+import { PathMappingEditor } from './PathMappingEditor'
 
 interface InstanceEntry {
   name: string
@@ -117,13 +118,9 @@ export function InstanceEditor({
               className="w-full px-2.5 py-1.5 rounded text-sm focus:outline-none"
               style={inputStyle}
             />
-            <input
-              type="text"
-              placeholder={t('instance_editor.path_mapping_placeholder')}
+            <PathMappingEditor
               value={inst.path_mapping || ''}
-              onChange={(e) => updateField(idx, 'path_mapping', e.target.value)}
-              className="w-full px-2.5 py-1.5 rounded text-sm focus:outline-none"
-              style={inputStyle}
+              onChange={(val) => updateField(idx, 'path_mapping', val)}
             />
           </div>
         </div>

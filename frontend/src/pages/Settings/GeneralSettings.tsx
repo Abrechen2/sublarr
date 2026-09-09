@@ -1,4 +1,5 @@
-import { HardDrive, FileText, Monitor } from 'lucide-react'
+import { HardDrive, FileText, Monitor, Compass } from 'lucide-react'
+import { Link } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { SettingsDetailLayout } from '@/components/settings/SettingsDetailLayout'
 import { SettingsSection } from '@/components/settings/SettingsSection'
@@ -30,6 +31,7 @@ const SECTIONS: readonly FormSectionDef[] = [
   { id: 'interface-preferences', titleKey: 'general_page.interface_prefs_section' },
   { id: 'paths',                 titleKey: 'general_page.paths_section' },
   { id: 'logging',               titleKey: 'general_page.logging_section' },
+  { id: 'onboarding',            titleKey: 'general_page.onboarding_section' },
 ]
 
 // ─── Component ────────────────────────────────────────────────────────────────
@@ -344,6 +346,35 @@ export function GeneralSettings() {
                     </option>
                   ))}
                 </select>
+              </FormGroup>
+            </SettingsSection>
+          </section>
+
+          {/* The docs have pointed here for the wizard since 1.13.x, but no
+              control existed on any settings page — the wizard was reachable
+              only by typing the /onboarding route by hand (forgejo #16). */}
+          <section id="onboarding" data-testid="settings.general.section-onboarding">
+            <SettingsSection
+              title={t('general_page.onboarding_section')}
+              description={t('general_page.onboarding_desc')}
+              icon={<Compass size={16} style={{ color: 'var(--accent)' }} />}
+            >
+              <FormGroup
+                label={t('general_page.rerun_onboarding')}
+                hint={t('general_page.rerun_onboarding_hint')}
+                htmlFor="rerun-onboarding"
+                data-testid="form-group-rerun-onboarding"
+              >
+                <Link
+                  id="rerun-onboarding"
+                  to="/onboarding"
+                  data-testid="link-rerun-onboarding"
+                  className="inline-flex items-center gap-2 rounded-md border border-border
+                             bg-surface px-3 py-1.5 text-sm hover:bg-surface-hover"
+                >
+                  <Compass size={14} />
+                  {t('general_page.rerun_onboarding_action')}
+                </Link>
               </FormGroup>
             </SettingsSection>
           </section>

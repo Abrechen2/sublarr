@@ -22,6 +22,7 @@ import {
   Star,
 } from 'lucide-react'
 import { toast } from '@/components/shared/Toast'
+import { apiErrorMessage } from '@/lib/apiError'
 import type { LanguageProfile } from '@/lib/types'
 import { LanguagePillSelector } from '@/components/settings/LanguagePillSelector'
 import { LANGUAGE_OPTIONS } from '@/styles/settingsShared'
@@ -148,12 +149,12 @@ export function LanguageProfilesTab() {
     if (editingId) {
       updateProfile.mutate({ id: editingId, data: payload }, {
         onSuccess: () => { toast(t('language_profiles.saved')); resetForm() },
-        onError: () => toast(t('language_profiles.save_failed'), 'error'),
+        onError: (err) => toast(apiErrorMessage(err, t('language_profiles.save_failed')), 'error'),
       })
     } else {
       createProfile.mutate(payload as Omit<LanguageProfile, 'id' | 'is_default'>, {
         onSuccess: () => { toast(t('language_profiles.created')); resetForm() },
-        onError: () => toast(t('language_profiles.create_failed'), 'error'),
+        onError: (err) => toast(apiErrorMessage(err, t('language_profiles.create_failed')), 'error'),
       })
     }
   }
@@ -161,7 +162,7 @@ export function LanguageProfilesTab() {
   const handleDelete = (id: number) => {
     deleteProfile.mutate(id, {
       onSuccess: () => toast(t('language_profiles.deleted')),
-      onError: () => toast(t('language_profiles.delete_default_failed'), 'error'),
+      onError: (err) => toast(apiErrorMessage(err, t('language_profiles.delete_default_failed')), 'error'),
     })
   }
 
@@ -605,7 +606,7 @@ export function LanguageProfilesTab() {
                   onClick={() => {
                     setAsDefaultForAll.mutate(p.id, {
                       onSuccess: () => toast(t('language_profiles.set_default_success', { name: p.name })),
-                      onError: () => toast(t('language_profiles.set_default_failed'), 'error'),
+                      onError: (err) => toast(apiErrorMessage(err, t('language_profiles.set_default_failed')), 'error'),
                     })
                   }}
                   disabled={setAsDefaultForAll.isPending}

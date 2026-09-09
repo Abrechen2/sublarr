@@ -1107,7 +1107,12 @@
     "log_file": "Protokolldatei-Pfad",
     "log_file_hint": "Protokoll in diesen Dateipfad schreiben, z.B. /config/sublarr.log. Leer lassen zum Deaktivieren.",
     "log_format": "Protokollformat",
-    "log_format_hint": "Ausgabeformat für Protokolleinträge. 'json' für Log-Aggregationstools."
+    "log_format_hint": "Ausgabeformat für Protokolleinträge. 'json' für Log-Aggregationstools.",
+    "onboarding_section": "Einrichtungsassistent",
+    "onboarding_desc": "Den geführten Ersteinrichtungs-Assistenten erneut durchlaufen.",
+    "rerun_onboarding": "Assistent erneut starten",
+    "rerun_onboarding_hint": "Öffnet den Assistenten von vorn. Bestehende Einstellungen bleiben erhalten, bis du sie im Assistenten selbst änderst.",
+    "rerun_onboarding_action": "Assistent öffnen"
   },
   "about_page": {
     "title": "Über",
