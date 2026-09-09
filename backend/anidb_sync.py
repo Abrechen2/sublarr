@@ -31,6 +31,9 @@ from defusedxml import ElementTree as ET
 logger = logging.getLogger(__name__)
 
 ANIME_LIST_URL = "https://raw.githubusercontent.com/Anime-Lists/anime-lists/master/anime-list.xml"
+
+# A single <mapping> range wider than this is a broken entry, not a season.
+MAX_RANGE_SPAN = 1000
 REQUEST_TIMEOUT_SECONDS = 30
 DEFAULT_INTERVAL_HOURS = 168  # weekly
 
@@ -68,11 +71,60 @@ def _parse_mapping_token(token: str):
         return None
 
 
+def _expand_range_mapping(mapping_el) -> list[tuple[int, int]]:
+    """Expand a ``start``/``end``/``offset`` mapping into episode pairs.
+
+    anime-list.xml expresses most season mappings as a range rather than as
+    explicit ``anidb-tvdb`` tokens, and those elements carry no text at all::
+
+        <mapping anidbseason="1" tvdbseason="2" start="21" end="41" offset="-20"/>
+
+    ``start`` and ``end`` bound the ANIDB episode numbers; the TVDB episode is
+    ``anidb_ep + offset`` (offset absent means 0). The example above is Bleach:
+    TVDB S02E01 is AniDB absolute episode 21.
+
+    Returns (anidb_ep, tvdb_ep) pairs, empty when the element carries no range
+    or the range does not make sense.
+    """
+    start_str = (mapping_el.get("start") or "").strip()
+    end_str = (mapping_el.get("end") or "").strip()
+    if not start_str.isdigit() or not end_str.isdigit():
+        return []
+
+    start, end = int(start_str), int(end_str)
+    if start <= 0 or end < start or (end - start + 1) > MAX_RANGE_SPAN:
+        # A backwards or implausibly wide range is a broken entry, not a
+        # season — expanding it would flood the mapping table.
+        return []
+
+    # Specials carry no absolute episode number, so a range on anidbseason 0
+    # must not become one. The tvdbseason<=0 check upstream catches the usual
+    # shape of this; this catches specials mapped into a real season.
+    anidb_season = (mapping_el.get("anidbseason") or "").strip()
+    if anidb_season == "0":
+        return []
+
+    offset_str = (mapping_el.get("offset") or "0").strip()
+    try:
+        offset = int(offset_str)
+    except ValueError:
+        return []
+
+    pairs = []
+    for anidb_ep in range(start, end + 1):
+        tvdb_ep = anidb_ep + offset
+        if tvdb_ep <= 0:
+            continue
+        pairs.append((anidb_ep, tvdb_ep))
+    return pairs
+
+
 def _process_xml(xml_bytes: bytes, app) -> dict:
     """Parse the anime-list XML and upsert mappings into the DB."""
     series_processed = 0
     mappings_upserted = 0
     skipped = 0
+    ranges_expanded = 0
 
     try:
         root = ET.fromstring(xml_bytes)
@@ -112,14 +164,25 @@ def _process_xml(xml_bytes: bytes, app) -> dict:
                     continue
 
                 text = (mapping_el.text or "").strip()
-                tokens = text.split(";")
-                for token in tokens:
+                pairs = []
+                for token in text.split(";"):
                     parsed = _parse_mapping_token(token)
                     if parsed is None:
                         continue
                     anidb_ep, tvdb_ep = parsed
                     if anidb_ep <= 0 or tvdb_ep <= 0:
                         continue
+                    pairs.append((anidb_ep, tvdb_ep))
+
+                # Most seasons are expressed as a range instead of as tokens,
+                # in an element whose text is empty (issue #205). The two are
+                # additive: an element may carry both.
+                range_pairs = _expand_range_mapping(mapping_el)
+                if range_pairs:
+                    ranges_expanded += 1
+                    pairs.extend(range_pairs)
+
+                for anidb_ep, tvdb_ep in pairs:
                     try:
                         repo.upsert_mapping(
                             tvdb_id=tvdb_id,
@@ -139,9 +202,11 @@ def _process_xml(xml_bytes: bytes, app) -> dict:
                         )
 
     logger.info(
-        "AniDB sync complete: %d series processed, %d mappings upserted, %d skipped",
+        "AniDB sync complete: %d series processed, %d mappings upserted "
+        "(%d from season ranges), %d skipped",
         series_processed,
         mappings_upserted,
+        ranges_expanded,
         skipped,
     )
     return {
