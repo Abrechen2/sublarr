@@ -199,6 +199,53 @@ class TestSubtitleSanitizer:
         assert b"\\p0" not in result
         assert b"m 0 0 l 100" not in result
 
+    def test_ass_unclosed_drawing_openers_do_not_stall(self):
+        """A typeset-heavy ASS full of unclosed {\\p1} tags must sanitize fast.
+
+        Prod 2026-09-09: a 25 MB translated ASS carried 24 073 ``{\\p1}``
+        openers and not a single ``{\\p0}``. The block regex scanned to EOF
+        from every opener under DOTALL — quadratic, GIL-held — and wedged the
+        whole app for hours. The stripping result was "nothing removed"; only
+        the way of arriving at it was catastrophic.
+        """
+        import time
+
+        header, first_line = _VALID_ASS.decode().rsplit("Dialogue:", 1)
+        body = "".join(
+            f"Dialogue: 0,0:00:01.00,0:00:05.00,Default,,0,0,0,,"
+            f"{{\\an7\\pos(10,10)\\p1}}m 0 0 l 100 0 100 100 {'x' * 400}\n"
+            for _ in range(4000)
+        )
+        heavy = (header + body).encode()
+        assert len(heavy) > 1_500_000
+
+        started = time.perf_counter()
+        result = sanitize_ass_content(heavy)
+        elapsed = time.perf_counter() - started
+
+        assert elapsed < 10, f"sanitizer took {elapsed:.1f}s on {len(heavy)} bytes"
+        # No closer anywhere → nothing is a complete drawing block, so the
+        # openers stay exactly as before (this test is about the cost, not a
+        # change of policy).
+        assert result.count(b"\\p1") == 4000
+        assert first_line is not None
+
+    def test_ass_drawing_block_does_not_swallow_other_events(self):
+        """An unclosed opener must not delete the dialogue lines after it.
+
+        Override tags are scoped to their own event — a ``{\\p1}`` on one line
+        can never be closed by a ``{\\p0}`` three lines down. The old regex
+        matched across events and took every line in between with it.
+        """
+        lines = (
+            "Dialogue: 0,0:00:01.00,0:00:05.00,Default,,0,0,0,,{\\p1}m 0 0 l 9 9\n"
+            "Dialogue: 0,0:00:06.00,0:00:09.00,Default,,0,0,0,,Keep me please\n"
+            "Dialogue: 0,0:00:10.00,0:00:12.00,Default,,0,0,0,,{\\p0}tail\n"
+        )
+        header = _VALID_ASS.decode().rsplit("Dialogue:", 1)[0]
+        result = sanitize_ass_content((header + lines).encode())
+        assert b"Keep me please" in result
+
     def test_ass_valid_content_preserved(self):
         """Normal ASS dialogue, formatting, and positions should be preserved."""
         formatted = (

@@ -17,12 +17,19 @@ logger = logging.getLogger(__name__)
 
 _MAX_SUBTITLE_BYTES = 5 * 1024 * 1024  # 5 MB per subtitle file
 
-# Drawing-mode blocks: {\p1}...{\p0} — can render full-screen overlays
-# Matches any override tag containing \pN (N=1-9) up to the matching \p0 block.
-_DRAWING_BLOCK_RE = re.compile(
-    r"\{[^}]*\\p[1-9][^}]*\}.*?\{[^}]*\\p0[^}]*\}",
-    re.DOTALL | re.IGNORECASE,
-)
+# Drawing-mode blocks: {\p1}...{\p0} — can render full-screen overlays.
+# Located by walking the override tags of a single line instead of with one
+# spanning regex. Prod 2026-09-09: the old pattern
+# ``\{[^}]*\\p[1-9][^}]*\}.*?\{[^}]*\\p0[^}]*\}`` (DOTALL) scanned to EOF from
+# every opener when the closer was missing — a 25 MB translated ASS with
+# 24 073 openers and zero closers pinned a GIL-holding thread for hours and
+# took the whole app offline. It also matched across Dialogue lines, deleting
+# untouched dialogue that merely sat between an unclosed opener and some later
+# ``{\p0}``. Override tags reset at every event, so a block is a per-line
+# affair by definition.
+_ASS_TAG_RE = re.compile(r"\{[^}]*\}")
+_DRAW_ON_RE = re.compile(r"\\p[1-9]", re.IGNORECASE)
+_DRAW_OFF_RE = re.compile(r"\\p0", re.IGNORECASE)
 
 # HTML tags allowed in SRT/VTT subtitle text
 _ALLOWED_HTML_TAGS = frozenset({"i", "b", "u", "font"})
@@ -40,6 +47,39 @@ _UTF8_BOM = b"\xef\xbb\xbf"
 # of cue text (where escaping a literal '>' is intentionally kept).
 _TS = r"\d{1,2}:\d{2}(?::\d{2})?[.,]\d{3}"
 _TIMECODE_ARROW_RE = re.compile(rf"({_TS}[ \t]*)--&gt;([ \t]*{_TS})".encode())
+
+
+def _strip_drawing_blocks_in_line(line: str) -> str:
+    """Remove every complete ``{\\pN}…{\\p0}`` span from a single line.
+
+    An opener without a closer on the same line is left untouched — the same
+    outcome the spanning regex produced, reached in one pass instead of one
+    scan to end-of-file per opener.
+    """
+    tags = _ASS_TAG_RE.finditer(line)
+    kept: list[str] = []
+    cursor = 0
+    block_start: int | None = None
+
+    for tag in tags:
+        body = tag.group()
+        if block_start is None:
+            if _DRAW_ON_RE.search(body):
+                block_start = tag.start()
+        elif _DRAW_OFF_RE.search(body):
+            kept.append(line[cursor:block_start])
+            cursor = tag.end()
+            block_start = None
+
+    kept.append(line[cursor:])
+    return "".join(kept)
+
+
+def strip_drawing_blocks(text: str) -> str:
+    """Remove ASS drawing-mode blocks from ``text``, line by line."""
+    if "\\p" not in text and "\\P" not in text:
+        return text
+    return "\n".join(_strip_drawing_blocks_in_line(line) for line in text.split("\n"))
 
 
 def sanitize_ass_content(content: bytes) -> bytes:
@@ -62,7 +102,7 @@ def sanitize_ass_content(content: bytes) -> bytes:
         subs = pysubs2.SSAFile.from_string(text)
         serialized = subs.to_string("ass")
         # Strip drawing-mode blocks from the re-serialized output
-        serialized = _DRAWING_BLOCK_RE.sub("", serialized)
+        serialized = strip_drawing_blocks(serialized)
         return serialized.encode("utf-8")
     except Exception as e:
         logger.warning("ASS sanitization failed, returning original: %s", e)

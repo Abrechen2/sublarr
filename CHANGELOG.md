@@ -129,6 +129,24 @@ notes close.
   cannot tell from a server that is not there.
 
 ### Fixed
+- **A typeset-heavy ASS no longer takes the whole app down.** After saving a
+  translated ASS, Sublarr sanitizes it, and the sanitizer looked for
+  drawing-mode blocks (`{\p1}…{\p0}`) with a single pattern that was allowed to
+  span the entire file. When a subtitle opens drawing mode but never closes it —
+  ordinary for karaoke and sign typesetting, where the effect simply ends with
+  the line — the search restarted at end-of-file for every opener. One
+  production install hit a 25 MB translated ASS with 33 096 events, 24 073
+  openers and not a single closer: the search would have run for hours, and
+  because it holds Python's interpreter lock, the web UI, the API and the health
+  check went silent with it. The container looked alive and answered nothing.
+  Blocks are now found by walking each line's override tags once, which is also
+  the correct reading — ASS resets override tags at every event, so a block
+  cannot span two of them. The same file is now sanitized in under half a
+  second, byte for byte identically.
+- **Translated dialogue is no longer eaten between two drawing tags.** The same
+  spanning pattern deleted everything between an unclosed `{\p1}` and any later
+  `{\p0}`, including the dialogue lines in between, which had nothing to do with
+  either. Lines are only ever stripped within their own event now.
 - **Duplicate scan works again.** Starting a scan answered `200 scanning` and
   then nothing happened: the worker runs on a background thread, where Flask's
   request context no longer exists, and it died on the first piece of app state
