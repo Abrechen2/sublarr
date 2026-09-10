@@ -62,12 +62,26 @@ def _provider_can_search_without_pool_key(provider) -> bool:
     search going from 2 participating providers to 23 once the gate was
     bypassed wholesale.
 
-    The declarative contract is `config_fields`. A field marked `required` is a
-    credential the provider cannot work without; optional fields (an account
-    that merely raises limits) must not force a pool row. A malformed entry is
-    read as "assume credentials are needed" — the safe direction here is to
-    keep gating rather than to search anonymously against an account API.
+    The declarative contract is `config_fields`, and the question it must
+    answer is "does this provider need an ACCOUNT", not "does it need
+    configuring". Those came apart on a local CustomAPI endpoint (forgejo
+    #18): its base URL is `required` and its api_key is explicitly
+    `required: False`, so a rule that refused on any required field gated it
+    out of every search and told the operator to add a pool row — for a
+    provider with no credential to put in one.
+
+    A required field counts only when it actually carries a credential: a
+    `password` input, or a name the config layer already recognises as
+    sensitive (api_key, token, secret, …). Optional credentials — an account
+    that merely raises limits — never force a pool row. A malformed entry is
+    read as "assume credentials are needed": the safe direction is to keep
+    gating rather than to search anonymously against an account API.
+
+    Measured across the registry when this changed, exactly two providers
+    move: customapi and subsdump, each requiring a URL and nothing else.
     """
+    from config_settings import is_sensitive_config_key
+
     config_fields = getattr(type(provider), "config_fields", getattr(provider, "config_fields", []))
     if not config_fields:
         return True
@@ -75,7 +89,9 @@ def _provider_can_search_without_pool_key(provider) -> bool:
     for field in config_fields:
         if not isinstance(field, dict):
             return False
-        if field.get("required"):
+        if not field.get("required"):
+            continue
+        if field.get("type") == "password" or is_sensitive_config_key(str(field.get("key", ""))):
             return False
     return True
 
