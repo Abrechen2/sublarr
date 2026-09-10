@@ -166,7 +166,8 @@ def episode_search_providers_interactive(episode_id):
     if err:
         return err
 
-    result = search_providers_for_item(item_id)
+    all_providers = request.args.get("all_providers", "").lower() in ("1", "true", "yes")
+    result = search_providers_for_item(item_id, all_providers=all_providers)
     return jsonify(result)
 
 

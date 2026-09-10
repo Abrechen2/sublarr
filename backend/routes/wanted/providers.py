@@ -96,7 +96,8 @@ def search_providers_interactive(item_id):
     if not item:
         return jsonify({"error": "Item not found"}), 404
 
-    result = search_providers_for_item(item_id)
+    all_providers = request.args.get("all_providers", "").lower() in ("1", "true", "yes")
+    result = search_providers_for_item(item_id, all_providers=all_providers)
     return jsonify(result)
 
 

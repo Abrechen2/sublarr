@@ -250,7 +250,10 @@
     "downloaded_success": "Untertitel heruntergeladen",
     "downloaded_translated": "Untertitel heruntergeladen & übersetzt",
     "download_failed": "Download fehlgeschlagen",
-    "filter_all": "Alle"
+    "filter_all": "Alle",
+    "all_providers": "Alle Provider",
+    "all_providers_hint": "Sucht über die Providerliste des Profils hinaus. Ergebnisse können von Providern stammen, die das Profil ausschließt.",
+    "no_results_try_all": "Mit allen Providern erneut suchen"
   },
   "movie_detail": {
     "missing": "Fehlend",

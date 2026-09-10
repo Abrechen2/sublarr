@@ -74,13 +74,19 @@ export interface DownloadSpecificResult {
   error?: string
 }
 
-export async function searchInteractive(itemId: number): Promise<InteractiveSearchResponse> {
-  const { data } = await api.get(`/wanted/${itemId}/search-providers`)
+/** `allProviders` widens the search past the profile's provider list — the
+ *  escape hatch for a profile too narrow to find anything (forgejo #18). */
+export async function searchInteractive(itemId: number, allProviders = false): Promise<InteractiveSearchResponse> {
+  const { data } = await api.get(`/wanted/${itemId}/search-providers`, {
+    params: allProviders ? { all_providers: true } : undefined,
+  })
   return data
 }
 
-export async function searchInteractiveEpisode(episodeId: number): Promise<InteractiveSearchResponse> {
-  const { data } = await api.get(`/episodes/${episodeId}/search-providers`)
+export async function searchInteractiveEpisode(episodeId: number, allProviders = false): Promise<InteractiveSearchResponse> {
+  const { data } = await api.get(`/episodes/${episodeId}/search-providers`, {
+    params: allProviders ? { all_providers: true } : undefined,
+  })
   return data
 }
 

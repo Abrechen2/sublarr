@@ -341,23 +341,24 @@ export function useEpisodeHistory(episodeId: number) {
 
 // ─── Interactive Search ───────────────────────────────────────────────────────
 
-export function useSearchInteractive(itemId: number | null, enabled = false) {
+export function useSearchInteractive(itemId: number | null, enabled = false, allProviders = false) {
   return useQuery({
-    queryKey: ['interactive-search', 'wanted', itemId],
-    queryFn: () => searchInteractive(itemId!),
+    // allProviders is part of the key: the two searches return different sets
+    // and must not serve each other from cache.
+    queryKey: ['interactive-search', 'wanted', itemId, allProviders],
+    queryFn: () => searchInteractive(itemId!, allProviders),
     enabled: enabled && !!itemId,
     staleTime: 0,
     gcTime: 5 * 60_000,
   })
 }
 
-export function useSearchInteractiveEpisode(episodeId: number | null, enabled = false) {
+export function useSearchInteractiveEpisode(episodeId: number | null, enabled = false, allProviders = false) {
   return useQuery({
-    queryKey: ['interactive-search', 'episode', episodeId],
-    queryFn: () => searchInteractiveEpisode(episodeId!),
+    queryKey: ['interactive-search', 'episode', episodeId, allProviders],
+    queryFn: () => searchInteractiveEpisode(episodeId!, allProviders),
     enabled: enabled && !!episodeId,
     staleTime: 0,
     gcTime: 5 * 60_000,
   })
 }
-

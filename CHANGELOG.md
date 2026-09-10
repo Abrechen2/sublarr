@@ -8,6 +8,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [1.14.1] - 2026-09-10
 
 ### Fixed
+- **The manual search respects the profile it was already half-respecting.**
+  Interactive search applied a profile's scoring preset and ignored that same
+  profile's provider list, three lines apart. A profile limited to one
+  provider still queried two dozen — one report describes a 33-second search
+  returning partial results — and a subtitle from an excluded provider could
+  be downloaded into the library with nothing having been decided. The list
+  now applies by default, and widening past it is a labelled checkbox in the
+  search dialog rather than the silent default. When a restricted search finds
+  nothing, the dialog offers to widen instead of leaving you guessing.
 - **A provider that needs no account is no longer gated as if it did.** The
   check for "can this provider search without a key pool row" refused as soon
   as any configuration field was marked required — and for a local custom API

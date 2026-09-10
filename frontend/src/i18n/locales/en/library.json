@@ -250,7 +250,10 @@
     "downloaded_success": "Subtitle downloaded",
     "downloaded_translated": "Subtitle downloaded & translated",
     "download_failed": "Download failed",
-    "filter_all": "All"
+    "filter_all": "All",
+    "all_providers": "All providers",
+    "all_providers_hint": "Searches past the profile's provider list. Results may come from providers the profile excludes.",
+    "no_results_try_all": "Search again with every provider"
   },
   "movie_detail": {
     "missing": "Missing",

@@ -219,7 +219,7 @@ def search_wanted_item(item_id: int) -> dict:
     }
 
 
-def search_providers_for_item(item_id: int) -> dict:
+def search_providers_for_item(item_id: int, all_providers: bool = False) -> dict:
     """Search all providers for a wanted item, returning all results for interactive selection.
 
     Unlike search_wanted_item(), this searches all formats and both target+source
@@ -239,13 +239,19 @@ def search_providers_for_item(item_id: int) -> dict:
     query = build_query_from_wanted(item)
     query.languages = []
 
-    # Interactive search is the manual escape hatch: the profile's provider
-    # restriction is NOT applied here, but its scoring preset is, so the
-    # scores shown match what the automatic search would compute.
+    # The profile applies here as it does everywhere else — its scoring preset
+    # so the scores match what the automatic search computes, and its provider
+    # list so the search asks who the profile allows. Those two used to
+    # disagree: the preset was applied and the list was not, three lines apart
+    # (forgejo #18). ``all_providers`` is the escape hatch that behaviour used
+    # to be by default; it exists because a profile that is too narrow is
+    # exactly when someone reaches for the manual search, but it is now a
+    # choice the operator makes rather than one made for them.
     from wanted_search.process import _load_profile_filters
 
     _pf = _load_profile_filters(item, item_id)
     query.scoring_preset = _pf.get("scoring_preset", "") or ""
+    query.allowed_providers = [] if all_providers else list(_pf.get("enabled_providers") or [])
 
     all_results = []
     try:

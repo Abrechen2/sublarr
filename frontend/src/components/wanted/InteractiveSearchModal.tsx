@@ -55,9 +55,15 @@ export function InteractiveSearchModal({
   const downloadingRef = useRef<string | null>(null)
   const queryClient = useQueryClient()
 
+  // The profile's provider list applies by default; this widens past it.
+  // Until 1.14.1 the manual search always ignored the list, silently — a
+  // profile limited to one provider still queried two dozen and could write a
+  // result from a provider it excluded (forgejo #18).
+  const [allProviders, setAllProviders] = useState(false)
+
   // Only one of itemId/episodeId is used — choose the right query hook
-  const wantedQuery = useSearchInteractive(itemId ?? null, open && !!itemId)
-  const episodeQuery = useSearchInteractiveEpisode(episodeId ?? null, open && !!episodeId)
+  const wantedQuery = useSearchInteractive(itemId ?? null, open && !!itemId, allProviders)
+  const episodeQuery = useSearchInteractiveEpisode(episodeId ?? null, open && !!episodeId, allProviders)
 
   const query = itemId ? wantedQuery : episodeQuery
   const downloadWanted = useDownloadSpecific()
@@ -250,7 +256,19 @@ export function InteractiveSearchModal({
                 {t('interactive_search.filter_reset')}
               </button>
             )}
-            <span className="ml-auto text-xs text-slate-500">
+            <label
+              className="ml-auto flex items-center gap-1.5 text-xs text-slate-400 cursor-pointer"
+              title={t('interactive_search.all_providers_hint')}
+            >
+              <input
+                type="checkbox"
+                checked={allProviders}
+                onChange={(e) => setAllProviders(e.target.checked)}
+                data-testid="interactive-search-all-providers"
+              />
+              {t('interactive_search.all_providers')}
+            </label>
+            <span className="text-xs text-slate-500">
               {isLoading ? t('interactive_search.loading') : t('interactive_search.results_count_other', { count: filtered.length })}
             </span>
           </div>
@@ -275,6 +293,16 @@ export function InteractiveSearchModal({
               <div className="flex flex-col items-center justify-center py-16 gap-3 text-slate-500">
                 <Search className="w-8 h-8" />
                 <p className="text-sm">{results.length === 0 ? t('interactive_search.no_results') : t('interactive_search.no_results_filter')}</p>
+                {results.length === 0 && !allProviders && (
+                  <button
+                    type="button"
+                    onClick={() => setAllProviders(true)}
+                    className="text-xs underline"
+                    data-testid="interactive-search-widen"
+                  >
+                    {t('interactive_search.no_results_try_all')}
+                  </button>
+                )}
               </div>
             )}
 
