@@ -34,6 +34,8 @@ ANIME_LIST_URL = "https://raw.githubusercontent.com/Anime-Lists/anime-lists/mast
 
 # A single <mapping> range wider than this is a broken entry, not a season.
 MAX_RANGE_SPAN = 1000
+# Per-row failures worth spelling out before the run switches to counting.
+MAX_LOGGED_FAILURES = 5
 REQUEST_TIMEOUT_SECONDS = 30
 DEFAULT_INTERVAL_HOURS = 168  # weekly
 
@@ -125,6 +127,7 @@ def _process_xml(xml_bytes: bytes, app) -> dict:
     mappings_upserted = 0
     skipped = 0
     ranges_expanded = 0
+    failed = 0
 
     try:
         root = ET.fromstring(xml_bytes)
@@ -133,6 +136,7 @@ def _process_xml(xml_bytes: bytes, app) -> dict:
             "series_processed": 0,
             "mappings_upserted": 0,
             "skipped": 0,
+            "failed": 0,
             "error": f"XML parse error: {exc}",
         }
 
@@ -193,26 +197,53 @@ def _process_xml(xml_bytes: bytes, app) -> dict:
                         )
                         mappings_upserted += 1
                     except Exception as exc:
-                        logger.debug(
-                            "Failed to upsert mapping TVDB %d S%dE%d: %s",
-                            tvdb_id,
-                            tvdb_season,
-                            tvdb_ep,
-                            exc,
-                        )
+                        # Without this rollback the session stays poisoned and
+                        # every later write dies instantly on "This Session's
+                        # transaction has been rolled back". Measured on a
+                        # staging clone whose table had lost its primary key:
+                        # 40 rows written, 10,129 refused in one second, and
+                        # the run still reported success (2026-09-09).
+                        failed += 1
+                        try:
+                            repo.session.rollback()
+                        except Exception:  # pragma: no cover - defensive
+                            logger.debug("rollback after a refused mapping failed too")
+                        if failed <= MAX_LOGGED_FAILURES:
+                            logger.warning(
+                                "Failed to upsert mapping TVDB %d S%dE%d: %s",
+                                tvdb_id,
+                                tvdb_season,
+                                tvdb_ep,
+                                exc,
+                            )
+                            if failed == MAX_LOGGED_FAILURES:
+                                logger.warning(
+                                    "Further upsert failures in this run are counted, not logged."
+                                )
 
     logger.info(
         "AniDB sync complete: %d series processed, %d mappings upserted "
-        "(%d from season ranges), %d skipped",
+        "(%d from season ranges), %d skipped, %d failed",
         series_processed,
         mappings_upserted,
         ranges_expanded,
         skipped,
+        failed,
     )
+    if failed:
+        # "complete" next to a five-digit failure count is how this went
+        # unnoticed. Say it once, loudly, with both numbers side by side.
+        logger.warning(
+            "AniDB sync refused %d of %d mapping writes — the table may have lost "
+            "its constraints, or the feed carries rows this database will not take",
+            failed,
+            failed + mappings_upserted,
+        )
     return {
         "series_processed": series_processed,
         "mappings_upserted": mappings_upserted,
         "skipped": skipped,
+        "failed": failed,
         "error": None,
     }
 

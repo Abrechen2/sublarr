@@ -12,6 +12,10 @@ CONTAINER="sublarr-rc"
 [ "$PORT" = "5765" ] && CONTAINER="sublarr"
 [ "$PORT" = "5767" ] && CONTAINER="sublarr-beta"
 DB="${CONTAINER}-postgres"
+# Inside every container the app listens on 5765 -- 5766/5767 are host-side
+# port mappings. Calling the host port from inside answers in 0.0001s with
+# code 000, which reads exactly like a hung app until you look at the timing.
+INNER_PORT=5765
 
 api() { ssh -o ConnectTimeout=20 "$HOST" "docker exec $CONTAINER sh -c 'curl -s -m 30 -H \"X-Api-Key: \$SUBLARR_API_KEY\" $1'"; }
 psql() { ssh -o ConnectTimeout=20 "$HOST" "docker exec $DB psql -U sublarr -d sublarr -Atc \"$1\""; }
@@ -20,14 +24,14 @@ echo "=== 1.14.1 fix check on :$PORT ($CONTAINER) — $(date '+%Y-%m-%d %H:%M:%S
 echo
 
 echo "--- running version (want 1.14.1-rc.N) ---"
-api "http://localhost:$PORT/api/v1/health" | head -c 200
+api "http://localhost:$INNER_PORT/api/v1/health" | head -c 200
 echo
 ssh -o ConnectTimeout=20 "$HOST" "docker exec $CONTAINER sh -c 'echo \$SUBLARR_VERSION'"
 
 echo
 echo "--- #205: AniDB season-range mappings ---"
 echo "Trigger a sync, then read Bleach (TVDB 74796) back out of the table."
-api "-X POST http://localhost:$PORT/api/v1/anidb-mapping/refresh" | head -c 200
+api "-X POST http://localhost:$INNER_PORT/api/v1/anidb-mapping/refresh" | head -c 200
 echo
 echo "PASS = the counts below are non-zero and S02E01 reads 21."
 echo "FAIL = zero rows for 74796; the range expansion is not in this image."
@@ -48,16 +52,16 @@ psql "SELECT key||' = '||value FROM config_entries WHERE key IN ('onboarding_com
 echo
 echo "--- #14b: has_providers follows the provider list ---"
 echo "PASS = has_providers true while providers are enabled below."
-api "http://localhost:$PORT/api/v1/onboarding/status"
+api "http://localhost:$INNER_PORT/api/v1/onboarding/status"
 echo
-api "http://localhost:$PORT/api/v1/providers/health" | tr ',' '\n' | grep -c '"enabled":true' | sed 's/^/enabled providers: /'
+api "http://localhost:$INNER_PORT/api/v1/providers/health" | tr ',' '\n' | grep -c '"enabled":true' | sed 's/^/enabled providers: /'
 
 echo
 echo "--- #24: the webhook receivers answer on the singular path ---"
 echo "PASS = /webhook/sonarr answers 400/401/403 (reached the route)."
 echo "FAIL = 404 or 405 (the path the docs used to print)."
 for p in webhook/sonarr webhooks/sonarr; do
-  code=$(ssh -o ConnectTimeout=20 "$HOST" "docker exec $CONTAINER sh -c 'curl -s -o /dev/null -w %{http_code} -m 15 -X POST -H \"Content-Type: application/json\" -d {} http://localhost:$PORT/api/v1/$p'")
+  code=$(ssh -o ConnectTimeout=20 "$HOST" "docker exec $CONTAINER sh -c 'curl -s -o /dev/null -w %{http_code} -m 15 -X POST -H \"Content-Type: application/json\" -d {} http://localhost:$INNER_PORT/api/v1/$p'")
   printf '  /api/v1/%-18s -> %s\n' "$p" "$code"
 done
 

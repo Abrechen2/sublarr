@@ -149,6 +149,60 @@ def test_process_xml_range_rejects_absurd_and_negative_results(app_ctx):
         assert _mapping_for(1, 1, tvdb_id=4245) is None
 
 
+def test_one_failing_row_does_not_kill_the_rest_of_the_sync(app_ctx, monkeypatch):
+    """A row the database refuses must cost that row, not the whole run.
+
+    RC 2026-09-09: the first failure left the SQLAlchemy session rolled back,
+    so every later upsert failed instantly with "This Session's transaction
+    has been rolled back". 40 rows were written and 10,129 failed -- in one
+    second, because a poisoned session fails fast. The summary still said
+    "AniDB sync complete" and counted only the successes.
+    """
+    from db.repositories.anidb import AnidbRepository
+
+    real_upsert = AnidbRepository.upsert_mapping
+    calls = {"n": 0}
+
+    def flaky(self, **kwargs):
+        calls["n"] += 1
+        if calls["n"] == 1:
+            raise RuntimeError("UPDATE statement expected to update 1 row(s); 2 were matched")
+        return real_upsert(self, **kwargs)
+
+    monkeypatch.setattr(AnidbRepository, "upsert_mapping", flaky)
+
+    result = _process_xml(RANGE_XML, app_ctx)
+
+    assert result["error"] is None
+    assert result["failed"] == 1, "the refused row must be counted, not swallowed"
+    # Everything after the failure still has to land.
+    assert result["mappings_upserted"] > 50
+    with app_ctx.app_context():
+        assert _mapping_for(2, 21) == 41
+        assert _mapping_for(3, 1) == 42
+
+
+def test_failures_are_reported_not_only_counted(app_ctx, monkeypatch, caplog):
+    """A run that mostly failed must not read as a success in the log."""
+    import logging
+
+    from db.repositories.anidb import AnidbRepository
+
+    def always_fails(self, **kwargs):
+        raise RuntimeError("nope")
+
+    monkeypatch.setattr(AnidbRepository, "upsert_mapping", always_fails)
+
+    with caplog.at_level(logging.WARNING, logger="anidb_sync"):
+        result = _process_xml(RANGE_XML, app_ctx)
+
+    assert result["mappings_upserted"] == 0
+    assert result["failed"] > 0
+    assert any("failed" in r.message.lower() for r in caplog.records), (
+        "a sync where every write failed must say so above debug level"
+    )
+
+
 def test_process_xml_valid(app_ctx):
     """Valid XML with mappings should upsert at least one mapping."""
     result = _process_xml(VALID_XML, app_ctx)

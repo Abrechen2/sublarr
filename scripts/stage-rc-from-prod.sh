@@ -47,7 +47,32 @@ fi
 echo "Cloning $SOURCE_PG -> $TARGET_PG ..."
 $SSH "cd $RC_COMPOSE_DIR && docker compose -p $RC_PROJECT stop $RC_APP"
 $SSH "docker exec $TARGET_PG psql -U $DBUSER -d postgres -c 'DROP DATABASE IF EXISTS $DB;' -c 'CREATE DATABASE $DB;'"
-$SSH "docker exec $SOURCE_PG pg_dump -U $DBUSER -d $DB --no-owner --no-privileges | docker exec -i $TARGET_PG psql -U $DBUSER -d $DB"
+# ON_ERROR_STOP is the whole point of this line. Without it psql walks past a
+# failed statement and still exits 0 -- and because a pg_dump puts the data
+# first and the ALTER TABLE ... ADD CONSTRAINT, CREATE INDEX and setval calls
+# LAST, "mostly worked" means a clone with rows but no primary keys and
+# sequences left at 1. That is what RC had been running on, undetected, until
+# 2026-09-09: 73 tables without a primary key against prod's 8, the mappings
+# sequence at 42 while rows reached 1171, and duplicate ids as a result.
+# --single-transaction makes a failure leave nothing behind to puzzle over.
+if ! $SSH "set -o pipefail; docker exec $SOURCE_PG pg_dump -U $DBUSER -d $DB --no-owner --no-privileges | docker exec -i $TARGET_PG psql -U $DBUSER -d $DB -v ON_ERROR_STOP=1 --single-transaction -q"; then
+  echo "REFUSE: the restore failed — RC is NOT a copy of prod, leaving it stopped" >&2
+  exit 6
+fi
+# --- Prove the copy carries the schema, not just the rows ------------------
+# A clone is only a mirror if what constrains the data came with it. Compare
+# the two databases on the things a silent restore drops first.
+pkless() { $SSH "docker exec $1 psql -U $DBUSER -d $DB -Atc \"SELECT COUNT(*) FROM information_schema.tables t WHERE t.table_schema='public' AND NOT EXISTS (SELECT 1 FROM information_schema.table_constraints c WHERE c.table_name=t.table_name AND c.constraint_type='PRIMARY KEY');\"" | tr -d '
+'; }
+SRC_PKLESS="$(pkless "$SOURCE_PG")"
+DST_PKLESS="$(pkless "$TARGET_PG")"
+echo "tables without a primary key: source=$SRC_PKLESS target=$DST_PKLESS"
+if [[ "$SRC_PKLESS" != "$DST_PKLESS" ]]; then
+  echo "REFUSE: the target lost constraints in the restore ($DST_PKLESS vs $SRC_PKLESS)" >&2
+  echo "        Testing against this clone proves nothing — fix the restore first." >&2
+  exit 7
+fi
+
 $SSH "cp -a '$PROD_KEY' '$RC_KEY' && chmod 600 '$RC_KEY'"
 $SSH "cd $RC_COMPOSE_DIR && docker compose -p $RC_PROJECT up -d $RC_APP"
 
