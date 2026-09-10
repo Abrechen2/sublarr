@@ -8,6 +8,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [1.14.1] - 2026-09-10
 
 ### Fixed
+- **The SRT fallback is no longer skipped on a mixed library.** When steps 1
+  and 2 found no ASS candidate, the SRT stage was skipped on the reasoning
+  that "providers likely have nothing" — which holds while ASS availability is
+  a fair proxy for subtitle availability. On an anime library it is; on a
+  live-action one it is backwards, since SRT is the norm and ASS the
+  exception. The two settings never knew about each other, so an install
+  running `wanted_anime_only = False` skipped the SRT stage 974 times out of
+  974 and never ran it once, while a title with no ASS anywhere had an English
+  SRT waiting at OpenSubtitles. The skip now requires the assumption it rests
+  on: an anime-only library. Nothing changes for the ASS-first configuration
+  it was written for. Reported in #206 by @Svnow132.
+- **Configuration that merely sounds like a secret is readable again.** The
+  masking rule matched its sensitive words as substrings, and "map**pin**g"
+  contains "pin" — so `path_mapping` came back as `***configured***`, and the
+  boolean `anidb_fallback_to_mapping` came back as a string. Names are now
+  matched on their own segments, and the two places that masked config share
+  one rule instead of two copies. No value was ever lost: the write path
+  already refused to store the mask.
 - **A subtitle mapping the database refuses no longer takes the rest of the
   sync with it.** The first failed write left the session rolled back, so
   every later one died instantly on "This Session's transaction has been

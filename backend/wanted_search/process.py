@@ -478,6 +478,30 @@ def _defer_source_translation(ctx: dict, source_path: str, fmt: str) -> dict | N
 # ---------------------------------------------------------------------------
 
 
+def skip_srt_reason(settings, ass_had_results: bool) -> str | None:
+    """Why the SRT steps are skipped for this item, or None to run them.
+
+    The optimisation reads "no ASS from steps 1+2, so the providers likely
+    have nothing" — which only holds while ASS availability is a fair proxy
+    for subtitle availability. That is true of an anime library and false of
+    a live-action one, where SRT is the norm and ASS the exception.
+
+    The two settings never knew about each other. On an install running
+    ``wanted_anime_only = False``, the SRT stage was skipped 974 times out of
+    974 and never ran once; a title with no ASS anywhere had an English SRT
+    waiting at OpenSubtitles (GH #206). So the skip now requires the
+    assumption it rests on: an anime-only library.
+    """
+    if not getattr(settings, "wanted_skip_srt_on_no_ass", True):
+        return None
+    if ass_had_results:
+        return None
+    if not getattr(settings, "wanted_anime_only", True):
+        # Mixed library: absence of ASS says nothing about SRT.
+        return None
+    return "no ASS results in steps 1+2 (wanted_skip_srt_on_no_ass)"
+
+
 def _try_source_ass_translation(ctx: dict) -> dict | None:
     """Step 2: download a source-language ASS and translate it to the target lang."""
     item = ctx["item"]
@@ -1401,15 +1425,11 @@ def _run_search_steps(ctx: dict) -> dict:
             "target_srt_direct", "series requires ASS (never falls back to SRT)"
         )
 
-    # Phase 2: skip SRT steps if no ASS was found in Steps 1+2 (providers likely have nothing)
-    _skip_srt = _require_ass or (
-        getattr(settings, "wanted_skip_srt_on_no_ass", True) and not ctx["ass_had_results"]
-    )
+    _skip_reason = None if _require_ass else skip_srt_reason(settings, ctx["ass_had_results"])
+    _skip_srt = _require_ass or _skip_reason is not None
     if _skip_srt and not _require_ass:
-        logger.debug("Wanted %d: No ASS found in Steps 1+2, skipping SRT steps", item_id)
-        decision_log.step_skipped(
-            "target_srt_direct", "no ASS results in steps 1+2 (wanted_skip_srt_on_no_ass)"
-        )
+        logger.debug("Wanted %d: %s, skipping SRT steps", item_id, _skip_reason)
+        decision_log.step_skipped("target_srt_direct", _skip_reason)
     if not _skip_srt:
         if abort_requested():
             return _stopped_result(item_id, "Step 3")

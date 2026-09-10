@@ -12,6 +12,8 @@ The dispatcher public API (``export_config``, ``export_to_zip``) stays in
 import logging
 import os
 
+from config_settings import is_sensitive_config_key
+
 logger = logging.getLogger(__name__)
 
 
@@ -275,8 +277,6 @@ def _mask_secret(value: str) -> str:
 # config_settings.py so the export pipeline cannot drift from the
 # in-process safe-view used elsewhere (e.g. config endpoint, support bundle).
 # Update both together when adding a new credential-bearing field.
-_SENSITIVE_PARTS = {"password", "pin", "secret", "token", "api_key"}
-_EXPLICIT_MASKED = {"database_url", "redis_url"}
 _JSON_BLOB_FIELDS = {
     "sonarr_instances_json",
     "radarr_instances_json",
@@ -298,12 +298,10 @@ def _mask_config_secrets(data: dict) -> dict:
     masked = dict(data)
     for key in list(masked.keys()):
         value = masked[key]
-        is_sensitive_name = (
-            key in _EXPLICIT_MASKED
-            or "api_key" in key
-            or "key" in key.split("_")
-            or any(s in key for s in _SENSITIVE_PARTS)
-        )
+        # One rule, one place: this used to be a second copy of the substring
+        # test, so an export masked path_mapping as well — and importing that
+        # export wrote the mask over the real paths (2026-09-10).
+        is_sensitive_name = is_sensitive_config_key(key)
         if is_sensitive_name:
             if value:
                 masked[key] = _mask_secret(str(value))

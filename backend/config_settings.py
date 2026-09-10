@@ -74,6 +74,26 @@ _ALLOWED_BOOT_FIELDS: frozenset[str] = frozenset(
 )
 
 
+# Words that mark a setting as a credential. Matched against the name's
+# underscore-separated segments, NOT as substrings: "pin" as a substring also
+# matches "map-pin-g", which is how path_mapping and the boolean
+# anidb_fallback_to_mapping came back as "***configured***" from GET /config.
+# The path-mapping editor then showed the mask, and saving it would have
+# written that literal string over the user's real paths (2026-09-10).
+_SENSITIVE_SEGMENTS = frozenset({"password", "pin", "secret", "token", "key"})
+# Credentials whose names carry none of the words above.
+_EXPLICIT_MASKED = frozenset({"database_url", "redis_url"})
+
+
+def is_sensitive_config_key(key: str) -> bool:
+    """Whether a settings field must be masked before it leaves the API."""
+    if key in _EXPLICIT_MASKED:
+        return True
+    if "api_key" in key:
+        return True
+    return bool(set(key.split("_")) & _SENSITIVE_SEGMENTS)
+
+
 class BootSettings(BaseSettings):
     """Bootstrap settings — env-loadable, pre-DB.
 
@@ -1001,9 +1021,6 @@ class Settings:
         """Get config dict without sensitive values (API keys, passwords, tokens)."""
         import json as _json
 
-        _SENSITIVE_PARTS = {"password", "pin", "secret", "token", "api_key"}
-        # Fields that contain credentials but don't match _SENSITIVE_PARTS name heuristics
-        _EXPLICIT_MASKED = {"database_url", "redis_url"}
         _JSON_BLOB_FIELDS = {
             "sonarr_instances_json",
             "radarr_instances_json",
@@ -1013,11 +1030,7 @@ class Settings:
 
         data = self.model_dump()
         for key in list(data.keys()):
-            if key in _EXPLICIT_MASKED or (
-                "api_key" in key
-                or "key" in key.split("_")
-                or any(s in key for s in _SENSITIVE_PARTS)
-            ):
+            if is_sensitive_config_key(key):
                 if data[key]:
                     data[key] = "***configured***"
                 else:
