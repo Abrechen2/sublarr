@@ -5,9 +5,20 @@ All notable changes to Sublarr are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [1.14.1] - 2026-09-09
+## [1.14.1] - 2026-09-10
 
 ### Fixed
+- **A subtitle mapping the database refuses no longer takes the rest of the
+  sync with it.** The first failed write left the session rolled back, so
+  every later one died instantly on "This Session's transaction has been
+  rolled back" — and because those failures were logged below the visible
+  level and the summary counted only successes, a run that refused 10 129 of
+  10 169 writes still announced "AniDB sync complete". Each failure now rolls
+  the session back, is counted, and is reported; the first few are named
+  outright.
+- **The path-mapping editor is on the page the documentation points at.** The
+  editor and its path test existed and were fully translated; the Connections
+  page simply never rendered them. It is now a section of its own there.
 - **AniDB absolute-order mapping works for series mapped by season range.**
   `anime-list.xml` states most season mappings as a range on the element
   itself — `<mapping anidbseason="1" tvdbseason="2" start="21" end="41"
@@ -21,12 +32,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   episode 21 as published. A backwards range, one wider than 1 000 episodes,
   or an offset that pushes the TVDB episode to zero is refused rather than
   written. Reported in #205.
-- **The path-mapping editor is reachable again.** The documented table with a
-  remote/local mapping list and a path test existed as a finished component,
-  translated into both languages — and was imported nowhere. Connections
-  offered a bare text field for the semicolon-separated string instead, so the
-  documented editor could not be found at all. It is now what the instance
-  editor renders.
 - **Settings offers the documented way back into the onboarding wizard.** The
   docs pointed at Settings → General → Re-run onboarding; no settings page
   mentioned onboarding at all, and the wizard was reachable only by typing the
