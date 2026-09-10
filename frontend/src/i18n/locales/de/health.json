@@ -7,7 +7,8 @@
     "problems": "Problem-Einträge",
     "unmatched": "Nicht gematcht",
     "series_affected": "Betroffene Serien",
-    "providers_degraded": "Provider beeinträchtigt"
+    "providers_degraded": "Provider beeinträchtigt",
+    "providers_no_activity": "Provider ohne Aktivität"
   },
   "series": {
     "title": "Serien & Filme mit fehlenden Untertiteln",

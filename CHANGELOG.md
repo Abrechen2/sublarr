@@ -8,6 +8,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [1.14.1] - 2026-09-10
 
 ### Fixed
+- **A provider that needs no account is no longer gated as if it did.** The
+  check for "can this provider search without a key pool row" refused as soon
+  as any configuration field was marked required — and for a local custom API
+  endpoint that field is its base URL, while its API key is explicitly
+  optional. The provider was skipped from every search with advice to add a
+  pool row, which cannot be followed when there is no credential to put in
+  one. A required field now only gates when it actually carries a credential.
+  Measured across the registry, exactly two providers change, and both
+  required a URL and nothing else.
+- **The health page and the provider list agree on what "degraded" means.**
+  The health overview computed its own verdict — breaker open, auto-disabled,
+  or a poor hit rate — while everything else asked the classifier written for
+  it. Both were right under their own rule, which is how one install could
+  report six unhealthy providers and a degraded count of zero at the same
+  time. The overview now asks the same classifier, which also closes a gap it
+  had: a provider failing call after call without tripping its breaker read as
+  healthy on the page meant to surface exactly that. Providers nothing has
+  asked yet are counted separately, since an install that has not searched
+  says nothing about whether its providers work.
 - **An embedded track that is already in the target language is no longer fed
   to the translator.** The SRT→ASS upgrade picked the best embedded ASS track
   without looking at its language and passed no source language at all, so the

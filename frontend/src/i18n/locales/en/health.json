@@ -7,7 +7,8 @@
     "problems": "Problem items",
     "unmatched": "Unmatched",
     "series_affected": "Series affected",
-    "providers_degraded": "Providers degraded"
+    "providers_degraded": "Providers degraded",
+    "providers_no_activity": "Providers not yet asked"
   },
   "series": {
     "title": "Series & movies with missing subtitles",

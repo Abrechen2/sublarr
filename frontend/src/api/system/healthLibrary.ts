@@ -39,6 +39,9 @@ export interface LibraryHealth {
     unmatched: number
     series_affected: number
     providers_degraded: number
+    /** Providers nothing has asked yet — reported apart from health, because
+     *  an install that has not searched says nothing about whether they work. */
+    providers_no_activity: number
   }
   series: HealthSeriesRow[]
   problems: HealthProblemRow[]

@@ -22,6 +22,8 @@ import logging
 from sqlalchemy import case, func, select
 from sqlalchemy.exc import SQLAlchemyError
 
+from providers.manager_status_mixin import _classify_health
+
 logger = logging.getLogger(__name__)
 
 # Bounded list sizes — a dashboard needs the worst offenders, not everything.
@@ -126,6 +128,37 @@ def get_library_health() -> dict:
         breaker_state = (breaker.state if breaker else "closed") or "closed"
         auto_disabled = bool(stats.auto_disabled) if stats else False
         hit_rate = round(hits / searches, 3) if searches else None
+        # One verdict, not a third one. This page used to decide "degraded"
+        # on its own — breaker open, auto-disabled, or a poor hit rate over
+        # 10+ searches — while /api/v1/providers asked the classifier behind
+        # it. The two disagreed in public: six providers unhealthy there and
+        # "PROVIDERS DEGRADED 0" here, both correct under their own rule
+        # (forgejo #17). The classifier needs nothing this function has not
+        # already loaded, so both surfaces can answer from it.
+        if searches == 0 and not auto_disabled and breaker_state == "closed":
+            # Never asked anything. Not broken — but not evidence of health
+            # either, and reporting it as healthy is what made "no provider
+            # activity recorded yet" sit next to a reassuring zero.
+            healthy, status_reason = True, "no_activity"
+        else:
+            healthy, _message, status_reason = _classify_health(
+                auto_disabled=auto_disabled,
+                cb_state=breaker_state,
+                consecutive_failures=int(stats.consecutive_failures or 0) if stats else 0,
+                total_searches=int(searches),
+                results=int(hits),
+                downloads=int(stats.successful_downloads or 0) if stats else 0,
+                last_failure_kind=(stats.last_failure_kind if stats else None),
+            )
+            # The classifier asks "is it broken". This page also wants "is it
+            # worth its slot", and its answer is narrower than the delivers-
+            # nothing verdict: a provider that hits once in fifty searches is
+            # not dead by that measure but is not earning anything either.
+            # Kept as its own reason rather than as a second definition of
+            # health, so the two surfaces complement instead of contradicting.
+            if healthy and searches >= 10 and hit_rate is not None and hit_rate < 0.05:
+                healthy, status_reason = False, "low_hit_rate"
+
         providers.append(
             {
                 "provider": name,
@@ -135,13 +168,8 @@ def get_library_health() -> dict:
                 "hit_rate": hit_rate,
                 "failed_downloads": int(stats.failed_downloads or 0) if stats else 0,
                 "auto_disabled": auto_disabled,
-                # A provider "hurts" when its breaker is not closed, it was
-                # auto-disabled, or it answers searches but almost never hits.
-                "degraded": (
-                    breaker_state != "closed"
-                    or auto_disabled
-                    or (searches >= 10 and hit_rate is not None and hit_rate < 0.05)
-                ),
+                "degraded": not healthy,
+                "status_reason": status_reason,
             }
         )
     providers.sort(key=lambda p: (not p["degraded"], p["provider"]))
@@ -175,6 +203,11 @@ def get_library_health() -> dict:
             "unmatched": int(unmatched_total),
             "series_affected": len(series),
             "providers_degraded": sum(1 for p in providers if p["degraded"]),
+            # Reported apart from health on purpose: an install that has not
+            # searched yet says nothing about whether its providers work.
+            "providers_no_activity": sum(
+                1 for p in providers if p["status_reason"] == "no_activity"
+            ),
         },
         "series": series,
         "problems": problems,

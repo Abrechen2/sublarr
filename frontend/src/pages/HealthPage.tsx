@@ -155,12 +155,15 @@ export function HealthPage() {
       <PageHeader title={t('title')} subtitle={t('subtitle')} className="mb-0" />
 
       {/* Totals */}
-      <div className="grid grid-cols-2 md:grid-cols-5 gap-2">
+      <div className="grid grid-cols-2 md:grid-cols-6 gap-2">
         <StatTile label={t('totals.wanted')} value={totals?.wanted ?? 0} />
         <StatTile label={t('totals.problems')} value={totals?.problems ?? 0} />
         <StatTile label={t('totals.unmatched')} value={totals?.unmatched ?? 0} />
         <StatTile label={t('totals.series_affected')} value={totals?.series_affected ?? 0} />
         <StatTile label={t('totals.providers_degraded')} value={totals?.providers_degraded ?? 0} />
+        {/* Sat next to a reassuring zero before: "0 degraded" and "no provider
+            activity recorded yet" are different statements (forgejo #17). */}
+        <StatTile label={t('totals.providers_no_activity')} value={totals?.providers_no_activity ?? 0} />
       </div>
 
       {/* Series with missing subtitles */}
