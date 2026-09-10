@@ -8,6 +8,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [1.14.1] - 2026-09-10
 
 ### Fixed
+- **An embedded track that is already in the target language is no longer fed
+  to the translator.** The SRT→ASS upgrade picked the best embedded ASS track
+  without looking at its language and passed no source language at all, so the
+  flow fell back to the globally configured one. On an English-target item
+  with an untagged English track that made a request to translate English into
+  English, which the same-language guard refused — at the bottom of the stack,
+  after the whole file had been loaded. Nothing was written and no translation
+  memory was polluted; it cost a wasted load and an exception in the log each
+  time. The upgrade path now applies the rule the full pipeline already had:
+  such a track wants extraction, not a round-trip. Found by the long-term
+  watch, six occurrences in 40 hours.
 - **The SRT fallback is no longer skipped on a mixed library.** When steps 1
   and 2 found no ASS candidate, the SRT stage was skipped on the reasoning
   that "providers likely have nothing" — which holds while ASS availability is

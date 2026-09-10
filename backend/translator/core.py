@@ -168,9 +168,27 @@ def translate_file(
             )
 
         # B2: Source ASS embedded → translate to .{lang}.ass
+        #
+        # Same rule as C1 below, which this branch never got: a stream whose
+        # (assumed) language IS the target wants extraction, not an LLM
+        # round-trip. Without it B2 passed no source language at all, so the
+        # flow fell back to the global setting and an English-target item with
+        # an untagged English track only found out at the bottom of the stack —
+        # after loading the whole file — as "refusing same-language translation
+        # (en → en)". Six of those on prod in 40 hours (2026-09-10).
         best_ass = _select_best_subtitle_stream(probe_data, format_filter="ass")
-        if best_ass:
-            logger.info("Case B2: Upgrading — translating source ASS to target ASS")
+        _b2_lang = normalize_language_code(best_ass.get("language") or "") if best_ass else ""
+        _b2_src = _b2_lang or pref_source
+        _b2_ok = best_ass is not None and normalize_language_code(
+            _b2_src
+        ) != normalize_language_code(tgt_lang)
+        if best_ass and not _b2_ok:
+            logger.info(
+                "Case B2: embedded ASS is already the target language (%s), not translating it",
+                _b2_src,
+            )
+        if _b2_ok:
+            logger.info("Case B2: Upgrading — translating source ASS (%s) to target ASS", _b2_src)
             result = translate_ass(
                 mkv_path,
                 best_ass,
@@ -178,6 +196,7 @@ def translate_file(
                 target_language=tgt_lang,
                 target_language_name=tgt_name,
                 arr_context=arr_context,
+                source_language=_b2_src,
             )
             if result["success"]:
                 result["stats"]["upgrade_from_srt"] = True
