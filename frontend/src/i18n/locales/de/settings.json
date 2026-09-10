@@ -1276,6 +1276,10 @@
     },
     "media_servers": {
       "section_desc": "Jellyfin-, Plex- und Kodi-Instanzen für automatische Bibliotheksaktualisierung"
+    },
+    "path_mapping": {
+      "section_title": "Pfad-Mapping",
+      "section_desc": "Pfade aus Sonarr/Radarr auf die Pfade abbilden, unter denen Sublarr die Dateien sieht — mit Test."
     }
   },
   "metadata_page": {

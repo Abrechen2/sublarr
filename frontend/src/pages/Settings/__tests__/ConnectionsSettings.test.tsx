@@ -72,8 +72,11 @@ const mockMutate = vi.fn()
 const mockTestSonarr = vi.fn()
 const mockTestRadarr = vi.fn()
 
+const mockSavePathMapping = vi.fn()
+
 vi.mock('@/hooks/useApi', () => ({
   useConfig: () => ({ data: mockConfig, isLoading: false }),
+  useDebouncedConfigSave: () => mockSavePathMapping,
   useUpdateConfig: () => ({ mutate: mockMutate, isPending: false }),
   useTestSonarrInstance: () => ({ mutate: mockTestSonarr, isPending: false }),
   useTestRadarrInstance: () => ({ mutate: mockTestRadarr, isPending: false }),
@@ -122,10 +125,22 @@ describe('ConnectionsSettings', () => {
 
   // ── Sections ──
 
-  it('renders all 5 settings sections', () => {
+  it('renders all 6 settings sections', () => {
     renderWithProviders(<ConnectionsSettings />)
     const sections = screen.getAllByTestId('settings-section')
-    expect(sections.length).toBeGreaterThanOrEqual(5)
+    expect(sections.length).toBeGreaterThanOrEqual(6)
+  })
+
+  // ── Path mapping (forgejo #25) ──
+  // The editor and its test endpoint existed all along; this page simply
+  // never rendered them, so the documented "Settings -> Connections -> Path
+  // Mapping" could not be found. Assert on the section being on THIS page,
+  // because the first attempt at the fix wired it into a component nothing
+  // renders and still passed every unit test.
+
+  it('renders the path-mapping section on the connections page', () => {
+    renderWithProviders(<ConnectionsSettings />)
+    expect(screen.getByTestId('settings.connections.section-path-mapping')).toBeInTheDocument()
   })
 
   // ── Media Servers section ──

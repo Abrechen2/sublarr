@@ -1,12 +1,13 @@
 /**
  * ConnectionsSettings — settings detail page for all external service connections.
  *
- * Sections (5 — under the FormLayout 6-cap):
+ * Sections (6 — at the FormLayout 6-cap):
  * 1. Sonarr           — multi-instance (sonarr_instances_json)
  * 2. Radarr           — multi-instance (radarr_instances_json)
  * 3. Media Servers    — Plex / Jellyfin / Emby
  * 4. Standalone Mode  — file-system watcher when no *arr is configured
  * 5. Metadata API Keys — TMDB, TheTVDB, cache TTL
+ * 6. Path Mapping    — remote→local rewrites, with a path test (forgejo #25)
  *
  * Each Sonarr/Radarr/MediaServers internally manages its own instance
  * collection — they remain SettingsSection-wrapped collections rather than
@@ -27,6 +28,7 @@ import {
   StandaloneModeSection,
 } from './connections/ConnectionsMediaServers'
 import { MetadataSectionWrapper } from './connections/ConnectionsMetadata'
+import { PathMappingSection } from './connections/ConnectionsPathMapping'
 
 // Settings Template B (FormLayout). titleKey points at the SAME key that
 // each XSection's <SettingsSection title=> already uses, so TOC + section
@@ -37,6 +39,7 @@ const SECTIONS: readonly FormSectionDef[] = [
   { id: 'media-servers',  titleKey: 'connections_media_servers.title' },
   { id: 'standalone',     titleKey: 'connections.standalone.section_title' },
   { id: 'metadata',       titleKey: 'connections_metadata.title' },
+  { id: 'path-mapping',   titleKey: 'connections.path_mapping.section_title' },
 ]
 
 export function ConnectionsSettings() {
@@ -67,6 +70,9 @@ export function ConnectionsSettings() {
         </section>
         <section id="metadata" data-testid="settings.connections.section-metadata">
           <MetadataSectionWrapper />
+        </section>
+        <section id="path-mapping" data-testid="settings.connections.section-path-mapping">
+          <PathMappingSection />
         </section>
       </FormLayout>
     </SettingsDetailLayout>

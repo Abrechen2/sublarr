@@ -31,11 +31,19 @@ ssh -o ConnectTimeout=20 "$HOST" "docker exec $CONTAINER sh -c 'echo \$SUBLARR_V
 echo
 echo "--- #205: AniDB season-range mappings ---"
 echo "Trigger a sync, then read Bleach (TVDB 74796) back out of the table."
-api "-X POST http://localhost:$INNER_PORT/api/v1/anidb-mapping/refresh" | head -c 200
-echo
+# Fire and wait for the job to actually report itself finished. A fixed sleep
+# was wrong here: on a healthy database the sync takes ~97s (it writes 10,129
+# rows), so a 45s wait read the previous run's numbers and called them a pass.
+ssh -o ConnectTimeout=20 "$HOST" "docker exec -d $CONTAINER sh -c 'curl -s -m 900 -X POST -H \"X-Api-Key: \$SUBLARR_API_KEY\" http://localhost:$INNER_PORT/api/v1/anidb-mapping/refresh >/tmp/sync.out 2>&1'"
 echo "PASS = the counts below are non-zero and S02E01 reads 21."
 echo "FAIL = zero rows for 74796; the range expansion is not in this image."
-sleep 45
+for _ in $(seq 1 40); do
+  sleep 15
+  status="$(api "http://localhost:$INNER_PORT/api/v1/anidb-mapping/status")"
+  case "$status" in *'"running":false'*) case "$status" in *last_result*) break;; esac;; esac
+done
+echo "$status" | head -c 300
+echo
 psql "SELECT 'mappings total: '||COUNT(*) FROM anidb_absolute_mappings;"
 psql "SELECT 'bleach rows: '||COUNT(*) FROM anidb_absolute_mappings WHERE tvdb_id=74796;"
 psql "SELECT 'S'||lpad(season::text,2,'0')||'E'||lpad(episode::text,2,'0')||' -> '||anidb_absolute_episode

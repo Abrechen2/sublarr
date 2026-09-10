@@ -1276,6 +1276,10 @@
     },
     "media_servers": {
       "section_desc": "Jellyfin, Plex, and Kodi instances for library refresh notifications"
+    },
+    "path_mapping": {
+      "section_title": "Path mapping",
+      "section_desc": "Rewrite the paths Sonarr/Radarr report to the paths Sublarr sees the files under — with a test."
     }
   },
   "metadata_page": {
