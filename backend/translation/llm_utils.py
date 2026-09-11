@@ -179,7 +179,7 @@ _LINE_NUMBER_RE = re.compile(r"^\s*(\d+)\s*[.:)]\s*")
 _NUMBER_RANGE_SLACK = 2
 
 
-def repair_line_mapping(raw_lines: list[str]) -> list[str]:
+def repair_line_mapping(raw_lines: list[str], *, numbered_request: bool = False) -> list[str]:
     """Turn a model's raw output lines into one line per source line.
 
     The model writes a hard break and then a real newline after it. Depending
@@ -206,6 +206,11 @@ def repair_line_mapping(raw_lines: list[str]) -> list[str]:
     Output that carries no numbering at all is returned untouched apart from
     blank and marker-only lines, so a user template that forbids numbering
     keeps working exactly as before.
+
+    ``numbered_request`` says the prompt asked for numbers. It loosens exactly
+    one case the output cannot settle by itself -- a single line that came
+    back numbered with something other than 1 -- and deliberately nothing
+    beyond it.
     """
     kept = [raw for raw in raw_lines if raw.strip() and raw.strip() not in _MARKER_ONLY]
     if not kept:
@@ -213,7 +218,7 @@ def repair_line_mapping(raw_lines: list[str]) -> list[str]:
 
     matches = [_LINE_NUMBER_RE.match(raw) for raw in kept]
     numbers = [int(m.group(1)) for m in matches if m is not None]
-    numbered = _looks_numbered(numbers, len(kept))
+    numbered = _looks_numbered(numbers, len(kept), numbered_request=numbered_request)
 
     out: list[str] = []
     for raw, match in zip(kept, matches, strict=True):
@@ -246,7 +251,7 @@ def _strip_repeated_number(raw: str, match: re.Match) -> str:
     return rest
 
 
-def _looks_numbered(numbers: list[int], line_count: int) -> bool:
+def _looks_numbered(numbers: list[int], line_count: int, *, numbered_request: bool = False) -> bool:
     """Is this batch numbered, judged as a whole rather than line by line?
 
     Deciding per line was measured wrong on the live host: gemma3 answered the
@@ -266,6 +271,19 @@ def _looks_numbered(numbers: list[int], line_count: int) -> bool:
         return False
     if max(numbers) > line_count + _NUMBER_RANGE_SLACK:
         return False
+    # Knowing the request carried numbers settles what the output alone cannot,
+    # but ONLY for a single line. A one-line answer of "2: Sonst ist es
+    # sinnlos!" is the model numbering badly rather than a subtitle that opens
+    # with a digit, and read on its own the two are indistinguishable, so the
+    # number reached the finished file.
+    #
+    # It must not extend to longer batches. Fifteen lines that came back
+    # un-numbered except for one real subtitle reading "3: ..." would be
+    # declared numbered, and the fourteen lines carrying no number of their
+    # own would then be joined onto their predecessor -- the whole batch
+    # collapsed into one line. Asking for numbers is not getting them.
+    if numbered_request and line_count == 1:
+        return True
     if numbers[0] == 1:
         return True
     return len(numbers) >= 2 and all(b > a for a, b in zip(numbers, numbers[1:]))
@@ -461,15 +479,16 @@ def build_prompt_with_glossary(
     # back as an extra output line, which is itself a count mismatch.
     count = len(escaped_lines)
     plural = "lines" if count != 1 else "line"
-    # A one-line batch is handed over un-numbered, which contradicts a template
-    # that says every input line carries a number. Saying so costs one sentence
-    # and matters more since a failed batch is split: the split bottoms out at
-    # exactly this shape, and this is the shape that answered the prod "expected
-    # 1" storm with conversation instead of a translation.
+    # A one-line batch goes out un-numbered on the first attempt, because that
+    # is the shape the fine-tune was trained on, and the template that asks for
+    # numbers would otherwise contradict what it goes on to show. The strict
+    # retry numbers it instead -- see the body below for why and for the
+    # measurement.
+    numbered_body = count > 1 or strict
     single = (
-        " The single line below is not numbered — reply with the translation only."
-        if count == 1
-        else ""
+        ""
+        if numbered_body
+        else " The single line below is not numbered — reply with the translation only."
     )
     if strict:
         # "no numbering" used to stand here and contradicted the template,
@@ -484,26 +503,40 @@ def build_prompt_with_glossary(
     else:
         constraint = f"Return exactly {count} {plural}.{single}\n\n"
 
-    # Single-line batches pass the line un-numbered (the V8 fine-tune was
-    # trained that way); batches stay numbered.
+    # Batches are numbered. A one-line batch is not, until the strict retry:
+    # there the retry changes the shape rather than repeating the same request
+    # more loudly, because the two deployed models want opposite shapes and a
+    # single fixed choice loses one of them.
     #
-    # Both keep the template + the count line. The former single-line shape
-    # was a bare f"Translate to German: {line}" that dropped the template
-    # entirely, and with it the output-format rule and the real target
-    # language. Measured against the two deployed models, 10 real subtitle
-    # lines each, scored the way LLMBackend._verify_line_count scores them:
-    #   gemma3:12b (prod)           bare 0/10 — answered with prose,
-    #                               "There are a few ways to translate ..."
-    #                               template only 7/10, + count line 10/10
-    #   anime-translator-en-de-v15  bare 9/10, template only 10/10,
-    #                               + count line 10/10
-    # The 0/10 is what produced the prod "expected 1" storm. On numbered
-    # batches the count line measured neutral (identical hit rate), so both
-    # paths carry it and there is one shape to reason about.
-    if count == 1:
-        body = escaped_lines[0]
-    else:
+    # Measured against both live models on 2026-09-11, 4 subtitle lines x 2
+    # shapes x 3 runs, scored the way LLMBackend._verify_line_count scores
+    # them:
+    #                                   un-numbered   numbered
+    #   gemma3:12b (prod)                   18/24        24/24
+    #   anime-translator-en-de-v15          16/16        14/16
+    #
+    # Every one of gemma3's six failures was the same production line, "or
+    # else it's pointless!": 0/6 un-numbered, 6/6 numbered. Un-numbered, the
+    # payload carried no marker of any kind -- a long instruction block whose
+    # last line was a bare subtitle fragment -- and the model answered with an
+    # invented batch. The count is not the worst of it: the un-numbered runs
+    # that did answer in one line answered with a sentence unrelated to the
+    # input, which passes every count check and reaches the subtitle file and
+    # the translation memory.
+    #
+    # The fine-tune fails the other way round, so it keeps the trained shape
+    # on the attempt that usually decides the job, and only a line it could
+    # not deliver un-numbered is asked for again with numbers.
+    #
+    # This shape decides whether an almost-finished file completes. A failed
+    # batch is split, the split bottoms out at one line, and only the uncached
+    # lines are sent at all: prod on 2026-09-11 held episodes with 378 dialog
+    # lines, 377 of them already in the translation memory, failing as a whole
+    # every day on the single line left over.
+    if numbered_body:
         body = "\n".join(f"{i + 1}: {line}" for i, line in enumerate(escaped_lines))
+    else:
+        body = escaped_lines[0]
 
     return glossary_str + prompt_template + constraint + body
 

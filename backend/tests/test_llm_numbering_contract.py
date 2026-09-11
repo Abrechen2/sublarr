@@ -47,20 +47,40 @@ def test_the_strict_retry_does_not_contradict_the_template():
     assert "no numbering" not in strict.lower()
 
 
-def test_a_single_line_request_does_not_claim_to_be_numbered():
-    """The template says every input line is numbered — one-line batches are not.
-
-    Single lines stay un-numbered because the fine-tune was trained that way,
-    so the prompt would otherwise contradict what it goes on to show. That
-    matters more than it used to: a batch that fails is now split, and the
-    split bottoms out at exactly this shape — historically the shape that
-    answered with conversation rather than a translation.
-    """
+def test_a_single_line_first_attempt_keeps_the_un_numbered_shape():
+    """The fine-tune was trained on it and delivers 16/16 with it."""
     template = get_settings().get_prompt_template()
 
     prompt = build_prompt_with_glossary(template, None, ["Hello there"])
 
     assert "not numbered" in prompt.lower()
+    assert "1: Hello there" not in prompt
+
+
+def test_the_strict_retry_of_a_single_line_numbers_it_instead():
+    """The retry changes the shape rather than repeating the same one louder.
+
+    The un-numbered shape leaves the payload with no marker at all: a long
+    instruction block whose last line is a bare subtitle fragment. gemma3:12b
+    reads that as no input and answers with an invented batch. Measured
+    against both live models on 2026-09-11, 4 lines x 2 shapes x 3 runs,
+    counting answers of exactly one line:
+
+                                    un-numbered   numbered
+      gemma3:12b (prod)                 18/24        24/24
+      anime-translator-en-de-v15        16/16        14/16
+
+    All six gemma3 failures were one production line, "or else it's
+    pointless!" -- 0/6 un-numbered, 6/6 numbered. The two models want
+    opposite shapes, so the first attempt serves the fine-tune and the retry
+    serves the general model, instead of one fixed choice losing one of them.
+    """
+    template = get_settings().get_prompt_template()
+
+    retry = build_prompt_with_glossary(template, None, ["Hello there"], strict=True)
+
+    assert "1: Hello there" in retry
+    assert "not numbered" not in retry.lower()
 
 
 def test_a_multi_line_request_says_nothing_about_being_unnumbered():

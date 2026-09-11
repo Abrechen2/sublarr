@@ -298,7 +298,12 @@ class LLMBackend(TranslationBackend):
         # at this level rather than in each ``_parse_response``: ChatGPT and
         # Claude never stripped output numbering at all, so a prompt that asks
         # for numbers would otherwise write digits into their subtitles.
-        resp.translations = repair_line_mapping(resp.translations)
+        # Whether numbers were asked for is known here and nowhere downstream:
+        # a one-line batch is numbered only on the strict retry, and an answer
+        # numbered "2:" is unreadable without that knowledge.
+        resp.translations = repair_line_mapping(
+            resp.translations, numbered_request=len(lines) > 1 or is_retry
+        )
         if resp.finish_reason == "content_filter":
             raise ContentFilterError(f"{self.name} refused with finish_reason=content_filter")
         return resp

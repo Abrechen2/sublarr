@@ -260,3 +260,39 @@ def test_a_genuinely_merged_batch_stays_short():
     raw = ["1: Eins", "2: Zwei und Drei zusammengefasst", "3: Vier"]
 
     assert len(repair_line_mapping(raw)) == 3
+
+
+def test_a_numbered_request_settles_a_lone_number_the_output_cannot():
+    """One line back as "2: ..." is bad numbering, not a subtitle starting on 2.
+
+    Read on its own the two are indistinguishable, so the number used to reach
+    the finished file. The strict retry of a one-line batch numbers the input,
+    and anime-translator-en-de-v15 answered one such retry with "2: Sonst ist
+    es sinnlos!" on 2026-09-11.
+    """
+    assert repair_line_mapping(["2: Sonst ist es sinnlos!"], numbered_request=True) == [
+        "Sonst ist es sinnlos!"
+    ]
+
+
+def test_an_un_numbered_request_still_keeps_a_leading_number():
+    """Without that knowledge the line stays whole: "13: Das Bankett" is text."""
+    assert repair_line_mapping(["13: Das Bankett"]) == ["13: Das Bankett"]
+
+
+def test_a_numbered_request_does_not_strip_a_number_out_of_range():
+    """The range check still stands — a lone 13 cannot index a one-line batch."""
+    assert repair_line_mapping(["13: Das Bankett"], numbered_request=True) == ["13: Das Bankett"]
+
+
+def test_a_numbered_request_does_not_rescue_a_batch_that_came_back_un_numbered():
+    """Asking for numbers is not getting them, and the difference matters.
+
+    Fifteen lines back without numbering, one of which is a real subtitle
+    opening "3: ", must not be read as a numbered batch: the fourteen lines
+    carrying no number of their own would be joined onto their predecessor and
+    the whole batch would collapse into one line.
+    """
+    raw = ["Eins", "Zwei", "3: Das Ergebnis", "Vier", "Fuenf"]
+
+    assert repair_line_mapping(raw, numbered_request=True) == raw

@@ -106,8 +106,27 @@ $SSH "for i in \$(seq 1 60); do curl -sf --max-time 3 http://localhost:${RC_PORT
 # wanted_scan_interval_hours and wanted_auto_translate joined this list on
 # 2026-08-29, when prod switched both on. The clone carries them, and
 # wanted_scanner was in nobody's pause list.
+# TRANSLATE=1 leaves the translation pipeline running. It is off by default
+# because a clone re-translating prod's backlog is duplicated work, but the
+# original reason -- billing the owner's live DeepL quota -- no longer
+# applies: since 2026-08-04 both prod and RC run translation_default_backend
+# = ollama with an empty fallback chain, so no paid backend is reachable at
+# all. What it still costs is the Mac mini, which prod shares.
+#
+# It exists because an RC that translates nothing cannot fail at translating,
+# and the promote gate reads "three days without ERNST". On 2026-09-11 RC had
+# been quiet for 29 h with ev_ok_24h=0 and ev_err_24h=0 -- silence that said
+# nothing about the build.
 echo "Disabling the load- and quota-generating settings on RC ..."
-CFG_JSON='{"wanted_search_interval_hours":0,"upgrade_scan_interval_hours":0,"wanted_scan_interval_hours":0,"wanted_auto_translate":false,"subtitle_automation_enabled":false}'
+if [[ "${TRANSLATE:-}" == "1" ]]; then
+  echo "  TRANSLATE=1 -- leaving subtitle_automation ON (ollama, no paid backend)"
+  AUTOMATION_JSON='"subtitle_automation_enabled":true'
+  PAUSE_JOBS="wanted_search wanted_scanner mt_reseek upgrade_scan"
+else
+  AUTOMATION_JSON='"subtitle_automation_enabled":false'
+  PAUSE_JOBS="subtitle_automation wanted_search wanted_scanner mt_reseek upgrade_scan"
+fi
+CFG_JSON="{\"wanted_search_interval_hours\":0,\"upgrade_scan_interval_hours\":0,\"wanted_scan_interval_hours\":0,\"wanted_auto_translate\":false,${AUTOMATION_JSON}}"
 $SSH "docker exec $RC_APP sh -lc 'curl -sS -m 30 -o /dev/null -w \"  config: %{http_code}\n\" -X PUT -H \"X-Api-Key: \$SUBLARR_API_KEY\" -H \"Content-Type: application/json\" -d '\''$CFG_JSON'\'' http://localhost:5765/api/v1/config'" || \
   echo "  config write failed — set the intervals to 0 by hand" >&2
 
@@ -115,9 +134,13 @@ $SSH "docker exec $RC_APP sh -lc 'curl -sS -m 30 -o /dev/null -w \"  config: %{h
 # across restarts. mt_reseek has no interval setting, so there the pause is
 # all there is.
 echo "Pausing paid-API scheduler jobs on RC ..."
-for _job in subtitle_automation wanted_search wanted_scanner mt_reseek upgrade_scan; do
+for _job in $PAUSE_JOBS; do
   $SSH "curl -sS -X POST 'http://localhost:${RC_PORT}/api/v1/scheduler/jobs/${_job}/pause' -o /dev/null -w '  ${_job}: %{http_code}\n'" || \
     echo "  ${_job}: pause failed (non-fatal — pause it by hand)" >&2
 done
 
-echo "Done. RC mirrors prod DB (config_entries included); paid-API jobs off."
+if [[ "${TRANSLATE:-}" == "1" ]]; then
+  echo "Done. RC mirrors prod DB; provider jobs off, translation ON."
+else
+  echo "Done. RC mirrors prod DB (config_entries included); paid-API jobs off."
+fi

@@ -88,9 +88,9 @@ def test_the_registry_changes_only_where_a_url_was_the_culprit():
         fields = getattr(cls, "config_fields", []) or []
         if not fields:
             return True
-        return not any(
-            (not isinstance(f, dict)) or f.get("required") for f in fields
-        ) and all(isinstance(f, dict) for f in fields)
+        return not any((not isinstance(f, dict)) or f.get("required") for f in fields) and all(
+            isinstance(f, dict) for f in fields
+        )
 
     changed = {
         name
