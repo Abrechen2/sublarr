@@ -654,6 +654,18 @@
     "last_run": "Last: {{date}}"
   },
   "whatsnew": {
+    "v1141": {
+      "translate_title": "One leftover line no longer blocks a whole episode",
+      "translate_desc": "Only the lines that are not already in the translation memory are sent to the model. When exactly one was left, that single line decided the whole file — and it failed reliably, because a one-line request handed the model a bare fragment with no marker at all. The retry now asks differently instead of merely asking harder.",
+      "search_title": "The manual search honours the profile",
+      "search_desc": "Interactive search applied a profile's scoring preset but ignored that profile's provider list, so a profile limited to one provider still queried two dozen. The list now applies, and widening past it is a labelled option in the search dialog.",
+      "srt_title": "The SRT fallback is no longer skipped on a mixed library",
+      "srt_desc": "When no ASS candidate was found, the SRT stage was skipped — sound reasoning for an anime-only library, backwards for one with live action. The skip now requires the assumption it rests on: an anime-only library.",
+      "health_title": "The health page and the provider list agree",
+      "health_desc": "The overview computed its own verdict while everything else asked the classifier written for it, so one install could report six unhealthy providers and a degraded count of zero at once. Providers nothing has asked yet are counted separately.",
+      "config_title": "Configuration that merely sounds like a secret is readable again",
+      "config_desc": "The masking rule matched its sensitive words as substrings, and \"mapping\" contains \"pin\". Names are now matched on their own segments. No value was ever lost."
+    },
     "v1140": {
       "baseurl_title": "Sublarr can run under a path prefix",
       "baseurl_desc": "The Base URL field in the settings never did anything. If you run Sublarr behind a reverse proxy under, say, /sublarr, you can set it now — the interface, the API and the live updates all follow the prefix. No restart is needed, and the un-prefixed paths keep working so a wrong value cannot lock you out.",

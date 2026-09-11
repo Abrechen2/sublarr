@@ -654,6 +654,18 @@
     "last_run": "Zuletzt: {{date}}"
   },
   "whatsnew": {
+    "v1141": {
+      "translate_title": "Eine einzelne Restzeile blockiert keine Folge mehr",
+      "translate_desc": "An den Uebersetzer gehen nur die Zeilen, die noch nicht im Uebersetzungsspeicher stehen. Blieb davon genau eine uebrig, entschied diese eine Zeile ueber die ganze Datei — und scheiterte zuverlaessig, weil eine einzelne Zeile dem Modell ohne jede Markierung vorgelegt wurde. Der Wiederholungsversuch stellt die Anfrage jetzt anders, statt sie nur nachdruecklicher zu wiederholen.",
+      "search_title": "Die manuelle Suche haelt sich an das Profil",
+      "search_desc": "Die interaktive Suche uebernahm die Bewertungsvorlage eines Profils, ignorierte aber dessen Anbieterliste. Ein auf einen Anbieter beschraenktes Profil fragte trotzdem zwei Dutzend ab. Die Liste gilt jetzt; darueber hinauszugehen ist eine beschriftete Option im Suchdialog.",
+      "srt_title": "Der SRT-Rueckfall wird in gemischten Bibliotheken nicht mehr uebersprungen",
+      "srt_desc": "Fand die Suche keine ASS-Datei, wurde die SRT-Stufe uebersprungen — sinnvoll in einer reinen Anime-Bibliothek, verkehrt herum in einer mit Realfilmen. Das Ueberspringen setzt jetzt voraus, wovon es ausgeht: eine Anime-only-Bibliothek.",
+      "health_title": "Gesundheitsseite und Anbieterliste meinen dasselbe",
+      "health_desc": "Die Uebersicht rechnete sich ihr eigenes Urteil aus, waehrend alles andere den dafuer geschriebenen Klassifikator fragte. So konnte eine Installation sechs kranke Anbieter und gleichzeitig null melden. Anbieter, die noch nichts gefragt hat, werden getrennt gezaehlt.",
+      "config_title": "Einstellungen, die nur nach Geheimnis klingen, sind wieder lesbar",
+      "config_desc": "Die Maskierungsregel suchte ihre Schluesselwoerter als Teilzeichenkette — und in „mapping“ steckt „pin“. Namen werden jetzt segmentweise geprueft. Verloren ging dabei nie ein Wert."
+    },
     "v1140": {
       "baseurl_title": "Sublarr laeuft jetzt auch unter einem Pfad-Praefix",
       "baseurl_desc": "Das Feld „Basis-URL“ in den Einstellungen war bisher wirkungslos. Wer Sublarr hinter einem Reverse-Proxy unter etwa /sublarr betreibt, kann es jetzt eintragen — Oberfläche, API und Live-Aktualisierung folgen dem Präfix. Ein Neustart ist nicht nötig, und der Zugriff ohne Präfix bleibt bestehen, damit ein falscher Wert niemanden aussperrt.",

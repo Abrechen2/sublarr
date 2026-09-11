@@ -8,6 +8,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [1.14.1] - 2026-09-10
 
 ### Fixed
+- **An episode no longer fails for ever because one single line is left to
+  translate.** Only the lines that are not already in the translation memory
+  are sent to the model, and a batch that fails is halved and retried — which
+  bottoms out at one line, and a single line cannot be halved again. So a file
+  whose memory already holds all but one of its lines stood or fell on that one
+  line, and fell again on every daily retry. It fell reliably, because a
+  one-line request handed the model a bare subtitle fragment with no marker of
+  any kind after a long block of instructions; the model did not read it as
+  input and answered with an invented batch of ten, twenty or a hundred lines.
+  The strict retry could not help while it repeated the same shape more loudly.
+  It now changes the shape instead, and a one-line request that failed is asked
+  again the way a batch is asked. Measured against both deployed models, the
+  line that exposed this went from never succeeding to always succeeding, and
+  end-to-end the whole path answers correctly on every run. The quieter half of
+  the same defect mattered more: a one-line answer that happened to have the
+  right shape but no relation to the input passed every check and was written
+  into both the subtitle and the memory.
 - **The manual search respects the profile it was already half-respecting.**
   Interactive search applied a profile's scoring preset and ignored that same
   profile's provider list, three lines apart. A profile limited to one
