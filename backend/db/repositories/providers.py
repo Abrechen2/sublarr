@@ -8,6 +8,7 @@ existing formula: (old_avg * (total_searches - 1) + new_time) / total_searches.
 """
 
 import logging
+import os
 from datetime import UTC, datetime, timedelta
 
 from sqlalchemy import delete, func, select
@@ -220,6 +221,34 @@ class ProviderRepository(BaseRepository):
             stats[name]["total"] += count
             stats[name]["by_format"][fmt_key] = count
         return stats
+
+    def is_machine_translated(self, file_path: str, language: str) -> bool:
+        """Whether the subtitle serving ``file_path`` in ``language`` is our own.
+
+        Provenance is not visible on disk — a Sublarr-translated ``.de.ass`` and
+        a provider ``.de.ass`` are indistinguishable there — but it is recorded
+        here as ``source="machine_translation"``. Callers use this to keep a
+        machine translation from counting as a finished result: it is the last
+        resort, never the best available subtitle.
+
+        Keyed on the VIDEO path, which is what these rows carry (1 878 of 1 885
+        on prod as of 2026-09-13; the handful of outliers hold the subtitle path
+        instead and simply read as "not machine translated", which fails safe).
+        """
+        if not file_path:
+            return False
+        file_path = os.path.normpath(file_path)
+        stmt = (
+            select(SubtitleDownload.id)
+            .where(
+                SubtitleDownload.file_path == file_path,
+                SubtitleDownload.source == "machine_translation",
+            )
+            .limit(1)
+        )
+        if language:
+            stmt = stmt.where(SubtitleDownload.language == language)
+        return self.session.execute(stmt).first() is not None
 
     # ---- Provider Statistics -----------------------------------------------------
 

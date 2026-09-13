@@ -17,6 +17,7 @@ from ass_utils import (
 )
 from config import get_settings, map_path
 from db.profiles import get_movie_profile, get_series_profile
+from db.providers import is_machine_translated
 from db.wanted import upsert_wanted_item
 from translator import detect_existing_target_for_lang, get_output_path_for_lang
 from upgrade_scorer import score_existing_subtitle
@@ -60,14 +61,25 @@ def _check_language_for_item(
     target_lang: str,
     probe_data,
     settings,
+    *,
+    keep_seeking_mt: bool = False,
 ) -> dict | None:
     """Check a single target language for a media file.
 
     Returns a dict with upsert fields if the item is wanted, or None if
     the target language is already satisfied.
+
+    ``keep_seeking_mt`` mirrors the governing profile's
+    ``mt_keep_seeking_original``. With it on, an ASS that Sublarr translated
+    itself does NOT satisfy the language: a machine translation is the last
+    resort, never the best available subtitle, so the item stays in play for
+    ``services.mt_reseek`` to find a genuine original. Defaults to False so
+    every existing caller keeps its current meaning.
     """
     existing = detect_existing_target_for_lang(mapped_path, target_lang, probe_data)
-    if existing == "ass":
+    if existing == "ass" and not (
+        keep_seeking_mt and is_machine_translated(mapped_path, target_lang)
+    ):
         return None
     if existing == "srt" and not settings.upgrade_enabled:
         return None

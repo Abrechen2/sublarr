@@ -147,9 +147,21 @@ class _WantedUpsertMixin:
         subtitle_type: str = "full",
         embedded_languages: list = None,
         *,
+        status: str = "wanted",
         _retry: bool = False,
     ) -> tuple:
         """Insert or update a wanted item (matched on file_path + target_language + subtitle_type).
+
+        ``status`` is keyword-only on purpose: the module-level wrapper in
+        ``db.wanted`` forwards every argument positionally, so a new positional
+        parameter would silently shift the existing ones.
+
+        It exists for re-queuing an episode that is currently served by our own
+        machine translation. Such a row must be ``provisional`` (owned by
+        ``services.mt_reseek``, which searches in original-only mode) and never
+        ``wanted`` — a ``wanted`` row is picked up by ``wanted_search`` *with
+        auto-translate* and would re-translate the very file we are trying to
+        replace.
 
         The uniqueness check includes subtitle_type so that a single file can have
         parallel wanted items for different subtitle types (e.g., full + forced)
@@ -214,7 +226,7 @@ class _WantedUpsertMixin:
                 existing.missing_languages = langs_json
                 if embedded_json is not None:
                     existing.embedded_languages = embedded_json
-                existing.status = "wanted"
+                existing.status = status
                 existing.sonarr_series_id = sonarr_series_id
                 existing.sonarr_episode_id = sonarr_episode_id
                 existing.radarr_movie_id = radarr_movie_id
@@ -291,7 +303,7 @@ class _WantedUpsertMixin:
             target_language=target_language,
             instance_name=instance_name,
             subtitle_type=subtitle_type,
-            status="wanted",
+            status=status,
             added_at=now,
             updated_at=now,
         )

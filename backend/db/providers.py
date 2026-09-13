@@ -161,6 +161,19 @@ def get_download_decision_log(download_id: int) -> str | None:
     return _get_repo().get_decision_log(download_id)
 
 
+def is_machine_translated(file_path: str, language: str = "") -> bool:
+    """Whether the subtitle serving this video in this language is our own.
+
+    A machine translation is the last resort, never the best available subtitle,
+    so callers must not treat one as a finished result. Fails safe to False.
+    """
+    try:
+        return _get_repo().is_machine_translated(file_path, language)
+    except Exception:  # noqa: BLE001 — provenance is advisory; never break a scan
+        logger.debug("is_machine_translated failed for %s", file_path, exc_info=True)
+        return False
+
+
 # ---- Provider Statistics ----
 
 

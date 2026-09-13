@@ -47,8 +47,14 @@ def upsert_wanted_item(
     instance_name: str = "",
     subtitle_type: str = "full",
     embedded_languages: list = None,
+    *,
+    status: str = "wanted",
 ) -> tuple:
-    """Insert or update a wanted item. Returns (row_id, was_updated)."""
+    """Insert or update a wanted item. Returns (row_id, was_updated).
+
+    ``status`` is keyword-only: every other argument is forwarded positionally
+    below, so a new positional parameter would shift them all.
+    """
     return _get_repo().upsert_wanted_item(
         item_type,
         file_path,
@@ -67,6 +73,7 @@ def upsert_wanted_item(
         instance_name,
         subtitle_type,
         embedded_languages,
+        status=status,
     )
 
 
