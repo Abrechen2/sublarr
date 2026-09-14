@@ -5,6 +5,38 @@ All notable changes to Sublarr are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.14.2] - 2026-09-14
+
+### Fixed
+- **The wanted scan stops repeating its full rescan.** Every sixth scan is a
+  full rescan and the rest are incremental, but the counter driving that
+  rotation only advanced on a scan that finished clean — and a scan asked to
+  stop when it runs out of time does not count as clean. So a full scan that
+  overran left the counter where it was, the next scan was full as well,
+  overran as well, and the scanner never came back out. One installation sat
+  in that loop for four days: eleven of twelve scans ran full against a
+  one-in-six cadence, rewriting some 11 800 rows every six hours instead of
+  every thirty-six. The rotation now advances when a scan runs out of time. A
+  source that actually failed still freezes it, and the watermark that decides
+  what an incremental pass asks for keeps its guard in both cases, so nothing
+  goes unscanned.
+- **A search no longer answers with another title's subtitles.** The cache key
+  was built from the file path, languages, format and a few settings, but not
+  from what was being looked for. A caller that passes a file path was never
+  affected — the path identifies the episode on its own — but the search API
+  allows a bare title, and two such searches within the cache lifetime
+  returned each other's results. Measured before the fix, a search for one
+  series, a different season of it, and two films sharing a name all produced
+  the same key. Title, year, season, episode and the external ids now
+  partition the cache.
+- **Fixing a provider has retroactive effect again.** Items that burned their
+  search attempts while a provider was broken are meant to return to the queue
+  when that provider becomes usable, which is what makes repairing one worth
+  anything for a backlog. The call that did it had been unreachable since it
+  was written: a local variable shadowed the helper it needed, so it raised on
+  every provider change and a catch-all logged a warning nobody reads. One
+  installation had 3 466 items parked behind it.
+
 ## [1.14.1] - 2026-09-14
 
 ### Fixed
