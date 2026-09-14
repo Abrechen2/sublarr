@@ -664,7 +664,11 @@
       "health_title": "The health page and the provider list agree",
       "health_desc": "The overview computed its own verdict while everything else asked the classifier written for it, so one install could report six unhealthy providers and a degraded count of zero at once. Providers nothing has asked yet are counted separately.",
       "config_title": "Configuration that merely sounds like a secret is readable again",
-      "config_desc": "The masking rule matched its sensitive words as substrings, and \"mapping\" contains \"pin\". Names are now matched on their own segments. No value was ever lost."
+      "config_desc": "The masking rule matched its sensitive words as substrings, and \"mapping\" contains \"pin\". Names are now matched on their own segments. No value was ever lost.",
+      "providers_title": "AnimeTosho finds current releases again",
+      "providers_desc": "The index on animetosho.org stopped taking in new entries in May 2026, so Sublarr was searching a frozen archive and anything released since was unreachable through this provider. Search now runs against animetosho.xyz, the index that carried on. The old archive stays usable: subtitles already downloaded can still be repaired.",
+      "scrapers_title": "TVsubtitles and Subf2m search again",
+      "scrapers_desc": "Both were requesting addresses that no longer exist — TVsubtitles answered 404, Subf2m refused the request method with 405. Because a dead endpoint counted as “nothing found”, hundreds of searches looked like an empty library rather than a broken provider. Both now reach the current addresses, and a provider-side failure is reported as a failure. The bundled second copy of TVsubtitles, which queried the same dead address, has been retired."
     },
     "v1140": {
       "baseurl_title": "Sublarr can run under a path prefix",

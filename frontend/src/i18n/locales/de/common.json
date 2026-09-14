@@ -664,7 +664,11 @@
       "health_title": "Gesundheitsseite und Anbieterliste meinen dasselbe",
       "health_desc": "Die Uebersicht rechnete sich ihr eigenes Urteil aus, waehrend alles andere den dafuer geschriebenen Klassifikator fragte. So konnte eine Installation sechs kranke Anbieter und gleichzeitig null melden. Anbieter, die noch nichts gefragt hat, werden getrennt gezaehlt.",
       "config_title": "Einstellungen, die nur nach Geheimnis klingen, sind wieder lesbar",
-      "config_desc": "Die Maskierungsregel suchte ihre Schluesselwoerter als Teilzeichenkette — und in „mapping“ steckt „pin“. Namen werden jetzt segmentweise geprueft. Verloren ging dabei nie ein Wert."
+      "config_desc": "Die Maskierungsregel suchte ihre Schluesselwoerter als Teilzeichenkette — und in „mapping“ steckt „pin“. Namen werden jetzt segmentweise geprueft. Verloren ging dabei nie ein Wert.",
+      "providers_title": "AnimeTosho findet wieder aktuelle Releases",
+      "providers_desc": "Der Index auf animetosho.org nimmt seit Mai 2026 nichts Neues mehr auf — Sublarr durchsuchte also einen eingefrorenen Bestand, und alles, was seitdem erschienen ist, war ueber diesen Anbieter unerreichbar. Die Suche laeuft jetzt gegen animetosho.xyz, den weitergefuehrten Index. Der alte Bestand bleibt nutzbar: bereits geladene Untertitel lassen sich weiterhin reparieren.",
+      "scrapers_title": "TVsubtitles und Subf2m suchen wieder",
+      "scrapers_desc": "Beide fragten Adressen ab, die es nicht mehr gibt — TVsubtitles antwortete mit 404, Subf2m wies die Anfrageart mit 405 ab. Weil ein toter Endpunkt als „nichts gefunden“ gezaehlt wurde, sahen hunderte Suchen wie eine leere Bibliothek aus statt wie ein defekter Anbieter. Beide erreichen jetzt die aktuellen Adressen, und ein Fehler des Anbieters wird als Fehler gemeldet. Die mitgelieferte Zweitfassung von TVsubtitles, die dieselbe tote Adresse abfragte, entfaellt."
     },
     "v1140": {
       "baseurl_title": "Sublarr laeuft jetzt auch unter einem Pfad-Praefix",

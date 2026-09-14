@@ -25,6 +25,8 @@ export const WHATS_NEW: Record<string, WhatsNewItem[]> = {
     { icon: FileDown, titleKey: 'whatsnew.v1141.srt_title', descKey: 'whatsnew.v1141.srt_desc' },
     { icon: Activity, titleKey: 'whatsnew.v1141.health_title', descKey: 'whatsnew.v1141.health_desc' },
     { icon: SlidersHorizontal, titleKey: 'whatsnew.v1141.config_title', descKey: 'whatsnew.v1141.config_desc' },
+    { icon: Globe, titleKey: 'whatsnew.v1141.providers_title', descKey: 'whatsnew.v1141.providers_desc' },
+    { icon: Zap, titleKey: 'whatsnew.v1141.scrapers_title', descKey: 'whatsnew.v1141.scrapers_desc' },
   ],
   '1.14.0': [
     { icon: Globe, titleKey: 'whatsnew.v1140.baseurl_title', descKey: 'whatsnew.v1140.baseurl_desc' },
