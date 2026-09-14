@@ -117,22 +117,27 @@ class Subf2mProvider(SubtitleProvider):
 
     def _search_titles(self, title: str) -> list[dict]:
         try:
-            resp = self.session.post(
+            # The search page answers GET; POST is refused with 405.
+            resp = self.session.get(
                 _SEARCH_URL,
-                data={"query": title, "l": ""},
+                params={"query": title, "l": ""},
                 headers={"Referer": _BASE_URL},
                 timeout=self.timeout,
             )
             if resp.status_code != 200:
-                return []
+                # A dead endpoint is not an empty library — say so, or this
+                # provider reports "no results" for every search forever.
+                raise ProviderError(f"Subf2m search endpoint returned HTTP {resp.status_code}")
             soup = BeautifulSoup(resp.text, "html.parser")
             results = []
-            for a in soup.select("ul.title a[href^='/subtitles/']"):
+            for a in soup.select(".title a[href^='/subtitles/']"):
                 href = a.get("href", "")
                 name = a.get_text(strip=True)
                 if href and name:
                     results.append({"url": f"{_BASE_URL}{href}", "name": name})
             return results
+        except ProviderError:
+            raise
         except Exception as e:
             logger.debug("Subf2m: title search error: %s", e)
             return []

@@ -10,6 +10,8 @@ License:  GPL-3.0
 """
 
 import logging
+import re
+import urllib.parse
 from typing import ClassVar
 
 from archive_utils import extract_subtitles_from_zip
@@ -35,6 +37,11 @@ from security_utils import validate_download_url
 logger = logging.getLogger(__name__)
 
 _BASE_URL = "https://www.tvsubtitles.net"
+_SUBTITLE_ID_RE = re.compile(r"subtitle-(\d+)")
+_INTERSTITIAL_RE = re.compile(r"/download-\d+\.html$")
+# The wait page builds its target as: var s1='..'; ... document.location = s1+s2+..;
+_JS_FRAGMENT_RE = re.compile(r"""var\s+(\w+)\s*=\s*'([^']*)'""")
+_JS_LOCATION_RE = re.compile(r"document\.location\s*=\s*([\w\s+]+);")
 _FORMAT_MAP = {
     "srt": SubtitleFormat.SRT,
     "ass": SubtitleFormat.ASS,
@@ -139,63 +146,99 @@ class TVSubtitlesProvider(SubtitleProvider):
         """Search for a show by title, return {id, name} or None."""
         try:
             resp = self.session.post(
-                f"{_BASE_URL}/search.php",
-                data={"q": title},
+                f"{_BASE_URL}/search1.php",
+                data={"qs": title},
                 headers={"Referer": _BASE_URL},
                 timeout=self.timeout,
             )
             if resp.status_code != 200:
-                return None
+                # A dead endpoint is not an empty library — say so, or this
+                # provider reports "no results" for every search forever.
+                raise ProviderError(f"TVSubtitles search endpoint returned HTTP {resp.status_code}")
             soup = BeautifulSoup(resp.text, "html.parser")
-            # Results: <ul id="r" class="left"> with <a href="/tvshow-{id}.html">
-            for a in soup.select("ul#r a[href*='tvshow-']"):
+            # Results are <a href="/tvshow-{id}.html"> links. They used to sit
+            # in <ul id="r">; that wrapper is gone, so match the links alone.
+            for a in soup.select("a[href*='tvshow-']"):
                 href = a.get("href", "")
                 name = a.get_text(strip=True)
                 if href and name and title.lower() in name.lower():
                     show_id = href.replace("/tvshow-", "").replace(".html", "").strip("/")
                     return {"id": show_id, "name": name, "url": f"{_BASE_URL}{href}"}
             # Fallback: first result
-            first = soup.select_one("ul#r a[href*='tvshow-']")
+            first = soup.select_one("a[href*='tvshow-']")
             if first:
                 href = first.get("href", "")
                 name = first.get_text(strip=True)
                 show_id = href.replace("/tvshow-", "").replace(".html", "").strip("/")
                 return {"id": show_id, "name": name, "url": f"{_BASE_URL}{href}"}
+        except ProviderError:
+            raise
         except Exception as e:
             logger.debug("TVSubtitles: show search error: %s", e)
         return None
 
+    def _find_episode_page(self, show_id: str, season: int, episode: int) -> str | None:
+        """Locate an episode's page via the season listing.
+
+        Episodes used to be addressable as ``episode-{show}-{s}x{e}.html``.
+        That 404s — they now carry an opaque internal id, and the season page
+        is the only place that maps ``1x01`` onto it.
+        """
+        season_url = f"{_BASE_URL}/tvshow-{show_id}-{season}.html"
+        resp = self.session.get(season_url, timeout=self.timeout)
+        if resp.status_code != 200:
+            raise ProviderError(f"TVSubtitles season page returned HTTP {resp.status_code}")
+
+        soup = BeautifulSoup(resp.text, "html.parser")
+        wanted = f"{season}x{episode:02d}"
+        for row in soup.select("tr"):
+            cells = row.find_all("td")
+            if not cells or cells[0].get_text(strip=True) != wanted:
+                continue
+            link = row.find("a", href=lambda h: h and h.startswith("episode-"))
+            if link:
+                return f"{_BASE_URL}/{link.get('href').lstrip('/')}"
+        return None
+
     def _get_episode_subtitles(
-        self, show_id: str, season: int, episode: int, lang_name: str
+        self, show_id: str, season: int, episode: int, lang_code: str
     ) -> list[dict]:
-        """Fetch subtitle entries for a specific episode and language."""
+        """Fetch subtitle entries for one episode in one language."""
         try:
-            # Try episode page: /episode-{show_id}-{season}x{episode}.html
-            ep_url = f"{_BASE_URL}/episode-{show_id}-{season}x{episode}.html"
-            resp = self.session.get(ep_url, timeout=self.timeout)
-            if resp.status_code != 200:
+            episode_url = self._find_episode_page(show_id, season, episode)
+            if not episode_url:
                 return []
+
+            resp = self.session.get(episode_url, timeout=self.timeout)
+            if resp.status_code != 200:
+                raise ProviderError(f"TVSubtitles episode page returned HTTP {resp.status_code}")
+
             soup = BeautifulSoup(resp.text, "html.parser")
             entries = []
-            for row in soup.select("table tr"):
-                cells = row.find_all("td")
-                if len(cells) < 3:
+            # One <a href="/subtitle-{id}.html"> per subtitle, carrying its
+            # language as a flag image: images/flags/{code}.gif
+            for link in soup.select("a[href*='subtitle-']"):
+                flag = link.select_one("img[src*='flags/']")
+                if not flag:
                     continue
-                lang_cell = cells[0].get_text(strip=True).lower()
-                if lang_name not in lang_cell:
+                entry_lang = flag.get("src", "").rsplit("/", 1)[-1].rsplit(".", 1)[0].lower()
+                if entry_lang != lang_code.lower():
                     continue
-                dl_link = row.find("a", href=lambda h: h and "download" in h)
-                if not dl_link:
+
+                sub_id = _SUBTITLE_ID_RE.search(link.get("href", "") or "")
+                if not sub_id:
                     continue
-                href = dl_link.get("href", "")
-                release = cells[1].get_text(strip=True) if len(cells) > 1 else ""
+
                 entries.append(
                     {
-                        "url": f"{_BASE_URL}{href}" if href.startswith("/") else href,
-                        "release": release,
+                        # The download page is the subtitle id under another name.
+                        "url": f"{_BASE_URL}/download-{sub_id.group(1)}.html",
+                        "release": " ".join(link.stripped_strings).strip(),
                     }
                 )
             return entries
+        except ProviderError:
+            raise
         except Exception as e:
             logger.debug("TVSubtitles: episode fetch error: %s", e)
             return []
@@ -231,11 +274,10 @@ class TVSubtitlesProvider(SubtitleProvider):
         search_langs = query.languages or ["en"]
 
         for lang_code in search_langs:
-            lang_name = _LANG_NAMES.get(lang_code)
-            if not lang_name:
+            if lang_code not in _LANG_NAMES:
                 continue
             entries = self._get_episode_subtitles(
-                show["id"], query.season or 1, query.episode or 1, lang_name
+                show["id"], query.season or 1, query.episode or 1, lang_code
             )
             for entry in entries[:5]:
                 subtitle_id = entry["url"].rstrip("/").split("/")[-1]
@@ -258,12 +300,42 @@ class TVSubtitlesProvider(SubtitleProvider):
         logger.info("TVSubtitles: found %d results", len(results))
         return results
 
+    def _resolve_download_url(self, page_url: str) -> str:
+        """Read the real archive path off the interstitial wait page.
+
+        ``download-{id}.html`` returns a page, not the file: a script splits the
+        path into fragments, concatenates them and navigates there. Reassemble
+        it in the order the concatenation names, rather than following a link
+        that is not in the markup.
+        """
+        resp = self.session.get(page_url, timeout=self.timeout, headers={"Referer": _BASE_URL})
+        if resp.status_code != 200:
+            raise ProviderError(f"TVSubtitles download page returned HTTP {resp.status_code}")
+
+        fragments = dict(_JS_FRAGMENT_RE.findall(resp.text))
+        target = _JS_LOCATION_RE.search(resp.text)
+        if not fragments or not target:
+            raise ProviderError("TVSubtitles download page carried no resolvable archive path")
+
+        path = "".join(fragments.get(name.strip(), "") for name in target.group(1).split("+"))
+        if not path:
+            raise ProviderError("TVSubtitles download page carried no resolvable archive path")
+
+        return f"{_BASE_URL}/{urllib.parse.quote(path)}"
+
     def download(self, result: SubtitleResult) -> bytes:
         if not self.session:
             raise RuntimeError("TVSubtitles not initialized")
 
+        download_url = result.download_url or ""
+        # Only the interstitial itself gets unwrapped. A direct archive link
+        # can contain "download-" too, and running it through the wait-page
+        # parser could only ever fail on it.
+        if _INTERSTITIAL_RE.search(download_url):
+            download_url = self._resolve_download_url(download_url)
+
         # P1: Validate download URL against allowlist
-        url_ok, url_err = validate_download_url(result.download_url or "", self.name)
+        url_ok, url_err = validate_download_url(download_url, self.name)
         if not url_ok:
             raise ProviderError(f"TVSubtitles download URL rejected: {url_err}")
 
@@ -271,7 +343,7 @@ class TVSubtitlesProvider(SubtitleProvider):
             # P5: 50 MB streaming cap
             content = _stream_download(
                 self.session,
-                result.download_url,
+                download_url,
                 timeout=self.timeout,
                 headers={"Referer": _BASE_URL},
                 provider_name=self.name,

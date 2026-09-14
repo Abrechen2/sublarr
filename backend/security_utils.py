@@ -58,7 +58,8 @@ _PROVIDER_DOWNLOAD_DOMAINS: dict[str, set[str]] = {
     "napisy24": {"napisy24.pl"},
     "subdl": {"subdl.com"},
     "animetosho": {"animetosho.org", "animetosho.xyz"},
-    "subf2m": {"subf2m.co"},
+    # subf2m.co 302s the actual archive to its signed CDN.
+    "subf2m": {"subf2m.co", "isubcdn.com"},
     "subsource": {"subsource.net"},
     "titlovi": {"titlovi.com"},
     "titrari": {"titrari.ro"},

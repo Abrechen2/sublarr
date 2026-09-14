@@ -79,7 +79,11 @@ _BUILTIN_PROVIDERS: tuple[str, ...] = (
     "subliminal_napiprojekt",
     "subliminal_opensubtitlescom",
     "subliminal_podnapisi",
-    "subliminal_tvsubtitles",
+    # "subliminal_tvsubtitles" — retired 2026-09-14 (GH #207). The vendored
+    # Bazarr copy POSTs to tvsubtitles.net/search.php, which has answered 404
+    # (403 through its UA) since the site moved to search1.php; it logged 98
+    # failures in 24 h and has never returned a result. The native
+    # "tvsubtitles" provider now covers the same site end to end.
 )
 
 
