@@ -36,7 +36,12 @@ repos:
 
   # Python: Ruff (linting + formatting, replaces Black + flake8)
   - repo: https://github.com/astral-sh/ruff-pre-commit
-    rev: v0.8.4
+    # Must track what CI resolves from requirements-dev.txt (`ruff>=0.8.0`,
+    # so: the newest release). Pinned at v0.8.4 the hook reformatted files
+    # into a shape CI then rejected -- `assert x, (msg)` became
+    # `assert (x), msg` on every commit touching such a file, and the commit
+    # that fixed it could not be made without breaking the format check.
+    rev: v0.15.22
     hooks:
       - id: ruff
         args: [--fix, --exit-non-zero-on-fix]

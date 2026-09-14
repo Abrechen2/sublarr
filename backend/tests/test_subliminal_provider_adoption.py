@@ -25,9 +25,9 @@ def test_b2_provider_registered(provider_name):
     from providers.registry import _PROVIDER_CLASSES, import_builtin_providers
 
     import_builtin_providers()
-    assert (
-        provider_name in _PROVIDER_CLASSES
-    ), f"Expected '{provider_name}' in _PROVIDER_CLASSES, got: {sorted(_PROVIDER_CLASSES.keys())}"
+    assert provider_name in _PROVIDER_CLASSES, (
+        f"Expected '{provider_name}' in _PROVIDER_CLASSES, got: {sorted(_PROVIDER_CLASSES.keys())}"
+    )
 
 
 @pytest.mark.parametrize("provider_name", B2_PROVIDER_NAMES)
