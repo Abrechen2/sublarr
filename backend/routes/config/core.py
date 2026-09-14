@@ -355,15 +355,20 @@ def update_config():
         "source_language",
         "target_language",
     }
-    # providers_hidden is UI-only; exclude it from backend provider invalidation
-    _provider_keys = {
+    # providers_hidden is UI-only; exclude it from backend provider invalidation.
+    # Deliberately NOT named _provider_keys: that is a module-level function
+    # answering a different question (which saved keys belong to a provider,
+    # from their declared config_fields), and it is still called further down.
+    # Assigning that name here made it local for the whole function body, so
+    # the later call tried to call a set and raised.
+    provider_cache_keys = {
         k
         for k in saved_keys
         if (k.startswith("provider") or k.startswith("scoring_") or k in _credential_keys)
         and k != "providers_hidden"
     }
-    if _provider_keys:
-        if _provider_keys == {"providers_enabled"}:
+    if provider_cache_keys:
+        if provider_cache_keys == {"providers_enabled"}:
             # Only the enabled-set changed: selectively add/remove, keep others intact
             _upd_providers(all_overrides.get("providers_enabled", ""))
         else:

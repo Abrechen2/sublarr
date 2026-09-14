@@ -227,3 +227,43 @@ class TestTheSettingsAreReachable:
         """Guards the guard: if _declared() returned everything, the test
         above would pass for any key at all."""
         assert "definitely_not_a_setting" not in self._declared()
+
+
+class TestReviveReachesTheRoute:
+    """The two triggers above were only ever tested by calling them directly.
+
+    The route that fires the provider trigger was not, and that is where it
+    broke: ``update_config`` assigns a local ``_provider_keys`` set partway
+    through, which shadows the module-level function of the same name for the
+    whole function body. The later call therefore tried to call a set, raised
+    TypeError, and the surrounding ``except Exception`` — there so a bonus
+    behaviour can never fail the settings save — logged a warning and moved
+    on. Silent, and on every single provider change since the feature shipped.
+    """
+
+    def test_enabling_a_provider_revives_the_items_that_gave_up(self, client):
+        with client.application.app_context():
+            gave_up = _seed(file_path="/parked.mkv", search_count=3)
+            item_id = gave_up.id
+
+        resp = client.put("/api/v1/config", json={"providers_enabled": "opensubtitles"})
+        assert resp.status_code == 200, resp.get_data(as_text=True)[:200]
+
+        with client.application.app_context():
+            row = db.session.get(WantedItem, item_id)
+            assert row.search_count == 0, (
+                "an item that gave up stayed parked after a provider was enabled"
+            )
+
+    def test_a_setting_that_is_not_a_provider_leaves_the_backlog_alone(self, client):
+        """Every settings save must not reset the queue — only provider ones."""
+        with client.application.app_context():
+            gave_up = _seed(file_path="/untouched.mkv", search_count=3)
+            item_id = gave_up.id
+
+        resp = client.put("/api/v1/config", json={"log_level": "INFO"})
+        assert resp.status_code == 200, resp.get_data(as_text=True)[:200]
+
+        with client.application.app_context():
+            row = db.session.get(WantedItem, item_id)
+            assert row.search_count == 3
