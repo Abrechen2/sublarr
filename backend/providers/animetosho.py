@@ -4,7 +4,9 @@ AnimeTosho automatically mirrors anime torrents and extracts embedded
 subtitles. Great source for high-quality fansub ASS files.
 
 Architecture adapted from Bazarr's subliminal_patch animetosho provider (GPL-3.0).
-API: https://feed.animetosho.org/
+API: https://feed.animetosho.xyz/ — the successor index. animetosho.org stopped
+ingesting releases in May 2026; its attachment URLs still resolve, so the old
+derivation is kept as a fallback for sidecars downloaded before the move.
 """
 
 import logging
@@ -35,7 +37,7 @@ from security_utils import validate_download_url
 
 logger = logging.getLogger(__name__)
 
-FEED_API = "https://feed.animetosho.org/json"
+FEED_API = "https://feed.animetosho.xyz/json"
 ATTACH_BASE = "https://animetosho.org/storage/attach"
 
 _SUBTITLE_EXTENSIONS = {".ass", ".srt", ".ssa"}
@@ -304,11 +306,13 @@ class AnimeToshoProvider(SubtitleProvider):
                     continue
 
                 info = attachment.get("info", {})
-                lang_raw = info.get("lang", "")
+                # .org spells these lang/codec/name; .xyz renamed them to
+                # language_code/format/language. Read either.
+                lang_raw = info.get("lang") or info.get("language_code") or ""
                 lang = _ISO639_2_TO_1.get(lang_raw.lower(), "")
 
                 # Derive codec/extension from info.codec or attachment-level filename
-                codec = info.get("codec", "").upper()
+                codec = (info.get("codec") or info.get("format") or "").upper()
                 codec_ext_map = {"ASS": ".ass", "SSA": ".ssa", "SRT": ".srt", "SUBRIP": ".srt"}
                 ext = codec_ext_map.get(codec, "")
                 # Fall back: check if attachment has a top-level filename field
@@ -325,7 +329,11 @@ class AnimeToshoProvider(SubtitleProvider):
                 # P2: sanitize API-provided track_name before using in filename
                 from werkzeug.utils import secure_filename as _sf
 
-                track_name = info.get("name", f"track{info.get('tracknum', attach_id)}")
+                track_name = (
+                    info.get("name")
+                    or info.get("language")
+                    or f"track{info.get('tracknum', attach_id)}"
+                )
                 safe_track = _sf(track_name) or f"track{attach_id}"
                 filename = f"{safe_track}.{lang_raw or lang}.{ext.lstrip('.')}"
 
@@ -337,8 +345,10 @@ class AnimeToshoProvider(SubtitleProvider):
                 if query.languages and lang not in query.languages:
                     continue
 
-                # Download URL: XZ-compressed attachment
-                download_url = _attachment_url(attach_id)
+                # Download URL: XZ-compressed attachment. .xyz shards its
+                # storage by an internal file id that the attachment id does
+                # not yield, so the response carries the URL and we use it.
+                download_url = attachment.get("url") or _attachment_url(attach_id)
 
                 # Build matches
                 matches = set()
@@ -382,11 +392,14 @@ class AnimeToshoProvider(SubtitleProvider):
     # sites use the imported name directly.
 
     def result_for_download(self, subtitle_id: str, language: str = "") -> SubtitleResult:
-        """Rebuild the attachment URL from a stored id — AnimeTosho downloads by URL.
+        """Recover the attachment URL from a stored id — AnimeTosho downloads by URL.
 
-        The id a search hands out is ``entry_id:attach_id``, and the attachment
-        URL is derived purely from ``attach_id``, so a re-fetch needs no API call
-        at all. Without this the result reaches ``download()`` with an empty
+        The id a search hands out is ``entry_id:attach_id``. On the old
+        animetosho.org that was enough: the URL was derived from ``attach_id``
+        alone. animetosho.xyz shards storage by an internal file id, so the
+        URL has to come back from the API. We ask, and fall back to the
+        derivation when there is no session or the entry is gone — better a
+        stale guess than a result that reaches ``download()`` with an empty
         ``download_url`` and dies there.
         """
         entry_raw, _, attach_raw = subtitle_id.partition(":")
@@ -397,13 +410,30 @@ class AnimeToshoProvider(SubtitleProvider):
                 f"AnimeTosho subtitle_id must be 'entry_id:attach_id', got {subtitle_id!r}"
             ) from None
 
+        download_url = self._lookup_attachment_url(entry_id, attach_id) or _attachment_url(
+            attach_id
+        )
+
         return SubtitleResult(
             provider_name=self.name,
             subtitle_id=subtitle_id,
             language=language,
-            download_url=_attachment_url(attach_id),
+            download_url=download_url,
             provider_data={"entry_id": entry_id, "attach_id": attach_id, "is_xz": True},
         )
+
+    def _lookup_attachment_url(self, entry_id: int, attach_id: int) -> str | None:
+        """Ask the API for the URL of one attachment, or None if it cannot say."""
+        if not self.session:
+            return None
+        detail = self._fetch_torrent_detail(entry_id)
+        if not detail:
+            return None
+        for f in detail.get("files", []):
+            for attachment in f.get("attachments", []):
+                if attachment.get("id") == attach_id:
+                    return attachment.get("url") or None
+        return None
 
     def download(self, result: SubtitleResult) -> bytes:
         if not self.session:

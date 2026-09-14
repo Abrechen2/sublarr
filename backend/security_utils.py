@@ -57,7 +57,7 @@ _PROVIDER_DOWNLOAD_DOMAINS: dict[str, set[str]] = {
     "legendasdivx": {"legendasdivx.pt"},
     "napisy24": {"napisy24.pl"},
     "subdl": {"subdl.com"},
-    "animetosho": {"animetosho.org"},
+    "animetosho": {"animetosho.org", "animetosho.xyz"},
     "subf2m": {"subf2m.co"},
     "subsource": {"subsource.net"},
     "titlovi": {"titlovi.com"},
