@@ -5,7 +5,7 @@ All notable changes to Sublarr are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [1.14.1] - 2026-09-10
+## [1.14.1] - 2026-09-14
 
 ### Fixed
 - **An episode no longer fails for ever because one single line is left to
@@ -125,6 +125,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   and the UI replaced all of it with a generic "could not save". The four
   profile actions now show the server's own text, falling back to the generic
   string only when the request never reached the API.
+- **AnimeTosho searches an index that is still being fed.** animetosho.org
+  stopped taking in new entries in May 2026, so every release published since
+  was unreachable through this provider while the search still appeared to
+  work — it was reading a frozen archive. Search now runs against
+  animetosho.xyz. The move is not a domain swap: the new index shards its
+  storage by an internal id that the attachment id does not yield, renamed the
+  fields that carry language and format, and serves payloads from a separate
+  host, so all three are handled. Subtitles downloaded before the move stay
+  repairable. Reported in #208 by @KaramTNC.
+- **TVsubtitles and Subf2m reach the addresses their sites actually serve.**
+  Both had been requesting endpoints that no longer exist — TVsubtitles
+  answered 404, Subf2m refused the request method with 405 — and because an
+  HTTP error from a provider's own search endpoint counted as "no results",
+  hundreds of searches read as an empty library rather than a broken provider.
+  A provider-side failure is now reported as a failure. Beyond the URL,
+  TVsubtitles had three further stale steps: its result markup, its episode
+  addressing, and a wait page standing between the download link and the
+  archive. Subf2m additionally hands its file to a signed CDN, which the
+  download guard now knows about for that provider alone. The bundled second
+  copy of TVsubtitles, which queried the same dead address and had never
+  returned a result, is retired. Reported in #207 by @Svnow132.
 
 ## [1.14.0] - 2026-09-09
 
