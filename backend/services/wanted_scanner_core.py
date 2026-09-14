@@ -199,6 +199,16 @@ class WantedScanner(_WantedSchedulerMixin, _WantedScanSourcesMixin):
             }
 
             self._last_scan_at = datetime.now(UTC)
+            # The rotation counter is not a watermark. It only decides when the
+            # next full rescan falls due, so a scan that ran out of time must
+            # still advance it: while it did not, an aborted full scan
+            # scheduled another full scan, which also aborted. Prod sat in that
+            # loop 2026-09-10..14 — eleven of twelve scans full against a
+            # one-in-six cadence, rewriting ~11 800 rows every six hours.
+            # A failed source still freezes it: there we do not know what the
+            # source held, which is a different thing from running out of time.
+            if not self._scan_had_errors:
+                self._scan_count += 1
             if not aborted and not self._scan_had_errors:
                 # The watermark must not move past sources that were never
                 # looked at — whether skipped by a stop request or lost to an
@@ -206,7 +216,6 @@ class WantedScanner(_WantedSchedulerMixin, _WantedScanSourcesMixin):
                 # "since" a moment it never covered, and their edits in that
                 # window would be lost for good.
                 self._last_scan_timestamp = datetime.now(UTC)
-                self._scan_count += 1
             self._last_summary = summary
 
             logger.info(

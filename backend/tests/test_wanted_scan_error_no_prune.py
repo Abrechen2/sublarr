@@ -65,3 +65,66 @@ class TestScanErrorSkipsPrune:
         cleanup.assert_called_once()
         assert scanner._last_scan_timestamp is not None
         assert scanner._scan_count == 1
+
+
+def _run_scan_aborting(scanner, *, abort_after_sonarr: bool = True):
+    """A scan whose sources answer fine but which is asked to stop on time."""
+    calls = {"n": 0}
+
+    def aborted_now():
+        # Clean on entry, stop requested once the first source is done —
+        # which is what the scheduler's cooperative timeout produces.
+        calls["n"] += 1
+        return abort_after_sonarr and calls["n"] > 1
+
+    with (
+        patch.object(scanner, "_scan_all_sonarr", return_value=(2, 0, {"/media/a.mkv"})),
+        patch.object(scanner, "_scan_all_radarr", return_value=(1, 0, {"/media/c.mkv"})),
+        patch.object(scanner, "_scan_all_standalone", return_value=(0, 0, set())),
+        patch.object(scanner, "_cleanup", return_value=0),
+        patch("services.wanted_scanner_core.get_settings", return_value=MagicMock()),
+        patch("services.wanted_scanner_core.abort_requested", side_effect=aborted_now),
+        patch("services.wanted_scanner_core.log_activity"),
+        patch("db.wanted.get_wanted_count", return_value=42),
+    ):
+        return scanner.scan_all(incremental=False)
+
+
+class TestAbortDoesNotStickTheRotation:
+    """Running out of time is not the same as a source that failed.
+
+    Prod 2026-09-10 to 09-14: a full scan on an 11 900-item queue exceeded the
+    hour it is given, was asked to stop, and therefore did not advance the
+    rotation counter — so the next scan was full as well, overran as well, and
+    the scanner never came back out. Eleven of twelve scans ran full against a
+    one-in-six cadence, rewriting ~11 800 rows every six hours instead of every
+    thirty-six. The one escape was a full scan that happened to finish four
+    minutes under the wire.
+
+    Coverage is not at risk from advancing the counter: the watermark below
+    keeps its own guard, so the next incremental pass still asks for changes
+    since the last pass that actually completed.
+    """
+
+    def test_an_aborted_scan_still_advances_the_rotation(self):
+        scanner = _scanner()
+        _run_scan_aborting(scanner)
+
+        assert scanner._scan_count == 1, (
+            "an aborted full scan scheduled another full scan, for ever"
+        )
+
+    def test_an_aborted_scan_still_freezes_the_watermark(self):
+        """The half of the guard that must stay: it protects coverage."""
+        scanner = _scanner()
+        _run_scan_aborting(scanner)
+
+        assert scanner._last_scan_timestamp is None
+
+    def test_a_failed_source_still_freezes_both(self):
+        """Regression guard for 2026-08-30 — that case is unchanged."""
+        scanner = _scanner()
+        _run_scan(scanner, sonarr_fails=True)
+
+        assert scanner._last_scan_timestamp is None
+        assert scanner._scan_count == 0
