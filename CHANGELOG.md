@@ -34,8 +34,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   when that provider becomes usable, which is what makes repairing one worth
   anything for a backlog. The call that did it had been unreachable since it
   was written: a local variable shadowed the helper it needed, so it raised on
-  every provider change and a catch-all logged a warning nobody reads. One
-  installation had 3 466 items parked behind it.
+  every provider change and a catch-all logged a warning nobody reads. The
+  set it releases is narrower than it first looks: an item carrying the
+  slow-mode marker and a retry window has not given up and is left alone, so
+  on one installation of 3 466 items at the attempt cap exactly 9 were
+  actually parked. Nine that had been waiting since August, and would have
+  waited for ever.
 
 ## [1.14.1] - 2026-09-14
 
