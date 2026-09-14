@@ -202,6 +202,23 @@ class SearchCacheMixin:
         """Generate a cache key for a query."""
         key_parts = [
             query.file_path or "",
+            # What is actually being looked for. A file_path identifies the
+            # episode on its own, but it is optional -- the documented search
+            # endpoint allows a bare title -- and without these the key was the
+            # same for every such search, so one series answered for another.
+            query.series_title or "",
+            query.title or "",
+            str(query.year) if query.year else "",
+            str(query.season) if query.season is not None else "",
+            str(query.episode) if query.episode is not None else "",
+            ",".join(str(e) for e in (query.episodes or [])),
+            "special" if query.is_special else "",
+            "ova" if query.is_ova else "",
+            # External ids steer matching, so two of them are two searches.
+            query.imdb_id or "",
+            str(query.tmdb_id) if query.tmdb_id else "",
+            str(query.anilist_id) if query.anilist_id else "",
+            str(query.tvdb_id) if query.tvdb_id else "",
             ",".join(sorted(query.languages)) if query.languages else "",
             format_filter.value if format_filter else "",
             str(query.anidb_id) if query.anidb_id else "",
