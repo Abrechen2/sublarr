@@ -266,6 +266,37 @@ def _video_for_sidecar(sidecar_path: str) -> str | None:
     return None
 
 
+def _is_same_media_file(existing_path: str, attempted_path: str) -> bool:
+    """True when two sidecar paths describe subtitles for the same video.
+
+    Dedup-on-download exists to stop us writing a subtitle we already hold for
+    *this* episode — a re-download, or an upgrade that scored the same file
+    again. Until 1.14.2 the only identity test was "same directory", which a
+    season folder satisfies for every episode in it. A subtitle fetched for
+    S01E04 that happened to be byte-identical to the sidecar next to S01E02
+    was therefore reported as a duplicate of it, and the caller treats a
+    duplicate as a successful download: it deletes the wanted item and returns
+    the other episode's path. The record that S01E04 was still missing a
+    subtitle disappeared, silently.
+
+    Identity is the media base — ``Show.S01E04`` out of
+    ``Show.S01E04.de.srt`` — so the same episode in a different language or
+    format still compares equal on base and is caught by the caller's own
+    checks, while a different episode never is.
+
+    Returns False when either name cannot be parsed. That direction is
+    deliberate: a redundant write costs a file, a false duplicate costs the
+    knowledge that something is missing.
+    """
+    from subtitle_filename import parse_subtitle_filename
+
+    existing = parse_subtitle_filename(existing_path)
+    attempted = parse_subtitle_filename(attempted_path)
+    if existing is None or attempted is None:
+        return False
+    return existing.base == attempted.base
+
+
 def save_subtitle(
     result: SubtitleResult,
     output_path: str,
@@ -411,9 +442,12 @@ def save_subtitle(
                 if not os.path.isfile(match_path):
                     stale_paths.append(match_path)
                     continue
-                if os.path.dirname(os.path.abspath(match_path)) == _output_dir:
-                    duplicate_path = match_path
-                    break
+                if os.path.dirname(os.path.abspath(match_path)) != _output_dir:
+                    continue
+                if not _is_same_media_file(match_path, output_path):
+                    continue
+                duplicate_path = match_path
+                break
 
             if stale_paths:
                 repo.delete_hashes_by_paths(stale_paths)

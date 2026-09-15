@@ -138,7 +138,13 @@ class TestSaveSubtitleDedup:
         assert open(saved, "rb").read() == result.content
 
     def test_duplicate_raises_error(self, tmp_path):
-        """Identical content in the same directory raises DuplicateSubtitleError."""
+        """Re-downloading what is already on disk raises DuplicateSubtitleError.
+
+        This used to save to ``episode2.de.srt`` — a *different* episode in the
+        same folder — and assert a duplicate, which pinned the 1.14.2 bug in
+        place as expected behaviour. Identity is the media file now, so the
+        case the check actually exists for is the one covered here.
+        """
         mgr = _make_manager()
         result = _make_result()
         existing = str(tmp_path / "episode.de.srt")
@@ -156,7 +162,7 @@ class TestSaveSubtitleDedup:
             patch("db.repositories.cleanup.CleanupRepository", return_value=mock_repo),
             pytest.raises(DuplicateSubtitleError) as exc_info,
         ):
-            mgr.save_subtitle(result, str(tmp_path / "episode2.de.srt"))
+            mgr.save_subtitle(result, str(tmp_path / "episode.de.srt"))
 
         assert exc_info.value.existing_path == existing
 
@@ -231,3 +237,56 @@ class TestSaveSubtitleDedup:
 
         assert os.path.isfile(saved)
         mock_repo.find_by_content_hash.assert_not_called()
+
+
+class TestDedupIdentityIsTheMediaFile:
+    """A duplicate means "this exact subtitle is already here for THIS episode".
+
+    Regression cover for the 1.14.2 field report: a subtitle downloaded for
+    S01E04 that happened to be byte-identical to the sidecar already sitting
+    next to S01E02 was classified as a duplicate of it, because the only
+    identity test was "same directory". A season folder holds every episode of
+    a season, so that test is satisfied by any other episode.
+
+    The caller (``wanted_search.post_processor``) treats DuplicateSubtitleError
+    as a successful download: it deletes the wanted item and returns the OTHER
+    file's path. So a false duplicate silently drops the record that S01E04 is
+    still missing a subtitle.
+    """
+
+    def _save(self, tmp_path, existing_name, attempt_name, content=None):
+        mgr = _make_manager()
+        result = _make_result()
+        if content is not None:
+            result.content = content
+
+        existing = str(tmp_path / existing_name)
+        with open(existing, "wb") as fh:
+            fh.write(result.content)
+
+        mock_settings = MagicMock(media_path=str(tmp_path), dedup_on_download=True)
+        mock_repo = MagicMock()
+        mock_repo.find_by_content_hash.return_value = [
+            {"file_path": existing, "format": "srt", "language": "de"}
+        ]
+        with (
+            patch("config.get_settings", return_value=mock_settings),
+            patch("security_utils.is_safe_path", return_value=True),
+            patch("db.repositories.cleanup.CleanupRepository", return_value=mock_repo),
+        ):
+            return mgr.save_subtitle(result, str(tmp_path / attempt_name)), existing
+
+    def test_other_episode_in_same_folder_is_not_a_duplicate(self, tmp_path):
+        saved, existing = self._save(tmp_path, "Show.S01E02.de.srt", "Show.S01E04.de.srt")
+        assert os.path.isfile(saved), "S01E04 must get its own sidecar written"
+        assert os.path.abspath(saved) != os.path.abspath(existing)
+
+    def test_same_episode_is_still_a_duplicate(self, tmp_path):
+        """The case dedup exists for: re-downloading what is already there."""
+        with pytest.raises(DuplicateSubtitleError):
+            self._save(tmp_path, "Show.S01E02.de.srt", "Show.S01E02.de.srt")
+
+    def test_unparseable_filename_is_written_not_skipped(self, tmp_path):
+        """Fail towards a redundant write, never towards a dropped wanted item."""
+        saved, _ = self._save(tmp_path, "weird-name.srt", "Show.S01E04.de.srt")
+        assert os.path.isfile(saved)
