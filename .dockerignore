@@ -1,5 +1,6 @@
 .git
 __pycache__
+**/__pycache__/
 *.md
 !README.md
 .gitignore
@@ -10,6 +11,7 @@ __pycache__
 .env.*
 **/.env
 **/.env.*
+**/.encryption_key
 .ruff_cache/
 **/.ruff_cache/
 # Log files from the dev machine must never be baked into the image. The
@@ -30,9 +32,26 @@ frontend/node_modules/
 **/venv/
 **/.venv/
 frontend/.vite/
-*.db
-*.db-journal
-*.db-wal
+# Local databases, SQLite sidecars/backups, and runtime state at every depth.
+# Root-only globs do not exclude backend/instance/dev_local.db.
+**/*.db*
+**/*.sqlite*
+backend/instance/
+backend/dev/
+config/
+dev-media/
+test-media/
+# Test suites, coverage reports, and development caches are not runtime code.
+**/tests/
+**/__tests__/
+**/htmlcov/
+**/coverage/
+**/coverage.*
+**/.coverage*
+**/.pytest_cache/
+**/.mypy_cache/
+**/.benchmarks/
+**/test-results/
 .vscode/
 .idea/
 SUBLARR-PLAN.md

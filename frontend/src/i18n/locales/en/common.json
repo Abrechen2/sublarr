@@ -655,10 +655,12 @@
   },
   "whatsnew": {
     "v1142": {
+      "image_title": "Development data removed from Docker images",
+      "image_desc": "Local development databases containing credentials are no longer shipped. Earlier images still contain the file; affected development credentials need to be rotated.",
       "anime_title": "AnimeTosho checks series and episode identity",
       "anime_desc": "Sequels sharing an episode number no longer count as matches for the original series. Season numbers and absolute episode numbers stay separate. Batch releases are checked against the individual video file.",
       "subsource_title": "SubSource uses the new API",
-      "subsource_desc": "SubSource now requires an API key. Enter it under Settings > Providers > SubSource. Search and ZIP downloads use the documented API v1 and provider failures are reported as errors. Live verification with a valid key is still pending.",
+      "subsource_desc": "Enable SubSource in the provider list and enter an API key under Settings > Providers > SubSource. SubScene is a different provider. Search and ZIP downloads use API v1. Live verification with a valid key is still pending.",
       "scan_title": "Scan rotation and search caching fixed",
       "scan_desc": "After a time limit, the scanner advances to the next pass. The search cache distinguishes titles, seasons, episodes and external IDs. Permanently parked items can be searched again after a provider is repaired.",
       "cleanup_title": "Skipped cleanup explains its reason",

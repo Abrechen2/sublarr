@@ -655,10 +655,12 @@
   },
   "whatsnew": {
     "v1142": {
+      "image_title": "Entwicklungsdaten aus Docker-Images entfernt",
+      "image_desc": "Lokale Entwicklungsdatenbanken mit Zugangsdaten werden nicht mehr mitgeliefert. Frühere Images enthalten die Datei weiterhin; betroffene Entwicklungszugänge müssen erneuert werden.",
       "anime_title": "AnimeTosho prüft Serie und Episode genauer",
       "anime_desc": "Fortsetzungen mit derselben Episodennummer werden nicht mehr als Treffer für die ursprüngliche Serie gewertet. Staffelnummern und absolute Episodennummern bleiben getrennt. Bei Sammel-Releases wird die passende Videodatei geprüft.",
       "subsource_title": "SubSource verwendet die neue API",
-      "subsource_desc": "SubSource benötigt jetzt einen API-Schlüssel. Trage ihn unter Einstellungen > Anbieter > SubSource ein. Die Suche und ZIP-Downloads verwenden die dokumentierte API v1; Anbieterfehler werden als Fehler gemeldet. Die Live-Prüfung mit einem gültigen Schlüssel steht noch aus.",
+      "subsource_desc": "Aktiviere SubSource in der Anbieterliste und trage unter Einstellungen > Anbieter > SubSource einen API-Schlüssel ein. SubScene ist ein anderer Anbieter. Suche und ZIP-Downloads verwenden API v1. Die Live-Prüfung mit einem gültigen Schlüssel steht noch aus.",
       "scan_title": "Scan-Rotation und Suchcache korrigiert",
       "scan_desc": "Nach einem Zeitlimit wechselt der Scanner wieder zum nächsten Durchlauf. Der Suchcache unterscheidet Titel, Staffel, Episode und externe IDs. Nach einer Provider-Reparatur können endgültig geparkte Einträge wieder gesucht werden.",
       "cleanup_title": "Übersprungene Bereinigung wird erklärt",

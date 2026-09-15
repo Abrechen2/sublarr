@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [1.14.2] - 2026-09-15
 
+### Security
+- **Development databases are excluded from Docker images.** Root-only ignore
+  patterns allowed a local SQLite database containing two development-instance
+  credentials to enter published images. Recursive exclusions now cover
+  databases, SQLite sidecars, local runtime state, tests and coverage reports.
+  An independent source audit fails the build if these artifacts reappear,
+  including SQLite databases renamed without their usual extension. The
+  runtime image copies only audited sources, so no earlier runtime layer can
+  retain a rejected database. Previously published images remain affected;
+  removing the file from a new build does not revoke exposed credentials.
+
 ### Fixed
 - **Local Python environments stay out of Docker images.** The build context
   now excludes `venv` and `.venv` directories at every depth, preventing local
@@ -65,12 +76,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Upgrade notes
 - SubSource now requires an API key from https://subsource.net/api-docs.
-  Save it in Settings > Providers > SubSource. Historical non-numeric
+  Save it in Settings > Providers > SubSource and enable SubSource in the
+  provider list. SubScene is a different provider. Historical non-numeric
   SubSource ids require a fresh search before they can be downloaded again.
 - AnimeTosho matching rejects unverified title aliases and ambiguous batch
   attachments. This may reduce results whose names do not establish the
   requested series and episode.
-- No database migration is required for these RC.2 changes.
+- No database migration is required for these RC.2/RC.3 changes.
 
 ## [1.14.1] - 2026-09-14
 

@@ -290,7 +290,9 @@ All settings use the `SUBLARR_` prefix. They can be set via environment variable
 
 AnimeTosho, Subscene, Subf2m, Kitsunekko, and most other providers work without an API key.
 SubSource requires an API key from your [SubSource profile](https://subsource.net/api-docs).
-Enter it under **Settings > Providers > SubSource**. Existing non-numeric SubSource
+Enable **SubSource** in the provider list and enter the key under
+**Settings > Providers > SubSource**. **Subscene** is a different provider and
+does not enable SubSource. Existing non-numeric SubSource
 download ids need a fresh search after upgrading to the API v1 integration.
 
 ### Automation

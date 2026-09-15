@@ -4,6 +4,14 @@
 # Stage 2: Python Backend + Frontend Bundle
 # ═══════════════════════════════════════════════════════════════
 
+# Validate backend sources before they can enter any runtime image layer.
+# This runs on the build host's architecture, including multi-arch builds.
+FROM --platform=$BUILDPLATFORM python:3.12-slim AS backend-source
+WORKDIR /source
+COPY backend/ .
+COPY docker/verify-source.py /verify-source.py
+RUN python /verify-source.py /source
+
 # Stage 1: Build React Frontend
 FROM --platform=$BUILDPLATFORM node:26-alpine AS frontend
 WORKDIR /build
@@ -74,7 +82,7 @@ RUN apt-get update && \
     rm -rf /var/lib/apt/lists/*
 
 # Copy backend
-COPY backend/ .
+COPY --from=backend-source /source/ .
 
 # Copy built frontend
 COPY --from=frontend /build/dist ./static
