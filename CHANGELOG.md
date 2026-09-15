@@ -5,9 +5,31 @@ All notable changes to Sublarr are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [1.14.2] - 2026-09-14
+## [1.14.2] - 2026-09-15
 
 ### Fixed
+- **Local Python environments stay out of Docker images.** The build context
+  now excludes `venv` and `.venv` directories at every depth, preventing local
+  development packages and Windows executables from entering Linux images.
+- **AnimeTosho rejects subtitles for a different series or episode (#210).**
+  Original Bleach S02E01 (absolute 21) could receive highly ranked TYBW
+  S17E21 subtitles. Matching now checks the complete parsed series title,
+  including sequel suffixes, and keeps season numbering separate from
+  absolute numbering. Contradictory titles are rejected even when the feed
+  carries a matching AniDB id. Batch releases yield only attachments from
+  the requested episode's file. The feed's `eid` parameter now receives an
+  actual AniDB episode id when available, rather than an absolute number.
+- **SubSource uses its documented authenticated API v1 (#207).** Search now
+  resolves a movie or series before listing subtitles; downloads use numeric
+  subtitle ids and return ZIP archives. Configure the new API Key field in
+  Settings > Providers. Failed endpoints and invalid response shapes reach
+  provider health tracking instead of being recorded as empty searches.
+  Season-pack downloads select the requested episode. Contract tests use the
+  official API examples; a successful live search/download with a valid key
+  still needs verification.
+- **Skipped foreign-track sweeps explain why they did not run.** The job logs
+  whether its separate enable switch is off or no enabled foreign-tracks rule
+  exists. The automatic cleanup default does not enable the library sweep.
 - **The wanted scan stops repeating its full rescan.** Every sixth scan is a
   full rescan and the rest are incremental, but the counter driving that
   rotation only advanced on a scan that finished clean — and a scan asked to
@@ -40,6 +62,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   on one installation of 3 466 items at the attempt cap exactly 9 were
   actually parked. Nine that had been waiting since August, and would have
   waited for ever.
+
+### Upgrade notes
+- SubSource now requires an API key from https://subsource.net/api-docs.
+  Save it in Settings > Providers > SubSource. Historical non-numeric
+  SubSource ids require a fresh search before they can be downloaded again.
+- AnimeTosho matching rejects unverified title aliases and ambiguous batch
+  attachments. This may reduce results whose names do not establish the
+  requested series and episode.
+- No database migration is required for these RC.2 changes.
 
 ## [1.14.1] - 2026-09-14
 

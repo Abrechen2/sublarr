@@ -288,7 +288,10 @@ All settings use the `SUBLARR_` prefix. They can be set via environment variable
 | `SUBLARR_JIMAKU_API_KEY` | [Jimaku](https://jimaku.cc/) |
 | `SUBLARR_SUBDL_API_KEY` | [SubDL](https://subdl.com/) |
 
-AnimeTosho, Subscene, Subf2m, Subsource, Kitsunekko, and most other providers work without an API key.
+AnimeTosho, Subscene, Subf2m, Kitsunekko, and most other providers work without an API key.
+SubSource requires an API key from your [SubSource profile](https://subsource.net/api-docs).
+Enter it under **Settings > Providers > SubSource**. Existing non-numeric SubSource
+download ids need a fresh search after upgrading to the API v1 integration.
 
 ### Automation
 

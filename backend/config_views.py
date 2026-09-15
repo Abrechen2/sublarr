@@ -136,6 +136,7 @@ class ProviderSettings(_SettingsView):
             "opensubtitles_password",
             "jimaku_api_key",
             "subdl_api_key",
+            "subsource_api_key",
             "github_token",
             "anti_captcha_provider",
             "anti_captcha_api_key",

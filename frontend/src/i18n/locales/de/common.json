@@ -654,6 +654,16 @@
     "last_run": "Zuletzt: {{date}}"
   },
   "whatsnew": {
+    "v1142": {
+      "anime_title": "AnimeTosho prüft Serie und Episode genauer",
+      "anime_desc": "Fortsetzungen mit derselben Episodennummer werden nicht mehr als Treffer für die ursprüngliche Serie gewertet. Staffelnummern und absolute Episodennummern bleiben getrennt. Bei Sammel-Releases wird die passende Videodatei geprüft.",
+      "subsource_title": "SubSource verwendet die neue API",
+      "subsource_desc": "SubSource benötigt jetzt einen API-Schlüssel. Trage ihn unter Einstellungen > Anbieter > SubSource ein. Die Suche und ZIP-Downloads verwenden die dokumentierte API v1; Anbieterfehler werden als Fehler gemeldet. Die Live-Prüfung mit einem gültigen Schlüssel steht noch aus.",
+      "scan_title": "Scan-Rotation und Suchcache korrigiert",
+      "scan_desc": "Nach einem Zeitlimit wechselt der Scanner wieder zum nächsten Durchlauf. Der Suchcache unterscheidet Titel, Staffel, Episode und externe IDs. Nach einer Provider-Reparatur können endgültig geparkte Einträge wieder gesucht werden.",
+      "cleanup_title": "Übersprungene Bereinigung wird erklärt",
+      "cleanup_desc": "Im Log steht jetzt, ob der Bibliotheks-Sweep deaktiviert ist oder eine aktive Bereinigungsregel fehlt. Die automatische Bereinigung nach Downloads hat einen eigenen Schalter."
+    },
     "v1141": {
       "translate_title": "Eine einzelne Restzeile blockiert keine Folge mehr",
       "translate_desc": "An den Uebersetzer gehen nur die Zeilen, die noch nicht im Uebersetzungsspeicher stehen. Blieb davon genau eine uebrig, entschied diese eine Zeile ueber die ganze Datei — und scheiterte zuverlaessig, weil eine einzelne Zeile dem Modell ohne jede Markierung vorgelegt wurde. Der Wiederholungsversuch stellt die Anfrage jetzt anders, statt sie nur nachdruecklicher zu wiederholen.",

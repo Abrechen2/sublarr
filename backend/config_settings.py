@@ -288,6 +288,9 @@ class UISettings(BaseModel):
     # SubDL (Subscene successor)
     subdl_api_key: str = ""
 
+    # SubSource API v1 (configured in Settings > Providers)
+    subsource_api_key: str = ""
+
     # SubsDump (self-hosted Subscene archive)
     subsdump_url: str = "http://192.168.178.195"
     subsdump_api_key: str = ""

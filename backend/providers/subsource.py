@@ -1,18 +1,23 @@
 """Subsource subtitle provider.
 
 Subsource.net offers a public JSON API for subtitle search and download.
-No authentication required. Returns subtitles as ZIP archives.
+Requires an API key. Returns subtitles as ZIP archives.
+Contract: https://subsource.net/api-docs (verified 2026-09-15).
 
-API Base: https://subsource.net/api
-Auth:     None required
+API Base: https://api.subsource.net/api/v1
+Auth:     X-API-Key header
 Rate:     20 req / 60 s
 """
 
 import logging
+from typing import ClassVar
+
+from guessit import guessit
 
 from archive_utils import extract_subtitles_from_zip
 from providers import _stream_download, register_provider
 from providers.base import (
+    ProviderAuthError,
     ProviderError,
     SubtitleFormat,
     SubtitleProvider,
@@ -24,7 +29,7 @@ from security_utils import validate_download_url
 
 logger = logging.getLogger(__name__)
 
-_API_BASE = "https://subsource.net/api"
+_API_BASE = "https://api.subsource.net/api/v1"
 _BROWSER_UA = (
     "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
     "(KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
@@ -82,21 +87,24 @@ _FORMAT_MAP = {
 class SubsourceProvider(SubtitleProvider):
     name = "subsource"
     languages = set(_LANG_MAP.keys())
-    config_fields = []
+    config_fields = [
+        {"key": "subsource_api_key", "label": "API Key", "type": "password", "required": True},
+    ]
+    rate_limits: ClassVar[dict[str, dict[str, int]]] = {
+        "free": {"second": 1, "hour": 1800, "day": 7200},
+    }
     rate_limit = (20, 60)
     timeout = 15
     max_retries = 2
 
-    def __init__(self, **kwargs):
+    def __init__(self, api_key: str = "", **kwargs):
         super().__init__(**kwargs)
+        self.api_key = api_key.strip()
         self.session = None
 
     def initialize(self):
         self.session = create_session(
-            max_retries=2,
-            backoff_factor=1.0,
-            timeout=self.timeout,
-            user_agent=_BROWSER_UA,
+            max_retries=2, backoff_factor=1.0, timeout=self.timeout, user_agent=_BROWSER_UA
         )
         self.session.headers.update({"Accept": "application/json"})
 
@@ -105,119 +113,182 @@ class SubsourceProvider(SubtitleProvider):
             self.session.close()
             self.session = None
 
+    def _api_get(self, path: str, params: dict) -> list[dict]:
+        if not self.api_key:
+            raise ProviderAuthError("SubSource API key not configured")
+        resp = self.session.get(
+            f"{_API_BASE}/{path}",
+            params=params,
+            headers={"X-API-Key": self.api_key},
+            timeout=self.timeout,
+            allow_redirects=False,
+        )
+        # RetryingSession propagates auth and rate-limit exceptions. Do not
+        # hide endpoint/schema failures as a successful search with no results.
+        if resp.status_code != 200:
+            raise ProviderError(f"SubSource {path} returned HTTP {resp.status_code}")
+        data = resp.json()
+        if (
+            not isinstance(data, dict)
+            or data.get("success") is not True
+            or not isinstance(data.get("data"), list)
+        ):
+            raise ProviderError(f"SubSource {path} returned an invalid response")
+        return data["data"]
+
     def health_check(self) -> tuple[bool, str]:
+        if not self.api_key:
+            return False, "API key not configured"
         if not self.session:
             return False, "Not initialized"
         try:
-            resp = self.session.get(f"{_API_BASE}/search", timeout=8)
-            return (
-                (True, "OK")
-                if resp.status_code in (200, 400)
-                else (False, f"HTTP {resp.status_code}")
-            )
-        except Exception as e:
-            return False, str(e)
+            self._api_get("movies/search", {"searchType": "text", "q": "test"})
+            return True, "OK"
+        except Exception as exc:
+            return False, str(exc)
 
     def search(self, query: VideoQuery) -> list[SubtitleResult]:
         if not self.session:
             return []
-
         valid_langs = [lc for lc in (query.languages or ["en"]) if lc in _LANG_MAP]
-        if not valid_langs:
-            return []
-
         title = query.series_title or query.title
-        if not title:
+        if not valid_langs or not title:
             return []
-
-        payload: dict = {"title": title}
-        if query.is_episode and query.season and query.episode:
-            payload["season"] = str(query.season)
-            payload["episode"] = str(query.episode)
-
-        try:
-            resp = self.session.post(f"{_API_BASE}/search", json=payload, timeout=self.timeout)
-            if resp.status_code != 200:
-                return []
-            data = resp.json()
-        except Exception as e:
-            logger.debug("Subsource search error: %s", e)
+        params = {"type": "series" if query.is_episode else "movie"}
+        if query.is_episode:
+            params["season"] = query.season
+        elif query.year:
+            params["year"] = query.year
+        if query.imdb_id:
+            search_params = {**params, "searchType": "imdb", "imdb": query.imdb_id}
+        else:
+            search_params = {**params, "searchType": "text", "q": title}
+        movies = self._api_get("movies/search", search_params)
+        if not movies and query.imdb_id:
+            movies = self._api_get("movies/search", {**params, "searchType": "text", "q": title})
+        movie = next((m for m in movies if _matches_movie(m, query)), None)
+        if movie is None:
             return []
 
         results = []
-        for sub in data.get("subs") or []:
-            sub_lang_name = (sub.get("lang") or "").lower()
-            matched_lang = next((lc for lc in valid_langs if _LANG_MAP[lc] == sub_lang_name), None)
-            if not matched_lang:
-                continue
-            link_name = sub.get("linkName") or ""
-            release = sub.get("releaseName") or link_name
-            if not link_name:
-                continue
-            results.append(
-                SubtitleResult(
-                    provider_name=self.name,
-                    subtitle_id=link_name,
-                    language=matched_lang,
-                    format=SubtitleFormat.SRT,
-                    filename=f"{release}.srt",
-                    download_url=f"{_API_BASE}/getDownloadLink",
-                    release_info=release,
-                    matches={"series", "season", "episode"} if query.is_episode else {"title"},
-                    provider_data={"link_name": link_name},
+        for language in valid_langs:
+            params = {"movieId": movie["movieId"], "language": _LANG_MAP[language], "limit": 100}
+            if query.is_episode:
+                params.update(seasonNumber=query.season, episodeNumber=query.episode)
+            for sub in self._api_get("subtitles", params):
+                if (sub.get("language") or "").lower() != _LANG_MAP[language]:
+                    continue
+                subtitle_id = str(sub.get("subtitleId") or "")
+                if not subtitle_id.isdecimal():
+                    continue
+                releases = sub.get("releaseInfo") or []
+                if isinstance(releases, str):
+                    releases = [releases]
+                matches = {"series", "season"} if query.is_episode else {"title"}
+                if query.is_episode:
+                    # The API may return season packs. Keep their context so
+                    # download selects the requested episode, never entries[0].
+                    if not any(
+                        _matches_episode(release, query.season, query.episode, allow_pack=True)
+                        for release in releases
+                    ):
+                        continue
+                    if any(
+                        _matches_episode(release, query.season, query.episode)
+                        for release in releases
+                    ):
+                        matches.add("episode")
+                release = " / ".join(releases)
+                results.append(
+                    SubtitleResult(
+                        provider_name=self.name,
+                        subtitle_id=subtitle_id,
+                        language=language,
+                        format=SubtitleFormat.UNKNOWN,
+                        filename=release or subtitle_id,
+                        download_url=f"{_API_BASE}/subtitles/{subtitle_id}/download",
+                        release_info=release,
+                        matches=matches,
+                        hearing_impaired=sub.get("hearingImpaired") is True,
+                        forced=sub.get("foreignParts") is True,
+                        provider_data={"season": query.season, "episode": query.episode},
+                    )
                 )
-            )
-
         return results
 
     def download(self, result: SubtitleResult) -> bytes:
         if not self.session:
-            raise RuntimeError("Subsource not initialized")
-
-        link_name = (result.provider_data or {}).get("link_name") or result.subtitle_id
-        try:
-            resp = self.session.post(
-                f"{_API_BASE}/getDownloadLink",
-                json={"link": link_name},
-                timeout=self.timeout,
+            raise RuntimeError("SubSource not initialized")
+        if not self.api_key:
+            raise ProviderAuthError("SubSource API key not configured")
+        # Old linkName history ids cannot be guessed into new numeric ids.
+        if not result.subtitle_id.isdecimal():
+            raise ProviderError(
+                "SubSource requires a new search to resolve this legacy subtitle id"
             )
-            if resp.status_code != 200:
-                raise RuntimeError(f"Subsource download link failed: HTTP {resp.status_code}")
-            data = resp.json()
-            dl_url = data.get("link") or data.get("downloadLink") or ""
-            if not dl_url:
-                raise RuntimeError("Subsource: no download URL in response")
-        except RuntimeError:
-            raise
-        except Exception as e:
-            raise RuntimeError(f"Subsource download link error: {e}") from e
-
-        # P1: Validate download URL against allowlist
-        url_ok, url_err = validate_download_url(dl_url, self.name)
+        url = f"{_API_BASE}/subtitles/{result.subtitle_id}/download"
+        url_ok, url_err = validate_download_url(url, self.name)
         if not url_ok:
-            raise ProviderError(f"Subsource download URL rejected: {url_err}")
-
-        try:
-            # P5: 50 MB streaming cap
-            archive_content = _stream_download(
-                self.session, dl_url, timeout=self.timeout, provider_name=self.name
-            )
-        except RuntimeError:
-            raise
-        except Exception as e:
-            raise RuntimeError(f"Subsource file download error: {e}") from e
-
-        content = archive_content
-        if content[:2] == b"PK":
-            try:
-                entries = extract_subtitles_from_zip(content)
-                if entries:
-                    name, content = entries[0]
-                    result.filename = name
-                    ext = name.lower().rsplit(".", 1)[-1] if "." in name else ""
-                    result.format = _FORMAT_MAP.get(f".{ext}", SubtitleFormat.SRT)
-            except Exception as e:
-                raise RuntimeError(f"Subsource: archive error: {e}") from e
-
+            raise ProviderError(f"SubSource download URL rejected: {url_err}")
+        archive = _stream_download(
+            self.session,
+            url,
+            timeout=self.timeout,
+            provider_name=self.name,
+            headers={"X-API-Key": self.api_key},
+            allow_redirects=False,
+        )
+        if not archive.startswith(b"PK"):
+            raise ProviderError("SubSource download did not return a subtitle ZIP archive")
+        entries = extract_subtitles_from_zip(archive)
+        season = result.provider_data.get("season")
+        episode = result.provider_data.get("episode")
+        if episode is not None:
+            matched = [e for e in entries if _matches_episode(e[0], season, episode)]
+            if matched:
+                entries = matched
+            elif len(entries) != 1 or "episode" not in result.matches:
+                raise ProviderError("SubSource archive contains no matching episode")
+            else:
+                # A generic single filename can inherit a proven release match;
+                # an explicitly different episode cannot.
+                parsed = guessit(entries[0][0], options={"type": "episode"})
+                if parsed.get("episode") is not None or parsed.get("season") is not None:
+                    raise ProviderError("SubSource archive contains a different episode")
+        if len(entries) != 1:
+            raise ProviderError("SubSource archive has no unambiguous subtitle file")
+        name, content = entries[0]
+        result.filename = name
+        result.format = _FORMAT_MAP.get(
+            "." + name.rsplit(".", 1)[-1].lower(), SubtitleFormat.UNKNOWN
+        )
         result.content = content
         return content
+
+
+def _matches_movie(movie: dict, query: VideoQuery) -> bool:
+    if not movie.get("movieId"):
+        return False
+    if movie.get("type") != ("series" if query.is_episode else "movie"):
+        return False
+    if query.is_episode and movie.get("season") is not None and movie["season"] != query.season:
+        return False
+    if not query.is_episode and query.year and str(movie.get("releaseYear")) != str(query.year):
+        return False
+    if query.imdb_id and movie.get("imdbId"):
+        return movie["imdbId"] == query.imdb_id
+
+    def normalise(text: str) -> str:
+        return "".join(c for c in text.casefold() if c.isalnum())
+
+    return normalise(query.series_title or query.title) in {
+        normalise(movie.get("title") or ""),
+        normalise(movie.get("alternateTitle") or ""),
+    }
+
+
+def _matches_episode(release: str, season: int, episode: int, *, allow_pack: bool = False) -> bool:
+    parsed = guessit(release, options={"type": "episode"})
+    if parsed.get("season") != season:
+        return False
+    return parsed.get("episode") == episode or (allow_pack and parsed.get("episode") is None)

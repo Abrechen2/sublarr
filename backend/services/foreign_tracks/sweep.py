@@ -403,11 +403,12 @@ def foreign_track_sweep_tick() -> None:
 
     settings = get_settings()
     if not getattr(settings, "foreign_track_sweep_enabled", False):
+        logger.info("foreign_track_sweep: skipped (foreign_track_sweep_enabled=false)")
         return
 
     rule = _find_rule(CleanupRepository())
     if rule is None:
-        logger.debug("foreign_track_sweep: no foreign_tracks rule configured")
+        logger.info("foreign_track_sweep: skipped (no enabled foreign_tracks rule configured)")
         return
 
     budget = int(getattr(settings, "foreign_track_sweep_budget_s", 1800))
