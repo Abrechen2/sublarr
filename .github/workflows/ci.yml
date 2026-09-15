@@ -88,10 +88,14 @@ jobs:
         run: mypy . --config-file mypy.ini
         continue-on-error: true  # informational — not yet enforced
 
+      # -n auto (pytest-xdist, already in requirements-dev.txt): the serial run
+      # takes ~50 min on a runner while `concurrency.cancel-in-progress` kills it
+      # on the next push to master. Six consecutive commits (18e64fa8..a42dcae1)
+      # never produced a completed backend run for exactly that reason.
       - name: Tests (pytest)
         working-directory: ./backend
         run: |
-          pytest --tb=short -q \
+          pytest --tb=short -q -n auto \
             --ignore=tests/performance \
             --ignore=tests/integration/test_translator_pipeline.py \
             --ignore=tests/integration/test_provider_pipeline.py \
