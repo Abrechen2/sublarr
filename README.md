@@ -8,7 +8,7 @@
 
 *arr-compatible · Self-hosted · Open Source · Anime-first scoring
 
-[![Version](https://img.shields.io/badge/version-1.14.0-teal.svg)](https://github.com/Abrechen2/sublarr/releases)
+[![Version](https://img.shields.io/github/v/release/Abrechen2/sublarr?label=version&color=teal)](https://github.com/Abrechen2/sublarr/releases/latest)
 [![CI](https://github.com/Abrechen2/sublarr/actions/workflows/ci.yml/badge.svg?branch=master)](https://github.com/Abrechen2/sublarr/actions/workflows/ci.yml)
 [![tests](https://img.shields.io/badge/tests-8126_passing-22d3ee.svg)](#-development)
 [![security](https://img.shields.io/badge/ruff_%2B_bandit_%2B_pip--audit_%2B_Semgrep_%2B_Trivy_%2B_CodeQL-22c55e.svg)](#-security)
@@ -32,7 +32,7 @@ Sublarr is a self-hosted subtitle manager for anime and media libraries. It auto
 It follows the *arr-suite design philosophy: connect it to Sonarr/Radarr, set up your language profiles, and let it handle everything automatically via webhooks. Or run it standalone — no *arr setup required.
 
 > [!NOTE]
-> **V1.0 — stable core.** The subtitle search, scoring, download and *arr-integration paths are stable. **LLM translation remains experimental** (see below). Always keep backups of your subtitle files before enabling automation, and read the [CHANGELOG](CHANGELOG.md) before upgrading. Solo-maintained project — bug reports and contributions welcome.
+> **Stable core.** The subtitle search, scoring, download and *arr-integration paths are stable. **LLM translation remains experimental** (see below). Always keep backups of your subtitle files before enabling automation, and read the [CHANGELOG](CHANGELOG.md) before upgrading. Solo-maintained project — bug reports and contributions welcome.
 
 ---
 
@@ -140,7 +140,7 @@ If you want to try it, see the [translation docs](https://sublarr.de/docs/user-g
 
 ## ⚠️ Known limitations
 
-Current as of **1.14.0**. These are real constraints, not roadmap teasers — worth reading before you install rather than after.
+Current as of the [latest release](https://github.com/Abrechen2/sublarr/releases/latest). These are real constraints, not roadmap teasers — worth reading before you install rather than after.
 
 - **LLM translation is experimental and off by default.** Quality varies sharply by backend, model and language pair. Cloud backends (DeepL, Claude, Gemini) are the reliable end; local Ollama models are usable but need tuning. Never point it at a library you have no backup of.
 - **One shared password, no user accounts.** Sublarr's UI auth is a single password — no usernames, no roles, no per-user audit trail. For genuine multi-user setups, put it behind a reverse proxy with forward-auth; Sublarr reads proxy auth headers natively (Authelia / authentik, `proxy_auth_enabled`).
