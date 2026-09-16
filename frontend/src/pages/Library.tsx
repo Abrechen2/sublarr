@@ -474,7 +474,7 @@ export function LibraryPage() {
     <div className="space-y-4">
       <div className="flex items-center justify-between flex-wrap gap-4">
         <h1>{t('title')}</h1>
-        <div className="flex items-center gap-3">
+        <div className="flex min-w-0 max-w-full flex-wrap items-center gap-3">
           {/* Search Input */}
           <div className="relative">
             <Search

@@ -10,7 +10,6 @@ Body: { languages: ["de","en"], format: "ass"|"srt", position?: {...},
 
 from __future__ import annotations
 
-import os
 import re
 
 from flask import jsonify, request
@@ -90,17 +89,12 @@ def _episode_video_path(ep_id: int) -> tuple[str | None, tuple]:
 
 
 def _movie_video_path(movie_id: int) -> tuple[str | None, tuple]:
-    """Resolve a standalone movie's on-disk video path. Returns (path, error_response)."""
-    from db.standalone import get_standalone_movies
+    """Resolve a standalone or Radarr movie. Returns (path, error_response)."""
+    from services.movie_video_path import resolve_movie_video_path
 
-    movie = get_standalone_movies(movie_id)
-    if movie is None:
-        return None, (jsonify({"error": "Movie not found"}), 404)
-    file_path = (
-        movie.get("file_path") if isinstance(movie, dict) else getattr(movie, "file_path", None)
-    )
-    if not file_path or not os.path.exists(file_path):
-        return None, (jsonify({"error": "Video file not found"}), 404)
+    file_path = resolve_movie_video_path(movie_id)
+    if not file_path:
+        return None, (jsonify({"error": "Movie video file not found"}), 404)
     return file_path, ()
 
 

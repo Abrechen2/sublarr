@@ -132,7 +132,7 @@ def test_radarr_movie_fallback_no_client():
     assert result is None
 
 
-def test_radarr_movie_fallback_success():
+def test_radarr_movie_fallback_success(app_ctx):
     """Returns normalised movie dict from radarr."""
     from services.standalone_manager import get_radarr_movie_fallback
 
@@ -153,7 +153,7 @@ def test_radarr_movie_fallback_success():
     assert result["source"] == "radarr"
 
 
-def test_radarr_movie_fallback_no_poster():
+def test_radarr_movie_fallback_no_poster(app_ctx):
     """Returns empty poster_url when no poster image."""
     from services.standalone_manager import get_radarr_movie_fallback
 

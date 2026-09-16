@@ -157,7 +157,7 @@ export function WantedFilterPanel({
 
       {/* Filters */}
       <div className="flex flex-wrap items-center gap-4">
-        <div data-testid="wanted-filter-status" className="flex gap-1.5">
+        <div data-testid="wanted-filter-status" className="flex flex-wrap gap-1.5">
           {STATUS_FILTERS.map((s) => {
             const isActive = (s === 'all' && !statusFilter) || statusFilter === s
             return (
@@ -176,7 +176,7 @@ export function WantedFilterPanel({
             )
           })}
         </div>
-        <div className="flex gap-1.5">
+        <div className="flex flex-wrap gap-1.5">
           {TYPE_FILTERS.map((tf) => {
             const isActive = (tf === 'all' && !typeFilter) || typeFilter === tf
             return (
@@ -196,7 +196,7 @@ export function WantedFilterPanel({
           })}
         </div>
         {forcedCount > 0 && (
-          <div className="flex gap-1.5">
+          <div className="flex flex-wrap gap-1.5">
             {SUBTITLE_TYPE_FILTERS.map((st) => {
               const isActive = (st === 'all' && !subtitleTypeFilter) || subtitleTypeFilter === st
               return (
@@ -218,7 +218,7 @@ export function WantedFilterPanel({
           </div>
         )}
         {availableLanguages.length > 1 && (
-          <div className="flex gap-1.5">
+          <div className="flex flex-wrap gap-1.5">
             <button
               onClick={() => { onLanguageFilter(undefined) }}
               className="px-3 py-1.5 rounded-md text-xs font-medium transition-all duration-150"

@@ -543,10 +543,13 @@ class StandaloneScanner(_StandaloneProcessMixin):
         A provisional row is kept — it tracks a machine translation still
         seeking its original. A sidecar ASS drops nothing, for the same reason.
         """
-        if existing == "embedded_ass":
+        from config import get_settings
+
+        srt_satisfied = existing in ("srt", "embedded_srt") and not get_settings().upgrade_enabled
+        if existing == "embedded_ass" or (existing == "embedded_srt" and srt_satisfied):
             self._drop_stale_wanted(file_path, target_lang)
             return True
-        return existing == "ass"
+        return existing == "ass" or srt_satisfied
 
     def _drop_stale_wanted(self, file_path: str, target_lang: str) -> None:
         try:

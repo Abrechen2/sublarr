@@ -254,6 +254,19 @@ def update_config():
     if not data:
         return jsonify({"error": "No config values provided"}), 400
 
+    # Check before any persistence: a rejected page-size change must not
+    # partially save other keys in the same request.
+    if "items_per_page" in data:
+        value = data["items_per_page"]
+        if isinstance(value, str):
+            try:
+                value = int(value.strip())
+            except ValueError:
+                value = None
+        if type(value) is not int or not 10 <= value <= 200:
+            return jsonify({"error": "items_per_page must be an integer between 10 and 200"}), 400
+        data["items_per_page"] = value
+
     # Validate that keys are ones this install knows. This used to read
     # Settings.model_fields — an attribute the composite Settings class does
     # not have — so the guarded expression yielded an empty set on every call

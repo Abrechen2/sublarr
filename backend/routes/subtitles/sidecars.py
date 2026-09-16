@@ -38,21 +38,12 @@ def list_episode_subtitles(ep_id: int):
 
 @bp.route("/library/movies/<int:movie_id>/subtitles", methods=["GET"])
 def list_movie_subtitles(movie_id: int):
-    """Return all subtitle sidecar files found next to this standalone movie's video file."""
-    from db.standalone import get_standalone_movies
+    """Return sidecars for a standalone or Radarr movie's video file."""
+    from services.movie_video_path import resolve_movie_video_path
 
-    movie = get_standalone_movies(movie_id)
-    if movie is None:
-        return jsonify({"error": "Movie not found"}), 404
-
-    file_path = (
-        movie.get("file_path") if isinstance(movie, dict) else getattr(movie, "file_path", None)
-    )
+    file_path = resolve_movie_video_path(movie_id)
     if not file_path:
-        return jsonify({"error": "Movie has no video file"}), 404
-
-    if not os.path.exists(file_path):
-        return jsonify({"error": f"Video file not found: {file_path}"}), 404
+        return jsonify({"error": "Movie video file not found"}), 404
 
     sidecars = scan_subtitle_sidecars(file_path)
     return jsonify({"subtitles": sidecars, "video_path": file_path}), 200

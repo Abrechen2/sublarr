@@ -246,6 +246,21 @@ def get_radarr_movie_fallback(movie_id: int) -> dict | None:
         radarr_movie = radarr.get_movie_by_id(movie_id)
         if not radarr_movie:
             return None
+        from db import get_db
+        from db.profiles import get_movie_profile
+        from services.movie_video_path import radarr_movie_video_path
+
+        wanted_count = (
+            get_db()
+            .execute(
+                text(
+                    "SELECT COUNT(*) FROM wanted_items WHERE radarr_movie_id=:mid AND status='wanted'"
+                ),
+                {"mid": movie_id},
+            )
+            .scalar()
+        )
+        profile = get_movie_profile(movie_id) or {}
         poster = next(
             (
                 img.get("remoteUrl", "")
@@ -259,8 +274,10 @@ def get_radarr_movie_fallback(movie_id: int) -> dict | None:
             "title": radarr_movie.get("title"),
             "year": radarr_movie.get("year"),
             "poster_url": poster,
-            "file_path": radarr_movie.get("path", ""),
-            "wanted_count": 0,
+            "file_path": radarr_movie_video_path(radarr_movie, radarr) or "",
+            "wanted_count": wanted_count or 0,
+            "profile_id": profile.get("id"),
+            "profile_name": profile.get("name", "Default"),
             "source": "radarr",
         }
     except Exception as e:

@@ -2,8 +2,6 @@
 
 from __future__ import annotations
 
-import os
-
 from flask import jsonify, request
 
 from routes.subtitles import bp
@@ -66,14 +64,9 @@ def upload_episode_subtitle(ep_id: int):
 
 @bp.route("/library/movies/<int:movie_id>/subtitles/upload", methods=["POST"])
 def upload_movie_subtitle(movie_id: int):
-    from db.standalone import get_standalone_movies
+    from services.movie_video_path import resolve_movie_video_path
 
-    movie = get_standalone_movies(movie_id)
-    if movie is None:
-        return jsonify({"error": "Movie not found"}), 404
-    file_path = (
-        movie.get("file_path") if isinstance(movie, dict) else getattr(movie, "file_path", None)
-    )
-    if not file_path or not os.path.exists(file_path):
-        return jsonify({"error": "Video file not found"}), 404
+    file_path = resolve_movie_video_path(movie_id)
+    if not file_path:
+        return jsonify({"error": "Movie video file not found"}), 404
     return _do_upload(file_path)
