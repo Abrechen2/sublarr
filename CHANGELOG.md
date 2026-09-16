@@ -5,6 +5,25 @@ All notable changes to Sublarr are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.14.3] - 2026-09-16
+
+### Fixed
+- **Duplicate detection no longer mistakes another episode's subtitle for this
+  one.** A downloaded subtitle that was byte-identical to a sidecar of a
+  different episode in the same season folder was treated as a duplicate: the
+  wanted item was removed and the episode stayed without a subtitle. A
+  duplicate now has to belong to the same episode; when a filename cannot be
+  parsed, the subtitle is saved instead of skipped.
+- **Replacing a machine translation never leaves an episode worse off.**
+  Approving a pending original (or `auto_replace`) trashed the machine
+  translation before the original was downloaded, so a failed download left
+  the episode with no subtitle while the approval still reported success.
+  Machine translations in another format than the original (an `.srt`
+  translation next to an `.ass` original) were not removed at all. The
+  translation is now set aside and restored unless an original actually
+  landed on disk, every recorded translation format is retired, and a failed
+  approval keeps the pending entry and says the translation was kept.
+
 ## [1.14.2] - 2026-09-15
 
 ### Security

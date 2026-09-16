@@ -654,6 +654,12 @@
     "last_run": "Zuletzt: {{date}}"
   },
   "whatsnew": {
+    "v1143": {
+      "dedup_title": "Duplikate gehören zur selben Episode",
+      "dedup_desc": "Ein Untertitel wird nicht mehr als Duplikat verworfen, nur weil eine andere Episode im selben Staffelordner denselben Inhalt hat.",
+      "mt_title": "Originale ersetzen Maschinenübersetzungen sicher",
+      "mt_desc": "Beim Genehmigen eines Originals bleibt die Maschinenübersetzung erhalten, bis das Original wirklich installiert ist. Übersetzungen in einem anderen Format werden mit entfernt."
+    },
     "v1142": {
       "image_title": "Entwicklungsdaten aus Docker-Images entfernt",
       "image_desc": "Lokale Entwicklungsdatenbanken mit Zugangsdaten werden nicht mehr mitgeliefert. Frühere Images enthalten die Datei weiterhin; betroffene Entwicklungszugänge müssen erneuert werden.",

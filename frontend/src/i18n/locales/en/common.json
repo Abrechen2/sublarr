@@ -654,6 +654,12 @@
     "last_run": "Last: {{date}}"
   },
   "whatsnew": {
+    "v1143": {
+      "dedup_title": "Duplicates must belong to the same episode",
+      "dedup_desc": "A subtitle is no longer discarded as a duplicate just because another episode in the same season folder has identical content.",
+      "mt_title": "Originals replace machine translations safely",
+      "mt_desc": "When you approve an original, the machine translation stays until the original is actually installed. Translations in a different format are removed as well."
+    },
     "v1142": {
       "image_title": "Development data removed from Docker images",
       "image_desc": "Local development databases containing credentials are no longer shipped. Earlier images still contain the file; affected development credentials need to be rotated.",
