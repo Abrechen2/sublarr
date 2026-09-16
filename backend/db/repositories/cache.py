@@ -71,6 +71,27 @@ class CacheRepository(BaseRepository):
                 return None
         return None
 
+    def get_ffprobe_cache_many(self, file_paths: list[str]) -> dict[str, tuple[float, dict]]:
+        """``{path: (mtime, probe_data)}`` for every cached path, in chunked queries.
+
+        The caller compares mtimes; entries with unreadable JSON are skipped.
+        """
+        found: dict[str, tuple[float, dict]] = {}
+        unique = list(dict.fromkeys(p for p in file_paths if p))
+        for start in range(0, len(unique), 500):
+            chunk = unique[start : start + 500]
+            rows = self.session.execute(
+                select(
+                    FfprobeCache.file_path, FfprobeCache.mtime, FfprobeCache.probe_data_json
+                ).where(FfprobeCache.file_path.in_(chunk))
+            ).all()
+            for path, mtime, probe_json in rows:
+                try:
+                    found[path] = (mtime, json.loads(probe_json))
+                except (TypeError, json.JSONDecodeError):
+                    continue
+        return found
+
     def set_ffprobe_cache(self, file_path: str, mtime: float, probe_data: dict):
         """Cache ffprobe data for a file."""
         now = self._now()

@@ -17,6 +17,11 @@ def get_ffprobe_cache(file_path: str, mtime: float) -> dict | None:
     return _get_repo().get_ffprobe_cache(file_path, mtime)
 
 
+def get_ffprobe_cache_many(file_paths: list[str]) -> dict[str, tuple[float, dict]]:
+    """``{path: (mtime, probe_data)}`` for every cached path."""
+    return _get_repo().get_ffprobe_cache_many(file_paths)
+
+
 def set_ffprobe_cache(file_path: str, mtime: float, probe_data: dict):
     """Cache ffprobe data for a file."""
     return _get_repo().set_ffprobe_cache(file_path, mtime, probe_data)

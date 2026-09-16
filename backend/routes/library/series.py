@@ -159,6 +159,16 @@ def _get_standalone_series_detail(series_id: int, settings) -> dict | None:
             futures = {fp: executor.submit(_detect_subtitles, fp) for fp in unique_fps}
         subtitle_map = {fp: f.result() for fp, f in futures.items()}
 
+    # Embedded tracks from the ffprobe cache (Forgejo #35). Main thread: the
+    # pool above has no app context, and a series page must never probe.
+    from services.embedded_subtitles import cached_embedded_formats, merge_subtitle_format
+
+    embedded_sa = cached_embedded_formats(unique_fps, list(target_languages))
+    for _fp, _langs in embedded_sa.items():
+        _detected = subtitle_map.setdefault(_fp, {})
+        for _lang, _embedded in _langs.items():
+            _detected[_lang] = merge_subtitle_format(_detected.get(_lang, ""), _embedded)
+
     # 0.71.0 Phase 8 — wanted_items.existing_sub fallback keyed by file_path.
     # Maps file_path → {lang: existing_sub} so embedded_srt/embedded_ass fills
     # the gap where the filesystem sidecar hasn't been written yet. Mirrors
@@ -385,6 +395,17 @@ def get_series_detail(series_id):
                 for ep_id, path in episodes_to_check.items()
             }
         subtitle_map = {ep_id: f.result() for ep_id, f in futures.items()}
+
+    # Embedded tracks from the ffprobe cache (Forgejo #35). Main thread: the
+    # pool above has no app context, and a series page must never probe.
+    from services.embedded_subtitles import cached_embedded_formats, merge_subtitle_format
+
+    _mapped_by_ep = {ep_id: map_path(path) for ep_id, path in episodes_to_check.items()}
+    embedded = cached_embedded_formats(list(_mapped_by_ep.values()), list(target_languages))
+    for ep_id, mapped in _mapped_by_ep.items():
+        for lang, embedded_fmt in embedded.get(mapped, {}).items():
+            detected = subtitle_map.setdefault(ep_id, {})
+            detected[lang] = merge_subtitle_format(detected.get(lang, ""), embedded_fmt)
 
     # Fallback 1: subtitle_downloads — records saved at download time with format
     # Uses the same mapped paths as wanted_search, so path-mapping is consistent.
