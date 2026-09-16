@@ -66,6 +66,8 @@ def has_target_language_stream(ffprobe_data, target_language=None):
 
         target_tags = _get_language_tags(target_language)
 
+    from forced_detection import detect_subtitle_type
+
     target_ass = False
     target_srt = False
 
@@ -74,6 +76,11 @@ def has_target_language_stream(ffprobe_data, target_language=None):
             continue
         lang = stream.get("tags", {}).get("language", "").lower()
         if lang not in target_tags:
+            continue
+        # A forced or "Signs & Songs" track is not the dialogue subtitle: it
+        # must not satisfy the language, or a signs-only track would stop the
+        # search for the real one (and drop wanted rows since 1.14.3).
+        if detect_subtitle_type(stream_info=stream)[0] != "full":
             continue
         codec = stream.get("codec_name", "").lower()
         if codec in ("ass", "ssa"):

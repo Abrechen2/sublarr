@@ -19,6 +19,15 @@ for that language back to ``wanted``. A pending original found for the item is
 kept, so it stays approvable. Episodes without a wanted item are picked up by
 the next wanted scan, which sees the language missing again.
 
+Before a file is moved, its size, modification time and provenance are checked
+again: a provider may have replaced it with a genuine original since the scan.
+
+The app is started without schedulers or startup housekeeping, so a run next to
+the live container neither fires a second set of jobs nor marks the live app's
+running jobs as failed. The content detector knows English and German only; for
+any other configured target the command refuses to run instead of silently
+finding nothing.
+
 Usage (from the backend directory, or ``/app`` in the container)::
 
     python -m scripts.repair_wrong_direction_mt            # dry run, lists files
@@ -37,6 +46,7 @@ from datetime import UTC, datetime
 logger = logging.getLogger("repair_wrong_direction_mt")
 
 MIN_CONFIDENCE = 0.90
+DETECTABLE_TARGETS = ("en", "de")
 
 
 @dataclass(frozen=True)
@@ -47,6 +57,8 @@ class Candidate:
     path: str
     detected: str
     confidence: float
+    size: int
+    mtime_ns: int
 
 
 @dataclass
@@ -55,17 +67,24 @@ class Report:
     trashed: list[tuple[Candidate, str]] = field(default_factory=list)
     requeued: list[int] = field(default_factory=list)
     errors: list[tuple[Candidate, str]] = field(default_factory=list)
+    skipped: list[tuple[Candidate, str]] = field(default_factory=list)
+
+
+def _configured_target() -> str:
+    from config import get_settings
+    from config_language_data import normalize_language_code
+
+    return normalize_language_code(get_settings().target_language or "")
 
 
 def find_candidates() -> list[Candidate]:
     """Machine translations whose content is the configured target language."""
-    from config import get_settings
     from config_language_data import normalize_language_code
     from db.providers import list_machine_translations
     from services.subtitle_health.checkers.language_mislabel import detect_content_language
     from translator.output_paths import get_output_path_for_lang
 
-    target = normalize_language_code(get_settings().target_language or "")
+    target = _configured_target()
     candidates: list[Candidate] = []
     for video, language, fmt in list_machine_translations():
         if normalize_language_code(language) == target:
@@ -74,14 +93,41 @@ def find_candidates() -> list[Candidate]:
         if not os.path.isfile(path):
             continue
         try:
+            stat = os.stat(path)
             with open(path, "rb") as fh:
                 detected, confidence = detect_content_language(fh.read())
         except OSError as exc:
             logger.warning("cannot read %s: %s", path, exc)
             continue
         if detected == target and confidence >= MIN_CONFIDENCE:
-            candidates.append(Candidate(video, language, fmt, path, detected, confidence))
+            candidates.append(
+                Candidate(
+                    video,
+                    language,
+                    fmt,
+                    path,
+                    detected,
+                    confidence,
+                    stat.st_size,
+                    stat.st_mtime_ns,
+                )
+            )
     return candidates
+
+
+def _changed_since_discovery(candidate: Candidate) -> str | None:
+    """Why the candidate must not be touched any more, or None if it is unchanged."""
+    from db.providers import get_machine_translation_sidecars
+
+    try:
+        stat = os.stat(candidate.path)
+    except OSError:
+        return "file is gone"
+    if (stat.st_size, stat.st_mtime_ns) != (candidate.size, candidate.mtime_ns):
+        return "file changed since the scan"
+    if (candidate.language, candidate.fmt) not in get_machine_translation_sidecars(candidate.video):
+        return "no longer recorded as a machine translation"
+    return None
 
 
 def repair(candidates: list[Candidate], apply: bool) -> Report:
@@ -100,6 +146,10 @@ def repair(candidates: list[Candidate], apply: bool) -> Report:
     batch_dir = get_batch_dir(media_path, f"wrong-direction-mt-{datetime.now(UTC):%Y%m%d%H%M%S}")
     wanted = WantedRepository()
     for candidate in candidates:
+        reason = _changed_since_discovery(candidate)
+        if reason:
+            report.skipped.append((candidate, reason))
+            continue
         trashed_path, err = trash_sidecar(candidate.path, media_path, batch_dir)
         if err:
             report.errors.append((candidate, err))
@@ -126,8 +176,16 @@ def main(argv: list[str] | None = None) -> int:
 
     from app import create_app
 
-    app = create_app()
+    # testing=True: no schedulers, no zombie-job cleanup, no shutdown handler.
+    app = create_app(testing=True)
     with app.app_context():
+        target = _configured_target()
+        if target not in DETECTABLE_TARGETS:
+            print(
+                f"Configured target language {target!r}: the content detector knows only "
+                "English and German, so wrong-language files cannot be recognised. Nothing done."
+            )
+            return 2
         report = repair(find_candidates(), apply=args.apply)
 
     for c in report.planned:
@@ -136,8 +194,10 @@ def main(argv: list[str] | None = None) -> int:
     print(
         f"{mode}: {len(report.planned)} wrong-language machine translation(s); "
         f"trashed {len(report.trashed)}, requeued {len(report.requeued)}, "
-        f"errors {len(report.errors)}"
+        f"skipped {len(report.skipped)}, errors {len(report.errors)}"
     )
+    for c, reason in report.skipped:
+        print(f"SKIPPED {c.path}: {reason}")
     for c, err in report.errors:
         print(f"ERROR {c.path}: {err}")
     return 1 if report.errors else 0

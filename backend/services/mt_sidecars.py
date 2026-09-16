@@ -133,6 +133,27 @@ def retire(paths: list[str]) -> list[tuple[str, str]]:
     return moved
 
 
+def forget(item: dict, moved: list[tuple[str, str]]) -> None:
+    """Drop the machine-translation records of sidecars an original replaced.
+
+    Provenance is the latest record per language and format; a retired MT in
+    another format than the original would otherwise keep that path marked
+    as a machine translation for whatever lands there next.
+    """
+    from db.providers import delete_machine_translation_records
+
+    video_path = item.get("file_path") or ""
+    language = item.get("target_language") or ""
+    if not video_path or not language:
+        return
+    for original, _trashed in moved:
+        fmt = os.path.splitext(original)[1].lstrip(".").lower()
+        try:
+            delete_machine_translation_records(video_path, language, fmt)
+        except Exception as exc:  # noqa: BLE001 — the install already succeeded
+            logger.warning("mt_sidecars: could not forget MT record for %s: %s", original, exc)
+
+
 def restore(moved: list[tuple[str, str]]) -> None:
     """Put retired MT sidecars back where they were.
 

@@ -62,13 +62,14 @@ def test_drops_ollama_rows_for_another_target_and_keeps_the_rest(tmp_path):
                 ("zh", "en", "ollama", "Wir sind über Jaku."),  # same prompt, same damage
                 ("en", "de", "ollama", "Wir sind über Jaku."),  # configured direction
                 ("ja", "de", "ollama", "Wir sind über Jaku."),  # right target language
+                ("de", "en", "openai_compat", "Sag mir ehrlich"),  # same prompt builder
                 ("de", "en", "deepl", "We are above Jaku."),  # named the direction
                 ("id", "de", "deepl", "Wir sind über Jaku."),
             ],
         )
         removed = drop_wrong_direction(conn, "de")
 
-    assert removed == 2
+    assert removed == 3
     with engine.connect() as conn:
         assert _pairs(conn) == [
             ("de", "en", "deepl"),
@@ -86,8 +87,7 @@ def test_language_and_backend_spelling_do_not_matter(tmp_path):
         assert drop_wrong_direction(conn, "de") == 1
 
 
-def test_configured_target_comes_from_config_entries_first(tmp_path, monkeypatch):
-    monkeypatch.setenv("SUBLARR_TARGET_LANGUAGE", "fr")
+def test_configured_target_comes_from_config_entries(tmp_path):
     engine = _engine(tmp_path)
     with engine.begin() as conn:
         conn.execute(sa.text(_DDL_CONFIG))
@@ -95,13 +95,12 @@ def test_configured_target_comes_from_config_entries_first(tmp_path, monkeypatch
         assert configured_target_language(conn) == "en"
 
 
-def test_configured_target_falls_back_to_env_then_default(tmp_path, monkeypatch):
+def test_configured_target_ignores_env_like_the_runtime(tmp_path, monkeypatch):
+    """target_language is a DB-only UI setting; the runtime never reads the env var."""
+    monkeypatch.setenv("SUBLARR_TARGET_LANGUAGE", "en")
     engine = _engine(tmp_path)
     with engine.begin() as conn:
         conn.execute(sa.text(_DDL_CONFIG))
-        monkeypatch.setenv("SUBLARR_TARGET_LANGUAGE", "fr")
-        assert configured_target_language(conn) == "fr"
-        monkeypatch.delenv("SUBLARR_TARGET_LANGUAGE")
         assert configured_target_language(conn) == "de"
 
 

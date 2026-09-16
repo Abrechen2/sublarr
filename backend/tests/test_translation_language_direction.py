@@ -137,3 +137,67 @@ def test_sidecar_without_translation_record_is_a_source(app_ctx, tmp_path):
     en.write_text("1\n00:00:01,000 --> 00:00:02,000\nHello\n")
 
     assert find_any_source_sub(str(mkv), target_language="de") == (str(en), "en")
+
+
+# ── Provenance is the latest record, not any record (Codex review) ──────────
+
+
+def _record_provider(video: str, lang: str, fmt: str) -> None:
+    from db.providers import record_subtitle_download
+
+    record_subtitle_download(
+        "animetosho",
+        f"real:{lang}.{fmt}",
+        lang,
+        fmt,
+        video,
+        250,
+        source="provider",
+        record_stats=False,
+    )
+
+
+def test_genuine_subtitle_that_replaced_a_machine_translation_is_a_source(app_ctx, tmp_path):
+    """Same path, same format: the provider download is newer than the MT row."""
+    import time
+
+    from translator._helpers import find_any_source_sub
+
+    mkv = tmp_path / "ep.mkv"
+    mkv.touch()
+    de = tmp_path / "ep.de.srt"
+    de.write_text("1\n00:00:01,000 --> 00:00:02,000\nEcht\n")
+    _record_mt(str(mkv), "de", "srt")
+    time.sleep(0.01)
+    _record_provider(str(mkv), "de", "srt")
+
+    assert find_any_source_sub(str(mkv), target_language="en") == (str(de), "de")
+
+
+def test_machine_translation_newer_than_a_download_is_still_excluded(app_ctx, tmp_path):
+    import time
+
+    from translator._helpers import find_any_source_sub
+
+    mkv = tmp_path / "ep.mkv"
+    mkv.touch()
+    (tmp_path / "ep.de.srt").write_text("1\n00:00:01,000 --> 00:00:02,000\nMT\n")
+    _record_provider(str(mkv), "de", "srt")
+    time.sleep(0.01)
+    _record_mt(str(mkv), "de", "srt")
+
+    assert find_any_source_sub(str(mkv), target_language="en") == (None, None)
+
+
+def test_listing_skips_superseded_machine_translations(app_ctx, tmp_path):
+    import time
+
+    from db.providers import list_machine_translations
+
+    mkv = str(tmp_path / "ep.mkv")
+    _record_mt(mkv, "de", "srt")
+    _record_mt(mkv, "en", "srt")
+    time.sleep(0.01)
+    _record_provider(mkv, "de", "srt")
+
+    assert sorted(list_machine_translations()) == [(mkv, "en", "srt")]

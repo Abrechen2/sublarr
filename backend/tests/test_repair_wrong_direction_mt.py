@@ -154,3 +154,104 @@ def test_apply_trashes_forgets_the_translation_and_searches_again(library):
     assert item["status"] == "wanted"
     # A found original stays approvable.
     assert item["mt_pending_original"] is not None
+
+
+# ── Codex review follow-ups ──────────────────────────────────────────────────
+
+
+def test_a_file_changed_since_discovery_is_not_trashed(library):
+    """A provider may replace the bad file between the scan and --apply."""
+    import os
+    import time
+
+    from scripts.repair_wrong_direction_mt import find_candidates, repair
+
+    root, video = library
+    bad = root / "ep.en.srt"
+    bad.write_text(GERMAN, encoding="utf-8")
+    _record(video, "en", "srt")
+    candidates = find_candidates()
+
+    bad.write_text(ENGLISH, encoding="utf-8")  # a genuine original lands
+    future = time.time() + 5
+    os.utime(bad, (future, future))
+
+    report = repair(candidates, apply=True)
+
+    assert report.trashed == [] and len(report.skipped) == 1
+    assert bad.read_text(encoding="utf-8") == ENGLISH
+
+
+def test_a_file_no_longer_recorded_as_machine_translation_is_not_trashed(library):
+    import time
+
+    from db.providers import record_subtitle_download
+    from scripts.repair_wrong_direction_mt import find_candidates, repair
+
+    root, video = library
+    bad = root / "ep.en.srt"
+    bad.write_text(GERMAN, encoding="utf-8")
+    _record(video, "en", "srt")
+    candidates = find_candidates()
+    time.sleep(0.01)
+    record_subtitle_download(
+        "animetosho", "real", "en", "srt", video, 250, source="provider", record_stats=False
+    )
+
+    report = repair(candidates, apply=True)
+
+    assert report.trashed == [] and len(report.skipped) == 1
+    assert bad.exists()
+
+
+def test_main_starts_the_app_without_background_workers(monkeypatch, capsys):
+    """A dry run next to the live container must not start schedulers or fail its jobs."""
+    import scripts.repair_wrong_direction_mt as repair_mod
+
+    calls = []
+
+    class _Ctx:
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *exc):
+            return False
+
+    class _App:
+        def app_context(self):
+            return _Ctx()
+
+    def fake_create_app(testing=False):
+        calls.append(testing)
+        return _App()
+
+    monkeypatch.setattr("app.create_app", fake_create_app)
+    monkeypatch.setattr(repair_mod, "_configured_target", lambda: "de")
+    monkeypatch.setattr(repair_mod, "find_candidates", lambda: [])
+
+    assert repair_mod.main([]) == 0
+    assert calls == [True]
+
+
+def test_main_refuses_targets_the_detector_cannot_recognise(monkeypatch, capsys):
+    import scripts.repair_wrong_direction_mt as repair_mod
+
+    class _Ctx:
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *exc):
+            return False
+
+    class _App:
+        def app_context(self):
+            return _Ctx()
+
+    monkeypatch.setattr("app.create_app", lambda testing=False: _App())
+    monkeypatch.setattr(repair_mod, "_configured_target", lambda: "fr")
+    monkeypatch.setattr(
+        repair_mod, "find_candidates", lambda: (_ for _ in ()).throw(AssertionError("scanned"))
+    )
+
+    assert repair_mod.main([]) == 2
+    assert "only English and German" in capsys.readouterr().out

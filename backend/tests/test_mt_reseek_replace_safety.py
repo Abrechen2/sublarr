@@ -309,3 +309,30 @@ def test_approve_keeps_marker_and_reports_failure_when_nothing_installed(temp_db
 
 def _item(ep):
     return {"file_path": str(ep["mkv"]), "target_language": "en"}
+
+
+def test_successful_replacement_forgets_the_retired_translation(episode, monkeypatch):
+    """Otherwise a later genuine .en.srt at that path would still count as MT."""
+    from db.providers import get_machine_translation_sidecars
+    from services.mt_reseek import _replace_original
+
+    monkeypatch.setattr("wanted_search.process_wanted_item", _fake_search_installs(episode))
+
+    assert _replace_original({"id": episode["id"], **_item(episode)}, _preview(episode))
+
+    assert get_machine_translation_sidecars(str(episode["mkv"])) == []
+
+
+def test_failed_replacement_keeps_the_translation_record(episode, monkeypatch):
+    from db.providers import get_machine_translation_sidecars
+    from services.mt_reseek import _replace_original
+
+    monkeypatch.setattr(
+        "wanted_search.process_wanted_item",
+        lambda item_id, **kw: {"wanted_id": item_id, "status": "not_found"},
+    )
+    monkeypatch.setattr("services.mt_reseek._mark_reseek_miss", lambda item_id: None)
+
+    assert not _replace_original({"id": episode["id"], **_item(episode)}, _preview(episode))
+
+    assert get_machine_translation_sidecars(str(episode["mkv"])) == [("en", "srt")]

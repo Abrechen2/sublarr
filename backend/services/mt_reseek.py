@@ -120,6 +120,7 @@ def _replace_original(item: dict, preview: dict) -> bool:
         result = None
 
     if mt_sidecars.original_installed(result, before, mt_sidecars.target_sidecars(item), moved):
+        mt_sidecars.forget(item, moved)
         logger.info(
             "mt_reseek: installed a genuine original for wanted %s via %s (status=%s, score=%s)",
             item_id,

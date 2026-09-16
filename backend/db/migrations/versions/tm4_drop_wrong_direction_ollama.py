@@ -1,6 +1,7 @@
-"""Drop Ollama translation-memory entries stored for a non-configured target.
+"""Drop LLM translation-memory entries stored for a non-configured target.
 
-Until 1.14.3 every Ollama request asked the model for the GLOBAL direction —
+Until 1.14.3 every Ollama and OpenAI-compatible request asked the model for the
+GLOBAL direction —
 "Translate these anime subtitle lines from English to German" — whatever the
 job wanted: ``translation.llm_utils.build_translation_prompt`` accepted the
 request's languages and built the prompt from the global template anyway, and
@@ -15,14 +16,17 @@ hit, so fixing the prompt alone would keep writing German into English
 subtitles for every line seen before.
 
 Scope, deliberately narrow:
-- only ``backend = ollama`` — every other backend named the requested
-  direction all along;
+- only ``backend`` in ``ollama`` / ``openai_compat`` — the two backends that
+  built their prompt with ``build_translation_prompt``; every other backend
+  named the requested direction all along. The cache key carries no backend,
+  so a poisoned row would keep being served after switching backends;
 - only rows whose target differs from the configured target language. Rows
   FOR the configured target are the right language whatever their source
   (a ``ja -> de`` row was asked "English to German" and still answered German).
 
-The configured target is read the way the app resolves it: ``config_entries``
-first, then ``SUBLARR_TARGET_LANGUAGE``, then the default ``de``.
+The configured target is read the way the app resolves it: ``target_language``
+is a DB-only UI setting, so ``config_entries`` then the default ``de`` — the
+``SUBLARR_TARGET_LANGUAGE`` env var is ignored at runtime and must be here too.
 
 Writer, closed in the same release: ``translator.cache._store_translations_in_cache``
 stores whatever the backend returned under the requested pair; the backend now
@@ -36,8 +40,6 @@ subtitle content lives only here. Irreversible.
 Revision ID: tm4_wrong_direction
 Revises: tm3_strip_soft
 """
-
-import os
 
 import sqlalchemy as sa
 from alembic import op
@@ -59,12 +61,11 @@ def configured_target_language(conn) -> str:
         ).scalar()
         if value and value.strip():
             return value.strip().strip('"').lower()
-    env = os.environ.get("SUBLARR_TARGET_LANGUAGE", "").strip()
-    return (env or _DEFAULT_TARGET).lower()
+    return _DEFAULT_TARGET
 
 
 def drop_wrong_direction(conn, configured_target: str) -> int:
-    """Delete Ollama rows stored for a target other than ``configured_target``.
+    """Delete affected-backend rows stored for a target other than ``configured_target``.
 
     Split out from ``upgrade`` so a test can run it against a real database.
     """
@@ -74,7 +75,7 @@ def drop_wrong_direction(conn, configured_target: str) -> int:
     result = conn.execute(
         sa.text(
             "DELETE FROM translation_memory "
-            "WHERE lower(backend) = 'ollama' "
+            "WHERE lower(backend) IN ('ollama', 'openai_compat') "
             "AND target_lang IS NOT NULL "
             "AND lower(target_lang) <> :target"
         ),
@@ -89,7 +90,7 @@ def upgrade() -> None:
     removed = drop_wrong_direction(conn, target)
     if removed:
         print(
-            f"tm4_wrong_direction: removed {removed} Ollama memory entries "
+            f"tm4_wrong_direction: removed {removed} LLM memory entries "
             f"stored for a target other than '{target}'"
         )
 

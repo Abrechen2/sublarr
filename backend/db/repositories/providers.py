@@ -192,18 +192,40 @@ class ProviderRepository(BaseRepository):
             return None
         return entry.decision_log_json
 
+    def _current_machine_translations(self, video_paths: list[str]) -> list[tuple[str, str, str]]:
+        """``(video, language, format)`` whose LATEST download row is a machine translation.
+
+        Provenance is the most recent record for a sidecar, not any record: a
+        genuine subtitle saved over a machine translation (same language and
+        format, so the same file) must count as genuine again — as a
+        translation source and when deciding what to retire or repair.
+        """
+        latest: dict[tuple[str, str, str], str] = {}
+        for start in range(0, len(video_paths), 500):
+            chunk = video_paths[start : start + 500]
+            stmt = (
+                select(
+                    SubtitleDownload.file_path,
+                    SubtitleDownload.language,
+                    SubtitleDownload.format,
+                    SubtitleDownload.source,
+                )
+                .where(SubtitleDownload.file_path.in_(chunk))
+                .order_by(SubtitleDownload.downloaded_at.desc(), SubtitleDownload.id.desc())
+            )
+            for path, lang, fmt, source in self.session.execute(stmt).all():
+                if path and lang and fmt:
+                    latest.setdefault((path, lang, fmt), source or "")
+        return sorted(key for key, source in latest.items() if source == "machine_translation")
+
     def list_machine_translations(self) -> list[tuple[str, str, str]]:
-        """``(video path, language, format)`` of every recorded machine translation."""
-        stmt = (
-            select(SubtitleDownload.file_path, SubtitleDownload.language, SubtitleDownload.format)
+        """``(video path, language, format)`` of every current machine translation."""
+        paths = self.session.execute(
+            select(SubtitleDownload.file_path)
             .where(SubtitleDownload.source == "machine_translation")
             .distinct()
-        )
-        return [
-            (path, lang, fmt)
-            for path, lang, fmt in self.session.execute(stmt).all()
-            if path and lang and fmt
-        ]
+        ).scalars()
+        return self._current_machine_translations([p for p in paths if p])
 
     def delete_machine_translation_records(self, video_path: str, language: str, fmt: str) -> int:
         """Forget the machine-translation rows for one sidecar; return how many went."""
@@ -219,33 +241,22 @@ class ProviderRepository(BaseRepository):
         return result.rowcount or 0
 
     def get_machine_translation_sidecars(self, video_path: str) -> list[tuple[str, str]]:
-        """``(language, format)`` of every machine translation recorded for this video."""
-        stmt = (
-            select(SubtitleDownload.language, SubtitleDownload.format)
-            .where(
-                SubtitleDownload.file_path == video_path,
-                SubtitleDownload.source == "machine_translation",
-            )
-            .distinct()
-        )
-        return [(lang, fmt) for lang, fmt in self.session.execute(stmt).all() if lang and fmt]
+        """``(language, format)`` of every current machine translation for this video."""
+        return [
+            (lang, fmt) for _path, lang, fmt in self._current_machine_translations([video_path])
+        ]
 
     def get_machine_translation_formats(self, video_path: str, language: str) -> list[str]:
-        """Formats of the machine translations recorded for this video and language.
+        """Formats of the current machine translations for this video and language.
 
         MT rows are keyed by the VIDEO path (``record_mt_output``), so the
         sidecar itself is ``<video base>.<language>.<format>``.
         """
-        stmt = (
-            select(SubtitleDownload.format)
-            .where(
-                SubtitleDownload.file_path == video_path,
-                SubtitleDownload.language == language,
-                SubtitleDownload.source == "machine_translation",
-            )
-            .distinct()
+        return sorted(
+            fmt
+            for _path, lang, fmt in self._current_machine_translations([video_path])
+            if lang == language
         )
-        return sorted(fmt for fmt in self.session.execute(stmt).scalars() if fmt)
 
     def get_latest_download_id(self, file_path: str) -> int | None:
         """Return the id of the most recent SubtitleDownload for this file, or None."""
