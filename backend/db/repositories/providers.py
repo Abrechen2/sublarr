@@ -192,6 +192,18 @@ class ProviderRepository(BaseRepository):
             return None
         return entry.decision_log_json
 
+    def get_machine_translation_sidecars(self, video_path: str) -> list[tuple[str, str]]:
+        """``(language, format)`` of every machine translation recorded for this video."""
+        stmt = (
+            select(SubtitleDownload.language, SubtitleDownload.format)
+            .where(
+                SubtitleDownload.file_path == video_path,
+                SubtitleDownload.source == "machine_translation",
+            )
+            .distinct()
+        )
+        return [(lang, fmt) for lang, fmt in self.session.execute(stmt).all() if lang and fmt]
+
     def get_machine_translation_formats(self, video_path: str, language: str) -> list[str]:
         """Formats of the machine translations recorded for this video and language.
 

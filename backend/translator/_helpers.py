@@ -377,6 +377,12 @@ def find_any_source_sub(mkv_path, target_language=None, preferred_languages=None
     else:
         prefs = candidates
     base = os.path.splitext(mkv_path)[0]
+    # A machine translation is never a source: translating it again stacks a
+    # second model's errors on the first, and prod's German MTs were being fed
+    # back in as "German originals" for English targets (2026-09-16).
+    from services.mt_sidecars import machine_translation_paths
+
+    machine_translated = machine_translation_paths(mkv_path)
 
     found: dict[str, str] = {}  # lang -> path (first match wins)
     for fmt in ("ass", "srt"):
@@ -389,6 +395,9 @@ def find_any_source_sub(mkv_path, target_language=None, preferred_languages=None
                 continue  # not a recognised language token
             lang = _REVERSE_LANGUAGE_TAGS[tag]
             if lang == target:
+                continue
+            if os.path.normcase(os.path.normpath(path)) in machine_translated:
+                logger.debug("Skipping machine translation as a source: %s", path)
                 continue
             found.setdefault(lang, path)
 

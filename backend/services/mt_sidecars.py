@@ -51,6 +51,29 @@ def mt_sidecar_paths(item: dict, fallback_path: str | None) -> list[str]:
     return [path for path in candidates if os.path.exists(path)]
 
 
+def machine_translation_paths(video_path: str) -> set[str]:
+    """Normalised sidecar paths that hold a machine translation for this video.
+
+    Used to keep a machine translation from ever being a translation SOURCE
+    (owner decision 2026-09-16). A failed lookup yields an empty set and a
+    warning: better one avoidable translation than no translation at all.
+    """
+    from db.providers import get_machine_translation_sidecars
+    from translator.output_paths import get_output_path_for_lang
+
+    if not video_path:
+        return set()
+    try:
+        recorded = get_machine_translation_sidecars(video_path)
+    except Exception as exc:  # noqa: BLE001 — provenance lookup is best-effort
+        logger.warning("mt_sidecars: MT provenance lookup failed for %s: %s", video_path, exc)
+        return set()
+    return {
+        os.path.normcase(os.path.normpath(get_output_path_for_lang(video_path, fmt, lang)))
+        for lang, fmt in recorded
+    }
+
+
 def target_sidecars(item: dict) -> set[str]:
     """Every existing subtitle sidecar in the item's target language."""
     from subtitle_filename import SUBTITLE_EXTS

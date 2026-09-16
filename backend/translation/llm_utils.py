@@ -570,7 +570,7 @@ def build_translation_prompt(
     if prompt_template is None:
         from config import get_settings
 
-        prompt_template = get_settings().get_prompt_template()
+        prompt_template = get_settings().get_prompt_template(source_lang, target_lang)
 
     return build_prompt_with_glossary(prompt_template, glossary_entries, lines, strict=strict)
 

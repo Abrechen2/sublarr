@@ -151,6 +151,11 @@ def record_subtitle_download(
     return result
 
 
+def get_machine_translation_sidecars(video_path: str) -> list[tuple[str, str]]:
+    """``(language, format)`` of every machine translation recorded for this video."""
+    return _get_repo().get_machine_translation_sidecars(video_path)
+
+
 def get_machine_translation_formats(video_path: str, language: str) -> list[str]:
     """Formats of the machine translations recorded for this video and language."""
     return _get_repo().get_machine_translation_formats(video_path, language)

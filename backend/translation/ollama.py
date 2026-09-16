@@ -26,6 +26,32 @@ from translation.prompt_safety import escape_for_prompt
 logger = logging.getLogger(__name__)
 
 
+# The German prompt is what the anime-translator fine-tunes were trained on;
+# it stays byte-identical for German targets. Any other target gets the same
+# instruction naming the requested direction — the German one hard-coded
+# "englische ... ins Deutsche" for every request (prod 2026-09-16).
+_GERMAN_SYSTEM_PROMPT = (
+    "Du bist ein spezialisierter Anime-Untertitel-Übersetzer. "
+    "Übersetze englische Anime-Untertitel präzise und natürlich ins Deutsche. "
+    "Verwende informelle Sprache (du-Form). Behalte Charakternamen und "
+    "Eigennamen unverändert. Keine Erklärungen oder Kommentare — nur die Übersetzung."
+)
+
+
+def _default_system_prompt(source_lang: str | None, target_lang: str | None) -> str:
+    from config_language_data import language_name, normalize_language_code
+
+    if not target_lang or normalize_language_code(target_lang) == "de":
+        return _GERMAN_SYSTEM_PROMPT
+    source = language_name(source_lang) if source_lang else "the source language"
+    return (
+        "You are a specialised anime subtitle translator. "
+        f"Translate {source} anime subtitles precisely and naturally into "
+        f"{language_name(target_lang)}. Keep character names and proper nouns unchanged. "
+        "No explanations or comments — only the translation."
+    )
+
+
 class OllamaBackend(LLMBackend):
     """Ollama (Local LLM) translation backend.
 
@@ -194,13 +220,13 @@ class OllamaBackend(LLMBackend):
     def _system_prompt(self) -> str:
         return self.config.get("system_prompt", "")
 
-    def _build_system_prompt(self, series_context: str | None) -> str:
-        base = self._system_prompt or (
-            "Du bist ein spezialisierter Anime-Untertitel-Übersetzer. "
-            "Übersetze englische Anime-Untertitel präzise und natürlich ins Deutsche. "
-            "Verwende informelle Sprache (du-Form). Behalte Charakternamen und "
-            "Eigennamen unverändert. Keine Erklärungen oder Kommentare — nur die Übersetzung."
-        )
+    def _build_system_prompt(
+        self,
+        series_context: str | None,
+        source_lang: str | None = None,
+        target_lang: str | None = None,
+    ) -> str:
+        base = self._system_prompt or _default_system_prompt(source_lang, target_lang)
         # P3: escape series_context BEFORE substitution. series_context comes
         # from upstream metadata (Sonarr/Radarr `overview` field) which is
         # ultimately attacker-controllable. Substituting raw text into the
@@ -257,7 +283,7 @@ class OllamaBackend(LLMBackend):
             lines, source_lang, target_lang, glossary_entries, strict=strict
         )
         if self._use_chat_api:
-            system_content = self._build_system_prompt(series_context)
+            system_content = self._build_system_prompt(series_context, source_lang, target_lang)
             return [
                 {"role": "system", "content": system_content},
                 {"role": "user", "content": user_content},

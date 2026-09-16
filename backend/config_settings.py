@@ -948,28 +948,42 @@ class Settings:
             return self._boot.database_url
         return f"sqlite:///{self._boot.db_path}"
 
-    def get_prompt_template(self) -> str:
+    def get_prompt_template(
+        self, source_lang: str | None = None, target_lang: str | None = None
+    ) -> str:
         """Get the translation prompt template.
 
         Priority:
         1. Default prompt preset from database (if exists)
         2. prompt_template setting (if set)
         3. Auto-generated template
+
+        ``source_lang``/``target_lang`` are the direction of the request being
+        built. Without them the global languages apply (settings UI, config
+        hash). Until 2026-09-16 the request's direction was never passed, so
+        every Ollama batch asked for English to German — a de->en request came
+        back as reworded German and was saved as an English subtitle.
         """
+        from config_language_data import language_name
+
+        source_name = language_name(source_lang) if source_lang else self._ui.source_language_name
+        target_name = language_name(target_lang) if target_lang else self._ui.target_language_name
         try:
             from db.translation import get_default_prompt_preset
 
             preset = get_default_prompt_preset()
             if preset and preset.get("prompt_template"):
                 template = preset["prompt_template"]
-                template = template.replace("{source_language}", self._ui.source_language_name)
-                template = template.replace("{target_language}", self._ui.target_language_name)
+                template = template.replace("{source_language}", source_name)
+                template = template.replace("{target_language}", target_name)
                 return template
         except Exception as exc:
             logger.debug("Could not load default prompt preset: %s", exc)
 
         if self._ui.prompt_template:
-            return self._ui.prompt_template
+            return self._ui.prompt_template.replace("{source_language}", source_name).replace(
+                "{target_language}", target_name
+            )
 
         # The input lines are numbered, and the output must carry the same
         # numbers back. Measured over 65 real batches on gemma3:12b: asking
@@ -983,7 +997,7 @@ class Settings:
         # line ends, which is what llm_utils.repair_line_mapping needs to undo
         # a translation the model wrapped across two lines.
         return (
-            f"Translate these anime subtitle lines from {self._ui.source_language_name} to {self._ui.target_language_name}.\n"
+            f"Translate these anime subtitle lines from {source_name} to {target_name}.\n"
             f"Each input line is numbered. Return EXACTLY one output line per input line,\n"
             f"prefixed with the same number, in the form 'N: translation'.\n"
             f"Never renumber and never skip a number.\n"

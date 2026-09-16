@@ -177,6 +177,15 @@ _REVERSE_LANGUAGE_TAGS: dict[str, str] = {
 }
 
 
+def language_name(code: str) -> str:
+    """English display name for an ISO 639-1 code; the code itself if unknown."""
+    normalized = normalize_language_code(code or "")
+    for entry in SUPPORTED_LANGUAGES:
+        if entry.get("code") == normalized:
+            return entry.get("name", normalized)
+    return code
+
+
 def normalize_language_code(raw: str) -> str:
     """Map any known language tag to its canonical ISO 639-1 code.
 
