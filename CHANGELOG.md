@@ -48,6 +48,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   satisfied the language for every scanner, which stopped the search for the
   dialogue subtitle. Only full tracks count now; episodes that only have such a
   track become wanted again on the next scan.
+- **Data cleanups reach databases created without migration tracking.** A
+  database first created by Sublarr itself (common for SQLite installs) has no
+  migration history, so data migrations never ran on it — including this
+  release's translation-memory cleanup, which left German entries serving
+  English targets after the prompt fix. Such databases now receive every data
+  migration once at startup (`tm1_strip_breaks`, `tm2_drop_same_lang`,
+  `tm3_strip_soft`, `tm4_wrong_direction`), recorded in a new
+  `untracked_data_repairs` table so none of them runs twice.
 - **The episode list shows embedded tracks (#35).** An episode covered by an
   embedded target-language track was listed as "No subtitle found". Series
   pages now read embedded tracks from the probe cache — without probing files
@@ -69,11 +77,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 **Back up your database before upgrading** if you translate with Ollama or an
 OpenAI-compatible backend.
-This release runs one migration that deletes data:
+This release runs one migration that deletes data. On databases without
+migration history (created by Sublarr itself, typical for SQLite) it also runs
+the three earlier translation-memory cleanups once, listed below the table:
 
 | Revision | What it does |
 |---|---|
 | `tm4_wrong_direction` | Deletes translation-memory entries from the Ollama and OpenAI-compatible backends whose target language differs from the configured target language. They hold text in the wrong language and would be served again on every cache hit. Other backends and entries for the configured target are kept. Nothing but cache entries is lost; affected lines are translated again. |
+
+On such databases, `tm1_strip_breaks` and `tm3_strip_soft` rewrite memory
+entries (they remove line breaks the source never had) and `tm2_drop_same_lang`
+deletes entries whose source and target language are equal — the same cleanups
+Alembic-managed installs received in 1.13.4 and 1.14.0.
 
 Subtitle files that were already written in the wrong language are **not**
 changed automatically. List them with a dry run, then apply:

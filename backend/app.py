@@ -364,6 +364,14 @@ def create_app(testing=False):
             # Pre-Alembic DB: patch any columns that were added via Alembic migrations
             # but are missing because create_all() is a no-op on existing tables.
             _patch_pre_alembic_columns(sa_db.engine, _inspect)
+            # Data migrations never reach this branch through Alembic; apply
+            # each one exactly once here (VM test of 1.14.3-rc.2).
+            try:
+                from db.untracked_data_repairs import apply_untracked_data_repairs
+
+                apply_untracked_data_repairs(sa_db.engine)
+            except Exception as _e:
+                logger.warning("Untracked DB data repairs skipped: %s", _e, exc_info=True)
         else:
             # Run pending Alembic migrations automatically so new columns are always present
             try:
