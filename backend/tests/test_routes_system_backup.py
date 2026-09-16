@@ -309,10 +309,9 @@ class TestRestoreBackup:
         data = rv.get_json()
         assert data["error"] == "Invalid filename"
 
-    @patch("db.get_db")
-    @patch("db.close_db")
+    @patch("services.database_restore.refresh_after_restore")
     @patch("database_backup.DatabaseBackup")
-    def test_restore_success(self, mock_backup_class, mock_close, mock_get_db, client, tmp_path):
+    def test_restore_success(self, mock_backup_class, mock_refresh, client, tmp_path):
         """Successful restore with a valid filename that passes path validation."""
         mock_instance = MagicMock()
         mock_instance.restore_backup.return_value = {
@@ -337,8 +336,10 @@ class TestRestoreBackup:
         assert rv.status_code == 200
         data = rv.get_json()
         assert "restored_from" in data
-        mock_close.assert_called_once()
-        mock_get_db.assert_called_once()
+        # The old db.close_db()/get_db() calls were no-ops (see
+        # test_restore_reliability); what must happen is the post-restore refresh.
+        mock_instance.restore_backup.assert_called_once()
+        mock_refresh.assert_called_once()
 
     def test_restore_empty_json_body(self, client):
         """Empty JSON object triggers 'filename is required' error."""
@@ -585,20 +586,14 @@ class TestRestoreFullBackup:
         # Masked values must be skipped
         assert "some_field" not in imported
 
-    @patch("config.reload_settings")
-    @patch("db.config.get_all_config_entries", return_value={})
+    @patch("services.database_restore.refresh_after_restore")
     @patch("db.config.save_config_entry")
-    @patch("db.get_db")
-    @patch("db.close_db")
     @patch("database_backup.DatabaseBackup")
     def test_restore_full_with_db(
         self,
         mock_backup_class,
-        mock_close_db,
-        mock_get_db,
         mock_save,
-        mock_get_all,
-        mock_reload,
+        mock_refresh,
         client,
     ):
         """Restore a ZIP with both config and DB -- DB restore is called."""
@@ -630,9 +625,8 @@ class TestRestoreFullBackup:
         resp = rv.get_json()
         assert resp["status"] == "restored"
         assert resp["db_restored"] is True
-        mock_close_db.assert_called_once()
-        mock_get_db.assert_called_once()
         mock_instance.restore_backup.assert_called_once()
+        mock_refresh.assert_called_once()
 
     def test_restore_full_invalid_json_in_manifest(self, client):
         """ZIP with corrupt manifest.json returns 400."""

@@ -244,15 +244,22 @@ def restore_full_backup():
           description: Invalid or missing file
     """
     from archive_utils import safe_read_zip_member
-    from config import Settings, get_settings, reload_settings
+    from config import Settings, get_settings
     from database_backup import DatabaseBackup
-    from db import close_db, get_db
-    from db.config import get_all_config_entries, save_config_entry
+    from db.config import save_config_entry
+    from services.database_restore import refresh_after_restore, running_job_count
 
     if "file" not in request.files:
         return jsonify({"error": "No file uploaded. Use multipart/form-data with key 'file'"}), 400
 
     file = request.files["file"]
+
+    # Replacing the data under a running job lets it write its pre-restore view
+    # back. Checked before anything — including the master key — is touched.
+    if running_job_count():
+        return jsonify(
+            {"error": "Jobs are running — wait for them to finish before restoring"}
+        ), 409
 
     # Validate ZIP
     file_stream = io.BytesIO(file.read())
@@ -310,27 +317,14 @@ def restore_full_backup():
                 key_touched = True
 
             try:
-                # Import config if present
-                if "config.json" in zf.namelist():
-                    config_data = json.loads(safe_read_zip_member(zf, "config.json"))
-                    valid_keys = (
-                        set(Settings.model_fields.keys())
-                        if hasattr(Settings, "model_fields")
-                        else set()
-                    )
-                    # Same derivation as the config-import path — see
-                    # routes/config/io.py. Enumerating these by hand let the
-                    # list drift behind newly added providers.
-                    secret_keys = _secret_import_keys()
-
-                    for key, value in config_data.items():
-                        if key in secret_keys:
-                            continue
-                        if str(value) == "***configured***":
-                            continue
-                        if not valid_keys or key in valid_keys:
-                            save_config_entry(key, str(value))
-                            imported_keys.append(key)
+                # Parse config.json up front: a corrupt member must fail before
+                # the database is replaced, not after (the key rollback below
+                # would otherwise pair the old key with the restored database).
+                config_data = (
+                    json.loads(safe_read_zip_member(zf, "config.json"))
+                    if "config.json" in zf.namelist()
+                    else None
+                )
 
                 # Restore DB if present (dialect-aware via manifest)
                 backup_backend = manifest.get("db_backend", "sqlite")
@@ -350,31 +344,39 @@ def restore_full_backup():
 
                     try:
                         backup = DatabaseBackup(db_path=s.db_path, backup_dir=s.backup_dir)
-                        close_db()
                         backup.restore_backup(tmp_path)
-                        get_db()
                         db_restored = True
                     finally:
                         with contextlib.suppress(OSError):
                             os.unlink(tmp_path)
 
-                # Reload settings with DB overrides
-                all_overrides = get_all_config_entries()
-                reload_settings(all_overrides)
+                # Import config only after the database restore succeeded: it
+                # used to run first, so a failing database left a half-imported
+                # configuration behind an error response.
+                # Import config if present
+                if config_data is not None:
+                    valid_keys = (
+                        set(Settings.model_fields.keys())
+                        if hasattr(Settings, "model_fields")
+                        else set()
+                    )
+                    # Same derivation as the config-import path — see
+                    # routes/config/io.py. Enumerating these by hand let the
+                    # list drift behind newly added providers.
+                    secret_keys = _secret_import_keys()
 
-                # Invalidate caches
-                try:
-                    from mediaserver import invalidate_media_server_manager as _inv_media
-                    from providers import invalidate_manager as _inv_providers
-                    from radarr_client import invalidate_client as _inv_radarr
-                    from sonarr_client import invalidate_client as _inv_sonarr
+                    for key, value in config_data.items():
+                        if key in secret_keys:
+                            continue
+                        if str(value) == "***configured***":
+                            continue
+                        if not valid_keys or key in valid_keys:
+                            save_config_entry(key, str(value))
+                            imported_keys.append(key)
 
-                    _inv_sonarr()
-                    _inv_radarr()
-                    _inv_media()
-                    _inv_providers()
-                except Exception as exc:
-                    logger.warning("Cache invalidation failed after backup restore: %s", exc)
+                # Settings, API clients and the GET response cache still hold
+                # the pre-restore state.
+                refresh_after_restore()
 
                 logger.info("Full backup restored: config=%s, db=%s", imported_keys, db_restored)
 

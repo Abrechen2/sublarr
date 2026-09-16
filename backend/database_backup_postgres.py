@@ -12,6 +12,7 @@ Extracted from database_backup.py. Provides:
 import contextlib
 import logging
 import os
+import re
 import subprocess
 from datetime import UTC, datetime
 from urllib.parse import urlparse
@@ -54,6 +55,23 @@ def _get_database_url() -> str:
         return get_settings().get_database_url()
     except Exception:
         return ""
+
+
+def _server_major_version() -> int | None:
+    """Major version of the connected PostgreSQL server, or None if unknown."""
+    try:
+        from sqlalchemy import text
+
+        from extensions import db
+
+        with db.engine.connect() as conn:
+            return int(conn.execute(text("SHOW server_version_num")).scalar()) // 10000
+    except Exception as exc:  # noqa: BLE001 — unknown version skips only the version check
+        logger.debug("Could not read PostgreSQL server version: %s", exc)
+        return None
+
+
+_DUMPED_BY = re.compile(r"Dumped by pg_dump version:\s*(\d+)")
 
 
 class _PostgresBackupMixin:
@@ -138,13 +156,54 @@ class _PostgresBackupMixin:
             "backend": "postgresql",
         }
 
+    def _check_pg_archive(self, backup_path: str) -> None:
+        """Refuse an archive that cannot be restored here — before anything changes.
+
+        ``pg_restore --list`` reads only the archive, so a corrupt dump fails
+        here instead of half-way through a restore. A dump written by a newer
+        pg_dump than the server's major version carries settings the server
+        does not know (pg_dump 17 against PostgreSQL 16: ``SET
+        transaction_timeout``), so it is rejected with the versions named.
+        """
+        try:
+            listing = subprocess.run(
+                ["pg_restore", "--list", backup_path],
+                capture_output=True,
+                text=True,
+                timeout=120,
+            )
+        except (OSError, subprocess.TimeoutExpired) as exc:
+            raise DatabaseRestoreError(
+                f"Could not read PostgreSQL backup: {exc}",
+                context={"backup_path": backup_path},
+            ) from exc
+        if listing.returncode != 0:
+            raise DatabaseRestoreError(
+                "Backup file is not a readable PostgreSQL archive — nothing was changed",
+                context={"backup_path": backup_path, "stderr": listing.stderr.strip()},
+            )
+        match = _DUMPED_BY.search(listing.stdout or "")
+        server_major = _server_major_version()
+        if match and server_major is not None and int(match.group(1)) > server_major:
+            raise DatabaseRestoreError(
+                f"Backup was written by pg_dump {match.group(1)} and cannot be restored into "
+                f"PostgreSQL {server_major} — nothing was changed",
+                context={"backup_path": backup_path},
+                troubleshooting=(
+                    "Restore it with pg_restore from the same PostgreSQL major version as the "
+                    "server, or upgrade the server."
+                ),
+            )
+
     def _restore_postgresql(self, backup_path: str) -> dict:
-        """Restore a PostgreSQL backup using pg_restore."""
+        """Restore a PostgreSQL backup using pg_restore, atomically."""
         database_url = _get_database_url()
         if not database_url:
             raise DatabaseRestoreError(
                 "No database URL configured for PostgreSQL restore",
             )
+
+        self._check_pg_archive(backup_path)
 
         pg = _parse_pg_url(database_url)
         env = os.environ.copy()
@@ -162,6 +221,10 @@ class _PostgresBackupMixin:
             pg["dbname"],
             "--clean",
             "--if-exists",
+            # One transaction, stop at the first error: a failing restore
+            # leaves the database exactly as it was.
+            "--single-transaction",
+            "--exit-on-error",
             backup_path,
         ]
 
@@ -173,8 +236,10 @@ class _PostgresBackupMixin:
                 text=True,
                 timeout=300,
             )
-            # pg_restore returns non-zero for warnings too; check stderr for errors
-            if result.returncode != 0 and "ERROR" in result.stderr:
+            # With --exit-on-error any non-zero exit is a failure. Matching an
+            # upper-case "ERROR" missed pg_restore's lower-case "error:" and
+            # reported a corrupt dump as restored.
+            if result.returncode != 0:
                 raise DatabaseRestoreError(
                     f"pg_restore failed (exit {result.returncode}): {result.stderr}",
                     context={"backup_path": backup_path, "stderr": result.stderr},

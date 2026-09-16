@@ -196,10 +196,12 @@ def restore_backup():
                     type: string
         400:
           description: Missing filename or confirmation
+        409:
+          description: Jobs are running; restore refused
     """
     from config import get_settings
     from database_backup import DatabaseBackup
-    from db import close_db, get_db
+    from services.database_restore import refresh_after_restore, running_job_count
 
     data = request.get_json() or {}
     filename = data.get("filename", "")
@@ -219,12 +221,12 @@ def restore_backup():
     if not os.path.abspath(backup_path).startswith(os.path.abspath(s.backup_dir) + os.sep):
         return jsonify({"error": "Invalid filename"}), 400
 
-    # Close the current connection before restore
-    close_db()
+    if running_job_count():
+        return jsonify(
+            {"error": "Jobs are running — wait for them to finish before restoring"}
+        ), 409
 
     result = backup.restore_backup(backup_path)
-
-    # Re-open connection
-    get_db()
+    refresh_after_restore()
 
     return jsonify(result)

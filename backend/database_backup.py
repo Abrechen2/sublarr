@@ -227,7 +227,12 @@ class DatabaseBackup(_PostgresBackupMixin):
                 f"Could not create safety backup: {exc}",
             ) from exc
 
-        # Replace database
+        # Replace database. Every pooled connection must be closed first: the
+        # routes used to call db.close_db(), a no-op, and the swap under open
+        # connections left "disk I/O error" behind a reported success.
+        from services.database_restore import release_db_connections
+
+        release_db_connections()
         try:
             shutil.copy2(backup_path, self.db_path)
             # Remove WAL and SHM files to force clean state
