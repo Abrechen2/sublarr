@@ -126,7 +126,7 @@ class _StandaloneProcessMixin:
 
             for target_lang in target_languages:
                 existing = self._check_existing_subtitle(file_path, target_lang)
-                if existing == "ass":
+                if self._language_satisfied(file_path, target_lang, existing):
                     continue  # Goal achieved
 
                 ep_title = resolved_title
@@ -226,7 +226,7 @@ class _StandaloneProcessMixin:
 
         for target_lang in target_languages:
             existing = self._check_existing_subtitle(file_path, target_lang)
-            if existing == "ass":
+            if self._language_satisfied(file_path, target_lang, existing):
                 continue
 
             upsert_wanted_item(
@@ -361,7 +361,7 @@ class _StandaloneProcessMixin:
 
                 for target_lang in target_languages:
                     existing = self._check_existing_subtitle(file_path, target_lang)
-                    if existing == "ass":
+                    if self._language_satisfied(file_path, target_lang, existing):
                         continue
 
                     ep_title = resolved_title

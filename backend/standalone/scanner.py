@@ -71,6 +71,26 @@ def get_scanner() -> "StandaloneScanner":
     return _scanner_singleton
 
 
+_PROBEABLE_CONTAINERS = (".mkv", ".mp4", ".m4v")
+
+
+def _probe_embedded_tracks(file_path: str) -> dict | None:
+    """Cached ffprobe data when embedded tracks may count, else None."""
+    from config import get_settings
+
+    if not getattr(get_settings(), "use_embedded_subs", False):
+        return None
+    if not file_path.lower().endswith(_PROBEABLE_CONTAINERS):
+        return None
+    try:
+        from ass_probe import get_media_streams
+
+        return get_media_streams(file_path, use_cache=True)
+    except Exception as e:
+        logger.debug("ffprobe failed for %s: %s", file_path, e)
+        return None
+
+
 class StandaloneScanner(_StandaloneProcessMixin):
     """Scans watched folders for video files, resolves metadata, and populates wanted_items.
 
@@ -481,20 +501,71 @@ class StandaloneScanner(_StandaloneProcessMixin):
     def _check_existing_subtitle(self, file_path: str, target_lang: str) -> str | None:
         """Check if a target language subtitle already exists for a file.
 
+        Embedded tracks count when ``use_embedded_subs`` is on, the same rule
+        as the Sonarr/Radarr scanner (``_check_language_for_item``). Until
+        Forgejo #36 only sidecars counted here, so a file with an embedded
+        target ASS was still searched at providers.
+
         Args:
             file_path: Path to the video file.
             target_lang: Target language code.
 
         Returns:
-            "ass" if ASS found, "srt" if SRT found, None if nothing found.
+            "ass" for a sidecar ASS, "embedded_ass" for an embedded ASS, "srt"
+            for a sidecar SRT, "embedded_srt" for only an embedded SRT, None if
+            nothing found. Use ``_language_satisfied`` to decide on the result.
         """
         try:
+            from ass_probe import has_target_language_stream
             from translator import detect_existing_target_for_lang
 
-            return detect_existing_target_for_lang(file_path, target_lang)
+            sidecar = detect_existing_target_for_lang(file_path, target_lang)
+            if sidecar == "ass":
+                return "ass"
+            probe_data = _probe_embedded_tracks(file_path)
+            embedded = has_target_language_stream(probe_data, target_lang) if probe_data else None
+            if embedded == "ass":
+                return "embedded_ass"
+            if sidecar:
+                return sidecar
+            return "embedded_srt" if embedded == "srt" else None
         except Exception as e:
             logger.debug("Could not check existing subs for %s: %s", file_path, e)
             return None
+
+    def _language_satisfied(self, file_path: str, target_lang: str, existing: str | None) -> bool:
+        """Whether ``existing`` means no wanted item is needed for this language.
+
+        A row created before embedded tracks counted (Forgejo #36) would
+        otherwise stay wanted and keep being searched: the cleanup pass only
+        looks at sidecars. So when an EMBEDDED ASS satisfies the language, a
+        leftover row is dropped here, where the file was just probed anyway.
+        A provisional row is kept — it tracks a machine translation still
+        seeking its original. A sidecar ASS drops nothing, for the same reason.
+        """
+        if existing == "embedded_ass":
+            self._drop_stale_wanted(file_path, target_lang)
+            return True
+        return existing == "ass"
+
+    def _drop_stale_wanted(self, file_path: str, target_lang: str) -> None:
+        try:
+            from db.repositories.wanted import WantedRepository
+            from db.wanted import delete_wanted_item
+
+            item = WantedRepository().get_wanted_by_file_path(
+                file_path, target_language=target_lang, subtitle_type="full"
+            )
+            if item and item.get("status") != "provisional":
+                delete_wanted_item(item["id"])
+                logger.info(
+                    "Standalone: embedded %s track satisfies %s — dropped wanted item %s",
+                    target_lang,
+                    file_path,
+                    item["id"],
+                )
+        except Exception as e:
+            logger.debug("Could not drop stale wanted item for %s: %s", file_path, e)
 
     # Matches typical season subfolder names: Season 1, Staffel 2, Saison 3, S01, etc.
     _SEASON_FOLDER_RE = re.compile(
