@@ -33,6 +33,7 @@ vi.mock('@/hooks/useApi', () => ({
   useInfiniteWantedItems: () => ({ data: undefined, fetchNextPage: vi.fn(), hasNextPage: false, isFetchingNextPage: false }),
   useMtPendingItems: () => ({ data: { data: [], total: mockMtPendingTotal }, isLoading: false, isError: false }),
   useApproveMtPending: () => ({ mutate: vi.fn(), isPending: false }),
+  useApproveMtPendingBatch: () => ({ mutate: vi.fn(), isPending: false }),
   useRejectMtPending: () => ({ mutate: vi.fn(), isPending: false }),
 }))
 
