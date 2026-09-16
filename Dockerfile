@@ -146,4 +146,8 @@ ENTRYPOINT ["/usr/local/bin/docker-entrypoint.sh"]
 # API key may travel as ?apikey= (auth.py) — so the default would write the
 # key in clear text to every log line and every support bundle. %(U)s drops
 # the query; the path alone is what a request trace needs.
-CMD ["gunicorn", "--bind", "0.0.0.0:5765", "--worker-class", "gthread", "--workers", "1", "--threads", "4", "--timeout", "7200", "--graceful-timeout", "15", "--access-logfile", "-", "--access-logformat", "%(h)s %(t)s \"%(m)s %(U)s\" %(s)s %(b)s %(D)sus", "app:create_app()"]
+# Each Socket.IO long poll holds a gthread for up to 25 seconds. Four threads
+# allow four browser connections to starve every API request, even /health.
+# Use the threaded Flask-SocketIO deployment recommendation (100 threads).
+# Keep one process: the scheduler and Socket.IO session state are process-local.
+CMD ["gunicorn", "--bind", "0.0.0.0:5765", "--worker-class", "gthread", "--workers", "1", "--threads", "100", "--timeout", "7200", "--graceful-timeout", "15", "--access-logfile", "-", "--access-logformat", "%(h)s %(t)s \"%(m)s %(U)s\" %(s)s %(b)s %(D)sus", "app:create_app()"]

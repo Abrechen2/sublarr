@@ -90,6 +90,12 @@ services:
         PUID: ${PUID:-1000}
         PGID: ${PGID:-1000}
     command: ["python", "worker.py"]
+    healthcheck:
+      test: ["CMD", "python", "worker_health.py"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
     depends_on:
       redis:
         condition: service_healthy
