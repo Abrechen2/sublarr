@@ -87,79 +87,61 @@ def _resolve_min_original_score(profile: dict | None) -> int:
         return 1
 
 
-def _trash_existing_mt_file(path: str) -> None:
-    """Move the superseded MT sidecar into the recoverable trash.
+def _replace_original(item: dict, preview: dict) -> bool:
+    """Install the genuine original in place of the machine translation.
 
-    The normal save path (``providers.download_manager.save_subtitle`` ->
-    ``utils.atomic_write.atomic_write_bytes``) is a raw atomic OVERWRITE, not a
-    trash-and-replace — verified empirically while building this feature (see
-    docs/plans/2026-07-05-provisional-mt-phase2-reseek.md, Task 2). Without
-    this step the MT bytes would be silently clobbered in place with no
-    recovery path when ``auto_replace`` installs the real original at the same
-    path. No-ops when the file is already gone (nothing to trash).
+    Returns whether an original was installed. Used by ``auto_replace`` and by
+    the approve route.
+
+    The MT sidecars are moved to the recoverable trash first — the normal save
+    path is a raw atomic overwrite, so a same-format original would otherwise
+    clobber the MT with no way back — and the search is re-run for real
+    (``dry_run=False``) so the unmodified success path (download -> save ->
+    record -> delete the wanted item) runs exactly as for any other search.
+
+    Success is judged by the disk, not the status alone (see
+    ``mt_sidecars.original_installed``). Anything else puts the MT back: a
+    preview that does not reproduce, an error, or an exception. The episode is
+    never left without the subtitle it had.
     """
-    import os
-
-    from config import get_settings
-    from services.sidecar_trash import get_batch_dir, trash_sidecar
-
-    if not path or not os.path.exists(path):
-        return
-
-    settings = get_settings()
-    media_path = getattr(settings, "media_path", "") or os.path.dirname(path)
-    batch_id = f"mt-reseek-{datetime.now(UTC):%Y%m%d%H%M%S%f}"
-    batch_dir = get_batch_dir(media_path, batch_id)
-
-    trashed_path, err = trash_sidecar(path, media_path, batch_dir)
-    if err:
-        logger.warning("mt_reseek: could not trash superseded MT sidecar %s: %s", path, err)
-    else:
-        logger.info("mt_reseek: trashed superseded MT sidecar %s -> %s", path, trashed_path)
-
-
-def _replace_original(item: dict, preview: dict) -> None:
-    """``mt_on_original_found == "auto_replace"``: install the genuine
-    original in place of the MT.
-
-    The preview call (``dry_run=True``) already confirmed a qualifying
-    candidate exists at ``preview["output_path"]`` without writing anything.
-    Trash the superseded MT sidecar there FIRST (see
-    ``_trash_existing_mt_file``), then re-run the search for real
-    (``dry_run=False``) — this repeats the provider search/download once more,
-    but it is the only way to let the normal, unmodified success path
-    (download -> save -> record -> delete the wanted item) run to completion
-    exactly as it would for any other successful search.
-    """
-    item_id = item.get("id")
-    output_path = preview.get("output_path")
-    if output_path:
-        _trash_existing_mt_file(output_path)
-
+    from services import mt_sidecars
     from wanted_search import process_wanted_item
 
-    result = process_wanted_item(
-        item_id, auto_translate=False, dry_run=False, bypass_existing_target_check=True
-    )
-    if result and result.get("status") == "found":
+    item_id = item.get("id")
+    moved = mt_sidecars.retire(mt_sidecars.mt_sidecar_paths(item, preview.get("output_path")))
+    before = mt_sidecars.target_sidecars(item)
+
+    try:
+        result = process_wanted_item(
+            item_id, auto_translate=False, dry_run=False, bypass_existing_target_check=True
+        )
+    except Exception:
+        logger.exception("mt_reseek: install for wanted %s raised — checking the disk", item_id)
+        result = None
+
+    if mt_sidecars.original_installed(result, before, mt_sidecars.target_sidecars(item), moved):
         logger.info(
-            "mt_reseek: auto_replace installed a genuine original for wanted %s via %s (score=%s)",
+            "mt_reseek: installed a genuine original for wanted %s via %s (status=%s, score=%s)",
             item_id,
-            result.get("provider"),
+            (result or {}).get("provider"),
+            (result or {}).get("status"),
             preview.get("score"),
         )
-    else:
-        # Rare race: the preview found something a moment ago but the real
-        # (second) search came up empty or failed. Nothing was trashed-and-
-        # left-orphaned since the MT copy is safely in the trash batch —
-        # treat it as a miss so the next pass tries again.
-        logger.warning(
-            "mt_reseek: auto_replace re-run for wanted %s did not reproduce the preview "
-            "result (status=%s) — will retry on the next pass",
-            item_id,
-            result.get("status") if result else None,
-        )
+        return True
+
+    mt_sidecars.restore(moved)
+    logger.warning(
+        "mt_reseek: install for wanted %s did not reproduce the preview (status=%s) — "
+        "machine translation kept",
+        item_id,
+        result.get("status") if result else None,
+    )
+    # Only the re-seek job's own items go back to provisional. An approve on a
+    # wanted item keeps the status the search just set, so the normal wanted
+    # search (and translation as the last resort) still reaches it.
+    if item.get("status") == "provisional":
         _mark_reseek_miss(item_id)
+    return False
 
 
 def _record_pending_notification(item: dict, preview: dict) -> None:

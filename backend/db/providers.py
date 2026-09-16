@@ -151,6 +151,11 @@ def record_subtitle_download(
     return result
 
 
+def get_machine_translation_formats(video_path: str, language: str) -> list[str]:
+    """Formats of the machine translations recorded for this video and language."""
+    return _get_repo().get_machine_translation_formats(video_path, language)
+
+
 def get_latest_download_id(file_path: str) -> int | None:
     """Return the DB id of the most recent download for this file path."""
     return _get_repo().get_latest_download_id(file_path)

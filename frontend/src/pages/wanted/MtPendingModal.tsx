@@ -33,7 +33,15 @@ export function MtPendingModal({ open, onClose }: MtPendingModalProps) {
   const handleApprove = (itemId: number) => {
     approve.mutate(itemId, {
       onSuccess: () => toast(t('mt_pending.approve_success'), 'success'),
-      onError: () => toast(t('mt_pending.approve_failed'), 'error'),
+      onError: (err: unknown) => {
+        // 409: the original could not be installed and the backend put the
+        // machine translation back — say so, the generic text implies loss.
+        const status = (err as { response?: { status?: number } }).response?.status
+        toast(
+          t(status === 409 ? 'mt_pending.approve_not_installed' : 'mt_pending.approve_failed'),
+          'error',
+        )
+      },
     })
   }
 

@@ -565,6 +565,7 @@
     "reject": "Ablehnen",
     "approve_success": "Original genehmigt — wird installiert…",
     "approve_failed": "Original konnte nicht genehmigt werden",
+    "approve_not_installed": "Original gerade nicht verfügbar — die Maschinenübersetzung bleibt erhalten",
     "reject_success": "Maschinenübersetzung beibehalten",
     "reject_failed": "Original konnte nicht abgelehnt werden",
     "loading": "Lädt…",

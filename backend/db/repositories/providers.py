@@ -192,6 +192,23 @@ class ProviderRepository(BaseRepository):
             return None
         return entry.decision_log_json
 
+    def get_machine_translation_formats(self, video_path: str, language: str) -> list[str]:
+        """Formats of the machine translations recorded for this video and language.
+
+        MT rows are keyed by the VIDEO path (``record_mt_output``), so the
+        sidecar itself is ``<video base>.<language>.<format>``.
+        """
+        stmt = (
+            select(SubtitleDownload.format)
+            .where(
+                SubtitleDownload.file_path == video_path,
+                SubtitleDownload.language == language,
+                SubtitleDownload.source == "machine_translation",
+            )
+            .distinct()
+        )
+        return sorted(fmt for fmt in self.session.execute(stmt).scalars() if fmt)
+
     def get_latest_download_id(self, file_path: str) -> int | None:
         """Return the id of the most recent SubtitleDownload for this file, or None."""
         from sqlalchemy import desc, select

@@ -129,6 +129,8 @@ def approve_mt_pending(item_id):
           description: Item has no pending original
         404:
           description: Item not found
+        409:
+          description: Original could not be installed; machine translation kept
     """
     from services.mt_reseek import _replace_original
 
@@ -140,11 +142,20 @@ def approve_mt_pending(item_id):
     if payload is None:
         return jsonify({"error": "No pending original for this item"}), 400
 
-    _replace_original(item, payload)
-    # Consumed either way: on success the wanted row is deleted by the normal
-    # success path (this is then a harmless no-op); on the rare race where the
-    # candidate doesn't reproduce, the stale marker must not linger either —
-    # the next re-seek pass will record a fresh one if it finds another.
+    if not _replace_original(item, payload):
+        # Nothing was installed and the machine translation is back in place.
+        # Keep the marker so the approve can be retried from the modal.
+        return (
+            jsonify(
+                {
+                    "error": "Original could not be installed; machine translation kept",
+                    "id": item_id,
+                }
+            ),
+            409,
+        )
+    # On success the wanted row is deleted by the normal success path; this is
+    # then a harmless no-op.
     set_mt_pending_original(item_id, None)
 
     return jsonify({"status": "approved", "id": item_id})

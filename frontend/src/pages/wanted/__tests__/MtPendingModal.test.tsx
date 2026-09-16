@@ -82,6 +82,32 @@ describe('MtPendingModal', () => {
     expect(mockToast).toHaveBeenCalledWith(expect.any(String), 'success')
   })
 
+  it('says the machine translation was kept when the original could not be installed', () => {
+    mockQueryState = { data: { data: [SAMPLE_ITEM], total: 1 }, isLoading: false, isError: false }
+    mockApproveMutate.mockImplementation((_id, opts) =>
+      opts?.onError?.({ response: { status: 409 } }),
+    )
+    render(<MtPendingModal open onClose={vi.fn()} />)
+    fireEvent.click(screen.getByTestId('mt-pending-approve-42'))
+    expect(mockToast).toHaveBeenCalledWith(
+      expect.stringMatching(/machine translation was kept/i),
+      'error',
+    )
+  })
+
+  it('shows the generic failure toast for other approve errors', () => {
+    mockQueryState = { data: { data: [SAMPLE_ITEM], total: 1 }, isLoading: false, isError: false }
+    mockApproveMutate.mockImplementation((_id, opts) =>
+      opts?.onError?.({ response: { status: 500 } }),
+    )
+    render(<MtPendingModal open onClose={vi.fn()} />)
+    fireEvent.click(screen.getByTestId('mt-pending-approve-42'))
+    expect(mockToast).toHaveBeenCalledWith(
+      expect.stringMatching(/Could not approve the original/i),
+      'error',
+    )
+  })
+
   it('calls rejectMtPending and shows a success toast on Reject click', () => {
     mockQueryState = { data: { data: [SAMPLE_ITEM], total: 1 }, isLoading: false, isError: false }
     mockRejectMutate.mockImplementation((_id, opts) => opts?.onSuccess?.())

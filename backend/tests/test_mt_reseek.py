@@ -331,39 +331,46 @@ def test_on_original_found_below_min_score_is_treated_as_miss(monkeypatch):
 # ── Task 2: _replace_original (auto_replace) ────────────────────────────────
 
 
-def test_replace_original_trashes_then_reruns_for_real(monkeypatch):
+def test_replace_original_retires_mt_then_reruns_for_real(monkeypatch):
     from services.mt_reseek import _replace_original
 
-    trash_calls = []
+    order = []
     monkeypatch.setattr(
-        "services.mt_reseek._trash_existing_mt_file", lambda path: trash_calls.append(path)
+        "services.mt_sidecars.mt_sidecar_paths",
+        lambda item, fallback: ["/media/show/ep.de.ass"],
     )
-
-    process_calls = []
+    monkeypatch.setattr(
+        "services.mt_sidecars.retire",
+        lambda paths: order.append(("retire", paths)) or [],
+    )
 
     def fake_process(
         item_id, auto_translate=None, dry_run=False, bypass_existing_target_check=False
     ):
-        process_calls.append((item_id, auto_translate, dry_run, bypass_existing_target_check))
+        order.append(("process", item_id, auto_translate, dry_run, bypass_existing_target_check))
         return {"wanted_id": item_id, "status": "found", "provider": "real_provider"}
 
     monkeypatch.setattr("wanted_search.process_wanted_item", fake_process)
 
-    item = {"id": 11}
     preview = _preview(output_path="/media/show/ep.de.ass")
-    _replace_original(item, preview)
+    assert _replace_original({"id": 11}, preview) is True
 
-    # Trash happens BEFORE the real (non-preview) write.
-    assert trash_calls == ["/media/show/ep.de.ass"]
-    assert process_calls == [(11, False, False, True)]
+    # The MT is moved aside BEFORE the real (non-preview) write.
+    assert order == [
+        ("retire", ["/media/show/ep.de.ass"]),
+        ("process", 11, False, False, True),
+    ]
 
 
 def test_replace_original_miss_on_second_pass_marks_reseek_miss(monkeypatch):
     """Rare race: the preview found something but the real re-run came up
-    empty. The MT copy is already safely trashed — treat it as a miss."""
+    empty. The MT is put back and the item is treated as a miss."""
     from services.mt_reseek import _replace_original
 
-    monkeypatch.setattr("services.mt_reseek._trash_existing_mt_file", lambda path: None)
+    monkeypatch.setattr("services.mt_sidecars.mt_sidecar_paths", lambda item, fallback: [])
+    monkeypatch.setattr("services.mt_sidecars.target_sidecars", lambda item: set())
+    restored = []
+    monkeypatch.setattr("services.mt_sidecars.restore", lambda moved: restored.append(moved))
     monkeypatch.setattr(
         "wanted_search.process_wanted_item",
         lambda *a, **kw: {"wanted_id": 11, "status": "not_found"},
@@ -373,9 +380,10 @@ def test_replace_original_miss_on_second_pass_marks_reseek_miss(monkeypatch):
         "services.mt_reseek._mark_reseek_miss", lambda item_id: miss_calls.append(item_id)
     )
 
-    _replace_original({"id": 11}, _preview())
+    assert _replace_original({"id": 11, "status": "provisional"}, _preview()) is False
 
     assert miss_calls == [11]
+    assert restored == [[]]
 
 
 # ── Task 2: _record_pending_notification (notify) ───────────────────────────

@@ -565,6 +565,7 @@
     "reject": "Reject",
     "approve_success": "Original approved — installing…",
     "approve_failed": "Could not approve the original",
+    "approve_not_installed": "Original is not available right now — the machine translation was kept",
     "reject_success": "Kept the machine translation",
     "reject_failed": "Could not reject the original",
     "loading": "Loading…",

@@ -136,7 +136,7 @@ def test_approve_calls_replace_original_and_clears_pending(app_and_client, monke
     calls = []
     monkeypatch.setattr(
         "services.mt_reseek._replace_original",
-        lambda itm, payload: calls.append((itm, payload)),
+        lambda itm, payload: calls.append((itm, payload)) or True,
     )
 
     resp = client.post(f"/api/v1/wanted/{item_id}/mt-pending/approve")
