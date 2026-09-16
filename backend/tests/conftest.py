@@ -221,18 +221,6 @@ Dialogue: 0,0:00:01.00,0:00:03.00,Default,,0,0,0,,Test subtitle line
 
 
 @pytest.fixture
-def mock_ollama(monkeypatch):
-    """Mock the Ollama client (translate_all returns identity translations)."""
-    from unittest.mock import MagicMock
-
-    mock_client = MagicMock()
-    mock_client.return_value = ["translated line 1", "translated line 2"]
-
-    monkeypatch.setattr("ollama_client.translate_all", mock_client)
-    return mock_client
-
-
-@pytest.fixture
 def mock_provider_manager(monkeypatch):
     """Mock the ProviderManager singleton."""
     from unittest.mock import MagicMock
