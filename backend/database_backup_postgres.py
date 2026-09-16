@@ -71,6 +71,42 @@ def _server_major_version() -> int | None:
         return None
 
 
+#: Where Debian/PGDG install versioned clients: <root>/<major>/bin/pg_dump.
+#: The image ships 15, 16 and 17 (owner decision 2026-09-16) so a backup is
+#: written — and restored — by the same major version as the server. The
+#: Debian default client alone was 17: a PostgreSQL 16 server's in-app backup
+#: could not be restored into that server.
+PG_LIB_ROOT = "/usr/lib/postgresql"
+
+
+def _pg_binary(tool: str, server_major: int | None) -> str:
+    """Path of ``tool`` best matching ``server_major``.
+
+    Exact major if installed, else the next newer one (pg_dump refuses a server
+    newer than itself), else the newest available. ``server_major=None``
+    asks for the newest (``pg_restore --list`` reads any older archive).
+    Without versioned installs (dev, tests) the tool from PATH is used.
+    """
+    try:
+        majors = sorted(
+            int(name)
+            for name in os.listdir(PG_LIB_ROOT)
+            if name.isdigit() and os.path.isfile(os.path.join(PG_LIB_ROOT, name, "bin", tool))
+        )
+    except OSError:
+        majors = []
+    if not majors:
+        return tool
+    if server_major is None:
+        chosen = majors[-1]
+    elif server_major in majors:
+        chosen = server_major
+    else:
+        newer = [m for m in majors if m > server_major]
+        chosen = newer[0] if newer else majors[-1]
+    return os.path.join(PG_LIB_ROOT, str(chosen), "bin", tool)
+
+
 _DUMPED_BY = re.compile(r"Dumped by pg_dump version:\s*(\d+)")
 
 
@@ -98,7 +134,7 @@ class _PostgresBackupMixin:
         env["PGPASSWORD"] = pg["password"]
 
         cmd = [
-            "pg_dump",
+            _pg_binary("pg_dump", _server_major_version()),
             "-h",
             pg["host"],
             "-p",
@@ -167,7 +203,7 @@ class _PostgresBackupMixin:
         """
         try:
             listing = subprocess.run(
-                ["pg_restore", "--list", backup_path],
+                [_pg_binary("pg_restore", None), "--list", backup_path],
                 capture_output=True,
                 text=True,
                 timeout=120,
@@ -210,7 +246,7 @@ class _PostgresBackupMixin:
         env["PGPASSWORD"] = pg["password"]
 
         cmd = [
-            "pg_restore",
+            _pg_binary("pg_restore", _server_major_version()),
             "-h",
             pg["host"],
             "-p",

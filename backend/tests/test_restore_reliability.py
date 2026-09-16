@@ -278,3 +278,68 @@ def test_any_nonzero_pg_restore_exit_is_a_failure(pg_backup, monkeypatch):
 
     with pytest.raises(DatabaseRestoreError):
         backup.restore_backup(dump)
+
+
+# ── PostgreSQL client matching the server's major version (owner option B) ───
+
+
+@pytest.fixture
+def pg_lib(tmp_path, monkeypatch):
+    """A fake /usr/lib/postgresql with clients 15, 16 and 17 installed."""
+    import database_backup_postgres as pgmod
+
+    root = tmp_path / "pglib"
+    for major in (15, 16, 17):
+        bindir = root / str(major) / "bin"
+        bindir.mkdir(parents=True)
+        for tool in ("pg_dump", "pg_restore"):
+            (bindir / tool).write_text("#!/bin/sh\n")
+    monkeypatch.setattr(pgmod, "PG_LIB_ROOT", str(root))
+    return root
+
+
+def test_backup_uses_pg_dump_of_the_servers_major_version(pg_backup, pg_lib, monkeypatch):
+    backup, _dump = pg_backup
+    calls = []
+
+    def run(cmd, **kwargs):
+        calls.append(cmd)
+        dest = cmd[cmd.index("-f") + 1]
+        open(dest, "wb").close()
+        return subprocess.CompletedProcess(cmd, 0, "", "")
+
+    monkeypatch.setattr(subprocess, "run", run)
+    import os
+
+    os.makedirs(backup.backup_dir, exist_ok=True)
+    backup._backup_postgresql("manual")
+
+    assert calls[0][0] == str(pg_lib / "16" / "bin" / "pg_dump")
+
+
+def test_restore_uses_pg_restore_of_the_servers_major_version(pg_backup, pg_lib, monkeypatch):
+    backup, dump = pg_backup
+    run = _Run(subprocess.CompletedProcess([], 0, _header(), ""))
+    monkeypatch.setattr(subprocess, "run", run)
+
+    backup.restore_backup(dump)
+
+    (listing,) = [c for c in run.calls if "--list" in c]
+    (restore,) = _restores(run)
+    assert listing[0] == str(pg_lib / "17" / "bin" / "pg_restore")  # newest reads any archive
+    assert restore[0] == str(pg_lib / "16" / "bin" / "pg_restore")
+
+
+def test_next_newer_client_is_used_when_the_exact_major_is_missing(pg_lib, monkeypatch):
+    import database_backup_postgres as pgmod
+
+    assert pgmod._pg_binary("pg_dump", 14) == str(pg_lib / "15" / "bin" / "pg_dump")
+    assert pgmod._pg_binary("pg_dump", 18) == str(pg_lib / "17" / "bin" / "pg_dump")
+
+
+def test_without_versioned_clients_the_path_tool_is_used(tmp_path, monkeypatch):
+    import database_backup_postgres as pgmod
+
+    monkeypatch.setattr(pgmod, "PG_LIB_ROOT", str(tmp_path / "missing"))
+
+    assert pgmod._pg_binary("pg_restore", 16) == "pg_restore"

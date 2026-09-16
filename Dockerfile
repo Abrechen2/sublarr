@@ -47,16 +47,24 @@ ENV SUBLARR_VERSION="${VERSION}"
 ENV SUBLARR_LOG_FILE="/config/sublarr.log"
 
 # Install system dependencies
-# postgresql-client provides pg_dump/pg_restore for optional PostgreSQL backup support
+# PostgreSQL clients 15, 16 and 17 from the PostgreSQL project's own archive
+# (PGDG): database_backup_postgres picks pg_dump/pg_restore matching the
+# server's major version. Debian's single default client was 17, and a backup
+# it wrote of a PostgreSQL 16 server could not be restored into that server
+# (SET transaction_timeout) — owner decision 2026-09-16 after the rc.4 VM test.
 # tesseract-ocr for OCR functionality, hunspell for spell checking
 RUN apt-get update && \
+    apt-get install -y --no-install-recommends ca-certificates postgresql-common && \
+    /usr/share/postgresql-common/pgdg/apt.postgresql.org.sh -y && \
     apt-get install -y --no-install-recommends \
         ffmpeg \
         mkvtoolnix \
         curl \
         gosu \
         unrar-free \
-        postgresql-client \
+        postgresql-client-15 \
+        postgresql-client-16 \
+        postgresql-client-17 \
         tesseract-ocr \
         tesseract-ocr-deu \
         tesseract-ocr-eng \
