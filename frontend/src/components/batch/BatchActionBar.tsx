@@ -107,7 +107,15 @@ export function BatchActionBar({ scope, actions = ['ignore', 'unignore', 'blackl
   const visibleActions = ACTION_DEFS.filter((a) => actions.includes(a.action))
 
   return (
-    <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-40 flex items-center gap-2 px-4 py-2.5 bg-background border border-border rounded-full shadow-2xl shadow-black/20">
+    // Phones: full width with a 12 px gutter, wrapping, above the bottom nav and
+    // the floating action button. A centred single-row pill was 844 px wide at
+    // 390 px and left 5 of 8 actions off screen (VM test of 1.14.3-rc.4).
+    // From md up: the centred pill as before.
+    <div
+      role="toolbar"
+      aria-label={t('batch.itemsSelected', { count })}
+      className="fixed z-40 left-3 right-3 bottom-24 flex flex-wrap items-center justify-center gap-2 px-4 py-2.5 bg-background border border-border rounded-2xl shadow-2xl shadow-black/20 md:left-1/2 md:right-auto md:bottom-6 md:-translate-x-1/2 md:flex-nowrap md:rounded-full"
+    >
       <span className="text-sm font-medium text-foreground mr-1">
         {t('batch.itemsSelected', { count })}
       </span>
@@ -130,7 +138,7 @@ export function BatchActionBar({ scope, actions = ['ignore', 'unignore', 'blackl
       ))}
 
       {lastResult && (
-        <span className="text-xs ml-1" style={{ color: 'var(--success)' }}>{lastResult}</span>
+        <span className="text-xs ml-1 text-success">{lastResult}</span>
       )}
 
       <div className="h-4 w-px bg-border mx-1" />
