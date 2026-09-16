@@ -61,6 +61,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   pages now read embedded tracks from the probe cache — without probing files
   on every page load — and show them as embedded.
 
+- **Pages and health checks no longer stall behind open browser tabs.** The
+  web UI keeps Socket.IO polling requests open for up to 25 seconds, and the
+  server had four request threads: four open connections left none for
+  anything else, so even `/health` could wait 24 seconds. The server now runs
+  100 threads (still one process); the same situation answers in milliseconds.
+- **Radarr movies: subtitle list, upload and missing count.** The movie
+  subtitle list, upload and combine only knew standalone movies and answered
+  404 for Radarr movies, and the movie page reported no missing subtitles and
+  the movie folder instead of the video file. Radarr movies are resolved to
+  their video file now (paths must lie under a configured media folder).
+- **Standalone: an SRT satisfies the language when upgrades are off.** With
+  "upgrade SRT to ASS" disabled, an existing or embedded SRT now counts as
+  done in standalone mode, as it already did with Sonarr/Radarr.
+- **Page size is validated.** Values outside 10–200 are rejected instead of
+  saved.
+- **Phone layout.** Library and Wanted no longer overflow sideways at phone
+  widths, and the Wanted table keeps a usable height.
+- **Worker health.** The optional RQ worker container reported "unhealthy"
+  although it worked; it now has its own healthcheck (Redis, process,
+  heartbeat) in `docker-compose.redis.yml`.
+
 ### Added
 - **Approve pending originals in bulk.** The "Pending originals" dialog has a
   selection column with "select all" and an "Approve selected" action. The
@@ -89,6 +110,12 @@ On such databases, `tm1_strip_breaks` and `tm3_strip_soft` rewrite memory
 entries (they remove line breaks the source never had) and `tm2_drop_same_lang`
 deletes entries whose source and target language are equal — the same cleanups
 Alembic-managed installs received in 1.13.4 and 1.14.0.
+
+If your compose file sets its own `command:` for the Sublarr service, it
+overrides the image default: set `--threads 100` there as well, or open
+browser tabs can still stall requests. If you run the RQ worker from your own
+compose file, give it the healthcheck from `docker-compose.redis.yml`
+(`python worker_health.py`).
 
 Subtitle files that were already written in the wrong language are **not**
 changed automatically. List them with a dry run, then apply:
