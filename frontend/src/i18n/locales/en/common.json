@@ -658,7 +658,13 @@
       "dedup_title": "Duplicates must belong to the same episode",
       "dedup_desc": "A subtitle is no longer discarded as a duplicate just because another episode in the same season folder has identical content.",
       "mt_title": "Originals replace machine translations safely",
-      "mt_desc": "When you approve an original, the machine translation stays until the original is actually installed. Translations in a different format are removed as well."
+      "mt_desc": "When you approve an original, the machine translation stays until the original is actually installed. Translations in a different format are removed as well.",
+      "direction_title": "Ollama translates into the requested language",
+      "direction_desc": "Translations into English used to come back in German. The direction is correct now, and a machine translation is never used as a source again. The command in the upgrade notes lists and repairs affected files.",
+      "embedded_title": "Embedded subtitle tracks count everywhere",
+      "embedded_desc": "Standalone mode no longer searches when an embedded track is present, and the episode list shows such tracks as embedded instead of missing.",
+      "bulk_title": "Approve pending originals in bulk",
+      "bulk_desc": "Select originals or all of them and approve them together. They install one after another in the background, with progress shown in the dialog."
     },
     "v1142": {
       "image_title": "Development data removed from Docker images",

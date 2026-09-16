@@ -31,7 +31,6 @@ itself is missing).
 
 from __future__ import annotations
 
-import json
 import logging
 
 from flask import jsonify
@@ -44,18 +43,9 @@ logger = logging.getLogger(__name__)
 
 
 def _load_pending_payload(item: dict) -> dict | None:
-    """Parse ``item['mt_pending_original']`` into a dict, or ``None`` if
-    absent/unparseable. Unparseable payloads are logged and treated as
-    "nothing pending" rather than raising — a corrupt marker must not make
-    the item permanently un-actionable via this API."""
-    raw = item.get("mt_pending_original")
-    if not raw:
-        return None
-    try:
-        return json.loads(raw)
-    except (TypeError, ValueError):
-        logger.warning("mt-pending: unparseable mt_pending_original for wanted %s", item.get("id"))
-        return None
+    from services.mt_pending_approval import load_pending_payload
+
+    return load_pending_payload(item)
 
 
 @bp.route("/wanted/mt-pending", methods=["GET"])
@@ -87,8 +77,90 @@ def list_mt_pending():
                   total:
                     type: integer
     """
+    from services.mt_pending_approval import batch_state
+
     items = WantedRepository().get_mt_pending_items()
-    return jsonify({"data": items, "total": len(items)})
+    return jsonify({"data": items, "total": len(items), "batch": batch_state()})
+
+
+@bp.route("/wanted/mt-pending/approve-batch", methods=["POST"])
+def approve_mt_pending_batch():
+    """Approve several pending originals in the background.
+    ---
+    post:
+      tags:
+        - Wanted
+      summary: Approve pending originals in bulk
+      description: >
+        Validates the ids and answers immediately; the originals are installed
+        one after another in the background, each exactly like the single
+        approve — one that does not install keeps its machine translation and
+        its pending marker. Progress is reported in the ``batch`` field of
+        ``GET /wanted/mt-pending``. Items without a pending original are skipped.
+      security:
+        - apiKeyAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [item_ids]
+              properties:
+                item_ids:
+                  type: array
+                  items:
+                    type: integer
+                  description: Wanted item IDs (max 500)
+      responses:
+        202:
+          description: Batch accepted
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  accepted:
+                    type: array
+                    items:
+                      type: integer
+                  skipped:
+                    type: array
+                    items:
+                      type: integer
+        400:
+          description: Invalid input
+        409:
+          description: A batch is already running
+    """
+    from flask import current_app, request
+
+    from services.mt_pending_approval import start_batch
+
+    data = request.get_json(silent=True) or {}
+    item_ids = data.get("item_ids")
+    if not item_ids or not isinstance(item_ids, list):
+        return jsonify({"error": "item_ids must be a non-empty list of integers"}), 400
+    if len(item_ids) > 500:
+        return jsonify({"error": "Maximum 500 items per batch"}), 400
+    if not all(isinstance(i, int) and not isinstance(i, bool) for i in item_ids):
+        return jsonify({"error": "item_ids must contain only integers"}), 400
+
+    accepted, skipped = [], []
+    for item_id in dict.fromkeys(item_ids):
+        item = get_wanted_item(item_id)
+        if item and _load_pending_payload(item) is not None:
+            accepted.append(item_id)
+        else:
+            skipped.append(item_id)
+    if not accepted:
+        return jsonify(
+            {"error": "None of the items has a pending original", "skipped": skipped}
+        ), 400
+
+    if not start_batch(current_app._get_current_object(), accepted):
+        return jsonify({"error": "A batch approval is already running"}), 409
+    return jsonify({"accepted": accepted, "skipped": skipped}), 202
 
 
 @bp.route("/wanted/<int:item_id>/mt-pending/approve", methods=["POST"])
@@ -132,7 +204,7 @@ def approve_mt_pending(item_id):
         409:
           description: Original could not be installed; machine translation kept
     """
-    from services.mt_reseek import _replace_original
+    from services.mt_pending_approval import approve_one
 
     item = get_wanted_item(item_id)
     if not item:
@@ -142,7 +214,7 @@ def approve_mt_pending(item_id):
     if payload is None:
         return jsonify({"error": "No pending original for this item"}), 400
 
-    if not _replace_original(item, payload):
+    if not approve_one(item, payload):
         # Nothing was installed and the machine translation is back in place.
         # Keep the marker so the approve can be retried from the modal.
         return (
@@ -154,10 +226,6 @@ def approve_mt_pending(item_id):
             ),
             409,
         )
-    # On success the wanted row is deleted by the normal success path; this is
-    # then a harmless no-op.
-    set_mt_pending_original(item_id, None)
-
     return jsonify({"status": "approved", "id": item_id})
 
 

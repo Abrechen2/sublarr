@@ -5,7 +5,13 @@ import type { MtPendingItem } from '@/api/wanted'
 
 const mockApproveMutate = vi.fn()
 const mockRejectMutate = vi.fn()
-let mockQueryState: { data: { data: MtPendingItem[]; total: number } | undefined; isLoading: boolean; isError: boolean } = {
+const mockBatchMutate = vi.fn()
+type BatchState = { running: boolean; total: number; done: number; installed: number; kept: number }
+let mockQueryState: {
+  data: { data: MtPendingItem[]; total: number; batch?: BatchState } | undefined
+  isLoading: boolean
+  isError: boolean
+} = {
   data: { data: [], total: 0 },
   isLoading: false,
   isError: false,
@@ -15,6 +21,7 @@ vi.mock('@/hooks/useApi', () => ({
   useMtPendingItems: () => mockQueryState,
   useApproveMtPending: () => ({ mutate: mockApproveMutate, isPending: false }),
   useRejectMtPending: () => ({ mutate: mockRejectMutate, isPending: false }),
+  useApproveMtPendingBatch: () => ({ mutate: mockBatchMutate, isPending: false }),
 }))
 
 const mockToast = vi.fn()
@@ -122,5 +129,67 @@ describe('MtPendingModal', () => {
     render(<MtPendingModal open onClose={onClose} />)
     fireEvent.click(screen.getByLabelText(/Close/i))
     expect(onClose).toHaveBeenCalled()
+  })
+
+  describe('bulk approval', () => {
+    const SECOND: MtPendingItem = { ...SAMPLE_ITEM, id: 43, title: 'Bleach' }
+
+    it('approves exactly the selected items', () => {
+      mockQueryState = { data: { data: [SAMPLE_ITEM, SECOND], total: 2 }, isLoading: false, isError: false }
+      render(<MtPendingModal open onClose={vi.fn()} />)
+
+      fireEvent.click(screen.getByTestId('mt-pending-select-43'))
+      fireEvent.click(screen.getByTestId('mt-pending-approve-selected'))
+
+      expect(mockBatchMutate).toHaveBeenCalledWith([43], expect.any(Object))
+    })
+
+    it('selects and deselects all with the header checkbox', () => {
+      mockQueryState = { data: { data: [SAMPLE_ITEM, SECOND], total: 2 }, isLoading: false, isError: false }
+      render(<MtPendingModal open onClose={vi.fn()} />)
+
+      fireEvent.click(screen.getByTestId('mt-pending-select-all'))
+      expect(screen.getByTestId('mt-pending-selected-count')).toHaveTextContent('2')
+
+      fireEvent.click(screen.getByTestId('mt-pending-approve-selected'))
+      expect(mockBatchMutate).toHaveBeenCalledWith([42, 43], expect.any(Object))
+
+      fireEvent.click(screen.getByTestId('mt-pending-select-all'))
+      expect(screen.getByTestId('mt-pending-approve-selected')).toBeDisabled()
+    })
+
+    it('cannot approve an empty selection', () => {
+      mockQueryState = { data: { data: [SAMPLE_ITEM], total: 1 }, isLoading: false, isError: false }
+      render(<MtPendingModal open onClose={vi.fn()} />)
+
+      expect(screen.getByTestId('mt-pending-approve-selected')).toBeDisabled()
+    })
+
+    it('shows progress and blocks approvals while a batch runs', () => {
+      mockQueryState = {
+        data: {
+          data: [SAMPLE_ITEM],
+          total: 1,
+          batch: { running: true, total: 30, done: 12, installed: 11, kept: 1 },
+        },
+        isLoading: false,
+        isError: false,
+      }
+      render(<MtPendingModal open onClose={vi.fn()} />)
+
+      expect(screen.getByTestId('mt-pending-batch-progress')).toHaveTextContent('12')
+      expect(screen.getByTestId('mt-pending-batch-progress')).toHaveTextContent('30')
+      expect(screen.getByTestId('mt-pending-approve-42')).toBeDisabled()
+      expect(screen.getByTestId('mt-pending-select-all')).toBeDisabled()
+    })
+
+    it('lays the table out to fit the dialog instead of scrolling sideways', () => {
+      mockQueryState = { data: { data: [SAMPLE_ITEM], total: 1 }, isLoading: false, isError: false }
+      render(<MtPendingModal open onClose={vi.fn()} />)
+
+      expect(screen.getByRole('dialog').className).toMatch(/max-w-5xl/)
+      expect(screen.getByRole('table').className).toMatch(/table-fixed/)
+      expect(screen.getByText(SAMPLE_ITEM.file_path).className).toMatch(/break-all/)
+    })
   })
 })

@@ -23,6 +23,73 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   translation is now set aside and restored unless an original actually
   landed on disk, every recorded translation format is retired, and a failed
   approval keeps the pending entry and says the translation was kept.
+- **Ollama translations now go in the direction that was asked for.** Every
+  Ollama and OpenAI-compatible request told the model to translate "from
+  English to German",
+  whatever the job wanted: the prompt was built from the global languages and
+  the chat system prompt was hard-coded to German. A German subtitle sent for
+  an English target came back as reworded German and was saved as `.en.srt` —
+  on the reference install 39 of 40 sampled English machine translations were
+  German, and 70 049 German lines were cached as English translations. Prompts
+  and the system prompt now name the requested languages; German targets keep
+  the exact prompt the anime fine-tunes were trained on.
+- **A machine translation is never used as a translation source.** The
+  German machine translation next to an episode was fed back in as the
+  "German original" for its English subtitle. Sources recorded as machine
+  translations are now skipped; a genuine subtitle that later replaced one
+  counts as genuine again.
+- **Embedded subtitle tracks count in standalone mode (#36).** With
+  "use embedded subtitles" on, an embedded target-language track did not
+  satisfy the language profile for watched folders, so the file was searched
+  at providers anyway. The standalone scanner now reads embedded tracks like
+  the Sonarr/Radarr scanner and drops wanted entries they already satisfy.
+- **Forced and "Signs & Songs" tracks no longer count as full subtitles.** An
+  embedded target-language track marked forced, or titled signs/songs/forced,
+  satisfied the language for every scanner, which stopped the search for the
+  dialogue subtitle. Only full tracks count now; episodes that only have such a
+  track become wanted again on the next scan.
+- **The episode list shows embedded tracks (#35).** An episode covered by an
+  embedded target-language track was listed as "No subtitle found". Series
+  pages now read embedded tracks from the probe cache — without probing files
+  on every page load — and show them as embedded.
+
+### Added
+- **Approve pending originals in bulk.** The "Pending originals" dialog has a
+  selection column with "select all" and an "Approve selected" action. The
+  originals install one after another in the background — each exactly like
+  a single approval, so one that is not available keeps its machine
+  translation — and the dialog shows the progress. The dialog is wider and no
+  longer scrolls sideways.
+
+### Changed
+- Removed an unused second Ollama translation client that code-intelligence
+  tools mistook for the live prompt builder (#29).
+
+### Upgrade notes
+
+**Back up your database before upgrading** if you translate with Ollama or an
+OpenAI-compatible backend.
+This release runs one migration that deletes data:
+
+| Revision | What it does |
+|---|---|
+| `tm4_wrong_direction` | Deletes translation-memory entries from the Ollama and OpenAI-compatible backends whose target language differs from the configured target language. They hold text in the wrong language and would be served again on every cache hit. Other backends and entries for the configured target are kept. Nothing but cache entries is lost; affected lines are translated again. |
+
+Subtitle files that were already written in the wrong language are **not**
+changed automatically. List them with a dry run, then apply:
+
+```bash
+docker exec -it sublarr python -m scripts.repair_wrong_direction_mt
+docker exec -it sublarr python -m scripts.repair_wrong_direction_mt --apply
+```
+
+A file is only touched when Sublarr recorded it as its own machine
+translation, it is labelled with another language than the configured
+target, and its content is detected as the configured target language. It
+is moved to the recoverable trash and the episode is searched again. The
+command only recognises English and German content and refuses to run for
+other target languages. It starts without background jobs, so it is safe to
+run next to the running container.
 
 ## [1.14.2] - 2026-09-15
 

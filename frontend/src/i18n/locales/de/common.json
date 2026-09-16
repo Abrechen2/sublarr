@@ -658,7 +658,13 @@
       "dedup_title": "Duplikate gehören zur selben Episode",
       "dedup_desc": "Ein Untertitel wird nicht mehr als Duplikat verworfen, nur weil eine andere Episode im selben Staffelordner denselben Inhalt hat.",
       "mt_title": "Originale ersetzen Maschinenübersetzungen sicher",
-      "mt_desc": "Beim Genehmigen eines Originals bleibt die Maschinenübersetzung erhalten, bis das Original wirklich installiert ist. Übersetzungen in einem anderen Format werden mit entfernt."
+      "mt_desc": "Beim Genehmigen eines Originals bleibt die Maschinenübersetzung erhalten, bis das Original wirklich installiert ist. Übersetzungen in einem anderen Format werden mit entfernt.",
+      "direction_title": "Ollama übersetzt in die gewünschte Sprache",
+      "direction_desc": "Übersetzungen nach Englisch kamen bisher auf Deutsch zurück. Die Richtung stimmt jetzt, und eine Maschinenübersetzung dient nie mehr als Quelle. Falsche Dateien listet und repariert der Befehl aus den Upgrade-Hinweisen.",
+      "embedded_title": "Eingebettete Untertitelspuren zählen überall",
+      "embedded_desc": "Im Standalone-Modus wird bei vorhandener eingebetteter Spur nicht mehr gesucht, und die Episodenliste zeigt solche Spuren als eingebettet statt als fehlend.",
+      "bulk_title": "Ausstehende Originale gesammelt genehmigen",
+      "bulk_desc": "Originale auswählen oder alle markieren und gemeinsam genehmigen. Sie werden nacheinander im Hintergrund installiert, der Fortschritt steht im Dialog."
     },
     "v1142": {
       "image_title": "Entwicklungsdaten aus Docker-Images entfernt",

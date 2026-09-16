@@ -323,9 +323,19 @@ export interface MtPendingItem {
   mt_pending_original: MtPendingOriginal
 }
 
+/** Progress of the background bulk approval (last run when not running). */
+export interface MtPendingBatchState {
+  running: boolean
+  total: number
+  done: number
+  installed: number
+  kept: number
+}
+
 export interface MtPendingListResponse {
   data: MtPendingItem[]
   total: number
+  batch?: MtPendingBatchState
 }
 
 export async function getMtPendingItems(): Promise<MtPendingListResponse> {
@@ -335,6 +345,14 @@ export async function getMtPendingItems(): Promise<MtPendingListResponse> {
 
 export async function approveMtPending(itemId: number): Promise<{ status: string; id: number }> {
   const { data } = await api.post(`/wanted/${itemId}/mt-pending/approve`)
+  return data
+}
+
+/** Approve several pending originals; they install one by one in the background. */
+export async function approveMtPendingBatch(
+  itemIds: number[],
+): Promise<{ accepted: number[]; skipped: number[] }> {
+  const { data } = await api.post('/wanted/mt-pending/approve-batch', { item_ids: itemIds })
   return data
 }
 
