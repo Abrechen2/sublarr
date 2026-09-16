@@ -151,6 +151,16 @@ def record_subtitle_download(
     return result
 
 
+def list_machine_translations() -> list[tuple[str, str, str]]:
+    """``(video path, language, format)`` of every recorded machine translation."""
+    return _get_repo().list_machine_translations()
+
+
+def delete_machine_translation_records(video_path: str, language: str, fmt: str) -> int:
+    """Forget the machine-translation rows for one sidecar; return how many went."""
+    return _get_repo().delete_machine_translation_records(video_path, language, fmt)
+
+
 def get_machine_translation_sidecars(video_path: str) -> list[tuple[str, str]]:
     """``(language, format)`` of every machine translation recorded for this video."""
     return _get_repo().get_machine_translation_sidecars(video_path)

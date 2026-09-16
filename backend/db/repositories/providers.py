@@ -192,6 +192,32 @@ class ProviderRepository(BaseRepository):
             return None
         return entry.decision_log_json
 
+    def list_machine_translations(self) -> list[tuple[str, str, str]]:
+        """``(video path, language, format)`` of every recorded machine translation."""
+        stmt = (
+            select(SubtitleDownload.file_path, SubtitleDownload.language, SubtitleDownload.format)
+            .where(SubtitleDownload.source == "machine_translation")
+            .distinct()
+        )
+        return [
+            (path, lang, fmt)
+            for path, lang, fmt in self.session.execute(stmt).all()
+            if path and lang and fmt
+        ]
+
+    def delete_machine_translation_records(self, video_path: str, language: str, fmt: str) -> int:
+        """Forget the machine-translation rows for one sidecar; return how many went."""
+        result = self.session.execute(
+            delete(SubtitleDownload).where(
+                SubtitleDownload.file_path == video_path,
+                SubtitleDownload.language == language,
+                SubtitleDownload.format == fmt,
+                SubtitleDownload.source == "machine_translation",
+            )
+        )
+        self.session.commit()
+        return result.rowcount or 0
+
     def get_machine_translation_sidecars(self, video_path: str) -> list[tuple[str, str]]:
         """``(language, format)`` of every machine translation recorded for this video."""
         stmt = (

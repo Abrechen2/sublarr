@@ -62,6 +62,11 @@ def _detect_language(raw: bytes) -> tuple[str | None, float]:
     return code, float(top.value)
 
 
+def detect_content_language(raw: bytes) -> tuple[str | None, float]:
+    """Public entry point: ``(en|de|None, confidence)`` for a subtitle's text."""
+    return _detect_language(raw)
+
+
 def _norm(lang: str) -> str:
     return (lang or "").lower().split("-")[0]
 
