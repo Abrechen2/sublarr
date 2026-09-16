@@ -79,9 +79,12 @@ Subtitle files that were already written in the wrong language are **not**
 changed automatically. List them with a dry run, then apply:
 
 ```bash
-docker exec -it sublarr python -m scripts.repair_wrong_direction_mt
-docker exec -it sublarr python -m scripts.repair_wrong_direction_mt --apply
+docker exec -it sublarr gosu sublarr python -m scripts.repair_wrong_direction_mt
+docker exec -it sublarr gosu sublarr python -m scripts.repair_wrong_direction_mt --apply
 ```
+
+`gosu sublarr` runs it as the app user; a plain `docker exec` runs as root and
+would leave a trash folder the app cannot restore from.
 
 A file is only touched when Sublarr recorded it as its own machine
 translation, it is labelled with another language than the configured
