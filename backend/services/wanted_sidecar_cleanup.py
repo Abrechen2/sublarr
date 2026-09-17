@@ -26,20 +26,25 @@ _SIDECAR_FORMATS = ("ass", "srt")
 
 
 def _wanted_languages(file_path: str, items_for_file: list[dict], settings) -> set[str]:
-    """Canonical codes of every language wanted for ``file_path``."""
-    from config_language_data import normalize_language_code
+    """Canonical codes of every language wanted for ``file_path``.
+
+    Row languages go through the same normalisation as the profile's
+    (``compute_keep_langs``): a ``zh-hans`` target also keeps generic ``zh``,
+    because containers tag Chinese generically, and ``und`` placeholders are
+    dropped so they cannot arm the cleanup on their own.
+    """
     from db.wanted import get_wanted_items_by_path
     from services.embedded_extractor import compute_keep_langs, resolve_profile_for_item
 
     rows = get_wanted_items_by_path(file_path) or items_for_file
-    keep = {
-        normalize_language_code(row.get("target_language", ""))
+    profile = resolve_profile_for_item(items_for_file[0], settings)
+    wanted = [
+        row.get("target_language", "")
         for row in [*rows, *items_for_file]
         if row.get("target_language")
-    }
-    keep |= compute_keep_langs(resolve_profile_for_item(items_for_file[0], settings), settings)
-    keep.discard("")
-    return keep
+    ]
+    wanted += list(profile.get("target_languages", []) or [])
+    return compute_keep_langs({"target_languages": wanted}, settings)
 
 
 def _sidecar_language(sidecar: str, base: str, fmt: str) -> str | None:

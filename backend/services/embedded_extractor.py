@@ -184,9 +184,28 @@ def _full_ass_sidecar_for(file_path: str, language: str) -> str | None:
     wanted = normalize_language_code(language)
     for candidate in sorted(glob.glob(f"{glob.escape(base)}.*.ass")):
         tokens = candidate[len(base) + 1 : -len(".ass")].split(".")
-        if len(tokens) == 1 and normalize_language_code(tokens[0]) == wanted:
+        if (
+            len(tokens) == 1
+            and normalize_language_code(tokens[0]) == wanted
+            and _has_dialogue(candidate)
+        ):
             return candidate
     return None
+
+
+def _has_dialogue(path: str) -> bool:
+    """True when the file holds at least one subtitle line.
+
+    Name alone is not coverage: a zero-byte or header-only ``.de.ass`` would
+    otherwise stop a perfectly good German track from being extracted
+    (cold review, 2026-09-17).
+    """
+    try:
+        with open(path, "rb") as fh:
+            return b"Dialogue:" in fh.read(_SIDECAR_SAMPLE_BYTES)
+    except OSError as exc:
+        logger.debug("Could not read %s while checking coverage: %s", path, exc)
+        return False
 
 
 def _quarantine_mislabelled_sidecar(path: str, log_label: str) -> None:

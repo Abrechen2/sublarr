@@ -106,3 +106,22 @@ class TestManualUpload:
             save_manual_subtitle(str(video), _SRT, "srt", "ger", None, False, [str(tmp_path)])
         assert exc.value.status == 409
         assert not (tmp_path / "M.ger.srt").exists()
+
+
+class TestAliasLookupCoversEveryCode:
+    """Cold review (Codex, 2026-09-17): for a 'ger' track only .de and .ger were
+    checked, so an existing .deu.srt led to a third copy of the same track."""
+
+    @pytest.mark.parametrize(("tag", "existing"), [("ger", "deu"), ("deu", "ger"), ("eng", "en")])
+    def test_any_alias_on_disk_is_found(self, tmp_path, tag, existing):
+        from routes.tracks import _existing_track_sidecar
+
+        (tmp_path / f"ep.{existing}.srt").write_bytes(_SRT)
+        found = _existing_track_sidecar(str(tmp_path / "ep.mkv"), tag, "srt")
+        assert found == str(tmp_path / f"ep.{existing}.srt")
+
+    def test_a_different_language_is_not_mistaken_for_it(self, tmp_path):
+        from routes.tracks import _existing_track_sidecar
+
+        (tmp_path / "ep.fre.srt").write_bytes(_SRT)
+        assert _existing_track_sidecar(str(tmp_path / "ep.mkv"), "ger", "srt") is None

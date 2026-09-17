@@ -291,6 +291,7 @@ def _trash_path(path: str) -> bool:
     import datetime
     import shutil
     import time as _time
+    import uuid
 
     try:
         from config import get_settings
@@ -304,8 +305,11 @@ def _trash_path(path: str) -> bool:
         os.makedirs(dest_dir, exist_ok=True)
         dest = os.path.join(dest_dir, os.path.basename(path))
         if os.path.exists(dest):
+            # The trash is flat, so two episodes of the same name from different
+            # season folders land on each other. A whole-second suffix was not
+            # enough: three files trashed inside one second overwrote each other.
             stem, ext = os.path.splitext(dest)
-            dest = f"{stem}.{int(_time.time())}{ext}"
+            dest = f"{stem}.{int(_time.time())}.{uuid.uuid4().hex[:8]}{ext}"
         shutil.move(path, dest)
         return True
     except OSError as exc:

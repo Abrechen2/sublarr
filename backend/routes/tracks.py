@@ -62,13 +62,20 @@ def _track_sidecar_path(video_path: str, language: str, ext: str) -> str:
 
 
 def _existing_track_sidecar(video_path: str, language: str, ext: str) -> str | None:
-    """The sidecar this track already has on disk, under its canonical or raw-tag name."""
+    """The sidecar this track already has on disk, under any code of its language.
+
+    Checking only the canonical and the requested code missed a third spelling
+    (``.deu.srt`` for a ``ger`` track) and extracted the same track again.
+    """
+    import glob as _glob
+
+    from config_language_data import normalize_language_code
+
     base, _ = os.path.splitext(video_path)
-    for candidate in (
-        _track_sidecar_path(video_path, language, ext),
-        f"{base}.{language.lower()}.{ext}",
-    ):
-        if os.path.exists(candidate):
+    wanted = normalize_language_code(language) or language.lower()
+    for candidate in sorted(_glob.glob(f"{_glob.escape(base)}.*.{ext}")):
+        tokens = candidate[len(base) + 1 : -len(ext) - 1].split(".")
+        if len(tokens) == 1 and (normalize_language_code(tokens[0]) or tokens[0]) == wanted:
             return candidate
     return None
 

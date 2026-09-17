@@ -199,3 +199,40 @@ def test_existing_srt_does_not_stop_an_ass_track(tmp_path, monkeypatch):
     ee.extract_streams(mkv, streams, log_label="test")
 
     assert len(calls) == 1
+
+
+def test_an_empty_ass_does_not_count_as_coverage(tmp_path, monkeypatch):
+    """Cold review (Codex, 2026-09-17): the cross-format adoption only checked the
+    file name, so a zero-byte .de.ass suppressed a perfectly good German srt track."""
+    import services.embedded_extractor as ee
+
+    mkv = str(tmp_path / "Show - S01E07.mkv")
+    with open(mkv, "wb") as fh:
+        fh.write(b"\x00")
+    (tmp_path / "Show - S01E07.de.ass").write_bytes(b"")
+
+    calls = []
+    monkeypatch.setattr("ass_utils.extract_subtitle_stream", lambda *a, **kw: calls.append(a))
+    streams = [{"language": "ger", "format": "srt", "sub_index": 0, "stream_index": 2}]
+    ee.extract_streams(mkv, streams, log_label="test")
+
+    assert len(calls) == 1, "an empty .ass must not stop the extraction"
+
+
+def test_a_header_only_ass_does_not_count_as_coverage(tmp_path, monkeypatch):
+    import services.embedded_extractor as ee
+
+    mkv = str(tmp_path / "Show - S01E08.mkv")
+    with open(mkv, "wb") as fh:
+        fh.write(b"\x00")
+    (tmp_path / "Show - S01E08.de.ass").write_text("[Script Info]\n\n[Events]\n", encoding="utf-8")
+
+    calls = []
+    monkeypatch.setattr("ass_utils.extract_subtitle_stream", lambda *a, **kw: calls.append(a))
+    ee.extract_streams(
+        mkv,
+        [{"language": "ger", "format": "srt", "sub_index": 0, "stream_index": 2}],
+        log_label="test",
+    )
+
+    assert len(calls) == 1, "an .ass without a single line must not stop the extraction"
