@@ -42,7 +42,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   release the database first, run PostgreSQL restores in one transaction that
   aborts on the first error, check the archive before changing anything,
   apply `config.json` only after the database succeeded, refresh settings
-  afterwards and are refused while jobs are running.
+  afterwards and are refused while jobs are running. A PostgreSQL restore no
+  longer waits on a lock held by its own request (it timed out after five
+  minutes on a real database) and gives up after 30 seconds with a clear
+  message when another connection holds a table, instead of stalling the app.
 - **The batch action bar stays on screen on phones.** After "select all" on
   the Wanted page most actions were off screen at phone width; the bar now
   wraps and sits above the bottom navigation.

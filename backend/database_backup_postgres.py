@@ -109,6 +109,10 @@ def _pg_binary(tool: str, server_major: int | None) -> str:
 
 _DUMPED_BY = re.compile(r"Dumped by pg_dump version:\s*(\d+)")
 
+# How long pg_restore may wait for one table lock before the restore is
+# cancelled (and rolled back) instead of stalling the app behind it.
+_RESTORE_LOCK_TIMEOUT_MS = 30_000
+
 
 class _PostgresBackupMixin:
     """pg_dump / pg_restore methods mixed into DatabaseBackup."""
@@ -244,6 +248,13 @@ class _PostgresBackupMixin:
         pg = _parse_pg_url(database_url)
         env = os.environ.copy()
         env["PGPASSWORD"] = pg["password"]
+        # --clean drops every table and index, which needs an exclusive lock on
+        # each. A session holding a lock elsewhere made pg_restore wait out the
+        # whole timeout while every app query queued up behind it. Give up after
+        # a bounded wait instead; the single transaction rolls back cleanly.
+        env["PGOPTIONS"] = (
+            env.get("PGOPTIONS", "") + f" -c lock_timeout={_RESTORE_LOCK_TIMEOUT_MS}"
+        ).strip()
 
         cmd = [
             _pg_binary("pg_restore", _server_major_version()),
@@ -264,6 +275,14 @@ class _PostgresBackupMixin:
             backup_path,
         ]
 
+        # The running-jobs check and the server-version query above left this
+        # request's session idle in a transaction that holds a lock on the jobs
+        # table; pg_restore then waited on its own caller (RC 2026-09-17: 300 s
+        # on DROP INDEX idx_jobs_status, then a timeout). Release it last.
+        from services.database_restore import release_db_connections
+
+        release_db_connections()
+
         try:
             result = subprocess.run(
                 cmd,
@@ -272,6 +291,16 @@ class _PostgresBackupMixin:
                 text=True,
                 timeout=300,
             )
+            if result.returncode != 0 and "lock timeout" in (result.stderr or ""):
+                raise DatabaseRestoreError(
+                    "The database is in use by another connection, so the restore was "
+                    "cancelled — nothing was changed",
+                    context={"backup_path": backup_path, "stderr": result.stderr},
+                    troubleshooting=(
+                        "Wait for running scans and jobs to finish, or stop other clients "
+                        "connected to the database, then restore again."
+                    ),
+                )
             # With --exit-on-error any non-zero exit is a failure. Matching an
             # upper-case "ERROR" missed pg_restore's lower-case "error:" and
             # reported a corrupt dump as restored.

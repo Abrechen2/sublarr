@@ -266,6 +266,58 @@ def test_restore_runs_in_one_transaction_and_stops_at_the_first_error(pg_backup,
     assert "--exit-on-error" in restore_cmd
 
 
+def test_restore_releases_this_processs_connections_before_pg_restore_runs(pg_backup, monkeypatch):
+    """RC 2026-09-17, prod-sized dump: pg_restore waited 300 s on DROP INDEX
+    idx_jobs_status. The lock was held by this very request's session, left
+    "idle in transaction" by the running-jobs check, so the restore could never
+    proceed and timed out. The session must be released before pg_restore starts.
+    """
+    import services.database_restore as restore_mod
+
+    backup, dump = pg_backup
+    events = []
+    monkeypatch.setattr(restore_mod, "release_db_connections", lambda: events.append("release"))
+    inner = _Run(subprocess.CompletedProcess([], 0, _header(), ""))
+
+    def run(cmd, **kwargs):
+        events.append("list" if "--list" in cmd else "restore")
+        return inner(cmd, **kwargs)
+
+    monkeypatch.setattr(subprocess, "run", run)
+
+    backup.restore_backup(dump)
+
+    assert events.index("release") < events.index("restore")
+    assert events.index("release") > events.index("list")
+
+
+def test_restore_gives_up_quickly_on_a_lock_held_elsewhere(pg_backup, monkeypatch):
+    """A lock held by another session must fail the restore fast and say why,
+    not stall every app query behind a 300 s wait."""
+    backup, dump = pg_backup
+    seen_env = {}
+    inner = _Run(
+        subprocess.CompletedProcess([], 0, _header(), ""),
+        subprocess.CompletedProcess(
+            [], 1, "", "pg_restore: error: canceling statement due to lock timeout"
+        ),
+    )
+
+    def run(cmd, **kwargs):
+        if "--list" not in cmd:
+            seen_env.update(kwargs.get("env") or {})
+        return inner(cmd, **kwargs)
+
+    monkeypatch.setattr(subprocess, "run", run)
+
+    with pytest.raises(DatabaseRestoreError) as exc:
+        backup.restore_backup(dump)
+
+    assert "lock_timeout" in seen_env.get("PGOPTIONS", "")
+    assert "nothing was changed" in str(exc.value)
+    assert "in use" in str(exc.value)
+
+
 def test_any_nonzero_pg_restore_exit_is_a_failure(pg_backup, monkeypatch):
     backup, dump = pg_backup
     run = _Run(
