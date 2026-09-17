@@ -1,7 +1,6 @@
 """Wanted provider routes — scanner status, search-providers, download-specific, cleanup, batch-translate."""
 
 import logging
-import os
 
 from flask import jsonify, request
 
@@ -9,29 +8,6 @@ from events import emit_event
 from routes.wanted import bp
 
 logger = logging.getLogger(__name__)
-
-
-# Language code aliases used for sidecar matching
-_LANG_ALIASES: dict[str, list[str]] = {
-    "de": ["de", "deu", "ger"],
-    "en": ["en", "eng"],
-    "fr": ["fr", "fra", "fre"],
-    "es": ["es", "spa"],
-    "ja": ["ja", "jpn"],
-    "zh": ["zh", "zho", "chi"],
-    "ko": ["ko", "kor"],
-    "pt": ["pt", "por"],
-    "it": ["it", "ita"],
-    "ru": ["ru", "rus"],
-    "nl": ["nl", "nld", "dut"],
-    "pl": ["pl", "pol"],
-}
-
-
-def _sidecar_lang_codes(lang: str) -> set[str]:
-    """Return all recognised filename codes for *lang* (e.g. 'de' → {'de','deu','ger'})."""
-    aliases = _LANG_ALIASES.get(lang.lower(), [lang.lower()])
-    return {c.lower() for c in aliases}
 
 
 @bp.route("/wanted/scanner/status", methods=["GET"])
@@ -241,24 +217,14 @@ def cleanup_sidecars():
                   dry_run:
                     type: boolean
     """
-    import glob as _glob
-
     from config import get_settings
     from db.wanted import get_wanted_items, get_wanted_items_by_ids
-    from security_utils import is_safe_path
+    from services.wanted_sidecar_cleanup import cleanup_wanted_sidecars
 
     data = request.get_json(force=True, silent=True) or {}
     dry_run = bool(data.get("dry_run", False))
     item_ids: list[int] | None = data.get("item_ids")
 
-    settings = get_settings()
-    media_path = getattr(settings, "media_path", None) or "/"
-
-    deleted: list[str] = []
-    kept: list[str] = []
-    errors: list[str] = []
-
-    # Resolve items to process
     if item_ids:
         items = list(get_wanted_items_by_ids(item_ids).values())
     else:
@@ -273,42 +239,8 @@ def cleanup_sidecars():
                 break
             _page += 1
 
-    for item in items:
-        file_path = item.get("file_path", "")
-        if not file_path or not os.path.exists(file_path):
-            continue
-
-        target_lang = item.get("target_language", "")
-        keep_codes = _sidecar_lang_codes(target_lang) if target_lang else set()
-
-        # Determine base name (strip video extension)
-        base = os.path.splitext(file_path)[0]
-
-        for fmt in ("ass", "srt"):
-            pattern = f"{base}.*.{fmt}"
-            for sidecar in _glob.glob(pattern):
-                # Security: ensure sidecar is within allowed media path
-                if not is_safe_path(sidecar, media_path):
-                    errors.append(f"Skipped (path traversal): {sidecar}")
-                    continue
-
-                # Extract language code from sidecar filename: base.<lang>.<fmt>
-                remainder = sidecar[len(base) + 1 : -len(fmt) - 1]  # e.g. "de" or "deu"
-                lang_part = remainder.split(".")[0].lower()
-
-                if lang_part in keep_codes:
-                    kept.append(sidecar)
-                else:
-                    if not dry_run:
-                        try:
-                            os.remove(sidecar)
-                            deleted.append(sidecar)
-                        except OSError as exc:
-                            errors.append(f"{sidecar}: {exc}")
-                    else:
-                        deleted.append(sidecar)  # report as "would delete"
-
-    return jsonify({"deleted": deleted, "kept": kept, "errors": errors, "dry_run": dry_run})
+    media_path = getattr(get_settings(), "media_path", None) or "/"
+    return jsonify(cleanup_wanted_sidecars(items, dry_run=dry_run, media_path=media_path))
 
 
 # ---------------------------------------------------------------------------
