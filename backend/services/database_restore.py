@@ -16,6 +16,7 @@ from __future__ import annotations
 
 import contextlib
 import logging
+import threading
 
 logger = logging.getLogger(__name__)
 
@@ -37,6 +38,42 @@ def release_db_connections() -> None:
 
 class DatabaseBusyError(Exception):
     """The database did not answer in time — something else is holding it."""
+
+
+class RestoreInProgressError(Exception):
+    """Another restore is already replacing the database."""
+
+
+_restore_lock = threading.Lock()
+
+
+def acquire_restore_slot() -> None:
+    """Claim the single restore slot, or raise RestoreInProgressError."""
+    if not _restore_lock.acquire(blocking=False):
+        raise RestoreInProgressError("a restore is already running")
+
+
+def release_restore_slot() -> None:
+    """Give the restore slot back; safe to call when it is not held."""
+    try:
+        _restore_lock.release()
+    except RuntimeError:
+        logger.debug("release_restore_slot called without holding the lock")
+
+
+@contextlib.contextmanager
+def restore_guard():
+    """Let exactly one restore run at a time in this process.
+
+    The running-jobs check is a snapshot and says nothing about a second
+    restore: two of them replacing the database at once is the one case where
+    "all or nothing" stops holding (cold review, 2026-09-17).
+    """
+    acquire_restore_slot()
+    try:
+        yield
+    finally:
+        release_restore_slot()
 
 
 #: Seconds the jobs check may take before the database counts as busy.

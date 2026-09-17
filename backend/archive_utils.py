@@ -5,6 +5,7 @@ instead of inline zipfile/rarfile calls, to ensure consistent security checks
 across the entire download pipeline.
 """
 
+import contextlib
 import io
 import logging
 import os
@@ -150,6 +151,51 @@ def safe_read_zip_member(
             f"ZIP entry '{name}' exceeds {max_bytes // (1024 * 1024)} MB cap during decompression"
         )
     return data
+
+
+def safe_extract_zip_member_to(
+    zf: zipfile.ZipFile,
+    name: str,
+    dest_path: str,
+    max_bytes: int = _MAX_EXTRACTED_BYTES,
+) -> int:
+    """Stream one entry to ``dest_path`` with the same guards as the reader.
+
+    The in-memory reader is fine for a config file, but a database inside a
+    full backup can be gigabytes: materialising it (on top of the archive
+    itself) is a memory-exhaustion risk. Returns the bytes written; the partial
+    file is removed when a limit is hit.
+    """
+    info = zf.getinfo(name)  # raises KeyError if missing
+    if info.file_size > max_bytes:
+        raise ValueError(
+            f"ZIP entry '{name}' too large: {info.file_size // (1024 * 1024)} MB > "
+            f"{max_bytes // (1024 * 1024)} MB limit"
+        )
+    if info.compress_size > 0:
+        ratio = info.file_size / info.compress_size
+        if ratio > _MAX_COMPRESSION_RATIO:
+            raise ValueError(
+                f"ZIP bomb detected on '{name}': ratio {ratio:.0f}:1 exceeds "
+                f"{_MAX_COMPRESSION_RATIO}:1 limit"
+            )
+
+    written = 0
+    try:
+        with zf.open(name) as member, open(dest_path, "wb") as out:
+            while chunk := member.read(1024 * 1024):
+                written += len(chunk)
+                if written > max_bytes:
+                    raise ValueError(
+                        f"ZIP entry '{name}' exceeds {max_bytes // (1024 * 1024)} MB cap "
+                        "during decompression"
+                    )
+                out.write(chunk)
+    except BaseException:
+        with contextlib.suppress(OSError):
+            os.remove(dest_path)
+        raise
+    return written
 
 
 def extract_subtitles_from_rar(

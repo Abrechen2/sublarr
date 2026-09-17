@@ -14,6 +14,7 @@ import logging
 import os
 import re
 import subprocess
+import uuid
 from datetime import UTC, datetime
 from urllib.parse import urlparse
 
@@ -112,6 +113,15 @@ _DUMPED_BY = re.compile(r"Dumped by pg_dump version:\s*(\d+)")
 # How long pg_restore may wait for one table lock before the watchdog cancels
 # the restore (rolled back) instead of letting it stall the app behind it.
 _RESTORE_LOCK_LIMIT_S = 30
+
+
+def _restore_app_name() -> str:
+    """A name unique to ONE restore, within libpq's 63-byte application_name.
+
+    Two restores in the same process shared "sublarr-restore-<pid>", so each
+    watchdog saw both backends and could cancel the other request.
+    """
+    return f"sublarr-restore-{uuid.uuid4().hex[:16]}"
 
 
 def _start_lock_watchdog(database_url: str, app_name: str):
@@ -260,7 +270,7 @@ class _PostgresBackupMixin:
         env = os.environ.copy()
         env["PGPASSWORD"] = pg["password"]
         # Named, so the lock watchdog can find this restore's backend.
-        app_name = f"sublarr-restore-{os.getpid()}"
+        app_name = _restore_app_name()
         env["PGAPPNAME"] = app_name
 
         cmd = [

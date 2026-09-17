@@ -203,7 +203,9 @@ def restore_backup():
     from database_backup import DatabaseBackup
     from services.database_restore import (
         DatabaseBusyError,
+        RestoreInProgressError,
         refresh_after_restore,
+        restore_guard,
         running_job_count,
     )
 
@@ -226,16 +228,23 @@ def restore_backup():
         return jsonify({"error": "Invalid filename"}), 400
 
     try:
-        if running_job_count():
-            return jsonify(
-                {"error": "Jobs are running — wait for them to finish before restoring"}
-            ), 409
-    except DatabaseBusyError:
-        return jsonify(
-            {"error": "The database is busy — another connection is holding it. Try again shortly."}
-        ), 409
+        with restore_guard():
+            try:
+                if running_job_count():
+                    return jsonify(
+                        {"error": "Jobs are running — wait for them to finish before restoring"}
+                    ), 409
+            except DatabaseBusyError:
+                return jsonify(
+                    {
+                        "error": "The database is busy — another connection is holding it. "
+                        "Try again shortly."
+                    }
+                ), 409
 
-    result = backup.restore_backup(backup_path)
-    refresh_after_restore()
+            result = backup.restore_backup(backup_path)
+            refresh_after_restore()
+    except RestoreInProgressError:
+        return jsonify({"error": "Another restore is already running — wait for it to finish"}), 409
 
     return jsonify(result)

@@ -20,6 +20,7 @@ import os
 import re
 import sqlite3
 import threading
+import time
 from datetime import UTC, datetime
 
 from database_backup_postgres import (  # noqa: F401 — re-exported for back-compat
@@ -35,6 +36,39 @@ logger = logging.getLogger(__name__)
 # How long a restore waits for other connections' write locks (milliseconds).
 _SQLITE_RESTORE_BUSY_TIMEOUT_MS = 30_000
 
+# Overall deadline for one copy. The busy timeout above only spaces out the
+# retries; sqlite3's backup() itself keeps retrying a busy destination.
+_SQLITE_RESTORE_DEADLINE_S = 60
+
+
+def _page_size(path: str) -> int | None:
+    """Page size of a SQLite file, or None when it cannot be read."""
+    try:
+        conn = sqlite3.connect(path)
+        try:
+            return int(conn.execute("PRAGMA page_size").fetchone()[0])
+        finally:
+            conn.close()
+    except sqlite3.Error:
+        return None
+
+
+def _staged_with_page_size(source_path: str, page_size: int, workdir: str) -> str:
+    """A copy of ``source_path`` rewritten to ``page_size``.
+
+    SQLite refuses to back up into a WAL database whose page size differs — and
+    reports it as "attempt to write a readonly database". VACUUM INTO writes a
+    fresh file with the page size set on the connection.
+    """
+    staged = os.path.join(workdir, f"staged-{os.getpid()}-{int(datetime.now(UTC).timestamp())}.db")
+    conn = sqlite3.connect(source_path, isolation_level=None)
+    try:
+        conn.execute(f"PRAGMA page_size={int(page_size)}")
+        conn.execute("VACUUM INTO ?", (staged,))
+    finally:
+        conn.close()
+    return staged
+
 
 def _sqlite_copy(source_path: str, target_path: str) -> None:
     """Copy one SQLite database onto another with the Online Backup API.
@@ -42,16 +76,44 @@ def _sqlite_copy(source_path: str, target_path: str) -> None:
     The whole copy runs in one step under SQLite's own locking, so ``target``
     either holds all of ``source`` or is left unchanged, and connections other
     threads keep open on ``target`` stay valid.
+
+    Two guards on top of the plain API call:
+
+    * ``timeout`` only feeds SQLite's busy handler, and ``backup()`` retries a
+      busy destination for as long as it takes. A deadline enforced from the
+      progress callback bounds the whole copy instead.
+    * A destination in WAL mode rejects a source with a different page size, so
+      the source is staged into a matching copy first.
     """
-    source = sqlite3.connect(source_path)
+    staged: str | None = None
+    if _page_size(source_path) != (target_page := _page_size(target_path)) and target_page:
+        staged = _staged_with_page_size(
+            source_path, target_page, os.path.dirname(target_path) or "."
+        )
+        source_path = staged
+
+    deadline = time.monotonic() + _SQLITE_RESTORE_DEADLINE_S
+
+    def _tick(status, remaining, total):  # noqa: ARG001 — signature fixed by sqlite3
+        if time.monotonic() > deadline:
+            raise TimeoutError(
+                f"the database stayed busy for {_SQLITE_RESTORE_DEADLINE_S} s; nothing was changed"
+            )
+
     try:
-        target = sqlite3.connect(target_path, timeout=_SQLITE_RESTORE_BUSY_TIMEOUT_MS / 1000)
+        source = sqlite3.connect(source_path)
         try:
-            source.backup(target)
+            target = sqlite3.connect(target_path, timeout=_SQLITE_RESTORE_BUSY_TIMEOUT_MS / 1000)
+            try:
+                source.backup(target, pages=512, progress=_tick)
+            finally:
+                target.close()
         finally:
-            target.close()
+            source.close()
     finally:
-        source.close()
+        if staged:
+            with contextlib.suppress(OSError):
+                os.remove(staged)
 
 
 class DatabaseBackup(_PostgresBackupMixin):

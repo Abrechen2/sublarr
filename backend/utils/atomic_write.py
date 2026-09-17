@@ -19,6 +19,7 @@ import os
 import re
 import shutil
 import tempfile
+import threading
 import time
 from collections.abc import Callable
 
@@ -47,6 +48,16 @@ _ORPHAN_MAX_AGE_SECONDS = 6 * 60 * 60
 # characters. Those are only reclaimed when empty — ffmpeg killed before its
 # first write — because a non-empty one is not provably ours.
 _LEGACY_MKSTEMP_RE = re.compile(r"^tmp[a-z0-9_]{8}\.(srt|ass|ssa|vtt|sub)$", re.IGNORECASE)
+
+# One sweep per directory per interval. Every atomic write called it, so a
+# directory with N entries cost N stat calls per write — expensive on SMB/NFS.
+_SWEEP_INTERVAL_S = 300
+_swept_at: dict[str, float] = {}
+_swept_lock = threading.Lock()
+
+
+def _now() -> float:
+    return time.monotonic()
 
 
 def _current_umask() -> int:
@@ -84,10 +95,11 @@ def _same_dir_tempfile(target_path: str) -> tuple[int, str]:
     return tempfile.mkstemp(suffix=ext, prefix=_TEMP_PREFIX, dir=target_dir)
 
 
-def _is_orphan_candidate(name: str, size: int) -> bool:
+def _is_candidate_name(name: str) -> bool:
+    """Cheap name-only filter, so nothing else is ever stat-ed."""
     if name.startswith(_TEMP_PREFIX):
         return not name.startswith(_REMUX_TEMP_PREFIX)
-    return size == 0 and bool(_LEGACY_MKSTEMP_RE.match(name))
+    return bool(_LEGACY_MKSTEMP_RE.match(name))
 
 
 def sweep_orphaned_temps(directory: str) -> int:
@@ -95,11 +107,17 @@ def sweep_orphaned_temps(directory: str) -> int:
 
     The cleanup around every atomic write unlinks its temp, but a process that
     is killed outright (container stop, host shutdown) never reaches it, and the
-    temp stays next to the episode for good. Call this before writing into a
-    library directory: no library-wide walk, and only files carrying our own
-    prefix — or empty legacy ``mkstemp`` names — older than six hours are
-    considered. Failures are logged and ignored.
+    temp stays next to the episode for good. Called before writing into a
+    library directory, at most once per ``_SWEEP_INTERVAL_S`` per directory, and
+    only files carrying our own prefix — or empty legacy ``mkstemp`` names —
+    older than six hours are considered. Failures are logged and ignored.
     """
+    now = _now()
+    with _swept_lock:
+        if now - _swept_at.get(directory, float("-inf")) < _SWEEP_INTERVAL_S:
+            return 0
+        _swept_at[directory] = now
+
     try:
         entries = list(os.scandir(directory))
     except OSError:
@@ -108,12 +126,18 @@ def sweep_orphaned_temps(directory: str) -> int:
     cutoff = time.time() - _ORPHAN_MAX_AGE_SECONDS
     removed = 0
     for entry in entries:
+        # Name first: a media directory holds thousands of files that can never
+        # be ours, and each stat is a round trip on a network share.
+        if not _is_candidate_name(entry.name):
+            continue
         try:
             if not entry.is_file(follow_symlinks=False):
                 continue
             st = entry.stat(follow_symlinks=False)
-            if st.st_mtime > cutoff or not _is_orphan_candidate(entry.name, st.st_size):
+            if st.st_mtime > cutoff:
                 continue
+            if not entry.name.startswith(_TEMP_PREFIX) and st.st_size != 0:
+                continue  # a legacy-shaped name is only provably ours when empty
             os.unlink(entry.path)
         except OSError as exc:
             logger.warning("Could not remove orphaned temp %s: %s", entry.path, exc)

@@ -458,53 +458,7 @@ def test_a_locked_jobs_table_answers_instead_of_hanging(client, backups):
     assert "busy" in response.get_json()["error"].lower()
 
 
-class _Clock:
-    def __init__(self):
-        self.now = 0.0
-
-    def __call__(self):
-        return self.now
-
-
-def test_lock_watchdog_cancels_only_after_the_limit():
-    from pg_restore_watchdog import LockWatchdog
-
-    clock = _Clock()
-    cancelled = []
-    dog = LockWatchdog(
-        query=lambda: [(4242, "Lock")],
-        cancel=cancelled.append,
-        limit_s=30,
-        clock=clock,
-    )
-
-    for t in (0, 10, 29):
-        clock.now = t
-        dog.tick()
-    assert cancelled == [] and not dog.cancelled
-
-    clock.now = 30.5
-    dog.tick()
-    assert cancelled == [4242] and dog.cancelled
-
-    clock.now = 40
-    dog.tick()
-    assert cancelled == [4242], "a backend is cancelled once"
-
-
-def test_lock_watchdog_resets_when_the_lock_is_granted():
-    from pg_restore_watchdog import LockWatchdog
-
-    clock = _Clock()
-    states = iter([[(1, "Lock")], [(1, None)], [(1, "Lock")], [(1, "Lock")]])
-    cancelled = []
-    dog = LockWatchdog(query=lambda: next(states), cancel=cancelled.append, limit_s=30, clock=clock)
-
-    for t in (0, 25, 26, 50):  # lock, granted, waiting again from 26, 24 s later
-        clock.now = t
-        dog.tick()
-
-    assert cancelled == [] and not dog.cancelled
+# The watchdog's own unit tests live in tests/test_pg_restore_watchdog.py.
 
 
 def test_any_nonzero_pg_restore_exit_is_a_failure(pg_backup, monkeypatch):
@@ -584,3 +538,167 @@ def test_without_versioned_clients_the_path_tool_is_used(tmp_path, monkeypatch):
     monkeypatch.setattr(pgmod, "PG_LIB_ROOT", str(tmp_path / "missing"))
 
     assert pgmod._pg_binary("pg_restore", 16) == "pg_restore"
+
+
+# ── cold-review findings (Codex, 2026-09-17) ─────────────────────────────────
+
+
+def test_a_failure_after_the_database_restore_keeps_its_matching_key(client, backups, tmp_path):
+    """The rollback put the OLD encryption key back even when the database had
+    already been replaced, leaving the restored rows undecryptable. When the
+    database is in, its key must stay with it."""
+    import config_crypto
+
+    config_crypto.encrypt("seed")  # make sure a key file exists
+    zip_bytes = _full_backup_zip(client)
+    key_path = config_crypto._key_path()
+    with open(key_path, "rb") as fh:
+        key_in_backup = fh.read()
+    with open(key_path, "wb") as fh:  # a different key is live now
+        fh.write(b"0" * len(key_in_backup))
+
+    with patch("db.config.save_config_entry", side_effect=RuntimeError("disk full")):
+        response = _restore_zip(client, zip_bytes)
+
+    assert response.status_code >= 400
+    with open(key_path, "rb") as fh:
+        assert fh.read() == key_in_backup, "the key of the restored database must be kept"
+
+
+def test_a_failure_before_the_database_restore_rolls_the_key_back(client, backups):
+    """The other direction is unchanged: nothing was replaced, so the old key stays."""
+    import config_crypto
+
+    config_crypto.encrypt("seed")
+    zip_bytes = _replace_zip_member(_full_backup_zip(client), "sublarr.db", b"not a database")
+    key_path = config_crypto._key_path()
+    with open(key_path, "wb") as fh:
+        fh.write(b"1" * 44)
+
+    response = _restore_zip(client, zip_bytes)
+
+    assert response.status_code >= 400
+    with open(key_path, "rb") as fh:
+        assert fh.read() == b"1" * 44, "an untouched database must keep the old key"
+
+
+def test_a_sqlite_restore_gives_up_instead_of_waiting_forever(tmp_path, monkeypatch):
+    """timeout= only configures SQLite's busy handler; the backup API retries
+    SQLITE_BUSY indefinitely, so a destination held by a writer could occupy the
+    restore thread for good."""
+    import sqlite3
+
+    import database_backup
+
+    source = tmp_path / "source.db"
+    sqlite3.connect(source).executescript("CREATE TABLE t(x); INSERT INTO t VALUES (1);")
+    target = tmp_path / "live.db"
+    sqlite3.connect(target).executescript("CREATE TABLE t(x);")
+
+    blocker = sqlite3.connect(target, isolation_level=None)
+    blocker.execute("BEGIN EXCLUSIVE")
+    monkeypatch.setattr(database_backup, "_SQLITE_RESTORE_DEADLINE_S", 2)
+    try:
+        with pytest.raises(Exception) as exc:
+            database_backup._sqlite_copy(str(source), str(target))
+    finally:
+        blocker.rollback()
+        blocker.close()
+
+    assert "busy" in str(exc.value).lower() or "lock" in str(exc.value).lower(), str(exc.value)
+    assert sqlite3.connect(target).execute("SELECT count(*) FROM t").fetchone()[0] == 0
+
+
+def test_a_backup_with_a_different_page_size_still_restores(tmp_path):
+    """SQLite refuses a backup into a WAL database when the page sizes differ."""
+    import sqlite3
+
+    from database_backup import _sqlite_copy
+
+    source = tmp_path / "source.db"
+    conn = sqlite3.connect(source, isolation_level=None)
+    conn.execute("PRAGMA page_size=8192")
+    conn.execute("VACUUM")
+    conn.execute("CREATE TABLE t(x)")
+    conn.execute("INSERT INTO t VALUES (7)")
+    conn.close()
+
+    target = tmp_path / "live.db"
+    conn = sqlite3.connect(target, isolation_level=None)
+    conn.execute("PRAGMA page_size=4096")
+    conn.execute("VACUUM")
+    conn.execute("PRAGMA journal_mode=WAL")
+    conn.execute("CREATE TABLE t(x)")
+    conn.close()
+
+    _sqlite_copy(str(source), str(target))
+
+    assert sqlite3.connect(target).execute("SELECT x FROM t").fetchone()[0] == 7
+
+
+def test_the_uploaded_archive_is_not_read_into_memory(client, backups):
+    """A 4 GiB allowance plus file.read() is a memory-exhaustion risk: the whole
+    archive was materialised before the database member was even looked at.
+    Werkzeug spools the upload to disk, so the archive is opened on that stream."""
+    import routes.system.backup_full as mod
+
+    zip_bytes = _full_backup_zip(client)
+    opened_with = []
+    real_zipfile = mod.zipfile.ZipFile
+
+    def spy(source, *args, **kwargs):
+        opened_with.append(type(source).__name__)
+        return real_zipfile(source, *args, **kwargs)
+
+    with patch.object(mod.zipfile, "ZipFile", spy):
+        response = _restore_zip(client, zip_bytes)
+
+    assert response.status_code == 200, response.get_json()
+    assert opened_with, "the route must open the archive itself"
+    assert "BytesIO" not in opened_with, opened_with
+
+
+def test_a_second_restore_is_refused_while_one_runs(client, backups):
+    """Cold review (Codex, 2026-09-17): the running-jobs check is a snapshot and
+    said nothing about another restore already replacing the database."""
+    import threading
+
+    from services.database_restore import restore_guard
+
+    created = client.post("/api/v1/database/backup", json={"label": "manual"})
+    filename = created.get_json()["filename"]
+
+    holding = threading.Event()
+    release = threading.Event()
+
+    def hold():
+        with restore_guard():
+            holding.set()
+            release.wait(30)
+
+    worker = threading.Thread(target=hold)
+    worker.start()
+    assert holding.wait(10)
+    try:
+        response = client.post(
+            "/api/v1/database/restore", json={"filename": filename, "confirm": True}
+        )
+    finally:
+        release.set()
+        worker.join(30)
+
+    assert response.status_code == 409
+    assert "restore" in response.get_json()["error"].lower()
+
+
+def test_the_guard_is_released_again(client, backups):
+    from services.database_restore import restore_guard
+
+    with restore_guard():
+        pass
+    created = client.post("/api/v1/database/backup", json={"label": "manual"})
+    response = client.post(
+        "/api/v1/database/restore",
+        json={"filename": created.get_json()["filename"], "confirm": True},
+    )
+    assert response.status_code == 200, response.get_json()

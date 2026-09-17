@@ -247,13 +247,16 @@ def restore_full_backup():
         400:
           description: Invalid or missing file
     """
-    from archive_utils import safe_read_zip_member
+    from archive_utils import safe_extract_zip_member_to, safe_read_zip_member
     from config import Settings, get_settings
     from database_backup import DatabaseBackup
     from db.config import save_config_entry
     from services.database_restore import (
         DatabaseBusyError,
+        RestoreInProgressError,
+        acquire_restore_slot,
         refresh_after_restore,
+        release_restore_slot,
         running_job_count,
     )
 
@@ -280,8 +283,18 @@ def restore_full_backup():
             {"error": "The database is busy — another connection is holding it. Try again shortly."}
         ), 409
 
-    # Validate ZIP
-    file_stream = io.BytesIO(file.read())
+    # Exactly one restore at a time: two of them replacing the database at once
+    # is the one case where "all or nothing" stops holding.
+    try:
+        acquire_restore_slot()
+    except RestoreInProgressError:
+        return jsonify({"error": "Another restore is already running — wait for it to finish"}), 409
+
+    # The upload is spooled to disk by Werkzeug and is seekable, so the archive
+    # is read from there. Materialising it (file.read()) meant the whole archive
+    # sat in memory next to the database member extracted from it.
+    file_stream = file.stream
+    file_stream.seek(0)
     if not zipfile.is_zipfile(file_stream):
         return jsonify({"error": "Uploaded file is not a valid ZIP archive"}), 400
 
@@ -364,10 +377,10 @@ def restore_full_backup():
                     import tempfile
 
                     with tempfile.NamedTemporaryFile(delete=False, suffix=suffix) as tmp:
-                        # Cap the decompressed DB entry — a 16 MB upload could
-                        # otherwise expand to multiple GB and OOM the worker.
-                        tmp.write(safe_read_zip_member(zf, db_archive_name, max_bytes=2 * 1024**3))
                         tmp_path = tmp.name
+                    # Streamed, not read into memory: the database member of a
+                    # real backup is far larger than the config members.
+                    safe_extract_zip_member_to(zf, db_archive_name, tmp_path, max_bytes=2 * 1024**3)
 
                     try:
                         backup = DatabaseBackup(db_path=s.db_path, backup_dir=s.backup_dir)
@@ -415,19 +428,25 @@ def restore_full_backup():
                     }
                 )
             except Exception:
-                # ANY failure past this point must not leave the master key
-                # swapped without the config/DB it was swapped for — roll it
-                # back to the pre-restore snapshot and re-raise so the
-                # existing error-response handling (below, or the global
-                # error handler for exception types not listed there) is
-                # unchanged.
-                if key_touched:
+                # A failure before the database was replaced must put the old
+                # key back — the live database is still the old one. Once the
+                # database IS the restored one, its key has to stay with it:
+                # rolling back then leaves rows nobody can decrypt (cold review,
+                # 2026-09-17).
+                if key_touched and not db_restored:
                     _rollback_master_key(old_key_bytes, dest)
+                elif db_restored:
+                    logger.error(
+                        "Full restore failed after the database was replaced; keeping its "
+                        "encryption key. Re-run the restore to finish the configuration."
+                    )
                 raise
 
     except (json.JSONDecodeError, KeyError, ValueError, zipfile.BadZipFile) as exc:
         # ValueError covers safe_read_zip_member's bomb/ratio rejections.
         return jsonify({"error": f"Invalid backup file: {exc}"}), 400
+    finally:
+        release_restore_slot()
 
 
 @bp.route("/backup/full/list", methods=["GET"])

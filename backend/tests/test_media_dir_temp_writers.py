@@ -208,3 +208,51 @@ def test_remux_track_keeps_the_videos_mode(tmp_path, app_ctx):
     assert res["changed"] is True
     assert video.read_bytes() == b"remuxed"
     assert _mode(video) == 0o664, f"expected 0664, got {oct(_mode(video))}"
+
+
+class TestSweepIsCheap:
+    """Cold review (Codex, 2026-09-17): the sweep ran on every atomic write and
+    stat-ed every entry of the directory first."""
+
+    def test_the_sweep_is_throttled_per_directory(self, tmp_path, monkeypatch):
+        import utils.atomic_write as aw
+
+        clock = {"now": 10_000.0}
+        monkeypatch.setattr(aw, "_now", lambda: clock["now"])
+        monkeypatch.setattr(aw, "_swept_at", {})
+
+        first = tmp_path / ".sublarr-one.srt"
+        first.write_bytes(b"x")
+        _age(first, 7 * 3600)
+        assert aw.sweep_orphaned_temps(str(tmp_path)) == 1
+
+        second = tmp_path / ".sublarr-two.srt"
+        second.write_bytes(b"x")
+        _age(second, 7 * 3600)
+        assert aw.sweep_orphaned_temps(str(tmp_path)) == 0, "a second sweep right after is skipped"
+        assert second.exists()
+
+        clock["now"] += aw._SWEEP_INTERVAL_S + 1
+        assert aw.sweep_orphaned_temps(str(tmp_path)) == 1
+        assert not second.exists()
+
+    def test_only_candidate_names_are_inspected(self, tmp_path, monkeypatch):
+        import utils.atomic_write as aw
+
+        monkeypatch.setattr(aw, "_swept_at", {})
+        for i in range(5):
+            (tmp_path / f"Episode {i}.mkv").write_bytes(b"v")
+        stale = tmp_path / ".sublarr-x.srt"
+        stale.write_bytes(b"x")
+        _age(stale, 7 * 3600)
+
+        stat_calls = []
+        real_stat = os.stat
+
+        def counting_stat(path, *args, **kwargs):
+            stat_calls.append(str(path))
+            return real_stat(path, *args, **kwargs)
+
+        monkeypatch.setattr(aw.os, "stat", counting_stat)
+        assert aw.sweep_orphaned_temps(str(tmp_path)) == 1
+        assert not [c for c in stat_calls if c.endswith(".mkv")], stat_calls
