@@ -175,6 +175,29 @@ def _video_files(root: str) -> list[str]:
 # ---------------------------------------------------------------------------
 
 
+#: Enough to see whether a subtitle file holds any line at all.
+_CONTENT_SAMPLE_BYTES = 65536
+
+
+def _has_subtitle_lines(path: str) -> bool:
+    """True when the file holds at least one subtitle line.
+
+    ASS/SSA need a ``Dialogue:`` event, SRT/VTT a cue arrow. A file we cannot
+    read is treated as holding content: refusing to replace it is the safe
+    direction, deleting its peer is not.
+    """
+    ext = os.path.splitext(path)[1].lower()
+    try:
+        with open(path, "rb") as fh:
+            sample = fh.read(_CONTENT_SAMPLE_BYTES)
+    except OSError as exc:
+        logger.debug("Could not read %s while checking for subtitle lines: %s", path, exc)
+        return True
+    if ext in (".ass", ".ssa"):
+        return b"Dialogue:" in sample
+    return b"-->" in sample
+
+
 def _detect_sidecar_language(path: str) -> str | None:
     """Return the language tag of a sidecar, or None if not classifiable.
 
@@ -747,7 +770,12 @@ def execute_format_upgrade(media_path: str, config: dict, dry_run: bool = False)
     examples: list[dict] = []
 
     for key, ext_map in index.items():
-        preferred_paths = ext_map.get(preferred_ext) or []
+        # Only a file that actually holds subtitle lines is an upgrade. An empty
+        # or header-only .ass used to trash a perfectly good .srt and leave the
+        # episode with a subtitle file holding nothing (sandbox VM, 1.14.4-rc.6);
+        # the next extraction wrote the .srt again and the next cleanup removed
+        # it again, eighteen times in a row in that test.
+        preferred_paths = [p for p in (ext_map.get(preferred_ext) or []) if _has_subtitle_lines(p)]
         inferior_paths = ext_map.get(inferior_ext) or []
         if not preferred_paths or not inferior_paths:
             continue

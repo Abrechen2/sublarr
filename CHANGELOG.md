@@ -43,6 +43,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   the embedded text track as `.srt` anyway and the "keep ASS" cleanup rule
   removed it the next morning. The `.ass` now counts as coverage, also under
   `.ger.ass` or `.deu.ass`; a forced-only `.ass` does not.
+- **An empty subtitle file never replaces a working one.** The "keep ASS"
+  cleanup rule only compared formats, so an empty or header-only `.de.ass`
+  next to a valid `.de.srt` sent the working subtitle to the trash — and the
+  next extraction wrote it again, for the rule to remove again. A file now
+  counts as an upgrade only when it holds at least one subtitle line.
 - **Cleanup rules leave the subtitle trash alone.** The nightly rules and the
   orphan scan walked `.sublarr_trash`, treated trashed files as live ones and
   could move them out of their batch, which breaks restoring it.

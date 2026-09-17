@@ -178,13 +178,24 @@ def test_foreign_tracks_keep_und_false_strips_und(tmp_path):
     assert result["would_strip_tracks"] == 3  # jpn + ita + und
 
 
+_ASS_HEADER = (
+    "[Script Info]\n\n[Events]\nFormat: Layer, Start, End, Style, Name, MarginL, MarginR,"
+    " MarginV, Effect, Text\n"
+)
+_ASS_WITH_LINE = _ASS_HEADER + "Dialogue: 0,0:00:01.00,0:00:02.00,Default,,0,0,0,,Hallo\n"
+_SRT_WITH_LINE = "1\n00:00:01,000 --> 00:00:02,000\nHallo\n"
+
+
 def test_format_upgrade_removes_srt_when_ass_exists(tmp_path):
     """SRT should be deleted when ASS exists for same base+language."""
     from services.cleanup_executors import execute_format_upgrade
 
-    (tmp_path / "show.de.ass").write_text("german ass")
-    (tmp_path / "show.de.srt").write_text("german srt")
-    (tmp_path / "show.en.srt").write_text("english srt only")  # no ASS counterpart
+    # Real lines, not placeholders: since the sandbox VM found that an empty
+    # .ass trashed a working .srt, a file only counts as an upgrade when it
+    # holds at least one subtitle line.
+    (tmp_path / "show.de.ass").write_text(_ASS_WITH_LINE, encoding="utf-8")
+    (tmp_path / "show.de.srt").write_text(_SRT_WITH_LINE, encoding="utf-8")
+    (tmp_path / "show.en.srt").write_text(_SRT_WITH_LINE, encoding="utf-8")  # no ASS counterpart
 
     config = {"keep_format": "ass", "permanent_delete": True}
     result = execute_format_upgrade(str(tmp_path), config, dry_run=False)
@@ -295,3 +306,73 @@ def test_subtitle_walk_skips_sidecar_trash_batches(tmp_path):
 
     assert result["deleted"] == 1
     assert (batch / "Old.ara.ass").exists()
+
+
+# ── VM test of 1.14.4-rc.6: an empty preferred file is no upgrade ────────────
+
+
+def _format_upgrade_case(tmp_path, ass_body):
+    (tmp_path / "Show - S01E01.mkv").write_bytes(b"v")
+    (tmp_path / "Show - S01E01.de.srt").write_text(_SRT_WITH_LINE, encoding="utf-8")
+    (tmp_path / "Show - S01E01.de.ass").write_text(ass_body, encoding="utf-8")
+
+
+def test_an_empty_ass_does_not_replace_a_working_srt(tmp_path, app_ctx):
+    """Prod flow found on the sandbox VM: extraction writes a good .de.srt, the
+    "keep ass" rule trashes it because an empty .de.ass sits next to it, and the
+    episode is left with a subtitle file that holds no line at all."""
+    from services.cleanup_executors import execute_format_upgrade
+
+    _format_upgrade_case(tmp_path, _ASS_HEADER)
+
+    result = execute_format_upgrade(str(tmp_path), {"keep_format": "ass"}, dry_run=False)
+
+    assert result["deleted"] == 0, result
+    assert (tmp_path / "Show - S01E01.de.srt").exists()
+
+
+def test_a_zero_byte_ass_does_not_replace_a_working_srt(tmp_path, app_ctx):
+    from services.cleanup_executors import execute_format_upgrade
+
+    _format_upgrade_case(tmp_path, "")
+
+    result = execute_format_upgrade(str(tmp_path), {"keep_format": "ass"}, dry_run=False)
+
+    assert result["deleted"] == 0, result
+    assert (tmp_path / "Show - S01E01.de.srt").exists()
+
+
+def test_a_real_ass_still_replaces_the_srt(tmp_path, app_ctx):
+    """Control: the rule must keep working for files that actually hold lines."""
+    from services.cleanup_executors import execute_format_upgrade
+
+    _format_upgrade_case(tmp_path, _ASS_WITH_LINE)
+
+    result = execute_format_upgrade(str(tmp_path), {"keep_format": "ass"}, dry_run=False)
+
+    assert result["deleted"] == 1, result
+    assert not (tmp_path / "Show - S01E01.de.srt").exists()
+
+
+def test_an_empty_srt_does_not_replace_a_working_ass(tmp_path, app_ctx):
+    """The same rule the other way round (keep_format=srt)."""
+    from services.cleanup_executors import execute_format_upgrade
+
+    (tmp_path / "Show - S01E02.mkv").write_bytes(b"v")
+    (tmp_path / "Show - S01E02.de.ass").write_text(_ASS_WITH_LINE, encoding="utf-8")
+    (tmp_path / "Show - S01E02.de.srt").write_text("", encoding="utf-8")
+
+    result = execute_format_upgrade(str(tmp_path), {"keep_format": "srt"}, dry_run=False)
+
+    assert result["deleted"] == 0, result
+    assert (tmp_path / "Show - S01E02.de.ass").exists()
+
+
+def test_the_dry_run_agrees_with_the_real_run(tmp_path, app_ctx):
+    from services.cleanup_executors import execute_format_upgrade
+
+    _format_upgrade_case(tmp_path, _ASS_HEADER)
+
+    preview = execute_format_upgrade(str(tmp_path), {"keep_format": "ass"}, dry_run=True)
+
+    assert preview["would_delete"] == 0, preview
