@@ -19,6 +19,12 @@ export interface WhatsNewItem {
 }
 
 export const WHATS_NEW: Record<string, WhatsNewItem[]> = {
+  '1.14.4': [
+    { icon: ShieldCheck, titleKey: 'whatsnew.v1144.perms_title', descKey: 'whatsnew.v1144.perms_desc' },
+    { icon: Copy, titleKey: 'whatsnew.v1144.alias_title', descKey: 'whatsnew.v1144.alias_desc' },
+    { icon: FileDown, titleKey: 'whatsnew.v1144.restore_title', descKey: 'whatsnew.v1144.restore_desc' },
+    { icon: Layers, titleKey: 'whatsnew.v1144.mobile_title', descKey: 'whatsnew.v1144.mobile_desc' },
+  ],
   '1.14.3': [
     { icon: Copy, titleKey: 'whatsnew.v1143.dedup_title', descKey: 'whatsnew.v1143.dedup_desc' },
     { icon: Languages, titleKey: 'whatsnew.v1143.mt_title', descKey: 'whatsnew.v1143.mt_desc' },

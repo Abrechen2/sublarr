@@ -654,6 +654,16 @@
     "last_run": "Zuletzt: {{date}}"
   },
   "whatsnew": {
+    "v1144": {
+      "perms_title": "Extrahierte Untertitel sind für den Mediaserver lesbar",
+      "perms_desc": "Extrahierte, reparierte und im Diff bearbeitete Untertitel waren nur für Sublarr selbst lesbar. Emby, Jellyfin oder Plex unter einem anderen Benutzer konnten sie nicht öffnen. Nach einem Absturz bleiben außerdem keine leeren Temp-Dateien mehr im Ordner liegen.",
+      "alias_title": "Keine zweiten Untertitel unter .ger oder .eng",
+      "alias_desc": "Manuelle Extraktion und Upload verwenden jetzt überall den Sprachcode .de bzw. .en. Liegt schon eine .ass vor, wird dieselbe Sprache nicht mehr jeden Tag erneut als .srt extrahiert.",
+      "restore_title": "Wiederherstellung ganz oder gar nicht",
+      "restore_desc": "Eine Wiederherstellung meldet nur Erfolg, wenn sie wirklich vollständig war. Ein beschädigtes Backup ändert nichts. Backups von PostgreSQL 15, 16 und 17 lassen sich zurückspielen.",
+      "mobile_title": "Aktionsleiste auf dem Handy vollständig",
+      "mobile_desc": "Nach „Alle auswählen“ bleiben auf der Wanted-Seite alle Aktionen auf dem Bildschirm erreichbar."
+    },
     "v1143": {
       "dedup_title": "Duplikate gehören zur selben Episode",
       "dedup_desc": "Ein Untertitel wird nicht mehr als Duplikat verworfen, nur weil eine andere Episode im selben Staffelordner denselben Inhalt hat.",

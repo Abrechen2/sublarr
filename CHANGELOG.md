@@ -5,6 +5,63 @@ All notable changes to Sublarr are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.14.4] - 2026-09-17
+
+### Fixed
+- **Extracted subtitles are readable by your media server again.** Every
+  embedded track Sublarr extracted, every subtitle repaired right after
+  extraction and every edit applied from the diff view was written with mode
+  `0600`, so Emby, Jellyfin or Plex running as another user could not open it.
+  On libraries with POSIX ACLs the ACL was cancelled as well. The subtitle-health
+  fixer that rewrites a video had the same defect for the video file. All of
+  them now write world-readable files like the rest of Sublarr, and a remuxed
+  video keeps the mode it had.
+- **A crash no longer leaves temp files in your library.** A process killed
+  while writing a subtitle (container stop, host shutdown) left an empty
+  `tmpXXXXXXXX.srt` next to the episode for good. Temp files now carry a
+  hidden `.sublarr-` prefix and stale ones are removed the next time
+  Sublarr writes into that folder, including empty leftovers of older
+  versions.
+- **No more second German or English subtitle under `.ger` / `.eng`.** Manual
+  track extraction (single and whole series) and manual upload still named
+  files after the raw container code, so `.ger.srt` appeared next to
+  `.de.srt`, and an upload as `ger` slipped past the "already exists" check.
+  All writers now use the canonical code, and series extraction also
+  recognises a sidecar under its old raw-code name.
+- **An `.ass` subtitle stops the same `.srt` from being extracted every
+  day.** With an `.ass` for a language next to the video, each pass extracted
+  the embedded text track as `.srt` anyway and the "keep ASS" cleanup rule
+  removed it the next morning. The `.ass` now counts as coverage.
+- **Cleanup rules leave the subtitle trash alone.** The nightly rules and the
+  orphan scan walked `.sublarr_trash`, treated trashed files as live ones and
+  could move them out of their batch, which breaks restoring it.
+- **A restore happens completely and is reported truthfully, or not at all.**
+  A SQLite restore swapped the database under open connections and reported
+  success while the old data stayed and later queries failed with "disk I/O
+  error". A corrupt PostgreSQL dump was reported as restored. Restores now
+  release the database first, run PostgreSQL restores in one transaction that
+  aborts on the first error, check the archive before changing anything,
+  apply `config.json` only after the database succeeded, refresh settings
+  afterwards and are refused while jobs are running.
+- **The batch action bar stays on screen on phones.** After "select all" on
+  the Wanted page most actions were off screen at phone width; the bar now
+  wraps and sits above the bottom navigation.
+
+### Changed
+- **In-app backups of PostgreSQL 15, 16 and 17 can be restored.** The image
+  shipped only the PostgreSQL 17 client, whose dumps a PostgreSQL 16 server
+  cannot restore. It now ships clients 15, 16 and 17 and uses the one matching
+  your server.
+
+### Upgrade notes
+- No database migration in this release.
+- Subtitles written with the wrong mode before this release keep it. To fix
+  them, run on the host (adjust the media path):
+  `find /path/to/media \( -name '*.srt' -o -name '*.ass' -o -name '*.ssa' -o -name '*.vtt' \) -perm 600 -exec chmod 644 {} +`
+- Existing `.ger`/`.eng`/`.deu` duplicates are not removed automatically:
+  they can differ from the `.de`/`.en` file, and a track extracted by series
+  extraction is no longer inside the video.
+
 ## [1.14.3] - 2026-09-16
 
 ### Fixed
