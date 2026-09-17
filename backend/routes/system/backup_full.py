@@ -19,6 +19,10 @@ from routes.config.io import _secret_import_keys
 from routes.system import bp
 from version import __version__
 
+#: Upload cap for a full-backup restore. The database member itself is read
+#: with its own 2 GB guard (see safe_read_zip_member below).
+_MAX_RESTORE_UPLOAD_BYTES = 4 * 1024**3
+
 logger = logging.getLogger(__name__)
 
 
@@ -252,6 +256,12 @@ def restore_full_backup():
         refresh_after_restore,
         running_job_count,
     )
+
+    # Every other request body is capped at 16 MB against a DoS, but a full
+    # backup of a real library is far larger (a production database made a
+    # 64 MB archive) and restoring it answered 413 — Sublarr offered a backup
+    # it could not take back. This one endpoint gets its own, larger cap.
+    request.max_content_length = _MAX_RESTORE_UPLOAD_BYTES
 
     if "file" not in request.files:
         return jsonify({"error": "No file uploaded. Use multipart/form-data with key 'file'"}), 400

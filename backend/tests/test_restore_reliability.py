@@ -215,12 +215,15 @@ def test_sqlite_restore_under_a_connection_held_by_another_thread(client, backup
 
 
 def _replace_zip_member(zip_bytes, name, content):
+    """Rewrite ``name`` inside the archive, adding it when it is not there yet."""
     src = zipfile.ZipFile(io.BytesIO(zip_bytes))
     buf = io.BytesIO()
     with zipfile.ZipFile(buf, "w") as dst:
         for info in src.infolist():
             data = content if info.filename == name else src.read(info.filename)
             dst.writestr(info.filename, data)
+        if name not in src.namelist():
+            dst.writestr(name, content)
     return buf.getvalue()
 
 
@@ -241,6 +244,21 @@ def test_config_json_that_is_not_an_object_changes_nothing(client, backups, conf
     assert response.status_code == 400, response.get_json()
     assert _page_size(client) == 47
     assert "Partial restore" not in _profile_names(client)
+
+
+def test_a_full_backup_larger_than_the_global_upload_limit_can_be_restored(client, backups):
+    """RC 2026-09-17: a production-sized full backup is 64 MB, but every request
+    body is capped at 16 MB, so restoring it answered 413 — Sublarr offered a
+    backup it could not take back."""
+    import os
+
+    zip_bytes = _full_backup_zip(client)
+    padded = _replace_zip_member(zip_bytes, "padding.bin", os.urandom(17 * 1024 * 1024))
+    assert len(padded) > 16 * 1024 * 1024, "the upload must exceed the global limit"
+
+    response = _restore_zip(client, padded)
+
+    assert response.status_code == 200, f"HTTP {response.status_code}"
 
 
 def test_manifest_that_is_not_an_object_is_rejected(client, backups):
