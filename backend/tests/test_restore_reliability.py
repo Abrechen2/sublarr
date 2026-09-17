@@ -20,6 +20,7 @@ import io
 import sqlite3
 import subprocess
 import zipfile
+from unittest.mock import patch
 
 import pytest
 
@@ -416,6 +417,27 @@ def test_restore_cancelled_by_the_lock_watchdog_says_the_database_is_in_use(pg_b
     assert seen_env.get("PGAPPNAME", "").startswith("sublarr-restore")
     assert "nothing was changed" in str(exc.value)
     assert "in use" in str(exc.value)
+
+
+def test_a_locked_jobs_table_answers_instead_of_hanging(client, backups):
+    """RC 2026-09-17: with the jobs table locked by another connection, the
+    request hung in its own "are jobs running?" check for the whole 120 s the
+    lock was held — before pg_restore, so the lock watchdog never saw it."""
+    from sqlalchemy.exc import OperationalError
+
+    created = client.post("/api/v1/database/backup", json={"label": "manual"})
+    filename = created.get_json()["filename"]
+
+    def blocked(*_args, **_kwargs):
+        raise OperationalError("SELECT jobs", {}, Exception("canceling statement due to timeout"))
+
+    with patch("services.database_restore._count_running_jobs", side_effect=blocked):
+        response = client.post(
+            "/api/v1/database/restore", json={"filename": filename, "confirm": True}
+        )
+
+    assert response.status_code == 409
+    assert "busy" in response.get_json()["error"].lower()
 
 
 class _Clock:

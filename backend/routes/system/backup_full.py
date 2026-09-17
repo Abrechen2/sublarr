@@ -247,7 +247,11 @@ def restore_full_backup():
     from config import Settings, get_settings
     from database_backup import DatabaseBackup
     from db.config import save_config_entry
-    from services.database_restore import refresh_after_restore, running_job_count
+    from services.database_restore import (
+        DatabaseBusyError,
+        refresh_after_restore,
+        running_job_count,
+    )
 
     if "file" not in request.files:
         return jsonify({"error": "No file uploaded. Use multipart/form-data with key 'file'"}), 400
@@ -256,9 +260,14 @@ def restore_full_backup():
 
     # Replacing the data under a running job lets it write its pre-restore view
     # back. Checked before anything — including the master key — is touched.
-    if running_job_count():
+    try:
+        if running_job_count():
+            return jsonify(
+                {"error": "Jobs are running — wait for them to finish before restoring"}
+            ), 409
+    except DatabaseBusyError:
         return jsonify(
-            {"error": "Jobs are running — wait for them to finish before restoring"}
+            {"error": "The database is busy — another connection is holding it. Try again shortly."}
         ), 409
 
     # Validate ZIP

@@ -14,6 +14,7 @@ of 1.14.3-rc.4 showed three ways that went wrong, and each helper here closes on
 
 from __future__ import annotations
 
+import contextlib
 import logging
 
 logger = logging.getLogger(__name__)
@@ -34,11 +35,53 @@ def release_db_connections() -> None:
         logger.debug("release_db_connections: nothing to release (%s)", exc)
 
 
-def running_job_count() -> int:
-    """Number of translation jobs currently running."""
+class DatabaseBusyError(Exception):
+    """The database did not answer in time — something else is holding it."""
+
+
+#: Seconds the jobs check may take before the database counts as busy.
+JOB_CHECK_TIMEOUT_S = 5
+
+
+def _count_running_jobs() -> int:
     from db.jobs import get_jobs
 
     return int(get_jobs(page=1, per_page=1, status="running").get("total", 0))
+
+
+def running_job_count() -> int:
+    """Number of translation jobs currently running.
+
+    Bounded: with the jobs table locked by another connection this query waits
+    for the lock, and the restore request waited with it — RC 2026-09-17 hung
+    for the full two minutes a test lock was held, before pg_restore (and its
+    own lock watchdog) had even started. PostgreSQL gets a statement timeout;
+    a timed-out or otherwise failing check raises DatabaseBusyError so the
+    caller can say so instead of stalling.
+    """
+    from sqlalchemy.exc import SQLAlchemyError
+
+    try:
+        _set_statement_timeout(JOB_CHECK_TIMEOUT_S)
+        return _count_running_jobs()
+    except SQLAlchemyError as exc:
+        logger.warning("Jobs check did not complete, treating the database as busy: %s", exc)
+        raise DatabaseBusyError(str(exc)) from exc
+    finally:
+        with contextlib.suppress(Exception):
+            _set_statement_timeout(None)
+
+
+def _set_statement_timeout(seconds: int | None) -> None:
+    """Bound (or unbound) the current PostgreSQL session's statement timeout."""
+    from sqlalchemy import text
+
+    from extensions import db
+
+    if db.engine.dialect.name != "postgresql":
+        return
+    value = f"{seconds}s" if seconds else "0"
+    db.session.execute(text(f"SET statement_timeout = '{value}'"))
 
 
 def refresh_after_restore() -> None:
