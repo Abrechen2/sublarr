@@ -274,7 +274,24 @@ def restore_full_backup():
             if "manifest.json" not in zf.namelist():
                 return jsonify({"error": "ZIP missing manifest.json"}), 400
 
-            manifest = json.loads(safe_read_zip_member(zf, "manifest.json"))
+            # Every member is parsed and its shape checked before anything is
+            # touched. VM test of 1.14.4-rc.2: config.json = [] parsed fine, the
+            # database was replaced, and only then did .items() fail.
+            try:
+                manifest = json.loads(safe_read_zip_member(zf, "manifest.json"))
+                config_data = (
+                    json.loads(safe_read_zip_member(zf, "config.json"))
+                    if "config.json" in zf.namelist()
+                    else None
+                )
+            except ValueError as exc:
+                return jsonify({"error": f"Invalid backup file: {exc}"}), 400
+            if not isinstance(manifest, dict):
+                return jsonify({"error": "manifest.json must be a JSON object"}), 400
+            if config_data is not None and not isinstance(config_data, dict):
+                return jsonify(
+                    {"error": "config.json must be a JSON object — nothing was changed"}
+                ), 400
             if manifest.get("schema_version") != 1:
                 return jsonify(
                     {"error": f"Unsupported schema_version: {manifest.get('schema_version')}"}
@@ -317,15 +334,6 @@ def restore_full_backup():
                 key_touched = True
 
             try:
-                # Parse config.json up front: a corrupt member must fail before
-                # the database is replaced, not after (the key rollback below
-                # would otherwise pair the old key with the restored database).
-                config_data = (
-                    json.loads(safe_read_zip_member(zf, "config.json"))
-                    if "config.json" in zf.namelist()
-                    else None
-                )
-
                 # Restore DB if present (dialect-aware via manifest)
                 backup_backend = manifest.get("db_backend", "sqlite")
                 db_archive_name = (

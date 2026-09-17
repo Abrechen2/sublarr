@@ -18,7 +18,6 @@ import contextlib
 import logging
 import os
 import re
-import shutil
 import sqlite3
 import threading
 from datetime import UTC, datetime
@@ -32,6 +31,27 @@ from database_backup_postgres import (  # noqa: F401 — re-exported for back-co
 from error_handler import DatabaseBackupError, DatabaseRestoreError
 
 logger = logging.getLogger(__name__)
+
+# How long a restore waits for other connections' write locks (milliseconds).
+_SQLITE_RESTORE_BUSY_TIMEOUT_MS = 30_000
+
+
+def _sqlite_copy(source_path: str, target_path: str) -> None:
+    """Copy one SQLite database onto another with the Online Backup API.
+
+    The whole copy runs in one step under SQLite's own locking, so ``target``
+    either holds all of ``source`` or is left unchanged, and connections other
+    threads keep open on ``target`` stay valid.
+    """
+    source = sqlite3.connect(source_path)
+    try:
+        target = sqlite3.connect(target_path, timeout=_SQLITE_RESTORE_BUSY_TIMEOUT_MS / 1000)
+        try:
+            source.backup(target)
+        finally:
+            target.close()
+    finally:
+        source.close()
 
 
 class DatabaseBackup(_PostgresBackupMixin):
@@ -184,7 +204,8 @@ class DatabaseBackup(_PostgresBackupMixin):
     def restore_backup(self, backup_path: str) -> dict:
         """Restore a backup, dispatching based on file extension.
 
-        For SQLite (.db): Replaces the database file after integrity check.
+        For SQLite (.db): Copies it into the live database with the backup API
+        after an integrity check.
         For PostgreSQL (.pgdump): Uses pg_restore subprocess.
 
         Creates a safety backup before restoring (SQLite only).
@@ -218,35 +239,34 @@ class DatabaseBackup(_PostgresBackupMixin):
                 troubleshooting="The backup file may be corrupted. Choose a different backup.",
             )
 
-        # Safety backup of current DB
+        # Safety backup of the current DB, through the backup API as well: a
+        # file copy of a WAL database misses whatever is still in the -wal file.
         safety_path = self.db_path + ".pre_restore"
         try:
-            shutil.copy2(self.db_path, safety_path)
+            _sqlite_copy(self.db_path, safety_path)
         except Exception as exc:
             raise DatabaseRestoreError(
                 f"Could not create safety backup: {exc}",
             ) from exc
 
-        # Replace database. Every pooled connection must be closed first: the
-        # routes used to call db.close_db(), a no-op, and the swap under open
-        # connections left "disk I/O error" behind a reported success.
+        # Restore into the live database through SQLite's Online Backup API
+        # instead of copying the file over it. The copy (and deleting -wal/-shm)
+        # happened under connections other threads still held: VM test of
+        # 1.14.4-rc.2 got HTTP 500, a thread still reading the old data and
+        # "disk I/O error" on the next fresh connection. The backup API takes
+        # SQLite's own locks, is all-or-nothing, and every connection sees the
+        # restored data once its current transaction ends. This process's
+        # session is released first so it holds no transaction open.
         from services.database_restore import release_db_connections
 
         release_db_connections()
         try:
-            shutil.copy2(backup_path, self.db_path)
-            # Remove WAL and SHM files to force clean state
-            for suffix in ("-wal", "-shm"):
-                wal = self.db_path + suffix
-                if os.path.exists(wal):
-                    os.remove(wal)
+            _sqlite_copy(backup_path, self.db_path)
         except Exception as exc:
-            # Attempt rollback
-            with contextlib.suppress(Exception):
-                shutil.copy2(safety_path, self.db_path)
             raise DatabaseRestoreError(
-                f"Restore failed (rolled back): {exc}",
+                f"Restore failed, the database was not changed: {exc}",
                 context={"backup_path": backup_path},
+                troubleshooting="Another connection may be writing; try again in a moment.",
             ) from exc
 
         logger.info(

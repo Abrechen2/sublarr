@@ -109,9 +109,20 @@ def _pg_binary(tool: str, server_major: int | None) -> str:
 
 _DUMPED_BY = re.compile(r"Dumped by pg_dump version:\s*(\d+)")
 
-# How long pg_restore may wait for one table lock before the restore is
-# cancelled (and rolled back) instead of stalling the app behind it.
-_RESTORE_LOCK_TIMEOUT_MS = 30_000
+# How long pg_restore may wait for one table lock before the watchdog cancels
+# the restore (rolled back) instead of letting it stall the app behind it.
+_RESTORE_LOCK_LIMIT_S = 30
+
+
+def _start_lock_watchdog(database_url: str, app_name: str):
+    """Start the lock watchdog for this restore; None if it cannot run."""
+    try:
+        import pg_restore_watchdog
+
+        return pg_restore_watchdog.start(database_url, app_name, _RESTORE_LOCK_LIMIT_S)
+    except Exception as exc:  # noqa: BLE001 — a restore without the watchdog still works
+        logger.warning("pg_restore lock watchdog unavailable: %s", exc)
+        return None
 
 
 class _PostgresBackupMixin:
@@ -248,13 +259,9 @@ class _PostgresBackupMixin:
         pg = _parse_pg_url(database_url)
         env = os.environ.copy()
         env["PGPASSWORD"] = pg["password"]
-        # --clean drops every table and index, which needs an exclusive lock on
-        # each. A session holding a lock elsewhere made pg_restore wait out the
-        # whole timeout while every app query queued up behind it. Give up after
-        # a bounded wait instead; the single transaction rolls back cleanly.
-        env["PGOPTIONS"] = (
-            env.get("PGOPTIONS", "") + f" -c lock_timeout={_RESTORE_LOCK_TIMEOUT_MS}"
-        ).strip()
+        # Named, so the lock watchdog can find this restore's backend.
+        app_name = f"sublarr-restore-{os.getpid()}"
+        env["PGAPPNAME"] = app_name
 
         cmd = [
             _pg_binary("pg_restore", _server_major_version()),
@@ -283,6 +290,11 @@ class _PostgresBackupMixin:
 
         release_db_connections()
 
+        # --clean needs an exclusive lock on every table; a lock held by another
+        # connection would stall the restore (and the app queued behind it)
+        # for the whole timeout. The dump's own SET lock_timeout = 0 rules out a
+        # server-side limit, so a watchdog cancels the backend instead.
+        watchdog = _start_lock_watchdog(database_url, app_name)
         try:
             result = subprocess.run(
                 cmd,
@@ -291,7 +303,7 @@ class _PostgresBackupMixin:
                 text=True,
                 timeout=300,
             )
-            if result.returncode != 0 and "lock timeout" in (result.stderr or ""):
+            if result.returncode != 0 and watchdog is not None and watchdog.cancelled:
                 raise DatabaseRestoreError(
                     "The database is in use by another connection, so the restore was "
                     "cancelled — nothing was changed",
@@ -321,6 +333,9 @@ class _PostgresBackupMixin:
                 f"PostgreSQL restore failed: {exc}",
                 context={"backup_path": backup_path},
             ) from exc
+        finally:
+            if watchdog is not None:
+                watchdog.stop()
 
         logger.info("PostgreSQL database restored from %s", backup_path)
         return {

@@ -164,6 +164,92 @@ def test_corrupt_database_in_zip_leaves_config_untouched(client, backups):
         assert str(get_config_entry("items_per_page")) == "25"
 
 
+def test_sqlite_restore_under_a_connection_held_by_another_thread(client, backups):
+    """VM test of 1.14.4-rc.2: a second thread holding an ordinary pooled
+    connection (having read a setting) survived release_db_connections(), the
+    file was swapped under it, the restore returned 500 and a fresh SQLite
+    connection failed with "disk I/O error". No running job was needed."""
+    import threading
+
+    _set_page_size(client, 25)
+    created = client.post("/api/v1/database/backup", json={"label": "manual"})
+    filename = created.get_json()["filename"]
+    _set_page_size(client, 47)
+
+    holding = threading.Event()
+    release = threading.Event()
+    seen_after = {}
+
+    def hold_connection():
+        from sqlalchemy import text
+
+        with client.application.app_context():
+            from extensions import db
+
+            with db.engine.connect() as conn:
+                conn.execute(text("SELECT value FROM config_entries LIMIT 1")).fetchall()
+                holding.set()
+                release.wait(30)
+            with db.engine.connect() as conn:
+                row = conn.execute(
+                    text("SELECT value FROM config_entries WHERE key = 'items_per_page'")
+                ).fetchone()
+                seen_after["items_per_page"] = row[0] if row else None
+
+    worker = threading.Thread(target=hold_connection)
+    worker.start()
+    assert holding.wait(10)
+    try:
+        response = client.post(
+            "/api/v1/database/restore", json={"filename": filename, "confirm": True}
+        )
+    finally:
+        release.set()
+        worker.join(30)
+
+    assert response.status_code == 200, response.get_json()
+    assert _page_size(client) == 25
+    assert _fresh_sqlite_count("config_entries") >= 1  # no "disk I/O error"
+    assert seen_after["items_per_page"] == "25"
+
+
+def _replace_zip_member(zip_bytes, name, content):
+    src = zipfile.ZipFile(io.BytesIO(zip_bytes))
+    buf = io.BytesIO()
+    with zipfile.ZipFile(buf, "w") as dst:
+        for info in src.infolist():
+            data = content if info.filename == name else src.read(info.filename)
+            dst.writestr(info.filename, data)
+    return buf.getvalue()
+
+
+@pytest.mark.parametrize("config_json", ["[]", '"text"', "42"])
+def test_config_json_that_is_not_an_object_changes_nothing(client, backups, config_json):
+    """VM test of 1.14.4-rc.2: config.json = [] parsed fine, the database was
+    replaced, and only then did ``.items()`` fail — HTTP 500 with the setting
+    changed and a deleted profile restored."""
+    _set_page_size(client, 25)
+    profile_id = _create_profile(client, "Partial restore")
+    zip_bytes = _replace_zip_member(_full_backup_zip(client), "config.json", config_json)
+
+    _delete_profile(client, profile_id)
+    _set_page_size(client, 47)
+
+    response = _restore_zip(client, zip_bytes)
+
+    assert response.status_code == 400, response.get_json()
+    assert _page_size(client) == 47
+    assert "Partial restore" not in _profile_names(client)
+
+
+def test_manifest_that_is_not_an_object_is_rejected(client, backups):
+    zip_bytes = _replace_zip_member(_full_backup_zip(client), "manifest.json", "[1]")
+
+    response = _restore_zip(client, zip_bytes)
+
+    assert response.status_code == 400, response.get_json()
+
+
 # ── restore refused while jobs run ───────────────────────────────────────────
 
 
@@ -291,15 +377,29 @@ def test_restore_releases_this_processs_connections_before_pg_restore_runs(pg_ba
     assert events.index("release") > events.index("list")
 
 
-def test_restore_gives_up_quickly_on_a_lock_held_elsewhere(pg_backup, monkeypatch):
-    """A lock held by another session must fail the restore fast and say why,
-    not stall every app query behind a 300 s wait."""
+def test_restore_cancelled_by_the_lock_watchdog_says_the_database_is_in_use(pg_backup, monkeypatch):
+    """A lock held by another session must fail the restore and say why.
+
+    PGOPTIONS lock_timeout was tried first and did nothing: the dump itself runs
+    ``SET lock_timeout = 0`` (VM test of 1.14.4-rc.2 waited 47.7 s on a 45 s
+    lock). The watchdog cancels pg_restore's backend instead.
+    """
+    import database_backup_postgres as pgmod
+
     backup, dump = pg_backup
     seen_env = {}
+
+    class _Cancelled:
+        cancelled = True
+
+        def stop(self):
+            pass
+
+    monkeypatch.setattr(pgmod, "_start_lock_watchdog", lambda url, app_name: _Cancelled())
     inner = _Run(
         subprocess.CompletedProcess([], 0, _header(), ""),
         subprocess.CompletedProcess(
-            [], 1, "", "pg_restore: error: canceling statement due to lock timeout"
+            [], 1, "", "pg_restore: error: canceling statement due to user request"
         ),
     )
 
@@ -313,9 +413,58 @@ def test_restore_gives_up_quickly_on_a_lock_held_elsewhere(pg_backup, monkeypatc
     with pytest.raises(DatabaseRestoreError) as exc:
         backup.restore_backup(dump)
 
-    assert "lock_timeout" in seen_env.get("PGOPTIONS", "")
+    assert seen_env.get("PGAPPNAME", "").startswith("sublarr-restore")
     assert "nothing was changed" in str(exc.value)
     assert "in use" in str(exc.value)
+
+
+class _Clock:
+    def __init__(self):
+        self.now = 0.0
+
+    def __call__(self):
+        return self.now
+
+
+def test_lock_watchdog_cancels_only_after_the_limit():
+    from pg_restore_watchdog import LockWatchdog
+
+    clock = _Clock()
+    cancelled = []
+    dog = LockWatchdog(
+        query=lambda: [(4242, "Lock")],
+        cancel=cancelled.append,
+        limit_s=30,
+        clock=clock,
+    )
+
+    for t in (0, 10, 29):
+        clock.now = t
+        dog.tick()
+    assert cancelled == [] and not dog.cancelled
+
+    clock.now = 30.5
+    dog.tick()
+    assert cancelled == [4242] and dog.cancelled
+
+    clock.now = 40
+    dog.tick()
+    assert cancelled == [4242], "a backend is cancelled once"
+
+
+def test_lock_watchdog_resets_when_the_lock_is_granted():
+    from pg_restore_watchdog import LockWatchdog
+
+    clock = _Clock()
+    states = iter([[(1, "Lock")], [(1, None)], [(1, "Lock")], [(1, "Lock")]])
+    cancelled = []
+    dog = LockWatchdog(query=lambda: next(states), cancel=cancelled.append, limit_s=30, clock=clock)
+
+    for t in (0, 25, 26, 50):  # lock, granted, waiting again from 26, 24 s later
+        clock.now = t
+        dog.tick()
+
+    assert cancelled == [] and not dog.cancelled
 
 
 def test_any_nonzero_pg_restore_exit_is_a_failure(pg_backup, monkeypatch):
