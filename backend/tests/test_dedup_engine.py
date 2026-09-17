@@ -707,3 +707,18 @@ class TestModuleConstants:
         assert ".mkv" in MEDIA_EXTENSIONS
         assert ".mp4" in MEDIA_EXTENSIONS
         assert ".avi" in MEDIA_EXTENSIONS
+
+
+def test_orphan_scan_skips_sidecar_trash_batches(tmp_path):
+    """Trashed sidecars have no video by design; counting them as orphans lets
+    orphan cleanup move them out of their batch and break its manifest."""
+    batch = tmp_path / ".sublarr_trash" / "0123abcd"
+    batch.mkdir(parents=True)
+    (batch / "Old Episode.de.srt").write_text("1\n00:00:01,000 --> 00:00:02,000\nx\n")
+    (tmp_path / "Live Orphan.de.srt").write_text("1\n00:00:01,000 --> 00:00:02,000\nx\n")
+
+    orphans = scan_orphaned_subtitles(str(tmp_path))
+
+    paths = {o["path"] for o in orphans}
+    assert str(tmp_path / "Live Orphan.de.srt") in paths
+    assert not any(".sublarr_trash" in p for p in paths)

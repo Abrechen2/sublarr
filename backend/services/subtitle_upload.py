@@ -148,6 +148,12 @@ def save_manual_subtitle(
     if modifier is not None and modifier not in _ALLOWED_MODIFIERS:
         raise UploadError(400, "Invalid subtitle modifier")
 
+    # "ger" and "de" are the same language. Writing the raw code put a second
+    # German sidecar on disk and slipped past the conflict check below.
+    from config_language_data import normalize_language_code
+
+    language = normalize_language_code(language) or language
+
     out_path = build_sidecar_path(video_path, language, modifier, ext)
 
     # Multi-root libraries: a video may live under the primary media_path OR

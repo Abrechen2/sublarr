@@ -106,9 +106,10 @@ def test_extract_subtitle_track_returns_output_path(client):
     assert resp.status_code == 200
     data = resp.get_json()
     assert "output_path" in data
-    assert data["language"] == "jpn"
+    # The raw container tag is written under its canonical code
+    assert data["language"] == "ja"
     assert data["format"] == "ass"
-    assert data["output_path"].endswith(".jpn.ass")
+    assert data["output_path"].endswith(".ja.ass")
     assert mock_ext.called
 
 

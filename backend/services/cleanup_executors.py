@@ -60,6 +60,9 @@ DEFAULT_SWEEP_MIN_FREE_GB = 0
 # re-trash trashed files and makes orphan scans count every trashed sidecar
 # as an orphan (prod: 5922 Permission-denied WARNINGs, 27k phantom orphans).
 _TRASH_DIR_NAME = ".sublarr"
+# Batch trash (UI deletes, cleanup audits) is a sibling tree with the same
+# problem: walking it lets a nightly rule move trashed files out of their batch.
+_SKIPPED_DIR_NAMES = frozenset({_TRASH_DIR_NAME, ".sublarr_trash"})
 
 
 # ---------------------------------------------------------------------------
@@ -128,7 +131,7 @@ def _safe_walk(root: str):
         seen.add(key)
         pruned = []
         for d in dirs:
-            if d == _TRASH_DIR_NAME:
+            if d in _SKIPPED_DIR_NAMES:
                 continue  # never descend into the trash/backup subtree
             try:
                 child = os.stat(os.path.join(dirpath, d))

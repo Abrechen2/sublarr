@@ -346,7 +346,8 @@ def scan_orphaned_subtitles(media_path: str) -> list[dict]:
         # Never descend into the .sublarr trash/backup subtree: those sidecars
         # are already removed and have no matching video by design, so walking
         # them counts every trashed file as an orphan (prod: 27k phantoms).
-        dirs[:] = [d for d in dirs if d != ".sublarr"]
+        # The same goes for batch trash in .sublarr_trash.
+        dirs[:] = [d for d in dirs if d not in (".sublarr", ".sublarr_trash")]
 
         # Build set of media base names in this directory
         media_bases = set()

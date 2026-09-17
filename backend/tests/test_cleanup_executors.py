@@ -273,3 +273,25 @@ def test_subtitle_walk_skips_sublarr_trash(tmp_path):
     assert not (tmp_path / "show.fr.ass").exists()
     assert (trash / "Old.ara.ass").exists()
     assert (trash / "Old.spa.srt").exists()
+
+
+def test_subtitle_walk_skips_sidecar_trash_batches(tmp_path):
+    """Sidecar walks must NOT descend into ``.sublarr_trash`` either.
+
+    Batch trash (UI delete, cleanup audits) lives in ``<media>/.sublarr_trash``,
+    a sibling of ``.sublarr`` that the walker used to enter. A nightly rule then
+    treated trashed files as live ones and could move them again, breaking the
+    batch manifest that restoring depends on.
+    """
+    from services.cleanup_executors import execute_language_filter
+
+    (tmp_path / "show.fr.ass").write_text("french sub")
+    batch = tmp_path / ".sublarr_trash" / "0123abcd"
+    batch.mkdir(parents=True)
+    (batch / "Old.ara.ass").write_text("trashed arabic")
+
+    config = {"keep_languages": ["de"], "permanent_delete": True}
+    result = execute_language_filter(str(tmp_path), config, dry_run=False)
+
+    assert result["deleted"] == 1
+    assert (batch / "Old.ara.ass").exists()

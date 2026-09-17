@@ -407,7 +407,8 @@ class TestExtractTrack:
             )
         assert resp.status_code == 200
         data = resp.get_json()
-        assert data["output_path"].endswith(".jpn.ass")
+        # The raw container tag is written under its canonical code
+        assert data["output_path"].endswith(".ja.ass")
         assert data["format"] == "ass"
         assert mock_ext.called
 
@@ -422,7 +423,7 @@ class TestExtractTrack:
         assert resp.status_code == 200
         data = resp.get_json()
         assert data["format"] == "srt"
-        assert data["language"] == "eng"
+        assert data["language"] == "en"
 
     def test_language_override_from_body(self, client):
         """Body language overrides the track language."""
@@ -560,8 +561,8 @@ class TestExtractTrack:
             )
         assert resp.status_code == 200
         data = resp.get_json()
-        # Falls back to track language "jpn"
-        assert data["language"] == "jpn"
+        # Falls back to track language "jpn", canonicalised
+        assert data["language"] == "ja"
 
 
 # ===================================================================
@@ -1168,23 +1169,21 @@ class TestBatchExtractSeriesTracks:
             },
         ]
 
-        # exists must return True for the video, False for the sidecar pre-check,
-        # then True for the sidecar post-extraction check
-        call_count = {"n": 0}
+        # The video exists; a sidecar exists only once extraction has run (the
+        # pre-check looks under the canonical and the raw-tag name).
+        extracted = {"done": False}
 
         def _exists_side(path):
-            if path == "/media/ep.mkv":
-                return True
-            # First call for sidecar = pre-extract check (should not exist yet)
-            # Second call for sidecar = post-extract check (should exist)
-            call_count["n"] += 1
-            return call_count["n"] > 1
+            return path == "/media/ep.mkv" or extracted["done"]
+
+        def _extract(*_args):
+            extracted["done"] = True
 
         with (
             patch("sonarr_client.get_sonarr_client", return_value=mock_client),
             patch("routes.tracks.map_path", side_effect=lambda p: p),
             patch("routes.tracks.get_media_streams", return_value={"streams": sub_streams}),
-            patch("routes.tracks.extract_subtitle_stream"),
+            patch("routes.tracks.extract_subtitle_stream", side_effect=_extract),
             patch("routes.tracks.os.path.exists", side_effect=_exists_side),
             patch("routes.tracks.os.path.getsize", return_value=5),  # <10 bytes
             patch("routes.tracks.os.unlink"),
@@ -1278,22 +1277,20 @@ class TestBatchExtractSeriesTracks:
             },
         ]
 
-        # exists: True for video, False for pre-extract sidecar check (line 397),
-        # True for post-extract sidecar check (line 405)
-        _remux_calls = {"sidecar": 0}
+        # The video exists; a sidecar exists only once extraction has run.
+        _extracted = {"done": False}
 
         def _exists_remux(path):
-            if path == "/media/ep.mkv":
-                return True
-            # sidecar path: first call = pre-extract (False), second = post-extract (True)
-            _remux_calls["sidecar"] += 1
-            return _remux_calls["sidecar"] > 1
+            return path == "/media/ep.mkv" or _extracted["done"]
+
+        def _extract_remux(*_args):
+            _extracted["done"] = True
 
         with (
             patch("sonarr_client.get_sonarr_client", return_value=mock_client),
             patch("routes.tracks.map_path", side_effect=lambda p: p),
             patch("routes.tracks.get_media_streams", return_value={"streams": sub_streams}),
-            patch("routes.tracks.extract_subtitle_stream"),
+            patch("routes.tracks.extract_subtitle_stream", side_effect=_extract_remux),
             patch("routes.tracks.os.path.exists", side_effect=_exists_remux),
             patch("routes.tracks.os.path.getsize", return_value=500),
             patch(

@@ -48,6 +48,31 @@ def _safe_language(raw: object) -> str:
     return raw
 
 
+def _track_sidecar_path(video_path: str, language: str, ext: str) -> str:
+    """Sidecar path for an extracted track, named with the canonical language code.
+
+    The container tag is ISO 639-2 ("ger"); the rest of Sublarr — and the
+    automatic extractor since e9ef92d5 — names sidecars "de". Both routes here
+    still spliced the raw tag in and grew ``.ger.srt`` next to ``.de.srt``.
+    """
+    from config_language_data import normalize_language_code
+
+    base, _ = os.path.splitext(video_path)
+    return f"{base}.{normalize_language_code(language) or language}.{ext}"
+
+
+def _existing_track_sidecar(video_path: str, language: str, ext: str) -> str | None:
+    """The sidecar this track already has on disk, under its canonical or raw-tag name."""
+    base, _ = os.path.splitext(video_path)
+    for candidate in (
+        _track_sidecar_path(video_path, language, ext),
+        f"{base}.{language.lower()}.{ext}",
+    ):
+        if os.path.exists(candidate):
+            return candidate
+    return None
+
+
 def _get_video_path(ep_id):
     # Resolves in both Sonarr and standalone modes (standalone episodes are
     # wanted_items rows keyed by id). See services.episode_video_path.
@@ -144,10 +169,12 @@ def extract_track(ep_id, index):
         return jsonify({"error": "Track index " + str(index) + " not found"}), 404
     if track["codec_type"] != "subtitle":
         return jsonify({"error": "Only subtitle tracks can be extracted"}), 400
+    from config_language_data import normalize_language_code
+
     language = _safe_language(body.get("language") or track["language"])
+    language = normalize_language_code(language) or language
     ext = _CODEC_EXT.get(track["codec"], "ass")
-    base, _ = os.path.splitext(video_path)
-    output_path = base + "." + language + "." + ext
+    output_path = _track_sidecar_path(video_path, language, ext)
     # Defence-in-depth: even with the language regex, ensure the resolved
     # output path stays inside the same directory as the source video. This
     # also catches a video_path that itself escapes media_path via symlink.
@@ -801,8 +828,7 @@ def batch_extract_series_tracks(series_id):
                     # directory.
                     lang = _safe_language(track["language"])
                     ext = _CODEC_EXT.get(track["codec"], "ass")
-                    base, _ = os.path.splitext(video_path)
-                    output_path = f"{base}.{lang}.{ext}"
+                    output_path = _track_sidecar_path(video_path, lang, ext)
 
                     if os.path.realpath(os.path.dirname(output_path)) != os.path.realpath(
                         os.path.dirname(video_path)
@@ -815,7 +841,9 @@ def batch_extract_series_tracks(series_id):
                         skipped += 1
                         continue
 
-                    if os.path.exists(output_path):
+                    # Also under the raw-tag name older builds wrote: extracting
+                    # again would put the same track on disk twice.
+                    if _existing_track_sidecar(video_path, lang, ext):
                         skipped += 1
                         continue
 
