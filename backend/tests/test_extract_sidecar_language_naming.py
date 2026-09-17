@@ -112,3 +112,63 @@ def test_legacy_named_sidecar_still_counts_as_extracted(tmp_path, monkeypatch):
     assert calls == [], "the track was extracted again despite a legacy sidecar"
     assert to_remove == [], "a stream that was not freshly extracted must not be removed"
     assert extracted and extracted[0]["output_path"] == legacy
+
+
+def test_existing_ass_covers_an_embedded_srt_track(tmp_path, monkeypatch):
+    """An .ass for the language is coverage; extracting the .srt next to it is churn.
+
+    Prod 2026-09-17: a provider ``.de.ass`` sat next to the video, every pass
+    over the episode extracted the embedded German track as ``.de.srt`` anyway,
+    and the "keep ass" format rule trashed it the next morning — the same file
+    was in the trash on the 12th, 14th and 16th, 7-20 of them a day.
+    """
+    import services.embedded_extractor as ee
+
+    mkv = str(tmp_path / "Show - S01E04.mkv")
+    with open(mkv, "wb") as fh:
+        fh.write(b"\x00")
+    provider_ass = str(tmp_path / "Show - S01E04.de.ass")
+    with open(provider_ass, "w", encoding="utf-8") as fh:
+        fh.write(
+            "[Script Info]\n\n[Events]\nFormat: Layer, Start, End, Style, Name, MarginL,"
+            " MarginR, MarginV, Effect, Text\n"
+            "Dialogue: 0,0:00:01.00,0:00:02.00,Default,,0,0,0,,Kürzlich löste ein Spieler\n"
+        )
+
+    calls = []
+    monkeypatch.setattr(
+        "ass_utils.extract_subtitle_stream",
+        lambda *a, **kw: calls.append(a),
+    )
+
+    streams = [{"language": "ger", "format": "srt", "sub_index": 0, "stream_index": 2}]
+    any_extracted, to_remove, extracted = ee.extract_streams(mkv, streams, log_label="test")
+
+    assert calls == [], "the srt track was extracted although an .ass covers the language"
+    assert any_extracted is True
+    assert to_remove == [], "a track that was not extracted must stay in the container"
+    assert extracted[0]["output_path"] == provider_ass
+    assert extracted[0]["format"] == "ass"
+    assert not os.path.exists(str(tmp_path / "Show - S01E04.de.srt"))
+
+
+def test_existing_srt_does_not_stop_an_ass_track(tmp_path, monkeypatch):
+    """The other direction stays as it was: an ass track is still worth extracting."""
+    import services.embedded_extractor as ee
+
+    mkv = str(tmp_path / "Show - S01E05.mkv")
+    with open(mkv, "wb") as fh:
+        fh.write(b"\x00")
+    with open(tmp_path / "Show - S01E05.de.srt", "w", encoding="utf-8") as fh:
+        fh.write("1\n00:00:01,000 --> 00:00:02,000\nHallo\n\n")
+
+    calls = []
+    monkeypatch.setattr(
+        "ass_utils.extract_subtitle_stream",
+        lambda *a, **kw: calls.append(a),
+    )
+
+    streams = [{"language": "ger", "format": "ass", "sub_index": 0, "stream_index": 2}]
+    ee.extract_streams(mkv, streams, log_label="test")
+
+    assert len(calls) == 1

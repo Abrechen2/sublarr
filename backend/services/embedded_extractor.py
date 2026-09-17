@@ -284,6 +284,16 @@ def extract_streams(
                     adopt = True
                 else:
                     _quarantine_mislabelled_sidecar(legacy, log_label)
+        if not adopt and stream_info["format"] == "srt":
+            # An .ass for this language already covers it. Extracting the srt
+            # track beside it only feeds the "keep ass" format rule: prod
+            # re-extracted and trashed the same .de.srt every other day.
+            ass_sidecar = os.path.splitext(out)[0] + ".ass"
+            if os.path.exists(ass_sidecar) and _sidecar_matches_tag(
+                ass_sidecar, stream_info["language"], log_label
+            ):
+                out = ass_sidecar
+                adopt = True
 
         if adopt:
             # Sidecar already on disk from an earlier run — nothing was
@@ -295,7 +305,8 @@ def extract_streams(
                 extracted.append(
                     {
                         "language": stream_info["language"],
-                        "format": stream_info["format"],
+                        # The adopted file's own format — an .ass may cover an srt track
+                        "format": os.path.splitext(out)[1].lstrip(".").lower(),
                         "sub_index": stream_info["sub_index"],
                         "output_path": out,
                     }
