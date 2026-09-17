@@ -14,12 +14,39 @@ This mirrors the proven pattern already used by the remux pipeline
 """
 
 import contextlib
+import logging
 import os
+import re
 import shutil
 import tempfile
+import time
 from collections.abc import Callable
 
-__all__ = ["atomic_copyfile", "atomic_write_bytes", "atomic_write_via", "atomic_save_subs"]
+__all__ = [
+    "atomic_copyfile",
+    "atomic_write_bytes",
+    "atomic_write_via",
+    "atomic_save_subs",
+    "sweep_orphaned_temps",
+]
+
+logger = logging.getLogger(__name__)
+
+# Hidden, and unmistakably ours — which is what lets sweep_orphaned_temps
+# delete by pattern. The remux pipeline uses a longer prefix and sweeps its own
+# (multi-gigabyte) temps; this sweep leaves those alone.
+_TEMP_PREFIX = ".sublarr-"
+_REMUX_TEMP_PREFIX = ".sublarr-remux-"
+
+# A subtitle write finishes in seconds; anything this old belongs to a process
+# that is gone. The margin protects a second worker writing into the same
+# directory right now.
+_ORPHAN_MAX_AGE_SECONDS = 6 * 60 * 60
+
+# Before the prefix existed, extraction used a bare mkstemp: "tmp" + 8 random
+# characters. Those are only reclaimed when empty — ffmpeg killed before its
+# first write — because a non-empty one is not provably ours.
+_LEGACY_MKSTEMP_RE = re.compile(r"^tmp[a-z0-9_]{8}\.(srt|ass|ssa|vtt|sub)$", re.IGNORECASE)
 
 
 def _current_umask() -> int:
@@ -51,7 +78,49 @@ def _same_dir_tempfile(target_path: str) -> tuple[int, str]:
     """
     target_dir = os.path.dirname(os.path.abspath(target_path)) or "."
     ext = os.path.splitext(target_path)[1] or ".tmp"
-    return tempfile.mkstemp(suffix=ext, prefix=".sublarr-", dir=target_dir)
+    # Every writer passes through here, so a temp orphaned by a killed process
+    # is reclaimed the next time anything is written into that directory.
+    sweep_orphaned_temps(target_dir)
+    return tempfile.mkstemp(suffix=ext, prefix=_TEMP_PREFIX, dir=target_dir)
+
+
+def _is_orphan_candidate(name: str, size: int) -> bool:
+    if name.startswith(_TEMP_PREFIX):
+        return not name.startswith(_REMUX_TEMP_PREFIX)
+    return size == 0 and bool(_LEGACY_MKSTEMP_RE.match(name))
+
+
+def sweep_orphaned_temps(directory: str) -> int:
+    """Delete stale write temps left in ``directory``; return how many went.
+
+    The cleanup around every atomic write unlinks its temp, but a process that
+    is killed outright (container stop, host shutdown) never reaches it, and the
+    temp stays next to the episode for good. Call this before writing into a
+    library directory: no library-wide walk, and only files carrying our own
+    prefix — or empty legacy ``mkstemp`` names — older than six hours are
+    considered. Failures are logged and ignored.
+    """
+    try:
+        entries = list(os.scandir(directory))
+    except OSError:
+        return 0
+
+    cutoff = time.time() - _ORPHAN_MAX_AGE_SECONDS
+    removed = 0
+    for entry in entries:
+        try:
+            if not entry.is_file(follow_symlinks=False):
+                continue
+            st = entry.stat(follow_symlinks=False)
+            if st.st_mtime > cutoff or not _is_orphan_candidate(entry.name, st.st_size):
+                continue
+            os.unlink(entry.path)
+        except OSError as exc:
+            logger.warning("Could not remove orphaned temp %s: %s", entry.path, exc)
+            continue
+        removed += 1
+        logger.info("Removed orphaned temp %s", entry.path)
+    return removed
 
 
 def atomic_write_bytes(path: str, data: bytes) -> None:

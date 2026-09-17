@@ -2,21 +2,11 @@
 
 from __future__ import annotations
 
-import os
-import tempfile
-
 from services.subtitle_health.text_utils import decode_with_confidence
 
 
 class FixValidationError(Exception):
     """Raised when a fix would change the cue structure unexpectedly."""
-
-
-def _current_umask() -> int:
-    """Read the process umask without permanently changing it."""
-    cur = os.umask(0o022)
-    os.umask(cur)
-    return cur
 
 
 def count_cues(raw: bytes) -> int:
@@ -37,25 +27,14 @@ def validate_cue_count(before: bytes, after: bytes) -> None:
 
 
 def atomic_write_bytes(path: str, data: bytes) -> None:
-    d = os.path.dirname(path) or "."
-    fd, tmp = tempfile.mkstemp(dir=d, suffix=".tmp")
-    try:
-        with os.fdopen(fd, "wb") as fh:
-            fh.write(data)
-        # mkstemp creates the temp file 0600; media files must stay readable by
-        # the media server (Emby/Plex run as a different user/group). Relax to
-        # 0644 (minus the current umask) before the atomic rename.
-        try:
-            os.chmod(tmp, 0o644 & ~_current_umask())
-        except OSError:
-            pass
-        os.replace(tmp, path)
-    finally:
-        if os.path.exists(tmp):
-            try:
-                os.unlink(tmp)
-            except OSError:
-                pass
+    """Delegate to the shared helper: readable mode, sweepable ``.sublarr-`` temp.
+
+    This used its own bare ``mkstemp(suffix=".tmp")``, which a killed process
+    left next to the episode as an anonymous ``tmpXXXXXXXX.tmp``.
+    """
+    from utils.atomic_write import atomic_write_bytes as _shared_atomic_write_bytes
+
+    _shared_atomic_write_bytes(path, data)
 
 
 def backup_sidecar(path: str) -> str | None:

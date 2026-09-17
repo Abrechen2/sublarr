@@ -12,7 +12,7 @@ import os
 import subprocess
 import tempfile
 
-from remux import _make_backup, _safe_arg_path
+from remux import _inherit_file_mode, _make_backup, _new_remux_temp, _safe_arg_path
 from services.subtitle_health.fixers.common import FixValidationError
 from services.subtitle_health.fixers.repair_escapes import repair_bytes
 from services.subtitle_health.raw_io import extract_track_raw
@@ -116,7 +116,8 @@ def apply(
 
     fd, clean_sidecar = tempfile.mkstemp(suffix=".srt")
     os.close(fd)
-    out_fd, out_path = tempfile.mkstemp(suffix=".mkv", dir=os.path.dirname(video_path) or ".")
+    # The remux prefix makes a killed run's multi-gigabyte temp sweepable.
+    out_fd, out_path = _new_remux_temp(os.path.dirname(video_path) or ".", ".mkv")
     os.close(out_fd)
     try:
         with open(clean_sidecar, "wb") as fh:
@@ -136,6 +137,9 @@ def apply(
             return {"changed": False, "reason": "mkvmerge failed"}
 
         _validate_remux(video_path, out_path)
+        # mkstemp created the output 0600; take the original's mode while it is
+        # still in place, so the media server can keep playing the video.
+        _inherit_file_mode(video_path, out_path)
         backup = _make_backup(video_path, use_reflink=False)
         os.replace(out_path, video_path)
         out_path = ""

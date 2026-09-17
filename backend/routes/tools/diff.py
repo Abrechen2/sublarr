@@ -3,12 +3,12 @@
 import logging
 import os
 import shutil
-import tempfile
 
 from flask import jsonify, request
 
 from routes.tools import bp
 from security_utils import is_safe_path
+from utils.atomic_write import atomic_write_bytes
 
 logger = logging.getLogger(__name__)
 
@@ -251,14 +251,7 @@ def apply_diff():
     bak_path = abs_path + ".bak"
     shutil.copy2(abs_path, bak_path)
 
-    # Atomic write via tempfile + os.replace
-    tmp_fd, tmp_path_str = tempfile.mkstemp(dir=os.path.dirname(abs_path), suffix=f".{out_format}")
-    try:
-        with os.fdopen(tmp_fd, "w", encoding=encode) as fh:
-            fh.write(result_subs.to_string(out_format))
-        os.replace(tmp_path_str, abs_path)
-    except Exception:
-        os.unlink(tmp_path_str)
-        raise
+    # Atomic, and readable by the media server (a bare mkstemp swap left 0600)
+    atomic_write_bytes(abs_path, result_subs.to_string(out_format).encode(encode))
 
     return jsonify({"status": "applied", "file_path": abs_path, "backup": bak_path})

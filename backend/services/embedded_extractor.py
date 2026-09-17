@@ -747,6 +747,28 @@ def extract_and_cleanup(
 # ---------------------------------------------------------------------------
 
 
+def _repair_sidecar_file(output_path: str) -> bool:
+    """Run subtitle_repair over a freshly extracted sidecar; return True if rewritten.
+
+    Fixes BOM, newlines, invalid decimals, overlapping cues and encoding
+    mis-detection. The rewrite is atomic (Audit Gemini-2026-05-09 R4) and goes
+    through utils.atomic_write, which keeps the file readable by the media
+    server — the earlier hand-rolled mkstemp swap left it 0600.
+    """
+    from pathlib import Path
+
+    from subtitle_repair import repair_bytes
+    from utils.atomic_write import atomic_write_bytes
+
+    path = Path(output_path)
+    data = path.read_bytes()
+    repaired = repair_bytes(data, fmt=path.suffix.lstrip(".") or "srt")
+    if repaired == data:
+        return False
+    atomic_write_bytes(output_path, repaired)
+    return True
+
+
 def validate_extract_target(file_path: str) -> str | None:
     """Defence-in-depth boundary check on a wanted-item file_path before we
     fork ffmpeg/mkvmerge against it.
@@ -891,29 +913,7 @@ def extract_embedded_sub(
     # file in the same directory, then ``os.replace`` it into place.
     try:
         if getattr(settings, "enable_subtitle_repair", True):
-            import tempfile as _repair_tempfile
-            from pathlib import Path as _RepairPath
-
-            from subtitle_repair import repair_bytes as _repair_bytes
-
-            _ext = _RepairPath(output_path).suffix.lstrip(".") or "srt"
-            _data = _RepairPath(output_path).read_bytes()
-            _repaired = _repair_bytes(_data, fmt=_ext)
-            if _repaired != _data:
-                _out_dir = os.path.dirname(output_path) or "."
-                _suffix = _RepairPath(output_path).suffix or ".tmp"
-                _fd, _tmp_repair = _repair_tempfile.mkstemp(suffix=_suffix, dir=_out_dir)
-                try:
-                    with os.fdopen(_fd, "wb") as _fh:
-                        _fh.write(_repaired)
-                    os.replace(_tmp_repair, output_path)
-                    _tmp_repair = ""  # ownership transferred
-                finally:
-                    if _tmp_repair:
-                        try:
-                            os.unlink(_tmp_repair)
-                        except OSError:
-                            pass
+            _repair_sidecar_file(output_path)
     except Exception as _repair_err:
         logger.warning(
             "subtitle_repair on embedded extract skipped for %s: %s",

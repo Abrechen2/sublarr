@@ -525,34 +525,27 @@ def extract_subtitle_stream(mkv_path, stream_info, output_path):
             in this case — any pre-existing sidecar at ``output_path``
             stays intact.
     """
-    import tempfile as _tempfile
-
     from remux import _safe_arg_path
+    from utils.atomic_write import atomic_write_via
 
     ext = os.path.splitext(output_path)[1].lower().lstrip(".")
     _encoder_map = {"srt": "srt", "ass": "ass", "ssa": "ass", "vtt": "webvtt"}
     encoder = _encoder_map.get(ext, "copy")
-
-    out_dir = os.path.dirname(output_path) or "."
-    out_suffix = os.path.splitext(output_path)[1] or ".tmp"
-    fd, tmp_path = _tempfile.mkstemp(suffix=out_suffix, dir=out_dir)
-    os.close(fd)
-
-    cmd = [
-        "ffmpeg",
-        "-y",
-        "-i",
-        _safe_arg_path(mkv_path),
-        "-map",
-        f"0:s:{stream_info['sub_index']}",
-        "-c:s",
-        encoder,
-        _safe_arg_path(tmp_path),
-    ]
     _timeout = getattr(get_settings(), "ffmpeg_timeout", 300)
     from services.media_io_gate import MediaGateBusyError, media_io_gate
 
-    try:
+    def _run_ffmpeg(tmp_path: str) -> None:
+        cmd = [
+            "ffmpeg",
+            "-y",
+            "-i",
+            _safe_arg_path(mkv_path),
+            "-map",
+            f"0:s:{stream_info['sub_index']}",
+            "-c:s",
+            encoder,
+            _safe_arg_path(tmp_path),
+        ]
         try:
             with media_io_gate.slot("ffmpeg subtitle extraction"):
                 result = subprocess.run(
@@ -574,14 +567,12 @@ def extract_subtitle_stream(mkv_path, stream_info, output_path):
             raise RuntimeError(
                 "ffmpeg produced an empty sidecar (likely ENOSPC or unreadable stream)"
             )
-        os.replace(tmp_path, output_path)
-        tmp_path = ""  # ownership transferred — skip cleanup
-    finally:
-        if tmp_path:
-            try:
-                os.unlink(tmp_path)
-            except OSError:
-                pass
+
+    # A bare mkstemp here made every extracted sidecar 0600 — unreadable by the
+    # media server — and left "tmpXXXXXXXX.srt" behind whenever the process was
+    # killed mid-extraction. atomic_write_via relaxes the mode, uses the
+    # sweepable prefix and reclaims stale temps in the directory first.
+    atomic_write_via(output_path, _run_ffmpeg)
 
     logger.info(
         "Extracted %s stream %d to %s",
