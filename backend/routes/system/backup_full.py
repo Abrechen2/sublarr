@@ -283,13 +283,6 @@ def restore_full_backup():
             {"error": "The database is busy — another connection is holding it. Try again shortly."}
         ), 409
 
-    # Exactly one restore at a time: two of them replacing the database at once
-    # is the one case where "all or nothing" stops holding.
-    try:
-        acquire_restore_slot()
-    except RestoreInProgressError:
-        return jsonify({"error": "Another restore is already running — wait for it to finish"}), 409
-
     # The upload is spooled to disk by Werkzeug and is seekable, so the archive
     # is read from there. Materialising it (file.read()) meant the whole archive
     # sat in memory next to the database member extracted from it.
@@ -299,6 +292,14 @@ def restore_full_backup():
         return jsonify({"error": "Uploaded file is not a valid ZIP archive"}), 400
 
     file_stream.seek(0)
+
+    # Exactly one restore at a time: two of them replacing the database at once
+    # is the one case where "all or nothing" stops holding. Claimed last, so
+    # every path from here on runs inside the try/finally that releases it.
+    try:
+        acquire_restore_slot()
+    except RestoreInProgressError:
+        return jsonify({"error": "Another restore is already running — wait for it to finish"}), 409
 
     try:
         with zipfile.ZipFile(file_stream, "r") as zf:

@@ -15,7 +15,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   permanently. It now decides once per video against every language wanted
   for it and moves removed files to the trash. File names with square
   brackets (`[Group] Show.S01E03.mkv`) are no longer skipped, and a name part
-  that is not a language code is left alone.
+  that is not a language code is left alone. A target like `zh-hans` also keeps
+  generically tagged Chinese, and two same-named subtitles from different
+  season folders no longer overwrite each other in the trash.
 - **Extracted subtitles are readable by your media server again.** Every
   embedded track Sublarr extracted, every subtitle repaired right after
   extraction and every edit applied from the diff view was written with mode
@@ -58,7 +60,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   restore is refused while jobs are running. A PostgreSQL restore no longer
   waits on a lock held by its own request (it timed out after five minutes on
   a real database); when another connection holds a table for more than 30
-  seconds it is cancelled with a clear message instead of stalling the app.
+  seconds it is cancelled with a clear message instead of stalling the app, and
+  a locked jobs table is answered within seconds instead of blocking the
+  request. Only one restore runs at a time, a failure after the database was
+  replaced keeps the matching encryption key, and a SQLite restore gives up
+  after a minute instead of waiting for a busy database forever.
+- **A full backup can be restored whatever its size.** Every request body is
+  capped at 16 MB, and the restore endpoint inherited that cap: a real
+  library's full backup (64 MB on the reference install) was refused with
+  "413 Request Entity Too Large". That endpoint now has its own limit, and the
+  archive is streamed from disk instead of being held in memory.
 - **The batch action bar stays on screen on phones and tablets.** After
   "select all" on the Wanted page actions were off screen at phone and tablet
   width; below 1024 px the bar now wraps across the screen.

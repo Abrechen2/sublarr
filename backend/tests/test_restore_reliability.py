@@ -30,6 +30,28 @@ from error_handler import DatabaseRestoreError
 
 
 @pytest.fixture
+def keep_encryption_key():
+    """Put the real key file back after a test that swaps it.
+
+    The key lives in the shared config dir, so a test that leaves a broken key
+    behind poisons every other test in the run ("Fernet key must be 32 url-safe
+    base64-encoded bytes").
+    """
+    import config_crypto
+
+    config_crypto.encrypt("seed")  # make sure the file exists
+    path = config_crypto._key_path()
+    with open(path, "rb") as fh:
+        original = fh.read()
+    try:
+        yield path
+    finally:
+        with open(path, "wb") as fh:
+            fh.write(original)
+        config_crypto.reset_cipher_cache()
+
+
+@pytest.fixture
 def backups(client, tmp_path):
     """backup_dir is a DB-only UI setting: set it the way the UI does, so it
     survives the settings reload every PUT /config performs — and so no test
@@ -543,15 +565,14 @@ def test_without_versioned_clients_the_path_tool_is_used(tmp_path, monkeypatch):
 # ── cold-review findings (Codex, 2026-09-17) ─────────────────────────────────
 
 
-def test_a_failure_after_the_database_restore_keeps_its_matching_key(client, backups, tmp_path):
+def test_a_failure_after_the_database_restore_keeps_its_matching_key(
+    client, backups, keep_encryption_key
+):
     """The rollback put the OLD encryption key back even when the database had
     already been replaced, leaving the restored rows undecryptable. When the
     database is in, its key must stay with it."""
-    import config_crypto
-
-    config_crypto.encrypt("seed")  # make sure a key file exists
     zip_bytes = _full_backup_zip(client)
-    key_path = config_crypto._key_path()
+    key_path = keep_encryption_key
     with open(key_path, "rb") as fh:
         key_in_backup = fh.read()
     with open(key_path, "wb") as fh:  # a different key is live now
@@ -565,13 +586,12 @@ def test_a_failure_after_the_database_restore_keeps_its_matching_key(client, bac
         assert fh.read() == key_in_backup, "the key of the restored database must be kept"
 
 
-def test_a_failure_before_the_database_restore_rolls_the_key_back(client, backups):
+def test_a_failure_before_the_database_restore_rolls_the_key_back(
+    client, backups, keep_encryption_key
+):
     """The other direction is unchanged: nothing was replaced, so the old key stays."""
-    import config_crypto
-
-    config_crypto.encrypt("seed")
     zip_bytes = _replace_zip_member(_full_backup_zip(client), "sublarr.db", b"not a database")
-    key_path = config_crypto._key_path()
+    key_path = keep_encryption_key
     with open(key_path, "wb") as fh:
         fh.write(b"1" * 44)
 
