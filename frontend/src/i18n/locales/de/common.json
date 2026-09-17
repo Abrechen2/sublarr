@@ -655,13 +655,15 @@
   },
   "whatsnew": {
     "v1144": {
+      "cleanup_title": "Sidecar-Bereinigung löscht keine gewünschten Untertitel mehr",
+      "cleanup_desc": "Bei mehreren Zielsprachen einer Folge hat „Sidecars bereinigen“ auf der Wanted-Seite gewünschte Untertitel gegenseitig gelöscht. Jetzt zählen alle gewünschten Sprachen einer Folge, und entfernte Dateien landen im Papierkorb.",
       "perms_title": "Extrahierte Untertitel sind für den Mediaserver lesbar",
       "perms_desc": "Extrahierte, reparierte und im Diff bearbeitete Untertitel waren nur für Sublarr selbst lesbar. Emby, Jellyfin oder Plex unter einem anderen Benutzer konnten sie nicht öffnen. Nach einem Absturz bleiben außerdem keine leeren Temp-Dateien mehr im Ordner liegen.",
       "alias_title": "Keine zweiten Untertitel unter .ger oder .eng",
       "alias_desc": "Manuelle Extraktion und Upload verwenden jetzt überall den Sprachcode .de bzw. .en. Liegt schon eine .ass vor, wird dieselbe Sprache nicht mehr jeden Tag erneut als .srt extrahiert.",
       "restore_title": "Wiederherstellung ganz oder gar nicht",
       "restore_desc": "Eine Wiederherstellung meldet nur Erfolg, wenn sie wirklich vollständig war. Ein beschädigtes Backup ändert nichts. Backups von PostgreSQL 15, 16 und 17 lassen sich zurückspielen.",
-      "mobile_title": "Aktionsleiste auf dem Handy vollständig",
+      "mobile_title": "Aktionsleiste auf Handy und Tablet vollständig",
       "mobile_desc": "Nach „Alle auswählen“ bleiben auf der Wanted-Seite alle Aktionen auf dem Bildschirm erreichbar."
     },
     "v1143": {

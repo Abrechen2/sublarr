@@ -9,7 +9,7 @@ import type { LucideIcon } from 'lucide-react'
 import {
   Layers, Columns2, BarChart3, Upload, ShieldCheck, KeyRound,
   Zap, Rocket, Activity, AudioLines, SlidersHorizontal, LogIn, FileDown,
-  PauseCircle, Languages, Globe, Gauge, Search, Copy,
+  PauseCircle, Languages, Globe, Gauge, Search, Copy, Trash2,
 } from 'lucide-react'
 
 export interface WhatsNewItem {
@@ -20,6 +20,7 @@ export interface WhatsNewItem {
 
 export const WHATS_NEW: Record<string, WhatsNewItem[]> = {
   '1.14.4': [
+    { icon: Trash2, titleKey: 'whatsnew.v1144.cleanup_title', descKey: 'whatsnew.v1144.cleanup_desc' },
     { icon: ShieldCheck, titleKey: 'whatsnew.v1144.perms_title', descKey: 'whatsnew.v1144.perms_desc' },
     { icon: Copy, titleKey: 'whatsnew.v1144.alias_title', descKey: 'whatsnew.v1144.alias_desc' },
     { icon: FileDown, titleKey: 'whatsnew.v1144.restore_title', descKey: 'whatsnew.v1144.restore_desc' },

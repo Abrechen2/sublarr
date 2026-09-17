@@ -8,6 +8,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [1.14.4] - 2026-09-17
 
 ### Fixed
+- **"Cleanup sidecars" on the Wanted page no longer deletes wanted
+  subtitles.** With more than one target language for an episode (for example
+  German and English), the cleanup decided per wanted item: the German item
+  deleted the English subtitle and the English item the German one, both
+  permanently. It now decides once per video against every language wanted
+  for it and moves removed files to the trash. File names with square
+  brackets (`[Group] Show.S01E03.mkv`) are no longer skipped, and a name part
+  that is not a language code is left alone.
 - **Extracted subtitles are readable by your media server again.** Every
   embedded track Sublarr extracted, every subtitle repaired right after
   extraction and every edit applied from the diff view was written with mode
@@ -31,24 +39,29 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **An `.ass` subtitle stops the same `.srt` from being extracted every
   day.** With an `.ass` for a language next to the video, each pass extracted
   the embedded text track as `.srt` anyway and the "keep ASS" cleanup rule
-  removed it the next morning. The `.ass` now counts as coverage.
+  removed it the next morning. The `.ass` now counts as coverage, also under
+  `.ger.ass` or `.deu.ass`; a forced-only `.ass` does not.
 - **Cleanup rules leave the subtitle trash alone.** The nightly rules and the
   orphan scan walked `.sublarr_trash`, treated trashed files as live ones and
   could move them out of their batch, which breaks restoring it.
 - **A restore happens completely and is reported truthfully, or not at all.**
-  A SQLite restore swapped the database under open connections and reported
-  success while the old data stayed and later queries failed with "disk I/O
-  error". A corrupt PostgreSQL dump was reported as restored. Restores now
-  release the database first, run PostgreSQL restores in one transaction that
-  aborts on the first error, check the archive before changing anything,
-  apply `config.json` only after the database succeeded, refresh settings
-  afterwards and are refused while jobs are running. A PostgreSQL restore no
-  longer waits on a lock held by its own request (it timed out after five
-  minutes on a real database) and gives up after 30 seconds with a clear
-  message when another connection holds a table, instead of stalling the app.
-- **The batch action bar stays on screen on phones.** After "select all" on
-  the Wanted page most actions were off screen at phone width; the bar now
-  wraps and sits above the bottom navigation.
+  A SQLite restore swapped the database file under open connections and
+  reported success while the old data stayed and later queries failed with
+  "disk I/O error". A corrupt PostgreSQL dump was reported as restored.
+  SQLite restores now copy into the live database through SQLite's backup
+  API, which stays correct while other parts of Sublarr hold connections.
+  PostgreSQL restores run in one transaction that aborts on the first error
+  and check the archive before changing anything. A full backup is checked
+  as a whole first: a `config.json` or `manifest.json` that is not a JSON
+  object is refused before anything changes, and `config.json` is applied
+  only after the database succeeded. Settings are refreshed afterwards and a
+  restore is refused while jobs are running. A PostgreSQL restore no longer
+  waits on a lock held by its own request (it timed out after five minutes on
+  a real database); when another connection holds a table for more than 30
+  seconds it is cancelled with a clear message instead of stalling the app.
+- **The batch action bar stays on screen on phones and tablets.** After
+  "select all" on the Wanted page actions were off screen at phone and tablet
+  width; below 1024 px the bar now wraps across the screen.
 
 ### Changed
 - **In-app backups of PostgreSQL 15, 16 and 17 can be restored.** The image

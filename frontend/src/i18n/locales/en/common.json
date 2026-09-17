@@ -655,13 +655,15 @@
   },
   "whatsnew": {
     "v1144": {
+      "cleanup_title": "Sidecar cleanup no longer deletes wanted subtitles",
+      "cleanup_desc": "With several target languages for an episode, \"Cleanup sidecars\" on the Wanted page deleted wanted subtitles of each other. Every wanted language of an episode now counts, and removed files go to the trash.",
       "perms_title": "Extracted subtitles are readable by your media server",
       "perms_desc": "Extracted, repaired and diff-edited subtitles were readable only by Sublarr itself, so Emby, Jellyfin or Plex running as another user could not open them. A crash also no longer leaves empty temp files in the folder.",
       "alias_title": "No second subtitle under .ger or .eng",
       "alias_desc": "Manual extraction and upload now use the language code .de or .en everywhere. When an .ass already exists, the same language is no longer extracted again as .srt every day.",
       "restore_title": "A restore is complete or does nothing",
       "restore_desc": "A restore only reports success when it really completed. A corrupt backup changes nothing. Backups of PostgreSQL 15, 16 and 17 can be restored.",
-      "mobile_title": "Full action bar on phones",
+      "mobile_title": "Full action bar on phones and tablets",
       "mobile_desc": "After \"Select all\" on the Wanted page, every action stays reachable on screen."
     },
     "v1143": {
