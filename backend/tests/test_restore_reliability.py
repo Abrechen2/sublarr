@@ -17,6 +17,7 @@ database restore it belongs to, and a restore is refused while jobs run.
 """
 
 import io
+import os
 import sqlite3
 import subprocess
 import zipfile
@@ -722,3 +723,30 @@ def test_the_guard_is_released_again(client, backups):
         json={"filename": created.get_json()["filename"], "confirm": True},
     )
     assert response.status_code == 200, response.get_json()
+
+
+def test_a_rejected_database_member_leaves_no_temp_file(client, backups, tmp_path):
+    """VM test of 1.14.4-rc.6: a ZIP whose database member is refused (declared
+    too large, or a compression ratio over the limit) answered 400 but left an
+    empty temp file behind — one per attempt."""
+    import glob as _glob
+    import tempfile
+
+    # Deflated, so the central directory declares a ratio far over the 100:1 cap
+    # and the member is refused before it is written out.
+    src = zipfile.ZipFile(io.BytesIO(_full_backup_zip(client)))
+    buf = io.BytesIO()
+    with zipfile.ZipFile(buf, "w", zipfile.ZIP_DEFLATED) as dst:
+        for info in src.infolist():
+            data = b"x" * 4096 * 1024 if info.filename == "sublarr.db" else src.read(info.filename)
+            dst.writestr(info.filename, data)
+    zip_bytes = buf.getvalue()
+    tmp_dir = tempfile.gettempdir()
+    before = set(_glob.glob(os.path.join(tmp_dir, "tmp*.db")))
+
+    for _ in range(3):
+        response = _restore_zip(client, zip_bytes)
+        assert response.status_code == 400, response.get_json()
+
+    leaked = set(_glob.glob(os.path.join(tmp_dir, "tmp*.db"))) - before
+    assert leaked == set(), sorted(leaked)

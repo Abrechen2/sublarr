@@ -379,11 +379,16 @@ def restore_full_backup():
 
                     with tempfile.NamedTemporaryFile(delete=False, suffix=suffix) as tmp:
                         tmp_path = tmp.name
-                    # Streamed, not read into memory: the database member of a
-                    # real backup is far larger than the config members.
-                    safe_extract_zip_member_to(zf, db_archive_name, tmp_path, max_bytes=2 * 1024**3)
 
                     try:
+                        # Streamed, not read into memory: the database member of
+                        # a real backup is far larger than the config members.
+                        # Inside the try: a member refused for its size or
+                        # compression ratio used to leave this empty file behind,
+                        # one per attempt (VM test of 1.14.4-rc.6).
+                        safe_extract_zip_member_to(
+                            zf, db_archive_name, tmp_path, max_bytes=2 * 1024**3
+                        )
                         backup = DatabaseBackup(db_path=s.db_path, backup_dir=s.backup_dir)
                         backup.restore_backup(tmp_path)
                         db_restored = True
