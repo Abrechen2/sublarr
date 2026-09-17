@@ -169,6 +169,26 @@ def _sidecar_matches_tag(path: str, language: str, log_label: str) -> bool:
     return False
 
 
+def _full_ass_sidecar_for(file_path: str, language: str) -> str | None:
+    """An .ass next to ``file_path`` named with any code of ``language`` and no modifier.
+
+    ``Show.de.ass``, ``Show.ger.ass`` and ``Show.deu.ass`` all qualify for
+    "ger"; ``Show.de.forced.ass`` does not — a forced-only file is no full
+    subtitle.
+    """
+    import glob
+
+    from config_language_data import normalize_language_code
+
+    base = os.path.splitext(file_path)[0]
+    wanted = normalize_language_code(language)
+    for candidate in sorted(glob.glob(f"{glob.escape(base)}.*.ass")):
+        tokens = candidate[len(base) + 1 : -len(".ass")].split(".")
+        if len(tokens) == 1 and normalize_language_code(tokens[0]) == wanted:
+            return candidate
+    return None
+
+
 def _quarantine_mislabelled_sidecar(path: str, log_label: str) -> None:
     """Move a sidecar whose content contradicts its name into the trash.
 
@@ -287,9 +307,11 @@ def extract_streams(
         if not adopt and stream_info["format"] == "srt":
             # An .ass for this language already covers it. Extracting the srt
             # track beside it only feeds the "keep ass" format rule: prod
-            # re-extracted and trashed the same .de.srt every other day.
-            ass_sidecar = os.path.splitext(out)[0] + ".ass"
-            if os.path.exists(ass_sidecar) and _sidecar_matches_tag(
+            # re-extracted and trashed the same .de.srt every other day. The .ass
+            # may carry any alias of the code (.ger.ass, .deu.ass — VM test of
+            # rc.2 still re-extracted next to those).
+            ass_sidecar = _full_ass_sidecar_for(file_path, stream_info["language"])
+            if ass_sidecar and _sidecar_matches_tag(
                 ass_sidecar, stream_info["language"], log_label
             ):
                 out = ass_sidecar

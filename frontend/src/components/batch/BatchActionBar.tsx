@@ -110,11 +110,13 @@ export function BatchActionBar({ scope, actions = ['ignore', 'unignore', 'blackl
     // Phones: full width with a 12 px gutter, wrapping, above the bottom nav and
     // the floating action button. A centred single-row pill was 844 px wide at
     // 390 px and left 5 of 8 actions off screen (VM test of 1.14.3-rc.4).
-    // From md up: the centred pill as before.
+    // From md (bottom nav hidden) it moves down but keeps wrapping: the pill is
+    // ~844 px wide and ran off both edges at 768 px (VM test of 1.14.4-rc.2).
+    // From lg up: the centred single-row pill.
     <div
       role="toolbar"
       aria-label={t('batch.itemsSelected', { count })}
-      className="fixed z-40 left-3 right-3 bottom-24 flex flex-wrap items-center justify-center gap-2 px-4 py-2.5 bg-background border border-border rounded-2xl shadow-2xl shadow-black/20 md:left-1/2 md:right-auto md:bottom-6 md:-translate-x-1/2 md:flex-nowrap md:rounded-full"
+      className="fixed z-40 left-3 right-3 bottom-24 flex flex-wrap items-center justify-center gap-2 px-4 py-2.5 bg-background border border-border rounded-2xl shadow-2xl shadow-black/20 md:bottom-6 lg:left-1/2 lg:right-auto lg:-translate-x-1/2 lg:flex-nowrap lg:rounded-full"
     >
       <span className="text-sm font-medium text-foreground mr-1">
         {t('batch.itemsSelected', { count })}

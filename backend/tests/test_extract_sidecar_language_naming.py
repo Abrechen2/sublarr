@@ -152,6 +152,33 @@ def test_existing_ass_covers_an_embedded_srt_track(tmp_path, monkeypatch):
     assert not os.path.exists(str(tmp_path / "Show - S01E04.de.srt"))
 
 
+@pytest.mark.parametrize("ass_name", ["ger", "deu", "de.forced"])
+def test_ass_under_an_alias_name_covers_the_srt_track_too(tmp_path, monkeypatch, ass_name):
+    """VM test of 1.14.4-rc.2: with ``.ger.ass`` or ``.deu.ass`` next to the video
+    each of three extract/cleanup cycles wrote a new ``.de.srt``; only ``.de.ass``
+    stopped it. A forced-only .ass must NOT count as full coverage."""
+    import services.embedded_extractor as ee
+
+    mkv = str(tmp_path / "Show - S01E06.mkv")
+    with open(mkv, "wb") as fh:
+        fh.write(b"\x00")
+    with open(tmp_path / f"Show - S01E06.{ass_name}.ass", "w", encoding="utf-8") as fh:
+        fh.write(
+            "[Script Info]\n\n[Events]\nFormat: Layer, Start, End, Style, Name, MarginL,"
+            " MarginR, MarginV, Effect, Text\n"
+            "Dialogue: 0,0:00:01.00,0:00:02.00,Default,,0,0,0,,Kürzlich löste ein Spieler\n"
+        )
+
+    calls = []
+    monkeypatch.setattr("ass_utils.extract_subtitle_stream", lambda *a, **kw: calls.append(a))
+
+    streams = [{"language": "ger", "format": "srt", "sub_index": 0, "stream_index": 2}]
+    ee.extract_streams(mkv, streams, log_label="test")
+
+    expected_calls = 1 if ass_name == "de.forced" else 0
+    assert len(calls) == expected_calls
+
+
 def test_existing_srt_does_not_stop_an_ass_track(tmp_path, monkeypatch):
     """The other direction stays as it was: an ass track is still worth extracting."""
     import services.embedded_extractor as ee

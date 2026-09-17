@@ -47,10 +47,19 @@ describe('BatchActionBar layout', () => {
     expect(bar().className.split(/\s+/)).toContain('bottom-24')
   })
 
-  it('keeps the centred single-row pill from md up', () => {
+  it('drops below the hidden bottom navigation from md, but keeps wrapping at tablet width', () => {
+    // VM test of 1.14.4-rc.2: at 768 px the pill was 844 px wide and ran from
+    // -38 to 806 px, "Clear selection" off screen.
+    const cls = bar().className.split(/\s+/)
+    expect(cls).toContain('md:bottom-6')
+    expect(cls).not.toContain('md:left-1/2')
+    expect(cls).not.toContain('md:flex-nowrap')
+  })
+
+  it('keeps the centred single-row pill from lg up', () => {
     const cls = bar().className.split(/\s+/)
     expect(cls).toEqual(
-      expect.arrayContaining(['md:left-1/2', 'md:right-auto', 'md:-translate-x-1/2', 'md:flex-nowrap', 'md:bottom-6']),
+      expect.arrayContaining(['lg:left-1/2', 'lg:right-auto', 'lg:-translate-x-1/2', 'lg:flex-nowrap']),
     )
   })
 
