@@ -69,6 +69,10 @@ def test_every_schema_entry_is_well_formed():
 
 def test_password_fields_marked_correctly():
     """Every secret field (token / api_key / webhook_url) is type=password."""
+    # Import the package, not just the registry — same reason as the test above:
+    # @register_op fires on module import, so on its own (or on an xdist worker
+    # that ran nothing else) the registry is empty and every lookup returns None.
+    import post_processing.ops  # noqa: F401 — triggers @register_op for every op
     from post_processing.base_op import _OP_REGISTRY
 
     expected = {
