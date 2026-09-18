@@ -173,6 +173,26 @@ class TestSanitizerUsesTheSameReading:
 
         assert strip_drawing_blocks(r"{\an8\p1}m 0 0 l 10 10") == r"{\an8}"
 
+    def test_the_fast_path_uses_the_same_reading_as_the_walk(self):
+        """A shortcut that asks a different question is a hole in the filter.
+
+        ``strip_drawing_blocks`` returned early unless the literal two
+        characters ``\\p`` appeared. Once whitespace after the backslash became
+        an opener, ``{\\ p1}`` no longer contained that substring — so the file
+        was handed back untouched and a full-screen overlay went to disk. Found
+        by the acceptance probe against the rc.14 image, not by this suite.
+        """
+        from subtitle_sanitizer import strip_drawing_blocks
+
+        assert strip_drawing_blocks(r"{\ p1}m 0 0 l 640 0 640 360 0 360") == ""
+        assert strip_drawing_blocks(r"{\ p1}m 0 0{\p0}Guten Morgen.") == "Guten Morgen."
+
+    def test_text_without_any_drawing_tag_is_returned_unchanged(self):
+        from subtitle_sanitizer import strip_drawing_blocks
+
+        assert strip_drawing_blocks("Guten Morgen.") == "Guten Morgen."
+        assert strip_drawing_blocks(r"{\an8\i1}Guten Morgen.") == r"{\an8\i1}Guten Morgen."
+
     def test_other_lines_are_untouched_by_an_unclosed_opener(self):
         """Drawing mode resets at every event, so the strip must not run on."""
         from subtitle_sanitizer import strip_drawing_blocks

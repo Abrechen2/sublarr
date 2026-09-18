@@ -13,7 +13,7 @@ Threats addressed:
 import logging
 import re
 
-from ass_drawing import drawing_state_after, without_drawing_tags
+from ass_drawing import contains_drawing_tag, drawing_state_after, without_drawing_tags
 
 logger = logging.getLogger(__name__)
 
@@ -50,10 +50,11 @@ _TIMECODE_ARROW_RE = re.compile(rf"({_TS}[ \t]*)--&gt;([ \t]*{_TS})".encode())
 
 
 def _strip_drawing_blocks_in_line(line: str) -> str:
-    """Remove every complete ``{\\pN}…{\\p0}`` span from a single line.
+    """Remove every drawing span from a single line.
 
-    An opener without a closer on the same line is left untouched — the same
-    outcome the spanning regex produced, reached in one pass instead of one
+    A span ends at its ``{\\p0}`` or, failing that, at the end of the line —
+    drawing mode resets at every event, so an unclosed opener covers the rest
+    of this line and nothing beyond it. One pass over the line's tags, never a
     scan to end-of-file per opener.
     """
     kept: list[str] = []
@@ -96,8 +97,16 @@ def _strip_drawing_blocks_in_line(line: str) -> str:
 
 
 def strip_drawing_blocks(text: str) -> str:
-    """Remove ASS drawing-mode blocks from ``text``, line by line."""
-    if "\\p" not in text and "\\P" not in text:
+    """Remove ASS drawing-mode blocks from ``text``, line by line.
+
+    The shortcut asks the *same* question the walk does. It used to look for
+    the literal two characters ``\\p``, and once whitespace after the backslash
+    turned out to be an opener, ``{\\ p1}`` no longer contained that substring:
+    the file came back untouched and a full-screen overlay reached the disk.
+    One reading, one question — anything else is a hole shaped like a
+    performance optimisation.
+    """
+    if not contains_drawing_tag(text):
         return text
     return "\n".join(_strip_drawing_blocks_in_line(line) for line in text.split("\n"))
 

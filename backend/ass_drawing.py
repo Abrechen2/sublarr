@@ -63,6 +63,16 @@ def drawing_state_after(tag_block: str, current: bool) -> bool:
     return state
 
 
+def contains_drawing_tag(text: str) -> bool:
+    """Whether ``text`` holds a ``\\p`` tag at all, by the same reading.
+
+    Exists so a caller can skip the per-line walk cheaply without inventing a
+    second, looser test for the same thing — which is how ``{\\ p1}`` slipped
+    past the sanitizer's shortcut while its walk would have caught it.
+    """
+    return _DRAW_TAG_RE.search(text) is not None
+
+
 def without_drawing_tags(tag_block: str) -> str:
     """``tag_block`` with its ``\\p`` tags removed, or "" if nothing remains.
 
