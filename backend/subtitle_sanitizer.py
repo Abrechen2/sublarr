@@ -50,12 +50,31 @@ _TIMECODE_ARROW_RE = re.compile(rf"({_TS}[ \t]*)--&gt;([ \t]*{_TS})".encode())
 
 
 def _strip_drawing_blocks_in_line(line: str) -> str:
-    """Remove every drawing span from a single line.
+    """Remove every *closed* ``{\\pN}…{\\p0}`` span from a single line.
 
-    A span ends at its ``{\\p0}`` or, failing that, at the end of the line —
-    drawing mode resets at every event, so an unclosed opener covers the rest
-    of this line and nothing beyond it. One pass over the line's tags, never a
-    scan to end-of-file per opener.
+    An opener without a closer is left standing, and that is a decision with a
+    number behind it. It was briefly removed on 2026-09-18 on the grounds that
+    one such span renders 224 000 of 230 400 pixels — 97 % of the frame — which
+    is true and is what this filter's threat model calls an overlay. Measuring
+    the production library before promoting showed what the shape actually is:
+
+        one typesetting-heavy episode   2 752 dialogue lines
+                                        1 045 carry a \\p opener
+                                            0 of them are ever closed
+        4 000 files sampled               932 affected (23 %)
+                                    2 700 705 events
+
+    Unclosed is not the exception, it is how an ASS drawing is normally
+    written: the geometry is the whole event, so a ``{\\p0}`` would be
+    pointless. Stripping it would have deleted the signs, masks and backgrounds
+    of a quarter of the library from every file Sublarr writes — legitimate
+    typesetting, not an attack. The 97 % frame that looked like the threat is
+    simply what a full-screen background mask looks like.
+
+    Whether this filter should remove drawings at all is a product question and
+    an open one: closed spans, which it does remove, turn out to be vanishingly
+    rare in real files, so this control has been close to inert all along.
+    Answer that deliberately rather than by widening the rule.
     """
     kept: list[str] = []
     cursor = 0
@@ -79,20 +98,9 @@ def _strip_drawing_blocks_in_line(line: str) -> str:
             block_start = None
             opener_rest = ""
 
-    if block_start is not None:
-        # Drawing mode was still on when the line ended. Measured against the
-        # image's own libass: such a span renders 224 000 of 230 400 pixels —
-        # 97 % of the frame — so leaving it standing leaves exactly the
-        # full-screen overlay this filter exists to remove. It was kept only
-        # because the spanning regex that preceded this walk kept it too.
-        #
-        # Nothing visible is lost: everything after the opener is geometry to
-        # the renderer and never drew as text. The strip ends at the line, so
-        # this is not the 2026-09-09 scan-to-EOF coming back.
-        kept.append(line[cursor:block_start])
-        kept.append(opener_rest)
-    else:
-        kept.append(line[cursor:])
+    # An opener still open at end of line keeps its geometry — see the
+    # docstring for the measurement that settled this.
+    kept.append(line[cursor:])
     return "".join(kept)
 
 

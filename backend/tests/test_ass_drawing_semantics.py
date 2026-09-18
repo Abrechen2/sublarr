@@ -145,33 +145,33 @@ class TestSanitizerUsesTheSameReading:
 
         assert strip_drawing_blocks(r"{\p1}m 0 0 l 10 10{\p0}Guten Morgen.") == "Guten Morgen."
 
-    def test_an_unclosed_opener_is_removed_to_the_end_of_its_line(self):
-        """It was left alone, and it covers the screen.
+    def test_an_unclosed_opener_keeps_its_geometry(self):
+        """Unclosed is how an ASS drawing is normally written.
 
-        Measured in the container against the image's own libass: a
-        ``{\\p1}`` that never closes renders 224 000 of 230 400 pixels — 97 %
-        of the frame — which is precisely the full-screen overlay this filter
-        exists to remove. It was kept only because the spanning regex that
-        preceded this walk also kept it.
-
-        Nothing visible is lost by removing it: everything after an unclosed
-        opener is geometry to the renderer, so it never drew as text anyway.
-        The strip ends at the line, so this cannot become the 2026-09-09
-        scan-to-EOF again.
+        Removing it looked right — one such span lights 224 000 of 230 400
+        pixels, which is what this filter calls an overlay — until the library
+        was measured: in one typesetting-heavy episode 1 045 of 2 752 dialogue
+        lines carry a ``\\p`` opener and not one of them is ever closed; across
+        4 000 sampled files, 932 (23 %) and 2.7 million events. The geometry is
+        the whole event, so a closer would be pointless, and stripping it would
+        delete the signs and masks of a quarter of the library from every file
+        Sublarr writes.
         """
         from subtitle_sanitizer import strip_drawing_blocks
 
-        assert strip_drawing_blocks(r"{\p1}m 0 0 l 10 10") == ""
+        assert strip_drawing_blocks(r"{\p1}m 0 0 l 10 10") == r"{\p1}m 0 0 l 10 10"
+        assert strip_drawing_blocks(r"{\an8\p1}m 0 0 l 10 10") == r"{\an8\p1}m 0 0 l 10 10"
 
-    def test_an_unclosed_opener_keeps_the_text_before_it(self):
+    def test_text_before_an_unclosed_opener_is_untouched(self):
         from subtitle_sanitizer import strip_drawing_blocks
 
-        assert strip_drawing_blocks(r"Guten Morgen.{\p1}m 0 0 l 10 10") == "Guten Morgen."
+        assert strip_drawing_blocks(r"Guten Morgen.{\p1}m 0 0") == r"Guten Morgen.{\p1}m 0 0"
 
-    def test_an_unclosed_opener_keeps_its_blocks_other_overrides(self):
+    def test_a_closed_span_is_still_removed_on_the_same_line(self):
+        """The rule that did not change: a complete span still goes."""
         from subtitle_sanitizer import strip_drawing_blocks
 
-        assert strip_drawing_blocks(r"{\an8\p1}m 0 0 l 10 10") == r"{\an8}"
+        assert strip_drawing_blocks(r"{\p1}m 0 0{\p0}Guten Morgen.") == "Guten Morgen."
 
     def test_the_fast_path_uses_the_same_reading_as_the_walk(self):
         """A shortcut that asks a different question is a hole in the filter.
@@ -184,21 +184,16 @@ class TestSanitizerUsesTheSameReading:
         """
         from subtitle_sanitizer import strip_drawing_blocks
 
-        assert strip_drawing_blocks(r"{\ p1}m 0 0 l 640 0 640 360 0 360") == ""
+        # A closed span, because an unclosed one is deliberately kept — what is
+        # under test here is that the shortcut sees the opener at all.
         assert strip_drawing_blocks(r"{\ p1}m 0 0{\p0}Guten Morgen.") == "Guten Morgen."
+        assert strip_drawing_blocks(r"{\ p1}m 0 0 l 640 0{\p0}") == ""
 
     def test_text_without_any_drawing_tag_is_returned_unchanged(self):
         from subtitle_sanitizer import strip_drawing_blocks
 
         assert strip_drawing_blocks("Guten Morgen.") == "Guten Morgen."
         assert strip_drawing_blocks(r"{\an8\i1}Guten Morgen.") == r"{\an8\i1}Guten Morgen."
-
-    def test_other_lines_are_untouched_by_an_unclosed_opener(self):
-        """Drawing mode resets at every event, so the strip must not run on."""
-        from subtitle_sanitizer import strip_drawing_blocks
-
-        text = "\n".join([r"{\p1}m 0 0 l 10 10", "Guten Morgen."])
-        assert strip_drawing_blocks(text) == "\n".join(["", "Guten Morgen."])
 
     def test_a_plus_signed_opener_is_removed_too(self):
         from subtitle_sanitizer import strip_drawing_blocks
