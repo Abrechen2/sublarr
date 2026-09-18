@@ -61,9 +61,11 @@ def _collect_translatable_events(subs, dialog_styles):
 
     Returns:
         tuple: (indices, clean_texts, tag_infos, original_lengths, prefixes,
-        suffixes), positionally aligned — ``indices[n]`` is the event
-        ``clean_texts[n]`` came from, and the rebuilt event is
-        ``prefixes[n] + restore_tags(...) + suffixes[n]``
+        suffixes, untranslated). The first six are positionally aligned —
+        ``indices[n]`` is the event ``clean_texts[n]`` came from, and the
+        rebuilt event is ``prefixes[n] + restore_tags(...) + suffixes[n]``.
+        ``untranslated`` describes the events left in the source language, so
+        the caller can say so rather than reporting an unqualified success.
     """
     indices = []
     texts = []
@@ -71,8 +73,8 @@ def _collect_translatable_events(subs, dialog_styles):
     orig_lengths = []
     prefixes = []
     suffixes = []
+    untranslated = []
     skipped_drawings = 0
-    skipped_interleaved = 0
 
     for i, event in enumerate(subs.events):
         if event.is_comment:
@@ -92,8 +94,18 @@ def _collect_translatable_events(subs, dialog_styles):
             if split is None:
                 # Drawings between two pieces of dialogue: one translated
                 # string cannot be mapped back onto two runs, and guessing
-                # corrupts both. Leaving the event alone is the honest answer.
-                skipped_interleaved += 1
+                # corrupts both. Leaving the event alone is the honest answer —
+                # but only if the answer is given, which is why it is collected
+                # rather than counted.
+                untranslated.append(
+                    {
+                        "index": i,
+                        "start_ms": int(event.start),
+                        "end_ms": int(event.end),
+                        "text": text_outside_drawing(event.text).strip()[:120],
+                        "reason": "dialogue interleaved with drawings",
+                    }
+                )
                 continue
             prefix, body, suffix = split
 
@@ -110,13 +122,25 @@ def _collect_translatable_events(subs, dialog_styles):
 
     if skipped_drawings:
         logger.info("Skipped %d drawing-only event(s) — not language", skipped_drawings)
-    if skipped_interleaved:
-        logger.info(
-            "Left %d event(s) untranslated — dialogue interleaved with drawings",
-            skipped_interleaved,
+    if untranslated:
+        # Warning, not info: the file is about to be reported as translated
+        # while it still carries source-language lines, and an INFO line among
+        # thousands is not telling anyone.
+        logger.warning(
+            "%d event(s) left in the source language — dialogue interleaved with "
+            "drawings; first at %.3fs: %r",
+            len(untranslated),
+            untranslated[0]["start_ms"] / 1000,
+            untranslated[0]["text"],
         )
+        try:
+            import decision_log
 
-    return indices, texts, tags, orig_lengths, prefixes, suffixes
+            decision_log.partial_translation(len(untranslated), untranslated)
+        except Exception:  # noqa: BLE001 — instrumentation never breaks a translation
+            logger.debug("could not record the partial translation", exc_info=True)
+
+    return indices, texts, tags, orig_lengths, prefixes, suffixes, untranslated
 
 
 def translate_ass(
@@ -158,6 +182,7 @@ def translate_ass(
             dialog_orig_lengths,
             dialog_prefixes,
             dialog_suffixes,
+            dialog_untranslated,
         ) = _collect_translatable_events(subs, dialog_styles)
 
         logger.info(
@@ -288,6 +313,8 @@ def translate_ass(
                 "format": "ass",
                 "source": "embedded_ass",
                 "quality_warnings": quality_warnings,
+                "untranslated": len(dialog_untranslated),
+                "untranslated_events": dialog_untranslated,
                 "backend_name": translation_result.backend_name,
                 **_quality_stats,
             },
@@ -339,6 +366,7 @@ def _translate_external_ass(
             dialog_orig_lengths,
             dialog_prefixes,
             dialog_suffixes,
+            dialog_untranslated,
         ) = _collect_translatable_events(subs, dialog_styles)
 
         if not dialog_texts:
@@ -489,6 +517,8 @@ def _translate_external_ass(
                 "format": "ass",
                 "source": "provider_source_ass",
                 "quality_warnings": quality_warnings,
+                "untranslated": len(dialog_untranslated),
+                "untranslated_events": dialog_untranslated,
                 "backend_name": translation_result.backend_name,
                 **_quality_stats,
             },

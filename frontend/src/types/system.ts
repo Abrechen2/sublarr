@@ -134,6 +134,15 @@ export interface DecisionLog {
   searches: DecisionLogSearch[]
   upgrade?: { approved: boolean; reason: string; old_score: number; new_score: number }
   final?: DecisionLogFinal
+  /**
+   * Present when the subtitle was saved with some lines still in the source
+   * language. The run counts as a success, so without this the user would have
+   * no way to tell a fully translated file from one with English remnants.
+   */
+  partial_translation?: {
+    count: number
+    events: { index: number; start_ms: number; end_ms: number; text: string; reason: string }[]
+  }
   truncated?: boolean
 }
 

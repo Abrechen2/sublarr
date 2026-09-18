@@ -42,6 +42,11 @@ MAX_JSON_BYTES = 200_000
 _current: ContextVar["DecisionLog | None"] = ContextVar("sublarr_decision_log", default=None)
 
 
+#: Enough to find the lines in a player without turning the log into the
+#: subtitle file itself.
+_MAX_PARTIAL_EVENTS = 20
+
+
 class DecisionLog:
     """Mutable collector for one wanted-item processing run."""
 
@@ -61,6 +66,7 @@ class DecisionLog:
         self.searches: list[dict] = []
         self.upgrade: dict | None = None
         self.final: dict | None = None
+        self.partial_translation: dict | None = None
         self._step: str = ""
 
     # ---- step / search lifecycle -------------------------------------------------
@@ -70,6 +76,17 @@ class DecisionLog:
 
     def step_skipped(self, step: str, reason: str) -> None:
         self.steps.append({"step": step, "skipped": True, "reason": reason})
+
+    def partial_translation_recorded(self, count: int, events: list[dict]) -> None:
+        """Note that the file was saved with some lines left in the source language.
+
+        Kept separate from ``steps``: nothing was skipped in the pipeline sense,
+        the translation ran and succeeded — it just did not cover everything,
+        and a user reading "found" needs to be told that before they trust it.
+        """
+        if not count:
+            return
+        self.partial_translation = {"count": count, "events": events[:_MAX_PARTIAL_EVENTS]}
 
     def search_started(self, languages, format_filter, min_score: int) -> None:
         self.searches.append(
@@ -212,6 +229,8 @@ class DecisionLog:
             d["upgrade"] = self.upgrade
         if self.final is not None:
             d["final"] = self.final
+        if self.partial_translation is not None:
+            d["partial_translation"] = self.partial_translation
         return d
 
     def to_json(self) -> str:
@@ -303,6 +322,10 @@ def set_step(step: str) -> None:
 
 def step_skipped(step: str, reason: str) -> None:
     _call("step_skipped", step, reason)
+
+
+def partial_translation(count: int, events: list[dict]) -> None:
+    _call("partial_translation_recorded", count, events)
 
 
 def search_started(languages, format_filter, min_score: int = 0) -> None:

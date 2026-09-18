@@ -297,6 +297,9 @@
     "step_source_srt": "Schritt 4 — Quellsprache, SRT + Übersetzung",
     "step_translate_fallback": "Schritt 5 — Embedded-/Übersetzungs-Fallback",
     "upgrade_approved": "Upgrade genehmigt ({{old}} → {{new}}): {{reason}}",
-    "upgrade_rejected": "Upgrade abgelehnt ({{old}} → {{new}}): {{reason}}"
+    "upgrade_rejected": "Upgrade abgelehnt ({{old}} → {{new}}): {{reason}}",
+    "partial_translation": "{{count}} Zeile nicht übersetzt",
+    "partial_translation_plural": "{{count}} Zeilen nicht übersetzt",
+    "partial_translation_hint": "Diese Zeilen stehen im Untertitel zusammen mit einer Grafik. Sie bleiben in der Ausgangssprache, weil sich Text und Grafik danach nicht verlässlich wieder zusammensetzen lassen."
   }
 }

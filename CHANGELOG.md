@@ -128,6 +128,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   with the same file name in different season folders could claim the same
   backup name at the same time, leaving one original without a recovery copy.
 
+- **A subtitle that kept some English lines now says so.** When one subtitle
+  event holds dialogue on both sides of a graphic, the line is left in the
+  source language — putting one translated string back around the graphic
+  cannot be done reliably. That was only mentioned in the log, while the job
+  reported plain success. The result now carries the affected lines, the log
+  says it as a warning, and "Why this subtitle?" lists them with their
+  timestamps so you can find them in your player.
+- **Repeated lines no longer pay for a second opinion.** The quality check asks
+  the translation model to rate every line of a file. Lines served from the
+  translation memory were rated again on every reuse, so a file whose text
+  Sublarr had already seen and judged still cost one model request per line —
+  several hundred for a long episode, producing no new translation. The
+  memory now stores the check's verdict along with the text, and a line that
+  carries one is not re-rated. Entries written before this release are rated
+  once more and then carry theirs.
+
 ### Changed
 - **In-app backups of PostgreSQL 15, 16 and 17 can be restored.** The image
   shipped only the PostgreSQL 17 client, whose dumps a PostgreSQL 16 server

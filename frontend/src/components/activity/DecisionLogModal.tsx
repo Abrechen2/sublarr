@@ -15,7 +15,7 @@ import { useQuery } from '@tanstack/react-query'
 import { useTranslation } from 'react-i18next'
 import {
   X, Loader2, AlertCircle, ListTree, ChevronDown, ChevronRight,
-  CheckCircle2, XCircle, Clock, SkipForward, Zap, Database,
+  CheckCircle2, XCircle, Clock, SkipForward, Zap, Database, AlertTriangle,
 } from 'lucide-react'
 import { getHistoryDecision, getWantedDecision } from '@/api/client'
 import { ScoreBreakdown } from '@/components/shared/ScoreBreakdown'
@@ -261,6 +261,15 @@ function SearchSection({ search, expert, t }: {
   )
 }
 
+/** mm:ss.mmm — what a user types into their player to find the line. */
+function formatTimecode(ms: number): string {
+  const total = Math.max(0, Math.round(ms))
+  const minutes = Math.floor(total / 60000)
+  const seconds = Math.floor((total % 60000) / 1000)
+  const millis = total % 1000
+  return `${minutes}:${String(seconds).padStart(2, '0')}.${String(millis).padStart(3, '0')}`
+}
+
 export function DecisionLogModal({ mode, id, title, onClose }: DecisionLogModalProps) {
   const { t } = useTranslation('activity')
   const [expert, setExpert] = useState(false)
@@ -398,6 +407,28 @@ export function DecisionLogModal({ mode, id, title, onClose }: DecisionLogModalP
                 {log.searches.map((s, i) => (
                   <SearchSection key={i} search={s} expert={expert} t={t} />
                 ))}
+
+                {/* Lines the translation could not cover — the run still
+                    succeeded, so this is the only thing that says so. */}
+                {log.partial_translation && log.partial_translation.count > 0 && (
+                  <SectionCard>
+                    <div className="flex items-center gap-2 text-[10px] uppercase tracking-wider font-semibold" style={{ color: 'var(--color-warning)' }}>
+                      <AlertTriangle size={12} />
+                      {t('decision.partial_translation', { count: log.partial_translation.count })}
+                    </div>
+                    <div className="text-xs" style={{ color: 'var(--text-secondary)' }}>
+                      {t('decision.partial_translation_hint')}
+                    </div>
+                    {log.partial_translation.events.map((e) => (
+                      <div key={e.index} className="flex items-baseline gap-2 text-xs" style={{ color: 'var(--text-secondary)' }}>
+                        <span className="tabular-nums" style={{ color: 'var(--text-muted)' }}>
+                          {formatTimecode(e.start_ms)}
+                        </span>
+                        <span className="truncate">{e.text}</span>
+                      </div>
+                    ))}
+                  </SectionCard>
+                )}
 
                 {/* Skipped steps */}
                 {log.steps.length > 0 && (

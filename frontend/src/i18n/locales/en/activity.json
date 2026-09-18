@@ -297,6 +297,9 @@
     "step_source_srt": "Step 4 — Source language, SRT + translation",
     "step_translate_fallback": "Step 5 — Embedded/translation fallback",
     "upgrade_approved": "Upgrade approved ({{old}} → {{new}}): {{reason}}",
-    "upgrade_rejected": "Upgrade rejected ({{old}} → {{new}}): {{reason}}"
+    "upgrade_rejected": "Upgrade rejected ({{old}} → {{new}}): {{reason}}",
+    "partial_translation": "{{count}} line left untranslated",
+    "partial_translation_plural": "{{count}} lines left untranslated",
+    "partial_translation_hint": "These lines share their subtitle event with a graphic. They stay in the source language because text and graphic cannot be put back together reliably afterwards."
   }
 }
