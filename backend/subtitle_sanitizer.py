@@ -78,7 +78,20 @@ def _strip_drawing_blocks_in_line(line: str) -> str:
             block_start = None
             opener_rest = ""
 
-    kept.append(line[cursor:])
+    if block_start is not None:
+        # Drawing mode was still on when the line ended. Measured against the
+        # image's own libass: such a span renders 224 000 of 230 400 pixels —
+        # 97 % of the frame — so leaving it standing leaves exactly the
+        # full-screen overlay this filter exists to remove. It was kept only
+        # because the spanning regex that preceded this walk kept it too.
+        #
+        # Nothing visible is lost: everything after the opener is geometry to
+        # the renderer and never drew as text. The strip ends at the line, so
+        # this is not the 2026-09-09 scan-to-EOF coming back.
+        kept.append(line[cursor:block_start])
+        kept.append(opener_rest)
+    else:
+        kept.append(line[cursor:])
     return "".join(kept)
 
 

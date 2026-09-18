@@ -224,10 +224,18 @@ class TestSubtitleSanitizer:
         elapsed = time.perf_counter() - started
 
         assert elapsed < 10, f"sanitizer took {elapsed:.1f}s on {len(heavy)} bytes"
-        # No closer anywhere → nothing is a complete drawing block, so the
-        # openers stay exactly as before (this test is about the cost, not a
-        # change of policy).
-        assert result.count(b"\\p1") == 4000
+        # The policy changed on 2026-09-18, the cost bound above did not.
+        # Openers without a closer used to be left standing, on the grounds
+        # that the spanning regex had left them too. Measured against the
+        # image's own libass, one such line lights 224 000 of 230 400 pixels —
+        # a 97 % overlay, which is the thing this filter exists to remove. The
+        # span now ends at the line, so the bound still holds and the geometry
+        # is gone.
+        assert b"\\p1" not in result
+        assert b"m 0 0 l 100" not in result
+        # Positioning shared the block with the drawing and belongs to the
+        # event, not to the geometry.
+        assert result.count(b"\\pos(10,10)") == 4000
         assert first_line is not None
 
     def test_ass_drawing_block_does_not_swallow_other_events(self):

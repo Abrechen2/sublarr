@@ -145,10 +145,40 @@ class TestSanitizerUsesTheSameReading:
 
         assert strip_drawing_blocks(r"{\p1}m 0 0 l 10 10{\p0}Guten Morgen.") == "Guten Morgen."
 
-    def test_an_unclosed_opener_is_still_left_alone(self):
+    def test_an_unclosed_opener_is_removed_to_the_end_of_its_line(self):
+        """It was left alone, and it covers the screen.
+
+        Measured in the container against the image's own libass: a
+        ``{\\p1}`` that never closes renders 224 000 of 230 400 pixels — 97 %
+        of the frame — which is precisely the full-screen overlay this filter
+        exists to remove. It was kept only because the spanning regex that
+        preceded this walk also kept it.
+
+        Nothing visible is lost by removing it: everything after an unclosed
+        opener is geometry to the renderer, so it never drew as text anyway.
+        The strip ends at the line, so this cannot become the 2026-09-09
+        scan-to-EOF again.
+        """
         from subtitle_sanitizer import strip_drawing_blocks
 
-        assert strip_drawing_blocks(r"{\p1}m 0 0 l 10 10") == r"{\p1}m 0 0 l 10 10"
+        assert strip_drawing_blocks(r"{\p1}m 0 0 l 10 10") == ""
+
+    def test_an_unclosed_opener_keeps_the_text_before_it(self):
+        from subtitle_sanitizer import strip_drawing_blocks
+
+        assert strip_drawing_blocks(r"Guten Morgen.{\p1}m 0 0 l 10 10") == "Guten Morgen."
+
+    def test_an_unclosed_opener_keeps_its_blocks_other_overrides(self):
+        from subtitle_sanitizer import strip_drawing_blocks
+
+        assert strip_drawing_blocks(r"{\an8\p1}m 0 0 l 10 10") == r"{\an8}"
+
+    def test_other_lines_are_untouched_by_an_unclosed_opener(self):
+        """Drawing mode resets at every event, so the strip must not run on."""
+        from subtitle_sanitizer import strip_drawing_blocks
+
+        text = "\n".join([r"{\p1}m 0 0 l 10 10", "Guten Morgen."])
+        assert strip_drawing_blocks(text) == "\n".join(["", "Guten Morgen."])
 
     def test_a_plus_signed_opener_is_removed_too(self):
         from subtitle_sanitizer import strip_drawing_blocks
