@@ -16,6 +16,7 @@ continues to work unchanged.
 import logging
 import re
 
+from ass_drawing import drawing_state_after, holds_language
 from ass_probe import (  # noqa: F401 — re-exported for back-compat
     extract_subtitle_stream,
     get_all_subtitle_streams,
@@ -108,22 +109,9 @@ def classify_styles(subs):
     return dialog_styles, signs_styles
 
 
-#: ``\p<n>`` switches drawing mode: n > 0 turns it on, anything else off.
-#:
-#: Written to match what libass actually does, because a predicate that only
-#: approximates the renderer decides the wrong thing about real files. Verified
-#: by the sandbox VM against the ffmpeg/libass shipped in the release image
-#: (1.14.4-rc.9, seven pixel comparisons):
-#:
-#: * the argument is an optionally signed integer after optional whitespace, so
-#:   ``\p 0``, ``\p-1`` and a bare ``\p`` all render as drawing OFF;
-#: * it is read as a number, so ``\p01`` is mode 1 and ``\p12`` is mode 12 —
-#:   not "no match" and not mode 1 followed by a stray ``2``;
-#: * the tag is lowercase. ``\P1`` is not this tag and libass ignores it, so an
-#:   IGNORECASE match turns ordinary dialogue into a skipped "drawing";
-#: * ``\pbo`` is the baseline-offset tag. The negative lookahead keeps it from
-#:   being read as ``\p`` with no argument, which would switch drawing off.
-_DRAW_TAG_RE = re.compile(r"\\p(?![a-zA-Z])\s*(-?\d+)?")
+#: The reading of ``\p`` tags lives in ``ass_drawing`` so the security
+#: sanitizer and this module cannot drift apart again. They did: the sanitizer
+#: read ``{\P1}`` as an opener and deleted the visible dialogue behind it.
 
 
 def text_outside_drawing(text):
@@ -169,10 +157,7 @@ def _text_runs(text):
     for match in OVERRIDE_TAG_RE.finditer(text):
         if match.start() > pos:
             runs.append((pos, match.start(), drawing))
-        # A single tag block can hold several overrides; the last \p wins.
-        for draw_tag in _DRAW_TAG_RE.finditer(match.group(0)):
-            argument = draw_tag.group(1)
-            drawing = int(argument) > 0 if argument else False
+        drawing = drawing_state_after(match.group(0), drawing)
         pos = match.end()
     if pos < len(text):
         runs.append((pos, len(text), drawing))
@@ -208,7 +193,9 @@ def split_around_drawings(text):
     """
     runs = _text_runs(text)
     body_runs = [
-        (start, end) for start, end, drawing in runs if not drawing and text[start:end].strip()
+        (start, end)
+        for start, end, drawing in runs
+        if not drawing and holds_language(text[start:end])
     ]
     if not body_runs:
         return None

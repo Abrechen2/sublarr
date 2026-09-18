@@ -1,0 +1,134 @@
+"""One reading of ``\\p`` tags, and it has to be the renderer's.
+
+Sandbox VM, 1.14.4-rc.10: a differential harness put 47 override forms through
+the ffmpeg/libass shipped in our own release image and through the product
+helper, in both initial drawing states, and found 16 disagreements. Separately
+it showed the security sanitizer using a *different*, older reading — and that
+one deletes visible dialogue outright.
+"""
+
+from __future__ import annotations
+
+import pytest
+
+#: Spelled with chr() rather than written into the string literals: as literal
+#: characters these are invisible, and two of the cases below would look like
+#: exact duplicates of each other in any diff.
+NBSP = chr(0x00A0)
+EM_SPACE = chr(0x2003)
+ARABIC_INDIC_ONE = chr(0x0661)
+FULLWIDTH_ONE = chr(0xFF11)
+
+
+@pytest.mark.parametrize(
+    "tag_block, before, expected",
+    [
+        # libass accepts a leading plus; rc.10 allowed only a minus, so the
+        # coordinates of a {\p+1} drawing were handed to the model.
+        (r"{\p+1}", False, True),
+        (r"{\p +1}", False, True),
+        # The last \p in one block wins, plus sign included.
+        (r"{\p1\p0\p+1}", False, True),
+        (r"{\p1\p0}", False, False),
+        # A no-break space is not ASCII whitespace, so the argument is not
+        # read as a number at all and drawing ends up off — rc.10 accepted it
+        # via Python's \s and skipped the visible dialogue that followed.
+        (r"{\p" + NBSP + "1}", False, False),
+        (r"{\p" + EM_SPACE + "1}", False, False),
+        # Python's \d and int() take these for ones; libass does not.
+        (r"{\p" + ARABIC_INDIC_ONE + "}", False, False),
+        (r"{\p" + FULLWIDTH_ONE + "}", False, False),
+        # An unparseable rest reads as 0, which turns drawing off rather than
+        # leaving the tag unread.
+        (r"{\pfoo}", True, False),
+        (r"{\pBO3}", True, False),
+        # ... but the real lowercase \pbo and \pos tags are left alone.
+        (r"{\pbo3}", True, True),
+        (r"{\pbo3}", False, False),
+        (r"{\pos(10,20)}", True, True),
+        (r"{\pos(10,20)}", False, False),
+        # The canonical forms keep working.
+        (r"{\p1}", False, True),
+        (r"{\p0}", True, False),
+        (r"{\p01}", False, True),
+        (r"{\p12}", False, True),
+        (r"{\p-1}", True, False),
+        (r"{\p}", True, False),
+        (r"{\an8\i1}", True, True),
+        (r"{\an8\i1}", False, False),
+    ],
+)
+def test_drawing_state_after(tag_block, before, expected):
+    from ass_drawing import drawing_state_after
+
+    assert drawing_state_after(tag_block, before) is expected
+
+
+def test_a_huge_argument_does_not_raise():
+    """A 5000-digit argument failed the whole file, ordinary lines included.
+
+    ``int()`` refuses more than 4300 digits in Python 3.12, and the helper let
+    that ValueError escape, so one malformed event cost every dialogue in the
+    file its translation. Whether a number is positive needs no conversion.
+    """
+    from ass_drawing import drawing_state_after
+
+    assert drawing_state_after("{\\p" + "9" * 5000 + "}", False) is True
+    assert drawing_state_after("{\\p" + "0" * 5000 + "}", True) is False
+
+
+@pytest.mark.parametrize(
+    "text, expected",
+    [
+        ("Good morning.", True),
+        ("", False),
+        ("   ", False),
+        # Layout escapes are not sentences. A lone \N counted as a stretch of
+        # dialogue, so a caption with a leading line break looked like two
+        # sentences with a drawing between them and was skipped entirely.
+        (r"\N", False),
+        (r"\h", False),
+        (r"\n", False),
+        (r"\N\h", False),
+        (r"Good\Nmorning.", True),
+    ],
+)
+def test_holds_language(text, expected):
+    from ass_drawing import holds_language
+
+    assert holds_language(text) is expected
+
+
+class TestSanitizerUsesTheSameReading:
+    """The sanitizer deleted visible dialogue because it read \\p differently.
+
+    Both cases below report ``success=true`` from the flow while the saved
+    event is empty — confirmed by the VM against the renderer: the expected
+    frame shows "Guten Morgen.", the actual frame is black.
+    """
+
+    def test_uppercase_p_is_not_an_opener(self):
+        from subtitle_sanitizer import strip_drawing_blocks
+
+        assert strip_drawing_blocks(r"{\P1}Guten Morgen.{\p0}") == r"{\P1}Guten Morgen.{\p0}"
+
+    def test_a_block_that_turns_drawing_off_again_is_not_an_opener(self):
+        from subtitle_sanitizer import strip_drawing_blocks
+
+        assert strip_drawing_blocks(r"{\p1\p0}Guten Morgen.{\p0}") == r"{\p1\p0}Guten Morgen.{\p0}"
+
+    def test_a_real_drawing_span_is_still_removed(self):
+        """The security control itself must not weaken."""
+        from subtitle_sanitizer import strip_drawing_blocks
+
+        assert strip_drawing_blocks(r"{\p1}m 0 0 l 10 10{\p0}Guten Morgen.") == "Guten Morgen."
+
+    def test_an_unclosed_opener_is_still_left_alone(self):
+        from subtitle_sanitizer import strip_drawing_blocks
+
+        assert strip_drawing_blocks(r"{\p1}m 0 0 l 10 10") == r"{\p1}m 0 0 l 10 10"
+
+    def test_a_plus_signed_opener_is_removed_too(self):
+        from subtitle_sanitizer import strip_drawing_blocks
+
+        assert strip_drawing_blocks(r"{\p+1}m 0 0{\p0}Guten Morgen.") == "Guten Morgen."

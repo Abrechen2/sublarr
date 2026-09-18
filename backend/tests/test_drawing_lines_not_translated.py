@@ -128,6 +128,38 @@ def test_mixed_events_offer_only_their_dialogue(text, expected_body):
     assert prefix + body + suffix == text, "the split must lose nothing"
 
 
+@pytest.mark.parametrize(
+    "text, expected_body",
+    [
+        (r"\N{\p1}m 0 0 l 50 0{\p0}Good morning.", "Good morning."),
+        (r"Good morning.{\p1}m 0 0 l 50 0{\p0}\N", "Good morning."),
+        (r"\h{\p1}m 0 0 l 50 0{\p0}Good morning.", "Good morning."),
+    ],
+)
+def test_a_line_break_is_not_a_second_piece_of_dialogue(text, expected_body):
+    """``\\N`` and ``\\h`` are layout, not language.
+
+    Sandbox VM, 1.14.4-rc.10 (F3b): Python does not see the raw two-character
+    sequences as whitespace, so a leading ``\\N`` counted as its own stretch of
+    dialogue. The drawing then looked as if it sat *between* two sentences and
+    the whole caption was skipped — the English line was saved and the flow
+    still reported success.
+    """
+    from ass_utils import split_around_drawings
+
+    split = split_around_drawings(text)
+    assert split is not None, "a layout escape was mistaken for dialogue"
+    assert split[1] == expected_body
+
+
+def test_a_line_break_inside_the_sentence_stays_in_the_body():
+    from ass_utils import split_around_drawings
+
+    split = split_around_drawings(r"{\p1}m 0 0{\p0}Good\Nmorning.")
+    assert split is not None
+    assert split[1] == r"Good\Nmorning."
+
+
 def test_drawing_between_two_pieces_of_dialogue_is_not_split():
     """Two text halves around a drawing cannot be put back together.
 

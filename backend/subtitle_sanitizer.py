@@ -13,6 +13,8 @@ Threats addressed:
 import logging
 import re
 
+from ass_drawing import drawing_state_after
+
 logger = logging.getLogger(__name__)
 
 _MAX_SUBTITLE_BYTES = 5 * 1024 * 1024  # 5 MB per subtitle file
@@ -28,8 +30,6 @@ _MAX_SUBTITLE_BYTES = 5 * 1024 * 1024  # 5 MB per subtitle file
 # ``{\p0}``. Override tags reset at every event, so a block is a per-line
 # affair by definition.
 _ASS_TAG_RE = re.compile(r"\{[^}]*\}")
-_DRAW_ON_RE = re.compile(r"\\p[1-9]", re.IGNORECASE)
-_DRAW_OFF_RE = re.compile(r"\\p0", re.IGNORECASE)
 
 # HTML tags allowed in SRT/VTT subtitle text
 _ALLOWED_HTML_TAGS = frozenset({"i", "b", "u", "font"})
@@ -56,17 +56,17 @@ def _strip_drawing_blocks_in_line(line: str) -> str:
     outcome the spanning regex produced, reached in one pass instead of one
     scan to end-of-file per opener.
     """
-    tags = _ASS_TAG_RE.finditer(line)
     kept: list[str] = []
     cursor = 0
     block_start: int | None = None
+    drawing = False
 
-    for tag in tags:
-        body = tag.group()
-        if block_start is None:
-            if _DRAW_ON_RE.search(body):
-                block_start = tag.start()
-        elif _DRAW_OFF_RE.search(body):
+    for tag in _ASS_TAG_RE.finditer(line):
+        was_drawing = drawing
+        drawing = drawing_state_after(tag.group(), drawing)
+        if not was_drawing and drawing:
+            block_start = tag.start()
+        elif was_drawing and not drawing and block_start is not None:
             kept.append(line[cursor:block_start])
             cursor = tag.end()
             block_start = None

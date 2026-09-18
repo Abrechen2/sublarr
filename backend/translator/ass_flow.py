@@ -21,6 +21,7 @@ import tempfile
 
 import pysubs2
 
+from ass_drawing import holds_language
 from ass_utils import (
     classify_styles,
     contains_drawing,
@@ -84,7 +85,7 @@ def _collect_translatable_events(subs, dialog_styles):
         prefix = suffix = ""
         body = event.text
         if contains_drawing(event.text):
-            if not text_outside_drawing(event.text).strip():
+            if not holds_language(text_outside_drawing(event.text)):
                 skipped_drawings += 1
                 continue
             split = split_around_drawings(event.text)
