@@ -267,19 +267,41 @@ class TranslationManager:
 
             try:
                 raw_response = self._call_backend_raw(backend, prompt)
-                if raw_response is not None:
-                    score = parse_quality_score(raw_response)
-                    logger.debug(
-                        "Quality eval via %s: score=%d for %r -> %r",
-                        backend_name,
-                        score,
-                        source_text[:40],
-                        translated_text[:40],
-                    )
-                    return score
             except Exception as exc:
+                # The backend did not answer — a health signal, and the only
+                # thing that moves the breaker this path consults. Without it
+                # a HALF_OPEN probe never resolves, and since allow_request()
+                # lets HALF_OPEN through, every following line paid the request
+                # timeout again (prod 2026-09-17).
+                cb.record_failure()
+                self._record_failure(backend_name, str(exc))
                 logger.debug("Quality eval failed via %s: %s", backend_name, exc)
                 continue
+
+            if raw_response is None:
+                # Backend exposes no raw call — not a health statement.
+                continue
+
+            cb.record_success()
+            try:
+                score = parse_quality_score(raw_response)
+            except Exception as exc:
+                # It answered; only the shape of the answer was unusable. Same
+                # rule as TranslationContentError in translate_with_fallback:
+                # content must not count towards the breaker.
+                logger.debug(
+                    "Quality eval returned an unusable answer via %s: %s", backend_name, exc
+                )
+                continue
+
+            logger.debug(
+                "Quality eval via %s: score=%d for %r -> %r",
+                backend_name,
+                score,
+                source_text[:40],
+                translated_text[:40],
+            )
+            return score
 
         logger.debug(
             "No LLM backend available for quality eval, using default score %d",
