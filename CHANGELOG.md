@@ -104,7 +104,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   placed back inside the translated sentence and the safety filter cut
   everything before them away. "Guten Morgen." was saved as " Morgen.". Only
   the dialogue is translated now, and the drawing is carried around it
-  untouched.
+  untouched. A caption whose line starts with a line break is no longer skipped
+  either.
+- **Subtitle lines are no longer deleted by the safety filter.** The filter
+  that removes drawing overlays read the drawing tags differently from the rest
+  of Sublarr: a capitalised tag, or one that switched drawing off again in the
+  same place, made it treat ordinary dialogue as part of a drawing and remove
+  it. The subtitle was saved with that line empty and the job still reported
+  success. Both now read the tags the way the renderer does, and a malformed
+  tag no longer costs the whole file its translation.
 - **A dead translation backend no longer costs one timeout per subtitle
   line.** The quality check consulted the backend's failure protection but
   never reported to it, so the protection could neither trip nor recover and
