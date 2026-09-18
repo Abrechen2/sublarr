@@ -53,6 +53,18 @@ def drawing_state_after(tag_block: str, current: bool) -> bool:
     return state
 
 
+def without_drawing_tags(tag_block: str) -> str:
+    """``tag_block`` with its ``\\p`` tags removed, or "" if nothing remains.
+
+    A sign is usually one event — ``{\\an8\\pos(...)\\p1}`` geometry ``{\\p0}``
+    caption — so removing the drawing by deleting the whole opening block took
+    the caption's positioning with it and dropped it to the default
+    bottom-centre.
+    """
+    stripped = _DRAW_TAG_RE.sub("", tag_block)
+    return "" if stripped in ("{}", "") else stripped
+
+
 def holds_language(text: str) -> bool:
     """Whether ``text`` carries something worth translating.
 

@@ -132,3 +132,39 @@ class TestSanitizerUsesTheSameReading:
         from subtitle_sanitizer import strip_drawing_blocks
 
         assert strip_drawing_blocks(r"{\p+1}m 0 0{\p0}Guten Morgen.") == "Guten Morgen."
+
+
+class TestRemovingADrawingKeepsTheRestOfItsBlock:
+    """Only the drawing goes; the overrides sharing its block have to stay.
+
+    A sign is usually authored as one event — ``{\\an8\\pos(...)\\p1}`` geometry
+    ``{\\p0}`` caption — so deleting the opening block whole took the caption's
+    position with the drawing and dropped it to the default bottom-centre.
+    Sandbox VM, 1.14.4-rc.10. Older than this release series.
+    """
+
+    def test_positioning_in_the_opening_block_survives(self):
+        from subtitle_sanitizer import strip_drawing_blocks
+
+        assert (
+            strip_drawing_blocks(r"{\an8\p1}m 0 0 l 10 10{\p0}Guten Morgen.")
+            == r"{\an8}Guten Morgen."
+        )
+
+    def test_overrides_in_the_closing_block_survive(self):
+        from subtitle_sanitizer import strip_drawing_blocks
+
+        assert strip_drawing_blocks(r"{\p1}m 0 0{\p0\i1}Guten Morgen.") == r"{\i1}Guten Morgen."
+
+    def test_a_block_holding_only_the_drawing_tag_leaves_nothing_behind(self):
+        from subtitle_sanitizer import strip_drawing_blocks
+
+        assert strip_drawing_blocks(r"{\p1}m 0 0 l 10 10{\p0}Guten Morgen.") == "Guten Morgen."
+
+    def test_several_overrides_keep_their_order(self):
+        from subtitle_sanitizer import strip_drawing_blocks
+
+        assert (
+            strip_drawing_blocks(r"{\an8\p1\pos(10,20)}m 0 0{\p0}Guten Morgen.")
+            == r"{\an8\pos(10,20)}Guten Morgen."
+        )

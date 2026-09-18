@@ -13,7 +13,7 @@ Threats addressed:
 import logging
 import re
 
-from ass_drawing import drawing_state_after
+from ass_drawing import drawing_state_after, without_drawing_tags
 
 logger = logging.getLogger(__name__)
 
@@ -59,6 +59,7 @@ def _strip_drawing_blocks_in_line(line: str) -> str:
     kept: list[str] = []
     cursor = 0
     block_start: int | None = None
+    opener_rest = ""
     drawing = False
 
     for tag in _ASS_TAG_RE.finditer(line):
@@ -66,10 +67,16 @@ def _strip_drawing_blocks_in_line(line: str) -> str:
         drawing = drawing_state_after(tag.group(), drawing)
         if not was_drawing and drawing:
             block_start = tag.start()
+            # Whatever else that block carried — positioning above all — belongs
+            # to the caption, not to the geometry, and has to outlive it.
+            opener_rest = without_drawing_tags(tag.group())
         elif was_drawing and not drawing and block_start is not None:
             kept.append(line[cursor:block_start])
+            kept.append(opener_rest)
+            kept.append(without_drawing_tags(tag.group()))
             cursor = tag.end()
             block_start = None
+            opener_rest = ""
 
     kept.append(line[cursor:])
     return "".join(kept)
