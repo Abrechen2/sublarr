@@ -1076,6 +1076,15 @@ def _fallback_translate_file(ctx: dict) -> dict:
         # curve for work that was never tried — the runner has its own
         # release_for_retry() branch for exactly this, and it only sees the
         # exception if nothing in between converts it into a result.
+        #
+        # This function owns a job row of its own, though, and left it on
+        # 'running' when the exception went straight past: the sandbox VM
+        # cancelled three times and watched get_pending_job_count() climb
+        # 1 -> 2 -> 3 and stay there, so the queue reported active work that
+        # nothing was doing. Close it as cancelled — a terminal state that is
+        # not 'failed', because nothing failed.
+        with contextlib.suppress(Exception):
+            update_job(job["id"], "cancelled", error="stopped by the scheduler")
         raise
     except Exception as e:
         error = str(e)

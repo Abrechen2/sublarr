@@ -172,6 +172,49 @@ def test_srt_flow_lets_cancellation_through(monkeypatch, tmp_path, app_ctx):
         )
 
 
+def test_a_cancelled_translation_closes_its_own_job(monkeypatch, app_ctx):
+    """The job row this function owns must not stay 'running' forever.
+
+    Sandbox VM, 1.14.4-rc.9 (F1): ``_fallback_translate_file`` creates a job and
+    sets it running; the new ``except TranslationAbortedError: raise`` walked
+    straight past the finalisation the other handlers do. Cancelling three times
+    left three running jobs and ``get_pending_job_count()`` stuck at 3, so the
+    queue advertised active work that nothing was doing.
+    """
+    from db.jobs import get_job, get_pending_job_count
+    from wanted_search.process import _fallback_translate_file
+
+    def _abort(*_args, **_kwargs):
+        raise TranslationAbortedError("asked to stop")
+
+    import translator
+
+    monkeypatch.setattr(translator, "translate_file", _abort)
+
+    before = get_pending_job_count()
+    ctx = {
+        "item": {"id": 4242, "file_path": "/media/show.mkv", "target_language": "de"},
+        "item_id": 4242,
+        "item_lang": "de",
+        "settings": None,
+        "auto_translate": True,
+        "file_path": "/media/show.mkv",
+    }
+
+    with pytest.raises(TranslationAbortedError):
+        _fallback_translate_file(ctx)
+
+    after = get_pending_job_count()
+    assert after == before, f"a cancelled translation left {after - before} job(s) running"
+
+    from db.jobs import get_recent_jobs
+
+    latest = get_recent_jobs(limit=1)
+    if latest:
+        row = get_job(latest[0]["id"])
+        assert row["status"] != "running", "the job it owns is still marked running"
+
+
 def test_the_runner_requeues_instead_of_spending_an_attempt(monkeypatch, app_ctx):
     """The last link: cancellation must reach release_for_retry(), not backoff.
 
