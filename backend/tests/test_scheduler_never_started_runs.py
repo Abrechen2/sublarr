@@ -12,6 +12,7 @@ Prod 2026-08-21 12:07:52 shows the shape: a `wanted_search` run recorded
 whole window.
 """
 
+import itertools
 import threading
 import time
 from unittest.mock import MagicMock, patch
@@ -85,6 +86,13 @@ class TestEveryStatusFitsItsColumn:
         )
 
 
+#: One job id per probe. The per-job overlap lock is process-global and, since
+#: an abandoned run hands it to its still-running worker, a probe that leaves a
+#: sleeping thread behind would otherwise make the *next* probe in this file
+#: read as skipped_overlap instead of exercising its own case.
+_probe_ids = itertools.count()
+
+
 def _run_and_capture_status(func, *, timeout_s, cancel_grace_s) -> str:
     """Drive one real tick through _tick_wrapper and read back its status."""
     import contextlib
@@ -92,7 +100,7 @@ def _run_and_capture_status(func, *, timeout_s, cancel_grace_s) -> str:
     from services.scheduler import ticks
 
     spec = ticks.JobSpec(
-        id="probe",
+        id=f"probe_{next(_probe_ids)}",
         func=func,
         default_trigger=IntervalTrigger(seconds=60),
         timeout_s=timeout_s,

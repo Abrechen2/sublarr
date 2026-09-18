@@ -14,7 +14,7 @@ from __future__ import annotations
 import logging
 import threading
 import traceback
-from concurrent.futures import ThreadPoolExecutor
+from concurrent.futures import Future, ThreadPoolExecutor
 from concurrent.futures import TimeoutError as FutureTimeoutError
 from dataclasses import dataclass
 from datetime import UTC, datetime
@@ -333,6 +333,26 @@ def _tick_wrapper(
                 # reachable, and its event must stay set, until it exits.
                 cancellation.end_run(spec.id, cancel_event)
 
+        # Set once the still-running worker has taken over releasing the job
+        # lock, so the finally below leaves it alone.
+        lock_handed_over = False
+
+        def _hand_lock_to_worker(running: Future) -> None:
+            """Let the worker release the job lock when it actually exits.
+
+            Releasing in the wrapper's finally releases it the moment we stop
+            *waiting*, which is not the moment the work stops. On prod that
+            let the next 10-minute fire start a second worker beside the
+            abandoned one, and a third beside those two. A threading.Lock may
+            be released from another thread, so ownership can simply move.
+
+            If the future completed between the timeout and this call, the
+            callback runs inline here — which is also correct.
+            """
+            nonlocal lock_handed_over
+            lock_handed_over = True
+            running.add_done_callback(lambda _f: job_lock.release())
+
         try:
             with app.app_context():
                 try:
@@ -361,6 +381,13 @@ def _tick_wrapper(
                             # "abandoned" here sends an operator looking for
                             # runaway work that does not exist, and hides the
                             # real fault, which is a saturated tick executor.
+                            #
+                            # Drop it from the queue rather than let it start
+                            # an hour late behind whatever is running then. If
+                            # it did start in the meantime, cancel() fails and
+                            # the worker takes the lock with it.
+                            if not future.cancel():
+                                _hand_lock_to_worker(future)
                             status = "timeout_not_started"
                             error_msg = (
                                 f"tick waited {spec.timeout_s}s + {grace_s}s without ever "
@@ -379,6 +406,11 @@ def _tick_wrapper(
                             # "the run ended". One user's sweep was still
                             # reading their library sixteen hours after that
                             # line was logged.
+                            #
+                            # The work continues, so the job stays occupied:
+                            # further fires must read as skipped_overlap, not
+                            # pile more workers onto the same queue.
+                            _hand_lock_to_worker(future)
                             status = "timeout_abandoned"
                             error_msg = (
                                 f"tick exceeded {spec.timeout_s}s, was asked to stop, and was "
@@ -427,8 +459,10 @@ def _tick_wrapper(
                         error_msg=error_msg,
                     )
         finally:
-            # Always release the per-job lock so subsequent ticks (scheduled
-            # or manual) can fire.
-            job_lock.release()
+            # Release the per-job lock so subsequent ticks (scheduled or
+            # manual) can fire — unless a still-running worker took it over,
+            # in which case it comes back when that worker actually exits.
+            if not lock_handed_over:
+                job_lock.release()
 
     return _runner
