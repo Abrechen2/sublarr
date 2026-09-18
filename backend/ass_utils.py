@@ -108,6 +108,63 @@ def classify_styles(subs):
     return dialog_styles, signs_styles
 
 
+#: Drawing mode is entered by ``\p1``..``\p9`` and left by ``\p0``. Mirrors the
+#: pair used by ``subtitle_sanitizer``; kept local so this module stays free of
+#: a dependency on the sanitizer.
+_DRAW_ON_RE = re.compile(r"\\p[1-9]", re.IGNORECASE)
+_DRAW_OFF_RE = re.compile(r"\\p0", re.IGNORECASE)
+
+
+def text_outside_drawing(text):
+    """Return only the parts of an ASS event that are not drawing commands.
+
+    Inside a ``{\\pN}`` span the "text" is vector geometry — ``m 78.43 15.3 b
+    77.04 …`` — which carries no language. Prod 2026-09-17 spent twelve minutes
+    of one automation tick translating and quality-retrying such events,
+    because :func:`extract_tags` strips the ``{\\p1}`` that identifies them and
+    leaves the coordinates looking like ordinary text.
+
+    Drawing mode is a per-event affair: override tags reset at every event, so
+    an opener without a closer runs to the end of the line rather than
+    bleeding into the next one. An unclosed opener is the common real shape,
+    which is why its remainder counts as drawing rather than as text.
+
+    Args:
+        text: Raw ASS event text, override tags included
+
+    Returns:
+        The concatenated text outside every drawing span, tags removed
+    """
+    if not text:
+        return ""
+
+    kept = []
+    drawing = False
+    pos = 0
+    for match in OVERRIDE_TAG_RE.finditer(text):
+        if not drawing:
+            kept.append(text[pos : match.start()])
+        tag = match.group(0)
+        # A single tag block can hold several overrides; the last \p wins.
+        last_on = _last_match_end(_DRAW_ON_RE, tag)
+        last_off = _last_match_end(_DRAW_OFF_RE, tag)
+        if last_on is not None or last_off is not None:
+            drawing = (last_on or -1) > (last_off or -1)
+        pos = match.end()
+
+    if not drawing:
+        kept.append(text[pos:])
+    return "".join(kept)
+
+
+def _last_match_end(pattern, text):
+    """Return the end offset of the last match, or None when there is none."""
+    end = None
+    for match in pattern.finditer(text):
+        end = match.end()
+    return end
+
+
 def extract_tags(text):
     """Extract ASS override tags from text, return clean text, tag info, and original length.
 

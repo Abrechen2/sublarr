@@ -21,9 +21,69 @@ import tempfile
 
 import pysubs2
 
-from ass_utils import classify_styles, extract_tags, fix_line_breaks, restore_tags
+from ass_utils import (
+    classify_styles,
+    extract_tags,
+    fix_line_breaks,
+    restore_tags,
+    text_outside_drawing,
+)
+from translator.errors import TranslationAbortedError
 
 logger = logging.getLogger(__name__)
+
+
+def _collect_translatable_events(subs, dialog_styles):
+    """Pick the events worth sending to a translator.
+
+    Shared by the embedded and the external ASS path, which selected events
+    with the same twenty lines each.
+
+    Skipped are comments, events outside the dialog styles, empty events — and
+    drawing commands. A ``{\\pN}`` span holds vector geometry, and
+    :func:`extract_tags` removes the very tag that says so, so without the
+    explicit check the coordinates reach the model as if they were a sentence.
+    Prod 2026-09-17 translated seven such events in a row, each scoring 1 and
+    each retried once; see ``tests/test_drawing_lines_not_translated.py``.
+
+    Args:
+        subs: Parsed ``pysubs2.SSAFile``
+        dialog_styles: Style names classified as dialog
+
+    Returns:
+        tuple: (indices, clean_texts, tag_infos, original_lengths), positionally
+        aligned — ``indices[n]`` is the event ``clean_texts[n]`` came from
+    """
+    indices = []
+    texts = []
+    tags = []
+    orig_lengths = []
+    skipped_drawings = 0
+
+    for i, event in enumerate(subs.events):
+        if event.is_comment:
+            continue
+        if event.style not in dialog_styles:
+            continue
+        if not event.text.strip():
+            continue
+        if not text_outside_drawing(event.text).strip():
+            skipped_drawings += 1
+            continue
+
+        clean_text, tag_info, orig_len = extract_tags(event.text)
+        if not clean_text.strip():
+            continue
+
+        indices.append(i)
+        texts.append(clean_text)
+        tags.append(tag_info)
+        orig_lengths.append(orig_len)
+
+    if skipped_drawings:
+        logger.info("Skipped %d drawing-only event(s) — not language", skipped_drawings)
+
+    return indices, texts, tags, orig_lengths
 
 
 def translate_ass(
@@ -58,27 +118,12 @@ def translate_ass(
 
         dialog_styles, signs_styles = classify_styles(subs)
 
-        dialog_indices = []
-        dialog_texts = []
-        dialog_tags = []
-        dialog_orig_lengths = []
-
-        for i, event in enumerate(subs.events):
-            if event.is_comment:
-                continue
-            if event.style not in dialog_styles:
-                continue
-            if not event.text.strip():
-                continue
-
-            clean_text, tag_info, orig_len = extract_tags(event.text)
-            if not clean_text.strip():
-                continue
-
-            dialog_indices.append(i)
-            dialog_texts.append(clean_text)
-            dialog_tags.append(tag_info)
-            dialog_orig_lengths.append(orig_len)
+        (
+            dialog_indices,
+            dialog_texts,
+            dialog_tags,
+            dialog_orig_lengths,
+        ) = _collect_translatable_events(subs, dialog_styles)
 
         logger.info(
             "Dialog lines to translate: %d, Signs/Songs kept: %d",
@@ -207,6 +252,11 @@ def translate_ass(
             "error": None,
         }
 
+    except TranslationAbortedError:
+        # Cancellation is not a translation failure. Turning it into a failure
+        # result costs the item an attempt plus backoff, instead of reaching
+        # the runner's release_for_retry() branch that a stop request means.
+        raise
     except Exception as e:
         logger.exception("ASS translation failed for %s", mkv_path)
         return _core._fail_result(str(e))
@@ -240,27 +290,12 @@ def _translate_external_ass(
 
         dialog_styles, signs_styles = classify_styles(subs)
 
-        dialog_indices = []
-        dialog_texts = []
-        dialog_tags = []
-        dialog_orig_lengths = []
-
-        for i, event in enumerate(subs.events):
-            if event.is_comment:
-                continue
-            if event.style not in dialog_styles:
-                continue
-            if not event.text.strip():
-                continue
-
-            clean_text, tag_info, orig_len = extract_tags(event.text)
-            if not clean_text.strip():
-                continue
-
-            dialog_indices.append(i)
-            dialog_texts.append(clean_text)
-            dialog_tags.append(tag_info)
-            dialog_orig_lengths.append(orig_len)
+        (
+            dialog_indices,
+            dialog_texts,
+            dialog_tags,
+            dialog_orig_lengths,
+        ) = _collect_translatable_events(subs, dialog_styles)
 
         if not dialog_texts:
             return _core._fail_result("No dialog lines found in external ASS")
@@ -409,6 +444,11 @@ def _translate_external_ass(
             "error": None,
         }
 
+    except TranslationAbortedError:
+        # Cancellation is not a translation failure. Turning it into a failure
+        # result costs the item an attempt plus backoff, instead of reaching
+        # the runner's release_for_retry() branch that a stop request means.
+        raise
     except Exception as e:
         logger.exception("External ASS translation failed for %s", mkv_path)
         return _core._fail_result(str(e))
