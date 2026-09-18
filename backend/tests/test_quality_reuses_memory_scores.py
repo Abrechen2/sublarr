@@ -17,8 +17,6 @@ and skip only lines that carry such a score.
 
 from __future__ import annotations
 
-import os
-
 import pytest
 
 from config import reload_settings
@@ -26,20 +24,25 @@ from db import close_db, init_db
 
 
 @pytest.fixture(autouse=True)
-def _isolate_db(tmp_path):
+def _isolate_db(tmp_path, monkeypatch):
+    """A database of our own, without disturbing the session's environment.
+
+    Via monkeypatch rather than os.environ: conftest sets SUBLARR_API_KEY=""
+    once for the whole run, and create_app auto-generates a real key unless
+    that name is *present*. Deleting it in a teardown makes the next create_app
+    in this worker write a key into the config, and everything afterwards gets
+    401 — which is exactly what five unrelated tests did.
+    """
     from app import create_app
 
-    os.environ["SUBLARR_DB_PATH"] = str(tmp_path / "quality_memory.db")
-    os.environ["SUBLARR_API_KEY"] = ""
-    os.environ["SUBLARR_LOG_LEVEL"] = "ERROR"
+    monkeypatch.setenv("SUBLARR_DB_PATH", str(tmp_path / "quality_memory.db"))
+    monkeypatch.setenv("SUBLARR_LOG_LEVEL", "ERROR")
     reload_settings()
     app = create_app(testing=True)
     with app.app_context():
         init_db()
         yield app
     close_db()
-    for key in ("SUBLARR_DB_PATH", "SUBLARR_API_KEY", "SUBLARR_LOG_LEVEL"):
-        os.environ.pop(key, None)
 
 
 class _CountingManager:

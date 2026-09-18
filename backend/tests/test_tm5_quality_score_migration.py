@@ -10,8 +10,6 @@ reaching production.
 
 from __future__ import annotations
 
-import os
-
 import sqlalchemy as sa
 
 _PRE_MIGRATION_DDL = """
@@ -38,13 +36,19 @@ def _columns(path):
         engine.dispose()
 
 
-def _boot(db_path):
+def _boot(db_path, monkeypatch):
+    """Start the app against ``db_path`` the way an install does.
+
+    The environment is set through monkeypatch, never popped: conftest sets
+    SUBLARR_API_KEY="" for the whole session and create_app auto-generates a
+    real key unless that name is present, so removing it here would make every
+    later test in this worker fail with 401.
+    """
     from config import reload_settings
     from db import close_db
 
-    os.environ["SUBLARR_DB_PATH"] = str(db_path)
-    os.environ["SUBLARR_API_KEY"] = ""
-    os.environ["SUBLARR_LOG_LEVEL"] = "ERROR"
+    monkeypatch.setenv("SUBLARR_DB_PATH", str(db_path))
+    monkeypatch.setenv("SUBLARR_LOG_LEVEL", "ERROR")
     reload_settings()
     try:
         from app import create_app
@@ -52,17 +56,15 @@ def _boot(db_path):
         create_app(testing=True)
     finally:
         close_db()
-        for key in ("SUBLARR_DB_PATH", "SUBLARR_API_KEY", "SUBLARR_LOG_LEVEL"):
-            os.environ.pop(key, None)
 
 
-def test_a_fresh_database_has_the_column(tmp_path):
+def test_a_fresh_database_has_the_column(tmp_path, monkeypatch):
     db_path = tmp_path / "fresh.db"
-    _boot(db_path)
+    _boot(db_path, monkeypatch)
     assert "quality_score" in _columns(db_path)
 
 
-def test_an_alembic_untracked_database_gains_the_column(tmp_path):
+def test_an_alembic_untracked_database_gains_the_column(tmp_path, monkeypatch):
     """No ``alembic_version`` row: create_all runs, and columns come from the patcher."""
     db_path = tmp_path / "untracked.db"
     engine = sa.create_engine(f"sqlite:///{db_path}")
@@ -71,19 +73,18 @@ def test_an_alembic_untracked_database_gains_the_column(tmp_path):
     engine.dispose()
 
     assert "quality_score" not in _columns(db_path)
-    _boot(db_path)
+    _boot(db_path, monkeypatch)
     assert "quality_score" in _columns(db_path)
 
 
-def test_the_column_starts_empty_and_takes_a_score(tmp_path):
+def test_the_column_starts_empty_and_takes_a_score(tmp_path, monkeypatch):
     """NULL means "not judged yet", which is what every existing row is."""
     from config import reload_settings
     from db import close_db
 
     db_path = tmp_path / "scores.db"
-    os.environ["SUBLARR_DB_PATH"] = str(db_path)
-    os.environ["SUBLARR_API_KEY"] = ""
-    os.environ["SUBLARR_LOG_LEVEL"] = "ERROR"
+    monkeypatch.setenv("SUBLARR_DB_PATH", str(db_path))
+    monkeypatch.setenv("SUBLARR_LOG_LEVEL", "ERROR")
     reload_settings()
     try:
         from app import create_app
@@ -103,5 +104,3 @@ def test_the_column_starts_empty_and_takes_a_score(tmp_path):
             assert lookup_quality_scores("en", "de", ["Good morning."]) == [("Guten Tag.", None)]
     finally:
         close_db()
-        for key in ("SUBLARR_DB_PATH", "SUBLARR_API_KEY", "SUBLARR_LOG_LEVEL"):
-            os.environ.pop(key, None)

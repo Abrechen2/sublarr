@@ -143,6 +143,35 @@ def _collect_translatable_events(subs, dialog_styles):
     return indices, texts, tags, orig_lengths, prefixes, suffixes, untranslated
 
 
+def _report_partial_translation(output_path, untranslated):
+    """Put the untranslated lines where a user will actually meet them.
+
+    The decision log only exists inside ``process_wanted_item``; most
+    translations arrive through the subtitle-automation queue, which calls the
+    translate step directly. The activity log covers both, and it has a tab of
+    its own — without it this would be reported everywhere except where the
+    dominant path can be seen.
+    """
+    if not untranslated:
+        return
+    try:
+        from db.activity import log_activity
+        from db.models.activity import EVENT_TRANSLATE
+
+        log_activity(
+            EVENT_TRANSLATE,
+            file_path=output_path,
+            status="warning",
+            details={
+                "untranslated": len(untranslated),
+                "reason": untranslated[0]["reason"],
+                "events": untranslated[:20],
+            },
+        )
+    except Exception:  # noqa: BLE001 — reporting must never fail a translation
+        logger.debug("could not record the partial translation as activity", exc_info=True)
+
+
 def translate_ass(
     mkv_path,
     stream_info,
@@ -285,6 +314,7 @@ def translate_ass(
         sanitize_subtitle_file(output_path)
 
         _core._write_quality_sidecar(output_path, quality_scores)
+        _report_partial_translation(output_path, dialog_untranslated)
         from nfo_export import maybe_write_nfo
 
         maybe_write_nfo(
@@ -489,6 +519,7 @@ def _translate_external_ass(
         sanitize_subtitle_file(output_path)
 
         _core._write_quality_sidecar(output_path, quality_scores)
+        _report_partial_translation(output_path, dialog_untranslated)
         from nfo_export import maybe_write_nfo
 
         maybe_write_nfo(

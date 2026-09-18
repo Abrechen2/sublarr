@@ -136,3 +136,63 @@ def test_nothing_is_recorded_when_everything_was_translated():
         decision_log.finish()
 
     assert "partial_translation" not in payload
+
+
+def test_the_activity_log_shows_it_for_the_automation_path(tmp_path, app_ctx, monkeypatch):
+    """The decision log only exists inside process_wanted_item.
+
+    Most translations reach the translate step through the subtitle-automation
+    queue, which calls it directly — so reporting only there would put the note
+    everywhere except where the dominant path can be seen.
+    """
+    pytest.importorskip("pysubs2")
+
+    import translator.core as _core
+    from translator.ass_flow import _translate_external_ass
+
+    src = tmp_path / "source.ass"
+    _subs_with(["Good morning.", r"Good{\p1}m 0 0{\p0}morning."]).save(str(src))
+
+    recorded = []
+
+    class _Result:
+        backend_name = "stub"
+        success = True
+
+    def _fake_translate(lines, **_kwargs):
+        return ["Guten Morgen."] * len(lines), _Result()
+
+    import translator.ass_flow as ass_flow
+
+    monkeypatch.setattr(_core._pkg(), "_translate_with_manager", _fake_translate)
+    monkeypatch.setattr(_core._pkg(), "_get_quality_config", lambda: (False, 35, 1))
+    monkeypatch.setattr(
+        ass_flow,
+        "_report_partial_translation",
+        lambda path, events: recorded.append((path, events)),
+    )
+
+    _translate_external_ass(
+        str(tmp_path / "video.mkv"), str(src), target_language="de", source_language="en"
+    )
+
+    assert recorded, "nothing was reported outside the decision log"
+    _path, events = recorded[0]
+    assert len(events) == 1 and events[0]["index"] == 1
+
+
+def test_a_fully_translated_file_records_no_activity(app_ctx):
+    """No finding, no entry — the tab must not fill with non-events."""
+    from translator.ass_flow import _report_partial_translation
+
+    calls = []
+    try:
+        import db.activity as activity_module
+
+        original = activity_module.log_activity
+        activity_module.log_activity = lambda *a, **k: calls.append((a, k))
+        _report_partial_translation("/media/show.de.ass", [])
+    finally:
+        activity_module.log_activity = original
+
+    assert calls == []
