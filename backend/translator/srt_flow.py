@@ -19,6 +19,8 @@ import tempfile
 
 import pysubs2
 
+from translator.errors import TranslationAbortedError
+
 logger = logging.getLogger(__name__)
 
 
@@ -52,6 +54,11 @@ def translate_srt_from_stream(
             arr_context=arr_context,
             source_language=source_language,
         )
+    except TranslationAbortedError:
+        # Cancellation is not a translation failure. Turning it into a failure
+        # result costs the item an attempt plus backoff, instead of reaching
+        # the runner's release_for_retry() branch that a stop request means.
+        raise
     except Exception as e:
         logger.exception("SRT stream translation failed for %s", mkv_path)
         return _core._fail_result(str(e))
@@ -87,6 +94,11 @@ def translate_srt_from_file(
             arr_context=arr_context,
             source_language=source_language,
         )
+    except TranslationAbortedError:
+        # Cancellation is not a translation failure. Turning it into a failure
+        # result costs the item an attempt plus backoff, instead of reaching
+        # the runner's release_for_retry() branch that a stop request means.
+        raise
     except Exception as e:
         logger.exception("SRT file translation failed for %s", mkv_path)
         return _core._fail_result(str(e))

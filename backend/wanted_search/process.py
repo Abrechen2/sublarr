@@ -20,6 +20,7 @@ from error_handler import DuplicateSubtitleError
 from providers import get_provider_manager
 from providers.base import SubtitleFormat
 from services.scheduler.cancellation import abort_requested
+from translator.errors import TranslationAbortedError
 from upgrade_scorer import should_upgrade
 from wanted_search.dubtitle_verify import verify_dubtitle_on_keep
 from wanted_search.metadata import build_query_from_wanted
@@ -1069,6 +1070,13 @@ def _fallback_translate_file(ctx: dict) -> dict:
                 "status": "failed",
                 "error": error,
             }
+    except TranslationAbortedError:
+        # The scheduler asked this tick to stop. Booking it as a translation
+        # failure would spend the item's attempt and put it on the backoff
+        # curve for work that was never tried — the runner has its own
+        # release_for_retry() branch for exactly this, and it only sees the
+        # exception if nothing in between converts it into a result.
+        raise
     except Exception as e:
         error = str(e)
         try:

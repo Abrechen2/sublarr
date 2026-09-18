@@ -2,7 +2,9 @@
 
 import logging
 
+from services.scheduler.cancellation import abort_requested
 from translator._helpers import ENGLISH_MARKER_WORDS
+from translator.errors import TranslationAbortedError
 
 logger = logging.getLogger(__name__)
 
@@ -45,12 +47,30 @@ def _evaluate_and_retry_lines(
     scores = []
 
     for idx, (src, trans) in enumerate(zip(source_lines, translated_lines)):
+        # One LLM round trip per line, plus up to two more per weak line, all
+        # sequential — for a 600-line subtitle this loop *is* the tick. Without
+        # a check here the scheduler's stop request is only seen once the whole
+        # file is done: prod 2026-09-17 took 71 minutes to reach its next check
+        # point against a 900 s grace.
+        if abort_requested():
+            raise TranslationAbortedError(
+                f"asked to stop after scoring {idx} of {len(source_lines)} line(s); "
+                "the batches themselves were written to the translation memory before "
+                "this pass, so a re-run starts from them rather than from nothing"
+            )
+
         score = manager.evaluate_line_quality(src, trans, source_lang, target_lang, fallback_chain)
         best_trans = trans
         best_score = score
 
         retry = 0
         while score < threshold and retry < max_retries:
+            if abort_requested():
+                raise TranslationAbortedError(
+                    f"asked to stop while retrying line {idx}; "
+                    "the batches themselves were written to the translation memory before "
+                    "this pass, so a re-run starts from them rather than from nothing"
+                )
             retry += 1
             logger.info(
                 "Quality retry %d/%d for line %d (score=%d < threshold=%d): %r",
@@ -76,6 +96,11 @@ def _evaluate_and_retry_lines(
                     score = new_score
                 else:
                     break
+            except TranslationAbortedError:
+                # A stop request is not a retry failure. Re-raised explicitly
+                # so a check added inside this try later cannot be turned into
+                # a silent "break" by the handler below.
+                raise
             except Exception as exc:
                 logger.debug("Quality retry %d failed for line %d: %s", retry, idx, exc)
                 break
