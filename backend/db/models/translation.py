@@ -149,6 +149,12 @@ class TranslationMemory(db.Model):
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
     # Plan A follow-up — Backend that produced this translation (nullable; older rows pre-A1 are NULL).
     backend: Mapped[str | None] = mapped_column(String(32), nullable=True, default=None)
+    # Score the per-line quality pass gave THIS translated_text, or NULL when it
+    # has not been through that pass. Batches are cached the moment they verify,
+    # which is before the quality pass runs, so without this a cache hit served
+    # the unchecked line and the pass re-scored it on every reuse — one model
+    # round trip per line, forever, for a file it had already judged.
+    quality_score: Mapped[int | None] = mapped_column(Integer, nullable=True, default=None)
 
     __table_args__ = (
         # Fast exact-match lookup

@@ -136,6 +136,7 @@ class _TranslationCacheMixin:
         source_text: str,
         translated_text: str,
         backend: str | None = None,
+        quality_score: int | None = None,
     ) -> None:
         """Store a translation in the memory cache (upsert by unique key).
 
@@ -146,6 +147,10 @@ class _TranslationCacheMixin:
             translated_text: The translated output to cache.
             backend: Optional backend identifier that produced this translation
                 (e.g. ``ollama``, ``claude``). Enables backend-filtered purge.
+            quality_score: The per-line quality pass's verdict on exactly this
+                ``translated_text``. Passing None leaves any existing verdict
+                alone when the text is unchanged, and clears it when the text
+                moved — a score describes one translation, not a source line.
         """
         from db.models.translation import TranslationMemory
 
@@ -163,9 +168,16 @@ class _TranslationCacheMixin:
 
         if existing:
             # Update the cached translation (the source text remains identical)
+            text_changed = existing.translated_text != translated_text
             existing.translated_text = translated_text
             if backend:
                 existing.backend = backend
+            if quality_score is not None:
+                existing.quality_score = quality_score
+            elif text_changed:
+                # A new translation has not been judged yet, and the old
+                # verdict described the old text.
+                existing.quality_score = None
         else:
             entry = TranslationMemory(
                 source_lang=source_lang,
@@ -174,11 +186,47 @@ class _TranslationCacheMixin:
                 text_hash=text_hash,
                 translated_text=translated_text,
                 backend=backend,
+                quality_score=quality_score,
                 created_at=now,
             )
             self.session.add(entry)
 
         self._commit()
+
+    def lookup_quality_scores(
+        self,
+        source_lang: str,
+        target_lang: str,
+        source_texts: list[str],
+    ) -> list[tuple[str | None, int | None]]:
+        """Return ``(translated_text, quality_score)`` per source line.
+
+        One query for the whole file rather than one per line: the caller is
+        deciding whether to spend a model round trip, and that decision must
+        not cost a database round trip each.
+
+        A missing row, or a row the quality pass has not judged, yields
+        ``(text_or_None, None)`` — the caller then evaluates it as before.
+        """
+        from db.models.translation import TranslationMemory
+
+        if not source_texts:
+            return []
+
+        hashes = [self._hash_text(self._normalize_text(text)) for text in source_texts]
+        rows = self.session.execute(
+            select(
+                TranslationMemory.text_hash,
+                TranslationMemory.translated_text,
+                TranslationMemory.quality_score,
+            ).where(
+                TranslationMemory.source_lang == source_lang,
+                TranslationMemory.target_lang == target_lang,
+                TranslationMemory.text_hash.in_(set(hashes)),
+            )
+        ).all()
+        by_hash = {row.text_hash: (row.translated_text, row.quality_score) for row in rows}
+        return [by_hash.get(h, (None, None)) for h in hashes]
 
     def clear_translation_cache(self) -> int:
         """Delete all entries from the translation memory cache.

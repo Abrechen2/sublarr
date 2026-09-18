@@ -229,15 +229,38 @@ def store_translation_cache(
     source_text: str,
     translated_text: str,
     backend: str | None = None,
+    quality_score: int | None = None,
 ) -> None:
     """Store a translation in the persistent memory cache.
 
     `backend` (optional) identifies the translation backend that produced this
     entry (e.g. ``ollama``, ``claude``). Enables backend-filtered purge.
+
+    `quality_score` (optional) records the per-line quality pass's verdict on
+    exactly this text, so a later run can reuse the judgement instead of buying
+    it again.
     """
     return _get_repo().store_translation_cache(
-        source_lang, target_lang, source_text, translated_text, backend=backend
+        source_lang,
+        target_lang,
+        source_text,
+        translated_text,
+        backend=backend,
+        quality_score=quality_score,
     )
+
+
+def lookup_quality_scores(
+    source_lang: str,
+    target_lang: str,
+    source_texts: list[str],
+) -> list[tuple[str | None, int | None]]:
+    """Return ``(translated_text, quality_score)`` for each source line.
+
+    One query for the whole file. A row the quality pass has not judged yields
+    a None score, which means "evaluate it".
+    """
+    return _get_repo().lookup_quality_scores(source_lang, target_lang, source_texts)
 
 
 def clear_translation_cache() -> int:

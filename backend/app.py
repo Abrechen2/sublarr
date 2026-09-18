@@ -85,6 +85,12 @@ def _patch_pre_alembic_columns(engine, inspect_fn) -> None:
         if "scoring_preset" not in existing:
             patches.append("ALTER TABLE language_profiles ADD COLUMN scoring_preset TEXT")
 
+    # Quality-pass verdict on a memory row (migration tm5_quality_score).
+    if insp.has_table("translation_memory"):
+        existing = {c["name"] for c in insp.get_columns("translation_memory")}
+        if "quality_score" not in existing:
+            patches.append("ALTER TABLE translation_memory ADD COLUMN quality_score INTEGER")
+
     # Split search/download success times (migration b7c8d9e0f1a2).
     # A column added by a migration MUST be repeated here: an install whose
     # alembic_version was stamped at head never replays the migration, and

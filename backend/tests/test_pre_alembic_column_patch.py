@@ -41,6 +41,24 @@ CREATE TABLE subtitle_automation_queue (
 """
 
 
+# The shape ``translation_memory`` had before tm5_quality_score, taken from the
+# model as it stood in 1.14.4-rc.15.
+_PRE_MIGRATION_MEMORY_DDL = """
+CREATE TABLE translation_memory (
+    id INTEGER NOT NULL,
+    source_lang TEXT NOT NULL,
+    target_lang TEXT NOT NULL,
+    source_text_normalized TEXT NOT NULL,
+    text_hash TEXT NOT NULL,
+    translated_text TEXT NOT NULL,
+    created_at DATETIME NOT NULL,
+    backend VARCHAR(32),
+    PRIMARY KEY (id),
+    UNIQUE (source_lang, target_lang, text_hash)
+)
+"""
+
+
 def _model_columns(table_name: str) -> set[str]:
     import db.models  # noqa: F401  — registers the models on the metadata
     from extensions import db as sa_db
@@ -75,3 +93,23 @@ def test_patcher_is_idempotent(tmp_path):
 
     present = {c["name"] for c in sa.inspect(engine).get_columns("subtitle_automation_queue")}
     assert "task_type" in present
+
+
+def test_patcher_adds_the_translation_memory_quality_score(tmp_path):
+    """The quality pass reads this column on every translated file.
+
+    Without it an untracked install raises ``no such column:
+    translation_memory.quality_score`` the first time it scores a line — the
+    same shape of failure that took the beta instance down twice.
+    """
+    from app import _patch_pre_alembic_columns
+
+    engine = sa.create_engine(f"sqlite:///{tmp_path / 'untracked-memory.db'}")
+    with engine.begin() as conn:
+        conn.execute(sa.text(_PRE_MIGRATION_MEMORY_DDL))
+
+    _patch_pre_alembic_columns(engine, sa.inspect)
+
+    present = {c["name"] for c in sa.inspect(engine).get_columns("translation_memory")}
+    missing = _model_columns("translation_memory") - present
+    assert not missing, f"untracked DB still misses columns the ORM queries: {sorted(missing)}"

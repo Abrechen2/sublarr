@@ -9,6 +9,57 @@ from translator.errors import TranslationAbortedError
 logger = logging.getLogger(__name__)
 
 
+def _memory_enabled():
+    """Whether the translation memory is switched on for this install."""
+    try:
+        from config import get_settings
+
+        return bool(getattr(get_settings(), "translation_memory_enabled", True))
+    except Exception:  # noqa: BLE001 — never let a settings read stop a translation
+        logger.debug("could not read translation_memory_enabled", exc_info=True)
+        return False
+
+
+def _remembered_scores(source_lang, target_lang, source_lines, translated_lines):
+    """Per line: the score this pass already gave *this* text, or None.
+
+    One query for the whole file — the point is to avoid buying a judgement
+    twice, which a per-line database round trip would partly give back.
+
+    A stored score counts only when the remembered translation is the one in
+    hand. A score describes a translation, not a source line, so a line the
+    model rendered differently this time has to be judged on its own.
+    """
+    if not _memory_enabled() or not source_lines:
+        return [None] * len(source_lines)
+    try:
+        from db.translation import lookup_quality_scores
+
+        remembered = lookup_quality_scores(source_lang, target_lang, list(source_lines))
+    except Exception:  # noqa: BLE001 — the memory is an optimisation, never a gate
+        logger.debug("translation memory lookup failed; scoring every line", exc_info=True)
+        return [None] * len(source_lines)
+
+    return [
+        score if (score is not None and text == current) else None
+        for (text, score), current in zip(remembered, translated_lines)
+    ]
+
+
+def _remember_score(source_lang, target_lang, source_text, translated_text, score):
+    """Persist the pass's verdict on this exact translation."""
+    if not _memory_enabled():
+        return
+    try:
+        from db.translation import store_translation_cache
+
+        store_translation_cache(
+            source_lang, target_lang, source_text, translated_text, quality_score=score
+        )
+    except Exception:  # noqa: BLE001 — a memory write must not fail a translation
+        logger.debug("could not record the quality score for a line", exc_info=True)
+
+
 def _evaluate_and_retry_lines(
     source_lines,
     translated_lines,
@@ -45,6 +96,8 @@ def _evaluate_and_retry_lines(
     manager = get_translation_manager()
     final_lines = list(translated_lines)
     scores = []
+    remembered = _remembered_scores(source_lang, target_lang, source_lines, translated_lines)
+    reused = 0
 
     for idx, (src, trans) in enumerate(zip(source_lines, translated_lines)):
         # One LLM round trip per line, plus up to two more per weak line, all
@@ -58,6 +111,14 @@ def _evaluate_and_retry_lines(
                 "the batches themselves were written to the translation memory before "
                 "this pass, so a re-run starts from them rather than from nothing"
             )
+
+        if remembered[idx] is not None:
+            # This exact translation already went through this pass. Asking the
+            # model to judge it a second time buys the same answer.
+            final_lines[idx] = trans
+            scores.append(remembered[idx])
+            reused += 1
+            continue
 
         score = manager.evaluate_line_quality(src, trans, source_lang, target_lang, fallback_chain)
         best_trans = trans
@@ -107,6 +168,18 @@ def _evaluate_and_retry_lines(
 
         final_lines[idx] = best_trans
         scores.append(best_score)
+        # The pass has now judged this text. Writing it back is what makes the
+        # skip above legitimate: the batch was cached before this pass ran, so
+        # without this the memory would keep serving the unchecked line.
+        _remember_score(source_lang, target_lang, src, best_trans, best_score)
+
+    if reused:
+        logger.info(
+            "Quality: reused %d of %d stored verdict(s); %d line(s) scored",
+            reused,
+            len(source_lines),
+            len(source_lines) - reused,
+        )
 
     return final_lines, scores
 
