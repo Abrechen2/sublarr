@@ -386,7 +386,15 @@ def _tick_wrapper(
                             # an hour late behind whatever is running then. If
                             # it did start in the meantime, cancel() fails and
                             # the worker takes the lock with it.
-                            if not future.cancel():
+                            if future.cancel():
+                                # _fn_with_ctx never runs, so its finally never
+                                # deregisters this run. Left behind, the event
+                                # stays registered under the job id — a later
+                                # request_stop() then finds a job that is not
+                                # there, and the label leaks one entry per
+                                # cancelled tick (sandbox VM, rc.9).
+                                cancellation.end_run(spec.id, cancel_event)
+                            else:
                                 _hand_lock_to_worker(future)
                             status = "timeout_not_started"
                             error_msg = (

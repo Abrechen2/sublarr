@@ -18,6 +18,7 @@ not the wait.
 
 import threading
 import time
+from unittest.mock import patch
 
 import pytest
 from apscheduler.triggers.interval import IntervalTrigger
@@ -136,6 +137,38 @@ def test_the_lock_comes_back_once_the_worker_finishes(flask_app, db_session):
 
     rows = db_session.query(JobRun).filter_by(job_id="overlap_recovers").order_by(JobRun.id).all()
     assert rows[-1].status == "ok", f"the follow-up tick did not run: {rows[-1].status!r}"
+
+
+def test_a_cancelled_tick_deregisters_its_run(flask_app, db_session):
+    """A tick dropped before it started must not leave a run behind.
+
+    Sandbox VM, 1.14.4-rc.9 (F4): after ``future.cancel()`` succeeds,
+    ``_fn_with_ctx`` never runs, so its ``finally`` never calls ``end_run``.
+    The event stayed registered under the job id — a later ``request_stop()``
+    found a job that was not there — and one label leaked per cancelled tick.
+    """
+    from services.scheduler import cancellation, ticks
+
+    started = threading.Event()
+    blocker_release = threading.Event()
+    pool = ticks.ThreadPoolExecutor(max_workers=1)
+    pool.submit(blocker_release.wait)
+
+    spec = _spec(id="overlap_cancelled", func=started.set, timeout_s=1, cancel_grace_s=1)
+    labels_before = len(cancellation._labels)
+
+    try:
+        with patch.object(ticks, "_get_tick_executor", return_value=pool):
+            _tick_wrapper(flask_app, spec, triggered_by="schedule")()
+        assert not started.is_set(), "the probe should never have started"
+
+        assert cancellation.request_stop("overlap_cancelled", reason="probe") is False, (
+            "a cancelled tick still looks like a running job"
+        )
+        assert len(cancellation._labels) == labels_before, "the run label leaked"
+    finally:
+        blocker_release.set()
+        pool.shutdown(wait=False)
 
 
 def test_a_normal_run_still_releases_immediately(flask_app, db_session):
