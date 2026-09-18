@@ -118,6 +118,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   never reported to it, so the protection could neither trip nor recover and
   every line waited for the full request timeout. It now reports connection
   failures, and stops asking once the backend is known to be down.
+- **A full-screen drawing overlay no longer reaches your library.** Subtitle
+  files can carry drawing commands that cover the picture. The filter that
+  removes them handled only the closed form; an unterminated one was left in
+  place and rendered over 97 % of the frame. Nothing readable is lost by
+  removing it, because everything after such a command was drawn as graphics
+  rather than as text anyway.
 - **Two parallel remux jobs no longer overwrite each other's backup.** Videos
   with the same file name in different season folders could claim the same
   backup name at the same time, leaving one original without a recovery copy.
