@@ -664,7 +664,9 @@
       "restore_title": "A restore is complete or does nothing",
       "restore_desc": "A restore only reports success when it really completed. A corrupt backup changes nothing. Backups of PostgreSQL 15, 16 and 17 can be restored.",
       "mobile_title": "Full action bar on phones and tablets",
-      "mobile_desc": "After \"Select all\" on the Wanted page, every action stays reachable on screen."
+      "mobile_desc": "After \"Select all\" on the Wanted page, every action stays reachable on screen.",
+      "automation_title": "Automation stops when asked",
+      "automation_desc": "Subtitle automation kept running for hours after it was asked to stop, and the next run started alongside it — several runs competing for one translation backend at once. It now stops between two lines, and a run that is still working holds the next one back."
     },
     "v1143": {
       "dedup_title": "Duplicates must belong to the same episode",

@@ -83,6 +83,29 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **The batch action bar stays on screen on phones and tablets.** After
   "select all" on the Wanted page actions were off screen at phone and tablet
   width; below 1024 px the bar now wraps across the screen.
+- **Subtitle automation stops when it is asked to, instead of running for
+  hours.** The per-line quality check never looked at the stop request, so a
+  tick that was told to wind down kept calling the translation model once per
+  subtitle line — on the reference install one run continued for 2 hours and
+  18 minutes past its stop request. Worse, the job was then considered free
+  again while that work was still running, so the next run started alongside
+  it: three automation runs ended up competing for one translation backend at
+  the same time, and the history showed none of it. A run that will not wind
+  down now keeps the job occupied, and later runs are recorded as skipped
+  until it is really finished.
+- **Sublarr no longer tries to translate subtitle graphics.** Drawings in ASS
+  subtitles (shapes, masks, logos) are coordinates, not language, but they
+  were sent to the translation model like dialogue and then retried for poor
+  quality — 15 % of all quality retries on the reference install over three
+  days, none of which could ever succeed.
+- **A dead translation backend no longer costs one timeout per subtitle
+  line.** The quality check consulted the backend's failure protection but
+  never reported to it, so the protection could neither trip nor recover and
+  every line waited for the full request timeout. It now reports connection
+  failures, and stops asking once the backend is known to be down.
+- **Two parallel remux jobs no longer overwrite each other's backup.** Videos
+  with the same file name in different season folders could claim the same
+  backup name at the same time, leaving one original without a recovery copy.
 
 ### Changed
 - **In-app backups of PostgreSQL 15, 16 and 17 can be restored.** The image

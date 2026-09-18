@@ -25,6 +25,7 @@ export const WHATS_NEW: Record<string, WhatsNewItem[]> = {
     { icon: Copy, titleKey: 'whatsnew.v1144.alias_title', descKey: 'whatsnew.v1144.alias_desc' },
     { icon: FileDown, titleKey: 'whatsnew.v1144.restore_title', descKey: 'whatsnew.v1144.restore_desc' },
     { icon: Layers, titleKey: 'whatsnew.v1144.mobile_title', descKey: 'whatsnew.v1144.mobile_desc' },
+    { icon: PauseCircle, titleKey: 'whatsnew.v1144.automation_title', descKey: 'whatsnew.v1144.automation_desc' },
   ],
   '1.14.3': [
     { icon: Copy, titleKey: 'whatsnew.v1143.dedup_title', descKey: 'whatsnew.v1143.dedup_desc' },
