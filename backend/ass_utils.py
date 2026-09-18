@@ -108,11 +108,22 @@ def classify_styles(subs):
     return dialog_styles, signs_styles
 
 
-#: Drawing mode is entered by ``\p1``..``\p9`` and left by ``\p0``. Mirrors the
-#: pair used by ``subtitle_sanitizer``; kept local so this module stays free of
-#: a dependency on the sanitizer.
-_DRAW_ON_RE = re.compile(r"\\p[1-9]", re.IGNORECASE)
-_DRAW_OFF_RE = re.compile(r"\\p0", re.IGNORECASE)
+#: ``\p<n>`` switches drawing mode: n > 0 turns it on, anything else off.
+#:
+#: Written to match what libass actually does, because a predicate that only
+#: approximates the renderer decides the wrong thing about real files. Verified
+#: by the sandbox VM against the ffmpeg/libass shipped in the release image
+#: (1.14.4-rc.9, seven pixel comparisons):
+#:
+#: * the argument is an optionally signed integer after optional whitespace, so
+#:   ``\p 0``, ``\p-1`` and a bare ``\p`` all render as drawing OFF;
+#: * it is read as a number, so ``\p01`` is mode 1 and ``\p12`` is mode 12 —
+#:   not "no match" and not mode 1 followed by a stray ``2``;
+#: * the tag is lowercase. ``\P1`` is not this tag and libass ignores it, so an
+#:   IGNORECASE match turns ordinary dialogue into a skipped "drawing";
+#: * ``\pbo`` is the baseline-offset tag. The negative lookahead keeps it from
+#:   being read as ``\p`` with no argument, which would switch drawing off.
+_DRAW_TAG_RE = re.compile(r"\\p(?![a-zA-Z])\s*(-?\d+)?")
 
 
 def text_outside_drawing(text):
@@ -138,31 +149,75 @@ def text_outside_drawing(text):
     if not text:
         return ""
 
-    kept = []
+    return "".join(text[start:end] for start, end, drawing in _text_runs(text) if not drawing)
+
+
+def _text_runs(text):
+    """Split an event into its non-tag stretches, each labelled drawing or not.
+
+    Returns a list of ``(start, end, in_drawing)`` offsets into ``text``. Tag
+    blocks themselves are not returned — only the stretches between them, which
+    is where an event's content lives.
+
+    Drawing mode is a per-event affair: override tags reset at every event, so
+    an opener without a closer runs to the end of this line rather than
+    bleeding into the next one.
+    """
+    runs = []
     drawing = False
     pos = 0
     for match in OVERRIDE_TAG_RE.finditer(text):
-        if not drawing:
-            kept.append(text[pos : match.start()])
-        tag = match.group(0)
+        if match.start() > pos:
+            runs.append((pos, match.start(), drawing))
         # A single tag block can hold several overrides; the last \p wins.
-        last_on = _last_match_end(_DRAW_ON_RE, tag)
-        last_off = _last_match_end(_DRAW_OFF_RE, tag)
-        if last_on is not None or last_off is not None:
-            drawing = (last_on or -1) > (last_off or -1)
+        for draw_tag in _DRAW_TAG_RE.finditer(match.group(0)):
+            argument = draw_tag.group(1)
+            drawing = int(argument) > 0 if argument else False
         pos = match.end()
+    if pos < len(text):
+        runs.append((pos, len(text), drawing))
+    return runs
 
-    if not drawing:
-        kept.append(text[pos:])
-    return "".join(kept)
+
+def contains_drawing(text):
+    """Whether any part of this event's content renders as vector geometry."""
+    return any(drawing for _start, _end, drawing in _text_runs(text))
 
 
-def _last_match_end(pattern, text):
-    """Return the end offset of the last match, or None when there is none."""
-    end = None
-    for match in pattern.finditer(text):
-        end = match.end()
-    return end
+def split_around_drawings(text):
+    """Split a mixed event into (prefix, translatable body, suffix).
+
+    The prefix and suffix are kept byte for byte — they hold the drawing and
+    the tags that switch it on and off, and neither survives a round trip
+    through a translation model.
+
+    The body spans from the first piece of dialogue to the last, tags included,
+    so a caption with one italic word stays one translatable sentence rather
+    than three fragments the caller would have to drop.
+
+    Returns None when the event cannot be put back together afterwards, which
+    is the case when a drawing sits *between* two pieces of dialogue: one
+    translated string cannot be mapped onto two separate runs, and guessing the
+    split point corrupts both.
+
+    Sandbox VM, 1.14.4-rc.9: without this, ``text_outside_drawing`` was only
+    consulted as a yes/no filter and ``extract_tags`` still received the whole
+    original, so ``{\\p1}m 0 0 l 10 10{\\p0}Good morning.`` sent the
+    coordinates to the model, the restored tags landed inside the German
+    sentence, and the sanitizer cut it down to ``" Morgen."``.
+    """
+    runs = _text_runs(text)
+    body_runs = [
+        (start, end) for start, end, drawing in runs if not drawing and text[start:end].strip()
+    ]
+    if not body_runs:
+        return None
+
+    start = body_runs[0][0]
+    end = body_runs[-1][1]
+    if any(drawing and run_start < end and run_end > start for run_start, run_end, drawing in runs):
+        return None
+    return text[:start], text[start:end], text[end:]
 
 
 def extract_tags(text):

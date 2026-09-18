@@ -98,6 +98,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   were sent to the translation model like dialogue and then retried for poor
   quality — 15 % of all quality retries on the reference install over three
   days, none of which could ever succeed.
+- **A caption next to a drawing keeps its whole sentence.** When one subtitle
+  event held both a drawing and dialogue, the coordinates travelled through
+  the translation model together with the text; the formatting tags were then
+  placed back inside the translated sentence and the safety filter cut
+  everything before them away. "Guten Morgen." was saved as " Morgen.". Only
+  the dialogue is translated now, and the drawing is carried around it
+  untouched.
 - **A dead translation backend no longer costs one timeout per subtitle
   line.** The quality check consulted the backend's failure protection but
   never reported to it, so the protection could neither trip nor recover and

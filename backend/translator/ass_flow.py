@@ -23,9 +23,11 @@ import pysubs2
 
 from ass_utils import (
     classify_styles,
+    contains_drawing,
     extract_tags,
     fix_line_breaks,
     restore_tags,
+    split_around_drawings,
     text_outside_drawing,
 )
 from translator.errors import TranslationAbortedError
@@ -46,19 +48,30 @@ def _collect_translatable_events(subs, dialog_styles):
     Prod 2026-09-17 translated seven such events in a row, each scoring 1 and
     each retried once; see ``tests/test_drawing_lines_not_translated.py``.
 
+    An event that mixes a drawing with dialogue is cut down to its dialogue
+    half, and the drawing is carried around the translation byte for byte.
+    Filtering alone was not enough: the coordinates still reached the model as
+    part of the text, the restored tags then landed inside the translated
+    sentence, and the sanitizer cut it down (sandbox VM, rc.9).
+
     Args:
         subs: Parsed ``pysubs2.SSAFile``
         dialog_styles: Style names classified as dialog
 
     Returns:
-        tuple: (indices, clean_texts, tag_infos, original_lengths), positionally
-        aligned — ``indices[n]`` is the event ``clean_texts[n]`` came from
+        tuple: (indices, clean_texts, tag_infos, original_lengths, prefixes,
+        suffixes), positionally aligned — ``indices[n]`` is the event
+        ``clean_texts[n]`` came from, and the rebuilt event is
+        ``prefixes[n] + restore_tags(...) + suffixes[n]``
     """
     indices = []
     texts = []
     tags = []
     orig_lengths = []
+    prefixes = []
+    suffixes = []
     skipped_drawings = 0
+    skipped_interleaved = 0
 
     for i, event in enumerate(subs.events):
         if event.is_comment:
@@ -67,11 +80,23 @@ def _collect_translatable_events(subs, dialog_styles):
             continue
         if not event.text.strip():
             continue
-        if not text_outside_drawing(event.text).strip():
-            skipped_drawings += 1
-            continue
 
-        clean_text, tag_info, orig_len = extract_tags(event.text)
+        prefix = suffix = ""
+        body = event.text
+        if contains_drawing(event.text):
+            if not text_outside_drawing(event.text).strip():
+                skipped_drawings += 1
+                continue
+            split = split_around_drawings(event.text)
+            if split is None:
+                # Drawings between two pieces of dialogue: one translated
+                # string cannot be mapped back onto two runs, and guessing
+                # corrupts both. Leaving the event alone is the honest answer.
+                skipped_interleaved += 1
+                continue
+            prefix, body, suffix = split
+
+        clean_text, tag_info, orig_len = extract_tags(body)
         if not clean_text.strip():
             continue
 
@@ -79,11 +104,18 @@ def _collect_translatable_events(subs, dialog_styles):
         texts.append(clean_text)
         tags.append(tag_info)
         orig_lengths.append(orig_len)
+        prefixes.append(prefix)
+        suffixes.append(suffix)
 
     if skipped_drawings:
         logger.info("Skipped %d drawing-only event(s) — not language", skipped_drawings)
+    if skipped_interleaved:
+        logger.info(
+            "Left %d event(s) untranslated — dialogue interleaved with drawings",
+            skipped_interleaved,
+        )
 
-    return indices, texts, tags, orig_lengths
+    return indices, texts, tags, orig_lengths, prefixes, suffixes
 
 
 def translate_ass(
@@ -123,6 +155,8 @@ def translate_ass(
             dialog_texts,
             dialog_tags,
             dialog_orig_lengths,
+            dialog_prefixes,
+            dialog_suffixes,
         ) = _collect_translatable_events(subs, dialog_styles)
 
         logger.info(
@@ -186,11 +220,18 @@ def translate_ass(
             )
 
         translated_count = 0
-        for idx, trans_text, tags, orig_len in zip(
-            dialog_indices, translated_texts, dialog_tags, dialog_orig_lengths
+        for idx, trans_text, tags, orig_len, prefix, suffix in zip(
+            dialog_indices,
+            translated_texts,
+            dialog_tags,
+            dialog_orig_lengths,
+            dialog_prefixes,
+            dialog_suffixes,
         ):
             fixed = fix_line_breaks(trans_text)
-            restored = restore_tags(fixed, tags, orig_len)
+            # The drawing and the tags that switch it stay byte for byte where
+            # they were; only the dialogue half went through the model.
+            restored = prefix + restore_tags(fixed, tags, orig_len) + suffix
             subs.events[idx].text = restored
             translated_count += 1
 
@@ -295,6 +336,8 @@ def _translate_external_ass(
             dialog_texts,
             dialog_tags,
             dialog_orig_lengths,
+            dialog_prefixes,
+            dialog_suffixes,
         ) = _collect_translatable_events(subs, dialog_styles)
 
         if not dialog_texts:
@@ -380,11 +423,18 @@ def _translate_external_ass(
             )
 
         translated_count = 0
-        for idx, trans_text, tags, orig_len in zip(
-            dialog_indices, translated_texts, dialog_tags, dialog_orig_lengths
+        for idx, trans_text, tags, orig_len, prefix, suffix in zip(
+            dialog_indices,
+            translated_texts,
+            dialog_tags,
+            dialog_orig_lengths,
+            dialog_prefixes,
+            dialog_suffixes,
         ):
             fixed = fix_line_breaks(trans_text)
-            restored = restore_tags(fixed, tags, orig_len)
+            # The drawing and the tags that switch it stay byte for byte where
+            # they were; only the dialogue half went through the model.
+            restored = prefix + restore_tags(fixed, tags, orig_len) + suffix
             subs.events[idx].text = restored
             translated_count += 1
 
