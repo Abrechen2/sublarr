@@ -408,5 +408,11 @@ def test_an_unreadable_preferred_file_is_not_proof_of_content(tmp_path):
 
     path = tmp_path / "x.de.ass"
     path.write_text(_ASS_WITH_LINE, encoding="utf-8")
-    with _patch("builtins.open", side_effect=PermissionError("no read permission")):
+    # Patch the module's own name, not builtins: a process-wide open() patch
+    # also hits background threads and has made unrelated tests fail.
+    with _patch(
+        "services.cleanup_executors.open",
+        create=True,
+        side_effect=PermissionError("no read permission"),
+    ):
         assert _has_subtitle_lines(str(path)) is False
