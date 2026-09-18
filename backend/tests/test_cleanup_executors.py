@@ -376,3 +376,37 @@ def test_the_dry_run_agrees_with_the_real_run(tmp_path, app_ctx):
     preview = execute_format_upgrade(str(tmp_path), {"keep_format": "ass"}, dry_run=True)
 
     assert preview["would_delete"] == 0, preview
+
+
+def test_an_unreadable_ass_does_not_replace_a_working_srt(tmp_path, app_ctx):
+    from services.cleanup_executors import execute_format_upgrade
+
+    """Sandbox VM, 1.14.4-rc.7: with the .ass unreadable (mode 000) the content
+    check could not read a single line — and counted that as proof of content,
+    so the working .srt was trashed anyway."""
+    import sys
+
+    if sys.platform == "win32":
+        pytest.skip("POSIX file modes do not apply on Windows")
+
+    _format_upgrade_case(tmp_path, _ASS_WITH_LINE)
+    os.chmod(tmp_path / "Show - S01E01.de.ass", 0o000)
+    try:
+        result = execute_format_upgrade(str(tmp_path), {"keep_format": "ass"}, dry_run=False)
+    finally:
+        os.chmod(tmp_path / "Show - S01E01.de.ass", 0o644)
+
+    assert result["deleted"] == 0, result
+    assert (tmp_path / "Show - S01E01.de.srt").exists()
+
+
+def test_an_unreadable_preferred_file_is_not_proof_of_content(tmp_path):
+    """Unit view of the same rule, so it is covered on every platform."""
+    from unittest.mock import patch as _patch
+
+    from services.cleanup_executors import _has_subtitle_lines
+
+    path = tmp_path / "x.de.ass"
+    path.write_text(_ASS_WITH_LINE, encoding="utf-8")
+    with _patch("builtins.open", side_effect=PermissionError("no read permission")):
+        assert _has_subtitle_lines(str(path)) is False

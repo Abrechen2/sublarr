@@ -161,6 +161,7 @@ def _make_backup(video_path: str, use_reflink: bool, trash_dir: str = "") -> str
     swap.
     """
     import time as _time
+    import uuid as _uuid
 
     basename = os.path.basename(video_path)
     date_str = __import__("datetime").date.today().isoformat()
@@ -172,6 +173,12 @@ def _make_backup(video_path: str, use_reflink: bool, trash_dir: str = "") -> str
     try:
         os.makedirs(dest_dir, exist_ok=True)
         bak_path = os.path.join(dest_dir, f"{basename}.{timestamp}.bak")
+        if os.path.exists(bak_path):
+            # The trash is flat and the name carries whole seconds only: two
+            # episodes of the same name from different season folders backed up
+            # within one second landed on each other and one original was left
+            # without a backup (sandbox VM, 1.14.4-rc.7).
+            bak_path = os.path.join(dest_dir, f"{basename}.{timestamp}.{_uuid.uuid4().hex[:8]}.bak")
         if use_reflink and _try_reflink(video_path, bak_path):
             logger.info("Remux: reflink backup in trash: %s", bak_path)
         else:

@@ -47,7 +47,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   cleanup rule only compared formats, so an empty or header-only `.de.ass`
   next to a valid `.de.srt` sent the working subtitle to the trash — and the
   next extraction wrote it again, for the rule to remove again. A file now
-  counts as an upgrade only when it holds at least one subtitle line.
+  counts as an upgrade only when it holds at least one subtitle line, and a
+  file that cannot be read counts for nothing.
+- **Two videos of the same name keep both remux backups.** The backup name
+  carried whole seconds only, so two episodes called the same thing in
+  different season folders, remuxed within the same second, wrote onto each
+  other's backup and one original was left without one.
 - **Cleanup rules leave the subtitle trash alone.** The nightly rules and the
   orphan scan walked `.sublarr_trash`, treated trashed files as live ones and
   could move them out of their batch, which breaks restoring it.

@@ -183,16 +183,19 @@ def _has_subtitle_lines(path: str) -> bool:
     """True when the file holds at least one subtitle line.
 
     ASS/SSA need a ``Dialogue:`` event, SRT/VTT a cue arrow. A file we cannot
-    read is treated as holding content: refusing to replace it is the safe
-    direction, deleting its peer is not.
+    read proves nothing, so it is NOT accepted as the replacement: the caller
+    would delete a working subtitle on the strength of a file it could not even
+    open (sandbox VM, 1.14.4-rc.7, with the .ass at mode 000).
     """
     ext = os.path.splitext(path)[1].lower()
     try:
         with open(path, "rb") as fh:
             sample = fh.read(_CONTENT_SAMPLE_BYTES)
     except OSError as exc:
-        logger.debug("Could not read %s while checking for subtitle lines: %s", path, exc)
-        return True
+        logger.warning(
+            "%s cannot be read, so it does not count as the better format: %s", path, exc
+        )
+        return False
     if ext in (".ass", ".ssa"):
         return b"Dialogue:" in sample
     return b"-->" in sample
