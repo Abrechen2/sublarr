@@ -11,6 +11,7 @@ from datetime import UTC, datetime
 
 from services.embedded_extractor import extract_embedded_sub
 from services.scheduler.cancellation import abort_requested
+from translator.errors import TranslationAbortedError
 
 logger = logging.getLogger(__name__)
 
@@ -380,6 +381,17 @@ def _translate_local_sidecar_items(
                 found += 1
             else:
                 failed += 1
+        except TranslationAbortedError as exc:
+            # Since the translator re-raises cancellation instead of returning
+            # a failure result, a stop lands here. The loop's own check would
+            # break on the next pass anyway — but not before charging this
+            # item a failure it never earned.
+            logger.info(
+                "[search_all] local-sidecar translation stopped mid-item after %d items (%s)",
+                processed,
+                exc,
+            )
+            break
         except Exception as exc:
             logger.warning(
                 "[search_all] Local sidecar translate failed for item %d: %s", item["id"], exc
