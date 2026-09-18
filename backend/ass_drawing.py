@@ -27,10 +27,20 @@ its sign and digits, not about its magnitude.
 
 import re
 
-#: ``\p`` that is not the start of ``\pbo`` or ``\pos``, its optional ASCII
-#: whitespace, sign and digits. Case-sensitive on purpose: there is no evidence
-#: that libass accepts ``\P`` as this tag.
-_DRAW_TAG_RE = re.compile(r"\\p(?!bo|os)[ \t]*([+-]?)([0-9]*)")
+#: ``\p`` and its argument, spelled the way the renderer reads it. Every part
+#: of this pattern was read off rendered frames rather than off a document —
+#: 19 probes through the image's own ffmpeg/libass, each matched against a
+#: "plain dialogue" and a "geometry" reference:
+#:
+#:     \ p1   \  p1   \<tab>p1     on   — whitespace may follow the backslash
+#:     \ P1                        off  — still not this tag
+#:     \ pbo3                      off  — still the baseline-offset tag
+#:     \p(1)  \p(+1)  \p( 1 )      on   — ONE opening parenthesis is skipped
+#:     \p((1))                     off  — a second one is not
+#:     \p(1                        on   — the parenthesis need not close
+#:     \p1x   \p1)   \p1 2         on   — digits are greedy, the rest ignored
+#:     \p0x                        off
+_DRAW_TAG_RE = re.compile(r"\\[ \t]*p(?!bo|os)[ \t]*\(?[ \t]*([+-]?)([0-9]*)")
 
 #: ``\N`` (hard break), ``\n`` (soft break) and ``\h`` (hard space) are layout,
 #: not language. Python sees the raw two-character sequences as ordinary text,

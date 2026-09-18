@@ -56,6 +56,28 @@ FULLWIDTH_ONE = chr(0xFF11)
         (r"{\p}", True, False),
         (r"{\an8\i1}", True, True),
         (r"{\an8\i1}", False, False),
+        # Whitespace may sit between the backslash and the tag name.
+        (r"{\ p1}", False, True),
+        (r"{\  p1}", False, True),
+        ("{" + chr(92) + chr(9) + "p1}", False, True),
+        (r"{\ p0}", True, False),
+        (r"{\ P1}", False, False),
+        (r"{\ pbo3}", True, True),
+        # One opening parenthesis is skipped, a second one is not.
+        (r"{\p(1)}", False, True),
+        (r"{\p(0)}", True, False),
+        (r"{\p(-1)}", True, False),
+        (r"{\p(+1)}", False, True),
+        (r"{\p( 1 )}", False, True),
+        (r"{\p((1))}", False, False),
+        (r"{\p(1}", False, True),
+        (r"{\p(foo)}", True, False),
+        # Digits are read greedily and whatever follows them is ignored.
+        (r"{\p1)}", False, True),
+        (r"{\p1x}", False, True),
+        (r"{\p0x}", True, False),
+        (r"{\p1 2}", False, True),
+        (r"{\ p(1)}", False, True),
     ],
 )
 def test_drawing_state_after(tag_block, before, expected):
