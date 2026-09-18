@@ -148,6 +148,35 @@ def _resolve_trash_dir(video_path: str, trash_dir_setting: str) -> str:
     return candidate
 
 
+def _reserve_backup_path(dest_dir: str, basename: str, timestamp: int) -> str:
+    """Claim an unused backup filename in ``dest_dir`` and return it.
+
+    The name is claimed by creating the file with ``O_EXCL``, so the check and
+    the claim are one operation. Asking ``os.path.exists`` first and copying
+    afterwards is not: two remux threads backing up same-named episodes from
+    different season folders both saw a free path and copied onto it, leaving
+    one original without a backup (sandbox VM, 1.14.4-rc.8 — 27 of 30
+    synchronized pairs collided). ``routes/remux.py`` runs two real workers,
+    and ``_jobs_lock`` guards the job status, not this helper.
+
+    The caller then copies over the reserved placeholder, which is safe
+    precisely because the name now belongs to it.
+    """
+    import uuid as _uuid
+
+    candidate = os.path.join(dest_dir, f"{basename}.{timestamp}.bak")
+    while True:
+        try:
+            fd = os.open(candidate, os.O_CREAT | os.O_EXCL | os.O_WRONLY, 0o600)
+        except FileExistsError:
+            candidate = os.path.join(
+                dest_dir, f"{basename}.{timestamp}.{_uuid.uuid4().hex[:8]}.bak"
+            )
+            continue
+        os.close(fd)
+        return candidate
+
+
 def _make_backup(video_path: str, use_reflink: bool, trash_dir: str = "") -> str:
     """Move original to the trash directory and return the backup path.
 
@@ -161,7 +190,6 @@ def _make_backup(video_path: str, use_reflink: bool, trash_dir: str = "") -> str
     swap.
     """
     import time as _time
-    import uuid as _uuid
 
     basename = os.path.basename(video_path)
     date_str = __import__("datetime").date.today().isoformat()
@@ -172,14 +200,14 @@ def _make_backup(video_path: str, use_reflink: bool, trash_dir: str = "") -> str
 
     try:
         os.makedirs(dest_dir, exist_ok=True)
-        bak_path = os.path.join(dest_dir, f"{basename}.{timestamp}.bak")
-        if os.path.exists(bak_path):
-            # The trash is flat and the name carries whole seconds only: two
-            # episodes of the same name from different season folders backed up
-            # within one second landed on each other and one original was left
-            # without a backup (sandbox VM, 1.14.4-rc.7).
-            bak_path = os.path.join(dest_dir, f"{basename}.{timestamp}.{_uuid.uuid4().hex[:8]}.bak")
+        # The trash is flat and the name carries whole seconds only, so two
+        # episodes of the same name from different season folders compete for
+        # one path. Reserve it atomically before writing anything into it.
+        bak_path = _reserve_backup_path(dest_dir, basename, timestamp)
         if use_reflink and _try_reflink(video_path, bak_path):
+            # cp without -p leaves the reservation's own 0600 in place, while
+            # copy2 below carries the source mode over by itself.
+            shutil.copystat(video_path, bak_path)
             logger.info("Remux: reflink backup in trash: %s", bak_path)
         else:
             shutil.copy2(video_path, bak_path)
