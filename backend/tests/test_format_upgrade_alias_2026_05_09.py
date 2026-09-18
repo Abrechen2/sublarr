@@ -28,10 +28,20 @@ import os
 
 import pytest
 
+#: Real lines, not empty files: since 2026-09-18 a sidecar only counts as the
+#: better format when it holds at least one subtitle line, so touch()-ed
+#: fixtures would exercise that guard instead of the pairing this file is about.
+_ASS = (
+    "[Script Info]\n\n[Events]\nFormat: Layer, Start, End, Style, Name, MarginL, MarginR,"
+    " MarginV, Effect, Text\nDialogue: 0,0:00:01.00,0:00:02.00,Default,,0,0,0,,Hallo\n"
+)
+_SRT = "1\n00:00:01,000 --> 00:00:02,000\nHallo\n"
+
 
 def _setup(tmp_path, files):
     for f in files:
-        (tmp_path / f).touch()
+        body = _ASS if f.endswith((".ass", ".ssa")) else _SRT
+        (tmp_path / f).write_text(body, encoding="utf-8")
 
 
 def _remaining(tmp_path):
