@@ -31,7 +31,7 @@ from ass_utils import (
     split_around_drawings,
     text_outside_drawing,
 )
-from translator.errors import TranslationAbortedError
+from translator.errors import NO_TRANSLATABLE_DIALOGUE, TranslationAbortedError
 
 logger = logging.getLogger(__name__)
 
@@ -221,7 +221,9 @@ def translate_ass(
         )
 
         if not dialog_texts:
-            return _core._fail_result("No dialog lines found to translate")
+            return _core._fail_result(
+                "No dialog lines found to translate", reason=NO_TRANSLATABLE_DIALOGUE
+            )
 
         # HI-removal before translation
         _get_settings = _core._pkg().get_settings
@@ -400,7 +402,9 @@ def _translate_external_ass(
         ) = _collect_translatable_events(subs, dialog_styles)
 
         if not dialog_texts:
-            return _core._fail_result("No dialog lines found in external ASS")
+            return _core._fail_result(
+                "No dialog lines found in external ASS", reason=NO_TRANSLATABLE_DIALOGUE
+            )
 
         # HI-removal before translation
         _get_settings = _core._pkg().get_settings

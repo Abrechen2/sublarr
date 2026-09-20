@@ -34,7 +34,11 @@ from db.repositories.subtitle_automation_queue import (
 from services.embedded_extractor import extract_embedded_sub as _extract_embedded_sub
 from services.scheduler.cancellation import abort_requested
 from services.video_sync import SyncSanityThresholdError
-from translator.errors import TranslationAbortedError
+from translator.errors import (
+    NO_TRANSLATABLE_DIALOGUE,
+    NothingToTranslateError,
+    TranslationAbortedError,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -209,10 +213,15 @@ class SubtitleAutomationRunner:
         # 24h, and not one `failed` row in this queue.
         status = (result or {}).get("status")
         if status != "found":
-            raise RuntimeError(
-                (result or {}).get("error")
-                or f"translation did not produce a subtitle (status={status!r})"
+            error = (result or {}).get("error") or (
+                f"translation did not produce a subtitle (status={status!r})"
             )
+            # A source that holds nothing to translate reads the same on every
+            # attempt, so it must not join the backoff ladder. The flows mark
+            # that case rather than leaving it to be recognised by its wording.
+            if (result or {}).get("reason") == NO_TRANSLATABLE_DIALOGUE:
+                raise NothingToTranslateError(error)
+            raise RuntimeError(error)
 
     def _auto_sync(self, subtitle_path: str, video_path: str | None) -> None:
         """Time a downloaded sidecar against its video.
@@ -272,6 +281,18 @@ class SubtitleAutomationRunner:
                 exc,
             )
             self._repo.release_for_retry(entry_id, reason=str(exc))
+            return True
+        except NothingToTranslateError as exc:
+            # Closed out, never retried: the source was read without trouble
+            # and simply carries no dialogue — a signs-and-songs track reads
+            # that way every time. Prod 2026-09-20 had 64 entries spending up
+            # to ten attempts each on exactly this.
+            logger.info(
+                "subtitle_automation: nothing to translate for wanted_item=%s: %s",
+                wanted_item_id,
+                exc,
+            )
+            self._repo.mark_failed(entry_id, error=str(exc), next_retry_at=None)
             return True
         except _TERMINAL_SYNC_ERRORS as exc:
             # A rejected shift is the same shift next time — the sanity gate

@@ -427,11 +427,21 @@ def _skip_result(reason, output_path=None):
     }
 
 
-def _fail_result(error):
-    """Create a failure result dict."""
-    return {
+def _fail_result(error, reason=None):
+    """Create a failure result dict.
+
+    ``reason`` is an optional machine-readable marker for callers that must
+    tell one kind of failure from another — above all "the source holds
+    nothing to translate", which repeats identically on every attempt, from an
+    environment fault, which does not. Matching on ``error`` would work until
+    someone improves the wording.
+    """
+    result = {
         "success": False,
         "output_path": None,
         "stats": {},
         "error": error,
     }
+    if reason is not None:
+        result["reason"] = reason
+    return result

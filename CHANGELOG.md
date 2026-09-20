@@ -138,6 +138,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   carries one is not re-rated. Entries written before this release are rated
   once more and then carry theirs.
 
+- **A subtitle track without dialogue is no longer retried ten times.** Anime
+  releases often ship a signs-and-songs track: karaoke for the opening, typeset
+  signs, and no spoken lines. Sublarr recognised that correctly and reported
+  "no dialog lines", but booked it as a failure and kept trying — up to ten
+  attempts for an answer that cannot change. It is now recorded once, as what
+  it is. A translation that failed because a backend was down still gets its
+  retries.
+
 ### Changed
 - **In-app backups of PostgreSQL 15, 16 and 17 can be restored.** The image
   shipped only the PostgreSQL 17 client, whose dumps a PostgreSQL 16 server

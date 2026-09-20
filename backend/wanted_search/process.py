@@ -1065,11 +1065,20 @@ def _fallback_translate_file(ctx: dict) -> dict:
             from services.wanted_search_runner import record_search_outcome
 
             record_search_outcome(item_id, kind="translation_error", error_message=error)
-            return {
+            failed = {
                 "wanted_id": item_id,
                 "status": "failed",
                 "error": error,
             }
+            # The comment above draws the line between an environment fault and
+            # a property of the item. "This source has no dialogue" is the
+            # second kind, and the automation queue needs to be able to tell:
+            # it walked the backoff ladder over signs-and-songs tracks, ten
+            # attempts each, for a verdict that reads the same every time.
+            reason = translate_result.get("reason")
+            if reason:
+                failed["reason"] = reason
+            return failed
     except TranslationAbortedError:
         # The scheduler asked this tick to stop. Booking it as a translation
         # failure would spend the item's attempt and put it on the backoff

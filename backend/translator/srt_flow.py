@@ -19,7 +19,7 @@ import tempfile
 
 import pysubs2
 
-from translator.errors import TranslationAbortedError
+from translator.errors import NO_TRANSLATABLE_DIALOGUE, TranslationAbortedError
 
 logger = logging.getLogger(__name__)
 
@@ -141,7 +141,7 @@ def _translate_srt(
         dialog_texts.append(clean)
 
     if not dialog_texts:
-        return _core._fail_result("No dialog lines found in SRT")
+        return _core._fail_result("No dialog lines found in SRT", reason=NO_TRANSLATABLE_DIALOGUE)
 
     _get_settings = _core._pkg().get_settings
     settings = _get_settings()
