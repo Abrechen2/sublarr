@@ -52,6 +52,40 @@ _RATE_LIMIT_WINDOW_THRESHOLD_S = 120
 __all__ = ["SearchCoordinatorMixin"]
 
 
+def _provider_credentials_configured(provider, settings) -> bool:
+    """Whether every required credential of ``provider`` is set in Settings.
+
+    GH #207: the account pool was seeded from Settings once (migration p4a,
+    April 2026) for five providers. A key saved later — SubSource's, or any
+    provider added since — lives only in Settings: it initialises the provider
+    and passes the connectivity test, and the gate then refused every search
+    for want of a pool row nobody could create. With no pool row at all, the
+    provider searches with the credential it was initialised with. Pool rows,
+    once they exist, stay the only source: an exhausted or cooling pool is not
+    bypassed by a Settings value.
+
+    Non-string values count as unset, so a half-mocked settings object never
+    opens the gate by accident.
+    """
+    from config_settings import is_sensitive_config_key
+
+    config_fields = getattr(type(provider), "config_fields", getattr(provider, "config_fields", []))
+    required = [
+        field
+        for field in config_fields or []
+        if isinstance(field, dict)
+        and field.get("required")
+        and (field.get("type") == "password" or is_sensitive_config_key(str(field.get("key", ""))))
+    ]
+    if not required:
+        return False
+    for field in required:
+        value = getattr(settings, str(field.get("key", "")), "")
+        if not isinstance(value, str) or not value.strip():
+            return False
+    return True
+
+
 def _provider_can_search_without_pool_key(provider) -> bool:
     """Whether this provider can search with no account pool row at all.
 
@@ -278,7 +312,10 @@ class SearchCoordinatorMixin(SearchRetryMixin, SearchScoringMixin, SearchCacheMi
                     )
                     if key is None:
                         pool_rows_exist = key_selector.has_pool_rows(name)
-                        if not pool_rows_exist and _provider_can_search_without_pool_key(provider):
+                        if not pool_rows_exist and (
+                            _provider_can_search_without_pool_key(provider)
+                            or _provider_credentials_configured(provider, self.settings)
+                        ):
                             # ``pick() is None`` also means every configured row is
                             # exhausted/cooling; only the separate row-existence check
                             # may open the anonymous path.

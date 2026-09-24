@@ -469,3 +469,58 @@ class TestKeySelectorIntegration:
 
         ks_mock.pick.assert_not_called()
         provider.search.assert_called_once()
+
+
+class TestConfiguredKeyWithoutPoolRow:
+    """GH #207: a key saved in Settings must reach the search.
+
+    The documented path (Settings -> Providers -> SubSource -> API Key) writes
+    ``subsource_api_key`` to config. The pool was seeded from config exactly
+    once (migration p4a, April 2026) for five providers; SubSource arrived
+    later and never got a row, and the Settings pool editor lists only those
+    five. So a correct key passed the connectivity test, initialised the
+    provider — and every real search was gated out as "no usable key in pool".
+    """
+
+    @staticmethod
+    def _run(monkeypatch, *, key_value, pool_rows_exist, budget):
+        provider = _make_provider("subsource")
+        manager = _build_manager(monkeypatch, provider)
+        monkeypatch.setattr(manager.settings, "subsource_api_key", key_value, raising=False)
+        monkeypatch.setattr("providers.search_coordinator.get_budget_manager", lambda: budget)
+        ks_mock = MagicMock()
+        ks_mock.pick.return_value = None
+        ks_mock.has_pool_rows.return_value = pool_rows_exist
+        monkeypatch.setattr("providers.search_coordinator.get_key_selector", lambda: ks_mock)
+        skipped = MagicMock()
+        monkeypatch.setattr("providers.search_coordinator.decision_log.provider_skipped", skipped)
+        manager.search(_make_query())
+        return provider, skipped
+
+    def test_a_key_in_settings_searches_without_a_pool_row(
+        self, app_ctx, monkeypatch, budget_allows
+    ):
+        provider, skipped = self._run(
+            monkeypatch, key_value="live-key", pool_rows_exist=False, budget=budget_allows
+        )
+        provider.search.assert_called_once()
+        budget_allows.consume.assert_called_once_with("subsource", key_id=None)
+        skipped.assert_not_called()
+
+    def test_no_key_anywhere_is_still_skipped(self, app_ctx, monkeypatch, budget_allows):
+        provider, skipped = self._run(
+            monkeypatch, key_value="  ", pool_rows_exist=False, budget=budget_allows
+        )
+        provider.search.assert_not_called()
+        skipped.assert_called_once_with("subsource", "no_pool_key")
+
+    def test_exhausted_pool_rows_are_not_bypassed_by_the_settings_key(
+        self, app_ctx, monkeypatch, budget_allows
+    ):
+        """Rows exist but none is usable (429-cooling, exhausted): the pool's
+        throttling decision stands; the Settings key is no way around it."""
+        provider, skipped = self._run(
+            monkeypatch, key_value="live-key", pool_rows_exist=True, budget=budget_allows
+        )
+        provider.search.assert_not_called()
+        skipped.assert_called_once_with("subsource", "no_pool_key")

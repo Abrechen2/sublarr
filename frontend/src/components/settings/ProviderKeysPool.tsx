@@ -19,6 +19,9 @@ const KEY_PROVIDERS = [
   'jimaku',
   'legendasdivx',
   'turkcealtyazi',
+  // GH #207: added with the API v1 rewrite (1.14.2) but never listed here, so
+  // its pool could not be edited from the UI.
+  'subsource',
 ] as const
 
 export interface ProviderKeysPoolProps {
