@@ -89,9 +89,14 @@ def _check_language_for_item(
         if has_target_language_audio(probe_data, target_lang):
             return None
         embedded_sub = has_target_language_stream(probe_data, target_lang)
+        # An embedded track only counts where it adds something: ASS beats an
+        # SRT sidecar, an SRT beats nothing. An embedded SRT next to an SRT
+        # sidecar used to win anyway — prod 2026-09-24: 2 045 upgrade
+        # candidates lost their flag and were "extracted" twice a day without a
+        # byte written. Same order as standalone.scanner._check_existing_subtitle.
         if embedded_sub == "ass":
             existing = "embedded_ass"
-        elif embedded_sub == "srt":
+        elif embedded_sub == "srt" and not existing:
             existing = "embedded_srt"
 
     embedded_langs = []

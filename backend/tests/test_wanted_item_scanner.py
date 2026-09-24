@@ -99,6 +99,53 @@ def test_check_language_upgrade_candidate():
     assert result["current_score"] == 65
 
 
+def _check_with_sidecar_and_embedded(sidecar, embedded, *, upgrade_enabled=True):
+    from services.wanted_item_scanner import _check_language_for_item
+
+    settings = MagicMock(upgrade_enabled=upgrade_enabled)
+    with (
+        patch("services.wanted_item_scanner.detect_existing_target_for_lang", return_value=sidecar),
+        patch("services.wanted_item_scanner.has_target_language_audio", return_value=False),
+        patch("services.wanted_item_scanner.has_target_language_stream", return_value=embedded),
+        patch("services.wanted_item_scanner.get_all_subtitle_streams", return_value=[]),
+        patch(
+            "services.wanted_item_scanner.get_output_path_for_lang", return_value="/media/ep.de.srt"
+        ),
+        patch("os.path.exists", return_value=True),
+        patch("services.wanted_item_scanner.score_existing_subtitle", return_value=("srt", 65)),
+    ):
+        return _check_language_for_item("/media/ep.mkv", "de", {"streams": []}, settings)
+
+
+def test_sidecar_srt_is_not_masked_by_an_embedded_srt():
+    """An embedded SRT adds nothing to an SRT sidecar already on disk.
+
+    Prod 2026-09-24: the embedded track overwrote ``srt`` with ``embedded_srt``,
+    which dropped the upgrade flag and sent 2 045 items into an extraction that
+    wrote nothing (the sidecar existed) every search cycle, while each scan reset
+    them to ``wanted`` — 2 471 no-op "extractions" a day, and never an upgrade
+    search. The standalone scanner already ranks a sidecar above an embedded SRT.
+    """
+    result = _check_with_sidecar_and_embedded("srt", "srt")
+    assert result is not None
+    assert result["existing_sub"] == "srt"
+    assert result["upgrade_candidate"] is True
+    assert result["current_score"] == 65
+
+
+def test_embedded_ass_still_beats_an_srt_sidecar():
+    """ASS over SRT is a real upgrade, so extracting the embedded ASS stays right."""
+    result = _check_with_sidecar_and_embedded("srt", "ass")
+    assert result is not None
+    assert result["existing_sub"] == "embedded_ass"
+
+
+def test_embedded_srt_counts_when_no_sidecar_exists():
+    result = _check_with_sidecar_and_embedded(None, "srt", upgrade_enabled=False)
+    assert result is not None
+    assert result["existing_sub"] == "embedded_srt"
+
+
 def test_check_language_no_existing_returns_empty_sub():
     """No existing subtitle at all -> existing_sub=''."""
     from services.wanted_item_scanner import _check_language_for_item
