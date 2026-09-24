@@ -111,9 +111,8 @@ def _check_with_sidecar_and_embedded(sidecar, embedded, *, upgrade_enabled=True)
         patch("services.wanted_item_scanner.get_all_subtitle_streams", return_value=[]),
         patch(
             "services.wanted_item_scanner.find_existing_target_file",
-            return_value="/media/ep.de.srt",
+            return_value="/media/ep.de.srt" if sidecar == "srt" else None,
         ),
-        patch("os.path.exists", return_value=True),
         patch("services.wanted_item_scanner.score_existing_subtitle", return_value=("srt", 65)),
     ):
         return _check_language_for_item("/media/ep.mkv", "de", {"streams": []}, settings)
@@ -133,13 +132,6 @@ def test_sidecar_srt_is_not_masked_by_an_embedded_srt():
     assert result["existing_sub"] == "srt"
     assert result["upgrade_candidate"] is True
     assert result["current_score"] == 65
-
-
-def test_embedded_ass_still_beats_an_srt_sidecar():
-    """ASS over SRT is a real upgrade, so extracting the embedded ASS stays right."""
-    result = _check_with_sidecar_and_embedded("srt", "ass")
-    assert result is not None
-    assert result["existing_sub"] == "embedded_ass"
 
 
 def test_embedded_srt_counts_when_no_sidecar_exists():

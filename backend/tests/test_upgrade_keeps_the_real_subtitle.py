@@ -231,3 +231,69 @@ def test_a_plain_wanted_item_still_runs_every_step(_steps):
 
     for step in (_steps.s2, _steps.s3, _steps.s4, _steps.s5):
         step.assert_called_once()
+
+
+# --- scanner, end to end on real files (detection is NOT mocked) ------------
+#
+# detect_existing_target_for_lang also answers "srt" for an EMBEDDED SRT when
+# given probe data. A first cut of the scanner fix read "existing == srt" as
+# "a sidecar is on disk" and, with mocked detection in its tests, never saw
+# that episodes carrying only an embedded SRT stopped being extracted.
+
+_EMBEDDED_GER_SRT = {
+    "streams": [
+        {"codec_type": "audio", "codec_name": "aac", "tags": {"language": "jpn"}},
+        {"codec_type": "subtitle", "codec_name": "subrip", "tags": {"language": "ger"}},
+    ]
+}
+
+
+def _scan_real(tmp_path, *sidecars):
+    from services.wanted_item_scanner import _check_language_for_item
+
+    video = tmp_path / "Show - S01E01.mkv"
+    video.write_bytes(b"")
+    for name in sidecars:
+        _touch(tmp_path / f"Show - S01E01.{name}")
+    return _check_language_for_item(
+        str(video), "de", _EMBEDDED_GER_SRT, MagicMock(upgrade_enabled=True)
+    )
+
+
+def test_real_embedded_srt_without_sidecar_is_still_extracted(tmp_path):
+    result = _scan_real(tmp_path)
+    assert result["existing_sub"] == "embedded_srt"
+    assert result["upgrade_candidate"] is False
+
+
+def test_real_sidecar_plus_embedded_srt_is_an_upgrade_candidate(tmp_path):
+    result = _scan_real(tmp_path, "de.srt")
+    assert result["existing_sub"] == "srt"
+    assert result["upgrade_candidate"] is True
+
+
+def test_real_alias_sidecar_plus_embedded_srt_is_an_upgrade_candidate(tmp_path):
+    result = _scan_real(tmp_path, "ger.srt")
+    assert result["existing_sub"] == "srt"
+    assert result["upgrade_candidate"] is True
+
+
+def test_real_embedded_target_ass_satisfies_the_language(tmp_path):
+    """Unchanged behaviour, pinned: an embedded target ASS is as good as done.
+
+    Detection answers "ass" for the track itself, so no wanted row is kept —
+    whatever SRT sidecar lies beside it.
+    """
+    from services.wanted_item_scanner import _check_language_for_item
+
+    video = tmp_path / "Show - S01E01.mkv"
+    video.write_bytes(b"")
+    _touch(tmp_path / "Show - S01E01.de.srt")
+    probe = {
+        "streams": [
+            {"codec_type": "subtitle", "codec_name": "ass", "tags": {"language": "ger"}},
+        ]
+    }
+    assert (
+        _check_language_for_item(str(video), "de", probe, MagicMock(upgrade_enabled=True)) is None
+    )

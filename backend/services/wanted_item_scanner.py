@@ -97,9 +97,13 @@ def _check_language_for_item(
         # sidecar used to win anyway — prod 2026-09-24: 2 045 upgrade
         # candidates lost their flag and were "extracted" twice a day without a
         # byte written. Same order as standalone.scanner._check_existing_subtitle.
+        # Ask the disk, not ``existing``: detect_existing_target_for_lang
+        # already answers "srt" for the embedded track itself.
         if embedded_sub == "ass":
             existing = "embedded_ass"
-        elif embedded_sub == "srt" and not existing:
+        elif embedded_sub == "srt" and not find_existing_target_file(
+            mapped_path, target_lang, "srt"
+        ):
             existing = "embedded_srt"
 
     embedded_langs = []
