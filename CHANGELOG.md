@@ -169,7 +169,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   your server.
 
 ### Upgrade notes
-- No database migration in this release.
+- One schema migration, `tm5_quality_score`: it adds an empty, nullable
+  `quality_score` column to `translation_memory`. No existing row is rewritten
+  or deleted; each memory entry gets its score the next time it is used.
 - Subtitles written with the wrong mode before this release keep it. To fix
   them, run on the host (adjust the media path):
   `find /path/to/media \( -name '*.srt' -o -name '*.ass' -o -name '*.ssa' -o -name '*.vtt' \) -perm 600 -exec chmod 644 {} +`
