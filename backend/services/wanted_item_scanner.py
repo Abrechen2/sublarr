@@ -19,7 +19,10 @@ from config import get_settings, map_path
 from db.profiles import get_movie_profile, get_series_profile
 from db.providers import is_machine_translated
 from db.wanted import upsert_wanted_item
-from translator import detect_existing_target_for_lang, get_output_path_for_lang
+from translator import (
+    detect_existing_target_for_lang,
+    find_existing_target_file,
+)
 from upgrade_scorer import score_existing_subtitle
 
 logger = logging.getLogger(__name__)
@@ -108,8 +111,11 @@ def _check_language_for_item(
     is_upgrade = False
     cur_score = 0
     if existing_sub == "srt" and settings.upgrade_enabled:
-        srt_path = get_output_path_for_lang(mapped_path, "srt", target_lang)
-        if os.path.exists(srt_path):
+        # The file that is actually there — a raw-code .ger.srt counts too,
+        # or the item is searched as plain "wanted" and gains a second
+        # German subtitle next to it.
+        srt_path = find_existing_target_file(mapped_path, target_lang, "srt")
+        if srt_path:
             _, cur_score = score_existing_subtitle(srt_path)
             is_upgrade = True
 

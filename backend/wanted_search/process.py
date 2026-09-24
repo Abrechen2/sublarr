@@ -239,9 +239,13 @@ def _try_target_ass_direct(ctx: dict) -> dict | None:
 
         # For upgrade candidates, check if the new sub is actually better
         if is_upgrade and current_score > 0:
-            from translator import get_output_path_for_lang
+            from translator import find_existing_target_file, get_output_path_for_lang
 
-            existing_srt = get_output_path_for_lang(file_path, "srt", item_lang)
+            # Judge and guard the file that is really there — possibly a
+            # raw-code .ger.srt the canonical name would miss.
+            existing_srt = find_existing_target_file(
+                file_path, item_lang, "srt"
+            ) or get_output_path_for_lang(file_path, "srt", item_lang)
             if getattr(settings, "upgrade_protect_user_modified", True):
                 from db.quality import is_user_modified
 
@@ -275,8 +279,12 @@ def _try_target_ass_direct(ctx: dict) -> dict | None:
         # its single-slot .bak first (when that slot is free) so the History
         # rollback endpoint can restore the pre-upgrade state.
         if is_upgrade:
-            old_srt = get_output_path_for_lang(file_path, "srt", item_lang)
-            if os.path.exists(old_srt):
+            from translator import find_existing_target_file
+
+            # Under whatever name it carries: retiring only the canonical
+            # .de.srt left a .ger.srt behind as a second German subtitle.
+            old_srt = find_existing_target_file(file_path, item_lang, "srt")
+            if old_srt:
                 from services.subtitle_restore import backup_before_replace
 
                 backup_before_replace(old_srt)
@@ -1402,6 +1410,33 @@ def _stopped_result(item_id: int, next_step: str) -> dict:
     }
 
 
+def _upgrade_not_found(ctx: dict) -> dict:
+    """End an upgrade search after Step 1: only a real target ASS may replace.
+
+    An upgrade candidate already has a genuine target-language subtitle. What
+    Steps 2-5 could put in its place is a machine translation (Steps 2, 4, 5)
+    or an SRT written without any score comparison (Step 3) — neither is an
+    upgrade, and the first contradicts the owner's rule that a self-made
+    translation is always the last resort (2026-09-13). Prod 2026-09-24: 116
+    files had gained a machine translation after a real subtitle of the same
+    language was already there.
+
+    Charged as a plain no-result search, like the other exits, so the item
+    keeps its normal backoff instead of being retried every tick.
+    """
+    item_id = ctx["item_id"]
+    reason = "upgrade candidate: only a genuine target-language ASS replaces the existing subtitle"
+    decision_log.step_skipped("source_ass_translation", reason)
+    if ctx.get("dry_run"):
+        return {"wanted_id": item_id, "status": "not_found", "dry_run": True, "reason": reason}
+
+    from services.wanted_search_runner import record_search_outcome
+
+    update_wanted_status(item_id, "wanted")
+    record_search_outcome(item_id, kind="no_result")
+    return {"wanted_id": item_id, "status": "not_found", "reason": reason}
+
+
 def _run_search_steps(ctx: dict) -> dict:
     """Run search Steps 1-5 for one wanted item. Extracted from
     ``process_wanted_item`` so the decision log can wrap the whole sequence.
@@ -1427,6 +1462,9 @@ def _run_search_steps(ctx: dict) -> dict:
     result = _try_target_ass_direct(ctx)
     if result is not None:
         return result
+
+    if ctx.get("is_upgrade"):
+        return _upgrade_not_found(ctx)
 
     if abort_requested():
         return _stopped_result(item_id, "Step 2")

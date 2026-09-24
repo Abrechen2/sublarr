@@ -87,7 +87,8 @@ def test_check_language_upgrade_candidate():
     with (
         patch("services.wanted_item_scanner.detect_existing_target_for_lang", return_value="srt"),
         patch(
-            "services.wanted_item_scanner.get_output_path_for_lang", return_value="/media/ep.de.srt"
+            "services.wanted_item_scanner.find_existing_target_file",
+            return_value="/media/ep.de.srt",
         ),
         patch("os.path.exists", return_value=True),
         patch("services.wanted_item_scanner.score_existing_subtitle", return_value=("srt", 65)),
@@ -109,7 +110,8 @@ def _check_with_sidecar_and_embedded(sidecar, embedded, *, upgrade_enabled=True)
         patch("services.wanted_item_scanner.has_target_language_stream", return_value=embedded),
         patch("services.wanted_item_scanner.get_all_subtitle_streams", return_value=[]),
         patch(
-            "services.wanted_item_scanner.get_output_path_for_lang", return_value="/media/ep.de.srt"
+            "services.wanted_item_scanner.find_existing_target_file",
+            return_value="/media/ep.de.srt",
         ),
         patch("os.path.exists", return_value=True),
         patch("services.wanted_item_scanner.score_existing_subtitle", return_value=("srt", 65)),

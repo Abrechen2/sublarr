@@ -42,6 +42,7 @@ from translator.jobs import (  # noqa: F401
 from translator.output_paths import (  # noqa: F401
     detect_existing_target,
     detect_existing_target_for_lang,
+    find_existing_target_file,
     get_forced_output_path,
     get_output_path,
     get_output_path_for_lang,

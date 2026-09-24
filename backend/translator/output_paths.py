@@ -24,6 +24,26 @@ def get_output_path_for_lang(mkv_path, fmt="ass", target_language=None):
     return f"{base}.{target_language}.{fmt}"
 
 
+def find_existing_target_file(mkv_path, target_language, fmt):
+    """Path of the ``fmt`` sidecar for ``target_language`` that is on disk, or None.
+
+    The canonical name (``.de.srt``) wins; otherwise any alias the language is
+    known by (``.ger.srt``, ``.deu.srt``). Older writers used the raw container
+    code, and code that only looked for the canonical name treated those files
+    as absent — so an upgrade neither scored nor retired them and left a second
+    subtitle of the same language behind.
+    """
+    from config import _get_language_tags
+
+    base = os.path.splitext(mkv_path)[0]
+    aliases = sorted(t for t in _get_language_tags(target_language) if t != target_language)
+    for tag in [target_language, *aliases]:
+        path = f"{base}.{tag}.{fmt}"
+        if os.path.exists(path):
+            return path
+    return None
+
+
 def detect_existing_target(mkv_path, probe_data=None):
     """Detect existing target language subtitles (external files and embedded streams).
 
