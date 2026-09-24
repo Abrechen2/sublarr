@@ -22,16 +22,22 @@ import tempfile
 import pysubs2
 
 from ass_drawing import holds_language
+from ass_lexer import (
+    LAYOUT,
+    ASSNeedsReviewError,
+    align_break_spelling,
+    lex,
+    validate_translation,
+)
 from ass_utils import (
     classify_styles,
     contains_drawing,
     extract_tags,
-    fix_line_breaks,
     restore_tags,
     split_around_drawings,
     text_outside_drawing,
 )
-from translator.errors import NO_TRANSLATABLE_DIALOGUE, TranslationAbortedError
+from translator.errors import ASS_REVIEW_REQUIRED, NO_TRANSLATABLE_DIALOGUE, TranslationAbortedError
 
 logger = logging.getLogger(__name__)
 
@@ -84,6 +90,20 @@ def _collect_translatable_events(subs, dialog_styles):
         if not event.text.strip():
             continue
 
+        try:
+            lex(event.text)
+        except ASSNeedsReviewError as error:
+            untranslated.append(
+                {
+                    "index": i,
+                    "start_ms": int(event.start),
+                    "end_ms": int(event.end),
+                    "text": event.text[:120],
+                    "reason": str(error),
+                }
+            )
+            continue
+
         prefix = suffix = ""
         body = event.text
         if contains_drawing(event.text):
@@ -110,7 +130,7 @@ def _collect_translatable_events(subs, dialog_styles):
             prefix, body, suffix = split
 
         clean_text, tag_info, orig_len = extract_tags(body)
-        if not clean_text.strip():
+        if not holds_language(clean_text):
             continue
 
         indices.append(i)
@@ -127,8 +147,7 @@ def _collect_translatable_events(subs, dialog_styles):
         # while it still carries source-language lines, and an INFO line among
         # thousands is not telling anyone.
         logger.warning(
-            "%d event(s) left in the source language — dialogue interleaved with "
-            "drawings; first at %.3fs: %r",
+            "%d event(s) need ASS review; first at %.3fs: %r",
             len(untranslated),
             untranslated[0]["start_ms"] / 1000,
             untranslated[0]["text"],
@@ -141,6 +160,106 @@ def _collect_translatable_events(subs, dialog_styles):
             logger.debug("could not record the partial translation", exc_info=True)
 
     return indices, texts, tags, orig_lengths, prefixes, suffixes, untranslated
+
+
+def _empty_selection_result(untranslated):
+    import translator.core as _core
+
+    if untranslated:
+        result = _core._fail_result(
+            "ASS events need review: " + untranslated[0]["reason"], reason=ASS_REVIEW_REQUIRED
+        )
+        result["stats"] = {
+            "untranslated": len(untranslated),
+            "untranslated_events": untranslated,
+        }
+        return result
+    return _core._fail_result("No dialog lines found to translate", reason=NO_TRANSLATABLE_DIALOGUE)
+
+
+def _restore_one(source, translated, tags, length, prefix, suffix, model_source):
+    """One event rebuilt from its answer, or ASSNeedsReviewError if unsafe."""
+    end = len(source) - len(suffix)
+    if holds_language(model_source):
+        translated = align_break_spelling(model_source, translated)
+        validate_translation(model_source, translated)
+    else:
+        # Explicit HI removal can erase a whole caption. Use that known
+        # local edit, never an empty or invented answer from the model.
+        translated = model_source
+    restored = prefix + restore_tags(translated, tags, length) + suffix
+    original_tokens, _ = lex(source)
+    restored_tokens, _ = lex(restored)
+    if [t.raw for t in original_tokens if t.kind == "override"] != [
+        t.raw for t in restored_tokens if t.kind == "override"
+    ]:
+        raise ASSNeedsReviewError("ASS override sequence changed during restoration")
+    before = "".join(
+        t.raw
+        for t in original_tokens
+        if t.kind == "content" and not t.drawing and t.end <= len(prefix)
+    )
+    after = "".join(
+        t.raw for t in original_tokens if t.kind == "content" and not t.drawing and t.start >= end
+    )
+    # Compared with the answer, not the source: the model may reflow, but
+    # putting its tags back must not split or swallow a break (\ + N).
+    if LAYOUT.findall(before + translated + after) != LAYOUT.findall(
+        text_outside_drawing(restored)
+    ):
+        raise ASSNeedsReviewError("ASS layout changed during tag restoration")
+    return restored
+
+
+def _restore_translations(
+    subs, indices, translations, tag_infos, lengths, prefixes, suffixes, model_sources
+):
+    """Rebuild every event from its answer; an unsafe answer costs one line.
+
+    Returns ``(translated_count, rejected)``. A rejected event keeps its source
+    text and is described like the selection's untranslated events, so it
+    reaches the same partial-translation report. Failing the whole file for one
+    line would, with the retry reusing the same memory entry, fail it forever.
+    Only structural faults — a changed answer count, or no usable answer at
+    all — reject the file.
+
+    Ordinary inline styles retain the existing proportional placement. Geometry
+    is confined to untouched prefixes/suffixes; interleaved geometry requires
+    review until the backend supports an explicit fragment mapping.
+    """
+    if len(translations) != len(indices):
+        raise ASSNeedsReviewError("ASS translation count mismatch after quality evaluation")
+    rejected = []
+    for idx, translated, tags, length, prefix, suffix, model_source in zip(
+        indices, translations, tag_infos, lengths, prefixes, suffixes, model_sources, strict=True
+    ):
+        event = subs.events[idx]
+        try:
+            restored = _restore_one(
+                event.text, translated, tags, length, prefix, suffix, model_source
+            )
+        except ASSNeedsReviewError as error:
+            rejected.append(
+                {
+                    "index": idx,
+                    "start_ms": int(event.start),
+                    "end_ms": int(event.end),
+                    "text": event.text[:120],
+                    "reason": str(error),
+                }
+            )
+            continue
+        event.text = restored
+    if indices and len(rejected) == len(indices):
+        raise ASSNeedsReviewError("no usable model answer: " + rejected[0]["reason"])
+    if rejected:
+        logger.warning(
+            "%d ASS answer(s) rejected and left in the source language; first at %.3fs: %s",
+            len(rejected),
+            rejected[0]["start_ms"] / 1000,
+            rejected[0]["reason"],
+        )
+    return len(indices) - len(rejected), rejected
 
 
 def _report_partial_translation(output_path, untranslated):
@@ -221,9 +340,7 @@ def translate_ass(
         )
 
         if not dialog_texts:
-            return _core._fail_result(
-                "No dialog lines found to translate", reason=NO_TRANSLATABLE_DIALOGUE
-            )
+            return _empty_selection_result(dialog_untranslated)
 
         # HI-removal before translation
         _get_settings = _core._pkg().get_settings
@@ -276,21 +393,17 @@ def translate_ass(
                 _q_max_retries,
             )
 
-        translated_count = 0
-        for idx, trans_text, tags, orig_len, prefix, suffix in zip(
+        translated_count, restore_rejected = _restore_translations(
+            subs,
             dialog_indices,
             translated_texts,
             dialog_tags,
             dialog_orig_lengths,
             dialog_prefixes,
             dialog_suffixes,
-        ):
-            fixed = fix_line_breaks(trans_text)
-            # The drawing and the tags that switch it stay byte for byte where
-            # they were; only the dialogue half went through the model.
-            restored = prefix + restore_tags(fixed, tags, orig_len) + suffix
-            subs.events[idx].text = restored
-            translated_count += 1
+            dialog_texts,
+        )
+        dialog_untranslated = [*dialog_untranslated, *restore_rejected]
 
         lang_tag = tgt_lang.upper()
         info_title = subs.info.get("Title", "")
@@ -353,6 +466,9 @@ def translate_ass(
             "error": None,
         }
 
+    except ASSNeedsReviewError as error:
+        logger.warning("ASS output needs review: %s", error)
+        return _core._fail_result(str(error), reason=ASS_REVIEW_REQUIRED)
     except TranslationAbortedError:
         # Cancellation is not a translation failure. Turning it into a failure
         # result costs the item an attempt plus backoff, instead of reaching
@@ -402,9 +518,7 @@ def _translate_external_ass(
         ) = _collect_translatable_events(subs, dialog_styles)
 
         if not dialog_texts:
-            return _core._fail_result(
-                "No dialog lines found in external ASS", reason=NO_TRANSLATABLE_DIALOGUE
-            )
+            return _empty_selection_result(dialog_untranslated)
 
         # HI-removal before translation
         _get_settings = _core._pkg().get_settings
@@ -485,21 +599,17 @@ def _translate_external_ass(
                 _q_max_retries,
             )
 
-        translated_count = 0
-        for idx, trans_text, tags, orig_len, prefix, suffix in zip(
+        translated_count, restore_rejected = _restore_translations(
+            subs,
             dialog_indices,
             translated_texts,
             dialog_tags,
             dialog_orig_lengths,
             dialog_prefixes,
             dialog_suffixes,
-        ):
-            fixed = fix_line_breaks(trans_text)
-            # The drawing and the tags that switch it stay byte for byte where
-            # they were; only the dialogue half went through the model.
-            restored = prefix + restore_tags(fixed, tags, orig_len) + suffix
-            subs.events[idx].text = restored
-            translated_count += 1
+            dialog_texts,
+        )
+        dialog_untranslated = [*dialog_untranslated, *restore_rejected]
 
         lang_tag = tgt_lang.upper()
         info_title = subs.info.get("Title", "")
@@ -560,6 +670,9 @@ def _translate_external_ass(
             "error": None,
         }
 
+    except ASSNeedsReviewError as error:
+        logger.warning("ASS output needs review: %s", error)
+        return _core._fail_result(str(error), reason=ASS_REVIEW_REQUIRED)
     except TranslationAbortedError:
         # Cancellation is not a translation failure. Turning it into a failure
         # result costs the item an attempt plus backoff, instead of reaching

@@ -143,7 +143,10 @@ class TestSanitizerUsesTheSameReading:
         """The security control itself must not weaken."""
         from subtitle_sanitizer import strip_drawing_blocks
 
-        assert strip_drawing_blocks(r"{\p1}m 0 0 l 10 10{\p0}Guten Morgen.") == "Guten Morgen."
+        assert (
+            strip_drawing_blocks(r"{\p1}m 0 0 l 10 10{\p0}Guten Morgen.")
+            == r"{\p1}{\p0}Guten Morgen."
+        )
 
     def test_an_unclosed_opener_keeps_its_geometry(self):
         """Unclosed is how an ASS drawing is normally written.
@@ -171,7 +174,7 @@ class TestSanitizerUsesTheSameReading:
         """The rule that did not change: a complete span still goes."""
         from subtitle_sanitizer import strip_drawing_blocks
 
-        assert strip_drawing_blocks(r"{\p1}m 0 0{\p0}Guten Morgen.") == "Guten Morgen."
+        assert strip_drawing_blocks(r"{\p1}m 0 0{\p0}Guten Morgen.") == r"{\p1}{\p0}Guten Morgen."
 
     def test_the_fast_path_uses_the_same_reading_as_the_walk(self):
         """A shortcut that asks a different question is a hole in the filter.
@@ -186,8 +189,8 @@ class TestSanitizerUsesTheSameReading:
 
         # A closed span, because an unclosed one is deliberately kept — what is
         # under test here is that the shortcut sees the opener at all.
-        assert strip_drawing_blocks(r"{\ p1}m 0 0{\p0}Guten Morgen.") == "Guten Morgen."
-        assert strip_drawing_blocks(r"{\ p1}m 0 0 l 640 0{\p0}") == ""
+        assert strip_drawing_blocks(r"{\ p1}m 0 0{\p0}Guten Morgen.") == r"{\ p1}{\p0}Guten Morgen."
+        assert strip_drawing_blocks(r"{\ p1}m 0 0 l 640 0{\p0}") == r"{\ p1}{\p0}"
 
     def test_text_without_any_drawing_tag_is_returned_unchanged(self):
         from subtitle_sanitizer import strip_drawing_blocks
@@ -198,7 +201,7 @@ class TestSanitizerUsesTheSameReading:
     def test_a_plus_signed_opener_is_removed_too(self):
         from subtitle_sanitizer import strip_drawing_blocks
 
-        assert strip_drawing_blocks(r"{\p+1}m 0 0{\p0}Guten Morgen.") == "Guten Morgen."
+        assert strip_drawing_blocks(r"{\p+1}m 0 0{\p0}Guten Morgen.") == r"{\p+1}{\p0}Guten Morgen."
 
 
 class TestRemovingADrawingKeepsTheRestOfItsBlock:
@@ -215,23 +218,29 @@ class TestRemovingADrawingKeepsTheRestOfItsBlock:
 
         assert (
             strip_drawing_blocks(r"{\an8\p1}m 0 0 l 10 10{\p0}Guten Morgen.")
-            == r"{\an8}Guten Morgen."
+            == r"{\an8\p1}{\p0}Guten Morgen."
         )
 
     def test_overrides_in_the_closing_block_survive(self):
         from subtitle_sanitizer import strip_drawing_blocks
 
-        assert strip_drawing_blocks(r"{\p1}m 0 0{\p0\i1}Guten Morgen.") == r"{\i1}Guten Morgen."
+        assert (
+            strip_drawing_blocks(r"{\p1}m 0 0{\p0\i1}Guten Morgen.")
+            == r"{\p1}{\p0\i1}Guten Morgen."
+        )
 
-    def test_a_block_holding_only_the_drawing_tag_leaves_nothing_behind(self):
+    def test_drawing_switches_survive_without_geometry(self):
         from subtitle_sanitizer import strip_drawing_blocks
 
-        assert strip_drawing_blocks(r"{\p1}m 0 0 l 10 10{\p0}Guten Morgen.") == "Guten Morgen."
+        assert (
+            strip_drawing_blocks(r"{\p1}m 0 0 l 10 10{\p0}Guten Morgen.")
+            == r"{\p1}{\p0}Guten Morgen."
+        )
 
     def test_several_overrides_keep_their_order(self):
         from subtitle_sanitizer import strip_drawing_blocks
 
         assert (
             strip_drawing_blocks(r"{\an8\p1\pos(10,20)}m 0 0{\p0}Guten Morgen.")
-            == r"{\an8\pos(10,20)}Guten Morgen."
+            == r"{\an8\p1\pos(10,20)}{\p0}Guten Morgen."
         )

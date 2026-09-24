@@ -666,7 +666,9 @@
       "mobile_title": "Aktionsleiste auf Handy und Tablet vollständig",
       "mobile_desc": "Nach „Alle auswählen“ bleiben auf der Wanted-Seite alle Aktionen auf dem Bildschirm erreichbar.",
       "automation_title": "Automatik hält an, wenn sie soll",
-      "automation_desc": "Die Untertitel-Automatik lief nach einer Stopp-Aufforderung stundenlang weiter, und der nächste Lauf startete daneben — mehrere Läufe stritten gleichzeitig um dasselbe Übersetzungs-Backend. Sie hält jetzt zwischen zwei Zeilen an, und ein Lauf, der noch arbeitet, blockiert den nächsten."
+      "automation_desc": "Die Untertitel-Automatik lief nach einer Stopp-Aufforderung stundenlang weiter, und der nächste Lauf startete daneben — mehrere Läufe stritten gleichzeitig um dasselbe Übersetzungs-Backend. Sie hält jetzt zwischen zwei Zeilen an, und ein Lauf, der noch arbeitet, blockiert den nächsten.",
+      "ass_title": "ASS-Übersetzungen verlieren keine Dialogzeilen mehr",
+      "ass_desc": "Ungewöhnlich geschriebene Formatierungs-Tags ließen sichtbaren Dialog wie eine Zeichnung aussehen. Die Zeile fehlte dann in der Übersetzung, obwohl der Job Erfolg meldete. Übersetzung und Sicherheitsfilter lesen diese Tags jetzt wie der Renderer. Eine einzelne unbrauchbare Modellantwort kostet nur noch diese eine Zeile statt der ganzen Datei."
     },
     "v1143": {
       "dedup_title": "Duplikate gehören zur selben Episode",

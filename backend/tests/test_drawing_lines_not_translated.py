@@ -217,7 +217,7 @@ def test_mixed_event_saves_the_whole_translated_sentence(tmp_path, app_ctx, monk
 
     assert seen["lines"] == ["Good morning."], "coordinates reached the model"
     out = pysubs2.load(result["output_path"])
-    assert out.events[0].text == "Guten Morgen.", (
+    assert out.events[0].text == r"{\p1}{\p0}Guten Morgen.", (
         "the sanitizer took part of the sentence with the drawing"
     )
 

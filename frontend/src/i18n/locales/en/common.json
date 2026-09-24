@@ -666,7 +666,9 @@
       "mobile_title": "Full action bar on phones and tablets",
       "mobile_desc": "After \"Select all\" on the Wanted page, every action stays reachable on screen.",
       "automation_title": "Automation stops when asked",
-      "automation_desc": "Subtitle automation kept running for hours after it was asked to stop, and the next run started alongside it — several runs competing for one translation backend at once. It now stops between two lines, and a run that is still working holds the next one back."
+      "automation_desc": "Subtitle automation kept running for hours after it was asked to stop, and the next run started alongside it — several runs competing for one translation backend at once. It now stops between two lines, and a run that is still working holds the next one back.",
+      "ass_title": "ASS translations no longer lose dialogue lines",
+      "ass_desc": "Unusually written formatting tags made visible dialogue look like a drawing. The line was then missing from the translation while the job reported success. Translation and the safety filter now read these tags the way the renderer does. A single unusable model answer now costs only that line instead of the whole file."
     },
     "v1143": {
       "dedup_title": "Duplicates must belong to the same episode",

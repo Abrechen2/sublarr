@@ -13,23 +13,11 @@ Threats addressed:
 import logging
 import re
 
-from ass_drawing import contains_drawing_tag, drawing_state_after, without_drawing_tags
+from ass_lexer import ASSNeedsReviewError, remove_closed_geometry
 
 logger = logging.getLogger(__name__)
 
 _MAX_SUBTITLE_BYTES = 5 * 1024 * 1024  # 5 MB per subtitle file
-
-# Drawing-mode blocks: {\p1}...{\p0} — can render full-screen overlays.
-# Located by walking the override tags of a single line instead of with one
-# spanning regex. Prod 2026-09-09: the old pattern
-# ``\{[^}]*\\p[1-9][^}]*\}.*?\{[^}]*\\p0[^}]*\}`` (DOTALL) scanned to EOF from
-# every opener when the closer was missing — a 25 MB translated ASS with
-# 24 073 openers and zero closers pinned a GIL-holding thread for hours and
-# took the whole app offline. It also matched across Dialogue lines, deleting
-# untouched dialogue that merely sat between an unclosed opener and some later
-# ``{\p0}``. Override tags reset at every event, so a block is a per-line
-# affair by definition.
-_ASS_TAG_RE = re.compile(r"\{[^}]*\}")
 
 # HTML tags allowed in SRT/VTT subtitle text
 _ALLOWED_HTML_TAGS = frozenset({"i", "b", "u", "font"})
@@ -50,7 +38,10 @@ _TIMECODE_ARROW_RE = re.compile(rf"({_TS}[ \t]*)--&gt;([ \t]*{_TS})".encode())
 
 
 def _strip_drawing_blocks_in_line(line: str) -> str:
-    """Remove every *closed* ``{\\pN}…{\\p0}`` span from a single line.
+    """Remove the geometry of every *closed* ``{\\pN}…{\\p0}`` span in one line.
+
+    The override blocks themselves all stay, drawing switches included: a
+    colour or ``\\an8`` inside the span still applies to the caption after it.
 
     An opener without a closer is left standing, and that is a decision with a
     number behind it. It was briefly removed on 2026-09-18 on the grounds that
@@ -76,47 +67,25 @@ def _strip_drawing_blocks_in_line(line: str) -> str:
     rare in real files, so this control has been close to inert all along.
     Answer that deliberately rather than by widening the rule.
     """
-    kept: list[str] = []
-    cursor = 0
-    block_start: int | None = None
-    opener_rest = ""
-    drawing = False
-
-    for tag in _ASS_TAG_RE.finditer(line):
-        was_drawing = drawing
-        drawing = drawing_state_after(tag.group(), drawing)
-        if not was_drawing and drawing:
-            block_start = tag.start()
-            # Whatever else that block carried — positioning above all — belongs
-            # to the caption, not to the geometry, and has to outlive it.
-            opener_rest = without_drawing_tags(tag.group())
-        elif was_drawing and not drawing and block_start is not None:
-            kept.append(line[cursor:block_start])
-            kept.append(opener_rest)
-            kept.append(without_drawing_tags(tag.group()))
-            cursor = tag.end()
-            block_start = None
-            opener_rest = ""
-
-    # An opener still open at end of line keeps its geometry — see the
-    # docstring for the measurement that settled this.
-    kept.append(line[cursor:])
-    return "".join(kept)
+    # Keep ALL overrides, including empty drawing switches. Rewriting a nested
+    # transform or discarding an intermediate colour/alignment tag changes the
+    # visible caption. Only geometry content of closed spans is removed.
+    try:
+        return remove_closed_geometry(line)
+    except ASSNeedsReviewError as error:
+        logger.warning("ASS event needs review; preserving it: %s", error)
+        return line
 
 
 def strip_drawing_blocks(text: str) -> str:
-    """Remove ASS drawing-mode blocks from ``text``, line by line.
-
-    The shortcut asks the *same* question the walk does. It used to look for
-    the literal two characters ``\\p``, and once whitespace after the backslash
-    turned out to be an opener, ``{\\ p1}`` no longer contained that substring:
-    the file came back untouched and a full-screen overlay reached the disk.
-    One reading, one question — anything else is a hole shaped like a
-    performance optimisation.
-    """
-    if not contains_drawing_tag(text):
+    """Remove closed geometry per physical line, preserving line endings."""
+    if "\\" not in text:
         return text
-    return "\n".join(_strip_drawing_blocks_in_line(line) for line in text.split("\n"))
+    lines = []
+    for line in text.split("\n"):
+        body = line[:-1] if line.endswith("\r") else line
+        lines.append(_strip_drawing_blocks_in_line(body) + ("\r" if line.endswith("\r") else ""))
+    return "\n".join(lines)
 
 
 def sanitize_ass_content(content: bytes) -> bytes:
@@ -124,7 +93,7 @@ def sanitize_ass_content(content: bytes) -> bytes:
 
     Uses pysubs2 to parse and re-serialize (strips non-standard Script Info
     sections, Lua extensions, @import directives). Additionally strips dangerous
-    drawing-mode tag blocks via regex.
+    closed drawing geometry using the shared ASS lexer.
 
     Args:
         content: Raw ASS/SSA file bytes.
@@ -137,9 +106,9 @@ def sanitize_ass_content(content: bytes) -> bytes:
 
         text = content.decode("utf-8", errors="replace")
         subs = pysubs2.SSAFile.from_string(text)
+        for event in subs.events:
+            event.text = _strip_drawing_blocks_in_line(event.text)
         serialized = subs.to_string("ass")
-        # Strip drawing-mode blocks from the re-serialized output
-        serialized = strip_drawing_blocks(serialized)
         return serialized.encode("utf-8")
     except Exception as e:
         logger.warning("ASS sanitization failed, returning original: %s", e)

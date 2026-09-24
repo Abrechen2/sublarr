@@ -16,7 +16,8 @@ continues to work unchanged.
 import logging
 import re
 
-from ass_drawing import drawing_state_after, holds_language
+from ass_drawing import holds_language
+from ass_lexer import lex
 from ass_probe import (  # noqa: F401 — re-exported for back-compat
     extract_subtitle_stream,
     get_all_subtitle_streams,
@@ -151,17 +152,8 @@ def _text_runs(text):
     an opener without a closer runs to the end of this line rather than
     bleeding into the next one.
     """
-    runs = []
-    drawing = False
-    pos = 0
-    for match in OVERRIDE_TAG_RE.finditer(text):
-        if match.start() > pos:
-            runs.append((pos, match.start(), drawing))
-        drawing = drawing_state_after(match.group(0), drawing)
-        pos = match.end()
-    if pos < len(text):
-        runs.append((pos, len(text), drawing))
-    return runs
+    tokens, _closed = lex(text)
+    return [(t.start, t.end, t.drawing) for t in tokens if t.kind == "content"]
 
 
 def contains_drawing(text):

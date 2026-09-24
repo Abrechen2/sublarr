@@ -98,7 +98,7 @@ def test_content_beats_extension_ass_in_srt_file():
     written through untouched because the name said .srt."""
     content, ext = prepare_upload("evil.srt", _VALID_ASS_WITH_DRAWING)
     assert ext == "ass"
-    assert b"\\p1" not in content
-    assert b"\\p0" not in content
+    # The geometry goes; the now-empty switches stay, like every other override.
     assert b"m 0 0 l 100" not in content
+    assert b"{\\p1}{\\p0}Hello World!" in content
     assert b"Hello World" in content

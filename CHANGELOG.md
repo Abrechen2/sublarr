@@ -113,6 +113,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   it. The subtitle was saved with that line empty and the job still reported
   success. Both now read the tags the way the renderer does, and a malformed
   tag no longer costs the whole file its translation.
+- **Unusually written tags no longer hide dialogue.** Captions such as
+  `{\p1(0)}Good morning.` or a drawing tag inside an unknown or timed tag
+  render as normal text, but Sublarr took them for drawings: the line was
+  skipped, and in a file with other dialogue the saved translation lost it
+  while reporting success. A file made only of such lines was even marked as
+  having no dialogue and never retried. Translation and safety filter now read
+  these tags with one shared parser, checked against 783 renderer references.
+  When a drawing is removed, colour and position tags inside it are kept, so
+  the caption after it stays red or at the top where it belongs. A line the
+  parser cannot read safely is left in the source language and listed as
+  untranslated instead of being guessed.
+- **A single bad model answer costs one line, not the file.** If the model
+  answers a line with new formatting codes, that line stays in the source
+  language and is reported, and the rest of the file is saved translated.
+  Line breaks the model spells differently (`\n` or a real line break instead
+  of `\N`) are corrected, as before.
 - **A dead translation backend no longer costs one timeout per subtitle
   line.** The quality check consulted the backend's failure protection but
   never reported to it, so the protection could neither trip nor recover and

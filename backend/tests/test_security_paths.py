@@ -195,8 +195,7 @@ class TestSubtitleSanitizer:
             .encode()
         )
         result = sanitize_ass_content(drawing_ass)
-        assert b"\\p1" not in result
-        assert b"\\p0" not in result
+        assert b"{\\p1}{\\p0}" in result
         assert b"m 0 0 l 100" not in result
 
     def test_ass_unclosed_drawing_openers_do_not_stall(self):
