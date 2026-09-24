@@ -654,6 +654,14 @@
     "last_run": "Zuletzt: {{date}}"
   },
   "whatsnew": {
+    "v1145": {
+      "loop_title": "Eingebettete Untertitel werden nicht mehr endlos extrahiert",
+      "loop_desc": "Hatte eine Folge schon eine deutsche oder englische SRT und dieselbe Sprache zusätzlich als eingebettete Spur, wurde sie immer wieder „extrahiert“, ohne dass sich etwas änderte, und nie nach einem besseren Untertitel gesucht. Solche Folgen sind jetzt normale Upgrade-Kandidaten.",
+      "upgrade_title": "Upgrades ersetzen den echten Untertitel – und nur durch einen echten",
+      "upgrade_desc": "Ein Upgrade erkennt auch Untertitel mit alten Namen wie .ger.srt und ersetzt sie, statt einen zweiten daneben zu legen. Einen vorhandenen echten Untertitel ersetzt nur noch ein besserer Untertitel eines Anbieters, nie eine Maschinenübersetzung.",
+      "subsource_title": "SubSource-Schlüssel aus den Einstellungen wird benutzt",
+      "subsource_desc": "Ein in den Einstellungen eingetragener SubSource-Schlüssel bestand den Verbindungstest, wurde bei der Suche aber übergangen. Jetzt sucht SubSource damit, und der Schlüssel-Pool lässt sich wie bei den anderen Anbietern bearbeiten."
+    },
     "v1144": {
       "cleanup_title": "Sidecar-Bereinigung löscht keine gewünschten Untertitel mehr",
       "cleanup_desc": "Bei mehreren Zielsprachen einer Folge hat „Sidecars bereinigen“ auf der Wanted-Seite gewünschte Untertitel gegenseitig gelöscht. Jetzt zählen alle gewünschten Sprachen einer Folge, und entfernte Dateien landen im Papierkorb.",

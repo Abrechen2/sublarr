@@ -5,6 +5,43 @@ All notable changes to Sublarr are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.14.5] - 2026-09-24
+
+### Fixed
+- **Embedded subtitles are no longer "extracted" over and over.** When an
+  episode already had a German or English SRT next to it and the video also
+  carried the same language as an embedded SRT track, Sublarr treated the
+  embedded track as still to be extracted. The extraction found the file
+  already there, wrote nothing and reported success, and the next library scan
+  queued it again — on the reference install about 2 000 episodes, 2 500 times
+  a day, and none of them was ever searched for a better subtitle. An embedded
+  track now only counts when it adds something (an ASS next to an SRT, or any
+  track where no subtitle exists), and these episodes become ordinary upgrade
+  candidates.
+- **An upgrade replaces the subtitle it upgrades, whatever it is called.** A
+  subtitle saved under an old-style name (`.ger.srt`, `.eng.srt`) was not
+  recognised as the existing one: it was never considered for an upgrade, and
+  a new download landed next to it as a second subtitle in the same language.
+  The upgrade now scores, protects and backs up the file that is actually
+  there, and removes it when the better one arrives.
+- **A real subtitle is never replaced by a machine translation.** When no
+  better target-language ASS was found for an episode that already has a real
+  subtitle, the search went on into the translation steps and could add a
+  machine translation next to it (116 files on the reference install). An
+  upgrade now only ever happens through a genuine subtitle from a provider.
+- **A SubSource key entered in Settings is actually used (#207).** The key
+  passed the connection test but every real search skipped SubSource with "no
+  usable key in pool", because only keys in the provider's key pool were used
+  and nothing put the Settings key there. A provider without any pool keys now
+  searches with the key from Settings, and SubSource has a key pool editor like
+  the other key providers.
+
+### Upgrade notes
+- No database migration in this release.
+- On the next full library scan, episodes that were stuck in the extraction
+  loop become upgrade candidates and are searched for a better (ASS) subtitle
+  over the following days, within the usual provider limits.
+
 ## [1.14.4] - 2026-09-17
 
 ### Fixed

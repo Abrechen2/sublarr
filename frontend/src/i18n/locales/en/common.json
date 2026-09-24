@@ -654,6 +654,14 @@
     "last_run": "Last: {{date}}"
   },
   "whatsnew": {
+    "v1145": {
+      "loop_title": "Embedded subtitles are no longer extracted over and over",
+      "loop_desc": "An episode that already had a German or English SRT and the same language as an embedded track was \"extracted\" again and again without anything changing, and never searched for a better subtitle. Such episodes are now ordinary upgrade candidates.",
+      "upgrade_title": "Upgrades replace the real subtitle — and only with a real one",
+      "upgrade_desc": "An upgrade also recognises subtitles with old-style names such as .ger.srt and replaces them instead of adding a second one. An existing real subtitle is only ever replaced by a better one from a provider, never by a machine translation.",
+      "subsource_title": "The SubSource key from Settings is used",
+      "subsource_desc": "A SubSource key entered in Settings passed the connection test but was skipped by every search. SubSource now searches with it, and its key pool can be edited like the other providers'."
+    },
     "v1144": {
       "cleanup_title": "Sidecar cleanup no longer deletes wanted subtitles",
       "cleanup_desc": "With several target languages for an episode, \"Cleanup sidecars\" on the Wanted page deleted wanted subtitles of each other. Every wanted language of an episode now counts, and removed files go to the trash.",
