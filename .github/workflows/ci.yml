@@ -36,12 +36,21 @@ jobs:
               - '.github/workflows/ci.yml'
 
   # ─── Backend ─────────────────────────────────────────────────────────────
-  backend:
-    name: Backend (Python 3.12)
+  # The suite runs as four parallel shards (PYTEST_SHARD, see tests/conftest.py):
+  # one 4-core runner took 45 min for it. Lint and type checks run once, on
+  # shard 1. The job branch protection requires is the aggregate below.
+  backend-tests:
+    name: Backend tests (${{ matrix.shard }}/4)
     needs: changes
     if: needs.changes.outputs.backend == 'true' || github.event_name == 'workflow_call'
     runs-on: ubuntu-latest
-    timeout-minutes: 120
+    timeout-minutes: 60
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [1, 2, 3, 4]
+    env:
+      PYTEST_SHARD: ${{ matrix.shard }}/4
     steps:
       - uses: actions/checkout@v7
 
@@ -58,32 +67,38 @@ jobs:
           pip install -r requirements-dev.txt
 
       - name: Lint (ruff)
+        if: matrix.shard == 1
         working-directory: ./backend
         run: ruff check .
 
       - name: Format check (ruff)
+        if: matrix.shard == 1
         working-directory: ./backend
         run: ruff format --check .
 
       - name: Lint (is_safe_path arg-order)
+        if: matrix.shard == 1
         working-directory: ./backend
         run: |
           python tools/test_lint_is_safe_path.py
           python tools/lint_is_safe_path.py
 
       - name: Lint (no new env-loadable fields — UI-first convention)
+        if: matrix.shard == 1
         working-directory: ./backend
         run: |
           python tools/test_lint_no_new_env_fields.py
           python tools/lint_no_new_env_fields.py
 
       - name: Lint (no routes imports in services — layering)
+        if: matrix.shard == 1
         working-directory: ./backend
         run: |
           python tools/test_lint_no_routes_import_in_services.py
           python tools/lint_no_routes_import_in_services.py
 
       - name: Type check (mypy)
+        if: matrix.shard == 1
         working-directory: ./backend
         run: mypy . --config-file mypy.ini
         continue-on-error: true  # informational — not yet enforced
@@ -103,6 +118,17 @@ jobs:
             --ignore=tests/test_translation_backends.py \
             --ignore=tests/test_wanted_search_reliability.py \
             -k "not (test_sonarr_download_webhook or test_radarr_download_webhook or test_parse_llm_response_too_many_merge or test_record_backend_success)"
+
+  # The check branch protection requires, by this exact name. It passes only
+  # when every shard passed, and is skipped exactly when the shards are.
+  backend:
+    name: Backend (Python 3.12)
+    needs: [changes, backend-tests]
+    if: always() && (needs.changes.outputs.backend == 'true' || github.event_name == 'workflow_call')
+    runs-on: ubuntu-latest
+    steps:
+      - name: All shards passed
+        run: test "${{ needs.backend-tests.result }}" = success
 
   # ─── Frontend ─────────────────────────────────────────────────────────────
   # Node 24, not the 26 the Dockerfile builds with: on Node 26 jsdom leaves

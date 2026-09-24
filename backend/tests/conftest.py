@@ -436,3 +436,29 @@ def mock_requests(monkeypatch):
     monkeypatch.setattr(requests, "post", mock_post)
 
     return {"get": mock_get, "post": mock_post}
+
+
+def pytest_collection_modifyitems(config, items):
+    """Run only this CI shard's share of the suite (PYTEST_SHARD=i/n, 1-based).
+
+    The serial-per-runner suite took 45 min on a 4-core GitHub runner, so CI
+    splits it across parallel jobs. Assignment hashes the test id with crc32
+    (stable across processes, unlike ``hash()``), so every xdist worker and the
+    controller agree, and the shards partition the suite with no overlap.
+    Unset locally: nothing is deselected.
+    """
+    spec = os.environ.get("PYTEST_SHARD")
+    if not spec:
+        return
+    import zlib
+
+    index, total = (int(part) for part in spec.split("/"))
+    if not 1 <= index <= total:
+        raise pytest.UsageError(f"PYTEST_SHARD={spec!r}: expected i/n with 1 <= i <= n")
+    keep, drop = [], []
+    for item in items:
+        shard = zlib.crc32(item.nodeid.encode()) % total + 1
+        (keep if shard == index else drop).append(item)
+    if drop:
+        config.hook.pytest_deselected(items=drop)
+    items[:] = keep
