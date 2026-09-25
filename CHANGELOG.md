@@ -72,7 +72,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     searches than usual in the first week.
   Nothing is deleted. It cannot be undone — the old counts are not kept.
   Back up the database first if you want them. Measured on the RC
-  prod-mirror: N items changed.
+  prod-mirror: 3 187 of 9 041 wanted items changed.
 - tvsubtitles.net no longer resolves; disable the provider if you had it on.
 
 ## [1.14.5] - 2026-09-24
