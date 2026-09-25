@@ -254,6 +254,22 @@ def split_streams_by_keep_langs(
     return wanted, foreign
 
 
+def _record_extraction(video_path: str, language: str, fmt: str) -> None:
+    """Record an extracted sidecar in the download history (source="extraction").
+
+    The track variant policy only trusts sidecars with a history record; an
+    extraction without one could never make its embedded twin redundant.
+    """
+    try:
+        from db.providers import record_subtitle_download
+
+        record_subtitle_download(
+            "embedded", "extracted", language, fmt, video_path, 0, source="extraction"
+        )
+    except Exception:  # noqa: BLE001 — history is bookkeeping, never fail the extraction
+        logger.debug("extraction history record failed for %s", video_path, exc_info=True)
+
+
 def extract_streams(
     file_path: str,
     sub_streams: list[dict],
@@ -370,6 +386,7 @@ def extract_streams(
                 stream_info["language"],
                 out,
             )
+            _record_extraction(file_path, stream_info["language"], stream_info["format"])
             any_extracted = True
             seen_lang_fmt.add(lang_fmt)
             extracted.append(
