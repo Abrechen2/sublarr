@@ -106,6 +106,33 @@ class ForeignTrackScanRepository(BaseRepository):
             row.track_count = 0
         self._commit()
 
+    def mark_probed_verdicts(self, path: str, verdicts: list[dict]) -> None:
+        """Store the per-track verdicts from ``select_tracks`` and derive
+        state/foreign_langs/track_count from the stripped ones.
+
+        Superset of the legacy ``mark_probed``: it also persists
+        ``track_verdicts`` (Task 1's column) so a later strip can show or
+        re-derive per-track reasoning without re-probing.
+        """
+        stripped = [v for v in verdicts if not v["keep"]]
+        row = self._get(path)
+        if row is None:
+            logger.warning("mark_probed_verdicts: no row for path %s, ignoring", path)
+            return
+        row.probed_at = self._now()
+        row.error = None
+        row.error_class = None
+        row.track_verdicts = json.dumps(verdicts)
+        if stripped:
+            row.state = STATE_AFFECTED
+            row.foreign_langs = json.dumps(sorted({v["language"] for v in stripped}))
+            row.track_count = len(stripped)
+        else:
+            row.state = STATE_CLEAN
+            row.foreign_langs = None
+            row.track_count = 0
+        self._commit()
+
     def claim_next_affected(self) -> ForeignTrackScan | None:
         """Move one affected row to ``stripping`` and return it.
 
@@ -220,6 +247,7 @@ class ForeignTrackScanRepository(BaseRepository):
                 "path": r.path,
                 "tracks": r.track_count,
                 "langs": json.loads(r.foreign_langs) if r.foreign_langs else [],
+                "verdicts": json.loads(r.track_verdicts) if r.track_verdicts else [],
             }
             for r in rows
         ]

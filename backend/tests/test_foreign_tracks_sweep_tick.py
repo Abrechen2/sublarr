@@ -160,11 +160,15 @@ def test_probe_classifies_files_and_the_affected_one_gets_stripped(
     repo.upsert_seen("/media/b.mkv", 10, 1.0, generation=1)
     monkeypatch.setattr(sw, "iter_video_files", lambda *a, **k: iter([]))
     probes = {
-        "/media/a.mkv": {"streams": [{"codec_type": "subtitle", "tags": {"language": "spa"}}]},
-        "/media/b.mkv": {"streams": [{"codec_type": "subtitle", "tags": {"language": "ger"}}]},
+        "/media/a.mkv": {
+            "streams": [{"index": 1, "codec_type": "subtitle", "tags": {"language": "spa"}}]
+        },
+        "/media/b.mkv": {
+            "streams": [{"index": 1, "codec_type": "subtitle", "tags": {"language": "ger"}}]
+        },
     }
     monkeypatch.setattr(sw, "_probe_file", lambda path: probes[path])
-    monkeypatch.setattr(sw, "_strip_file", lambda path, keep, keep_und: ("/trash/a.bak", 5))
+    monkeypatch.setattr(sw, "_strip_file", lambda path, keep, keep_und, **kw: ("/trash/a.bak", 5))
     sw.run_slice(str(tmp_path), CFG, budget_s=60, now_fn=FakeClock(), repo=repo)
     counts = repo.counts_by_state()
     assert counts[ft.STATE_STRIPPED] == 1
@@ -232,7 +236,7 @@ def test_strip_marks_rows_stripped(app, repo, tmp_path, monkeypatch):
     repo.upsert_seen("/media/a.mkv", 10, 1.0, generation=1)
     repo.mark_probed("/media/a.mkv", ["spa"])
     monkeypatch.setattr(sw, "iter_video_files", lambda *a, **k: iter([]))
-    monkeypatch.setattr(sw, "_strip_file", lambda path, keep, keep_und: ("/trash/a.bak", 5))
+    monkeypatch.setattr(sw, "_strip_file", lambda path, keep, keep_und, **kw: ("/trash/a.bak", 5))
     result = sw.run_slice(str(tmp_path), CFG, budget_s=60, now_fn=FakeClock(), repo=repo)
     assert repo.counts_by_state()[ft.STATE_STRIPPED] == 1
     assert result["stripped_files"] == 1
@@ -260,7 +264,7 @@ def test_stop_request_ends_the_strip_slice_like_the_budget(app, repo, tmp_path, 
     event = threading.Event()
     stripped: list[str] = []
 
-    def fake_strip(path, keep_languages, keep_und):
+    def fake_strip(path, keep_languages, keep_und, **kwargs):
         stripped.append(path)
         event.set()  # the stop arrives while the first remux is in flight
         return ("/trash/a.bak", 5)
@@ -337,7 +341,7 @@ def test_abandoned_stripping_rows_are_released_on_the_next_slice(app, repo, tmp_
     repo.mark_probed("/media/a.mkv", ["spa"])
     repo.claim_next_affected()
     monkeypatch.setattr(sw, "iter_video_files", lambda *a, **k: iter([]))
-    monkeypatch.setattr(sw, "_strip_file", lambda path, keep, keep_und: ("/trash/a.bak", 5))
+    monkeypatch.setattr(sw, "_strip_file", lambda path, keep, keep_und, **kw: ("/trash/a.bak", 5))
     sw.run_slice(str(tmp_path), CFG, budget_s=60, now_fn=FakeClock(), repo=repo)
     assert repo.counts_by_state()[ft.STATE_STRIPPED] == 1
 
@@ -352,9 +356,11 @@ def test_one_slice_chains_enumerate_probe_and_strip_to_idle(app, repo, tmp_path,
     monkeypatch.setattr(
         sw,
         "_probe_file",
-        lambda path: {"streams": [{"codec_type": "subtitle", "tags": {"language": "spa"}}]},
+        lambda path: {
+            "streams": [{"index": 1, "codec_type": "subtitle", "tags": {"language": "spa"}}]
+        },
     )
-    monkeypatch.setattr(sw, "_strip_file", lambda path, keep, keep_und: ("/trash/a.bak", 5))
+    monkeypatch.setattr(sw, "_strip_file", lambda path, keep, keep_und, **kw: ("/trash/a.bak", 5))
     result = sw.run_slice(str(tmp_path), CFG, budget_s=60, now_fn=FakeClock(), repo=repo)
     assert result["phase"] == PHASE_IDLE
     assert result["stripped_files"] == 1
@@ -377,7 +383,9 @@ def test_absent_keep_und_inherits_the_global_true(app, repo, tmp_path, monkeypat
     monkeypatch.setattr(
         sw,
         "_probe_file",
-        lambda path: {"streams": [{"codec_type": "subtitle", "tags": {"language": "und"}}]},
+        lambda path: {
+            "streams": [{"index": 1, "codec_type": "subtitle", "tags": {"language": "und"}}]
+        },
     )
     monkeypatch.setattr(
         "config.get_settings",
@@ -398,9 +406,11 @@ def test_explicit_keep_und_false_beats_a_true_global(app, repo, tmp_path, monkey
     monkeypatch.setattr(
         sw,
         "_probe_file",
-        lambda path: {"streams": [{"codec_type": "subtitle", "tags": {"language": "und"}}]},
+        lambda path: {
+            "streams": [{"index": 1, "codec_type": "subtitle", "tags": {"language": "und"}}]
+        },
     )
-    monkeypatch.setattr(sw, "_strip_file", lambda path, keep, keep_und: ("/trash/a.bak", 5))
+    monkeypatch.setattr(sw, "_strip_file", lambda path, keep, keep_und, **kw: ("/trash/a.bak", 5))
     monkeypatch.setattr(
         "config.get_settings",
         lambda: SimpleNamespace(cleanup_foreign_tracks_keep_und=True),
@@ -418,9 +428,11 @@ def test_absent_keep_languages_inherits_the_global_list(app, repo, tmp_path, mon
     monkeypatch.setattr(
         sw,
         "_probe_file",
-        lambda path: {"streams": [{"codec_type": "subtitle", "tags": {"language": "spa"}}]},
+        lambda path: {
+            "streams": [{"index": 1, "codec_type": "subtitle", "tags": {"language": "spa"}}]
+        },
     )
-    monkeypatch.setattr(sw, "_strip_file", lambda path, keep, keep_und: ("/trash/a.bak", 5))
+    monkeypatch.setattr(sw, "_strip_file", lambda path, keep, keep_und, **kw: ("/trash/a.bak", 5))
     monkeypatch.setattr(
         "config.get_settings",
         lambda: SimpleNamespace(
@@ -631,9 +643,11 @@ def test_global_keep_languages_change_resets_cached_verdicts_for_an_empty_rule_c
     monkeypatch.setattr(
         sw,
         "_probe_file",
-        lambda path: {"streams": [{"codec_type": "subtitle", "tags": {"language": "spa"}}]},
+        lambda path: {
+            "streams": [{"index": 1, "codec_type": "subtitle", "tags": {"language": "spa"}}]
+        },
     )
-    monkeypatch.setattr(sw, "_strip_file", lambda path, keep, keep_und: ("/trash/a.bak", 5))
+    monkeypatch.setattr(sw, "_strip_file", lambda path, keep, keep_und, **kw: ("/trash/a.bak", 5))
 
     monkeypatch.setattr(
         "config.get_settings",

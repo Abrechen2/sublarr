@@ -243,11 +243,15 @@ def test_repeated_slices_converge_to_idle_over_real_files(app, tmp_path, monkeyp
     monkeypatch.setattr(
         sw,
         "_probe_file",
-        lambda p: {"streams": [{"codec_type": "subtitle", "tags": {"language": "spa"}}]},
+        lambda p: {
+            "streams": [{"index": 1, "codec_type": "subtitle", "tags": {"language": "spa"}}]
+        },
     )
     stripped = []
     monkeypatch.setattr(
-        sw, "_strip_file", lambda p, keep, keep_und: (stripped.append(p), ("/trash.bak", 7))[1]
+        sw,
+        "_strip_file",
+        lambda p, keep, keep_und, **kw: (stripped.append(p), ("/trash.bak", 7))[1],
     )
 
     cfg = {"keep_languages": ["de", "en"], "keep_und": True, "min_free_gb": 0}

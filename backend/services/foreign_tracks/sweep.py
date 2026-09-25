@@ -13,7 +13,8 @@ from datetime import UTC, datetime
 
 from db.models.foreign_tracks import ERROR_PROBE, ERROR_REMUX, ERROR_VERIFY
 from services.foreign_tracks.enumerate import iter_video_files, sweep_stale_temp_files
-from services.foreign_tracks.probe import expand_keep_languages, foreign_languages
+from services.foreign_tracks.policy import override_paths, policy_for_path, policy_from_settings
+from services.foreign_tracks.probe import expand_keep_languages
 from services.foreign_tracks.state import (
     PHASE_ENUMERATE,
     PHASE_IDLE,
@@ -55,12 +56,22 @@ def _probe_file(path: str) -> dict:
     return get_media_streams(path)
 
 
-def _strip_file(path: str, keep_languages: set[str], keep_und: bool) -> tuple[str | None, int]:
+def _strip_file(
+    path: str,
+    keep_languages: set[str],
+    keep_und: bool,
+    policy=None,
+    real_sidecar_langs: set[str] | None = None,
+) -> tuple[str | None, int]:
     """Rewrite one file. Returns ``(backup_path, bytes_freed)``.
 
     ``remove_foreign_subtitle_streams`` re-probes the file itself and returns
     None when nothing foreign remains, which is what makes a retry after a
-    crash-between-replace-and-commit a harmless no-op.
+    crash-between-replace-and-commit a harmless no-op — and also what makes
+    it safe to pass the per-file ``policy``/``real_sidecar_langs`` here even
+    though the probe phase decided under a possibly-stale policy: strip
+    re-decides from the current file contents, it never trusts the cached
+    verdict.
     """
     from remux import remove_foreign_subtitle_streams
 
@@ -69,13 +80,48 @@ def _strip_file(path: str, keep_languages: set[str], keep_und: bool) -> tuple[st
     except OSError:
         size_before = 0
     backup = remove_foreign_subtitle_streams(
-        video_path=path, target_languages=keep_languages, keep_und=keep_und
+        video_path=path,
+        target_languages=keep_languages,
+        keep_und=keep_und,
+        policy=policy,
+        real_sidecar_langs=real_sidecar_langs,
     )
     try:
         freed = max(0, size_before - os.path.getsize(path))
     except OSError:
         freed = 0
     return backup, freed
+
+
+def _real_sidecars_for_policy(path: str, keep_languages, policy) -> set[str]:
+    """Real sidecar languages for ``path``, or empty when policy B is not in play.
+
+    ``select_tracks`` (and ``remove_foreign_subtitle_streams``) ignore
+    ``real_sidecar_langs`` under every policy except ``SIDECAR_DROP``, so a
+    lookup that hits the DB and the filesystem would be pure waste there.
+    """
+    from services.foreign_tracks.select import SIDECAR_DROP
+
+    if policy.sidecar_policy != SIDECAR_DROP:
+        return set()
+
+    from config_language_data import normalize_language_code
+    from services.foreign_tracks.sidecars import real_sidecar_languages
+
+    codes = {normalize_language_code(t) for t in keep_languages} - {""}
+    return real_sidecar_languages(path, codes)
+
+
+def _verdicts_for(path, probe, keep_languages, keep_und, policy) -> list[dict]:
+    """Per-track keep/strip verdicts for one probed file, under its
+    resolved per-file policy (global or series/movie override)."""
+    from services.foreign_tracks.select import select_tracks
+
+    real = _real_sidecars_for_policy(path, keep_languages, policy)
+    return [
+        v.to_dict()
+        for v in select_tracks(probe.get("streams", []), policy, keep_languages, keep_und, real)
+    ]
 
 
 def _free_bytes(root: str) -> int:
@@ -171,6 +217,11 @@ def _run_slice_locked(media_root: str, config: dict, budget_s: int, now_fn, repo
         raw_keep_und = getattr(settings, "cleanup_foreign_tracks_keep_und", False)
     keep_und = bool(raw_keep_und)
 
+    # Resolved once per slice: `override_paths()` makes a live Sonarr/Radarr
+    # call per series/movie override, so it must never be called per file.
+    default_policy = policy_from_settings(settings)
+    overrides = override_paths()
+
     state = load_state()
 
     # Hash the RESOLVED configured codes, not the raw rule config, and not
@@ -184,7 +235,7 @@ def _run_slice_locked(media_root: str, config: dict, budget_s: int, now_fn, repo
     hashed_config = dict(config)
     hashed_config["keep_languages"] = raw_keep
     hashed_config["keep_und"] = keep_und
-    current_hash = config_hash(hashed_config, media_root)
+    current_hash = config_hash(hashed_config, media_root, default_policy)
     if state.config_hash and state.config_hash != current_hash:
         reset = repo.reset_all_to_pending()
         logger.info("foreign_track_sweep: config changed — reset %d cached verdicts", reset)
@@ -213,12 +264,33 @@ def _run_slice_locked(media_root: str, config: dict, budget_s: int, now_fn, repo
         save_state(state)
 
     if state.phase == PHASE_PROBE:
-        _probe_phase(media_root, state, repo, keep_languages, keep_und, deadline, now_fn, result)
+        _probe_phase(
+            media_root,
+            state,
+            repo,
+            keep_languages,
+            keep_und,
+            default_policy,
+            overrides,
+            deadline,
+            now_fn,
+            result,
+        )
         save_state(state)
 
     if state.phase == PHASE_STRIP:
         _strip_phase(
-            media_root, config, state, repo, keep_languages, keep_und, deadline, now_fn, result
+            media_root,
+            config,
+            state,
+            repo,
+            keep_languages,
+            keep_und,
+            default_policy,
+            overrides,
+            deadline,
+            now_fn,
+            result,
         )
         save_state(state)
 
@@ -294,7 +366,16 @@ def _enumerate(media_root: str, config: dict, state, repo) -> None:
 
 
 def _probe_phase(
-    media_root, state, repo, keep_languages, keep_und, deadline, now_fn, result
+    media_root,
+    state,
+    repo,
+    keep_languages,
+    keep_und,
+    default_policy,
+    overrides,
+    deadline,
+    now_fn,
+    result,
 ) -> None:
     if not _media_root_reachable(media_root):
         state.paused_reason = f"media root unreachable: {media_root}"
@@ -327,12 +408,24 @@ def _probe_phase(
                     return
                 continue
             consecutive_failures = 0
-            repo.mark_probed(row.path, foreign_languages(probe, keep_languages, keep_und))
+            file_policy = policy_for_path(row.path, overrides, default_policy)
+            verdicts = _verdicts_for(row.path, probe, keep_languages, keep_und, file_policy)
+            repo.mark_probed_verdicts(row.path, verdicts)
             result["probed"] += 1
 
 
 def _strip_phase(
-    media_root, config, state, repo, keep_languages, keep_und, deadline, now_fn, result
+    media_root,
+    config,
+    state,
+    repo,
+    keep_languages,
+    keep_und,
+    default_policy,
+    overrides,
+    deadline,
+    now_fn,
+    result,
 ) -> None:
     if not _media_root_reachable(media_root):
         # A sweep can resume directly at PHASE_STRIP on a later tick —
@@ -368,8 +461,16 @@ def _strip_phase(
                 state.completed_at = _now_iso()
             return
 
+        file_policy = policy_for_path(row.path, overrides, default_policy)
+        real_sidecar_langs = _real_sidecars_for_policy(row.path, keep_languages, file_policy)
         try:
-            backup, freed = _strip_file(row.path, keep_languages, keep_und)
+            backup, freed = _strip_file(
+                row.path,
+                keep_languages,
+                keep_und,
+                policy=file_policy,
+                real_sidecar_langs=real_sidecar_langs,
+            )
         except Exception as exc:  # noqa: BLE001 — record and move on
             error_class = ERROR_VERIFY if "verif" in str(exc).lower() else ERROR_REMUX
             repo.mark_failed(row.path, str(exc), error_class)

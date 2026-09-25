@@ -149,4 +149,6 @@ def test_sample_affected_reports_paths_and_languages(repo):
     repo.upsert_seen("/media/a.mkv", 1, 1.0, generation=1)
     repo.mark_probed("/media/a.mkv", ["spa", "ita"])
     sample = repo.sample_affected(limit=5)
-    assert sample == [{"path": "/media/a.mkv", "tracks": 2, "langs": ["ita", "spa"]}]
+    assert sample == [
+        {"path": "/media/a.mkv", "tracks": 2, "langs": ["ita", "spa"], "verdicts": []}
+    ]
