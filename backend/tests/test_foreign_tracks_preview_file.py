@@ -10,6 +10,8 @@ test here also pins that they actually agree for the same item.
 from types import SimpleNamespace
 from unittest.mock import MagicMock, patch
 
+import pytest
+
 
 def test_preview_lists_every_track_with_its_reason(client, tmp_path, monkeypatch):
     video = tmp_path / "e1.mkv"
@@ -65,6 +67,78 @@ def test_preview_never_remuxes(client, tmp_path, monkeypatch):
         client.post("/api/v1/foreign-tracks/preview-file", json={"path": str(video)})
     assert not strip.called
     assert not strip_foreign.called
+
+
+@pytest.mark.parametrize(
+    "body",
+    [
+        {"series_id": "abc"},
+        {"series_id": -1},
+        {"series_id": 3.5},
+        {"series_id": [1, 2]},
+        {"series_id": True},  # JSON true -- bool is an int subclass, must not bind as id 1
+        {"movie_id": "abc"},
+        {"movie_id": -1},
+        {"movie_id": 3.5},
+        {"movie_id": [1, 2]},
+        {"movie_id": False},  # JSON false -- must not silently resolve as "no id"
+        {"series_id": 1, "movie_id": 1},  # mutually exclusive
+        {"path": 123},  # non-string path
+        {"path": ""},  # empty string path
+    ],
+)
+def test_preview_rejects_invalid_series_or_movie_ids(client, tmp_path, monkeypatch, body):
+    video = tmp_path / "e1.mkv"
+    video.write_bytes(b"v")
+    monkeypatch.setattr("routes.foreign_tracks_preview.is_safe_path", lambda *a, **k: True)
+    payload = {"path": str(video), **body}
+    with patch("remux.get_media_streams", return_value={"streams": []}):
+        resp = client.post("/api/v1/foreign-tracks/preview-file", json=payload)
+    assert resp.status_code == 400, f"body={body!r} got {resp.status_code}: {resp.get_json()}"
+
+
+def test_preview_accepts_valid_series_id_and_resolves_the_override(client, tmp_path, monkeypatch):
+    from services.foreign_tracks.select import TrackPolicy
+
+    video = tmp_path / "e1.mkv"
+    video.write_bytes(b"v")
+    monkeypatch.setattr("routes.foreign_tracks_preview.is_safe_path", lambda *a, **k: True)
+    override_policy = TrackPolicy(mode="one_per_language", keep_sdh=True)
+    with (
+        patch("remux.get_media_streams", return_value={"streams": []}),
+        patch(
+            "services.foreign_tracks.policy.resolve_policy", return_value=override_policy
+        ) as resolve,
+    ):
+        resp = client.post(
+            "/api/v1/foreign-tracks/preview-file",
+            json={"path": str(video), "series_id": 42},
+        )
+    assert resp.status_code == 200
+    resolve.assert_called_once_with(series_id=42, movie_id=None)
+    assert resp.get_json()["policy"]["mode"] == "one_per_language"
+    assert resp.get_json()["policy"]["keep_sdh"] is True
+
+
+def test_preview_accepts_valid_movie_id_and_resolves_the_override(client, tmp_path, monkeypatch):
+    from services.foreign_tracks.select import TrackPolicy
+
+    video = tmp_path / "e1.mkv"
+    video.write_bytes(b"v")
+    monkeypatch.setattr("routes.foreign_tracks_preview.is_safe_path", lambda *a, **k: True)
+    override_policy = TrackPolicy(mode="one_per_language")
+    with (
+        patch("remux.get_media_streams", return_value={"streams": []}),
+        patch(
+            "services.foreign_tracks.policy.resolve_policy", return_value=override_policy
+        ) as resolve,
+    ):
+        resp = client.post(
+            "/api/v1/foreign-tracks/preview-file",
+            json={"path": str(video), "movie_id": 7},
+        )
+    assert resp.status_code == 200
+    resolve.assert_called_once_with(series_id=None, movie_id=7)
 
 
 def test_preview_and_hook_reach_the_same_keep_set(client, tmp_path, monkeypatch):
