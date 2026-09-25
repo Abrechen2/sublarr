@@ -29,14 +29,20 @@ What this rewrites, for ``status='wanted'`` rows with ``failure_kind`` in
    hours) so the whole cohort does not hit the providers in one tick.
 
 Rows are only rewritten, never deleted. A later genuine miss re-charges the
-count normally. Not reversible: the old counts are not kept.
+count normally. Not reversible: the old counts are not kept. Not idempotent
+either — a second run would refund again — so it relies on running once:
+Alembic records the revision, and ``untracked_data_repairs`` writes its
+marker in the same transaction as the repair.
+
+Forced items were charged the same way, but they never had a decision log
+(the forced branch ran before it started), so they cannot be told apart and
+are left as they are. The writer is closed for them in the same release.
 
 Revision ID: wq1_refund_unanswered
 Revises: tm5_quality_score
 """
 
 import json
-import os
 from datetime import UTC, datetime, timedelta
 
 import sqlalchemy as sa
@@ -65,14 +71,18 @@ _wanted = sa.table(
 
 
 def configured_max_attempts(conn) -> int:
-    """``wanted_max_search_attempts`` as the app resolves it: DB, env, default."""
+    """``wanted_max_search_attempts`` as the app resolves it.
+
+    A UI-only setting: ``config_entries`` then the default. The
+    ``SUBLARR_WANTED_MAX_SEARCH_ATTEMPTS`` env var is ignored at runtime and
+    must be ignored here too.
+    """
     inspector = sa.inspect(conn)
     raw = None
     if "config_entries" in inspector.get_table_names():
         raw = conn.execute(
             sa.text("SELECT value FROM config_entries WHERE key = 'wanted_max_search_attempts'")
         ).scalar()
-    raw = raw or os.environ.get("SUBLARR_WANTED_MAX_SEARCH_ATTEMPTS")
     try:
         value = int(str(raw).strip().strip('"'))
     except (TypeError, ValueError):

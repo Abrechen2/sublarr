@@ -147,3 +147,32 @@ class TestProcessWantedItem:
         assert item["failure_kind"] == "provider_error"
         assert (item.get("search_count") or 0) == 0
         assert item["error_count"] == 1
+
+
+def test_forced_items_keep_the_search_budget_too(app_ctx, monkeypatch, tmp_path):
+    """Forced items branch off before the steps; the tracker must cover them."""
+    from db.models.core import WantedItem
+    from extensions import db
+    from wanted_search import process_wanted_item
+
+    mkv = tmp_path / "ep.mkv"
+    mkv.touch()
+    item_id, _ = upsert_wanted_item(item_type="episode", file_path=str(mkv), target_language="de")
+    row = db.session.get(WantedItem, item_id)
+    row.subtitle_type = "forced"
+    db.session.commit()
+
+    def _all_rate_limited(*_a, **_kw):
+        decision_log.provider_skipped("opensubtitles", "rate_limited")
+        return None
+
+    mgr = MagicMock()
+    mgr.search.side_effect = lambda *a, **kw: (_all_rate_limited(), [])[1]
+    mgr.search_and_download_best.side_effect = _all_rate_limited
+    monkeypatch.setattr("wanted_search.process.get_provider_manager", lambda: mgr)
+
+    process_wanted_item(item_id)
+
+    item = get_wanted_item(item_id)
+    assert item["failure_kind"] == "provider_error"
+    assert (item.get("search_count") or 0) == 0

@@ -1320,6 +1320,10 @@ def process_wanted_item(
     # invisible to every future run. The finally-net below restores the
     # pre-flip status on any exit (stop, exception, forgotten path) that
     # would otherwise strand the row (prod 2026-08-19: 7,878 stranded rows).
+    # Always on, unlike the decision log, and wrapping the forced branch too:
+    # record_search_outcome reads it to tell a genuine miss from a search no
+    # provider answered.
+    reach_token = provider_reach.start()
     try:
         return _search_flipped_item(
             item,
@@ -1334,6 +1338,7 @@ def process_wanted_item(
             target_on_disk_is_mt=bypass_existing_target_check,
         )
     finally:
+        provider_reach.finish(reach_token)
         _restore_if_left_searching(item_id, prior_status)
 
 
@@ -1430,16 +1435,12 @@ def _search_flipped_item(
     _dlog_enabled = getattr(settings, "decision_log_enabled", True)
     if _dlog_enabled:
         decision_log.start(item)
-    # Always on, unlike the decision log: record_search_outcome reads it to
-    # tell a genuine miss from a search no provider answered.
-    reach_token = provider_reach.start()
     try:
         result = _run_search_steps(ctx)
         if _dlog_enabled:
             _finalize_decision_log(item_id, result, dry_run)
         return result
     finally:
-        provider_reach.finish(reach_token)
         decision_log.finish()
 
 
