@@ -255,19 +255,40 @@ def split_streams_by_keep_langs(
 
 
 def _record_extraction(video_path: str, language: str, fmt: str) -> None:
-    """Record an extracted sidecar in the download history (source="extraction").
+    """Record an extracted sidecar's origin (source="extraction").
 
-    The track variant policy only trusts sidecars with a history record; an
-    extraction without one could never make its embedded twin redundant.
+    Recorded in ``sidecar_origins``, NOT ``subtitle_downloads`` (owner ruling
+    2026-09-25): the latter backs dashboard counts, average score, usage
+    stats and history — thousands of extraction rows a day would skew every
+    one of them. The track variant policy only trusts sidecars with an
+    origin record; an extraction without one could never make its embedded
+    twin redundant.
     """
     try:
-        from db.providers import record_subtitle_download
+        from datetime import UTC, datetime
 
-        record_subtitle_download(
-            "embedded", "extracted", language, fmt, video_path, 0, source="extraction"
+        from db.models.providers import SidecarOrigin
+        from extensions import db
+
+        db.session.add(
+            SidecarOrigin(
+                video_path=video_path,
+                language=language,
+                origin="extraction",
+                recorded_at=datetime.now(UTC),
+            )
         )
-    except Exception:  # noqa: BLE001 — history is bookkeeping, never fail the extraction
-        logger.debug("extraction history record failed for %s", video_path, exc_info=True)
+        db.session.commit()
+    except Exception as exc:
+        try:
+            from extensions import db as _db
+
+            _db.session.rollback()
+        except Exception:
+            pass
+        # Bookkeeping only — never fail the extraction over it, but a
+        # warning (not debug) so a persistently broken write is visible.
+        logger.warning("extraction origin record failed for %s: %s", video_path, exc)
 
 
 def extract_streams(

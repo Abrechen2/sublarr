@@ -30,6 +30,7 @@ def test_columns_exist_on_an_untracked_database(temp_db):
                 "cleanup_sidecar_policy",
             } <= cols
         assert "track_verdicts" in {c["name"] for c in insp.get_columns("foreign_track_scan")}
+        assert "sidecar_origins" in insp.get_table_names()
 
 
 def test_series_override_wins_over_global(app_ctx):
