@@ -26,6 +26,11 @@ _ERROR_BACKOFF_TABLE: list[timedelta] = [
     timedelta(days=30),  # 5th+ error (cap)
 ]
 
+#: Fixed retry for a search where every unanswered provider was unavailable
+#: only for our own limits (budget, request window, cooling key pool) — the
+#: provider side is fine, so this must not ride the escalating error curve.
+OWN_LIMIT_RETRY_HOURS = 6
+
 
 def compute_retry_after_for_error(error_count: int, now: datetime) -> datetime:
     """Pure function: return ``now + backoff`` for the N-th provider error.
@@ -85,16 +90,31 @@ def record_search_outcome(
     # circular dependency (db.wanted imports repositories which import models
     # which pull in extensions which can transitively touch services).
     from db.wanted import get_wanted_item, update_wanted_search_outcome
-    from provider_reach import unanswered_summary
+    from provider_reach import unanswered_by_own_limits_only, unanswered_summary
 
+    own_limits_only = False
     if kind == "no_result":
         # A search no provider answered is not a miss (prod 2026-09-25: 90 %
         # of slow-mode items got there on searches where every provider was
         # skipped as rate-limited/budget-exhausted). Book it as the transient
-        # fault it is, so it keeps its search budget.
+        # fault it is, so it keeps its search budget. When every unanswered
+        # provider was skipped only for our own limits (budget, request
+        # window, cooling key pool), the provider side is fine — that must
+        # not escalate the error backoff either (prod 2026-09-25: one run
+        # left ~1 830 items "No provider answered" on our own budget alone).
         unanswered = unanswered_summary()
         if unanswered:
-            kind, error_message = "provider_error", unanswered
+            own_limits_only = unanswered_by_own_limits_only()
+            kind, error_message = (
+                "provider_error",
+                (
+                    unanswered.replace(
+                        "No provider answered:", "No provider answered (own limits):", 1
+                    )
+                    if own_limits_only
+                    else unanswered
+                ),
+            )
 
     now = datetime.now(UTC)
     settings = get_settings()
@@ -108,6 +128,18 @@ def record_search_outcome(
         return
 
     if kind in ("provider_error", "file_missing", "translation_error"):
+        if own_limits_only:
+            # Our own limits, not a provider fault: fixed retry, no
+            # error_count charge — an exhausted daily budget must not push
+            # an item toward the 30-day cap on its own.
+            update_wanted_search_outcome(
+                item_id,
+                failure_kind="provider_error",
+                retry_after=now + timedelta(hours=OWN_LIMIT_RETRY_HOURS),
+                last_error_at=now,
+                error=(error_message[:500] if error_message else None),
+            )
+            return
         # All three are environment faults, not misses: the providers were
         # never meaningfully asked, so none burns ``search_count``. They share
         # the error-side backoff curve; ``failure_kind`` keeps them apart so

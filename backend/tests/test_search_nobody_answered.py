@@ -46,6 +46,9 @@ def tracking():
 
 class TestOutcomeBooking:
     def test_all_providers_rate_limited_is_a_provider_error(self, mock_db, tracking):
+        """``rate_limited`` + ``budget_exhausted`` are both own-limit reasons
+        (see ``TestOwnLimitsDoNotEscalate``), so this is a fixed 6h retry with
+        no ``error_count`` charge — not the escalating curve."""
         decision_log.provider_skipped("opensubtitles", "rate_limited")
         decision_log.provider_skipped("subdl", "budget_exhausted", detail="500/500")
 
@@ -53,7 +56,7 @@ class TestOutcomeBooking:
 
         kwargs = mock_db.call_args.kwargs
         assert kwargs["failure_kind"] == "provider_error"
-        assert kwargs["error_count_increment"] == 1
+        assert "error_count_increment" not in kwargs
         assert "search_count_increment" not in kwargs
         assert "opensubtitles" in kwargs["error"] and "rate_limited" in kwargs["error"]
         delta = kwargs["retry_after"] - datetime.now(UTC)
@@ -146,7 +149,9 @@ class TestProcessWantedItem:
         assert item["status"] == "wanted"
         assert item["failure_kind"] == "provider_error"
         assert (item.get("search_count") or 0) == 0
-        assert item["error_count"] == 1
+        # Both providers were rate_limited: a pure own-limit miss, so
+        # error_count is not charged either (fixed 6h retry instead).
+        assert item["error_count"] == 0
 
 
 def test_forced_items_keep_the_search_budget_too(app_ctx, monkeypatch, tmp_path):
@@ -184,3 +189,45 @@ def test_a_cooling_key_pool_is_not_an_answer(mock_db, tracking):
     record_search_outcome(7, kind="no_result")
 
     assert mock_db.call_args.kwargs["failure_kind"] == "provider_error"
+
+
+class TestOwnLimitsDoNotEscalate:
+    def test_budget_only_gets_a_fixed_retry_without_error_count(self, mock_db, tracking):
+        mock_db.return_value = True
+        decision_log.provider_skipped("opensubtitles", "budget_exhausted")
+        decision_log.provider_skipped("subdl", "rate_limited")
+
+        record_search_outcome(7, kind="no_result")
+
+        kwargs = mock_db.call_args.kwargs
+        assert kwargs["failure_kind"] == "provider_error"
+        assert "error_count_increment" not in kwargs
+        assert "search_count_increment" not in kwargs
+        assert "own limits" in kwargs["error"]
+        delta = kwargs["retry_after"] - datetime.now(UTC)
+        assert timedelta(hours=5, minutes=59) < delta < timedelta(hours=6, minutes=1)
+
+    def test_a_provider_fault_keeps_the_escalating_backoff(self, mock_db, tracking):
+        decision_log.provider_skipped("opensubtitles", "budget_exhausted")
+        decision_log.provider_skipped("animetosho", "auto_disabled")
+
+        record_search_outcome(7, kind="no_result")
+
+        kwargs = mock_db.call_args.kwargs
+        assert kwargs["error_count_increment"] == 1
+        assert "own limits" not in kwargs["error"]
+
+    def test_a_high_error_count_does_not_stretch_an_own_limit_retry(
+        self, mock_db, tracking, monkeypatch
+    ):
+        monkeypatch.setattr(
+            "db.wanted.get_wanted_item",
+            lambda _id: {"id": 7, "error_count": 4, "search_count": 1},
+            raising=True,
+        )
+        decision_log.provider_skipped("opensubtitles", "budget_exhausted")
+
+        record_search_outcome(7, kind="no_result")
+
+        delta = mock_db.call_args.kwargs["retry_after"] - datetime.now(UTC)
+        assert delta < timedelta(hours=6, minutes=1)

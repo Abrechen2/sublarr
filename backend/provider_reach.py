@@ -74,3 +74,23 @@ def unanswered_summary() -> str | None:
     if reach is None or reach.answered or not reach.unavailable:
         return None
     return "No provider answered: " + ", ".join(dict.fromkeys(reach.unavailable))
+
+
+#: Unavailable only because of Sublarr's own limits — the provider is fine, our
+#: budget or request window is spent. Such a search must not escalate the backoff.
+OWN_LIMIT_REASONS = frozenset({"budget_exhausted", "rate_limited", "pool_cooling"})
+
+
+def unanswered_by_own_limits_only() -> bool:
+    """True when every unavailable provider was skipped only for our own limits.
+
+    Requires active tracking, nobody having answered, and at least one
+    provider having been unavailable — same preconditions as
+    :func:`unanswered_summary`. Distinguishes a pure own-limit miss (fixed
+    retry, no error_count charge) from a mix that includes a provider-side
+    fault (today's escalating backoff still applies).
+    """
+    reach = _current.get()
+    if reach is None or reach.answered or not reach.unavailable:
+        return False
+    return all(entry.rsplit(" ", 1)[-1] in OWN_LIMIT_REASONS for entry in reach.unavailable)
