@@ -107,7 +107,10 @@ class TestDownloadSubtitle:
         ret = download_subtitle({}, {}, lambda x: True, result)
         assert ret is None
 
-    def test_rate_limited(self):
+    def test_rate_limited(self, monkeypatch):
+        import providers.download_manager as dm
+
+        monkeypatch.setattr(dm, "RATE_LIMIT_MAX_WAIT_S", 0.0)
         provider = MagicMock()
         result = self._make_result("test")
         rate_checker = MagicMock(return_value=False)

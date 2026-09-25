@@ -176,7 +176,7 @@ class DecisionLog:
     # ---- download / selection ----------------------------------------------------
 
     def download_attempt(self, provider: str, subtitle_id: str, status: str, detail: str = ""):
-        """status: 'selected' | 'download_failed' | 'hash_blacklisted' | 'error'."""
+        """status: 'selected' | 'download_failed' | 'hash_blacklisted' | 'rate_limited' | 'error'."""
         s = self._search()
         if s is not None:
             entry: dict = {"provider": provider, "subtitle_id": str(subtitle_id), "status": status}
