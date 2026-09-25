@@ -126,7 +126,16 @@ class SubtitleAutomationQueueRepository(BaseRepository):
             .one_or_none()
         )
         if existing is not None:
-            if existing.state == "done":
+            # A terminal cleanup failure is reopened too: a new download means
+            # the video it failed on exists again. Only for this type — the
+            # scanner re-enqueues extraction on every scan, and reopening those
+            # would undo the attempt cap and the no-dialogue verdict.
+            reopen_terminal = (
+                task_type == SubtitleAutomationQueueEntry.TASK_FOREIGN_TRACK_CLEANUP
+                and existing.state == "failed"
+                and existing.next_retry_at is None
+            )
+            if existing.state == "done" or reopen_terminal:
                 existing.state = "pending"
                 existing.attempt_count = 0
                 existing.last_error = None

@@ -54,32 +54,51 @@ def _get_series_override(item: dict) -> bool | None:
         return None
 
 
+def foreign_track_cleanup_applies(item: dict) -> bool:
+    """Whether the global setting or the item's series override asks for cleanup."""
+    try:
+        from config import get_settings
+
+        global_default = bool(getattr(get_settings(), "cleanup_foreign_tracks_default", False))
+    except Exception:
+        logger.debug("foreign-track cleanup: settings unavailable", exc_info=True)
+        return False
+    return should_cleanup_foreign_tracks(
+        series_override=_get_series_override(item), global_default=global_default
+    )
+
+
+#: Outcomes of :func:`maybe_run_foreign_track_cleanup`.
+CLEANUP_STRIPPED = "stripped"
+CLEANUP_SKIPPED = "skipped"
+CLEANUP_FAILED = "failed"
+
+
 def maybe_run_foreign_track_cleanup(
     item: dict,
     file_path: str,
     target_languages: set[str] | None = None,
-) -> None:
+) -> str:
     """Execute foreign-track cleanup on the file if policy says so.
 
     Runs *after* the target-language sidecars have been written; any
     failure is logged and swallowed so the happy path never regresses.
+    Returns ``stripped`` (the file was rewritten), ``skipped`` (policy off,
+    nothing foreign, nothing to keep) or ``failed`` — so a queued caller can
+    retry a failure and tell the media server about a rewrite.
     """
     try:
         from config import get_settings
 
         settings = get_settings()
-        global_default = bool(getattr(settings, "cleanup_foreign_tracks_default", False))
         keep_und = bool(getattr(settings, "cleanup_foreign_tracks_keep_und", False))
         always_keep = getattr(settings, "cleanup_foreign_tracks_keep_languages", None) or []
     except Exception:
         logger.debug("foreign-track cleanup: settings unavailable", exc_info=True)
-        return
+        return CLEANUP_SKIPPED
 
-    series_override = _get_series_override(item)
-    if not should_cleanup_foreign_tracks(
-        series_override=series_override, global_default=global_default
-    ):
-        return
+    if not foreign_track_cleanup_applies(item):
+        return CLEANUP_SKIPPED
 
     # Base keep-set: the item's wanted/target languages (resolved from the
     # item when the caller didn't pass an explicit set) unioned with the
@@ -106,7 +125,7 @@ def maybe_run_foreign_track_cleanup(
     keep_tags = {t for t in keep_tags if t}
     if not keep_tags:
         logger.debug("foreign-track cleanup: no target languages resolved for %s", file_path)
-        return
+        return CLEANUP_SKIPPED
     target_languages = keep_tags
 
     # Audit G13: previously every failure went through a single
@@ -129,6 +148,8 @@ def maybe_run_foreign_track_cleanup(
                 file_path,
                 backup,
             )
+            return CLEANUP_STRIPPED
+        return CLEANUP_SKIPPED
     except FileNotFoundError as exc:
         logger.warning(
             "foreign-track cleanup: file vanished mid-run (%s): %s — file untouched",
@@ -163,3 +184,4 @@ def maybe_run_foreign_track_cleanup(
             file_path,
             exc,
         )
+    return CLEANUP_FAILED

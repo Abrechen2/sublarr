@@ -635,8 +635,10 @@ def save_subtitle(
     # owns long media work.
     _video = None
     try:
+        from services.foreign_track_cleanup import foreign_track_cleanup_applies
+
         _video = _video_for_sidecar(output_path)
-        if _video:
+        if _video and foreign_track_cleanup_applies({"sonarr_series_id": series_id}):
             from db.models.core import SubtitleAutomationQueueEntry
             from db.repositories.subtitle_automation_queue import (
                 SubtitleAutomationQueueRepository,
@@ -649,11 +651,20 @@ def save_subtitle(
                 task_type=SubtitleAutomationQueueEntry.TASK_FOREIGN_TRACK_CLEANUP,
             )
     except Exception as _exc:
+        # The enqueue commits; a failed one (two workers inserting the same
+        # key) leaves the session unusable for the caller's next write.
+        try:
+            from extensions import db as _db
+
+            _db.session.rollback()
+        except Exception:  # noqa: BLE001 — nothing more to salvage here
+            pass
         logger.warning("[foreign-track] post-download cleanup not queued: %s", _exc)
 
-    # Media-server refresh (best-effort) — a new sidecar landed (and the
-    # container may have been stripped above), so tell the configured media
-    # servers to re-scan the item. No-op when no server is configured.
+    # Media-server refresh (best-effort) — a new sidecar landed, so tell the
+    # configured media servers to re-scan the item. A later container strip
+    # sends its own refresh from the automation drain. No-op when no server
+    # is configured.
     try:
         from services.media_server_notify import notify_media_servers
 

@@ -265,7 +265,18 @@ class SubtitleAutomationRunner:
         except Exception as exc:  # noqa: BLE001 — fall back to the hook's own keep-set
             logger.debug("[foreign-track] profile keep-set fallback: %s", exc)
             keep = None
-        maybe_run_foreign_track_cleanup(item, video_path, target_languages=keep)
+        from services.foreign_track_cleanup import CLEANUP_FAILED, CLEANUP_STRIPPED
+
+        outcome = maybe_run_foreign_track_cleanup(item, video_path, target_languages=keep)
+        if outcome == CLEANUP_FAILED:
+            # Busy media gate, remux error, mount trouble: the reason is in the
+            # log above. Raising puts the row on the backoff ladder instead of
+            # booking a cleanup that never happened as done.
+            raise RuntimeError(f"foreign-track cleanup failed for {video_path}")
+        if outcome == CLEANUP_STRIPPED:
+            from services.media_server_notify import notify_media_servers
+
+            notify_media_servers(video_path, "episode" if series_id else "")
 
     def _auto_sync(self, subtitle_path: str, video_path: str | None) -> None:
         """Time a downloaded sidecar against its video.
