@@ -31,9 +31,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     embedded track to be stripped.
   - A kept language never loses its last subtitle track through this
     feature, even under *One main track per language* or the sidecar policy.
-  - All four settings can be overridden per series and per movie
-    (Inherit / value), next to the existing Foreign-Track Cleanup on/off
-    override.
+  - All four settings can be overridden. For a series, in the series
+    settings panel, next to the existing Foreign-Track Cleanup on/off
+    override. For a movie, in the subtitle-settings card on the movie's
+    detail page — movies have no separate on/off switch for the cleanup
+    itself, only these four overrides; the global setting decides whether
+    cleanup runs at all.
   - Every file the cleanup touches can now be previewed per track: the
     cleanup card's example files list each track's language, format, kind
     and verdict, and the series page gets a live "preview this episode"
