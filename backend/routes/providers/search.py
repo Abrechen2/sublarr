@@ -217,7 +217,10 @@ def _active_gate(manager, status: dict, stats: dict) -> str:
 
     try:
         from config import get_settings
-        from providers.search_coordinator import _provider_can_search_without_pool_key
+        from providers.search_coordinator import (
+            _provider_can_search_without_pool_key,
+            _provider_credentials_configured,
+        )
         from services.key_selector import get_key_selector
         from services.provider_budget import get_budget_manager
 
@@ -234,9 +237,13 @@ def _active_gate(manager, status: dict, stats: dict) -> str:
             if not decision.allow:
                 return "budget_exhausted"
 
-            if not get_key_selector().has_pool_rows(
-                name
-            ) and not _provider_can_search_without_pool_key(provider):
+            # Same rule as the search path (#207): with no pool row at all, a
+            # credential saved in Settings is what the provider searches with.
+            if not (
+                get_key_selector().has_pool_rows(name)
+                or _provider_can_search_without_pool_key(provider)
+                or _provider_credentials_configured(provider, settings)
+            ):
                 return "no_pool_key"
     except Exception:  # noqa: BLE001 — a dashboard must not 500 on a gate probe
         logger.debug("provider health: gate probe failed for %s", name, exc_info=True)

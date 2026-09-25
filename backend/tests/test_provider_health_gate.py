@@ -122,3 +122,30 @@ def test_a_keyless_provider_without_a_pool_row_is_not_gated(app_ctx, repo):
     repo.record_search("gestdown", success=True)
 
     assert _health(app_ctx)["gestdown"]["gate"] == "ok"
+
+
+def test_a_key_saved_in_settings_opens_the_pool_gate(app_ctx, repo, monkeypatch):
+    """Sibling of #207: search accepts a Settings key without a pool row, so the
+    health board must not keep calling that provider blocked."""
+    from config import get_settings
+    from providers import get_provider_manager
+    from routes.providers.search import _active_gate
+
+    class _KeyInSettings:
+        name = "stubprovider"
+        tier = "free"
+        rate_limits = {"free": {"second": 5, "hour": 200, "day": 1000}}
+        config_fields = [
+            {
+                "key": "stubprovider_api_key",
+                "label": "API Key",
+                "type": "password",
+                "required": True,
+            }
+        ]
+
+    manager = get_provider_manager()
+    monkeypatch.setitem(manager._providers, "stubprovider", _KeyInSettings())
+    monkeypatch.setattr(get_settings(), "stubprovider_api_key", "k3y", raising=False)
+
+    assert _active_gate(manager, {"name": "stubprovider"}, {}) == "ok"
