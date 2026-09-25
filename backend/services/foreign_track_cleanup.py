@@ -78,6 +78,7 @@ def maybe_run_foreign_track_cleanup(
     item: dict,
     file_path: str,
     target_languages: set[str] | None = None,
+    policy=None,
 ) -> str:
     """Execute foreign-track cleanup on the file if policy says so.
 
@@ -86,6 +87,10 @@ def maybe_run_foreign_track_cleanup(
     Returns ``stripped`` (the file was rewritten), ``skipped`` (policy off,
     nothing foreign, nothing to keep) or ``failed`` — so a queued caller can
     retry a failure and tell the media server about a rewrite.
+
+    ``policy``: the track variant policy (Task 4's ``TrackPolicy``). When
+    None, it is resolved from the item's ``sonarr_series_id`` /
+    ``radarr_movie_id`` via ``resolve_policy``.
     """
     try:
         from config import get_settings
@@ -136,11 +141,26 @@ def maybe_run_foreign_track_cleanup(
     # broken without having to crack open the traceback.
     try:
         from remux import RemuxError, remove_foreign_subtitle_streams
+        from services.foreign_tracks.policy import resolve_policy
+        from services.foreign_tracks.select import SIDECAR_DROP
+        from services.foreign_tracks.sidecars import real_sidecar_languages
+
+        if policy is None:
+            policy = resolve_policy(
+                series_id=item.get("sonarr_series_id"), movie_id=item.get("radarr_movie_id")
+            )
+        real_langs = (
+            real_sidecar_languages(file_path, base_codes)
+            if policy.sidecar_policy == SIDECAR_DROP
+            else set()
+        )
 
         backup = remove_foreign_subtitle_streams(
             video_path=file_path,
             target_languages=target_languages,
             keep_und=keep_und,
+            policy=policy,
+            real_sidecar_langs=real_langs,
         )
         if backup:
             logger.info(

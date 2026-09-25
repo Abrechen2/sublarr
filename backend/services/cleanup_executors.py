@@ -489,8 +489,16 @@ def execute_foreign_tracks(media_path: str, config: dict, dry_run: bool = False)
     if raw_keep_und is None:
         raw_keep_und = getattr(settings, "cleanup_foreign_tracks_keep_und", False)
 
+    from services.foreign_tracks.policy import policy_from_settings
     from services.foreign_tracks.probe import expand_keep_languages
+    from services.foreign_tracks.select import SIDECAR_DROP
 
+    # Track variant policy resolved once per run (this executor is a
+    # global sweep, not per-series/movie), used only to decide the
+    # keep/strip verdict inside remux — the dry-run preview below still
+    # reports plain foreign_languages() so its shape never changes.
+    policy = policy_from_settings(settings)
+    keep_codes = {str(c).lower() for c in raw_keep if c}
     keep_languages = expand_keep_languages(raw_keep)
     if not keep_languages:
         # Mirror the language_filter C0-2 guard: an empty keep set would
@@ -600,10 +608,19 @@ def execute_foreign_tracks(media_path: str, config: dict, dry_run: bool = False)
         except OSError:
             size_before = 0
         try:
+            from services.foreign_tracks.sidecars import real_sidecar_languages
+
+            real_langs = (
+                real_sidecar_languages(video, keep_codes)
+                if policy.sidecar_policy == SIDECAR_DROP
+                else set()
+            )
             backup = remove_foreign_subtitle_streams(
                 video_path=video,
                 target_languages=keep_languages,
                 keep_und=keep_und,
+                policy=policy,
+                real_sidecar_langs=real_langs,
             )
         except (RemuxError, OSError) as exc:
             logger.warning("execute_foreign_tracks: strip failed for %s: %s", video, exc)
