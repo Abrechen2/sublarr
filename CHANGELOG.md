@@ -12,8 +12,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   used to decide by language tag alone, so every variant of a kept language
   survived — a real-world episode kept English Forced, English, English SDH
   and German out of 19 tracks. Four new settings under **Settings →
-  Subtitle Automation → Foreign-Track Cleanup** (and the equivalent Cleanup
-  rule) now control this:
+  Subtitle Automation → Foreign-Track Cleanup** now control this, for the
+  cleanup after a download and for the scheduled foreign-track sweep alike
+  (the sweep's Cleanup rule has no controls of its own for them):
   - **Track variant mode** — *Keep all* (today's behaviour, still the
     default) or *One main track per language*, which keeps a single best
     track per kept language (preferring ASS over SRT/VTT over an image
@@ -26,9 +27,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     sidecar covers the language*, which removes the embedded main track once
     a genuine subtitle file for that language sits next to the video. A
     machine translation or a sidecar of unknown origin never counts as
-    "real" for this — only a subtitle actually downloaded from a provider or
-    extracted by Sublarr does, so a translated placeholder can never cause an
-    embedded track to be stripped.
+    "real" for this — only a subtitle actually downloaded from a provider,
+    uploaded by hand in Sublarr or extracted by Sublarr does, and only while
+    the file on disk is still that subtitle (same format, not rewritten
+    since, not a forced track), so a translated placeholder can never cause
+    an embedded track to be stripped.
   - A kept language never loses its last subtitle track through this
     feature, even under *One main track per language* or the sidecar policy.
   - All four settings can be overridden. For a series, in the series
@@ -37,6 +40,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     detail page — movies have no separate on/off switch for the cleanup
     itself, only these four overrides; the global setting decides whether
     cleanup runs at all.
+  - The scheduled foreign-track sweep now also honours a series' Foreign-Track
+    Cleanup *off* override and leaves that series' files untouched.
   - Every file the cleanup touches can now be previewed per track: the
     cleanup card's example files list each track's language, format, kind
     and verdict, and the series page gets a live "preview this episode"
@@ -144,6 +149,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `subtitle_automation_queue`, and creates the new, empty table
   `sidecar_origins`. It rewrites and deletes nothing; empty override columns
   mean "use the global setting".
+- **Movie downloads now use the movie's own language profile for the
+  foreign-track cleanup.** Which languages the cleanup after a movie download
+  keeps used to come from the default language profile; it now comes from the
+  movie's language profile, as it already did for series. If a movie has a
+  profile other than the default, check its target languages before relying
+  on the cleanup.
 - tvsubtitles.net no longer resolves; disable the provider if you had it on.
 - The per-file language list in the foreign-track sweep preview may mix raw
   container tags and normalised codes for files probed before this release,

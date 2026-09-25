@@ -326,8 +326,9 @@ class ProviderManager(SearchCoordinatorMixin, ConfigResolvingMixin, StatusReport
             output_path: Base path (without extension — extension from format)
             series_id: Sonarr series ID, used to apply per-series pipeline overrides.
                        Pass None for movies or when no series context is available.
-            movie_id: Radarr movie ID, used to apply per-movie pipeline overrides.
-                      Pass None for series or when no movie context is available.
+            movie_id: Radarr movie ID, used only for the foreign-track cleanup
+                      enqueue (see ``download_manager.save_subtitle``). Pass None
+                      for series or when no movie context is available.
 
         Returns:
             Path to saved file
