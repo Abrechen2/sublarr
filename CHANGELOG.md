@@ -5,6 +5,76 @@ All notable changes to Sublarr are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.14.6] - 2026-09-25
+
+### Fixed
+- **A search no provider answered no longer counts as a miss.** When every
+  provider was skipped for the moment (our own request limit full, daily
+  budget used up, API keys cooling, provider paused) or failed, the search was
+  still booked as "nothing found". Three of those put an episode into
+  slow-mode; on the reference install that was true for 9 in 10 slow-mode
+  episodes. Such a search is now booked as a temporary provider problem, which
+  does not use up the episode's search attempts.
+- **Slow-mode searches again.** An episode in slow-mode was meant to be
+  searched once a month, but when its month was up it was charged another
+  miss and skipped without asking any provider — and after three months given
+  up for good. It is now searched. An episode that hits a temporary provider
+  problem while in slow-mode no longer drops out of the rotation either.
+- **Upgrades no longer trade a real subtitle for a worse one, or for none.**
+  OpenSubtitles reports a subtitle's format only once it is downloaded, so an
+  SRT could pass as an "SRT to ASS upgrade" and replace an existing, usually
+  better SRT — again on every library scan (783 times in four days on the
+  reference install). An upgrade now needs content that really is ASS. The old
+  subtitle is only removed once the new one is saved: before, a failed save
+  ("Subtitle too large") left the episode with no subtitle at all. A rejected
+  upgrade now waits like any other miss instead of being searched on every run.
+- **No machine translation next to a real subtitle, on any path.** The
+  sidecar translation, the automation queue and standalone-library items still
+  translated beside an existing target-language subtitle. A real subtitle on
+  disk (under any name, `.de.srt` or `.ger.srt`) now stops every translation
+  step.
+- **SubDL downloads again (#212).** SubDL found subtitles but none was ever
+  downloaded: the language came back as a name ("English") instead of a code,
+  and the download link was read from a field that does not exist. Season
+  packs now yield the requested episode (unpadded numbers like `ep3`, the
+  right season) or are skipped, RAR archives are opened, an outage is reported
+  as an error rather than "no results", and hearing-impaired flags and the
+  release year are used.
+- **API keys no longer end up in logs.** A connection error logged the full
+  request URL including `api_key=`. Credential query values are now masked in
+  every provider's HTTP log lines and error messages.
+- **No more subtitles from the wrong season.** When OpenSubtitles had nothing
+  for a later season, Sublarr searched the same episode number in season 1 and
+  could save that (Kim Possible S03E06 got S01E06). The season-1 fallback now
+  only runs for anime numbered absolutely, and results that name another
+  season are dropped.
+- **Our own request limit no longer counts as a failed download.** A download
+  that found the shared per-provider window full was booked as a provider
+  failure; it now waits briefly for a slot and is otherwise recorded as
+  skipped.
+- **Smaller fixes.** The provider health board no longer calls a provider with
+  a key saved in Settings blocked (#207 follow-up). Automation tasks that fail
+  the same way every time are given up after ten attempts. A scheduled job that
+  is stopped no longer waits up to an hour for the media I/O slot.
+
+### Upgrade notes
+- **Database migration `wq1_refund_unanswered` rewrites rows in
+  `wanted_items`.** It runs once on first start, also on databases created
+  without Alembic. For items with status `wanted` whose last outcome is
+  `no_result` or `no_result_slow`, it:
+  - lowers `search_count` above the configured maximum search attempts to that
+    maximum;
+  - gives back one attempt where the item's last decision log shows that no
+    provider answered;
+  - moves items that fall below the maximum from slow-mode back to normal
+    retries;
+  - reschedules every changed item across the next 7 days, so expect more
+    searches than usual in the first week.
+  Nothing is deleted. It cannot be undone — the old counts are not kept.
+  Back up the database first if you want them. Measured on the RC
+  prod-mirror: N items changed.
+- tvsubtitles.net no longer resolves; disable the provider if you had it on.
+
 ## [1.14.5] - 2026-09-24
 
 ### Fixed

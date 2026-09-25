@@ -654,6 +654,16 @@
     "last_run": "Last: {{date}}"
   },
   "whatsnew": {
+    "v1146": {
+      "search_title": "Searches nobody answered no longer count as a miss",
+      "search_desc": "A search in which every provider was busy or paused still counted as a failed search. After three of them an episode was only searched once a month, and that monthly search never actually ran. Both are fixed, and affected episodes are searched again over the next few days.",
+      "upgrade_title": "Upgrades no longer lose subtitles",
+      "upgrade_desc": "An SRT from OpenSubtitles counted as an ASS upgrade and replaced an existing, often better SRT, again on every scan. When saving an upgrade failed, the old subtitle was already deleted. An upgrade now needs a real ASS file, and the old subtitle is only removed once the new one is saved.",
+      "subdl_title": "SubDL downloads again",
+      "subdl_desc": "SubDL found subtitles but never delivered one: the language came back as a name instead of a code, and the download link was read wrongly. Season packs now yield the right episode, and the API key no longer appears in any log.",
+      "season_title": "No more subtitles from the wrong season",
+      "season_desc": "When OpenSubtitles had nothing for a later season, the same episode number was searched in season 1, and the result sometimes replaced a matching subtitle. Results that belong to another season are now dropped."
+    },
     "v1145": {
       "loop_title": "Embedded subtitles are no longer extracted over and over",
       "loop_desc": "An episode that already had a German or English SRT and the same language as an embedded track was \"extracted\" again and again without anything changing, and never searched for a better subtitle. Such episodes are now ordinary upgrade candidates.",

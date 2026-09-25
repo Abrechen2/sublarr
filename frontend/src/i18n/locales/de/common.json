@@ -654,6 +654,16 @@
     "last_run": "Zuletzt: {{date}}"
   },
   "whatsnew": {
+    "v1146": {
+      "search_title": "Suchen ohne Antwort zählen nicht mehr als Fehlversuch",
+      "search_desc": "Waren bei einer Suche alle Anbieter gerade ausgelastet oder pausiert, zählte das trotzdem als erfolglose Suche. Nach drei solchen Suchen wurde eine Folge nur noch einmal im Monat gesucht, und diese monatliche Suche fand nie statt. Beides ist behoben, und betroffene Folgen werden in den nächsten Tagen wieder gesucht.",
+      "upgrade_title": "Upgrades verlieren keinen Untertitel mehr",
+      "upgrade_desc": "Eine SRT von OpenSubtitles galt als ASS-Upgrade und ersetzte eine vorhandene, oft bessere SRT, bei jedem Scan aufs Neue. Scheiterte das Speichern eines Upgrades, war der alte Untertitel bereits gelöscht. Ein Upgrade braucht jetzt eine echte ASS-Datei, und der alte Untertitel wird erst entfernt, wenn der neue gespeichert ist.",
+      "subdl_title": "SubDL lädt wieder herunter",
+      "subdl_desc": "SubDL fand Untertitel, lieferte aber nie einen: Die Sprache kam als Name statt als Code zurück, und der Download-Link wurde falsch gelesen. Aus Staffelpaketen wird jetzt die richtige Folge genommen, und der API-Schlüssel erscheint in keinem Log mehr.",
+      "season_title": "Keine Untertitel aus der falschen Staffel mehr",
+      "season_desc": "Fand OpenSubtitles für eine spätere Staffel nichts, wurde dieselbe Folgennummer in Staffel 1 gesucht, und das Ergebnis ersetzte teils einen passenden Untertitel. Ergebnisse, die zu einer anderen Staffel gehören, werden jetzt verworfen."
+    },
     "v1145": {
       "loop_title": "Eingebettete Untertitel werden nicht mehr endlos extrahiert",
       "loop_desc": "Hatte eine Folge schon eine deutsche oder englische SRT und dieselbe Sprache zusätzlich als eingebettete Spur, wurde sie immer wieder „extrahiert“, ohne dass sich etwas änderte, und nie nach einem besseren Untertitel gesucht. Solche Folgen sind jetzt normale Upgrade-Kandidaten.",
