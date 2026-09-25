@@ -262,13 +262,13 @@ class ProviderManager(SearchCoordinatorMixin, ConfigResolvingMixin, StatusReport
                 "Active providers (%d): %s", len(self._providers), list(self._providers.keys())
             )
 
-    def download(self, result: SubtitleResult, raise_on_rate_limit: bool = False) -> bytes | None:
+    def download(self, result: SubtitleResult, raise_skips: bool = False) -> bytes | None:
         """Download a subtitle from its provider.
 
         Args:
             result: A SubtitleResult from search()
-            raise_on_rate_limit: Raise DownloadRateLimitedError instead of
-                returning None when our own rate limiter has no slot.
+            raise_skips: Raise DownloadRateLimitedError / ProviderNotApplicableError
+                instead of returning None when the download is skipped, not failed.
 
         Returns:
             Raw subtitle file content, or None on failure
@@ -280,7 +280,7 @@ class ProviderManager(SearchCoordinatorMixin, ConfigResolvingMixin, StatusReport
             circuit_breakers=self._circuit_breakers,
             rate_limit_checker=self._check_rate_limit,
             result=result,
-            raise_on_rate_limit=raise_on_rate_limit,
+            raise_skips=raise_skips,
         )
 
     def search_and_download_best(
@@ -303,7 +303,7 @@ class ProviderManager(SearchCoordinatorMixin, ConfigResolvingMixin, StatusReport
             search_fn=self.search_with_fallback,
             # Raising lets the loop book a limiter refusal as "rate_limited"
             # instead of a provider failure.
-            download_fn=functools.partial(self.download, raise_on_rate_limit=True),
+            download_fn=functools.partial(self.download, raise_skips=True),
             update_stats_fn=update_provider_stats,
             query=query,
             format_filter=format_filter,

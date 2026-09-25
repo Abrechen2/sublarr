@@ -33,6 +33,7 @@ from providers import _stream_download, register_provider
 from providers.base import (
     ProviderAuthError,
     ProviderError,
+    ProviderNotApplicableError,
     ProviderRateLimitError,
     ProviderTimeoutError,
     SubtitleFormat,
@@ -578,7 +579,7 @@ class SubDLProvider(SubtitleProvider):
             extracted, query, exact_episode=bool(result.provider_data.get("exact_episode"))
         )
         if not best:
-            raise RuntimeError(
+            raise ProviderNotApplicableError(
                 f"SubDL archive holds no file for episode {query.episode} "
                 f"({len(extracted)} subtitle files)"
             )

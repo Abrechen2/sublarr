@@ -51,7 +51,7 @@ class TestDownloadWaitsForSlot:
                 {},
                 MagicMock(return_value=False),
                 _result(),
-                raise_on_rate_limit=True,
+                raise_skips=True,
             )
         provider.download.assert_not_called()
 
@@ -85,7 +85,7 @@ class TestDownloadWaitsForSlot:
                 {},
                 checker,
                 _result(),
-                raise_on_rate_limit=True,
+                raise_skips=True,
             )
         assert checker.call_count == 1
 

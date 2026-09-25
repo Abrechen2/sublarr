@@ -19,6 +19,7 @@ import requests
 from providers.base import (
     ProviderAuthError,
     ProviderError,
+    ProviderNotApplicableError,
     ProviderRateLimitError,
     ProviderTimeoutError,
     SubtitleResult,
@@ -320,7 +321,7 @@ class TestDownload:
         payload = _zip(("Saiki.K.S01E01.English.Dub.srt", _SRT))
         with (
             patch("providers.subdl._stream_download", return_value=payload),
-            pytest.raises(RuntimeError, match="episode"),
+            pytest.raises(ProviderNotApplicableError, match="episode"),
         ):
             provider.download(result)
 

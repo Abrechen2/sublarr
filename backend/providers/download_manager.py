@@ -16,7 +16,7 @@ import decision_log
 # Plan B6 — post-processing pipeline trigger (module-level import so tests can
 # patch("providers.download_manager.run_trigger")).
 from post_processing.pipeline import run_trigger
-from providers.base import SubtitleFormat, SubtitleResult
+from providers.base import ProviderNotApplicableError, SubtitleFormat, SubtitleResult
 
 logger = logging.getLogger(__name__)
 
@@ -142,7 +142,7 @@ def download_subtitle(
     circuit_breakers: dict,
     rate_limit_checker,
     result: SubtitleResult,
-    raise_on_rate_limit: bool = False,
+    raise_skips: bool = False,
 ) -> bytes | None:
     """Download a subtitle from its provider.
 
@@ -151,8 +151,10 @@ def download_subtitle(
         circuit_breakers: Dict mapping provider name → CircuitBreaker.
         rate_limit_checker: Callable(provider_name) → bool.
         result: A SubtitleResult from search().
-        raise_on_rate_limit: Raise DownloadRateLimitedError instead of returning
-            None when the limiter still has no slot after waiting.
+        raise_skips: Raise instead of returning None when the download is
+            skipped rather than failed — DownloadRateLimitedError when the
+            limiter still has no slot after waiting, ProviderNotApplicableError
+            when the provider found the result is not what the query wants.
 
     Returns:
         Raw subtitle file content, or None on failure.
@@ -174,7 +176,7 @@ def download_subtitle(
             result.subtitle_id,
             RATE_LIMIT_MAX_WAIT_S,
         )
-        if raise_on_rate_limit:
+        if raise_skips:
             raise DownloadRateLimitedError(result.provider_name)
         return None
 
@@ -184,6 +186,13 @@ def download_subtitle(
         if breaker:
             breaker.record_success()
         return content
+    except ProviderNotApplicableError as e:
+        # The provider is fine; this result just was not what it looked like
+        # (SubDL: a season pack without the requested episode).
+        logger.info("Download from %s skipped: %s", result.provider_name, e)
+        if raise_skips:
+            raise
+        return None
     except Exception as e:
         logger.error("Download from %s failed: %s", result.provider_name, e)
         if breaker:
@@ -267,6 +276,10 @@ def search_and_download_best(
                 decision_log.download_attempt(
                     result.provider_name, result.subtitle_id, "download_failed"
                 )
+        except ProviderNotApplicableError as e:
+            decision_log.download_attempt(
+                result.provider_name, result.subtitle_id, "not_applicable", detail=str(e)
+            )
         except DownloadRateLimitedError:
             # Our own limiter, not the provider: no stats failure, and the
             # provider's remaining results would only wait out the same window.
