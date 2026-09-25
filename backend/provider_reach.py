@@ -21,6 +21,7 @@ from dataclasses import dataclass, field
 TRANSIENT_REASONS = frozenset(
     {
         "rate_limited",
+        "provider_rate_limited",
         "budget_exhausted",
         "pool_cooling",
         "auto_disabled",

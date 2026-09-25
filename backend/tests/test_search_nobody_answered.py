@@ -231,3 +231,26 @@ class TestOwnLimitsDoNotEscalate:
 
         delta = mock_db.call_args.kwargs["retry_after"] - datetime.now(UTC)
         assert delta < timedelta(hours=6, minutes=1)
+
+    def test_a_genuine_provider_429_still_escalates(self, mock_db, tracking):
+        """provider_failed(name, "rate_limited") is a real HTTP 429 from the
+        provider — same reason string as our own pre-emptive window skip
+        (provider_skipped), opposite meaning. Must not be read as an own
+        limit or a provider that keeps refusing us would never escalate."""
+        decision_log.provider_failed("opensubtitles", "rate_limited")
+
+        record_search_outcome(7, kind="no_result")
+
+        kwargs = mock_db.call_args.kwargs
+        assert kwargs["error_count_increment"] == 1
+        assert "own limits" not in kwargs["error"]
+
+    def test_own_skip_plus_a_genuine_429_still_escalates(self, mock_db, tracking):
+        decision_log.provider_skipped("opensubtitles", "rate_limited")
+        decision_log.provider_failed("subdl", "rate_limited")
+
+        record_search_outcome(7, kind="no_result")
+
+        kwargs = mock_db.call_args.kwargs
+        assert kwargs["error_count_increment"] == 1
+        assert "own limits" not in kwargs["error"]

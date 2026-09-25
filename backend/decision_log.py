@@ -354,7 +354,14 @@ def provider_searched(name: str, hits: int, elapsed_ms: float) -> None:
 
 
 def provider_failed(name: str, kind: str, detail: str = "") -> None:
-    provider_reach.note_unavailable(name, kind)
+    # A genuine provider-side 429 (``kind == "rate_limited"``, raised as
+    # ProviderRateLimitError and reported here) must not be mistaken for our
+    # own pre-emptive window skip (provider_skipped(name, "rate_limited")) —
+    # same reason string, opposite meaning. Reach tracking gets a distinct
+    # reason so it keeps escalating; the decision-log status string (read by
+    # the UI) is untouched.
+    reach_reason = "provider_rate_limited" if kind == "rate_limited" else kind
+    provider_reach.note_unavailable(name, reach_reason)
     _call("provider_failed", name, kind, detail)
 
 
