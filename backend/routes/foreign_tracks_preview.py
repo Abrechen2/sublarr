@@ -72,7 +72,7 @@ def preview_file():
         503: {description: The series/movie track policy or language profile could not be resolved}
     """
     from config import get_settings
-    from remux import get_media_streams
+    from remux import get_media_streams, make_event_counter
     from services.foreign_track_cleanup import cleanup_keep_languages, keep_tags_for
     from services.foreign_tracks.policy import resolve_policy
     from services.foreign_tracks.select import SIDECAR_DROP, select_tracks
@@ -135,6 +135,7 @@ def preview_file():
         tags,
         bool(getattr(settings, "cleanup_foreign_tracks_keep_und", False)),
         real,
+        count_events=make_event_counter(path),
     )
     return jsonify(
         {

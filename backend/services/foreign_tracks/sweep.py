@@ -124,13 +124,19 @@ def _real_sidecars_for_policy(path: str, keep_languages, policy) -> set[str]:
 def _verdicts_for(path, probe, keep_languages, keep_und, policy) -> list[dict]:
     """Per-track keep/strip verdicts for one probed file, under its
     resolved per-file policy (global or series/movie override)."""
+    from remux import make_event_counter
     from services.foreign_tracks.select import select_tracks
 
     real = _real_sidecars_for_policy(path, keep_languages, policy)
-    return [
-        v.to_dict()
-        for v in select_tracks(probe.get("streams", []), policy, keep_languages, keep_und, real)
-    ]
+    verdicts = select_tracks(
+        probe.get("streams", []),
+        policy,
+        keep_languages,
+        keep_und,
+        real,
+        count_events=make_event_counter(path),
+    )
+    return [v.to_dict() for v in verdicts]
 
 
 def _free_bytes(root: str) -> int:
