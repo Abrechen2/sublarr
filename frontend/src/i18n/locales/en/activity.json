@@ -285,6 +285,8 @@
     "attempt_download_failed": "download failed, trying next candidate",
     "attempt_hash_blacklisted": "content blacklisted, trying next candidate",
     "attempt_error": "download error, trying next candidate",
+    "attempt_rate_limited": "own request limit full, not attempted",
+    "attempt_not_applicable": "does not match the episode, trying next candidate",
     "status_found": "Subtitle downloaded",
     "status_duplicate_skipped": "Identical subtitle already present",
     "status_not_found": "No subtitle found",

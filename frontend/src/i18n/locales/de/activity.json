@@ -285,6 +285,8 @@
     "attempt_download_failed": "Download fehlgeschlagen, nächster Kandidat",
     "attempt_hash_blacklisted": "Inhalt auf der Blacklist, nächster Kandidat",
     "attempt_error": "Download-Fehler, nächster Kandidat",
+    "attempt_rate_limited": "Eigenes Anfragelimit voll, nicht versucht",
+    "attempt_not_applicable": "Passt nicht zur Episode, nächster Kandidat",
     "status_found": "Untertitel heruntergeladen",
     "status_duplicate_skipped": "Identischer Untertitel bereits vorhanden",
     "status_not_found": "Kein Untertitel gefunden",
