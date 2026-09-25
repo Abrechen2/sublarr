@@ -199,6 +199,71 @@ def _flag_dub_mismatch(saved_path: str) -> None:
 # ---------------------------------------------------------------------------
 
 
+def _delivered_format(result) -> SubtitleFormat:
+    """The format of the downloaded content, not the one the search declared."""
+    if result.format != SubtitleFormat.UNKNOWN:
+        return result.format
+    from providers.format_validator import detect_format_from_content
+
+    return detect_format_from_content(result.content)
+
+
+def _upgrade_rejected(item_id: int, reason: str) -> dict:
+    """End a rejected upgrade with a backoff, like every other miss.
+
+    Returning without one left ``retry_after`` untouched, so the item was
+    re-picked with a full provider fan-out on every tick.
+    """
+    from services.wanted_search_runner import record_search_outcome
+
+    logger.info("Wanted %d: Upgrade rejected — %s", item_id, reason)
+    update_wanted_status(item_id, "wanted")
+    record_search_outcome(item_id, kind="no_result")
+    return {"wanted_id": item_id, "status": "skipped", "reason": reason}
+
+
+def _retire_replaced_srt(ctx: dict, result, new_score: int, keep: str) -> None:
+    """Retire the SRT an upgrade replaced — only once its successor is on disk.
+
+    Removing it before ``save_subtitle`` lost the subtitle whenever the save
+    failed (prod 1.14.5: "Subtitle too large" left Danganronpa S01E01/E02
+    with none). The old file goes into its single-slot .bak first (when that
+    slot is free) so the History rollback endpoint can restore it.
+    """
+    from translator import find_existing_target_file
+
+    item_id = ctx["item_id"]
+    file_path = ctx["file_path"]
+    # Under whatever name it carries: retiring only the canonical .de.srt
+    # left a .ger.srt behind as a second German subtitle.
+    old_srt = find_existing_target_file(file_path, ctx["item_lang"], "srt")
+    if old_srt and os.path.normcase(os.path.abspath(old_srt)) != os.path.normcase(
+        os.path.abspath(keep)
+    ):
+        from services.subtitle_restore import backup_before_replace
+
+        backup_before_replace(old_srt)
+        os.remove(old_srt)
+        logger.info("Wanted %d: Removed old SRT: %s", item_id, old_srt)
+        # The file is gone — drop any stale hand-edited marker with it
+        # (only reachable with the user-modified guard disabled).
+        try:
+            from db.quality import clear_user_modified
+
+            clear_user_modified(old_srt)
+        except Exception:  # noqa: BLE001 — marker cleanup must not fail the upgrade
+            logger.debug("Could not clear user-modified marker for %s", old_srt)
+    record_upgrade(
+        file_path=file_path,
+        old_format="srt",
+        old_score=ctx["current_score"],
+        new_format="ass",
+        new_score=new_score,
+        provider_name=result.provider_name,
+        upgrade_reason=f"SRT->ASS via {result.provider_name}",
+    )
+
+
 def _try_target_ass_direct(ctx: dict) -> dict | None:
     """Step 1: search providers directly for a target-language ASS subtitle.
 
@@ -227,6 +292,20 @@ def _try_target_ass_direct(ctx: dict) -> dict | None:
             must_not_contain=_pf["must_not_contain"] or None,
         )
         if not (result and result.content):
+            return None
+
+        actual_format = _delivered_format(result)
+        if is_upgrade and actual_format != SubtitleFormat.ASS:
+            # OpenSubtitles results carry no format until downloaded, and the
+            # ASS step lets UNKNOWN through. Judging such a download as "ass"
+            # replaced real SRTs with other SRTs on every scan (prod 1.14.5:
+            # 783 "upgrades" in four days, 730 to a lower score).
+            logger.info(
+                "Wanted %d: Upgrade skipped — %s delivered %s, not ASS",
+                item_id,
+                result.provider_name,
+                actual_format.value,
+            )
             return None
 
         ctx["ass_had_results"] = True
@@ -259,9 +338,7 @@ def _try_target_ass_direct(ctx: dict) -> dict | None:
 
                 if is_user_modified(existing_srt):
                     reason = "existing subtitle was hand-edited (user-modified guard)"
-                    logger.info("Wanted %d: Upgrade rejected — %s", item_id, reason)
-                    update_wanted_status(item_id, "wanted")
-                    return {"wanted_id": item_id, "status": "skipped", "reason": reason}
+                    return _upgrade_rejected(item_id, reason)
             do_upgrade, reason = should_upgrade(
                 "srt",
                 current_score,
@@ -274,47 +351,12 @@ def _try_target_ass_direct(ctx: dict) -> dict | None:
             )
             decision_log.upgrade_decision(do_upgrade, reason, current_score, new_score)
             if not do_upgrade:
-                logger.info("Wanted %d: Upgrade rejected — %s", item_id, reason)
-                update_wanted_status(item_id, "wanted")
-                return {"wanted_id": item_id, "status": "skipped", "reason": reason}
+                return _upgrade_rejected(item_id, reason)
             logger.info("Wanted %d: Upgrade approved — %s", item_id, reason)
 
         from translator import get_output_path_for_lang
 
         output_path = get_output_path_for_lang(file_path, "ass", item_lang)
-
-        # If upgrading from SRT, retire the old SRT file. Preserve it into
-        # its single-slot .bak first (when that slot is free) so the History
-        # rollback endpoint can restore the pre-upgrade state.
-        if is_upgrade:
-            from translator import find_existing_target_file
-
-            # Under whatever name it carries: retiring only the canonical
-            # .de.srt left a .ger.srt behind as a second German subtitle.
-            old_srt = find_existing_target_file(file_path, item_lang, "srt")
-            if old_srt:
-                from services.subtitle_restore import backup_before_replace
-
-                backup_before_replace(old_srt)
-                os.remove(old_srt)
-                logger.info("Wanted %d: Removed old SRT: %s", item_id, old_srt)
-                # The file is gone — drop any stale hand-edited marker with it
-                # (only reachable with the user-modified guard disabled).
-                try:
-                    from db.quality import clear_user_modified
-
-                    clear_user_modified(old_srt)
-                except Exception:  # noqa: BLE001 — marker cleanup must not fail the upgrade
-                    logger.debug("Could not clear user-modified marker for %s", old_srt)
-            record_upgrade(
-                file_path=file_path,
-                old_format="srt",
-                old_score=current_score,
-                new_format="ass",
-                new_score=new_score,
-                provider_name=result.provider_name,
-                upgrade_reason=f"SRT->ASS via {result.provider_name}",
-            )
 
         # Resolve upgraded_from_id for upgrade chain audit trail
         _upgraded_from_id: int | None = None
@@ -334,6 +376,8 @@ def _try_target_ass_direct(ctx: dict) -> dict | None:
             saved_path = manager.save_subtitle(
                 result, output_path, series_id=item.get("sonarr_series_id")
             )
+            if is_upgrade:
+                _retire_replaced_srt(ctx, result, new_score, keep=saved_path)
             record_subtitle_download(
                 result.provider_name,
                 result.subtitle_id,
@@ -345,9 +389,10 @@ def _try_target_ass_direct(ctx: dict) -> dict | None:
                 score_breakdown=result.score_breakdown,
             )
             logger.info(
-                "Wanted %d: Provider %s delivered target ASS directly",
+                "Wanted %d: Provider %s delivered target %s directly",
                 item_id,
                 result.provider_name,
+                actual_format.value.upper(),
             )
             from nfo_export import maybe_write_nfo
 
@@ -379,6 +424,8 @@ def _try_target_ass_direct(ctx: dict) -> dict | None:
                 item_id,
                 dup_err.existing_path,
             )
+            if is_upgrade:
+                _retire_replaced_srt(ctx, result, new_score, keep=dup_err.existing_path)
             delete_wanted_item(item_id)
             return {
                 "wanted_id": item_id,
@@ -991,6 +1038,18 @@ def _fallback_translate_file(ctx: dict) -> dict:
     auto_translate = ctx["auto_translate"]
     file_path = ctx["file_path"]
 
+    existing = _target_subtitle_on_disk(ctx)
+    if existing:
+        # Reached directly by the sidecar-translate phase and the automation
+        # drain, which never pass the Step-1 guard in _run_search_steps.
+        from services.wanted_search_runner import record_search_outcome
+
+        reason = f"a real target subtitle exists ({os.path.basename(existing)})"
+        decision_log.step_skipped("translate_fallback", reason)
+        update_wanted_status(item_id, "wanted")
+        record_search_outcome(item_id, kind="no_result")
+        return {"wanted_id": item_id, "status": "not_found", "reason": reason}
+
     if not auto_translate:
         logger.debug(
             "Wanted %d: auto_translate disabled, no subtitle found without translation", item_id
@@ -1272,6 +1331,7 @@ def process_wanted_item(
             dry_run=dry_run,
             allow_translate_fallback=allow_translate_fallback,
             defer_translation=defer_translation,
+            target_on_disk_is_mt=bypass_existing_target_check,
         )
     finally:
         _restore_if_left_searching(item_id, prior_status)
@@ -1288,6 +1348,7 @@ def _search_flipped_item(
     dry_run: bool,
     allow_translate_fallback: bool,
     defer_translation: bool = False,
+    target_on_disk_is_mt: bool = False,
 ) -> dict:
     """Body of ``process_wanted_item`` after the flip to ``searching``.
 
@@ -1359,6 +1420,9 @@ def _search_flipped_item(
         "dry_run": dry_run,
         "allow_translate_fallback": allow_translate_fallback,
         "defer_translation": defer_translation,
+        # mt_reseek: the target sidecar on disk is the machine translation
+        # being re-sought against, not a real subtitle to protect.
+        "target_on_disk_is_mt": target_on_disk_is_mt,
     }
 
     # Decision log: record the whole selection pipeline for this item so the
@@ -1422,6 +1486,24 @@ def _stopped_result(item_id: int, next_step: str) -> dict:
     }
 
 
+def _target_subtitle_on_disk(ctx: dict) -> str | None:
+    """A target-language sidecar already on disk, under any alias — or None.
+
+    The upgrade flag alone missed rows that carry a real subtitle without it
+    (standalone items) and every path that skips the Step-1 guard; each of
+    them machine-translated beside the real subtitle.
+    """
+    file_path = ctx.get("file_path")
+    lang = ctx.get("item_lang")
+    if not (file_path and lang) or ctx.get("target_on_disk_is_mt"):
+        return None
+    from translator import find_existing_target_file
+
+    return find_existing_target_file(file_path, lang, "srt") or find_existing_target_file(
+        file_path, lang, "ass"
+    )
+
+
 def _upgrade_not_found(ctx: dict) -> dict:
     """End an upgrade search after Step 1: only a real target ASS may replace.
 
@@ -1475,7 +1557,7 @@ def _run_search_steps(ctx: dict) -> dict:
     if result is not None:
         return result
 
-    if ctx.get("is_upgrade"):
+    if ctx.get("is_upgrade") or _target_subtitle_on_disk(ctx):
         return _upgrade_not_found(ctx)
 
     if abort_requested():

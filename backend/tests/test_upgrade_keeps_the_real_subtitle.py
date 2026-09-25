@@ -20,6 +20,8 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
+from providers.base import SubtitleFormat
+
 # --- the helper: which target sidecar is actually on disk -------------------
 
 
@@ -87,7 +89,7 @@ def _ctx(video, *, upgrade=True, score=40):
         score=300,
         provider_name="animetosho",
         subtitle_id="x1",
-        format=SimpleNamespace(value="ass"),
+        format=SubtitleFormat.ASS,
         score_breakdown={},
         language="de",
     )
