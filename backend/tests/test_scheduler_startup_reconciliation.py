@@ -94,3 +94,27 @@ def test_finished_row_not_touched(app, db_session):
     db_session.expire_all()
     row = db_session.query(JobRun).filter_by(job_id="z").first()
     assert row.status == "ok"
+
+
+def test_an_interrupted_run_has_no_duration(app, db_session):
+    """started..restart is not how long it ran: prod showed an 895-minute
+    subtitle_automation run that had really been cut off by a restart and
+    closed hours later, downtime included."""
+    from db.models.scheduler import JobRun
+    from services.scheduler import reconcile_stale_runs
+
+    db_session.add(
+        JobRun(
+            job_id="long_gone",
+            started_at=datetime.now(UTC) - timedelta(hours=15),
+            finished_at=None,
+            status="ok",
+        )
+    )
+    db_session.commit()
+
+    with app.app_context():
+        reconcile_stale_runs(grace_minutes=10)
+
+    db_session.expire_all()
+    assert db_session.query(JobRun).filter_by(job_id="long_gone").one().duration_ms is None

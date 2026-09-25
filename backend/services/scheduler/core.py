@@ -480,12 +480,10 @@ def reconcile_stale_runs(grace_minutes: int = 10) -> int:
                 "likely SIGKILL or shutdown-timeout."
             )
             row.finished_at = now
-            # SQLite stores datetimes as naive; normalise to UTC-aware so the
-            # subtraction below does not blow up on mixed tz-awareness.
-            started = row.started_at
-            if started.tzinfo is None:
-                started = started.replace(tzinfo=UTC)
-            row.duration_ms = int((now - started).total_seconds() * 1000)
+            # How long it really ran is unknown: now - started_at includes the
+            # downtime before this restart (prod showed an "895-minute" run that
+            # was cut off by a restart and closed hours later).
+            row.duration_ms = None
 
     if stale:
         logger.warning("scheduler: reconciled %d abandoned job_run rows", len(stale))
