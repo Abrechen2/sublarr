@@ -20,6 +20,10 @@ import stat
 import subprocess
 import tempfile
 from contextlib import contextmanager
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from services.foreign_tracks.select import TrackPolicy
 
 logger = logging.getLogger(__name__)
 
@@ -728,6 +732,8 @@ def remove_foreign_subtitle_streams(
     keep_und: bool = False,
     use_reflink: bool = True,
     trash_dir: str = ".sublarr",
+    policy: TrackPolicy | None = None,
+    real_sidecar_langs: set[str] | None = None,
 ) -> str | None:
     """Strip subtitle streams whose language is not in `target_languages`.
 
@@ -751,6 +757,14 @@ def remove_foreign_subtitle_streams(
     use_reflink / trash_dir:
         Forwarded to `remove_subtitle_streams` (backup semantics
         preserved — nothing is hard-deleted).
+    policy:
+        Track variant policy (Task 2's `TrackPolicy`). When None, the
+        keep/strip decision uses `LEGACY` — byte-identical to the
+        language-only stripping this function has always done.
+    real_sidecar_langs:
+        Normalized languages with a real (non-MT) sidecar on disk, used
+        by policy B (`sidecar_policy="drop_if_real_sidecar"`). Ignored
+        under `LEGACY`.
 
     Returns
     -------
@@ -776,29 +790,18 @@ def remove_foreign_subtitle_streams(
     except Exception as exc:
         raise RemuxError(f"ffprobe failed on {video_path}: {exc}") from exc
 
-    # Defence in depth: callers are documented to pass a fully expanded tag
-    # set ({"de","deu","ger",...}), but compare canonical forms as well so a
-    # caller that passes bare 2-letter codes can never strip its own target
-    # language because the container used a 3-letter tag.
-    from config_language_data import normalize_language_code
+    from services.foreign_tracks.select import LEGACY, select_tracks
 
-    normalized_targets = {normalize_language_code(str(t).lower()) for t in target_languages if t}
-    normalized_targets.discard("")
-
-    streams_to_remove: list[tuple[int, int]] = []
-    sub_only_idx = 0
-    for stream in probe.get("streams", []):
-        if stream.get("codec_type") != "subtitle":
-            continue
-        lang = (stream.get("tags", {}).get("language", "und") or "und").lower()
-        is_foreign = (
-            lang not in target_languages and normalize_language_code(lang) not in normalized_targets
-        )
-        if is_foreign and not (keep_und and lang == "und"):
-            global_idx = stream.get("index")
-            if global_idx is not None:
-                streams_to_remove.append((global_idx, sub_only_idx))
-        sub_only_idx += 1
+    verdicts = select_tracks(
+        probe.get("streams", []),
+        policy or LEGACY,
+        set(target_languages),
+        keep_und,
+        real_sidecar_langs or set(),
+    )
+    streams_to_remove: list[tuple[int, int]] = [
+        (v.index, v.sub_index) for v in verdicts if not v.keep
+    ]
 
     if not streams_to_remove:
         logger.debug("remove_foreign_subtitle_streams: no foreign tracks in %s", video_path)
@@ -806,11 +809,12 @@ def remove_foreign_subtitle_streams(
 
     logger.info(
         "remove_foreign_subtitle_streams: stripping %d foreign sub track(s) from %s "
-        "(keep=%s, keep_und=%s)",
+        "(keep=%s, keep_und=%s, policy=%s)",
         len(streams_to_remove),
         video_path,
         sorted(target_languages),
         keep_und,
+        policy.mode if policy else "all",
     )
     return remove_subtitle_streams(
         video_path=video_path,
