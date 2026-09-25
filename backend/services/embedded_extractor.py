@@ -88,8 +88,13 @@ def collect_subtitle_streams(probe_data: dict) -> list[dict]:
     Honours ``Settings.embedded_allow_sdh`` — when False, SDH/CC/HI
     streams are dropped entirely so the cleanup pass never even sees
     them.
+
+    ``kind`` is the track variant policy's classification (full | forced |
+    sdh, see ``services.foreign_tracks.select.classify_track``). Only a
+    "full" extraction is recorded as a genuine sidecar origin.
     """
     from ass_probe import is_sdh_stream
+    from services.foreign_tracks.select import classify_track
 
     allow_sdh = True
     try:
@@ -127,6 +132,7 @@ def collect_subtitle_streams(probe_data: dict) -> list[dict]:
                 "format": fmt,
                 "language": lang,
                 "is_sdh": sdh,
+                "kind": classify_track(stream),
             }
         )
         sub_index += 1
@@ -263,17 +269,22 @@ def _record_extraction(video_path: str, language: str, fmt: str) -> None:
     one of them. The track variant policy only trusts sidecars with an
     origin record; an extraction without one could never make its embedded
     twin redundant.
+
+    ``language`` is stored as the 2-letter code the real-sidecar lookup
+    queries by (``normalize_language_code``) — the raw container tag
+    ("ger") would never be found.
     """
     try:
         from datetime import UTC, datetime
 
+        from config_language_data import normalize_language_code
         from db.models.providers import SidecarOrigin
         from extensions import db
 
         db.session.add(
             SidecarOrigin(
                 video_path=video_path,
-                language=language,
+                language=normalize_language_code(language) or language,
                 origin="extraction",
                 recorded_at=datetime.now(UTC),
             )
@@ -407,7 +418,11 @@ def extract_streams(
                 stream_info["language"],
                 out,
             )
-            _record_extraction(file_path, stream_info["language"], stream_info["format"])
+            if stream_info.get("kind") == "full":
+                # Only a full dialogue track is a genuine main sidecar: a
+                # signs/forced/SDH extraction must never make the full
+                # embedded track look redundant under policy B.
+                _record_extraction(file_path, stream_info["language"], stream_info["format"])
             any_extracted = True
             seen_lang_fmt.add(lang_fmt)
             extracted.append(
