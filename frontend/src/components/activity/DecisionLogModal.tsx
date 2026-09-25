@@ -65,21 +65,20 @@ export const PROVIDER_SKIP_KEYS: Record<string, string> = {
 function ProviderStatusIcon({ status }: { status: DecisionLogProvider['status'] }) {
   switch (status) {
     case 'ok':
-      return <CheckCircle2 size={13} style={{ color: 'var(--success)' }} />
+      return <CheckCircle2 size={13} className="text-success" />
     case 'skipped':
-      return <SkipForward size={13} style={{ color: 'var(--text-muted)' }} />
+      return <SkipForward size={13} className="text-muted" />
     case 'timeout':
-      return <Clock size={13} style={{ color: 'var(--warning)' }} />
+      return <Clock size={13} className="text-warning" />
     default:
-      return <XCircle size={13} style={{ color: 'var(--error)' }} />
+      return <XCircle size={13} className="text-error" />
   }
 }
 
 function SectionCard({ children }: { children: React.ReactNode }) {
   return (
     <div
-      className="rounded-lg p-4 space-y-3"
-      style={{ backgroundColor: 'var(--bg-surface)', border: '1px solid var(--border)' }}
+      className="rounded-lg p-4 space-y-3 bg-surface border border-border"
     >
       {children}
     </div>
@@ -106,24 +105,23 @@ function FilterStageRow({ stage, expert, t }: {
     <div className="text-xs">
       <button
         onClick={() => canExpand && setOpen(o => !o)}
-        className="flex items-center gap-1.5 w-full text-left"
-        style={{ color: 'var(--text-secondary)', cursor: canExpand ? 'pointer' : 'default' }}
+        className={`flex items-center gap-1.5 w-full text-left text-secondary ${canExpand ? 'cursor-pointer' : 'cursor-default'}`}
       >
         {canExpand ? (open ? <ChevronDown size={12} /> : <ChevronRight size={12} />) : <span className="w-3" />}
-        <span style={{ color: 'var(--error)', fontFamily: 'var(--font-mono)' }}>−{stage.removed}</span>
+        <span className="text-error font-mono">−{stage.removed}</span>
         <span>{t('decision.stage_removed', { label: label + extra })}</span>
-        <span className="ml-auto" style={{ color: 'var(--text-muted)', fontFamily: 'var(--font-mono)' }}>
+        <span className="ml-auto text-muted font-mono">
           {t('decision.stage_remaining', { count: stage.remaining })}
         </span>
       </button>
       {canExpand && open && (
         <div className="mt-1 ml-5 space-y-0.5">
           {stage.rejected!.map((r, i) => (
-            <div key={i} className="flex items-center gap-2 truncate" style={{ color: 'var(--text-muted)' }}>
+            <div key={i} className="flex items-center gap-2 truncate text-muted">
               <span className="capitalize shrink-0">{formatProviderName(r.provider)}</span>
-              <span className="uppercase shrink-0" style={{ fontFamily: 'var(--font-mono)' }}>{r.language}</span>
-              <span className="uppercase shrink-0" style={{ fontFamily: 'var(--font-mono)' }}>{r.format}</span>
-              <span className="shrink-0 tabular-nums" style={{ fontFamily: 'var(--font-mono)' }}>{r.score}</span>
+              <span className="uppercase shrink-0 font-mono">{r.language}</span>
+              <span className="uppercase shrink-0 font-mono">{r.format}</span>
+              <span className="shrink-0 tabular-nums font-mono">{r.score}</span>
               <span className="truncate" title={r.filename}>{r.filename}</span>
             </div>
           ))}
@@ -142,13 +140,12 @@ function SearchSection({ search, expert, t }: {
   return (
     <SectionCard>
       <div className="flex items-center gap-2 flex-wrap">
-        <span className="text-xs font-semibold" style={{ color: 'var(--text-primary)' }}>
+        <span className="text-xs font-semibold text-foreground">
           {t(STEP_KEYS[search.step] ?? search.step)}
         </span>
         {search.format && (
           <span
-            className="text-[10px] px-1.5 py-0.5 rounded uppercase font-bold"
-            style={{ backgroundColor: 'var(--bg-primary)', color: 'var(--text-secondary)', fontFamily: 'var(--font-mono)' }}
+            className="text-[10px] px-1.5 py-0.5 rounded uppercase font-bold bg-page text-secondary font-mono"
           >
             {search.format}
           </span>
@@ -156,18 +153,17 @@ function SearchSection({ search, expert, t }: {
         {search.languages.map(l => (
           <span
             key={l}
-            className="text-[10px] px-1.5 py-0.5 rounded uppercase"
-            style={{ backgroundColor: 'var(--bg-primary)', color: 'var(--text-secondary)', fontFamily: 'var(--font-mono)' }}
+            className="text-[10px] px-1.5 py-0.5 rounded uppercase bg-page text-secondary font-mono"
           >
             {l}
           </span>
         ))}
         {search.cache_hit && (
-          <span className="flex items-center gap-1 text-[10px]" style={{ color: 'var(--text-muted)' }}>
+          <span className="flex items-center gap-1 text-[10px] text-muted">
             <Database size={11} /> {t('decision.cache_hit')}
           </span>
         )}
-        <span className="ml-auto text-xs tabular-nums" style={{ color: 'var(--text-muted)', fontFamily: 'var(--font-mono)' }}>
+        <span className="ml-auto text-xs tabular-nums text-muted font-mono">
           {t('decision.results_summary', { total: search.results_total, final: search.results_final })}
         </span>
       </div>
@@ -176,25 +172,25 @@ function SearchSection({ search, expert, t }: {
       {search.providers.length > 0 && (
         <div className="space-y-1">
           {search.providers.map((p, i) => (
-            <div key={i} className="flex items-center gap-2 text-xs" style={{ color: 'var(--text-secondary)' }}>
+            <div key={i} className="flex items-center gap-2 text-xs text-secondary">
               <ProviderStatusIcon status={p.status} />
               <span className="capitalize font-medium">{formatProviderName(p.name)}</span>
               {p.status === 'ok' && (
-                <span style={{ color: 'var(--text-muted)' }}>
+                <span className="text-muted">
                   {t('decision.provider_hits', { count: p.hits ?? 0 })}
                   {expert && p.elapsed_ms !== undefined ? ` · ${p.elapsed_ms} ms` : ''}
                 </span>
               )}
               {p.status === 'skipped' && (
-                <span style={{ color: 'var(--text-muted)' }}>
+                <span className="text-muted">
                   {t(PROVIDER_SKIP_KEYS[p.reason ?? ''] ?? 'decision.skip_generic')}
                   {expert && p.detail ? ` — ${p.detail}` : ''}
                 </span>
               )}
-              {p.status === 'timeout' && <span style={{ color: 'var(--warning)' }}>{t('decision.provider_timeout')}</span>}
-              {p.status === 'rate_limited' && <span style={{ color: 'var(--warning)' }}>{t('decision.provider_rate_limited')}</span>}
+              {p.status === 'timeout' && <span className="text-warning">{t('decision.provider_timeout')}</span>}
+              {p.status === 'rate_limited' && <span className="text-warning">{t('decision.provider_rate_limited')}</span>}
               {p.status === 'error' && (
-                <span style={{ color: 'var(--error)' }} className="truncate" title={p.detail}>
+                <span className="text-error truncate" title={p.detail}>
                   {t('decision.provider_error')}{expert && p.detail ? ` — ${p.detail}` : ''}
                 </span>
               )}
@@ -204,7 +200,7 @@ function SearchSection({ search, expert, t }: {
       )}
 
       {search.early_exit && (
-        <div className="flex items-center gap-1.5 text-xs" style={{ color: 'var(--success)' }}>
+        <div className="flex items-center gap-1.5 text-xs text-success">
           <Zap size={12} />
           {t('decision.early_exit', {
             provider: formatProviderName(search.early_exit.provider),
@@ -215,8 +211,8 @@ function SearchSection({ search, expert, t }: {
 
       {/* Filter funnel */}
       {search.filters.length > 0 && (
-        <div className="space-y-1 pt-1" style={{ borderTop: '1px dashed var(--border)' }}>
-          <div className="text-[10px] uppercase tracking-wider font-semibold" style={{ color: 'var(--text-muted)' }}>
+        <div className="space-y-1 pt-1 border-t border-dashed border-border">
+          <div className="text-[10px] uppercase tracking-wider font-semibold text-muted">
             {t('decision.filters_title')}
           </div>
           {search.filters.map((f, i) => (
@@ -227,21 +223,21 @@ function SearchSection({ search, expert, t }: {
 
       {/* Download attempts */}
       {search.download_attempts.length > 0 && (
-        <div className="space-y-1 pt-1" style={{ borderTop: '1px dashed var(--border)' }}>
-          <div className="text-[10px] uppercase tracking-wider font-semibold" style={{ color: 'var(--text-muted)' }}>
+        <div className="space-y-1 pt-1 border-t border-dashed border-border">
+          <div className="text-[10px] uppercase tracking-wider font-semibold text-muted">
             {t('decision.downloads_title')}
           </div>
           {search.download_attempts.map((a, i) => (
-            <div key={i} className="flex items-center gap-2 text-xs" style={{ color: 'var(--text-secondary)' }}>
+            <div key={i} className="flex items-center gap-2 text-xs text-secondary">
               {a.status === 'selected'
-                ? <CheckCircle2 size={13} style={{ color: 'var(--success)' }} />
-                : <XCircle size={13} style={{ color: 'var(--error)' }} />}
+                ? <CheckCircle2 size={13} className="text-success" />
+                : <XCircle size={13} className="text-error" />}
               <span className="capitalize font-medium">{formatProviderName(a.provider)}</span>
-              <span style={{ color: 'var(--text-muted)' }}>
+              <span className="text-muted">
                 {t(`decision.attempt_${a.status}`, { defaultValue: a.status })}
               </span>
               {expert && a.detail && (
-                <span className="truncate" style={{ color: 'var(--text-muted)' }} title={a.detail}>{a.detail}</span>
+                <span className="truncate text-muted" title={a.detail}>{a.detail}</span>
               )}
             </div>
           ))}
@@ -249,12 +245,12 @@ function SearchSection({ search, expert, t }: {
       )}
 
       {expert && (search.unfinished_providers?.length ?? 0) > 0 && (
-        <div className="text-xs" style={{ color: 'var(--warning)' }}>
+        <div className="text-xs text-warning">
           {t('decision.unfinished_providers', { providers: search.unfinished_providers!.join(', ') })}
         </div>
       )}
       {okProviders.length === 0 && search.providers.length === 0 && !search.cache_hit && (
-        <div className="text-xs italic" style={{ color: 'var(--text-muted)' }}>
+        <div className="text-xs italic text-muted">
           {t('decision.no_providers')}
         </div>
       )}
@@ -295,37 +291,34 @@ export function DecisionLogModal({ mode, id, title, onClose }: DecisionLogModalP
       <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm" onClick={onClose} />
       <div className="fixed inset-0 z-50 flex items-center justify-center p-4 pointer-events-none" aria-modal="true" role="dialog">
         <div
-          className="pointer-events-auto w-full max-w-3xl rounded-lg shadow-2xl flex flex-col max-h-[85vh] overflow-hidden"
-          style={{ backgroundColor: 'var(--bg-elevated)', border: '1px solid var(--border)' }}
+          className="pointer-events-auto w-full max-w-3xl rounded-lg shadow-2xl flex flex-col max-h-[85vh] overflow-hidden bg-elevated border border-border"
           onClick={e => e.stopPropagation()}
         >
           {/* Header */}
-          <div className="flex items-center justify-between px-5 py-4" style={{ borderBottom: '1px solid var(--border)' }}>
+          <div className="flex items-center justify-between px-5 py-4 border-b border-border">
             <div className="flex items-center gap-3 min-w-0">
-              <ListTree className="w-5 h-5 shrink-0" style={{ color: 'var(--accent)' }} />
+              <ListTree className="w-5 h-5 shrink-0 text-accent" />
               <div className="min-w-0">
-                <p className="text-xs uppercase tracking-wider" style={{ color: 'var(--text-muted)' }}>
+                <p className="text-xs uppercase tracking-wider text-muted">
                   {t('decision.title')}
                 </p>
-                <h2 className="text-sm font-semibold truncate" style={{ color: 'var(--text-primary)' }}>{title}</h2>
+                <h2 className="text-sm font-semibold truncate text-foreground">{title}</h2>
               </div>
             </div>
             <div className="flex items-center gap-2 ml-3 shrink-0">
               <button
                 onClick={() => setExpert(e => !e)}
-                className="px-2.5 py-1 rounded-md text-xs font-medium transition-all duration-150"
-                style={{
-                  backgroundColor: expert ? 'var(--accent-bg)' : 'var(--bg-surface)',
-                  color: expert ? 'var(--accent)' : 'var(--text-secondary)',
-                  border: `1px solid ${expert ? 'var(--accent-dim)' : 'var(--border)'}`,
-                }}
+                className={`px-2.5 py-1 rounded-md text-xs font-medium transition-all duration-150 border ${
+                  expert
+                    ? 'bg-accent-bg text-accent border-accent-dim'
+                    : 'bg-surface text-secondary border-border'
+                }`}
               >
                 {t('decision.expert_mode')}
               </button>
               <button
                 onClick={onClose}
-                className="p-1.5 rounded-lg transition-colors"
-                style={{ color: 'var(--text-muted)' }}
+                className="p-1.5 rounded-lg transition-colors text-muted"
               >
                 <X className="w-4 h-4" />
               </button>
@@ -335,12 +328,12 @@ export function DecisionLogModal({ mode, id, title, onClose }: DecisionLogModalP
           {/* Body */}
           <div className="flex-1 overflow-auto min-h-0 p-4 space-y-3">
             {query.isLoading && (
-              <div className="flex flex-col items-center justify-center py-16 gap-3" style={{ color: 'var(--text-muted)' }}>
-                <Loader2 className="w-8 h-8 animate-spin" style={{ color: 'var(--accent)' }} />
+              <div className="flex flex-col items-center justify-center py-16 gap-3 text-muted">
+                <Loader2 className="w-8 h-8 animate-spin text-accent" />
               </div>
             )}
             {query.isError && (
-              <div className="flex flex-col items-center justify-center py-16 gap-3" style={{ color: 'var(--error)' }}>
+              <div className="flex flex-col items-center justify-center py-16 gap-3 text-error">
                 <AlertCircle className="w-8 h-8" />
                 <p className="text-sm">{t('decision.not_available')}</p>
               </div>
@@ -352,29 +345,31 @@ export function DecisionLogModal({ mode, id, title, onClose }: DecisionLogModalP
                 <SectionCard>
                   <div className="flex items-center gap-2 flex-wrap">
                     {isFound
-                      ? <CheckCircle2 size={16} style={{ color: 'var(--success)' }} />
-                      : <XCircle size={16} style={{ color: 'var(--error)' }} />}
-                    <span className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>
+                      ? <CheckCircle2 size={16} className="text-success" />
+                      : <XCircle size={16} className="text-error" />}
+                    <span className="text-sm font-semibold text-foreground">
                       {t(`decision.status_${final?.status ?? 'unknown'}`, { defaultValue: final?.status ?? t('decision.status_unknown') })}
                     </span>
                     {final?.provider && (
-                      <span className="text-xs capitalize" style={{ color: 'var(--text-secondary)' }}>
+                      <span className="text-xs capitalize text-secondary">
                         {formatProviderName(final.provider)}
                       </span>
                     )}
                     {final?.language && (
-                      <span className="text-xs uppercase" style={{ fontFamily: 'var(--font-mono)', color: 'var(--text-secondary)' }}>
+                      <span className="text-xs uppercase font-mono text-secondary">
                         {final.language}
                       </span>
                     )}
                     {final?.format && (
                       <span
-                        className="text-[10px] px-1.5 py-0.5 rounded uppercase font-bold"
-                        style={{
-                          backgroundColor: final.format === 'ass' ? 'color-mix(in srgb, var(--success) 10%, transparent)' : 'var(--bg-primary)',
-                          color: final.format === 'ass' ? 'var(--success)' : 'var(--text-secondary)',
-                          fontFamily: 'var(--font-mono)',
-                        }}
+                        className={`text-[10px] px-1.5 py-0.5 rounded uppercase font-bold font-mono ${
+                          final.format === 'ass' ? 'text-success' : 'bg-page text-secondary'
+                        }`}
+                        style={
+                          final.format === 'ass'
+                            ? { backgroundColor: 'color-mix(in srgb, var(--success) 10%, transparent)' }
+                            : undefined
+                        }
                       >
                         {final.format}
                       </span>
@@ -384,17 +379,17 @@ export function DecisionLogModal({ mode, id, title, onClose }: DecisionLogModalP
                     )}
                   </div>
                   {(final?.reason || final?.error) && (
-                    <div className="text-xs" style={{ color: 'var(--text-secondary)' }}>
+                    <div className="text-xs text-secondary">
                       {final.reason ?? final.error}
                     </div>
                   )}
                   {expert && final?.filename && (
-                    <div className="text-xs truncate" style={{ color: 'var(--text-muted)', fontFamily: 'var(--font-mono)' }} title={final.filename}>
+                    <div className="text-xs truncate text-muted font-mono" title={final.filename}>
                       {final.filename}
                     </div>
                   )}
                   {log.upgrade && (
-                    <div className="text-xs" style={{ color: log.upgrade.approved ? 'var(--success)' : 'var(--warning)' }}>
+                    <div className={`text-xs ${log.upgrade.approved ? 'text-success' : 'text-warning'}`}>
                       {t(log.upgrade.approved ? 'decision.upgrade_approved' : 'decision.upgrade_rejected', {
                         reason: log.upgrade.reason,
                         old: log.upgrade.old_score,
@@ -413,16 +408,16 @@ export function DecisionLogModal({ mode, id, title, onClose }: DecisionLogModalP
                     succeeded, so this is the only thing that says so. */}
                 {log.partial_translation && log.partial_translation.count > 0 && (
                   <SectionCard>
-                    <div className="flex items-center gap-2 text-[10px] uppercase tracking-wider font-semibold" style={{ color: 'var(--color-warning)' }}>
+                    <div className="flex items-center gap-2 text-[10px] uppercase tracking-wider font-semibold text-warning">
                       <AlertTriangle size={12} />
                       {t('decision.partial_translation', { count: log.partial_translation.count })}
                     </div>
-                    <div className="text-xs" style={{ color: 'var(--text-secondary)' }}>
+                    <div className="text-xs text-secondary">
                       {t('decision.partial_translation_hint')}
                     </div>
                     {log.partial_translation.events.map((e) => (
-                      <div key={e.index} className="flex items-baseline gap-2 text-xs" style={{ color: 'var(--text-secondary)' }}>
-                        <span className="tabular-nums" style={{ color: 'var(--text-muted)' }}>
+                      <div key={e.index} className="flex items-baseline gap-2 text-xs text-secondary">
+                        <span className="tabular-nums text-muted">
                           {formatTimecode(e.start_ms)}
                         </span>
                         <span className="truncate">{e.text}</span>
@@ -434,26 +429,26 @@ export function DecisionLogModal({ mode, id, title, onClose }: DecisionLogModalP
                 {/* Skipped steps */}
                 {log.steps.length > 0 && (
                   <SectionCard>
-                    <div className="text-[10px] uppercase tracking-wider font-semibold" style={{ color: 'var(--text-muted)' }}>
+                    <div className="text-[10px] uppercase tracking-wider font-semibold text-muted">
                       {t('decision.skipped_steps')}
                     </div>
                     {log.steps.map((s, i) => (
-                      <div key={i} className="flex items-center gap-2 text-xs" style={{ color: 'var(--text-secondary)' }}>
-                        <SkipForward size={12} style={{ color: 'var(--text-muted)' }} />
+                      <div key={i} className="flex items-center gap-2 text-xs text-secondary">
+                        <SkipForward size={12} className="text-muted" />
                         <span>{t(STEP_KEYS[s.step] ?? s.step)}</span>
-                        <span style={{ color: 'var(--text-muted)' }}>— {s.reason}</span>
+                        <span className="text-muted">— {s.reason}</span>
                       </div>
                     ))}
                   </SectionCard>
                 )}
 
                 {log.truncated && (
-                  <div className="text-xs italic" style={{ color: 'var(--text-muted)' }}>
+                  <div className="text-xs italic text-muted">
                     {t('decision.truncated')}
                   </div>
                 )}
                 {expert && (
-                  <div className="text-[11px]" style={{ color: 'var(--text-muted)', fontFamily: 'var(--font-mono)' }}>
+                  <div className="text-[11px] text-muted font-mono">
                     {log.started_at} → {log.finished_at}
                   </div>
                 )}
