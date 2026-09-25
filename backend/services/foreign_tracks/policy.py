@@ -74,30 +74,47 @@ def _has_override(row) -> bool:
     return any(getattr(row, name, None) is not None for name in _FIELDS)
 
 
-def override_paths() -> list[tuple[str, TrackPolicy]]:
+def override_paths() -> tuple[list[tuple[str, TrackPolicy]], bool]:
     """Resolve one (mapped folder path, policy) pair per series/movie that has
     at least one of the four override columns set. Called once per sweep
-    slice; a Sonarr/Radarr lookup failure for one id logs a warning and does
-    not abort resolution for the others."""
+    slice.
+
+    Returns ``(pairs, complete)``. ``complete`` is False when ANY overridden
+    series/movie could not be resolved — the Sonarr/Radarr client raised, was
+    not configured (falsy), or returned no path. A caller MUST treat
+    ``complete=False`` as "do not trust this override set for stripping":
+    Sonarr/Radarr being unreachable must never make the sweep strip MORE than
+    configured, and a missing override silently falling back to the (usually
+    less restrictive) default policy would risk exactly that. Each failing id
+    is logged by name; one failure never aborts resolution of the others.
+    """
     from config_utils import map_path
     from db.models.core import MovieSettings, SeriesSettings
     from extensions import db
 
     result: list[tuple[str, TrackPolicy]] = []
+    complete = True
     for row in db.session.query(SeriesSettings).all():
         if not _has_override(row):
             continue
         try:
             from sonarr_client import get_sonarr_client
 
-            series = get_sonarr_client().get_series_by_id(row.sonarr_series_id) or {}
-            if series.get("path"):
-                result.append(
-                    (map_path(series["path"]), resolve_policy(series_id=row.sonarr_series_id))
-                )
+            client = get_sonarr_client()
+            if not client:
+                raise RuntimeError("Sonarr is not configured")
+            series = client.get_series_by_id(row.sonarr_series_id) or {}
+            path = series.get("path")
+            if not path:
+                raise RuntimeError("Sonarr returned no path")
+            result.append((map_path(path), resolve_policy(series_id=row.sonarr_series_id)))
         except Exception:  # noqa: BLE001 — one failing series must not abort the others
+            complete = False
             logger.warning(
-                "track policy: no path for series %s", row.sonarr_series_id, exc_info=True
+                "track policy: override path unavailable for series %s — sweep will not "
+                "strip more than configured until this resolves",
+                row.sonarr_series_id,
+                exc_info=True,
             )
     for row in db.session.query(MovieSettings).all():
         if not _has_override(row):
@@ -105,14 +122,23 @@ def override_paths() -> list[tuple[str, TrackPolicy]]:
         try:
             from radarr_client import get_radarr_client
 
-            movie = get_radarr_client().get_movie_by_id(row.radarr_movie_id) or {}
-            if movie.get("path"):
-                result.append(
-                    (map_path(movie["path"]), resolve_policy(movie_id=row.radarr_movie_id))
-                )
+            client = get_radarr_client()
+            if not client:
+                raise RuntimeError("Radarr is not configured")
+            movie = client.get_movie_by_id(row.radarr_movie_id) or {}
+            path = movie.get("path")
+            if not path:
+                raise RuntimeError("Radarr returned no path")
+            result.append((map_path(path), resolve_policy(movie_id=row.radarr_movie_id)))
         except Exception:  # noqa: BLE001 — one failing movie must not abort the others
-            logger.warning("track policy: no path for movie %s", row.radarr_movie_id, exc_info=True)
-    return result
+            complete = False
+            logger.warning(
+                "track policy: override path unavailable for movie %s — sweep will not "
+                "strip more than configured until this resolves",
+                row.radarr_movie_id,
+                exc_info=True,
+            )
+    return result, complete
 
 
 def policy_for_path(

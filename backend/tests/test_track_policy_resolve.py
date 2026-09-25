@@ -72,9 +72,18 @@ def test_resolution_failure_falls_back_to_the_global_policy_not_a_stripped_one(
     assert resolve_policy(series_id=11) == policy_from_settings(get_settings())
 
 
+def test_override_paths_returns_no_pairs_and_complete_when_nothing_is_overridden(app_ctx):
+    from services.foreign_tracks.policy import override_paths
+
+    pairs, complete = override_paths()
+    assert pairs == []
+    assert complete is True
+
+
 def test_override_paths_skips_a_failing_id_and_keeps_the_others(app_ctx, monkeypatch):
-    """One Sonarr lookup failure must log a warning and not abort the sweep
-    for the remaining overridden series."""
+    """One Sonarr lookup failure must log a warning, mark the whole
+    resolution incomplete (a caller must not trust it for stripping), and
+    still not abort the sweep for the remaining overridden series."""
     from datetime import UTC, datetime
 
     import sonarr_client
@@ -98,7 +107,57 @@ def test_override_paths_skips_a_failing_id_and_keeps_the_others(app_ctx, monkeyp
 
     monkeypatch.setattr(sonarr_client, "get_sonarr_client", lambda *a, **k: _FakeClient())
 
-    result = override_paths()
-    paths = [p for p, _ in result]
+    pairs, complete = override_paths()
+    paths = [p for p, _ in pairs]
     assert any(p.endswith("Show22") for p in paths)
-    assert len(result) == 1
+    assert len(pairs) == 1
+    assert complete is False
+
+
+def test_override_paths_is_incomplete_when_the_client_is_not_configured(app_ctx, monkeypatch):
+    """`get_sonarr_client()` returns None (falsy) when Sonarr isn't
+    configured — this must be treated the same as a raising lookup, not
+    silently skipped."""
+    from datetime import UTC, datetime
+
+    import sonarr_client
+    from db.models.core import SeriesSettings
+    from extensions import db
+    from services.foreign_tracks.policy import override_paths
+
+    db.session.add(
+        SeriesSettings(sonarr_series_id=31, cleanup_keep_sdh=True, updated_at=datetime.now(UTC))
+    )
+    db.session.commit()
+
+    monkeypatch.setattr(sonarr_client, "get_sonarr_client", lambda *a, **k: None)
+
+    pairs, complete = override_paths()
+    assert pairs == []
+    assert complete is False
+
+
+def test_override_paths_is_incomplete_when_the_client_yields_no_path(app_ctx, monkeypatch):
+    """A client that resolves but returns no path is exactly as unusable as
+    one that raises — must not be silently dropped as a "clean" result."""
+    from datetime import UTC, datetime
+
+    import radarr_client
+    from db.models.core import MovieSettings
+    from extensions import db
+    from services.foreign_tracks.policy import override_paths
+
+    db.session.add(
+        MovieSettings(radarr_movie_id=41, cleanup_keep_sdh=True, updated_at=datetime.now(UTC))
+    )
+    db.session.commit()
+
+    class _FakeClient:
+        def get_movie_by_id(self, movie_id):
+            return {}  # no "path" key
+
+    monkeypatch.setattr(radarr_client, "get_radarr_client", lambda *a, **k: _FakeClient())
+
+    pairs, complete = override_paths()
+    assert pairs == []
+    assert complete is False

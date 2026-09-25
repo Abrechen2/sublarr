@@ -97,12 +97,15 @@ def _real_sidecars_for_policy(path: str, keep_languages, policy) -> set[str]:
     """Real sidecar languages for ``path``, or empty when policy B is not in play.
 
     ``select_tracks`` (and ``remove_foreign_subtitle_streams``) ignore
-    ``real_sidecar_langs`` under every policy except ``SIDECAR_DROP``, so a
-    lookup that hits the DB and the filesystem would be pure waste there.
+    ``real_sidecar_langs`` unless the policy is BOTH ``SIDECAR_DROP`` AND
+    ``one_per_language`` — policy B only ever applies in that mode (see
+    ``select_tracks``: "Policy B ... only ever applies in one_per_language").
+    A lookup that hits the DB and the filesystem would be pure waste outside
+    that combination.
     """
-    from services.foreign_tracks.select import SIDECAR_DROP
+    from services.foreign_tracks.select import MODE_ONE, SIDECAR_DROP
 
-    if policy.sidecar_policy != SIDECAR_DROP:
+    if policy.sidecar_policy != SIDECAR_DROP or policy.mode != MODE_ONE:
         return set()
 
     from config_language_data import normalize_language_code
@@ -217,10 +220,13 @@ def _run_slice_locked(media_root: str, config: dict, budget_s: int, now_fn, repo
         raw_keep_und = getattr(settings, "cleanup_foreign_tracks_keep_und", False)
     keep_und = bool(raw_keep_und)
 
-    # Resolved once per slice: `override_paths()` makes a live Sonarr/Radarr
-    # call per series/movie override, so it must never be called per file.
+    # The GLOBAL policy feeds the config hash regardless of phase (see
+    # below) — it is cheap (pure settings read). `override_paths()` is not:
+    # it makes a live Sonarr/Radarr call per overridden series/movie, so it
+    # is resolved at most once per slice, and ONLY when this slice will
+    # actually reach PROBE or STRIP (never for an idle or enumerate-only
+    # slice — see the phase gate further down).
     default_policy = policy_from_settings(settings)
-    overrides = override_paths()
 
     state = load_state()
 
@@ -263,6 +269,16 @@ def _run_slice_locked(media_root: str, config: dict, budget_s: int, now_fn, repo
         _enumerate(media_root, config, state, repo)
         save_state(state)
 
+    # Resolved once per slice, and only when this slice actually reaches
+    # PROBE or STRIP: enumeration may chain straight into PROBE above (when
+    # it completes within this call), so the phase check happens AFTER the
+    # enumerate step, not before it. An idle or enumerate-only slice never
+    # touches Sonarr/Radarr at all.
+    overrides = []
+    overrides_complete = True
+    if state.phase in (PHASE_PROBE, PHASE_STRIP):
+        overrides, overrides_complete = override_paths()
+
     if state.phase == PHASE_PROBE:
         _probe_phase(
             media_root,
@@ -279,19 +295,31 @@ def _run_slice_locked(media_root: str, config: dict, budget_s: int, now_fn, repo
         save_state(state)
 
     if state.phase == PHASE_STRIP:
-        _strip_phase(
-            media_root,
-            config,
-            state,
-            repo,
-            keep_languages,
-            keep_und,
-            default_policy,
-            overrides,
-            deadline,
-            now_fn,
-            result,
-        )
+        if not overrides_complete:
+            # Sonarr/Radarr being unreachable must never make the sweep
+            # strip MORE than configured: an override that can't be
+            # resolved would otherwise silently fall back to the (usually
+            # less restrictive) default policy for that file. Probing
+            # already happened above under the same overrides — only the
+            # rewrite is paused.
+            state.paused_reason = (
+                "series/movie override paths unavailable (Sonarr/Radarr?) — strip paused this slice"
+            )
+            logger.warning("foreign_track_sweep: %s", state.paused_reason)
+        else:
+            _strip_phase(
+                media_root,
+                config,
+                state,
+                repo,
+                keep_languages,
+                keep_und,
+                default_policy,
+                overrides,
+                deadline,
+                now_fn,
+                result,
+            )
         save_state(state)
 
     counts = repo.counts_by_state()
@@ -395,8 +423,17 @@ def _probe_phase(
             if now_fn() >= deadline or abort_requested():
                 return
             try:
+                # The whole per-file decision — probe, resolve its policy,
+                # compute verdicts, persist them — is one unit of work. A
+                # bad file must not stall the sweep whether ffprobe, policy
+                # resolution, verdict computation, or the DB write is what
+                # fails; every one of them is folded into the same
+                # consecutive-failure breaker as a probe failure always was.
                 probe = _probe_file(row.path)
-            except Exception as exc:  # noqa: BLE001 — one bad probe must not stop the sweep
+                file_policy = policy_for_path(row.path, overrides, default_policy)
+                verdicts = _verdicts_for(row.path, probe, keep_languages, keep_und, file_policy)
+                repo.mark_probed_verdicts(row.path, verdicts)
+            except Exception as exc:  # noqa: BLE001 — one bad file must not stop the sweep
                 repo.mark_failed(row.path, str(exc), ERROR_PROBE)
                 consecutive_failures += 1
                 if consecutive_failures >= _MAX_CONSECUTIVE_PROBE_FAILURES:
@@ -408,9 +445,6 @@ def _probe_phase(
                     return
                 continue
             consecutive_failures = 0
-            file_policy = policy_for_path(row.path, overrides, default_policy)
-            verdicts = _verdicts_for(row.path, probe, keep_languages, keep_und, file_policy)
-            repo.mark_probed_verdicts(row.path, verdicts)
             result["probed"] += 1
 
 
@@ -461,9 +495,13 @@ def _strip_phase(
                 state.completed_at = _now_iso()
             return
 
-        file_policy = policy_for_path(row.path, overrides, default_policy)
-        real_sidecar_langs = _real_sidecars_for_policy(row.path, keep_languages, file_policy)
         try:
+            # Policy resolution and the sidecar lookup are folded into the
+            # same try as the rewrite itself — a bad file must not stall
+            # the sweep whether the failure is in resolving its policy,
+            # looking up its sidecars, or the remux.
+            file_policy = policy_for_path(row.path, overrides, default_policy)
+            real_sidecar_langs = _real_sidecars_for_policy(row.path, keep_languages, file_policy)
             backup, freed = _strip_file(
                 row.path,
                 keep_languages,
