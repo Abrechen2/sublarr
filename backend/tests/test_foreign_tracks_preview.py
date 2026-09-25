@@ -72,6 +72,35 @@ def test_preview_reports_counts_from_the_scan_table(app):
     assert result["examples"][0]["langs"] == ["ita", "spa"]
 
 
+def test_preview_examples_carry_the_per_track_verdicts(app):
+    """Task 7 stores a verdict per track (mark_probed_verdicts); the rule
+    preview must pass that `verdicts` key through on each example, keeping
+    the existing keys (`path`, `tracks`, `langs`) untouched."""
+    from db.repositories.foreign_track_scan import ForeignTrackScanRepository
+    from services.cleanup_rule_runner import _preview_by_rule
+
+    rule_id = _make_rule()
+    scan = ForeignTrackScanRepository()
+    scan.upsert_seen("/media/a.mkv", 1, 1.0, generation=1)
+    verdicts = [
+        {
+            "index": 2,
+            "sub_index": 0,
+            "language": "fr",
+            "fmt": "text",
+            "kind": "full",
+            "keep": False,
+            "reason": "stripped_language",
+        }
+    ]
+    scan.mark_probed_verdicts("/media/a.mkv", verdicts)
+
+    result = _preview_by_rule({"rule_id": rule_id}, "/media")
+    example = result["examples"][0]
+    assert example["path"] == "/media/a.mkv"
+    assert example["verdicts"] == verdicts
+
+
 def test_preview_says_so_when_no_scan_has_run(app):
     from services.cleanup_rule_runner import _preview_by_rule
 

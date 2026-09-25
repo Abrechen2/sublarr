@@ -74,6 +74,52 @@ CLEANUP_SKIPPED = "skipped"
 CLEANUP_FAILED = "failed"
 
 
+def keep_tags_for(
+    item: dict, target_languages: set[str] | None = None
+) -> tuple[set[str], set[str]]:
+    """Resolve the keep-language base codes and their expanded ffprobe tags.
+
+    Shared by :func:`maybe_run_foreign_track_cleanup` (the post-download hook)
+    and the read-only preview API, so both reach the same keep-set for the
+    same item — the preview must show exactly what the real strip would do.
+
+    Base keep-set: the item's wanted/target languages (resolved from
+    ``item``'s ``missing_languages`` / ``target_language`` fields when
+    ``target_languages`` is not given) unioned with the configured
+    always-keep languages (``cleanup_foreign_tracks_keep_languages``), so a
+    download target of just "de" still preserves English embedded tracks.
+
+    The base codes are then expanded to every known tag (de -> {de, deu,
+    ger, german}) because the remux strip compares the *raw* ffprobe
+    language tag, which is usually ISO-639-2 ("ger"/"eng") — comparing
+    against bare 2-letter codes would mis-classify the target language
+    itself as foreign.
+
+    Returns ``(base_codes, tags)``.
+    """
+    from config import get_settings
+
+    settings = get_settings()
+    always_keep = getattr(settings, "cleanup_foreign_tracks_keep_languages", None) or []
+
+    if target_languages is None:
+        target_languages = set()
+        for lang in item.get("missing_languages") or []:
+            if lang:
+                target_languages.add(str(lang).lower())
+        tgt = item.get("target_language")
+        if tgt:
+            target_languages.add(str(tgt).lower())
+    base_codes = {str(t).lower() for t in target_languages if t}
+    base_codes |= {str(a).lower() for a in always_keep if a}
+
+    tags: set[str] = set()
+    for code in base_codes:
+        tags.update(_get_language_tags(code))
+    tags = {t for t in tags if t}
+    return base_codes, tags
+
+
 def maybe_run_foreign_track_cleanup(
     item: dict,
     file_path: str,
@@ -97,7 +143,6 @@ def maybe_run_foreign_track_cleanup(
 
         settings = get_settings()
         keep_und = bool(getattr(settings, "cleanup_foreign_tracks_keep_und", False))
-        always_keep = getattr(settings, "cleanup_foreign_tracks_keep_languages", None) or []
     except Exception:
         logger.debug("foreign-track cleanup: settings unavailable", exc_info=True)
         return CLEANUP_SKIPPED
@@ -105,29 +150,7 @@ def maybe_run_foreign_track_cleanup(
     if not foreign_track_cleanup_applies(item):
         return CLEANUP_SKIPPED
 
-    # Base keep-set: the item's wanted/target languages (resolved from the
-    # item when the caller didn't pass an explicit set) unioned with the
-    # configured always-keep languages, so a download target of just "de"
-    # still preserves English embedded tracks.
-    if target_languages is None:
-        target_languages = set()
-        for lang in item.get("missing_languages") or []:
-            if lang:
-                target_languages.add(str(lang).lower())
-        tgt = item.get("target_language")
-        if tgt:
-            target_languages.add(str(tgt).lower())
-    base_codes = {str(t).lower() for t in target_languages if t}
-    base_codes |= {str(a).lower() for a in always_keep if a}
-
-    # Expand to every known tag (de -> {de, deu, ger, german}) because the
-    # remux strip compares the *raw* ffprobe language tag, which is usually
-    # ISO-639-2 ("ger"/"eng") — comparing against bare 2-letter codes would
-    # mis-classify the target language itself as foreign.
-    keep_tags: set[str] = set()
-    for code in base_codes:
-        keep_tags.update(_get_language_tags(code))
-    keep_tags = {t for t in keep_tags if t}
+    base_codes, keep_tags = keep_tags_for(item, target_languages)
     if not keep_tags:
         logger.debug("foreign-track cleanup: no target languages resolved for %s", file_path)
         return CLEANUP_SKIPPED
