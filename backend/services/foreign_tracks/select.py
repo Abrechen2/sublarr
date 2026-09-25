@@ -9,10 +9,13 @@ ffmpeg, no database. The only I/O it may trigger is the optional
 
 from __future__ import annotations
 
+import logging
 from collections.abc import Callable
 from dataclasses import asdict, dataclass
 
 from config_language_data import normalize_language_code
+
+logger = logging.getLogger(__name__)
 
 MODE_ALL = "all"
 MODE_ONE = "one_per_language"
@@ -65,7 +68,12 @@ def classify_track(stream: dict) -> str:
 
     try:
         subtype = classify_stream(stream)
-    except Exception:  # noqa: BLE001 — an unreadable stream is treated as full (kept)
+    except Exception as exc:  # noqa: BLE001 — an unreadable stream is treated as full (kept)
+        logger.warning(
+            "classify_track: could not classify stream index=%s, treating as full: %s",
+            stream.get("index"),
+            exc,
+        )
         subtype = "full"
     if subtype in ("forced", "signs", "songs"):
         return "forced"
@@ -98,6 +106,14 @@ def select_tracks(
     real_sidecar_langs: set[str],
     count_events: Callable[[int], int] | None = None,
 ) -> list[TrackVerdict]:
+    """Decide keep/strip for every subtitle stream in ``streams``.
+
+    ``count_events`` is only ever called to break a remaining tie inside a
+    single language group (same format rank, same default flag) — never
+    once per stream. If it is expensive (e.g. an ffprobe cue count), it is
+    the caller's job to cache/memoize it once per file; this function does
+    not cache it and may call it multiple times across separate calls.
+    """
     keep_tags = {str(t).lower() for t in keep_tags if t}
     keep_codes = {normalize_language_code(t) for t in keep_tags} - {""}
     sidecar_codes = {normalize_language_code(str(c).lower()) for c in real_sidecar_langs} - {""}
@@ -105,7 +121,14 @@ def select_tracks(
     tracks: list[dict] = []
     sub_index = 0
     for stream in streams:
-        if stream.get("codec_type") != "subtitle" or stream.get("index") is None:
+        if stream.get("codec_type") != "subtitle":
+            continue
+        if stream.get("index") is None:
+            # No verdict without a stream index (nothing to pass to ffmpeg
+            # -map), but it still occupies a slot in mkvmerge's
+            # subtitle-only numbering — sub_index must still advance or
+            # every later track's mkvmerge index would be off by one.
+            sub_index += 1
             continue
         raw = ((stream.get("tags") or {}).get("language") or "und").lower()
         code = normalize_language_code(raw) or raw
@@ -142,28 +165,47 @@ def select_tracks(
         by_language.setdefault(t["language"], []).append(t)
 
     for language, group in by_language.items():
-        covered = policy.sidecar_policy == SIDECAR_DROP and language in sidecar_codes
         if policy.mode != MODE_ONE:
+            # Policy B (sidecar drop) only ever applies in one_per_language
+            # — in "all" mode every kept-language track stays, full stop.
             for t in group:
                 decided[t["index"]] = (True, "kept_language")
-            if covered:
-                for t in group:
-                    if t["kind"] != "forced":
-                        decided[t["index"]] = (False, "stripped_sidecar")
             continue
 
+        covered = policy.sidecar_policy == SIDECAR_DROP and language in sidecar_codes
         full = [t for t in group if t["kind"] == "full"]
         sdh = [t for t in group if t["kind"] == "sdh"]
         forced = [t for t in group if t["kind"] == "forced"]
         main_pool = full or sdh
-        main = _best(main_pool, count_events) if main_pool else None
+
+        if not main_pool:
+            # No full/SDH candidate exists for this language at all — keep
+            # every track (forced-only, or a lone track misclassified as
+            # forced/signs), regardless of keep_forced or sidecar policy B.
+            # classify_stream sends any "sign"/"song" title to forced/signs,
+            # so a real dialogue track titled e.g. "Full Subtitles (incl.
+            # Signs)" would otherwise be stripped outright.
+            for t in group:
+                decided[t["index"]] = (True, "kept_last_track")
+            continue
+
+        main = _best(main_pool, count_events)
         keep: dict[int, str] = {}
-        if main is not None:
-            keep[main["index"]] = "stripped_sidecar" if covered else "kept_main"
+        if covered:
+            if main["kind"] == "sdh" and policy.keep_sdh:
+                # The main pool only fell back to SDH because no full track
+                # existed. Policy B would otherwise strip it as the
+                # "sidecar-covered main" — but keep_sdh asked for the SDH
+                # track explicitly, so honor that instead of stripping it.
+                keep[main["index"]] = "kept_sdh"
+            else:
+                keep[main["index"]] = "stripped_sidecar"
+        else:
+            keep[main["index"]] = "kept_main"
         if policy.keep_forced and forced:
             keep[_best(forced, None)["index"]] = "kept_forced"
         if policy.keep_sdh:
-            rest = [t for t in sdh if main is None or t["index"] != main["index"]]
+            rest = [t for t in sdh if t["index"] != main["index"]]
             if rest:
                 keep[_best(rest, None)["index"]] = "kept_sdh"
         for t in group:
@@ -174,10 +216,6 @@ def select_tracks(
                 decided[t["index"]] = (False, "stripped_sidecar")
             else:
                 decided[t["index"]] = (True, reason)
-        if not covered and not any(decided[t["index"]][0] for t in group):
-            # Guard: a kept language never loses its last track uncovered.
-            last = _best(group, None)
-            decided[last["index"]] = (True, "kept_last_track")
 
     return [
         TrackVerdict(
