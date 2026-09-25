@@ -47,6 +47,7 @@ def test_model_defines_the_expected_columns(app):
         "error_class",
         "attempts",
         "generation",
+        "track_verdicts",  # 1.15.0 per-track verdicts
     }
 
 
