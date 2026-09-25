@@ -654,7 +654,9 @@
     "last_run": "Zuletzt: {{date}}"
   },
   "whatsnew": {
-    "v1146": {
+    "v1150": {
+      "trackpolicy_title": "Eine Spur pro Sprache statt aller Varianten",
+      "trackpolicy_desc": "Die Fremdsprachen-Bereinigung entschied bisher nur nach Sprach-Tag, sodass jede Variante einer behaltenen Sprache erhalten blieb — eine Folge behielt so Englisch Forced, Englisch, Englisch SDH und Deutsch von 19 Spuren. Vier neue Einstellungen legen jetzt fest, ob nur die beste Spur pro Sprache bleibt, ob Forced- und SDH-Spuren extra behalten werden, und ob eine eingebettete Spur weicht, sobald eine echte Sidecar-Datei die Sprache abdeckt — Maschinenübersetzungen zählen dafür nie. Alles einstellbar pro Serie und Film, mit Spur-für-Spur-Vorschau vor jeder Änderung. Bestehende Installationen verhalten sich unverändert, bis die Einstellung aktiv geändert wird.",
       "search_title": "Suchen ohne Antwort zählen nicht mehr als Fehlversuch",
       "search_desc": "Waren bei einer Suche alle Anbieter gerade ausgelastet oder pausiert, zählte das trotzdem als erfolglose Suche. Nach drei solchen Suchen wurde eine Folge nur noch einmal im Monat gesucht, und diese monatliche Suche fand nie statt. Beides ist behoben, und betroffene Folgen werden in den nächsten Tagen wieder gesucht.",
       "upgrade_title": "Upgrades verlieren keinen Untertitel mehr",

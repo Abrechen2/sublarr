@@ -654,7 +654,9 @@
     "last_run": "Last: {{date}}"
   },
   "whatsnew": {
-    "v1146": {
+    "v1150": {
+      "trackpolicy_title": "One track per language instead of every variant",
+      "trackpolicy_desc": "Foreign-track cleanup used to decide by language tag alone, so every variant of a kept language survived — one episode kept English Forced, English, English SDH and German out of 19 tracks. Four new settings now control whether only the best track per language is kept, whether forced and SDH tracks are kept in addition, and whether an embedded track steps aside once a real sidecar file covers the language — machine translations never count for that. All configurable per series and per movie, with a track-by-track preview before anything changes. Existing installs behave exactly as before until the setting is actively changed.",
       "search_title": "Searches nobody answered no longer count as a miss",
       "search_desc": "A search in which every provider was busy or paused still counted as a failed search. After three of them an episode was only searched once a month, and that monthly search never actually ran. Both are fixed, and affected episodes are searched again over the next few days.",
       "upgrade_title": "Upgrades no longer lose subtitles",

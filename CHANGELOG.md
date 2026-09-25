@@ -5,7 +5,40 @@ All notable changes to Sublarr are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [1.14.6] - 2026-09-25
+## [1.15.0] - 2026-09-26
+
+### Added
+- **Track variant policy for foreign-track cleanup.** Foreign-track cleanup
+  used to decide by language tag alone, so every variant of a kept language
+  survived — a real-world episode kept English Forced, English, English SDH
+  and German out of 19 tracks. Four new settings under **Settings →
+  Subtitle Automation → Foreign-Track Cleanup** (and the equivalent Cleanup
+  rule) now control this:
+  - **Track variant mode** — *Keep all* (today's behaviour, still the
+    default) or *One main track per language*, which keeps a single best
+    track per kept language (preferring ASS over SRT/VTT over an image
+    track, then the default flag, then more dialogue lines).
+  - **Keep forced** — also keep one forced/Signs-&-Songs track per language
+    (on by default).
+  - **Keep SDH** — also keep one hearing-impaired track per language (off by
+    default; only takes effect in *One main track per language*).
+  - **Sidecar policy** — *Keep embedded* (default) or *Drop if a real
+    sidecar covers the language*, which removes the embedded main track once
+    a genuine subtitle file for that language sits next to the video. A
+    machine translation or a sidecar of unknown origin never counts as
+    "real" for this — only a subtitle actually downloaded from a provider or
+    extracted by Sublarr does, so a translated placeholder can never cause an
+    embedded track to be stripped.
+  - A kept language never loses its last subtitle track through this
+    feature, even under *One main track per language* or the sidecar policy.
+  - All four settings can be overridden per series and per movie
+    (Inherit / value), next to the existing Foreign-Track Cleanup on/off
+    override.
+  - Every file the cleanup touches can now be previewed per track: the
+    cleanup card's example files list each track's language, format, kind
+    and verdict, and the series page gets a live "preview this episode"
+    check — both read-only, before anything is rewritten.
+  - Existing installs keep exactly today's behaviour until this is changed.
 
 ### Fixed
 - **A search no provider answered no longer counts as a miss.** When every
@@ -57,6 +90,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   and could wait up to an hour for the media I/O slot, so scheduled searches
   timed out (items took up to 5 642 s instead of 158 s). The cleanup now runs
   in the automation queue shortly afterwards.
+- **Our own search limits no longer push an episode into a month-long wait.**
+  When every provider that failed to answer was unavailable only because of
+  Sublarr's own daily budget, request window or a cooling API key — never a
+  real provider fault — the search still climbed the same escalating backoff
+  as a genuine failure, toward a 30-day retry (about 1 830 items on the
+  reference install after one run). Such a search now gets a fixed 6-hour
+  retry instead, and does not count against the item's error history. A
+  provider's own HTTP 429 still escalates the backoff as before.
+- **A foreign-track cleanup that fails is retried, not given up on.** A
+  cleanup that hit a busy media I/O slot or a remux error was booked done
+  like a successful one, so the video kept its unwanted tracks for good. Such
+  a failure now goes through the normal retry backoff, and a video whose
+  cleanup failed permanently is retried again the next time a subtitle is
+  downloaded for it.
+- **The media server hears about a foreign-track strip.** Since the cleanup
+  moved into the automation queue (previous entry), the only refresh sent to
+  Emby, Jellyfin or Plex was the one at save time, which ran before the
+  queued strip — so a container rewritten minutes later was never announced.
+  The queue drain now sends its own refresh once the strip is done.
 - **Smaller fixes.** The provider health board no longer calls a provider with
   a key saved in Settings blocked (#207 follow-up). Automation tasks that fail
   the same way every time are given up after ten attempts. A scheduled job that
@@ -81,7 +133,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   Nothing is deleted. It cannot be undone — the old counts are not kept.
   Back up the database first if you want them. Measured on the RC
   prod-mirror: 3 187 of 9 041 wanted items changed.
+- **Database migration `tvp1_track_variant_policy` changes the schema only.**
+  It adds empty, nullable columns `cleanup_track_variant_mode`,
+  `cleanup_keep_forced`, `cleanup_keep_sdh` and `cleanup_sidecar_policy` to
+  `series_settings` and `movie_settings`, `track_verdicts` to
+  `foreign_track_scan` and `radarr_movie_id` to
+  `subtitle_automation_queue`, and creates the new, empty table
+  `sidecar_origins`. It rewrites and deletes nothing; empty override columns
+  mean "use the global setting".
 - tvsubtitles.net no longer resolves; disable the provider if you had it on.
+- The per-file language list in the foreign-track sweep preview may mix raw
+  container tags and normalised codes for files probed before this release,
+  until the next rescan.
 
 ## [1.14.5] - 2026-09-24
 
