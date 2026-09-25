@@ -97,8 +97,8 @@ def test_get_resolved_global(client, sample_profiles_data):
     data = resp.get_json()
     assert data["scope"]["type"] == "global"
     assert "settings" in data
-    # All 12 fields present
-    assert len(data["settings"]) == 12
+    # All 16 fields present (12 original + 4 track variant policy, 1.15.0)
+    assert len(data["settings"]) == 16
 
 
 def test_get_resolved_profile(client, sample_profiles_data):

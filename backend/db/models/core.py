@@ -435,6 +435,11 @@ class SeriesSettings(db.Model):
     cleanup_foreign_tracks: Mapped[bool | None] = mapped_column(
         Boolean, nullable=True, default=None
     )
+    # 1.15.0 track variant policy overrides. NULL = inherit the global setting.
+    cleanup_track_variant_mode: Mapped[str | None] = mapped_column(String(20), nullable=True)
+    cleanup_keep_forced: Mapped[bool | None] = mapped_column(Boolean, nullable=True)
+    cleanup_keep_sdh: Mapped[bool | None] = mapped_column(Boolean, nullable=True)
+    cleanup_sidecar_policy: Mapped[str | None] = mapped_column(String(24), nullable=True)
     # 0.73.0: per-series overrides for LanguageProfile fields.
     # NULL = inherit from assigned profile (which inherits from global).
     forced_preference_override: Mapped[str | None] = mapped_column(
@@ -482,6 +487,11 @@ class MovieSettings(db.Model):
     cleanup_foreign_tracks: Mapped[bool | None] = mapped_column(
         Boolean, nullable=True, default=None
     )
+    # 1.15.0 track variant policy overrides. NULL = inherit the global setting.
+    cleanup_track_variant_mode: Mapped[str | None] = mapped_column(String(20), nullable=True)
+    cleanup_keep_forced: Mapped[bool | None] = mapped_column(Boolean, nullable=True)
+    cleanup_keep_sdh: Mapped[bool | None] = mapped_column(Boolean, nullable=True)
+    cleanup_sidecar_policy: Mapped[str | None] = mapped_column(String(24), nullable=True)
     priority_override: Mapped[str | None] = mapped_column(String(20), nullable=True)
     min_attempts_per_day: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     forced_preference_override: Mapped[str | None] = mapped_column(Text, nullable=True)

@@ -26,7 +26,7 @@ Importing rules:
 import hashlib
 import logging
 import os
-from typing import Any
+from typing import Any, Literal
 
 from pydantic import BaseModel, Field, field_validator
 from pydantic_settings import BaseSettings
@@ -434,6 +434,17 @@ class UISettings(BaseModel):
     # target/wanted languages. Guarantees e.g. English survives even when
     # only German is the download target. Empty list = target languages only.
     cleanup_foreign_tracks_keep_languages: list[str] = ["de", "en"]
+
+    # 1.15.0: which variants of a kept language survive the cleanup.
+    # "all" keeps every track of a kept language (the 1.14.x behaviour);
+    # "one_per_language" keeps the best full track plus forced/SDH per the
+    # two toggles below.
+    cleanup_track_variant_mode: Literal["all", "one_per_language"] = "all"
+    cleanup_keep_forced: bool = True
+    cleanup_keep_sdh: bool = False
+    # "drop_if_real_sidecar": a genuine (non-MT) sidecar in the language makes
+    # the embedded main track redundant. Machine translations never count.
+    cleanup_sidecar_policy: Literal["keep_embedded", "drop_if_real_sidecar"] = "keep_embedded"
 
     # Batched foreign-track sweep. Off by default: it rewrites media files, so
     # it is enabled deliberately, not inherited by an upgrade.

@@ -11,8 +11,9 @@ from services.inheritance_resolver import (
 )
 
 
-def test_registry_has_twelve_fields():
-    assert len(INHERITABLE_FIELDS) == 12
+def test_registry_has_sixteen_fields():
+    # 1.15.0 added the four track variant policy fields (12 -> 16).
+    assert len(INHERITABLE_FIELDS) == 16
 
 
 def test_registry_field_names_unique():
@@ -35,6 +36,10 @@ def test_registry_includes_known_fields():
         "preferred_audio_track_index",
         "priority_override",
         "min_attempts_per_day",
+        "cleanup_track_variant_mode",
+        "cleanup_keep_forced",
+        "cleanup_keep_sdh",
+        "cleanup_sidecar_policy",
     }
 
 
@@ -177,9 +182,9 @@ def test_resolve_series_json_array_decoded():
     assert r["source"] == "series"
 
 
-def test_resolve_returns_all_twelve_fields():
+def test_resolve_returns_all_sixteen_fields():
     result = resolve_for_series(series=_mk_series(), profile=None, global_cfg=_mk_global())
-    assert len(result) == 12
+    assert len(result) == 16
 
 
 # ---------------------------------------------------------------------------

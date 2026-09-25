@@ -11,8 +11,10 @@ _ENUM_FIELDS: dict[str, set[str]] = {
     "forced_preference": {"include", "prefer", "exclude", "only", "disabled", "separate", "auto"},
     "hi_preference": {"include", "prefer", "exclude", "only"},
     "forced_scoring": {"include", "prefer", "exclude", "only"},
+    "cleanup_track_variant_mode": {"all", "one_per_language"},
+    "cleanup_sidecar_policy": {"keep_embedded", "drop_if_real_sidecar"},
 }
-_BOOL_FIELDS: set[str] = {"cleanup_foreign_tracks"}
+_BOOL_FIELDS: set[str] = {"cleanup_foreign_tracks", "cleanup_keep_forced", "cleanup_keep_sdh"}
 _INT_FIELDS: set[str] = {"preferred_audio_track_index", "min_attempts_per_day"}
 _STRING_FIELDS: set[str] = {"cutoff_language", "priority_override"}
 _LANG_ARRAY_FIELDS: set[str] = {"target_languages", "audio_exclude_languages"}

@@ -87,6 +87,17 @@ INHERITABLE_FIELDS: tuple[InheritableField, ...] = (
     InheritableField("preferred_audio_track_index", None, "preferred_audio_track_index", None),
     InheritableField("priority_override", None, "priority_override", "provider_priorities"),
     InheritableField("min_attempts_per_day", None, "min_attempts_per_day", None),
+    InheritableField(
+        "cleanup_track_variant_mode",
+        None,
+        "cleanup_track_variant_mode",
+        "cleanup_track_variant_mode",
+    ),
+    InheritableField("cleanup_keep_forced", None, "cleanup_keep_forced", "cleanup_keep_forced"),
+    InheritableField("cleanup_keep_sdh", None, "cleanup_keep_sdh", "cleanup_keep_sdh"),
+    InheritableField(
+        "cleanup_sidecar_policy", None, "cleanup_sidecar_policy", "cleanup_sidecar_policy"
+    ),
 )
 
 

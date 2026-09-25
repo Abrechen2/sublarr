@@ -148,6 +148,25 @@ def _patch_pre_alembic_columns(engine, inspect_fn) -> None:
         if "last_decision_log_json" not in existing:
             patches.append("ALTER TABLE wanted_items ADD COLUMN last_decision_log_json TEXT")
 
+    # Track variant policy override columns + per-track verdicts (migration
+    # tvp1_track_variant_policy).
+    _TVP_COLUMNS = (
+        ("cleanup_track_variant_mode", "VARCHAR(20)"),
+        ("cleanup_keep_forced", "BOOLEAN"),
+        ("cleanup_keep_sdh", "BOOLEAN"),
+        ("cleanup_sidecar_policy", "VARCHAR(24)"),
+    )
+    for table in ("series_settings", "movie_settings"):
+        if insp.has_table(table):
+            existing = {c["name"] for c in insp.get_columns(table)}
+            for name, sql_type in _TVP_COLUMNS:
+                if name not in existing:
+                    patches.append(f"ALTER TABLE {table} ADD COLUMN {name} {sql_type}")
+    if insp.has_table("foreign_track_scan"):
+        existing = {c["name"] for c in insp.get_columns("foreign_track_scan")}
+        if "track_verdicts" not in existing:
+            patches.append("ALTER TABLE foreign_track_scan ADD COLUMN track_verdicts TEXT")
+
     if not patches:
         return
 

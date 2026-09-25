@@ -40,6 +40,9 @@ class ForeignTrackScan(db.Model):
     mtime: Mapped[float] = mapped_column(Float, nullable=False, default=0.0)
     state: Mapped[str] = mapped_column(String(16), nullable=False, default=STATE_PENDING)
     foreign_langs: Mapped[str] = mapped_column(Text, nullable=True)
+    # 1.15.0: JSON list of per-track verdicts from select_tracks, for the
+    # per-track preview. NULL for rows probed before 1.15.0.
+    track_verdicts: Mapped[str | None] = mapped_column(Text, nullable=True)
     track_count: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     probed_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=True)
     processed_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=True)
