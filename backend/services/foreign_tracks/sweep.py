@@ -13,7 +13,13 @@ from datetime import UTC, datetime
 
 from db.models.foreign_tracks import ERROR_PROBE, ERROR_REMUX, ERROR_VERIFY
 from services.foreign_tracks.enumerate import iter_video_files, sweep_stale_temp_files
-from services.foreign_tracks.policy import override_paths, policy_for_path, policy_from_settings
+from services.foreign_tracks.policy import (
+    OverrideSet,
+    is_excluded,
+    override_paths,
+    policy_for_path,
+    policy_from_settings,
+)
 from services.foreign_tracks.probe import expand_keep_languages
 from services.foreign_tracks.state import (
     PHASE_ENUMERATE,
@@ -274,10 +280,13 @@ def _run_slice_locked(media_root: str, config: dict, budget_s: int, now_fn, repo
     # it completes within this call), so the phase check happens AFTER the
     # enumerate step, not before it. An idle or enumerate-only slice never
     # touches Sonarr/Radarr at all.
-    overrides = []
-    overrides_complete = True
+    resolved = OverrideSet()
     if state.phase in (PHASE_PROBE, PHASE_STRIP):
-        overrides, overrides_complete = override_paths()
+        resolved = override_paths()
+    overrides = resolved.pairs
+    # Folders of series/movies with the cleanup switched off (final review
+    # I7): never stripped, in probe AND strip.
+    excluded = resolved.excluded
 
     if state.phase == PHASE_PROBE:
         _probe_phase(
@@ -291,11 +300,12 @@ def _run_slice_locked(media_root: str, config: dict, budget_s: int, now_fn, repo
             deadline,
             now_fn,
             result,
+            excluded,
         )
         save_state(state)
 
     if state.phase == PHASE_STRIP:
-        if not overrides_complete:
+        if not resolved.complete:
             # Sonarr/Radarr being unreachable must never make the sweep
             # strip MORE than configured: an override that can't be
             # resolved would otherwise silently fall back to the (usually
@@ -303,7 +313,9 @@ def _run_slice_locked(media_root: str, config: dict, budget_s: int, now_fn, repo
             # already happened above under the same overrides — only the
             # rewrite is paused.
             state.paused_reason = (
-                "series/movie override paths unavailable (Sonarr/Radarr?) — strip paused this slice"
+                "series/movie override settings unavailable for "
+                + ", ".join(resolved.failed)
+                + " (Sonarr/Radarr unreachable?) — strip paused this slice"
             )
             logger.warning("foreign_track_sweep: %s", state.paused_reason)
         else:
@@ -319,6 +331,7 @@ def _run_slice_locked(media_root: str, config: dict, budget_s: int, now_fn, repo
                 deadline,
                 now_fn,
                 result,
+                excluded,
             )
         save_state(state)
 
@@ -404,6 +417,7 @@ def _probe_phase(
     deadline,
     now_fn,
     result,
+    excluded=(),
 ) -> None:
     if not _media_root_reachable(media_root):
         state.paused_reason = f"media root unreachable: {media_root}"
@@ -422,6 +436,12 @@ def _probe_phase(
             # honoured before the next file is probed.
             if now_fn() >= deadline or abort_requested():
                 return
+            if is_excluded(row.path, excluded):
+                # The title's cleanup is switched off: nothing to decide, no
+                # ffprobe needed — the file is clean for this sweep.
+                repo.mark_probed_verdicts(row.path, [])
+                result["probed"] += 1
+                continue
             try:
                 # The whole per-file decision — probe, resolve its policy,
                 # compute verdicts, persist them — is one unit of work. A
@@ -460,6 +480,7 @@ def _strip_phase(
     deadline,
     now_fn,
     result,
+    excluded=(),
 ) -> None:
     if not _media_root_reachable(media_root):
         # A sweep can resume directly at PHASE_STRIP on a later tick —
@@ -494,6 +515,12 @@ def _strip_phase(
             if state.enumeration_complete:
                 state.completed_at = _now_iso()
             return
+
+        if is_excluded(row.path, excluded):
+            # Probed affected before its series/movie was switched off: the
+            # switch wins, the file is never rewritten.
+            repo.mark_probed_verdicts(row.path, [])
+            continue
 
         try:
             # Policy resolution and the sidecar lookup are folded into the

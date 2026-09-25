@@ -69,6 +69,7 @@ def preview_file():
         400: {description: Missing/invalid path, series_id or movie_id}
         403: {description: Path outside the media root}
         404: {description: File not found}
+        503: {description: The series/movie track policy could not be resolved}
     """
     from config import get_settings
     from remux import get_media_streams
@@ -97,6 +98,18 @@ def preview_file():
         return jsonify({"error": "file not found"}), 404
 
     policy = resolve_policy(series_id=series_id, movie_id=movie_id)
+    if policy is None:
+        # Same refusal as the real strip: an override that cannot be read is
+        # never replaced by the global policy (final review I5).
+        return (
+            jsonify(
+                {
+                    "error": "The track policy for this series/movie could not be resolved "
+                    "right now — try again later (see the server log)."
+                }
+            ),
+            503,
+        )
     item = {"sonarr_series_id": series_id, "radarr_movie_id": movie_id}
     base_codes, tags = keep_tags_for(item)
 

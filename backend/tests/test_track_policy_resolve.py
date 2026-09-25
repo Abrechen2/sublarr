@@ -46,14 +46,11 @@ def test_a_sibling_folder_with_a_shared_prefix_does_not_match():
     )
 
 
-def test_resolution_failure_falls_back_to_the_global_policy_not_a_stripped_one(
-    app_ctx, monkeypatch
-):
-    """A broken override chain must never fall back to "strip more" — it
-    falls back to the global policy exactly."""
+def test_resolution_failure_is_reported_as_none_not_the_global_policy(app_ctx, monkeypatch):
+    """A broken override chain must never fall back to the global policy —
+    that may strip more than the override asked for (final review I5)."""
     from datetime import UTC, datetime
 
-    from config import get_settings
     from db.models.core import SeriesSettings
     from extensions import db
 
@@ -69,15 +66,16 @@ def test_resolution_failure_falls_back_to_the_global_policy_not_a_stripped_one(
 
     monkeypatch.setattr(inheritance_resolver, "resolve_for_series", _boom)
 
-    assert resolve_policy(series_id=11) == policy_from_settings(get_settings())
+    assert resolve_policy(series_id=11) is None
 
 
 def test_override_paths_returns_no_pairs_and_complete_when_nothing_is_overridden(app_ctx):
     from services.foreign_tracks.policy import override_paths
 
-    pairs, complete = override_paths()
-    assert pairs == []
-    assert complete is True
+    result = override_paths()
+    assert result.pairs == []
+    assert result.excluded == []
+    assert result.complete is True
 
 
 def test_override_paths_skips_a_failing_id_and_keeps_the_others(app_ctx, monkeypatch):
@@ -107,11 +105,12 @@ def test_override_paths_skips_a_failing_id_and_keeps_the_others(app_ctx, monkeyp
 
     monkeypatch.setattr(sonarr_client, "get_sonarr_client", lambda *a, **k: _FakeClient())
 
-    pairs, complete = override_paths()
-    paths = [p for p, _ in pairs]
+    result = override_paths()
+    paths = [p for p, _ in result.pairs]
     assert any(p.endswith("Show22") for p in paths)
-    assert len(pairs) == 1
-    assert complete is False
+    assert len(result.pairs) == 1
+    assert result.complete is False
+    assert result.failed == ("series 21",)
 
 
 def test_override_paths_is_incomplete_when_the_client_is_not_configured(app_ctx, monkeypatch):
@@ -132,14 +131,17 @@ def test_override_paths_is_incomplete_when_the_client_is_not_configured(app_ctx,
 
     monkeypatch.setattr(sonarr_client, "get_sonarr_client", lambda *a, **k: None)
 
-    pairs, complete = override_paths()
-    assert pairs == []
-    assert complete is False
+    result = override_paths()
+    assert result.pairs == []
+    assert result.complete is False
 
 
-def test_override_paths_is_incomplete_when_the_client_yields_no_path(app_ctx, monkeypatch):
-    """A client that resolves but returns no path is exactly as unusable as
-    one that raises — must not be silently dropped as a "clean" result."""
+def test_override_paths_is_incomplete_when_no_path_comes_back_unconfirmed(app_ctx, monkeypatch):
+    """A client that returns no path while its arr cannot confirm it is
+    reachable (no/failed health check) is as unusable as one that raises —
+    the arr clients return None on connection errors. A confirmed-missing
+    title is covered in test_track_policy_resolution_errors.py (final
+    review I4)."""
     from datetime import UTC, datetime
 
     import radarr_client
@@ -158,6 +160,6 @@ def test_override_paths_is_incomplete_when_the_client_yields_no_path(app_ctx, mo
 
     monkeypatch.setattr(radarr_client, "get_radarr_client", lambda *a, **k: _FakeClient())
 
-    pairs, complete = override_paths()
-    assert pairs == []
-    assert complete is False
+    result = override_paths()
+    assert result.pairs == []
+    assert result.complete is False

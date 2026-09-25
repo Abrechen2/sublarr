@@ -18,6 +18,7 @@ BOTH policy B and one_per_language mode.
 import os
 
 from db.models import foreign_tracks as ft
+from services.foreign_tracks.policy import OverrideSet
 from services.foreign_tracks.select import MODE_ONE, SIDECAR_DROP, TrackPolicy
 from services.foreign_tracks.state import config_hash
 
@@ -107,7 +108,9 @@ def test_incomplete_overrides_pause_strip_without_calling_strip_file(
     repo.upsert_seen("/media/a.mkv", 10, 1.0, generation=1)
     repo.mark_probed("/media/a.mkv", ["spa"])  # affected
     monkeypatch.setattr(sw, "iter_video_files", lambda *a, **k: iter([]))
-    monkeypatch.setattr(sw, "override_paths", lambda: ([], False))
+    monkeypatch.setattr(
+        sw, "override_paths", lambda: OverrideSet(complete=False, failed=("series 1",))
+    )
     called = []
     monkeypatch.setattr(sw, "_strip_file", lambda *a, **kw: called.append(1) or ("/trash.bak", 5))
 
@@ -126,7 +129,7 @@ def test_complete_overrides_let_strip_run(app_ctx, tmp_path, monkeypatch):
     repo.upsert_seen("/media/a.mkv", 10, 1.0, generation=1)
     repo.mark_probed("/media/a.mkv", ["spa"])  # affected
     monkeypatch.setattr(sw, "iter_video_files", lambda *a, **k: iter([]))
-    monkeypatch.setattr(sw, "override_paths", lambda: ([], True))
+    monkeypatch.setattr(sw, "override_paths", lambda: OverrideSet())
     called = []
     monkeypatch.setattr(sw, "_strip_file", lambda *a, **kw: called.append(1) or ("/trash.bak", 5))
 
@@ -156,7 +159,7 @@ def test_the_slice_applies_the_folder_override_policy_end_to_end(app_ctx, tmp_pa
 
     def fake_override_paths():
         calls.append(1)
-        return [(folder, override_policy)], True
+        return OverrideSet(pairs=[(folder, override_policy)])
 
     monkeypatch.setattr(sw, "override_paths", fake_override_paths)
     monkeypatch.setattr(sw, "iter_video_files", lambda *a, **k: iter([]))

@@ -172,6 +172,14 @@ def maybe_run_foreign_track_cleanup(
             policy = resolve_policy(
                 series_id=item.get("sonarr_series_id"), movie_id=item.get("radarr_movie_id")
             )
+        if policy is None:
+            # The override exists but cannot be read right now. The global
+            # policy may strip more than it — fail, so the queue retries.
+            logger.warning(
+                "foreign-track cleanup: track policy unresolvable for %s — file untouched",
+                file_path,
+            )
+            return CLEANUP_FAILED
         real_langs = (
             real_sidecar_languages(file_path, base_codes)
             if policy.sidecar_policy == SIDECAR_DROP
