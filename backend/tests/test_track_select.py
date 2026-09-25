@@ -195,6 +195,19 @@ def test_und_follows_keep_und():
     assert _kept(select_tracks(streams, _ONE, _DE_EN, False, set())) == []
 
 
+def test_und_is_kept_when_und_is_targeted_even_without_keep_und():
+    """Parity with probe.foreign_languages / cleanup_executors' verify check:
+    an und/untagged track is kept when keep_und is on, OR "und" is itself
+    one of the target languages (e.g. via expand_keep_languages) — not only
+    through the keep_und flag.
+    """
+    streams = [_sub(2, "und", "subrip", "")]
+    keep_tags = _DE_EN | {"und"}
+    verdicts = select_tracks(streams, _ONE, keep_tags, False, set())
+    assert _kept(verdicts) == [2]
+    assert verdicts[0].reason == "kept_language"
+
+
 def test_sub_index_counts_only_subtitle_streams():
     verdicts = select_tracks(_oshi(), TrackPolicy(), _DE_EN, False, set())
     assert [v.sub_index for v in verdicts] == list(range(19))

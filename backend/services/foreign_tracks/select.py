@@ -155,8 +155,13 @@ def select_tracks(
         if t["index"] in decided:
             continue
         if t["raw"] == "und":
+            # Matches probe.foreign_languages / cleanup_executors' verify check:
+            # an untagged/und track is kept when keep_und is on, OR when "und"
+            # is itself one of the target languages (e.g. expand_keep_languages
+            # including "und") — not only via the keep_und flag.
+            und_targeted = keep_und or "und" in keep_tags or "und" in keep_codes
             decided[t["index"]] = (
-                (True, "kept_language") if keep_und else (False, "stripped_language")
+                (True, "kept_language") if und_targeted else (False, "stripped_language")
             )
             continue
         if t["raw"] not in keep_tags and t["language"] not in keep_codes:
