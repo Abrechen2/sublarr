@@ -52,10 +52,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   that found the shared per-provider window full was booked as a provider
   failure; it now waits briefly for a slot and is otherwise recorded as
   skipped.
+- **Searches no longer wait for the foreign-track cleanup.** Removing
+  unwanted subtitle tracks from a video after a download ran inside the search
+  and could wait up to an hour for the media I/O slot, so scheduled searches
+  timed out (items took up to 5 642 s instead of 158 s). The cleanup now runs
+  in the automation queue shortly afterwards.
 - **Smaller fixes.** The provider health board no longer calls a provider with
   a key saved in Settings blocked (#207 follow-up). Automation tasks that fail
   the same way every time are given up after ten attempts. A scheduled job that
-  is stopped no longer waits up to an hour for the media I/O slot.
+  is stopped no longer waits up to an hour for the media I/O slot. An
+  OpenSubtitles install without a user login no longer logs a failed tier
+  detection on every start, and a scheduled run cut off by a restart no longer
+  shows the downtime as its run time.
 
 ### Upgrade notes
 - **Database migration `wq1_refund_unanswered` rewrites rows in
