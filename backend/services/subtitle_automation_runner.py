@@ -261,9 +261,12 @@ class SubtitleAutomationRunner:
         """
         import os
 
-        from config import get_settings
-        from services.embedded_extractor import compute_keep_langs, resolve_profile_for_item
-        from services.foreign_track_cleanup import maybe_run_foreign_track_cleanup
+        from services.foreign_track_cleanup import (
+            CLEANUP_FAILED,
+            CLEANUP_STRIPPED,
+            cleanup_keep_languages,
+            maybe_run_foreign_track_cleanup,
+        )
 
         if not os.path.isfile(video_path):
             raise FileNotFoundError(f"video gone before its foreign-track cleanup: {video_path}")
@@ -272,16 +275,12 @@ class SubtitleAutomationRunner:
             "radarr_movie_id": radarr_movie_id,
             "target_language": language,
         }
-        keep: set[str] | None
-        try:
-            settings = get_settings()
-            keep = set(compute_keep_langs(resolve_profile_for_item(item, settings), settings))
-            if language:
-                keep.add(language)
-        except Exception as exc:  # noqa: BLE001 — fall back to the hook's own keep-set
-            logger.debug("[foreign-track] profile keep-set fallback: %s", exc)
-            keep = None
-        from services.foreign_track_cleanup import CLEANUP_FAILED, CLEANUP_STRIPPED
+        # Shared with the live preview, so both reach the same verdict.
+        keep = cleanup_keep_languages(item)
+        if keep is None:
+            # A narrower fallback keep-set would strip the profile's other
+            # target languages — retry instead.
+            raise RuntimeError(f"language profile unresolvable for {video_path}")
 
         outcome = maybe_run_foreign_track_cleanup(item, video_path, target_languages=keep)
         if outcome == CLEANUP_FAILED:

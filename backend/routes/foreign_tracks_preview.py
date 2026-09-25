@@ -2,10 +2,10 @@
 
 `POST /api/v1/foreign-tracks/preview-file` answers with the exact
 keep/strip verdict per subtitle track `select_tracks` would produce for a
-real strip — without touching the file. It reaches the same keep-set as
-`services.foreign_track_cleanup.maybe_run_foreign_track_cleanup` by calling
-the same shared `keep_tags_for` helper, so the preview never drifts from
-the real strip.
+real strip — without touching the file. It reaches the same keep-set as the
+queue drain (`SubtitleAutomationRunner._foreign_track_cleanup`) through the
+shared `cleanup_keep_languages` + `keep_tags_for` helpers, so the preview
+never drifts from the real strip.
 """
 
 from __future__ import annotations
@@ -69,11 +69,11 @@ def preview_file():
         400: {description: Missing/invalid path, series_id or movie_id}
         403: {description: Path outside the media root}
         404: {description: File not found}
-        503: {description: The series/movie track policy could not be resolved}
+        503: {description: The series/movie track policy or language profile could not be resolved}
     """
     from config import get_settings
     from remux import get_media_streams
-    from services.foreign_track_cleanup import keep_tags_for
+    from services.foreign_track_cleanup import cleanup_keep_languages, keep_tags_for
     from services.foreign_tracks.policy import resolve_policy
     from services.foreign_tracks.select import SIDECAR_DROP, select_tracks
     from services.foreign_tracks.sidecars import real_sidecar_languages
@@ -111,7 +111,20 @@ def preview_file():
             503,
         )
     item = {"sonarr_series_id": series_id, "radarr_movie_id": movie_id}
-    base_codes, tags = keep_tags_for(item)
+    # Same keep-set as the queue drain (final review I2): the item's
+    # language profile + the always-keep languages.
+    keep = cleanup_keep_languages(item)
+    if keep is None:
+        return (
+            jsonify(
+                {
+                    "error": "The language profile for this series/movie could not be "
+                    "resolved right now — try again later (see the server log)."
+                }
+            ),
+            503,
+        )
+    base_codes, tags = keep_tags_for(item, keep)
 
     real = (
         real_sidecar_languages(path, base_codes) if policy.sidecar_policy == SIDECAR_DROP else set()

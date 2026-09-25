@@ -120,6 +120,39 @@ def keep_tags_for(
     return base_codes, tags
 
 
+def cleanup_keep_languages(item: dict) -> set[str] | None:
+    """The target languages the cleanup keeps for ``item``, or None on error.
+
+    The ONE place the queue drain and the live preview get their keep-set
+    from (final review I2): the item's language profile (series profile,
+    movie profile, else the default — ``resolve_profile_for_item``) through
+    ``compute_keep_langs``, plus the item's own ``target_language`` (the
+    language that was just downloaded). ``keep_tags_for`` then adds the
+    always-keep languages and expands the tags.
+
+    Returns None when the profile cannot be resolved: a narrower keep-set
+    would strip the profile's other target languages, so callers refuse to
+    strip (the drain retries, the preview answers 503).
+    """
+    try:
+        from config import get_settings
+        from services.embedded_extractor import compute_keep_langs, resolve_profile_for_item
+
+        settings = get_settings()
+        keep = set(compute_keep_langs(resolve_profile_for_item(item, settings), settings))
+    except Exception as exc:  # noqa: BLE001 — reported as None; callers refuse to strip
+        logger.warning(
+            "foreign-track cleanup: language profile unresolvable for %s: %s",
+            item.get("sonarr_series_id") or item.get("radarr_movie_id") or "item",
+            exc,
+        )
+        return None
+    language = item.get("target_language")
+    if language:
+        keep.add(str(language).lower())
+    return keep
+
+
 def maybe_run_foreign_track_cleanup(
     item: dict,
     file_path: str,
