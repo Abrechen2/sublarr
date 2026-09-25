@@ -15,6 +15,7 @@ import { FormatUpgradeConfig } from './FormatUpgradeConfig'
 import { PathListInput } from './PathListInput'
 import { SchedulePicker } from './SchedulePicker'
 import { toast } from '@/components/shared/Toast'
+import { TrackVerdictList, type TrackVerdict } from './TrackVerdictList'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -25,6 +26,9 @@ interface PreviewExample {
   // foreign_tracks preview shape
   tracks?: number
   langs?: string[]
+  // 1.15.0 — per-track keep/strip verdicts (track variant policy), present
+  // when the foreign_tracks rule preview resolves a file's tracks.
+  verdicts?: TrackVerdict[]
 }
 
 interface PreviewResult {
@@ -92,26 +96,25 @@ function PreviewPanel({
         style={{ borderBottom: '1px solid var(--border)', background: 'var(--bg-surface)' }}
       >
         <div className="flex items-center gap-2.5">
-          <Eye size={13} style={{ color: 'var(--text-muted)' }} />
-          <span className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>
+          <Eye size={13} className="text-muted" />
+          <span className="text-sm font-semibold text-foreground">
             {t('cleanup_card.preview_dryrun')}
           </span>
         </div>
         <div className="flex items-center gap-3">
-          <span className="text-xs" style={{ color: 'var(--text-muted)' }}>
+          <span className="text-xs text-muted">
             {t('cleanup_card.no_real_change')}
           </span>
           <button
             onClick={onClose}
-            className="text-xs"
-            style={{ color: 'var(--text-muted)' }}
+            className="text-xs text-muted"
           >
             ✕
           </button>
         </div>
       </div>
 
-      <div className="p-5 space-y-5" style={{ background: 'var(--bg-elevated)' }}>
+      <div className="p-5 space-y-5 bg-elevated">
         {/* Summary tiles */}
         <div className="grid grid-cols-2 gap-4">
           <div
@@ -122,12 +125,11 @@ function PreviewPanel({
             }}
           >
             <div
-              className="text-3xl font-bold tabular-nums"
-              style={{ fontFamily: 'var(--font-mono)', color: 'var(--error)' }}
+              className="text-3xl font-bold tabular-nums font-mono text-error"
             >
               {willDelete}
             </div>
-            <div className="text-xs mt-1.5" style={{ color: 'var(--text-muted)' }}>
+            <div className="text-xs mt-1.5 text-muted">
               {stripTracks !== undefined
                 ? t('cleanup_card.files_tracks_removed', { count: stripTracks })
                 : t('cleanup_card.would_delete')}
@@ -142,12 +144,11 @@ function PreviewPanel({
               }}
             >
               <div
-                className="text-3xl font-bold tabular-nums"
-                style={{ fontFamily: 'var(--font-mono)', color: 'var(--success)' }}
+                className="text-3xl font-bold tabular-nums font-mono text-success"
               >
                 {willKeep}
               </div>
-              <div className="text-xs mt-1.5" style={{ color: 'var(--text-muted)' }}>
+              <div className="text-xs mt-1.5 text-muted">
                 {t('cleanup_card.would_keep')}
               </div>
             </div>
@@ -158,8 +159,7 @@ function PreviewPanel({
         {willDelete > 0 && total > 0 && (
           <div>
             <div
-              className="flex justify-between text-xs mb-2"
-              style={{ color: 'var(--text-muted)' }}
+              className="flex justify-between text-xs mb-2 text-muted"
             >
               <span>{t('cleanup_card.pct_removed', { pct })}</span>
               <span>{t('cleanup_card.total', { total })}</span>
@@ -180,36 +180,34 @@ function PreviewPanel({
         {examples.length > 0 && (
           <div>
             <div
-              className="text-[10px] font-semibold uppercase tracking-wider mb-3"
-              style={{ color: 'var(--text-muted)' }}
+              className="text-[10px] font-semibold uppercase tracking-wider mb-3 text-muted"
             >
               {t('cleanup_card.examples')} ({examples.length}
               {willDelete > examples.length ? ` ${t('cleanup_card.of', { total: willDelete })}` : ''})
             </div>
-            <div className="rounded-lg overflow-hidden" style={{ border: '1px solid var(--border)' }}>
+            <div className="rounded-lg overflow-hidden border border-border">
               {examples.map((ex, i) => {
                 const filename = ex.path.split(/[\\/]/).pop() ?? ex.path
                 const dir = ex.path.split(/[\\/]/).slice(0, -1).join('/') || '/'
                 return (
                   <div
                     key={i}
-                    className="flex items-center gap-3 px-4 py-3"
+                    className="px-4 py-3"
                     style={{
                       borderBottom: i < examples.length - 1 ? '1px solid var(--border)' : undefined,
                       background: i % 2 === 0 ? 'transparent' : 'rgba(255,255,255,.015)',
                     }}
                   >
+                    <div className="flex items-center gap-3">
                     <Trash2 size={12} style={{ color: 'var(--error)', flexShrink: 0 }} />
                     <div className="flex-1 min-w-0">
                       <div
-                        className="text-xs font-medium truncate"
-                        style={{ color: 'var(--text-primary)' }}
+                        className="text-xs font-medium truncate text-foreground"
                       >
                         {filename}
                       </div>
                       <div
-                        className="text-[11px] truncate mt-0.5"
-                        style={{ color: 'var(--text-muted)' }}
+                        className="text-[11px] truncate mt-0.5 text-muted"
                       >
                         {dir}
                       </div>
@@ -217,8 +215,7 @@ function PreviewPanel({
                     <div className="flex flex-col items-end gap-1 flex-shrink-0">
                       {(ex.size_bytes ?? 0) > 0 && (
                         <span
-                          className="text-[11px] tabular-nums"
-                          style={{ fontFamily: 'var(--font-mono)', color: 'var(--text-muted)' }}
+                          className="text-[11px] tabular-nums font-mono text-muted"
                         >
                           {formatBytes(ex.size_bytes ?? 0)}
                         </span>
@@ -248,11 +245,17 @@ function PreviewPanel({
                       )}
                     </div>
                   </div>
+                    {ex.verdicts && ex.verdicts.length > 0 && (
+                      <div className="pl-[27px] pt-1">
+                        <TrackVerdictList verdicts={ex.verdicts} />
+                      </div>
+                    )}
+                  </div>
                 )
               })}
             </div>
             {willDelete > examples.length && (
-              <div className="text-xs text-center pt-3" style={{ color: 'var(--text-muted)' }}>
+              <div className="text-xs text-center pt-3 text-muted">
                 {t('cleanup_card.more_files', { count: willDelete - examples.length })}
               </div>
             )}
@@ -260,7 +263,7 @@ function PreviewPanel({
         )}
 
         {willDelete === 0 && (
-          <div className="flex items-center justify-center gap-2 py-3 text-sm" style={{ color: 'var(--success)' }}>
+          <div className="flex items-center justify-center gap-2 py-3 text-sm text-success">
             <CheckCircle2 size={15} />
             {t('cleanup_card.none_deleted')}
           </div>
@@ -344,17 +347,17 @@ export function CleanupOpCard({ meta, rule, onToggle, onUpdate }: CleanupOpCardP
 
         {/* Title + description */}
         <div className="flex-1 min-w-0">
-          <div className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>
+          <div className="text-sm font-semibold text-foreground">
             {meta.title}
           </div>
-          <div className="text-xs mt-0.5" style={{ color: 'var(--text-muted)' }}>
+          <div className="text-xs mt-0.5 text-muted">
             {meta.description}
           </div>
         </div>
 
         {/* Last run timestamp — shown when collapsed */}
         {!expanded && rule?.last_run_at && (
-          <div className="text-[11px] text-right flex-shrink-0 hidden sm:block" style={{ color: 'var(--text-muted)' }}>
+          <div className="text-[11px] text-right flex-shrink-0 hidden sm:block text-muted">
             <div>{tc('ui.last')}</div>
             <div>{new Date(rule.last_run_at).toLocaleDateString('de-DE')}</div>
           </div>
@@ -394,7 +397,7 @@ export function CleanupOpCard({ meta, rule, onToggle, onUpdate }: CleanupOpCardP
         </div>
 
         {/* Chevron */}
-        <div className="flex-shrink-0" style={{ color: 'var(--text-muted)' }}>
+        <div className="flex-shrink-0 text-muted">
           {expanded ? <ChevronUp size={15} /> : <ChevronDown size={15} />}
         </div>
       </div>
@@ -411,8 +414,7 @@ export function CleanupOpCard({ meta, rule, onToggle, onUpdate }: CleanupOpCardP
             {meta.ruleType === 'language_filter' && (
               <div className="flex-1 min-w-[220px]">
                 <div
-                  className="text-[10px] font-semibold uppercase tracking-wider mb-3"
-                  style={{ color: 'var(--text-muted)' }}
+                  className="text-[10px] font-semibold uppercase tracking-wider mb-3 text-muted"
                 >
                   {t('cleanup_card.keep_languages')}
                 </div>
@@ -426,8 +428,7 @@ export function CleanupOpCard({ meta, rule, onToggle, onUpdate }: CleanupOpCardP
             {meta.ruleType === 'foreign_tracks' && (
               <div className="flex-1 min-w-[220px]">
                 <div
-                  className="text-[10px] font-semibold uppercase tracking-wider mb-3"
-                  style={{ color: 'var(--text-muted)' }}
+                  className="text-[10px] font-semibold uppercase tracking-wider mb-3 text-muted"
                 >
                   {t('cleanup_card.keep_languages')}
                 </div>
@@ -436,8 +437,7 @@ export function CleanupOpCard({ meta, rule, onToggle, onUpdate }: CleanupOpCardP
                   onChange={(langs) => updateConfig({ keep_languages: langs })}
                 />
                 <label
-                  className="flex items-center gap-2 mt-3 text-sm cursor-pointer"
-                  style={{ color: 'var(--text-secondary)' }}
+                  className="flex items-center gap-2 mt-3 text-sm cursor-pointer text-secondary"
                 >
                   <input
                     type="checkbox"
@@ -463,8 +463,7 @@ export function CleanupOpCard({ meta, rule, onToggle, onUpdate }: CleanupOpCardP
                 />
 
                 <div
-                  className="text-[10px] font-semibold uppercase tracking-wider mt-4 mb-2"
-                  style={{ color: 'var(--text-muted)' }}
+                  className="text-[10px] font-semibold uppercase tracking-wider mt-4 mb-2 text-muted"
                 >
                   {t('cleanup_card.min_free_gb')}
                 </div>
@@ -486,8 +485,7 @@ export function CleanupOpCard({ meta, rule, onToggle, onUpdate }: CleanupOpCardP
                 />
 
                 <label
-                  className="flex items-center gap-2 mt-3 text-sm cursor-pointer"
-                  style={{ color: 'var(--text-secondary)' }}
+                  className="flex items-center gap-2 mt-3 text-sm cursor-pointer text-secondary"
                   title={t('cleanup_card.verify_recycle_hint')}
                 >
                   <input
@@ -503,8 +501,7 @@ export function CleanupOpCard({ meta, rule, onToggle, onUpdate }: CleanupOpCardP
             {meta.ruleType === 'format_upgrade' && (
               <div className="flex-1 min-w-[220px]">
                 <div
-                  className="text-[10px] font-semibold uppercase tracking-wider mb-3"
-                  style={{ color: 'var(--text-muted)' }}
+                  className="text-[10px] font-semibold uppercase tracking-wider mb-3 text-muted"
                 >
                   {t('cleanup_card.preferred_format')}
                 </div>
@@ -518,8 +515,7 @@ export function CleanupOpCard({ meta, rule, onToggle, onUpdate }: CleanupOpCardP
             {meta.ruleType === 'old_backups' && (
               <div className="flex-1 min-w-[160px]">
                 <div
-                  className="text-[10px] font-semibold uppercase tracking-wider mb-3"
-                  style={{ color: 'var(--text-muted)' }}
+                  className="text-[10px] font-semibold uppercase tracking-wider mb-3 text-muted"
                 >
                   {t('cleanup_card.retention_days')}
                 </div>
@@ -544,8 +540,7 @@ export function CleanupOpCard({ meta, rule, onToggle, onUpdate }: CleanupOpCardP
             {meta.ruleType === 'old_subtitle_baks' && (
               <div className="flex-1 min-w-[160px]">
                 <div
-                  className="text-[10px] font-semibold uppercase tracking-wider mb-3"
-                  style={{ color: 'var(--text-muted)' }}
+                  className="text-[10px] font-semibold uppercase tracking-wider mb-3 text-muted"
                 >
                   {t('cleanup_card.retention_days')}
                 </div>
@@ -573,8 +568,7 @@ export function CleanupOpCard({ meta, rule, onToggle, onUpdate }: CleanupOpCardP
             {/* Schedule — always shown */}
             <div className="flex-1 min-w-[220px]">
               <div
-                className="text-[10px] font-semibold uppercase tracking-wider mb-3"
-                style={{ color: 'var(--text-muted)' }}
+                className="text-[10px] font-semibold uppercase tracking-wider mb-3 text-muted"
               >
                 {t('cleanup_card.schedule')}
               </div>
@@ -594,8 +588,7 @@ export function CleanupOpCard({ meta, rule, onToggle, onUpdate }: CleanupOpCardP
               <button
                 onClick={handlePreview}
                 disabled={!rule || rulePreview.isPending}
-                className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium disabled:opacity-40 transition-opacity"
-                style={{ border: '1px solid var(--border)', color: 'var(--text-secondary)' }}
+                className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium disabled:opacity-40 transition-opacity border border-border text-secondary"
               >
                 <Eye size={13} />
                 {rulePreview.isPending ? t('cleanup_card.loading') : t('cleanup_card.preview')}
@@ -613,13 +606,13 @@ export function CleanupOpCard({ meta, rule, onToggle, onUpdate }: CleanupOpCardP
             </button>
 
             {!rule && (
-              <span className="text-xs" style={{ color: 'var(--text-muted)' }}>
+              <span className="text-xs text-muted">
                 {t('cleanup_card.activate_first')}
               </span>
             )}
 
             {rule?.last_run_at && (
-              <span className="ml-auto text-xs" style={{ color: 'var(--text-muted)' }}>
+              <span className="ml-auto text-xs text-muted">
                 {t('cleanup_card.last_run', { date: new Date(rule.last_run_at).toLocaleString('de-DE') })}
               </span>
             )}

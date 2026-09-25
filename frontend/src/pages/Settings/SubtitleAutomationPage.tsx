@@ -34,6 +34,10 @@ type AutomationKeys =
   | 'embedded_extract_remove_from_container'
   | 'cleanup_foreign_tracks_default'
   | 'cleanup_foreign_tracks_keep_und'
+  | 'cleanup_track_variant_mode'
+  | 'cleanup_keep_forced'
+  | 'cleanup_keep_sdh'
+  | 'cleanup_sidecar_policy'
 
 function formatDate(iso: string | null): string {
   if (!iso) return '—'
@@ -53,6 +57,10 @@ export function SubtitleAutomationPage() {
   const runNow = useRunAutomationNow()
 
   const cfg = (config ?? {}) as Partial<Record<AutomationKeys, unknown>>
+  // Policy B (keep_forced / keep_sdh / sidecar_policy) only takes effect in
+  // "one_per_language" mode — in "all" mode every variant survives anyway,
+  // so those three controls are disabled with a short hint.
+  const oneTrackPerLanguage = cfg.cleanup_track_variant_mode === 'one_per_language'
 
   const set = (key: AutomationKeys, value: unknown) => {
     update.mutate(
@@ -136,12 +144,7 @@ export function SubtitleAutomationPage() {
                 Math.max(1, Math.min(60, Number(e.target.value) || 2))
               )
             }
-            className="w-20 px-2 py-1 rounded text-sm"
-            style={{
-              backgroundColor: 'var(--bg-primary)',
-              border: '1px solid var(--border)',
-              color: 'var(--text-primary)',
-            }}
+            className="w-20 px-2 py-1 rounded text-sm bg-page border border-border text-foreground"
           />
         </SettingRow>
       </SettingsSection>
@@ -186,12 +189,7 @@ export function SubtitleAutomationPage() {
                 Math.max(0, Math.min(50, Number(e.target.value) || 0))
               )
             }
-            className="w-20 px-2 py-1 rounded text-sm"
-            style={{
-              backgroundColor: 'var(--bg-primary)',
-              border: '1px solid var(--border)',
-              color: 'var(--text-primary)',
-            }}
+            className="w-20 px-2 py-1 rounded text-sm bg-page border border-border text-foreground"
           />
         </SettingRow>
       </SettingsSection>
@@ -245,6 +243,95 @@ export function SubtitleAutomationPage() {
             onChange={(v) => set('cleanup_foreign_tracks_keep_und', v)}
           />
         </SettingRow>
+
+        {/* 1.15.0 — track variant policy: one main track per language,
+            forced/SDH keep, and what to do when a real sidecar already
+            covers a language. */}
+        <SettingRow
+          label={t('subtitle_automation_page.cleanup.variant_mode', 'Varianten je Sprache')}
+          description={t(
+            'subtitle_automation_page.cleanup.variant_mode_help',
+            'Eine Hauptspur behält pro Sprache die beste volle Spur (ASS vor SRT vor Bild).'
+          )}
+        >
+          <select
+            className="bg-surface text-foreground border border-border rounded-md px-2 py-1 text-sm"
+            value={String(cfg.cleanup_track_variant_mode ?? 'all')}
+            onChange={(e) => set('cleanup_track_variant_mode', e.target.value)}
+          >
+            <option value="all">
+              {t('subtitle_automation_page.cleanup.variant_all', 'Alle Varianten behalten')}
+            </option>
+            <option value="one_per_language">
+              {t('subtitle_automation_page.cleanup.variant_one', 'Eine Hauptspur pro Sprache')}
+            </option>
+          </select>
+        </SettingRow>
+        <SettingRow
+          label={t('subtitle_automation_page.cleanup.keep_forced', 'Forced behalten')}
+          description={
+            oneTrackPerLanguage
+              ? undefined
+              : t(
+                  'subtitle_automation_page.cleanup.variant_only_hint',
+                  'Wirkt nur bei "Eine Hauptspur pro Sprache".'
+                )
+          }
+        >
+          <Toggle
+            checked={cfg.cleanup_keep_forced !== false}
+            disabled={!oneTrackPerLanguage}
+            onChange={(v) => set('cleanup_keep_forced', v)}
+          />
+        </SettingRow>
+        <SettingRow
+          label={t('subtitle_automation_page.cleanup.keep_sdh', 'SDH behalten')}
+          description={
+            oneTrackPerLanguage
+              ? undefined
+              : t(
+                  'subtitle_automation_page.cleanup.variant_only_hint',
+                  'Wirkt nur bei "Eine Hauptspur pro Sprache".'
+                )
+          }
+        >
+          <Toggle
+            checked={Boolean(cfg.cleanup_keep_sdh)}
+            disabled={!oneTrackPerLanguage}
+            onChange={(v) => set('cleanup_keep_sdh', v)}
+          />
+        </SettingRow>
+        <SettingRow
+          label={t(
+            'subtitle_automation_page.cleanup.sidecar_policy',
+            'Wenn ein echter Untertitel daneben liegt'
+          )}
+          description={
+            oneTrackPerLanguage
+              ? t(
+                  'subtitle_automation_page.cleanup.sidecar_policy_help',
+                  'Maschinelle Übersetzungen zählen nie. Der Remux lässt sich nicht rückgängig machen.'
+                )
+              : t(
+                  'subtitle_automation_page.cleanup.variant_only_hint',
+                  'Wirkt nur bei "Eine Hauptspur pro Sprache".'
+                )
+          }
+        >
+          <select
+            className="bg-surface text-foreground border border-border rounded-md px-2 py-1 text-sm disabled:opacity-50 disabled:cursor-not-allowed"
+            value={String(cfg.cleanup_sidecar_policy ?? 'keep_embedded')}
+            disabled={!oneTrackPerLanguage}
+            onChange={(e) => set('cleanup_sidecar_policy', e.target.value)}
+          >
+            <option value="keep_embedded">
+              {t('subtitle_automation_page.cleanup.sidecar_keep', 'Eingebettete Spur behalten')}
+            </option>
+            <option value="drop_if_real_sidecar">
+              {t('subtitle_automation_page.cleanup.sidecar_drop', 'Eingebettete Hauptspur entfernen')}
+            </option>
+          </select>
+        </SettingRow>
       </SettingsSection>
       </section>
 
@@ -278,7 +365,7 @@ export function SubtitleAutomationPage() {
                 <span className="text-muted mr-1">
                   {t('subtitle_automation_page.status.failed', 'Failed')}:
                 </span>
-                <strong style={{ color: 'var(--error)' }}>{status.data.queue.failed}</strong>
+                <strong className="text-error">{status.data.queue.failed}</strong>
               </div>
               <div>
                 <span className="text-muted mr-1">
@@ -294,7 +381,7 @@ export function SubtitleAutomationPage() {
               {formatDate(status.data.last_run_at)}
             </div>
             {status.data.last_error && (
-              <div style={{ color: 'var(--error)' }}>
+              <div className="text-error">
                 {t('subtitle_automation_page.status.last_error', 'Last error')}:{' '}
                 {status.data.last_error}
               </div>

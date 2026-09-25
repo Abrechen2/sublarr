@@ -368,6 +368,21 @@
     "import_success": "Konfiguration erfolgreich importiert"
   },
   "cleanup": {
+    "kind": {
+      "full": "voll",
+      "forced": "Forced",
+      "sdh": "SDH"
+    },
+    "reason": {
+      "kept_main": "behalten – Hauptspur",
+      "kept_forced": "behalten – Forced",
+      "kept_sdh": "behalten – SDH",
+      "kept_last_track": "behalten – letzte Spur der Sprache",
+      "kept_language": "behalten – gewünschte Sprache",
+      "stripped_language": "entfernt – Sprache nicht gewünscht",
+      "stripped_variant": "entfernt – weitere Variante derselben Sprache",
+      "stripped_sidecar": "entfernt – echter Untertitel liegt daneben"
+    },
     "footer": {
       "subtitle_backups": {
         "title": "Untertitel-Backup-Verwaltung",
@@ -1964,7 +1979,18 @@
       "default": "Standardmäßig entfernen",
       "default_help": "Globaler Standard; Serien-spezifische Overrides gibt es im Serien-Einstellungspanel.",
       "keep_und": "Undetermined (und) behalten",
-      "keep_und_help": "Spuren mit Sprach-Tag \"und\" werden nicht entfernt. Nur einschalten, wenn in deiner Library unbeschriftete Subs sind, die du behalten willst."
+      "keep_und_help": "Spuren mit Sprach-Tag \"und\" werden nicht entfernt. Nur einschalten, wenn in deiner Library unbeschriftete Subs sind, die du behalten willst.",
+      "variant_mode": "Varianten je Sprache",
+      "variant_mode_help": "Eine Hauptspur behält pro Sprache die beste volle Spur (ASS vor SRT vor Bild).",
+      "variant_all": "Alle Varianten behalten",
+      "variant_one": "Eine Hauptspur pro Sprache",
+      "variant_only_hint": "Wirkt nur bei \"Eine Hauptspur pro Sprache\".",
+      "keep_forced": "Forced behalten",
+      "keep_sdh": "SDH behalten",
+      "sidecar_policy": "Wenn ein echter Untertitel daneben liegt",
+      "sidecar_policy_help": "Maschinelle Übersetzungen zählen nie. Der Remux lässt sich nicht rückgängig machen.",
+      "sidecar_keep": "Eingebettete Spur behalten",
+      "sidecar_drop": "Eingebettete Hauptspur entfernen"
     },
     "status": {
       "title": "Live-Status",

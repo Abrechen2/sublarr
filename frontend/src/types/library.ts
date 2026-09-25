@@ -87,6 +87,12 @@ export interface SeriesDetail {
   //   cleanup_foreign_tracks_effective: resolved policy after applying global default.
   cleanup_foreign_tracks_override?: boolean | null
   cleanup_foreign_tracks_effective?: boolean
+  // 1.15.0: track variant policy overrides are NOT part of this response —
+  // they resolve through the profiles-overrides API
+  // (GET /profiles-overrides/resolved/series/<id>), read via
+  // `getResolvedSeriesSettings` in api/seriesSettings.ts. Listed here only
+  // as documentation of the inheritable field names; SeriesSettingsPanel
+  // fetches them separately rather than relying on this type carrying them.
 }
 
 export interface EpisodeHistoryEntry {

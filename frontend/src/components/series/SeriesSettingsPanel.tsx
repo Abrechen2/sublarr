@@ -1,8 +1,18 @@
 import type React from 'react'
+import { useState } from 'react'
 import type { SeriesDetail } from '@/lib/types'
 import { useTranslation } from 'react-i18next'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Tooltip } from '@/components/shared/Tooltip'
 import { useLanguageProfiles, useAssignProfile } from '@/hooks/useApi'
+import {
+  getResolvedSeriesSettings,
+  patchSeriesTrackVariantOverride,
+  seriesOverrideValue,
+  type TrackVariantOverridePayload,
+} from '@/api/seriesSettings'
+import { previewFile } from '@/api/foreignTracks'
+import { TrackVerdictList } from '@/components/cleanup/TrackVerdictList'
 
 interface SeriesSettingsPanelProps {
   readonly series: SeriesDetail
@@ -64,18 +74,67 @@ export function SeriesSettingsPanel({
   const assignProfile = useAssignProfile()
   const profiles = profilesData ?? []
 
+  // ─── Track variant policy overrides (1.15.0) ───────────────────────────
+  // Resolved through the profiles-overrides API (Global -> Profile ->
+  // Series inheritance), NOT part of SeriesDetail — see api/seriesSettings.ts.
+  const queryClient = useQueryClient()
+  const resolvedQueryKey = ['series-track-variant-resolved', seriesId]
+  const resolvedQuery = useQuery({
+    queryKey: resolvedQueryKey,
+    queryFn: () => getResolvedSeriesSettings(seriesId),
+  })
+  const patchOverride = useMutation({
+    mutationFn: (payload: TrackVariantOverridePayload) =>
+      patchSeriesTrackVariantOverride(seriesId, payload),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: resolvedQueryKey })
+    },
+  })
+
+  const modeOverride = seriesOverrideValue(resolvedQuery.data, 'cleanup_track_variant_mode') as
+    | 'all'
+    | 'one_per_language'
+    | null
+  const keepForcedOverride = seriesOverrideValue(resolvedQuery.data, 'cleanup_keep_forced') as
+    | boolean
+    | null
+  const keepSdhOverride = seriesOverrideValue(resolvedQuery.data, 'cleanup_keep_sdh') as
+    | boolean
+    | null
+  const sidecarPolicyOverride = seriesOverrideValue(resolvedQuery.data, 'cleanup_sidecar_policy') as
+    | 'keep_embedded'
+    | 'drop_if_real_sidecar'
+    | null
+  const modeEffective = resolvedQuery.data?.settings.cleanup_track_variant_mode?.effective as
+    | 'all'
+    | 'one_per_language'
+    | undefined
+  // Policy B (keep_forced / keep_sdh / sidecar_policy) only takes effect in
+  // "one_per_language" mode — mirrors the global settings page ruling.
+  const policyBActive = modeEffective === 'one_per_language'
+
+  const variantLabel = (mode: 'all' | 'one_per_language' | undefined) =>
+    mode === 'one_per_language'
+      ? t('series_settings_panel.variant_one', { defaultValue: 'One main track per language' })
+      : t('series_settings_panel.variant_all', { defaultValue: 'Keep all variants' })
+
+  // Preview: per-episode keep/strip verdict for the effective policy.
+  const episodesWithFile = series.episodes.filter((ep) => ep.has_file && ep.file_path)
+  const [previewEpisodeId, setPreviewEpisodeId] = useState<number | null>(
+    episodesWithFile[0]?.id ?? null,
+  )
+  const previewMutation = useMutation({
+    mutationFn: (path: string) => previewFile({ path, series_id: seriesId }),
+  })
+  const handlePreview = () => {
+    const ep = episodesWithFile.find((e) => e.id === previewEpisodeId)
+    if (!ep) return
+    previewMutation.mutate(ep.file_path)
+  }
+
   return (
     <div
-      style={{
-        backgroundColor: 'var(--bg-surface)',
-        border: '1px solid var(--border)',
-        borderRadius: 'var(--radius-md)',
-        padding: '16px',
-        display: 'flex',
-        flexDirection: 'column',
-        gap: '16px',
-        marginBottom: '16px',
-      }}
+      className="bg-surface border border-border rounded-md p-4 flex flex-col gap-4 mb-4"
     >
       {/* Language section */}
       <div>
@@ -246,14 +305,7 @@ export function SeriesSettingsPanel({
                   else if (next === 'false') onSetCleanupForeignTracks(false)
                   else onSetCleanupForeignTracks(null)
                 }}
-                style={{
-                  fontSize: '11px',
-                  padding: '2px 6px',
-                  borderRadius: '4px',
-                  border: '1px solid var(--border)',
-                  backgroundColor: 'var(--bg-elevated)',
-                  color: 'var(--text-secondary)',
-                }}
+                className="text-[11px] py-0.5 px-1.5 rounded border border-border bg-elevated text-secondary"
               >
                 <option value="null">
                   {t('series_settings_panel.cleanup_inherit', {
@@ -273,6 +325,201 @@ export function SeriesSettingsPanel({
             </label>
           </Tooltip>
         </div>
+
+        {/* Track variant policy overrides (1.15.0) — profiles-overrides API.
+            "Inherit" (null) falls back through Profile -> Global. */}
+        <div
+          className="flex flex-wrap gap-2 items-center mt-2 pt-2"
+          style={{ borderTop: '1px solid var(--border)' }}
+        >
+          <label className="flex items-center gap-1.5 text-[11px] text-secondary">
+            <span>
+              {t('series_settings_panel.track_variant_mode_label', {
+                defaultValue: 'Variants per language:',
+              })}
+            </span>
+            <select
+              aria-label={t('series_settings_panel.track_variant_mode_aria', {
+                defaultValue: 'Variants per language override',
+              })}
+              disabled={patchOverride.isPending}
+              value={modeOverride ?? 'null'}
+              onChange={(e) => {
+                const next = e.target.value
+                patchOverride.mutate({
+                  cleanup_track_variant_mode:
+                    next === 'null' ? null : (next as 'all' | 'one_per_language'),
+                })
+              }}
+              className="text-[11px] px-1.5 py-0.5 rounded border border-border bg-elevated text-secondary"
+            >
+              <option value="null">
+                {t('series_settings_panel.cleanup_inherit', { defaultValue: 'Inherit' })}
+                {modeEffective !== undefined ? ` (${variantLabel(modeEffective)})` : ''}
+              </option>
+              <option value="all">{variantLabel('all')}</option>
+              <option value="one_per_language">{variantLabel('one_per_language')}</option>
+            </select>
+          </label>
+
+          <label className="flex items-center gap-1.5 text-[11px] text-secondary">
+            <span>
+              {t('series_settings_panel.keep_forced_label', { defaultValue: 'Keep forced:' })}
+            </span>
+            <select
+              aria-label={t('series_settings_panel.keep_forced_aria', {
+                defaultValue: 'Keep forced override',
+              })}
+              disabled={patchOverride.isPending || !policyBActive}
+              title={
+                policyBActive
+                  ? undefined
+                  : t('series_settings_panel.variant_only_hint', {
+                      defaultValue: 'Only applies with "One main track per language".',
+                    })
+              }
+              value={
+                keepForcedOverride === true ? 'true' : keepForcedOverride === false ? 'false' : 'null'
+              }
+              onChange={(e) => {
+                const next = e.target.value
+                patchOverride.mutate({
+                  cleanup_keep_forced: next === 'null' ? null : next === 'true',
+                })
+              }}
+              className="text-[11px] px-1.5 py-0.5 rounded border border-border bg-elevated text-secondary disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              <option value="null">
+                {t('series_settings_panel.cleanup_inherit', { defaultValue: 'Inherit' })}
+              </option>
+              <option value="true">
+                {t('series_settings_panel.cleanup_always', { defaultValue: 'Always' })}
+              </option>
+              <option value="false">
+                {t('series_settings_panel.cleanup_never', { defaultValue: 'Never' })}
+              </option>
+            </select>
+          </label>
+
+          <label className="flex items-center gap-1.5 text-[11px] text-secondary">
+            <span>{t('series_settings_panel.keep_sdh_label', { defaultValue: 'Keep SDH:' })}</span>
+            <select
+              aria-label={t('series_settings_panel.keep_sdh_aria', {
+                defaultValue: 'Keep SDH override',
+              })}
+              disabled={patchOverride.isPending || !policyBActive}
+              title={
+                policyBActive
+                  ? undefined
+                  : t('series_settings_panel.variant_only_hint', {
+                      defaultValue: 'Only applies with "One main track per language".',
+                    })
+              }
+              value={keepSdhOverride === true ? 'true' : keepSdhOverride === false ? 'false' : 'null'}
+              onChange={(e) => {
+                const next = e.target.value
+                patchOverride.mutate({
+                  cleanup_keep_sdh: next === 'null' ? null : next === 'true',
+                })
+              }}
+              className="text-[11px] px-1.5 py-0.5 rounded border border-border bg-elevated text-secondary disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              <option value="null">
+                {t('series_settings_panel.cleanup_inherit', { defaultValue: 'Inherit' })}
+              </option>
+              <option value="true">
+                {t('series_settings_panel.cleanup_always', { defaultValue: 'Always' })}
+              </option>
+              <option value="false">
+                {t('series_settings_panel.cleanup_never', { defaultValue: 'Never' })}
+              </option>
+            </select>
+          </label>
+
+          <label className="flex items-center gap-1.5 text-[11px] text-secondary">
+            <span>
+              {t('series_settings_panel.sidecar_policy_label', {
+                defaultValue: 'When a real subtitle sits next to it:',
+              })}
+            </span>
+            <select
+              aria-label={t('series_settings_panel.sidecar_policy_aria', {
+                defaultValue: 'Sidecar policy override',
+              })}
+              disabled={patchOverride.isPending || !policyBActive}
+              title={
+                policyBActive
+                  ? undefined
+                  : t('series_settings_panel.variant_only_hint', {
+                      defaultValue: 'Only applies with "One main track per language".',
+                    })
+              }
+              value={sidecarPolicyOverride ?? 'null'}
+              onChange={(e) => {
+                const next = e.target.value
+                patchOverride.mutate({
+                  cleanup_sidecar_policy:
+                    next === 'null' ? null : (next as 'keep_embedded' | 'drop_if_real_sidecar'),
+                })
+              }}
+              className="text-[11px] px-1.5 py-0.5 rounded border border-border bg-elevated text-secondary disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              <option value="null">
+                {t('series_settings_panel.cleanup_inherit', { defaultValue: 'Inherit' })}
+              </option>
+              <option value="keep_embedded">
+                {t('series_settings_panel.sidecar_keep', { defaultValue: 'Keep the embedded track' })}
+              </option>
+              <option value="drop_if_real_sidecar">
+                {t('series_settings_panel.sidecar_drop', {
+                  defaultValue: 'Remove the embedded main track',
+                })}
+              </option>
+            </select>
+          </label>
+
+          {episodesWithFile.length > 0 && (
+            <label className="flex items-center gap-1.5 text-[11px] text-secondary">
+              <select
+                aria-label={t('series_settings_panel.preview_episode_select_aria', {
+                  defaultValue: 'Choose an episode to preview',
+                })}
+                value={previewEpisodeId ?? ''}
+                onChange={(e) => setPreviewEpisodeId(Number(e.target.value))}
+                className="text-[11px] px-1.5 py-0.5 rounded border border-border bg-elevated text-secondary"
+              >
+                {episodesWithFile.map((ep) => (
+                  <option key={ep.id} value={ep.id}>
+                    S{String(ep.season).padStart(2, '0')}E{String(ep.episode).padStart(2, '0')}
+                  </option>
+                ))}
+              </select>
+              <button
+                type="button"
+                onClick={handlePreview}
+                disabled={previewMutation.isPending}
+                className="text-[11px] px-2.5 py-1 rounded border border-border bg-elevated text-secondary disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {previewMutation.isPending
+                  ? t('series_settings_panel.preview_loading', { defaultValue: 'Loading preview…' })
+                  : t('series_settings_panel.preview_episode_button', {
+                      defaultValue: 'Preview one episode',
+                    })}
+              </button>
+            </label>
+          )}
+        </div>
+
+        {previewMutation.isError && (
+          <div className="text-[11px] mt-1 text-error">
+            {t('series_settings_panel.preview_failed', { defaultValue: 'Preview failed' })}
+          </div>
+        )}
+        {previewMutation.data && (
+          <div className="mt-2 pl-1">
+            <TrackVerdictList verdicts={previewMutation.data.verdicts} />
+          </div>
+        )}
       </div>
 
       {/* Tools section */}
@@ -283,13 +530,7 @@ export function SeriesSettingsPanel({
           <Tooltip content={t('series_settings_panel.tooltip_export_zip')}>
             <button
               onClick={onExport}
-              style={{
-                ...buttonBaseStyle,
-                backgroundColor: 'var(--bg-elevated)',
-                color: 'var(--text-secondary)',
-                border: '1px solid var(--border)',
-                cursor: 'pointer',
-              }}
+              className="text-[11px] px-2.5 py-1 rounded bg-elevated text-secondary border border-border cursor-pointer"
             >
               📦 {t('series_settings_panel.export_subtitles')}
             </button>
@@ -320,13 +561,7 @@ export function SeriesSettingsPanel({
           <Tooltip content={t('series_settings_panel.tooltip_cleanup')}>
             <button
               onClick={onCleanup}
-              style={{
-                ...buttonBaseStyle,
-                backgroundColor: 'var(--bg-elevated)',
-                color: 'var(--text-secondary)',
-                border: '1px solid var(--border)',
-                cursor: 'pointer',
-              }}
+              className="text-[11px] px-2.5 py-1 rounded bg-elevated text-secondary border border-border cursor-pointer"
             >
               🧹 {t('series_settings_panel.cleanup_sidecar')}
             </button>
@@ -335,13 +570,7 @@ export function SeriesSettingsPanel({
           {/* Untertitel-Gesundheit prüfen (ganze Serie) */}
           <button
             onClick={onScanHealth}
-            style={{
-              ...buttonBaseStyle,
-              backgroundColor: 'var(--bg-elevated)',
-              color: 'var(--text-secondary)',
-              border: '1px solid var(--border)',
-              cursor: 'pointer',
-            }}
+            className="text-[11px] px-2.5 py-1 rounded bg-elevated text-secondary border border-border cursor-pointer"
           >
             🩺 {t('subtitle_health.scan_series')}
           </button>

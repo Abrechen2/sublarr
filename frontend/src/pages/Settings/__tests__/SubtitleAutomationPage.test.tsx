@@ -74,9 +74,18 @@ vi.mock('@/components/settings/SettingsSection', () => ({
 }))
 
 vi.mock('@/components/shared/SettingRow', () => ({
-  SettingRow: ({ label, children }: { label: string; children: React.ReactNode }) => (
+  SettingRow: ({
+    label,
+    description,
+    children,
+  }: {
+    label: string
+    description?: string
+    children: React.ReactNode
+  }) => (
     <div>
       <label>{label}</label>
+      {description && <span>{description}</span>}
       {children}
     </div>
   ),
@@ -88,14 +97,17 @@ vi.mock('@/components/shared/Toggle', () => ({
   Toggle: ({
     checked,
     onChange,
+    disabled,
   }: {
     checked: boolean
     onChange: (v: boolean) => void
+    disabled?: boolean
   }) => (
     <input
       type="checkbox"
       role="switch"
       checked={checked}
+      disabled={disabled}
       onChange={(e) => onChange(e.target.checked)}
       readOnly={false}
     />
@@ -142,10 +154,16 @@ describe('SubtitleAutomationPage', () => {
     expect(screen.getByText('Remove extracted streams from container')).toBeInTheDocument()
     expect(screen.getByText('Strip by default')).toBeInTheDocument()
     expect(screen.getByText('Keep undetermined (und)')).toBeInTheDocument()
+    // Track variant policy (1.15.0)
+    expect(screen.getByText('Varianten je Sprache')).toBeInTheDocument()
+    expect(screen.getByText('Forced behalten')).toBeInTheDocument()
+    expect(screen.getByText('SDH behalten')).toBeInTheDocument()
+    expect(screen.getByText('Wenn ein echter Untertitel daneben liegt')).toBeInTheDocument()
 
-    // 6 toggles (master + queue + SDH + 3x cleanup) — interval + penalty are numbers
+    // 8 toggles (master + queue + SDH + 3x cleanup + keep_forced + keep_sdh)
+    // — interval/penalty are numbers, variant_mode/sidecar_policy are selects.
     const toggles = screen.getAllByRole('switch')
-    expect(toggles).toHaveLength(6)
+    expect(toggles).toHaveLength(8)
   })
 
   it('shows queue counts, last_run_at and last_error', () => {
@@ -183,6 +201,65 @@ describe('SubtitleAutomationPage', () => {
     expect(updateMutate).toHaveBeenCalledTimes(1)
     expect(updateMutate).toHaveBeenCalledWith(
       { subtitle_automation_enabled: true },
+      expect.any(Object),
+    )
+  })
+})
+
+// 1.15.0 — track variant policy: keep_forced / keep_sdh / sidecar_policy only
+// take effect in "one_per_language" mode, so the controls must be disabled
+// (with a hint) whenever the mode is "all" — the default.
+describe('SubtitleAutomationPage — track variant policy disabled states', () => {
+  beforeEach(resetMocks)
+
+  it('disables keep_forced, keep_sdh and sidecar_policy in mode "all" (default)', () => {
+    mockConfig = {} // cleanup_track_variant_mode defaults to "all"
+    render(<SubtitleAutomationPage />)
+
+    const toggles = screen.getAllByRole('switch')
+    // Document order: master, queue.enabled, sdh.allow, remove_extracted,
+    // default, keep_und, keep_forced, keep_sdh.
+    const keepForcedToggle = toggles[6]
+    const keepSdhToggle = toggles[7]
+    expect(keepForcedToggle).toBeDisabled()
+    expect(keepSdhToggle).toBeDisabled()
+
+    const selects = screen.getAllByRole('combobox')
+    // Document order: variant_mode, sidecar_policy.
+    const sidecarPolicySelect = selects[1]
+    expect(sidecarPolicySelect).toBeDisabled()
+
+    // Hint text shown instead of the sidecar description when disabled.
+    expect(
+      screen.getAllByText('Wirkt nur bei "Eine Hauptspur pro Sprache".').length,
+    ).toBeGreaterThan(0)
+  })
+
+  it('enables keep_forced, keep_sdh and sidecar_policy in mode "one_per_language"', () => {
+    mockConfig = { cleanup_track_variant_mode: 'one_per_language' }
+    render(<SubtitleAutomationPage />)
+
+    const toggles = screen.getAllByRole('switch')
+    const keepForcedToggle = toggles[6]
+    const keepSdhToggle = toggles[7]
+    expect(keepForcedToggle).not.toBeDisabled()
+    expect(keepSdhToggle).not.toBeDisabled()
+
+    const selects = screen.getAllByRole('combobox')
+    const sidecarPolicySelect = selects[1]
+    expect(sidecarPolicySelect).not.toBeDisabled()
+  })
+
+  it('changing the variant mode select calls update with cleanup_track_variant_mode', () => {
+    mockConfig = {}
+    render(<SubtitleAutomationPage />)
+
+    const selects = screen.getAllByRole('combobox')
+    const variantModeSelect = selects[0]
+    fireEvent.change(variantModeSelect, { target: { value: 'one_per_language' } })
+
+    expect(updateMutate).toHaveBeenCalledWith(
+      { cleanup_track_variant_mode: 'one_per_language' },
       expect.any(Object),
     )
   })

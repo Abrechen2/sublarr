@@ -368,6 +368,21 @@
     "import_success": "Config imported successfully"
   },
   "cleanup": {
+    "kind": {
+      "full": "full",
+      "forced": "forced",
+      "sdh": "SDH"
+    },
+    "reason": {
+      "kept_main": "kept – main track",
+      "kept_forced": "kept – forced",
+      "kept_sdh": "kept – SDH",
+      "kept_last_track": "kept – last track of the language",
+      "kept_language": "kept – wanted language",
+      "stripped_language": "removed – language not wanted",
+      "stripped_variant": "removed – another variant of the same language",
+      "stripped_sidecar": "removed – a real subtitle sits next to it"
+    },
     "footer": {
       "subtitle_backups": {
         "title": "Subtitle Backup Management",
@@ -1964,7 +1979,18 @@
       "default": "Strip by default",
       "default_help": "Global default; per-series overrides live on the series settings panel.",
       "keep_und": "Keep undetermined (und)",
-      "keep_und_help": "Preserve tracks where the language tag is \"und\". Leave off unless your library has unlabelled subs you want to keep."
+      "keep_und_help": "Preserve tracks where the language tag is \"und\". Leave off unless your library has unlabelled subs you want to keep.",
+      "variant_mode": "Variants per language",
+      "variant_mode_help": "One main track keeps the best full track per language (ASS before SRT before image).",
+      "variant_all": "Keep all variants",
+      "variant_one": "One main track per language",
+      "variant_only_hint": "Only applies with \"One main track per language\".",
+      "keep_forced": "Keep forced",
+      "keep_sdh": "Keep SDH",
+      "sidecar_policy": "When a real subtitle sits next to it",
+      "sidecar_policy_help": "Machine translations never count. The remux cannot be undone.",
+      "sidecar_keep": "Keep the embedded track",
+      "sidecar_drop": "Remove the embedded main track"
     },
     "status": {
       "title": "Live Status",
