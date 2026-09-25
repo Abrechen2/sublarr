@@ -236,3 +236,46 @@ class TestMasterToggleGate:
         assert processed == 0
         extract_mock.assert_not_called()
         assert repo.get_by_wanted_item(500)["state"] == "pending"
+
+
+class TestAttemptCap:
+    """Prod 2026-09-25: an .iso ffsubsync cannot read was on attempt 38, a
+    backup name too long for the filesystem on 27 — each one a daily
+    traceback and a drain slot, for a verdict that never changes."""
+
+    def _at_attempt(self, repo, wanted_item_id, attempts):
+        from db.models.core import SubtitleAutomationQueueEntry
+        from extensions import db
+
+        repo.enqueue(wanted_item_id=wanted_item_id, file_path="/m/x.mkv", target_language="ger")
+        row = (
+            db.session.query(SubtitleAutomationQueueEntry)
+            .filter_by(wanted_item_id=wanted_item_id)
+            .one()
+        )
+        row.attempt_count = attempts
+        db.session.commit()
+
+    def test_the_last_allowed_attempt_gives_up(self, repo, runner):
+        from services.subtitle_automation_runner import MAX_ATTEMPTS
+
+        self._at_attempt(repo, 11, MAX_ATTEMPTS - 1)
+        with patch(
+            "services.subtitle_automation_runner._extract_embedded_sub",
+            side_effect=OSError(36, "File name too long"),
+        ):
+            runner.process_one()
+        e = repo.get_by_wanted_item(11)
+        assert e["state"] == "failed"
+        assert e["next_retry_at"] is None
+
+    def test_earlier_attempts_still_retry(self, repo, runner):
+        from services.subtitle_automation_runner import MAX_ATTEMPTS
+
+        self._at_attempt(repo, 12, MAX_ATTEMPTS - 2)
+        with patch(
+            "services.subtitle_automation_runner._extract_embedded_sub",
+            side_effect=OSError(36, "File name too long"),
+        ):
+            runner.process_one()
+        assert repo.get_by_wanted_item(12)["next_retry_at"] is not None

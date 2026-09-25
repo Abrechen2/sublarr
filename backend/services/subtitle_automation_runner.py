@@ -53,6 +53,11 @@ logger = logging.getLogger(__name__)
 # which is the right cadence for waiting on a human.
 _TERMINAL_SYNC_ERRORS = (SyncSanityThresholdError,)
 
+#: A failure that survived this many attempts — five days on the 24h step —
+#: is booked terminal. Prod 2026-09-25: an .iso ffsubsync cannot read was on
+#: attempt 38, a backup name too long for the filesystem on 27.
+MAX_ATTEMPTS = 10
+
 # 5m → 15m → 1h → 6h → 24h, then capped.
 _BACKOFF_LADDER: tuple[timedelta, ...] = (
     timedelta(minutes=5),
@@ -315,6 +320,15 @@ class SubtitleAutomationRunner:
             self._repo.mark_failed(entry_id, error=str(exc), next_retry_at=None)
             return True
         except Exception as exc:
+            if prior_attempt + 1 >= MAX_ATTEMPTS:
+                logger.warning(
+                    "subtitle_automation: giving up on wanted_item=%s after %d attempts: %s",
+                    wanted_item_id,
+                    prior_attempt + 1,
+                    exc,
+                )
+                self._repo.mark_failed(entry_id, error=str(exc), next_retry_at=None)
+                return True
             delay = compute_backoff(attempt=prior_attempt + 1)
             retry_at = datetime.now(UTC) + delay
             logger.warning(
