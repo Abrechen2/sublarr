@@ -58,6 +58,7 @@ def test_detects_free_tier_from_user_info_response():
     p = OpenSubtitlesProvider.__new__(OpenSubtitlesProvider)
     p.session = fake_session
     p.api_key = "x"
+    p._token = "user-jwt"
     assert p.detect_tier() == "free"
 
 
@@ -70,6 +71,7 @@ def test_detects_vip_tier():
     p = OpenSubtitlesProvider.__new__(OpenSubtitlesProvider)
     p.session = fake_session
     p.api_key = "x"
+    p._token = "user-jwt"
     assert p.detect_tier() == "vip"
 
 
@@ -79,6 +81,7 @@ def test_defaults_to_free_on_failure():
     p = OpenSubtitlesProvider.__new__(OpenSubtitlesProvider)
     p.session = fake_session
     p.api_key = "x"
+    p._token = "user-jwt"
     assert p.detect_tier() == "free"
 
 
@@ -91,6 +94,7 @@ def test_detect_tier_caches_result():
     p = OpenSubtitlesProvider.__new__(OpenSubtitlesProvider)
     p.session = fake_session
     p.api_key = "x"
+    p._token = "user-jwt"
     assert p.detect_tier() == "vip"
     assert p.detect_tier() == "vip"  # second call uses cache
     assert p.detect_tier() == "vip"
@@ -106,6 +110,7 @@ def test_detect_tier_force_refresh_bypasses_cache():
     p = OpenSubtitlesProvider.__new__(OpenSubtitlesProvider)
     p.session = fake_session
     p.api_key = "x"
+    p._token = "user-jwt"
     p.detect_tier()
     p.detect_tier(force=True)
     assert fake_session.get.call_count == 2
@@ -250,3 +255,18 @@ def test_concurrent_download_auth_401s_share_one_token_refresh():
 
     assert results == [b"payload", b"payload"]
     assert calls == {"download": 4, "login": 1}
+
+
+def test_a_key_only_install_does_not_probe_the_user_endpoint(caplog):
+    """/infos/user needs a user JWT; an API-key-only install got a 401 warning
+    on every start (prod 2026-09-25) for a tier it cannot learn anyway."""
+    fake_session = MagicMock()
+    p = OpenSubtitlesProvider.__new__(OpenSubtitlesProvider)
+    p.session = fake_session
+    p.api_key = "x"
+    p._token = None
+
+    with caplog.at_level("WARNING"):
+        assert p.detect_tier() == "free"
+    fake_session.get.assert_not_called()
+    assert "tier detection failed" not in caplog.text

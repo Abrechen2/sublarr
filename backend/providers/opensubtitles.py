@@ -251,6 +251,13 @@ class OpenSubtitlesProvider(SubtitleProvider, _OpenSubtitlesFetchMixin):
         if not force and hasattr(self, "_cached_tier"):
             return self._cached_tier
 
+        if not getattr(self, "_token", None):
+            # /infos/user needs a user JWT, which an API-key-only install never
+            # holds — probing it logged a 401 on every start (same rule as
+            # health_check). Without a login the account tier is unknowable.
+            self._cached_tier = "free"
+            return self._cached_tier
+
         try:
             resp = self.session.get(f"{API_BASE}/infos/user")
             if resp.status_code != 200:
