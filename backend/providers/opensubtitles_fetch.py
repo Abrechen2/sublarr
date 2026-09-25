@@ -8,6 +8,7 @@ request + JSON → SubtitleResult translation, including:
 - per-item filtering by ``forced_only``
 - format detection via filename extension / API ``format`` field
 - match-set population for downstream scoring
+- rejection of results that name another season than the query asks for
 - uploader trust-bonus lookup
 - path-traversal guard via ``secure_filename``
 
@@ -18,6 +19,7 @@ state it reads through ``self`` (``session``, ``name``).
 
 import logging
 import os
+import re
 
 from werkzeug.utils import secure_filename as _secure_filename
 
@@ -31,6 +33,50 @@ from providers.base import (
 from providers.opensubtitles_helpers import _FORMAT_MAP, _UPLOADER_RANK_BONUS, API_BASE
 
 logger = logging.getLogger(__name__)
+
+# ``S02E07`` / ``s2.e7`` / ``S02 E07`` in a filename or release name.
+_SEASON_EPISODE_RE = re.compile(r"(?<![a-z0-9])s(\d{1,3})[ ._-]?e(\d{1,4})", re.IGNORECASE)
+
+
+def _named_season_episode(*texts: str) -> tuple[int, int] | None:
+    """First ``S##E##`` pair found in ``texts``, or None."""
+    for text in texts:
+        match = _SEASON_EPISODE_RE.search(text or "")
+        if match:
+            return int(match.group(1)), int(match.group(2))
+    return None
+
+
+def _contradicts_query_season(query: VideoQuery, season, episode) -> bool:
+    """True when ``season``/``episode`` identify a different season than the query.
+
+    The one sanctioned mismatch is anime that OpenSubtitles numbers as a
+    single long season: S01E<absolute> is the queried episode when the query
+    carries that absolute number.
+    """
+    if season is None or query.season is None or season == query.season:
+        return False
+    return not (
+        season == 1 and query.absolute_episode is not None and episode == query.absolute_episode
+    )
+
+
+def _wrong_season(query: VideoQuery, feature: dict, filename: str, release: str) -> str:
+    """Why a result belongs to another season (empty string when it does not).
+
+    Missing the ``season`` scoring bonus is not enough: series + episode still
+    outscore a real match, and that is how Farming Life S02E07 ended up with
+    ``S01E07-A_Hospitable_Heart`` in prod. A contradicting season is a
+    different episode, so it is dropped, not merely scored lower.
+    """
+    if _contradicts_query_season(
+        query, feature.get("season_number"), feature.get("episode_number")
+    ):
+        return f"feature S{feature.get('season_number')}E{feature.get('episode_number')}"
+    named = _named_season_episode(filename, release)
+    if named and _contradicts_query_season(query, *named):
+        return f"name S{named[0]:02d}E{named[1]:02d}"
+    return ""
 
 
 class _OpenSubtitlesFetchMixin:
@@ -99,6 +145,20 @@ class _OpenSubtitlesFetchMixin:
                     matches = set()
                     if params.get("moviehash") and attrs.get("moviehash_match"):
                         matches.add("hash")
+                    # A hash match identifies the file itself, whatever the numbering.
+                    wrong_season = (
+                        _wrong_season(query, feature, filename, release)
+                        if query.is_episode and "hash" not in matches
+                        else ""
+                    )
+                    if wrong_season:
+                        logger.debug(
+                            "OpenSubtitles: dropping %s for %s — %s is another season",
+                            filename,
+                            query.display_name,
+                            wrong_season,
+                        )
+                        continue
                     if query.is_episode:
                         feat_season = feature.get("season_number")
                         feat_episode = feature.get("episode_number")

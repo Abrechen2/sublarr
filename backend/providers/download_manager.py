@@ -9,6 +9,7 @@ them independently testable and re-usable outside of ProviderManager.
 
 import logging
 import os
+import time
 
 import decision_log
 
@@ -20,6 +21,20 @@ from providers.base import SubtitleFormat, SubtitleResult
 logger = logging.getLogger(__name__)
 
 _MAX_SUBTITLE_SIZE = 50 * 1024 * 1024  # 50 MB
+
+# How long a download waits for our own rate limiter to free a slot. Searches
+# share the window (opensubtitles: 40 per 10 s), so a burst of them can fill it
+# just as the best result is picked; one window length is enough to drain it.
+RATE_LIMIT_MAX_WAIT_S = 10.0
+_RATE_LIMIT_POLL_S = 0.5
+
+
+class DownloadRateLimitedError(Exception):
+    """Our own rate limiter had no slot for this download within the wait budget.
+
+    Not a provider failure: nothing was sent, so neither the provider's stats
+    nor its circuit breaker may count it.
+    """
 
 
 def _stream_download(
@@ -97,11 +112,37 @@ def _stream_download(
         return b"".join(chunks)
 
 
+def _stop_requested() -> bool:
+    """Whether the scheduled job running on this thread was asked to stop."""
+    from services.scheduler.cancellation import abort_requested
+
+    return abort_requested()
+
+
+def _wait_for_rate_limit_slot(rate_limit_checker, provider_name: str) -> bool:
+    """Ask the limiter until it grants a slot, for at most RATE_LIMIT_MAX_WAIT_S.
+
+    Returns False when the budget runs out or the running job is asked to stop.
+    """
+    if rate_limit_checker(provider_name):
+        return True
+    deadline = time.monotonic() + RATE_LIMIT_MAX_WAIT_S
+    while not _stop_requested():
+        remaining = deadline - time.monotonic()
+        if remaining <= 0:
+            return False
+        time.sleep(min(_RATE_LIMIT_POLL_S, remaining))
+        if rate_limit_checker(provider_name):
+            return True
+    return False
+
+
 def download_subtitle(
     providers: dict,
     circuit_breakers: dict,
     rate_limit_checker,
     result: SubtitleResult,
+    raise_on_rate_limit: bool = False,
 ) -> bytes | None:
     """Download a subtitle from its provider.
 
@@ -110,6 +151,8 @@ def download_subtitle(
         circuit_breakers: Dict mapping provider name → CircuitBreaker.
         rate_limit_checker: Callable(provider_name) → bool.
         result: A SubtitleResult from search().
+        raise_on_rate_limit: Raise DownloadRateLimitedError instead of returning
+            None when the limiter still has no slot after waiting.
 
     Returns:
         Raw subtitle file content, or None on failure.
@@ -124,8 +167,15 @@ def download_subtitle(
         logger.debug("Skipping download from %s: circuit breaker OPEN", result.provider_name)
         return None
 
-    if not rate_limit_checker(result.provider_name):
-        logger.debug("Skipping download from provider %s due to rate limit", result.provider_name)
+    if not _wait_for_rate_limit_slot(rate_limit_checker, result.provider_name):
+        logger.warning(
+            "Download of %s/%s skipped: rate limiter had no free slot within %.0fs",
+            result.provider_name,
+            result.subtitle_id,
+            RATE_LIMIT_MAX_WAIT_S,
+        )
+        if raise_on_rate_limit:
+            raise DownloadRateLimitedError(result.provider_name)
         return None
 
     try:
@@ -177,7 +227,11 @@ def search_and_download_best(
     if not results:
         return None
 
+    rate_limited_providers: set[str] = set()
     for result in results:
+        if result.provider_name in rate_limited_providers:
+            decision_log.download_attempt(result.provider_name, result.subtitle_id, "rate_limited")
+            continue
         try:
             content = download_fn(result)
             if content is not None:
@@ -213,6 +267,11 @@ def search_and_download_best(
                 decision_log.download_attempt(
                     result.provider_name, result.subtitle_id, "download_failed"
                 )
+        except DownloadRateLimitedError:
+            # Our own limiter, not the provider: no stats failure, and the
+            # provider's remaining results would only wait out the same window.
+            rate_limited_providers.add(result.provider_name)
+            decision_log.download_attempt(result.provider_name, result.subtitle_id, "rate_limited")
         except Exception as e:
             logger.warning("Download failed for %s: %s", result.subtitle_id, e)
             update_stats_fn(result.provider_name, success=False, score=0)
