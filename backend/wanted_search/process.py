@@ -6,6 +6,7 @@ import logging
 import os
 
 import decision_log
+import provider_reach
 from config import get_settings
 from db.jobs import create_job, record_stat, update_job
 from db.library import record_upgrade
@@ -150,14 +151,21 @@ def _check_existing_sidecar(item: dict, item_id: int, item_lang: str, settings) 
 
 
 def _check_max_search_attempts(item: dict, item_id: int, settings) -> dict | None:
-    """Enter slow-mode (1x / 30d) when search_count exceeded the configured max.
+    """Park an item at the attempt cap that carries no retry marker in slow-mode.
 
-    Historic behaviour (freeze as failed forever) was replaced by slow-mode so
-    items still get revisited; search_count may be NULL for pre-migration rows,
-    hence the ``or 0``.
+    Items already in rotation past the cap (slow-mode, or retrying a transient
+    fault) are searched — gating them here too meant a slow-mode item whose
+    30-day window elapsed was booked another miss without any provider being
+    asked (prod 2026-09-25: 105 of 107 items at search_count=4). search_count
+    may be NULL for pre-migration rows, hence the ``or 0``.
     """
+    from services.wanted_search_filters import RETRYING_KINDS
+
     search_count = item.get("search_count") or 0
-    if search_count >= settings.wanted_max_search_attempts:
+    if (
+        search_count >= settings.wanted_max_search_attempts
+        and item.get("failure_kind") not in RETRYING_KINDS
+    ):
         from services.wanted_search_runner import record_search_outcome
 
         record_search_outcome(item_id, kind="no_result")
@@ -1358,12 +1366,16 @@ def _search_flipped_item(
     _dlog_enabled = getattr(settings, "decision_log_enabled", True)
     if _dlog_enabled:
         decision_log.start(item)
+    # Always on, unlike the decision log: record_search_outcome reads it to
+    # tell a genuine miss from a search no provider answered.
+    reach_token = provider_reach.start()
     try:
         result = _run_search_steps(ctx)
         if _dlog_enabled:
             _finalize_decision_log(item_id, result, dry_run)
         return result
     finally:
+        provider_reach.finish(reach_token)
         decision_log.finish()
 
 

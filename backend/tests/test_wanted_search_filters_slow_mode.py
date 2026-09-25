@@ -124,10 +124,14 @@ def test_slow_mode_item_far_above_limit_still_works():
 # ---------- non-slow-mode failure_kinds at limit stay blocked ----------
 
 
-def test_provider_error_at_limit_with_past_retry_does_not_bypass_cap():
-    """provider_error backoff bumps error_count, NOT search_count — items
-    with search_count>=max via no_result must not be unfrozen by a stray
-    provider_error retry_after."""
+def test_provider_error_at_limit_with_past_retry_stays_in_rotation():
+    """Reversed 2026-09-25. This used to pin the opposite ("must not be
+    unfrozen"), which froze every slow-mode item whose due search hit a
+    transient fault: provider_error keeps search_count at the cap but drops
+    the slow-mode marker. Since searches nobody answered are booked as
+    provider_error, that would have frozen most of the slow-mode cohort.
+    The cap still holds — the next genuine miss sends the item back to the
+    30-day slow-mode cadence (see test_slow_mode_actually_searches.py)."""
     past = (datetime.now(UTC) - timedelta(hours=1)).isoformat()
     items = [
         _item(
@@ -137,6 +141,12 @@ def test_provider_error_at_limit_with_past_retry_does_not_bypass_cap():
             failure_kind="provider_error",
         )
     ]
+    assert [i["id"] for i in _filter_eligible(items, _settings())] == [1]
+
+
+def test_unknown_failure_kind_at_limit_stays_blocked():
+    past = (datetime.now(UTC) - timedelta(hours=1)).isoformat()
+    items = [_item(id=1, search_count=3, retry_after=past, failure_kind="no_result")]
     assert _filter_eligible(items, _settings()) == []
 
 

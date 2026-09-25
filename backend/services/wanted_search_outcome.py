@@ -85,6 +85,16 @@ def record_search_outcome(
     # circular dependency (db.wanted imports repositories which import models
     # which pull in extensions which can transitively touch services).
     from db.wanted import get_wanted_item, update_wanted_search_outcome
+    from provider_reach import unanswered_summary
+
+    if kind == "no_result":
+        # A search no provider answered is not a miss (prod 2026-09-25: 90 %
+        # of slow-mode items got there on searches where every provider was
+        # skipped as rate-limited/budget-exhausted). Book it as the transient
+        # fault it is, so it keeps its search budget.
+        unanswered = unanswered_summary()
+        if unanswered:
+            kind, error_message = "provider_error", unanswered
 
     now = datetime.now(UTC)
     settings = get_settings()

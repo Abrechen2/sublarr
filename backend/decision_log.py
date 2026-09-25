@@ -27,6 +27,8 @@ import logging
 from contextvars import ContextVar
 from datetime import UTC, datetime
 
+import provider_reach
+
 logger = logging.getLogger(__name__)
 
 # Schema version for the serialized payload — bump on breaking changes.
@@ -333,6 +335,7 @@ def search_started(languages, format_filter, min_score: int = 0) -> None:
 
 
 def search_cache_hit(count: int) -> None:
+    provider_reach.note_answered()
     _call("search_cache_hit", count)
 
 
@@ -341,18 +344,23 @@ def search_finished(total: int, final: int) -> None:
 
 
 def provider_skipped(name: str, reason: str, detail: str = "") -> None:
+    provider_reach.note_unavailable(name, reason)
     _call("provider_skipped", name, reason, detail)
 
 
 def provider_searched(name: str, hits: int, elapsed_ms: float) -> None:
+    provider_reach.note_answered()
     _call("provider_searched", name, hits, elapsed_ms)
 
 
 def provider_failed(name: str, kind: str, detail: str = "") -> None:
+    provider_reach.note_unavailable(name, kind)
     _call("provider_failed", name, kind, detail)
 
 
 def providers_unfinished(names: list[str]) -> None:
+    for name in names:
+        provider_reach.note_unavailable(name, "timeout")
     _call("providers_unfinished", names)
 
 

@@ -50,6 +50,13 @@ def _deadline_passed(deadline) -> bool:
 # they're already provider-free.
 _EMBEDDED_TYPES = ("embedded_ass", "embedded_srt")
 
+#: failure_kinds that keep an item in rotation past the attempt cap: slow-mode,
+#: and the transient faults, which never charge ``search_count`` and would
+#: otherwise freeze an item that happened to hit one while at the cap.
+RETRYING_KINDS = frozenset(
+    {"no_result_slow", "provider_error", "file_missing", "translation_error"}
+)
+
 
 def _apply_backlog_reserve_gate(
     items: list[dict],
@@ -108,7 +115,7 @@ def is_exhausted(
     """
     if (search_count or 0) < max_attempts:
         return False
-    return not (failure_kind == "no_result_slow" and retry_after is not None)
+    return not (failure_kind in RETRYING_KINDS and retry_after is not None)
 
 
 def _filter_eligible(items: list[dict], settings) -> list[dict]:
