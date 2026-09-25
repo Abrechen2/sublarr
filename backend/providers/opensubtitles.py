@@ -56,6 +56,17 @@ def _parse_reset_utc(value: object):
     return parsed.astimezone(UTC)
 
 
+def _season_one_collapse_episode(query: VideoQuery) -> int | None:
+    """OS episode number to try as S01E<n> for a season>1 query, or None.
+
+    Only an absolute episode number can name the queried episode inside a
+    single-season OpenSubtitles listing; without one there is nothing to ask for.
+    """
+    if not query.is_episode or query.season is None or query.season <= 1:
+        return None
+    return query.absolute_episode
+
+
 @register_provider
 class OpenSubtitlesProvider(SubtitleProvider, _OpenSubtitlesFetchMixin):
     """OpenSubtitles.com REST API v2 provider."""
@@ -355,31 +366,29 @@ class OpenSubtitlesProvider(SubtitleProvider, _OpenSubtitlesFetchMixin):
         logger.debug("OpenSubtitles: API request params: %s", params)
         results = self._fetch_and_parse(params, query)
 
-        # Fallback 1: Season-1 collapse — OpenSubtitles indexes many anime series as a
-        # single season while Sonarr tracks them as multiple seasons.  The uploaded
-        # episode number stays the same (e.g. Sonarr S02E15 → OS S01E15, NOT S01Eabs).
+        # Fallback 1: Season-1 collapse — OpenSubtitles indexes some anime as one long
+        # season while Sonarr splits it, so Sonarr S02E03 is OS S01E<absolute>. Only
+        # possible when the query carries an absolute number: asking for S01E<same
+        # number> returns season 1's episode of that number, which is a different
+        # episode (prod 2026-09: Farming Life S02E07 got S01E07, South Park S29E01
+        # got S01E01). _fetch_and_parse drops any result that is not S01E<absolute>.
         # The moviehash is stripped because the file hash never matches across seasons;
         # if there is no IMDB ID, a title query is added so the request stays valid.
-        if (
-            not results
-            and query.is_episode
-            and query.season is not None
-            and query.season > 1
-            and query.episode is not None
-        ):
+        collapse_episode = _season_one_collapse_episode(query)
+        if not results and collapse_episode is not None:
             # Strip hash (wrong for multi-season anime), keep IMDB if present
             fallback_params = {k: v for k, v in params.items() if k != "moviehash"}
-            fallback_params.update({"season_number": 1, "episode_number": query.episode})
+            fallback_params.update({"season_number": 1, "episode_number": collapse_episode})
             # Ensure there is a search term when IMDB is also absent
             if not fallback_params.get("imdb_id") and not fallback_params.get("query"):
                 if query.series_title:
                     fallback_params["query"] = query.series_title
             logger.debug(
                 "OpenSubtitles: 0 results for S%02dE%02d — retrying with S01E%02d "
-                "(season-1 collapse; params: %s)",
+                "(season-1 collapse, absolute numbering; params: %s)",
                 query.season,
                 query.episode,
-                query.episode,
+                collapse_episode,
                 fallback_params,
             )
             results = self._fetch_and_parse(fallback_params, query)
@@ -387,33 +396,30 @@ class OpenSubtitlesProvider(SubtitleProvider, _OpenSubtitlesFetchMixin):
                 logger.info(
                     "OpenSubtitles: season-1 collapse found %d results for S01E%02d",
                     len(results),
-                    query.episode,
+                    collapse_episode,
                 )
 
         # Fallback 2: Title search without IMDB — some uploaders do not link an IMDB ID.
         # If the primary search was IMDB-based and the season-1 collapse also found
-        # nothing, retry with a pure title query (season=1, same episode) so that
+        # nothing, retry with a pure title query (season=1, absolute episode) so that
         # un-linked entries are reachable (e.g. 86 EIGHTY-SIX, Vinland Saga S2).
         if (
             not results
-            and query.is_episode
-            and query.season is not None
-            and query.season > 1
-            and query.episode is not None
+            and collapse_episode is not None
             and params.get("imdb_id")
             and query.series_title
         ):
             title_params: dict = {
                 "query": query.series_title,
                 "season_number": 1,
-                "episode_number": query.episode,
+                "episode_number": collapse_episode,
             }
             if params.get("languages"):
                 title_params["languages"] = params["languages"]
             logger.debug(
                 "OpenSubtitles: IMDB+season-1 found nothing — retrying with title '%s' S01E%02d",
                 query.series_title,
-                query.episode,
+                collapse_episode,
             )
             results = self._fetch_and_parse(title_params, query)
             if results:
@@ -421,7 +427,7 @@ class OpenSubtitlesProvider(SubtitleProvider, _OpenSubtitlesFetchMixin):
                     "OpenSubtitles: title fallback found %d results for '%s' S01E%02d",
                     len(results),
                     query.series_title,
-                    query.episode,
+                    collapse_episode,
                 )
 
         logger.info("OpenSubtitles: found %d results", len(results))
