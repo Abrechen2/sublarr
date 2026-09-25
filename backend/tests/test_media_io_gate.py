@@ -481,3 +481,23 @@ def test_setting_exists_with_a_conservative_default_and_is_in_the_media_view():
 
     assert UISettings.model_fields["media_io_max_parallel"].default == 1
     assert "media_io_max_parallel" in MediaServerSettings._fields
+
+
+def test_a_stopped_job_stops_waiting_for_the_gate():
+    """Prod 2026-09-24/25: wanted_search sat up to 3600 s behind ffsubsync and
+    was recorded ``timeout_abandoned`` — it "did NOT stop when asked"."""
+    from services.scheduler import cancellation
+
+    gate = MediaIOGate(limit=1)
+    assert gate.acquire(timeout=1) is True
+    stop = threading.Event()
+    stop.set()
+    token = cancellation.activate(stop)
+    try:
+        started = time.monotonic()
+        with pytest.raises(MediaGateBusyError), gate.slot("remux", timeout=30):
+            pass
+        assert time.monotonic() - started < 5
+    finally:
+        cancellation.deactivate(token)
+        gate.release()

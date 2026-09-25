@@ -48,6 +48,12 @@ SETTING_NAME = "media_io_max_parallel"
 _SLOW_WAIT_LOG_S = 5.0
 
 
+def _stop_requested() -> bool:
+    from services.scheduler.cancellation import abort_requested
+
+    return abort_requested()
+
+
 class MediaGateBusyError(RuntimeError):
     """The gate stayed full for the whole wait; the caller did not run."""
 
@@ -156,6 +162,11 @@ class MediaIOGate:
                     held = self._in_use
                     break
                 if not blocking:
+                    return False
+                if _stop_requested():
+                    # A stopped job must not sit out the whole wait: search
+                    # waited up to 3600 s here and was booked "did NOT stop
+                    # when asked" (prod 2026-09-24/25).
                     return False
                 remaining = None if deadline is None else deadline - time.monotonic()
                 if remaining is not None and remaining <= 0:
