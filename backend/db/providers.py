@@ -85,6 +85,7 @@ def record_subtitle_download(
     upgraded_from_id: int | None = None,
     record_stats: bool = True,
     score_breakdown: dict | None = None,
+    subtitle_type: str = "full",
 ):
     """Record a subtitle download for history tracking.
 
@@ -98,6 +99,10 @@ def record_subtitle_download(
             record_stat call -- see services.mt_provisional.finalize_translation).
         score_breakdown: Per-component score points, persisted as JSON for
             the History score tooltip.
+        subtitle_type: "full" (default) or the sidecar's modifier ("forced",
+            "hi", ...). History is keyed by (video, language), so a forced
+            download recorded as "full" would vouch for whatever main
+            ``.de.srt`` sits next to the video (track variant policy, C1).
     """
     # Attach the active decision log (if any) — records WHY this subtitle was
     # chosen. Contextvar-based, so callers outside a wanted-search run
@@ -121,6 +126,7 @@ def record_subtitle_download(
         upgraded_from_id=upgraded_from_id,
         score_breakdown=score_breakdown,
         decision_log_json=_decision_json,
+        subtitle_type=subtitle_type,
     )
     # Machine-translation rows get their own History category instead of
     # being lumped under Downloads (bug found 2026-07-08) -- every other

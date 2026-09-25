@@ -19,17 +19,33 @@ pair decides (owner ruling 2026-09-25):
 
 from __future__ import annotations
 
+import logging
 import os
+from datetime import UTC, datetime, timedelta
+
+logger = logging.getLogger(__name__)
 
 REAL_SOURCES = frozenset(
     {"provider", "provider_interactive", "provider_source_srt", "manual", "extraction"}
 )
 _NOT_REAL_PROVIDERS = frozenset({"translation"})
 _ORIGIN_KINDS = frozenset({"extraction"})
+# Rows that describe the MAIN sidecar. A forced/hi row describes
+# ``.de.forced.srt`` and says nothing about the ``.de.srt`` next to it.
+_MAIN_SUBTITLE_TYPES = (None, "", "full")
+# A sidecar written after the record that vouches for it by more than this was
+# replaced by a writer that keeps no history (translate_file, batch
+# translation, translation jobs, the sidecar_translate drain) — its origin is
+# unknown. The grace covers post-processing between save and record.
+_REWRITE_GRACE = timedelta(seconds=60)
+# ``sidecar_origins`` carries no format, so an extraction record is tied to the
+# file it wrote by time instead: the extractor records right after writing. A
+# sidecar already on disk long before the record is not the one it describes.
+_ORIGIN_WRITE_WINDOW = timedelta(minutes=10)
 
 
 def _latest_download(video_path: str, language: str):
-    from sqlalchemy import select
+    from sqlalchemy import or_, select
 
     from db.models.providers import SubtitleDownload
     from extensions import db
@@ -38,6 +54,13 @@ def _latest_download(video_path: str, language: str):
         select(SubtitleDownload)
         .where(SubtitleDownload.file_path == video_path)
         .where(SubtitleDownload.language == language)
+        .where(
+            or_(
+                SubtitleDownload.subtitle_type.is_(None),
+                SubtitleDownload.subtitle_type.in_([t for t in _MAIN_SUBTITLE_TYPES if t]),
+                SubtitleDownload.subtitle_type == "",
+            )
+        )
         .order_by(SubtitleDownload.downloaded_at.desc(), SubtitleDownload.id.desc())
         .limit(1)
     ).scalar_one_or_none()
@@ -58,22 +81,70 @@ def _latest_origin(video_path: str, language: str):
     ).scalar_one_or_none()
 
 
-def _is_real(video_path: str, language: str) -> bool:
-    """Whether the newer of the two provenance records is a "real" one."""
+def _aware(value: datetime | None) -> datetime | None:
+    """SQLite hands timestamps back naive; they were written as UTC."""
+    if value is None or value.tzinfo is not None:
+        return value
+    return value.replace(tzinfo=UTC)
+
+
+def _is_real(video_path: str, language: str, sidecar: str, fmt: str) -> bool:
+    """Whether the newest provenance record is "real" AND describes ``sidecar``.
+
+    History is keyed by (video, language), not by the file, so a record only
+    vouches for the sidecar actually found when (spec §4, final-review C1):
+
+      - it is a main-track record (forced/hi rows are ignored, see
+        ``_latest_download``);
+      - a download row's format matches the sidecar's format (a real ``.ass``
+        download says nothing about a ``.srt`` placed by hand);
+      - the sidecar was not rewritten after the record (mtime newer than the
+        record + ``_REWRITE_GRACE`` → a non-recording writer replaced it);
+      - for an extraction origin (no format column), the sidecar was written
+        around the time of the record (``_ORIGIN_WRITE_WINDOW``).
+    """
     download = _latest_download(video_path, language)
     origin = _latest_origin(video_path, language)
     if download is None and origin is None:
         return False
 
-    download_at = download.downloaded_at if download is not None else None
-    origin_at = origin.recorded_at if origin is not None else None
+    download_at = _aware(download.downloaded_at) if download is not None else None
+    origin_at = _aware(origin.recorded_at) if origin is not None else None
 
+    earliest = None
     if origin_at is not None and (download_at is None or origin_at >= download_at):
-        return origin.origin in _ORIGIN_KINDS
+        if origin.origin not in _ORIGIN_KINDS:
+            return False
+        decided_at = origin_at
+        earliest = origin_at - _ORIGIN_WRITE_WINDOW
+    else:
+        if (download.source or "provider") not in REAL_SOURCES:
+            return False
+        if download.provider_name in _NOT_REAL_PROVIDERS:
+            return False
+        if (download.format or "").lower() != fmt:
+            return False
+        decided_at = download_at
 
-    return (download.source or "provider") in REAL_SOURCES and (
-        download.provider_name not in _NOT_REAL_PROVIDERS
-    )
+    try:
+        mtime = datetime.fromtimestamp(os.path.getmtime(sidecar), tz=UTC)
+    except OSError:
+        return False
+    if mtime > decided_at + _REWRITE_GRACE:
+        logger.debug(
+            "real sidecar check: %s was rewritten after its record (%s > %s) — unknown origin",
+            sidecar,
+            mtime.isoformat(),
+            decided_at.isoformat(),
+        )
+        return False
+    if earliest is not None and mtime < earliest:
+        logger.debug(
+            "real sidecar check: %s predates its extraction record — not the extracted file",
+            sidecar,
+        )
+        return False
+    return True
 
 
 def _usable(path: str | None, fmt: str) -> bool:
@@ -123,26 +194,22 @@ def _usable(path: str | None, fmt: str) -> bool:
 def real_sidecar_languages(video_path: str, languages: set[str]) -> set[str]:
     """Return the 2-letter codes (of ``languages``) a genuine sidecar covers.
 
-    A language counts only when both hold: a usable, validated sidecar file
-    exists on disk (see ``_usable``), and the newer of its download/origin
-    history records for (video, language) is "real" (see ``_is_real``).
-    Unknown-origin sidecars (no record in either table) and machine
-    translations never count.
+    A language counts only when a usable, validated sidecar file exists on
+    disk (see ``_usable``) AND the newest provenance record for (video,
+    language) is "real" and describes that very file (see ``_is_real``).
+    Unknown-origin sidecars (no record in either table, a record for a
+    different format or a forced track, or a file rewritten after its
+    record) and machine translations never count.
     """
     from translator import find_existing_target_file
 
     covered: set[str] = set()
     for lang in languages:
-        sidecar = None
-        fmt = None
-        for candidate_fmt in ("srt", "ass"):
-            candidate = find_existing_target_file(video_path, lang, candidate_fmt)
-            if candidate:
-                sidecar, fmt = candidate, candidate_fmt
+        for fmt in ("srt", "ass"):
+            sidecar = find_existing_target_file(video_path, lang, fmt)
+            if sidecar is None or not _usable(sidecar, fmt):
+                continue
+            if _is_real(video_path, lang, sidecar, fmt):
+                covered.add(lang)
                 break
-
-        if sidecar is None or not _usable(sidecar, fmt):
-            continue
-        if _is_real(video_path, lang):
-            covered.add(lang)
     return covered

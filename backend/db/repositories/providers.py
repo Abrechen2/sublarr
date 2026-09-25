@@ -143,6 +143,7 @@ class ProviderRepository(BaseRepository):
         upgraded_from_id: int | None = None,
         score_breakdown: dict | None = None,
         decision_log_json: str | None = None,
+        subtitle_type: str = "full",
     ) -> int | None:
         """Record a subtitle download for history tracking. Returns the row id.
 
@@ -158,6 +159,7 @@ class ProviderRepository(BaseRepository):
             score_breakdown: Per-component score points dict, stored as JSON so
                 History can explain why this subtitle won.
             decision_log_json: JSON snapshot of the selection decision log, or None.
+            subtitle_type: "full" (default) or the sidecar modifier ("forced", ...).
         """
         import json
 
@@ -180,6 +182,7 @@ class ProviderRepository(BaseRepository):
             downloaded_at=now,
             upgraded_from_id=upgraded_from_id,
             decision_log_json=decision_log_json,
+            subtitle_type=subtitle_type or "full",
         )
         self.session.add(entry)
         self._commit()

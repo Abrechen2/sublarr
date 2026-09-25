@@ -140,6 +140,7 @@ def _process_forced_wanted_item(item, item_id, item_lang, manager):
                         file_path,
                         result.score,
                         score_breakdown=result.score_breakdown,
+                        subtitle_type="forced",
                     )
                     logger.info(
                         "Wanted %d: Forced subtitle downloaded from %s, skipping translation",
@@ -214,6 +215,7 @@ def _process_forced_wanted_item(item, item_id, item_lang, manager):
                         file_path,
                         result.score,
                         score_breakdown=result.score_breakdown,
+                        subtitle_type="forced",
                     )
                     logger.info(
                         "Wanted %d: Forced subtitle (source lang) downloaded from %s, skipping translation",

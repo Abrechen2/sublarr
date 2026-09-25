@@ -229,6 +229,9 @@ def save_manual_subtitle(
             file_path=video_path,
             score=0,
             source="manual",
+            # A .de.forced.srt upload must not vouch for the main .de.srt
+            # (track variant policy: history is keyed by video + language).
+            subtitle_type=modifier or "full",
         )
     except Exception as e:
         # History recording must never lose the written file — but log it (not silent).
