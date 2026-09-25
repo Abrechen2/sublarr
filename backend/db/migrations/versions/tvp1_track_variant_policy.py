@@ -5,6 +5,11 @@ rewritten. Untracked databases receive the same columns through
 app._patch_pre_alembic_columns, and the new table through create_all() (it
 is a plain new table, not a column added to one that already exists).
 
+Fix round 1 (1.15.0): also adds ``subtitle_automation_queue.radarr_movie_id``
+— without it a movie-download ``foreign_track_cleanup`` row had nowhere to
+carry the Radarr movie id, so the drain could never resolve a per-movie
+override (``resolve_policy(movie_id=...)`` was never reached for movies).
+
 Revision ID: tvp1_track_variant_policy
 Revises: wq1_refund_unanswered
 """
@@ -55,9 +60,19 @@ def upgrade() -> None:
             sa.Column("recorded_at", sa.DateTime(timezone=True), nullable=False),
         )
         op.create_index(_SIDECAR_ORIGINS_INDEX, "sidecar_origins", ["video_path", "language"])
+    if _has_table("subtitle_automation_queue") and not _has(
+        "subtitle_automation_queue", "radarr_movie_id"
+    ):
+        with op.batch_alter_table("subtitle_automation_queue") as batch:
+            batch.add_column(sa.Column("radarr_movie_id", sa.Integer(), nullable=True))
 
 
 def downgrade() -> None:
+    if _has_table("subtitle_automation_queue") and _has(
+        "subtitle_automation_queue", "radarr_movie_id"
+    ):
+        with op.batch_alter_table("subtitle_automation_queue") as batch:
+            batch.drop_column("radarr_movie_id")
     if _has_table("sidecar_origins"):
         op.drop_index(_SIDECAR_ORIGINS_INDEX, table_name="sidecar_origins")
         op.drop_table("sidecar_origins")

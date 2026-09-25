@@ -137,7 +137,7 @@ class TestDuplicateSourceNeverDeleted:
 
         downloaded = tmp_path / "ep.en.srt"
 
-        def _save(result, path, series_id=None):
+        def _save(result, path, series_id=None, movie_id=None):
             downloaded.write_text("1\n00:00:01,000 --> 00:00:02,000\nHi\n", encoding="utf-8")
             return str(downloaded)
 

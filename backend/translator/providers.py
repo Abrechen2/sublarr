@@ -66,6 +66,7 @@ def _search_providers_for_target_ass(mkv_path, context=None, target_language=Non
                 result,
                 output_path,
                 series_id=context.get("sonarr_series_id") if context else None,
+                movie_id=context.get("radarr_movie_id") if context else None,
             )
             logger.info("Provider %s delivered target ASS: %s", result.provider_name, output_path)
             return output_path
@@ -102,6 +103,7 @@ def _search_providers_for_source_sub(mkv_path, context=None, source_languages=No
         manager = get_provider_manager()
         base = os.path.splitext(mkv_path)[0]
         series_id = context.get("sonarr_series_id") if context else None
+        movie_id = context.get("radarr_movie_id") if context else None
 
         # De-duplicate while preserving preference order; drop empties.
         langs: list[str] = []
@@ -122,7 +124,7 @@ def _search_providers_for_source_sub(mkv_path, context=None, source_languages=No
                 # save_subtitle may rewrite the extension — use the returned path
                 # so the temp file we hand back actually exists on disk.
                 tmp_path = manager.save_subtitle(
-                    result, f"{base}.{lang}.{ext}", series_id=series_id
+                    result, f"{base}.{lang}.{ext}", series_id=series_id, movie_id=movie_id
                 )
                 actual_ext = os.path.splitext(tmp_path)[1].lstrip(".") or ext
                 logger.info(

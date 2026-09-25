@@ -393,7 +393,10 @@ def _try_target_ass_direct(ctx: dict) -> dict | None:
             # content detection determined SRT). Always use the returned
             # path for downstream operations — the input is a hint only.
             saved_path = manager.save_subtitle(
-                result, output_path, series_id=item.get("sonarr_series_id")
+                result,
+                output_path,
+                series_id=item.get("sonarr_series_id"),
+                movie_id=item.get("radarr_movie_id"),
             )
             if is_upgrade:
                 _retire_replaced_srt(ctx, result, new_score, keep=saved_path)
@@ -638,7 +641,10 @@ def _try_source_ass_translation(ctx: dict) -> dict | None:
             # Use the returned path — save_subtitle may adjust the extension
             # (e.g. if the downloaded file turns out to be SRT, not ASS)
             actual_source_path = manager.save_subtitle(
-                result, tmp_source_path, series_id=item.get("sonarr_series_id")
+                result,
+                tmp_source_path,
+                series_id=item.get("sonarr_series_id"),
+                movie_id=item.get("radarr_movie_id"),
             )
             source_created_this_run = True
             record_subtitle_download(
@@ -809,7 +815,10 @@ def _try_target_srt_direct(ctx: dict) -> dict | None:
             # Use the returned path — see comment at Step 1: save_subtitle
             # may rewrite the extension if the format differs.
             saved_path = manager.save_subtitle(
-                result, output_path, series_id=item.get("sonarr_series_id")
+                result,
+                output_path,
+                series_id=item.get("sonarr_series_id"),
+                movie_id=item.get("radarr_movie_id"),
             )
             record_subtitle_download(
                 result.provider_name,
@@ -922,7 +931,10 @@ def _try_source_srt_translation(ctx: dict) -> dict | None:
         tmp_source_path = f"{base}.{settings.source_language}.srt"
         try:
             actual_source_path = manager.save_subtitle(
-                result, tmp_source_path, series_id=item.get("sonarr_series_id")
+                result,
+                tmp_source_path,
+                series_id=item.get("sonarr_series_id"),
+                movie_id=item.get("radarr_movie_id"),
             )
             source_created_this_run = True
             record_subtitle_download(

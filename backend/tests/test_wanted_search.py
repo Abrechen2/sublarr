@@ -386,7 +386,7 @@ class TestSaveSubtitleReturnPathPropagated:
         result.content = b"1\n00:00:01,000 --> 00:00:02,000\nHi\n"
 
         # save_subtitle rewrites the extension ass→srt and returns the new path
-        def _save_rewriting(_result, output_path, series_id=None):
+        def _save_rewriting(_result, output_path, series_id=None, movie_id=None):
             base, _ = output_path.rsplit(".", 1)
             actual = f"{base}.srt"
             return actual

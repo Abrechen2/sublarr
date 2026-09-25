@@ -56,6 +56,44 @@ def test_save_subtitle_enqueues_instead_of_remuxing(app_ctx, tmp_path, monkeypat
     assert rows[0]["target_language"] == "de"
 
 
+def test_save_subtitle_movie_enqueues_radarr_movie_id(app_ctx, tmp_path, monkeypatch):
+    """Fix round 1: a movie download must not lose its Radarr movie id.
+
+    Before the ``radarr_movie_id`` column existed, the queue row for a movie
+    download had nowhere to carry it, so the drain could never resolve a
+    per-movie track-policy override.
+    """
+    from db.models.core import SubtitleAutomationQueueEntry
+    from db.repositories.subtitle_automation_queue import SubtitleAutomationQueueRepository
+    from providers.download_manager import save_subtitle
+
+    monkeypatch.setenv("SUBLARR_MEDIA_PATH", str(tmp_path))
+    from config import reload_settings
+
+    reload_settings()
+    video = tmp_path / "Movie (2020).mkv"
+    video.write_bytes(b"v")
+
+    with (
+        patch("services.foreign_track_cleanup.foreign_track_cleanup_applies") as applies,
+        patch("services.foreign_track_cleanup.maybe_run_foreign_track_cleanup") as inline,
+    ):
+        applies.return_value = True
+        save_subtitle(_result(), str(tmp_path / "Movie (2020).de.srt"), movie_id=77)
+
+    applies.assert_called_once_with({"sonarr_series_id": None, "radarr_movie_id": 77})
+    assert not inline.called, "a search must not wait for the remux"
+    # Movies enqueue under wanted_item_id=0 (no Sonarr series id) — the movie
+    # id lives in the new radarr_movie_id column instead.
+    rows = [
+        r
+        for r in SubtitleAutomationQueueRepository().list_for_item(0)
+        if r["task_type"] == SubtitleAutomationQueueEntry.TASK_FOREIGN_TRACK_CLEANUP
+    ]
+    assert len(rows) == 1
+    assert rows[0]["radarr_movie_id"] == 77
+
+
 def test_the_drain_runs_the_cleanup_with_the_profile_keep_set(app_ctx, tmp_path):
     from db.models.core import SubtitleAutomationQueueEntry
     from db.repositories.subtitle_automation_queue import SubtitleAutomationQueueRepository
@@ -79,7 +117,7 @@ def test_the_drain_runs_the_cleanup_with_the_profile_keep_set(app_ctx, tmp_path)
         assert SubtitleAutomationRunner().process_one() is True
 
     item, video_arg = run.call_args.args
-    assert item == {"sonarr_series_id": 42, "target_language": "de"}
+    assert item == {"sonarr_series_id": 42, "radarr_movie_id": None, "target_language": "de"}
     assert video_arg == str(video)
     assert run.call_args.kwargs["target_languages"] == {"ja", "de"}
 

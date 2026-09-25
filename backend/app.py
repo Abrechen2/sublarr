@@ -167,6 +167,17 @@ def _patch_pre_alembic_columns(engine, inspect_fn) -> None:
         if "track_verdicts" not in existing:
             patches.append("ALTER TABLE foreign_track_scan ADD COLUMN track_verdicts TEXT")
 
+    # Fix round 1: radarr_movie_id on the automation queue (same migration,
+    # tvp1_track_variant_policy) — without it a movie's foreign_track_cleanup
+    # row has nowhere to carry the Radarr movie id, so the drain can never
+    # resolve a per-movie track-policy override.
+    if insp.has_table("subtitle_automation_queue"):
+        existing = {c["name"] for c in insp.get_columns("subtitle_automation_queue")}
+        if "radarr_movie_id" not in existing:
+            patches.append(
+                "ALTER TABLE subtitle_automation_queue ADD COLUMN radarr_movie_id INTEGER"
+            )
+
     if not patches:
         return
 

@@ -373,6 +373,7 @@ def save_subtitle(
     result: SubtitleResult,
     output_path: str,
     series_id: int | None = None,
+    movie_id: int | None = None,
 ) -> str:
     """Save a downloaded subtitle to disk.
 
@@ -394,6 +395,8 @@ def save_subtitle(
         output_path: Suggested path. The extension is treated as a hint
             and may be rewritten to match the actual subtitle format.
         series_id: Sonarr series ID for per-series pipeline overrides.
+        movie_id: Radarr movie ID for per-movie pipeline overrides. Pass
+            when the wanted item is a movie (series_id stays None).
 
     Returns:
         Actual path the subtitle was saved to (may differ from ``output_path``
@@ -638,7 +641,8 @@ def save_subtitle(
         from services.foreign_track_cleanup import foreign_track_cleanup_applies
 
         _video = _video_for_sidecar(output_path)
-        if _video and foreign_track_cleanup_applies({"sonarr_series_id": series_id}):
+        _ftc_item = {"sonarr_series_id": series_id, "radarr_movie_id": movie_id}
+        if _video and foreign_track_cleanup_applies(_ftc_item):
             from db.models.core import SubtitleAutomationQueueEntry
             from db.repositories.subtitle_automation_queue import (
                 SubtitleAutomationQueueRepository,
@@ -649,6 +653,7 @@ def save_subtitle(
                 file_path=_video,
                 target_language=str(result.language or "").lower()[:8],
                 task_type=SubtitleAutomationQueueEntry.TASK_FOREIGN_TRACK_CLEANUP,
+                radarr_movie_id=movie_id,
             )
     except Exception as _exc:
         # The enqueue commits; a failed one (two workers inserting the same

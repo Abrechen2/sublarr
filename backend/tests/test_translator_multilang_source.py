@@ -122,7 +122,7 @@ def test_provider_search_iterates_source_languages(tmp_path):
 
     manager = MagicMock()
     manager.search_and_download_best.side_effect = _search
-    manager.save_subtitle.side_effect = lambda r, p, series_id=None: p
+    manager.save_subtitle.side_effect = lambda r, p, series_id=None, movie_id=None: p
 
     settings = MagicMock(source_language="en")
     with (

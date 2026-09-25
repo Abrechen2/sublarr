@@ -240,12 +240,24 @@ class SubtitleAutomationRunner:
                 raise NothingToTranslateError(error)
             raise RuntimeError(error)
 
-    def _foreign_track_cleanup(self, series_id: int, video_path: str, language: str) -> None:
+    def _foreign_track_cleanup(
+        self,
+        series_id: int,
+        video_path: str,
+        language: str,
+        radarr_movie_id: int | None = None,
+    ) -> None:
         """Strip foreign subtitle tracks from a video a provider download landed beside.
 
         The keep-set must cover ALL of the profile's target languages, not just
         the language of the sub that happened to land first — a de+ja profile
         lost its embedded Japanese track the moment the German sidecar arrived.
+
+        ``radarr_movie_id`` (fix round 1): the claimed row's movie id, when
+        this cleanup came from a movie download — without it in ``item``,
+        ``maybe_run_foreign_track_cleanup`` could never resolve a per-movie
+        track-policy override (``resolve_policy(movie_id=...)`` was never
+        reached for movies before this parameter existed).
         """
         import os
 
@@ -255,7 +267,11 @@ class SubtitleAutomationRunner:
 
         if not os.path.isfile(video_path):
             raise FileNotFoundError(f"video gone before its foreign-track cleanup: {video_path}")
-        item = {"sonarr_series_id": series_id or None, "target_language": language}
+        item = {
+            "sonarr_series_id": series_id or None,
+            "radarr_movie_id": radarr_movie_id,
+            "target_language": language,
+        }
         keep: set[str] | None
         try:
             settings = get_settings()
@@ -322,7 +338,12 @@ class SubtitleAutomationRunner:
             if task_type == SubtitleAutomationQueueEntry.TASK_SIDECAR_TRANSLATE:
                 self._translate_sidecar(wanted_item_id, file_path, claim["target_language"])
             elif task_type == SubtitleAutomationQueueEntry.TASK_FOREIGN_TRACK_CLEANUP:
-                self._foreign_track_cleanup(wanted_item_id, file_path, claim["target_language"])
+                self._foreign_track_cleanup(
+                    wanted_item_id,
+                    file_path,
+                    claim["target_language"],
+                    claim.get("radarr_movie_id"),
+                )
             elif task_type == SubtitleAutomationQueueEntry.TASK_AUTO_SYNC:
                 self._auto_sync(file_path, claim.get("video_path"))
             else:

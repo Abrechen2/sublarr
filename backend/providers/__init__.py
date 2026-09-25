@@ -313,7 +313,11 @@ class ProviderManager(SearchCoordinatorMixin, ConfigResolvingMixin, StatusReport
         )
 
     def save_subtitle(
-        self, result: SubtitleResult, output_path: str, series_id: int | None = None
+        self,
+        result: SubtitleResult,
+        output_path: str,
+        series_id: int | None = None,
+        movie_id: int | None = None,
     ) -> str:
         """Save a downloaded subtitle to disk.
 
@@ -322,6 +326,8 @@ class ProviderManager(SearchCoordinatorMixin, ConfigResolvingMixin, StatusReport
             output_path: Base path (without extension — extension from format)
             series_id: Sonarr series ID, used to apply per-series pipeline overrides.
                        Pass None for movies or when no series context is available.
+            movie_id: Radarr movie ID, used to apply per-movie pipeline overrides.
+                      Pass None for series or when no movie context is available.
 
         Returns:
             Path to saved file
@@ -333,7 +339,7 @@ class ProviderManager(SearchCoordinatorMixin, ConfigResolvingMixin, StatusReport
         """
         from providers.download_manager import save_subtitle as _save
 
-        return _save(result, output_path, series_id=series_id)
+        return _save(result, output_path, series_id=series_id, movie_id=movie_id)
 
     def get_provider(self, name: str) -> "SubtitleProvider | None":
         """Return an active provider instance by name, or None if not found."""

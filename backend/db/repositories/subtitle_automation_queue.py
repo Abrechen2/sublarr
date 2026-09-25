@@ -96,6 +96,7 @@ class SubtitleAutomationQueueRepository(BaseRepository):
         task_type: str = SubtitleAutomationQueueEntry.TASK_EMBEDDED_EXTRACT,
         source_language: str | None = None,
         video_path: str | None = None,
+        radarr_movie_id: int | None = None,
     ) -> int:
         """Idempotent enqueue by `(wanted_item_id, task_type, file_path)`.
 
@@ -114,6 +115,11 @@ class SubtitleAutomationQueueRepository(BaseRepository):
         SQLite reuses its rowid, so a later item can inherit the id of a
         still-pending sync. Without the path it would match that row, get it
         back unchanged, and lose its own sync silently.
+
+        `radarr_movie_id` is only meaningful for `foreign_track_cleanup`: a
+        movie download's row (`wanted_item_id=0`, per that task's convention)
+        carries the Radarr movie id here so the drain can resolve a
+        per-movie track-policy override.
         """
         now = self._now()
         existing = (
@@ -144,6 +150,7 @@ class SubtitleAutomationQueueRepository(BaseRepository):
                 existing.video_path = video_path
                 existing.target_language = target_language
                 existing.source_language = source_language
+                existing.radarr_movie_id = radarr_movie_id
                 existing.updated_at = now
                 self._commit()
             return existing.id
@@ -154,6 +161,7 @@ class SubtitleAutomationQueueRepository(BaseRepository):
             video_path=video_path,
             target_language=target_language,
             source_language=source_language,
+            radarr_movie_id=radarr_movie_id,
             state="pending",
             attempt_count=0,
             created_at=now,

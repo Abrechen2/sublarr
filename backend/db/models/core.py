@@ -529,6 +529,12 @@ class SubtitleAutomationQueueEntry(db.Model):
     For `foreign_track_cleanup`, `wanted_item_id` carries the Sonarr series id
     (0 for none) — the only item fact its keep-set needs — and
     `target_language` the language of the subtitle that just landed.
+    `radarr_movie_id` carries the Radarr movie id for a `foreign_track_cleanup`
+    row born from a movie download (`wanted_item_id` stays the Sonarr series
+    id / 0, never the movie id) — needed so the drain can resolve a
+    per-movie track-policy override instead of always falling back to the
+    global policy (1.15.0 fix round 1: `resolve_policy(movie_id=...)` was
+    never reached for movies before this column existed).
 
     State machine: pending → running → done | failed. Failed rows carry
     `last_error` + `next_retry_at` for backoff-driven retries.
@@ -556,6 +562,9 @@ class SubtitleAutomationQueueEntry(db.Model):
     # `wanted_search/process.py` delete the wanted item on the next line — a
     # lookup would find nothing in exactly the successful case.
     video_path: Mapped[str | None] = mapped_column(Text, nullable=True)
+    # Only meaningful for foreign_track_cleanup: the Radarr movie id, when the
+    # row came from a movie download. See the class docstring.
+    radarr_movie_id: Mapped[int | None] = mapped_column(Integer, nullable=True)
     target_language: Mapped[str] = mapped_column(String(8), nullable=False)
     # Only meaningful for sidecar_translate: the language of the source file.
     source_language: Mapped[str | None] = mapped_column(String(8), nullable=True)

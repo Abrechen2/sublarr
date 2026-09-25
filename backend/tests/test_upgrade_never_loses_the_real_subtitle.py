@@ -47,7 +47,7 @@ def _ctx(video, *, content=_ASS, fmt=SubtitleFormat.ASS, save=None, upgrade=True
     manager = MagicMock()
     manager.search_and_download_best.return_value = result
 
-    def _save(res, output_path, series_id=None):
+    def _save(res, output_path, series_id=None, movie_id=None):
         with open(output_path, "wb") as fh:
             fh.write(res.content)
         return output_path

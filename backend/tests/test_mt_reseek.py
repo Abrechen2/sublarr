@@ -482,7 +482,7 @@ class TestAutoReplaceIntegration:
         mock_mgr.search.return_value = []
         mock_mgr.search_and_download_best.return_value = real_result
 
-        def _fake_save(result, output_path, series_id=None):
+        def _fake_save(result, output_path, series_id=None, movie_id=None):
             with open(output_path, "wb") as fh:
                 fh.write(result.content)
             return output_path

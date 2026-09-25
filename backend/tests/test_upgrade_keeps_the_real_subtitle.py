@@ -96,7 +96,7 @@ def _ctx(video, *, upgrade=True, score=40):
     manager = MagicMock()
     manager.search_and_download_best.return_value = result
 
-    def save(res, output_path, series_id=None):
+    def save(res, output_path, series_id=None, movie_id=None):
         with open(output_path, "wb") as fh:
             fh.write(res.content)
         return output_path
