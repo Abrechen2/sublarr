@@ -5,6 +5,7 @@ wrapper that handles transient failures gracefully.
 """
 
 import logging
+import re
 import time
 
 import requests
@@ -12,6 +13,49 @@ from requests.adapters import HTTPAdapter
 from urllib3.util.retry import Retry
 
 logger = logging.getLogger(__name__)
+
+# Query parameters whose value is a credential. Some providers (SubDL) only
+# accept their key as a query string, so the full URL — and every exception
+# text that quotes it — carries the secret (#212).
+_SECRET_QUERY_RE = re.compile(
+    r"(?i)([?&;](?:api[_-]?key|access_token|token)=)[^&\s'\"#)]+",
+)
+_REDACTED = "***"
+
+# urllib3 logs the request URL (query string included) when it retries.
+_URLLIB3_LOGGERS = ("urllib3.connectionpool", "urllib3.util.retry")
+
+
+def redact_url_secrets(text: str) -> str:
+    """Replace credential query-parameter values in ``text`` with ``***``."""
+    if not text:
+        return text
+    return _SECRET_QUERY_RE.sub(lambda m: m.group(1) + _REDACTED, text)
+
+
+class _SecretRedactingFilter(logging.Filter):
+    """Rewrite a record's message so no credential query value reaches a handler."""
+
+    def filter(self, record: logging.LogRecord) -> bool:
+        try:
+            message = record.getMessage()
+        except Exception:  # noqa: BLE001 — a broken record is the formatter's problem
+            return True
+        redacted = redact_url_secrets(message)
+        if redacted != message:
+            record.msg = redacted
+            record.args = None
+        return True
+
+
+def _install_urllib3_redaction() -> None:
+    for name in _URLLIB3_LOGGERS:
+        target = logging.getLogger(name)
+        if not any(isinstance(f, _SecretRedactingFilter) for f in target.filters):
+            target.addFilter(_SecretRedactingFilter())
+
+
+_install_urllib3_redaction()
 
 
 def create_session(
@@ -68,17 +112,20 @@ class RetryingSession(requests.Session):
 
             wait = self._rate_limit_until - time.time()
             raise ProviderRateLimitError(
-                f"Rate limited by {url}, {wait:.0f}s remaining",
+                f"Rate limited by {redact_url_secrets(url)}, {wait:.0f}s remaining",
                 retry_after=int(wait),
             )
 
+        safe_url = redact_url_secrets(url)
         try:
             resp = super().request(method, url, **kwargs)
         except requests.ConnectionError as e:
-            logger.warning("Connection error for %s %s: %s", method, url, e)
+            logger.warning(
+                "Connection error for %s %s: %s", method, safe_url, redact_url_secrets(str(e))
+            )
             raise
         except requests.Timeout:
-            logger.warning("Timeout for %s %s", method, url)
+            logger.warning("Timeout for %s %s", method, safe_url)
             raise
 
         # Handle rate limiting
@@ -94,9 +141,9 @@ class RetryingSession(requests.Session):
             else:
                 wait_seconds = 60
             self._rate_limit_until = time.time() + wait_seconds
-            logger.warning("Rate limited by %s, waiting %ds", url, wait_seconds)
+            logger.warning("Rate limited by %s, waiting %ds", safe_url, wait_seconds)
             raise ProviderRateLimitError(
-                f"Rate limited by {url}, retry after {wait_seconds}s",
+                f"Rate limited by {safe_url}, retry after {wait_seconds}s",
                 retry_after=wait_seconds,
             )
 
@@ -105,7 +152,7 @@ class RetryingSession(requests.Session):
             from providers.base import ProviderAuthError
 
             raise ProviderAuthError(
-                f"Authentication failed for {url}: HTTP {resp.status_code}",
+                f"Authentication failed for {safe_url}: HTTP {resp.status_code}",
                 status_code=resp.status_code,
             )
 

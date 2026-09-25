@@ -401,7 +401,12 @@ class TestProviderArchiveConsolidation:
             format=SubtitleFormat.SRT,
             filename="test.srt",
             download_url="http://test.com/123.zip",
-            provider_data={"sd_id": "123", "query_episode": 1, "query_season": 1},
+            provider_data={
+                "download_path": "/subtitle/123.zip",
+                "exact_episode": True,
+                "query_episode": 1,
+                "query_season": 1,
+            },
         )
 
         with patch("providers.subdl.extract_subtitles_from_zip") as mock_extract:

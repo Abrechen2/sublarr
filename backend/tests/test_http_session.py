@@ -4,6 +4,7 @@ Covers: create_session, RetryingSession (default timeout, rate limit handling,
 429 response, auth errors, X-RateLimit headers).
 """
 
+import logging
 import time
 from unittest.mock import MagicMock, patch
 
@@ -338,3 +339,92 @@ class TestRetryingSessionRateLimitHeaders:
         session = RetryingSession()
         session.request("GET", "https://example.com")
         assert session._rate_limit_until is None
+
+
+# ---------------------------------------------------------------------------
+# Secret redaction (#212: the SubDL key reached sublarr.log via these lines)
+# ---------------------------------------------------------------------------
+
+_SECRET = "SECRETKEY1234567890"
+
+
+class TestSecretRedaction:
+    @pytest.mark.parametrize(
+        "text",
+        [
+            f"https://api.subdl.com/api/v1/subtitles?api_key={_SECRET}&x=1",
+            f"url: /api/v1/subtitles?subs_per_page=30&apikey={_SECRET}",
+            f"https://h/p?token={_SECRET}",
+            f"https://h/p?a=1&API_KEY={_SECRET}",
+            f"https://h/p?access_token={_SECRET}&b=2",
+        ],
+    )
+    def test_redact_url_secrets(self, text):
+        from providers.http_session import redact_url_secrets
+
+        redacted = redact_url_secrets(text)
+        assert _SECRET not in redacted
+        assert "***" in redacted
+
+    def test_redact_keeps_other_params(self):
+        from providers.http_session import redact_url_secrets
+
+        assert redact_url_secrets("https://h/p?api_key=abc&film_name=x") == (
+            "https://h/p?api_key=***&film_name=x"
+        )
+
+    @patch.object(requests.Session, "request")
+    def test_connection_error_log_is_redacted(self, mock_request, caplog):
+        mock_request.side_effect = requests.ConnectionError(
+            f"Max retries exceeded with url: /api/v1/subtitles?api_key={_SECRET}&subs_per_page=30"
+        )
+        session = RetryingSession()
+        caplog.set_level(logging.DEBUG)
+        with pytest.raises(requests.ConnectionError):
+            session.request("GET", f"https://api.subdl.com/x?api_key={_SECRET}")
+        assert "Connection error" in caplog.text
+        assert _SECRET not in caplog.text
+
+    @patch.object(requests.Session, "request")
+    def test_timeout_log_is_redacted(self, mock_request, caplog):
+        mock_request.side_effect = requests.Timeout("timed out")
+        session = RetryingSession()
+        caplog.set_level(logging.DEBUG)
+        with pytest.raises(requests.Timeout):
+            session.request("GET", f"https://api.subdl.com/x?api_key={_SECRET}")
+        assert _SECRET not in caplog.text
+
+    @patch.object(requests.Session, "request")
+    def test_rate_limit_message_is_redacted(self, mock_request, caplog):
+        from providers.base import ProviderRateLimitError
+
+        mock_request.return_value = MagicMock(status_code=429, headers={})
+        session = RetryingSession()
+        caplog.set_level(logging.DEBUG)
+        with pytest.raises(ProviderRateLimitError) as excinfo:
+            session.request("GET", f"https://api.subdl.com/x?api_key={_SECRET}")
+        assert _SECRET not in str(excinfo.value)
+        assert _SECRET not in caplog.text
+
+    @patch.object(requests.Session, "request")
+    def test_auth_error_message_is_redacted(self, mock_request):
+        from providers.base import ProviderAuthError
+
+        mock_request.return_value = MagicMock(status_code=401, headers={})
+        session = RetryingSession()
+        with pytest.raises(ProviderAuthError) as excinfo:
+            session.request("GET", f"https://api.subdl.com/x?api_key={_SECRET}")
+        assert _SECRET not in str(excinfo.value)
+
+    def test_urllib3_retry_warning_is_redacted(self, caplog):
+        import providers.http_session  # noqa: F401 — installs the filter
+
+        caplog.set_level(logging.WARNING)
+        logging.getLogger("urllib3.connectionpool").warning(
+            "Retrying (%r) after connection broken by '%r': %s",
+            "Retry(total=1)",
+            "NewConnectionError",
+            f"/api/v1/subtitles?api_key={_SECRET}&subs_per_page=30",
+        )
+        assert "Retrying" in caplog.text
+        assert _SECRET not in caplog.text
