@@ -13,6 +13,7 @@ import type { MovieDetail, WantedItem } from '@/lib/types'
 import type { SidecarSubtitle } from '@/types/library'
 import { copyToClipboard } from '@/lib/clipboard'
 import { toast } from '@/components/shared/Toast'
+import { TrackPolicyOverrides } from '@/components/cleanup/TrackPolicyOverrides'
 
 // ─── MovieHero ────────────────────────────────────────────────────────────────
 
@@ -363,6 +364,12 @@ function MovieProfileSelector({ movieId, movie }: { movieId: number; movie: Movi
           </option>
         ))}
       </select>
+      {/* Track variant policy overrides (1.15.0) — owner-approved spec
+          2026-09-25: series AND movies get the same overrides. Added inside
+          this existing card only; nothing above this line was changed. */}
+      <div className="w-full mt-3 pt-3 border-t border-border">
+        <TrackPolicyOverrides scope="movie" id={movie.id} />
+      </div>
     </div>
   )
 }

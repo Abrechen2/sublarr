@@ -246,7 +246,9 @@ function PreviewPanel({
                     </div>
                   </div>
                     {ex.verdicts && ex.verdicts.length > 0 && (
-                      <div className="pl-[27px] pt-1">
+                      <div className="pl-6 pt-1">
+                        {/* Icon (12px, size={12}) + gap-3 (12px) = 24px = pl-6,
+                            aligning the verdict list under the filename text. */}
                         <TrackVerdictList verdicts={ex.verdicts} />
                       </div>
                     )}
