@@ -160,6 +160,9 @@ def _eligible_task_types() -> set[str]:
         eligible.add(SubtitleAutomationQueueEntry.TASK_SIDECAR_TRANSLATE)
     if _auto_sync_enabled():
         eligible.add(SubtitleAutomationQueueEntry.TASK_AUTO_SYNC)
+    # Always claimable: maybe_run_foreign_track_cleanup applies the
+    # global/series policy itself and no-ops when cleanup is off.
+    eligible.add(SubtitleAutomationQueueEntry.TASK_FOREIGN_TRACK_CLEANUP)
     return eligible
 
 
@@ -237,6 +240,33 @@ class SubtitleAutomationRunner:
                 raise NothingToTranslateError(error)
             raise RuntimeError(error)
 
+    def _foreign_track_cleanup(self, series_id: int, video_path: str, language: str) -> None:
+        """Strip foreign subtitle tracks from a video a provider download landed beside.
+
+        The keep-set must cover ALL of the profile's target languages, not just
+        the language of the sub that happened to land first — a de+ja profile
+        lost its embedded Japanese track the moment the German sidecar arrived.
+        """
+        import os
+
+        from config import get_settings
+        from services.embedded_extractor import compute_keep_langs, resolve_profile_for_item
+        from services.foreign_track_cleanup import maybe_run_foreign_track_cleanup
+
+        if not os.path.isfile(video_path):
+            raise FileNotFoundError(f"video gone before its foreign-track cleanup: {video_path}")
+        item = {"sonarr_series_id": series_id or None, "target_language": language}
+        keep: set[str] | None
+        try:
+            settings = get_settings()
+            keep = set(compute_keep_langs(resolve_profile_for_item(item, settings), settings))
+            if language:
+                keep.add(language)
+        except Exception as exc:  # noqa: BLE001 — fall back to the hook's own keep-set
+            logger.debug("[foreign-track] profile keep-set fallback: %s", exc)
+            keep = None
+        maybe_run_foreign_track_cleanup(item, video_path, target_languages=keep)
+
     def _auto_sync(self, subtitle_path: str, video_path: str | None) -> None:
         """Time a downloaded sidecar against its video.
 
@@ -280,6 +310,8 @@ class SubtitleAutomationRunner:
         try:
             if task_type == SubtitleAutomationQueueEntry.TASK_SIDECAR_TRANSLATE:
                 self._translate_sidecar(wanted_item_id, file_path, claim["target_language"])
+            elif task_type == SubtitleAutomationQueueEntry.TASK_FOREIGN_TRACK_CLEANUP:
+                self._foreign_track_cleanup(wanted_item_id, file_path, claim["target_language"])
             elif task_type == SubtitleAutomationQueueEntry.TASK_AUTO_SYNC:
                 self._auto_sync(file_path, claim.get("video_path"))
             else:

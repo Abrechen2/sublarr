@@ -628,41 +628,28 @@ def save_subtitle(
     # No-ops unless cleanup_foreign_tracks_default (or a series override)
     # is enabled; the keep-set is target ∪ configured always-keep
     # languages. Errors are swallowed inside the hook.
+    #
+    # Queued, not run here: the remux waits for the media I/O slot, and a
+    # scheduled search saving a subtitle sat up to 3600 s behind ffsubsync
+    # (prod 2026-09-24/25, searches booked timeout). The automation drain
+    # owns long media work.
     _video = None
     try:
         _video = _video_for_sidecar(output_path)
         if _video:
-            from services.foreign_track_cleanup import maybe_run_foreign_track_cleanup
+            from db.models.core import SubtitleAutomationQueueEntry
+            from db.repositories.subtitle_automation_queue import (
+                SubtitleAutomationQueueRepository,
+            )
 
-            # The keep-set must cover ALL of the profile's target languages,
-            # not just the language of the sub that happened to land first —
-            # a de+ja profile lost its embedded Japanese track the moment the
-            # German sidecar arrived.
-            _profile_targets: set[str] | None = None
-            try:
-                from config import get_settings as _ftc_get_settings
-                from services.embedded_extractor import (
-                    compute_keep_langs,
-                    resolve_profile_for_item,
-                )
-
-                _ftc_settings = _ftc_get_settings()
-                _item_stub = {"sonarr_series_id": series_id}
-                _profile = resolve_profile_for_item(_item_stub, _ftc_settings)
-                _profile_targets = compute_keep_langs(_profile, _ftc_settings)
-                if result.language:
-                    _profile_targets.add(str(result.language).lower())
-            except Exception as _prof_exc:
-                logger.debug("[foreign-track] profile keep-set fallback: %s", _prof_exc)
-                _profile_targets = None
-
-            maybe_run_foreign_track_cleanup(
-                {"sonarr_series_id": series_id, "target_language": result.language},
-                _video,
-                target_languages=_profile_targets,
+            SubtitleAutomationQueueRepository().enqueue(
+                wanted_item_id=int(series_id or 0),
+                file_path=_video,
+                target_language=str(result.language or "").lower()[:8],
+                task_type=SubtitleAutomationQueueEntry.TASK_FOREIGN_TRACK_CLEANUP,
             )
     except Exception as _exc:
-        logger.debug("[foreign-track] post-download hook skipped: %s", _exc)
+        logger.warning("[foreign-track] post-download cleanup not queued: %s", _exc)
 
     # Media-server refresh (best-effort) — a new sidecar landed (and the
     # container may have been stripped above), so tell the configured media

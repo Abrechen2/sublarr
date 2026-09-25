@@ -515,7 +515,10 @@ class SubtitleAutomationQueueEntry(db.Model):
 
     `file_path` means whatever the task needs it to mean: the video for
     `embedded_extract`, the source sidecar for `sidecar_translate`, the
-    downloaded sidecar for `auto_sync`.
+    downloaded sidecar for `auto_sync`, the video for `foreign_track_cleanup`.
+    For `foreign_track_cleanup`, `wanted_item_id` carries the Sonarr series id
+    (0 for none) — the only item fact its keep-set needs — and
+    `target_language` the language of the subtitle that just landed.
 
     State machine: pending → running → done | failed. Failed rows carry
     `last_error` + `next_retry_at` for backoff-driven retries.
@@ -526,6 +529,7 @@ class SubtitleAutomationQueueEntry(db.Model):
     TASK_EMBEDDED_EXTRACT = "embedded_extract"
     TASK_SIDECAR_TRANSLATE = "sidecar_translate"
     TASK_AUTO_SYNC = "auto_sync"
+    TASK_FOREIGN_TRACK_CLEANUP = "foreign_track_cleanup"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     wanted_item_id: Mapped[int] = mapped_column(Integer, nullable=False)
