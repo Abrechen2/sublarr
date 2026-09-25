@@ -76,9 +76,11 @@ def downgrade() -> None:
     if _has_table("sidecar_origins"):
         op.drop_index(_SIDECAR_ORIGINS_INDEX, table_name="sidecar_origins")
         op.drop_table("sidecar_origins")
-    with op.batch_alter_table("foreign_track_scan") as batch:
-        batch.drop_column("track_verdicts")
+    if _has("foreign_track_scan", "track_verdicts"):
+        with op.batch_alter_table("foreign_track_scan") as batch:
+            batch.drop_column("track_verdicts")
     for table in ("series_settings", "movie_settings"):
         with op.batch_alter_table(table) as batch:
             for name, _ in reversed(_OVERRIDES):
-                batch.drop_column(name)
+                if _has(table, name):
+                    batch.drop_column(name)
