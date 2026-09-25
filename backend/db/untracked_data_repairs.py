@@ -58,6 +58,15 @@ def _tm4(conn) -> int:
     return drop_wrong_direction(conn, configured_target_language(conn))
 
 
+def _wq1(conn) -> int:
+    from db.migrations.versions.wq1_refund_unanswered_searches import (
+        configured_max_attempts,
+        refund_unanswered,
+    )
+
+    return refund_unanswered(conn, configured_max_attempts(conn))
+
+
 # (Alembic revision id, repair) — in migration order. Add every future data
 # migration here as well, or untracked installs never receive it.
 REPAIRS: list[tuple[str, Callable]] = [
@@ -65,6 +74,7 @@ REPAIRS: list[tuple[str, Callable]] = [
     ("tm2_drop_same_lang", _tm2),
     ("tm3_strip_soft", _tm3),
     ("tm4_wrong_direction", _tm4),
+    ("wq1_refund_unanswered", _wq1),
 ]
 
 
