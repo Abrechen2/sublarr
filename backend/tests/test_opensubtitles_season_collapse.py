@@ -192,3 +192,10 @@ class TestSeasonContradictionInPrimarySearch:
 
         assert len(results) == 1
         assert "hash" in results[0].matches
+
+    def test_season_zero_is_not_a_contradiction(self):
+        def responder(params):
+            return [_item(0, 12, "Clevatess - 12.srt", title="Clevatess")]
+
+        provider = _provider(responder)
+        assert len(provider.search(_query(2, 12, title="Clevatess"))) == 1

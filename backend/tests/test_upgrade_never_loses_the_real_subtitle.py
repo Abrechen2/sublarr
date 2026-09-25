@@ -188,8 +188,8 @@ class TestNoMachineTranslationBesideARealSubtitle:
             out = proc._fallback_translate_file(self._fallback_ctx(video))
 
         assert not translate.called
-        assert out["status"] == "not_found"
-        outcome.assert_called_once_with(9, kind="no_result")
+        assert out["reason"] == "target_subtitle_exists"
+        assert not outcome.called, "these paths have no backoff gate — booking a miss burns it"
 
     def test_a_real_target_subtitle_on_disk_stops_after_step_one(self, tmp_path):
         """Standalone rows carry existing_sub='srt' but no upgrade flag."""
@@ -249,3 +249,89 @@ def test_mt_reseek_still_searches_past_step_one(tmp_path):
         out = proc._run_search_steps(ctx)
 
     assert s3.called and out["status"] == "found"
+
+
+def test_sidecar_split_leaves_items_with_a_target_subtitle_to_the_search(tmp_path):
+    from services.wanted_search_filters import _split_local_translate_items
+
+    video = tmp_path / "Show - S01E01.mkv"
+    _touch(tmp_path / "Show - S01E01.en.ass", _ASS)
+    base = {"file_path": str(video), "target_language": "de", "existing_sub": ""}
+    items = [
+        {**base, "id": 1},
+        {**base, "id": 2, "upgrade_candidate": True, "existing_sub": "srt"},
+        {**base, "id": 3, "existing_sub": "srt"},
+    ]
+    local, remaining = _split_local_translate_items(items, MagicMock(wanted_auto_translate=True))
+
+    assert [i["id"] for i in local] == [1]
+    assert sorted(i["id"] for i in remaining) == [2, 3]
+
+
+def test_drain_closes_a_sidecar_row_whose_target_already_exists(app_ctx):
+    from db.repositories.subtitle_automation_queue import SubtitleAutomationQueueRepository
+    from services.subtitle_automation_runner import SubtitleAutomationRunner
+
+    repo = SubtitleAutomationQueueRepository()
+    repo.enqueue(
+        wanted_item_id=77,
+        file_path="/m/x.en.ass",
+        target_language="de",
+        task_type="sidecar_translate",
+    )
+    skipped = {"status": "skipped", "reason": "target_subtitle_exists", "error": "x.de.srt"}
+    with (
+        patch("db.wanted.get_wanted_item", return_value={"id": 77, "file_path": "/m/x.mkv"}),
+        patch("wanted_search.process._fallback_translate_file", return_value=skipped),
+    ):
+        SubtitleAutomationRunner().process_one()
+
+    assert repo.get_by_wanted_item(77)["state"] == "done"
+
+
+class TestDuplicateBranch:
+    def _dup(self, existing):
+        from error_handler import DuplicateSubtitleError
+
+        def save(*_a, **_kw):
+            raise DuplicateSubtitleError(
+                content_hash="h", existing_path=existing, attempted_path="a"
+            )
+
+        return save
+
+    def test_a_duplicate_in_another_language_keeps_the_real_srt(self, tmp_path, fx):
+        from wanted_search import process as proc
+
+        video = tmp_path / "Show - S01E01.mkv"
+        _touch(tmp_path / "Show - S01E01.de.srt")
+        other = _touch(tmp_path / "Show - S01E01.en.ass", _ASS)
+
+        out = proc._try_target_ass_direct(_ctx(video, save=self._dup(other)))
+
+        assert out["status"] == "skipped"
+        assert (tmp_path / "Show - S01E01.de.srt").exists()
+        assert not fx.upgrade.called
+
+    def test_a_duplicate_of_the_target_ass_retires_the_srt(self, tmp_path, fx):
+        from wanted_search import process as proc
+
+        video = tmp_path / "Show - S01E01.mkv"
+        _touch(tmp_path / "Show - S01E01.de.srt")
+        target = _touch(tmp_path / "Show - S01E01.de.ass", _ASS)
+
+        out = proc._try_target_ass_direct(_ctx(video, save=self._dup(target)))
+
+        assert out["status"] == "duplicate_skipped"
+        assert not (tmp_path / "Show - S01E01.de.srt").exists()
+
+
+def test_a_result_declared_ass_that_holds_srt_is_no_upgrade(tmp_path, fx):
+    from wanted_search import process as proc
+
+    video = tmp_path / "Show - S01E06.mkv"
+    _touch(tmp_path / "Show - S01E06.de.srt", b"1\n00:00:01,000 --> 00:00:02,000\nEcht\n")
+    ctx = _ctx(video, content=_SRT, fmt=SubtitleFormat.ASS)
+
+    assert proc._try_target_ass_direct(ctx) is None
+    assert (tmp_path / "Show - S01E06.de.srt").read_bytes().endswith(b"Echt\n")

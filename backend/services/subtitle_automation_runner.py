@@ -36,6 +36,7 @@ from services.scheduler.cancellation import abort_requested
 from services.video_sync import SyncSanityThresholdError
 from translator.errors import (
     NO_TRANSLATABLE_DIALOGUE,
+    TARGET_SUBTITLE_EXISTS,
     NothingToTranslateError,
     TranslationAbortedError,
 )
@@ -217,6 +218,14 @@ class SubtitleAutomationRunner:
         # recorded 176 failed translation jobs against 160 successful ones in
         # 24h, and not one `failed` row in this queue.
         status = (result or {}).get("status")
+        if (result or {}).get("reason") == TARGET_SUBTITLE_EXISTS:
+            # Nothing to do, not a failure: a real subtitle arrived meanwhile.
+            logger.info(
+                "subtitle_automation: sidecar translate for wanted_item=%s not needed: %s",
+                wanted_item_id,
+                (result or {}).get("error"),
+            )
+            return
         if status != "found":
             error = (result or {}).get("error") or (
                 f"translation did not produce a subtitle (status={status!r})"

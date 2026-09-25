@@ -200,12 +200,15 @@ def _flag_dub_mismatch(saved_path: str) -> None:
 
 
 def _delivered_format(result) -> SubtitleFormat:
-    """The format of the downloaded content, not the one the search declared."""
-    if result.format != SubtitleFormat.UNKNOWN:
-        return result.format
+    """The format of the downloaded content, not the one the provider declared.
+
+    A result declared ASS that holds SRT would otherwise be saved over the
+    very SRT it was meant to upgrade.
+    """
     from providers.format_validator import detect_format_from_content
 
-    return detect_format_from_content(result.content)
+    detected = detect_format_from_content(result.content)
+    return detected if detected != SubtitleFormat.UNKNOWN else result.format
 
 
 def _upgrade_rejected(item_id: int, reason: str) -> dict:
@@ -220,6 +223,18 @@ def _upgrade_rejected(item_id: int, reason: str) -> dict:
     update_wanted_status(item_id, "wanted")
     record_search_outcome(item_id, kind="no_result")
     return {"wanted_id": item_id, "status": "skipped", "reason": reason}
+
+
+def _is_target_ass(ctx: dict, path: str) -> bool:
+    """Whether ``path`` is the target-language ASS sidecar of this item."""
+    from translator import find_existing_target_file
+
+    target_ass = find_existing_target_file(ctx["file_path"], ctx["item_lang"], "ass")
+    return bool(target_ass) and _same_file(target_ass, path)
+
+
+def _same_file(a: str, b: str) -> bool:
+    return os.path.normcase(os.path.abspath(a)) == os.path.normcase(os.path.abspath(b))
 
 
 def _retire_replaced_srt(ctx: dict, result, new_score: int, keep: str) -> None:
@@ -237,13 +252,17 @@ def _retire_replaced_srt(ctx: dict, result, new_score: int, keep: str) -> None:
     # Under whatever name it carries: retiring only the canonical .de.srt
     # left a .ger.srt behind as a second German subtitle.
     old_srt = find_existing_target_file(file_path, ctx["item_lang"], "srt")
-    if old_srt and os.path.normcase(os.path.abspath(old_srt)) != os.path.normcase(
-        os.path.abspath(keep)
-    ):
+    if old_srt and not _same_file(old_srt, keep):
         from services.subtitle_restore import backup_before_replace
 
-        backup_before_replace(old_srt)
-        os.remove(old_srt)
+        try:
+            backup_before_replace(old_srt)
+            os.remove(old_srt)
+        except OSError as exc:
+            # The new subtitle is saved; a leftover old one is a tidy-up
+            # problem, not a failed download.
+            logger.warning("Wanted %d: could not retire old SRT %s: %s", item_id, old_srt, exc)
+            return
         logger.info("Wanted %d: Removed old SRT: %s", item_id, old_srt)
         # The file is gone — drop any stale hand-edited marker with it
         # (only reachable with the user-modified guard disabled).
@@ -425,6 +444,14 @@ def _try_target_ass_direct(ctx: dict) -> dict | None:
                 dup_err.existing_path,
             )
             if is_upgrade:
+                if not _is_target_ass(ctx, dup_err.existing_path):
+                    # The duplicate is some other sidecar (another language,
+                    # a forced track) — the item has no better subtitle yet.
+                    return _upgrade_rejected(
+                        item_id,
+                        f"download duplicates {os.path.basename(dup_err.existing_path)}, "
+                        "not a target-language ASS",
+                    )
                 _retire_replaced_srt(ctx, result, new_score, keep=dup_err.existing_path)
             delete_wanted_item(item_id)
             return {
@@ -1041,14 +1068,21 @@ def _fallback_translate_file(ctx: dict) -> dict:
     existing = _target_subtitle_on_disk(ctx)
     if existing:
         # Reached directly by the sidecar-translate phase and the automation
-        # drain, which never pass the Step-1 guard in _run_search_steps.
-        from services.wanted_search_runner import record_search_outcome
+        # drain, which never pass the Step-1 guard in _run_search_steps. No
+        # outcome is booked: these paths have no backoff gate, so a miss per
+        # tick would walk the item to 'unsourceable' within a day. Searching
+        # for a better real subtitle is the scheduled search's job.
+        from translator.errors import TARGET_SUBTITLE_EXISTS
 
-        reason = f"a real target subtitle exists ({os.path.basename(existing)})"
-        decision_log.step_skipped("translate_fallback", reason)
+        detail = f"a real target subtitle exists ({os.path.basename(existing)})"
+        decision_log.step_skipped("translate_fallback", detail)
         update_wanted_status(item_id, "wanted")
-        record_search_outcome(item_id, kind="no_result")
-        return {"wanted_id": item_id, "status": "not_found", "reason": reason}
+        return {
+            "wanted_id": item_id,
+            "status": "skipped",
+            "reason": TARGET_SUBTITLE_EXISTS,
+            "error": detail,
+        }
 
     if not auto_translate:
         logger.debug(

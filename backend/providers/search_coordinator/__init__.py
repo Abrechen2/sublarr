@@ -328,7 +328,11 @@ class SearchCoordinatorMixin(SearchRetryMixin, SearchScoringMixin, SearchCacheMi
                                 "Provider budget to bypass the gate for this provider.",
                                 name,
                             )
-                            decision_log.provider_skipped(name, "no_pool_key")
+                            # Rows that exist but are all exhausted or 429-cooling
+                            # are "not now"; no row and no credential is "never".
+                            decision_log.provider_skipped(
+                                name, "pool_cooling" if pool_rows_exist else "no_pool_key"
+                            )
                             continue
 
                     # Credential injection + mark_used happen INSIDE the worker

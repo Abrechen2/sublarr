@@ -54,7 +54,8 @@ def _contradicts_query_season(query: VideoQuery, season, episode) -> bool:
     single long season: S01E<absolute> is the queried episode when the query
     carries that absolute number.
     """
-    if season is None or query.season is None or season == query.season:
+    # Season 0 is OpenSubtitles' "unknown/specials" bucket, not a contradiction.
+    if not season or query.season is None or season == query.season:
         return False
     return not (
         season == 1 and query.absolute_episode is not None and episode == query.absolute_episode

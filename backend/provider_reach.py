@@ -19,7 +19,15 @@ from dataclasses import dataclass, field
 #: Skip/failure reasons that say "not now", not "never". A search where every
 #: provider fell into one of these was never answered.
 TRANSIENT_REASONS = frozenset(
-    {"rate_limited", "budget_exhausted", "auto_disabled", "circuit_open", "timeout", "error"}
+    {
+        "rate_limited",
+        "budget_exhausted",
+        "pool_cooling",
+        "auto_disabled",
+        "circuit_open",
+        "timeout",
+        "error",
+    }
 )
 
 

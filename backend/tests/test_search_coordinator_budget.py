@@ -377,7 +377,8 @@ class TestKeySelectorIntegration:
 
         provider.search.assert_not_called()
         budget_allows.consume.assert_not_called()
-        skipped.assert_called_once_with("gestdown", "no_pool_key")
+        # Rows exist, all unusable: "not now", which a search must not book as a miss.
+        skipped.assert_called_once_with("gestdown", "pool_cooling")
         assert "gestdown: no usable key in pool" in caplog.text
 
     def test_allowed_budget_consumes_with_key_id(self, app_ctx, monkeypatch, budget_allows):
@@ -523,4 +524,4 @@ class TestConfiguredKeyWithoutPoolRow:
             monkeypatch, key_value="live-key", pool_rows_exist=True, budget=budget_allows
         )
         provider.search.assert_not_called()
-        skipped.assert_called_once_with("subsource", "no_pool_key")
+        skipped.assert_called_once_with("subsource", "pool_cooling")

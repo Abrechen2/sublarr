@@ -11,6 +11,10 @@ from __future__ import annotations
 #: and sentences get rewritten.
 NO_TRANSLATABLE_DIALOGUE = "no_translatable_dialogue"
 
+#: Marker on a translate-fallback result: a real target-language subtitle is
+#: already on disk, so there is nothing for a machine translation to do.
+TARGET_SUBTITLE_EXISTS = "target_subtitle_exists"
+
 # An unsupported event or unsafe model answer is not proof of an empty track.
 # Keep it distinct so the queue does not take its terminal no-dialogue path.
 ASS_REVIEW_REQUIRED = "ass_review_required"

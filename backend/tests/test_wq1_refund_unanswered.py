@@ -141,3 +141,10 @@ def test_repair_is_registered_for_untracked_databases():
     import db.untracked_data_repairs as repairs
 
     assert "wq1_refund_unanswered" in [name for name, _ in repairs.REPAIRS]
+
+
+def test_a_decision_log_that_is_not_an_object_is_left_alone():
+    from db.migrations.versions.wq1_refund_unanswered_searches import was_unanswered
+
+    assert was_unanswered("null") is False
+    assert was_unanswered("[1, 2]") is False

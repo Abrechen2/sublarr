@@ -58,7 +58,15 @@ _SPREAD_HOURS = 168
 
 # Frozen copy of provider_reach.TRANSIENT_REASONS at the time of writing.
 _TRANSIENT = frozenset(
-    {"rate_limited", "budget_exhausted", "auto_disabled", "circuit_open", "timeout", "error"}
+    {
+        "rate_limited",
+        "budget_exhausted",
+        "pool_cooling",
+        "auto_disabled",
+        "circuit_open",
+        "timeout",
+        "error",
+    }
 )
 
 _wanted = sa.table(
@@ -97,6 +105,8 @@ def was_unanswered(log_json: str | None) -> bool:
     try:
         log = json.loads(log_json)
     except (TypeError, ValueError):
+        return False
+    if not isinstance(log, dict):
         return False
     transient = False
     for search in log.get("searches") or []:

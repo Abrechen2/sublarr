@@ -501,3 +501,24 @@ def test_a_stopped_job_stops_waiting_for_the_gate():
     finally:
         cancellation.deactivate(token)
         gate.release()
+
+
+def test_the_with_form_still_waits_through_a_stop_request():
+    """The bare ``with`` form cannot tell a refusal from a slot; a stop must
+    not make it run without one and then release someone else's slot."""
+    from services.scheduler import cancellation
+
+    gate = MediaIOGate(limit=1)
+    stop = threading.Event()
+    stop.set()
+    token = cancellation.activate(stop)
+    try:
+        assert gate.acquire(timeout=1) is True
+        releaser = threading.Timer(0.3, gate.release)
+        releaser.start()
+        with gate:
+            assert gate.in_use == 1
+        releaser.join()
+    finally:
+        cancellation.deactivate(token)
+    assert gate.in_use == 0

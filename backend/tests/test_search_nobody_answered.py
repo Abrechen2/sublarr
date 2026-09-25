@@ -176,3 +176,11 @@ def test_forced_items_keep_the_search_budget_too(app_ctx, monkeypatch, tmp_path)
     item = get_wanted_item(item_id)
     assert item["failure_kind"] == "provider_error"
     assert (item.get("search_count") or 0) == 0
+
+
+def test_a_cooling_key_pool_is_not_an_answer(mock_db, tracking):
+    decision_log.provider_skipped("opensubtitles", "pool_cooling")
+
+    record_search_outcome(7, kind="no_result")
+
+    assert mock_db.call_args.kwargs["failure_kind"] == "provider_error"

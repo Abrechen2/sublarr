@@ -163,10 +163,12 @@ class MediaIOGate:
                     break
                 if not blocking:
                     return False
-                if _stop_requested():
-                    # A stopped job must not sit out the whole wait: search
+                if deadline is not None and _stop_requested():
+                    # A stopped job must not sit out a bounded wait: search
                     # waited up to 3600 s here and was booked "did NOT stop
-                    # when asked" (prod 2026-09-24/25).
+                    # when asked" (prod 2026-09-24/25). An unbounded acquire
+                    # (the bare ``with`` form) keeps waiting — its callers
+                    # cannot tell a refusal from a slot.
                     return False
                 remaining = None if deadline is None else deadline - time.monotonic()
                 if remaining is not None and remaining <= 0:
@@ -190,7 +192,8 @@ class MediaIOGate:
         self._in_use_gauge.set(held)
 
     def __enter__(self) -> MediaIOGate:
-        self.acquire()
+        if not self.acquire():
+            raise MediaGateBusyError("media IO gate refused an unbounded acquire")
         return self
 
     def __exit__(self, *_exc) -> None:

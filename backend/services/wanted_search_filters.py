@@ -278,6 +278,12 @@ def _split_local_translate_items(items: list[dict], settings) -> tuple[list[dict
         if item.get("existing_sub") in _EMBEDDED_TYPES:
             remaining.append(item)
             continue
+        if item.get("upgrade_candidate") or item.get("existing_sub") in ("srt", "ass"):
+            # A real target subtitle is already there: translating the source
+            # beside it is never wanted, and an upgrade is the scheduled
+            # search's job, behind its backoff gate.
+            remaining.append(item)
+            continue
         try:
             src_path, src_lang = find_any_source_sub(
                 item["file_path"], target_language=item.get("target_language")
