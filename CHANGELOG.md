@@ -33,7 +33,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     since by anything but a Sublarr sync, not a forced track), so a
     translated placeholder can never cause an embedded track to be
     stripped. Syncing a genuine subtitle (auto-sync after download or a
-    manual sync) keeps it genuine.
+    manual sync) keeps it genuine. One put back from a backup or rolled back from
+    the history counts as unknown origin until it is downloaded again.
   - A kept language never loses its last subtitle track through this
     feature, even under *One main track per language* or the sidecar policy.
   - All four settings can be overridden. For a series, in the series
