@@ -30,8 +30,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     "real" for this — only a subtitle actually downloaded from a provider,
     uploaded by hand in Sublarr or extracted by Sublarr does, and only while
     the file on disk is still that subtitle (same format, not rewritten
-    since, not a forced track), so a translated placeholder can never cause
-    an embedded track to be stripped.
+    since by anything but a Sublarr sync, not a forced track), so a
+    translated placeholder can never cause an embedded track to be
+    stripped. Syncing a genuine subtitle (auto-sync after download or a
+    manual sync) keeps it genuine.
   - A kept language never loses its last subtitle track through this
     feature, even under *One main track per language* or the sidecar policy.
   - All four settings can be overridden. For a series, in the series
@@ -155,6 +157,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   movie's language profile, as it already did for series. If a movie has a
   profile other than the default, check its target languages before relying
   on the cleanup.
+- **Subtitles synced before this release count as unknown origin for the
+  sidecar policy.** Their sync rewrote them after the download was
+  recorded, and older versions kept no record of that. Under *Drop if a real
+  sidecar covers the language* such a video keeps its embedded track (the
+  safe side) until the subtitle is downloaded again. Syncs from this release
+  on are tracked.
 - tvsubtitles.net no longer resolves; disable the provider if you had it on.
 - The per-file language list in the foreign-track sweep preview may mix raw
   container tags and normalised codes for files probed before this release,

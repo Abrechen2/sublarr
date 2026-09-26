@@ -29,6 +29,7 @@ import tempfile
 # Plan B6 — post-processing pipeline trigger (module-level import so tests can
 # patch("services.video_sync.run_trigger")).
 from post_processing.pipeline import run_trigger
+from services.foreign_tracks.sidecars import carry_origin_after_rewrite, vouch_before_rewrite
 
 logger = logging.getLogger(__name__)
 
@@ -125,6 +126,7 @@ def sync_with_ffsubsync(subtitle_path: str, video_path: str) -> dict:
 
     backup = _make_backup(subtitle_path)
     logger.info("ffsubsync: syncing %s against %s (backup: %s)", subtitle_path, video_path, backup)
+    vouch = vouch_before_rewrite(subtitle_path)
 
     ext = os.path.splitext(subtitle_path)[1]
     fd, out_path = tempfile.mkstemp(suffix=ext)
@@ -188,6 +190,7 @@ def sync_with_ffsubsync(subtitle_path: str, video_path: str) -> dict:
     # instead so we never touch utime/owner metadata.
     shutil.copyfile(out_path, subtitle_path)
     _safe_remove(out_path)
+    carry_origin_after_rewrite(vouch)
     logger.info("ffsubsync: done, estimated shift %dms", shift_ms)
     _audit("ok", shift_ms, "")
 
@@ -247,6 +250,7 @@ def sync_with_alass(subtitle_path: str, reference_path: str) -> dict:
 
     backup = _make_backup(subtitle_path)
     logger.info("alass: syncing %s against %s", subtitle_path, reference_path)
+    vouch = vouch_before_rewrite(subtitle_path)
 
     ext = os.path.splitext(subtitle_path)[1]
     fd, out_path = tempfile.mkstemp(suffix=ext)
@@ -279,6 +283,7 @@ def sync_with_alass(subtitle_path: str, reference_path: str) -> dict:
     # rather than shutil.move.
     shutil.copyfile(out_path, subtitle_path)
     _safe_remove(out_path)
+    carry_origin_after_rewrite(vouch)
     logger.info("alass: sync complete")
     _audit("ok", "")
 

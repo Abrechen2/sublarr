@@ -69,8 +69,10 @@ class SubtitleDownload(db.Model):
 class SidecarOrigin(db.Model):
     """Where an on-disk subtitle sidecar's content actually came from.
 
-    Written only for extractions today (see
-    ``services.embedded_extractor._record_extraction``). Deliberately kept
+    Written for extractions (``origin="extraction"``, see
+    ``services.embedded_extractor._record_extraction``) and for syncs of a
+    genuine sidecar (``origin="resync"``, see
+    ``services.foreign_tracks.sidecars.vouch_before_rewrite``). Deliberately kept
     separate from ``subtitle_downloads`` (owner ruling 2026-09-25): that
     table backs dashboard counts, average score, usage stats and history —
     thousands of extraction rows a day would skew every one of them. The
@@ -84,7 +86,7 @@ class SidecarOrigin(db.Model):
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     video_path: Mapped[str] = mapped_column(Text, nullable=False)
     language: Mapped[str] = mapped_column(String(8), nullable=False)
-    origin: Mapped[str] = mapped_column(String(20), nullable=False)  # "extraction"
+    origin: Mapped[str] = mapped_column(String(20), nullable=False)  # "extraction" | "resync"
     recorded_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
 
     __table_args__ = (Index("idx_sidecar_origins_video_lang", "video_path", "language"),)

@@ -13,6 +13,7 @@ import subprocess
 import time
 from pathlib import Path
 
+from services.foreign_tracks.sidecars import carry_origin_after_rewrite, vouch_before_rewrite
 from services.sync_engines.base import BaseSyncEngine, SyncResult
 
 logger = logging.getLogger(__name__)
@@ -105,6 +106,7 @@ class FfsubsyncEngine(BaseSyncEngine):
 
         src = Path(subtitle_path)
         _backup_before_sync(str(src))
+        vouch = vouch_before_rewrite(subtitle_path)
 
         from security_utils import safe_subprocess_arg
         from services.sync_engines.concurrency import nice_prefix, sync_subprocess_lock
@@ -151,6 +153,7 @@ class FfsubsyncEngine(BaseSyncEngine):
                 reason=(proc.stderr or "").strip()[:64] or "non-zero exit",
             )
 
+        carry_origin_after_rewrite(vouch)
         offset_ms = _parse_ffsubsync_shift((proc.stderr or "") + (proc.stdout or ""))
         _fire_after_sync_trigger(subtitle_path, video_path, self.name)
 

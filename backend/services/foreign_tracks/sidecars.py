@@ -13,14 +13,16 @@ pair decides (owner ruling 2026-09-25):
     translations. NOT written for extractions: that table backs dashboard
     counts, average score, usage stats and history, and a firehose of
     extraction rows would skew every one of them.
-  - ``sidecar_origins`` -- extractions only (``origin="extraction"``),
-    written by ``services.embedded_extractor._record_extraction``.
+  - ``sidecar_origins`` -- extractions (``origin="extraction"``, written by
+    ``services.embedded_extractor._record_extraction``) and syncs of a
+    genuine sidecar (``origin="resync"``, see ``vouch_before_rewrite``).
 """
 
 from __future__ import annotations
 
 import logging
 import os
+from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
 
 logger = logging.getLogger(__name__)
@@ -29,7 +31,10 @@ REAL_SOURCES = frozenset(
     {"provider", "provider_interactive", "provider_source_srt", "manual", "extraction"}
 )
 _NOT_REAL_PROVIDERS = frozenset({"translation"})
-_ORIGIN_KINDS = frozenset({"extraction"})
+_RESYNC = "resync"
+_ORIGIN_KINDS = frozenset({"extraction", _RESYNC})
+_SIDECAR_FORMATS = ("srt", "ass")
+_VIDEO_EXTS = (".mkv", ".mp4", ".m4v", ".webm", ".mov", ".avi", ".ts")
 # Rows that describe the MAIN sidecar. A forced/hi row describes
 # ``.de.forced.srt`` and says nothing about the ``.de.srt`` next to it.
 _MAIN_SUBTITLE_TYPES = (None, "", "full")
@@ -207,7 +212,7 @@ def real_sidecar_languages(video_path: str, languages: set[str]) -> set[str]:
 
     covered: set[str] = set()
     for lang in languages:
-        for fmt in ("srt", "ass"):
+        for fmt in _SIDECAR_FORMATS:
             sidecar = find_existing_target_file(video_path, lang, fmt)
             if sidecar is None or not _usable(sidecar, fmt):
                 continue
@@ -215,3 +220,100 @@ def real_sidecar_languages(video_path: str, languages: set[str]) -> set[str]:
                 covered.add(lang)
                 break
     return covered
+
+
+# --- carrying provenance through an in-place rewrite (sync) -------------------
+
+
+@dataclass(frozen=True)
+class RewriteVouch:
+    """A sidecar that was genuine right before a sync rewrote it."""
+
+    sidecar: str
+    video_path: str
+    language: str
+    mtime: float
+
+
+def _identify(sidecar_path: str) -> tuple[str, str, str] | None:
+    """``(video_path, language, fmt)`` of a main sidecar, or None.
+
+    Only a file ``real_sidecar_languages`` itself would pick for its video
+    and language qualifies - a forced/hi variant or a file without a video
+    next to it never does.
+    """
+    from config_language_data import normalize_language_code
+    from translator import find_existing_target_file
+
+    base, ext = os.path.splitext(sidecar_path)
+    fmt = ext.lstrip(".").lower()
+    if fmt not in _SIDECAR_FORMATS or "." not in os.path.basename(base):
+        return None
+    video_base, tag = base.rsplit(".", 1)
+    language = normalize_language_code(tag.lower())
+    if not language:
+        return None
+    wanted = os.path.normcase(os.path.abspath(sidecar_path))
+    for video_ext in _VIDEO_EXTS:
+        video = video_base + video_ext
+        if not os.path.isfile(video):
+            continue
+        found = find_existing_target_file(video, language, fmt)
+        if found and os.path.normcase(os.path.abspath(found)) == wanted:
+            return video, language, fmt
+    return None
+
+
+def vouch_before_rewrite(sidecar_path: str) -> RewriteVouch | None:
+    """Call BEFORE a sync rewrites ``sidecar_path`` in place.
+
+    Returns a vouch when the sidecar is genuine right now (the same check as
+    ``real_sidecar_languages``), else None. Never raises: a sync must not
+    fail over bookkeeping - without a vouch the synced file counts as
+    unknown origin, which keeps the embedded track (safe side).
+    """
+    try:
+        identity = _identify(sidecar_path)
+        if identity is None:
+            return None
+        video, language, fmt = identity
+        if not (_usable(sidecar_path, fmt) and _is_real(video, language, sidecar_path, fmt)):
+            return None
+        return RewriteVouch(sidecar_path, video, language, os.path.getmtime(sidecar_path))
+    except Exception as exc:  # noqa: BLE001 - bookkeeping only, see docstring
+        logger.warning("sidecar provenance: could not vouch for %s: %s", sidecar_path, exc)
+        return None
+
+
+def carry_origin_after_rewrite(vouch: RewriteVouch | None) -> None:
+    """Call AFTER a successful rewrite: record a ``resync`` origin so the
+    rewritten file keeps the standing the vouched one had.
+
+    Nothing is recorded without a vouch or when the file was not actually
+    rewritten. Never raises (see ``vouch_before_rewrite``).
+    """
+    if vouch is None:
+        return
+    try:
+        if os.path.getmtime(vouch.sidecar) == vouch.mtime:
+            return
+        from db.models.providers import SidecarOrigin
+        from extensions import db
+
+        db.session.add(
+            SidecarOrigin(
+                video_path=vouch.video_path,
+                language=vouch.language,
+                origin=_RESYNC,
+                recorded_at=datetime.now(UTC),
+            )
+        )
+        db.session.commit()
+    except Exception as exc:  # noqa: BLE001 - bookkeeping only
+        try:
+            from extensions import db
+
+            db.session.rollback()
+        except Exception:  # noqa: BLE001
+            pass
+        logger.warning("sidecar provenance: resync record failed for %s: %s", vouch.sidecar, exc)
