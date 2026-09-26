@@ -9,6 +9,7 @@ import {
   useStatLibrary, useStatTrends,
 } from '@/hooks/useStatistics'
 import { StatTile, BreakdownBars, TrendsChart } from '@/components/statistics/primitives'
+import { ForeignTrackCleanupCard } from '@/components/statistics/ForeignTrackCleanupCard'
 
 const RANGES: StatRange[] = ['24h', '7d', '30d', 'all']
 
@@ -99,6 +100,11 @@ export function StatisticsPage() {
               <StatTile label={t('overview.mt_awaiting')} value={fmtNum(translation.data?.mt_awaiting_original ?? 0)} />
               <StatTile label={t('overview.avg_score')} value={subtitles.data?.avg_score ?? 0} />
             </div>
+          </Section>
+
+          {/* Foreign-track sweep: what it has cleaned so far */}
+          <Section title={t('track_cleanup.title')}>
+            <ForeignTrackCleanupCard />
           </Section>
 
           {/* Trends */}

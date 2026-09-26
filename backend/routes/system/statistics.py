@@ -320,3 +320,46 @@ def statistics_trends():
     from services.statistics_service import get_trends
 
     return jsonify(get_trends(_range_param()))
+
+
+@bp.route("/statistics/foreign-tracks", methods=["GET"])
+@cached_get(ttl_seconds=60)
+def statistics_foreign_tracks():
+    """What the foreign-track sweep has cleaned so far.
+    ---
+    get:
+      security:
+        - apiKeyAuth: []
+      tags: [Statistics]
+      summary: Foreign-track sweep cleanup totals
+      description: >
+        Aggregates the `scheduled_foreign_track_sweep` cleanup-history rows
+        (files stripped, tracks removed, bytes freed in total and over the last
+        30 days), the current per-state counts of the sweep worklist, and the
+        sweep's phase and pause reason.
+      responses:
+        200:
+          description: Sweep cleanup totals
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  files_stripped: {type: integer}
+                  tracks_removed: {type: integer}
+                  bytes_freed_total: {type: integer}
+                  bytes_freed_30d: {type: integer}
+                  scan_counts:
+                    type: object
+                    properties:
+                      pending: {type: integer}
+                      clean: {type: integer}
+                      affected: {type: integer}
+                      stripped: {type: integer}
+                      failed: {type: integer}
+                  phase: {type: string, enum: [idle, enumerate, probe, strip]}
+                  paused_reason: {type: string, nullable: true}
+    """
+    from services.foreign_tracks.stats import get_sweep_stats
+
+    return jsonify(get_sweep_stats())

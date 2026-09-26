@@ -464,7 +464,10 @@
       "freed": "Freed",
       "empty": "No cleanup history yet",
       "prev": "Previous",
-      "next": "Next"
+      "next": "Next",
+      "action_types": {
+        "scheduled_foreign_track_sweep": "Track cleanup (sweep)"
+      }
     },
     "diskSpace": {
       "title": "Disk Space Analysis",

@@ -101,5 +101,23 @@
     "contribution": "Share",
     "contribution_tooltip": "This provider's share of every subtitle downloaded",
     "earns_nothing": "Has contributed nothing so far — it searches, but never wins"
+  },
+  "track_cleanup": {
+    "title": "Track cleanup",
+    "files": "Files cleaned",
+    "tracks": "Tracks removed",
+    "freed": "Space freed",
+    "freed_30d": "Last 30 days",
+    "phase_label": "Sweep phase",
+    "paused": "Paused",
+    "empty": "The track cleanup has not rewritten any file yet.",
+    "loading": "Loading track cleanup",
+    "error": "Could not load the track cleanup statistics.",
+    "phase": {
+      "idle": "Idle",
+      "enumerate": "Scanning library",
+      "probe": "Probing files",
+      "strip": "Removing tracks"
+    }
   }
 }

@@ -89,3 +89,21 @@ export async function getTrendsStats(range: StatRange): Promise<TrendsStats> {
   const { data } = await api.get('/statistics/trends', { params: { range } })
   return data
 }
+
+export type ForeignTrackSweepPhase = 'idle' | 'enumerate' | 'probe' | 'strip'
+
+/** What the foreign-track sweep has cleaned — /statistics/foreign-tracks. */
+export interface ForeignTrackStats {
+  files_stripped: number
+  tracks_removed: number
+  bytes_freed_total: number
+  bytes_freed_30d: number
+  scan_counts: Record<'pending' | 'clean' | 'affected' | 'stripped' | 'failed', number>
+  phase: ForeignTrackSweepPhase
+  paused_reason: string | null
+}
+
+export async function getForeignTrackStats(): Promise<ForeignTrackStats> {
+  const { data } = await api.get('/statistics/foreign-tracks')
+  return data
+}

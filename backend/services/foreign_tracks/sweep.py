@@ -645,6 +645,10 @@ def foreign_track_sweep_tick() -> None:
         result.get("paused_reason") or "-",
     )
 
+    from services.foreign_tracks.stats import record_slice
+
+    record_slice(result, rule.get("id"))
+
 
 def _find_rule(repo) -> dict | None:
     for rule in repo.get_rules() or []:

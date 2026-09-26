@@ -7,6 +7,7 @@ import {
   getSystemStats,
   getLibraryStats,
   getTrendsStats,
+  getForeignTrackStats,
   type StatRange,
 } from '@/api/client'
 
@@ -29,4 +30,7 @@ export function useStatLibrary() {
 }
 export function useStatTrends(range: StatRange) {
   return useQuery({ queryKey: ['stats', 'trends', range], queryFn: () => getTrendsStats(range), staleTime: STALE })
+}
+export function useStatForeignTracks() {
+  return useQuery({ queryKey: ['stats', 'foreign-tracks'], queryFn: getForeignTrackStats, staleTime: STALE })
 }

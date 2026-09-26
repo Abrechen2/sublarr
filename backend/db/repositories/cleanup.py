@@ -512,6 +512,15 @@ class CleanupRepository(BaseRepository):
             "per_page": per_page,
         }
 
+    def get_history_for_action(self, action_type: str) -> list[dict]:
+        """Every history row of one action type, oldest first."""
+        stmt = (
+            select(CleanupHistory)
+            .where(CleanupHistory.action_type == action_type)
+            .order_by(CleanupHistory.performed_at, CleanupHistory.id)
+        )
+        return [self._to_dict(e) for e in self.session.execute(stmt).scalars()]
+
     def get_cleanup_stats(self) -> dict:
         """Get aggregate cleanup statistics.
 

@@ -464,7 +464,10 @@
       "freed": "Freigegeben",
       "empty": "Noch kein Bereinigungsverlauf",
       "prev": "Zurück",
-      "next": "Weiter"
+      "next": "Weiter",
+      "action_types": {
+        "scheduled_foreign_track_sweep": "Spur-Bereinigung (Sweep)"
+      }
     },
     "diskSpace": {
       "title": "Speicherplatzanalyse",

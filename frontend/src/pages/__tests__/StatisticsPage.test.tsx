@@ -21,6 +21,10 @@ const translation = { total: 5, by_backend: { deepl: 5 }, total_chars: 100, tota
 const providers = { providers: [{ provider: 'opensubtitles', searches: 20, hit_rate: 0.5, downloads: 10, failures: 1, avg_score: 80, avg_response_ms: 100, auto_disabled: false }] }
 const system = { cpu_percent: 12, memory_percent: 34, disk_percent: 56, uptime_seconds: 90000, db_size_bytes: 2_500_000, scheduler_runs: [] }
 const library = { subtitle_files: 42, languages: ['de', 'en'], wanted_items: 7 }
+const foreignTracks = {
+  files_stripped: 9, tracks_removed: 21, bytes_freed_total: 2048, bytes_freed_30d: 1024,
+  scan_counts: { pending: 0, clean: 1, affected: 0, stripped: 9, failed: 0 }, phase: 'idle', paused_reason: null,
+}
 const trends = { range: '30d', dates: ['2026-06-01'], downloads: [3], translations: [1], syncs: [0] }
 
 vi.mock('@/hooks/useStatistics', () => ({
@@ -30,6 +34,7 @@ vi.mock('@/hooks/useStatistics', () => ({
   useStatSystem: () => ({ data: system, isLoading: false }),
   useStatLibrary: () => ({ data: library, isLoading: false }),
   useStatTrends: () => ({ data: trends, isLoading: false }),
+  useStatForeignTracks: () => ({ data: foreignTracks, isLoading: false }),
 }))
 
 describe('StatisticsPage', () => {
@@ -46,6 +51,9 @@ describe('StatisticsPage', () => {
     // trends + breakdown charts mounted
     expect(screen.getByTestId('trends')).toBeInTheDocument()
     expect(screen.getAllByTestId('bars').length).toBeGreaterThan(0)
+    // foreign-track cleanup section
+    expect(screen.getByText('track_cleanup.title')).toBeInTheDocument()
+    expect(screen.getByText('track_cleanup.files:9')).toBeInTheDocument()
   })
 
   it('switches the active time range', () => {

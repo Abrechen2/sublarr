@@ -159,6 +159,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Log viewer** — the category filters (providers, translation, auth …)
   now actually hide what they name, and JSON-format logs are coloured and
   filtered correctly. Log rotation changes apply immediately.
+- **Track cleanup on the statistics page** — the foreign-track sweep now
+  records each run in the cleanup history (files cleaned, tracks removed,
+  space freed), so it shows in the Cleanup tab's disk-space view, and the
+  statistics page has a new "Track cleanup" section with the totals and the
+  sweep's current phase.
 - **Foreign-track sweep is much faster on tied tracks.** When two tracks of
   one language rank the same, the one with more subtitle lines wins. That
   count used to read the whole video file (5 minutes for one 44 GB remux);

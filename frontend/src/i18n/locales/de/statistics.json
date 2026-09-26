@@ -101,5 +101,23 @@
     "contribution": "Anteil",
     "contribution_tooltip": "Anteil dieses Providers an allen heruntergeladenen Untertiteln",
     "earns_nothing": "Hat bisher nichts beigetragen — sucht, gewinnt aber nie"
+  },
+  "track_cleanup": {
+    "title": "Spur-Bereinigung",
+    "files": "Bereinigte Dateien",
+    "tracks": "Entfernte Spuren",
+    "freed": "Freigegebener Speicher",
+    "freed_30d": "Letzte 30 Tage",
+    "phase_label": "Sweep-Phase",
+    "paused": "Pausiert",
+    "empty": "Die Spur-Bereinigung hat noch keine Datei umgeschrieben.",
+    "loading": "Spur-Bereinigung wird geladen",
+    "error": "Statistik der Spur-Bereinigung konnte nicht geladen werden.",
+    "phase": {
+      "idle": "Ruht",
+      "enumerate": "Bibliothek wird erfasst",
+      "probe": "Dateien werden geprüft",
+      "strip": "Spuren werden entfernt"
+    }
   }
 }

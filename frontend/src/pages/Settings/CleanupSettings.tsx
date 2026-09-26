@@ -11,6 +11,7 @@ import { Loader2, Globe, ArrowUpCircle, FileX, Database, Archive, Layers, FileWa
 import { Link } from 'react-router-dom'
 import { PageHeader } from '@/components/layout/PageHeader'
 import { DiskSpaceWidget } from '@/components/cleanup/DiskSpaceWidget'
+import { actionTypeLabel } from '@/components/cleanup/actionTypeLabel'
 import { CleanupOpCard, type OpMeta } from '@/components/cleanup/CleanupOpCard'
 import { DedupGroupList } from '@/components/cleanup/DedupGroupList'
 import { CleanupPreview } from '@/components/cleanup/CleanupPreview'
@@ -161,11 +162,8 @@ function HistorySection() {
                   {new Date(entry.performed_at).toLocaleString('de-DE')}
                 </td>
                 <td className="py-3 px-4">
-                  <span
-                    className="px-2 py-0.5 rounded text-[10px] font-medium"
-                    style={{ background: 'var(--accent-bg)', color: 'var(--accent)' }}
-                  >
-                    {entry.action_type}
+                  <span className="px-2 py-0.5 rounded text-[10px] font-medium bg-accent-bg text-accent">
+                    {actionTypeLabel(t, entry.action_type)}
                   </span>
                 </td>
                 <td

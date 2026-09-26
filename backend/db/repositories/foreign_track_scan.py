@@ -221,6 +221,27 @@ class ForeignTrackScanRepository(BaseRepository):
         ).all()
         return {state: int(count) for state, count in rows}
 
+    def stripped_rows(self) -> list[dict]:
+        """Path, pre-strip size, removed-track count and strip time of every
+        ``stripped`` row — the input of the one-off history backfill."""
+        rows = self.session.execute(
+            select(
+                ForeignTrackScan.path,
+                ForeignTrackScan.size_bytes,
+                ForeignTrackScan.track_count,
+                ForeignTrackScan.processed_at,
+            ).where(ForeignTrackScan.state == STATE_STRIPPED)
+        ).all()
+        return [
+            {
+                "path": path,
+                "size_bytes": int(size or 0),
+                "track_count": int(tracks or 0),
+                "processed_at": processed_at,
+            }
+            for path, size, tracks, processed_at in rows
+        ]
+
     def affected_track_total(self) -> int:
         """Foreign tracks still to remove, across every affected row.
 
