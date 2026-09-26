@@ -80,7 +80,13 @@ def test_tick_writes_one_history_row_when_files_were_stripped(tick_env):
     assert row.files_processed == 2
     assert row.files_deleted == 0
     assert row.bytes_freed == 1234
-    assert json.loads(row.details_json) == {"tracks_removed": 5, "probed": 3, "phase": "strip"}
+    assert json.loads(row.details_json) == {
+        "tracks_removed": 5,
+        "probed": 3,
+        "phase": "strip",
+        "backups_deleted": 0,
+        "verify_failed": 0,
+    }
 
 
 def test_tick_writes_nothing_when_no_file_was_stripped(tick_env):

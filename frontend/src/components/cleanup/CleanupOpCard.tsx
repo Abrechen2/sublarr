@@ -487,23 +487,31 @@ export function CleanupOpCard({ meta, rule, onToggle, onUpdate }: CleanupOpCardP
                   title={t('cleanup_card.min_free_gb_hint')}
                 />
 
-                {/* No production path honours this option: manual runs and the
-                    scheduled sweep both go through the sweep's run_slice, which
-                    always keeps the original in the trash for the retention
-                    period. Only the unused execute_foreign_tracks reads it. */}
-                <label className="flex items-start gap-2 mt-3 text-sm text-secondary opacity-60">
+                {/* Honoured by the sweep since 1.15.0-rc.6: after a rewrite that
+                    verifies against the original (services/foreign_tracks/verify.py)
+                    the backup is deleted instead of kept for the retention period. */}
+                <label className="flex items-start gap-2 mt-3 text-sm text-secondary cursor-pointer">
                   <input
                     type="checkbox"
                     className="mt-1"
-                    disabled
-                    checked={(config.verify_then_delete_backup as boolean) ?? false}
-                    readOnly
+                    checked={(config.delete_original_after_verify as boolean) ?? false}
+                    onChange={(e) =>
+                      updateConfig({ delete_original_after_verify: e.target.checked })
+                    }
                   />
                   <span>
                     {t('cleanup_card.verify_recycle')}
                     <span className="block text-[11px] text-muted">
                       {t('cleanup_card.verify_recycle_hint')}
                     </span>
+                    {/* The legacy key never had an effect; an auto-update must
+                        not arm it silently — the user decides again. */}
+                    {config.verify_then_delete_backup === true &&
+                      config.delete_original_after_verify === undefined && (
+                        <span className="block mt-1 text-[11px] text-warning">
+                          {t('cleanup_card.verify_recycle_legacy')}
+                        </span>
+                      )}
                   </span>
                 </label>
               </div>

@@ -30,6 +30,7 @@ from services.foreign_tracks.state import (
     load_state,
     save_state,
 )
+from services.foreign_tracks.verify import verify_strip
 from services.scheduler.cancellation import abort_requested
 
 logger = logging.getLogger(__name__)
@@ -596,6 +597,61 @@ def _strip_phase(
             result["stripped_files"] += 1
             result["tracks_removed"] += row.track_count
             result["bytes_freed"] += freed
+            _after_rewrite(
+                row.path,
+                backup,
+                config,
+                result,
+                file_policy,
+                keep_languages,
+                keep_und,
+                real_sidecar_langs,
+            )
+
+
+def _after_rewrite(
+    path, backup, config, result, policy, keep_languages, keep_und, real_sidecar_langs
+) -> None:
+    """Tell the media servers about the rewrite and, with
+    ``delete_original_after_verify`` on, delete the backup once the rewrite
+    verifies. Never raises: the rewrite itself already succeeded.
+
+    The legacy ``verify_then_delete_backup`` key is deliberately ignored: it
+    never had an effect in the 1.15.0 RCs, and an auto-update must not arm a
+    box someone ticked back then — the user confirms through the new option.
+    """
+    try:
+        from services.media_server_notify import notify_media_servers
+
+        notify_media_servers(path)
+    except Exception:  # noqa: BLE001 — best effort; a stale track list is not a failure
+        logger.debug("foreign_track_sweep: media-server refresh skipped", exc_info=True)
+
+    if not config.get("delete_original_after_verify"):
+        return
+    try:
+        ok, why = verify_strip(path, backup, policy, keep_languages, keep_und, real_sidecar_langs)
+    except Exception as exc:  # noqa: BLE001 — unverifiable means keep the backup
+        ok, why = False, f"verification error: {exc}"
+    if not ok:
+        result["verify_failed"] = result.get("verify_failed", 0) + 1
+        logger.error(
+            "foreign_track_sweep: rewrite of %s did not verify (%s) — keeping backup %s",
+            path,
+            why,
+            backup,
+        )
+        return
+    try:
+        os.remove(backup)
+    except OSError as exc:
+        result["verify_failed"] = result.get("verify_failed", 0) + 1
+        logger.warning(
+            "foreign_track_sweep: verified %s but could not delete %s: %s", path, backup, exc
+        )
+        return
+    result["backups_deleted"] = result.get("backups_deleted", 0) + 1
+    logger.info("foreign_track_sweep: verified %s — deleted backup %s", path, backup)
 
 
 def _min_free_gb(config: dict) -> int:
@@ -636,12 +692,14 @@ def foreign_track_sweep_tick() -> None:
 
     logger.info(
         "foreign_track_sweep: phase=%s probed=%d stripped=%d pending=%d affected=%d "
-        "paused_reason=%s",
+        "backups_deleted=%d verify_failed=%d paused_reason=%s",
         result["phase"],
         result["probed"],
         result["stripped_files"],
         result["pending"],
         result["affected"],
+        result.get("backups_deleted", 0),
+        result.get("verify_failed", 0),
         result.get("paused_reason") or "-",
     )
 

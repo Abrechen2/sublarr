@@ -164,10 +164,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   night 01:00–06:59, or a custom scheduler trigger), time budget per run
   (5–60 minutes), backup retention, progress and a "Run now" button. Cron
   schedules now carry a time zone, so a night schedule runs at local night
-  time instead of UTC; the scheduler page keeps and shows the zone. The
-  "verify then delete backup" option had no effect anywhere — the sweep always
-  keeps the original in the trash for the configured retention — and is
-  now shown disabled with that note.
+  time instead of UTC; the scheduler page keeps and shows the zone.
+- **"Delete the original right after a verified rewrite" works again**, as a
+  new setting that has to be ticked anew (see the upgrade notes). The old
+  option had silently stopped doing anything since the sweep took over
+  manual runs. The sweep now honours the new one: after a rewrite it compares the new
+  file with the original — every video and audio stream kept, and exactly
+  the subtitles the settings keep, nothing more and nothing less — and only
+  then deletes the original instead of keeping it in the trash for the
+  backup retention. Anything that does not verify keeps the backup. The sweep
+  also tells the media servers about every rewritten file, so their track
+  list is refreshed.
 - **Track cleanup on the statistics page** — the foreign-track sweep now
   records each run in the cleanup history (files cleaned, tracks removed,
   space freed), so it shows in the Cleanup tab's disk-space view, and the
@@ -217,6 +224,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   sidecar covers the language* such a video keeps its embedded track (the
   safe side) until the subtitle is downloaded again. Syncs from this release
   on are tracked.
+- **A "delete the original after a verified rewrite" tick from an earlier
+  1.15.0 RC is not carried over.** That box had no effect before; the sweep
+  now reads a new setting, so an automatic update never starts deleting
+  originals on its own. The foreign-track card says so where the box was
+  ticked — tick it again only if you want originals deleted right after a
+  verified rewrite instead of kept in the trash for the backup retention.
 - tvsubtitles.net no longer resolves; disable the provider if you had it on.
 - The per-file language list in the foreign-track sweep preview may mix raw
   container tags and normalised codes for files probed before this release,

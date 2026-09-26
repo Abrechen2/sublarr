@@ -94,6 +94,8 @@ def record_slice(result: dict, rule_id, repo=None) -> None:
                 "tracks_removed": int(result.get("tracks_removed") or 0),
                 "probed": int(result.get("probed") or 0),
                 "phase": result.get("phase"),
+                "backups_deleted": int(result.get("backups_deleted") or 0),
+                "verify_failed": int(result.get("verify_failed") or 0),
             },
             part_extra={"phase": result.get("phase")},
         )
