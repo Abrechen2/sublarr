@@ -325,7 +325,7 @@ function MovieProfileSelector({ movieId, movie }: { movieId: number; movie: Movi
 
   return (
     <div
-      className="rounded-lg p-5 flex items-center gap-3"
+      className="rounded-lg p-5 flex flex-wrap items-center gap-3"
       style={{ backgroundColor: 'var(--bg-surface)', border: '1px solid var(--border)' }}
       data-testid="movie-profile-selector-card"
     >
