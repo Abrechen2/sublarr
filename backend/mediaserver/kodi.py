@@ -224,7 +224,9 @@ class KodiServer(MediaServer):
 
         return report
 
-    def refresh_item(self, file_path: str, item_type: str = "") -> RefreshResult:
+    def refresh_item(
+        self, file_path: str, item_type: str = "", library_fallback: bool = True
+    ) -> RefreshResult:
         """Refresh a specific item by scanning its parent directory.
 
         Kodi's VideoLibrary.Scan with a directory parameter scans just
@@ -233,6 +235,8 @@ class KodiServer(MediaServer):
         Args:
             file_path: Path to the media file
             item_type: "episode" or "movie" hint (not used for Kodi)
+            library_fallback: Unused — a directory scan never falls back to
+                a full library scan.
 
         Returns:
             RefreshResult with success status

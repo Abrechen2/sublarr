@@ -195,11 +195,26 @@ def _scheduled_tick(spec_id: str) -> None:
 
 # Separate registry for one-shot (triggered_by='manual') runs.
 _oneshot_registry: dict[str, tuple[Flask, JobSpec]] = {}
-# Parent job ids whose manual one-shot is RUNNING. APScheduler drops a
-# DateTrigger job from its store the moment it fires, so run_now's "pending"
-# check alone let a second run-now through while the first was still running.
+# Parent job ids with a manual one-shot queued or RUNNING. APScheduler drops
+# a DateTrigger job from its store the moment it hands it to the executor, so
+# run_now's "pending" check alone let a second run-now through while the first
+# was waiting for a pool thread or still running. run_now adds the id when it
+# queues the one-shot; the tick's finally, a missed-run event and
+# purge_orphans release it (release_oneshot_marker).
 _running_oneshots: set[str] = set()
 _running_oneshots_lock = threading.Lock()
+
+_ONESHOT_SEPARATOR = "_oneshot_"
+
+
+def release_oneshot_marker(oneshot_id: str) -> None:
+    """Forget the queued/running marker of ``oneshot_id``'s parent job."""
+    if _ONESHOT_SEPARATOR not in oneshot_id:
+        return
+    parent_id = oneshot_id.split(_ONESHOT_SEPARATOR, 1)[0]
+    with _running_oneshots_lock:
+        _running_oneshots.discard(parent_id)
+
 
 # Serialises every run_now() call — check-then-add of the oneshot_id +
 # presence check against get_jobs() is not atomic at the APScheduler level.
@@ -253,7 +268,10 @@ def _scheduled_oneshot_tick(oneshot_id: str) -> None:
                 "scheduler: oneshot %s fired but registry entry missing",
                 oneshot_id,
             )
+            release_oneshot_marker(oneshot_id)
             return
+    # run_now set the marker already; a one-shot recovered after a restart
+    # has none yet.
     with _running_oneshots_lock:
         _running_oneshots.add(spec.id)
     try:

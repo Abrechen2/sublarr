@@ -524,10 +524,13 @@ def execute_foreign_tracks(media_path: str, config: dict, dry_run: bool = False)
     #     never rewritten. Exclude wins over include.
     #   min_free_gb — hard floor: stop stripping before the backups fill the
     #     array. Execute-mode only; a dry run writes nothing.
-    #   verify_then_delete_backup — after each rewrite, re-probe the new file
-    #     and recycle its backup only when the rewrite verifies. Bounds the
-    #     sweep's extra disk usage to roughly one file instead of the whole
-    #     backlog (16.85 TB affected vs 14 TB free on the first real run).
+    #   delete_original_after_verify — after each rewrite, compare the new
+    #     file with its backup (services.foreign_tracks.verify.verify_strip)
+    #     and delete the backup only when the rewrite is exactly what the
+    #     policy asked for. The same key and the same check the sweep uses.
+    #     The legacy verify_then_delete_backup key is ignored here as there:
+    #     it never had an effect in the 1.15.0 RCs, and an update must not arm
+    #     a box ticked back then (owner 2026-09-26).
     include_paths = [p for p in (config.get("include_paths") or []) if p]
     exclude_paths = [p for p in (config.get("exclude_paths") or []) if p]
     raw_floor = config.get("min_free_gb", DEFAULT_SWEEP_MIN_FREE_GB)
@@ -535,7 +538,7 @@ def execute_foreign_tracks(media_path: str, config: dict, dry_run: bool = False)
         min_free_gb = max(0, int(raw_floor))
     except (TypeError, ValueError):
         min_free_gb = DEFAULT_SWEEP_MIN_FREE_GB
-    verify_recycle = bool(config.get("verify_then_delete_backup"))
+    delete_original = bool(config.get("delete_original_after_verify"))
 
     def _scope_root(sub: str) -> str:
         return os.path.normpath(os.path.join(media_path, sub))
@@ -656,27 +659,14 @@ def execute_foreign_tracks(media_path: str, config: dict, dry_run: bool = False)
             except Exception:  # noqa: BLE001 — best-effort, never abort the batch
                 logger.debug("foreign_tracks: media-server refresh skipped", exc_info=True)
 
-            if verify_recycle:
-                if _verify_stripped_container(video, keep_languages, keep_und, get_media_streams):
-                    try:
-                        os.remove(backup)
-                        backups_recycled += 1
-                        logger.debug("foreign_tracks: recycled backup %s", backup)
-                    except OSError as exc:
-                        verify_failed += 1
-                        logger.warning(
-                            "foreign_tracks: verified %s but could not recycle backup %s: %s",
-                            video,
-                            backup,
-                            exc,
-                        )
+            if delete_original:
+                recycled = _delete_verified_backup(
+                    video, backup, policy, keep_languages, keep_und, real_langs
+                )
+                if recycled:
+                    backups_recycled += 1
                 else:
                     verify_failed += 1
-                    logger.error(
-                        "foreign_tracks: rewrite of %s did not verify — keeping backup %s",
-                        video,
-                        backup,
-                    )
 
     if dry_run:
         return {
@@ -696,36 +686,39 @@ def execute_foreign_tracks(media_path: str, config: dict, dry_run: bool = False)
     return result
 
 
-def _verify_stripped_container(
-    video: str, keep_languages: set[str], keep_und: bool, probe_fn
+def _delete_verified_backup(
+    video: str, backup: str, policy, keep_languages, keep_und, real_langs
 ) -> bool:
-    """Post-rewrite check before a backup may be recycled.
+    """Delete ``backup`` when the rewrite at ``video`` verifies against it.
 
-    The rewritten container must probe cleanly, still carry a video stream,
-    be non-empty on disk, and contain no subtitle track outside the keep
-    set. Anything less keeps the backup — a false negative costs disk for a
-    while, a false positive costs the original.
+    Anything short of a verified rewrite and a successful delete keeps the
+    backup and answers False — a false negative costs disk for a while, a
+    false positive costs the original.
     """
-    try:
-        if os.path.getsize(video) <= 0:
-            return False
-        post = probe_fn(video, use_cache=False)
-    except Exception:  # noqa: BLE001 — an unprobeable rewrite must never recycle
-        logger.debug("foreign_tracks verify: probe failed for %s", video, exc_info=True)
-        return False
+    from services.foreign_tracks import verify
 
-    streams = post.get("streams", [])
-    if not any(s.get("codec_type") == "video" for s in streams):
+    try:
+        ok, why = verify.verify_strip(
+            video, backup, policy, keep_languages, keep_und, set(real_langs or ())
+        )
+    except Exception as exc:  # noqa: BLE001 — unverifiable means keep the backup
+        ok, why = False, f"verification error: {exc}"
+    if not ok:
+        logger.error(
+            "foreign_tracks: rewrite of %s did not verify (%s) — keeping backup %s",
+            video,
+            why,
+            backup,
+        )
         return False
-    for stream in streams:
-        if stream.get("codec_type") != "subtitle":
-            continue
-        lang = (stream.get("tags", {}).get("language", "und") or "und").lower()
-        if lang in keep_languages:
-            continue
-        if keep_und and lang == "und":
-            continue
+    try:
+        os.remove(backup)
+    except OSError as exc:
+        logger.warning(
+            "foreign_tracks: verified %s but could not delete backup %s: %s", video, backup, exc
+        )
         return False
+    logger.debug("foreign_tracks: deleted verified backup %s", backup)
     return True
 
 

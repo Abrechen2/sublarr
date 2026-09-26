@@ -27,6 +27,7 @@ from services.scheduler.ticks import (
     _tick_registry,
     _write_job_run,
     compute_default_misfire_grace_time,
+    release_oneshot_marker,
 )
 
 logger = logging.getLogger(__name__)
@@ -233,6 +234,9 @@ class SublarrScheduler:
         # (e.g. during a redeploy or a DB clone) logs "Working outside of
         # application context" and its miss is never recorded.
         def _on_missed(event) -> None:
+            # A one-shot that misfired never runs its tick, so nothing else
+            # would release its run-now marker.
+            release_oneshot_marker(event.job_id)
             try:
                 if self._app is None:
                     return
@@ -285,11 +289,13 @@ class SublarrScheduler:
             base_id = job.id.split("_oneshot_")[0]
             if base_id not in self._registered_ids:
                 scheduler.remove_job(job.id)
+                release_oneshot_marker(job.id)
                 logger.info("purge_orphans: removed %s", job.id)
                 continue
             if "_oneshot_" in job.id:
                 if job.next_run_time is None or job.next_run_time < datetime.now(UTC):
                     scheduler.remove_job(job.id)
+                    release_oneshot_marker(job.id)
                     logger.info("purge_orphans: removed stale oneshot %s", job.id)
 
     def run_now(self, job_id: str) -> str:
@@ -340,14 +346,27 @@ class SublarrScheduler:
             # triggered_by='manual'.
             _oneshot_registry[oneshot_id] = (self._app, self._spec_by_id(job_id))
 
-            scheduler.add_job(
-                func="services.scheduler:_scheduled_oneshot_tick",
-                args=[oneshot_id],
-                trigger=DateTrigger(run_date=datetime.now(UTC)),
-                id=oneshot_id,
-                replace_existing=False,
-                max_instances=1,
-            )
+            # Marked BEFORE add_job: the tick can start (and finish) on a pool
+            # thread before add_job returns, and a marker set afterwards would
+            # then never be released. From here until the tick's finally the
+            # run counts as in progress, including the gap in which
+            # APScheduler has already dropped the DateTrigger job.
+            with _running_oneshots_lock:
+                _running_oneshots.add(job_id)
+            try:
+                scheduler.add_job(
+                    func="services.scheduler:_scheduled_oneshot_tick",
+                    args=[oneshot_id],
+                    trigger=DateTrigger(run_date=datetime.now(UTC)),
+                    id=oneshot_id,
+                    replace_existing=False,
+                    max_instances=1,
+                )
+            except BaseException:
+                with _running_oneshots_lock:
+                    _running_oneshots.discard(job_id)
+                _oneshot_registry.pop(oneshot_id, None)
+                raise
         return oneshot_id
 
     def _require_registered(self, job_id: str) -> None:

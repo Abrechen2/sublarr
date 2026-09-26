@@ -87,11 +87,14 @@ class ShokoServer(MediaServer):
     def health_check(self) -> tuple[bool, str]:
         return self._client().health_check()
 
-    def refresh_item(self, file_path: str, item_type: str = "") -> RefreshResult:
+    def refresh_item(
+        self, file_path: str, item_type: str = "", library_fallback: bool = True
+    ) -> RefreshResult:
         """Rescan the Shoko file matching ``file_path``.
 
         Falls back to a full import-folder scan when the file is unknown to
-        Shoko (e.g. path-mapping mismatch or not yet imported).
+        Shoko (e.g. path-mapping mismatch or not yet imported), unless
+        ``library_fallback`` is False — see ``MediaServer.refresh_item``.
         """
         mapped_path = self.apply_path_mapping(file_path)
         server_name = self.config.get("name", self.display_name)
@@ -104,6 +107,13 @@ class ShokoServer(MediaServer):
                     success=True,
                     message=f"Rescanned {mapped_path}{type_str}",
                     server_name=server_name,
+                )
+            if not library_fallback:
+                return RefreshResult(
+                    success=False,
+                    message=f"File not found in Shoko: {mapped_path}",
+                    server_name=server_name,
+                    needs_library_refresh=True,
                 )
             logger.info("File not found in Shoko, falling back to library scan: %s", mapped_path)
             return self.refresh_library()

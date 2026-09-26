@@ -170,15 +170,25 @@ class JellyfinEmbyServer(MediaServer):
             return True, f"{server_name} v{version}"
         return False, f"Cannot connect to {self.server_type.title()} at {self.url}"
 
-    def refresh_item(self, file_path: str, item_type: str = "") -> RefreshResult:
+    def refresh_item(
+        self, file_path: str, item_type: str = "", library_fallback: bool = True
+    ) -> RefreshResult:
         """Refresh metadata for a specific item by file path.
 
         Applies path mapping, searches for the item, then triggers refresh.
-        Falls back to refresh_library() if item not found.
+        Falls back to refresh_library() if item not found (unless
+        ``library_fallback`` is False — see ``MediaServer.refresh_item``).
         """
         mapped_path = self.apply_path_mapping(file_path)
         item_id = self._search_item_by_path(mapped_path)
 
+        if not item_id and not library_fallback:
+            return RefreshResult(
+                success=False,
+                message=f"Item not found by path in {self.server_type.title()}: {mapped_path}",
+                server_name=self.config.get("name", self.display_name),
+                needs_library_refresh=True,
+            )
         if not item_id:
             logger.info(
                 "Item not found by path in %s, falling back to library refresh: %s",

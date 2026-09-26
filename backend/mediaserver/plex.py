@@ -159,12 +159,15 @@ class PlexServer(MediaServer):
 
         return report
 
-    def refresh_item(self, file_path: str, item_type: str = "") -> RefreshResult:
+    def refresh_item(
+        self, file_path: str, item_type: str = "", library_fallback: bool = True
+    ) -> RefreshResult:
         """Refresh metadata for a specific item by file path.
 
         Searches library sections for the item matching the file path,
         then triggers item.refresh(). Falls back to refresh_library()
-        if item not found.
+        if item not found (unless ``library_fallback`` is False — see
+        ``MediaServer.refresh_item``).
         """
         mapped_path = self.apply_path_mapping(file_path)
 
@@ -214,6 +217,13 @@ class PlexServer(MediaServer):
                 logger.debug("Error searching Plex section '%s': %s", section.title, e)
                 continue
 
+        if not library_fallback:
+            return RefreshResult(
+                success=False,
+                message=f"Item not found by path in Plex: {mapped_path}",
+                server_name=self.config.get("name", self.display_name),
+                needs_library_refresh=True,
+            )
         # Item not found -- fall back to full library refresh
         logger.info(
             "Item not found by path in Plex, falling back to library refresh: %s",

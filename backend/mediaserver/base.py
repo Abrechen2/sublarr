@@ -17,6 +17,9 @@ class RefreshResult:
     message: str
     server_name: str = ""
     item_id: str | None = None
+    # The item was not found and ``library_fallback=False`` held the library
+    # refresh back — the caller decides whether (and how often) to run one.
+    needs_library_refresh: bool = False
 
 
 class MediaServer(ABC):
@@ -50,12 +53,18 @@ class MediaServer(ABC):
         ...
 
     @abstractmethod
-    def refresh_item(self, file_path: str, item_type: str = "") -> RefreshResult:
+    def refresh_item(
+        self, file_path: str, item_type: str = "", library_fallback: bool = True
+    ) -> RefreshResult:
         """Refresh metadata for a specific item by file path.
 
         Args:
             file_path: Path to the media file (used to find item in server)
             item_type: "episode" or "movie" hint
+            library_fallback: When the item is not found, run a full library
+                refresh (default). False returns a failed result with
+                ``needs_library_refresh`` set instead, so a batch caller can
+                coalesce many misses into one library refresh.
 
         Returns:
             RefreshResult with success status

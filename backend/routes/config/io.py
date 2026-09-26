@@ -119,6 +119,16 @@ def import_config():
                     type: array
                     items:
                       type: string
+                  skipped_invalid:
+                    type: array
+                    description: Keys whose value failed validation and were not imported
+                    items:
+                      type: object
+                      properties:
+                        key:
+                          type: string
+                        error:
+                          type: string
                   config:
                     type: object
                     additionalProperties: true
@@ -148,8 +158,11 @@ def import_config():
             {"error": "Cannot determine valid config keys - import rejected for safety"}
         ), 500
 
+    from routes.config.bounds import validate_import_value
+
     imported = []
     skipped_secrets = []
+    skipped_invalid = []
     # Mirror update_config's URL-field set so an attacker can't smuggle
     # file://, link-local IPs, or cloud-metadata endpoints in via the
     # import path.
@@ -166,6 +179,10 @@ def import_config():
                 ok, reason = validate_service_url(str(value))
                 if not ok:
                     return jsonify({"error": f"Invalid URL for {key}: {reason}"}), 400
+            value, error = validate_import_value(key, value)
+            if error:
+                skipped_invalid.append({"key": key, "error": error})
+                continue
             save_config_entry(key, str(value))
             imported.append(key)
 
@@ -205,12 +222,15 @@ def import_config():
         logger.warning("Media server reload failed after config import: %s", exc)
 
     logger.info("Config imported: %s (skipped secrets: %s)", imported, skipped_secrets)
+    if skipped_invalid:
+        logger.warning("Config import skipped invalid values: %s", skipped_invalid)
 
     return jsonify(
         {
             "status": "imported",
             "imported_keys": imported,
             "skipped_secrets": skipped_secrets,
+            "skipped_invalid": skipped_invalid,
             "config": settings.get_safe_config(),
         }
     )

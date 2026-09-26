@@ -331,70 +331,72 @@ def test_disk_floor_ignored_in_dry_run(tmp_path):
     assert result["would_strip_files"] == 1
 
 
-def test_verify_then_delete_backup_removes_backup_on_clean_rewrite(tmp_path):
+def _run_with_rewrite(tmp_path, config, verified):
+    """One dirty file, stripped; the post-strip probe reports it clean.
+    ``verified`` is what ``verify_strip`` answers (None = the real check)."""
     from services.cleanup_executors import execute_foreign_tracks
 
     video = tmp_path / "show.mkv"
     video.write_bytes(b"video")
     backup = tmp_path / "show.mkv.bak"
-
-    def _strip(**kwargs):
-        backup.write_bytes(b"original")
-        return str(backup)
-
     probes = {"post": False}
+    verify_calls = []
 
     def _probe_by_phase(path, *args, **kwargs):
-        if probes["post"]:
-            return _clean_probe()
-        return _probe()
+        return _clean_probe() if probes["post"] else _probe()
 
     def _strip_and_flip(**kwargs):
-        result = _strip(**kwargs)
+        backup.write_bytes(b"original")
         probes["post"] = True
-        return result
+        return str(backup)
+
+    def _verify(*args, **kwargs):
+        verify_calls.append(args)
+        return verified
 
     with (
         patch("config.get_settings", return_value=_settings(["de", "en"], True)),
         patch("remux.get_media_streams", _probe_by_phase),
         patch("remux.remove_foreign_subtitle_streams", _strip_and_flip),
+        patch("services.foreign_tracks.verify.verify_strip", _verify),
     ):
-        result = execute_foreign_tracks(
-            str(tmp_path), {"verify_then_delete_backup": True}, dry_run=False
-        )
+        result = execute_foreign_tracks(str(tmp_path), config, dry_run=False)
+    return result, backup, verify_calls
 
+
+def test_delete_original_after_verify_removes_a_verified_backup(tmp_path):
+    result, backup, calls = _run_with_rewrite(
+        tmp_path, {"delete_original_after_verify": True}, (True, "ok")
+    )
     assert result["stripped_files"] == 1
     assert result["backups_recycled"] == 1
     assert not backup.exists(), "verified rewrite must recycle its backup"
+    # The strict check compares the rewrite with its backup under the policy.
+    assert calls and calls[0][0] == str(tmp_path / "show.mkv")
+    assert calls[0][1] == str(backup)
 
 
 def test_verify_failure_keeps_backup(tmp_path):
-    """If the rewritten file still shows a foreign track (or the probe
-    fails), the backup must survive."""
-    from services.cleanup_executors import execute_foreign_tracks
-
-    video = tmp_path / "show.mkv"
-    video.write_bytes(b"video")
-    backup = tmp_path / "show.mkv.bak"
-
-    def _strip(**kwargs):
-        backup.write_bytes(b"original")
-        return str(backup)
-
-    # Post-strip probe still reports the dirty container -> verification fails
-    with (
-        patch("config.get_settings", return_value=_settings(["de", "en"], True)),
-        patch("remux.get_media_streams", _probe),
-        patch("remux.remove_foreign_subtitle_streams", lambda **kw: _strip(**kw)),
-    ):
-        result = execute_foreign_tracks(
-            str(tmp_path), {"verify_then_delete_backup": True}, dry_run=False
-        )
-
+    """If the rewrite does not verify, the backup must survive."""
+    result, backup, _ = _run_with_rewrite(
+        tmp_path, {"delete_original_after_verify": True}, (False, "subtitle tracks differ")
+    )
     assert result["stripped_files"] == 1
     assert result["backups_recycled"] == 0
     assert result["verify_failed"] == 1
     assert backup.exists(), "unverified rewrite must keep its backup"
+
+
+def test_the_legacy_key_alone_deletes_nothing(tmp_path):
+    """verify_then_delete_backup was ticked when it did nothing; an update must
+    not arm it (owner 2026-09-26) — on this path either."""
+    result, backup, calls = _run_with_rewrite(
+        tmp_path, {"verify_then_delete_backup": True}, (True, "ok")
+    )
+    assert result["stripped_files"] == 1
+    assert result["backups_recycled"] == 0
+    assert backup.exists()
+    assert calls == []
 
 
 def test_backup_untouched_without_verify_flag(tmp_path):

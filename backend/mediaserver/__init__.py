@@ -19,6 +19,12 @@ from mediaserver.base import MediaServer, RefreshResult
 
 logger = logging.getLogger(__name__)
 
+# Above this many paths, refresh_all_batch skips the per-item refreshes and
+# asks each server for ONE library refresh instead: a per-item refresh is a
+# search plus a refresh (up to ~60 s against a struggling server), and past a
+# few dozen files one library scan is both cheaper and complete.
+BATCH_ITEM_REFRESH_LIMIT = 20
+
 
 class MediaServerManager:
     """Manages media server backends and dispatches refresh notifications.
@@ -159,6 +165,75 @@ class MediaServerManager:
                     )
                 )
 
+        return results
+
+    def refresh_all_batch(self, file_paths: list[str], item_type: str = "") -> list[RefreshResult]:
+        """Refresh many changed files on every server with at most ONE library
+        refresh per server.
+
+        For batch writers (the foreign-track sweep), where ``refresh_all``'s
+        per-file library-refresh fallback would scan the whole library once
+        per missed file. Per server:
+
+        - more than ``BATCH_ITEM_REFRESH_LIMIT`` paths: one library refresh;
+        - otherwise each path is refreshed without the fallback, and one
+          library refresh follows if any of them was not found;
+        - the first hard failure stops that server for this batch (a dead
+          server costs one timeout, not one per file).
+
+        Circuit breakers are honoured and fed as in ``refresh_all``; a miss is
+        not a server failure. Never raises.
+        """
+        results: list[RefreshResult] = []
+        paths = [p for p in dict.fromkeys(file_paths) if p]
+        if not paths:
+            return results
+        for instance_key, instance in self._instances.items():
+            if not self._instance_enabled.get(instance_key, True):
+                continue
+            results.extend(self._refresh_batch_on(instance_key, instance, paths, item_type))
+        return results
+
+    def _refresh_batch_on(self, instance_key, instance, paths, item_type) -> list[RefreshResult]:
+        cb = self._get_circuit_breaker(instance_key)
+        server_name = instance.config.get("name", instance_key)
+        results: list[RefreshResult] = []
+
+        def _call(fn, *args, **kwargs) -> RefreshResult | None:
+            if not cb.allow_request():
+                results.append(
+                    RefreshResult(
+                        success=False,
+                        message=f"Skipped {instance_key} (circuit breaker OPEN)",
+                        server_name=server_name,
+                    )
+                )
+                return None
+            try:
+                result = fn(*args, **kwargs)
+            except Exception as e:  # noqa: BLE001 — recorded as a failed refresh
+                logger.warning("Media server %s refresh failed: %s", instance_key, e)
+                result = RefreshResult(
+                    success=False,
+                    message=f"Error refreshing {instance_key}: {e}",
+                    server_name=server_name,
+                )
+            if result.success:
+                cb.record_success()
+            elif not result.needs_library_refresh:
+                cb.record_failure()
+            results.append(result)
+            return result
+
+        needs_library = len(paths) > BATCH_ITEM_REFRESH_LIMIT
+        if not needs_library:
+            for path in paths:
+                result = _call(instance.refresh_item, path, item_type, library_fallback=False)
+                if result is None or not (result.success or result.needs_library_refresh):
+                    return results
+                needs_library = needs_library or result.needs_library_refresh
+        if needs_library:
+            _call(instance.refresh_library)
         return results
 
     def health_check_all(self) -> list[dict]:

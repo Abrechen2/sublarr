@@ -58,31 +58,51 @@ def _get_title_override(item: dict) -> bool | None:
         else:
             return None
     except Exception as exc:  # noqa: BLE001 — surfaced as "unavailable", never as "inherit"
+        # A failed statement aborts the transaction on Postgres; every later
+        # query on this session would fail until it is rolled back.
+        try:
+            from extensions import db
+
+            db.session.rollback()
+        except Exception:  # noqa: BLE001 — the lookup failure is what gets reported
+            logger.debug("foreign-track cleanup: rollback after lookup failure failed")
         raise _OverrideUnavailableError(str(exc)) from exc
     return None if row is None else row.cleanup_foreign_tracks
 
 
-def foreign_track_cleanup_applies(item: dict) -> bool:
+def foreign_track_cleanup_decision(item: dict) -> bool | None:
     """Whether the global setting or the item's series/movie switch asks for
-    cleanup. Any lookup failure answers False: skipping a cleanup costs a
-    later retry, running one against a switched-off title cannot be undone."""
+    cleanup: True, False, or None when that cannot be known right now (the
+    settings or the switch are unreadable).
+
+    None is never "inherit the global default" — running a cleanup against a
+    switched-off title cannot be undone. Each caller decides what unknown
+    means for it: the download path queues (the drain decides later), the
+    drain retries on its backoff ladder, the batch probe skips.
+    """
     try:
         from config import get_settings
 
         global_default = bool(getattr(get_settings(), "cleanup_foreign_tracks_default", False))
     except Exception:
-        logger.warning("foreign-track cleanup: settings unavailable — skipped", exc_info=True)
-        return False
+        logger.warning("foreign-track cleanup: settings unavailable", exc_info=True)
+        return None
     try:
         override = _get_title_override(item)
     except _OverrideUnavailableError as exc:
         logger.warning(
-            "foreign-track cleanup: switch for %s unreadable (%s) — skipped",
+            "foreign-track cleanup: switch for %s unreadable (%s) — not decided now",
             item.get("sonarr_series_id") or item.get("radarr_movie_id"),
             exc,
         )
-        return False
+        return None
     return should_cleanup_foreign_tracks(series_override=override, global_default=global_default)
+
+
+def foreign_track_cleanup_applies(item: dict) -> bool:
+    """:func:`foreign_track_cleanup_decision` for callers that can only skip:
+    unknown answers False."""
+    return foreign_track_cleanup_decision(item) is True
 
 
 #: Outcomes of :func:`maybe_run_foreign_track_cleanup`.
@@ -184,7 +204,9 @@ def maybe_run_foreign_track_cleanup(
     failure is logged and swallowed so the happy path never regresses.
     Returns ``stripped`` (the file was rewritten), ``skipped`` (policy off,
     nothing foreign, nothing to keep) or ``failed`` — so a queued caller can
-    retry a failure and tell the media server about a rewrite.
+    retry a failure and tell the media server about a rewrite. A cleanup
+    switch that cannot be read right now is ``failed`` too (nothing is
+    touched; the drain retries it, the batch probe just moves on).
 
     ``policy``: the track variant policy (Task 4's ``TrackPolicy``). When
     None, it is resolved from the item's ``sonarr_series_id`` /
@@ -196,10 +218,16 @@ def maybe_run_foreign_track_cleanup(
         settings = get_settings()
         keep_und = bool(getattr(settings, "cleanup_foreign_tracks_keep_und", False))
     except Exception:
-        logger.debug("foreign-track cleanup: settings unavailable", exc_info=True)
-        return CLEANUP_SKIPPED
+        logger.warning("foreign-track cleanup: settings unavailable", exc_info=True)
+        return CLEANUP_FAILED
 
-    if not foreign_track_cleanup_applies(item):
+    decision = foreign_track_cleanup_decision(item)
+    if decision is None:
+        logger.warning(
+            "foreign-track cleanup: switch unreadable for %s — skipped, file untouched", file_path
+        )
+        return CLEANUP_FAILED
+    if not decision:
         return CLEANUP_SKIPPED
 
     base_codes, keep_tags = keep_tags_for(item, target_languages)

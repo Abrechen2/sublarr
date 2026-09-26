@@ -13,6 +13,7 @@ existing installs already store and the UI already sends.
 
 from __future__ import annotations
 
+import types
 import typing
 
 BOUNDED_INT_KEYS: frozenset[str] = frozenset({"foreign_track_sweep_budget_s"})
@@ -60,9 +61,44 @@ def literal_choices(key: str) -> set | None:
     from config_settings import UISettings
 
     field = UISettings.model_fields.get(key)
-    if field is None or typing.get_origin(field.annotation) is not typing.Literal:
+    return None if field is None else _choices_of(field.annotation)
+
+
+def _choices_of(annotation: object) -> set | None:
+    """``Literal[...]`` -> its values; ``Literal[...] | None`` (or
+    ``Optional[Literal[...]]``) -> its values plus None; anything else -> None."""
+    origin = typing.get_origin(annotation)
+    if origin is typing.Literal:
+        return set(typing.get_args(annotation))
+    if origin not in (typing.Union, types.UnionType):
         return None
-    return set(typing.get_args(field.annotation))
+    members = typing.get_args(annotation)
+    literals = [m for m in members if typing.get_origin(m) is typing.Literal]
+    rest = [m for m in members if m not in literals]
+    if not literals or any(m is not type(None) for m in rest):
+        return None
+    choices: set = set()
+    for member in literals:
+        choices.update(typing.get_args(member))
+    if rest:
+        choices.add(None)
+    return choices
+
+
+def validate_import_value(key: str, value: object) -> tuple[object, str | None]:
+    """``(value_to_save, None)`` for a valid imported value of a checked key
+    (Literal settings, ``BOUNDED_INT_KEYS``), else ``(None, error_message)``.
+    Keys without a check pass through unchanged.
+
+    The import path saves strings and ``reload_settings`` never validates, so
+    an invalid value would otherwise surface as a broken settings reload.
+    """
+    if key in BOUNDED_INT_KEYS:
+        return coerce_bounded_int(key, value)
+    choices = literal_choices(key)
+    if choices is not None and value not in choices:
+        return None, f"{key} must be one of {sorted(choices, key=str)}"
+    return value, None
 
 
 def literal_keys() -> frozenset[str]:

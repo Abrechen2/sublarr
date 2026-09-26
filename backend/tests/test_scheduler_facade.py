@@ -371,3 +371,98 @@ def test_run_now_is_refused_while_a_manual_run_is_still_running(scheduler):
             scheduler.run_now("rn_busy")
     finally:
         release.set()
+
+
+# --- the gap between APScheduler dropping the one-shot and its tick starting ---
+
+
+@pytest.fixture
+def clean_markers():
+    from services.scheduler import ticks
+
+    yield ticks._running_oneshots
+    with ticks._running_oneshots_lock:
+        ticks._running_oneshots.clear()
+
+
+def test_run_now_is_refused_in_the_gap_before_the_tick_starts(scheduler, clean_markers):
+    """APScheduler removes a DateTrigger job when it hands it to the executor;
+    the tick may start much later (busy pool). A run-now in that gap must be
+    refused too — the marker has to exist from the moment run_now queued it."""
+    from services.scheduler import OneshotAlreadyPendingError
+
+    scheduler.register_job(
+        JobSpec(id="rn_gap", func=lambda: None, default_trigger=IntervalTrigger(minutes=15))
+    )
+    first = scheduler.run_now("rn_gap")  # scheduler stays paused: the tick never runs
+    # Simulate the dispatch: the job leaves the store, the tick has not started.
+    scheduler._scheduler.remove_job(first)
+    with pytest.raises(OneshotAlreadyPendingError):
+        scheduler.run_now("rn_gap")
+
+
+def test_a_failed_add_job_leaves_no_marker(scheduler, clean_markers, monkeypatch):
+    scheduler.register_job(
+        JobSpec(id="rn_fail", func=lambda: None, default_trigger=IntervalTrigger(minutes=15))
+    )
+    aps = scheduler._ensure_scheduler()
+    real_add = aps.add_job
+
+    def boom(*a, **k):
+        raise RuntimeError("jobstore down")
+
+    monkeypatch.setattr(aps, "add_job", boom)
+    with pytest.raises(RuntimeError):
+        scheduler.run_now("rn_fail")
+    assert "rn_fail" not in clean_markers
+    monkeypatch.setattr(aps, "add_job", real_add)
+    assert scheduler.run_now("rn_fail")
+
+
+def test_a_tick_without_a_registry_entry_releases_the_marker(clean_markers):
+    from services.scheduler import ticks
+
+    with ticks._running_oneshots_lock:
+        ticks._running_oneshots.add("ghost_job")
+    ticks._scheduled_oneshot_tick("ghost_job_oneshot_deadbeef")
+    assert "ghost_job" not in clean_markers
+
+
+def test_a_finished_tick_releases_the_marker(scheduler, clean_markers):
+    from services.scheduler import ticks
+
+    ran = []
+    scheduler.register_job(
+        JobSpec(
+            id="rn_done", func=lambda: ran.append(1), default_trigger=IntervalTrigger(minutes=15)
+        )
+    )
+    scheduler.start_registered_jobs()
+    oneshot = scheduler.run_now("rn_done")
+    scheduler._scheduler.remove_job(oneshot)
+    assert "rn_done" in clean_markers
+    ticks._scheduled_oneshot_tick(oneshot)
+    assert ran == [1]
+    assert "rn_done" not in clean_markers
+
+
+def test_a_missed_or_purged_oneshot_releases_the_marker(scheduler, clean_markers):
+    """A one-shot that never fires (misfired while paused, purged as stale)
+    must not leave run-now refused until the next restart."""
+    from services.scheduler import ticks
+
+    with ticks._running_oneshots_lock:
+        ticks._running_oneshots.add("rn_missed")
+    ticks.release_oneshot_marker("rn_missed_oneshot_abc")
+    assert "rn_missed" not in clean_markers
+
+    scheduler.register_job(
+        JobSpec(id="rn_purged", func=lambda: None, default_trigger=IntervalTrigger(minutes=15))
+    )
+    oneshot = scheduler.run_now("rn_purged")
+    assert "rn_purged" in clean_markers
+    job = scheduler._scheduler.get_job(oneshot)
+    job.modify(next_run_time=job.next_run_time.replace(year=2000))
+    scheduler.purge_orphans()
+    assert scheduler._scheduler.get_job(oneshot) is None
+    assert "rn_purged" not in clean_markers

@@ -39,7 +39,7 @@ def test_save_subtitle_enqueues_instead_of_remuxing(app_ctx, tmp_path, monkeypat
     video.write_bytes(b"v")
 
     with (
-        patch("services.foreign_track_cleanup.foreign_track_cleanup_applies", return_value=True),
+        patch("services.foreign_track_cleanup.foreign_track_cleanup_decision", return_value=True),
         patch("services.foreign_track_cleanup.maybe_run_foreign_track_cleanup") as inline,
     ):
         save_subtitle(_result(), str(tmp_path / "Show - S01E01.de.srt"), series_id=42)
@@ -75,7 +75,7 @@ def test_save_subtitle_movie_enqueues_radarr_movie_id(app_ctx, tmp_path, monkeyp
     video.write_bytes(b"v")
 
     with (
-        patch("services.foreign_track_cleanup.foreign_track_cleanup_applies") as applies,
+        patch("services.foreign_track_cleanup.foreign_track_cleanup_decision") as applies,
         patch("services.foreign_track_cleanup.maybe_run_foreign_track_cleanup") as inline,
     ):
         applies.return_value = True
@@ -239,7 +239,7 @@ def test_a_failed_enqueue_leaves_the_session_usable(app_ctx, tmp_path, monkeypat
     (tmp_path / "Show - S01E01.mkv").write_bytes(b"v")
 
     with (
-        patch("services.foreign_track_cleanup.foreign_track_cleanup_applies", return_value=True),
+        patch("services.foreign_track_cleanup.foreign_track_cleanup_decision", return_value=True),
         patch(
             "db.repositories.subtitle_automation_queue.SubtitleAutomationQueueRepository.enqueue",
             side_effect=RuntimeError("unique constraint"),

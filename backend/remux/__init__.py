@@ -796,8 +796,12 @@ def remove_foreign_subtitle_streams(
     if not check_hardlink_policy(video_path):
         return None
 
+    # Uncached: the probe cache is keyed on path + mtime, and the keep/strip
+    # decision must describe the file as it is NOW — a rewrite within the
+    # mtime resolution (or a restored backup carrying the old mtime) would
+    # otherwise be decided from the previous contents.
     try:
-        probe = get_media_streams(video_path)
+        probe = get_media_streams(video_path, use_cache=False)
     except Exception as exc:
         raise RemuxError(f"ffprobe failed on {video_path}: {exc}") from exc
 

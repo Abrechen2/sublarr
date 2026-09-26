@@ -281,7 +281,7 @@ def update_config():
         choices = literal_choices(literal_key)
         if data[literal_key] not in choices:
             return (
-                jsonify({"error": f"{literal_key} must be one of {sorted(choices)}"}),
+                jsonify({"error": f"{literal_key} must be one of {sorted(choices, key=str)}"}),
                 400,
             )
 

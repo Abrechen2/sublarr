@@ -543,6 +543,58 @@ def _strip_phase(
         logger.warning("foreign_track_sweep: %s", state.paused_reason)
         return
 
+    # Rewritten files, refreshed on the media servers once the slice ends —
+    # never per file inside the loop (night review I1: a synchronous refresh
+    # per file, each able to fall back to a full library scan, stalled the
+    # slice and rescanned the library once per missed file).
+    rewritten: list[str] = []
+    try:
+        _strip_loop(
+            media_root,
+            config,
+            state,
+            repo,
+            keep_languages,
+            keep_und,
+            default_policy,
+            overrides,
+            deadline,
+            now_fn,
+            result,
+            excluded,
+            rewritten,
+        )
+    finally:
+        _notify_rewrites(rewritten)
+
+
+def _notify_rewrites(paths: list[str]) -> None:
+    """One media-server refresh for the slice's rewrites. Never raises."""
+    if not paths:
+        return
+    try:
+        from services.media_server_notify import notify_media_servers_batch
+
+        notify_media_servers_batch(paths)
+    except Exception:  # noqa: BLE001 — best effort; a stale track list is not a failure
+        logger.warning("foreign_track_sweep: media-server refresh skipped", exc_info=True)
+
+
+def _strip_loop(
+    media_root,
+    config,
+    state,
+    repo,
+    keep_languages,
+    keep_und,
+    default_policy,
+    overrides,
+    deadline,
+    now_fn,
+    result,
+    excluded,
+    rewritten,
+) -> None:
     min_free_gb = _min_free_gb(config)
 
     # One affected row is the unit of work: remuxing rewrites the file and
@@ -597,6 +649,7 @@ def _strip_phase(
             result["stripped_files"] += 1
             result["tracks_removed"] += row.track_count
             result["bytes_freed"] += freed
+            rewritten.append(row.path)
             _after_rewrite(
                 row.path,
                 backup,
@@ -612,21 +665,15 @@ def _strip_phase(
 def _after_rewrite(
     path, backup, config, result, policy, keep_languages, keep_und, real_sidecar_langs
 ) -> None:
-    """Tell the media servers about the rewrite and, with
-    ``delete_original_after_verify`` on, delete the backup once the rewrite
-    verifies. Never raises: the rewrite itself already succeeded.
+    """With ``delete_original_after_verify`` on, delete the backup once the
+    rewrite verifies. Never raises: the rewrite itself already succeeded.
+    (The media servers hear about the slice's rewrites once, at its end —
+    see ``_strip_phase``.)
 
     The legacy ``verify_then_delete_backup`` key is deliberately ignored: it
     never had an effect in the 1.15.0 RCs, and an auto-update must not arm a
     box someone ticked back then — the user confirms through the new option.
     """
-    try:
-        from services.media_server_notify import notify_media_servers
-
-        notify_media_servers(path)
-    except Exception:  # noqa: BLE001 — best effort; a stale track list is not a failure
-        logger.debug("foreign_track_sweep: media-server refresh skipped", exc_info=True)
-
     if not config.get("delete_original_after_verify"):
         return
     try:

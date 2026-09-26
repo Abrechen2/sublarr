@@ -52,12 +52,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Existing installs keep exactly today's behaviour until this is changed.
 
 ### Fixed
+- **Config import checks values like saving does.** A backup with an invalid
+  choice for a setting could make every settings read fail after import; such
+  keys are now skipped and listed in the import result.
 - **The cleanup after a movie download honours the movie's own switch.** A
   movie with foreign-track cleanup switched off was still cleaned when the
-  global setting was on; only series switches were read. The cleanup is also
-  skipped (and retried later) when a title's switch or language profile
-  cannot be read, instead of falling back to the global setting or the
-  default profile, which could strip more than configured.
+  global setting was on; only series switches were read. When a title's
+  switch or language profile cannot be read, the cleanup waits and is retried
+  instead of falling back to the global setting or the default profile, which
+  could strip more than configured.
 - **Settings with a fixed set of choices reject anything else on save.** The
   track policy settings could be saved with an arbitrary value through the
   API; the cleanup then fell back to its safe default, but the stored value
@@ -190,9 +193,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   file with the original — every video and audio stream kept, and exactly
   the subtitles the settings keep, nothing more and nothing less — and only
   then deletes the original instead of keeping it in the trash for the
-  backup retention. Anything that does not verify keeps the backup. The sweep
-  also tells the media servers about every rewritten file, so their track
-  list is refreshed.
+  backup retention. The check compares every kept subtitle track with the
+  original — language, codec, title, forced and hearing-impaired flags — so a
+  rewrite that kept a different track of the right language never costs the
+  original; it reads both files with ffprobe, fresh. Anything that does not
+  verify keeps the backup. The sweep also tells the media servers about the
+  files it rewrote, collected at the end of each run (at most one library
+  refresh per server per run).
 - **Track cleanup on the statistics page** — the foreign-track sweep now
   records each run in the cleanup history (files cleaned, tracks removed,
   space freed), so it shows in the Cleanup tab's disk-space view, and the

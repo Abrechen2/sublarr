@@ -42,3 +42,32 @@ def notify_media_servers(file_path: str, item_type: str = "") -> None:
                 logger.warning("Media server refresh failed: %s", r.message)
     except Exception as exc:  # noqa: BLE001 — refresh is best-effort
         logger.warning("Media server notification failed: %s", exc)
+
+
+def notify_media_servers_batch(file_paths) -> None:
+    """Refresh many changed media files at once, for batch writers.
+
+    De-duplicates the paths and hands them to the manager's
+    ``refresh_all_batch``: per-item refreshes without the per-file library
+    fallback, and at most one library refresh per server. Same contract as
+    :func:`notify_media_servers` otherwise — no-op without servers or paths,
+    never raises.
+    """
+    paths = [p for p in dict.fromkeys(file_paths or ()) if p]
+    if not paths:
+        return
+    try:
+        from mediaserver import get_media_server_manager
+
+        results = get_media_server_manager().refresh_all_batch(paths)
+        failed = [r.message for r in results if not r.success and not r.needs_library_refresh]
+        logger.info(
+            "Media server batch refresh: %d file(s), %d call(s), %d failed",
+            len(paths),
+            len(results),
+            len(failed),
+        )
+        for message in failed:
+            logger.warning("Media server refresh failed: %s", message)
+    except Exception as exc:  # noqa: BLE001 — refresh is best-effort
+        logger.warning("Media server batch notification failed: %s", exc)

@@ -668,11 +668,14 @@ def save_subtitle(
     # owns long media work.
     _video = None
     try:
-        from services.foreign_track_cleanup import foreign_track_cleanup_applies
+        from services.foreign_track_cleanup import foreign_track_cleanup_decision
 
         _video = _video_for_sidecar(output_path)
         _ftc_item = {"sonarr_series_id": series_id, "radarr_movie_id": movie_id}
-        if _video and foreign_track_cleanup_applies(_ftc_item):
+        # Unknown (switch unreadable right now) still queues: the drain
+        # re-reads the switch before it touches the file and retries while it
+        # stays unreadable. Dropping it here would lose the cleanup for good.
+        if _video and foreign_track_cleanup_decision(_ftc_item) is not False:
             from db.models.core import SubtitleAutomationQueueEntry
             from db.repositories.subtitle_automation_queue import (
                 SubtitleAutomationQueueRepository,
