@@ -256,7 +256,11 @@ export function ForeignTrackSweepSection({ ruleEnabled }: { ruleEnabled: boolean
               phase: t(`track_cleanup.phase.${stats.phase}`, { ns: 'statistics' }),
             })}
             {stats.paused_reason &&
-              ` · ${t('cleanup_card.sweep.paused_reason', { reason: stats.paused_reason })}`}
+              ` · ${t('cleanup_card.sweep.paused_reason', {
+                reason: t(`sweep_pause.${stats.paused_code ?? 'unknown'}`, {
+                  defaultValue: stats.paused_reason,
+                }),
+              })}`}
           </span>
         )}
       </div>

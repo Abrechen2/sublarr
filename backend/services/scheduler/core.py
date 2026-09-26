@@ -22,6 +22,8 @@ from services.scheduler.ticks import (
     JobSpec,
     _oneshot_registry,
     _run_now_lock,
+    _running_oneshots,
+    _running_oneshots_lock,
     _tick_registry,
     _write_job_run,
     compute_default_misfire_grace_time,
@@ -318,6 +320,10 @@ class SublarrScheduler:
             scheduler.start(paused=True)
 
         with _run_now_lock:
+            with _running_oneshots_lock:
+                running = job_id in _running_oneshots
+            if running:
+                raise OneshotAlreadyPendingError(f"{job_id} already has a manual run in progress")
             for j in scheduler.get_jobs():
                 if j.id.startswith(prefix):
                     raise OneshotAlreadyPendingError(

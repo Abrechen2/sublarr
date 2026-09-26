@@ -219,7 +219,9 @@ describe('ForeignTrackSweepSection — progress and run now', () => {
     await waitFor(() => expect(line.textContent).toContain(`"affected":"${affected}"`))
     expect(line.textContent).toContain('"stripped":"412"')
     expect(line.textContent).toContain('track_cleanup.phase.strip')
-    expect(line.textContent).toContain('"reason":"disk floor"')
+    // No code from the backend: the translated fallback carries the backend text.
+    expect(line.textContent).toContain('sweep_pause.unknown')
+    expect(line.textContent).toContain('disk floor')
   })
 
   it('queues a run', async () => {

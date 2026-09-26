@@ -275,6 +275,16 @@ def update_config():
             return jsonify({"error": error}), 400
         data[bounded_key] = coerced
 
+    from routes.config.bounds import literal_choices, literal_keys
+
+    for literal_key in literal_keys() & data.keys():
+        choices = literal_choices(literal_key)
+        if data[literal_key] not in choices:
+            return (
+                jsonify({"error": f"{literal_key} must be one of {sorted(choices)}"}),
+                400,
+            )
+
     # Validate that keys are ones this install knows. This used to read
     # Settings.model_fields — an attribute the composite Settings class does
     # not have — so the guarded expression yielded an empty set on every call

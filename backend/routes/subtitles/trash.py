@@ -295,6 +295,11 @@ def restore_trash_batch(batch_id: str):
             os.makedirs(os.path.dirname(original), exist_ok=True)
             shutil.move(trashed, original)
             restored += 1
+            # A restored file keeps its old mtime and would otherwise inherit the
+            # newest download record's standing (policy B) — its origin is unknown.
+            from services.subtitle_restore import mark_restored_safely
+
+            mark_restored_safely(original)
         except OSError as exc:
             logger.warning("restore: failed to move %s -> %s: %s", trashed, original, exc)
             failed += 1

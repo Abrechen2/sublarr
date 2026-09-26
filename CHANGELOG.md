@@ -52,6 +52,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Existing installs keep exactly today's behaviour until this is changed.
 
 ### Fixed
+- **Settings with a fixed set of choices reject anything else on save.** The
+  track policy settings could be saved with an arbitrary value through the
+  API; the cleanup then fell back to its safe default, but the stored value
+  stayed wrong. Unknown values are now refused with a clear error.
+- **A subtitle restored from the subtitle trash counts as unknown origin**,
+  like every other restore, so it can never make an embedded track look
+  redundant under the sidecar policy.
+- **"Run now" is refused while a manual run of the same job is still
+  running**, as promised; before, a second click during a long run was
+  queued.
+- **Sizes above 1 TB show as TB** instead of "1024.0 GB", and the sweep's
+  pause reason is shown translated.
 - **A search no provider answered no longer counts as a miss.** When every
   provider was skipped for the moment (our own request limit full, daily
   budget used up, API keys cooling, provider paused) or failed, the search was

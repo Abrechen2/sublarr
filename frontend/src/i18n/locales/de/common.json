@@ -966,5 +966,14 @@
     "source_mt": "KI-Übersetzung",
     "source_combined": "Kombiniert",
     "source_tooltip": "Wie dieser Untertitel entstanden ist"
+  },
+  "sweep_pause": {
+    "disk_floor": "zu wenig freier Speicher (Untergrenze erreicht)",
+    "overrides_unavailable": "Serien-/Film-Einstellungen nicht lesbar (Sonarr/Radarr nicht erreichbar?) – Entfernen pausiert",
+    "enumeration_stopped": "Erfassung auf Anfrage gestoppt",
+    "enumeration_interrupted": "Erfassung unterbrochen – startet neu",
+    "media_root_unreachable": "Medienordner nicht erreichbar",
+    "empty_keep_languages": "keine Sprachen zum Behalten konfiguriert – Sweep verweigert",
+    "probe_failures": "mehrere Dateien hintereinander nicht lesbar – pausiert"
   }
 }

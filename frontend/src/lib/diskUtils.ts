@@ -12,10 +12,10 @@ export function getFormatColor(format: string): string {
   return FORMAT_COLORS[format.toLowerCase()] ?? '#94a3b8'  // slate fallback
 }
 
-/** Format bytes into human-readable KB/MB/GB */
+/** Format bytes into human-readable B/KB/MB/GB/TB */
 export function formatBytes(bytes: number): string {
-  if (bytes === 0) return '0 B'
-  const units = ['B', 'KB', 'MB', 'GB']
+  if (!Number.isFinite(bytes) || bytes <= 0) return '0 B'
+  const units = ['B', 'KB', 'MB', 'GB', 'TB']
   const i = Math.min(Math.floor(Math.log(bytes) / Math.log(1024)), units.length - 1)
   const value = bytes / Math.pow(1024, i)
   return `${value.toFixed(i === 0 ? 0 : 1)} ${units[i]}`

@@ -29,7 +29,14 @@ export function ForeignTrackCleanupCard() {
     <StatTile
       label={t('track_cleanup.phase_label')}
       value={t(`track_cleanup.phase.${data.phase}`)}
-      sub={data.paused_reason ? `${t('track_cleanup.paused')}: ${data.paused_reason}` : undefined}
+      sub={
+        data.paused_reason
+          ? `${t('track_cleanup.paused')}: ${t(`sweep_pause.${data.paused_code ?? 'unknown'}`, {
+              ns: 'common',
+              defaultValue: data.paused_reason,
+            })}`
+          : undefined
+      }
     />
   )
 

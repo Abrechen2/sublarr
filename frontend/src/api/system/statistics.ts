@@ -101,6 +101,8 @@ export interface ForeignTrackStats {
   scan_counts: Record<'pending' | 'clean' | 'affected' | 'stripped' | 'failed', number>
   phase: ForeignTrackSweepPhase
   paused_reason: string | null
+  /** Stable code for paused_reason (translated in the UI), null when unknown. */
+  paused_code?: string | null
 }
 
 export async function getForeignTrackStats(): Promise<ForeignTrackStats> {

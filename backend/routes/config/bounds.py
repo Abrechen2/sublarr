@@ -13,6 +13,8 @@ existing installs already store and the UI already sends.
 
 from __future__ import annotations
 
+import typing
+
 BOUNDED_INT_KEYS: frozenset[str] = frozenset({"foreign_track_sweep_budget_s"})
 
 
@@ -45,3 +47,25 @@ def coerce_bounded_int(key: str, value: object) -> tuple[int | None, str | None]
     if not in_range:
         return None, f"{key} must be an integer between {ge} and {le}"
     return parsed, None
+
+
+def literal_choices(key: str) -> set | None:
+    """The allowed values of a ``Literal[...]`` setting, else None.
+
+    Derived from the field annotation, so a future Literal setting is checked
+    without touching the route. Literal fields were never accepted with any
+    other value by the UI (they are selects), so enforcing them rejects
+    nothing a real install stores.
+    """
+    from config_settings import UISettings
+
+    field = UISettings.model_fields.get(key)
+    if field is None or typing.get_origin(field.annotation) is not typing.Literal:
+        return None
+    return set(typing.get_args(field.annotation))
+
+
+def literal_keys() -> frozenset[str]:
+    from config_settings import UISettings
+
+    return frozenset(k for k in UISettings.model_fields if literal_choices(k) is not None)

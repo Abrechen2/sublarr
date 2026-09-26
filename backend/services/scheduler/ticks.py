@@ -195,6 +195,11 @@ def _scheduled_tick(spec_id: str) -> None:
 
 # Separate registry for one-shot (triggered_by='manual') runs.
 _oneshot_registry: dict[str, tuple[Flask, JobSpec]] = {}
+# Parent job ids whose manual one-shot is RUNNING. APScheduler drops a
+# DateTrigger job from its store the moment it fires, so run_now's "pending"
+# check alone let a second run-now through while the first was still running.
+_running_oneshots: set[str] = set()
+_running_oneshots_lock = threading.Lock()
 
 # Serialises every run_now() call — check-then-add of the oneshot_id +
 # presence check against get_jobs() is not atomic at the APScheduler level.
@@ -249,7 +254,13 @@ def _scheduled_oneshot_tick(oneshot_id: str) -> None:
                 oneshot_id,
             )
             return
-    _tick_wrapper(app, spec, triggered_by="manual")()
+    with _running_oneshots_lock:
+        _running_oneshots.add(spec.id)
+    try:
+        _tick_wrapper(app, spec, triggered_by="manual")()
+    finally:
+        with _running_oneshots_lock:
+            _running_oneshots.discard(spec.id)
 
 
 def _tick_wrapper(

@@ -341,3 +341,33 @@ def test_reconcile_keeps_same_class_override(scheduler):
     assert isinstance(job.trigger, CronTrigger)
     # Still the user's 05:00, not reset to the 03:45 default.
     assert any(f.name == "hour" and str(f) == "5" for f in job.trigger.fields)
+
+
+def test_run_now_is_refused_while_a_manual_run_is_still_running(scheduler):
+    """The one-shot leaves APScheduler's job list the moment it starts, so
+    "pending" alone let a second run-now through while the first was still
+    running — the contract says 409 (flaky under load before; deterministic
+    now: the first run is held until the second call has been made)."""
+    import threading
+
+    from services.scheduler import OneshotAlreadyPendingError
+
+    started = threading.Event()
+    release = threading.Event()
+
+    def slow():
+        started.set()
+        release.wait(5)
+
+    scheduler.register_job(
+        JobSpec(id="rn_busy", func=slow, default_trigger=IntervalTrigger(minutes=15))
+    )
+    scheduler.start_registered_jobs()
+    scheduler.start()
+    try:
+        scheduler.run_now("rn_busy")
+        assert started.wait(5), "the first manual run should have started"
+        with pytest.raises(OneshotAlreadyPendingError):
+            scheduler.run_now("rn_busy")
+    finally:
+        release.set()

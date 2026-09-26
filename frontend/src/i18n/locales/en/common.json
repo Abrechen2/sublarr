@@ -966,5 +966,14 @@
     "source_mt": "AI translation",
     "source_combined": "Combined",
     "source_tooltip": "How this subtitle was created"
+  },
+  "sweep_pause": {
+    "disk_floor": "not enough free space (floor reached)",
+    "overrides_unavailable": "series/movie settings unavailable (Sonarr/Radarr unreachable?) — stripping paused",
+    "enumeration_stopped": "library walk stopped on request",
+    "enumeration_interrupted": "library walk interrupted — will restart",
+    "media_root_unreachable": "media folder unreachable",
+    "empty_keep_languages": "no languages to keep configured — sweep refuses to run",
+    "probe_failures": "several files in a row could not be read — paused"
   }
 }

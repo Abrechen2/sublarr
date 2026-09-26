@@ -4,7 +4,11 @@ import type { ForeignTrackStats } from '@/api/client'
 import { ForeignTrackCleanupCard } from '../ForeignTrackCleanupCard'
 
 vi.mock('react-i18next', () => ({
-  useTranslation: () => ({ t: (k: string) => k }),
+  useTranslation: () => ({
+    // An unknown pause code falls back to the backend text via defaultValue.
+    t: (k: string, o?: { defaultValue?: string }) =>
+      k === 'sweep_pause.unknown' && o?.defaultValue ? o.defaultValue : k,
+  }),
 }))
 
 type QueryState = { data?: ForeignTrackStats; isLoading: boolean; isError?: boolean }
@@ -51,6 +55,16 @@ describe('ForeignTrackCleanupCard', () => {
     query = { isLoading: false, data: { ...base, paused_reason: 'disk floor reached' } }
     render(<ForeignTrackCleanupCard />)
     expect(screen.getByText(/disk floor reached/)).toBeInTheDocument()
+  })
+
+  it('translates a known pause code instead of showing the backend text', () => {
+    query = {
+      isLoading: false,
+      data: { ...base, paused_reason: 'disk floor reached (min_free_gb=500)', paused_code: 'disk_floor' },
+    }
+    render(<ForeignTrackCleanupCard />)
+    expect(screen.getByText(/sweep_pause\.disk_floor/)).toBeInTheDocument()
+    expect(screen.queryByText(/min_free_gb/)).toBeNull()
   })
 
   it('shows an empty state when nothing has been cleaned yet', () => {

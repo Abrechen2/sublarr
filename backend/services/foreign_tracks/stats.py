@@ -174,7 +174,36 @@ def get_sweep_stats() -> dict:
         "scan_counts": {name: int(counts.get(name, 0)) for name in SCAN_STATES},
         "phase": state.phase,
         "paused_reason": state.paused_reason,
+        "paused_code": pause_code(state.paused_reason),
     }
+
+
+# Stable codes for the sweep's pause reasons, so the UI can translate them.
+# Derived from the stored text rather than stored next to it: an extra field
+# in the persisted SweepState would make an older version fail to load it and
+# restart the sweep from scratch after a downgrade. Every prefix here is a
+# literal the sweep writes (pinned by test_every_pause_reason_has_a_code).
+PAUSE_CODES: tuple[tuple[str, str], ...] = (
+    ("disk floor reached", "disk_floor"),
+    ("series/movie override settings unavailable", "overrides_unavailable"),
+    ("enumeration stopped", "enumeration_stopped"),
+    ("enumeration interrupted", "enumeration_interrupted"),
+    ("media root unreachable", "media_root_unreachable"),
+    ("empty keep_languages", "empty_keep_languages"),
+)
+_PROBE_FAILURES = "consecutive probe failures"
+
+
+def pause_code(reason: str | None) -> str | None:
+    """The stable code of a sweep pause reason, or None (no/unknown reason)."""
+    if not reason:
+        return None
+    for prefix, code in PAUSE_CODES:
+        if reason.startswith(prefix):
+            return code
+    if _PROBE_FAILURES in reason:
+        return "probe_failures"
+    return None
 
 
 def backfill_sweep_history(dry_run: bool = True) -> dict:
