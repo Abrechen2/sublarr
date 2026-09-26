@@ -98,10 +98,10 @@ def test_override_paths_skips_a_failing_id_and_keeps_the_others(app_ctx, monkeyp
     db.session.commit()
 
     class _FakeClient:
-        def get_series_by_id(self, series_id):
+        def lookup_series(self, series_id):
             if series_id == 21:
                 raise RuntimeError("Sonarr is down")
-            return {"path": "/media/Anime/Show22"}
+            return 200, {"path": "/media/Anime/Show22"}
 
     monkeypatch.setattr(sonarr_client, "get_sonarr_client", lambda *a, **k: _FakeClient())
 
@@ -155,8 +155,8 @@ def test_override_paths_is_incomplete_when_no_path_comes_back_unconfirmed(app_ct
     db.session.commit()
 
     class _FakeClient:
-        def get_movie_by_id(self, movie_id):
-            return {}  # no "path" key
+        def lookup_movie(self, movie_id):
+            return 200, {}  # an answer without a "path" key
 
     monkeypatch.setattr(radarr_client, "get_radarr_client", lambda *a, **k: _FakeClient())
 

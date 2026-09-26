@@ -216,6 +216,26 @@ class RadarrClient:
         """Get a single movie by ID."""
         return self._get(f"/movie/{movie_id}")
 
+    def lookup_movie(self, movie_id):
+        """One GET /movie/{id} without retries: ``(status, body)``.
+
+        Unlike ``get_movie_by_id`` (None for every failure) this keeps a 404 —
+        Radarr does not know the movie — apart from an outage. ``status`` is
+        None when Radarr did not answer (connection error, timeout, bad JSON).
+        """
+        try:
+            resp = self.session.get(f"{self.url}/api/v3/movie/{movie_id}", timeout=REQUEST_TIMEOUT)
+        except requests.RequestException as e:
+            logger.warning("Radarr lookup of movie %s failed: %s", movie_id, e)
+            return None, None
+        if resp.status_code != 200:
+            return resp.status_code, None
+        try:
+            return 200, resp.json()
+        except ValueError:
+            logger.warning("Radarr lookup of movie %s: response is not JSON", movie_id)
+            return None, None
+
     def get_movie_file(self, movie_file_id):
         """Get file info for a movie file.
 

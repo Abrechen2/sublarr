@@ -38,10 +38,12 @@ _MAIN_SUBTITLE_TYPES = (None, "", "full")
 # translation, translation jobs, the sidecar_translate drain) — its origin is
 # unknown. The grace covers post-processing between save and record.
 _REWRITE_GRACE = timedelta(seconds=60)
-# ``sidecar_origins`` carries no format, so an extraction record is tied to the
-# file it wrote by time instead: the extractor records right after writing. A
-# sidecar already on disk long before the record is not the one it describes.
-_ORIGIN_WRITE_WINDOW = timedelta(minutes=10)
+# Every writer records right after it wrote the file (downloads after
+# post-processing, extractions immediately). A sidecar already on disk long
+# before its record — a hand-copied or restored file with a preserved mtime —
+# is not the file the record describes. For extractions this is the only
+# link to the file: ``sidecar_origins`` carries no format.
+_RECORD_WRITE_WINDOW = timedelta(minutes=10)
 
 
 def _latest_download(video_path: str, language: str):
@@ -100,8 +102,9 @@ def _is_real(video_path: str, language: str, sidecar: str, fmt: str) -> bool:
         download says nothing about a ``.srt`` placed by hand);
       - the sidecar was not rewritten after the record (mtime newer than the
         record + ``_REWRITE_GRACE`` → a non-recording writer replaced it);
-      - for an extraction origin (no format column), the sidecar was written
-        around the time of the record (``_ORIGIN_WRITE_WINDOW``).
+      - the sidecar was written around the time of the record, not long
+        before it (``_RECORD_WRITE_WINDOW``) — for an extraction origin (no
+        format column) this is the only tie to the file.
     """
     download = _latest_download(video_path, language)
     origin = _latest_origin(video_path, language)
@@ -111,12 +114,10 @@ def _is_real(video_path: str, language: str, sidecar: str, fmt: str) -> bool:
     download_at = _aware(download.downloaded_at) if download is not None else None
     origin_at = _aware(origin.recorded_at) if origin is not None else None
 
-    earliest = None
     if origin_at is not None and (download_at is None or origin_at >= download_at):
         if origin.origin not in _ORIGIN_KINDS:
             return False
         decided_at = origin_at
-        earliest = origin_at - _ORIGIN_WRITE_WINDOW
     else:
         if (download.source or "provider") not in REAL_SOURCES:
             return False
@@ -125,6 +126,7 @@ def _is_real(video_path: str, language: str, sidecar: str, fmt: str) -> bool:
         if (download.format or "").lower() != fmt:
             return False
         decided_at = download_at
+    earliest = decided_at - _RECORD_WRITE_WINDOW
 
     try:
         mtime = datetime.fromtimestamp(os.path.getmtime(sidecar), tz=UTC)
@@ -138,9 +140,9 @@ def _is_real(video_path: str, language: str, sidecar: str, fmt: str) -> bool:
             decided_at.isoformat(),
         )
         return False
-    if earliest is not None and mtime < earliest:
+    if mtime < earliest:
         logger.debug(
-            "real sidecar check: %s predates its extraction record — not the extracted file",
+            "real sidecar check: %s predates its record — not the file it describes",
             sidecar,
         )
         return False

@@ -90,11 +90,12 @@ def collect_subtitle_streams(probe_data: dict) -> list[dict]:
     them.
 
     ``kind`` is the track variant policy's classification (full | forced |
-    sdh, see ``services.foreign_tracks.select.classify_track``). Only a
-    "full" extraction is recorded as a genuine sidecar origin.
+    sdh, see ``services.foreign_tracks.select.classify_track_or_none``;
+    None when the stream cannot be classified). Only a "full" extraction is
+    recorded as a genuine sidecar origin — an unclassifiable one is not.
     """
     from ass_probe import is_sdh_stream
-    from services.foreign_tracks.select import classify_track
+    from services.foreign_tracks.select import classify_track_or_none
 
     allow_sdh = True
     try:
@@ -132,7 +133,7 @@ def collect_subtitle_streams(probe_data: dict) -> list[dict]:
                 "format": fmt,
                 "language": lang,
                 "is_sdh": sdh,
-                "kind": classify_track(stream),
+                "kind": classify_track_or_none(stream),
             }
         )
         sub_index += 1

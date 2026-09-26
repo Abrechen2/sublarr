@@ -219,6 +219,28 @@ class SonarrClient(_SonarrDiagnosticsMixin):
         """Get a single series by ID."""
         return self._get(f"/series/{series_id}")
 
+    def lookup_series(self, series_id):
+        """One GET /series/{id} without retries: ``(status, body)``.
+
+        Unlike ``get_series_by_id`` (None for every failure) this keeps a 404 —
+        Sonarr does not know the series — apart from an outage. ``status`` is
+        None when Sonarr did not answer (connection error, timeout, bad JSON).
+        """
+        try:
+            resp = self.session.get(
+                f"{self.url}/api/v3/series/{series_id}", timeout=REQUEST_TIMEOUT
+            )
+        except requests.RequestException as e:
+            logger.warning("Sonarr lookup of series %s failed: %s", series_id, e)
+            return None, None
+        if resp.status_code != 200:
+            return resp.status_code, None
+        try:
+            return 200, resp.json()
+        except ValueError:
+            logger.warning("Sonarr lookup of series %s: response is not JSON", series_id)
+            return None, None
+
     def get_episodes(self, series_id):
         """Get all episodes for a series.
 

@@ -37,33 +37,51 @@ def _add_movie(movie_id, **fields):
     db.session.commit()
 
 
-class _Sonarr:
-    def __init__(self, paths, healthy=True, raise_for=()):
-        self.paths = paths
+class _Arr:
+    """A fake arr client. ``answers`` maps a title id to its folder (HTTP 200)
+    or to an HTTP status (e.g. 500); ``None`` means no answer at all
+    (connection error/timeout); an id not listed answers 404.
+
+    ``get_*_by_id`` keeps the real clients' lossy semantics (None for every
+    non-200) and ``health_check`` always answers, so a policy that still
+    trusted "None + healthy" would read an outage as "missing".
+    """
+
+    def __init__(self, answers, healthy=True, raise_for=()):
+        self.answers = answers
         self.healthy = healthy
         self.raise_for = set(raise_for)
 
+    def _lookup(self, title_id):
+        if title_id in self.raise_for:
+            raise RuntimeError("arr is down")
+        value = self.answers.get(title_id, 404)
+        if isinstance(value, str):
+            return 200, {"path": value}
+        return value, None
+
+    def _by_id(self, title_id):
+        status, body = self._lookup(title_id)
+        return body if status == 200 else None
+
+    def health_check(self):
+        return (self.healthy, "OK" if self.healthy else "down")
+
+
+class _Sonarr(_Arr):
     def get_series_by_id(self, series_id):
-        if series_id in self.raise_for:
-            raise RuntimeError("Sonarr is down")
-        path = self.paths.get(series_id)
-        return {"path": path} if path else None
+        return self._by_id(series_id)
 
-    def health_check(self):
-        return (self.healthy, "OK" if self.healthy else "down")
+    def lookup_series(self, series_id):
+        return self._lookup(series_id)
 
 
-class _Radarr:
-    def __init__(self, paths, healthy=True):
-        self.paths = paths
-        self.healthy = healthy
-
+class _Radarr(_Arr):
     def get_movie_by_id(self, movie_id):
-        path = self.paths.get(movie_id)
-        return {"path": path} if path else {}
+        return self._by_id(movie_id) or {}
 
-    def health_check(self):
-        return (self.healthy, "OK" if self.healthy else "down")
+    def lookup_movie(self, movie_id):
+        return self._lookup(movie_id)
 
 
 # --- I5 -----------------------------------------------------------------------
@@ -155,11 +173,85 @@ def test_a_none_from_an_unreachable_sonarr_is_not_confirmed_missing(app_ctx, mon
 
     _add_series(51, cleanup_keep_sdh=True)
     monkeypatch.setattr(
-        sonarr_client, "get_sonarr_client", lambda *a, **k: _Sonarr({}, healthy=False)
+        sonarr_client, "get_sonarr_client", lambda *a, **k: _Sonarr({51: None}, healthy=False)
     )
     result = override_paths()
     assert result.complete is False
     assert "series 51" in result.failed
+
+
+def test_an_http_error_is_not_confirmed_missing_even_when_the_arr_is_healthy(app_ctx, monkeypatch):
+    """A 500 (or 401, 503 ...) is an arr problem, not an answer about the
+    title. The clients turn it into None and the health check still passes —
+    only a real 404 may confirm "missing" (final review I4, RC blocker)."""
+    import sonarr_client
+    from services.foreign_tracks.policy import override_paths
+
+    _add_series(52, cleanup_keep_sdh=True)
+    monkeypatch.setattr(sonarr_client, "get_sonarr_client", lambda *a, **k: _Sonarr({52: 500}))
+    result = override_paths()
+    assert result.complete is False
+    assert result.failed == ("series 52",)
+
+
+def test_a_timeout_on_a_healthy_radarr_is_not_confirmed_missing(app_ctx, monkeypatch):
+    import radarr_client
+    from services.foreign_tracks.policy import override_paths
+
+    _add_movie(53, cleanup_foreign_tracks=False)
+    monkeypatch.setattr(radarr_client, "get_radarr_client", lambda *a, **k: _Radarr({53: None}))
+    result = override_paths()
+    assert result.complete is False, "an excluded title must not silently lose its exclusion"
+    assert result.excluded == []
+
+
+def _two_sonarr_instances(monkeypatch, first, second):
+    import config
+    import sonarr_client
+
+    clients = {"One": first, "Two": second}
+    monkeypatch.setattr(
+        config,
+        "get_sonarr_instances",
+        lambda: [
+            {"name": "One", "url": "http://a", "api_key": "k"},
+            {"name": "Two", "url": "http://b", "api_key": "k"},
+        ],
+    )
+    monkeypatch.setattr(
+        sonarr_client, "get_sonarr_client", lambda name=None: clients.get(name, first)
+    )
+
+
+def test_a_title_on_the_second_instance_is_found(app_ctx, monkeypatch):
+    """Instance One answers 404 for a series that lives on instance Two."""
+    from services.foreign_tracks.policy import override_paths
+
+    _add_series(54, cleanup_keep_sdh=True)
+    _two_sonarr_instances(monkeypatch, _Sonarr({}), _Sonarr({54: "/media/Two/S54"}))
+    result = override_paths()
+    assert result.complete is True
+    assert [p.replace("\\", "/") for p, _ in result.pairs] == ["/media/Two/S54"]
+
+
+def test_missing_needs_a_404_from_every_instance(app_ctx, monkeypatch):
+    from services.foreign_tracks.policy import override_paths
+
+    _add_series(55, cleanup_keep_sdh=True)
+    _two_sonarr_instances(monkeypatch, _Sonarr({}), _Sonarr({55: None}))
+    result = override_paths()
+    assert result.complete is False
+    assert result.failed == ("series 55",)
+
+
+def test_a_404_from_every_instance_is_confirmed_missing(app_ctx, monkeypatch):
+    from services.foreign_tracks.policy import override_paths
+
+    _add_series(56, cleanup_keep_sdh=True)
+    _two_sonarr_instances(monkeypatch, _Sonarr({}), _Sonarr({}))
+    result = override_paths()
+    assert result.complete is True
+    assert result.pairs == []
 
 
 def test_a_raising_lookup_is_incomplete_and_named(app_ctx, monkeypatch):

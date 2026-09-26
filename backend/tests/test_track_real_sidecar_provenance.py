@@ -204,3 +204,19 @@ def test_an_extraction_origin_does_not_vouch_for_an_older_hand_placed_file(app_c
     )
     db.session.commit()
     assert real_sidecar_languages(str(video), {"de"}) == set()
+
+
+def test_a_download_does_not_vouch_for_a_much_older_file(app_ctx, tmp_path):
+    """Final-review residual: a download row had no lower mtime bound. A file
+    with a preserved old mtime (copied in by hand, restored from a backup)
+    that sits where the download landed is not the downloaded file."""
+    video = _setup(tmp_path, mtime_age_s=2 * 86400)
+    _record(video, "de", age_s=0)
+    assert real_sidecar_languages(str(video), {"de"}) == set()
+
+
+def test_a_download_written_minutes_before_its_record_still_counts(app_ctx, tmp_path):
+    """Post-processing (sync, normalise) can sit between save and record."""
+    video = _setup(tmp_path, mtime_age_s=5 * 60)
+    _record(video, "de", age_s=0)
+    assert real_sidecar_languages(str(video), {"de"}) == {"de"}

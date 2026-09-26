@@ -114,58 +114,67 @@ class _UnresolvedError(Exception):
     """A title whose folder or policy cannot be known right now."""
 
 
-def _confirmed_missing(client, cache: dict) -> bool:
-    """Whether a None/empty lookup means the arr really does not know the title.
-
-    The arr clients swallow connection errors and return None, so a None is
-    only a confirmed "missing" when the arr answers its own health check.
-    Checked once per client per resolution.
-    """
-    key = id(client)
-    if key not in cache:
-        try:
-            cache[key] = bool(client.health_check()[0])
-        except Exception:  # noqa: BLE001 — cannot confirm, so not "missing"
-            logger.debug("track policy: arr health check failed", exc_info=True)
-            cache[key] = False
-    return cache[key]
+_HTTP_NOT_FOUND = 404
 
 
-def _lookup_path(kind: str, title_id: int, health: dict) -> str | None:
-    """The title's folder as the arr reports it, or None when confirmed missing.
-
-    Raises ``_UnresolvedError`` when the arr is unconfigured or does not answer.
-    """
+def _arr_clients(kind: str) -> list:
+    """One client per configured Sonarr/Radarr instance (legacy single config
+    included). A title may live on any of them."""
     if kind == "series":
-        from sonarr_client import get_sonarr_client
+        from config import get_sonarr_instances
+        from sonarr_client import get_sonarr_client as get_client
 
-        client = get_sonarr_client()
-        if not client:
-            raise _UnresolvedError("Sonarr is not configured")
-        info = client.get_series_by_id(title_id)
+        instances = get_sonarr_instances()
     else:
-        from radarr_client import get_radarr_client
+        from config import get_radarr_instances
+        from radarr_client import get_radarr_client as get_client
 
-        client = get_radarr_client()
-        if not client:
-            raise _UnresolvedError("Radarr is not configured")
-        info = client.get_movie_by_id(title_id)
+        instances = get_radarr_instances()
+    names = [inst.get("name") for inst in instances] or [None]
+    clients = []
+    for name in names:
+        client = get_client(name) if name is not None else get_client()
+        if client and all(client is not seen for seen in clients):
+            clients.append(client)
+    return clients
 
-    path = (info or {}).get("path")
-    if path:
-        return path
-    if _confirmed_missing(client, health):
-        return None
-    raise _UnresolvedError("no answer from the arr")
+
+def _lookup_path(kind: str, title_id: int) -> str | None:
+    """The title's folder as an arr reports it, or None when confirmed missing.
+
+    "Missing" needs a real HTTP 404 from EVERY configured instance (final
+    review I4): the clients' ``get_*_by_id`` return None for any failure, and
+    a healthy arr can still answer 500 or time out on one request, or hold
+    the title on a second instance. Anything short of that raises
+    ``_UnresolvedError`` — the sweep then pauses stripping instead of
+    dropping an override or an exclusion.
+    """
+    clients = _arr_clients(kind)
+    if not clients:
+        raise _UnresolvedError(f"{'Sonarr' if kind == 'series' else 'Radarr'} is not configured")
+
+    unanswered: list[str] = []
+    for client in clients:
+        if kind == "series":
+            status, body = client.lookup_series(title_id)
+        else:
+            status, body = client.lookup_movie(title_id)
+        path = (body or {}).get("path") if status == 200 else None
+        if path:
+            return path
+        if status != _HTTP_NOT_FOUND:
+            unanswered.append("no answer" if status is None else f"HTTP {status}")
+    if unanswered:
+        raise _UnresolvedError(", ".join(unanswered))
+    return None
 
 
 def override_paths() -> OverrideSet:
     """Resolve the folders of every series/movie with a policy override or with
     the cleanup switched off. Called once per sweep slice.
 
-    - A title Sonarr/Radarr confirms missing (lookup None/empty while the arr
-      answers its health check) is skipped with a warning; it does not make
-      the set incomplete (final review I4).
+    - A title every Sonarr/Radarr instance answers with HTTP 404 is skipped
+      with a warning; it does not make the set incomplete (final review I4).
     - An unconfigured or unreachable arr, a raising lookup, or an
       unresolvable policy marks the set incomplete and names the title in
       ``failed``: the sweep must never strip more than configured because an
@@ -180,7 +189,6 @@ def override_paths() -> OverrideSet:
     pairs: list[tuple[str, TrackPolicy]] = []
     excluded: list[str] = []
     failed: list[str] = []
-    health: dict = {}
 
     rows = [("series", r.sonarr_series_id, r) for r in db.session.query(SeriesSettings).all()]
     rows += [("movie", r.radarr_movie_id, r) for r in db.session.query(MovieSettings).all()]
@@ -190,7 +198,7 @@ def override_paths() -> OverrideSet:
             continue
         label = f"{kind} {title_id}"
         try:
-            path = _lookup_path(kind, title_id, health)
+            path = _lookup_path(kind, title_id)
             if path is None:
                 logger.warning(
                     "track policy: %s has settings but its arr no longer knows it — skipped",

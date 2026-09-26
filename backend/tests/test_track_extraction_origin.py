@@ -105,3 +105,30 @@ def test_an_extracted_forced_track_is_not_recorded(app_ctx, tmp_path, monkeypatc
         ],
     )
     assert _origins(mkv) == []
+
+
+def test_an_unclassifiable_track_is_extracted_but_not_recorded(app_ctx, tmp_path, monkeypatch):
+    """``classify_track`` fails open to "full" so the selection keeps an
+    unreadable track. The origin record must not fail open with it: a track
+    whose kind is unknown could be a signs track, and recording it as a
+    genuine main sidecar would make the full embedded track removable."""
+    import services.subtitle_signs as subtitle_signs
+
+    def boom(_stream):
+        raise RuntimeError("unreadable")
+
+    monkeypatch.setattr(subtitle_signs, "classify_stream", boom)
+    mkv = _run(
+        tmp_path,
+        monkeypatch,
+        [
+            {
+                "index": 2,
+                "codec_type": "subtitle",
+                "codec_name": "subrip",
+                "tags": {"language": "ger"},
+            }
+        ],
+    )
+    assert _origins(mkv) == []
+    assert (tmp_path / "Show - S01E01.de.srt").exists(), "the extraction itself still runs"

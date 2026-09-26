@@ -61,25 +61,35 @@ def _format(stream: dict) -> str:
     return "text"
 
 
-def classify_track(stream: dict) -> str:
-    """full | forced | sdh. Signs and songs count as forced; unknown as full."""
+def classify_track_or_none(stream: dict) -> str | None:
+    """full | forced | sdh, or None when the stream cannot be classified.
+
+    For callers that must fail closed — the extraction origin record may only
+    vouch for a track KNOWN to be full dialogue.
+    """
     from ass_probe import is_sdh_stream
     from services.subtitle_signs import classify_stream
 
     try:
         subtype = classify_stream(stream)
-    except Exception as exc:  # noqa: BLE001 — an unreadable stream is treated as full (kept)
+    except Exception as exc:  # noqa: BLE001 — reported as None, the caller decides
         logger.warning(
-            "classify_track: could not classify stream index=%s, treating as full: %s",
+            "classify_track: could not classify stream index=%s: %s",
             stream.get("index"),
             exc,
         )
-        subtype = "full"
+        return None
     if subtype in ("forced", "signs", "songs"):
         return "forced"
     if is_sdh_stream(stream):
         return "sdh"
     return "full"
+
+
+def classify_track(stream: dict) -> str:
+    """full | forced | sdh. Signs and songs count as forced; an unreadable
+    stream counts as full, so the selection errs towards keeping it."""
+    return classify_track_or_none(stream) or "full"
 
 
 def _is_default(stream: dict) -> bool:
