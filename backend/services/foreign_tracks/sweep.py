@@ -142,7 +142,7 @@ def _verdicts_for(path, probe, keep_languages, keep_und, policy) -> list[dict]:
         keep_languages,
         keep_und,
         real,
-        count_events=make_event_counter(path),
+        count_events=make_event_counter(path, streams=probe.get("streams", [])),
     )
     return [v.to_dict() for v in verdicts]
 

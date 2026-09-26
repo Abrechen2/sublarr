@@ -725,13 +725,15 @@ def get_media_streams(*args, **kwargs):
     return _impl(*args, **kwargs)
 
 
-def make_event_counter(video_path: str):
+def make_event_counter(video_path: str, streams=None):
     """Memoised per-file subtitle event counter for the tie-break (see
-    ``remux.event_count``). Re-exported here, next to ``get_media_streams``,
-    so tests can monkeypatch ``remux.make_event_counter``."""
+    ``remux.event_count``). ``streams`` is the probe the caller already holds;
+    its MKV statistics tags answer without reading the file. Re-exported here,
+    next to ``get_media_streams``, so tests can monkeypatch
+    ``remux.make_event_counter``."""
     from remux.event_count import make_event_counter as _impl
 
-    return _impl(video_path)
+    return _impl(video_path, streams=streams)
 
 
 def remove_foreign_subtitle_streams(
@@ -808,7 +810,7 @@ def remove_foreign_subtitle_streams(
         keep_und,
         real_sidecar_langs or set(),
         # Dialogue-events tie-break: lazy, one ffprobe per file, only on a tie.
-        count_events=make_event_counter(video_path),
+        count_events=make_event_counter(video_path, streams=probe.get("streams", [])),
     )
     streams_to_remove: list[tuple[int, int]] = [
         (v.index, v.sub_index) for v in verdicts if not v.keep

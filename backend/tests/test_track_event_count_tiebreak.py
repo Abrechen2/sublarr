@@ -44,7 +44,7 @@ class _FakeCounter:
 def _factory(counter):
     made = []
 
-    def make(path):
+    def make(path, streams=None):
         made.append(path)
         return counter
 

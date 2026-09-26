@@ -129,13 +129,14 @@ def preview_file():
     real = (
         real_sidecar_languages(path, base_codes) if policy.sidecar_policy == SIDECAR_DROP else set()
     )
+    streams = get_media_streams(path).get("streams", [])
     verdicts = select_tracks(
-        get_media_streams(path).get("streams", []),
+        streams,
         policy,
         tags,
         bool(getattr(settings, "cleanup_foreign_tracks_keep_und", False)),
         real,
-        count_events=make_event_counter(path),
+        count_events=make_event_counter(path, streams=streams),
     )
     return jsonify(
         {

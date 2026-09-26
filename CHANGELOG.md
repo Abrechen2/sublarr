@@ -159,6 +159,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Log viewer** — the category filters (providers, translation, auth …)
   now actually hide what they name, and JSON-format logs are coloured and
   filtered correctly. Log rotation changes apply immediately.
+- **Foreign-track sweep is much faster on tied tracks.** When two tracks of
+  one language rank the same, the one with more subtitle lines wins. That
+  count used to read the whole video file (5 minutes for one 44 GB remux);
+  it now comes from the statistics mkvmerge stores in every MKV, and only
+  files without them have the first 5 minutes counted.
 - **Foreign-track sweep** — logs when it starts walking the library, its
   progress and when it finishes, and why it paused.
 
