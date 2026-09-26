@@ -3,11 +3,12 @@
 from __future__ import annotations
 
 from typing import Any, Literal
+from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 from apscheduler.triggers.base import BaseTrigger
 from apscheduler.triggers.cron import CronTrigger
 from apscheduler.triggers.interval import IntervalTrigger
-from pydantic import BaseModel, Field, model_validator
+from pydantic import BaseModel, Field, field_validator, model_validator
 
 
 class IntervalTriggerModel(BaseModel):
@@ -35,6 +36,22 @@ class CronTriggerModel(BaseModel):
     minute: str | int | None = None
     second: str | int | None = None
     expression: str | None = None
+    # IANA zone the cron fields are read in. None keeps the historical UTC.
+    # The container runs UTC, so without this a "night only" window picked in
+    # the UI (01:00-06:59) would fire at 03:00-08:59 in CEST. A zone (not a
+    # fixed offset) keeps the window on local wall-clock time across DST.
+    timezone: str | None = Field(default=None, max_length=64)
+
+    @field_validator("timezone")
+    @classmethod
+    def known_zone(cls, value: str | None) -> str | None:
+        if value is None:
+            return None
+        try:
+            ZoneInfo(value)
+        except (ZoneInfoNotFoundError, ValueError) as exc:
+            raise ValueError(f"unknown time zone: {value!r}") from exc
+        return value
 
 
 TriggerModel = IntervalTriggerModel | CronTriggerModel
@@ -53,6 +70,8 @@ def serialize_trigger(trigger: BaseTrigger) -> dict[str, Any]:
             if field.is_default:
                 continue
             out[field.name] = str(field)
+        # The fields mean nothing without the zone they are read in.
+        out["timezone"] = str(trigger.timezone)
         return out
     return {"type": "unknown", "repr": repr(trigger)}
 
@@ -81,6 +100,7 @@ def trigger_model_to_apscheduler(model) -> BaseTrigger:
             return IntervalTrigger(**kwargs, timezone="UTC")
 
         # Cron
+        tz = model.timezone or "UTC"
         if model.expression:
             parts = model.expression.strip().split()
             if len(parts) == 5:
@@ -91,7 +111,7 @@ def trigger_model_to_apscheduler(model) -> BaseTrigger:
                     day=day,
                     month=month,
                     day_of_week=dow,
-                    timezone="UTC",
+                    timezone=tz,
                 )
             if len(parts) == 6:
                 second, minute, hour, day, month, dow = parts
@@ -102,7 +122,7 @@ def trigger_model_to_apscheduler(model) -> BaseTrigger:
                     day=day,
                     month=month,
                     day_of_week=dow,
-                    timezone="UTC",
+                    timezone=tz,
                 )
             raise InvalidTriggerError(f"expression must have 5 or 6 fields, got {len(parts)}")
 
@@ -120,7 +140,7 @@ def trigger_model_to_apscheduler(model) -> BaseTrigger:
             )
             if getattr(model, k) is not None
         }
-        trig = CronTrigger(**fields, timezone="UTC")
+        trig = CronTrigger(**fields, timezone=tz)
 
         # Reachability guard
         if trig.get_next_fire_time(None, datetime.datetime.now(datetime.UTC)) is None:

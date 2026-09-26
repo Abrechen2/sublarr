@@ -800,6 +800,9 @@ export type TriggerCron = {
   hour?: string
   minute?: string
   second?: string
+  /** IANA zone the fields are read in; the server reports it, and treats an
+   *  absent value on write as UTC. */
+  timezone?: string
 }
 
 export type Trigger = TriggerInterval | TriggerCron

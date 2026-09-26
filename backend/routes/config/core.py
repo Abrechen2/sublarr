@@ -267,6 +267,14 @@ def update_config():
             return jsonify({"error": "items_per_page must be an integer between 10 and 200"}), 400
         data["items_per_page"] = value
 
+    from routes.config.bounds import BOUNDED_INT_KEYS, coerce_bounded_int
+
+    for bounded_key in BOUNDED_INT_KEYS & data.keys():
+        coerced, error = coerce_bounded_int(bounded_key, data[bounded_key])
+        if error:
+            return jsonify({"error": error}), 400
+        data[bounded_key] = coerced
+
     # Validate that keys are ones this install knows. This used to read
     # Settings.model_fields — an attribute the composite Settings class does
     # not have — so the guarded expression yielded an empty set on every call

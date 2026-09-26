@@ -123,4 +123,37 @@ describe('TriggerEditModal', () => {
     )
     expect(screen.getByRole('button', { name: 'Saving…' })).toBeDisabled()
   })
+  it('keeps the time zone of an existing cron trigger when saving', () => {
+    const onSubmit = vi.fn()
+    render(
+      <TriggerEditModal
+        job={makeJob({ type: 'cron', hour: '1-6', minute: '0', timezone: 'Europe/Berlin' })}
+        open
+        onClose={() => {}}
+        onSubmit={onSubmit}
+      />,
+    )
+    fireEvent.click(screen.getByRole('button', { name: 'Save' }))
+    expect(onSubmit).toHaveBeenCalledWith(expect.objectContaining({ timezone: 'Europe/Berlin' }))
+  })
+
+  it('gives a new cron trigger the browser time zone, never silent UTC', () => {
+    const onSubmit = vi.fn()
+    render(
+      <TriggerEditModal
+        job={makeJob({ type: 'interval', minutes: 15 })}
+        open
+        onClose={() => {}}
+        onSubmit={onSubmit}
+      />,
+    )
+    fireEvent.click(screen.getByText('scheduler.tab_cron'))
+    fireEvent.click(screen.getByRole('button', { name: 'Save' }))
+    expect(onSubmit).toHaveBeenCalledWith(
+      expect.objectContaining({
+        type: 'cron',
+        timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+      }),
+    )
+  })
 })

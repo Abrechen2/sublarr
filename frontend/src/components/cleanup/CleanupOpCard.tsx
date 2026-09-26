@@ -16,6 +16,7 @@ import { PathListInput } from './PathListInput'
 import { SchedulePicker } from './SchedulePicker'
 import { toast } from '@/components/shared/Toast'
 import { TrackVerdictList, type TrackVerdict } from './TrackVerdictList'
+import { ForeignTrackSweepSection } from './ForeignTrackSweepSection'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -486,16 +487,24 @@ export function CleanupOpCard({ meta, rule, onToggle, onUpdate }: CleanupOpCardP
                   title={t('cleanup_card.min_free_gb_hint')}
                 />
 
-                <label
-                  className="flex items-center gap-2 mt-3 text-sm cursor-pointer text-secondary"
-                  title={t('cleanup_card.verify_recycle_hint')}
-                >
+                {/* No production path honours this option: manual runs and the
+                    scheduled sweep both go through the sweep's run_slice, which
+                    always keeps the original in the trash for the retention
+                    period. Only the unused execute_foreign_tracks reads it. */}
+                <label className="flex items-start gap-2 mt-3 text-sm text-secondary opacity-60">
                   <input
                     type="checkbox"
+                    className="mt-1"
+                    disabled
                     checked={(config.verify_then_delete_backup as boolean) ?? false}
-                    onChange={(e) => updateConfig({ verify_then_delete_backup: e.target.checked })}
+                    readOnly
                   />
-                  {t('cleanup_card.verify_recycle')}
+                  <span>
+                    {t('cleanup_card.verify_recycle')}
+                    <span className="block text-[11px] text-muted">
+                      {t('cleanup_card.verify_recycle_hint')}
+                    </span>
+                  </span>
                 </label>
               </div>
             )}
@@ -580,6 +589,8 @@ export function CleanupOpCard({ meta, rule, onToggle, onUpdate }: CleanupOpCardP
               />
             </div>
           </div>
+
+          {meta.ruleType === 'foreign_tracks' && <ForeignTrackSweepSection ruleEnabled={enabled} />}
 
           {/* Action row */}
           <div

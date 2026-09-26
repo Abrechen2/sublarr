@@ -413,11 +413,13 @@ def _build_default_jobs() -> list[JobSpec]:
             id="foreign_track_sweep",
             func=foreign_track_sweep_tick,
             default_trigger=IntervalTrigger(hours=6),
-            # 3600s = twice the default 1800s budget. The budget is checked
-            # after each completed file, so a single large remux can overshoot;
-            # a ceiling at the budget itself would log false timeouts the way
-            # the cleanup job's 3600s did, without ever cancelling anything.
-            timeout_s=3600,
+            # 7200s = twice the largest budget the UI accepts
+            # (foreign_track_sweep_budget_s le=3600, 1.15.0-rc.5). The budget is
+            # checked after each completed file, so a single large remux can
+            # overshoot; a ceiling at the budget itself would log false
+            # timeouts the way the cleanup job's 3600s did, without ever
+            # cancelling anything.
+            timeout_s=7200,
             owner_module="services.foreign_tracks.sweep",
             description=(
                 "Strip embedded foreign-language subtitle tracks in bounded, resumable slices."

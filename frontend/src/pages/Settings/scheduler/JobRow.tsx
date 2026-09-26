@@ -55,8 +55,9 @@ function triggerLabel(
   const hour = trig.hour ?? '*'
   const minute = trig.minute ?? '*'
   const dow = trig.day_of_week
-  if (dow) return t('scheduler.cron_weekly', { dow, hour, minute })
-  return t('scheduler.cron_daily', { hour, minute })
+  const zone = ` (${trig.timezone ?? 'UTC'})`
+  if (dow) return t('scheduler.cron_weekly', { dow, hour, minute }) + zone
+  return t('scheduler.cron_daily', { hour, minute }) + zone
 }
 
 function relativeTime(

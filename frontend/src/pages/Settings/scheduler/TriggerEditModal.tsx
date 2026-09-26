@@ -43,7 +43,15 @@ export function TriggerEditModal({
 
   if (!open) return null
 
-  const payload: Trigger = tab === 'interval' ? interval : cron
+  // The server reads a cron trigger without a time zone as UTC, and the cron
+  // editor rebuilds the object on every change — so the zone is re-attached
+  // here: the existing trigger's zone, else the browser's (the zone the user
+  // thinks in). Without it a "01-06" night schedule silently became UTC.
+  const cronZone =
+    cron.timezone ??
+    (job.trigger.type === 'cron' ? job.trigger.timezone : undefined) ??
+    Intl.DateTimeFormat().resolvedOptions().timeZone
+  const payload: Trigger = tab === 'interval' ? interval : { ...cron, timezone: cronZone }
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">

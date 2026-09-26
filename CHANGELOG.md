@@ -159,6 +159,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Log viewer** — the category filters (providers, translation, auth …)
   now actually hide what they name, and JSON-format logs are coloured and
   filtered correctly. Log rotation changes apply immediately.
+- **Sweep pace is configurable** — the foreign-track cleanup card has an
+  "Automatic sweep" section: on/off, schedule (every 6 hours, hourly, only at
+  night 01:00–06:59, or a custom scheduler trigger), time budget per run
+  (5–60 minutes), backup retention, progress and a "Run now" button. Cron
+  schedules now carry a time zone, so a night schedule runs at local night
+  time instead of UTC; the scheduler page keeps and shows the zone. The
+  "verify then delete backup" option had no effect anywhere — the sweep always
+  keeps the original in the trash for the configured retention — and is
+  now shown disabled with that note.
 - **Track cleanup on the statistics page** — the foreign-track sweep now
   records each run in the cleanup history (files cleaned, tracks removed,
   space freed), so it shows in the Cleanup tab's disk-space view, and the

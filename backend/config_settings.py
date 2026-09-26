@@ -451,7 +451,16 @@ class UISettings(BaseModel):
     foreign_track_sweep_enabled: bool = False
     # Wall-clock budget per tick, checked after each completed file. Overshoot
     # is bounded by the slowest single file, which for a large remux is minutes.
-    foreign_track_sweep_budget_s: int = 1800
+    # Bounds are enforced on save by PUT /config (reload_settings applies DB
+    # overrides with model_copy, which does not validate). The upper bound is
+    # half the foreign_track_sweep JobSpec timeout, so a full-budget run plus
+    # one large file never reads as a scheduler timeout.
+    foreign_track_sweep_budget_s: int = Field(
+        default=1800,
+        ge=300,
+        le=3600,
+        description="Seconds one foreign-track sweep run may keep starting new files",
+    )
     # Idle time before a new generation walks the library again.
     foreign_track_sweep_rescan_days: int = 7
     # Files modified more recently than this are skipped, so an import that is
