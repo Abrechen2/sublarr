@@ -11,7 +11,6 @@ import subprocess
 import time
 from pathlib import Path
 
-from services.foreign_tracks.sidecars import carry_origin_after_rewrite, vouch_before_rewrite
 from services.sync_engines.base import BaseSyncEngine, SyncResult
 
 logger = logging.getLogger(__name__)
@@ -77,7 +76,6 @@ class AlassEngine(BaseSyncEngine):
 
         src = Path(subtitle_path)
         _backup_before_sync(str(src))
-        vouch = vouch_before_rewrite(subtitle_path)
 
         from security_utils import safe_subprocess_arg
         from services.sync_engines.concurrency import nice_prefix, sync_subprocess_lock
@@ -113,7 +111,6 @@ class AlassEngine(BaseSyncEngine):
                 reason=(proc.stderr or "").strip()[:64] or "non-zero exit",
             )
 
-        carry_origin_after_rewrite(vouch)
         _fire_after_sync_trigger(subtitle_path, reference_path, self.name)
 
         # alass does not report offset in stdout; callers that need a delta can diff timestamps.

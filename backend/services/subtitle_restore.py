@@ -29,6 +29,18 @@ class RestoreError(Exception):
         self.http_status = http_status
 
 
+def mark_restored_safely(path: str) -> None:
+    """Record that a restore put ``path`` back: its origin is unknown (see
+    ``services.foreign_tracks.sidecars.mark_restored``). Never raises — the
+    restore has already happened and must still be reported as done."""
+    try:
+        from services.foreign_tracks.sidecars import mark_restored
+
+        mark_restored(path)
+    except Exception as exc:  # noqa: BLE001 — bookkeeping only
+        logger.warning("restore: could not mark %s as restored: %s", path, exc)
+
+
 def restore_from_bak(abs_path: str) -> dict:
     """Swap ``abs_path`` with its ``.bak`` backup.
 
@@ -62,6 +74,7 @@ def restore_from_bak(abs_path: str) -> dict:
             os.replace(bak_path, abs_path)
         except OSError as e:
             raise RestoreError(f"Could not restore backup: {e}") from e
+        mark_restored_safely(abs_path)
         return {"status": "restored", "path": abs_path, "swapped": False}
 
     # Atomic swap via temp path. If step 2 or 3 fails we roll back step 1.
@@ -84,6 +97,7 @@ def restore_from_bak(abs_path: str) -> dict:
                 "restore: rollback failed; left tmp at %s, active gone", tmp_path, exc_info=True
             )
         raise RestoreError(f"Could not restore backup: {e}") from e
+    mark_restored_safely(abs_path)
     try:
         os.replace(tmp_path, canonical_bak_path)  # step 3: tmp -> canonical bak
     except OSError as e:

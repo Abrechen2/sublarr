@@ -14,8 +14,9 @@ pair decides (owner ruling 2026-09-25):
     counts, average score, usage stats and history, and a firehose of
     extraction rows would skew every one of them.
   - ``sidecar_origins`` -- extractions (``origin="extraction"``, written by
-    ``services.embedded_extractor._record_extraction``) and syncs of a
-    genuine sidecar (``origin="resync"``, see ``vouch_before_rewrite``).
+    ``services.embedded_extractor._record_extraction``), syncs of a genuine
+    sidecar (``origin="resync"``, see ``vouch_before_rewrite``) and restored
+    sidecars (``origin="restored"``, never genuine, see ``mark_restored``).
 """
 
 from __future__ import annotations
@@ -32,6 +33,10 @@ REAL_SOURCES = frozenset(
 )
 _NOT_REAL_PROVIDERS = frozenset({"translation"})
 _RESYNC = "resync"
+# Written for a sidecar put back by a restore (history rollback, .bak swap,
+# trash). Not in ``_ORIGIN_KINDS``: a restored file keeps the mtime of its
+# backup and would otherwise be vouched for by whatever record is newest.
+_RESTORED = "restored"
 _ORIGIN_KINDS = frozenset({"extraction", _RESYNC})
 _SIDECAR_FORMATS = ("srt", "ass")
 _VIDEO_EXTS = (".mkv", ".mp4", ".m4v", ".webm", ".mov", ".avi", ".ts")
@@ -285,6 +290,48 @@ def vouch_before_rewrite(sidecar_path: str) -> RewriteVouch | None:
         return None
 
 
+def _add_origin(video_path: str, language: str, origin: str, what: str) -> None:
+    """Record one ``sidecar_origins`` row. Never raises (bookkeeping only)."""
+    try:
+        from db.models.providers import SidecarOrigin
+        from extensions import db
+
+        db.session.add(
+            SidecarOrigin(
+                video_path=video_path,
+                language=language,
+                origin=origin,
+                recorded_at=datetime.now(UTC),
+            )
+        )
+        db.session.commit()
+    except Exception as exc:  # noqa: BLE001 - bookkeeping only
+        try:
+            from extensions import db
+
+            db.session.rollback()
+        except Exception:  # noqa: BLE001
+            pass
+        logger.warning("sidecar provenance: %s record failed for %s: %s", origin, what, exc)
+
+
+def mark_restored(sidecar_path: str) -> None:
+    """Call after a restore put ``sidecar_path`` back (rollback, .bak swap,
+    trash). The restored content's origin is unknown - a .bak can hold a
+    machine translation - so it must not inherit the standing of the newest
+    record. Never raises.
+    """
+    try:
+        identity = _identify(sidecar_path)
+    except Exception as exc:  # noqa: BLE001 - bookkeeping only
+        logger.warning("sidecar provenance: could not identify %s: %s", sidecar_path, exc)
+        return
+    if identity is None:
+        return
+    video, language, _fmt = identity
+    _add_origin(video, language, _RESTORED, sidecar_path)
+
+
 def carry_origin_after_rewrite(vouch: RewriteVouch | None) -> None:
     """Call AFTER a successful rewrite: record a ``resync`` origin so the
     rewritten file keeps the standing the vouched one had.
@@ -297,23 +344,7 @@ def carry_origin_after_rewrite(vouch: RewriteVouch | None) -> None:
     try:
         if os.path.getmtime(vouch.sidecar) == vouch.mtime:
             return
-        from db.models.providers import SidecarOrigin
-        from extensions import db
-
-        db.session.add(
-            SidecarOrigin(
-                video_path=vouch.video_path,
-                language=vouch.language,
-                origin=_RESYNC,
-                recorded_at=datetime.now(UTC),
-            )
-        )
-        db.session.commit()
-    except Exception as exc:  # noqa: BLE001 - bookkeeping only
-        try:
-            from extensions import db
-
-            db.session.rollback()
-        except Exception:  # noqa: BLE001
-            pass
-        logger.warning("sidecar provenance: resync record failed for %s: %s", vouch.sidecar, exc)
+    except OSError as exc:
+        logger.warning("sidecar provenance: %s vanished after its rewrite: %s", vouch.sidecar, exc)
+        return
+    _add_origin(vouch.video_path, vouch.language, _RESYNC, vouch.sidecar)

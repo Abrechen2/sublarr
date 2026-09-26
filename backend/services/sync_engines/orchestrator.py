@@ -5,6 +5,7 @@ from __future__ import annotations
 import logging
 import time
 
+from services.foreign_tracks.sidecars import carry_origin_after_rewrite, vouch_before_rewrite
 from services.sync_engines.base import BaseSyncEngine, SyncResult
 from services.sync_engines.events import write_sync_job_run
 
@@ -28,6 +29,10 @@ class SyncOrchestrator:
     def sync(self, subtitle_path: str, video_path: str) -> SyncResult:
         last_reason = ""
         last_engine = "none"
+        # The engines rewrite the sidecar in place; its provenance is carried
+        # only once a result is ACCEPTED (after the sanity check below), so a
+        # rejected mis-shift never reads as a genuine subtitle.
+        vouch = vouch_before_rewrite(subtitle_path)
 
         for engine in self.engines:
             name = getattr(engine, "name", engine.__class__.__name__)
@@ -98,6 +103,7 @@ class SyncOrchestrator:
                 reason=result.reason,
             )
             if result.ok:
+                carry_origin_after_rewrite(vouch)
                 return result
 
             last_engine = name

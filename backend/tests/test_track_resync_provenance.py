@@ -180,7 +180,7 @@ def _fake_run(cmd, *a, **kw):
 
 
 @pytest.mark.parametrize(
-    "writer", ["legacy_ffsubsync", "legacy_alass", "engine_ffsubsync", "engine_alass"]
+    "writer", ["legacy_ffsubsync", "legacy_alass", "orchestrator_ffsubsync", "orchestrator_alass"]
 )
 def test_every_sync_writer_keeps_a_download_genuine(app_ctx, tmp_path, monkeypatch, writer):
     video, sidecar = _setup(tmp_path)
@@ -204,15 +204,94 @@ def test_every_sync_writer_keeps_a_download_genuine(app_ctx, tmp_path, monkeypat
             from services.video_sync import sync_with_alass
 
             sync_with_alass(sidecar, reference)
-        elif writer == "engine_ffsubsync":
+        elif writer == "orchestrator_ffsubsync":
             from services.sync_engines.ffsubsync_engine import FfsubsyncEngine
+            from services.sync_engines.orchestrator import SyncOrchestrator
 
-            assert FfsubsyncEngine().sync(sidecar, video).ok
+            with patch("services.sync_engines.orchestrator.write_sync_job_run"):
+                assert SyncOrchestrator([FfsubsyncEngine()]).sync(sidecar, video).ok
         else:
             from services.sync_engines.alass_engine import AlassEngine
+            from services.sync_engines.orchestrator import SyncOrchestrator
 
-            assert AlassEngine().sync(sidecar, reference).ok
+            with patch("services.sync_engines.orchestrator.write_sync_job_run"):
+                assert SyncOrchestrator([AlassEngine()]).sync(sidecar, reference).ok
 
     with open(sidecar, encoding="utf-8") as fh:
         assert fh.read() == _SYNCED, "the fake sync must really have rewritten the sidecar"
     assert real_sidecar_languages(video, {"de"}) == {"de"}
+
+
+def test_a_rejected_mis_shift_is_not_carried(app_ctx, tmp_path, monkeypatch):
+    """The engine rewrites in place, then the orchestrator rejects the offset:
+    the rewritten file must not read as genuine."""
+    from services.sync_engines.base import SyncResult
+    from services.sync_engines.orchestrator import SyncOrchestrator
+
+    video, sidecar = _setup(tmp_path)
+    _record(video)
+
+    class _Wild:
+        name = "wild"
+
+        def is_available(self):
+            return True
+
+        def sync(self, subtitle_path, video_path):
+            _rewrite(subtitle_path)
+            return SyncResult(engine="wild", ok=True, offset_ms=900_000, duration_ms=1)
+
+    with patch("services.sync_engines.orchestrator.write_sync_job_run"):
+        assert not SyncOrchestrator([_Wild()], sanity_threshold_ms=60_000).sync(sidecar, video).ok
+    assert _origins(video) == []
+    assert real_sidecar_languages(video, {"de"}) == set()
+
+
+# --- restores never inherit a record's standing --------------------------------
+
+
+def _bak_with(sidecar, text):
+    from subtitle_filename import bak_path_for
+
+    bak = bak_path_for(sidecar)
+    os.makedirs(os.path.dirname(bak), exist_ok=True)
+    with open(bak, "w", encoding="utf-8") as fh:
+        fh.write(text)
+    # A .bak made at download time carries that moment as its mtime.
+    stamp = time.time() - 600
+    os.utime(bak, (stamp, stamp))
+    return bak
+
+
+def test_a_restored_backup_is_not_genuine(app_ctx, tmp_path):
+    """The .bak of the first download over a machine translation IS the
+    translation. Restoring it keeps the .bak's mtime, which sits inside the
+    download record's window — without a marker it read as the download."""
+    from services.subtitle_restore import restore_from_bak
+
+    video, sidecar = _setup(tmp_path)
+    _record(video)
+    _bak_with(sidecar, "1\n00:00:01,000 --> 00:00:02,000\nMaschine\n")
+    restore_from_bak(sidecar)
+    assert "restored" in _origins(video)
+    assert real_sidecar_languages(video, {"de"}) == set()
+
+
+def test_a_restored_mt_sidecar_is_not_genuine(app_ctx, tmp_path):
+    from services import mt_sidecars
+
+    video, sidecar = _setup(tmp_path)
+    trashed = str(tmp_path / "trash.srt")
+    os.replace(sidecar, trashed)
+    _record(video)
+    mt_sidecars.restore([(sidecar, trashed)])
+    assert _origins(video) == ["restored"]
+    assert real_sidecar_languages(video, {"de"}) == set()
+
+
+def test_mark_restored_ignores_a_file_without_a_video(app_ctx, tmp_path):
+    from services.foreign_tracks.sidecars import mark_restored
+
+    lonely = tmp_path / "Lonely.de.srt"
+    lonely.write_text(_SRT, encoding="utf-8")
+    mark_restored(str(lonely))  # must not raise

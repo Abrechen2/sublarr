@@ -173,5 +173,8 @@ def restore(moved: list[tuple[str, str]]) -> None:
             if os.path.exists(trashed + _QUALITY_SUFFIX):
                 shutil.move(trashed + _QUALITY_SUFFIX, original + _QUALITY_SUFFIX)
             logger.info("mt_sidecars: restored MT sidecar %s", original)
+            from services.subtitle_restore import mark_restored_safely
+
+            mark_restored_safely(original)
         except OSError as exc:
             logger.error("mt_sidecars: failed to restore %s from %s: %s", original, trashed, exc)

@@ -117,64 +117,89 @@ class _UnresolvedError(Exception):
 _HTTP_NOT_FOUND = 404
 
 
-def _arr_clients(kind: str) -> list:
-    """One client per configured Sonarr/Radarr instance (legacy single config
-    included). A title may live on any of them."""
-    if kind == "series":
-        from config import get_sonarr_instances
-        from sonarr_client import get_sonarr_client as get_client
+class _ArrProbe:
+    """The default Sonarr/Radarr client for one ``override_paths`` run.
 
-        instances = get_sonarr_instances()
-    else:
-        from config import get_radarr_instances
-        from radarr_client import get_radarr_client as get_client
+    Series/movie settings are keyed by the id the DEFAULT instance assigns —
+    the settings UI and every library route use ``get_sonarr_client()`` /
+    ``get_radarr_client()`` without a name — so only that instance can answer
+    for them. Asking a second instance could match an unrelated title that
+    merely shares the id.
 
-        instances = get_radarr_instances()
-    names = [inst.get("name") for inst in instances] or [None]
-    clients = []
-    for name in names:
-        client = get_client(name) if name is not None else get_client()
-        if client and all(client is not seen for seen in clients):
-            clients.append(client)
-    return clients
-
-
-def _lookup_path(kind: str, title_id: int) -> str | None:
-    """The title's folder as an arr reports it, or None when confirmed missing.
-
-    "Missing" needs a real HTTP 404 from EVERY configured instance (final
-    review I4): the clients' ``get_*_by_id`` return None for any failure, and
-    a healthy arr can still answer 500 or time out on one request, or hold
-    the title on a second instance. Anything short of that raises
-    ``_UnresolvedError`` — the sweep then pauses stripping instead of
-    dropping an override or an exclusion.
+    A 404 confirms "missing" only while the arr itself answers its health
+    check in the same run: a reverse proxy in front of a stopped arr answers
+    404 to every path, and that must pause stripping, not drop every override
+    (final review of the I4 fix). A client that gave no answer once is not
+    asked again this run, so a dead arr costs one timeout, not one per title.
     """
-    clients = _arr_clients(kind)
-    if not clients:
-        raise _UnresolvedError(f"{'Sonarr' if kind == 'series' else 'Radarr'} is not configured")
 
-    unanswered: list[str] = []
-    for client in clients:
-        if kind == "series":
+    def __init__(self, kind: str):
+        self.kind = kind
+        self._client = None
+        self._resolved = False
+        self._healthy: bool | None = None
+        self._dead = False
+
+    @property
+    def label(self) -> str:
+        return "Sonarr" if self.kind == "series" else "Radarr"
+
+    def _get_client(self):
+        if not self._resolved:
+            if self.kind == "series":
+                from sonarr_client import get_sonarr_client
+
+                self._client = get_sonarr_client()
+            else:
+                from radarr_client import get_radarr_client
+
+                self._client = get_radarr_client()
+            self._resolved = True
+        return self._client
+
+    def _is_healthy(self, client) -> bool:
+        if self._healthy is None:
+            try:
+                self._healthy = bool(client.health_check()[0])
+            except Exception:  # noqa: BLE001 — cannot confirm, so not healthy
+                logger.debug("track policy: %s health check failed", self.label, exc_info=True)
+                self._healthy = False
+        return self._healthy
+
+    def path_of(self, title_id: int) -> str | None:
+        """The title's folder, or None when the arr confirms it is gone.
+
+        Raises ``_UnresolvedError`` for anything short of a confirmed answer.
+        """
+        client = self._get_client()
+        if not client:
+            raise _UnresolvedError(f"{self.label} is not configured")
+        if self._dead:
+            raise _UnresolvedError(f"{self.label} did not answer earlier in this run")
+        if self.kind == "series":
             status, body = client.lookup_series(title_id)
         else:
             status, body = client.lookup_movie(title_id)
-        path = (body or {}).get("path") if status == 200 else None
-        if path:
-            return path
-        if status != _HTTP_NOT_FOUND:
-            unanswered.append("no answer" if status is None else f"HTTP {status}")
-    if unanswered:
-        raise _UnresolvedError(", ".join(unanswered))
-    return None
+        if status is None:
+            self._dead = True
+            raise _UnresolvedError(f"no answer from {self.label}")
+        if status == 200:
+            path = (body or {}).get("path")
+            if path:
+                return path
+            raise _UnresolvedError(f"{self.label} answered without a path")
+        if status == _HTTP_NOT_FOUND and self._is_healthy(client):
+            return None
+        raise _UnresolvedError(f"{self.label} answered HTTP {status}")
 
 
 def override_paths() -> OverrideSet:
     """Resolve the folders of every series/movie with a policy override or with
     the cleanup switched off. Called once per sweep slice.
 
-    - A title every Sonarr/Radarr instance answers with HTTP 404 is skipped
-      with a warning; it does not make the set incomplete (final review I4).
+    - A title the default Sonarr/Radarr answers with HTTP 404, while that arr
+      passes its health check, is skipped with a warning; it does not make
+      the set incomplete (final review I4, see ``_ArrProbe``).
     - An unconfigured or unreachable arr, a raising lookup, or an
       unresolvable policy marks the set incomplete and names the title in
       ``failed``: the sweep must never strip more than configured because an
@@ -189,6 +214,7 @@ def override_paths() -> OverrideSet:
     pairs: list[tuple[str, TrackPolicy]] = []
     excluded: list[str] = []
     failed: list[str] = []
+    probes = {"series": _ArrProbe("series"), "movie": _ArrProbe("movie")}
 
     rows = [("series", r.sonarr_series_id, r) for r in db.session.query(SeriesSettings).all()]
     rows += [("movie", r.radarr_movie_id, r) for r in db.session.query(MovieSettings).all()]
@@ -198,7 +224,7 @@ def override_paths() -> OverrideSet:
             continue
         label = f"{kind} {title_id}"
         try:
-            path = _lookup_path(kind, title_id)
+            path = probes[kind].path_of(title_id)
             if path is None:
                 logger.warning(
                     "track policy: %s has settings but its arr no longer knows it — skipped",

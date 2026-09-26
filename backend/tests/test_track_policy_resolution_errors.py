@@ -205,53 +205,73 @@ def test_a_timeout_on_a_healthy_radarr_is_not_confirmed_missing(app_ctx, monkeyp
     assert result.excluded == []
 
 
-def _two_sonarr_instances(monkeypatch, first, second):
-    import config
+def test_a_404_while_the_arr_fails_its_health_check_is_not_missing(app_ctx, monkeypatch):
+    """A reverse proxy in front of a stopped Sonarr answers 404 to every path
+    (Traefik, the Saturday 04:00 auto-update window). The health check then
+    fails too — so every override must be kept, not dropped."""
     import sonarr_client
-
-    clients = {"One": first, "Two": second}
-    monkeypatch.setattr(
-        config,
-        "get_sonarr_instances",
-        lambda: [
-            {"name": "One", "url": "http://a", "api_key": "k"},
-            {"name": "Two", "url": "http://b", "api_key": "k"},
-        ],
-    )
-    monkeypatch.setattr(
-        sonarr_client, "get_sonarr_client", lambda name=None: clients.get(name, first)
-    )
-
-
-def test_a_title_on_the_second_instance_is_found(app_ctx, monkeypatch):
-    """Instance One answers 404 for a series that lives on instance Two."""
     from services.foreign_tracks.policy import override_paths
 
     _add_series(54, cleanup_keep_sdh=True)
-    _two_sonarr_instances(monkeypatch, _Sonarr({}), _Sonarr({54: "/media/Two/S54"}))
-    result = override_paths()
-    assert result.complete is True
-    assert [p.replace("\\", "/") for p, _ in result.pairs] == ["/media/Two/S54"]
-
-
-def test_missing_needs_a_404_from_every_instance(app_ctx, monkeypatch):
-    from services.foreign_tracks.policy import override_paths
-
-    _add_series(55, cleanup_keep_sdh=True)
-    _two_sonarr_instances(monkeypatch, _Sonarr({}), _Sonarr({55: None}))
+    _add_series(55, cleanup_foreign_tracks=False)
+    monkeypatch.setattr(
+        sonarr_client, "get_sonarr_client", lambda *a, **k: _Sonarr({}, healthy=False)
+    )
     result = override_paths()
     assert result.complete is False
-    assert result.failed == ("series 55",)
+    assert set(result.failed) == {"series 54", "series 55"}
 
 
-def test_a_404_from_every_instance_is_confirmed_missing(app_ctx, monkeypatch):
+def test_only_the_default_instance_is_asked(app_ctx, monkeypatch):
+    """Settings are keyed by the default instance's ids; a second instance may
+    hold an unrelated title under the same id and must never be asked."""
+    import sonarr_client
     from services.foreign_tracks.policy import override_paths
 
     _add_series(56, cleanup_keep_sdh=True)
-    _two_sonarr_instances(monkeypatch, _Sonarr({}), _Sonarr({}))
+    asked = []
+
+    def fake_get_sonarr_client(instance_name=None):
+        asked.append(instance_name)
+        return _Sonarr({56: "/media/Default/S56"})
+
+    monkeypatch.setattr(sonarr_client, "get_sonarr_client", fake_get_sonarr_client)
     result = override_paths()
-    assert result.complete is True
-    assert result.pairs == []
+    assert asked == [None]
+    assert [p.replace("\\", "/") for p, _ in result.pairs] == ["/media/Default/S56"]
+
+
+def test_a_dead_arr_is_asked_once_per_run(app_ctx, monkeypatch):
+    """No answer once → the remaining titles fail fast instead of each waiting
+    for its own timeout."""
+    import sonarr_client
+    from services.foreign_tracks.policy import override_paths
+
+    for series_id in (57, 58, 59):
+        _add_series(series_id, cleanup_keep_sdh=True)
+    arr = _Sonarr({57: None, 58: None, 59: None})
+    calls = []
+    original = arr.lookup_series
+    arr.lookup_series = lambda sid: calls.append(sid) or original(sid)
+    monkeypatch.setattr(sonarr_client, "get_sonarr_client", lambda *a, **k: arr)
+    result = override_paths()
+    assert len(calls) == 1
+    assert set(result.failed) == {"series 57", "series 58", "series 59"}
+
+
+def test_a_200_without_a_path_is_not_missing(app_ctx, monkeypatch):
+    import radarr_client
+    from services.foreign_tracks.policy import override_paths
+
+    _add_movie(60, cleanup_keep_sdh=True)
+
+    class _Odd(_Radarr):
+        def lookup_movie(self, movie_id):
+            return 200, {"title": "no path"}
+
+    monkeypatch.setattr(radarr_client, "get_radarr_client", lambda *a, **k: _Odd({}))
+    result = override_paths()
+    assert result.complete is False
 
 
 def test_a_raising_lookup_is_incomplete_and_named(app_ctx, monkeypatch):

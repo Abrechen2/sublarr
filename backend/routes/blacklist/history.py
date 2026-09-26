@@ -241,6 +241,9 @@ def rollback_history_entry(download_id):
             os.replace(bak_path, prev_active)
         except OSError as e:
             return jsonify({"error": f"Could not restore backup: {e}"}), 409
+        from services.subtitle_restore import mark_restored_safely
+
+        mark_restored_safely(prev_active)
         result = {"status": "restored", "path": prev_active, "removed": active_path}
     else:
         try:
