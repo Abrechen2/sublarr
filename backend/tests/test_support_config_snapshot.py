@@ -11,6 +11,7 @@ that only allow-listed fields let their sentinel through — so a future
 from __future__ import annotations
 
 import json
+import types
 import typing
 
 import pytest
@@ -18,11 +19,20 @@ import pytest
 from config_settings import BootSettings, Settings, UISettings
 
 
+def _is_stringish(ann) -> bool:
+    """str, list[...], or an Optional/Union containing one of them."""
+    if ann is str or typing.get_origin(ann) is list:
+        return True
+    if typing.get_origin(ann) in (typing.Union, types.UnionType):
+        return any(_is_stringish(a) for a in typing.get_args(ann))
+    return False
+
+
 def _string_fields():
     for model in (BootSettings, UISettings):
         for name, field in model.model_fields.items():
             ann = field.annotation
-            if ann is str or typing.get_origin(ann) is list:
+            if _is_stringish(ann):
                 yield name, ann
 
 
@@ -122,3 +132,35 @@ class TestAllowListSnapshot:
             Settings(jimaku_api_key="LeakyKey123", ollama_model="model-LeakyKey123")
         )
         assert "LeakyKey123" not in json.dumps(snap)
+
+
+def test_non_ascii_secret_in_an_allow_listed_field_is_redacted():
+    """I-3: redacting the JSON text missed a secret that JSON had escaped."""
+    from routes.system.support_config import build_config_snapshot
+
+    snap = build_config_snapshot(
+        Settings(jimaku_api_key="Schlüssel123", ollama_model="m-Schlüssel123")
+    )
+    assert "Schlüssel123" not in json.dumps(snap, ensure_ascii=False)
+
+
+def test_a_quote_in_an_allow_listed_value_does_not_break_the_snapshot():
+    from routes.system.support_config import build_config_snapshot
+
+    snap = build_config_snapshot(Settings(ollama_model='weird "token: x" model'))
+    assert isinstance(snap, dict)
+    assert snap["log_level"]
+
+
+@pytest.mark.parametrize(
+    "annotation",
+    [str | None, typing.Union[str, None], list[str] | None],  # noqa: UP007 — both spellings
+)
+def test_an_optional_string_field_is_masked_by_default(annotation):
+    """Review gap: the every-field walk skipped `str | None` fields (none exist
+    today). A future one must still be masked, not shipped in clear."""
+    from routes.system.support_config import MASK_SET, _snapshot_value
+
+    assert _is_stringish(annotation)
+    value = ["x"] if typing.get_origin(annotation) is list else "SecretishValue"
+    assert _snapshot_value("some_future_field", value, annotation) == MASK_SET

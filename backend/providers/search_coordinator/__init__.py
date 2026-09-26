@@ -35,7 +35,7 @@ from providers.search_coordinator.retry import SearchRetryMixin
 from providers.search_coordinator.scoring import SearchScoringMixin
 from services.key_selector import get_key_selector
 from services.provider_budget import get_budget_manager
-from utils.context_executor import submit_with_context
+from utils.context_executor import submit_with_run_label
 
 logger = logging.getLogger(__name__)
 
@@ -347,9 +347,10 @@ class SearchCoordinatorMixin(SearchRetryMixin, SearchScoringMixin, SearchCacheMi
             # (e.g. executor shut down, memory pressure). Without the refund the
             # just-consumed call leaks permanently.
             try:
-                # Context-copying submit: a provider search run by a scheduled
-                # job logs under that job's run label instead of `[-]`.
-                future = submit_with_context(
+                # Label-only submit: a provider search logs under the request id
+                # or run label that asked for it instead of `[-]`. No other
+                # contextvar (stop signal, decision log) crosses into the worker.
+                future = submit_with_run_label(
                     executor,
                     self._search_provider_with_retry,
                     name,

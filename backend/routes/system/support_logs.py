@@ -114,13 +114,30 @@ def _anonymize(text: str, hostname: str | None = None) -> str:
 # ─── Readers ──────────────────────────────────────────────────────────────────
 
 
-def _iter_lines(path: str):
-    """Lines of ``path``; a missing file (rotated away mid-read) yields nothing."""
+def _iter_lines(path: str, start: int = 0):
+    """Lines of ``path`` from byte ``start`` (a partial first line is dropped).
+
+    A missing file (rotated away mid-read) yields nothing.
+    """
     try:
-        with open(path, encoding="utf-8", errors="replace") as fh:
-            yield from fh
+        with open(path, "rb") as fh:
+            if start:
+                fh.seek(start)
+                fh.readline()
+            for raw in fh:
+                yield raw.decode("utf-8", errors="replace")
     except FileNotFoundError:
         return
+
+
+def _planned(candidates: list[str]) -> list[tuple[str, int]]:
+    """``(path, start offset)`` for the part of each file the bundle carries.
+
+    Every reader goes through this, so the preview and the report read what
+    the export ships — at most ``LOG_PAYLOAD_CAP_BYTES`` — instead of every
+    rotated file in full (up to 100 MB x 20).
+    """
+    return [(f["path"], f["start"]) for f in plan_log_payload(candidates)["files"]]
 
 
 def _extract_top_errors(max_errors: int = 10) -> list[dict]:
@@ -134,8 +151,8 @@ def _extract_top_errors(max_errors: int = 10) -> list[dict]:
     # into diagnostic-report.md and db-stats.json verbatim.
     hostname = current_hostname()
 
-    for path in rotated_log_candidates():
-        for line in _iter_lines(path):
+    for path, start in _planned(rotated_log_candidates()):
+        for line in _iter_lines(path, start):
             parsed = parse_log_line(line)
             if parsed is None:
                 continue
@@ -147,7 +164,9 @@ def _extract_top_errors(max_errors: int = 10) -> list[dict]:
                     continue
             except ValueError:
                 pass  # include the line if its timestamp is unparseable
-            key = _anonymize(message.rstrip("\n")[:_TOP_ERROR_MSG_LEN], hostname=hostname)
+            # Anonymize the WHOLE message, then cut: cutting first can split a
+            # DSN mid-password, and the surviving half matches no pattern.
+            key = _anonymize(message.rstrip("\r\n"), hostname=hostname)[:_TOP_ERROR_MSG_LEN]
             counts[key] += 1
             last_seen[key] = stamp[11:16]  # HH:MM local time
 
@@ -167,9 +186,9 @@ def recent_warnings(candidates: list[str], hostname: str | None) -> list[str]:
 
     entries: collections.deque[list[str]] = collections.deque(maxlen=RECENT_WARNINGS_MAX)
     # Oldest file first, so the deque ends on the newest records.
-    for path in reversed(candidates):
+    for path, start in reversed(_planned(candidates)):
         current: list[str] | None = None
-        for line in _iter_lines(path):
+        for line in _iter_lines(path, start):
             parsed = parse_log_line(line)
             if parsed is None:
                 if current is not None and len(current) <= _MAX_CONTINUATION_LINES:
@@ -254,13 +273,11 @@ def redaction_summary(candidates: list[str], hostname: str | None) -> dict:
     counts: collections.Counter = collections.Counter()
     path_example: tuple[str, str] | None = None
     ip_example: tuple[str, str] | None = None
-    files_found = 0
 
-    for path in candidates:
-        if not os.path.exists(path):
-            continue
-        files_found += 1
-        for line in _iter_lines(path):
+    plan = plan_log_payload(candidates)
+    files_found = len(plan["files"]) + len(plan["skipped_files"])
+    for entry in plan["files"]:
+        for line in _iter_lines(entry["path"], entry["start"]):
             anon = _anonymize(line, hostname=hostname)
             if anon == line:
                 continue

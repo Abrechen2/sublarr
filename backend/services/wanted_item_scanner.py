@@ -19,14 +19,21 @@ from config import get_settings, map_path
 from db.profiles import get_movie_profile, get_series_profile
 from db.providers import is_machine_translated
 from db.wanted import upsert_wanted_item
+from services.scheduler.cancellation import abort_requested
 from translator import (
     detect_existing_target_for_lang,
     find_existing_target_file,
 )
 from upgrade_scorer import score_existing_subtitle
-from utils.context_executor import submit_with_context
+from utils.context_executor import submit_with_run_label
 
 logger = logging.getLogger(__name__)
+
+# batch_probe's answer for a probe the media IO gate refused (busy, or the run
+# was stopped). Distinct from None — "the probe ran and failed" — because a
+# refused probe says nothing about the file, and reading it as "no embedded
+# streams" upserted wanted rows with existing_sub="" over correct ones.
+PROBE_REFUSED = object()
 
 
 def batch_probe(paths: list[str]) -> dict[str, object]:
@@ -35,9 +42,10 @@ def batch_probe(paths: list[str]) -> dict[str, object]:
     Uses the configured scan_metadata_engine (via get_media_streams) and
     scan_metadata_max_workers from settings.
 
-    Returns dict mapping path -> probe_data (or None on error).
+    Returns dict mapping path -> probe_data, None when the probe failed, or
+    ``PROBE_REFUSED`` when the media IO gate did not let it run.
     """
-    from services.media_io_gate import media_io_gate
+    from services.media_io_gate import MediaGateBusyError, media_io_gate
 
     max_workers = media_io_gate.cap_workers(getattr(get_settings(), "scan_metadata_max_workers", 4))
 
@@ -49,13 +57,17 @@ def batch_probe(paths: list[str]) -> dict[str, object]:
 
     results = {}
     with ThreadPoolExecutor(max_workers=max_workers) as executor:
-        # Context-copying submit: the probe workers are part of the scheduled
-        # scan and must log under its run label (and see its stop signal).
-        future_to_path = {submit_with_context(executor, _gated_probe, p): p for p in paths}
+        # Label-only submit: the probes log under the scan's run label but do
+        # NOT inherit its stop signal — with it, the media gate refused a
+        # cancelled scan's queued probes (see utils/context_executor.py).
+        future_to_path = {submit_with_run_label(executor, _gated_probe, p): p for p in paths}
         for future in as_completed(future_to_path):
             path = future_to_path[future]
             try:
                 results[path] = future.result()
+            except MediaGateBusyError as e:
+                logger.debug("probe not run for %s: %s", path, e)
+                results[path] = PROBE_REFUSED
             except Exception as e:
                 logger.debug("probe failed for %s: %s", path, e)
                 results[path] = None
@@ -300,6 +312,14 @@ def scan_sonarr_series(
         if probeable:
             probe_results = batch_probe(probeable)
 
+    if abort_requested():
+        # Stopped while probing: results may be partial or refused. Upsert
+        # nothing; the paths still count as seen, and an aborted scan prunes
+        # nothing anyway (wanted_scanner_core).
+        scanned_paths.update(mp for _, mp in episode_data)
+        logger.info("Wanted scan: %s — stopping as asked before upserting", series_title)
+        return added, updated, scanned_paths
+
     for ep, mapped_path in episode_data:
         scanned_paths.add(mapped_path)
 
@@ -309,6 +329,10 @@ def scan_sonarr_series(
         season_episode = f"S{season_num:02d}E{episode_num:02d}"
 
         probe_data = probe_results.get(mapped_path)
+        if probe_data is PROBE_REFUSED:
+            # Skip this pass rather than record "no embedded streams".
+            logger.debug("Wanted scan: %s not probed (media gate busy), skipped", mapped_path)
+            continue
 
         for target_lang, _target_name in zip(target_languages, target_language_names):
             lang_result = _check_language_for_item(mapped_path, target_lang, probe_data, settings)

@@ -271,3 +271,45 @@ def test_a_short_configured_value_does_not_blank_ordinary_words():
 
 def test_a_short_pin_is_caught_next_to_its_key():
     assert "4711" not in redact("tvdb login pin=4711 ok", ())
+
+
+def test_a_record_logged_while_collecting_values_does_not_deadlock(monkeypatch):
+    """Value collection runs inside a logging filter; anything it logs (an
+    import, a settings warning) re-enters redact() on the same thread. A plain
+    Lock deadlocked there."""
+    import threading
+
+    import config_singleton
+    import secret_redaction
+
+    real_collect = secret_redaction.collect_secret_values
+
+    def _collect_and_log(settings):
+        secret_redaction.redact("nested record while collecting")
+        return real_collect(settings)
+
+    monkeypatch.setattr(secret_redaction, "collect_secret_values", _collect_and_log)
+    monkeypatch.setattr(config_singleton, "_settings", Settings(jimaku_api_key="Reentrant9"))
+    monkeypatch.setattr(secret_redaction, "_cached_settings", None)
+
+    done = []
+    worker = threading.Thread(target=lambda: done.append(redact("x Reentrant9")), daemon=True)
+    worker.start()
+    worker.join(timeout=5)
+
+    assert done, "redact() deadlocked on re-entry"
+    assert "Reentrant9" not in done[0]
+
+
+@pytest.mark.parametrize(
+    ("line", "leak"),
+    [
+        ("password=abc,def rejected", ",def"),
+        ("token=abc)def", ")def"),
+        ("secret: a}b]c", "b]c"),
+    ],
+)
+def test_a_bare_value_runs_to_whitespace_not_to_punctuation(line, leak):
+    """Review: the bare value stopped at `,`, so `password=abc,def` left `,def`."""
+    out = redact(line, values=())
+    assert leak not in out, out

@@ -29,7 +29,20 @@ function lookupKey(ns: Record<string, unknown>, key: string): string | undefined
 
 vi.mock('react-i18next', () => ({
   useTranslation: () => ({
-    t: (key: string) => lookupKey(enSettings, key) ?? key,
+    t: (key: string, opts?: string | Record<string, unknown>) => {
+      if (typeof opts === 'string') return opts
+      const defaultValue =
+        opts && typeof opts.defaultValue === 'string' ? opts.defaultValue : undefined
+      const template = lookupKey(enSettings, key) ?? defaultValue ?? key
+      if (!opts || typeof opts !== 'object') return template
+      // Minimal {{token}} interpolation — real i18next does this for us in
+      // production; the mock needs to do it too so tests can assert on the
+      // fully-rendered text (e.g. "database: unavailable — <reason>").
+      return Object.entries(opts).reduce(
+        (acc, [k, v]) => (typeof acc === 'string' ? acc.replaceAll(`{{${k}}}`, String(v)) : acc),
+        template,
+      )
+    },
   }),
 }))
 
@@ -189,6 +202,77 @@ describe('SupportModal — rate limit', () => {
         'error',
       )
     })
+  })
+})
+
+describe('SupportModal — preview-query rate limit (cold-review item 4)', () => {
+  it('shows support_rate_limited, not the generic error, when the PREVIEW query itself 429s', async () => {
+    mockFetchSupportPreview.mockRejectedValue({ response: { status: 429 } })
+    renderModal()
+    await waitFor(
+      () => {
+        expect(
+          screen.getByText('Too many requests — please wait a minute and try again'),
+        ).toBeInTheDocument()
+      },
+      { timeout: 3000 },
+    )
+    expect(screen.queryByText('Preview could not be loaded')).toBeNull()
+  })
+})
+
+describe('SupportModal — unavailable sections (cold-review item 6)', () => {
+  it('renders an {unavailable} section as a single muted line, not a key/value table', async () => {
+    mockFetchSupportPreview.mockResolvedValue(
+      fullPreview({
+        sections: {
+          database: { unavailable: 'db locked' },
+        },
+      }),
+    )
+    renderModal()
+
+    await waitFor(() => {
+      expect(screen.getByText('Database: unavailable — db locked')).toBeInTheDocument()
+    })
+    // Not rendered as a key/value table: no "unavailable" key row, no
+    // section-title heading paragraph as used for normal sections.
+    expect(screen.queryByText('unavailable')).toBeNull()
+  })
+})
+
+describe('SupportModal — nested section values render readably (cold-review item 3)', () => {
+  it('does not dump a nested array-in-object value as one giant JSON string', async () => {
+    const recentRuns = Array.from({ length: 8 }, (_, i) => ({
+      status: i === 0 ? 'error' : 'ok',
+      started_at: `2026-09-2${i}T00:00:00Z`,
+    }))
+    mockFetchSupportPreview.mockResolvedValue(
+      fullPreview({
+        sections: {
+          scheduler: {
+            wanted_scanner: { paused: false, recent_runs: recentRuns },
+          },
+        },
+      }),
+    )
+    renderModal()
+
+    await waitFor(() => {
+      expect(screen.getByText('Scheduler')).toBeInTheDocument()
+    })
+
+    // The old bug: JSON.stringify(jobObject) — the whole job, recent_runs
+    // included — landed in one table cell as a single blob containing the
+    // raw field name in JSON-quoted form.
+    expect(screen.queryByText(/"recent_runs":/)).toBeNull()
+    expect(screen.queryByText(/"started_at":/)).toBeNull()
+
+    // Readable instead: the job's own fields are visible keys...
+    expect(screen.getByText('paused')).toBeInTheDocument()
+    expect(screen.getByText('recent_runs')).toBeInTheDocument()
+    // ...and a long nested list is capped rather than dumped in full.
+    expect(screen.getByText('+3 more')).toBeInTheDocument()
   })
 })
 

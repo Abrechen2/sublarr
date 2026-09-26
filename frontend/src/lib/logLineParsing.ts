@@ -14,7 +14,7 @@
  * path segments, not a literal substring like " jimaku:".
  */
 
-export const KNOWN_LOG_LEVELS = ['DEBUG', 'INFO', 'WARNING', 'ERROR'] as const
+export const KNOWN_LOG_LEVELS = ['DEBUG', 'INFO', 'WARNING', 'ERROR', 'CRITICAL'] as const
 export type KnownLogLevel = (typeof KNOWN_LOG_LEVELS)[number]
 
 export interface ParsedLogLine {
@@ -45,7 +45,7 @@ export function parseLogLine(line: string): ParsedLogLine {
   const json = parseJsonLogLine(line.trim())
   if (json) return json
 
-  const levelMatch = line.match(/\[(DEBUG|INFO|WARNING|ERROR)\]/)
+  const levelMatch = line.match(/\[(DEBUG|INFO|WARNING|ERROR|CRITICAL)\]/)
   // The text format has two "] " brackets before the logger name (level,
   // then request id) — matching on the LAST one avoids picking up "[INFO]"
   // itself. `.match()` without /g/ still finds this because the engine
@@ -95,23 +95,49 @@ export function lineMatchesCategoryPrefixes(line: string, prefixes: string[]): b
  * logger straight to stdout/Docker logs, never through the app's own handlers —
  * so werkzeug's access log line never reaches the file the Logs page reads and
  * the category could never fire.
+ *
+ * `auth` lists `auth` (the top-level `auth.py` module), plus `ui_auth` and
+ * `proxy_auth` (`backend/ui_auth.py`, `backend/proxy_auth.py`) explicitly:
+ * both are also top-level modules, so their logger names are the bare
+ * "ui_auth" / "proxy_auth" — the "_auth" suffix doesn't match a leading-"auth"
+ * segment check, so they need to be named outright rather than relying on the
+ * startsWith rule that catches `routes.auth_ui`.
  */
 export const CATEGORY_PREFIXES: Record<string, string[]> = {
   scanner: ['wanted_scanner', 'wanted_item_scanner', 'standalone'],
   translation: ['translation', 'translator'],
   providers: ['providers'],
   jobs: ['apscheduler', 'worker', 'services.scheduler'],
-  auth: ['auth'],
+  auth: ['auth', 'ui_auth', 'proxy_auth'],
 }
 
+// CRITICAL is rare but real (SUBLARR_LOG_LEVEL / VALID_LOG_LEVELS accepts it
+// backend-side) and more severe than ERROR, never less — it must never be
+// silently treated as the unrecognized-level INFO fallback.
 const LEVEL_CLASS: Record<KnownLogLevel, string> = {
   ERROR: 'text-error',
   WARNING: 'text-warning',
   DEBUG: 'text-muted',
   INFO: 'text-foreground',
+  CRITICAL: 'text-error',
 }
 
 /** Tailwind text-color utility class for a line's level. */
 export function getLevelClassName(line: string): string {
   return LEVEL_CLASS[getLineLevel(line)]
+}
+
+/**
+ * Numeric severity per level, shared by any level-threshold filter (e.g. the
+ * Logs page's level buttons) so DEBUG < INFO < WARNING < ERROR consistently.
+ * CRITICAL is intentionally equal to ERROR ("treat CRITICAL like ERROR"),
+ * not a step above it — there's no separate UI tier for it, it just must
+ * never be treated as *less* severe than ERROR.
+ */
+export const LEVEL_SEVERITY: Record<string, number> = {
+  DEBUG: 0,
+  INFO: 1,
+  WARNING: 2,
+  ERROR: 3,
+  CRITICAL: 3,
 }

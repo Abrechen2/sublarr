@@ -2499,5 +2499,9 @@
   "support_section_foreign_tracks": "Foreign tracks",
   "support_section_environment": "Environment",
   "support_rate_limited": "Too many requests — please wait a minute and try again",
-  "log_rotation_saved_restart": "Rotation saved — takes effect after the next restart"
+  "log_rotation_saved_restart": "Rotation saved — takes effect after the next restart",
+  "support_section_unavailable": "{{section}}: unavailable — {{reason}}",
+  "support_more_count": "+{{count}} more",
+  "support_entries_count": "{{count}} entries",
+  "support_details_label": "Details"
 }

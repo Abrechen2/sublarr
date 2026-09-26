@@ -144,3 +144,14 @@ class TestDownloadRateLimit:
         _point_at(tmp_path, monkeypatch, "x\n")
         codes = [client.get("/api/v1/logs/download?raw=1").status_code for _ in range(8)]
         assert set(codes) == {200}
+
+
+def test_bundle_download_is_counted_once(client, tmp_path, monkeypatch):
+    """Calling the decorated export view from /logs/download ran the export's
+    limit too, so every bundle download was counted against two budgets."""
+    _point_at(tmp_path, monkeypatch, "")
+    downloads = [client.get("/api/v1/logs/download").status_code for _ in range(6)]
+    export = client.get("/api/v1/logs/support-export").status_code
+
+    assert downloads == [200] * 6
+    assert export == 200

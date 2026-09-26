@@ -274,6 +274,16 @@ def support_export():
         429:
           description: Rate limit exceeded
     """
+    return build_support_export_response()
+
+
+def build_support_export_response():
+    """The export itself, without the route's rate limit.
+
+    ``/logs/download`` serves the same bundle under its own limit. Calling the
+    decorated view from there ran this route's limit as well, inside the
+    download request, so every bundle download was counted twice.
+    """
     from app_logging import rotated_log_candidates
     from config import get_settings
     from routes.system.support_config import build_config_snapshot

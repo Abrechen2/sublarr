@@ -128,6 +128,40 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   detection on every start, and a scheduled run cut off by a restart no longer
   shows the downtime as its run time.
 
+### Security
+- **Secrets no longer reach the logs or the support bundle.** Every configured
+  secret (API keys, provider passwords, database and Redis passwords, the
+  API keys inside Sonarr/Radarr instance lists, notification URLs) is
+  replaced before a log line is written — in the log file, the live log
+  stream and the log viewer — and a pattern layer additionally catches
+  database URLs with passwords, `Bearer` tokens, Discord/Slack/Telegram
+  webhook tokens and `password=`/`token=`/`pin=` values of any length.
+  Before, only long key-shaped values were caught.
+- **The support bundle's config snapshot is now an allow-list.** Only
+  settings known to be harmless are included in clear; everything else
+  (usernames, URLs with internal addresses, paths) is masked, including any
+  setting added in the future.
+
+### Changed
+- **Support bundle** — built as a stream with a 50 MB cap on the included
+  logs, limited to 6 downloads per minute, and it works for users signed in
+  through a reverse proxy. It now also contains the database migration
+  state, recent scheduler runs, each provider's real circuit state, queue
+  sizes, the foreign-track sweep state and track policy, tool versions, and
+  the last 500 warnings and errors as their own file. The wanted and
+  translation statistics in the report, which always read "unavailable",
+  are filled again.
+- **Quieter log** — the message "Found preferred source subtitle", which made
+  up more than half of all log lines on a large library, is now debug-only,
+  and a provider that answers a download with an error is logged as a
+  warning, not an application error. The log therefore reaches back about
+  twice as far.
+- **Log viewer** — the category filters (providers, translation, auth …)
+  now actually hide what they name, and JSON-format logs are coloured and
+  filtered correctly. Log rotation changes apply immediately.
+- **Foreign-track sweep** — logs when it starts walking the library, its
+  progress and when it finishes, and why it paused.
+
 ### Upgrade notes
 - **Database migration `wq1_refund_unanswered` rewrites rows in
   `wanted_items`.** It runs once on first start, also on databases created

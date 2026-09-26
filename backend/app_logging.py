@@ -44,8 +44,10 @@ def _current_run_label() -> str | None:
 def _current_request_id() -> str:
     """What to render in the id slot for this record.
 
-    Three answers, in order of specificity: the Flask request being served,
-    the scheduled run this thread belongs to, or the placeholder.
+    Four answers, in order of specificity: the Flask request being served,
+    the scheduled run this thread belongs to, the id a pool worker inherited
+    from its submitter (`utils.context_executor.submit_with_run_label`), or
+    the placeholder.
 
     The middle one exists because everything outside a request rendered `-`,
     which is most of what Sublarr does. Sweep work, webhook follow-up work
@@ -64,7 +66,20 @@ def _current_request_id() -> str:
                 return str(request_id)
         except Exception:
             pass
-    return _current_run_label() or NO_REQUEST_ID
+    return _current_run_label() or _inherited_log_id() or NO_REQUEST_ID
+
+
+def _inherited_log_id() -> str | None:
+    """The id a pool worker was handed by `submit_with_run_label`, if any.
+
+    Lazy import for the same reason as `_current_run_label`.
+    """
+    try:
+        from utils.context_executor import inherited_log_id
+
+        return inherited_log_id()
+    except Exception:
+        return None
 
 
 class RequestIdFilter(logging.Filter):

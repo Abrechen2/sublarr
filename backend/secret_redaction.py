@@ -66,9 +66,12 @@ _KV_KEYS = (
     r"(?:api[_-]?key|apikey|access[_-]?token|refresh[_-]?token|auth[_-]?token|"
     r"client[_-]?secret|token|secret|password|passwd|pwd|pin|credentials?)"
 )
+# A bare value runs to whitespace, a quote, `&` or `;` — not to `,`/`)`/`]`,
+# which let `password=abc,def` keep `,def`. Prose like `credentials: missing`
+# is redacted too: safety over readability.
 _KV_RE = re.compile(
     r"(?i)(?<![A-Za-z0-9])(?P<key>" + _KV_KEYS + r"[\"']?\s*[:=]\s*)"
-    r"(?:\"(?P<dq>[^\"]*)\"|'(?P<sq>[^']*)'|(?P<bare>[^\s\"'&,;)}\]]+))"
+    r"(?:\"(?P<dq>[^\"]*)\"|'(?P<sq>[^']*)'|(?P<bare>[^\s\"'&;]+))"
 )
 
 # Settings whose value is a list of notification URLs (Apprise), where nearly
@@ -205,7 +208,11 @@ def collect_secret_values(settings) -> frozenset[str]:
 
 # ─── Live value cache ─────────────────────────────────────────────────────────
 
-_cache_lock = threading.Lock()
+# Reentrant, plus a per-thread "collecting" flag: collection runs inside a
+# logging filter, and anything it logs re-enters redact() on the same thread.
+# A plain Lock deadlocked there; an RLock alone would recurse into collection.
+_cache_lock = threading.RLock()
+_collecting = threading.local()
 _cached_settings: object | None = None
 _cached_values: tuple[str, ...] = ()
 _warned = False
@@ -240,13 +247,19 @@ def _current_values() -> tuple[str, ...]:
         return ()
     if settings is _cached_settings:
         return _cached_values
+    if getattr(_collecting, "active", False):
+        # A record logged by the collection itself: use what we have so far.
+        return _cached_values
     with _cache_lock:
         if settings is not _cached_settings:
+            _collecting.active = True
             try:
                 values = collect_secret_values(settings)
             except Exception as exc:  # noqa: BLE001 — degrade to the regex layer
                 _warn_once("could not collect configured secrets", exc)
                 values = frozenset()
+            finally:
+                _collecting.active = False
             _cached_values = tuple(sorted(values, key=len, reverse=True))
             _cached_settings = settings
         return _cached_values
@@ -274,6 +287,28 @@ def redact(text: str, values: Iterable[str] | None = None) -> str:
         if value in text:
             text = text.replace(value, REDACTED)
     return _redact_patterns(text)
+
+
+def scrub_tree(value, scrub=None):
+    """Return a copy of a JSON-like structure with ``scrub`` applied to every string leaf.
+
+    Walks the structure instead of redacting its JSON text: on JSON text an
+    escaped quote inside a value broke the round trip (the section was lost)
+    and a non-ASCII secret, escaped by ``json.dumps``, no longer matched the
+    value pass. Dict keys are field names and left alone.
+    """
+    if scrub is None:
+        scrub = redact
+    if isinstance(value, str):
+        return scrub(value)
+    if isinstance(value, dict):
+        return {k: scrub_tree(v, scrub) for k, v in value.items()}
+    if isinstance(value, (list, tuple)):
+        return [scrub_tree(v, scrub) for v in value]
+    if value is None or isinstance(value, (bool, int, float)):
+        return value
+    # Anything else (datetime, Decimal, …) ships as text — scrubbed like text.
+    return scrub(str(value))
 
 
 class SecretRedactionFilter(logging.Filter):

@@ -364,3 +364,154 @@ class TestDiagnosticStatsActuallyLoad:
         save_config_entry("last_scan_timestamp", stamp)
 
         assert _get_last_scan_minutes() in (29, 30, 31)
+
+
+# ─── Review fixes (rc.2 cold review) ─────────────────────────────────────────
+
+
+class TestTruncateAfterRedaction:
+    """I-1: truncating before redaction cut a DSN mid-password, and the half
+    that survived no longer matched any secret pattern."""
+
+    def test_top_error_dsn_straddling_the_cut_does_not_leak(self, tmp_path, monkeypatch):
+        import app_logging
+        from routes.system.support_logs import _TOP_ERROR_MSG_LEN, _extract_top_errors
+
+        prefix = "connect failed: postgresql://sublarr:"
+        # Put the cut in the middle of the password.
+        pad = "x" * (_TOP_ERROR_MSG_LEN - len(prefix) - 8)
+        message = f"{pad}{prefix}SuperS3cretPassw0rd@db:5432/sublarr"
+        assert message.index("SuperS3c") < _TOP_ERROR_MSG_LEN < message.index("@db")
+        log = tmp_path / "sublarr.log"
+        log.write_text(f"{_stamp()},1 [ERROR] [-] db.session: {message}\n", encoding="utf-8")
+        monkeypatch.setattr(app_logging, "rotated_log_candidates", lambda: [str(log)])
+
+        errors = _extract_top_errors()
+
+        assert errors
+        assert "SuperS3c" not in errors[0]["message"]
+        assert len(errors[0]["message"]) <= _TOP_ERROR_MSG_LEN
+
+    def test_run_history_error_msg_straddling_the_cut_does_not_leak(self, app_ctx):
+        from datetime import UTC, datetime
+
+        from db.models.scheduler import JobRun
+        from extensions import db
+        from routes.system.support_sections import _ERROR_MSG_MAX, scheduler_section
+
+        prefix = "OperationalError: could not connect postgresql://sublarr:"
+        pad = "y" * (_ERROR_MSG_MAX - len(prefix) - 8)
+        db.session.add(
+            JobRun(
+                job_id="wanted_scanner",
+                started_at=datetime.now(UTC),
+                status="error",
+                error_msg=f"{pad}{prefix}SuperS3cretPassw0rd@db:5432/x",
+            )
+        )
+        db.session.commit()
+
+        runs = scheduler_section()["recent_runs"]["wanted_scanner"]
+
+        assert "SuperS3c" not in runs[0]["error_msg"]
+
+
+class TestSectionLeavesAreScrubbedOneByOne:
+    """I-3 / I-4: redacting the JSON text broke on escaped quotes (section lost)
+    and missed non-ASCII secrets (JSON escapes them); paths and IPs were not
+    anonymized at all."""
+
+    def test_quotes_inside_a_value_keep_the_section(self, monkeypatch):
+        import routes.system.support_sections as sections_mod
+
+        out = sections_mod.run_section("x", lambda: {"msg": 'auth said token: "abc def" nope'})
+
+        assert "unavailable" not in out
+        assert "abc def" not in out["msg"]
+
+    def test_non_ascii_secret_is_redacted(self, monkeypatch):
+        import config_singleton
+        import routes.system.support_sections as sections_mod
+        from config_settings import Settings
+
+        monkeypatch.setattr(config_singleton, "_settings", Settings(jimaku_api_key="Schlüssel123"))
+
+        out = sections_mod.run_section("x", lambda: {"msg": ["used Schlüssel123 here"]})
+
+        assert "Schlüssel123" not in out["msg"][0]
+
+    def test_paths_ips_and_emails_are_anonymized(self):
+        import routes.system.support_sections as sections_mod
+
+        out = sections_mod.run_section(
+            "x",
+            lambda: {"err": "failed /media/Anime/Show/S01E01.mkv from 85.214.132.17 by a@b.de"},
+        )
+
+        assert "Anime/Show" not in out["err"]
+        assert "85.214.132.17" not in out["err"]
+        assert "a@b.de" not in out["err"]
+        assert "S01E01.mkv" in out["err"]
+
+    def test_non_string_leaves_are_kept(self):
+        import routes.system.support_sections as sections_mod
+
+        out = sections_mod.run_section("x", lambda: {"n": 3, "b": True, "none": None, "f": 1.5})
+
+        assert out == {"n": 3, "b": True, "none": None, "f": 1.5}
+
+
+class TestReadersHonourTheCap:
+    """Review: the preview read every rotated file in full, three times,
+    ignoring the 50 MB cap the export applies."""
+
+    def _files(self, tmp_path):
+        old = tmp_path / "sublarr.log.1"
+        new = tmp_path / "sublarr.log"
+        old.write_text(
+            f"{_stamp()},1 [ERROR] [-] a: ancient failure 85.214.132.17\n" * 50,
+            encoding="utf-8",
+        )
+        new.write_text(f"{_stamp()},1 [WARNING] [-] a: fresh warning\n" * 5, encoding="utf-8")
+        return [str(new), str(old)]
+
+    def _cap_to_newest(self, monkeypatch, files):
+        import os
+
+        import routes.system.support_logs as support_logs
+
+        monkeypatch.setattr(support_logs, "LOG_PAYLOAD_CAP_BYTES", os.path.getsize(files[0]))
+
+    def test_recent_warnings_stay_inside_the_cap(self, tmp_path, monkeypatch):
+        from routes.system.support_logs import recent_warnings
+
+        files = self._files(tmp_path)
+        self._cap_to_newest(monkeypatch, files)
+
+        joined = "".join(recent_warnings(files, hostname=None))
+
+        assert "fresh warning" in joined
+        assert "ancient failure" not in joined
+
+    def test_top_errors_stay_inside_the_cap(self, tmp_path, monkeypatch):
+        import app_logging
+        from routes.system.support_logs import _extract_top_errors
+
+        files = self._files(tmp_path)
+        self._cap_to_newest(monkeypatch, files)
+        monkeypatch.setattr(app_logging, "rotated_log_candidates", lambda: files)
+
+        messages = [e["message"] for e in _extract_top_errors()]
+
+        assert messages == ["fresh warning"]
+
+    def test_redaction_summary_stays_inside_the_cap(self, tmp_path, monkeypatch):
+        from routes.system.support_logs import redaction_summary
+
+        files = self._files(tmp_path)
+        self._cap_to_newest(monkeypatch, files)
+
+        summary = redaction_summary(files, hostname=None)
+
+        assert summary["ips_redacted"] == 0
+        assert summary["log_files_found"] == 2

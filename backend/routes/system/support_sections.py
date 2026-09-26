@@ -13,7 +13,6 @@ before it leaves this module.
 
 from __future__ import annotations
 
-import json
 import logging
 import os
 import shutil
@@ -22,7 +21,8 @@ import time
 from collections.abc import Callable
 from datetime import UTC, datetime
 
-from secret_redaction import redact
+from routes.system.support_logs import _anonymize, current_hostname
+from secret_redaction import redact, scrub_tree
 
 logger = logging.getLogger(__name__)
 
@@ -46,15 +46,20 @@ def _iso(value) -> str | None:
     return value.isoformat() if value is not None else None
 
 
-def _redact_tree(value):
-    """Redact every string inside a JSON-able structure."""
-    return json.loads(redact(json.dumps(value, default=str)))
+def _scrub_section(value):
+    """Anonymize every string leaf — secrets, paths, IPs, e-mails, hostname.
+
+    The same helper the log files go through: run-history error texts carry
+    media paths and addresses just like log lines do.
+    """
+    hostname = current_hostname()
+    return scrub_tree(value, lambda text: _anonymize(text, hostname=hostname))
 
 
 def run_section(name: str, build: Callable[[], dict]) -> dict:
     """Build one section; a failure becomes ``{"unavailable": reason}``."""
     try:
-        return _redact_tree(build())
+        return _scrub_section(build())
     except Exception as exc:  # noqa: BLE001 — one section must not abort the export
         logger.warning("support bundle: section %s unavailable: %s", name, exc, exc_info=True)
         return {"unavailable": redact(f"{type(exc).__name__}: {exc}")}
@@ -182,7 +187,9 @@ def _recent_runs() -> dict:
                 "status": r.status,
                 "triggered_by": r.triggered_by,
                 "error_type": r.error_type,
-                "error_msg": (r.error_msg or "")[:_ERROR_MSG_MAX] or None,
+                # Anonymize the whole text, then cut — cutting first can split
+                # a DSN mid-password so the surviving half matches no pattern.
+                "error_msg": _anonymize(r.error_msg)[:_ERROR_MSG_MAX] if r.error_msg else None,
             }
             for r in rows
         ]

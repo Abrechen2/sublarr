@@ -16,7 +16,7 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 
 from security_utils import is_safe_path
 from subtitle_filename import parse_subtitle_filename
-from utils.context_executor import submit_with_context
+from utils.context_executor import submit_with_run_label
 
 logger = logging.getLogger(__name__)
 
@@ -150,7 +150,7 @@ def scan_for_duplicates(media_path: str, socketio=None) -> dict:
             return {"error": str(e), "file_path": fp}
 
     with ThreadPoolExecutor(max_workers=4) as executor:
-        futures = {submit_with_context(executor, _process_file, fp): fp for fp in subtitle_files}
+        futures = {submit_with_run_label(executor, _process_file, fp): fp for fp in subtitle_files}
 
         for future in as_completed(futures):
             result = future.result()

@@ -2499,5 +2499,9 @@
   "support_section_foreign_tracks": "Fremdsprachige Spuren",
   "support_section_environment": "Umgebung",
   "support_rate_limited": "Zu viele Anfragen — bitte eine Minute warten und erneut versuchen",
-  "log_rotation_saved_restart": "Rotation gespeichert — wirkt nach dem nächsten Neustart"
+  "log_rotation_saved_restart": "Rotation gespeichert — wirkt nach dem nächsten Neustart",
+  "support_section_unavailable": "{{section}}: nicht verfügbar — {{reason}}",
+  "support_more_count": "+{{count}} weitere",
+  "support_entries_count": "{{count}} Einträge",
+  "support_details_label": "Details"
 }

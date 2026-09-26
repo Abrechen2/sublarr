@@ -98,8 +98,9 @@ def _wants_raw_log() -> bool:
     return request.args.get("raw", "").lower() in ("1", "true")
 
 
-# The bundle path builds the same ZIP as /logs/support-export, and calling that
-# view as a function bypasses its own limit — so the limit is repeated here.
+# The bundle path builds the same ZIP as /logs/support-export and carries the
+# same limit. It calls the undecorated builder: calling the decorated export
+# view here would apply that view's limit too, counting each download twice.
 # The raw path is a plain file send and stays unlimited.
 @bp.route("/logs/download", methods=["GET"])
 @limiter.limit("6 per minute", exempt_when=_wants_raw_log)
@@ -146,9 +147,9 @@ def download_logs():
     # act on it. Delegating means there is one bundle builder, so the two paths
     # cannot drift in what they redact.
     if not _wants_raw_log():
-        from routes.system.support import support_export
+        from routes.system.support import build_support_export_response
 
-        return support_export()
+        return build_support_export_response()
 
     from config import get_settings
 

@@ -11,14 +11,16 @@ import {
   CATEGORY_PREFIXES,
   getLineLevel,
   getLevelClassName,
+  LEVEL_SEVERITY,
   lineMatchesCategoryPrefixes,
 } from '@/lib/logLineParsing'
 
 const ESTIMATED_ROW_HEIGHT = 24
 const OVERSCAN = 10
 
+// No dedicated CRITICAL filter button: LEVEL_SEVERITY treats CRITICAL as
+// equal to ERROR, so selecting "ERROR" here already shows CRITICAL lines too.
 const LOG_LEVELS = ['ALL', 'DEBUG', 'INFO', 'WARNING', 'ERROR'] as const
-const LEVEL_SEVERITY: Record<string, number> = { DEBUG: 0, INFO: 1, WARNING: 2, ERROR: 3 }
 
 export function LogsPage() {
   const { t } = useTranslation('logs')

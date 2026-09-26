@@ -17,13 +17,12 @@ with the snapshot's own secret values, as a second line of defence.
 from __future__ import annotations
 
 import ipaddress
-import json
 import types
 import typing
 from urllib.parse import urlsplit
 
 from config_settings import BootSettings, UISettings, is_sensitive_config_key
-from secret_redaction import collect_secret_values, redact
+from secret_redaction import collect_secret_values, redact, scrub_tree
 
 # Shown instead of a masked value when something is configured; "" otherwise.
 MASK_SET = "***configured***"
@@ -161,4 +160,4 @@ def build_config_snapshot(settings) -> dict:
     # Second layer: a secret that slipped into an allow-listed value (a key
     # pasted into the wrong field) is still caught by value and by shape.
     secrets = collect_secret_values(settings)
-    return json.loads(redact(json.dumps(snapshot, default=str), values=secrets))
+    return scrub_tree(snapshot, lambda text: redact(text, values=secrets))

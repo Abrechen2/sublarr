@@ -3,6 +3,7 @@ import {
   CATEGORY_PREFIXES,
   getLineLevel,
   getLevelClassName,
+  LEVEL_SEVERITY,
   lineMatchesCategoryPrefixes,
   loggerMatchesPrefixes,
   parseLogLine,
@@ -98,6 +99,26 @@ describe('getLineLevel / getLevelClassName', () => {
     expect(getLevelClassName(textLine('DEBUG', 'auth'))).toBe('text-muted')
     expect(getLevelClassName(textLine('INFO', 'auth'))).toBe('text-foreground')
   })
+
+  // Cold-review fix: CRITICAL lines were falling through to the "unrecognized
+  // level" INFO default in both the text-bracket regex and the JSON-level
+  // check, so a CRITICAL line was coloured/filtered as if it were the least
+  // severe thing in the log — the opposite of the intent.
+  it('recognizes CRITICAL (text and JSON) instead of falling back to INFO', () => {
+    expect(getLineLevel(textLine('CRITICAL', 'auth'))).toBe('CRITICAL')
+    expect(getLineLevel(jsonLine('CRITICAL', 'auth'))).toBe('CRITICAL')
+  })
+
+  it('treats CRITICAL like ERROR for colour', () => {
+    expect(getLevelClassName(textLine('CRITICAL', 'auth'))).toBe(
+      getLevelClassName(textLine('ERROR', 'auth')),
+    )
+  })
+
+  it('treats CRITICAL like ERROR for severity (so an ERROR-level filter still shows it)', () => {
+    expect(LEVEL_SEVERITY.CRITICAL).toBe(LEVEL_SEVERITY.ERROR)
+    expect(LEVEL_SEVERITY.CRITICAL).toBeGreaterThan(LEVEL_SEVERITY.WARNING)
+  })
 })
 
 describe('loggerMatchesPrefixes — module-path segment matching', () => {
@@ -142,6 +163,16 @@ describe('loggerMatchesPrefixes — module-path segment matching', () => {
   it('matches both the top-level auth module and routes.auth_ui', () => {
     expect(loggerMatchesPrefixes('auth', CATEGORY_PREFIXES.auth)).toBe(true)
     expect(loggerMatchesPrefixes('routes.auth_ui', CATEGORY_PREFIXES.auth)).toBe(true)
+  })
+
+  // Cold-review fix: `backend/ui_auth.py` and `backend/proxy_auth.py` are
+  // top-level modules, so their logger names are the bare "ui_auth" /
+  // "proxy_auth" — neither equals "auth" nor starts with it (the suffix is
+  // "_auth", not a leading "auth"), so they silently fell outside the auth
+  // category until listed explicitly.
+  it('matches the ui_auth and proxy_auth top-level module loggers', () => {
+    expect(loggerMatchesPrefixes('ui_auth', CATEGORY_PREFIXES.auth)).toBe(true)
+    expect(loggerMatchesPrefixes('proxy_auth', CATEGORY_PREFIXES.auth)).toBe(true)
   })
 
   it('does not match an unrelated logger', () => {

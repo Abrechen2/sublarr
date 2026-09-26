@@ -50,49 +50,144 @@ function savePrefs(prefs: LogViewPrefs): void {
 
 // ─── Support export modal ─────────────────────────────────────────────────────
 
-/**
- * Renders any object/array-shaped value as a plain key/value list. Used for
- * the support-preview sections the backend is adding alongside `diagnostic`
- * and `redaction_summary` (database, scheduler, circuit breakers, queues,
- * foreign-track sweep, track policy, tool versions): every one of them is
- * optional and its exact shape may still change on the backend side, so this
- * stays generic instead of hard-coding field names that would go stale.
- */
-function renderSupportValue(value: unknown, boolYes: string, boolNo: string): string {
-  if (value === null || value === undefined || value === '') return '—'
-  if (typeof value === 'boolean') return value ? boolYes : boolNo
-  if (typeof value === 'number' || typeof value === 'string') return String(value)
-  try {
-    return JSON.stringify(value)
-  } catch {
-    return String(value)
-  }
+/** Caps how many items of a nested list render before a "+N more" note —
+ * a job's `recent_runs` can hold up to 20 entries; the modal shows a taste,
+ * not a full dump. */
+const MAX_NESTED_LIST_ITEMS = 5
+
+function isPlainObject(value: unknown): value is Record<string, unknown> {
+  return value !== null && typeof value === 'object' && !Array.isArray(value)
+}
+
+/** True for a section whose backend collection failed — rendered as one
+ * muted line instead of a key/value table (see `support_section_unavailable`). */
+function isUnavailableSection(data: unknown): data is { unavailable: string } {
+  return isPlainObject(data) && typeof data.unavailable === 'string'
 }
 
 function isRateLimited(err: unknown): boolean {
   return (err as { response?: { status?: number } } | null)?.response?.status === 429
 }
 
+function renderScalar(value: unknown, boolYes: string, boolNo: string): string {
+  if (value === null || value === undefined || value === '') return '—'
+  if (typeof value === 'boolean') return value ? boolYes : boolNo
+  return String(value)
+}
+
+interface SupportRenderCtx {
+  boolYes: string
+  boolNo: string
+  /** "+N more" for a list capped at MAX_NESTED_LIST_ITEMS. */
+  moreLabel: (n: number) => string
+  /** "<N> entries" — the <details> summary for a collapsed object list. */
+  entriesLabel: (n: number) => string
+  /** Generic disclosure summary for a collapsed nested object. */
+  detailsLabel: string
+}
+
+/**
+ * Renders one row's value. Primitives render as plain text, same as before.
+ * Arrays/objects used to go through `JSON.stringify` — for something like a
+ * scheduler job's `recent_runs` (an array of run objects nested inside the
+ * job object) that produced one huge unreadable JSON blob per row. Now any
+ * nested array/object renders as an indented, capped, collapsible list
+ * instead — recursively, so it applies at any nesting depth.
+ */
+function SupportSectionValue({ value, ctx }: { value: unknown; ctx: SupportRenderCtx }) {
+  if (!isPlainObject(value) && !Array.isArray(value)) {
+    return <span className="text-right break-all">{renderScalar(value, ctx.boolYes, ctx.boolNo)}</span>
+  }
+
+  if (Array.isArray(value)) {
+    const shown = value.slice(0, MAX_NESTED_LIST_ITEMS)
+    const rest = value.length - shown.length
+    const isPrimitiveList = value.every((v) => !isPlainObject(v) && !Array.isArray(v))
+
+    if (isPrimitiveList) {
+      return (
+        <span className="text-right break-all">
+          {shown.map((v) => renderScalar(v, ctx.boolYes, ctx.boolNo)).join(', ')}
+          {rest > 0 ? ` ${ctx.moreLabel(rest)}` : ''}
+        </span>
+      )
+    }
+
+    return (
+      <details className="text-right">
+        <summary className="inline cursor-pointer text-xs text-muted">
+          {ctx.entriesLabel(value.length)}
+        </summary>
+        <div className="mt-1 space-y-1.5 border-l border-border pl-3 text-left">
+          {shown.map((item, i) => (
+            <div key={i} className="space-y-0.5">
+              {isPlainObject(item) ? (
+                <SupportSectionRows data={item} ctx={ctx} />
+              ) : (
+                <SupportSectionValue value={item} ctx={ctx} />
+              )}
+            </div>
+          ))}
+          {rest > 0 && <p className="text-xs text-muted">{ctx.moreLabel(rest)}</p>}
+        </div>
+      </details>
+    )
+  }
+
+  // Plain nested object.
+  return (
+    <details className="text-right">
+      <summary className="inline cursor-pointer text-xs text-muted">{ctx.detailsLabel}</summary>
+      <div className="mt-1 space-y-0.5 border-l border-border pl-3 text-left">
+        <SupportSectionRows data={value} ctx={ctx} />
+      </div>
+    </details>
+  )
+}
+
+function SupportSectionRows({ data, ctx }: { data: Record<string, unknown>; ctx: SupportRenderCtx }) {
+  return (
+    <>
+      {Object.entries(data).map(([key, value]) => (
+        <div key={key} className="flex justify-between gap-3 text-secondary">
+          <span className="font-mono text-xs">{key}</span>
+          <SupportSectionValue value={value} ctx={ctx} />
+        </div>
+      ))}
+    </>
+  )
+}
+
 function SupportGenericSection({ title, data }: { title: string; data: unknown }) {
   const { t } = useTranslation('settings')
   if (data === null || data === undefined) return null
 
-  const boolYes = t('support_bool_yes')
-  const boolNo = t('support_bool_no')
+  if (isUnavailableSection(data)) {
+    return (
+      <p className="mb-4 text-sm text-muted">
+        {t('support_section_unavailable', { section: title, reason: data.unavailable })}
+      </p>
+    )
+  }
+
+  const ctx: SupportRenderCtx = {
+    boolYes: t('support_bool_yes'),
+    boolNo: t('support_bool_no'),
+    moreLabel: (n) => t('support_more_count', { count: n }),
+    entriesLabel: (n) => t('support_entries_count', { count: n }),
+    detailsLabel: t('support_details_label'),
+  }
 
   let rows: { key: string; value: unknown }[]
   if (Array.isArray(data)) {
     rows = data.flatMap((item, index) => {
-      if (item !== null && typeof item === 'object' && !Array.isArray(item)) {
-        return Object.entries(item as Record<string, unknown>).map(([k, v]) => ({
-          key: `${index}.${k}`,
-          value: v,
-        }))
+      if (isPlainObject(item)) {
+        return Object.entries(item).map(([k, v]) => ({ key: `${index}.${k}`, value: v }))
       }
       return [{ key: String(index), value: item }]
     })
-  } else if (typeof data === 'object') {
-    rows = Object.entries(data as Record<string, unknown>).map(([key, value]) => ({ key, value }))
+  } else if (isPlainObject(data)) {
+    rows = Object.entries(data).map(([key, value]) => ({ key, value }))
   } else {
     rows = [{ key: title, value: data }]
   }
@@ -105,7 +200,7 @@ function SupportGenericSection({ title, data }: { title: string; data: unknown }
       {rows.map(({ key, value }) => (
         <div key={key} className="flex justify-between gap-3 text-secondary">
           <span className="font-mono text-xs">{key}</span>
-          <span className="text-right break-all">{renderSupportValue(value, boolYes, boolNo)}</span>
+          <SupportSectionValue value={value} ctx={ctx} />
         </div>
       ))}
     </div>
@@ -116,7 +211,7 @@ export function SupportModal({ onClose }: { onClose: () => void }) {
   const { t } = useTranslation('settings')
   const [downloading, setDownloading] = useState(false)
 
-  const { data, isLoading, isError } = useQuery<SupportPreview>({
+  const { data, isLoading, isError, error } = useQuery<SupportPreview>({
     queryKey: ['support-preview'],
     queryFn: fetchSupportPreview,
     staleTime: 0,
@@ -146,36 +241,32 @@ export function SupportModal({ onClose }: { onClose: () => void }) {
         role="dialog"
         aria-modal="true"
         aria-labelledby="support-modal-title"
-        className="w-full max-w-lg rounded-xl p-6 shadow-xl"
-        style={{ background: 'var(--bg-surface)', maxHeight: '85vh', overflowY: 'auto' }}
+        className="w-full max-w-lg max-h-[85vh] overflow-y-auto rounded-xl bg-surface p-6 shadow-xl"
       >
         <h2 id="support-modal-title" className="mb-4 text-lg font-semibold">
           {t('support_modal_title')}
         </h2>
 
         {isLoading && (
-          <p className="text-sm" style={{ color: 'var(--text-secondary)' }}>
+          <p className="text-sm text-secondary">
             {t('support_modal_loading')}
           </p>
         )}
 
         {isError && !data && (
-          <p className="mb-3 text-sm" style={{ color: 'var(--text-error, #f87171)' }}>
-            {t('support_modal_error')}
+          <p className="mb-3 text-sm text-error">
+            {t(isRateLimited(error) ? 'support_rate_limited' : 'support_modal_error')}
           </p>
         )}
 
         {diag && (
-          <div
-            className="mb-4 rounded-lg p-4 text-sm space-y-3"
-            style={{ background: 'var(--bg-primary)', border: '1px solid var(--border)' }}
-          >
+          <div className="mb-4 space-y-3 rounded-lg border border-border bg-page p-4 text-sm">
             <p className="font-medium">{t('support_diagnostic_title')}</p>
-            <p style={{ color: 'var(--text-secondary)' }}>
+            <p className="text-secondary">
               Sublarr {diag.version} · {diag.timestamp_utc}
             </p>
             {(diag.uptime_minutes != null || diag.memory_mb != null) && (
-              <p style={{ color: 'var(--text-secondary)' }}>
+              <p className="text-secondary">
                 {diag.uptime_minutes != null &&
                   `${t('support_uptime')}: ${Math.floor(diag.uptime_minutes / 60)}h ${diag.uptime_minutes % 60}m`}
                 {diag.uptime_minutes != null && diag.memory_mb != null && '  ·  '}
@@ -185,11 +276,11 @@ export function SupportModal({ onClose }: { onClose: () => void }) {
             <div>
               <p className="font-medium mb-1">{t('support_top_errors')}</p>
               {diag.top_errors.length === 0 ? (
-                <p style={{ color: 'var(--text-secondary)' }}>{t('support_no_errors')}</p>
+                <p className="text-secondary">{t('support_no_errors')}</p>
               ) : (
                 <ul className="space-y-0.5">
                   {diag.top_errors.slice(0, 5).map((e, i) => (
-                    <li key={i} style={{ color: 'var(--text-secondary)' }}>
+                    <li key={i} className="text-secondary">
                       ✗ {e.message} (×{e.count})
                     </li>
                   ))}
@@ -199,7 +290,7 @@ export function SupportModal({ onClose }: { onClose: () => void }) {
             {diag.provider_status.length > 0 && (
               <div>
                 <p className="font-medium mb-1">{t('support_providers')}</p>
-                <p style={{ color: 'var(--text-secondary)' }}>
+                <p className="text-secondary">
                   {diag.provider_status
                     .map(p => `${p.active ? '●' : '○'} ${p.name}`)
                     .join('  ')}
@@ -207,7 +298,7 @@ export function SupportModal({ onClose }: { onClose: () => void }) {
               </div>
             )}
             {!diag.db_stats_error && diag.wanted && (
-              <p style={{ color: 'var(--text-secondary)' }}>
+              <p className="text-secondary">
                 {t('support_wanted_label')}: {diag.wanted.total} · {t('support_pending_label')}:{' '}
                 {diag.wanted.pending} · {t('support_failed_label')}: {diag.wanted.failed}
               </p>
@@ -216,12 +307,9 @@ export function SupportModal({ onClose }: { onClose: () => void }) {
         )}
 
         {rs && (
-          <div
-            className="mb-4 rounded-lg p-4 text-sm space-y-2"
-            style={{ background: 'var(--bg-primary)', border: '1px solid var(--border)' }}
-          >
+          <div className="mb-4 space-y-2 rounded-lg border border-border bg-page p-4 text-sm">
             <p className="font-medium">{t('support_redaction_title')}</p>
-            <p style={{ color: 'var(--text-secondary)' }}>
+            <p className="text-secondary">
               {rs.log_files_found} {t('support_log_files')} · {rs.ips_redacted}{' '}
               {t('support_ips_label')} · {rs.api_keys_redacted} {t('support_keys_label')} ·{' '}
               {rs.paths_redacted} {t('support_paths_label').toLowerCase()}
@@ -229,11 +317,11 @@ export function SupportModal({ onClose }: { onClose: () => void }) {
             {rs.example_path_before && (
               <div className="mt-2">
                 <p className="text-xs font-medium">{t('support_paths_label')}:</p>
-                <p className="text-xs font-mono" style={{ color: 'var(--text-secondary)' }}>
+                <p className="text-xs font-mono text-secondary">
                   <span className="font-sans font-medium">{t('support_before')}:</span>{' '}
                   {rs.example_path_before}
                 </p>
-                <p className="text-xs font-mono" style={{ color: 'var(--text-secondary)' }}>
+                <p className="text-xs font-mono text-secondary">
                   <span className="font-sans font-medium">{t('support_after')}:</span>{' '}
                   {rs.example_path_after}
                 </p>
@@ -242,11 +330,11 @@ export function SupportModal({ onClose }: { onClose: () => void }) {
             {rs.example_ip_before && (
               <div className="mt-1">
                 <p className="text-xs font-medium">{t('support_ips_label')}:</p>
-                <p className="text-xs font-mono" style={{ color: 'var(--text-secondary)' }}>
+                <p className="text-xs font-mono text-secondary">
                   <span className="font-sans font-medium">{t('support_before')}:</span>{' '}
                   {rs.example_ip_before}
                 </p>
-                <p className="text-xs font-mono" style={{ color: 'var(--text-secondary)' }}>
+                <p className="text-xs font-mono text-secondary">
                   <span className="font-sans font-medium">{t('support_after')}:</span>{' '}
                   {rs.example_ip_after}
                 </p>
@@ -269,16 +357,14 @@ export function SupportModal({ onClose }: { onClose: () => void }) {
           <button
             autoFocus
             onClick={onClose}
-            className="rounded-lg px-4 py-2 text-sm"
-            style={{ background: 'var(--bg-primary)', border: '1px solid var(--border)' }}
+            className="rounded-lg border border-border bg-page px-4 py-2 text-sm"
           >
             {t('support_modal_cancel')}
           </button>
           <button
             onClick={handleDownload}
             disabled={downloading}
-            className="rounded-lg px-4 py-2 text-sm font-medium"
-            style={{ background: 'var(--bg-accent)', color: 'var(--text-on-accent)' }}
+            className="rounded-lg bg-accent px-4 py-2 text-sm font-medium text-white"
           >
             {downloading ? '...' : t('support_modal_download')}
           </button>
@@ -377,8 +463,7 @@ export function ProtokollTab() {
             <select
               value={(config as Record<string, string> | undefined)?.log_level ?? 'INFO'}
               onChange={e => saveConfig({ log_level: e.target.value })}
-              className="rounded-lg px-3 py-2 text-sm"
-              style={{ background: 'var(--bg-primary)', border: '1px solid var(--border)' }}
+              className="rounded-lg border border-border bg-page px-3 py-2 text-sm"
             >
               {LOG_LEVELS.map(l => (
                 <option key={l} value={l}>{l}</option>
@@ -394,8 +479,7 @@ export function ProtokollTab() {
               <input
                 type="number" min={1} max={100} value={maxSize}
                 onChange={e => setMaxSize(Math.min(100, Math.max(1, Number(e.target.value))))}
-                className="w-full rounded-lg px-3 py-2 text-sm"
-                style={{ background: 'var(--bg-primary)', border: '1px solid var(--border)' }}
+                className="w-full rounded-lg border border-border bg-page px-3 py-2 text-sm"
               />
             </div>
             <div>
@@ -403,16 +487,14 @@ export function ProtokollTab() {
               <input
                 type="number" min={1} max={20} value={backupCount}
                 onChange={e => setBackupCount(Math.min(20, Math.max(1, Number(e.target.value))))}
-                className="w-full rounded-lg px-3 py-2 text-sm"
-                style={{ background: 'var(--bg-primary)', border: '1px solid var(--border)' }}
+                className="w-full rounded-lg border border-border bg-page px-3 py-2 text-sm"
               />
             </div>
           </div>
           <button
             onClick={handleSaveRotation}
             disabled={updateRotation.isPending}
-            className="rounded-lg px-4 py-2 text-sm font-medium"
-            style={{ background: 'var(--bg-accent)', color: 'var(--text-on-accent)' }}
+            className="rounded-lg bg-accent px-4 py-2 text-sm font-medium text-white"
           >
             {updateRotation.isPending ? '...' : t('save', { ns: 'common' })}
           </button>
