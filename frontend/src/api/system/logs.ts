@@ -34,7 +34,17 @@ export async function getLogRotation(): Promise<LogRotationConfig> {
   return data
 }
 
-export async function updateLogRotation(config: LogRotationConfig): Promise<LogRotationConfig> {
+/** `live` is false when the backend saved the values but could not re-apply
+ *  them to the running handler (they then take effect on restart). */
+export interface LogRotationUpdateResult extends LogRotationConfig {
+  status?: 'applied' | 'saved'
+  live?: boolean
+  note?: string
+}
+
+export async function updateLogRotation(
+  config: LogRotationConfig,
+): Promise<LogRotationUpdateResult> {
   const { data } = await api.put('/logs/rotation', config)
   return data
 }

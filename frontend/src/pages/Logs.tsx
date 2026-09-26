@@ -7,29 +7,18 @@ import { Pause, Search, ArrowDown, Download } from 'lucide-react'
 import { PageHeader } from '@/components/layout/PageHeader'
 import { downloadSupportBundle } from '@/api/system/logs'
 import { toast } from '@/components/shared/Toast'
+import {
+  CATEGORY_PREFIXES,
+  getLineLevel,
+  getLevelClassName,
+  lineMatchesCategoryPrefixes,
+} from '@/lib/logLineParsing'
 
 const ESTIMATED_ROW_HEIGHT = 24
 const OVERSCAN = 10
 
 const LOG_LEVELS = ['ALL', 'DEBUG', 'INFO', 'WARNING', 'ERROR'] as const
 const LEVEL_SEVERITY: Record<string, number> = { DEBUG: 0, INFO: 1, WARNING: 2, ERROR: 3 }
-
-const CATEGORY_PREFIXES: Record<string, string[]> = {
-  scanner:     ['wanted_scanner', 'standalone'],
-  translation: ['translation', 'llm_utils'],
-  providers:   ['jimaku', 'podnapisi', 'opensubtitles', 'subdl', 'addic7ed'],
-  jobs:        ['apscheduler', 'worker'],
-  auth:        ['auth', 'auth_ui'],
-  api_access:  ['werkzeug'],
-}
-
-function getLineLevel(line: string): string {
-  if (line.includes('[ERROR]')) return 'ERROR'
-  if (line.includes('[WARNING]')) return 'WARNING'
-  if (line.includes('[INFO]')) return 'INFO'
-  if (line.includes('[DEBUG]')) return 'DEBUG'
-  return 'INFO'
-}
 
 export function LogsPage() {
   const { t } = useTranslation('logs')
@@ -87,8 +76,8 @@ export function LogsPage() {
   function isLineVisible(line: string): boolean {
     if (!logViewPrefs?.categories) return true
     for (const [cat, prefixes] of Object.entries(CATEGORY_PREFIXES)) {
-      if (logViewPrefs.categories[cat] === false) {
-        if ((prefixes as string[]).some(prefix => line.includes(` ${prefix}:`))) return false
+      if (logViewPrefs.categories[cat] === false && lineMatchesCategoryPrefixes(line, prefixes)) {
+        return false
       }
     }
     return true
@@ -123,13 +112,6 @@ export function LogsPage() {
       parentRef.current.scrollTop = parentRef.current.scrollHeight
     }
   }, [visibleLogs.length, autoScroll])
-
-  const getLevelColor = (line: string) => {
-    if (line.includes('[ERROR]')) return 'var(--error)'
-    if (line.includes('[WARNING]')) return 'var(--warning)'
-    if (line.includes('[DEBUG]')) return 'var(--text-muted)'
-    return 'var(--text-primary)'
-  }
 
   // Downloads the anonymised support bundle, not the raw log. Users kept
   // attaching raw sublarr.log to bug reports — which leaks paths and IPs, and
@@ -250,9 +232,8 @@ export function LogsPage() {
                   key={virtualRow.key}
                   ref={virtualizer.measureElement}
                   data-index={virtualRow.index}
-                  className="transition-opacity duration-100 hover:opacity-80 absolute left-0 w-full"
+                  className={`transition-opacity duration-100 hover:opacity-80 absolute left-0 w-full ${getLevelClassName(entry)}`}
                   style={{
-                    color: getLevelColor(entry),
                     transform: `translateY(${virtualRow.start}px)`,
                     whiteSpace: logViewPrefs?.wrapLines ? 'pre-wrap' : 'pre',
                     paddingTop: 2,

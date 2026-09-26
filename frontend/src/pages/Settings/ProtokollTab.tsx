@@ -30,7 +30,6 @@ const DEFAULT_PREFS: LogViewPrefs = {
     providers: true,
     jobs: true,
     auth: true,
-    api_access: false,
   },
   showTimestamps: true,
   wrapLines: false,
@@ -51,7 +50,69 @@ function savePrefs(prefs: LogViewPrefs): void {
 
 // ─── Support export modal ─────────────────────────────────────────────────────
 
-function SupportModal({ onClose }: { onClose: () => void }) {
+/**
+ * Renders any object/array-shaped value as a plain key/value list. Used for
+ * the support-preview sections the backend is adding alongside `diagnostic`
+ * and `redaction_summary` (database, scheduler, circuit breakers, queues,
+ * foreign-track sweep, track policy, tool versions): every one of them is
+ * optional and its exact shape may still change on the backend side, so this
+ * stays generic instead of hard-coding field names that would go stale.
+ */
+function renderSupportValue(value: unknown, boolYes: string, boolNo: string): string {
+  if (value === null || value === undefined || value === '') return '—'
+  if (typeof value === 'boolean') return value ? boolYes : boolNo
+  if (typeof value === 'number' || typeof value === 'string') return String(value)
+  try {
+    return JSON.stringify(value)
+  } catch {
+    return String(value)
+  }
+}
+
+function isRateLimited(err: unknown): boolean {
+  return (err as { response?: { status?: number } } | null)?.response?.status === 429
+}
+
+function SupportGenericSection({ title, data }: { title: string; data: unknown }) {
+  const { t } = useTranslation('settings')
+  if (data === null || data === undefined) return null
+
+  const boolYes = t('support_bool_yes')
+  const boolNo = t('support_bool_no')
+
+  let rows: { key: string; value: unknown }[]
+  if (Array.isArray(data)) {
+    rows = data.flatMap((item, index) => {
+      if (item !== null && typeof item === 'object' && !Array.isArray(item)) {
+        return Object.entries(item as Record<string, unknown>).map(([k, v]) => ({
+          key: `${index}.${k}`,
+          value: v,
+        }))
+      }
+      return [{ key: String(index), value: item }]
+    })
+  } else if (typeof data === 'object') {
+    rows = Object.entries(data as Record<string, unknown>).map(([key, value]) => ({ key, value }))
+  } else {
+    rows = [{ key: title, value: data }]
+  }
+
+  if (rows.length === 0) return null
+
+  return (
+    <div className="mb-4 rounded-lg border border-border bg-page p-4 text-sm space-y-1.5">
+      <p className="font-medium mb-1">{title}</p>
+      {rows.map(({ key, value }) => (
+        <div key={key} className="flex justify-between gap-3 text-secondary">
+          <span className="font-mono text-xs">{key}</span>
+          <span className="text-right break-all">{renderSupportValue(value, boolYes, boolNo)}</span>
+        </div>
+      ))}
+    </div>
+  )
+}
+
+export function SupportModal({ onClose }: { onClose: () => void }) {
   const { t } = useTranslation('settings')
   const [downloading, setDownloading] = useState(false)
 
@@ -66,8 +127,8 @@ function SupportModal({ onClose }: { onClose: () => void }) {
     setDownloading(true)
     try {
       await downloadSupportBundle()
-    } catch {
-      toast(t('support_modal_error'), 'error')
+    } catch (err) {
+      toast(t(isRateLimited(err) ? 'support_rate_limited' : 'support_modal_error'), 'error')
     } finally {
       setDownloading(false)
     }
@@ -147,8 +208,8 @@ function SupportModal({ onClose }: { onClose: () => void }) {
             )}
             {!diag.db_stats_error && diag.wanted && (
               <p style={{ color: 'var(--text-secondary)' }}>
-                Wanted: {diag.wanted.total} · Pending: {diag.wanted.pending} · Failed:{' '}
-                {diag.wanted.failed}
+                {t('support_wanted_label')}: {diag.wanted.total} · {t('support_pending_label')}:{' '}
+                {diag.wanted.pending} · {t('support_failed_label')}: {diag.wanted.failed}
               </p>
             )}
           </div>
@@ -161,9 +222,9 @@ function SupportModal({ onClose }: { onClose: () => void }) {
           >
             <p className="font-medium">{t('support_redaction_title')}</p>
             <p style={{ color: 'var(--text-secondary)' }}>
-              {rs.log_files_found} {t('support_log_files')} · {rs.ips_redacted} IPs ·{' '}
-              {rs.api_keys_redacted} Keys · {rs.paths_redacted}{' '}
-              {t('support_paths_label').toLowerCase()}
+              {rs.log_files_found} {t('support_log_files')} · {rs.ips_redacted}{' '}
+              {t('support_ips_label')} · {rs.api_keys_redacted} {t('support_keys_label')} ·{' '}
+              {rs.paths_redacted} {t('support_paths_label').toLowerCase()}
             </p>
             {rs.example_path_before && (
               <div className="mt-2">
@@ -193,6 +254,16 @@ function SupportModal({ onClose }: { onClose: () => void }) {
             )}
           </div>
         )}
+
+        {/* Additional bundle sections — all optional, rendered generically
+            since the backend adds/renames these independently of this UI. */}
+        {Object.entries(data?.sections ?? {}).map(([name, section]) => (
+          <SupportGenericSection
+            key={name}
+            title={t(`support_section_${name}`, { defaultValue: name })}
+            data={section}
+          />
+        ))}
 
         <div className="flex justify-end gap-3">
           <button
@@ -236,23 +307,34 @@ export function ProtokollTab() {
     },
   })
 
-  // Log rotation
+  // Log rotation — defaults mirror backend/app_logging.py
+  // LOG_MAX_SIZE_MB_DEFAULT / LOG_BACKUP_COUNT_DEFAULT (10 MB / 5 files), so
+  // this input never flashes a different value than what a fresh install
+  // actually runs with before the query resolves.
   const { data: rotation } = useLogRotation()
   const updateRotation = useUpdateLogRotation()
-  const [maxSize, setMaxSize] = useState(5)
-  const [backupCount, setBackupCount] = useState(3)
+  const [maxSize, setMaxSize] = useState(10)
+  const [backupCount, setBackupCount] = useState(5)
 
   useEffect(() => {
     if (rotation) {
-      setMaxSize(rotation.max_size_mb ?? 5)
-      setBackupCount(rotation.backup_count ?? 3)
+      setMaxSize(rotation.max_size_mb ?? 10)
+      setBackupCount(rotation.backup_count ?? 5)
     }
   }, [rotation])
 
   const handleSaveRotation = () => {
     updateRotation.mutate(
       { max_size_mb: maxSize, backup_count: backupCount },
-      { onSuccess: () => toast(t('saved', { ns: 'common' }), 'success') },
+      // The backend now reloads and re-applies rotation live (no restart
+      // needed) — say so instead of the generic "saved" toast, which used to
+      // leave it open whether the change had actually taken effect.
+      {
+        onSuccess: (result) =>
+          result?.live === false
+            ? toast(t('log_rotation_saved_restart'), 'info')
+            : toast(t('log_rotation_saved_live'), 'success'),
+      },
     )
   }
 
@@ -272,13 +354,16 @@ export function ProtokollTab() {
     savePrefs(next)
   }
 
+  // No "API Requests" category: under Gunicorn (Sublarr's only deployment
+  // target) access logging goes through gunicorn's own "gunicorn.access"
+  // logger straight to stdout/Docker logs, never through the app's log
+  // handlers — so a werkzeug-based filter here could never fire.
   const CATEGORIES = [
     { key: 'scanner',     label: t('category_scanner') },
     { key: 'translation', label: t('category_translation') },
     { key: 'providers',   label: t('category_providers') },
     { key: 'jobs',        label: t('category_jobs') },
     { key: 'auth',        label: t('category_auth') },
-    { key: 'api_access',  label: t('category_api_access') },
   ]
 
   return (

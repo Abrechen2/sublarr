@@ -760,9 +760,25 @@ export interface SupportRedactionSummary {
   example_ip_after: string
 }
 
+/**
+ * Bundle-content additions (2026-09-26 logging/support-export fixes): the
+ * backend adds these sections independently, each failure-tolerant on its
+ * own (an unavailable section becomes an "unavailable: <reason>" value
+ * rather than a missing key or a failed export). Kept as loose
+ * `Record<string, unknown>` / `unknown[]` on purpose — the frontend renders
+ * them generically (see `SupportGenericSection` in ProtokollTab.tsx) so a
+ * backend-side field rename never requires a matching frontend change.
+ */
 export interface SupportPreview {
   diagnostic: SupportDiagnostic
   redaction_summary: SupportRedactionSummary
+  /** database, scheduler, providers, queues, foreign_tracks, environment —
+   *  any section may instead be `{ unavailable: "<reason>" }`. */
+  sections?: Record<string, unknown>
+  log_payload?: Record<string, unknown>
+  recent_warnings_count?: number
+  generated_at?: string
+  cached?: boolean
 }
 
 // â”€â”€â”€ Scheduler â€” Phase 5 Rollout 2 â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€

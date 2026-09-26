@@ -611,7 +611,7 @@
   "category_providers": "Provider",
   "category_jobs": "Hintergrundjobs",
   "category_auth": "Auth",
-  "category_api_access": "API-Zugriffe",
+  "log_rotation_saved_live": "Rotationseinstellungen sofort übernommen",
   "show_timestamps": "Zeitstempel anzeigen",
   "wrap_lines": "Lange Zeilen umbrechen",
   "support_section": "Support",
@@ -634,6 +634,15 @@
   "support_after": "Nachher",
   "support_paths_label": "Pfade",
   "support_ips_label": "IPs",
+  "support_keys_label": "Schlüssel",
+  "support_wanted_label": "Gesucht",
+  "support_pending_label": "Ausstehend",
+  "support_failed_label": "Fehlgeschlagen",
+  "support_bool_yes": "Ja",
+  "support_bool_no": "Nein",
+  "support_section_database": "Datenbank",
+  "support_section_scheduler": "Scheduler",
+  "support_section_queues": "Warteschlangen",
   "hooks": {
     "shell_hooks": "Shell-Hooks",
     "outgoing_webhooks": "Ausgehende Webhooks",
@@ -2485,5 +2494,10 @@
     "download_err_authentication_failed": "Anmeldung beim Download abgelehnt. Suche und Download nutzen verschiedene Zugangsdaten — prüfe Benutzername und Passwort, nicht nur den API-Schlüssel.",
     "download_err_rate_limit_exceeded": "Kontingent erschöpft. Der Download-Pfad selbst ist in Ordnung.",
     "download_err_download_failed": "Der Download schlug fehl."
-  }
+  },
+  "support_section_providers": "Provider",
+  "support_section_foreign_tracks": "Fremdsprachige Spuren",
+  "support_section_environment": "Umgebung",
+  "support_rate_limited": "Zu viele Anfragen — bitte eine Minute warten und erneut versuchen",
+  "log_rotation_saved_restart": "Rotation gespeichert — wirkt nach dem nächsten Neustart"
 }

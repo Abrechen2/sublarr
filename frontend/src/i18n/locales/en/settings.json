@@ -611,7 +611,7 @@
   "category_providers": "Providers",
   "category_jobs": "Background Jobs",
   "category_auth": "Auth",
-  "category_api_access": "API Requests",
+  "log_rotation_saved_live": "Rotation settings applied immediately",
   "show_timestamps": "Show timestamps",
   "wrap_lines": "Wrap long lines",
   "support_section": "Support",
@@ -634,6 +634,15 @@
   "support_after": "After",
   "support_paths_label": "Paths",
   "support_ips_label": "IPs",
+  "support_keys_label": "Keys",
+  "support_wanted_label": "Wanted",
+  "support_pending_label": "Pending",
+  "support_failed_label": "Failed",
+  "support_bool_yes": "Yes",
+  "support_bool_no": "No",
+  "support_section_database": "Database",
+  "support_section_scheduler": "Scheduler",
+  "support_section_queues": "Queues",
   "hooks": {
     "shell_hooks": "Shell Hooks",
     "outgoing_webhooks": "Outgoing Webhooks",
@@ -2485,5 +2494,10 @@
     "download_err_authentication_failed": "The download was refused at authentication. Search and download use different credentials — check the username and password, not just the API key.",
     "download_err_rate_limit_exceeded": "Allowance exhausted. The download path itself is fine.",
     "download_err_download_failed": "The download failed."
-  }
+  },
+  "support_section_providers": "Providers",
+  "support_section_foreign_tracks": "Foreign tracks",
+  "support_section_environment": "Environment",
+  "support_rate_limited": "Too many requests — please wait a minute and try again",
+  "log_rotation_saved_restart": "Rotation saved — takes effect after the next restart"
 }
