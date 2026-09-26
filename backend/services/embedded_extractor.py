@@ -1125,7 +1125,7 @@ def extract_embedded_sub(
 # ---------------------------------------------------------------------------
 
 
-def resolve_profile_for_item(item: dict, settings) -> dict:
+def resolve_profile_for_item(item: dict, settings, *, strict: bool = False) -> dict:
     """Return the language profile that governs a wanted item.
 
     Preference order:
@@ -1135,6 +1135,10 @@ def resolve_profile_for_item(item: dict, settings) -> dict:
 
     The result always has ``target_languages`` populated so callers can
     treat it as a simple dict without defensive ``get`` calls.
+
+    ``strict`` re-raises a failed series/movie lookup instead of falling back
+    to the default profile — for the foreign-track cleanup, where a narrower
+    default keep-set would strip the title's own languages irreversibly.
     """
     from db.profiles import get_default_profile, get_movie_profile, get_series_profile
 
@@ -1146,6 +1150,8 @@ def resolve_profile_for_item(item: dict, settings) -> dict:
         else:
             profile = get_default_profile()
     except Exception as exc:
+        if strict:
+            raise
         logger.debug("Profile lookup failed for item %s: %s", item.get("id"), exc)
         profile = get_default_profile()
 

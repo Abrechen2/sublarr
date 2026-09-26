@@ -462,3 +462,17 @@ def pytest_collection_modifyitems(config, items):
     if drop:
         config.hook.pytest_deselected(items=drop)
     items[:] = keep
+
+
+@pytest.fixture(autouse=True)
+def _reset_ui_auth_flag_cache():
+    """``ui_auth.is_ui_auth_enabled`` caches its answer on the module for 30 s.
+    A test that enables UI auth in its own database left that answer behind,
+    and the next tests in the same xdist worker got 401 until it expired —
+    the sporadic "Authentication required" failures (proven 2026-09-27 by
+    expiring the cache). Every test starts with an empty cache."""
+    import ui_auth
+
+    ui_auth._auth_enabled_cache = None
+    yield
+    ui_auth._auth_enabled_cache = None

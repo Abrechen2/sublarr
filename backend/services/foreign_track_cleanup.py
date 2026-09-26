@@ -36,36 +36,53 @@ def should_cleanup_foreign_tracks(*, series_override: bool | None, global_defaul
     return bool(series_override)
 
 
-def _get_series_override(item: dict) -> bool | None:
-    """Look up SeriesSettings.cleanup_foreign_tracks for the item's series."""
+class _OverrideUnavailableError(Exception):
+    """The series/movie switch could not be read."""
+
+
+def _get_title_override(item: dict) -> bool | None:
+    """The item's own ``cleanup_foreign_tracks`` switch — the series' for an
+    episode, the movie's for a movie — or None when it has none.
+
+    Raises ``_OverrideUnavailableError`` when the lookup fails: inheriting the
+    global default then could strip a title whose switch says "off".
+    """
     try:
-        sonarr_id = item.get("sonarr_series_id")
-        if not sonarr_id:
-            return None
-        from db.models.core import SeriesSettings
+        from db.models.core import MovieSettings, SeriesSettings
         from extensions import db
 
-        ss = db.session.get(SeriesSettings, sonarr_id)
-        if ss is None:
+        if item.get("sonarr_series_id"):
+            row = db.session.get(SeriesSettings, item["sonarr_series_id"])
+        elif item.get("radarr_movie_id"):
+            row = db.session.get(MovieSettings, item["radarr_movie_id"])
+        else:
             return None
-        return ss.cleanup_foreign_tracks
-    except Exception:
-        logger.debug("foreign-track cleanup: series override lookup failed", exc_info=True)
-        return None
+    except Exception as exc:  # noqa: BLE001 — surfaced as "unavailable", never as "inherit"
+        raise _OverrideUnavailableError(str(exc)) from exc
+    return None if row is None else row.cleanup_foreign_tracks
 
 
 def foreign_track_cleanup_applies(item: dict) -> bool:
-    """Whether the global setting or the item's series override asks for cleanup."""
+    """Whether the global setting or the item's series/movie switch asks for
+    cleanup. Any lookup failure answers False: skipping a cleanup costs a
+    later retry, running one against a switched-off title cannot be undone."""
     try:
         from config import get_settings
 
         global_default = bool(getattr(get_settings(), "cleanup_foreign_tracks_default", False))
     except Exception:
-        logger.debug("foreign-track cleanup: settings unavailable", exc_info=True)
+        logger.warning("foreign-track cleanup: settings unavailable — skipped", exc_info=True)
         return False
-    return should_cleanup_foreign_tracks(
-        series_override=_get_series_override(item), global_default=global_default
-    )
+    try:
+        override = _get_title_override(item)
+    except _OverrideUnavailableError as exc:
+        logger.warning(
+            "foreign-track cleanup: switch for %s unreadable (%s) — skipped",
+            item.get("sonarr_series_id") or item.get("radarr_movie_id"),
+            exc,
+        )
+        return False
+    return should_cleanup_foreign_tracks(series_override=override, global_default=global_default)
 
 
 #: Outcomes of :func:`maybe_run_foreign_track_cleanup`.
@@ -139,7 +156,9 @@ def cleanup_keep_languages(item: dict) -> set[str] | None:
         from services.embedded_extractor import compute_keep_langs, resolve_profile_for_item
 
         settings = get_settings()
-        keep = set(compute_keep_langs(resolve_profile_for_item(item, settings), settings))
+        keep = set(
+            compute_keep_langs(resolve_profile_for_item(item, settings, strict=True), settings)
+        )
     except Exception as exc:  # noqa: BLE001 — reported as None; callers refuse to strip
         logger.warning(
             "foreign-track cleanup: language profile unresolvable for %s: %s",

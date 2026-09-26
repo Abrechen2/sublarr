@@ -52,6 +52,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Existing installs keep exactly today's behaviour until this is changed.
 
 ### Fixed
+- **The cleanup after a movie download honours the movie's own switch.** A
+  movie with foreign-track cleanup switched off was still cleaned when the
+  global setting was on; only series switches were read. The cleanup is also
+  skipped (and retried later) when a title's switch or language profile
+  cannot be read, instead of falling back to the global setting or the
+  default profile, which could strip more than configured.
 - **Settings with a fixed set of choices reject anything else on save.** The
   track policy settings could be saved with an arbitrary value through the
   API; the cleanup then fell back to its safe default, but the stored value

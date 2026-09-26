@@ -118,6 +118,11 @@ def test_auth_secrets_cannot_be_written_through_config(client):
     with client.application.app_context():
         save_config_entry("ui_password_hash", "$2b$12$original")
         save_config_entry("ui_auth_enabled", "true")
+    # UI auth is on in this database, as on a real install: the requests must be
+    # authenticated, otherwise they only pass while an earlier cached "auth off"
+    # answer happens to be fresh (the source of the sporadic 401s).
+    with client.session_transaction() as sess:
+        sess["ui_authenticated"] = True
 
     for key, value in (
         ("ui_password_hash", "$2b$12$forged"),
