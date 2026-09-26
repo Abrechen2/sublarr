@@ -41,6 +41,14 @@ _sweep_lock = threading.Lock()
 # How long a remux temp file must be untouched before it counts as abandoned.
 _TEMP_MAX_AGE_S = 86_400
 
+# Enumeration progress cadence: whichever comes first. The walk took 754 s on
+# the production library and logged nothing, so a slow share and a hung one
+# looked the same from the outside.
+_ENUM_PROGRESS_FILES = 5000
+_ENUM_PROGRESS_S = 60.0
+# Indirection so tests can drive elapsed time without patching `time` globally.
+_monotonic = time.monotonic
+
 _PROBE_BATCH = 50
 
 # An NFS blip makes every ffprobe fail fast, and `next_pending` has no
@@ -363,6 +371,22 @@ def _rescan_due(state, config) -> bool:
     return (datetime.now(UTC) - completed).total_seconds() >= days * 86_400
 
 
+def _sweep_temp_files_logged(media_root: str) -> None:
+    """The abandoned-temp-file cleanup, bracketed by start/end lines.
+
+    It is a full walk of the media root of its own, run before every
+    enumeration, and was the silent first half of the 754 s gap.
+    """
+    started = _monotonic()
+    logger.info("foreign_track_sweep: temp-file cleanup started root=%s", media_root)
+    removed = sweep_stale_temp_files(media_root, _TEMP_MAX_AGE_S, time.time())
+    logger.info(
+        "foreign_track_sweep: temp-file cleanup complete removed=%d in %.1fs",
+        removed,
+        _monotonic() - started,
+    )
+
+
 def _enumerate(media_root: str, config: dict, state, repo) -> None:
     """Walk once, upserting as we go.
 
@@ -382,7 +406,13 @@ def _enumerate(media_root: str, config: dict, state, repo) -> None:
     save_state(state)
 
     try:
-        sweep_stale_temp_files(media_root, _TEMP_MAX_AGE_S, time.time())
+        _sweep_temp_files_logged(media_root)
+        started = _monotonic()
+        last_report = started
+        files = 0
+        logger.info(
+            "foreign_track_sweep: enumeration started gen=%d root=%s", state.generation, media_root
+        )
         for path, size, mtime in iter_video_files(
             media_root,
             config.get("include_paths") or [],
@@ -390,6 +420,15 @@ def _enumerate(media_root: str, config: dict, state, repo) -> None:
             min_age_s=min_age,
             now=time.time(),
         ):
+            files += 1
+            now_mono = _monotonic()
+            if files % _ENUM_PROGRESS_FILES == 0 or now_mono - last_report >= _ENUM_PROGRESS_S:
+                logger.info(
+                    "foreign_track_sweep: enumeration progress files=%d elapsed=%.0fs",
+                    files,
+                    now_mono - started,
+                )
+                last_report = now_mono
             # The walk itself is the longest uninterruptible stretch in the
             # sweep — 754 s on the production library — so it has to be able to
             # give up mid-way. Leaving here takes the same exit as the OSError
@@ -406,6 +445,11 @@ def _enumerate(media_root: str, config: dict, state, repo) -> None:
         return
 
     state.enumeration_complete = True
+    logger.info(
+        "foreign_track_sweep: enumeration complete files=%d in %.1fs",
+        files,
+        _monotonic() - started,
+    )
     pruned = repo.prune_stale(state.generation)
     if pruned:
         logger.info("foreign_track_sweep: %d file(s) disappeared since the last pass", pruned)
@@ -591,12 +635,14 @@ def foreign_track_sweep_tick() -> None:
         return
 
     logger.info(
-        "foreign_track_sweep: phase=%s probed=%d stripped=%d pending=%d affected=%d",
+        "foreign_track_sweep: phase=%s probed=%d stripped=%d pending=%d affected=%d "
+        "paused_reason=%s",
         result["phase"],
         result["probed"],
         result["stripped_files"],
         result["pending"],
         result["affected"],
+        result.get("paused_reason") or "-",
     )
 
 

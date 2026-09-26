@@ -4,89 +4,58 @@ Routes:
   /api/v1/logs/support-export  — Download an anonymized support ZIP
   /api/v1/logs/support-preview — JSON preview of what the export would contain
 
-All anonymization + diagnostic-building helpers live here because they are
-only consumed by these two endpoints (plus their tests in
-`tests/test_support_export.py`, which reach them via
-`from routes.system import _anonymize, _build_diagnostic` — the re-export
-in `routes/system/__init__.py` keeps that contract).
+Log reading and anonymization live in ``support_logs``, the diagnostic sections
+in ``support_sections`` and the allow-list config snapshot in
+``support_config``. Tests reach ``_anonymize`` / ``_build_diagnostic`` via
+``from routes.system import ...`` — the re-export in ``routes/system/__init__.py``
+keeps that contract.
 """
 
 from __future__ import annotations
 
-import io
-import ipaddress as _ipaddress
+import json
 import logging
-import os
-import re
-import socket as _socket
+import platform
+import tempfile
+import threading
+import time
+import zipfile
+from datetime import UTC, datetime
 
 from flask import jsonify, request, send_file
 
+from extensions import limiter
 from routes.system import bp
+from routes.system.support_logs import (  # noqa: F401 — _anonymize is re-exported
+    _anonymize,
+    _extract_top_errors,
+    current_hostname,
+    payload_summary,
+    plan_log_payload,
+    recent_warnings,
+    redaction_summary,
+    write_log_member,
+)
 
 logger = logging.getLogger(__name__)
 
+# Building a bundle reads every rotated log file; six a minute is far more than
+# a person clicking "export" needs and far less than a loop can do damage with.
+SUPPORT_RATE_LIMIT = "6 per minute"
+# The preview re-reads the whole log history; the dialog is often reopened.
+PREVIEW_CACHE_TTL_S = 30.0
+# The ZIP stays in memory up to this size, then spills to a temp file.
+_SPOOL_MAX_MEMORY = 8 * 1024 * 1024
 
-# ─── Anonymization helpers ────────────────────────────────────────────────────
-
-_RFC1918_NETWORKS = [
-    _ipaddress.ip_network("10.0.0.0/8"),
-    _ipaddress.ip_network("172.16.0.0/12"),
-    _ipaddress.ip_network("192.168.0.0/16"),
-]
-
-_IP_RE = re.compile(r"\b(\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})\b")
-# Note: may match version strings (e.g. "1.2.3.4") — acceptable over-redaction
-_API_KEY_RE = re.compile(
-    r'(["\']?(?:api[_-]?key|apikey|token|password|secret|credential)["\']?\s*[:=]\s*["\']?)'
-    r"([A-Za-z0-9+/=_\-]{16,})",
-    re.IGNORECASE,
-)
-_APIKEY_PARAM_RE = re.compile(r"(apikey=)([A-Za-z0-9_\-]{16,})", re.IGNORECASE)
-_EMAIL_RE = re.compile(r"[\w.+-]+@[\w-]+\.[a-zA-Z]{2,}")
-_PATH_RE = re.compile(r'(?:/[^/]+){2,}/([^/\s][^/]*\.[^/\s]+)(?=["\'\s]|$)')
-_UNIX_HOME_RE = re.compile(r"/(?:home/[^/\s]+|root)(/[^\s]+)")
+_preview_lock = threading.Lock()
+_preview_cache: dict = {"expires": 0.0, "data": None}
 
 
-def _classify_ip(ip: str) -> str:
-    """Classify and anonymize a single IPv4 address string."""
-    try:
-        addr = _ipaddress.IPv4Address(ip)
-    except ValueError:
-        return ip
-    if addr.is_loopback:
-        return ip
-    for network in _RFC1918_NETWORKS:
-        if addr in network:
-            parts = ip.split(".")
-            return f"{parts[0]}.{parts[1]}.xxx.xxx"
-    return "xxx.xxx.xxx.xxx"
-
-
-def _anonymize(text: str, hostname: str | None = None) -> str:
-    """Redact sensitive data from a log line or text blob.
-
-    Args:
-        text: The text to anonymize.
-        hostname: Server hostname to redact. If None, resolved via
-            socket.gethostname() at call time (so it reflects runtime state,
-            not import-time state).
-    """
-    if hostname is None:
-        try:
-            hostname = _socket.gethostname()
-        except Exception:
-            hostname = None
-
-    text = _API_KEY_RE.sub(r"\1***REDACTED***", text)
-    text = _APIKEY_PARAM_RE.sub(r"\1***REDACTED***", text)
-    text = _EMAIL_RE.sub("***USER***", text)
-    text = _UNIX_HOME_RE.sub(r"~\1", text)
-    text = _PATH_RE.sub(r"media/\1", text)
-    text = _IP_RE.sub(lambda m: _classify_ip(m.group(1)), text)
-    if hostname:
-        text = text.replace(hostname, "***HOST***")
-    return text
+def _reset_preview_cache() -> None:
+    """Drop the cached preview (tests, and after anything that changes it)."""
+    with _preview_lock:
+        _preview_cache["expires"] = 0.0
+        _preview_cache["data"] = None
 
 
 # ─── Diagnostic helpers ───────────────────────────────────────────────────────
@@ -94,84 +63,19 @@ def _anonymize(text: str, hostname: str | None = None) -> str:
 
 def _get_last_scan_minutes() -> int | None:
     """Return minutes since last wanted scan, or None if unknown."""
-    import datetime as _dt2
-
-    from db import get_db
     from db.repositories.config import ConfigRepository
 
     try:
-        val = ConfigRepository(get_db()).get_all_config_entries().get("last_scan_timestamp")
+        # Repositories take no session argument; passing one raised TypeError
+        # here on every call, so this field was always None.
+        val = ConfigRepository().get_all_config_entries().get("last_scan_timestamp")
         if not val:
             return None
-        ts = _dt2.datetime.fromisoformat(val)
-        delta = _dt2.datetime.now(_dt2.UTC) - ts
+        delta = datetime.now(UTC) - datetime.fromisoformat(val)
         return int(delta.total_seconds() / 60)
-    except Exception:
+    except Exception as exc:  # noqa: BLE001 — a diagnostic field, not a failure
+        logger.debug("last scan timestamp unavailable: %s", exc)
         return None
-
-
-def _extract_top_errors(max_errors: int = 10) -> list[dict]:
-    """Parse all log files and return top N error/warning groups from the last 24h."""
-    import collections as _coll
-    import datetime as _dt3
-
-    from app_logging import rotated_log_candidates
-
-    cutoff = _dt3.datetime.now() - _dt3.timedelta(hours=24)
-
-    _ts_re = re.compile(r"^(\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}),\d+\s+\[(ERROR|WARNING)\]")
-    # The bracketed id slot between level and logger name is consumed
-    # explicitly. It used to be skipped by `[^:]+` on the assumption that it
-    # holds no colon — true for a request id and for the `-` placeholder, but
-    # not for a scheduler run label like `[wanted_search:a1b2c3d4]`, which made
-    # the capture start mid-id and turned every scheduler error into its own
-    # distinct "message". Optional, because rotated logs may predate the slot.
-    _msg_re = re.compile(
-        r"^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2},\d+\s+\[(?:ERROR|WARNING)\]\s+"
-        r"(?:\[[^\]]*\]\s+)?[^:]+:\s*(.*)"
-    )
-
-    counts: _coll.Counter = _coll.Counter()
-    last_seen: dict[str, str] = {}
-
-    # Anonymize the message before counting/storing — these messages ship
-    # into diagnostic-report.md and db-stats.json verbatim, so any leaked
-    # DSN/API-key in a SQLAlchemy or provider error would otherwise survive
-    # the support bundle unredacted.
-    hostname: str | None = None
-    try:
-        hostname = _socket.gethostname()
-    except Exception:
-        hostname = None
-
-    candidates = rotated_log_candidates()
-    for path in candidates:
-        try:
-            with open(path, encoding="utf-8", errors="replace") as fh:
-                for line in fh:
-                    m = _ts_re.match(line)
-                    if not m:
-                        continue
-                    try:
-                        ts = _dt3.datetime.strptime(m.group(1), "%Y-%m-%d %H:%M:%S")
-                        if ts < cutoff:
-                            continue
-                    except ValueError:
-                        pass  # include line if timestamp unparseable
-                    msg_m = _msg_re.match(line)
-                    if not msg_m:
-                        continue
-                    raw_msg = msg_m.group(1)[:80]
-                    key = _anonymize(raw_msg, hostname=hostname)
-                    counts[key] += 1
-                    last_seen[key] = m.group(1)[11:16]  # HH:MM local time
-        except FileNotFoundError:
-            continue
-
-    return [
-        {"message": msg, "count": cnt, "last_seen": last_seen.get(msg, "")}
-        for msg, cnt in counts.most_common(max_errors)
-    ]
 
 
 def _build_diagnostic() -> dict:
@@ -179,16 +83,11 @@ def _build_diagnostic() -> dict:
 
     Never raises — all errors are caught and reflected in the returned dict.
     """
-    import datetime as _dt4
-    import time as _time2
-
-    from config import get_settings as _gs4
     from version import __version__ as _ver
 
-    settings = _gs4()
     diag: dict = {
         "version": _ver,
-        "timestamp_utc": _dt4.datetime.now(_dt4.UTC).strftime("%Y-%m-%dT%H:%M:%SZ"),
+        "timestamp_utc": datetime.now(UTC).strftime("%Y-%m-%dT%H:%M:%SZ"),
         "uptime_minutes": None,
         "memory_mb": None,
     }
@@ -198,10 +97,10 @@ def _build_diagnostic() -> dict:
         import psutil
 
         proc = psutil.Process()
-        diag["uptime_minutes"] = int((_time2.time() - proc.create_time()) / 60)
+        diag["uptime_minutes"] = int((time.time() - proc.create_time()) / 60)
         diag["memory_mb"] = round(proc.memory_info().rss / 1024 / 1024, 1)
-    except Exception:
-        pass  # psutil not installed or failed — fields stay None
+    except Exception as exc:  # noqa: BLE001 — psutil missing or failing: fields stay None
+        logger.debug("psutil process stats unavailable: %s", exc)
 
     # Wanted + translation stats from DB
     try:
@@ -217,38 +116,33 @@ def _build_diagnostic() -> dict:
             select(WantedItem.status, func.count().label("cnt")).group_by(WantedItem.status)
         ).all()
         counts_by_status = {row[0]: row[1] for row in rows}
-        total = sum(counts_by_status.values())
         diag["wanted"] = {
-            "total": total,
+            "total": sum(counts_by_status.values()),
             "pending": counts_by_status.get("wanted", 0),
             "extracted": counts_by_status.get("extracted", 0),
             "failed": counts_by_status.get("failed", 0),
         }
-        tr = TranslationRepository(db)
-        rows = tr.get_backend_stats()
+        # No session argument — see _get_last_scan_minutes. Passing one made
+        # every bundle report these stats as "unavailable".
+        rows = TranslationRepository().get_backend_stats()
         diag["translations"] = {
             "total_requests": sum(r.get("total_requests", 0) or 0 for r in rows),
             "successful": sum(r.get("successful_translations", 0) or 0 for r in rows),
             "failed": sum(r.get("failed_translations", 0) or 0 for r in rows),
         }
-        diag["config_entries_count"] = len(ConfigRepository(db).get_all_config_entries())
+        diag["config_entries_count"] = len(ConfigRepository().get_all_config_entries())
     except Exception as exc:
         logger.warning("_build_diagnostic: DB query failed: %s", exc)
         diag["db_stats_error"] = "unavailable"
 
-    # Provider status — read from _PROVIDER_CLASSES + settings, no DB needed
+    # Provider status — `active` is "initialised in the running manager". It
+    # used to be `not providers_enabled or name in providers_enabled`, and an
+    # empty setting (the default: "all allowed") listed every provider as
+    # active, including the unconfigured ones.
     try:
-        from providers import _PROVIDER_CLASSES
+        from routes.system.support_sections import provider_rows
 
-        enabled_raw = getattr(settings, "providers_enabled", "") or ""
-        enabled_set = {p.strip().lower() for p in enabled_raw.split(",") if p.strip()}
-        diag["provider_status"] = [
-            {
-                "name": name,
-                "active": not enabled_set or name.lower() in enabled_set,
-            }
-            for name in _PROVIDER_CLASSES
-        ]
+        diag["provider_status"] = provider_rows()
     except Exception as exc:
         logger.warning("_build_diagnostic: provider status failed: %s", exc)
         diag["provider_status"] = []
@@ -259,11 +153,11 @@ def _build_diagnostic() -> dict:
     return diag
 
 
-# ─── Endpoints ────────────────────────────────────────────────────────────────
+# ─── Authorization ────────────────────────────────────────────────────────────
 
 
 def _is_support_caller_authorized() -> bool:
-    """Allow API-key holders, valid UI sessions, or fully-open deployments.
+    """Allow API-key holders, UI sessions, trusted-proxy SSO, or open deployments.
 
     Centralised so /support-export and /support-preview can't drift apart.
     The "fully-open" branch requires BOTH api_key AND ui_auth_enabled to
@@ -272,6 +166,10 @@ def _is_support_caller_authorized() -> bool:
     support bundle to unauthenticated probes when api_key="" but UI auth
     was on (same auth-layer-composition bug as /auth/bootstrap and
     /health). See `project_2026_04_30_health_audit.md`.
+
+    Reverse-proxy header auth (Authelia/authentik) is accepted on the same
+    terms as the global middleware in auth.py/ui_auth.py: without it, an SSO
+    user who passes every other route got a 401 here and nowhere else.
     """
     import hmac as _hmac
 
@@ -279,6 +177,7 @@ def _is_support_caller_authorized() -> bool:
 
     import ui_auth as _ui_auth
     from config import get_settings
+    from proxy_auth import request_has_valid_proxy_auth
 
     s = get_settings()
     api_key = getattr(s, "api_key", None)
@@ -287,23 +186,79 @@ def _is_support_caller_authorized() -> bool:
         return True
     if _session.get("ui_authenticated"):
         return True
+    if request_has_valid_proxy_auth():
+        return True
     try:
         ui_auth_on = _ui_auth.is_ui_auth_enabled()
-    except Exception:
+    except Exception as exc:  # noqa: BLE001 — fail closed only when a key exists
+        logger.warning("support auth: could not read ui_auth state: %s", exc)
         ui_auth_on = False
     # Fully-open deployment: nothing protects /api/v1/* anyway.
     return not api_key and not ui_auth_on
 
 
+# ─── Report rendering ─────────────────────────────────────────────────────────
+
+
+def _render_report(diag: dict, sections: dict, payload: dict, warnings_count: int) -> str:
+    lines = [
+        "# Sublarr Support Report",
+        "",
+        f"**Version:** {diag.get('version', '?')}  ",
+        f"**Generated:** {diag.get('timestamp_utc', '?')}  ",
+        f"**Uptime:** {diag.get('uptime_minutes', 'N/A')} min  ",
+        f"**Memory:** {diag.get('memory_mb', 'N/A')} MB  ",
+        "",
+        "## Log payload",
+        "",
+        f"- {payload['files_included']} file(s), {payload['included_bytes']} of "
+        f"{payload['total_bytes']} bytes (cap {payload['cap_bytes']})",
+    ]
+    if payload["truncated"]:
+        lines.append(
+            "- **Truncated:** older log history did not fit into the bundle "
+            f"(partial: {', '.join(payload['partial_files']) or '-'}; "
+            f"skipped: {', '.join(payload['skipped_files']) or '-'})"
+        )
+    lines.append(f"- recent-warnings.log: {warnings_count} line(s)")
+    lines += ["", "## Top Errors (last 24h)", ""]
+    for e in diag.get("top_errors", []):
+        lines.append(f"- **{e['message']}** (x{e['count']}, last: {e['last_seen']})")
+    if not diag.get("top_errors"):
+        lines.append("_No errors in the last 24h_")
+    lines += ["", "## Provider Status", ""]
+    for p in diag.get("provider_status", []):
+        state = "active" if p.get("active") else "inactive"
+        breaker = p.get("circuit_state") or "-"
+        lines.append(f"- {state}: {p['name']} (circuit: {breaker})")
+    lines += ["", "## Stats", "", "| Metric | Value |", "|--------|-------|"]
+    for k, v in diag.get("wanted", {}).items():
+        lines.append(f"| Wanted {k} | {v} |")
+    for k, v in diag.get("translations", {}).items():
+        lines.append(f"| Translations {k} | {v} |")
+    lines += ["", "## Sections", ""]
+    for name, data in sections.items():
+        if "unavailable" in data:
+            lines.append(f"- {name}: unavailable: {data['unavailable']}")
+        else:
+            lines.append(f"- {name}: see sections.json")
+    return "\n".join(lines)
+
+
+# ─── Endpoints ────────────────────────────────────────────────────────────────
+
+
 @bp.route("/logs/support-export", methods=["GET"])
+@limiter.limit(SUPPORT_RATE_LIMIT)
 def support_export():
     """Download an anonymized support bundle (log files + system info) as a ZIP.
 
     Sensitive data is stripped before export:
-    - API keys and passwords replaced with ***REDACTED***
+    - Configured secrets and credential shapes replaced with ***REDACTED***
     - Local file paths shortened to filename only
     - IPv4 addresses replaced with x.x.x.x
     - Usernames and email addresses replaced with ***USER***
+    Log history is capped (newest first); the report says when it was cut.
     ---
     get:
       tags:
@@ -314,119 +269,121 @@ def support_export():
       responses:
         200:
           description: ZIP file with anonymized logs and system info
+        401:
+          description: Not authenticated
+        429:
+          description: Rate limit exceeded
     """
-    import json as _json
-    import platform
-    import zipfile as _zipfile
-    from datetime import UTC, datetime
-
+    from app_logging import rotated_log_candidates
     from config import get_settings
+    from routes.system.support_config import build_config_snapshot
+    from routes.system.support_sections import collect_sections
     from version import __version__
 
     if not _is_support_caller_authorized():
         return jsonify({"error": "Unauthorized"}), 401
 
-    from app_logging import rotated_log_candidates
-
-    _s = get_settings()
-    candidates = rotated_log_candidates(_s)
+    settings = get_settings()
+    candidates = rotated_log_candidates(settings)
     ts = datetime.now(UTC).strftime("%Y-%m-%dT%H-%M-%SZ")
-    zip_name = f"sublarr-support-{ts}.zip"
+    hostname = current_hostname()
+    plan = plan_log_payload(candidates)
+    payload = payload_summary(plan)
 
-    hostname: str | None = None
+    spool = tempfile.SpooledTemporaryFile(max_size=_SPOOL_MAX_MEMORY)  # noqa: SIM115 — send_file closes it
     try:
-        hostname = _socket.gethostname()
-    except Exception as exc:
-        logger.debug("gethostname() failed, log anonymization will skip hostname: %s", exc)
+        with zipfile.ZipFile(spool, "w", zipfile.ZIP_DEFLATED) as zf:
+            # 1. Anonymized log files, streamed — never whole files in memory
+            for entry in plan["files"]:
+                try:
+                    write_log_member(zf, entry, hostname)
+                except FileNotFoundError:
+                    continue  # rotated away between planning and reading
 
-    buf = io.BytesIO()
-    with _zipfile.ZipFile(buf, "w", _zipfile.ZIP_DEFLATED) as zf:
-        # 1. Anonymized log files
-        for path in candidates:
-            try:
-                with open(path, encoding="utf-8", errors="replace") as fh:
-                    content = "".join(_anonymize(line, hostname=hostname) for line in fh)
-                zf.writestr(f"logs/{os.path.basename(path)}", content)
-            except FileNotFoundError:
-                continue
+            warnings = recent_warnings(candidates, hostname)
+            zf.writestr("recent-warnings.log", "".join(warnings))
 
-        # 2. Diagnostic report as Markdown (shared helper)
-        diag = _build_diagnostic()
-        md_lines = [
-            "# Sublarr Support Report",
-            "",
-            f"**Version:** {diag.get('version', '?')}  ",
-            f"**Generated:** {diag.get('timestamp_utc', '?')}  ",
-            f"**Uptime:** {diag.get('uptime_minutes', 'N/A')} min  ",
-            f"**Memory:** {diag.get('memory_mb', 'N/A')} MB  ",
-            "",
-            "## Top Errors (last 24h)",
-            "",
-        ]
-        for e in diag.get("top_errors", []):
-            md_lines.append(f"- **{e['message']}** (x{e['count']}, last: {e['last_seen']})")
-        if not diag.get("top_errors"):
-            md_lines.append("_No errors in the last 24h_")
-        md_lines += ["", "## Provider Status", ""]
-        for p in diag.get("provider_status", []):
-            md_lines.append(f"- {'active' if p['active'] else 'inactive'}: {p['name']}")
-        md_lines += ["", "## Stats", "", "| Metric | Value |", "|--------|-------|"]
-        for k, v in diag.get("wanted", {}).items():
-            md_lines.append(f"| Wanted {k} | {v} |")
-        for k, v in diag.get("translations", {}).items():
-            md_lines.append(f"| Translations {k} | {v} |")
-        zf.writestr("diagnostic-report.md", "\n".join(md_lines))
-
-        # 3. DB stats JSON
-        zf.writestr(
-            "db-stats.json",
-            _json.dumps(
-                {
-                    "wanted": diag.get("wanted", {}),
-                    "translations": diag.get("translations", {}),
-                    "providers": {
-                        "active": sum(1 for p in diag.get("provider_status", []) if p["active"]),
-                        "last_scan_ago_minutes": diag.get("last_scan_ago_minutes"),
+            diag = _build_diagnostic()
+            sections = collect_sections()
+            zf.writestr(
+                "diagnostic-report.md", _render_report(diag, sections, payload, len(warnings))
+            )
+            zf.writestr("sections.json", json.dumps(sections, indent=2, default=str))
+            zf.writestr(
+                "db-stats.json",
+                json.dumps(
+                    {
+                        "wanted": diag.get("wanted", {}),
+                        "translations": diag.get("translations", {}),
+                        "providers": {
+                            "active": sum(
+                                1 for p in diag.get("provider_status", []) if p.get("active")
+                            ),
+                            "last_scan_ago_minutes": diag.get("last_scan_ago_minutes"),
+                        },
+                        "config_entries": diag.get("config_entries_count"),
+                        "last_errors": [e["message"] for e in diag.get("top_errors", [])[:5]],
+                        "log_payload": payload,
                     },
-                    "config_entries": diag.get("config_entries_count"),
-                    "last_errors": [e["message"] for e in diag.get("top_errors", [])[:5]],
-                },
-                indent=2,
-            ),
-        )
+                    indent=2,
+                ),
+            )
+            # Allow-list snapshot: see routes/system/support_config.py.
+            zf.writestr(
+                "config-snapshot.json",
+                json.dumps(build_config_snapshot(settings), indent=2, default=str),
+            )
+            zf.writestr(
+                "system-info.txt",
+                "\n".join(
+                    [
+                        f"Sublarr Version: {__version__}",
+                        f"Python: {platform.python_version()}",
+                        f"OS: {platform.system()} {platform.release()}",
+                        f"Export Timestamp (UTC): {ts}",
+                        f"Uptime (min): {diag.get('uptime_minutes', 'N/A')}",
+                        f"Memory (MB): {diag.get('memory_mb', 'N/A')}",
+                    ]
+                ),
+            )
+    except Exception:
+        spool.close()
+        logger.exception("support export failed")
+        return jsonify({"error": "Support bundle could not be built — see the server log"}), 500
 
-        # 4. Config snapshot — delegate to Settings.get_safe_config() so the
-        #    bundle inherits the same masking rules used by /config (and the
-        #    /export endpoint). A previous keyword-only loop here missed
-        #    notification_urls_json (Apprise tokens), database_url / redis_url
-        #    (DSN-embedded creds), and *_instances_json (nested api_keys).
-        zf.writestr(
-            "config-snapshot.json",
-            _json.dumps(_s.get_safe_config(), indent=2, default=str),
-        )
+    spool.seek(0)
+    return send_file(
+        spool,
+        mimetype="application/zip",
+        as_attachment=True,
+        download_name=f"sublarr-support-{ts}.zip",
+    )
 
-        # 5. System info
-        zf.writestr(
-            "system-info.txt",
-            "\n".join(
-                [
-                    f"Sublarr Version: {__version__}",
-                    f"Python: {platform.python_version()}",
-                    f"OS: {platform.system()} {platform.release()}",
-                    f"Export Timestamp (UTC): {ts}",
-                    f"Uptime (min): {diag.get('uptime_minutes', 'N/A')}",
-                    f"Memory (MB): {diag.get('memory_mb', 'N/A')}",
-                ]
-            ),
-        )
 
-    buf.seek(0)
-    return send_file(buf, mimetype="application/zip", as_attachment=True, download_name=zip_name)
+def _build_preview() -> dict:
+    from app_logging import rotated_log_candidates
+    from config import get_settings
+    from routes.system.support_sections import collect_sections
+
+    candidates = rotated_log_candidates(get_settings())
+    hostname = current_hostname()
+    return {
+        "diagnostic": _build_diagnostic(),
+        "redaction_summary": redaction_summary(candidates, hostname),
+        "log_payload": payload_summary(plan_log_payload(candidates)),
+        "recent_warnings_count": len(recent_warnings(candidates, hostname)),
+        "sections": collect_sections(),
+        "generated_at": datetime.now(UTC).strftime("%Y-%m-%dT%H:%M:%SZ"),
+    }
 
 
 @bp.route("/logs/support-preview", methods=["GET"])
+@limiter.limit(SUPPORT_RATE_LIMIT)
 def support_preview():
     """Return anonymized diagnostic data + redaction summary for the support export modal.
+
+    Cached for 30 s: the preview reads the whole log history, and the export
+    dialog tends to be opened, closed and reopened.
     ---
     get:
       tags: [System]
@@ -436,73 +393,21 @@ def support_preview():
       responses:
         200:
           description: Preview data for the support export modal
+        401:
+          description: Not authenticated
+        429:
+          description: Rate limit exceeded
     """
-    import collections
-
-    from config import get_settings
-
     if not _is_support_caller_authorized():
         return jsonify({"error": "Unauthorized"}), 401
 
-    from app_logging import rotated_log_candidates
+    now = time.monotonic()
+    with _preview_lock:
+        if _preview_cache["data"] is not None and _preview_cache["expires"] > now:
+            return jsonify({**_preview_cache["data"], "cached": True})
 
-    _s = get_settings()
-    diagnostic = _build_diagnostic()
-
-    candidates = rotated_log_candidates(_s)
-
-    counts: collections.Counter = collections.Counter()
-    path_example: tuple[str, str] | None = None
-    ip_example: tuple[str, str] | None = None
-    files_found = 0
-
-    hostname: str | None = None
-    try:
-        hostname = _socket.gethostname()
-    except Exception as exc:
-        logger.debug("gethostname() failed, log anonymization will skip hostname: %s", exc)
-
-    for path in candidates:
-        try:
-            with open(path, encoding="utf-8", errors="replace") as fh:
-                for line in fh:
-                    anon = _anonymize(line, hostname=hostname)
-                    if anon == line:
-                        continue
-                    if re.search(r"(?:\d+\.){1}\d+\.xxx\.xxx|xxx\.xxx\.xxx\.xxx", anon):
-                        counts["ips_redacted"] += 1
-                        if ip_example is None:
-                            ip_example = (line.strip(), anon.strip())
-                    if "***REDACTED***" in anon and "***REDACTED***" not in line:
-                        counts["api_keys_redacted"] += 1
-                    if "***USER***" in anon:
-                        counts["emails_redacted"] += 1
-                    if "***HOST***" in anon:
-                        counts["hostnames_redacted"] += 1
-                    if re.search(r"media/[^\s]+\.\w+", anon) and re.search(
-                        r"/[^\s]+/[^\s]+\.\w+", line
-                    ):
-                        counts["paths_redacted"] += 1
-                        if path_example is None:
-                            path_example = (line.strip(), anon.strip())
-            files_found += 1
-        except FileNotFoundError:
-            continue
-
-    return jsonify(
-        {
-            "diagnostic": diagnostic,
-            "redaction_summary": {
-                "log_files_found": files_found,
-                "ips_redacted": counts.get("ips_redacted", 0),
-                "api_keys_redacted": counts.get("api_keys_redacted", 0),
-                "paths_redacted": counts.get("paths_redacted", 0),
-                "emails_redacted": counts.get("emails_redacted", 0),
-                "hostnames_redacted": counts.get("hostnames_redacted", 0),
-                "example_path_before": path_example[0] if path_example else "",
-                "example_path_after": path_example[1] if path_example else "",
-                "example_ip_before": ip_example[0] if ip_example else "",
-                "example_ip_after": ip_example[1] if ip_example else "",
-            },
-        }
-    )
+    data = _build_preview()
+    with _preview_lock:
+        _preview_cache["data"] = data
+        _preview_cache["expires"] = time.monotonic() + PREVIEW_CACHE_TTL_S
+    return jsonify({**data, "cached": False})

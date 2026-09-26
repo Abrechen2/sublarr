@@ -24,6 +24,7 @@ from translator import (
     find_existing_target_file,
 )
 from upgrade_scorer import score_existing_subtitle
+from utils.context_executor import submit_with_context
 
 logger = logging.getLogger(__name__)
 
@@ -48,7 +49,9 @@ def batch_probe(paths: list[str]) -> dict[str, object]:
 
     results = {}
     with ThreadPoolExecutor(max_workers=max_workers) as executor:
-        future_to_path = {executor.submit(_gated_probe, p): p for p in paths}
+        # Context-copying submit: the probe workers are part of the scheduled
+        # scan and must log under its run label (and see its stop signal).
+        future_to_path = {submit_with_context(executor, _gated_probe, p): p for p in paths}
         for future in as_completed(future_to_path):
             path = future_to_path[future]
             try:

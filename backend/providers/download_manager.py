@@ -11,12 +11,20 @@ import logging
 import os
 import time
 
+import requests
+
 import decision_log
 
 # Plan B6 — post-processing pipeline trigger (module-level import so tests can
 # patch("providers.download_manager.run_trigger")).
 from post_processing.pipeline import run_trigger
-from providers.base import ProviderNotApplicableError, SubtitleFormat, SubtitleResult
+from providers.base import (
+    ProviderNotApplicableError,
+    ProviderRateLimitError,
+    ProviderTimeoutError,
+    SubtitleFormat,
+    SubtitleResult,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -119,6 +127,20 @@ def _stop_requested() -> bool:
     return abort_requested()
 
 
+def _is_provider_side_failure(exc: BaseException) -> bool:
+    """Whether a download failed because of the provider, not because of Sublarr.
+
+    An HTTP error answer (4xx/5xx), a provider rate limit or a timeout says
+    the other side refused or could not answer. Anything else — a parser
+    error, a KeyError, a disk problem — is ours.
+    """
+    if isinstance(exc, (ProviderRateLimitError, ProviderTimeoutError, requests.Timeout)):
+        return True
+    if isinstance(exc, requests.HTTPError):
+        return getattr(exc.response, "status_code", None) is not None
+    return False
+
+
 def _wait_for_rate_limit_slot(rate_limit_checker, provider_name: str) -> bool:
     """Ask the limiter until it grants a slot, for at most RATE_LIMIT_MAX_WAIT_S.
 
@@ -194,7 +216,12 @@ def download_subtitle(
             raise
         return None
     except Exception as e:
-        logger.error("Download from %s failed: %s", result.provider_name, e)
+        # A provider answering 4xx/5xx, rate-limiting or timing out is the
+        # provider's problem and already counted by the breaker below; ERROR
+        # is kept for what Sublarr itself got wrong. 49 provider 404s in two
+        # days of prod logs were filed as application errors.
+        level = logging.WARNING if _is_provider_side_failure(e) else logging.ERROR
+        logger.log(level, "Download from %s failed: %s", result.provider_name, e)
         if breaker:
             breaker.record_failure()
         return None

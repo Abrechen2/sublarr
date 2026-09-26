@@ -35,6 +35,7 @@ from providers.search_coordinator.retry import SearchRetryMixin
 from providers.search_coordinator.scoring import SearchScoringMixin
 from services.key_selector import get_key_selector
 from services.provider_budget import get_budget_manager
+from utils.context_executor import submit_with_context
 
 logger = logging.getLogger(__name__)
 
@@ -346,8 +347,15 @@ class SearchCoordinatorMixin(SearchRetryMixin, SearchScoringMixin, SearchCacheMi
             # (e.g. executor shut down, memory pressure). Without the refund the
             # just-consumed call leaks permanently.
             try:
-                future = executor.submit(
-                    self._search_provider_with_retry, name, provider, provider_query, key
+                # Context-copying submit: a provider search run by a scheduled
+                # job logs under that job's run label instead of `[-]`.
+                future = submit_with_context(
+                    executor,
+                    self._search_provider_with_retry,
+                    name,
+                    provider,
+                    provider_query,
+                    key,
                 )
                 futures[future] = name
                 # Phase 4a: track the key_id used for this future (if any),

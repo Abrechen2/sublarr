@@ -304,7 +304,8 @@ def find_external_source_sub(mkv_path):
     for pattern in all_patterns:
         path = base + pattern
         if os.path.exists(path):
-            logger.info("Found external source subtitle: %s", path)
+            # DEBUG: runs per episode per scan (prod: thousands of lines a day).
+            logger.debug("Found external source subtitle: %s", path)
             return path
     return None
 
@@ -406,7 +407,8 @@ def find_any_source_sub(mkv_path, target_language=None, preferred_languages=None
     # Honour the configured preference order; nothing outside it qualifies.
     for lang in prefs:
         if lang in found:
-            logger.info("Found preferred source subtitle (%s): %s", lang, found[lang])
+            # DEBUG: runs per episode per scan (prod: thousands of lines a day).
+            logger.debug("Found preferred source subtitle (%s): %s", lang, found[lang])
             return found[lang], lang
     logger.debug(
         "Sidecars next to %s are in %s — none is a configured source language (%s)",

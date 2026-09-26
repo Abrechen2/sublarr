@@ -654,3 +654,103 @@ def test_ws_handler_skips_when_logs_room_empty():
     record = logging.LogRecord("x", logging.INFO, __file__, 1, "hello", None, None)
     handler.emit(record)
     sio.emit.assert_not_called()
+
+
+class TestSecretsAreScrubbedAtWriteTime:
+    """N1: the redaction filter sits on every root handler, not just urllib3's."""
+
+    def test_every_root_handler_carries_the_filter(self, restore_root_logger, tmp_path):
+        from secret_redaction import SecretRedactionFilter
+
+        _setup_logging(_settings(tmp_path, "INFO"))
+
+        for handler in logging.getLogger().handlers:
+            assert any(isinstance(f, SecretRedactionFilter) for f in handler.filters), handler
+
+    def test_the_log_file_never_sees_a_dsn_password(self, restore_root_logger, tmp_path):
+        _setup_logging(_settings(tmp_path, "INFO"))
+
+        logging.getLogger("db.session").error(
+            "connect failed: %s", "postgresql://sublarr:FileSecret9@db:5432/sublarr"
+        )
+        for handler in logging.getLogger().handlers:
+            handler.flush()
+
+        text = (tmp_path / "sublarr.log").read_text(encoding="utf-8")
+        assert "connect failed" in text
+        assert "FileSecret9" not in text
+
+    def test_repeated_setup_does_not_stack_filters(self, restore_root_logger, tmp_path):
+        from secret_redaction import SecretRedactionFilter
+
+        for _ in range(3):
+            _setup_logging(_settings(tmp_path, "INFO"))
+
+        for handler in logging.getLogger().handlers:
+            count = sum(isinstance(f, SecretRedactionFilter) for f in handler.filters)
+            assert count == 1, handler
+
+
+class TestJSONFormatKeepsTheTraceback:
+    """I1: `log_format=json` shipped the exception type and message only."""
+
+    def test_traceback_is_included(self):
+        import json
+        import sys
+
+        from app_logging import StructuredJSONFormatter
+
+        try:
+            raise ValueError("bad thing")
+        except ValueError:
+            exc_info = sys.exc_info()
+        record = logging.LogRecord("x", logging.ERROR, __file__, 1, "boom", None, exc_info)
+
+        entry = json.loads(StructuredJSONFormatter().format(record))
+
+        assert entry["exception"]["type"] == "ValueError"
+        assert "Traceback (most recent call last)" in entry["traceback"]
+        assert "bad thing" in entry["traceback"]
+
+    def test_exception_message_is_redacted(self):
+        import json
+        import sys
+
+        from app_logging import StructuredJSONFormatter
+
+        try:
+            raise RuntimeError("login password=JsonSecret1")
+        except RuntimeError:
+            exc_info = sys.exc_info()
+        record = logging.LogRecord("x", logging.ERROR, __file__, 1, "boom", None, exc_info)
+
+        line = StructuredJSONFormatter().format(record)
+
+        assert "JsonSecret1" not in line
+
+
+class TestInvalidLogLevel:
+    """N6: an unknown SUBLARR_LOG_LEVEL fell back to INFO without a word."""
+
+    def test_unknown_level_warns_and_falls_back_to_info(
+        self, restore_root_logger, tmp_path, caplog
+    ):
+        with caplog.at_level(logging.WARNING, logger="app_logging"):
+            _setup_logging(_settings(tmp_path, "VERBOSE"))
+
+        assert logging.getLogger().level == logging.INFO
+        assert any("VERBOSE" in r.getMessage() for r in caplog.records)
+
+    def test_known_level_does_not_warn(self, restore_root_logger, tmp_path, caplog):
+        with caplog.at_level(logging.WARNING, logger="app_logging"):
+            _setup_logging(_settings(tmp_path, "debug"))
+
+        assert not [r for r in caplog.records if "log level" in r.getMessage().lower()]
+
+
+def test_responses_carry_the_request_id_header(client):
+    resp = client.get("/api/v1/health")
+
+    request_id = resp.headers.get("X-Request-Id")
+    assert request_id
+    assert len(request_id) == 16

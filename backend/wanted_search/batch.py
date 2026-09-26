@@ -5,6 +5,7 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 
 from config import get_settings
 from db.wanted import get_wanted_item, get_wanted_items
+from utils.context_executor import submit_with_context
 from wanted_search.process import process_wanted_item
 
 logger = logging.getLogger(__name__)
@@ -54,7 +55,10 @@ def process_wanted_batch(item_ids=None, app=None):
 
     max_workers = min(4, total) if total > 0 else 1
     with ThreadPoolExecutor(max_workers=max_workers) as executor:
-        future_to_item = {executor.submit(_run_item, item["id"]): item for item in items}
+        # Context-copying submit, so worker log lines carry the run label.
+        future_to_item = {
+            submit_with_context(executor, _run_item, item["id"]): item for item in items
+        }
 
         for future in as_completed(future_to_item):
             item = future_to_item[future]

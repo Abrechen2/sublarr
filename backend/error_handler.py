@@ -189,6 +189,14 @@ def register_error_handlers(app: object) -> None:
         """Assign a unique request ID to every incoming request."""
         g.request_id = str(uuid.uuid4())[:16]
 
+    @flask_app.after_request
+    def _expose_request_id(response):
+        """Return the id the log lines carry, so a user can quote it in a report."""
+        request_id = getattr(g, "request_id", None)
+        if request_id:
+            response.headers.setdefault("X-Request-Id", str(request_id))
+        return response
+
     @flask_app.errorhandler(SublarrError)
     def _handle_sublarr_error(error: SublarrError):  # type: ignore[return]
         """Return structured JSON for known application errors."""

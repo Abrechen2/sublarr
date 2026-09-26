@@ -28,6 +28,15 @@ SLOW_STORAGE_THRESHOLD_MS = 25.0
 _PROBE_SAMPLES = 5
 _PROBE_TABLE = "_sublarr_storage_probe"
 
+# The startup measurement, kept for the support bundle. Re-running the probe on
+# demand would write to the live database from a diagnostics request.
+_last_result: dict | None = None
+
+
+def last_probe_result() -> dict | None:
+    """The startup probe's outcome, or None when it never ran (e.g. PostgreSQL)."""
+    return dict(_last_result) if _last_result is not None else None
+
 
 def measure_commit_latency_ms(engine, samples: int = _PROBE_SAMPLES) -> float | None:
     """Return the median per-commit latency in ms for ``samples`` tiny writes.
@@ -67,7 +76,16 @@ def warn_if_slow_storage(engine) -> float | None:
     Returns the measured median latency in ms (or ``None`` if the probe could
     not run) so callers/tests can assert on it.
     """
+    global _last_result
+    from datetime import UTC, datetime
+
     latency = measure_commit_latency_ms(engine)
+    _last_result = {
+        "measured_at": datetime.now(UTC).isoformat(),
+        "median_commit_ms": None if latency is None else round(latency, 1),
+        "slow": latency is not None and latency >= SLOW_STORAGE_THRESHOLD_MS,
+        "threshold_ms": SLOW_STORAGE_THRESHOLD_MS,
+    }
     if latency is None:
         return None
     if latency >= SLOW_STORAGE_THRESHOLD_MS:

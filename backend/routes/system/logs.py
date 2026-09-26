@@ -13,9 +13,56 @@ import os
 from flask import jsonify, request, send_file
 
 from cache_response import cached_get, invalidate_response_cache
+from extensions import limiter
 from routes.system import bp
 
 logger = logging.getLogger(__name__)
+
+# Levels /logs?level= accepts. An unknown value used to match nothing, which
+# made the tail reader grow its window until it had decoded the whole file.
+VALID_LOG_LEVELS = frozenset({"DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"})
+
+
+def _rotation_value(key: str, default: int, low: int, high: int) -> int:
+    """Read one rotation setting from config_entries, defensively.
+
+    The row is writable outside the PUT route's validation (a direct DB edit,
+    a row from another version); a non-numeric value used to 500 the GET.
+    """
+    from db.config import get_config_entry
+
+    raw = get_config_entry(key)
+    if raw is None or str(raw).strip() == "":
+        return default
+    try:
+        value = int(str(raw).strip())
+    except ValueError:
+        logger.warning("Invalid %s=%r in config; reporting the default %d", key, raw, default)
+        return default
+    return max(low, min(value, high))
+
+
+def _current_rotation() -> tuple[int, int]:
+    from app_logging import (
+        LOG_BACKUP_COUNT_DEFAULT,
+        LOG_BACKUP_COUNT_MAX,
+        LOG_BACKUP_COUNT_MIN,
+        LOG_MAX_SIZE_MB_DEFAULT,
+        LOG_MAX_SIZE_MB_MAX,
+        LOG_MAX_SIZE_MB_MIN,
+    )
+
+    return (
+        _rotation_value(
+            "log_max_size_mb", LOG_MAX_SIZE_MB_DEFAULT, LOG_MAX_SIZE_MB_MIN, LOG_MAX_SIZE_MB_MAX
+        ),
+        _rotation_value(
+            "log_backup_count",
+            LOG_BACKUP_COUNT_DEFAULT,
+            LOG_BACKUP_COUNT_MIN,
+            LOG_BACKUP_COUNT_MAX,
+        ),
+    )
 
 
 def _tail_log_lines(log_file: str, lines: int, level: str) -> list[str]:
@@ -27,6 +74,8 @@ def _tail_log_lines(log_file: str, lines: int, level: str) -> list[str]:
     correct by construction — the worst case (filter matches nothing) equals
     today's full read, every other case reads a fraction of it.
     """
+    from app_logging import line_has_level
+
     chunk_size = 64 * 1024
     with open(log_file, "rb") as f:
         f.seek(0, os.SEEK_END)
@@ -39,13 +88,21 @@ def _tail_log_lines(log_file: str, lines: int, level: str) -> list[str]:
             if start > 0 and recent:
                 recent = recent[1:]  # first line is likely cut mid-way
 
-            matched = [line.strip() for line in recent if not level or f"[{level}]" in line]
+            matched = [line.strip() for line in recent if not level or line_has_level(line, level)]
             if len(matched) >= lines or start == 0:
                 return matched[-lines:]
             chunk_size *= 4
 
 
+def _wants_raw_log() -> bool:
+    return request.args.get("raw", "").lower() in ("1", "true")
+
+
+# The bundle path builds the same ZIP as /logs/support-export, and calling that
+# view as a function bypasses its own limit — so the limit is repeated here.
+# The raw path is a plain file send and stays unlimited.
 @bp.route("/logs/download", methods=["GET"])
+@limiter.limit("6 per minute", exempt_when=_wants_raw_log)
 def download_logs():
     """Download the anonymised support bundle (or the raw log with ?raw=1).
     ---
@@ -88,7 +145,7 @@ def download_logs():
     # redacted, and arrived without the version/platform/mode context needed to
     # act on it. Delegating means there is one bundle builder, so the two paths
     # cannot drift in what they redact.
-    if request.args.get("raw", "").lower() not in ("1", "true"):
+    if not _wants_raw_log():
         from routes.system.support import support_export
 
         return support_export()
@@ -129,11 +186,7 @@ def get_log_rotation():
                   backup_count:
                     type: integer
     """
-    from app_logging import LOG_BACKUP_COUNT_DEFAULT, LOG_MAX_SIZE_MB_DEFAULT
-    from db.config import get_config_entry
-
-    max_size_mb = int(get_config_entry("log_max_size_mb") or LOG_MAX_SIZE_MB_DEFAULT)
-    backup_count = int(get_config_entry("log_backup_count") or LOG_BACKUP_COUNT_DEFAULT)
+    max_size_mb, backup_count = _current_rotation()
 
     return jsonify(
         {
@@ -151,7 +204,9 @@ def update_log_rotation():
       tags:
         - System
       summary: Update log rotation config
-      description: Updates log rotation settings. Changes take effect on next application restart.
+      description: >
+        Updates log rotation settings and re-applies logging immediately — no
+        restart needed. `live` reports whether the re-apply succeeded.
       security:
         - apiKeyAuth: []
       requestBody:
@@ -177,15 +232,15 @@ def update_log_rotation():
         400:
           description: Invalid parameter values
     """
+    import app_logging
     from app_logging import (
-        LOG_BACKUP_COUNT_DEFAULT,
         LOG_BACKUP_COUNT_MAX,
         LOG_BACKUP_COUNT_MIN,
-        LOG_MAX_SIZE_MB_DEFAULT,
         LOG_MAX_SIZE_MB_MAX,
         LOG_MAX_SIZE_MB_MIN,
     )
-    from db.config import save_config_entry
+    from config import reload_settings
+    from db.config import get_all_config_entries, save_config_entry
 
     data = request.get_json() or {}
     max_size_mb = data.get("max_size_mb")
@@ -219,24 +274,37 @@ def update_log_rotation():
     if backup_count is not None:
         save_config_entry("log_backup_count", str(int(backup_count)))
 
-    # Read back saved values
-    from db.config import get_config_entry
-
-    saved_max = int(get_config_entry("log_max_size_mb") or LOG_MAX_SIZE_MB_DEFAULT)
-    saved_count = int(get_config_entry("log_backup_count") or LOG_BACKUP_COUNT_DEFAULT)
-
+    saved_max, saved_count = _current_rotation()
     invalidate_response_cache()
 
+    # Re-apply logging the same way a settings save does (routes/config/core.py):
+    # reload settings with every DB override, then rebuild the handlers. This
+    # route used to stop after the DB write and tell the UI "saved", while the
+    # running handler kept the old size and backup count until a restart.
+    live = True
+    try:
+        settings = reload_settings(get_all_config_entries())
+        app_logging._setup_logging(settings)
+    except Exception as exc:  # noqa: BLE001 — saved either way; report it honestly
+        live = False
+        logger.warning("Log rotation saved but could not be applied live: %s", exc, exc_info=True)
+
     logger.info(
-        "Log rotation config updated: max_size_mb=%d, backup_count=%d", saved_max, saved_count
+        "Log rotation config updated: max_size_mb=%d, backup_count=%d (live=%s)",
+        saved_max,
+        saved_count,
+        live,
     )
 
     return jsonify(
         {
-            "status": "updated",
+            "status": "applied" if live else "saved",
+            "live": live,
             "max_size_mb": saved_max,
             "backup_count": saved_count,
-            "note": "Changes take effect on next application restart",
+            "note": "Applied immediately"
+            if live
+            else "Saved, but could not be applied live — takes effect on restart",
         }
     )
 
@@ -285,7 +353,11 @@ def get_logs():
     settings = get_settings()
     log_file = settings.log_file
     lines = request.args.get("lines", 200, type=int)
-    level = request.args.get("level", "").upper()
+    level = request.args.get("level", "").strip().upper()
+    if level and level not in VALID_LOG_LEVELS:
+        return jsonify(
+            {"error": f"Invalid level {level!r}; use one of {', '.join(sorted(VALID_LOG_LEVELS))}"}
+        ), 400
 
     if not lines or lines <= 0:
         lines = 200

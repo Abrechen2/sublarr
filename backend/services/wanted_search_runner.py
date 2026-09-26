@@ -14,8 +14,6 @@ min-attempts helpers (``_series_min_attempts_config``, ``_series_searches_today`
 module so tests can patch them via ``services.wanted_search_runner.X``.
 """
 
-import contextvars
-import functools
 import logging
 import os
 import time
@@ -42,6 +40,7 @@ from services.wanted_search_outcome import (  # noqa: F401 — re-exported for b
     compute_retry_after_for_error,
     record_search_outcome,
 )
+from utils.context_executor import submit_with_context
 
 logger = logging.getLogger(__name__)
 
@@ -76,23 +75,14 @@ def _compute_max_workers(total: int, cpu_count: int | None) -> int:
     return max(1, min(4, cores - 2, total))
 
 
-def _submit_with_context(executor, fn, *args, **kwargs):
-    """Submit ``fn`` so it runs with this thread's contextvars.
-
-    `abort_requested()` reads a contextvar the scheduler binds to the tick
-    thread, and contextvars do NOT cross into ThreadPoolExecutor workers.
-    `_search_with_ctx` carried the Flask app context over but not the stop
-    signal, so every check below it saw "nobody asked us to stop" — prod
-    2026-08-15 recorded ffsubsync runs still *starting* seven minutes after a
-    cancel, which is what made the wind-down unbounded.
-
-    Copying the context is the idiomatic fix and deliberately keeps the call
-    signature of the submitted function untouched: the same seam already broke
-    six test doubles once, quietly, because the runner swallows per-item
-    exceptions.
-    """
-    ctx = contextvars.copy_context()
-    return executor.submit(ctx.run, functools.partial(fn, *args, **kwargs))
+# Why the context is copied: `abort_requested()` reads a contextvar the scheduler
+# binds to the tick thread, and contextvars do NOT cross into ThreadPoolExecutor
+# workers. `_search_with_ctx` carried the Flask app context over but not the
+# stop signal, so every check below it saw "nobody asked us to stop" — prod
+# 2026-08-15 recorded ffsubsync runs still *starting* seven minutes after a
+# cancel. The helper now lives in utils.context_executor, shared with every
+# other pool a scheduled job uses; the old name stays for callers and tests.
+_submit_with_context = submit_with_context
 
 
 def _search_with_ctx(

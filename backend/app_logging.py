@@ -5,11 +5,14 @@ structured JSON formatter, the Flask-context-aware WebSocket log handler,
 and the idempotent _setup_logging() routine called by create_app().
 """
 
+import json
 import logging
 import os
+import re
 from logging.handlers import RotatingFileHandler
 
 from extensions import socketio
+from secret_redaction import SecretRedactionFilter, redact
 
 # `[%(request_id)s]` sits AFTER the level and BEFORE the logger name on purpose.
 # Two consumers parse these lines with anchored regexes — support._extract_top_errors
@@ -356,12 +359,55 @@ def rotated_log_candidates(settings=None) -> list[str]:
     return [log_file] + [f"{log_file}.{i}" for i in range(1, backup_count + 1)]
 
 
+# Parsing the lines this module writes. Two formats exist (text and JSON), and
+# every reader — the /logs level filter, the support bundle's top-error parser,
+# its recent-warnings file — used to understand the text one only, so on
+# log_format=json the error list came back empty and the level filter matched
+# nothing. They all go through these two helpers now.
+#
+# The bracketed id slot between level and logger name is consumed explicitly:
+# a scheduler run label like `[wanted_search:a1b2c3d4]` contains a colon, and
+# `[^:]+` would start the message mid-id. Optional, for logs predating the slot.
+_TEXT_LINE_RE = re.compile(
+    r"^(\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}),\d+\s+\[([A-Z]+)\]\s+"
+    r"(?:\[[^\]]*\]\s+)?(?:[^:\s][^:]*:\s*(.*))?"
+)
+
+
+def parse_log_line(line: str) -> tuple[str, str, str | None] | None:
+    """``(timestamp "YYYY-MM-DD HH:MM:SS", LEVEL, message)`` or None.
+
+    None means "not the first line of a record" — a traceback or wrapped
+    continuation line. The message is None when a text line has no
+    ``logger: message`` part.
+    """
+    if line.startswith("{"):
+        try:
+            entry = json.loads(line)
+        except ValueError:
+            return None
+        if not isinstance(entry, dict) or "level" not in entry:
+            return None
+        return (
+            str(entry.get("timestamp", ""))[:19],
+            str(entry["level"]).upper(),
+            str(entry.get("message", "")),
+        )
+    match = _TEXT_LINE_RE.match(line)
+    if match is None:
+        return None
+    return match.group(1), match.group(2), match.group(3)
+
+
+def line_has_level(line: str, level: str) -> bool:
+    """Whether a text or JSON log line carries ``level`` — substring-cheap."""
+    return f"[{level}]" in line or f'"level": "{level}"' in line
+
+
 class StructuredJSONFormatter(logging.Formatter):
     """JSON log formatter for structured logging (ELK, Loki, etc.)."""
 
     def format(self, record: logging.LogRecord) -> str:
-        import json as _json
-
         entry = {
             "timestamp": self.formatTime(record, self.datefmt),
             "level": record.levelname,
@@ -383,10 +429,17 @@ class StructuredJSONFormatter(logging.Formatter):
         if record.exc_info and record.exc_info[1]:
             entry["exception"] = {
                 "type": type(record.exc_info[1]).__name__,
-                "message": str(record.exc_info[1]),
+                "message": redact(str(record.exc_info[1])),
             }
+            # The text format prints the traceback; this format used to drop it,
+            # so anyone on log_format=json lost the one thing an error report
+            # needs. exc_text is what SecretRedactionFilter already rendered and
+            # scrubbed when the record went through a Sublarr handler.
+            if not record.exc_text:
+                record.exc_text = self.formatException(record.exc_info)
+            entry["traceback"] = redact(record.exc_text)
 
-        return _json.dumps(entry, default=str)
+        return json.dumps(entry, default=str)
 
 
 def _has_app_context() -> bool:
@@ -450,7 +503,11 @@ def _setup_logging(settings, *, stamp: bool = True) -> None:
             (a settings save re-applying logging, a changed log path) already
             has the final settings and stamps here — see `stamp_log_fingerprint`.
     """
-    log_level = getattr(logging, settings.log_level.upper(), logging.INFO)
+    raw_level = str(getattr(settings, "log_level", "INFO") or "INFO")
+    log_level = logging.getLevelName(raw_level.strip().upper())
+    level_is_valid = isinstance(log_level, int)
+    if not level_is_valid:
+        log_level = logging.INFO
     # Before basicConfig: LOG_FORMAT references %(request_id)s, and the handler
     # basicConfig installs would format records that do not have it yet.
     _install_request_id_factory()
@@ -461,6 +518,16 @@ def _setup_logging(settings, *, stamp: bool = True) -> None:
     # a re-run (settings-save → live re-apply) it would NOT update the level.
     # Set it explicitly to keep _setup_logging idempotent for level changes.
     root.setLevel(log_level)
+
+    if not level_is_valid:
+        # Used to fall back to INFO silently, so a typo in the env var looked
+        # like "DEBUG does nothing". basicConfig's console handler is live by
+        # now, so the line is visible even on the very first start.
+        logging.getLogger(__name__).warning(
+            "Unknown log level %r (SUBLARR_LOG_LEVEL / log_level) — using INFO. "
+            "Valid: DEBUG, INFO, WARNING, ERROR, CRITICAL",
+            raw_level,
+        )
 
     for noisy_name, noisy_level in _THIRD_PARTY_LOG_LEVELS.items():
         logging.getLogger(noisy_name).setLevel(noisy_level)
@@ -525,6 +592,14 @@ def _setup_logging(settings, *, stamp: bool = True) -> None:
     # Every handler on root, not just ours: basicConfig installs a console
     # StreamHandler using LOG_FORMAT too, and a record reaching it without
     # `request_id` would raise inside Formatter.format.
+    #
+    # The same reach is why secret redaction lives here and not on a logger:
+    # the file, the console and the live WebSocket stream all write through
+    # these handlers, so a credential in any record is scrubbed before it
+    # exists anywhere a user could copy it from. It used to be installed on
+    # the two urllib3 loggers only (providers/http_session.py).
     for handler in root.handlers:
         if not any(isinstance(f, RequestIdFilter) for f in handler.filters):
             handler.addFilter(RequestIdFilter())
+        if not any(isinstance(f, SecretRedactionFilter) for f in handler.filters):
+            handler.addFilter(SecretRedactionFilter())
