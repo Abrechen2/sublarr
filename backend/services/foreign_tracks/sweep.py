@@ -225,7 +225,7 @@ def _run_slice_locked(media_root: str, config: dict, budget_s: int, now_fn, repo
     # rules are created with config_json="{}", so without this the seeded
     # sweep rule would abort forever. An EXPLICITLY empty keep_languages
     # still aborts below: inheriting there would strip every subtitle track
-    # in the library. Mirrors cleanup_executors.execute_foreign_tracks.
+    # in the library.
     settings = get_settings()
     raw_keep = config.get("keep_languages")
     if raw_keep is None:

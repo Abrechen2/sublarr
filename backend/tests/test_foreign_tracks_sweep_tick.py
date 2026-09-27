@@ -370,7 +370,7 @@ def test_one_slice_chains_enumerate_probe_and_strip_to_idle(app, repo, tmp_path,
 # ---------------------------------------------------------------------------
 # Global-settings inheritance for keep_languages / keep_und (finding 1).
 #
-# Mirrors cleanup_executors.execute_foreign_tracks: rules are created with
+# Rules are created with
 # config_json="{}", so an ABSENT key must inherit the global
 # cleanup_foreign_tracks_* setting, or a freshly-seeded rule aborts forever.
 # An EXPLICITLY empty/False value always wins over the global.

@@ -229,7 +229,8 @@ def preview_rule(rule_id: int) -> dict:
     elif rule_type == "orphan_db":
         result = execute_orphan_db(config, dry_run=True)
     elif rule_type == "foreign_tracks":
-        # Deliberately NOT execute_foreign_tracks(dry_run=True): that walks and
+        # Deliberately NOT a dry-run walk of the library (the removed
+        # execute_foreign_tracks did that): it walks and
         # ffprobes the entire library inside the request — 754 s and 2,825 s on
         # the production library, so the endpoint could only ever time out. The
         # sweep's scan table already holds a verdict per file.

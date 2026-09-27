@@ -219,7 +219,8 @@ def test_the_rule_preview_endpoint_answers_from_the_scan_table(app, monkeypatch)
     def _no_walking(*args, **kwargs):
         raise AssertionError("the preview must not walk the library")
 
-    monkeypatch.setattr(cleanup_executors, "execute_foreign_tracks", _no_walking)
+    # The old executor is gone (1.15.0); guard the library walk itself.
+    monkeypatch.setattr(cleanup_executors, "_video_files", _no_walking)
 
     rule_id = _make_rule()
     scan = ForeignTrackScanRepository()
