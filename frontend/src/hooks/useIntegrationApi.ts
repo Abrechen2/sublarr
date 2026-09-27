@@ -13,7 +13,7 @@ import {
   installBrowsePlugin, uninstallBrowsePlugin,
   importBazarrConfig, confirmBazarrImport,
 } from '@/api/client'
-import type { MediaServerInstance, HookConfig, WebhookConfig, BazarrMigrationPreview } from '@/lib/types'
+import type { MediaServerInstance, HookConfig, WebhookConfig } from '@/lib/types'
 import type { MarketplaceBrowsePlugin } from '@/api/client'
 
 // ─── Media Servers ──────────────────────────────────────────────────────────
@@ -288,17 +288,19 @@ export function useRefreshMarketplaceBrowse() {
 
 export function useBazarrMigration() {
   return useMutation({
-    mutationFn: (file: File) => importBazarrConfig(file),
+    mutationFn: (files: File[]) => importBazarrConfig(files),
   })
 }
 
 export function useConfirmBazarrImport() {
   const qc = useQueryClient()
   return useMutation({
-    mutationFn: (preview: BazarrMigrationPreview) => confirmBazarrImport(preview),
+    mutationFn: (files: File[]) => confirmBazarrImport(files),
     onSuccess: () => {
       void qc.invalidateQueries({ queryKey: ['api-keys'] })
       void qc.invalidateQueries({ queryKey: ['config'] })
+      void qc.invalidateQueries({ queryKey: ['language-profiles'] })
+      void qc.invalidateQueries({ queryKey: ['blacklist'] })
     },
   })
 }

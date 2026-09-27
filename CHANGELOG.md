@@ -52,6 +52,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Existing installs keep exactly today's behaviour until this is changed.
 
 ### Fixed
+- **The Bazarr migration imports for real.** The wizard under System →
+  Migration never sent anything to the server: its preview showed made-up
+  counts and "Import" imported nothing. The "Bazarr Migration" button under
+  API Keys read the file but its confirm step called an endpoint that does
+  not exist. Both now use the real import: upload Bazarr's `config.yaml` /
+  `config.ini`, its `bazarr.db`, or a ZIP of the folder, see what each
+  setting would replace, and confirm. Along the way the importer itself was
+  fixed. It built Sonarr/Radarr addresses without `http://`, SSL or the URL
+  base, so `ip: 10.0.0.5` became `10.0.0.5:8989`. It read a bare `bazarr.db`
+  as a text config. It took the OpenSubtitles login from the legacy section
+  Bazarr leaves empty. It wrote addresses without the SSRF check that saving
+  settings applies. And it left the Sonarr/Radarr clients on the old values
+  until a restart. Download history is not imported.
 - **A schedule changed to another type survives a restart.** Switching a job
   from "every N hours" to a time-of-day schedule (for example the sweep's
   "only at night") was reset to the default at the next start, because the

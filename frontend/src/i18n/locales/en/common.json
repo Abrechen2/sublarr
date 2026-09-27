@@ -710,7 +710,9 @@
       "sweep_title": "Clean up the existing library — at your own pace",
       "sweep_desc": "The sweep applies the track settings to files already in the library. How often and how long it runs is set in the “Foreign tracks” card — every 6 hours, hourly or only at night. Every original stays in the trash for the configured retention; deleting it right away has to be switched on explicitly, and only happens after a track-by-track check. The statistics page shows what was cleaned.",
       "privacy_title": "No credentials in logs or the support bundle",
-      "privacy_desc": "Passwords, API keys, database credentials and webhook tokens are blanked before a log line is written. The support bundle carries only settings known to be harmless in clear, and more of what helps troubleshooting."
+      "privacy_desc": "Passwords, API keys, database credentials and webhook tokens are blanked before a log line is written. The support bundle carries only settings known to be harmless in clear, and more of what helps troubleshooting.",
+      "bazarr_title": "Moving over from Bazarr works",
+      "bazarr_desc": "The Bazarr migration under System now really brings over your Sonarr/Radarr connection, OpenSubtitles login, language profiles and blacklist — with a preview of what gets replaced."
     },
     "v1145": {
       "loop_title": "Embedded subtitles are no longer extracted over and over",

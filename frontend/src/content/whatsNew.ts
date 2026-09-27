@@ -27,6 +27,7 @@ export const WHATS_NEW: Record<string, WhatsNewItem[]> = {
     { icon: ShieldCheck, titleKey: 'whatsnew.v1150.upgrade_title', descKey: 'whatsnew.v1150.upgrade_desc' },
     { icon: FileDown, titleKey: 'whatsnew.v1150.subdl_title', descKey: 'whatsnew.v1150.subdl_desc' },
     { icon: Layers, titleKey: 'whatsnew.v1150.season_title', descKey: 'whatsnew.v1150.season_desc' },
+    { icon: Rocket, titleKey: 'whatsnew.v1150.bazarr_title', descKey: 'whatsnew.v1150.bazarr_desc' },
   ],
   '1.14.5': [
     { icon: Layers, titleKey: 'whatsnew.v1145.loop_title', descKey: 'whatsnew.v1145.loop_desc' },

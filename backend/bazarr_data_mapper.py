@@ -6,6 +6,7 @@ provider setting mapping, and batch migration orchestration.
 """
 
 import logging
+import re
 
 logger = logging.getLogger(__name__)
 
@@ -15,16 +16,19 @@ logger = logging.getLogger(__name__)
 # ---------------------------------------------------------------------------
 
 
-def preview_migration(config_data: dict, db_data: dict) -> dict:
+def preview_migration(config_data: dict, db_data: dict, current: dict | None = None) -> dict:
     """Generate a human-readable preview of what the migration will import.
 
     Args:
         config_data: Parsed config dict (from parse_bazarr_config).
         db_data: Parsed DB dict (from migrate_bazarr_db).
+        current: The config entries stored today, so each planned entry can
+            show what it would overwrite. Secrets are masked on both sides.
 
     Returns:
         Dict with sections describing each import category.
     """
+    current = current or {}
     preview = {
         "config_entries": [],
         "profiles": [],
@@ -36,64 +40,17 @@ def preview_migration(config_data: dict, db_data: dict) -> dict:
     preview["warnings"].extend(config_data.get("warnings", []))
     preview["warnings"].extend(db_data.get("warnings", []))
 
-    # Config entries that would be imported
-    sonarr = config_data.get("sonarr", {})
-    if sonarr.get("url") and sonarr.get("api_key"):
-        url = sonarr["url"]
-        port = sonarr.get("port", "")
-        if port:
-            url = f"{url}:{port}"
+    for key, value, source in planned_config_entries(config_data):
+        existing = str(current.get(key) or "")
+        secret = _is_secret(key)
         preview["config_entries"].append(
             {
-                "key": "sonarr_url",
-                "value": url,
-                "source": "Bazarr config (sonarr)",
-            }
-        )
-        preview["config_entries"].append(
-            {
-                "key": "sonarr_api_key",
-                "value": _mask_preview(sonarr["api_key"]),
-                "source": "Bazarr config (sonarr)",
-            }
-        )
-
-    radarr = config_data.get("radarr", {})
-    if radarr.get("url") and radarr.get("api_key"):
-        url = radarr["url"]
-        port = radarr.get("port", "")
-        if port:
-            url = f"{url}:{port}"
-        preview["config_entries"].append(
-            {
-                "key": "radarr_url",
-                "value": url,
-                "source": "Bazarr config (radarr)",
-            }
-        )
-        preview["config_entries"].append(
-            {
-                "key": "radarr_api_key",
-                "value": _mask_preview(radarr["api_key"]),
-                "source": "Bazarr config (radarr)",
-            }
-        )
-
-    general = config_data.get("general", {})
-    if general.get("opensubtitles_api_key"):
-        preview["config_entries"].append(
-            {
-                "key": "opensubtitles_api_key",
-                "value": _mask_preview(general["opensubtitles_api_key"]),
-                "source": "Bazarr config (opensubtitles)",
-            }
-        )
-    if general.get("opensubtitles_username"):
-        preview["config_entries"].append(
-            {
-                "key": "opensubtitles_username",
-                "value": general["opensubtitles_username"],
-                "source": "Bazarr config (opensubtitles)",
+                "key": key,
+                "value": _mask_preview(value) if secret else value,
+                "current_value": (_mask_preview(existing) if secret else existing)
+                if existing
+                else "",
+                "source": source,
             }
         )
 
@@ -125,6 +82,62 @@ def _mask_preview(val: str) -> str:
     return val[:4] + "***"
 
 
+def _is_secret(key: str) -> bool:
+    return "api_key" in key or "password" in key
+
+
+def _truthy(value) -> bool:
+    return str(value).strip().lower() in ("true", "1", "yes", "on")
+
+
+def arr_url(section: dict) -> str:
+    """Join Bazarr's separate host/port/ssl/base_url fields into one URL.
+
+    ``{"url": "10.0.0.5", "port": 8989, "ssl": False, "base_url": "/sonarr"}``
+    becomes ``http://10.0.0.5:8989/sonarr``. A host that already carries a
+    scheme is kept as given (only the port and path are added).
+    """
+    host = str(section.get("url") or "").strip().rstrip("/")
+    if not host:
+        return ""
+    if "://" in host:
+        scheme, host = host.split("://", 1)
+    else:
+        scheme = "https" if _truthy(section.get("ssl")) else "http"
+    if host.count(":") > 1 and not host.startswith("["):
+        host = f"[{host}]"  # a bare IPv6 literal needs brackets before a port
+    port = str(section.get("port") or "").strip()
+    # "sonarr:8989" or "[::1]:8989" already carry their port.
+    if port and not re.search(r"(^[^:]*|\]):\d+$", host):
+        host = f"{host}:{port}"
+    path = str(section.get("base_url") or "").strip().strip("/")
+    return f"{scheme}://{host}/{path}" if path else f"{scheme}://{host}"
+
+
+def planned_config_entries(config_data: dict) -> list[tuple[str, str, str]]:
+    """The (key, value, source) config entries an import would write.
+
+    Preview and apply both read this list, so what the user confirms is what
+    gets written.
+    """
+    entries: list[tuple[str, str, str]] = []
+    for arr in ("sonarr", "radarr"):
+        section = config_data.get(arr) or {}
+        url = arr_url(section)
+        api_key = str(section.get("api_key") or "").strip()
+        if url and api_key:
+            source = f"Bazarr config ({arr})"
+            entries.append((f"{arr}_url", url, source))
+            entries.append((f"{arr}_api_key", api_key, source))
+
+    general = config_data.get("general") or {}
+    for field in ("opensubtitles_api_key", "opensubtitles_username", "opensubtitles_password"):
+        value = str(general.get(field) or "").strip()
+        if value:
+            entries.append((field, value, "Bazarr config (opensubtitles)"))
+    return entries
+
+
 # ---------------------------------------------------------------------------
 # Apply Migration
 # ---------------------------------------------------------------------------
@@ -149,41 +162,30 @@ def apply_migration(config_data: dict, db_data: dict) -> dict:
         "profiles_imported": 0,
         "blacklist_imported": 0,
         "warnings": [],
+        "saved_keys": [],
     }
 
-    # Import Sonarr config
-    sonarr = config_data.get("sonarr", {})
-    if sonarr.get("url") and sonarr.get("api_key"):
-        url = sonarr["url"]
-        port = sonarr.get("port", "")
-        if port:
-            url = f"{url}:{port}"
-        save_config_entry("sonarr_url", url)
-        save_config_entry("sonarr_api_key", sonarr["api_key"])
-        result["config_imported"] += 2
+    # Config entries — a URL goes through the same SSRF guard PUT /config
+    # applies, and a refused URL takes its API key with it (half a connection
+    # is worse than none: the key would sit next to the old URL).
+    from security_utils import validate_service_url
 
-    # Import Radarr config
-    radarr = config_data.get("radarr", {})
-    if radarr.get("url") and radarr.get("api_key"):
-        url = radarr["url"]
-        port = radarr.get("port", "")
-        if port:
-            url = f"{url}:{port}"
-        save_config_entry("radarr_url", url)
-        save_config_entry("radarr_api_key", radarr["api_key"])
-        result["config_imported"] += 2
-
-    # Import OpenSubtitles credentials
-    general = config_data.get("general", {})
-    if general.get("opensubtitles_api_key"):
-        save_config_entry("opensubtitles_api_key", general["opensubtitles_api_key"])
+    refused: set[str] = set()
+    planned = planned_config_entries(config_data)
+    for key, value, _source in planned:
+        if key.endswith("_url"):
+            ok, reason = validate_service_url(value)
+            if not ok:
+                refused.add(key[: -len("_url")])
+                result["warnings"].append(
+                    f"{key} not imported: {reason}. Set it under Settings instead."
+                )
+    for key, value, _source in planned:
+        if key.split("_", 1)[0] in refused:
+            continue
+        save_config_entry(key, value)
         result["config_imported"] += 1
-    if general.get("opensubtitles_username"):
-        save_config_entry("opensubtitles_username", general["opensubtitles_username"])
-        result["config_imported"] += 1
-    if general.get("opensubtitles_password"):
-        save_config_entry("opensubtitles_password", general["opensubtitles_password"])
-        result["config_imported"] += 1
+        result["saved_keys"].append(key)
 
     # Import language profiles from DB
     try:

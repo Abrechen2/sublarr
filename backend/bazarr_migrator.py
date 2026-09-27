@@ -22,6 +22,7 @@ from bazarr_data_mapper import (  # noqa: F401 — re-exported for back-compat
     batch_migrate_bazarr_instances,
     import_bazarr_history,
     map_bazarr_provider_settings,
+    planned_config_entries,
     preview_migration,
 )
 from bazarr_db_reader import (  # noqa: F401 — re-exported for back-compat
@@ -123,6 +124,34 @@ def _parse_ini(content: str) -> dict:
     return _normalize_config(data, warnings)
 
 
+def _arr_section(section: dict) -> dict:
+    """Carry a Bazarr Sonarr/Radarr section over field by field.
+
+    Bazarr keeps the host (``ip``), ``port``, ``ssl`` and ``base_url`` apart;
+    ``bazarr_data_mapper.arr_url`` joins them into the URL Sublarr stores.
+    """
+    return {
+        "url": section.get("ip", ""),
+        "port": section.get("port", ""),
+        "ssl": section.get("ssl", False),
+        "api_key": section.get("apikey", section.get("api_key", "")),
+        "base_url": section.get("base_url", ""),
+    }
+
+
+# Bazarr 1.x writes both sections; the legacy opensubtitles.org one is usually
+# left empty, so the one that holds credentials wins.
+_OPENSUBTITLES_SECTIONS = ("opensubtitlescom", "OpenSubtitlesCom", "opensubtitles", "OpenSubtitles")
+
+
+def _opensubtitles_section(data: dict) -> dict:
+    sections = [data[name] for name in _OPENSUBTITLES_SECTIONS if isinstance(data.get(name), dict)]
+    for section in sections:
+        if section.get("username") or section.get("apikey"):
+            return section
+    return sections[0] if sections else {}
+
+
 def _normalize_config(data: dict, warnings: list) -> dict:
     """Normalize parsed config data into a standard structure.
 
@@ -140,22 +169,12 @@ def _normalize_config(data: dict, warnings: list) -> dict:
     # Extract Sonarr settings (Bazarr uses 'sonarr' section)
     sonarr = data.get("sonarr", data.get("Sonarr", {}))
     if isinstance(sonarr, dict):
-        result["sonarr"] = {
-            "url": sonarr.get("ip", sonarr.get("base_url", "")),
-            "port": sonarr.get("port", ""),
-            "api_key": sonarr.get("apikey", sonarr.get("api_key", "")),
-            "base_url": sonarr.get("base_url", ""),
-        }
+        result["sonarr"] = _arr_section(sonarr)
 
     # Extract Radarr settings
     radarr = data.get("radarr", data.get("Radarr", {}))
     if isinstance(radarr, dict):
-        result["radarr"] = {
-            "url": radarr.get("ip", radarr.get("base_url", "")),
-            "port": radarr.get("port", ""),
-            "api_key": radarr.get("apikey", radarr.get("api_key", "")),
-            "base_url": radarr.get("base_url", ""),
-        }
+        result["radarr"] = _arr_section(radarr)
 
     # Extract general settings
     general = data.get("general", data.get("General", {}))
@@ -172,10 +191,8 @@ def _normalize_config(data: dict, warnings: list) -> dict:
         }
 
     # Extract subtitle provider settings
-    providers_section = data.get(
-        "opensubtitles", data.get("OpenSubtitles", data.get("opensubtitlescom", {}))
-    )
-    if isinstance(providers_section, dict):
+    providers_section = _opensubtitles_section(data)
+    if providers_section:
         result["general"]["opensubtitles_username"] = providers_section.get("username", "")
         result["general"]["opensubtitles_password"] = providers_section.get("password", "")
         result["general"]["opensubtitles_api_key"] = providers_section.get("apikey", "")

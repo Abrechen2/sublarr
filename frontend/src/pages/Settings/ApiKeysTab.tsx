@@ -6,6 +6,7 @@ import {
   useBazarrMigration, useConfirmBazarrImport,
 } from '@/hooks/useApi'
 import { toast } from '@/components/shared/Toast'
+import { BazarrImportPreview } from '@/components/settings/BazarrImportPreview'
 import {
   Loader2, Shield, ShieldCheck, ShieldAlert, TestTube,
   FileDown, Upload, Eye, EyeOff, Check, X, KeyRound,
@@ -56,27 +57,25 @@ function ServiceKeyCard({
 
   return (
     <div
-      className="rounded-lg p-4 space-y-3"
-      style={{ backgroundColor: 'var(--bg-surface)', border: '1px solid var(--border)' }}
+      className="rounded-lg p-4 space-y-3 bg-surface border border-border"
     >
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
           {allConfigured ? (
-            <ShieldCheck size={16} style={{ color: 'var(--success)' }} />
+            <ShieldCheck size={16} className="text-success" />
           ) : anyMissing ? (
-            <ShieldAlert size={16} style={{ color: 'var(--error)' }} />
+            <ShieldAlert size={16} className="text-error" />
           ) : (
-            <Shield size={16} style={{ color: 'var(--text-muted)' }} />
+            <Shield size={16} className="text-muted" />
           )}
-          <h3 className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>
+          <h3 className="text-sm font-semibold text-foreground">
             {service.service}
           </h3>
         </div>
         {service.testable && (
           <button
             onClick={() => onTest(service.service)}
-            className="flex items-center gap-1.5 px-2.5 py-1 rounded text-xs font-medium transition-all duration-150"
-            style={{ color: 'var(--accent)', border: '1px solid var(--accent-dim)' }}
+            className="flex items-center gap-1.5 px-2.5 py-1 rounded text-xs font-medium transition-all duration-150 text-accent border border-accent-dim"
             onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = 'var(--accent-bg)' }}
             onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = 'transparent' }}
           >
@@ -90,21 +89,18 @@ function ServiceKeyCard({
         {service.keys.map((key) => (
           <div
             key={key.name}
-            className="flex items-center gap-3 px-3 py-2 rounded-md"
-            style={{ backgroundColor: 'var(--bg-primary)', border: '1px solid var(--border)' }}
+            className="flex items-center gap-3 px-3 py-2 rounded-md bg-page border border-border"
           >
             <div className="flex-1 min-w-0">
               <div className="flex items-center gap-2">
-                <KeyRound size={12} style={{ color: 'var(--text-muted)' }} />
-                <span className="text-xs font-medium" style={{ color: 'var(--text-secondary)' }}>
+                <KeyRound size={12} className="text-muted" />
+                <span className="text-xs font-medium text-secondary">
                   {key.name}
                 </span>
                 <span
-                  className="text-[10px] px-1.5 py-0.5 rounded-full font-medium"
-                  style={{
-                    backgroundColor: key.status === 'configured' ? 'var(--success-bg, rgba(34,197,94,0.1))' : 'var(--error-bg, rgba(239,68,68,0.1))',
-                    color: key.status === 'configured' ? 'var(--success)' : 'var(--error)',
-                  }}
+                  className={`text-[10px] px-1.5 py-0.5 rounded-full font-medium ${
+                    key.status === 'configured' ? 'bg-success-bg text-success' : 'bg-error-bg text-error'
+                  }`}
                 >
                   {key.status}
                 </span>
@@ -116,13 +112,7 @@ function ServiceKeyCard({
                     value={editValue}
                     onChange={(e) => setEditValue(e.target.value)}
                     placeholder={tc('ui.enter_new_value')}
-                    className="flex-1 px-2 py-1 rounded text-xs focus:outline-none"
-                    style={{
-                      backgroundColor: 'var(--bg-surface)',
-                      border: '1px solid var(--accent-dim)',
-                      color: 'var(--text-primary)',
-                      fontFamily: 'var(--font-mono)',
-                    }}
+                    className="flex-1 px-2 py-1 rounded text-xs focus:outline-none bg-surface border border-accent-dim text-foreground font-mono"
                     autoFocus
                     onKeyDown={(e) => {
                       if (e.key === 'Enter') handleSave(key.name)
@@ -131,16 +121,14 @@ function ServiceKeyCard({
                   />
                   <button
                     onClick={() => handleSave(key.name)}
-                    className="p-1 rounded"
-                    style={{ color: 'var(--success)' }}
+                    className="p-1 rounded text-success"
                     title={t('apiKeys.save')}
                   >
                     <Check size={14} />
                   </button>
                   <button
                     onClick={handleCancel}
-                    className="p-1 rounded"
-                    style={{ color: 'var(--text-muted)' }}
+                    className="p-1 rounded text-muted"
                     title={tc('ui.cancel')}
                   >
                     <X size={14} />
@@ -149,8 +137,7 @@ function ServiceKeyCard({
               ) : (
                 <div className="flex items-center gap-2 mt-1">
                   <code
-                    className="text-xs"
-                    style={{ color: 'var(--text-muted)', fontFamily: 'var(--font-mono)' }}
+                    className="text-xs text-muted font-mono"
                   >
                     {showValues[key.name] && key.masked_value !== '(not set)'
                       ? key.masked_value
@@ -161,16 +148,14 @@ function ServiceKeyCard({
                   {key.status === 'configured' && (
                     <button
                       onClick={() => toggleShow(key.name)}
-                      className="p-0.5 rounded"
-                      style={{ color: 'var(--text-muted)' }}
+                      className="p-0.5 rounded text-muted"
                     >
                       {showValues[key.name] ? <EyeOff size={12} /> : <Eye size={12} />}
                     </button>
                   )}
                   <button
                     onClick={() => handleStartEdit(key.name)}
-                    className="text-[10px] px-1.5 py-0.5 rounded font-medium transition-all duration-150"
-                    style={{ color: 'var(--accent)', border: '1px solid var(--accent-dim)' }}
+                    className="text-[10px] px-1.5 py-0.5 rounded font-medium transition-all duration-150 text-accent border border-accent-dim"
                     onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = 'var(--accent-bg)' }}
                     onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = 'transparent' }}
                   >
@@ -181,90 +166,6 @@ function ServiceKeyCard({
             </div>
           </div>
         ))}
-      </div>
-    </div>
-  )
-}
-
-// ─── Bazarr Migration Modal ──────────────────────────────────────────────────
-
-function BazarrPreviewModal({
-  preview,
-  onConfirm,
-  onCancel,
-  isPending,
-}: {
-  preview: BazarrMigrationPreview
-  onConfirm: () => void
-  onCancel: () => void
-  isPending: boolean
-}) {
-  const { t } = useTranslation('settings')
-  return (
-    <div
-      className="rounded-lg p-4 space-y-3"
-      style={{ backgroundColor: 'var(--bg-primary)', border: '1px solid var(--accent-dim)' }}
-    >
-      <div className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>
-        {t('apiKeys.bazarr_preview_title')}
-      </div>
-
-      {preview.warnings.length > 0 && (
-        <div className="space-y-1">
-          {preview.warnings.map((w, i) => (
-            <div key={i} className="text-xs px-2 py-1 rounded" style={{ backgroundColor: 'var(--warning-bg, rgba(234,179,8,0.1))', color: 'var(--warning)' }}>
-              {w}
-            </div>
-          ))}
-        </div>
-      )}
-
-      <div
-        className="max-h-48 overflow-auto rounded px-3 py-2 text-xs space-y-1"
-        style={{
-          backgroundColor: 'var(--bg-surface)',
-          border: '1px solid var(--border)',
-          fontFamily: 'var(--font-mono)',
-          color: 'var(--text-secondary)',
-        }}
-      >
-        {preview.config_entries.map((entry) => (
-          <div key={entry.key} className="flex items-center gap-2 py-0.5">
-            <span style={{ color: 'var(--accent)' }}>{entry.key}</span>
-            <span style={{ color: 'var(--text-muted)' }}>=</span>
-            <span>{entry.value}</span>
-            {entry.current_value && (
-              <span className="text-[10px]" style={{ color: 'var(--warning)' }}>
-                (current: {entry.current_value})
-              </span>
-            )}
-          </div>
-        ))}
-      </div>
-
-      <div className="text-xs" style={{ color: 'var(--text-muted)' }}>
-        {t('apiKeys.config_entries_count', { count: preview.config_entries.length })}
-        {preview.blacklist_count > 0 && t('apiKeys.blacklist_entries_count', { count: preview.blacklist_count })}
-      </div>
-
-      <div className="flex items-center gap-2">
-        <button
-          onClick={onConfirm}
-          disabled={isPending}
-          className="flex items-center gap-1.5 px-3 py-1.5 rounded text-xs font-medium text-white"
-          style={{ backgroundColor: 'var(--accent)' }}
-        >
-          {isPending ? <Loader2 size={12} className="animate-spin" /> : <Check size={12} />}
-          {t('apiKeys.confirm_import')}
-        </button>
-        <button
-          onClick={onCancel}
-          className="flex items-center gap-1 px-3 py-1.5 rounded text-xs"
-          style={{ color: 'var(--text-muted)' }}
-        >
-          <X size={12} />
-          {t('apiKeys.cancel')}
-        </button>
       </div>
     </div>
   )
@@ -291,6 +192,8 @@ export function ApiKeysTab({
   const importFileRef = useRef<HTMLInputElement>(null)
   const bazarrFileRef = useRef<HTMLInputElement>(null)
   const [bazarrPreview, setBazarrPreview] = useState<BazarrMigrationPreview | null>(null)
+  // Confirm re-sends the file: the preview masks every secret it would write.
+  const [bazarrFile, setBazarrFile] = useState<File | null>(null)
 
   const handleUpdate = (service: string, keyName: string, value: string) => {
     updateKey.mutate({ service, keyName, value }, {
@@ -342,21 +245,28 @@ export function ApiKeysTab({
   const handleBazarrFile = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
     if (!file) return
-    bazarrMigrate.mutate(file, {
+    bazarrMigrate.mutate([file], {
       onSuccess: (preview) => {
+        setBazarrFile(file)
         setBazarrPreview(preview)
       },
-      onError: () => toast(t('apiKeys.bazarr_parse_failed'), 'error'),
+      onError: (err) => {
+        const message = (err as { response?: { data?: { error?: string } } })?.response?.data?.error
+        toast(message ?? t('apiKeys.bazarr_parse_failed'), 'error')
+      },
     })
     e.target.value = ''
   }
 
   const handleBazarrConfirm = () => {
-    if (!bazarrPreview) return
-    confirmBazarr.mutate(bazarrPreview, {
+    if (!bazarrFile) return
+    confirmBazarr.mutate([bazarrFile], {
       onSuccess: (result) => {
         setBazarrPreview(null)
-        toast(t('apiKeys.bazarr_import_complete', { count: result.imported }))
+        setBazarrFile(null)
+        const count = result.config_imported + result.profiles_imported + result.blacklist_imported
+        toast(t('apiKeys.bazarr_import_complete', { count }))
+        result.warnings.forEach((w) => toast(w, 'error'))
       },
       onError: () => toast(t('apiKeys.bazarr_import_failed'), 'error'),
     })
@@ -365,7 +275,7 @@ export function ApiKeysTab({
   if (isLoading) {
     return (
       <div className="flex items-center justify-center h-32">
-        <Loader2 size={24} className="animate-spin" style={{ color: 'var(--accent)' }} />
+        <Loader2 size={24} className="animate-spin text-accent" />
       </div>
     )
   }
@@ -379,13 +289,12 @@ export function ApiKeysTab({
     <div className="space-y-5">
       {/* Header */}
       <div
-        className="rounded-lg p-4"
-        style={{ backgroundColor: 'var(--bg-surface)', border: '1px solid var(--border)' }}
+        className="rounded-lg p-4 bg-surface border border-border"
       >
-        <h2 className="text-sm font-semibold mb-2" style={{ color: 'var(--text-primary)' }}>
+        <h2 className="text-sm font-semibold mb-2 text-foreground">
           {t('apiKeys.title', 'API Key Management')}
         </h2>
-        <p className="text-xs mb-3" style={{ color: 'var(--text-muted)' }}>
+        <p className="text-xs mb-3 text-muted">
           {t('apiKeys.description', 'Manage all API keys in one place. Test connections, rotate keys, and import/export configurations.')}
         </p>
 
@@ -393,8 +302,7 @@ export function ApiKeysTab({
           <button
             onClick={handleExport}
             disabled={exportKeys.isPending}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded text-xs font-medium transition-all duration-150"
-            style={{ border: '1px solid var(--border)', color: 'var(--text-secondary)', backgroundColor: 'var(--bg-primary)' }}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded text-xs font-medium transition-all duration-150 border border-border text-secondary bg-page"
             onMouseEnter={(e) => { e.currentTarget.style.borderColor = 'var(--accent-dim)'; e.currentTarget.style.color = 'var(--accent)' }}
             onMouseLeave={(e) => { e.currentTarget.style.borderColor = 'var(--border)'; e.currentTarget.style.color = 'var(--text-secondary)' }}
           >
@@ -404,8 +312,7 @@ export function ApiKeysTab({
 
           <button
             onClick={() => importFileRef.current?.click()}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded text-xs font-medium transition-all duration-150"
-            style={{ border: '1px solid var(--border)', color: 'var(--text-secondary)', backgroundColor: 'var(--bg-primary)' }}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded text-xs font-medium transition-all duration-150 border border-border text-secondary bg-page"
             onMouseEnter={(e) => { e.currentTarget.style.borderColor = 'var(--accent-dim)'; e.currentTarget.style.color = 'var(--accent)' }}
             onMouseLeave={(e) => { e.currentTarget.style.borderColor = 'var(--border)'; e.currentTarget.style.color = 'var(--text-secondary)' }}
           >
@@ -414,28 +321,30 @@ export function ApiKeysTab({
           </button>
           <input ref={importFileRef} type="file" accept=".zip,.csv" onChange={handleImportFile} className="hidden" />
 
-          <div style={{ borderLeft: '1px solid var(--border)', height: '20px' }} />
+          <div className="h-5 border-l border-border" />
 
           <button
             onClick={() => bazarrFileRef.current?.click()}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded text-xs font-medium transition-all duration-150"
-            style={{ border: '1px solid var(--border)', color: 'var(--text-secondary)', backgroundColor: 'var(--bg-primary)' }}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded text-xs font-medium transition-all duration-150 border border-border text-secondary bg-page"
             onMouseEnter={(e) => { e.currentTarget.style.borderColor = 'var(--accent-dim)'; e.currentTarget.style.color = 'var(--accent)' }}
             onMouseLeave={(e) => { e.currentTarget.style.borderColor = 'var(--border)'; e.currentTarget.style.color = 'var(--text-secondary)' }}
           >
             <Upload size={12} />
             {t('apiKeys.bazarrImport', 'Bazarr Migration')}
           </button>
-          <input ref={bazarrFileRef} type="file" accept=".yaml,.yml,.ini,.db" onChange={handleBazarrFile} className="hidden" />
+          <input ref={bazarrFileRef} type="file" accept=".yaml,.yml,.ini,.cfg,.db,.zip" onChange={handleBazarrFile} className="hidden" />
         </div>
       </div>
 
       {/* Bazarr Preview */}
       {bazarrPreview && (
-        <BazarrPreviewModal
+        <BazarrImportPreview
           preview={bazarrPreview}
           onConfirm={handleBazarrConfirm}
-          onCancel={() => setBazarrPreview(null)}
+          onCancel={() => {
+            setBazarrPreview(null)
+            setBazarrFile(null)
+          }}
           isPending={confirmBazarr.isPending}
         />
       )}
@@ -454,11 +363,10 @@ export function ApiKeysTab({
 
       {services.length === 0 && (
         <div
-          className="rounded-lg p-8 text-center"
-          style={{ backgroundColor: 'var(--bg-surface)', border: '1px solid var(--border)' }}
+          className="rounded-lg p-8 text-center bg-surface border border-border"
         >
-          <Shield size={32} className="mx-auto mb-2" style={{ color: 'var(--text-muted)' }} />
-          <p className="text-sm" style={{ color: 'var(--text-muted)' }}>
+          <Shield size={32} className="mx-auto mb-2 text-muted" />
+          <p className="text-sm text-muted">
             {t('apiKeys.noServices', 'No API key services found.')}
           </p>
         </div>

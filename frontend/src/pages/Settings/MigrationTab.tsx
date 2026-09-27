@@ -1,262 +1,211 @@
 /**
- * MigrationTab - Bazarr migration wizard UI.
+ * MigrationTab - Bazarr migration wizard.
  *
- * Provides step-by-step wizard for migrating from Bazarr to Sublarr.
+ * Upload Bazarr's config and/or database → the server previews what it would
+ * import → confirm sends the same files again with confirm=true. Until
+ * 2026-09-27 this page simulated both steps with made-up counts.
  */
 
-import { useState, useCallback } from 'react'
+import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Loader2, Upload, CheckCircle, FileText, Database } from 'lucide-react'
 import { toast } from '@/components/shared/Toast'
+import { BazarrImportPreview, WarningList } from '@/components/settings/BazarrImportPreview'
+import { useBazarrMigration, useConfirmBazarrImport } from '@/hooks/useIntegrationApi'
+import type { BazarrMigrationPreview, BazarrMigrationResult } from '@/lib/types'
 
-interface MigrationPreview {
-  config_entries: number
-  profiles: number
-  blacklist_entries: number
-  history_entries: number
+interface ServerError {
+  response?: { data?: { error?: string; warnings?: string[] } }
 }
 
-interface MigrationResult {
-  config_imported: number
-  profiles_imported: number
-  blacklist_imported: number
-  history_imported: number
+function serverError(err: unknown): { message?: string; warnings: string[] } {
+  const data = (err as ServerError)?.response?.data
+  return { message: data?.error, warnings: data?.warnings ?? [] }
 }
+
+const INPUT_CLASS =
+  'block w-full text-sm text-secondary file:mr-4 file:rounded file:border-0 file:bg-accent file:px-4 file:py-2 file:text-sm file:font-semibold file:text-white hover:file:bg-accent-hover'
 
 export function MigrationTab() {
   const { t } = useTranslation('settings')
   const { t: tc } = useTranslation('common')
-  const [step, setStep] = useState<'upload' | 'preview' | 'import' | 'complete'>('upload')
+  const analyze = useBazarrMigration()
+  const confirm = useConfirmBazarrImport()
+
   const [configFile, setConfigFile] = useState<File | null>(null)
   const [dbFile, setDbFile] = useState<File | null>(null)
-  const [preview, setPreview] = useState<MigrationPreview | null>(null)
-  const [isLoading, setIsLoading] = useState(false)
-  const [importResult, setImportResult] = useState<MigrationResult | null>(null)
+  const [preview, setPreview] = useState<BazarrMigrationPreview | null>(null)
+  const [result, setResult] = useState<BazarrMigrationResult | null>(null)
+  const [errorWarnings, setErrorWarnings] = useState<string[]>([])
 
-  const handleConfigUpload = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0]
-    if (file) {
-      setConfigFile(file)
-    }
-  }, [])
+  const files = [configFile, dbFile].filter((f): f is File => f !== null)
 
-  const handleDbUpload = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0]
-    if (file) {
-      setDbFile(file)
-    }
-  }, [])
+  const reset = () => {
+    setConfigFile(null)
+    setDbFile(null)
+    setPreview(null)
+    setResult(null)
+    setErrorWarnings([])
+  }
 
-  const handleAnalyze = useCallback(async () => {
-    if (!configFile && !dbFile) {
-      toast(t('migration.upload_required'), 'error')
-      return
-    }
+  const handleAnalyze = () => {
+    setErrorWarnings([])
+    analyze.mutate(files, {
+      onSuccess: (data) => setPreview(data),
+      onError: (err) => {
+        const { message, warnings } = serverError(err)
+        setErrorWarnings(warnings)
+        toast(message ?? t('migration.analysis_failed'), 'error')
+      },
+    })
+  }
 
-    setIsLoading(true)
-    try {
-      // In a real implementation, this would upload files and analyze them
-      // For now, we'll simulate the preview
-      const previewData = {
-        config_entries: configFile ? 10 : 0,
-        profiles: dbFile ? 5 : 0,
-        blacklist_entries: dbFile ? 20 : 0,
-        history_entries: dbFile ? 100 : 0,
-      }
-      setPreview(previewData)
-      setStep('preview')
-      toast(t('migration.analysis_complete'), 'success')
-    } catch (_err) {
-      toast(t('migration.analysis_failed'), 'error')
-    } finally {
-      setIsLoading(false)
-    }
-  }, [configFile, dbFile, t])
-
-  const handleImport = useCallback(async () => {
-    setIsLoading(true)
-    try {
-      // In a real implementation, this would call the import API
-      const result = {
-        config_imported: preview?.config_entries || 0,
-        profiles_imported: preview?.profiles || 0,
-        blacklist_imported: preview?.blacklist_entries || 0,
-        history_imported: preview?.history_entries || 0,
-      }
-      setImportResult(result)
-      setStep('complete')
-      toast(t('migration.completed'), 'success')
-    } catch (_err) {
-      toast(t('migration.failed'), 'error')
-    } finally {
-      setIsLoading(false)
-    }
-  }, [preview, t])
+  const handleConfirm = () => {
+    confirm.mutate(files, {
+      onSuccess: (data) => {
+        setResult(data)
+        setPreview(null)
+        toast(t('migration.completed'), 'success')
+      },
+      onError: (err) => toast(serverError(err).message ?? t('migration.failed'), 'error'),
+    })
+  }
 
   return (
     <div className="space-y-6">
-      <div className="rounded-lg p-4 mb-6" style={{ backgroundColor: 'var(--bg-surface)', border: '1px solid var(--border)' }}>
-        <h3 className="text-sm font-semibold mb-1" style={{ color: 'var(--text-primary)' }}>{tc('ui.bazarr_migration')}</h3>
-        <p className="text-sm" style={{ color: 'var(--text-secondary)' }}>
-          {t('migration.intro_desc')}
-        </p>
+      <div className="mb-6 rounded-lg border border-border bg-surface p-4">
+        <h3 className="mb-1 text-sm font-semibold text-foreground">{tc('ui.bazarr_migration')}</h3>
+        <p className="text-sm text-secondary">{t('migration.intro_desc')}</p>
       </div>
 
       <div>
-        <h2 className="text-2xl font-bold mb-2">{t('integrations.bazarr.title')}</h2>
-        <p className="text-sm" style={{ color: 'var(--text-secondary)' }}>
-          {t('migration.subtitle')}
-        </p>
+        <h2 className="mb-2 text-2xl font-bold">{t('integrations.bazarr.title')}</h2>
+        <p className="text-sm text-secondary">{t('migration.subtitle')}</p>
       </div>
 
-      {/* Step 1: Upload */}
-      {step === 'upload' && (
-        <div className="space-y-4">
-          <div className="rounded-lg p-6" style={{ backgroundColor: 'var(--bg-surface)', border: '1px solid var(--border)' }}>
-            <h3 className="text-lg font-semibold mb-4">{t('migration.step1_title')}</h3>
+      {!preview && !result && (
+        <div className="rounded-lg border border-border bg-surface p-6">
+          <h3 className="mb-4 text-lg font-semibold">{t('migration.step1_title')}</h3>
 
-            <div className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium mb-2">
-                  <FileText className="inline w-4 h-4 mr-2" />
-                  {t('migration.config_file_label')}
-                </label>
-                <input
-                  type="file"
-                  accept=".yaml,.yml,.ini,.cfg"
-                  onChange={handleConfigUpload}
-                  className="block w-full text-sm file:mr-4 file:py-2 file:px-4 file:rounded file:border-0 file:text-sm file:font-semibold file:bg-teal-500 file:text-white hover:file:bg-teal-600" style={{ color: 'var(--text-secondary)' }}
-                />
-                {configFile && (
-                  <p className="mt-2 text-sm" style={{ color: 'var(--text-secondary)' }}>{t('migration.selected', { name: configFile.name })}</p>
-                )}
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium mb-2">
-                  <Database className="inline w-4 h-4 mr-2" />
-                  {t('migration.db_file_label')}
-                </label>
-                <input
-                  type="file"
-                  accept=".db,.sqlite,.sqlite3"
-                  onChange={handleDbUpload}
-                  className="block w-full text-sm file:mr-4 file:py-2 file:px-4 file:rounded file:border-0 file:text-sm file:font-semibold file:bg-teal-500 file:text-white hover:file:bg-teal-600" style={{ color: 'var(--text-secondary)' }}
-                />
-                {dbFile && (
-                  <p className="mt-2 text-sm" style={{ color: 'var(--text-secondary)' }}>{t('migration.selected', { name: dbFile.name })}</p>
-                )}
-              </div>
-            </div>
-
-            <button
-              onClick={handleAnalyze}
-              disabled={isLoading || (!configFile && !dbFile)}
-              className="mt-6 px-4 py-2 bg-teal-500 hover:bg-teal-600 text-white rounded disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
-            >
-              {isLoading ? (
-                <Loader2 className="w-4 h-4 animate-spin" />
-              ) : (
-                <Upload className="w-4 h-4" />
-              )}
-              {t('migration.analyze_button')}
-            </button>
+          <div className="space-y-4">
+            <FileField
+              icon={<FileText className="mr-2 inline h-4 w-4" />}
+              label={t('migration.config_file_label')}
+              accept=".yaml,.yml,.ini,.cfg,.zip"
+              file={configFile}
+              onChange={setConfigFile}
+              testId="bazarr-config-input"
+            />
+            <FileField
+              icon={<Database className="mr-2 inline h-4 w-4" />}
+              label={t('migration.db_file_label')}
+              accept=".db,.sqlite,.sqlite3"
+              file={dbFile}
+              onChange={setDbFile}
+              testId="bazarr-db-input"
+            />
           </div>
+
+          {errorWarnings.length > 0 && (
+            <div className="mt-4">
+              <WarningList title={t('migration.warnings_title')} warnings={errorWarnings} />
+            </div>
+          )}
+
+          <button
+            type="button"
+            onClick={handleAnalyze}
+            disabled={analyze.isPending || files.length === 0}
+            data-testid="bazarr-analyze"
+            className="mt-6 flex items-center gap-2 rounded bg-accent px-4 py-2 text-white hover:bg-accent-hover disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            {analyze.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Upload className="h-4 w-4" />}
+            {t('migration.analyze_button')}
+          </button>
         </div>
       )}
 
-      {/* Step 2: Preview */}
-      {step === 'preview' && preview && (
-        <div className="space-y-4">
-          <div className="rounded-lg p-6" style={{ backgroundColor: 'var(--bg-surface)', border: '1px solid var(--border)' }}>
-            <h3 className="text-lg font-semibold mb-4">{t('migration.step2_title')}</h3>
-
-            <div className="space-y-3">
-              <div className="flex items-center justify-between p-3 rounded" style={{ backgroundColor: 'var(--bg-primary)' }}>
-                <span>{t('migration.config_entries')}</span>
-                <span className="font-mono">{preview.config_entries}</span>
-              </div>
-              <div className="flex items-center justify-between p-3 rounded" style={{ backgroundColor: 'var(--bg-primary)' }}>
-                <span>{t('migration.language_profiles')}</span>
-                <span className="font-mono">{preview.profiles}</span>
-              </div>
-              <div className="flex items-center justify-between p-3 rounded" style={{ backgroundColor: 'var(--bg-primary)' }}>
-                <span>{t('migration.blacklist_entries')}</span>
-                <span className="font-mono">{preview.blacklist_entries}</span>
-              </div>
-              <div className="flex items-center justify-between p-3 rounded" style={{ backgroundColor: 'var(--bg-primary)' }}>
-                <span>{t('migration.history_entries')}</span>
-                <span className="font-mono">{preview.history_entries}</span>
-              </div>
-            </div>
-
-            <div className="mt-6 flex gap-3">
-              <button
-                onClick={() => setStep('upload')}
-                className="px-4 py-2 text-white rounded" style={{ backgroundColor: 'var(--bg-primary)', border: '1px solid var(--border)' }}
-              >
-                {t('migration.back')}
-              </button>
-              <button
-                onClick={handleImport}
-                disabled={isLoading}
-                className="px-4 py-2 bg-teal-500 hover:bg-teal-600 text-white rounded disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
-              >
-                {isLoading ? (
-                  <Loader2 className="w-4 h-4 animate-spin" />
-                ) : (
-                  <CheckCircle className="w-4 h-4" />
-                )}
-                {t('migration.import_button')}
-              </button>
-            </div>
-          </div>
+      {preview && (
+        <div className="space-y-2">
+          <h3 className="text-lg font-semibold">{t('migration.step2_title')}</h3>
+          <BazarrImportPreview
+            preview={preview}
+            onConfirm={handleConfirm}
+            onCancel={() => setPreview(null)}
+            isPending={confirm.isPending}
+          />
         </div>
       )}
 
-      {/* Step 3: Complete */}
-      {step === 'complete' && importResult && (
-        <div className="space-y-4">
-          <div className="rounded-lg p-6" style={{ backgroundColor: 'var(--bg-surface)', border: '1px solid var(--border)' }}>
-            <div className="flex items-center gap-3 mb-4">
-              <CheckCircle className="w-8 h-8 text-green-500" />
-              <h3 className="text-lg font-semibold">{tc('ui.migration_complete')}</h3>
-            </div>
-
-            <div className="space-y-3">
-              <div className="flex items-center justify-between p-3 rounded" style={{ backgroundColor: 'var(--bg-primary)' }}>
-                <span>{t('migration.config_entries')}</span>
-                <span className="font-mono text-green-400">{importResult.config_imported}</span>
-              </div>
-              <div className="flex items-center justify-between p-3 rounded" style={{ backgroundColor: 'var(--bg-primary)' }}>
-                <span>{t('migration.profiles_imported')}</span>
-                <span className="font-mono text-green-400">{importResult.profiles_imported}</span>
-              </div>
-              <div className="flex items-center justify-between p-3 rounded" style={{ backgroundColor: 'var(--bg-primary)' }}>
-                <span>{t('migration.blacklist_entries')}</span>
-                <span className="font-mono text-green-400">{importResult.blacklist_imported}</span>
-              </div>
-              <div className="flex items-center justify-between p-3 rounded" style={{ backgroundColor: 'var(--bg-primary)' }}>
-                <span>{t('migration.history_entries')}</span>
-                <span className="font-mono text-green-400">{importResult.history_imported}</span>
-              </div>
-            </div>
-
-            <button
-              onClick={() => {
-                setStep('upload')
-                setConfigFile(null)
-                setDbFile(null)
-                setPreview(null)
-                setImportResult(null)
-              }}
-              className="mt-6 px-4 py-2 bg-teal-500 hover:bg-teal-600 text-white rounded"
-            >
-              {t('migration.start_new')}
-            </button>
+      {result && (
+        <div className="space-y-4 rounded-lg border border-border bg-surface p-6" data-testid="bazarr-result">
+          <div className="flex items-center gap-3">
+            <CheckCircle className="h-8 w-8 text-success" />
+            <h3 className="text-lg font-semibold">{tc('ui.migration_complete')}</h3>
           </div>
+
+          <div className="space-y-3">
+            <ResultRow label={t('migration.imported_settings')} value={result.config_imported} />
+            <ResultRow label={t('migration.profiles_imported')} value={result.profiles_imported} />
+            <ResultRow label={t('migration.imported_blacklist')} value={result.blacklist_imported} />
+          </div>
+
+          {result.warnings.length > 0 && (
+            <WarningList title={t('migration.warnings_title')} warnings={result.warnings} />
+          )}
+
+          <button
+            type="button"
+            onClick={reset}
+            className="rounded bg-accent px-4 py-2 text-white hover:bg-accent-hover"
+          >
+            {t('migration.start_new')}
+          </button>
         </div>
       )}
+    </div>
+  )
+}
+
+function FileField({
+  icon,
+  label,
+  accept,
+  file,
+  onChange,
+  testId,
+}: {
+  icon: React.ReactNode
+  label: string
+  accept: string
+  file: File | null
+  onChange: (file: File | null) => void
+  testId: string
+}) {
+  const { t } = useTranslation('settings')
+  return (
+    <div>
+      <label className="mb-2 block text-sm font-medium">
+        {icon}
+        {label}
+        <input
+          type="file"
+          accept={accept}
+          onChange={(e) => onChange(e.target.files?.[0] ?? null)}
+          data-testid={testId}
+          className={`mt-2 ${INPUT_CLASS}`}
+        />
+      </label>
+      {file && <p className="mt-2 text-sm text-secondary">{t('migration.selected', { name: file.name })}</p>}
+    </div>
+  )
+}
+
+function ResultRow({ label, value }: { label: string; value: number }) {
+  return (
+    <div className="flex items-center justify-between rounded bg-page p-3">
+      <span>{label}</span>
+      <span className="font-mono text-success">{value}</span>
     </div>
   )
 }

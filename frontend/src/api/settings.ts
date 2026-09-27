@@ -260,17 +260,29 @@ export async function importApiKeys(file: File): Promise<{ status: string; impor
   return data
 }
 
-export async function importBazarrConfig(file: File): Promise<import('@/lib/types').BazarrMigrationPreview> {
+function bazarrForm(files: File[], confirm: boolean): FormData {
   const formData = new FormData()
-  formData.append('file', file)
-  const { data } = await api.post('/api-keys/import/bazarr', formData, {
+  for (const file of files) formData.append('file', file)
+  if (confirm) formData.append('confirm', 'true')
+  return formData
+}
+
+/** Read Bazarr files (config.yaml/.ini, bazarr.db, or a ZIP) and preview the import. */
+export async function importBazarrConfig(files: File[]): Promise<import('@/lib/types').BazarrMigrationPreview> {
+  const { data } = await api.post('/api-keys/import/bazarr', bazarrForm(files, false), {
     headers: { 'Content-Type': 'multipart/form-data' },
   })
   return data
 }
 
-export async function confirmBazarrImport(preview: import('@/lib/types').BazarrMigrationPreview): Promise<{ status: string; imported: number }> {
-  const { data } = await api.post('/api-keys/import/bazarr/confirm', preview)
+/**
+ * Apply the import. The preview masks every secret, so the files themselves
+ * are sent again — the server re-reads them rather than trusting a preview.
+ */
+export async function confirmBazarrImport(files: File[]): Promise<import('@/lib/types').BazarrMigrationResult> {
+  const { data } = await api.post('/api-keys/import/bazarr', bazarrForm(files, true), {
+    headers: { 'Content-Type': 'multipart/form-data' },
+  })
   return data
 }
 

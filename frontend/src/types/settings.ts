@@ -147,9 +147,27 @@ export interface ApiKeyExportData {
   glossary: unknown[]
 }
 
+/** Preview of POST /api-keys/import/bazarr. Secrets arrive masked ("abcd***"). */
 export interface BazarrMigrationPreview {
-  config_entries: { key: string; value: string; current_value: string }[]
-  profiles: unknown[]
+  status: 'preview'
+  config_entries: {
+    key: string
+    value: string
+    /** What the entry would overwrite; empty when nothing is set yet. */
+    current_value: string
+    source: string
+  }[]
+  profiles: { name: string; languages: string[] }[]
   blacklist_count: number
+  warnings: string[]
+}
+
+/** Result of the same request sent with confirm=true. */
+export interface BazarrMigrationResult {
+  status: 'applied'
+  config_imported: number
+  profiles_imported: number
+  blacklist_imported: number
+  saved_keys: string[]
   warnings: string[]
 }

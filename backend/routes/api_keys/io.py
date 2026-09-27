@@ -331,8 +331,11 @@ def import_bazarr():
         - API Keys
       summary: Import from Bazarr
       description: >
-        Accepts a ZIP of Bazarr config files or individual config/DB files.
-        Returns a preview of what will be imported. Send confirm=true to apply.
+        Accepts a ZIP of a Bazarr config directory, a config.yaml/config.ini,
+        a bazarr.db, or several of these as repeated "file" parts. Returns a
+        preview of what will be imported; send the same files again with
+        confirm=true to apply. Imports the Sonarr/Radarr connection,
+        OpenSubtitles login, language profiles and blacklist.
       security:
         - apiKeyAuth: []
       requestBody:
@@ -354,10 +357,13 @@ def import_bazarr():
         400:
           description: No file provided
     """
-    if "file" not in request.files:
+    # Several parts may be sent under "file" (config and database side by side).
+    uploads = request.files.getlist("file")
+    if not uploads:
         return jsonify({"error": "No file provided"}), 400
+    if len(uploads) > _MAX_BAZARR_UPLOADS:
+        return jsonify({"error": f"At most {_MAX_BAZARR_UPLOADS} files per import"}), 400
 
-    uploaded = request.files["file"]
     confirm = request.form.get("confirm", "false").lower() == "true"
 
     try:
@@ -365,6 +371,7 @@ def import_bazarr():
             apply_migration,
             migrate_bazarr_db,
             parse_bazarr_config,
+            planned_config_entries,
             preview_migration,
         )
     except ImportError as exc:
@@ -373,54 +380,136 @@ def import_bazarr():
     config_data = {}
     db_data = {}
 
-    content = uploaded.read()
-    filename = uploaded.filename or ""
+    for uploaded in uploads:
+        content = uploaded.read()
+        filename = uploaded.filename or ""
 
-    # Handle ZIP archive of Bazarr config directory
-    if filename.endswith(".zip") or content[:4] == b"PK\x03\x04":
-        from archive_utils import safe_read_zip_member
+        # Handle ZIP archive of Bazarr config directory
+        if filename.endswith(".zip") or content[:4] == b"PK\x03\x04":
+            from archive_utils import safe_read_zip_member
 
-        try:
-            zf = zipfile.ZipFile(io.BytesIO(content))
-            for name in zf.namelist():
-                basename = name.rsplit("/", 1)[-1] if "/" in name else name
-                if basename in ("config.yaml", "config.yml", "config.ini"):
-                    try:
-                        raw = safe_read_zip_member(zf, name)
-                    except ValueError as exc:
-                        return jsonify({"error": str(exc)}), 400
-                    file_content = raw.decode("utf-8", errors="replace")
-                    parsed = parse_bazarr_config(file_content, basename)
-                    config_data.update(parsed)
-                elif basename.endswith(".db"):
-                    # Extract DB to temp file for sqlite3 access
-                    import os
-                    import tempfile
+            try:
+                zf = zipfile.ZipFile(io.BytesIO(content))
+                for name in zf.namelist():
+                    basename = name.rsplit("/", 1)[-1] if "/" in name else name
+                    if basename in ("config.yaml", "config.yml", "config.ini"):
+                        try:
+                            raw = safe_read_zip_member(zf, name)
+                        except ValueError as exc:
+                            return jsonify({"error": str(exc)}), 400
+                        file_content = raw.decode("utf-8", errors="replace")
+                        config_data = _merge_bazarr_config(
+                            config_data, parse_bazarr_config(file_content, basename), basename
+                        )
+                    elif basename.endswith(".db"):
+                        try:
+                            db_bytes = safe_read_zip_member(zf, name)
+                        except ValueError as exc:
+                            return jsonify({"error": str(exc)}), 400
+                        db_data = _take_bazarr_db(db_data, db_bytes, basename, migrate_bazarr_db)
+            except zipfile.BadZipFile:
+                return jsonify({"error": "Invalid ZIP file"}), 400
+        elif content[: len(_SQLITE_MAGIC)] == _SQLITE_MAGIC:
+            # A bare bazarr.db — used to be decoded as text and parsed as a config.
+            db_data = _take_bazarr_db(db_data, content, filename, migrate_bazarr_db)
+        else:
+            file_content = content.decode("utf-8", errors="replace")
+            config_data = _merge_bazarr_config(
+                config_data, parse_bazarr_config(file_content, filename), filename
+            )
 
-                    try:
-                        db_bytes = safe_read_zip_member(zf, name)
-                    except ValueError as exc:
-                        return jsonify({"error": str(exc)}), 400
-                    with tempfile.NamedTemporaryFile(delete=False, suffix=".db") as tmp:
-                        tmp.write(db_bytes)
-                        tmp_path = tmp.name
-                    try:
-                        db_data = migrate_bazarr_db(tmp_path)
-                    finally:
-                        os.unlink(tmp_path)
-        except zipfile.BadZipFile:
-            return jsonify({"error": "Invalid ZIP file"}), 400
-    else:
-        # Single config file
-        file_content = content.decode("utf-8", errors="replace")
-        config_data = parse_bazarr_config(file_content, filename)
-
-    if not config_data and not db_data:
-        return jsonify({"error": "No Bazarr config or database data found"}), 400
+    # A file that parses but holds nothing Sublarr can take (any text file
+    # "parses" as an empty config) is answered here, not with an empty preview.
+    if (
+        not planned_config_entries(config_data)
+        and not db_data.get("profiles")
+        and not db_data.get("blacklist")
+    ):
+        warnings = config_data.get("warnings", []) + db_data.get("warnings", [])
+        return jsonify({"error": "No importable Bazarr settings found", "warnings": warnings}), 400
 
     if confirm:
         result = apply_migration(config_data, db_data)
+        _invalidate_after_bazarr_import(result.get("saved_keys", []))
         return jsonify({"status": "applied", **result})
-    else:
-        preview = preview_migration(config_data, db_data)
-        return jsonify({"status": "preview", **preview})
+
+    from db.config import get_all_config_entries
+
+    preview = preview_migration(config_data, db_data, current=get_all_config_entries())
+    return jsonify({"status": "preview", **preview})
+
+
+_SQLITE_MAGIC = b"SQLite format 3\x00"
+# config + database, or a couple of config backups; more is not a Bazarr import.
+_MAX_BAZARR_UPLOADS = 4
+
+
+def _read_bazarr_db_bytes(db_bytes: bytes, migrate_bazarr_db) -> dict:
+    """Run the Bazarr DB reader on uploaded bytes (sqlite3 needs a real file)."""
+    import os
+    import tempfile
+
+    with tempfile.NamedTemporaryFile(delete=False, suffix=".db") as tmp:
+        tmp.write(db_bytes)
+        tmp_path = tmp.name
+    try:
+        return migrate_bazarr_db(tmp_path)
+    finally:
+        os.unlink(tmp_path)
+
+
+_BAZARR_CONFIG_SECTIONS = ("sonarr", "radarr", "general")
+
+
+def _merge_bazarr_config(current: dict, parsed: dict, source: str) -> dict:
+    """Combine a further Bazarr config with what earlier files gave.
+
+    A later file fills in and overrides per field, never per whole file, so a
+    section only the first file had survives. Said out loud in the warnings.
+    """
+    if not current:
+        return parsed
+    merged = {**current}
+    for section in _BAZARR_CONFIG_SECTIONS:
+        later = {k: v for k, v in (parsed.get(section) or {}).items() if v not in ("", None)}
+        merged[section] = {**(current.get(section) or {}), **later}
+    merged["warnings"] = [
+        *current.get("warnings", []),
+        *parsed.get("warnings", []),
+        f"More than one Bazarr config: values from {source} were merged over the earlier one.",
+    ]
+    return merged
+
+
+def _take_bazarr_db(current: dict, db_bytes: bytes, source: str, migrate_bazarr_db) -> dict:
+    """Read a Bazarr database, unless one was already read (the first wins)."""
+    if not current:
+        return _read_bazarr_db_bytes(db_bytes, migrate_bazarr_db)
+    return {
+        **current,
+        "warnings": [
+            *current.get("warnings", []),
+            f"Only one Bazarr database is imported; {source} was ignored.",
+        ],
+    }
+
+
+def _invalidate_after_bazarr_import(saved_keys: list[str]) -> None:
+    """Drop the clients built from config the import just replaced.
+
+    apply_migration reloads the settings; the Sonarr/Radarr clients and the
+    provider manager are singletons that would otherwise keep the old values
+    until the next restart.
+    """
+    if any(k.startswith("sonarr_") for k in saved_keys):
+        from sonarr_client import invalidate_client
+
+        invalidate_client()
+    if any(k.startswith("radarr_") for k in saved_keys):
+        from radarr_client import invalidate_client
+
+        invalidate_client()
+    if any(k.startswith("opensubtitles_") for k in saved_keys):
+        from providers import invalidate_manager
+
+        invalidate_manager()
