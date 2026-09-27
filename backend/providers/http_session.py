@@ -10,7 +10,8 @@ import time
 
 import requests
 from requests.adapters import HTTPAdapter
-from urllib3.util.retry import Retry
+
+from utils.bounded_retry import BoundedRetry
 
 logger = logging.getLogger(__name__)
 
@@ -71,7 +72,13 @@ def create_session(
     # NOTE: 429 is NOT in status_forcelist — Sublarr handles rate limits
     # explicitly in RetryingSession.request(). Letting urllib3 auto-retry 429
     # causes duplicate rate-limit hits (3 retries × N concurrent threads).
-    retry_strategy = Retry(
+    #
+    # BoundedRetry rather than Retry because the 5xx statuses below carry
+    # `Retry-After` too, and urllib3 sleeps that header inside send() where
+    # neither the timeout above nor a job's abort event reaches it — prod
+    # 2026-09-27 lost a wanted_search tick for 42 minutes to one SubDL
+    # download that way. See utils/bounded_retry.py.
+    retry_strategy = BoundedRetry(
         total=max_retries,
         backoff_factor=backoff_factor,
         status_forcelist=[500, 502, 503, 504],

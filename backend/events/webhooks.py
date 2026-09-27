@@ -15,7 +15,8 @@ from datetime import UTC, datetime
 
 import requests
 from requests.adapters import HTTPAdapter
-from urllib3.util.retry import Retry
+
+from utils.bounded_retry import BoundedRetry
 
 logger = logging.getLogger(__name__)
 
@@ -40,7 +41,11 @@ def _create_webhook_session(retry_count: int = 3) -> requests.Session:
         }
     )
 
-    retry = Retry(
+    # BoundedRetry: 429 *is* retried here, so a target answering with
+    # `Retry-After: 3600` would hold one of this dispatcher's pool threads for
+    # an hour — the pool is small and shared by every webhook. The backoff
+    # below stays as it is; only the server-dictated pause is capped.
+    retry = BoundedRetry(
         total=retry_count,
         backoff_factor=2,  # 2s, 4s, 8s
         status_forcelist=[429, 500, 502, 503, 504],

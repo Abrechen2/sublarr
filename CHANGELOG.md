@@ -159,6 +159,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   Emby, Jellyfin or Plex was the one at save time, which ran before the
   queued strip — so a container rewritten minutes later was never announced.
   The queue drain now sends its own refresh once the strip is done.
+- **One slow provider can no longer take a scheduled job out of service.** When
+  a provider answered a subtitle download with a temporary error *and* a
+  `Retry-After` header, Sublarr sat out that header inside the request — up to
+  fifteen minutes per attempt, with nothing in the log to show for it, and out
+  of reach of the stop request a job sends when its time is up. One SubDL
+  download stalled a wanted search for 42 minutes that way, and the run was
+  then reported as one that had refused to stop. Such a wait is now capped at a
+  few seconds; a provider asking for longer gets a failed attempt instead,
+  which its circuit breaker and rate-limit budget already know how to handle.
+  The same cap applies to outgoing webhooks, where a target's `Retry-After`
+  could tie up one of the four dispatcher threads for an hour.
 - **Smaller fixes.** The provider health board no longer calls a provider with
   a key saved in Settings blocked (#207 follow-up). Automation tasks that fail
   the same way every time are given up after ten attempts. A scheduled job that
