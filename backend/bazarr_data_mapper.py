@@ -40,7 +40,12 @@ def preview_migration(config_data: dict, db_data: dict, current: dict | None = N
     preview["warnings"].extend(config_data.get("warnings", []))
     preview["warnings"].extend(db_data.get("warnings", []))
 
-    for key, value, source in planned_config_entries(config_data):
+    planned = planned_config_entries(config_data)
+    for arr, reason in refused_arr_urls(planned).items():
+        preview["warnings"].append(
+            f"{arr}_url will not be imported: {reason}. Set it under Settings instead."
+        )
+    for key, value, source in planned:
         existing = str(current.get(key) or "")
         secret = _is_secret(key)
         preview["config_entries"].append(
@@ -114,6 +119,23 @@ def arr_url(section: dict) -> str:
     return f"{scheme}://{host}/{path}" if path else f"{scheme}://{host}"
 
 
+def refused_arr_urls(planned: list[tuple[str, str, str]]) -> dict[str, str]:
+    """{"sonarr": reason} for every planned *arr URL the SSRF guard refuses.
+
+    The same check PUT /config applies; preview reports it, apply skips the
+    URL and its API key.
+    """
+    from security_utils import validate_service_url
+
+    refused = {}
+    for key, value, _source in planned:
+        if key.endswith("_url"):
+            ok, reason = validate_service_url(value)
+            if not ok:
+                refused[key[: -len("_url")]] = reason
+    return refused
+
+
 def planned_config_entries(config_data: dict) -> list[tuple[str, str, str]]:
     """The (key, value, source) config entries an import would write.
 
@@ -168,18 +190,12 @@ def apply_migration(config_data: dict, db_data: dict) -> dict:
     # Config entries — a URL goes through the same SSRF guard PUT /config
     # applies, and a refused URL takes its API key with it (half a connection
     # is worse than none: the key would sit next to the old URL).
-    from security_utils import validate_service_url
-
-    refused: set[str] = set()
     planned = planned_config_entries(config_data)
-    for key, value, _source in planned:
-        if key.endswith("_url"):
-            ok, reason = validate_service_url(value)
-            if not ok:
-                refused.add(key[: -len("_url")])
-                result["warnings"].append(
-                    f"{key} not imported: {reason}. Set it under Settings instead."
-                )
+    refused = refused_arr_urls(planned)
+    for arr, reason in refused.items():
+        result["warnings"].append(
+            f"{arr}_url not imported: {reason}. Set it under Settings instead."
+        )
     for key, value, _source in planned:
         if key.split("_", 1)[0] in refused:
             continue

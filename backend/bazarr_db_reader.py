@@ -258,15 +258,11 @@ def migrate_bazarr_db(db_path: str) -> dict:
         # Read blacklist
         result["blacklist"] = _read_blacklist(conn, result["warnings"])
 
-        # Read Sonarr settings
-        result["sonarr_config"] = _read_settings_table(
-            conn, "table_settings_sonarr", result["warnings"]
-        )
-
-        # Read Radarr settings
-        result["radarr_config"] = _read_settings_table(
-            conn, "table_settings_radarr", result["warnings"]
-        )
+        # Pre-1.0 Bazarr kept connections in these tables; 1.x keeps them in
+        # config.yaml and has no such tables, so a miss is not worth a warning
+        # (every current bazarr.db would show two).
+        result["sonarr_config"] = _read_settings_table(conn, "table_settings_sonarr", [])
+        result["radarr_config"] = _read_settings_table(conn, "table_settings_radarr", [])
 
         # Read history, shows, movies
         result["history"] = _read_history(conn, result["warnings"])

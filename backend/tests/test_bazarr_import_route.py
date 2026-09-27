@@ -196,3 +196,15 @@ def test_arr_url_brackets_a_bare_ipv6_host():
     assert arr_url({"url": "sonarr:8989", "port": 8989}) == "http://sonarr:8989"
     assert arr_url({"url": "10.0.0.5", "port": "", "base_url": "/"}) == "http://10.0.0.5"
     assert arr_url({"url": "10.0.0.5", "port": 7878, "ssl": "False"}) == "http://10.0.0.5:7878"
+
+
+def test_a_current_bazarr_database_raises_no_legacy_table_warnings(client, tmp_path):
+    body = _post(client, _bazarr_db_bytes(tmp_path), "bazarr.db").get_json()
+    assert not any("table_settings_" in w for w in body["warnings"])
+
+
+def test_preview_already_says_which_address_will_be_skipped(client):
+    loopback = BAZARR_CONFIG.replace("ip: 192.168.50.11", "ip: 127.0.0.1")
+    body = _post(client, loopback.encode(), "config.yaml").get_json()
+    assert any(w.startswith("radarr_url will not be imported") for w in body["warnings"])
+    assert not any("sonarr_url" in w for w in body["warnings"])
