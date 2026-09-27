@@ -10,6 +10,7 @@
   "scripts": {
     "read": "tsx src/index.ts read",
     "reply": "tsx src/index.ts reply",
+    "edit": "tsx src/index.ts edit",
     "announce": "tsx src/index.ts announce",
     "typecheck": "tsc --noEmit",
     "test": "vitest --run"

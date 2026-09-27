@@ -3,17 +3,20 @@ import { pathToFileURL } from "node:url";
 import { createClient, loadEnv } from "./client.js";
 import { parseLimit, runRead } from "./readChannel.js";
 import { runReply } from "./replyThread.js";
+import { runEdit } from "./editMessage.js";
 import { runAnnounce, readRepoVersion, readRepoChangelog } from "./announce.js";
 import { extractChangelogEntry } from "./changelog.js";
 import { parseArgs } from "./args.js";
 import { log } from "./log.js";
 
 const USAGE =
-  "Usage: tsx src/index.ts <read|reply|announce> [args]\n" +
+  "Usage: tsx src/index.ts <read|reply|edit|announce> [args]\n" +
   "  read                       list every channel in the guild\n" +
   "  read <channel> [limit]     print recent messages of a channel (default 20, max 100)\n" +
   "  reply <thread|channel> (<message…> | --file <path>) [--dry-run]\n" +
   "                             post into a forum thread or text channel\n" +
+  "  edit <channel> <messageId> --file <path> [--dry-run]\n" +
+  "                             replace the text of one of the bot's own messages\n" +
   "  announce <beta|rc|release> [version] [--notes-file <path> | --notes <text>] [--dry-run]\n" +
   "                             post a release announcement embed";
 
@@ -33,7 +36,7 @@ export function readFlagFile(flagName: string, path: string): string {
   }
 }
 
-export type Command = "read" | "reply" | "announce";
+export type Command = "read" | "reply" | "edit" | "announce";
 
 /**
  * True for the three known subcommands, false for anything else — including
@@ -45,7 +48,7 @@ export type Command = "read" | "reply" | "announce";
  * testing that behaviour directly.
  */
 export function isKnownCommand(c: string | undefined): c is Command {
-  return c === "read" || c === "reply" || c === "announce";
+  return c === "read" || c === "reply" || c === "edit" || c === "announce";
 }
 
 async function main(): Promise<void> {
@@ -105,6 +108,24 @@ async function main(): Promise<void> {
     const client = createClient();
     await runReply(client, token, guildId, targetQuery, message, flags["--dry-run"]);
     return; // runReply owns login + destroy
+  }
+
+  if (command === "edit") {
+    // Text only from a file: an edit replaces a whole public message, so it
+    // is written out and reviewed first, never typed inline.
+    const { positional, values, flags } = parseArgs(process.argv.slice(3), ["--file"], ["--dry-run"]);
+    const [channelQuery, messageId] = positional;
+    const filePath = values["--file"];
+    if (!channelQuery || !messageId || filePath === undefined) {
+      log("Usage: tsx src/index.ts edit <channel> <messageId> --file <path> [--dry-run]");
+      process.exitCode = 1;
+      return;
+    }
+    const next = readFlagFile("--file", filePath).replace(/\s+$/, "");
+    const { token, guildId } = loadEnv();
+    const client = createClient();
+    await runEdit(client, token, guildId, channelQuery, messageId, next, flags["--dry-run"]);
+    return; // runEdit owns login + destroy
   }
 
   if (command === "announce") {

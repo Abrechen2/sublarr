@@ -13,6 +13,7 @@ Sublarr's server was built by hand and is not managed as code.
 | `npm run read` | List every channel with its type and id |
 | `npm run read <channel> [limit]` | Text channel: last `limit` messages (default 20, max 100), oldest first. Forum: recent posts and their messages |
 | `npm run reply -- <thread\|channel> <message…\|--file <path>> [--dry-run]` | Post into a forum thread (id or unique title substring) or an exactly-named text channel |
+| `npm run edit -- <channel> <messageId> --file <path> [--dry-run]` | Replace the text of one of the bot's own messages in a text channel; the dry run prints current and new text. Discord marks it "(edited)" but sends no notification |
 | `npm run announce -- <beta\|rc\|release> [version] [--notes-file <path>\|--notes <text>] [--dry-run]` | Post a release embed built from `CHANGELOG.md` (or the given notes) plus the GitHub tag link |
 
 `npm run read` needs no `--` because it takes no flags. `reply` and `announce`
