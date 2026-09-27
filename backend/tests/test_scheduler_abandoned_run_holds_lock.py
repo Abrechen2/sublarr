@@ -182,3 +182,33 @@ def test_a_normal_run_still_releases_immediately(flask_app, db_session):
 
     rows = db_session.query(JobRun).filter_by(job_id="overlap_normal").order_by(JobRun.id).all()
     assert [r.status for r in rows] == ["ok", "ok"]
+
+
+def _hang_inside_a_helper(release):
+    # A named frame the stack dump must show: this is where the run is stuck.
+    release.wait(timeout=30)
+
+
+def test_an_abandoned_run_logs_where_it_is_stuck(flask_app, db_session, caplog):
+    """Prod 2026-09-26: five wanted_search startup runs went silent for 44
+    minutes and were abandoned; with no stack there was no way to tell where
+    they hung. The abandon now logs the stuck worker's stack."""
+    import logging
+
+    release = threading.Event()
+    entered = threading.Event()
+
+    def _runaway():
+        entered.set()
+        _hang_inside_a_helper(release)
+
+    spec = _spec(id="stuck_where", func=_runaway, timeout_s=1, cancel_grace_s=1)
+    caplog.set_level(logging.ERROR, logger="services.scheduler.ticks")
+    try:
+        _tick_wrapper(flask_app, spec, triggered_by="schedule")()
+        assert entered.wait(timeout=5)
+    finally:
+        release.set()
+    text = caplog.text
+    assert "stuck_where" in text
+    assert "_hang_inside_a_helper" in text, "the stuck frame is not in the log"

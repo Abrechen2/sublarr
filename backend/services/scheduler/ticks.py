@@ -12,6 +12,8 @@ that path keeps resolving across process restarts (see memory
 from __future__ import annotations
 
 import logging
+import os
+import sys
 import threading
 import traceback
 from concurrent.futures import Future, ThreadPoolExecutor
@@ -281,6 +283,44 @@ def _scheduled_oneshot_tick(oneshot_id: str) -> None:
             _running_oneshots.discard(spec.id)
 
 
+# Where the backend's own code lives: a thread with a frame under here is doing
+# app work (idle pool workers and gunicorn's own threads have none).
+_APP_ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+_STUCK_THREADS_MAX = 12
+_STUCK_FRAMES_MAX = 14
+
+
+def _log_stuck_stacks(job_id: str, worker_ident: int | None) -> None:
+    """Log where an abandoned run is stuck: the tick worker's stack, plus every
+    other thread currently inside app code (a job's own pool threads, e.g. a
+    provider search that never returns). Diagnostic only — never raises.
+
+    Prod 2026-09-26: five wanted_search runs went silent for 44 minutes and
+    were abandoned; without a stack there was no telling where they hung.
+    """
+    try:
+        frames = sys._current_frames()
+        me = threading.get_ident()
+        names = {t.ident: t.name for t in threading.enumerate()}
+        blocks = []
+        for ident, frame in frames.items():
+            if ident == me:
+                continue
+            stack = traceback.extract_stack(frame)
+            in_app = any(f.filename.startswith(_APP_ROOT) for f in stack)
+            if ident != worker_ident and not in_app:
+                continue
+            label = "tick worker" if ident == worker_ident else "app thread"
+            lines = "".join(traceback.format_list(stack[-_STUCK_FRAMES_MAX:]))
+            header = f"--- {label} {names.get(ident, ident)}"
+            blocks.append((ident != worker_ident, header + "\n" + lines))
+        blocks.sort(key=lambda b: b[0])
+        body = "".join(text for _, text in blocks[:_STUCK_THREADS_MAX])
+        logger.error("scheduler: %s abandoned — where it is stuck:\n%s", job_id, body or "(none)")
+    except Exception:  # noqa: BLE001 — a diagnostic must never break the tick wrapper
+        logger.debug("scheduler: stack dump for %s failed", job_id, exc_info=True)
+
+
 def _tick_wrapper(
     app: Flask, spec: JobSpec, *, triggered_by: str = "schedule"
 ) -> Callable[[], None]:
@@ -348,8 +388,10 @@ def _tick_wrapper(
         # runaway work that never existed (prod 2026-08-21: a wanted_search run
         # filed abandoned at 2700s with not one line of its own in the log).
         started = threading.Event()
+        worker_ident: dict[str, int] = {}
 
         def _fn_with_ctx() -> None:
+            worker_ident["id"] = threading.get_ident()
             started.set()
             token = cancellation.activate(cancel_event)
             try:
@@ -460,6 +502,7 @@ def _tick_wrapper(
                                 spec.id,
                                 spec.timeout_s,
                             )
+                            _log_stuck_stacks(spec.id, worker_ident.get("id"))
                 except Exception as exc:
                     status = "error"
                     error_type = type(exc).__name__
