@@ -32,6 +32,10 @@ from services.scheduler.ticks import (
 
 logger = logging.getLogger(__name__)
 
+#: Stored as the APScheduler job name when the trigger was set by the user
+#: (admin API); nothing else reads the name.
+USER_TRIGGER_MARK = "sublarr:user-trigger"
+
 
 class SublarrScheduler:
     """Facade wrapping a BackgroundScheduler bound to a SQLAlchemyJobStore."""
@@ -424,7 +428,12 @@ class SublarrScheduler:
 
     def modify_trigger(self, job_id: str, trigger: BaseTrigger) -> None:
         self._require_registered(job_id)
-        self._ensure_scheduler().reschedule_job(job_id, trigger=trigger)
+        scheduler = self._ensure_scheduler()
+        scheduler.reschedule_job(job_id, trigger=trigger)
+        # Mark the trigger as the user's choice, persisted with the job, so the
+        # bootstrap reconcile never mistakes a chosen trigger TYPE (e.g. a
+        # nightly cron on an interval-default job) for code drift.
+        scheduler.modify_job(job_id, name=USER_TRIGGER_MARK)
 
     def trigger_is_default(self, job_id: str) -> bool:
         """Return True iff the current trigger matches spec default.
@@ -450,9 +459,12 @@ class SublarrScheduler:
         would therefore never take effect on an existing install.
 
         This compares the stored trigger's class against the spec default's
-        class and ``reset_to_default`` for any mismatch. Same-class overrides
-        (e.g. a user-chosen cron time) are left untouched — only a deliberate
-        code-level trigger-type change triggers the reset. Returns the number
+        class and ``reset_to_default`` for any mismatch. Triggers set through
+        ``modify_trigger`` (the admin API) carry ``USER_TRIGGER_MARK`` and are
+        never reset — a user who turns an interval job into a nightly cron made
+        a choice, not drift (prod 2026-09-27: every deploy wiped the owner's
+        night schedule for the foreign-track sweep). ``reset_to_default``
+        re-adds the job without the mark. Returns the number
         of jobs reset. Safe to call once at bootstrap.
         """
         scheduler = self._ensure_scheduler()
@@ -462,6 +474,8 @@ class SublarrScheduler:
             job = scheduler.get_job(spec_id)
             if job is None:
                 continue
+            if job.name == USER_TRIGGER_MARK:
+                continue  # the user chose this trigger; not code drift
             if type(job.trigger).__name__ != type(spec.default_trigger).__name__:
                 logger.info(
                     "scheduler: trigger class drift on %s (%s → %s) — resetting to default",

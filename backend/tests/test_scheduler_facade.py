@@ -466,3 +466,41 @@ def test_a_missed_or_purged_oneshot_releases_the_marker(scheduler, clean_markers
     scheduler.purge_orphans()
     assert scheduler._scheduler.get_job(oneshot) is None
     assert "rn_purged" not in clean_markers
+
+
+def test_reconcile_keeps_a_user_chosen_trigger_type(scheduler):
+    """Prod 2026-09-27: the owner set the foreign-track sweep (interval default)
+    to a nightly cron via the new card; the next deploy logged "trigger class
+    drift ... resetting to default" and the night schedule was gone. A type
+    the USER chose is not code drift and must survive a restart."""
+    from apscheduler.triggers.cron import CronTrigger
+
+    scheduler.register_job(
+        JobSpec(id="night", func=lambda: None, default_trigger=IntervalTrigger(hours=6))
+    )
+    scheduler.start_registered_jobs()
+    scheduler.start()
+
+    scheduler.modify_trigger("night", CronTrigger(hour="1-6", minute=0))
+
+    assert scheduler.reconcile_trigger_classes() == 0
+    assert isinstance(scheduler._scheduler.get_job("night").trigger, CronTrigger)
+
+
+def test_reset_to_default_clears_the_user_mark(scheduler):
+    """After "reset to default" the job is code-owned again, so a later
+    code-level type change reconciles as before."""
+    from apscheduler.triggers.cron import CronTrigger
+
+    scheduler.register_job(
+        JobSpec(id="owned", func=lambda: None, default_trigger=IntervalTrigger(hours=6))
+    )
+    scheduler.start_registered_jobs()
+    scheduler.start()
+    scheduler.modify_trigger("owned", CronTrigger(hour=2, minute=0))
+    scheduler.reset_to_default("owned")
+
+    # Simulate an old persisted trigger of another type (code drift).
+    scheduler._scheduler.reschedule_job("owned", trigger=CronTrigger(hour=4, minute=0))
+    assert scheduler.reconcile_trigger_classes() == 1
+    assert isinstance(scheduler._scheduler.get_job("owned").trigger, IntervalTrigger)

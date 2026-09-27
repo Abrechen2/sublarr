@@ -52,6 +52,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Existing installs keep exactly today's behaviour until this is changed.
 
 ### Fixed
+- **A schedule changed to another type survives a restart.** Switching a job
+  from "every N hours" to a time-of-day schedule (for example the sweep's
+  "only at night") was reset to the default at the next start, because the
+  start-up check took it for an outdated built-in schedule. Schedules set in
+  the settings are now remembered as your choice.
 - **Config import checks values like saving does.** A backup with an invalid
   choice for a setting could make every settings read fail after import; such
   keys are now skipped and listed in the import result.
