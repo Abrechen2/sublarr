@@ -21,6 +21,8 @@ export interface WhatsNewItem {
 export const WHATS_NEW: Record<string, WhatsNewItem[]> = {
   '1.15.0': [
     { icon: Captions, titleKey: 'whatsnew.v1150.trackpolicy_title', descKey: 'whatsnew.v1150.trackpolicy_desc' },
+    { icon: Gauge, titleKey: 'whatsnew.v1150.sweep_title', descKey: 'whatsnew.v1150.sweep_desc' },
+    { icon: KeyRound, titleKey: 'whatsnew.v1150.privacy_title', descKey: 'whatsnew.v1150.privacy_desc' },
     { icon: Search, titleKey: 'whatsnew.v1150.search_title', descKey: 'whatsnew.v1150.search_desc' },
     { icon: ShieldCheck, titleKey: 'whatsnew.v1150.upgrade_title', descKey: 'whatsnew.v1150.upgrade_desc' },
     { icon: FileDown, titleKey: 'whatsnew.v1150.subdl_title', descKey: 'whatsnew.v1150.subdl_desc' },
