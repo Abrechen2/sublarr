@@ -55,6 +55,20 @@ def _enabled_provider_set(value, all_names: set[str]) -> set[str]:
     return {p.strip() for p in text.split(",") if p.strip()}
 
 
+def _revive_on_provider_change_enabled() -> bool:
+    """Whether the provider trigger may run at all (#214).
+
+    Read fresh rather than cached: the save that switches this off is itself a
+    settings save, and it must not fire the thing it just disabled.
+    """
+    try:
+        from config import peek_settings
+
+        return bool(getattr(peek_settings(), "wanted_revive_on_provider_change", True))
+    except Exception:  # pragma: no cover — a missing setting means the default
+        return True
+
+
 def _providers_became_usable(data: dict, before: dict) -> set[str]:
     """Provider names this save actually made usable — not merely mentioned.
 
@@ -595,7 +609,7 @@ def update_config():
     # (#214). A save that only switches providers off, or resends unchanged
     # values, revives nothing now.
     _became_usable = _providers_became_usable(data, _provider_before)
-    if _became_usable:
+    if _became_usable and _revive_on_provider_change_enabled():
         try:
             from services.wanted_revive import revive_after_provider_change
 

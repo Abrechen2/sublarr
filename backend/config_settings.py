@@ -369,6 +369,17 @@ class UISettings(BaseModel):
     # predictable slices instead of flooding the next search cycle. The
     # reporting install had 869 exhausted items at once.
     wanted_revive_max_per_run: int = Field(default=200, ge=1, le=10000)
+    # The provider-change trigger, separately switchable (#214). Its own flag
+    # rather than allowing the cap above to reach 0, because that cap is shared
+    # with the age trigger — turning one off would silently take the other with
+    # it, and the reporter wants to keep revive-by-age.
+    wanted_revive_on_provider_change: bool = Field(
+        default=True,
+        description=(
+            "Give exhausted items another chance when a provider is added or "
+            "gets a new credential. Off leaves them for the age trigger."
+        ),
+    )
     # After ``wanted_max_search_attempts`` slow-mode cycles also fail, escalate
     # to status='unsourceable' so the row stops eating scheduler budget. Set
     # to a very high value to keep slow-mode forever (legacy behaviour).

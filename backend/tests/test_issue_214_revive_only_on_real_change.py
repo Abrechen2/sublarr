@@ -138,3 +138,61 @@ class TestUnrelatedSaves:
 
     def test_an_empty_save_counts_for_nothing(self):
         assert _providers_became_usable({}, {}) == set()
+
+
+class TestTheOffSwitch:
+    """His point 3: a way to turn the provider trigger off.
+
+    A separate flag rather than letting `wanted_revive_max_per_run` reach 0,
+    because that cap is shared with the age trigger — he wants to keep
+    revive-by-age, and one knob for both would take it with it.
+    """
+
+    def test_it_defaults_to_on(self):
+        from config_settings import Settings
+
+        assert Settings().wanted_revive_on_provider_change is True
+
+    def test_it_can_be_switched_off(self):
+        from config_settings import Settings
+
+        assert (
+            Settings(wanted_revive_on_provider_change=False).wanted_revive_on_provider_change
+            is False
+        )
+
+    def test_the_route_honours_it(self, monkeypatch):
+        from routes.config import core
+
+        class S:
+            wanted_revive_on_provider_change = False
+
+        monkeypatch.setattr("config.peek_settings", lambda: S())
+        assert core._revive_on_provider_change_enabled() is False
+
+    def test_a_missing_setting_keeps_todays_behaviour(self, monkeypatch):
+        """An older database has no row for it; the default is on."""
+        from routes.config import core
+
+        monkeypatch.setattr("config.peek_settings", lambda: object())
+        assert core._revive_on_provider_change_enabled() is True
+
+    def test_it_is_reachable_through_the_config_api(self):
+        """A setting no view declares cannot be switched on or off by anyone."""
+        import config_views
+
+        declared: set[str] = set()
+        for name in dir(config_views):
+            fields = getattr(getattr(config_views, name), "_fields", None)
+            if isinstance(fields, frozenset):
+                declared |= set(fields)
+        assert "wanted_revive_on_provider_change" in declared
+
+    def test_the_age_trigger_is_untouched_by_it(self):
+        """His acceptance criterion: revive_exhausted_by_age stays as it was."""
+        import inspect
+
+        from services import wanted_revive
+
+        source = inspect.getsource(wanted_revive.revive_exhausted_by_age)
+        assert "wanted_revive_on_provider_change" not in source

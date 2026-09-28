@@ -186,6 +186,7 @@ class ScanningSettings(_SettingsView):
             # #199: bounded second chance for exhausted items (0 = off)
             "wanted_revive_exhausted_after_days",
             "wanted_revive_max_per_run",
+            "wanted_revive_on_provider_change",
             "use_embedded_subs",
             "scan_yield_ms",
             # 0.71.0 subtitle automation bundle (see config_settings.py)
