@@ -1218,6 +1218,20 @@ def _fallback_translate_file(ctx: dict) -> dict:
         raise
     except Exception as e:
         error = str(e)
+        # Roll back first, or none of the bookkeeping below can land. A failed
+        # flush leaves the session in "rolled back due to a previous exception"
+        # and every further statement on it raises the same error, including
+        # the three calls in this handler — and the next item's, because the
+        # session is per thread and outlives one item.
+        #
+        # Prod 2026-09-27 22:30: the appdata backup restarted Postgres under a
+        # running tick, and the one lost connection turned into 98 identical
+        # "Can't reconnect until invalid transaction is rolled back" failures,
+        # one per remaining item, none of them booked anywhere.
+        with contextlib.suppress(Exception):
+            from extensions import db as _db
+
+            _db.session.rollback()
         try:
             update_job(job["id"], "failed", error=error)
         except Exception as e:

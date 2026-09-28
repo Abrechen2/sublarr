@@ -138,6 +138,30 @@ def test_the_xyz_main_domain_is_on_the_download_allowlist():
     assert ok is True, err
 
 
+def test_the_net_storage_host_is_on_the_download_allowlist():
+    """The third spelling, found the expensive way.
+
+    Prod 2026-09-27/28 rejected 81 downloads in 24 h with "Download URL domain
+    'storage.animetosho.net' is not in the allowlist" while .org-hosted results
+    kept succeeding — 425 of them that month — so the provider looked healthy
+    in every count that mattered. An index hit hands out whichever storage host
+    it likes; the allowlist has to know all of them or the search was wasted at
+    the last step.
+    """
+    ok, err = validate_download_url(
+        "https://storage.animetosho.net/attachments/10003/1f0e.xz", "animetosho"
+    )
+
+    assert ok is True, err
+
+
+def test_an_unrelated_host_is_still_rejected():
+    """The allowlist is still an allowlist — three entries, not a suffix match."""
+    ok, _err = validate_download_url("https://animetosho.evil.com/x.xz", "animetosho")
+
+    assert ok is False
+
+
 # ---------------------------------------------------------------------------
 # Repair — a stored id no longer yields the URL on its own
 # ---------------------------------------------------------------------------

@@ -68,6 +68,12 @@ class MediaIOGate:
 
     REQUEST_WAIT_S = 10.0
     BACKGROUND_WAIT_S = 3600.0
+    #: A metadata probe is a read that takes seconds and whose caller has a
+    #: graceful answer for not getting in (PROBE_REFUSED). Letting it wait the
+    #: background hour behind a remux is what starved a wanted_scanner tick on
+    #: prod 2026-09-28 03:13 — 3660 s and `timeout_abandoned`, while the scans
+    #: outside the sweep window took 52-111 s.
+    PROBE_WAIT_S = 30.0
 
     def __init__(self, limit: int = 1) -> None:
         self._cond = threading.Condition()

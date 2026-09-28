@@ -37,6 +37,8 @@ const SCHEDULER_PAGE = '/settings/system/scheduler'
 const REMUX_PAGE = '/settings/subtitles/stream-management'
 const DEFAULT_BUDGET_S = 1800
 const DEFAULT_RETENTION_DAYS = 7
+// Mirrors the backend bound on foreign_track_sweep_max_file_gb.
+const MAX_FILE_GB_MAX = 10000
 const PRESETS: SweepPreset[] = ['every6h', 'hourly', 'nightly', 'custom']
 
 type TFn = (key: string, opts?: Record<string, unknown>) => string
@@ -75,10 +77,17 @@ export function ForeignTrackSweepSection({ ruleEnabled }: { ruleEnabled: boolean
   const budgetS = numVal(config, 'foreign_track_sweep_budget_s', DEFAULT_BUDGET_S)
   const retentionDays = numVal(config, 'remux_backup_retention_days', DEFAULT_RETENTION_DAYS)
 
+  const maxFileGb = numVal(config, 'foreign_track_sweep_max_file_gb', 0)
+
   const [budgetDraft, setBudgetDraft] = useState(String(Math.round(budgetS / 60)))
   useEffect(() => {
     setBudgetDraft(String(Math.round(budgetS / 60)))
   }, [budgetS])
+
+  const [maxFileGbDraft, setMaxFileGbDraft] = useState(String(maxFileGb))
+  useEffect(() => {
+    setMaxFileGbDraft(String(maxFileGb))
+  }, [maxFileGb])
 
   const job = jobQuery.data
   const preset = detectSweepPreset(job?.trigger)
@@ -98,6 +107,19 @@ export function ForeignTrackSweepSection({ ruleEnabled }: { ruleEnabled: boolean
     }
     setBudgetDraft(String(seconds / 60))
     if (seconds !== budgetS) save({ foreign_track_sweep_budget_s: seconds })
+  }
+
+  const commitMaxFileGb = () => {
+    // Empty reads as "no limit", the same as 0 — typing over the field and
+    // tabbing away should not save NaN.
+    const raw = maxFileGbDraft.trim()
+    const gb = raw === '' ? 0 : Number(raw)
+    if (!Number.isFinite(gb) || gb < 0 || gb > MAX_FILE_GB_MAX) {
+      setMaxFileGbDraft(String(maxFileGb))
+      return
+    }
+    setMaxFileGbDraft(String(gb))
+    if (gb !== maxFileGb) save({ foreign_track_sweep_max_file_gb: gb })
   }
 
   const scheduleCallbacks = {
@@ -214,6 +236,28 @@ export function ForeignTrackSweepSection({ ruleEnabled }: { ruleEnabled: boolean
               min: BUDGET_MIN_MINUTES,
               max: BUDGET_MAX_MINUTES,
             })}
+          </p>
+        </div>
+
+        {/* Largest file the sweep will rewrite */}
+        <div>
+          <div className={sectionLabel}>{t('cleanup_card.sweep.max_file_gb')}</div>
+          <input
+            data-testid="sweep-max-file-gb"
+            type="number"
+            min={0}
+            max={MAX_FILE_GB_MAX}
+            step={1}
+            value={maxFileGbDraft}
+            disabled={config === undefined}
+            onChange={(e) => setMaxFileGbDraft(e.target.value)}
+            onBlur={commitMaxFileGb}
+            className={`${inputClass} w-[110px]`}
+          />
+          <p className={hintText}>
+            {maxFileGb > 0
+              ? t('cleanup_card.sweep.max_file_gb_hint', { gb: maxFileGb })
+              : t('cleanup_card.sweep.max_file_gb_hint_off')}
           </p>
         </div>
 

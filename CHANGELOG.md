@@ -50,6 +50,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     and verdict, and the series page gets a live "preview this episode"
     check — both read-only, before anything is rewritten.
   - Existing installs keep exactly today's behaviour until this is changed.
+- **A size limit for the foreign-track sweep.** *Settings → Subtitle
+  Automation → Foreign-Track Cleanup → Largest file (GB)* skips files above
+  the size. The sweep rewrites a whole container to drop a few subtitle
+  tracks, so its cost follows the file size while its benefit does not: one
+  2160p film measured 49 minutes to remux and 47 more to move the 70 GB
+  original to the trash, for a few hundred kilobytes of subtitle track. Set
+  it to something like 20 to keep episodes in scope and leave films alone.
+  Default 0 = no limit, which is what every install does today. Files above
+  the limit are not counted as affected and never enter a sweep generation;
+  the limit in force is named in the enumeration log line so a shrunken
+  "affected" count cannot be mistaken for an empty library. To restrict the
+  sweep by folder instead, the foreign-tracks cleanup rule's include/exclude
+  paths already do that and are unchanged.
 
 ### Fixed
 - **The Bazarr migration imports for real.** The wizard under System →
@@ -170,6 +183,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   which its circuit breaker and rate-limit budget already know how to handle.
   The same cap applies to outgoing webhooks, where a target's `Retry-After`
   could tie up one of the four dispatcher threads for an hour.
+- **AnimeTosho downloads from its third storage host.** An index hit hands out
+  whichever storage host it likes, and `storage.animetosho.net` was missing
+  from the provider's download allowlist, so every result served from there
+  was rejected at the last step — 81 downloads in 24 hours on one library,
+  while results hosted elsewhere kept working and the provider looked healthy
+  in every count.
+- **One lost database connection costs one subtitle, not the whole run.** After
+  a failed write the database session stays blocked until it is reset, and
+  nothing reset it: a single dropped connection turned into an identical
+  failure for every remaining item of that run — 98 of them on one library,
+  none of them recorded anywhere, after a backup tool restarted the database
+  under a running search. The failure is now cleared before the item is booked,
+  so the next item starts clean.
+- **A library scan no longer stalls behind the foreign-track sweep.** Reading a
+  video's track list waits for the same slot the sweep's remux holds, and it
+  waited up to an hour for it. Behind a long remux every file of the scan
+  queued on that slot, so the scan spent its entire run waiting and was then
+  reported as a run that refused to stop. Such a read now gives up after a few
+  seconds and the scan carries on; files it could not read are left as they
+  were rather than recorded as having no subtitles.
 - **Smaller fixes.** The provider health board no longer calls a provider with
   a key saved in Settings blocked (#207 follow-up). Automation tasks that fail
   the same way every time are given up after ten attempts. A scheduled job that

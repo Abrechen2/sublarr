@@ -89,11 +89,17 @@ def iter_video_files(
     exclude_paths: list[str],
     min_age_s: int,
     now: float,
+    max_size_bytes: int = 0,
 ) -> Iterator[tuple[str, int, float]]:
     """Yield ``(path, size_bytes, mtime)`` for every sweep candidate.
 
     Skips abandoned remux temp files and anything modified within the last
     ``min_age_s`` seconds, so an in-flight import is never probed mid-write.
+
+    ``max_size_bytes`` (0 = no limit) drops files above the size. It filters
+    here rather than at strip time so an excluded file never enters the
+    generation at all — it is not counted as affected, not probed, and does
+    not sit in the state file waiting for a turn that must not come.
     """
     from services.cleanup_executors import VIDEO_EXTENSIONS, _safe_walk
 
@@ -116,6 +122,8 @@ def iter_video_files(
             except OSError:
                 continue
             if min_age_s and (now - st.st_mtime) < min_age_s:
+                continue
+            if max_size_bytes and st.st_size > max_size_bytes:
                 continue
             yield full, st.st_size, st.st_mtime
 

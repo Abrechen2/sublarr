@@ -57,7 +57,12 @@ _PROVIDER_DOWNLOAD_DOMAINS: dict[str, set[str]] = {
     "legendasdivx": {"legendasdivx.pt"},
     "napisy24": {"napisy24.pl"},
     "subdl": {"subdl.com"},
-    "animetosho": {"animetosho.org", "animetosho.xyz"},
+    # animetosho.net serves the actual files: an index hit on .org/.xyz hands
+    # out a download URL on storage.animetosho.net, and without it here every
+    # such result is rejected at the last step. Prod 2026-09-27/28 lost 81
+    # downloads in 24 h that way while .org-hosted ones kept working, so the
+    # gap was invisible in the success count.
+    "animetosho": {"animetosho.org", "animetosho.xyz", "animetosho.net"},
     # subf2m.co 302s the actual archive to its signed CDN.
     "subf2m": {"subf2m.co", "isubcdn.com"},
     "subsource": {"subsource.net"},

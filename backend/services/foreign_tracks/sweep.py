@@ -399,6 +399,8 @@ def _enumerate(media_root: str, config: dict, state, repo) -> None:
 
     settings = get_settings()
     min_age = int(getattr(settings, "foreign_track_min_file_age_s", 600))
+    max_gb = float(getattr(settings, "foreign_track_sweep_max_file_gb", 0) or 0)
+    max_size = int(max_gb * 1024**3) if max_gb > 0 else 0
 
     state.generation += 1
     state.enumeration_complete = False
@@ -411,8 +413,14 @@ def _enumerate(media_root: str, config: dict, state, repo) -> None:
         started = _monotonic()
         last_report = started
         files = 0
+        # The size limit is named here because it silently shrinks `affected`:
+        # without it in the log, a generation that skipped every film reads as
+        # a library that has none.
         logger.info(
-            "foreign_track_sweep: enumeration started gen=%d root=%s", state.generation, media_root
+            "foreign_track_sweep: enumeration started gen=%d root=%s max_file_gb=%s",
+            state.generation,
+            media_root,
+            max_gb if max_gb > 0 else "-",
         )
         for path, size, mtime in iter_video_files(
             media_root,
@@ -420,6 +428,7 @@ def _enumerate(media_root: str, config: dict, state, repo) -> None:
             config.get("exclude_paths") or [],
             min_age_s=min_age,
             now=time.time(),
+            max_size_bytes=max_size,
         ):
             files += 1
             now_mono = _monotonic()

@@ -201,6 +201,51 @@ describe('ForeignTrackSweepSection — settings', () => {
     expect(http.put).not.toHaveBeenCalled()
   })
 
+  it('saves a size limit so large files are left alone', async () => {
+    serve({})
+    renderSection()
+    const input = (await screen.findByTestId('sweep-max-file-gb')) as HTMLInputElement
+    await waitFor(() => expect(input.value).toBe('0'))
+    fireEvent.change(input, { target: { value: '20' } })
+    fireEvent.blur(input)
+    await waitFor(() =>
+      expect(http.put).toHaveBeenCalledWith('/config', { foreign_track_sweep_max_file_gb: 20 }),
+    )
+  })
+
+  it('treats an emptied size limit as no limit rather than saving NaN', async () => {
+    serve({ config: { foreign_track_sweep_max_file_gb: 20 } })
+    renderSection()
+    const input = (await screen.findByTestId('sweep-max-file-gb')) as HTMLInputElement
+    await waitFor(() => expect(input.value).toBe('20'))
+    fireEvent.change(input, { target: { value: '' } })
+    fireEvent.blur(input)
+    await waitFor(() =>
+      expect(http.put).toHaveBeenCalledWith('/config', { foreign_track_sweep_max_file_gb: 0 }),
+    )
+    expect(input.value).toBe('0')
+  })
+
+  it('refuses a negative size limit and puts the saved value back', async () => {
+    serve({ config: { foreign_track_sweep_max_file_gb: 20 } })
+    renderSection()
+    const input = (await screen.findByTestId('sweep-max-file-gb')) as HTMLInputElement
+    await waitFor(() => expect(input.value).toBe('20'))
+    fireEvent.change(input, { target: { value: '-5' } })
+    fireEvent.blur(input)
+    await new Promise((resolve) => setTimeout(resolve, 50))
+    expect(http.put).not.toHaveBeenCalled()
+    expect(input.value).toBe('20')
+  })
+
+  it('names the limit in the hint once one is set', async () => {
+    serve({ config: { foreign_track_sweep_max_file_gb: 20 } })
+    renderSection()
+    expect(
+      await screen.findByText(/cleanup_card\.sweep\.max_file_gb_hint:\{"gb":20\}/),
+    ).toBeTruthy()
+  })
+
   it('shows the backup retention read-only with a link to the remux settings', async () => {
     serve({ config: { remux_backup_retention_days: 14 } })
     renderSection()

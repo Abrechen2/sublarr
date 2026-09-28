@@ -466,6 +466,21 @@ class UISettings(BaseModel):
     # Files modified more recently than this are skipped, so an import that is
     # still being written is never probed or rewritten mid-write.
     foreign_track_min_file_age_s: int = 600
+    # Skip files larger than this. 0 keeps every file, which is the behaviour
+    # every install had before this setting existed.
+    #
+    # The sweep rewrites the whole container to drop a few subtitle streams, so
+    # its cost scales with file size while its benefit does not. Prod
+    # 2026-09-28 measured one 2160p film: 49 min to remux, 47 min more to move
+    # the 70 GB original to the trash, 4622 s of the run for a single file —
+    # against 143 MB freed across the whole day. A library of 4K films and
+    # 1.5 GB episodes wants the episodes swept and the films left alone.
+    foreign_track_sweep_max_file_gb: float = Field(
+        default=0,
+        ge=0,
+        le=10000,
+        description="Skip files larger than this many GB (0 = no size limit)",
+    )
 
     # Signs/forced/songs removal level (cleanup_signs rule + extract hook).
     # off | signs | signs_forced | signs_forced_songs. Default off.

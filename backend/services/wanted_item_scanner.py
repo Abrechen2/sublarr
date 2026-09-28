@@ -52,7 +52,13 @@ def batch_probe(paths: list[str]) -> dict[str, object]:
     def _gated_probe(path: str):
         # Every probe holds a gate slot: sizing the pool alone would let two
         # concurrent batches (two webhook scans) run 2x the limit.
-        with media_io_gate.slot("metadata probe"):
+        #
+        # PROBE_WAIT_S, not the background hour: a probe that cannot get in
+        # has a real answer (PROBE_REFUSED, handled below and upsert-safe),
+        # while waiting costs the whole scan its tick. Behind a long remux
+        # every probe in the batch queues on the same slot, so the hour is
+        # not one wait but the scan's entire budget.
+        with media_io_gate.slot("metadata probe", timeout=media_io_gate.PROBE_WAIT_S):
             return get_media_streams(path, True)
 
     results = {}
