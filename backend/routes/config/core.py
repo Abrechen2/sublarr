@@ -31,32 +31,75 @@ _INSTANCE_BLOB_KEYS = {
 _SECRET_SUBKEYS = ("api_key", "apikey", "token", "password", "secret", "auth")
 
 
-def _provider_keys(saved_keys) -> set[str]:
-    """Which of the saved settings belong to a provider?
-
-    Derived from the providers' own ``config_fields`` rather than a hardcoded
-    list, so a provider added later is covered without anyone remembering to
-    update this. ``providers_enabled`` counts too — switching one on is the
-    most direct way to make it usable again.
-    """
-    keys = {k for k in saved_keys if k == "providers_enabled"}
+def _provider_field_owners() -> dict[str, str]:
+    """Map each provider credential key to the provider that declares it."""
+    owners: dict[str, str] = {}
     try:
         from providers.registry import _PROVIDER_CLASSES
 
-        declared = {
-            field.get("key")
-            for cls in _PROVIDER_CLASSES.values()
-            for field in (getattr(cls, "config_fields", None) or [])
-            if field.get("key")
-        }
-        keys |= {k for k in saved_keys if k in declared}
+        for name, cls in _PROVIDER_CLASSES.items():
+            for field in getattr(cls, "config_fields", None) or []:
+                key = field.get("key")
+                if key:
+                    owners[key] = name
     except Exception:  # pragma: no cover — never break a settings save
         logger.debug("could not read provider config fields", exc_info=True)
-    return keys
+    return owners
 
 
-def _provider_config_changed(saved_keys) -> bool:
-    return bool(_provider_keys(saved_keys))
+def _enabled_provider_set(value, all_names: set[str]) -> set[str]:
+    """Resolve ``providers_enabled`` to a concrete set. Empty means all."""
+    text = (value or "").strip()
+    if not text:
+        return set(all_names)
+    return {p.strip() for p in text.split(",") if p.strip()}
+
+
+def _providers_became_usable(data: dict, before: dict) -> set[str]:
+    """Provider names this save actually made usable — not merely mentioned.
+
+    #214: the trigger used to fire on the *name* of a saved key, so a save that
+    switched a provider OFF, or that resent an unchanged credential, revived up
+    to ``wanted_revive_max_per_run`` exhausted items all the same. Nothing had
+    become usable, and the revived items then searched every enabled provider —
+    on the reporter's install that turned a SubDL test into OpenSubtitles
+    downloads, against the daily quota that is his real limit.
+
+    Three things have to be true for a name to come back from here: the key was
+    part of this save, its stored value actually changed, and the change points
+    at a provider that can now do something it could not before.
+    """
+    became: set[str] = set()
+    try:
+        from providers.registry import _PROVIDER_CLASSES
+
+        all_names = set(_PROVIDER_CLASSES)
+    except Exception:  # pragma: no cover
+        all_names = set()
+
+    if "providers_enabled" in data:
+        old_set = _enabled_provider_set(before.get("providers_enabled"), all_names)
+        new_set = _enabled_provider_set(data.get("providers_enabled"), all_names)
+        # Only additions. Removing a provider makes nothing usable, and a list
+        # that merely changed order is not a change at all.
+        became |= new_set - old_set
+
+    owners = _provider_field_owners()
+    for key, owner in owners.items():
+        if key not in data:
+            continue
+        new_value = data.get(key)
+        # The mask means "unchanged" — the save loop skips these too.
+        if str(new_value) == _MASK_SENTINEL:
+            continue
+        new_text = str(new_value).strip() if new_value is not None else ""
+        old_text = str(before.get(key) or "").strip()
+        # A credential only becomes usable by being set to something, and only
+        # if that something is new. Clearing one is the opposite of usable.
+        if new_text and new_text != old_text:
+            became.add(owner)
+
+    return became
 
 
 def _deep_unmask_instance_blob(new_raw: str, key: str) -> str | None:
@@ -294,6 +337,18 @@ def update_config():
     valid_keys = writable_config_keys()
     saved_keys = []
 
+    # Snapshot the provider-relevant values BEFORE anything is written, so the
+    # revive below can tell a real change from a resend (#214). Only the keys
+    # this request actually carries are read.
+    _provider_before: dict[str, str | None] = {}
+    try:
+        from db.config import get_config_entry as _get_entry
+
+        _watch_keys = set(_provider_field_owners()) | {"providers_enabled"}
+        _provider_before = {k: _get_entry(k) for k in data if k in _watch_keys}
+    except Exception:  # pragma: no cover — never break a settings save
+        logger.debug("could not snapshot provider config before save", exc_info=True)
+
     _ENUM_FIELDS = {
         "log_level": {"DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"},
         "auto_sync_engine": {"ffsubsync", "alass"},
@@ -388,11 +443,12 @@ def update_config():
         "target_language",
     }
     # providers_hidden is UI-only; exclude it from backend provider invalidation.
-    # Deliberately NOT named _provider_keys: that is a module-level function
-    # answering a different question (which saved keys belong to a provider,
-    # from their declared config_fields), and it is still called further down.
-    # Assigning that name here made it local for the whole function body, so
-    # the later call tried to call a set and raised.
+    # The name matters: a local called `_provider_keys` once shadowed the
+    # module-level function of that name for this whole function body, so the
+    # later call tried to call a set and raised — silently, because the revive
+    # it guarded is wrapped in a catch-all so a bonus behaviour can never fail
+    # a settings save. The function is gone now (#214 replaced it), but the
+    # lesson is why this one is named for what it holds.
     provider_cache_keys = {
         k
         for k in saved_keys
@@ -534,13 +590,22 @@ def update_config():
     # and provider-blind: items that burned their attempts while a provider was
     # broken stay parked forever, and fixing it afterwards does nothing for
     # them. Capped per run, so a large parked backlog returns in slices.
-    if _provider_config_changed(saved_keys):
+    #
+    # Which providers *became usable* — not which keys appeared in the request
+    # (#214). A save that only switches providers off, or resends unchanged
+    # values, revives nothing now.
+    _became_usable = _providers_became_usable(data, _provider_before)
+    if _became_usable:
         try:
             from services.wanted_revive import revive_after_provider_change
 
-            revived = revive_after_provider_change(sorted(_provider_keys(saved_keys)))
+            revived = revive_after_provider_change(sorted(_became_usable))
             if revived:
-                logger.info("provider config changed — revived %d exhausted item(s)", revived)
+                logger.info(
+                    "provider(s) became usable (%s) — revived %d exhausted item(s)",
+                    ", ".join(sorted(_became_usable)),
+                    revived,
+                )
         except Exception as exc:
             # Never let a bonus behaviour fail the settings save the user asked for.
             logger.warning("revive after provider change failed: %s", exc, exc_info=True)

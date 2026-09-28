@@ -73,6 +73,17 @@ if [[ "$SRC_PKLESS" != "$DST_PKLESS" ]]; then
   exit 7
 fi
 
+# --- Do not let the clone inherit prod's identity in the telemetry ---------
+# config_entries carries usage_stats_install_id, so a straight dump gives RC
+# prod's id. Both instances then ping stats.sublarr.de under it and overwrite
+# each other — measured 2026-09-28: prod pinged 17:03:37, RC 17:05:38, and the
+# single "postgres" install in the public aggregate was therefore describing
+# the idle mirror rather than the live instance. Blanking it makes RC mint its
+# own id on first ping. Consent stays as it is; the id is the only thing here
+# that identifies a machine rather than a decision.
+$SSH "docker exec $TARGET_PG psql -U $DBUSER -d $DB -q -c \"UPDATE config_entries SET value='' WHERE key='usage_stats_install_id';\"" \
+  || echo "WARN: could not blank the cloned install id — RC will report as prod" >&2
+
 $SSH "cp -a '$PROD_KEY' '$RC_KEY' && chmod 600 '$RC_KEY'"
 $SSH "cd $RC_COMPOSE_DIR && docker compose -p $RC_PROJECT up -d $RC_APP"
 

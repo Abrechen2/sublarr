@@ -76,7 +76,19 @@ def match_release(
     if isinstance(episode, list):
         # A feed title such as "01-366" is an invitation to inspect its files,
         # never proof that every attachment belongs to the requested episode.
-        if not allow_pack or not min(episode) <= target <= max(episode):
+        #
+        # GuessIt hands back whatever it parsed, and the list is not reliably
+        # numeric: prod 2026-09-28 raised "'<' not supported between instances
+        # of 'int' and 'str'" out of min() itself, mid-search. The raise was
+        # caught upstream, so the only visible cost was the entry silently
+        # dropping out of the match — a pack that should have been inspected
+        # never was, and nothing said so.
+        numbers = [
+            int(e) for e in episode if isinstance(e, int) or (isinstance(e, str) and e.isdigit())
+        ]
+        if not allow_pack or target is None or not numbers:
+            return None
+        if not min(numbers) <= target <= max(numbers):
             return None
     elif episode is not None:
         if episode != target:

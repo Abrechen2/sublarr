@@ -354,6 +354,49 @@ def _scale_buckets() -> dict:
     }
 
 
+def _funnel() -> dict:
+    """How far this install actually got — four booleans, no counts.
+
+    The aggregate can say how many installs exist and how many still ping. It
+    cannot say anything about *why* the rest stopped, because nothing in the
+    payload distinguishes an install that never finished setup from one that
+    ran for months and was switched off. On 2026-09-28 that gap was the whole
+    story: 108 installs, 56 active, cohort retention down from 33% to 22% in
+    six weeks, and no field that could narrow it further than "they left".
+
+    These four are the steps between installing and getting a subtitle, so a
+    drop-off lands on one of them. Booleans rather than counts or timestamps:
+    the payload contract is enum/bool/bucket, and "has this ever happened"
+    answers the question without describing the library.
+    """
+    from db.models.providers import SubtitleDownload
+    from db.models.scheduler import JobRun
+    from db.wanted import get_wanted_count
+
+    def _flag(fn) -> bool:
+        try:
+            return bool(fn())
+        except Exception:
+            _safe_rollback()
+            return False
+
+    def _setup_done() -> bool:
+        from db.config import get_config_entry
+
+        return str(get_config_entry("setup_wizard_completed") or "").lower() == "true"
+
+    return {
+        # Did they get through the wizard at all?
+        "setup_completed": _flag(_setup_done),
+        # Did a library ever arrive? Without this, nothing downstream can run.
+        "library_scanned": _flag(lambda: get_wanted_count() > 0),
+        # Did it ever do work on its own, or was it only ever opened by hand?
+        "scheduler_ran": _flag(lambda: _count_rows(JobRun) > 0),
+        # The payoff. An install that never reached this got nothing out of it.
+        "first_download_done": _flag(lambda: _count_rows(SubtitleDownload) > 0),
+    }
+
+
 def _auto_disabled_count() -> int:
     """Number of providers currently auto-disabled (anonymous fleet-health int)."""
     try:
@@ -419,6 +462,7 @@ def build_usage_payload() -> dict:
         ("env", lambda: _env(settings, __version__)),
         ("scale", _scale_buckets),
         ("providers", _providers_group),
+        ("funnel", _funnel),
         ("auto_disabled_count", _auto_disabled_count),
     ):
         try:

@@ -310,7 +310,9 @@
       "not_configured": "Nicht konfiguriert",
       "consecutive_failures": "{{count}}× Fehler hintereinander",
       "test_download": "Download testen",
-      "test_download_hint": "Lädt einen echten Untertitel und verwirft ihn. Ein reiner Suchtest meldet grün, auch wenn der Download-Pfad tot ist — Suche und Download nutzen verschiedene Zugangsdaten. Verbraucht eine Einheit des Tageskontingents."
+      "test_download_hint": "Lädt einen echten Untertitel und verwirft ihn. Ein reiner Suchtest meldet grün, auch wenn der Download-Pfad tot ist — Suche und Download nutzen verschiedene Zugangsdaten. Verbraucht eine Einheit des Tageskontingents.",
+      "pool_overrides_field_one": "Suchen benutzen die API-Schlüssel-Liste weiter unten. Dieses Feld wird nicht verwendet, solange dort ein Schlüssel steht.",
+      "pool_overrides_field_other": "Suchen benutzen die API-Schlüssel-Liste weiter unten ({{count}} Schlüssel). Dieses Feld wird nicht verwendet, solange dort Schlüssel stehen."
     },
     "descriptions": {
       "fallback": "Untertitel-Provider",

@@ -121,12 +121,42 @@ def _set_statement_timeout(seconds: int | None) -> None:
     db.session.execute(text(f"SET statement_timeout = '{value}'"))
 
 
+def _retire_restored_install_id() -> None:
+    """Forget the anonymous install id the archive brought with it.
+
+    The id lives in ``config_entries``, so a restore copies it — and if the
+    archive is restored onto a *second* instance (a test copy, a staging
+    mirror, a migration to new hardware kept alongside the old one), both now
+    ping the aggregate under one id. They overwrite each other: the aggregate
+    counts one install where there are two, and every attribute it reports for
+    that id is whichever instance pinged last.
+
+    Measured on this project's own data 2026-09-28: prod and its RC mirror
+    shared ``b9549623…`` and pinged two minutes apart, so the single
+    "postgres" install in the aggregate described the idle mirror, not prod.
+
+    Clearing it here means a restored instance mints a fresh id on its next
+    ping. A genuine disaster recovery therefore reads as a new install — a
+    discontinuity that is visible and honest, where the merge is neither.
+    Consent is deliberately left alone: that is the user's answer, not a
+    property of the machine.
+    """
+    try:
+        from db.config import save_config_entry
+        from services.usage_stats import INSTALL_ID_KEY
+
+        save_config_entry(INSTALL_ID_KEY, "")
+    except Exception:  # noqa: BLE001 — telemetry must never fail a restore
+        logger.warning("could not retire the restored install id", exc_info=True)
+
+
 def refresh_after_restore() -> None:
     """Reload settings from the restored database and drop every derived cache."""
     from cache_response import invalidate_response_cache
     from config import reload_settings
     from db.config import get_all_config_entries
 
+    _retire_restored_install_id()
     reload_settings(get_all_config_entries())
     try:
         from mediaserver import invalidate_media_server_manager

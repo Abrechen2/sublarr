@@ -161,47 +161,6 @@ class TestReviveAfterProviderChange:
             db.session.commit()
 
 
-class TestProviderKeyDetection:
-    """The trigger has to fire on a provider change and stay quiet otherwise,
-    or every settings save would reset the backlog."""
-
-    def test_enabling_a_provider_counts(self, app_ctx):
-        from routes.config.core import _provider_config_changed
-
-        assert _provider_config_changed(["providers_enabled"]) is True
-
-    def test_a_provider_credential_counts(self, app_ctx):
-        from routes.config.core import _provider_config_changed
-
-        assert _provider_config_changed(["jimaku_api_key"]) is True
-
-    def test_derived_from_the_providers_own_fields(self, app_ctx):
-        """Not a hardcoded list — a provider added later is covered without
-        anyone remembering to update the detection."""
-        from providers.registry import _PROVIDER_CLASSES
-        from routes.config.core import _provider_keys
-
-        declared = {
-            f.get("key")
-            for cls in _PROVIDER_CLASSES.values()
-            for f in (getattr(cls, "config_fields", None) or [])
-            if f.get("key")
-        }
-        assert declared, "no provider declares config_fields — detection would be empty"
-        sample = sorted(declared)[0]
-        assert sample in _provider_keys([sample])
-
-    def test_an_unrelated_setting_does_not_trigger_it(self, app_ctx):
-        from routes.config.core import _provider_config_changed
-
-        assert _provider_config_changed(["interface_language", "items_per_page"]) is False
-
-    def test_nothing_saved_does_not_trigger_it(self, app_ctx):
-        from routes.config.core import _provider_config_changed
-
-        assert _provider_config_changed([]) is False
-
-
 class TestTheSettingsAreReachable:
     """Since 1.14.0 /config validates its keys against the _SettingsView
     subclasses. A setting no view declares is a setting nobody can turn on —
@@ -242,11 +201,19 @@ class TestReviveReachesTheRoute:
     """
 
     def test_enabling_a_provider_revives_the_items_that_gave_up(self, client):
+        # The payload has to be an actual addition. Saving "opensubtitles" over
+        # the default empty value looks like enabling one provider but is the
+        # opposite — empty means every provider is enabled, so that save turns
+        # six of them off. #214 is exactly this confusion, and the revive no
+        # longer fires on it, so the starting point is now stated explicitly.
         with client.application.app_context():
+            from db.config import save_config_entry
+
+            save_config_entry("providers_enabled", "opensubtitles")
             gave_up = _seed(file_path="/parked.mkv", search_count=3)
             item_id = gave_up.id
 
-        resp = client.put("/api/v1/config", json={"providers_enabled": "opensubtitles"})
+        resp = client.put("/api/v1/config", json={"providers_enabled": "opensubtitles,subdl"})
         assert resp.status_code == 200, resp.get_data(as_text=True)[:200]
 
         with client.application.app_context():

@@ -63,6 +63,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   "affected" count cannot be mistaken for an empty library. To restrict the
   sweep by folder instead, the foreign-tracks cleanup rule's include/exclude
   paths already do that and are unchanged.
+- **Opt-in usage statistics record how far an install got.** Four yes/no
+  markers — setup finished, library scanned, scheduler ran, first subtitle
+  downloaded. The published figures could say how many installs exist and how
+  many are still active, but nothing about where the others stopped. No counts,
+  sizes or names are added, and this is still sent only with statistics
+  switched on.
 
 ### Fixed
 - **The Bazarr migration imports for real.** The wizard under System →
@@ -183,6 +189,29 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   which its circuit breaker and rate-limit budget already know how to handle.
   The same cap applies to outgoing webhooks, where a target's `Retry-After`
   could tie up one of the four dispatcher threads for an hour.
+- **A provider is only "back" when something really changed.** Saving provider
+  settings put up to 200 given-up items back in the search queue whenever a
+  provider key appeared in the request — including a save that switched a
+  provider *off*, or one that resent an unchanged value. Those items then
+  searched every enabled provider, so testing one provider spent another
+  provider's daily quota on items that had nothing to do with it. The retry
+  now happens only when a provider is genuinely added or given a new
+  credential (#214).
+- **The provider editor says when its credential field is not the one used.**
+  Once a provider has entries in its API keys list, searches read the key from
+  there and ignore the field further up — so replacing a key in the wrong
+  place saved successfully, showed the new value, and changed nothing. A note
+  under the field now says which one counts (#213).
+- **A pack whose episode range cannot be read no longer drops out silently.**
+  AnimeTosho releases covering a range of episodes are matched against that
+  range; when the range came back in an unexpected shape the comparison raised,
+  the entry was discarded, and nothing recorded that it had been skipped.
+- **A restored database no longer reports as the install it came from.** The
+  anonymous usage-statistics id travelled inside the backup, so restoring one
+  onto a second instance made both report as the same install — they
+  overwrote each other, and the published totals counted one where there were
+  two. A restored instance now gets its own id. The opt-in choice itself is
+  kept.
 - **AnimeTosho downloads from its third storage host.** An index hit hands out
   whichever storage host it likes, and `storage.animetosho.net` was missing
   from the provider's download allowlist, so every result served from there

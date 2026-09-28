@@ -1,8 +1,10 @@
 import { useState } from 'react'
+import { useQuery } from '@tanstack/react-query'
 import { useTranslation } from 'react-i18next'
 import { Loader2, TestTube, Trash2, Download, Database } from 'lucide-react'
 import { SettingRow } from '@/components/shared/SettingRow'
-import ProviderKeysPool from '@/components/settings/ProviderKeysPool'
+import ProviderKeysPool, { KEY_PROVIDERS } from '@/components/settings/ProviderKeysPool'
+import { listKeys } from '@/api/providerKeys'
 import { ProviderLanguageExcludes } from './ProviderLanguageExcludes'
 import type { ProviderInfo } from '@/lib/types'
 import {
@@ -61,6 +63,20 @@ export function ProviderEditor({
   }
 
   const configFields = provider.config_fields ?? []
+
+  // #213: once the pool holds a key, searches read it and ignore the field
+  // above — `_provider_credentials_configured` treats pool rows as the only
+  // source, so an exhausted or cooling pool is not bypassed by a Settings
+  // value either. A user rotated a Jimaku key here, saw the save succeed and
+  // the masked value change, and spent an hour on the 401s that followed.
+  // Same query key as ProviderKeysPool, so react-query serves both from one
+  // request rather than asking twice.
+  const poolKeysQuery = useQuery({
+    queryKey: ['provider-keys', provider.name],
+    queryFn: () => listKeys(provider.name),
+    enabled: (KEY_PROVIDERS as readonly string[]).includes(provider.name),
+  })
+  const poolKeyCount = poolKeysQuery.data?.length ?? 0
 
   const handleTest = () => {
     const newErrors: Record<string, string> = {}
@@ -299,6 +315,15 @@ export function ProviderEditor({
                     {hasError && (
                       <p id={errorId} role="alert" className="text-xs mt-1" style={{ color: 'var(--error)' }}>
                         {errors[field.key]}
+                      </p>
+                    )}
+                    {poolKeyCount > 0 && (
+                      <p
+                        data-testid={`pool-overrides-${field.key}`}
+                        className="text-xs mt-1"
+                        style={{ color: 'var(--warning, var(--text-muted))' }}
+                      >
+                        {ts('providers_tab.editor.pool_overrides_field', { count: poolKeyCount })}
                       </p>
                     )}
                   </div>

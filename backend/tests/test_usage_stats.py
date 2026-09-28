@@ -59,6 +59,11 @@ class TestPayload:
             "env",
             "scale",
             "providers",
+            # Four booleans marking how far an install got (2026-09-28). The
+            # aggregate could count installs and pings but never say why the
+            # rest stopped — retention fell 33% -> 22% in six weeks with no
+            # field able to narrow it.
+            "funnel",
             "auto_disabled_count",
         }
 

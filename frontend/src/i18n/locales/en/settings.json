@@ -310,7 +310,9 @@
       "not_configured": "Not configured",
       "consecutive_failures": "{{count}}× consecutive failures",
       "test_download": "Test download",
-      "test_download_hint": "Fetches one real subtitle and discards it. A search-only test reports green even when the download path is dead — search and download use different credentials. Uses one unit of the daily allowance."
+      "test_download_hint": "Fetches one real subtitle and discards it. A search-only test reports green even when the download path is dead — search and download use different credentials. Uses one unit of the daily allowance.",
+      "pool_overrides_field_one": "Searches use the API keys list below. This field is not used while that list has a key.",
+      "pool_overrides_field_other": "Searches use the API keys list below ({{count}} keys). This field is not used while that list has keys."
     },
     "descriptions": {
       "fallback": "Subtitle provider",

@@ -12,8 +12,12 @@ import {
 } from '@/api/providerKeys'
 import { toast } from '@/components/shared/Toast'
 
-/** Providers that authenticate with API keys and therefore support a key pool. */
-const KEY_PROVIDERS = [
+/** Providers that authenticate with API keys and therefore support a key pool.
+ *
+ * Exported because the provider editor has to know too: while this pool holds
+ * a key, the credential field up in Settings is not what searches read (#213).
+ */
+export const KEY_PROVIDERS = [
   'opensubtitles',
   'subdl',
   'jimaku',
