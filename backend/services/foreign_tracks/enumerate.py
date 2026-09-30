@@ -22,6 +22,7 @@ import logging
 import os
 import re
 from collections.abc import Iterator
+from dataclasses import dataclass
 
 logger = logging.getLogger(__name__)
 
@@ -54,6 +55,27 @@ def _in_scope(path: str, root: str, include_paths: list[str], exclude_paths: lis
         if norm == scoped or norm.startswith(scoped + os.sep):
             return True
     return False
+
+
+@dataclass(frozen=True)
+class SweepScope:
+    """Which files the sweep may touch: paths below ``root`` and a size cap.
+
+    The walk applies it to find candidates; probe and strip apply it again to
+    the worklist, because rows from an older walk were admitted under an
+    older scope (prod 2026-09-28: a narrowed scope left 4K films from the
+    previous walk in the worklist, and the sweep remuxed them).
+    """
+
+    root: str
+    include_paths: tuple[str, ...] = ()
+    exclude_paths: tuple[str, ...] = ()
+    max_size_bytes: int = 0
+
+    def admits(self, path: str, size_bytes: int) -> bool:
+        if self.max_size_bytes and size_bytes > self.max_size_bytes:
+            return False
+        return _in_scope(path, self.root, list(self.include_paths), list(self.exclude_paths))
 
 
 def _may_descend(

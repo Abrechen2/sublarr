@@ -71,6 +71,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   switched on.
 
 ### Fixed
+- **The foreign-track sweep honours a narrowed scope right away.** Changing
+  the cleanup rule's include/exclude paths or the "Largest file (GB)" limit
+  only filtered the next library walk, and a keep-list reset skipped that
+  walk — so the sweep went on rewriting files from its old worklist that the
+  new scope excludes (on one library: 2160p films after the rule was limited
+  to the anime folder). Every file is now checked against the current scope
+  right before it is probed or rewritten, and files outside it are dropped
+  from the worklist. A change of paths or size limit also starts a fresh walk,
+  so a widened scope finds its new files without waiting for the weekly rescan.
 - **The Bazarr migration imports for real.** The wizard under System →
   Migration never sent anything to the server: its preview showed made-up
   counts and "Import" imported nothing. The "Bazarr Migration" button under

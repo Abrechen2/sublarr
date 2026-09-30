@@ -12,7 +12,11 @@ import time
 from datetime import UTC, datetime
 
 from db.models.foreign_tracks import ERROR_PROBE, ERROR_REMUX, ERROR_VERIFY
-from services.foreign_tracks.enumerate import iter_video_files, sweep_stale_temp_files
+from services.foreign_tracks.enumerate import (
+    SweepScope,
+    iter_video_files,
+    sweep_stale_temp_files,
+)
 from services.foreign_tracks.policy import (
     OverrideSet,
     is_excluded,
@@ -29,6 +33,7 @@ from services.foreign_tracks.state import (
     config_hash,
     load_state,
     save_state,
+    scope_hash,
 )
 from services.foreign_tracks.verify import verify_strip
 from services.scheduler.cancellation import abort_requested
@@ -276,6 +281,17 @@ def _run_slice_locked(media_root: str, config: dict, budget_s: int, now_fn, repo
         # suppress re-enumeration for `foreign_track_sweep_rescan_days`.
         state.phase = PHASE_PROBE if state.enumeration_complete else PHASE_ENUMERATE
     state.config_hash = current_hash
+    scope = _scope_for(media_root, config)
+    current_scope = scope_hash(scope)
+    if state.scope_hash and state.scope_hash != current_scope:
+        # The keep-list branch above may skip the walk because the files on
+        # disk did not change — a scope change is exactly the case where the
+        # set of candidates DID change: a narrowed scope leaves files in the
+        # worklist that must not be touched, a widened one misses files the
+        # last walk never admitted.
+        logger.info("foreign_track_sweep: scope changed — walking the library again")
+        state.phase = PHASE_ENUMERATE
+    state.scope_hash = current_scope
     state.paused_reason = None
 
     # A row left in `stripping` is work a previous slice abandoned.
@@ -287,7 +303,7 @@ def _run_slice_locked(media_root: str, config: dict, budget_s: int, now_fn, repo
         state.phase = PHASE_ENUMERATE
 
     if state.phase == PHASE_ENUMERATE:
-        _enumerate(media_root, config, state, repo)
+        _enumerate(media_root, config, state, repo, scope)
         save_state(state)
 
     # Resolved once per slice, and only when this slice actually reaches
@@ -316,6 +332,7 @@ def _run_slice_locked(media_root: str, config: dict, budget_s: int, now_fn, repo
             now_fn,
             result,
             excluded,
+            scope,
         )
         save_state(state)
 
@@ -347,6 +364,7 @@ def _run_slice_locked(media_root: str, config: dict, budget_s: int, now_fn, repo
                 now_fn,
                 result,
                 excluded,
+                scope,
             )
         save_state(state)
 
@@ -388,7 +406,29 @@ def _sweep_temp_files_logged(media_root: str) -> None:
     )
 
 
-def _enumerate(media_root: str, config: dict, state, repo) -> None:
+def _scope_for(media_root: str, config: dict) -> SweepScope:
+    """The rule's paths and the size cap setting, resolved once per slice."""
+    from config import get_settings
+
+    max_gb = float(getattr(get_settings(), "foreign_track_sweep_max_file_gb", 0) or 0)
+    return SweepScope(
+        root=media_root,
+        include_paths=tuple(p for p in (config.get("include_paths") or []) if p),
+        exclude_paths=tuple(p for p in (config.get("exclude_paths") or []) if p),
+        max_size_bytes=int(max_gb * 1024**3) if max_gb > 0 else 0,
+    )
+
+
+def _leaves_scope(row, scope, repo) -> bool:
+    """Drop ``row`` from the worklist when the current scope excludes it."""
+    if scope is None or scope.admits(row.path, row.size_bytes or 0):
+        return False
+    logger.info("foreign_track_sweep: out of scope now, leaving it alone: %s", row.path)
+    repo.forget(row.path)
+    return True
+
+
+def _enumerate(media_root: str, config: dict, state, repo, scope=None) -> None:
     """Walk once, upserting as we go.
 
     Stale rows are pruned ONLY after the walk finished. An interrupted walk
@@ -397,10 +437,8 @@ def _enumerate(media_root: str, config: dict, state, repo) -> None:
     """
     from config import get_settings
 
-    settings = get_settings()
-    min_age = int(getattr(settings, "foreign_track_min_file_age_s", 600))
-    max_gb = float(getattr(settings, "foreign_track_sweep_max_file_gb", 0) or 0)
-    max_size = int(max_gb * 1024**3) if max_gb > 0 else 0
+    min_age = int(getattr(get_settings(), "foreign_track_min_file_age_s", 600))
+    scope = scope or _scope_for(media_root, config)
 
     state.generation += 1
     state.enumeration_complete = False
@@ -420,15 +458,15 @@ def _enumerate(media_root: str, config: dict, state, repo) -> None:
             "foreign_track_sweep: enumeration started gen=%d root=%s max_file_gb=%s",
             state.generation,
             media_root,
-            max_gb if max_gb > 0 else "-",
+            scope.max_size_bytes / 1024**3 if scope.max_size_bytes else "-",
         )
         for path, size, mtime in iter_video_files(
             media_root,
-            config.get("include_paths") or [],
-            config.get("exclude_paths") or [],
+            list(scope.include_paths),
+            list(scope.exclude_paths),
             min_age_s=min_age,
             now=time.time(),
-            max_size_bytes=max_size,
+            max_size_bytes=scope.max_size_bytes,
         ):
             files += 1
             now_mono = _monotonic()
@@ -478,6 +516,7 @@ def _probe_phase(
     now_fn,
     result,
     excluded=(),
+    scope=None,
 ) -> None:
     if not _media_root_reachable(media_root):
         state.paused_reason = f"media root unreachable: {media_root}"
@@ -496,6 +535,8 @@ def _probe_phase(
             # honoured before the next file is probed.
             if now_fn() >= deadline or abort_requested():
                 return
+            if _leaves_scope(row, scope, repo):
+                continue
             if is_excluded(row.path, excluded):
                 # The title's cleanup is switched off: nothing to decide, no
                 # ffprobe needed — the file is clean for this sweep.
@@ -541,6 +582,7 @@ def _strip_phase(
     now_fn,
     result,
     excluded=(),
+    scope=None,
 ) -> None:
     if not _media_root_reachable(media_root):
         # A sweep can resume directly at PHASE_STRIP on a later tick —
@@ -572,6 +614,7 @@ def _strip_phase(
             result,
             excluded,
             rewritten,
+            scope,
         )
     finally:
         _notify_rewrites(rewritten)
@@ -603,6 +646,7 @@ def _strip_loop(
     result,
     excluded,
     rewritten,
+    scope=None,
 ) -> None:
     min_free_gb = _min_free_gb(config)
 
@@ -627,6 +671,9 @@ def _strip_loop(
             if state.enumeration_complete:
                 state.completed_at = _now_iso()
             return
+
+        if _leaves_scope(row, scope, repo):
+            continue
 
         if is_excluded(row.path, excluded):
             # Probed affected before its series/movie was switched off: the

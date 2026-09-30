@@ -29,6 +29,10 @@ class SweepState:
     phase: str = PHASE_IDLE
     enumeration_complete: bool = False
     config_hash: str = ""
+    # Which files the last walk admitted. Empty for state written before it
+    # existed — then nothing forces a walk; probe and strip filter the
+    # worklist by the current scope either way.
+    scope_hash: str = ""
     started_at: str | None = None
     completed_at: str | None = None
     paused_reason: str | None = None
@@ -98,4 +102,20 @@ def config_hash(config: dict, media_root: str, policy=None) -> str:
             policy.keep_sdh,
             policy.sidecar_policy,
         ]
+    return hashlib.sha256(json.dumps(payload, sort_keys=True).encode()).hexdigest()[:32]
+
+
+def scope_hash(scope) -> str:
+    """Hash which files a walk admits — a change means the worklist is stale.
+
+    Kept apart from ``config_hash`` on purpose: the size cap decides which
+    files are candidates, not what a file's verdict is, so changing it must
+    trigger a walk without throwing every cached verdict away.
+    """
+    payload = {
+        "root": _norm_path(scope.root),
+        "include_paths": sorted({_norm_path(p) for p in scope.include_paths}),
+        "exclude_paths": sorted({_norm_path(p) for p in scope.exclude_paths}),
+        "max_size_bytes": int(scope.max_size_bytes),
+    }
     return hashlib.sha256(json.dumps(payload, sort_keys=True).encode()).hexdigest()[:32]

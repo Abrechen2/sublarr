@@ -186,6 +186,15 @@ class ForeignTrackScanRepository(BaseRepository):
             row.state = STATE_AFFECTED
         self._commit()
 
+    def forget(self, path: str) -> None:
+        """Drop a row the sweep must not touch — it left the sweep's scope.
+
+        Deleted rather than marked clean: a clean verdict would survive a
+        later widening of the scope, and the file would never be probed.
+        """
+        self.session.execute(delete(ForeignTrackScan).where(ForeignTrackScan.path == path))
+        self._commit()
+
     def release_stripping(self) -> int:
         """Return rows abandoned mid-strip (a crash) to the affected pool."""
         rows = list(
