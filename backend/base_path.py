@@ -16,7 +16,6 @@ and changing it must not require restarting the container.
 from __future__ import annotations
 
 import html as _html
-import json
 import logging
 import re
 
@@ -101,18 +100,19 @@ class PrefixMiddleware:
 
 
 def inject_base_into_index(html: str, prefix: str) -> str:
-    """Point the shell's ``<base>`` at the prefix and expose it to the bundle.
+    """Point the shell's ``<base>`` at the prefix.
 
     The bundle's asset URLs are relative so one build serves any prefix, and
     ``<base>`` is what makes them resolve — without it ``./assets/x.js`` on a
-    reloaded ``/wanted/123`` would be looked up under ``/wanted/``. The same
-    value reaches the app through ``window.__SUBLARR_BASE__``, which the API
-    client and the router basename read.
+    reloaded ``/wanted/123`` would be looked up under ``/wanted/``. The app
+    reads the same element for the API client and the router basename
+    (``frontend/src/basePath.ts``). It used to get an inline
+    ``window.__SUBLARR_BASE__`` script too, which the strict script-src CSP
+    blocks, so behind a prefixed proxy it never arrived.
 
     The value is normalised and escaped here even though callers normalise it
-    too. This renders into two different grammars — an HTML attribute and a JS
-    string — and one caller passing an unchecked value must not be able to turn
-    either of them into script.
+    too: one caller passing an unchecked value must not be able to break out
+    of the attribute.
     """
     prefix = normalize_base_path(prefix)
     href = _html.escape(f"{prefix}/" if prefix else "/", quote=True)
@@ -125,8 +125,4 @@ def inject_base_into_index(html: str, prefix: str) -> str:
         # one in rather than serving assets that cannot resolve.
         replaced = re.sub(r"(<head[^>]*>)", rf'\1<base href="{href}" />', html, count=1)
 
-    # json.dumps produces a correctly quoted and escaped JS string literal; the
-    # extra "<" escape keeps a "</script" sequence from ending the element.
-    literal = json.dumps(prefix).replace("<", "\u003c")
-    marker = f"<script>window.__SUBLARR_BASE__ = {literal};</script>"
-    return replaced.replace("</head>", f"{marker}</head>", 1)
+    return replaced

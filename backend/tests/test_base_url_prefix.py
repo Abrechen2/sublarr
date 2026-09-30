@@ -103,7 +103,9 @@ def test_index_html_carries_the_base_element(prefixed, tmp_path, monkeypatch):
     body = prefixed.get("/sublarr/").get_data(as_text=True)
 
     assert '<base href="/sublarr/"' in body, body[:300]
-    assert 'window.__SUBLARR_BASE__ = "/sublarr"' in body, body[:300]
+    # The prefix reaches the app through <base> alone: an inline script is
+    # blocked by the strict script-src CSP, so it never ran (1.14.0-1.15.0).
+    assert "<script>" not in body, body[:300]
 
 
 def test_index_html_at_the_root_keeps_the_plain_base(client, tmp_path):
@@ -121,7 +123,7 @@ def test_index_html_at_the_root_keeps_the_plain_base(client, tmp_path):
     body = client.get("/").get_data(as_text=True)
 
     assert '<base href="/"' in body
-    assert 'window.__SUBLARR_BASE__ = ""' in body
+    assert "<script>" not in body
 
 
 class TestHostileBaseUrl:
@@ -153,9 +155,9 @@ class TestHostileBaseUrl:
 
         assert "<script>alert(1)</script>" not in out, out
         assert "onload=" not in out, out
-        # exactly one base element and one marker script survive
+        # exactly one base element survives, and no script at all
         assert out.count("<base ") == 1, out
-        assert out.count("<script>") == 1, out
+        assert "<script>" not in out, out
 
     @pytest.mark.parametrize(
         "bad",

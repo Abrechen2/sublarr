@@ -33,3 +33,35 @@ describe('normalizeBasePath — values that are not a prefix', () => {
     expect(normalizeBasePath(bad)).toBe('')
   })
 })
+
+describe('basePathFromDocument', () => {
+  // The backend used to hand the prefix over in an inline <script>, which the
+  // strict script-src CSP blocks — behind a prefixed proxy the app then called
+  // the API and routed at "/". The <base> element it rewrites is not script.
+  function docWithBase(href: string | null): Document {
+    const doc = document.implementation.createHTMLDocument('shell')
+    if (href !== null) {
+      const base = doc.createElement('base')
+      base.setAttribute('href', href)
+      doc.head.appendChild(base)
+    }
+    return doc
+  }
+
+  it('reads the prefix the server wrote into <base>', async () => {
+    const { basePathFromDocument } = await import('@/basePath')
+    expect(basePathFromDocument(docWithBase('/sublarr/'))).toBe('/sublarr')
+    expect(basePathFromDocument(docWithBase('/media/subs/'))).toBe('/media/subs')
+  })
+
+  it('means the root for "/" or a missing <base>', async () => {
+    const { basePathFromDocument } = await import('@/basePath')
+    expect(basePathFromDocument(docWithBase('/'))).toBe('')
+    expect(basePathFromDocument(docWithBase(null))).toBe('')
+  })
+
+  it('refuses a <base> that is not a path prefix', async () => {
+    const { basePathFromDocument } = await import('@/basePath')
+    expect(basePathFromDocument(docWithBase('//evil.example.com/'))).toBe('')
+  })
+})

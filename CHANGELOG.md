@@ -105,6 +105,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   The scan every sixth cycle took 64 minutes on a library of 10 700 items and
   finished normally, but its one-hour limit had already logged it as abandoned
   with an error. The limit is now two hours; it never stopped the scan anyway.
+- **Sublarr works behind a reverse proxy with a path prefix.** Since 1.14.0 the
+  prefix reached the web app through an inline script that the app's own
+  Content Security Policy blocks, so under a prefix such as `/sublarr` the
+  pages loaded but routing and every API call went to `/`. The app now reads
+  the prefix from the page's `<base>` element, which the server already set
+  correctly.
 - **The Bazarr migration imports for real.** The wizard under System →
   Migration never sent anything to the server: its preview showed made-up
   counts and "Import" imported nothing. The "Bazarr Migration" button under
