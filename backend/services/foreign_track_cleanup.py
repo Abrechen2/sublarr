@@ -109,6 +109,9 @@ def foreign_track_cleanup_applies(item: dict) -> bool:
 CLEANUP_STRIPPED = "stripped"
 CLEANUP_SKIPPED = "skipped"
 CLEANUP_FAILED = "failed"
+# The remux ran but its result failed verification: retrying repeats the same
+# remux for the same verdict, so the queue books it terminal.
+CLEANUP_UNVERIFIABLE = "unverifiable"
 
 
 def keep_tags_for(
@@ -243,7 +246,7 @@ def maybe_run_foreign_track_cleanup(
     # Distinguishing the failure classes lets ops see what's actually
     # broken without having to crack open the traceback.
     try:
-        from remux import RemuxError, remove_foreign_subtitle_streams
+        from remux import RemuxError, RemuxVerificationError, remove_foreign_subtitle_streams
         from services.foreign_tracks.policy import resolve_policy
         from services.foreign_tracks.select import SIDECAR_DROP
         from services.foreign_tracks.sidecars import real_sidecar_languages
@@ -301,6 +304,14 @@ def maybe_run_foreign_track_cleanup(
             file_path,
             exc,
         )
+    except RemuxVerificationError as exc:
+        logger.warning(
+            "foreign-track cleanup: remux of %s failed verification: %s — file untouched, "
+            "not retried",
+            file_path,
+            exc,
+        )
+        return CLEANUP_UNVERIFIABLE
     except RemuxError as exc:
         logger.warning(
             "foreign-track cleanup: remux error on %s: %s — file untouched",

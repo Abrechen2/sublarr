@@ -93,6 +93,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   and leaves the file alone.
 - **The waveform editor no longer leaves temp files behind** when extracting
   the audio fails or times out.
+- **A foreign-track remux that fails its own check is not repeated for five
+  days.** When the rewritten file did not match the original — a shorter
+  duration, a missing stream, a suspicious size — the original stayed untouched,
+  but the automation queue retried the same remux up to ten times; one episode
+  was rewritten five times in a day for the same duration mismatch. It is now
+  recorded as failed after the first attempt, as the library sweep does, which
+  now also recognises a duration mismatch as a failed check instead of retrying
+  it. A busy media slot is still retried.
+- **A full wanted scan of a large library is no longer reported as abandoned.**
+  The scan every sixth cycle took 64 minutes on a library of 10 700 items and
+  finished normally, but its one-hour limit had already logged it as abandoned
+  with an error. The limit is now two hours; it never stopped the scan anyway.
 - **The Bazarr migration imports for real.** The wizard under System →
   Migration never sent anything to the server: its preview showed made-up
   counts and "Import" imported nothing. The "Bazarr Migration" button under

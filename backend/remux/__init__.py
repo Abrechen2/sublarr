@@ -32,6 +32,13 @@ class RemuxError(Exception):
     """Raised when any remux step fails."""
 
 
+class RemuxVerificationError(RemuxError):
+    """The remuxed file did not match the original — the same input fails the
+    same way every time, so retrying only repeats the remux. The original is
+    untouched; a human should look at the file.
+    """
+
+
 # ---------------------------------------------------------------------------
 # CoW / reflink helper
 # ---------------------------------------------------------------------------
@@ -523,16 +530,18 @@ def _verify(original_path: str, remuxed_path: str, n_removed: int = 1) -> None:
     new_dur = _video_duration(new_info)
     dur_tolerance = max(5.0, orig_dur * 0.01)
     if orig_dur > 0 and abs(orig_dur - new_dur) > dur_tolerance:
-        raise RemuxError(f"Duration mismatch: original={orig_dur:.1f}s remuxed={new_dur:.1f}s")
+        raise RemuxVerificationError(
+            f"Duration mismatch: original={orig_dur:.1f}s remuxed={new_dur:.1f}s"
+        )
 
     # Video + audio stream count must not decrease
     def _count(info: dict, codec_type: str) -> int:
         return sum(1 for s in info.get("streams", []) if s.get("codec_type") == codec_type)
 
     if _count(new_info, "video") < _count(orig_info, "video"):
-        raise RemuxError("Video stream count decreased after remux")
+        raise RemuxVerificationError("Video stream count decreased after remux")
     if _count(new_info, "audio") < _count(orig_info, "audio"):
-        raise RemuxError("Audio stream count decreased after remux")
+        raise RemuxVerificationError("Audio stream count decreased after remux")
 
     # Subtitle count should be exactly n_removed less.
     # If orig_subs < n_removed the container was already modified by a concurrent
@@ -546,13 +555,17 @@ def _verify(original_path: str, remuxed_path: str, n_removed: int = 1) -> None:
         )
     expected = orig_subs - n_removed
     if new_subs != expected:
-        raise RemuxError(f"Unexpected subtitle stream count: expected {expected}, got {new_subs}")
+        raise RemuxVerificationError(
+            f"Unexpected subtitle stream count: expected {expected}, got {new_subs}"
+        )
 
     # File size sanity (≥ 50 % of original)
     orig_size = os.path.getsize(original_path)
     new_size = os.path.getsize(remuxed_path)
     if orig_size > 0 and new_size < orig_size * 0.5:
-        raise RemuxError(f"Remuxed file suspiciously small: {new_size} vs original {orig_size}")
+        raise RemuxVerificationError(
+            f"Remuxed file suspiciously small: {new_size} vs original {orig_size}"
+        )
 
     logger.info(
         "Remux verification passed: dur=%.1fs streams(v=%d a=%d s=%d)",

@@ -54,6 +54,16 @@ logger = logging.getLogger(__name__)
 # which is the right cadence for waiting on a human.
 _TERMINAL_SYNC_ERRORS = (SyncSanityThresholdError,)
 
+
+class CleanupUnverifiableError(RuntimeError):
+    """A foreign-track remux failed its own verification.
+
+    Prod 2026-09-29/30: one episode failed the same duration check five times
+    in a day, a full remux each, on its way to ten. The same input fails the
+    same way; the sweep books it terminal too.
+    """
+
+
 #: A failure that survived this many attempts — five days on the 24h step —
 #: is booked terminal. Prod 2026-09-25: an .iso ffsubsync cannot read was on
 #: attempt 38, a backup name too long for the filesystem on 27.
@@ -264,6 +274,7 @@ class SubtitleAutomationRunner:
         from services.foreign_track_cleanup import (
             CLEANUP_FAILED,
             CLEANUP_STRIPPED,
+            CLEANUP_UNVERIFIABLE,
             cleanup_keep_languages,
             maybe_run_foreign_track_cleanup,
         )
@@ -283,6 +294,11 @@ class SubtitleAutomationRunner:
             raise RuntimeError(f"language profile unresolvable for {video_path}")
 
         outcome = maybe_run_foreign_track_cleanup(item, video_path, target_languages=keep)
+        if outcome == CLEANUP_UNVERIFIABLE:
+            raise CleanupUnverifiableError(
+                f"foreign-track remux failed verification for {video_path}; the original is "
+                "untouched and it will not be retried — see the log for the check that failed"
+            )
         if outcome == CLEANUP_FAILED:
             # Busy media gate, remux error, mount trouble: the reason is in the
             # log above. Raising puts the row on the backoff ladder instead of
@@ -377,6 +393,15 @@ class SubtitleAutomationRunner:
             # neither changes between attempts.
             logger.warning(
                 "subtitle_automation: auto-sync will not be retried for wanted_item=%s: %s",
+                wanted_item_id,
+                exc,
+            )
+            self._repo.mark_failed(entry_id, error=str(exc), next_retry_at=None)
+            return True
+        except CleanupUnverifiableError as exc:
+            logger.warning(
+                "subtitle_automation: foreign-track cleanup will not be retried for "
+                "wanted_item=%s: %s",
                 wanted_item_id,
                 exc,
             )

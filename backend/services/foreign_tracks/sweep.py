@@ -12,6 +12,7 @@ import time
 from datetime import UTC, datetime
 
 from db.models.foreign_tracks import ERROR_PROBE, ERROR_REMUX, ERROR_VERIFY
+from remux import RemuxVerificationError
 from services.foreign_tracks.enumerate import (
     SweepScope,
     iter_video_files,
@@ -696,7 +697,8 @@ def _strip_loop(
                 real_sidecar_langs=real_sidecar_langs,
             )
         except Exception as exc:  # noqa: BLE001 — record and move on
-            error_class = ERROR_VERIFY if "verif" in str(exc).lower() else ERROR_REMUX
+            unverified = isinstance(exc, RemuxVerificationError) or "verif" in str(exc).lower()
+            error_class = ERROR_VERIFY if unverified else ERROR_REMUX
             repo.mark_failed(row.path, str(exc), error_class)
             continue
 
