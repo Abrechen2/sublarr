@@ -228,23 +228,15 @@ def _translate_srt(
         translated_count += 1
 
     _core.check_disk_space(output_path)
-    from utils.atomic_write import atomic_save_subs
-
-    atomic_save_subs(subs, output_path, format_="srt")
-    logger.info("Saved SRT translation: %s", output_path)
-
-    # Plan B5 — subtitle repair pass on translated output
-    from translator._helpers import run_subtitle_repair
-
-    run_subtitle_repair(output_path)
-
-    # Sanitize the LLM-generated output before it is served to a player. The
-    # provider-download path sanitizes every file; translated output must get
+    # Repaired and sanitized in memory before anything is written: the
+    # provider-download path sanitizes every file, and translated output gets
     # the same treatment so prompt-injected HTML/script content in the model
-    # output cannot reach the renderer (see subtitle_sanitizer).
-    from subtitle_sanitizer import sanitize_subtitle_file
+    # output cannot reach the renderer. A result that fails the check is not
+    # saved at all, and the previous subtitle at output_path stays.
+    from translator._helpers import save_translated_output
 
-    sanitize_subtitle_file(output_path)
+    save_translated_output(subs, output_path, "srt")
+    logger.info("Saved SRT translation: %s", output_path)
 
     _core._write_quality_sidecar(output_path, quality_scores)
     from nfo_export import maybe_write_nfo

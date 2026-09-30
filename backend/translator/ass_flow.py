@@ -411,22 +411,13 @@ def translate_ass(
             subs.info["Title"] = f"[{lang_tag}] {info_title}"
 
         _core.check_disk_space(output_path)
-        from utils.atomic_write import atomic_save_subs
+        # Repaired and sanitized in memory before anything is written: strips
+        # drawing-mode/Lua an injected prompt could have coaxed the model into
+        # emitting, and a result that fails the check keeps the old target.
+        from translator._helpers import save_translated_output
 
-        atomic_save_subs(subs, output_path, format_="ass")
+        save_translated_output(subs, output_path, "ass")
         logger.info("Saved ASS translation: %s", output_path)
-
-        # Plan B5 — subtitle repair pass on translated output
-        from translator._helpers import run_subtitle_repair
-
-        run_subtitle_repair(output_path)
-
-        # Sanitize LLM output before it reaches a player (see srt_flow / the
-        # provider-download path). Strips drawing-mode/Lua an injected prompt
-        # could have coaxed the model into emitting.
-        from subtitle_sanitizer import sanitize_subtitle_file
-
-        sanitize_subtitle_file(output_path)
 
         _core._write_quality_sidecar(output_path, quality_scores)
         _report_partial_translation(output_path, dialog_untranslated)
@@ -617,20 +608,11 @@ def _translate_external_ass(
             subs.info["Title"] = f"[{lang_tag}] {info_title}"
 
         _core.check_disk_space(output_path)
-        from utils.atomic_write import atomic_save_subs
+        # Repaired and sanitized in memory before anything is written (see above).
+        from translator._helpers import save_translated_output
 
-        atomic_save_subs(subs, output_path, format_="ass")
+        save_translated_output(subs, output_path, "ass")
         logger.info("Saved ASS translation from external source: %s", output_path)
-
-        # Plan B5 — subtitle repair pass on translated output
-        from translator._helpers import run_subtitle_repair
-
-        run_subtitle_repair(output_path)
-
-        # Sanitize LLM output before it reaches a player (see above).
-        from subtitle_sanitizer import sanitize_subtitle_file
-
-        sanitize_subtitle_file(output_path)
 
         _core._write_quality_sidecar(output_path, quality_scores)
         _report_partial_translation(output_path, dialog_untranslated)

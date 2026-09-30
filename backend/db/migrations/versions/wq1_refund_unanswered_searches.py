@@ -34,6 +34,12 @@ either — a second run would refund again — so it relies on running once:
 Alembic records the revision, and ``untracked_data_repairs`` writes its
 marker in the same transaction as the repair.
 
+Accepted exception to Migration Contract rule 3 (owner, 2026-09-30, release
+review of 1.15.0): only a manual ``downgrade`` below this revision followed by
+``upgrade`` runs it twice, and the effect is one extra refunded attempt per
+unanswered row — items searched a little sooner, nothing lost. Stated in the
+1.15.0 upgrade notes.
+
 Forced items were charged the same way, but they never had a decision log
 (the forced branch ran before it started), so they cannot be told apart and
 are left as they are. The writer is closed for them in the same release.

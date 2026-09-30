@@ -1,5 +1,6 @@
 """Translator helper utilities — small functions with no intra-package dependencies."""
 
+import io
 import logging
 import os
 import shutil
@@ -16,6 +17,56 @@ logger = logging.getLogger(__name__)
 MIN_FREE_SPACE_MB = 100
 
 
+class TranslatedOutputRejectedError(RuntimeError):
+    """The sanitizer could not read a translation result; nothing was written."""
+
+
+def save_translated_output(subs, output_path: str, fmt: str) -> None:
+    """Serialise, repair and sanitize a translation in memory, then write it once.
+
+    The flows used to write the result, then repair the file, then sanitize it
+    in place — so a result the sanitizer could not read stayed on disk, and
+    whatever subtitle was at ``output_path`` before was already overwritten.
+    Now nothing touches the target until the bytes have passed the sanitizer
+    (owner decision 2026-09-30). Repair stays best-effort, as before.
+
+    Raises:
+        TranslatedOutputRejectedError: the sanitizer could not parse the
+            result. The target is left exactly as it was.
+    """
+    from subtitle_sanitizer import sanitize_ass_content, sanitize_srt_vtt_content
+    from utils.atomic_write import atomic_write_bytes
+
+    buffer = io.StringIO()
+    subs.to_file(buffer, format_=fmt)
+    data = buffer.getvalue().encode("utf-8")
+    data = _repaired(data, fmt, output_path)
+
+    sanitizer = sanitize_ass_content if fmt in ("ass", "ssa") else sanitize_srt_vtt_content
+    try:
+        data = sanitizer(data)
+    except ValueError as exc:
+        raise TranslatedOutputRejectedError(
+            f"translation result for {output_path} failed the security check, not saved: {exc}"
+        ) from exc
+
+    atomic_write_bytes(output_path, data)
+    _fire_after_translate(output_path)
+
+
+def _repaired(data: bytes, fmt: str, output_path: str) -> bytes:
+    """Plan B5 repair pass on the in-memory result; never aborts a translation."""
+    try:
+        if not getattr(get_settings(), "enable_subtitle_repair", True):
+            return data
+        from subtitle_repair import repair_bytes
+
+        return repair_bytes(data, fmt=fmt)
+    except Exception as exc:
+        logger.warning("subtitle_repair on translate output skipped for %s: %s", output_path, exc)
+        return data
+
+
 def run_subtitle_repair(output_path: str) -> None:
     """Plan B5 — run subtitle repair on a freshly translated output file.
 
@@ -23,10 +74,10 @@ def run_subtitle_repair(output_path: str) -> None:
     translation — fall through on any error.
 
     Plan B6 — also fires the ``after_translate`` post-processing trigger
-    once per translation. Because all three translator flows
-    (srt_flow, ass_flow internal, ass_flow external) call this helper,
-    placing the trigger here guarantees exactly one firing per translation
-    regardless of which flow ran.
+    once per translation. The translator flows now use
+    ``save_translated_output``, which repairs in memory and fires the same
+    trigger itself; this file-based variant remains for callers that already
+    wrote their output.
     """
     try:
         if not getattr(get_settings(), "enable_subtitle_repair", True):
@@ -41,8 +92,14 @@ def run_subtitle_repair(output_path: str) -> None:
     except Exception as exc:
         logger.warning("subtitle_repair on translate output skipped for %s: %s", output_path, exc)
 
-    # Plan B6 — after_translate post-processing trigger.
-    # Fires on the shared thread pool; empty op list is a no-op.
+    _fire_after_translate(output_path)
+
+
+def _fire_after_translate(output_path: str) -> None:
+    """Plan B6 — after_translate post-processing trigger, once per saved result.
+
+    Fires on the shared thread pool; empty op list is a no-op.
+    """
     try:
         from post_processing.config_store import get_trigger_ops
 

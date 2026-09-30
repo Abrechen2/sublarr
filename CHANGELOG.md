@@ -116,6 +116,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   page does not list, so the files were still on disk but out of reach. They
   now go into a regular sidecar trash batch, which lists and restores like any
   other deleted subtitle.
+- **A translation the security check cannot read is no longer saved.** The
+  translated file used to be written first and checked afterwards, so a result
+  the check could not read stayed on disk, and the subtitle that was there
+  before was already replaced. The result is now repaired and checked before
+  anything is written; if the check fails, the translation fails and the
+  previous subtitle stays.
 - **The Bazarr migration imports for real.** The wizard under System →
   Migration never sent anything to the server: its preview showed made-up
   counts and "Import" imported nothing. The "Bazarr Migration" button under
