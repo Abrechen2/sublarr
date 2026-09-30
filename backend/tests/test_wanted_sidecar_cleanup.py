@@ -56,17 +56,13 @@ def test_every_wanted_language_of_a_file_survives(client, media):
     _extracted_item(client, video, "de")
     _extracted_item(client, video, "en")
 
-    trashed = []
-    with patch(
-        "services.wanted_sidecar_cleanup._trash_path",
-        side_effect=lambda p: (trashed.append(p), os.remove(p), True)[-1],
-    ):
-        response = client.post("/api/v1/wanted/cleanup", json={})
+    response = client.post("/api/v1/wanted/cleanup", json={})
 
     assert response.status_code == 200, response.get_json()
     assert (media / "Show - S01E01.de.srt").exists()
     assert (media / "Show - S01E01.en.srt").exists()
-    assert trashed == [str(media / "Show - S01E01.fr.srt")]
+    assert not (media / "Show - S01E01.fr.srt").exists()
+    assert response.get_json()["deleted"] == [str(media / "Show - S01E01.fr.srt")]
 
 
 def test_dry_run_reports_the_same_plan_and_touches_nothing(client, media):
@@ -108,13 +104,16 @@ def test_removed_sidecars_go_to_the_trash_not_os_remove(client, media):
     _extracted_item(client, video, "de")
 
     with (
-        patch("services.wanted_sidecar_cleanup._trash_path", return_value=True) as trash,
+        patch(
+            "services.wanted_sidecar_cleanup.trash_sidecar", return_value=("/trash/x.srt", None)
+        ) as trash,
         patch("os.remove") as remove,
     ):
         response = client.post("/api/v1/wanted/cleanup", json={})
 
     assert response.status_code == 200
-    trash.assert_called_once_with(str(media / "Show - S01E04.fr.srt"))
+    trash.assert_called_once()
+    assert trash.call_args.args[0] == str(media / "Show - S01E04.fr.srt")
     remove.assert_not_called()
 
 
@@ -203,15 +202,9 @@ def test_a_script_variant_row_keeps_the_generic_language(client):
 
 
 def test_same_named_sidecars_from_different_folders_all_survive_in_the_trash(client, media):
-    """The trash flattens paths to the basename and only added whole seconds on a
-    collision — three files trashed within one second could overwrite each other."""
-    with client.application.app_context():
-        from config import get_settings
-        from remux import _resolve_trash_dir
-
-        trash_root = _resolve_trash_dir(str(media / "x.srt"), ".sublarr")
-        media_root = get_settings().media_path
-    before = {p for p in Path(trash_root).rglob("*.srt")} if os.path.isdir(trash_root) else set()
+    """The trash flattens paths to the basename — three same-named files from
+    different folders must land as three files in the batch, none overwritten."""
+    import json
 
     contents = []
     for i in range(3):
@@ -227,12 +220,15 @@ def test_same_named_sidecars_from_different_folders_all_survive_in_the_trash(cli
     response = client.post("/api/v1/wanted/cleanup", json={})
 
     assert response.status_code == 200, response.get_json()
-    assert len(response.get_json()["deleted"]) == 3, response.get_json()
-    assert media_root  # the trash lives under it, wherever the harness points it
-    new = {p for p in Path(trash_root).rglob("*.srt")} - before
-    try:
-        assert len(new) == 3, sorted(p.name for p in new)
-        assert sorted(p.read_bytes() for p in new) == sorted(contents)
-    finally:
-        for p in new:
-            p.unlink(missing_ok=True)
+    result = response.get_json()
+    assert len(result["deleted"]) == 3, result
+    with client.application.app_context():
+        from config import get_settings
+        from services.sidecar_trash import get_batch_dir
+
+        # The trash lives under the configured media root, wherever the harness points it.
+        batch_dir = get_batch_dir(get_settings().media_path, result["batch_id"])
+    manifest = json.loads((Path(batch_dir) / "manifest.json").read_text())
+    trashed = [Path(f["trashed"]) for f in manifest["files"]]
+    assert len(set(trashed)) == 3, trashed
+    assert sorted(p.read_bytes() for p in trashed) == sorted(contents)

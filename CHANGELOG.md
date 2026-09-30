@@ -111,6 +111,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   pages loaded but routing and every API call went to `/`. The app now reads
   the prefix from the page's `<base>` element, which the server already set
   correctly.
+- **Subtitles removed by "Wanted → Cleanup sidecars" can be restored from the
+  Trash page.** The cleanup moved them into the remux trash, which the Trash
+  page does not list, so the files were still on disk but out of reach. They
+  now go into a regular sidecar trash batch, which lists and restores like any
+  other deleted subtitle.
 - **The Bazarr migration imports for real.** The wizard under System →
   Migration never sent anything to the server: its preview showed made-up
   counts and "Import" imported nothing. The "Bazarr Migration" button under

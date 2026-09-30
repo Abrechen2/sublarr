@@ -15,7 +15,14 @@ import shutil
 from datetime import UTC, datetime
 
 from services.sidecar_scan import scan_subtitle_sidecars  # noqa: F401 — re-export
-from services.sidecar_trash import get_batch_dir, get_trash_root, trash_sidecar
+from services.sidecar_trash import (
+    derive_language,
+    derive_series_name,
+    get_batch_dir,
+    get_trash_root,
+    trash_sidecar,
+    write_manifest,
+)
 from subtitle_filename import SUBTITLE_EXTS
 
 logger = logging.getLogger(__name__)
@@ -44,39 +51,15 @@ def _get_batch_dir(media_path: str, batch_id: str) -> str:
 
 
 def _derive_series_name(path: str) -> str:
-    """Derive a human-readable series name from a subtitle file path.
-
-    Walks up the directory tree skipping 'Season N' folders.
-    Strips trailing (YEAR) suffix.
-    """
-    import re as _re
-
-    parts = os.path.normpath(path).split(os.sep)
-    # Drop the filename itself, then walk backwards
-    for part in reversed(parts[:-1]):
-        if _re.match(r"^(season|staffel)\s*\d+$", part, _re.IGNORECASE):
-            continue
-        if part in ("", ".", ".."):
-            continue
-        # Strip trailing (YEAR)
-        name = _re.sub(r"\s*\(\d{4}\)\s*$", "", part).strip()
-        return name
-    return ""
+    """Compat shim — implementation moved to
+    :func:`services.sidecar_trash.derive_series_name`."""
+    return derive_series_name(path)
 
 
 def _derive_language(files: list[dict]) -> str:
-    """Return the most common language code found in the trashed file names."""
-    import re as _re
-    from collections import Counter
-
-    counts: Counter = Counter()
-    for f in files:
-        basename = os.path.basename(f.get("original", ""))
-        # Match .lang. or .lang.ext patterns, e.g. episode.de.srt -> de
-        m = _re.search(r"\.([a-z]{2,3})\.[a-z]+$", basename, _re.IGNORECASE)
-        if m:
-            counts[m.group(1).lower()] += 1
-    return counts.most_common(1)[0][0] if counts else ""
+    """Compat shim — implementation moved to
+    :func:`services.sidecar_trash.derive_language`."""
+    return derive_language(files)
 
 
 def _write_manifest(
@@ -86,23 +69,9 @@ def _write_manifest(
     series_name: str = "",
     language: str = "",
 ) -> None:
-    """Write a manifest.json recording original paths for a trash batch."""
-    # Auto-derive context from files if not explicitly provided
-    if not series_name and files:
-        series_name = _derive_series_name(files[0].get("original", ""))
-    if not language and files:
-        language = _derive_language(files)
-
-    manifest = {
-        "batch_id": batch_id,
-        "created_at": datetime.now(UTC).isoformat(),
-        "files": files,  # [{"original": "...", "trashed": "..."}]
-        "series_name": series_name,
-        "language": language,
-    }
-    manifest_path = os.path.join(batch_dir, "manifest.json")
-    with open(manifest_path, "w", encoding="utf-8") as fh:
-        json.dump(manifest, fh, indent=2)
+    """Compat shim — implementation moved to
+    :func:`services.sidecar_trash.write_manifest`."""
+    write_manifest(batch_dir, batch_id, files, series_name, language)
 
 
 def _read_manifest(batch_dir: str) -> dict | None:

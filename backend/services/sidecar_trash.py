@@ -6,17 +6,20 @@ Moved from ``routes/subtitles/helpers.py`` (``_get_trash_root``,
 routes layer. ``routes/subtitles/helpers.py`` keeps thin delegating shims
 under the old names for the routes-side callers and tests.
 
-Manifest handling (``_write_manifest`` / ``_read_manifest`` /
-``_auto_purge_old_trash``) stays in the routes helper — it is only used
-by route-level trash workflows.
+``write_manifest`` (and the two helpers it derives its labels with) moved
+here on 2026-09-30: "Wanted -> Cleanup sidecars" is a service that trashes
+sidecars too, and a batch without a manifest never appears in the trash page.
+``_read_manifest`` / ``_auto_purge_old_trash`` stay in the routes helper.
 """
 
 from __future__ import annotations
 
+import json
 import logging
 import os
 import shutil
 import uuid
+from datetime import UTC, datetime
 
 from security_utils import is_safe_path
 from subtitle_filename import SUBTITLE_EXTS
@@ -73,3 +76,66 @@ def trash_sidecar(path: str, media_path: str, batch_dir: str) -> tuple[str, str 
         logger.debug("Could not remove subtitle_downloads entry for %s: %s", path, exc)
 
     return trash_path, None
+
+
+def derive_series_name(path: str) -> str:
+    """Derive a human-readable series name from a subtitle file path.
+
+    Walks up the directory tree skipping 'Season N' folders.
+    Strips trailing (YEAR) suffix.
+    """
+    import re as _re
+
+    parts = os.path.normpath(path).split(os.sep)
+    # Drop the filename itself, then walk backwards
+    for part in reversed(parts[:-1]):
+        if _re.match(r"^(season|staffel)\s*\d+$", part, _re.IGNORECASE):
+            continue
+        if part in ("", ".", ".."):
+            continue
+        # Strip trailing (YEAR)
+        name = _re.sub(r"\s*\(\d{4}\)\s*$", "", part).strip()
+        return name
+    return ""
+
+
+def derive_language(files: list[dict]) -> str:
+    """Return the most common language code found in the trashed file names."""
+    import re as _re
+    from collections import Counter
+
+    counts: Counter = Counter()
+    for f in files:
+        basename = os.path.basename(f.get("original", ""))
+        # Match .lang. or .lang.ext patterns, e.g. episode.de.srt -> de
+        m = _re.search(r"\.([a-z]{2,3})\.[a-z]+$", basename, _re.IGNORECASE)
+        if m:
+            counts[m.group(1).lower()] += 1
+    return counts.most_common(1)[0][0] if counts else ""
+
+
+def write_manifest(
+    batch_dir: str,
+    batch_id: str,
+    files: list[dict],
+    series_name: str = "",
+    language: str = "",
+) -> None:
+    """Write a manifest.json recording original paths for a trash batch."""
+    # Auto-derive context from files if not explicitly provided
+    if not series_name and files:
+        series_name = derive_series_name(files[0].get("original", ""))
+    if not language and files:
+        language = derive_language(files)
+
+    manifest = {
+        "batch_id": batch_id,
+        "created_at": datetime.now(UTC).isoformat(),
+        "files": files,  # [{"original": "...", "trashed": "..."}]
+        "series_name": series_name,
+        "language": language,
+    }
+    os.makedirs(batch_dir, exist_ok=True)
+    manifest_path = os.path.join(batch_dir, "manifest.json")
+    with open(manifest_path, "w", encoding="utf-8") as fh:
+        json.dump(manifest, fh, indent=2)

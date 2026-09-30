@@ -10,6 +10,11 @@ The decision is now made once per video file, against every language wanted
 for it: the targets of all its wanted rows (whatever their status or the
 selection) plus its language profile. Anything else goes to the trash, never
 hard-deleted. A token that is not a recognised language code is kept.
+
+The trash is the sidecar trash the Trash page lists and restores from: one
+manifest batch per cleanup under ``.sublarr_trash/``. It used to be the remux
+trash (``.sublarr/trash/<date>/``), which has no manifest — external test of
+1.15.0 (2026-09-30): the file was on disk, the Trash page showed nothing.
 """
 
 from __future__ import annotations
@@ -17,8 +22,9 @@ from __future__ import annotations
 import glob
 import logging
 import os
+import uuid
 
-from services.cleanup_executors import _trash_path
+from services.sidecar_trash import get_batch_dir, trash_sidecar, write_manifest
 
 logger = logging.getLogger(__name__)
 
@@ -58,8 +64,9 @@ def _sidecar_language(sidecar: str, base: str, fmt: str) -> str | None:
 def cleanup_wanted_sidecars(items: list[dict], *, dry_run: bool, media_path: str) -> dict:
     """Trash unwanted-language sidecars next to the files of ``items``.
 
-    Returns ``{"deleted": [...], "kept": [...], "errors": [...], "dry_run": bool}``;
-    in a dry run ``deleted`` lists what would be trashed.
+    Returns ``{"deleted": [...], "kept": [...], "errors": [...], "dry_run": bool,
+    "batch_id": str | None}``; in a dry run ``deleted`` lists what would be
+    trashed. ``batch_id`` names the trash batch to restore from.
     """
     from config import get_settings
     from security_utils import is_safe_path
@@ -74,6 +81,9 @@ def cleanup_wanted_sidecars(items: list[dict], *, dry_run: bool, media_path: str
     deleted: list[str] = []
     kept: list[str] = []
     errors: list[str] = []
+    batch_id = uuid.uuid4().hex
+    batch_dir = get_batch_dir(media_path, batch_id)
+    manifest_files: list[dict] = []
 
     for file_path, file_items in by_file.items():
         keep = _wanted_languages(file_path, file_items, settings)
@@ -93,10 +103,18 @@ def cleanup_wanted_sidecars(items: list[dict], *, dry_run: bool, media_path: str
                 if language is None or language in keep:
                     kept.append(sidecar)
                     continue
-                if dry_run or _trash_path(sidecar):
+                if dry_run:
                     deleted.append(sidecar)
-                else:
-                    errors.append(f"{sidecar}: could not be moved to the trash")
+                    continue
+                trashed, error = trash_sidecar(sidecar, media_path, batch_dir)
+                if error:
+                    errors.append(f"{sidecar}: could not be moved to the trash ({error})")
+                    continue
+                deleted.append(sidecar)
+                manifest_files.append({"original": sidecar, "trashed": trashed})
+
+    if manifest_files:
+        write_manifest(batch_dir, batch_id, manifest_files)
 
     logger.info(
         "Wanted sidecar cleanup (dry_run=%s): %d trashed, %d kept, %d errors",
@@ -105,4 +123,10 @@ def cleanup_wanted_sidecars(items: list[dict], *, dry_run: bool, media_path: str
         len(kept),
         len(errors),
     )
-    return {"deleted": deleted, "kept": kept, "errors": errors, "dry_run": dry_run}
+    return {
+        "deleted": deleted,
+        "kept": kept,
+        "errors": errors,
+        "dry_run": dry_run,
+        "batch_id": batch_id if manifest_files else None,
+    }
