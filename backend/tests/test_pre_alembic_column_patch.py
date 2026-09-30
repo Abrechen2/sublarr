@@ -300,3 +300,30 @@ def test_untracked_db_creates_sidecar_origins_table(tmp_path):
         from config import reload_settings
 
         reload_settings()
+
+
+def test_patcher_adds_radarr_movie_id_to_the_automation_queue(tmp_path):
+    """1.15.0's movie id on queued cleanups (migration tvp1_track_variant_policy).
+
+    The one tvp1 column the patcher covered without a test (release review
+    2026-09-30). The pre-tvp1 table is the model's own minus that column, so
+    this keeps holding when the queue grows other columns.
+    """
+    import db.models  # noqa: F401  — registers the models on the metadata
+    from app import _patch_pre_alembic_columns
+    from extensions import db as sa_db
+
+    model = sa_db.metadata.tables["subtitle_automation_queue"]
+    pre_tvp = sa.Table(
+        "subtitle_automation_queue",
+        sa.MetaData(),
+        *(c.copy() for c in model.columns if c.name != "radarr_movie_id"),
+    )
+    engine = sa.create_engine(f"sqlite:///{tmp_path / 'untracked-automation-queue.db'}")
+    pre_tvp.create(engine)
+
+    _patch_pre_alembic_columns(engine, sa.inspect)
+
+    present = {c["name"] for c in sa.inspect(engine).get_columns("subtitle_automation_queue")}
+    missing = _model_columns("subtitle_automation_queue") - present
+    assert not missing, f"untracked DB still misses columns the ORM queries: {sorted(missing)}"
