@@ -80,6 +80,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   right before it is probed or rewritten, and files outside it are dropped
   from the worklist. A change of paths or size limit also starts a fresh walk,
   so a widened scope finds its new files without waiting for the weekly rescan.
+- **Applying a comparison in the subtitle editor no longer overwrites a newer
+  save.** The editor's comparison view wrote its merged result without checking
+  the file, so a tab left open overwrote a save made elsewhere since. It now
+  sends the version it loaded and gets "the file changed since it was loaded"
+  instead of a silent overwrite — the check the editor's own Save already had.
+  Its backup also goes where every other tool puts it (`episode.bak.ass`, not
+  `episode.ass.bak`), so the editor's backup and restore find it.
+- **Converting a subtitle no longer overwrites an earlier conversion.** A
+  second conversion to the same format replaced `*.converted.<format>` without
+  asking, including one edited by hand since. It now stops with a clear message
+  and leaves the file alone.
+- **The waveform editor no longer leaves temp files behind** when extracting
+  the audio fails or times out.
 - **The Bazarr migration imports for real.** The wizard under System →
   Migration never sent anything to the server: its preview showed made-up
   counts and "Import" imported nothing. The "Bazarr Migration" button under
@@ -252,6 +265,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   shows the downtime as its run time.
 
 ### Security
+- **A subtitle the sanitizer cannot read is refused, not passed through.**
+  When parsing a downloaded or uploaded ASS, SRT or VTT file for sanitization
+  failed, the original was returned unchanged — so exactly the files the
+  sanitizer could not inspect reached the library unsanitized. Such a download
+  is now rejected like one that fails the format check, and an upload or
+  combine answers 422.
 - **Secrets no longer reach the logs or the support bundle.** Every configured
   secret (API keys, provider passwords, database and Redis passwords, the
   API keys inside Sonarr/Radarr instance lists, notification URLs) is
@@ -357,6 +376,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   originals on its own. The foreign-track card says so where the box was
   ticked — tick it again only if you want originals deleted right after a
   verified rewrite instead of kept in the trash for the backup retention.
+- **`POST /api/v1/tools/diff/apply` now requires `last_modified`** (the value
+  `GET /api/v1/tools/content` returns) and answers 409 when the file changed
+  since. Scripts calling it directly must send it; the web UI already does.
+- **The foreign-track sweep drops out-of-scope files from its worklist on its
+  first run.** If the cleanup rule's include/exclude paths or the size limit
+  were changed on an earlier 1.15.0 RC, files outside the scope may still sit
+  in the worklist as "affected"; they leave it as the sweep reaches them, and
+  a change of scope from now on starts a fresh library walk. Nothing on disk
+  is touched by this.
 - tvsubtitles.net no longer resolves; disable the provider if you had it on.
 - The per-file language list in the foreign-track sweep preview may mix raw
   container tags and normalised codes for files probed before this release,

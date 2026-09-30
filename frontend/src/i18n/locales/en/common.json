@@ -711,7 +711,7 @@
       "season_title": "No more subtitles from the wrong season",
       "season_desc": "When OpenSubtitles had nothing for a later season, the same episode number was searched in season 1, and the result sometimes replaced a matching subtitle. Results that belong to another season are now dropped.",
       "sweep_title": "Clean up the existing library — at your own pace",
-      "sweep_desc": "The sweep applies the track settings to files already in the library. How often and how long it runs is set in the “Foreign tracks” card — every 6 hours, hourly or only at night. Every original stays in the trash for the configured retention; deleting it right away has to be switched on explicitly, and only happens after a track-by-track check. The statistics page shows what was cleaned.",
+      "sweep_desc": "The sweep applies the track settings to files already in the library. How often and how long it runs is set in the “Foreign tracks” card — every 6 hours, hourly or only at night. Every original stays in the trash for the configured retention; deleting it right away has to be switched on explicitly, and only happens after a track-by-track check. The statistics page shows what was cleaned. Folders and a size limit decide which files it touches at all – for example anime episodes only, no 4K films.",
       "privacy_title": "No credentials in logs or the support bundle",
       "privacy_desc": "Passwords, API keys, database credentials and webhook tokens are blanked before a log line is written. The support bundle carries only settings known to be harmless in clear, and more of what helps troubleshooting.",
       "bazarr_title": "Moving over from Bazarr works",
