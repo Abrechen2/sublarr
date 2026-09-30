@@ -271,8 +271,10 @@ def _build_default_jobs() -> list[JobSpec]:
             func=wanted_scanner_tick,
             default_trigger=IntervalTrigger(hours=scan_interval_hours),
             # Full-scan can exceed 10 min on large libraries (2979 items → 37 min observed
-            # on prod 2026-04-24). Raised to 1 h to avoid false-positive timeout alarms.
-            timeout_s=3600,
+            # on prod 2026-04-24; 10 698 items → 64 min on 2026-09-30, which the old
+            # 1 h ceiling recorded as abandoned although it finished). The ceiling
+            # cannot cancel the scan, so a tight one only raises false alarms.
+            timeout_s=7200,
             owner_module="services.wanted_scanner",
             description="Scan Sonarr/Radarr/standalone for episodes missing subtitles.",
         ),
