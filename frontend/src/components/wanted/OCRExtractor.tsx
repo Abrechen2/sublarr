@@ -11,6 +11,7 @@ import { useExtractOCR, usePreviewOCRFrame } from '@/hooks/useApi'
 import { Loader2, Play, Eye, AlertCircle, CheckCircle } from 'lucide-react'
 import { toast } from '@/components/shared/Toast'
 import type { OCRExtractResult, OCRPreviewResult } from '@/api/client'
+import { withBase } from '@/basePath'
 
 interface OCRExtractorProps {
   filePath: string
@@ -106,7 +107,7 @@ export function OCRExtractor({
           <div className="mt-2 p-2 bg-gray-800 rounded">
             <div className="mb-2">
               <img
-                src={`/api/v1/ocr/preview?file_path=${encodeURIComponent(filePath)}&timestamp=${timestamp}&download=true`}
+                src={withBase(`/api/v1/ocr/preview?file_path=${encodeURIComponent(filePath)}&timestamp=${timestamp}&download=true`)}
                 alt="OCR Preview"
                 className="max-w-full h-auto rounded"
               />

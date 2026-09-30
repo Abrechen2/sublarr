@@ -10,6 +10,7 @@
  */
 import { createContext, useContext, useEffect, useRef, useState } from 'react'
 import { io, type Socket } from 'socket.io-client'
+import { withBase } from '@/basePath'
 
 const WebSocketContext = createContext<Socket | null>(null)
 
@@ -31,6 +32,8 @@ export function WebSocketProvider({ children }: { children: React.ReactNode }) {
       // long-polling is the only transport that actually works, so don't
       // advertise `websocket` to the client.
       transports: ['polling'],
+      // Under a reverse-proxy prefix the endpoint lives at /<prefix>/socket.io.
+      path: withBase('/socket.io'),
       auth: apikey ? { apikey } : undefined,
     })
     setSocket(socketRef.current)

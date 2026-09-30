@@ -110,7 +110,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   Content Security Policy blocks, so under a prefix such as `/sublarr` the
   pages loaded but routing and every API call went to `/`. The app now reads
   the prefix from the page's `<base>` element, which the server already set
-  correctly.
+  correctly. The first-load login, subtitle and backup downloads, the media
+  stream, the OCR preview, live updates and the webhook URLs shown for Sonarr,
+  Radarr and Jellyfin carry the prefix as well — the webhook URLs you copied
+  from that page before were missing it.
 - **Subtitles removed by "Wanted → Cleanup sidecars" can be restored from the
   Trash page.** The cleanup moved them into the remux trash, which the Trash
   page does not list, so the files were still on disk but out of reach. They

@@ -1,5 +1,5 @@
 import axios from 'axios'
-import { basePath } from '@/basePath'
+import { basePath, withBase } from '@/basePath'
 
 export const api = axios.create({
   // basePath is '' at the root; under a reverse-proxy prefix it makes the
@@ -136,15 +136,15 @@ api.interceptors.response.use(
 export async function bootstrapApiKey(): Promise<void> {
   if (localStorage.getItem('sublarr_api_key')) return
   try {
-    const status = await axios.get('/api/v1/auth/status')
+    const status = await axios.get(withBase('/api/v1/auth/status'))
     if (status.data?.enabled === false && !status.data?.authenticated) {
-      await axios.post('/api/v1/auth/login', {})
+      await axios.post(withBase('/api/v1/auth/login'), {})
     }
   } catch {
     // Status check failed — still attempt bootstrap below as-is
   }
   try {
-    const res = await axios.get('/api/v1/auth/bootstrap')
+    const res = await axios.get(withBase('/api/v1/auth/bootstrap'))
     const key: string = res.data?.api_key
     if (key) {
       localStorage.setItem('sublarr_api_key', key)

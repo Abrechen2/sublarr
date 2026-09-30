@@ -11,11 +11,12 @@ import { useTranslation } from 'react-i18next'
 import { SettingsSection } from '@/components/settings/SettingsSection'
 import { SettingRow } from '@/components/shared/SettingRow'
 import { toast } from '@/components/shared/Toast'
+import { withBase } from '@/basePath'
 
 const WEBHOOKS = [
-  { service: 'Sonarr', path: '/api/v1/webhook/sonarr', descKey: 'webhooks_page.sonarr_desc' },
-  { service: 'Radarr', path: '/api/v1/webhook/radarr', descKey: 'webhooks_page.radarr_desc' },
-  { service: 'Jellyfin', path: '/api/v1/webhook/jellyfin', descKey: 'webhooks_page.jellyfin_desc' },
+  { service: 'Sonarr', hook: 'sonarr', descKey: 'webhooks_page.sonarr_desc' },
+  { service: 'Radarr', hook: 'radarr', descKey: 'webhooks_page.radarr_desc' },
+  { service: 'Jellyfin', hook: 'jellyfin', descKey: 'webhooks_page.jellyfin_desc' },
 ] as const
 
 export function WebhooksSection() {
@@ -25,7 +26,8 @@ export function WebhooksSection() {
   return (
     <div className="space-y-4">
       {WEBHOOKS.map((w) => {
-        const fullUrl = `${baseUrl}${w.path}`
+        // The URL Sonarr/Radarr/Jellyfin must call, prefix included when Sublarr sits behind one.
+        const fullUrl = `${baseUrl}${withBase(`/api/v1/webhook/${w.hook}`)}`
         return (
           <SettingsSection
             key={w.service}

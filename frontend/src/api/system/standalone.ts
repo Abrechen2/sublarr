@@ -3,6 +3,7 @@ import type {
   WatchedFolder, StandaloneSeries, StandaloneMovie, StandaloneStatus,
   StatisticsData, FullBackupInfo,
 } from '@/lib/types'
+import { withBase } from '@/basePath'
 
 // ─── Standalone Mode ──────────────────────────────────────────────────────────
 
@@ -86,7 +87,7 @@ export async function listFullBackups(): Promise<{ backups: FullBackupInfo[] }> 
 }
 
 export function downloadFullBackupUrl(filename: string): string {
-  return `/api/v1/backup/full/download/${filename}`
+  return withBase(`/api/v1/backup/full/download/${filename}`)
 }
 
 export async function restoreFullBackup(file: File): Promise<{ status: string; config_imported: string[]; db_restored: boolean }> {

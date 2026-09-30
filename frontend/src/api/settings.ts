@@ -4,6 +4,7 @@ import type {
   MediaServerType, MediaServerInstance, MediaServerTestResult, MediaServerHealthResult,
   AuthStatus,
 } from '@/lib/types'
+import { withBase } from '@/basePath'
 
 // ─── Config ──────────────────────────────────────────────────────────────────
 
@@ -334,7 +335,7 @@ export async function createStreamToken(filePath: string): Promise<string> {
  *  this single path for a few hours; the API key is never embedded in the URL. */
 export function buildStreamUrl(filePath: string, token: string): string {
   const encoded = encodeURIComponent(filePath)
-  return `/api/v1/media/stream?path=${encoded}&token=${encodeURIComponent(token)}`
+  return withBase(`/api/v1/media/stream?path=${encoded}&token=${encodeURIComponent(token)}`)
 }
 
 /** Fetch raw subtitle/media text through the authenticated axios instance so
