@@ -384,11 +384,18 @@ export async function applySubtitleDiff(
   original: string,
   modified: string,
   rejectedIndices: number[],
+  lastModified: number,
 ): Promise<{ status: string; file_path: string; backup: string }> {
   try {
     const { data } = await api.post<{ status: string; file_path: string; backup: string }>(
       '/tools/diff/apply',
-      { file_path: filePath, original, modified, rejected_indices: rejectedIndices },
+      {
+        file_path: filePath,
+        original,
+        modified,
+        rejected_indices: rejectedIndices,
+        last_modified: lastModified,
+      },
     )
     return data
   } catch (err: unknown) {

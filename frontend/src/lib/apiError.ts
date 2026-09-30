@@ -9,6 +9,13 @@
  * Falls back to `fallback` when the request never reached the API (network
  * error), when the body has no `error` field, or when the field is empty.
  */
+/** The HTTP status of a failed request, also when a wrapper kept it as `cause`. */
+export function httpStatus(error: unknown): number | undefined {
+  const direct = (error as { response?: { status?: number } })?.response?.status
+  if (direct !== undefined) return direct
+  return (error as { cause?: { response?: { status?: number } } })?.cause?.response?.status
+}
+
 export function apiErrorMessage(error: unknown, fallback: string): string {
   const body = (error as { response?: { data?: unknown } })?.response?.data
 

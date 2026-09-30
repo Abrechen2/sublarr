@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Loader2, Download, FileText, AlertTriangle, Trash2, ScanSearch, Sparkles } from 'lucide-react'
 import { listEpisodeTracks, extractTrack, convertSubtitle, removeTrackFromContainer, getRemuxJob, restoreRemuxBackup, detectDubtitle, getCachedDubtitle, listEpisodeSubtitles, deleteSubtitles, getSubtitleDownloadUrl, setTrackDefault } from '@/api/client'
+import { httpStatus } from '@/lib/apiError'
 import { toast } from '@/components/shared/Toast'
 import { HealthSection } from './HealthSection'
 import type { Track, EpisodeTracksResponse, DubtitleCandidate, SidecarSubtitle } from '@/lib/types'
@@ -153,8 +154,11 @@ function TrackRow({ track, episodeId, videoPath, onOpenEditor, dub }: { track: T
         target_format: targetFormat as 'srt' | 'ass' | 'ssa' | 'vtt',
       })
       toast(t('track_panel.converted', { name: result.output_path.split(/[\\/]/).pop() }))
-    } catch {
-      toast(t('track_panel.conversion_failed'), 'error')
+    } catch (err: unknown) {
+      toast(
+        t(httpStatus(err) === 409 ? 'track_panel.conversion_exists' : 'track_panel.conversion_failed'),
+        'error',
+      )
     } finally {
       setConverting(false)
     }

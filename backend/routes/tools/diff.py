@@ -2,12 +2,11 @@
 
 import logging
 import os
-import shutil
 
 from flask import jsonify, request
 
 from routes.tools import bp
-from security_utils import is_safe_path
+from routes.tools._helpers import _create_backup, _validate_file_path
 from utils.atomic_write import atomic_write_bytes
 
 logger = logging.getLogger(__name__)
@@ -132,7 +131,10 @@ def apply_diff():
     Accepts original and modified subtitle content plus a list of diff indices
     to reject.  All non-rejected changes from *modified* are written back to
     *file_path* using an atomic tempfile + os.replace.  A .bak backup is
-    created before the write.
+    created before the write, under the name every other tool and
+    ``GET /tools/backup`` use.  ``last_modified`` (from ``GET /content``) guards
+    against a stale tab: a file changed since it was loaded is refused with 409,
+    as the editor's own save does.
     ---
     post:
       security:
@@ -144,10 +146,13 @@ def apply_diff():
           application/json:
             schema:
               type: object
-              required: [file_path, original, modified, rejected_indices]
+              required: [file_path, original, modified, last_modified]
               properties:
                 file_path:
                   type: string
+                last_modified:
+                  type: number
+                  description: last_modified value from GET /content response
                 original:
                   type: string
                 modified:
@@ -165,18 +170,19 @@ def apply_diff():
           description: Path traversal denied
         404:
           description: File not found
+        409:
+          description: File was modified since it was loaded
     """
     import difflib
 
     import pysubs2
-
-    from config import get_settings
 
     data = request.get_json() or {}
     file_path = data.get("file_path", "")
     original_content = data.get("original", "")
     modified_content = data.get("modified", "")
     rejected_indices = data.get("rejected_indices") or []
+    last_modified = data.get("last_modified")
 
     if not file_path:
         return jsonify({"error": "file_path is required"}), 400
@@ -185,12 +191,16 @@ def apply_diff():
     if not modified_content:
         return jsonify({"error": "modified content is required"}), 400
 
-    settings = get_settings()
-    abs_path = os.path.abspath(file_path)
-    if not is_safe_path(abs_path, settings.media_path):
-        return jsonify({"error": "Access denied"}), 403
-    if not os.path.isfile(abs_path):
-        return jsonify({"error": "File not found"}), 404
+    error, result = _validate_file_path(file_path)
+    if error:
+        return jsonify({"error": error}), result
+    abs_path = result
+    if last_modified is None:
+        return jsonify({"error": "last_modified is required"}), 400
+    try:
+        loaded_mtime = float(last_modified)
+    except (TypeError, ValueError):
+        return jsonify({"error": "last_modified must be a number"}), 400
 
     try:
         orig_subs = pysubs2.SSAFile.from_string(original_content)
@@ -247,9 +257,18 @@ def apply_diff():
     out_format = ext if ext in ("ass", "srt", "vtt") else "ass"
     encode = "utf-8-sig" if out_format == "ass" else "utf-8"
 
-    # Create .bak backup before overwriting
-    bak_path = abs_path + ".bak"
-    shutil.copy2(abs_path, bak_path)
+    # Checked as late as possible: the merge above takes time, and a save in
+    # another tab during it must still win.
+    current_mtime = os.path.getmtime(abs_path)
+    if abs(current_mtime - loaded_mtime) > 0.01:
+        return jsonify(
+            {
+                "error": "File has been modified since you loaded it",
+                "current_mtime": current_mtime,
+            }
+        ), 409
+
+    bak_path = _create_backup(abs_path)
 
     # Atomic, and readable by the media server (a bare mkstemp swap left 0600)
     atomic_write_bytes(abs_path, result_subs.to_string(out_format).encode(encode))

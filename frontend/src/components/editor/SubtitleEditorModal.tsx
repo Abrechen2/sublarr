@@ -33,6 +33,7 @@ import {
 import { useEditorDraft } from '@/components/editor/useEditorDraft'
 import type { CueTimingFix } from '@/components/editor/waveform/fixSafeDefects'
 import type { SubtitleParseResult } from '@/types/system'
+import { httpStatus } from '@/lib/apiError'
 
 // Lazy-loaded editor components -- CodeMirror stays in separate chunks
 const SubtitlePreview = lazy(() => import('@/components/editor/SubtitlePreview'))
@@ -666,7 +667,11 @@ export default function SubtitleEditorModal({
                           toast(t('editor_modal.converted', { format: convertTarget.toUpperCase() }))
                           void queryClient.invalidateQueries({ queryKey: ['subtitle-content', filePath] })
                         },
-                        onError: () => toast(t('editor_modal.convert_failed'), 'error'),
+                        onError: (err: unknown) =>
+                          toast(
+                            t(httpStatus(err) === 409 ? 'editor_modal.convert_exists' : 'editor_modal.convert_failed'),
+                            'error',
+                          ),
                       },
                     )
                   }
@@ -737,10 +742,11 @@ export default function SubtitleEditorModal({
               </div>
             )}
 
-            {mode === 'diff' && content !== null && format !== null && (
+            {mode === 'diff' && content !== null && format !== null && lastModified !== null && (
               <SubtitleDiff
                 filePath={filePath}
                 currentContent={content}
+                lastModified={lastModified}
                 format={format}
                 onClose={handleClose}
                 onBackToEditor={() => setMode('edit')}

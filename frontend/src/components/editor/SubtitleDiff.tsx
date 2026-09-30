@@ -3,6 +3,7 @@ import { useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { applySubtitleDiff, computeSubtitleDiff } from '../../api/client'
 import { useSubtitleBackup } from '../../hooks/useApi'
+import { httpStatus } from '../../lib/apiError'
 import type { SubtitleDiffEntry, SubtitleDiffResult } from '../../lib/types'
 
 // ── Types ───────────────────────────────────────────────────────────────────────
@@ -10,6 +11,8 @@ import type { SubtitleDiffEntry, SubtitleDiffResult } from '../../lib/types'
 interface SubtitleDiffProps {
   filePath: string
   currentContent: string
+  /** last_modified of the file as loaded — the server refuses the apply with 409 if it moved. */
+  lastModified: number
   format: 'ass' | 'srt'
   onClose?: () => void
   onBackToEditor?: () => void
@@ -35,6 +38,7 @@ function formatTime(seconds: number): string {
 export default function SubtitleDiff({
   filePath,
   currentContent,
+  lastModified,
   format,
   onClose,
   onBackToEditor,
@@ -121,10 +125,14 @@ export default function SubtitleDiff({
     setApplying(true)
     setApplyError(null)
     try {
-      await applySubtitleDiff(filePath, backup.content, currentContent, rejectedIndices)
+      await applySubtitleDiff(filePath, backup.content, currentContent, rejectedIndices, lastModified)
       onApplied?.()
     } catch (err: unknown) {
-      setApplyError(err instanceof Error ? err.message : t('subtitle_diff.apply_failed'))
+      if (httpStatus(err) === 409) {
+        setApplyError(t('subtitle_diff.apply_conflict'))
+      } else {
+        setApplyError(err instanceof Error ? err.message : t('subtitle_diff.apply_failed'))
+      }
     } finally {
       setApplying(false)
     }

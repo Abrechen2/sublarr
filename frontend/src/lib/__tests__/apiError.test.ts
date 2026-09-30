@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest'
 
-import { apiErrorMessage } from '../apiError'
+import { apiErrorMessage, httpStatus } from '../apiError'
 
 describe('apiErrorMessage', () => {
   it('returns the API error field — the 409 case from forgejo #20', () => {
@@ -29,5 +29,21 @@ describe('apiErrorMessage', () => {
     expect(apiErrorMessage({ response: { data: { error: '   ' } } }, 'fb')).toBe('fb')
     expect(apiErrorMessage({ response: { data: { other: 'x' } } }, 'fb')).toBe('fb')
     expect(apiErrorMessage({ response: {} }, 'fb')).toBe('fb')
+  })
+})
+
+describe('httpStatus', () => {
+  it('reads the status of an axios error', () => {
+    expect(httpStatus({ response: { status: 409 } })).toBe(409)
+  })
+
+  it('reads it through a wrapper that kept the axios error as cause', () => {
+    // applySubtitleDiff re-throws `new Error(msg, { cause: err })`.
+    expect(httpStatus(new Error('wrapped', { cause: { response: { status: 409 } } }))).toBe(409)
+  })
+
+  it('is undefined when the request never reached the API', () => {
+    expect(httpStatus(new Error('Network Error'))).toBeUndefined()
+    expect(httpStatus(undefined)).toBeUndefined()
   })
 })

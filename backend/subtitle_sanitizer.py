@@ -100,6 +100,11 @@ def sanitize_ass_content(content: bytes) -> bytes:
 
     Returns:
         Sanitized ASS bytes.
+
+    Raises:
+        ValueError: The content could not be parsed. Fails closed: returning
+            the original here would hand exactly the files the sanitizer could
+            not inspect to the media library unsanitized.
     """
     try:
         import pysubs2
@@ -111,8 +116,7 @@ def sanitize_ass_content(content: bytes) -> bytes:
         serialized = subs.to_string("ass")
         return serialized.encode("utf-8")
     except Exception as e:
-        logger.warning("ASS sanitization failed, returning original: %s", e)
-        return content
+        raise ValueError(f"ASS content could not be parsed for sanitization: {e}") from e
 
 
 def sanitize_srt_vtt_content(content: bytes) -> bytes:
@@ -126,6 +130,9 @@ def sanitize_srt_vtt_content(content: bytes) -> bytes:
 
     Returns:
         Sanitized bytes with dangerous HTML removed.
+
+    Raises:
+        ValueError: The content could not be parsed (fails closed, as for ASS).
     """
     try:
         from bs4 import BeautifulSoup
@@ -179,8 +186,7 @@ def sanitize_srt_vtt_content(content: bytes) -> bytes:
             sanitized = _UTF8_BOM + sanitized
         return sanitized
     except Exception as e:
-        logger.warning("SRT/VTT sanitization failed, returning original: %s", e)
-        return content
+        raise ValueError(f"SRT/VTT content could not be parsed for sanitization: {e}") from e
 
 
 def validate_content_type(content: bytes, fmt) -> bool:
@@ -260,9 +266,10 @@ def sanitize_subtitle_file(path: str) -> bool:
     Used to give locally-produced output (e.g. LLM translation results) the
     same content sanitization the provider-download path applies — prompt
     injection in model output must not be able to smuggle drawing-mode/Lua
-    (ASS) or HTML/script (SRT/VTT) past the renderer. Best-effort: a read or
-    parse failure logs and leaves the file untouched rather than raising into
-    the translation flow.
+    (ASS) or HTML/script (SRT/VTT) past the renderer. A read or parse failure
+    logs an error and leaves the file untouched rather than raising into the
+    translation flow: the file was serialised by pysubs2 a moment earlier, and
+    the model text in it already passed ``validate_translation``.
 
     Returns:
         True if the file was rewritten with sanitized content, else False.
@@ -284,7 +291,11 @@ def sanitize_subtitle_file(path: str) -> bool:
         logger.warning("Could not read %s for sanitization: %s", path, exc)
         return False
 
-    cleaned = sanitizer(original)
+    try:
+        cleaned = sanitizer(original)
+    except ValueError as exc:
+        logger.error("Could not sanitize %s, left as written: %s", path, exc)
+        return False
     if cleaned == original:
         return False
 

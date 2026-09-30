@@ -137,6 +137,8 @@ def convert_format():
           description: Invalid request
         404:
           description: File or track not found
+        409:
+          description: The converted file already exists
         500:
           description: Conversion failed
     """
@@ -196,6 +198,19 @@ def convert_format():
         base_output = os.path.splitext(source_path)[0]
 
     output_path = f"{base_output}.converted.{PYSUBS2_EXT[target_format]}"
+    if os.path.exists(output_path):
+        # A second run would overwrite a conversion the user may have edited
+        # since. Refuse instead; the user decides what happens to it.
+        if cleanup_source:
+            with contextlib.suppress(OSError):
+                os.unlink(source_path)
+        return jsonify(
+            {
+                "error": f"{os.path.basename(output_path)} already exists — "
+                "delete or rename it to convert again",
+                "output_path": output_path,
+            }
+        ), 409
 
     # B2 (audit 2026-05-08): pysubs2.load() defaults to UTF-8 and explodes on
     # CP1252/Latin-1 SRTs ("utf-8 codec can't decode byte 0xa3..."). Mirror the
@@ -340,9 +355,11 @@ def waveform_extract():
         try:
             result = subprocess.run(cmd, capture_output=True, timeout=120)
         except subprocess.TimeoutExpired:
+            _discard_temp(tmp.name)
             return jsonify({"error": "Audio extraction timed out"}), 500
 
         if result.returncode != 0:
+            _discard_temp(tmp.name)
             logger.error(
                 "ffmpeg waveform extraction failed: %s", result.stderr.decode(errors="replace")
             )
@@ -367,6 +384,14 @@ def waveform_extract():
             "duration_s": _get_waveform_duration(video_path),
         }
     )
+
+
+def _discard_temp(path: str) -> None:
+    """Remove a temp file that never made it into the cache."""
+    try:
+        os.remove(path)
+    except OSError as e:
+        logger.debug("Waveform temp cleanup failed for %s: %s", path, e)
 
 
 @bp.route("/waveform-audio/<filename>", methods=["GET"])

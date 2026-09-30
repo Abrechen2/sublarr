@@ -474,6 +474,7 @@
     "remux_start_failed": "Could not start remux",
     "converted": "Converted: {{name}}",
     "conversion_failed": "Conversion failed",
+    "conversion_exists": "The converted file already exists. Delete or rename it first.",
     "extract": "Extract",
     "as_source": "As source",
     "stream_restored": "Stream restored",

@@ -120,6 +120,7 @@ def test_apply_creates_backup(client, tmp_path):
         "/api/v1/tools/diff/apply",
         json={
             "file_path": sub_file,
+            "last_modified": os.path.getmtime(sub_file),
             "original": ORIG_ASS,
             "modified": MOD_ASS,
             "rejected_indices": [],
@@ -137,6 +138,7 @@ def test_apply_returns_status_applied(client, tmp_path):
         "/api/v1/tools/diff/apply",
         json={
             "file_path": sub_file,
+            "last_modified": os.path.getmtime(sub_file),
             "original": ORIG_ASS,
             "modified": MOD_ASS,
             "rejected_indices": [],
@@ -152,6 +154,7 @@ def test_apply_accept_all_writes_modified_content(client, tmp_path):
         "/api/v1/tools/diff/apply",
         json={
             "file_path": sub_file,
+            "last_modified": os.path.getmtime(sub_file),
             "original": ORIG_ASS,
             "modified": MOD_ASS,
             "rejected_indices": [],
@@ -172,6 +175,7 @@ def test_apply_reject_all_restores_original_content(client, tmp_path):
         "/api/v1/tools/diff/apply",
         json={
             "file_path": sub_file,
+            "last_modified": os.path.getmtime(sub_file),
             "original": ORIG_ASS,
             "modified": MOD_ASS,
             "rejected_indices": rejected,
@@ -221,14 +225,17 @@ def test_apply_nonexistent_file(client, tmp_path):
 
 
 def test_apply_malformed_original(client, tmp_path):
+    """Sends a valid last_modified so the 400 is the parse failure's."""
     sub_file = _write_sub_file(tmp_path, MOD_ASS)
     resp = client.post(
         "/api/v1/tools/diff/apply",
         json={
             "file_path": sub_file,
+            "last_modified": os.path.getmtime(sub_file),
             "original": "not valid",
             "modified": MOD_ASS,
             "rejected_indices": [],
         },
     )
     assert resp.status_code == 400
+    assert "parse" in resp.get_json()["error"].lower()
