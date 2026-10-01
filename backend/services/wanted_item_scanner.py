@@ -101,11 +101,14 @@ def _check_language_for_item(
     every existing caller keeps its current meaning.
     """
     existing = detect_existing_target_for_lang(mapped_path, target_lang, probe_data)
-    if existing == "ass" and not (
-        keep_seeking_mt and is_machine_translated(mapped_path, target_lang)
-    ):
+    machine_translated = (
+        keep_seeking_mt
+        and existing in ("ass", "srt")
+        and is_machine_translated(mapped_path, target_lang, existing)
+    )
+    if existing == "ass" and not machine_translated:
         return None
-    if existing == "srt" and not settings.upgrade_enabled:
+    if existing == "srt" and not settings.upgrade_enabled and not machine_translated:
         return None
 
     embedded_sub = None
@@ -132,10 +135,13 @@ def _check_language_for_item(
         embedded_langs = get_all_subtitle_streams(probe_data, exclude_language=target_lang)
 
     existing_sub = existing or ""
+    # An embedded target track found above serves the language instead.
+    machine_translated = machine_translated and existing_sub in ("ass", "srt")
 
     is_upgrade = False
     cur_score = 0
-    if existing_sub == "srt" and settings.upgrade_enabled:
+    # Our own translation carries no score to beat: any genuine original wins.
+    if existing_sub == "srt" and settings.upgrade_enabled and not machine_translated:
         # The file that is actually there — a raw-code .ger.srt counts too,
         # or the item is searched as plain "wanted" and gains a second
         # German subtitle next to it.
@@ -149,7 +155,20 @@ def _check_language_for_item(
         "embedded_languages": embedded_langs,
         "upgrade_candidate": is_upgrade,
         "current_score": cur_score,
+        "machine_translated": machine_translated,
     }
+
+
+def _requeue_status(lang_result: dict) -> str:
+    """``provisional`` for an episode served by our own translation, else ``wanted``.
+
+    A ``wanted`` row is searched *with* auto-translate and would re-translate the
+    file we want to replace; a ``provisional`` row belongs to ``mt_reseek``, which
+    looks for a genuine original only. Every scan re-upserts its rows, so this
+    has to be decided on every pass, not only on the first — otherwise the next
+    scan quietly turns the row back into ``wanted``.
+    """
+    return "provisional" if lang_result.get("machine_translated") else "wanted"
 
 
 def scan_radarr_movie(
@@ -194,6 +213,7 @@ def scan_radarr_movie(
     profile = get_movie_profile(movie_id)
     target_languages = profile.get("target_languages", [settings.target_language])
     target_language_names = profile.get("target_language_names", [settings.target_language_name])
+    keep_seeking_mt = bool(profile.get("mt_keep_seeking_original"))
 
     probe_data = None
     if settings.use_embedded_subs and mapped_path.lower().endswith((".mkv", ".mp4", ".m4v")):
@@ -203,7 +223,9 @@ def scan_radarr_movie(
             logger.debug("ffprobe failed for %s: %s", mapped_path, e)
 
     for target_lang, _target_name in zip(target_languages, target_language_names):
-        lang_result = _check_language_for_item(mapped_path, target_lang, probe_data, settings)
+        lang_result = _check_language_for_item(
+            mapped_path, target_lang, probe_data, settings, keep_seeking_mt=keep_seeking_mt
+        )
         if lang_result is None:
             continue
 
@@ -224,6 +246,7 @@ def scan_radarr_movie(
             instance_name=instance_name or "",
             subtitle_type="full",
             embedded_languages=lang_result["embedded_languages"],
+            status=_requeue_status(lang_result),
         )
         if was_updated:
             updated += 1
@@ -282,6 +305,7 @@ def scan_sonarr_series(
     profile = get_series_profile(series_id)
     target_languages = profile.get("target_languages", [settings.target_language])
     target_language_names = profile.get("target_language_names", [settings.target_language_name])
+    keep_seeking_mt = bool(profile.get("mt_keep_seeking_original"))
 
     added = 0
     updated = 0
@@ -341,7 +365,9 @@ def scan_sonarr_series(
             continue
 
         for target_lang, _target_name in zip(target_languages, target_language_names):
-            lang_result = _check_language_for_item(mapped_path, target_lang, probe_data, settings)
+            lang_result = _check_language_for_item(
+                mapped_path, target_lang, probe_data, settings, keep_seeking_mt=keep_seeking_mt
+            )
             if lang_result is None:
                 continue
 
@@ -364,6 +390,7 @@ def scan_sonarr_series(
                 instance_name=instance_name or "",
                 subtitle_type="full",
                 embedded_languages=lang_result["embedded_languages"],
+                status=_requeue_status(lang_result),
             )
             if was_updated:
                 updated += 1

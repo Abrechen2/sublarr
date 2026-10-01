@@ -226,6 +226,10 @@ class _WantedUpsertMixin:
                 existing.missing_languages = langs_json
                 if embedded_json is not None:
                     existing.embedded_languages = embedded_json
+                if existing.status == "provisional" and status != "provisional":
+                    # The found original was recorded for mt_reseek, which only
+                    # reads provisional rows; nothing would ever act on it now.
+                    existing.mt_pending_original = None
                 existing.status = status
                 existing.sonarr_series_id = sonarr_series_id
                 existing.sonarr_episode_id = sonarr_episode_id

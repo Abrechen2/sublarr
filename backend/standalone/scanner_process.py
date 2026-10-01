@@ -126,7 +126,12 @@ class _StandaloneProcessMixin:
 
             for target_lang in target_languages:
                 existing = self._check_existing_subtitle(file_path, target_lang)
-                if self._language_satisfied(file_path, target_lang, existing):
+                status = self._requeue_status(
+                    file_path, target_lang, existing, {"standalone_series_id": series_id}
+                )
+                if status == "wanted" and self._language_satisfied(
+                    file_path, target_lang, existing
+                ):
                     continue  # Goal achieved
 
                 ep_title = resolved_title
@@ -143,6 +148,7 @@ class _StandaloneProcessMixin:
                     target_language=target_lang,
                     instance_name="standalone",
                     standalone_series_id=series_id,
+                    status=status,
                 )
                 wanted_added += 1
 
@@ -226,7 +232,10 @@ class _StandaloneProcessMixin:
 
         for target_lang in target_languages:
             existing = self._check_existing_subtitle(file_path, target_lang)
-            if self._language_satisfied(file_path, target_lang, existing):
+            status = self._requeue_status(
+                file_path, target_lang, existing, {"standalone_movie_id": movie_id}
+            )
+            if status == "wanted" and self._language_satisfied(file_path, target_lang, existing):
                 continue
 
             upsert_wanted_item(
@@ -238,6 +247,7 @@ class _StandaloneProcessMixin:
                 target_language=target_lang,
                 instance_name="standalone",
                 standalone_movie_id=movie_id,
+                status=status,
             )
             wanted_added += 1
 
@@ -361,7 +371,12 @@ class _StandaloneProcessMixin:
 
                 for target_lang in target_languages:
                     existing = self._check_existing_subtitle(file_path, target_lang)
-                    if self._language_satisfied(file_path, target_lang, existing):
+                    status = self._requeue_status(
+                        file_path, target_lang, existing, {"standalone_series_id": series_id}
+                    )
+                    if status == "wanted" and self._language_satisfied(
+                        file_path, target_lang, existing
+                    ):
                         continue
 
                     ep_title = resolved_title
@@ -378,6 +393,7 @@ class _StandaloneProcessMixin:
                         target_language=target_lang,
                         instance_name="standalone",
                         standalone_series_id=series_id,
+                        status=status,
                     )
                     wanted = True
 

@@ -533,6 +533,27 @@ class StandaloneScanner(_StandaloneProcessMixin):
             logger.debug("Could not check existing subs for %s: %s", file_path, e)
             return None
 
+    def _requeue_status(
+        self, file_path: str, target_lang: str, existing: str | None, owner: dict
+    ) -> str:
+        """``provisional`` when our own translation serves the language, else ``wanted``.
+
+        Same rule as the Sonarr/Radarr scanner (``_requeue_status`` there): a
+        machine translation is the last resort, so with the profile keeping the
+        search open it does not satisfy the language, and its row must stay
+        with ``mt_reseek`` instead of turning back into ``wanted`` — which
+        would re-translate it. ``owner`` carries ``standalone_series_id`` or
+        ``standalone_movie_id`` for the profile lookup.
+        """
+        if existing not in ("ass", "srt"):
+            return "wanted"
+        from db.providers import is_machine_translated
+        from services.mt_provisional import resolve_keep_seeking
+
+        if resolve_keep_seeking(owner) and is_machine_translated(file_path, target_lang, existing):
+            return "provisional"
+        return "wanted"
+
     def _language_satisfied(self, file_path: str, target_lang: str, existing: str | None) -> bool:
         """Whether ``existing`` means no wanted item is needed for this language.
 

@@ -291,7 +291,7 @@ class ProviderRepository(BaseRepository):
             stats[name]["by_format"][fmt_key] = count
         return stats
 
-    def is_machine_translated(self, file_path: str, language: str) -> bool:
+    def is_machine_translated(self, file_path: str, language: str, fmt: str = "") -> bool:
         """Whether the subtitle serving ``file_path`` in ``language`` is our own.
 
         Provenance is not visible on disk — a Sublarr-translated ``.de.ass`` and
@@ -300,24 +300,30 @@ class ProviderRepository(BaseRepository):
         machine translation from counting as a finished result: it is the last
         resort, never the best available subtitle.
 
+        Only the LATEST row for this video, language and (when given) format
+        decides. A genuine subtitle downloaded after our translation replaced
+        it; reading "any translation ever" would treat that genuine file as
+        ours, and the re-seek would trash it for the next original it finds.
+        ``fmt`` matters because our ASS and a later genuine SRT can sit next to
+        the same video — each file has its own history.
+
         Keyed on the VIDEO path, which is what these rows carry (1 878 of 1 885
         on prod as of 2026-09-13; the handful of outliers hold the subtitle path
         instead and simply read as "not machine translated", which fails safe).
         """
         if not file_path:
             return False
-        file_path = os.path.normpath(file_path)
-        stmt = (
-            select(SubtitleDownload.id)
-            .where(
-                SubtitleDownload.file_path == file_path,
-                SubtitleDownload.source == "machine_translation",
-            )
-            .limit(1)
-        )
+        # Rows store the path as given; match it and its normalised form.
+        paths = {file_path, os.path.normpath(file_path)}
+        stmt = select(SubtitleDownload.source).where(SubtitleDownload.file_path.in_(paths))
         if language:
             stmt = stmt.where(SubtitleDownload.language == language)
-        return self.session.execute(stmt).first() is not None
+        if fmt:
+            stmt = stmt.where(SubtitleDownload.format == fmt)
+        stmt = stmt.order_by(
+            SubtitleDownload.downloaded_at.desc(), SubtitleDownload.id.desc()
+        ).limit(1)
+        return self.session.execute(stmt).scalar() == "machine_translation"
 
     # ---- Provider Statistics -----------------------------------------------------
 
