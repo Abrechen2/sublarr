@@ -115,7 +115,7 @@
     "no_results_found": "Keine Ergebnisse von Providern gefunden.",
     "extracted_status": "Extrahiert",
     "cleanup": "Sidecar-Bereinigung",
-    "cleanup_confirm": "Alle nicht-zielsprachigen Untertiteldateien neben dem Medium löschen? Dies kann nicht rückgängig gemacht werden.",
+    "cleanup_confirm": "Alle nicht-zielsprachigen Untertiteldateien neben dem Medium in den Papierkorb verschieben? Auf der Papierkorb-Seite lassen sie sich wiederherstellen.",
     "cleanup_result": "{{count}} Datei(en) gelöscht",
     "blacklist_subtitle": "Diesen Untertitel sperren",
     "sortBy": "Sortieren nach",

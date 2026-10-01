@@ -115,7 +115,7 @@
     "no_results_found": "No results found from any provider.",
     "extracted_status": "Extracted",
     "cleanup": "Cleanup Sidecars",
-    "cleanup_confirm": "Delete all non-target-language subtitle files next to the media? This cannot be undone.",
+    "cleanup_confirm": "Move all non-target-language subtitle files next to the media to the trash? You can restore them from the Trash page.",
     "cleanup_result": "Deleted {{count}} file(s)",
     "blacklist_subtitle": "Blacklist this subtitle",
     "sortBy": "Sort by",
