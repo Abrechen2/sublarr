@@ -5,7 +5,7 @@ All notable changes to Sublarr are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [1.15.0] - 2026-09-26
+## [1.15.0] - 2026-10-01
 
 ### Added
 - **Track variant policy for foreign-track cleanup.** Foreign-track cleanup
@@ -382,6 +382,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   Nothing is deleted. It cannot be undone — the old counts are not kept.
   Back up the database first if you want them. Measured on the RC
   prod-mirror: 3 187 of 9 041 wanted items changed.
+  Downgrading below this revision and upgrading again refunds one more
+  attempt per unanswered item, because the migration does not record which
+  items it already changed.
 - **Database migration `tvp1_track_variant_policy` changes the schema only.**
   It adds empty, nullable columns `cleanup_track_variant_mode`,
   `cleanup_keep_forced`, `cleanup_keep_sdh` and `cleanup_sidecar_policy` to
