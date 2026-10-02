@@ -5,6 +5,30 @@ All notable changes to Sublarr are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.15.1] - 2026-10-02
+
+### Fixed
+- **Typeset ASS subtitles up to 20 MB are accepted** — The sanitizer rejected
+  every subtitle above 5 MB, which threw away heavily typeset ASS files
+  (signs, karaoke, drawings) of 5.5–14.7 MB from AnimeTosho — 16 episodes in
+  one day on a real library, each downloaded again on the next search. ASS/SSA
+  may now be up to 20 MB; SRT/VTT keep the 5 MB limit.
+- **Machine-translated episodes stay with the re-seek** — An episode served by
+  Sublarr's own translation was turned back into a normal "wanted" item by the
+  next library scan, so the search for a genuine original never reached it.
+  Such episodes now stay provisional, a found original no longer outlives that
+  state, and a genuine download that replaced a translation is no longer
+  mistaken for one.
+- **Cleanup sidecars confirmation** — The dialog no longer warns that the
+  action cannot be undone; removed sidecars go to the restorable trash.
+
+### Changed
+- **Remux backups are instant** — The original kept in the trash after a track
+  removal is now a hardlink instead of a full copy where the filesystem allows
+  it. On Unraid every backup used to be a full copy (one two-hour film took 26
+  minutes), which made nightly cleanup runs overrun their time limit. Where a
+  hardlink is impossible, a real reflink is tried, then a copy.
+
 ## [1.15.0] - 2026-10-01
 
 ### Added

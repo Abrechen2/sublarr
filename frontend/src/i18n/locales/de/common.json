@@ -699,6 +699,12 @@
     }
   },
   "whatsnew": {
+    "v1151": {
+      "ass_title": "Große ASS-Untertitel werden angenommen",
+      "ass_desc": "Aufwendig gesetzte ASS-Untertitel mit Schildern, Karaoke und Zeichnungen sind oft größer als 5 MB und wurden bisher abgelehnt – und bei jeder Suche erneut heruntergeladen. ASS-Dateien dürfen jetzt bis 20 MB groß sein, SRT und VTT bleiben bei 5 MB.",
+      "backup_title": "Spuren entfernen ohne Kopierorgie",
+      "backup_desc": "Nach dem Entfernen fremdsprachiger Spuren bleibt das Original im Papierkorb. Statt es vollständig zu kopieren, wird es jetzt als Hardlink behalten, wo das Dateisystem das erlaubt – sofort fertig statt bis zu einer halben Stunde pro Film, und das NAS wird nachts deutlich weniger belastet."
+    },
     "v1150": {
       "trackpolicy_title": "Eine Spur pro Sprache statt aller Varianten",
       "trackpolicy_desc": "Die Fremdsprachen-Bereinigung entschied bisher nur nach Sprach-Tag, sodass jede Variante einer behaltenen Sprache erhalten blieb — eine Folge behielt so Englisch Forced, Englisch, Englisch SDH und Deutsch von 19 Spuren. Vier neue Einstellungen legen jetzt fest, ob nur die beste Spur pro Sprache bleibt, ob Forced- und SDH-Spuren extra behalten werden, und ob eine eingebettete Spur weicht, sobald eine echte Sidecar-Datei die Sprache abdeckt — Maschinenübersetzungen zählen dafür nie. Alles einstellbar pro Serie und Film, mit Spur-für-Spur-Vorschau vor jeder Änderung. Bestehende Installationen verhalten sich unverändert, bis die Einstellung aktiv geändert wird.",

@@ -699,6 +699,12 @@
     }
   },
   "whatsnew": {
+    "v1151": {
+      "ass_title": "Large ASS subtitles are accepted",
+      "ass_desc": "Heavily typeset ASS subtitles with signs, karaoke and drawings are often larger than 5 MB and used to be rejected – and downloaded again on every search. ASS files may now be up to 20 MB; SRT and VTT stay at 5 MB.",
+      "backup_title": "Removing tracks without copying whole videos",
+      "backup_desc": "After foreign tracks are removed, the original stays in the trash. Instead of a full copy it is now kept as a hardlink wherever the filesystem allows – done instantly instead of up to half an hour per film, and far less load on the NAS at night."
+    },
     "v1150": {
       "trackpolicy_title": "One track per language instead of every variant",
       "trackpolicy_desc": "Foreign-track cleanup used to decide by language tag alone, so every variant of a kept language survived — one episode kept English Forced, English, English SDH and German out of 19 tracks. Four new settings now control whether only the best track per language is kept, whether forced and SDH tracks are kept in addition, and whether an embedded track steps aside once a real sidecar file covers the language — machine translations never count for that. All configurable per series and per movie, with a track-by-track preview before anything changes. Existing installs behave exactly as before until the setting is actively changed.",
