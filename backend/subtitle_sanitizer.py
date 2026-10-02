@@ -17,7 +17,12 @@ from ass_lexer import ASSNeedsReviewError, remove_closed_geometry
 
 logger = logging.getLogger(__name__)
 
-_MAX_SUBTITLE_BYTES = 5 * 1024 * 1024  # 5 MB per subtitle file
+_MAX_SUBTITLE_BYTES = 5 * 1024 * 1024  # 5 MB per text subtitle file (SRT/VTT/…)
+# Typeset ASS runs several times the size of its dialogue: signs, karaoke and
+# drawings are all override tags. 16 animetosho episodes in one day (prod
+# 2026-10-02) shipped 5.5-14.7 MB ASS and were rejected at 5 MB, then fetched
+# again on every search. The 50 MB provider download cap still bounds both.
+_MAX_ASS_BYTES = 20 * 1024 * 1024
 
 # HTML tags allowed in SRT/VTT subtitle text
 _ALLOWED_HTML_TAGS = frozenset({"i", "b", "u", "font"})
@@ -239,13 +244,13 @@ def sanitize_subtitle(content: bytes, fmt) -> bytes:
     Raises:
         ValueError: If content exceeds size limit or fails content-type check.
     """
-    if len(content) > _MAX_SUBTITLE_BYTES:
-        raise ValueError(
-            f"Subtitle too large: {len(content) // 1024} KB > "
-            f"{_MAX_SUBTITLE_BYTES // 1024} KB limit"
-        )
-
     fmt_value = fmt.value if hasattr(fmt, "value") else str(fmt)
+
+    limit = _MAX_ASS_BYTES if fmt_value in ("ass", "ssa") else _MAX_SUBTITLE_BYTES
+    if len(content) > limit:
+        raise ValueError(
+            f"Subtitle too large: {len(content) // 1024} KB > {limit // 1024} KB limit"
+        )
 
     if fmt_value != "unknown" and not validate_content_type(content, fmt):
         raise ValueError(f"Content does not match expected format {fmt_value!r}")
