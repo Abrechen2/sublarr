@@ -450,7 +450,7 @@ class TestReflinkArgvSeparator:
             _try_reflink("-evil.mkv", "/safe/dst.mkv")
 
         cmd = captured["cmd"]
-        # cp gets `cp --reflink=auto -- src dst`
+        # cp gets `cp --reflink=always -- src dst`
         assert cmd[0] == "cp"
         assert "--" in cmd
         # The `--` must come before src/dst

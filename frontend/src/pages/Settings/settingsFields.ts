@@ -137,7 +137,7 @@ export const FIELDS: FieldConfig[] = [
   { key: 'remux_backup_retention_days', label: 'Remux Backup Retention (days, 0=forever)', type: 'number', placeholder: '7', tab: 'Automation',
     description: 'Nach wie vielen Tagen werden Remux-Backups endgültig gelöscht. 0 = nie.' },
   { key: 'remux_use_reflink', label: 'Use CoW Reflink for Backups', type: 'toggle', tab: 'Automation',
-    description: 'Auf Btrfs/XFS wird cp --reflink=auto für kostenlose Backups genutzt.',
+    description: 'Wo kein Hardlink möglich ist, wird auf Btrfs/XFS ein CoW-Reflink statt einer vollen Kopie angelegt.',
     advanced: true },
   { key: 'remux_arr_pause_enabled', label: 'Pause *arr during Remux', type: 'toggle', tab: 'Automation',
     description: 'Sonarr/Radarr-Ordner-Monitoring während des Remux pausieren.',

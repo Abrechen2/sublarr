@@ -5,8 +5,9 @@ Workflow:
   2. Select backend: mkvmerge (MKV) or ffmpeg (MP4/other).
   3. Remux to a temp file in the same directory.
   4. Verify temp file (duration ±2 s, stream counts, size ≥ 50 %).
-  5. Atomic swap: original → <original>.bak, temp → original.
-  6. Optionally use CoW reflink for zero-cost backup on Btrfs/XFS.
+  5. Atomic swap: original kept in the trash, temp renamed over the original.
+  6. The kept original is a hardlink where possible, else a CoW reflink
+     (Btrfs/XFS), else a copy.
 
 License: GPL-3.0
 """
@@ -45,7 +46,13 @@ class RemuxVerificationError(RemuxError):
 
 
 def _try_reflink(src: str, dst: str) -> bool:
-    """Attempt `cp --reflink=auto -- src dst`. Returns True on success.
+    """Attempt `cp --reflink=always -- src dst`. Returns True on success.
+
+    ``always``, not ``auto``: ``auto`` falls back to a full copy inside cp, so
+    on a filesystem without CoW (Unraid's shfs) this was a plain copy under a
+    120 s timeout — killed half-way for any large video, then repeated by
+    ``shutil.copy2``, and logged as a reflink when it did finish. ``always``
+    fails at once where there is no CoW and leaves the copy to the caller.
 
     Audit Gemini-2026-05-09 R1: ``--`` separates cp's flags from positional
     arguments. Without it, a leading ``-`` in src/dst (rare on a server
@@ -55,7 +62,7 @@ def _try_reflink(src: str, dst: str) -> bool:
     """
     try:
         result = subprocess.run(
-            ["cp", "--reflink=auto", "--", src, dst],
+            ["cp", "--reflink=always", "--", src, dst],
             capture_output=True,
             timeout=120,
         )
@@ -188,10 +195,44 @@ def _reserve_backup_path(dest_dir: str, basename: str, timestamp: int) -> str:
         return candidate
 
 
+def _link_backup(video_path: str, dest_dir: str, basename: str, timestamp: int) -> str | None:
+    """Hardlink ``video_path`` into ``dest_dir``; return the link, or None.
+
+    ``os.link`` refuses an existing name, so the link itself claims the name
+    the way ``_reserve_backup_path`` does with ``O_EXCL``. None means the
+    filesystem would not link (another device, no hardlink support, a
+    permission rule) and the caller has to copy.
+    """
+    import uuid as _uuid
+
+    candidate = os.path.join(dest_dir, f"{basename}.{timestamp}.bak")
+    while True:
+        try:
+            os.link(video_path, candidate)
+        except FileExistsError:
+            candidate = os.path.join(
+                dest_dir, f"{basename}.{timestamp}.{_uuid.uuid4().hex[:8]}.bak"
+            )
+            continue
+        except OSError as exc:
+            logger.debug("Remux: cannot hardlink %s into trash (%s) — copying", video_path, exc)
+            return None
+        return candidate
+
+
 def _make_backup(video_path: str, use_reflink: bool, trash_dir: str = "") -> str:
-    """Move original to the trash directory and return the backup path.
+    """Keep the original in the trash directory and return the backup path.
 
     Layout: <trash_dir>/trash/<YYYY-MM-DD>/<basename>.<timestamp>.bak
+
+    The backup is a hardlink where the filesystem allows one: instant, no
+    I/O, no extra space while the original is still in the library. That is
+    only a backup because every caller swaps the new file in by rename
+    (``os.replace``), leaving the original inode untouched — never write into
+    ``video_path`` in place after calling this. Before, every backup was a
+    full copy: 26 minutes for one two-hour film on Unraid, enough to push a
+    subtitle_automation tick past its abandon limit (prod 2026-10-02).
+    Where linking fails the backup falls back to a reflink, then a copy.
 
     Audit G7: we used to fall back to a sibling ``video_path + ".bak"``
     when the trash dir could not be created. That hid a configuration
@@ -211,6 +252,10 @@ def _make_backup(video_path: str, use_reflink: bool, trash_dir: str = "") -> str
 
     try:
         os.makedirs(dest_dir, exist_ok=True)
+        linked = _link_backup(video_path, dest_dir, basename, timestamp)
+        if linked:
+            logger.info("Remux: hardlink backup in trash: %s", linked)
+            return linked
         # The trash is flat and the name carries whole seconds only, so two
         # episodes of the same name from different season folders compete for
         # one path. Reserve it atomically before writing anything into it.
@@ -222,7 +267,7 @@ def _make_backup(video_path: str, use_reflink: bool, trash_dir: str = "") -> str
             logger.info("Remux: reflink backup in trash: %s", bak_path)
         else:
             shutil.copy2(video_path, bak_path)
-            logger.info("Remux: backup moved to trash: %s", bak_path)
+            logger.info("Remux: backup copied to trash: %s", bak_path)
         return bak_path
     except OSError as exc:
         raise RemuxError(f"could not create backup in trash dir {dest_dir}: {exc}") from exc
