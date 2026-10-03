@@ -699,6 +699,10 @@
     }
   },
   "whatsnew": {
+    "v1152": {
+      "overlap_title": "Karaoke und Schilder in ASS bleiben erhalten",
+      "overlap_desc": "Die automatischen Common Fixes haben überlappende Zeilen in ASS-Untertiteln gekürzt – Karaoke und Schilder verschwanden. Der Overlap-Fix gilt jetzt nur noch für SRT."
+    },
     "v1151": {
       "ass_title": "Große ASS-Untertitel werden angenommen",
       "ass_desc": "Aufwendig gesetzte ASS-Untertitel mit Schildern, Karaoke und Zeichnungen sind oft größer als 5 MB und wurden bisher abgelehnt – und bei jeder Suche erneut heruntergeladen. ASS-Dateien dürfen jetzt bis 20 MB groß sein, SRT und VTT bleiben bei 5 MB.",

@@ -699,6 +699,10 @@
     }
   },
   "whatsnew": {
+    "v1152": {
+      "overlap_title": "Karaoke and signs in ASS stay intact",
+      "overlap_desc": "The automatic Common Fixes shortened overlapping lines in ASS subtitles, so karaoke and signs disappeared. The overlap fix now applies to SRT only."
+    },
     "v1151": {
       "ass_title": "Large ASS subtitles are accepted",
       "ass_desc": "Heavily typeset ASS subtitles with signs, karaoke and drawings are often larger than 5 MB and used to be rejected – and downloaded again on every search. ASS files may now be up to 20 MB; SRT and VTT stay at 5 MB.",
