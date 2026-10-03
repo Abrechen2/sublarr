@@ -2,6 +2,8 @@
 
 from unittest.mock import MagicMock, patch
 
+import pytest
+
 # ─── Engine endpoint ─────────────────────────────────────────────────────────
 
 
@@ -523,3 +525,44 @@ def test_make_backup_writes_into_hidden_sublarr_backups(tmp_path):
     # No sibling .bak left in the (visible) media root.
     assert not (tmp_path / "Show - S01E01.en.bak.srt").exists()
     assert list(tmp_path.glob("*.bak.*")) == []
+
+
+_FFSUBSYNC_SCALED_OUTPUT = (
+    "INFO     offset seconds: 35.500\nINFO     framerate scale factor: 1.042\n"
+)
+
+
+def test_parse_ffsubsync_scale():
+    from services.video_sync import _parse_ffsubsync_scale
+
+    assert _parse_ffsubsync_scale(_FFSUBSYNC_SCALED_OUTPUT) == 1.042
+    assert _parse_ffsubsync_scale("INFO framerate scale factor: 1.000") == 1.0
+    assert _parse_ffsubsync_scale("no scale info") == 1.0
+
+
+def test_ffsubsync_rejects_framerate_scaling(tmp_path):
+    """A result that stretches the timeline is refused; the sidecar stays untouched.
+
+    Prod 2026-10-03: every scaled result in 24 h was wrong — ffsubsync picked a
+    25/24 ratio on files whose subtitle already matched the video's length, so
+    the error grew to ~60 s by the end of the episode. The shift alone (35.5 s
+    here) sits under the 60 s gate.
+    """
+    from services.video_sync import SyncSanityThresholdError, sync_with_ffsubsync
+
+    sub = tmp_path / "ep.srt"
+    original = "1\n00:00:01,000 --> 00:00:02,000\nHello\n"
+    sub.write_text(original)
+
+    fake_result = MagicMock(returncode=0, stderr=_FFSUBSYNC_SCALED_OUTPUT, stdout="")
+    fake_settings = MagicMock(sync_sanity_threshold_ms=60_000)
+
+    with (
+        patch("services.video_sync.shutil.which", return_value="/usr/bin/ffsubsync"),
+        patch("services.video_sync.subprocess.run", return_value=fake_result),
+        patch("config.get_settings", return_value=fake_settings),
+        pytest.raises(SyncSanityThresholdError, match="framerate scale factor 1.042"),
+    ):
+        sync_with_ffsubsync(str(sub), "/video.mkv")
+
+    assert sub.read_text() == original

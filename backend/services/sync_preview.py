@@ -25,8 +25,11 @@ from services.video_sync import (
     SyncSanityThresholdError,
     SyncUnavailableError,
     _check_module,
+    _parse_ffsubsync_scale,
     _parse_ffsubsync_shift,
     _safe_remove,
+    framerate_scale_is_insane,
+    framerate_scale_message,
 )
 
 logger = logging.getLogger(__name__)
@@ -107,6 +110,9 @@ def _run_ffsubsync_preview(subtitle_path: str, video_path: str) -> tuple[int, st
             raise SyncSanityThresholdError(
                 f"ffsubsync shift {shift_ms}ms exceeds sanity threshold {threshold}ms"
             )
+        scale = _parse_ffsubsync_scale(result.stderr + result.stdout)
+        if framerate_scale_is_insane(scale):
+            raise SyncSanityThresholdError(framerate_scale_message(scale))
         return shift_ms, out_path
     except BaseException:
         _safe_remove(out_path)

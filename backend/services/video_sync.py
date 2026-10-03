@@ -95,7 +95,8 @@ def sync_with_ffsubsync(subtitle_path: str, video_path: str) -> dict:
         SyncUnavailableError: ffsubsync is not installed
         RuntimeError: ffsubsync exited with a non-zero status
         SyncSanityThresholdError: ffsubsync returned a shift larger
-            than ``sync_sanity_threshold_ms`` — sidecar is left untouched.
+            than ``sync_sanity_threshold_ms`` — or stretched the
+            timeline (framerate scaling) — sidecar is left untouched.
     """
     import time as _time
 
@@ -182,6 +183,13 @@ def sync_with_ffsubsync(subtitle_path: str, video_path: str) -> dict:
         raise SyncSanityThresholdError(
             f"ffsubsync shift {shift_ms}ms exceeds sanity threshold {threshold}ms"
         )
+
+    scale = _parse_ffsubsync_scale(result.stderr + result.stdout)
+    if framerate_scale_is_insane(scale):
+        _safe_remove(out_path)
+        logger.warning("ffsubsync: framerate scale factor %.3f — leaving sidecar untouched", scale)
+        _audit("rejected", shift_ms, f"framerate_scale:{scale:.3f}")
+        raise SyncSanityThresholdError(framerate_scale_message(scale))
 
     # NOTE: shutil.move falls back to copy2 across filesystems and copy2's
     # copystat raises PermissionError on bind-mounted /media owned by a
@@ -401,6 +409,33 @@ def _make_backup(file_path: str) -> str:
 def _safe_remove(path: str) -> None:
     with contextlib.suppress(OSError):
         os.unlink(path)
+
+
+# ffsubsync may decide the subtitle was timed for another framerate and stretch
+# the whole timeline (25/24, 25/23.976, ...). Prod 2026-10-03: all ten scaled
+# results in a day were wrong — the subtitle already matched the video's length,
+# and the stretch put the end of the episode ~60 s out. The shift alone stays
+# under sync_sanity_threshold_ms, so it needs its own gate.
+_MAX_FRAMERATE_SCALE_DEVIATION = 0.001
+
+
+def framerate_scale_is_insane(scale: float) -> bool:
+    return abs(scale - 1.0) > _MAX_FRAMERATE_SCALE_DEVIATION
+
+
+def framerate_scale_message(scale: float) -> str:
+    return f"ffsubsync framerate scale factor {scale:.3f} would stretch the timeline"
+
+
+def _parse_ffsubsync_scale(output: str) -> float:
+    """Extract ffsubsync's framerate scale factor. Returns 1.0 if not reported."""
+    m = re.search(r"framerate scale factor\s*:\s*(\d+(?:\.\d+)?)", output, re.IGNORECASE)
+    if m:
+        try:
+            return float(m.group(1))
+        except ValueError:
+            pass
+    return 1.0
 
 
 def _parse_ffsubsync_shift(output: str) -> int:

@@ -14,6 +14,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   layered signs). Typeset releases lost their karaoke and signs to
   zero-duration events — 515 of 5033 ASS files on a real library. The overlap
   fix now applies to SRT only.
+- **Auto-sync no longer stretches subtitles** — ffsubsync sometimes decided a
+  subtitle was timed for another framerate and stretched the whole timeline by
+  about 4 %, leaving the end of an episode up to a minute out of sync. Every
+  such result on a real library in one day was wrong. A sync that would
+  stretch the timeline is now rejected and the subtitle is left as it was.
 
 ## [1.15.1] - 2026-10-02
 
