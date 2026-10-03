@@ -5,6 +5,16 @@ All notable changes to Sublarr are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Fixed
+- **Common Fixes no longer break typeset ASS subtitles** — The overlap fix
+  shortened every event that overlapped the next one, which is right for SRT
+  but wrong for ASS/SSA, where overlaps are deliberate (karaoke syllables,
+  layered signs). Typeset releases lost their karaoke and signs to
+  zero-duration events — 515 of 5033 ASS files on a real library. The overlap
+  fix now applies to SRT only.
+
 ## [1.15.1] - 2026-10-02
 
 ### Fixed

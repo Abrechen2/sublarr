@@ -186,3 +186,40 @@ def test_min_display_time_extends_short_event():
 
     assert changes
     assert subs.events[0].end >= 800
+
+
+def _overlapping_subs():
+    import pysubs2
+
+    subs = pysubs2.SSAFile()
+    # Two karaoke syllables sharing a start, then a line that begins before they end.
+    subs.events.append(pysubs2.SSAEvent(start=1000, end=4000, text="{\\k30}ko"))
+    subs.events.append(pysubs2.SSAEvent(start=1000, end=4000, text="{\\k30}e"))
+    subs.events.append(pysubs2.SSAEvent(start=2000, end=5000, text="Dialogue"))
+    return subs
+
+
+@pytest.mark.parametrize("fmt", ["ass", "ssa"])
+def test_overlap_fix_leaves_ass_timing_alone(fmt):
+    """Overlaps in ASS are deliberate (karaoke, layered signs).
+
+    Prod 2026-10-03: the overlap fix collapsed 4487 of 5557 events of a typeset
+    release to zero duration — 515 sidecars in the library were hit.
+    """
+    from common_fixes import apply_common_fixes
+
+    subs = _overlapping_subs()
+
+    apply_common_fixes(subs, {"overlap_fix": True}, fmt=fmt)
+
+    assert [(e.start, e.end) for e in subs.events] == [(1000, 4000), (1000, 4000), (2000, 5000)]
+
+
+def test_overlap_fix_still_applies_to_srt():
+    from common_fixes import apply_common_fixes
+
+    subs = _overlapping_subs()
+
+    apply_common_fixes(subs, {"overlap_fix": True}, fmt="srt")
+
+    assert subs.events[1].end == 1999

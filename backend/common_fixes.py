@@ -25,9 +25,17 @@ _WATERMARK_PATTERNS = [
     re.compile(r"yifysubtitles", re.IGNORECASE),
 ]
 
+_OVERLAP_IS_INTENTIONAL_FORMATS = ("ass", "ssa")
 
-def apply_common_fixes(subs: pysubs2.SSAFile, options: dict) -> list[Change]:
-    """Apply all enabled common fixes to subs (in place). Return list of Changes."""
+
+def apply_common_fixes(
+    subs: pysubs2.SSAFile, options: dict, fmt: str | None = None
+) -> list[Change]:
+    """Apply all enabled common fixes to subs (in place). Return list of Changes.
+
+    ``fmt`` is the file's format ("srt", "ass", "ssa"); timing fixes that only
+    make sense for plain-text cues are skipped for ASS/SSA.
+    """
     defaults = {
         "utf8_conversion": True,
         "linebreak_normalization": True,
@@ -152,8 +160,10 @@ def apply_common_fixes(subs: pysubs2.SSAFile, options: dict) -> list[Change]:
             else:
                 i += 1
 
-    # Overlap fix: adjust end time of event[i] when it overlaps event[i+1]
-    if opts["overlap_fix"]:
+    # Overlap fix: adjust end time of event[i] when it overlaps event[i+1].
+    # Not for ASS/SSA — overlaps there are deliberate (karaoke syllables, layered
+    # signs), and clamping them collapses typeset releases to zero-duration events.
+    if opts["overlap_fix"] and fmt not in _OVERLAP_IS_INTENTIONAL_FORMATS:
         for i in range(len(subs.events) - 1):
             if subs.events[i].end > subs.events[i + 1].start:
                 original_end = subs.events[i].end

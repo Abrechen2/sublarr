@@ -73,7 +73,7 @@ def apply_mods(path: str, mods: list[ModConfig], dry_run: bool = False) -> Proce
         if mod_config.mod == ModName.COMMON_FIXES:
             from common_fixes import apply_common_fixes
 
-            changes = apply_common_fixes(subs, mod_config.options)
+            changes = apply_common_fixes(subs, mod_config.options, fmt=fmt)
         elif mod_config.mod == ModName.HI_REMOVAL:
             changes = _apply_hi_removal(subs, mod_config.options, fmt=fmt)
         elif mod_config.mod == ModName.CREDIT_REMOVAL:

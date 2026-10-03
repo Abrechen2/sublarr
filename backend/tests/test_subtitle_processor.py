@@ -114,3 +114,21 @@ def test_change_has_all_required_fields(create_test_subtitle):
     assert isinstance(c.original_text, str)
     assert isinstance(c.modified_text, str)
     assert isinstance(c.mod_name, str)
+
+
+def test_common_fixes_keep_overlapping_ass_events(tmp_path):
+    """apply_mods must hand the format down so the overlap fix skips ASS."""
+    import pysubs2
+
+    from subtitle_processor import ModConfig, ModName, apply_mods
+
+    subs = pysubs2.SSAFile()
+    subs.events.append(pysubs2.SSAEvent(start=1000, end=4000, text="{\\k30}ko"))
+    subs.events.append(pysubs2.SSAEvent(start=1000, end=4000, text="{\\k30}e"))
+    path = tmp_path / "ep.en.ass"
+    subs.save(str(path))
+
+    apply_mods(str(path), [ModConfig(mod=ModName.COMMON_FIXES)])
+
+    saved = pysubs2.load(str(path))
+    assert [(e.start, e.end) for e in saved.events] == [(1000, 4000), (1000, 4000)]
