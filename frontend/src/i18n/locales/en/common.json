@@ -654,6 +654,16 @@
     "last_run": "Last: {{date}}"
   },
   "whatsnew": {
+    "v1142": {
+      "anime_title": "AnimeTosho checks series and episode identity",
+      "anime_desc": "Sequels sharing an episode number no longer count as matches for the original series. Season numbers and absolute episode numbers stay separate. Batch releases are checked against the individual video file.",
+      "subsource_title": "SubSource uses the new API",
+      "subsource_desc": "SubSource now requires an API key. Enter it under Settings > Providers > SubSource. Search and ZIP downloads use the documented API v1 and provider failures are reported as errors. Live verification with a valid key is still pending.",
+      "scan_title": "Scan rotation and search caching fixed",
+      "scan_desc": "After a time limit, the scanner advances to the next pass. The search cache distinguishes titles, seasons, episodes and external IDs. Permanently parked items can be searched again after a provider is repaired.",
+      "cleanup_title": "Skipped cleanup explains its reason",
+      "cleanup_desc": "The log now reports whether the library sweep is disabled or an enabled cleanup rule is missing. Automatic cleanup after downloads has its own switch."
+    },
     "v1141": {
       "translate_title": "One leftover line no longer blocks a whole episode",
       "translate_desc": "Only the lines that are not already in the translation memory are sent to the model. When exactly one was left, that single line decided the whole file — and it failed reliably, because a one-line request handed the model a bare fragment with no marker at all. The retry now asks differently instead of merely asking harder.",

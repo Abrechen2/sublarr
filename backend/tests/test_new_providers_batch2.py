@@ -23,12 +23,6 @@ class TestSubsourceProvider:
         assert "zh" in p.languages
         assert len(p.languages) >= 20
 
-    def test_no_credentials_required(self):
-        from providers.subsource import SubsourceProvider
-
-        p = SubsourceProvider()
-        assert p.config_fields == []
-
     def test_health_check_not_initialized(self):
         from providers.subsource import SubsourceProvider
 
@@ -69,26 +63,6 @@ class TestSubsourceProvider:
         p.session = MagicMock()
         q = VideoQuery(title="Test", languages=["xx-unknown"])
         assert p.search(q) == []
-
-    def test_search_movie_builds_correct_request(self):
-        from providers.base import VideoQuery
-        from providers.subsource import SubsourceProvider
-
-        p = SubsourceProvider()
-        mock_session = MagicMock()
-        mock_session.post.return_value = MagicMock(
-            status_code=200,
-            json=lambda: {
-                "subs": [
-                    {"linkName": "sub1", "releaseName": "Movie.2023.BluRay", "lang": "english"}
-                ]
-            },
-        )
-        p.session = mock_session
-        q = VideoQuery(title="Some Movie", year=2023, languages=["en"])
-        results = p.search(q)
-        assert isinstance(results, list)
-        mock_session.post.assert_called_once()
 
     def test_download_raises_without_session(self):
         import pytest

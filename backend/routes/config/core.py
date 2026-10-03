@@ -351,6 +351,7 @@ def update_config():
         "opensubtitles_api_key",
         "jimaku_api_key",
         "subdl_api_key",
+        "subsource_api_key",
         "min_score",
         "source_language",
         "target_language",

@@ -27,6 +27,8 @@ Modelfile
 scripts/
 node_modules/
 frontend/node_modules/
+**/venv/
+**/.venv/
 frontend/.vite/
 *.db
 *.db-journal

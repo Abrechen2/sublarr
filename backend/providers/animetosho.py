@@ -15,6 +15,7 @@ from typing import ClassVar
 
 from archive_utils import extract_subtitles_from_zip
 from providers import _stream_download, register_provider
+from providers.animetosho_matching import match_entry, match_release
 from providers.animetosho_parsers import (  # noqa: F401 — re-exported for back-compat
     _ISO639_2_TO_1,
     _MAX_DECOMPRESSED_SIZE,
@@ -165,16 +166,15 @@ class AnimeToshoProvider(SubtitleProvider):
                 "aids": 0,  # Use 0 for server caching
             }
 
-            # AniDB ID + absolute episode provides the most accurate results.
-            # Only use aid+eid together — aid alone (without eid) filters to the
-            # wrong season when the anidb_id maps to S2 but the query targets S1.
-            if query.anidb_id and query.absolute_episode is not None:
+            # eid is an AniDB database id, NOT an absolute episode number.
+            # Only constrain the feed when we have the actual episode identity.
+            if query.anidb_id and query.anidb_episode_id:
                 params["aid"] = query.anidb_id
-                params["eid"] = query.absolute_episode
+                params["eid"] = query.anidb_episode_id
                 logger.debug(
-                    "AnimeTosho: using AniDB aid=%d eid=%d (absolute episode)",
+                    "AnimeTosho: using AniDB aid=%d eid=%d",
                     query.anidb_id,
-                    query.absolute_episode,
+                    query.anidb_episode_id,
                 )
 
             logger.debug("AnimeTosho: API request params: %s", params)
@@ -204,17 +204,9 @@ class AnimeToshoProvider(SubtitleProvider):
             for entry in entries:
                 if detail_count >= MAX_DETAIL_CALLS:
                     break
-                entry_title = entry.get("title", "")
-                entry_episode = _extract_episode_number(entry_title)
-                # Accept if episode matches OR entry has no episode number (could be batch)
-                if entry_episode is not None:
-                    target_ep = (
-                        query.absolute_episode
-                        if query.absolute_episode is not None
-                        else query.episode
-                    )
-                    if target_ep is not None and entry_episode != target_ep:
-                        continue
+                if match_entry(entry, query) is None:
+                    logger.debug("AnimeTosho: rejected unrelated release: %s", entry.get("title"))
+                    continue
                 detail_count += 1
                 entry_results = self._process_entry(entry, query)
                 results.extend(entry_results)
@@ -271,6 +263,9 @@ class AnimeToshoProvider(SubtitleProvider):
 
         title = entry.get("title", "")
         entry_id = entry.get("id", 0)
+        entry_matches = match_entry(entry, query)
+        if entry_matches is None:
+            return []
 
         # Quick pre-filter: skip entries with no files at all
         if not entry.get("num_files", 0):
@@ -285,18 +280,18 @@ class AnimeToshoProvider(SubtitleProvider):
         if not files:
             return []
 
-        # Try to match episode number against the release title
-        entry_episode = _extract_episode_number(title)
-        if query.absolute_episode is not None:
-            episode_match = entry_episode is not None and entry_episode == query.absolute_episode
-        else:
-            episode_match = (
-                query.episode is not None
-                and entry_episode is not None
-                and entry_episode == query.episode
-            )
-
         for f in files:
+            file_title = (
+                (f.get("filename") or f.get("name") or "").replace("\\", "/").rsplit("/", 1)[-1]
+            )
+            file_matches = match_release(file_title, query, require_title=False)
+            if file_matches is None:
+                continue
+            if query.episode is not None and "episode" not in file_matches:
+                # Only a single-file release can inherit the feed's episode.
+                if len(files) != 1 or "episode" not in entry_matches:
+                    continue
+                file_matches = file_matches | entry_matches
             for attachment in f.get("attachments", []):
                 if attachment.get("type") != "subtitle":
                     continue
@@ -351,14 +346,7 @@ class AnimeToshoProvider(SubtitleProvider):
                 download_url = attachment.get("url") or _attachment_url(attach_id)
 
                 # Build matches
-                matches = set()
-                series_title = query.series_title or query.title
-                if series_title and series_title.lower() in title.lower():
-                    matches.add("series")
-                if episode_match:
-                    matches.add("episode")
-                if query.anidb_id:
-                    matches.add("series")  # AniDB match is a strong signal
+                matches = entry_matches | file_matches
                 if query.release_group and query.release_group.lower() in title.lower():
                     matches.add("release_group")
                 for res in ["1080p", "720p", "480p", "2160p"]:
