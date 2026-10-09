@@ -5,6 +5,21 @@ All notable changes to Sublarr are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Fixed
+- **Plex scans only the folder that got a new subtitle** — The item lookup used
+  a search filter that the Plex library rejects before anything reaches Plex,
+  so every subtitle ended in a full scan of every Plex library, movie libraries
+  included for an episode (GH #219). Sublarr now asks Plex for a partial scan
+  of the episode's or film's folder in the library that contains it. Only when
+  no library contains that folder — usually a path mapping that does not match
+  Plex's view — are libraries of the matching type scanned in full.
+- **AnimeTosho no longer picks attachments it cannot download** — The feed
+  hands out a bare file name instead of a storage address for some
+  attachments. Such a candidate could win the search and then fail with a 404;
+  it is now skipped.
+
 ## [1.15.2] - 2026-10-03
 
 ### Fixed

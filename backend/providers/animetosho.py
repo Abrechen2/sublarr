@@ -12,6 +12,7 @@ derivation is kept as a fallback for sidecars downloaded before the move.
 import logging
 import os
 from typing import ClassVar
+from urllib.parse import urlparse
 
 from archive_utils import extract_subtitles_from_zip
 from providers import _stream_download, register_provider
@@ -52,6 +53,21 @@ _FORMAT_MAP = {
 def _attachment_url(attach_id: int) -> str:
     """The XZ-compressed attachment lives under its own id in hex."""
     return f"{ATTACH_BASE}/{attach_id:08x}/{attach_id}.xz"
+
+
+def _storage_url(url: str | None) -> str | None:
+    """``url`` if it points into attachment storage, else None.
+
+    The .xyz feed hands out ``https://animetosho.net/<file name>`` for some
+    attachments — a page that does not exist, so the download 404s after the
+    search already ranked the candidate (prod 2026-10-01..08: 11 times).
+    Real locations live under ``/attachments/`` (.xyz, .net) or ``/storage/``
+    (.org).
+    """
+    if not url:
+        return None
+    path = urlparse(url).path
+    return url if path.startswith(("/attachments/", "/storage/")) else None
 
 
 @register_provider
@@ -343,7 +359,12 @@ class AnimeToshoProvider(SubtitleProvider):
                 # Download URL: XZ-compressed attachment. .xyz shards its
                 # storage by an internal file id that the attachment id does
                 # not yield, so the response carries the URL and we use it.
-                download_url = attachment.get("url") or _attachment_url(attach_id)
+                raw_url = attachment.get("url")
+                download_url = _storage_url(raw_url)
+                if raw_url and not download_url:
+                    logger.debug("AnimeTosho: skipping attachment %s, url %s", attach_id, raw_url)
+                    continue
+                download_url = download_url or _attachment_url(attach_id)
 
                 # Build matches
                 matches = entry_matches | file_matches
@@ -420,7 +441,7 @@ class AnimeToshoProvider(SubtitleProvider):
         for f in detail.get("files", []):
             for attachment in f.get("attachments", []):
                 if attachment.get("id") == attach_id:
-                    return attachment.get("url") or None
+                    return _storage_url(attachment.get("url"))
         return None
 
     def download(self, result: SubtitleResult) -> bytes:

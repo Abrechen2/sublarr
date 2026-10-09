@@ -1,11 +1,12 @@
 """Plex media server backend using the plexapi library.
 
-Connects via plexapi.server.PlexServer, finds items by file path across
-library sections, and triggers per-item or section-wide metadata refresh.
+Connects via plexapi.server.PlexServer and asks Plex to scan the folder that
+received a new subtitle (partial scan), falling back to section-wide scans.
 plexapi is an optional dependency -- the class is still importable without it.
 """
 
 import logging
+import os
 
 import requests
 
@@ -162,163 +163,117 @@ class PlexServer(MediaServer):
     def refresh_item(
         self, file_path: str, item_type: str = "", library_fallback: bool = True
     ) -> RefreshResult:
-        """Refresh metadata for a specific item by file path.
+        """Scan the folder that holds ``file_path`` in the library that owns it.
 
-        Searches library sections for the item matching the file path,
-        then triggers item.refresh(). Falls back to refresh_library()
-        if item not found (unless ``library_fallback`` is False — see
-        ``MediaServer.refresh_item``).
+        A new subtitle is a new file on disk, which is a scan job for Plex:
+        ``section.update(path=folder)`` is its partial scan. The section is the
+        one whose root folder contains the file, so no search is needed.
+
+        The previous lookup filtered on ``Media__Part__file__startswith``, a
+        name plexapi rejects before anything reaches Plex, so every subtitle
+        ended in a full scan of every library (#219).
+
+        When no section contains the folder (usually a path mapping that does
+        not match Plex's view), sections of the matching type get a full scan
+        — or, with ``library_fallback=False``, the caller is told to run one.
         """
         mapped_path = self.apply_path_mapping(file_path)
+        server_name = self.config.get("name", self.display_name)
 
         try:
-            server = self._get_server()
+            sections = self._get_server().library.sections()
         except Exception as e:
+            self._server = None
             return RefreshResult(
                 success=False,
-                message=f"Cannot connect to Plex: {e}",
-                server_name=self.config.get("name", self.display_name),
+                message=f"Cannot reach Plex library sections: {e}",
+                server_name=server_name,
             )
 
-        try:
-            sections = server.library.sections()
-        except Exception as e:
-            return RefreshResult(
-                success=False,
-                message=f"Failed to get Plex library sections: {e}",
-                server_name=self.config.get("name", self.display_name),
-            )
-
-        # Determine which section types to search
-        for section in sections:
-            # Filter by section type based on item_type hint
-            if item_type == "episode" and section.type != "show":
-                continue
-            if item_type == "movie" and section.type != "movie":
-                continue
-
+        folder = os.path.dirname(mapped_path)
+        section = _section_containing(_sections_of_type(sections, item_type), folder)
+        if section is not None:
             try:
-                item = self._find_item_in_section(section, mapped_path)
-                if item:
-                    item.refresh()
-                    item_title = getattr(item, "title", "Unknown")
-                    logger.info(
-                        "Triggered Plex item refresh for '%s' in section '%s'",
-                        item_title,
-                        section.title,
-                    )
-                    return RefreshResult(
-                        success=True,
-                        message=f"Refreshed '{item_title}' in {section.title}",
-                        server_name=self.config.get("name", self.display_name),
-                        item_id=str(getattr(item, "ratingKey", "")),
-                    )
+                section.update(path=folder)
             except Exception as e:
-                logger.debug("Error searching Plex section '%s': %s", section.title, e)
-                continue
+                logger.warning(
+                    "Plex partial scan of '%s' in section '%s' failed: %s",
+                    folder,
+                    section.title,
+                    e,
+                )
+                return RefreshResult(
+                    success=False,
+                    message=f"Plex partial scan failed in {section.title}: {e}",
+                    server_name=server_name,
+                )
+            logger.info(
+                "Triggered Plex partial scan of '%s' in section '%s'", folder, section.title
+            )
+            return RefreshResult(
+                success=True,
+                message=f"Scanned {folder} in {section.title}",
+                server_name=server_name,
+            )
 
         if not library_fallback:
             return RefreshResult(
                 success=False,
-                message=f"Item not found by path in Plex: {mapped_path}",
-                server_name=self.config.get("name", self.display_name),
+                message=f"No Plex library contains {folder}",
+                server_name=server_name,
                 needs_library_refresh=True,
             )
-        # Item not found -- fall back to full library refresh
         logger.info(
-            "Item not found by path in Plex, falling back to library refresh: %s",
-            mapped_path,
+            "No Plex library contains '%s' (check the path mapping), scanning %s libraries",
+            folder,
+            item_type or "all",
         )
-        return self.refresh_library()
+        return self.refresh_library(item_type)
 
-    def refresh_library(self) -> RefreshResult:
-        """Trigger a full library scan across all sections.
-
-        Returns:
-            RefreshResult with success status
-        """
+    def refresh_library(self, item_type: str = "") -> RefreshResult:
+        """Trigger a full scan of every section, or only those matching ``item_type``."""
+        server_name = self.config.get("name", self.display_name)
         try:
-            server = self._get_server()
-            sections = server.library.sections()
-            for section in sections:
-                try:
-                    section.update()
-                except Exception as e:
-                    logger.warning(
-                        "Failed to update Plex section '%s': %s",
-                        section.title,
-                        e,
-                    )
-            logger.info("Triggered Plex full library refresh (%d sections)", len(sections))
-            return RefreshResult(
-                success=True,
-                message=f"Full library refresh triggered ({len(sections)} sections)",
-                server_name=self.config.get("name", self.display_name),
-            )
+            sections = _sections_of_type(self._get_server().library.sections(), item_type)
         except Exception as e:
+            self._server = None
             return RefreshResult(
                 success=False,
                 message=f"Failed to trigger Plex library refresh: {e}",
-                server_name=self.config.get("name", self.display_name),
+                server_name=server_name,
             )
+        for section in sections:
+            try:
+                section.update()
+            except Exception as e:
+                logger.warning("Failed to update Plex section '%s': %s", section.title, e)
+        logger.info("Triggered Plex full library refresh (%d sections)", len(sections))
+        return RefreshResult(
+            success=True,
+            message=f"Full library refresh triggered ({len(sections)} sections)",
+            server_name=server_name,
+        )
 
-    def _find_item_in_section(self, section, mapped_file_path: str):
-        """Search a library section for an item matching the file path.
 
-        Uses server-side filtering by file path prefix (Media__Part__file),
-        then verifies the exact file path match client-side.
+_SECTION_TYPE_FOR_ITEM = {"episode": "show", "movie": "movie"}
 
-        Args:
-            section: plexapi library section
-            mapped_file_path: File path after path mapping
 
-        Returns:
-            Plex item if found, None otherwise
-        """
-        import os
+def _sections_of_type(sections, item_type: str) -> list:
+    wanted = _SECTION_TYPE_FOR_ITEM.get(item_type)
+    return [s for s in sections if wanted is None or s.type == wanted]
 
-        mapped_dir = os.path.dirname(mapped_file_path)
 
-        try:
-            # Server-side filter by directory prefix
-            results = section.search(filters={"Media__Part__file__startswith": mapped_dir})
-        except Exception:
-            # Fallback: some older Plex versions may not support this filter
-            logger.debug(
-                "Media__Part__file filter not supported in section '%s', skipping",
-                section.title,
-            )
-            return None
+def _normalise(path: str) -> str:
+    return path.replace("\\", "/").rstrip("/")
 
-        for item in results:
-            # Check locations for movies
-            if hasattr(item, "locations"):
-                for location in item.locations:
-                    if mapped_file_path in location or location in mapped_file_path:
-                        return item
 
-            # Check media parts for episodes and other types
-            if hasattr(item, "media"):
-                for media in item.media:
-                    for part in media.parts:
-                        if hasattr(part, "file"):
-                            if mapped_file_path in part.file or part.file in mapped_file_path:
-                                return item
-
-            # For show sections, check episodes
-            if section.type == "show" and hasattr(item, "episodes"):
-                try:
-                    for episode in item.episodes():
-                        if hasattr(episode, "media"):
-                            for media in episode.media:
-                                for part in media.parts:
-                                    if hasattr(part, "file"):
-                                        if (
-                                            mapped_file_path in part.file
-                                            or part.file in mapped_file_path
-                                        ):
-                                            return episode
-                except Exception:
-                    continue
-
-        return None
+def _section_containing(sections, folder: str):
+    """The section with the deepest root folder that contains ``folder``, or None."""
+    target = _normalise(folder)
+    best, best_len = None, -1
+    for section in sections:
+        for location in getattr(section, "locations", None) or []:
+            root = _normalise(location)
+            if root and (target == root or target.startswith(root + "/")) and len(root) > best_len:
+                best, best_len = section, len(root)
+    return best

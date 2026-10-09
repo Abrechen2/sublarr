@@ -143,12 +143,11 @@ def test_plex_reports_a_miss_without_a_library_refresh():
     from mediaserver.plex import PlexServer
 
     server = PlexServer(url="http://plex", token="t")
-    section = MagicMock(type="show", title="Anime")
+    section = MagicMock(type="show", title="Anime", locations=["/elsewhere"])
     plex = MagicMock()
     plex.library.sections.return_value = [section]
     with (
         patch.object(server, "_get_server", return_value=plex),
-        patch.object(server, "_find_item_in_section", return_value=None),
         patch.object(server, "refresh_library") as library,
     ):
         result = server.refresh_item("/m/a.mkv", library_fallback=False)

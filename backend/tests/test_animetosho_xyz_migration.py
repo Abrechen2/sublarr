@@ -183,3 +183,38 @@ def test_a_repair_falls_back_to_the_derived_url_without_a_session():
 
     assert result.download_url == f"{ATTACH_BASE}/0024451e/2376990.xz"
     assert result.provider_data["is_xz"] is True
+
+
+# ---------------------------------------------------------------------------
+# A url that is a file name, not a storage location
+# ---------------------------------------------------------------------------
+
+MALFORMED_URL = (
+    "https://animetosho.net/%5BDelta%5D%20The%20Detective%20Is%20Already%20Dead%20S01E12"
+    "%20%5B1080p%20CR-WEB-DL%20AAC-192%20H.264%5D_track13.ger.ass"
+)
+
+
+def _malformed_attachment():
+    attachment = _xyz_attachment()
+    attachment["url"] = MALFORMED_URL
+    return attachment
+
+
+def test_an_attachment_whose_url_is_only_a_file_name_is_skipped():
+    """The .xyz feed hands out ``https://animetosho.net/<file name>`` for some
+    attachments — a page that does not exist. Prod 2026-10-01..08: 11 downloads
+    picked such a candidate and died with a 404 after the search had already
+    ranked it. The id cannot rebuild an .xyz location either, so the candidate
+    is unusable and must not compete."""
+    provider = _provider_returning(_malformed_attachment())
+
+    assert provider._process_entry(_entry(), _query()) == []
+
+
+def test_a_repair_does_not_take_a_file_name_url_for_a_location():
+    provider = _provider_returning(_malformed_attachment())
+
+    result = provider.result_for_download("687355:3586174", "en")
+
+    assert result.download_url != MALFORMED_URL
