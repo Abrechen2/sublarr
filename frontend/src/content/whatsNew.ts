@@ -19,6 +19,11 @@ export interface WhatsNewItem {
 }
 
 export const WHATS_NEW: Record<string, WhatsNewItem[]> = {
+  '1.16.0': [
+    { icon: Search, titleKey: 'whatsnew.v1160.catalog_title', descKey: 'whatsnew.v1160.catalog_desc' },
+    { icon: Languages, titleKey: 'whatsnew.v1160.languages_title', descKey: 'whatsnew.v1160.languages_desc' },
+    { icon: Zap, titleKey: 'whatsnew.v1160.plex_title', descKey: 'whatsnew.v1160.plex_desc' },
+  ],
   '1.15.2': [
     { icon: Captions, titleKey: 'whatsnew.v1152.overlap_title', descKey: 'whatsnew.v1152.overlap_desc' },
   ],

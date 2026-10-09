@@ -699,6 +699,14 @@
     }
   },
   "whatsnew": {
+    "v1160": {
+      "catalog_title": "43 neue Untertitel-Quellen aus dem Bazarr+-Katalog",
+      "catalog_desc": "Quellen für viele Sprachen, darunter AvistaZ, CinemaZ, SubCentral, Titulky und Subtitlecat. Standardmäßig aus: in den Provider-Einstellungen „Katalog-Provider“ einschalten und dann jede gewünschte Quelle aktivieren.",
+      "languages_title": "Alle Sprachen wählbar",
+      "languages_desc": "Statt 64 stehen jetzt alle 183 ISO-639-1-Sprachen zur Auswahl, mit deutschen und englischen Namen.",
+      "plex_title": "Plex scannt nur noch den betroffenen Ordner",
+      "plex_desc": "Nach einem neuen Untertitel lässt Sublarr Plex nur den Ordner der Folge oder des Films scannen statt jedes Mal alle Bibliotheken."
+    },
     "v1152": {
       "overlap_title": "Karaoke und Schilder in ASS bleiben erhalten",
       "overlap_desc": "Die automatischen Common Fixes haben überlappende Zeilen in ASS-Untertiteln gekürzt – Karaoke und Schilder verschwanden. Der Overlap-Fix gilt jetzt nur noch für SRT."

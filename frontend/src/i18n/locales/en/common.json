@@ -699,6 +699,14 @@
     }
   },
   "whatsnew": {
+    "v1160": {
+      "catalog_title": "43 new subtitle sources from the Bazarr+ catalog",
+      "catalog_desc": "Sources for many languages, among them AvistaZ, CinemaZ, SubCentral, Titulky and Subtitlecat. Off by default: switch on \"Catalog providers\" in the provider settings, then enable each source you want.",
+      "languages_title": "Every language can be chosen",
+      "languages_desc": "Instead of 64, all 183 ISO 639-1 languages are now available, with German and English names.",
+      "plex_title": "Plex scans only the affected folder",
+      "plex_desc": "After a new subtitle, Sublarr has Plex scan just the episode's or film's folder instead of every library each time."
+    },
     "v1152": {
       "overlap_title": "Karaoke and signs in ASS stay intact",
       "overlap_desc": "The automatic Common Fixes shortened overlapping lines in ASS subtitles, so karaoke and signs disappeared. The overlap fix now applies to SRT only."
