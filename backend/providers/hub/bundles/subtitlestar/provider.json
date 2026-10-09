@@ -1,0 +1,48 @@
+{
+  "api_version": "bazarr.provider-hub.v1",
+  "bundle_sha256": "08f9a9ed3a5d785921041efbcc3b5f3db2ce89308ad39d29f21f22a8f05159c4",
+  "config_schema": {
+    "additionalProperties": false,
+    "properties": {
+      "request_delay_ms": {
+        "default": 0,
+        "description": "Optional politeness delay between HTTP calls to subtitlestar.com.",
+        "maximum": 5000,
+        "minimum": 0,
+        "title": "Delay between requests (ms)",
+        "type": "integer"
+      }
+    },
+    "type": "object"
+  },
+  "dependencies": {
+    "requirements": []
+  },
+  "description": "Scrapes subtitlestar.com for Persian/Farsi subtitle files. No login or API key required.",
+  "entry_class": "SubtitlestarProvider",
+  "entry_module": "provider",
+  "files": {
+    "provider.py": "641f9f520d947ee46665e733089e908a892a2bdcf60eac9fc6b3ce60f44e40a1"
+  },
+  "languages": [
+    "fas"
+  ],
+  "name": "SubtitleStar",
+  "provider_id": "subtitlestar",
+  "schema_version": 1,
+  "secret_fields": [],
+  "source": {
+    "catalog_url": "https://github.com/LavX/bazarr-provider-catalog/blob/main/catalog.json",
+    "commit": "0000000000000000000000000000000000000000",
+    "path": "providers/subtitlestar",
+    "ref": "main",
+    "repo": "LavX/bazarr-provider-catalog",
+    "trusted": true,
+    "type": "github"
+  },
+  "supported_media": [
+    "movie",
+    "episode"
+  ],
+  "version": "0.1.12"
+}

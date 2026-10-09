@@ -1,0 +1,47 @@
+{
+  "api_version": "bazarr.provider-hub.v1",
+  "bundle_sha256": "bb0353d2b44dde0e2afb24c6e967e38069a60b2e44cbcc9a16d86b911e893fc2",
+  "config_schema": {
+    "additionalProperties": false,
+    "properties": {
+      "request_delay_ms": {
+        "default": 0,
+        "description": "Optional politeness delay between HTTP calls to subtitri.nekur.net.",
+        "maximum": 5000,
+        "minimum": 0,
+        "title": "Delay between requests (ms)",
+        "type": "integer"
+      }
+    },
+    "type": "object"
+  },
+  "dependencies": {
+    "requirements": []
+  },
+  "description": "Scrapes Nekur for Latvian movie subtitles. ZIP and RAR downloads are handed to the host for extraction.",
+  "entry_class": "NekurProvider",
+  "entry_module": "provider",
+  "files": {
+    "provider.py": "49dedb10665e10322cc05b3f2eb2135118b9cf00561e531c50afd6918fd1c5b1"
+  },
+  "languages": [
+    "lav"
+  ],
+  "name": "Nekur",
+  "provider_id": "nekur",
+  "schema_version": 1,
+  "secret_fields": [],
+  "source": {
+    "catalog_url": "https://github.com/LavX/bazarr-provider-catalog/blob/main/catalog.json",
+    "commit": "0000000000000000000000000000000000000000",
+    "path": "providers/nekur",
+    "ref": "main",
+    "repo": "LavX/bazarr-provider-catalog",
+    "trusted": true,
+    "type": "github"
+  },
+  "supported_media": [
+    "movie"
+  ],
+  "version": "0.1.4"
+}

@@ -1,0 +1,60 @@
+{
+  "api_version": "bazarr.provider-hub.v1",
+  "bundle_sha256": "ae391ab6a2c0c746572af6a532da52f786817dd2d630cb6ea5110c46dcabd6a3",
+  "config_schema": {
+    "additionalProperties": false,
+    "properties": {
+      "api_key": {
+        "description": "Subs.ro API key. Multiple comma-separated keys are supported for legacy rate-limit rotation.",
+        "secret": true,
+        "title": "API key",
+        "type": "string"
+      },
+      "request_delay_ms": {
+        "default": 0,
+        "description": "Optional politeness delay between Subs.ro API requests.",
+        "maximum": 5000,
+        "minimum": 0,
+        "title": "Delay between requests (ms)",
+        "type": "integer"
+      }
+    },
+    "required": [
+      "api_key"
+    ],
+    "type": "object"
+  },
+  "dependencies": {
+    "requirements": []
+  },
+  "description": "Uses the Subs.ro API v1.0 for Romanian and English movie and episode subtitles. Requires an API key. ZIP and RAR downloads are supported.",
+  "entry_class": "SubsRoProvider",
+  "entry_module": "provider",
+  "files": {
+    "provider.py": "82f6cf8772c281821756cd1334bb98ad470422673cae4939380ee644962de4c8"
+  },
+  "languages": [
+    "eng",
+    "ron"
+  ],
+  "name": "Subs.ro",
+  "provider_id": "subsro",
+  "schema_version": 1,
+  "secret_fields": [
+    "api_key"
+  ],
+  "source": {
+    "catalog_url": "https://github.com/LavX/bazarr-provider-catalog/blob/main/catalog.json",
+    "commit": "0000000000000000000000000000000000000000",
+    "path": "providers/subsro",
+    "ref": "main",
+    "repo": "LavX/bazarr-provider-catalog",
+    "trusted": true,
+    "type": "github"
+  },
+  "supported_media": [
+    "movie",
+    "episode"
+  ],
+  "version": "0.1.4"
+}

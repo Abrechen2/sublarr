@@ -1,0 +1,49 @@
+{
+  "api_version": "bazarr.provider-hub.v1",
+  "bundle_sha256": "e655e0fe077fa931cffa39674072a0161960b942ce31499e1e4a7e6db1133a75",
+  "config_schema": {
+    "additionalProperties": false,
+    "properties": {
+      "request_delay_ms": {
+        "default": 0,
+        "description": "Optional politeness delay between HTTP calls to subsunacs.net.",
+        "maximum": 5000,
+        "minimum": 0,
+        "title": "Delay between requests (ms)",
+        "type": "integer"
+      }
+    },
+    "type": "object"
+  },
+  "dependencies": {
+    "requirements": []
+  },
+  "description": "Scrapes SubsUnacs for Bulgarian and English movie and episode subtitles. Direct entry pages plus ZIP, RAR, and 7Z downloads are supported; archives are extracted host-side.",
+  "entry_class": "SubsUnacsProvider",
+  "entry_module": "provider",
+  "files": {
+    "provider.py": "9b06ccb492da30dee42878480b851594d010fccc7fcaef49eff20053f3d58b2c"
+  },
+  "languages": [
+    "bul",
+    "eng"
+  ],
+  "name": "SubsUnacs",
+  "provider_id": "subsunacs",
+  "schema_version": 1,
+  "secret_fields": [],
+  "source": {
+    "catalog_url": "https://github.com/LavX/bazarr-provider-catalog/blob/main/catalog.json",
+    "commit": "0000000000000000000000000000000000000000",
+    "path": "providers/subsunacs",
+    "ref": "main",
+    "repo": "LavX/bazarr-provider-catalog",
+    "trusted": true,
+    "type": "github"
+  },
+  "supported_media": [
+    "movie",
+    "episode"
+  ],
+  "version": "0.1.5"
+}

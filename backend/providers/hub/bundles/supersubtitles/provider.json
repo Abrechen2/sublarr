@@ -1,0 +1,49 @@
+{
+  "api_version": "bazarr.provider-hub.v1",
+  "bundle_sha256": "11836f6ade1463b90f67e0a1f79731f1136221ad8c86cb87bdb77d92b3601679",
+  "config_schema": {
+    "additionalProperties": false,
+    "properties": {
+      "request_delay_ms": {
+        "default": 0,
+        "description": "Optional politeness delay between HTTP calls to feliratok.eu.",
+        "maximum": 5000,
+        "minimum": 0,
+        "title": "Delay between requests (ms)",
+        "type": "integer"
+      }
+    },
+    "type": "object"
+  },
+  "dependencies": {
+    "requirements": []
+  },
+  "description": "Scrapes feliratok.eu for Hungarian and English movie and episode subtitles. Forced subtitles, direct subtitle files, ZIP, and RAR downloads are supported.",
+  "entry_class": "SuperSubtitlesProvider",
+  "entry_module": "provider",
+  "files": {
+    "provider.py": "05a7885ff73d9d1f20c87b93c9ffbb2892efc19a4476a0707791c3f4121ec179"
+  },
+  "languages": [
+    "eng",
+    "hun"
+  ],
+  "name": "SuperSubtitles",
+  "provider_id": "supersubtitles",
+  "schema_version": 1,
+  "secret_fields": [],
+  "source": {
+    "catalog_url": "https://github.com/LavX/bazarr-provider-catalog/blob/main/catalog.json",
+    "commit": "0000000000000000000000000000000000000000",
+    "path": "providers/supersubtitles",
+    "ref": "main",
+    "repo": "LavX/bazarr-provider-catalog",
+    "trusted": true,
+    "type": "github"
+  },
+  "supported_media": [
+    "movie",
+    "episode"
+  ],
+  "version": "0.1.5"
+}

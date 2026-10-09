@@ -1,0 +1,49 @@
+{
+  "api_version": "bazarr.provider-hub.v1",
+  "bundle_sha256": "63a21f4a778068a9bb14ccf84020cff1507f60cc1c83022d5cc237729221c24a",
+  "config_schema": {
+    "additionalProperties": false,
+    "properties": {
+      "request_delay_ms": {
+        "default": 0,
+        "description": "Optional politeness delay between HTTP calls to subs.sab.bz.",
+        "maximum": 5000,
+        "minimum": 0,
+        "title": "Delay between requests (ms)",
+        "type": "integer"
+      }
+    },
+    "type": "object"
+  },
+  "dependencies": {
+    "requirements": []
+  },
+  "description": "Scrapes SubsSabBz for Bulgarian and English movie and episode subtitles. ZIP and RAR downloads are supported.",
+  "entry_class": "SubsSabBzProvider",
+  "entry_module": "provider",
+  "files": {
+    "provider.py": "9fb08869a1578b52e54de5050dba55ec3f2b3429d1ace3abf589055c113f473b"
+  },
+  "languages": [
+    "bul",
+    "eng"
+  ],
+  "name": "SubsSabBz",
+  "provider_id": "subssabbz",
+  "schema_version": 1,
+  "secret_fields": [],
+  "source": {
+    "catalog_url": "https://github.com/LavX/bazarr-provider-catalog/blob/main/catalog.json",
+    "commit": "0000000000000000000000000000000000000000",
+    "path": "providers/subssabbz",
+    "ref": "main",
+    "repo": "LavX/bazarr-provider-catalog",
+    "trusted": true,
+    "type": "github"
+  },
+  "supported_media": [
+    "movie",
+    "episode"
+  ],
+  "version": "0.1.6"
+}

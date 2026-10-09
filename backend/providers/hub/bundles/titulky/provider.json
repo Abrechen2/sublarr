@@ -1,0 +1,78 @@
+{
+  "api_version": "bazarr.provider-hub.v1",
+  "bundle_sha256": "9298f2988297810d730198e2fb9ffca8994a7686fa6faa804c898d1afc3d57fb",
+  "config_schema": {
+    "additionalProperties": false,
+    "properties": {
+      "approved_only": {
+        "default": false,
+        "description": "Skip unapproved subtitles.",
+        "title": "Skip unapproved subtitles",
+        "type": "boolean"
+      },
+      "password": {
+        "description": "Titulky.com password.",
+        "title": "Password",
+        "type": "string"
+      },
+      "request_delay_ms": {
+        "default": 0,
+        "description": "Optional politeness delay between HTTP calls to premium.titulky.com.",
+        "maximum": 5000,
+        "minimum": 0,
+        "title": "Delay between requests (ms)",
+        "type": "integer"
+      },
+      "skip_wrong_fps": {
+        "default": false,
+        "description": "Lower match score for subtitles whose FPS does not match the requested video.",
+        "title": "Skip wrong FPS",
+        "type": "boolean"
+      },
+      "username": {
+        "description": "Titulky.com username.",
+        "title": "Username",
+        "type": "string"
+      }
+    },
+    "required": [
+      "username",
+      "password"
+    ],
+    "type": "object"
+  },
+  "dependencies": {
+    "requirements": []
+  },
+  "description": "Scrapes premium.titulky.com for Czech and Slovak movie and episode subtitles. VIP login, approved-only filtering, FPS checks, and ZIP/RAR downloads (extracted host-side) are supported.",
+  "entry_class": "TitulkyProvider",
+  "entry_module": "provider",
+  "files": {
+    "provider.py": "92e5426df6c351907acd5abfa4f124d2ca69069ad7cd84f6aa40debd6878584f"
+  },
+  "languages": [
+    "ces",
+    "slk"
+  ],
+  "name": "Titulky.com",
+  "provider_id": "titulky",
+  "schema_version": 1,
+  "secret_fields": [
+    "username",
+    "password"
+  ],
+  "source": {
+    "catalog_url": "https://github.com/LavX/bazarr-provider-catalog/blob/main/catalog.json",
+    "commit": "0000000000000000000000000000000000000000",
+    "path": "providers/titulky",
+    "ref": "main",
+    "repo": "LavX/bazarr-provider-catalog",
+    "trusted": true,
+    "type": "github"
+  },
+  "supported_media": [
+    "movie",
+    "episode"
+  ],
+  "version": "0.1.6"
+}

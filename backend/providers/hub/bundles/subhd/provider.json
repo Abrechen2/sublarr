@@ -1,0 +1,63 @@
+{
+  "api_version": "bazarr.provider-hub.v1",
+  "bundle_sha256": "722432a7b32a491a2b7497c1a35798067adcefa6182490cee13e2fb87f43fc88",
+  "config_schema": {
+    "additionalProperties": false,
+    "properties": {
+      "request_delay_ms": {
+        "default": 0,
+        "description": "Optional politeness delay between HTTP calls to subhd.tv.",
+        "maximum": 5000,
+        "minimum": 0,
+        "title": "Delay between requests (ms)",
+        "type": "integer"
+      }
+    },
+    "type": "object"
+  },
+  "dependencies": {
+    "requirements": []
+  },
+  "description": "Scrapes subhd.tv for community subtitle files. No login or API key required.",
+  "entry_class": "SubHDProvider",
+  "entry_module": "provider",
+  "files": {
+    "captcha_templates.py": "92d62df74786303aac9b368f6be1b975abaef3ea285b1aca694a372372b056bf",
+    "provider.py": "837ee1f5ef79082d67fa693489934e57c073690ec0899fa0324481d9e05ce0e4"
+  },
+  "languages": [
+    "zho",
+    "eng",
+    "fra",
+    "spa",
+    "jpn",
+    "kor",
+    "deu",
+    "ara",
+    "por",
+    "ita",
+    "nld",
+    "rus",
+    "tur",
+    "pol",
+    "swe"
+  ],
+  "name": "SubHD",
+  "provider_id": "subhd",
+  "schema_version": 1,
+  "secret_fields": [],
+  "source": {
+    "catalog_url": "https://github.com/LavX/bazarr-provider-catalog/blob/main/catalog.json",
+    "commit": "0000000000000000000000000000000000000000",
+    "path": "providers/subhd",
+    "ref": "main",
+    "repo": "LavX/bazarr-provider-catalog",
+    "trusted": true,
+    "type": "github"
+  },
+  "supported_media": [
+    "movie",
+    "episode"
+  ],
+  "version": "0.1.4"
+}

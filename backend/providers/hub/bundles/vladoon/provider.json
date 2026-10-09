@@ -1,0 +1,48 @@
+{
+  "api_version": "bazarr.provider-hub.v1",
+  "bundle_sha256": "82544f8f7f70a55242ee48c70afb44dbac14718cca0ce05b394cca7bc26fbb15",
+  "config_schema": {
+    "additionalProperties": false,
+    "properties": {
+      "request_delay_ms": {
+        "default": 0,
+        "description": "Optional politeness delay between HTTP calls to vladoon.com.",
+        "maximum": 5000,
+        "minimum": 0,
+        "title": "Delay between requests (ms)",
+        "type": "integer"
+      }
+    },
+    "type": "object"
+  },
+  "dependencies": {
+    "requirements": []
+  },
+  "description": "Searches the Vladoon Bulgarian subtitle site through its JSON API, including season packs, and hands its ZIP downloads to Bazarr for member extraction. No login or API key required.",
+  "entry_class": "VladoonProvider",
+  "entry_module": "provider",
+  "files": {
+    "provider.py": "6ee3051bbf2f810339aac51f2d63b028c758584140844d9f47dfef1c014528d7"
+  },
+  "languages": [
+    "bul"
+  ],
+  "name": "Vladoon",
+  "provider_id": "vladoon",
+  "schema_version": 1,
+  "secret_fields": [],
+  "source": {
+    "catalog_url": "https://github.com/LavX/bazarr-provider-catalog/blob/main/catalog.json",
+    "commit": "0000000000000000000000000000000000000000",
+    "path": "providers/vladoon",
+    "ref": "main",
+    "repo": "LavX/bazarr-provider-catalog",
+    "trusted": true,
+    "type": "github"
+  },
+  "supported_media": [
+    "movie",
+    "episode"
+  ],
+  "version": "0.1.2"
+}

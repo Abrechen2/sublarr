@@ -48,11 +48,10 @@ def _provider_field_owners() -> dict[str, str]:
 
 
 def _enabled_provider_set(value, all_names: set[str]) -> set[str]:
-    """Resolve ``providers_enabled`` to a concrete set. Empty means all."""
-    text = (value or "").strip()
-    if not text:
-        return set(all_names)
-    return {p.strip() for p in text.split(",") if p.strip()}
+    """Resolve ``providers_enabled`` to a concrete set. Empty means every non-opt-in provider."""
+    from providers.registry import resolve_enabled_names
+
+    return resolve_enabled_names(value) & set(all_names)
 
 
 def _revive_on_provider_change_enabled() -> bool:
@@ -191,7 +190,34 @@ def get_config():
         _v = get_config_entry(_k)
         if _v is not None:
             cfg[_k] = _v
+    cfg.update(_hub_config_entries())
     return jsonify(cfg)
+
+
+def _hub_config_entries() -> dict:
+    """Stored catalog-provider settings (``hub.<id>.<field>``), secrets masked.
+
+    Which fields are secret comes from the bundle manifests, read as JSON, so
+    masking does not depend on the catalog providers being switched on.
+    """
+    from config_settings import is_sensitive_config_key
+    from db.config import get_all_config_entries
+
+    try:
+        from providers.hub import secret_config_keys
+
+        secrets = secret_config_keys()
+    except Exception:  # noqa: BLE001 — unreadable manifests: mask every hub value
+        secrets = None
+    out = {}
+    for key, value in (get_all_config_entries() or {}).items():
+        if not key.startswith("hub."):
+            continue
+        masked = (
+            secrets is None or key in secrets or is_sensitive_config_key(key.rsplit(".", 1)[-1])
+        )
+        out[key] = (_MASK_SENTINEL if value else "") if masked else value
+    return out
 
 
 @bp.route("/settings/path-mapping/test", methods=["POST"])
@@ -466,7 +492,12 @@ def update_config():
     provider_cache_keys = {
         k
         for k in saved_keys
-        if (k.startswith("provider") or k.startswith("scoring_") or k in _credential_keys)
+        if (
+            k.startswith("provider")
+            or k.startswith("scoring_")
+            or k.startswith("hub.")
+            or k in _credential_keys
+        )
         and k != "providers_hidden"
     }
     if provider_cache_keys:

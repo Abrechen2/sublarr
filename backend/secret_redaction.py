@@ -201,9 +201,25 @@ def collect_secret_values(settings) -> frozenset[str]:
             found |= _notification_url_secrets(value)
         elif value[:1] in ("[", "{"):
             found |= _nested_json_secrets(value, is_sensitive_config_key)
+    found |= _hub_secret_values(is_sensitive_config_key)
     return frozenset(
         v for v in found if len(v) >= _MIN_VALUE_LEN and v.lower() not in _PLACEHOLDER_VALUES
     )
+
+
+def _hub_secret_values(is_sensitive) -> set[str]:
+    """Catalog provider credentials. They live only in config_entries, not in Settings."""
+    try:
+        from db.config import get_all_config_entries
+
+        entries = get_all_config_entries() or {}
+    except Exception:  # noqa: BLE001 — no DB/app context: the rest of the set still counts
+        return set()
+    return {
+        str(value).strip()
+        for key, value in entries.items()
+        if key.startswith("hub.") and value and str(value).strip() and is_sensitive(key)
+    }
 
 
 # ─── Live value cache ─────────────────────────────────────────────────────────

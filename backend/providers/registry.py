@@ -87,6 +87,30 @@ _BUILTIN_PROVIDERS: tuple[str, ...] = (
 )
 
 
+def default_enabled_names() -> set[str]:
+    """What an empty ``providers_enabled`` means: every provider that is not opt-in.
+
+    Catalog providers (providers/hub) are opt-in — they must be named. Every
+    place that resolves the setting goes through ``resolve_enabled_names`` so
+    the rule cannot drift between the manager, the status list and the UI.
+    """
+    return {name for name, cls in _PROVIDER_CLASSES.items() if not getattr(cls, "opt_in", False)}
+
+
+def resolve_enabled_names(value) -> set[str]:
+    """The provider names a ``providers_enabled`` value enables."""
+    text = (value or "").strip()
+    if not text:
+        return default_enabled_names()
+    return {p.strip() for p in text.split(",") if p.strip()}
+
+
+def _unregister_hub_providers() -> None:
+    """Drop catalog provider classes so switching the catalog off takes effect at once."""
+    for name in [n for n, cls in _PROVIDER_CLASSES.items() if getattr(cls, "hub_id", "")]:
+        del _PROVIDER_CLASSES[name]
+
+
 def import_builtin_providers() -> None:
     """Import all built-in provider modules to trigger @register_provider decorators."""
     import importlib
@@ -96,6 +120,19 @@ def import_builtin_providers() -> None:
             importlib.import_module(f"providers.{name}")
         except ImportError as e:
             logger.debug("Provider %s not available: %s", name, e)
+
+    # Catalog providers (providers/hub) only when the install switched them on.
+    try:
+        from config import get_settings
+
+        if getattr(get_settings(), "provider_hub_enabled", False):
+            from providers.hub import register_hub_providers
+
+            register_hub_providers()
+        else:
+            _unregister_hub_providers()
+    except Exception as e:
+        logger.warning("Catalog providers not loaded: %s", e)
 
     # Re-sync dynamically registered Custom API instances (customapi-<name>)
     # so ProviderManager re-initialization picks up config changes.
@@ -111,6 +148,8 @@ __all__ = [
     "PROVIDER_METADATA",
     "_PROVIDER_CLASSES",
     "register_provider",
+    "default_enabled_names",
+    "resolve_enabled_names",
     "_BUILTIN_PROVIDERS",
     "import_builtin_providers",
 ]

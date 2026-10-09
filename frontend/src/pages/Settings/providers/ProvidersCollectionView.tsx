@@ -136,13 +136,21 @@ export function ProvidersCollectionView({
     })
   }
 
+  // An empty providers_enabled means "every provider that is not opt-in" on the
+  // backend. Collapse to '' only when the set is exactly that, never when an
+  // opt-in (catalog) provider is part of it or a default one is missing.
+  const enabledValue = (enabledSet: Set<string>) => {
+    const defaultNames = providers.filter((p) => !p.opt_in).map((p) => p.name)
+    const isDefault =
+      enabledSet.size === defaultNames.length && defaultNames.every((n) => enabledSet.has(n))
+    return isDefault ? '' : Array.from(enabledSet).join(',')
+  }
+
   const handleToggle = (name: string, currentlyEnabled: boolean) => {
     const enabledSet = new Set(providers.filter((p) => p.enabled).map((p) => p.name))
     if (currentlyEnabled) enabledSet.delete(name)
     else enabledSet.add(name)
-    const allNames = providers.map((p) => p.name)
-    const newValue = enabledSet.size === allNames.length ? '' : Array.from(enabledSet).join(',')
-    onSave({ providers_enabled: newValue })
+    onSave({ providers_enabled: enabledValue(enabledSet) })
   }
 
   const handleHide = (name: string) => {
@@ -150,11 +158,9 @@ export function ProvidersCollectionView({
     newHiddenSet.add(name)
     const enabledSet = new Set(providers.filter((p) => p.enabled).map((p) => p.name))
     enabledSet.delete(name)
-    const allNames = providers.map((p) => p.name)
-    const newEnabledValue = enabledSet.size === allNames.length ? '' : Array.from(enabledSet).join(',')
     onSave({
       providers_hidden: Array.from(newHiddenSet).join(','),
-      providers_enabled: newEnabledValue,
+      providers_enabled: enabledValue(enabledSet),
     })
     setSelectedId(null)
     toast(tc('settings:providers_collection.provider_removed', { name: name.replace(/_/g, ' ') }))

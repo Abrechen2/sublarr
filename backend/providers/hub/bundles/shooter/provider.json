@@ -1,0 +1,40 @@
+{
+  "api_version": "bazarr.provider-hub.v1",
+  "bundle_sha256": "d4cbab73d3d8ef7d5b30c835bd922a44eb9918595b0dc95c912cbe8ab14be5f0",
+  "config_schema": {
+    "additionalProperties": false,
+    "properties": {},
+    "type": "object"
+  },
+  "dependencies": {
+    "requirements": []
+  },
+  "description": "Queries Shooter.cn's hash-based subtitle API for English and Chinese movie and episode subtitles. Requires Bazarr to provide a Shooter file hash.",
+  "entry_class": "ShooterProvider",
+  "entry_module": "provider",
+  "files": {
+    "provider.py": "0e96f301d7d592f4c5d4a9f3e97ae692f02f31ae5c9aaf29b4d746f429b23810"
+  },
+  "languages": [
+    "eng",
+    "zho"
+  ],
+  "name": "Shooter",
+  "provider_id": "shooter",
+  "schema_version": 1,
+  "secret_fields": [],
+  "source": {
+    "catalog_url": "https://github.com/LavX/bazarr-provider-catalog/blob/main/catalog.json",
+    "commit": "0000000000000000000000000000000000000000",
+    "path": "providers/shooter",
+    "ref": "main",
+    "repo": "LavX/bazarr-provider-catalog",
+    "trusted": true,
+    "type": "github"
+  },
+  "supported_media": [
+    "movie",
+    "episode"
+  ],
+  "version": "0.1.3"
+}

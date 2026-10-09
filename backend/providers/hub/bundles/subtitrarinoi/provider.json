@@ -1,0 +1,48 @@
+{
+  "api_version": "bazarr.provider-hub.v1",
+  "bundle_sha256": "3d03736b04b6381b5e2d171aabce3a15e2c846b09d2e05992791aaca2bdfcddd",
+  "config_schema": {
+    "additionalProperties": false,
+    "properties": {
+      "request_delay_ms": {
+        "default": 0,
+        "description": "Optional politeness delay between HTTP calls to subtitrari-noi.ro.",
+        "maximum": 5000,
+        "minimum": 0,
+        "title": "Delay between requests (ms)",
+        "type": "integer"
+      }
+    },
+    "type": "object"
+  },
+  "dependencies": {
+    "requirements": []
+  },
+  "description": "Scrapes subtitrari-noi.ro for Romanian movie and episode subtitles. Direct files, ZIP archives, and RAR archives are supported.",
+  "entry_class": "SubtitrariNoiProvider",
+  "entry_module": "provider",
+  "files": {
+    "provider.py": "29d06e87e77696749602ef63dafe4b485d6abd780cf25f7c16000165dbb03aa0"
+  },
+  "languages": [
+    "ron"
+  ],
+  "name": "Subtitrari Noi",
+  "provider_id": "subtitrarinoi",
+  "schema_version": 1,
+  "secret_fields": [],
+  "source": {
+    "catalog_url": "https://github.com/LavX/bazarr-provider-catalog/blob/main/catalog.json",
+    "commit": "0000000000000000000000000000000000000000",
+    "path": "providers/subtitrarinoi",
+    "ref": "main",
+    "repo": "LavX/bazarr-provider-catalog",
+    "trusted": true,
+    "type": "github"
+  },
+  "supported_media": [
+    "movie",
+    "episode"
+  ],
+  "version": "0.1.5"
+}

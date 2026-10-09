@@ -1,0 +1,59 @@
+{
+  "api_version": "bazarr.provider-hub.v1",
+  "bundle_sha256": "95a61988dd16509d2f2153c94436a51cc6aa06688017229ab1f14d0965e6c975",
+  "config_schema": {
+    "additionalProperties": false,
+    "properties": {
+      "request_delay_ms": {
+        "default": 0,
+        "description": "Optional politeness delay between HTTP calls to moviesubtitles.org.",
+        "maximum": 5000,
+        "minimum": 0,
+        "title": "Delay between requests (ms)",
+        "type": "integer"
+      }
+    },
+    "type": "object"
+  },
+  "dependencies": {
+    "requirements": []
+  },
+  "description": "Scrapes moviesubtitles.org for movie subtitle ZIP files. Movie-only provider.",
+  "entry_class": "MoviesubtitlesProvider",
+  "entry_module": "provider",
+  "files": {
+    "provider.py": "23b3e582ab85f9a43789801c1c2faeb51296f686d16cff780f43ca746002846e"
+  },
+  "languages": [
+    "ara",
+    "deu",
+    "ell",
+    "eng",
+    "fra",
+    "hun",
+    "ita",
+    "pol",
+    "por",
+    "rus",
+    "spa",
+    "tur",
+    "ukr"
+  ],
+  "name": "Moviesubtitles",
+  "provider_id": "moviesubtitles",
+  "schema_version": 1,
+  "secret_fields": [],
+  "source": {
+    "catalog_url": "https://github.com/LavX/bazarr-provider-catalog/blob/main/catalog.json",
+    "commit": "0000000000000000000000000000000000000000",
+    "path": "providers/moviesubtitles",
+    "ref": "main",
+    "repo": "LavX/bazarr-provider-catalog",
+    "trusted": true,
+    "type": "github"
+  },
+  "supported_media": [
+    "movie"
+  ],
+  "version": "0.1.3"
+}

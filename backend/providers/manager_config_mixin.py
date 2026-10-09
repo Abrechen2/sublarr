@@ -36,6 +36,9 @@ class ConfigResolvingMixin:
 
         config = {}
 
+        if getattr(cls, "hub_id", ""):
+            return _hub_provider_config(cls)
+
         if getattr(cls, "is_plugin", False):
             # Plugin providers: read config from DB
             try:
@@ -193,3 +196,24 @@ class ConfigResolvingMixin:
 
 
 __all__ = ["ConfigResolvingMixin"]
+
+
+def _hub_provider_config(cls) -> dict:
+    """Settings of a catalog provider, keyed by the bundle's own field names.
+
+    They live in ``config_entries`` as ``hub.<id>.<field>`` (dotted keys need
+    no settings-model field), so they are read from there, not from Settings.
+    """
+    from db.config import get_config_entry
+
+    prefix = f"hub.{cls.hub_id}."
+    config = {}
+    for field in getattr(cls, "config_fields", []):
+        key = field["key"]
+        value = get_config_entry(key)
+        if value is None:
+            value = field.get("default", "")
+        config[key[len(prefix) :] if key.startswith(prefix) else key] = (
+            value.strip() if isinstance(value, str) else value
+        )
+    return config

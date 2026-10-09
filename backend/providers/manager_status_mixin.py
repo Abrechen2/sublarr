@@ -12,7 +12,7 @@ from __future__ import annotations
 
 import logging
 
-from providers.registry import _PROVIDER_CLASSES
+from providers.registry import _PROVIDER_CLASSES, resolve_enabled_names
 
 logger = logging.getLogger(__name__)
 
@@ -115,6 +115,18 @@ def _classify_health(
     return True, "OK", "ok"
 
 
+def _stored_value(settings, key: str) -> str:
+    """A credential's stored value. Dotted keys (catalog providers) live only in config_entries."""
+    if "." in key:
+        try:
+            from db.config import get_config_entry
+
+            return get_config_entry(key) or ""
+        except Exception:  # noqa: BLE001 — a status read must not fail on the DB
+            return ""
+    return getattr(settings, key, "") or ""
+
+
 def _uninitialized_reason(config_fields: list[dict], settings) -> tuple[str, str]:
     """Explain why a provider never came up: ``(message, reason)``.
 
@@ -126,7 +138,7 @@ def _uninitialized_reason(config_fields: list[dict], settings) -> tuple[str, str
     missing = [
         f.get("key")
         for f in config_fields or []
-        if f.get("required") and not (getattr(settings, f.get("key", ""), "") or "")
+        if f.get("required") and not _stored_value(settings, f.get("key", ""))
     ]
     if missing:
         return f"No credentials stored ({', '.join(m for m in missing if m)})", "no_credentials"
@@ -160,11 +172,7 @@ class StatusReportingMixin:
         priority_list = [p.strip() for p in priority_str.split(",") if p.strip()]
 
         # Get enabled set
-        enabled_str = getattr(self.settings, "providers_enabled", "")
-        if enabled_str:
-            enabled_set = {p.strip() for p in enabled_str.split(",") if p.strip()}
-        else:
-            enabled_set = set(_PROVIDER_CLASSES.keys())
+        enabled_set = resolve_enabled_names(getattr(self.settings, "providers_enabled", ""))
 
         # Download stats from DB (single batch query)
         download_stats = get_provider_download_stats()
@@ -276,6 +284,7 @@ class StatusReportingMixin:
                         "contribution_share": contribution_share,
                         "earns_its_place": earns_its_place,
                         "config_fields": config_fields,
+                        "opt_in": bool(getattr(_PROVIDER_CLASSES.get(name), "opt_in", False)),
                         "languages": supported_languages,
                         "stats": stats_dict,
                         "circuit_breaker_state": cb_state,
@@ -298,6 +307,7 @@ class StatusReportingMixin:
                         "contribution_share": contribution_share,
                         "earns_its_place": earns_its_place,
                         "config_fields": config_fields,
+                        "opt_in": bool(getattr(_PROVIDER_CLASSES.get(name), "opt_in", False)),
                         "languages": supported_languages,
                         "stats": stats_dict,
                         "circuit_breaker_state": cb_state,
@@ -317,11 +327,7 @@ class StatusReportingMixin:
         circuit_open = 0
         throttled_providers = []
 
-        enabled_str = getattr(self.settings, "providers_enabled", "")
-        if enabled_str:
-            enabled_set = {p.strip() for p in enabled_str.split(",") if p.strip()}
-        else:
-            enabled_set = set(_PROVIDER_CLASSES.keys())
+        enabled_set = resolve_enabled_names(getattr(self.settings, "providers_enabled", ""))
 
         for name in enabled_set:
             provider = self._providers.get(name)

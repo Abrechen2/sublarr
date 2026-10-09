@@ -18,6 +18,8 @@ pydantic-settings==2.7.1
 python-dotenv==1.2.2
 simple-websocket==1.1.0
 rarfile==4.2
+# Needed by the subcentral catalog provider (providers/hub/bundles), Apache-2.0, no deps.
+ua-generator==2.1.6
 deepl>=1.20.0
 openai>=1.0.0
 google-cloud-translate>=3.10.0

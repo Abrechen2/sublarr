@@ -1,0 +1,83 @@
+{
+  "api_version": "bazarr.provider-hub.v1",
+  "bundle_sha256": "ebe6c008d0060eb446c3aee95694150d88dc33c042db5a651a6e6392da77a507",
+  "config_schema": {
+    "additionalProperties": false,
+    "properties": {
+      "api_url": {
+        "description": "Optional BSPlayer SOAP endpoint override. Leave blank to try the standard subdomains.",
+        "title": "API URL override",
+        "type": "string"
+      },
+      "request_delay_ms": {
+        "default": 0,
+        "description": "Optional delay before the searchSubtitles SOAP call.",
+        "maximum": 10000,
+        "minimum": 0,
+        "title": "Delay between requests (ms)",
+        "type": "integer"
+      },
+      "timeout_seconds": {
+        "default": 12,
+        "description": "HTTP timeout for BSPlayer SOAP calls.",
+        "maximum": 60,
+        "minimum": 3,
+        "title": "Timeout (seconds)",
+        "type": "integer"
+      }
+    },
+    "type": "object"
+  },
+  "dependencies": {
+    "requirements": []
+  },
+  "description": "Uses the BSPlayer subtitles SOAP API for hash and size based movie and episode subtitle lookup.",
+  "entry_class": "BSPlayerProvider",
+  "entry_module": "provider",
+  "files": {
+    "provider.py": "fec5bec9638ccba9e681e4e065aacd8459eeb553ddfbe3b9bfc3ff24516c12f1"
+  },
+  "languages": [
+    "ara",
+    "bul",
+    "ces",
+    "dan",
+    "deu",
+    "ell",
+    "eng",
+    "fin",
+    "fra",
+    "hun",
+    "ita",
+    "jpn",
+    "kor",
+    "nld",
+    "pol",
+    "por",
+    "ron",
+    "rus",
+    "spa",
+    "swe",
+    "tur",
+    "ukr",
+    "zho"
+  ],
+  "name": "BSPlayer",
+  "provider_id": "bsplayer",
+  "schema_version": 1,
+  "secret_fields": [],
+  "source": {
+    "catalog_url": "https://github.com/LavX/bazarr-provider-catalog/blob/main/catalog.json",
+    "commit": "0000000000000000000000000000000000000000",
+    "path": "providers/bsplayer",
+    "ref": "main",
+    "repo": "LavX/bazarr-provider-catalog",
+    "trusted": true,
+    "type": "github"
+  },
+  "supported_media": [
+    "movie",
+    "episode"
+  ],
+  "version": "0.1.1"
+}

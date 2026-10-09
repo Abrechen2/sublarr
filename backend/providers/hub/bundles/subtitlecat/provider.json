@@ -1,0 +1,105 @@
+{
+  "api_version": "bazarr.provider-hub.v1",
+  "bundle_sha256": "adb5c41a9f98732033cf3e26a7750be2b7c3405d82dd8fe9382651d580c79f69",
+  "config_schema": {
+    "additionalProperties": false,
+    "properties": {
+      "include_machine_translated": {
+        "default": true,
+        "description": "When off, only return the original-language file. The site caches Google-Translate-derived files from previous visitors; toggle this off if you do not want them.",
+        "title": "Include machine-translated subtitles",
+        "type": "boolean"
+      },
+      "request_delay_ms": {
+        "default": 0,
+        "description": "Optional politeness delay between HTTP calls to subtitlecat.com.",
+        "maximum": 5000,
+        "minimum": 0,
+        "title": "Delay between requests (ms)",
+        "type": "integer"
+      }
+    },
+    "type": "object"
+  },
+  "dependencies": {
+    "requirements": []
+  },
+  "description": "Scrapes subtitlecat.com for community subtitle files. No login or API key required.",
+  "entry_class": "SubtitlecatProvider",
+  "entry_module": "provider",
+  "files": {
+    "provider.py": "38a64c5dc624ab334a5a0abe828d423cb9ddc82fe9069d9fc1e2e0c6458df418"
+  },
+  "languages": [
+    "eng",
+    "spa",
+    "fra",
+    "deu",
+    "ita",
+    "por",
+    "pol",
+    "rus",
+    "tur",
+    "ara",
+    "hin",
+    "ind",
+    "nld",
+    "zho",
+    "jpn",
+    "kor",
+    "ces",
+    "ell",
+    "hun",
+    "ron",
+    "bul",
+    "swe",
+    "dan",
+    "nor",
+    "fin",
+    "ukr",
+    "slk",
+    "hrv",
+    "srp",
+    "slv",
+    "lit",
+    "lav",
+    "est",
+    "vie",
+    "tha",
+    "msa",
+    "fil",
+    "heb",
+    "fas",
+    "urd",
+    "ben",
+    "tam",
+    "tel",
+    "mar",
+    "kan",
+    "mal",
+    "sin",
+    "kat",
+    "hye",
+    "aze",
+    "kaz",
+    "uzb"
+  ],
+  "name": "SubtitleCat",
+  "provider_id": "subtitlecat",
+  "schema_version": 1,
+  "secret_fields": [],
+  "source": {
+    "catalog_url": "https://github.com/LavX/bazarr-provider-catalog/blob/main/catalog.json",
+    "commit": "0000000000000000000000000000000000000000",
+    "path": "providers/subtitlecat",
+    "ref": "main",
+    "repo": "LavX/bazarr-provider-catalog",
+    "trusted": true,
+    "type": "github"
+  },
+  "supported_media": [
+    "movie",
+    "episode"
+  ],
+  "version": "0.1.8"
+}

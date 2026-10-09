@@ -45,6 +45,7 @@ from providers.registry import (  # noqa: F401 — _PROVIDER_CLASSES, _BUILTIN_P
     PROVIDER_METADATA,
     import_builtin_providers,
     register_provider,
+    resolve_enabled_names,
 )
 from providers.search_coordinator import SearchCoordinatorMixin
 
@@ -104,12 +105,7 @@ class ProviderManager(SearchCoordinatorMixin, ConfigResolvingMixin, StatusReport
         self._load_plugins()
 
         # Get enabled providers
-        enabled_str = getattr(self.settings, "providers_enabled", "")
-        if enabled_str:
-            enabled_set = {p.strip() for p in enabled_str.split(",") if p.strip()}
-        else:
-            # Default: enable all registered providers
-            enabled_set = set(_PROVIDER_CLASSES.keys())
+        enabled_set = resolve_enabled_names(getattr(self.settings, "providers_enabled", ""))
 
         # Get priority order from config
         priority_str = getattr(
@@ -374,10 +370,7 @@ class ProviderManager(SearchCoordinatorMixin, ConfigResolvingMixin, StatusReport
 
         self.settings = _get_settings()
 
-        if new_enabled_str:
-            new_enabled_set = {p.strip() for p in new_enabled_str.split(",") if p.strip()}
-        else:
-            new_enabled_set = set(_PROVIDER_CLASSES.keys())
+        new_enabled_set = resolve_enabled_names(new_enabled_str)
 
         current_names = set(self._providers.keys())
 

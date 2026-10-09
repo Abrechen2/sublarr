@@ -7,6 +7,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- **43 more subtitle sources from the Bazarr+ provider catalog** — Sublarr
+  takes over the providers of the Bazarr+ Provider Hub catalog that it did not
+  have yet, among them AvistaZ, CinemaZ, HDBits, KaraGarga, SubCentral,
+  Titulky, Subtitlecat, Ktuvit, RegieLive, SubHD and many sources for single
+  languages (Greek, Bulgarian, Romanian, Estonian, Latvian, Turkish, Chinese,
+  ...). They are off by default: switch on "Catalog providers" in the provider
+  settings, then enable each source you want; some need an account. The code
+  is a reviewed, pinned copy of the catalog (MIT, LavX) and every file is
+  checked against its recorded hash before it is loaded. Providers that need
+  the cloudscraper/Js2Py stack are not included.
+- **Every ISO 639-1 language can be chosen** — The language picker offered 64
+  languages; it now offers all 183, from Belarusian and Welsh to Khmer, Kurdish
+  and Yoruba, with German and English names. Three-letter tags of these
+  languages (``bel``, ``wel``, ``tib``, ...) are recognised on tracks too.
+- **Provider settings support switches and choice lists** — Settings that are
+  yes/no or one of a few values are shown as a checkbox or a dropdown instead
+  of a text field.
+
 ### Fixed
 - **Plex scans only the folder that got a new subtitle** — The item lookup used
   a search filter that the Plex library rejects before anything reaches Plex,

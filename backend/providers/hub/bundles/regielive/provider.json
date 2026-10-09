@@ -1,0 +1,48 @@
+{
+  "api_version": "bazarr.provider-hub.v1",
+  "bundle_sha256": "9647f3761fcfa7c55c49015c91af5e1f4b6d3540fe36473508250e76d6e95156",
+  "config_schema": {
+    "additionalProperties": false,
+    "properties": {
+      "request_delay_ms": {
+        "default": 0,
+        "description": "Optional politeness delay between HTTP calls to RegieLive.",
+        "maximum": 5000,
+        "minimum": 0,
+        "title": "Delay between requests (ms)",
+        "type": "integer"
+      }
+    },
+    "type": "object"
+  },
+  "dependencies": {
+    "requirements": []
+  },
+  "description": "Searches the RegieLive Bazarr API for Romanian movie and episode subtitles, falls back to the public HTML pages when the API rejects the request, and downloads subtitle ZIP files.",
+  "entry_class": "RegieLiveProvider",
+  "entry_module": "provider",
+  "files": {
+    "provider.py": "be184d297245642c6d5d27a9b3f46bdac670f522f8a5fb95e3412a2e8c3cbb01"
+  },
+  "languages": [
+    "ron"
+  ],
+  "name": "RegieLive",
+  "provider_id": "regielive",
+  "schema_version": 1,
+  "secret_fields": [],
+  "source": {
+    "catalog_url": "https://github.com/LavX/bazarr-provider-catalog/blob/main/catalog.json",
+    "commit": "0000000000000000000000000000000000000000",
+    "path": "providers/regielive",
+    "ref": "main",
+    "repo": "LavX/bazarr-provider-catalog",
+    "trusted": true,
+    "type": "github"
+  },
+  "supported_media": [
+    "movie",
+    "episode"
+  ],
+  "version": "0.1.3"
+}

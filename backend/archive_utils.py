@@ -34,15 +34,33 @@ def _safe_basename(path: str) -> str:
     return secure_filename(raw)
 
 
+def _plain_basename(path: str) -> str:
+    """Basename that keeps non-Latin letters, still safe as a label.
+
+    ``secure_filename`` reduces "简体.srt" to "srt" and "Ταινία.srt" to "srt":
+    the extension check then drops the file, and two members can collapse to
+    one name. Callers that only match or display names (never write them as a
+    path) use this instead: directories, control characters and leading dots
+    are removed, letters of every script stay.
+    """
+    raw = os.path.basename(path.replace("\\", "/"))
+    cleaned = "".join(ch for ch in raw if ch.isprintable()).strip().lstrip(".")
+    return cleaned
+
+
 def extract_subtitles_from_zip(
     data: bytes,
     subtitle_exts: frozenset[str] = _SUBTITLE_EXTENSIONS,
+    raw_names: bool = False,
 ) -> list[tuple[str, bytes]]:
     """In-memory ZIP extraction with ZIP bomb and size protection.
 
     Args:
         data: Raw ZIP archive bytes.
         subtitle_exts: Allowed subtitle file extensions (with leading dot).
+        raw_names: Return names via ``_plain_basename`` (non-Latin letters kept)
+            instead of ``secure_filename``. Only for callers that never use the
+            name as a filesystem path.
 
     Returns:
         List of (basename, content) tuples for matching subtitle files.
@@ -82,7 +100,7 @@ def extract_subtitles_from_zip(
                 if info.filename.endswith("/"):
                     continue
                 # Strip any path components + sanitize for disk write (ZIP slip + P2)
-                basename = _safe_basename(info.filename)
+                basename = (_plain_basename if raw_names else _safe_basename)(info.filename)
                 if not basename:
                     continue
                 ext = os.path.splitext(basename)[1].lower()
@@ -201,6 +219,7 @@ def safe_extract_zip_member_to(
 def extract_subtitles_from_rar(
     data: bytes,
     subtitle_exts: frozenset[str] = _SUBTITLE_EXTENSIONS,
+    raw_names: bool = False,
 ) -> list[tuple[str, bytes]]:
     """In-memory RAR extraction with size protection.
 
@@ -227,7 +246,7 @@ def extract_subtitles_from_rar(
     try:
         with rarfile.RarFile(io.BytesIO(data)) as rf:
             for info in rf.infolist():
-                basename = _safe_basename(info.filename)
+                basename = (_plain_basename if raw_names else _safe_basename)(info.filename)
                 if not basename:
                     continue
                 ext = os.path.splitext(basename)[1].lower()

@@ -1,0 +1,74 @@
+{
+  "api_version": "bazarr.provider-hub.v1",
+  "bundle_sha256": "b5e944d04b0fa7f486696eba631afe7a027126bdcf3b03521e5f8ed16bfbc51f",
+  "config_schema": {
+    "additionalProperties": false,
+    "properties": {
+      "f_password": {
+        "default": "",
+        "description": "Optional Karagarga forum password. Defaults to the main password when empty.",
+        "secret": true,
+        "title": "Forum password",
+        "type": "string"
+      },
+      "f_username": {
+        "default": "",
+        "description": "Optional Karagarga forum username. Defaults to the main username when empty.",
+        "title": "Forum username",
+        "type": "string"
+      },
+      "password": {
+        "description": "Karagarga tracker password.",
+        "minLength": 1,
+        "secret": true,
+        "title": "Password",
+        "type": "string"
+      },
+      "username": {
+        "description": "Karagarga tracker username.",
+        "minLength": 1,
+        "secret": true,
+        "title": "Username",
+        "type": "string"
+      }
+    },
+    "required": [
+      "username",
+      "password"
+    ],
+    "type": "object"
+  },
+  "dependencies": {
+    "requirements": []
+  },
+  "description": "Uses Karagarga tracker search plus forum attachments for English movie subtitles. Requires Karagarga tracker and forum credentials.",
+  "entry_class": "KaragargaProvider",
+  "entry_module": "provider",
+  "files": {
+    "provider.py": "5b03ed08993d003f08af9f465970d532f6529f70bf1763ac7742235931402900"
+  },
+  "languages": [
+    "eng"
+  ],
+  "name": "Karagarga",
+  "provider_id": "karagarga",
+  "schema_version": 1,
+  "secret_fields": [
+    "username",
+    "password",
+    "f_password"
+  ],
+  "source": {
+    "catalog_url": "https://github.com/LavX/bazarr-provider-catalog/blob/main/catalog.json",
+    "commit": "0000000000000000000000000000000000000000",
+    "path": "providers/karagarga",
+    "ref": "main",
+    "repo": "LavX/bazarr-provider-catalog",
+    "trusted": true,
+    "type": "github"
+  },
+  "supported_media": [
+    "movie"
+  ],
+  "version": "0.1.5"
+}

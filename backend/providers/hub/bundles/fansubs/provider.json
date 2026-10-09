@@ -1,0 +1,48 @@
+{
+  "api_version": "bazarr.provider-hub.v1",
+  "bundle_sha256": "a20e5501edee33854dc4245b8b01eb8b37ff4899d3fc2439550e688c7f2f8d24",
+  "config_schema": {
+    "additionalProperties": false,
+    "properties": {
+      "request_delay_ms": {
+        "default": 0,
+        "description": "Optional politeness delay between HTTP calls to fansubs.ru.",
+        "maximum": 5000,
+        "minimum": 0,
+        "title": "Delay between requests (ms)",
+        "type": "integer"
+      }
+    },
+    "type": "object"
+  },
+  "dependencies": {
+    "requirements": []
+  },
+  "description": "Scrapes fansubs.ru for Russian anime and Asian cinema subtitle releases. No login or API key required.",
+  "entry_class": "FansubsProvider",
+  "entry_module": "provider",
+  "files": {
+    "provider.py": "b041ea46442bae83d9a83f0271a0bf292fe7a6f3decd18ac3d7a7e8a5f168e81"
+  },
+  "languages": [
+    "rus"
+  ],
+  "name": "Fansubs.ru",
+  "provider_id": "fansubs",
+  "schema_version": 1,
+  "secret_fields": [],
+  "source": {
+    "catalog_url": "https://github.com/LavX/bazarr-provider-catalog/blob/main/catalog.json",
+    "commit": "0000000000000000000000000000000000000000",
+    "path": "providers/fansubs",
+    "ref": "main",
+    "repo": "LavX/bazarr-provider-catalog",
+    "trusted": true,
+    "type": "github"
+  },
+  "supported_media": [
+    "movie",
+    "episode"
+  ],
+  "version": "0.1.6"
+}

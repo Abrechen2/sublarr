@@ -1,0 +1,119 @@
+{
+  "api_version": "bazarr.provider-hub.v1",
+  "bundle_sha256": "3d36aa74bdd8280090f4132152b1c49262faf13204f1642a8a4d9b47810fb21f",
+  "config_schema": {
+    "additionalProperties": false,
+    "properties": {
+      "account_name": {
+        "default": "",
+        "description": "Optional. Without an account the provider still searches series and movies and downloads every series subtitle the site lets visitors download. An account unlocks two more things. Movie subtitles need an account, because the site does not let visitors download movies; without one, movie searches find nothing to download. Token-priced subtitles need an account too, and are bought only after you turn on Allow token-priced downloads. Fill in this and the password, or paste a session cookie instead. The site protects its sign-in page with a Cloudflare Turnstile captcha, so if Bazarr cannot sign in with a username and password, use the session cookie field.",
+        "secret": true,
+        "title": "Username (optional)",
+        "type": "string"
+      },
+      "account_password": {
+        "default": "",
+        "description": "Optional. The password for your Prijevodi-Online username.",
+        "secret": true,
+        "title": "Password (optional)",
+        "type": "string"
+      },
+      "allow_paid_downloads": {
+        "default": false,
+        "description": "Spends your account's download tokens. Off by default. When on, and a username and password or a session cookie is set, the provider may buy subtitles that cost no more than the Maximum tokens per download setting, for automatic and manual downloads alike. When off, token-priced subtitles are not offered and no tokens are ever spent.",
+        "title": "Allow token-priced downloads",
+        "type": "boolean"
+      },
+      "flaresolverr_timeout_ms": {
+        "default": 25000,
+        "description": "Maximum time FlareSolverr may spend clearing a Cloudflare challenge. Values over 25000 are used as 25000, so a solve fits in the time Bazarr gives each request.",
+        "maximum": 30000,
+        "minimum": 5000,
+        "title": "FlareSolverr timeout (ms)",
+        "type": "integer"
+      },
+      "flaresolverr_url": {
+        "default": "",
+        "description": "Optional. FlareSolverr /v1 endpoint, used only if prijevodi-online.org starts answering with a Cloudflare challenge. The site does not challenge requests today, so leave it empty unless searches fail with a Cloudflare error. Sign-in details and session cookies are never sent to FlareSolverr.",
+        "title": "FlareSolverr URL",
+        "type": "string"
+      },
+      "max_tokens_per_download": {
+        "default": "1",
+        "description": "The most the provider may pay for one subtitle when token-priced downloads are on. Prices fall with age: a series subtitle costs 5 tokens in its first week, 2 until day 14, then 1. A movie subtitle costs 5, 3 and 2 until days 7, 21 and 60, then 1. At 1, Bazarr's regular searches pick a subtitle up once its price has dropped to 1.",
+        "enum": [
+          "1",
+          "2",
+          "3",
+          "5",
+          "10"
+        ],
+        "title": "Maximum tokens per download",
+        "type": "string"
+      },
+      "request_delay_ms": {
+        "default": 0,
+        "description": "Optional pause between requests to prijevodi-online.org. The provider already slows down by itself when the site's rate limit runs low.",
+        "maximum": 5000,
+        "minimum": 0,
+        "title": "Delay between requests (ms)",
+        "type": "integer"
+      },
+      "session_cookie": {
+        "default": "",
+        "description": "Optional, instead of a username and password. Sign in on www.prijevodi-online.org in your browser, open the developer tools, pick any request to /api/v1/ in the Network tab and copy its whole Cookie request header here. It is used first when set. It stops working when that browser session ends, including when you sign out in the browser.",
+        "secret": true,
+        "title": "Session cookie (optional)",
+        "type": "string"
+      },
+      "session_user_agent": {
+        "default": "",
+        "description": "Only needed if the site rejects the session cookie from Bazarr. Paste the User-Agent of the browser the cookie came from.",
+        "title": "Browser User-Agent for the session cookie (optional)",
+        "type": "string"
+      }
+    },
+    "type": "object"
+  },
+  "dependencies": {
+    "requirements": []
+  },
+  "description": "Uses the Prijevodi-Online API for Croatian, Serbian (Latin and Cyrillic), Bosnian, Montenegrin, Macedonian, and Serbo-Croatian episode and movie subtitles. No account is needed for series: search always works, and downloads work wherever the site lets visitors download. An account is optional and unlocks movies and token-priced subtitles. Movie subtitles need an account, because the site does not let visitors download movies. Sign in with a username and password or a browser session cookie. Tokens are spent only after you turn on token-priced downloads, and never for more than the per-download limit you set. Downloads arrive as ZIP archives (the site repacks older RAR uploads), and a RAR is still accepted.",
+  "entry_class": "PrijevodiOnlineProvider",
+  "entry_module": "provider",
+  "files": {
+    "provider.py": "59fe99db0ea56600b2d2dcc2b3075a3aff8c33f0c66fefda7ba16cf88741457e"
+  },
+  "flaresolverr": true,
+  "languages": [
+    "bos",
+    "cnr",
+    "hbs",
+    "hrv",
+    "mkd",
+    "sr-Cyrl",
+    "srp"
+  ],
+  "name": "Prijevodi-Online",
+  "provider_id": "prijevodionline",
+  "schema_version": 1,
+  "secret_fields": [
+    "account_name",
+    "account_password",
+    "session_cookie"
+  ],
+  "source": {
+    "catalog_url": "https://github.com/LavX/bazarr-provider-catalog/blob/main/catalog.json",
+    "commit": "0000000000000000000000000000000000000000",
+    "path": "providers/prijevodionline",
+    "ref": "main",
+    "repo": "LavX/bazarr-provider-catalog",
+    "trusted": true,
+    "type": "github"
+  },
+  "supported_media": [
+    "episode",
+    "movie"
+  ],
+  "version": "0.3.0"
+}

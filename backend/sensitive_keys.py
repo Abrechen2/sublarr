@@ -31,6 +31,11 @@ EXCLUDED_KEYS: frozenset[str] = frozenset({"ui_session_secret", "ui_password_has
 
 
 def is_sensitive_key(key: str) -> bool:
+    if key.startswith("hub."):
+        # Catalog provider credentials (providers/hub). Unlike the other dotted
+        # namespaces they are only ever read and written through
+        # ConfigRepository, which decrypts, so they can be encrypted at rest.
+        return _is_hub_secret(key)
     if "." in key:
         # Namespaced keys belong to sub-repositories that manage their own
         # storage and bypass the encrypt/decrypt layer — see module docstring.
@@ -40,3 +45,24 @@ def is_sensitive_key(key: str) -> bool:
     if key in SENSITIVE_EXACT:
         return True
     return key.endswith(SENSITIVE_SUFFIXES)
+
+
+def _is_hub_secret(key: str) -> bool:
+    try:
+        from providers.hub import is_hub_secret_key
+
+        return is_hub_secret_key(key)
+    except Exception:  # noqa: BLE001 — unreadable manifests: fall back to the leaf name
+        leaf = key.rsplit(".", 1)[-1]
+        return (
+            leaf in SENSITIVE_EXACT
+            or leaf.endswith(SENSITIVE_SUFFIXES)
+            or leaf
+            in {
+                "password",
+                "token",
+                "secret",
+                "cookies",
+                "passkey",
+            }
+        )

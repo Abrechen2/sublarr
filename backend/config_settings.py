@@ -87,6 +87,11 @@ _EXPLICIT_MASKED = frozenset({"database_url", "redis_url"})
 
 def is_sensitive_config_key(key: str) -> bool:
     """Whether a settings field must be masked before it leaves the API."""
+    if key.startswith("hub."):
+        # Catalog provider settings: the manifests name their credentials.
+        from sensitive_keys import is_sensitive_key
+
+        return is_sensitive_key(key)
     if key in _EXPLICIT_MASKED:
         return True
     if "api_key" in key:
@@ -235,6 +240,11 @@ class UISettings(BaseModel):
     # Subtitle Providers
     provider_priorities: str = "animetosho,jimaku,opensubtitles,subdl"
     providers_enabled: str = ""  # Empty = all registered providers enabled
+    # Providers taken over from the Bazarr+ Provider Hub catalog
+    # (providers/hub). Off by default: they are third-party scrapers that run
+    # in-process, so an install turns them on deliberately. Each one still
+    # has to be enabled in the provider list after that.
+    provider_hub_enabled: bool = False
     providers_hidden: str = ""  # Comma-separated provider names hidden from UI grid
     # Per-provider language exclusion (#192): JSON object mapping provider
     # name to ISO 639-1 codes it must never serve, e.g. {"opensubtitles": ["sr"]}

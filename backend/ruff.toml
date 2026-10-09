@@ -7,7 +7,9 @@ target-version = "py311"
 # Vendored third-party code — we do not lint or reformat it because patches
 # must stay minimal to keep the ledger (providers/_vendor/VENDOR_PATCHES.md)
 # honest and upstream updates easy to apply.
-extend-exclude = ["providers/_vendor"]
+# providers/hub/bundles is copied verbatim from the Bazarr+ provider catalog
+# and hash-checked at load time — reformatting it would break the hashes.
+extend-exclude = ["providers/_vendor", "providers/hub/bundles"]
 
 [lint]
 # Select rule sets: E (pycodestyle errors), F (pyflakes), I (isort), N (pep8-naming), W (pycodestyle warnings)

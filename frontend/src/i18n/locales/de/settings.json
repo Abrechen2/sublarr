@@ -1692,6 +1692,8 @@
     "advanced_section": "Provider-Engine",
     "hidden_providers_hint": "Kommagetrennte Provider-IDs, die aus der Liste ausgeblendet werden sollen (z. B. opensubtitles,kitsunekko).",
     "dedup_on_download_hint": "Untertitel-Download überspringen, wenn bereits eine identische Datei vorhanden ist.",
+    "hub_enabled": "Katalog-Provider (Bazarr+)",
+    "hub_enabled_hint": "Lädt 43 zusätzliche Untertitel-Quellen aus dem Bazarr+-Provider-Katalog, für viele Sprachen. Danach jede gewünschte Quelle einzeln in der Liste aktivieren; manche brauchen ein Konto.",
     "auto_prioritize_hint": "Provider automatisch nach jüngster Erfolgsrate sortieren.",
     "rate_limiting_hint": "Pro-Provider-Anfragelimits erzwingen, um Sperren zu vermeiden.",
     "search_timeout_hint": "Sekunden, bis eine Provider-Suchanfrage abläuft.",

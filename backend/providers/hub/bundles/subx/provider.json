@@ -1,0 +1,59 @@
+{
+  "api_version": "bazarr.provider-hub.v1",
+  "bundle_sha256": "6b829b09c3a9cfee88e03a0b3d208e313a8b384be6bd8d30232969ad93b5f6d3",
+  "config_schema": {
+    "additionalProperties": false,
+    "properties": {
+      "api_key": {
+        "description": "SubX API key used as a Bearer token.",
+        "secret": true,
+        "title": "API key",
+        "type": "string"
+      },
+      "request_delay_ms": {
+        "default": 0,
+        "description": "Optional politeness delay between SubX API requests.",
+        "maximum": 5000,
+        "minimum": 0,
+        "title": "Delay between requests (ms)",
+        "type": "integer"
+      }
+    },
+    "required": [
+      "api_key"
+    ],
+    "type": "object"
+  },
+  "dependencies": {
+    "requirements": []
+  },
+  "description": "Uses the SubX API for Spanish movie and episode subtitles. Requires an API key. Spain and Latin American Spanish variants plus ZIP and RAR downloads are supported.",
+  "entry_class": "SubXProvider",
+  "entry_module": "provider",
+  "files": {
+    "provider.py": "911a170e8d27dc4d39f6e8b5460bf861c7b71ca57a93e6480b9fc2d8b612af59"
+  },
+  "languages": [
+    "spa"
+  ],
+  "name": "SubX",
+  "provider_id": "subx",
+  "schema_version": 1,
+  "secret_fields": [
+    "api_key"
+  ],
+  "source": {
+    "catalog_url": "https://github.com/LavX/bazarr-provider-catalog/blob/main/catalog.json",
+    "commit": "0000000000000000000000000000000000000000",
+    "path": "providers/subx",
+    "ref": "main",
+    "repo": "LavX/bazarr-provider-catalog",
+    "trusted": true,
+    "type": "github"
+  },
+  "supported_media": [
+    "movie",
+    "episode"
+  ],
+  "version": "0.1.2"
+}

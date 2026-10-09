@@ -1,0 +1,49 @@
+{
+  "api_version": "bazarr.provider-hub.v1",
+  "bundle_sha256": "f7c9fba58827e4b5d4d0921a025bf29b3a40f2f40dfbca87866ae5cfe1b7d922",
+  "config_schema": {
+    "additionalProperties": false,
+    "properties": {
+      "request_delay_ms": {
+        "default": 0,
+        "description": "Optional politeness delay between HTTP calls to greek-subtitles.com.",
+        "maximum": 5000,
+        "minimum": 0,
+        "title": "Delay between requests (ms)",
+        "type": "integer"
+      }
+    },
+    "type": "object"
+  },
+  "dependencies": {
+    "requirements": []
+  },
+  "description": "Scrapes GreekSubtitles search results for Greek and English movie and episode subtitles. ZIP and RAR downloads are supported.",
+  "entry_class": "GreekSubtitlesProvider",
+  "entry_module": "provider",
+  "files": {
+    "provider.py": "bfe2c03aca6f2e422409eaa3a85d73efcb66b054698de86f9e141d994f95f65b"
+  },
+  "languages": [
+    "ell",
+    "eng"
+  ],
+  "name": "GreekSubtitles",
+  "provider_id": "greeksubtitles",
+  "schema_version": 1,
+  "secret_fields": [],
+  "source": {
+    "catalog_url": "https://github.com/LavX/bazarr-provider-catalog/blob/main/catalog.json",
+    "commit": "0000000000000000000000000000000000000000",
+    "path": "providers/greeksubtitles",
+    "ref": "main",
+    "repo": "LavX/bazarr-provider-catalog",
+    "trusted": true,
+    "type": "github"
+  },
+  "supported_media": [
+    "movie",
+    "episode"
+  ],
+  "version": "0.1.6"
+}

@@ -1,0 +1,64 @@
+{
+  "api_version": "bazarr.provider-hub.v1",
+  "bundle_sha256": "7ba561ce03e053ec6044e0830a82817338ae855a4abaad7908abcecabbb3714c",
+  "config_schema": {
+    "additionalProperties": false,
+    "properties": {},
+    "type": "object"
+  },
+  "dependencies": {
+    "requirements": []
+  },
+  "description": "Scrapes subtitulamos.tv for episode subtitles in Spanish, English, Catalan, Galician, and Portuguese. No login or API key required.",
+  "entry_class": "SubtitulamosTVProvider",
+  "entry_module": "provider",
+  "files": {
+    "provider.py": "1f3db65051b8220a470369339522a637a8e4dcd57bb1147609f6fe45215afcc2"
+  },
+  "languages": [
+    "ca",
+    "en",
+    "en-GB",
+    "en-US",
+    "es",
+    "es-AR",
+    "es-BO",
+    "es-CL",
+    "es-CO",
+    "es-CR",
+    "es-DO",
+    "es-EC",
+    "es-GT",
+    "es-HN",
+    "es-MX",
+    "es-NI",
+    "es-PA",
+    "es-PE",
+    "es-PR",
+    "es-PY",
+    "es-SV",
+    "es-US",
+    "es-UY",
+    "es-VE",
+    "gl",
+    "pt",
+    "pt-BR"
+  ],
+  "name": "SubtitulamosTV",
+  "provider_id": "subtitulamostv",
+  "schema_version": 1,
+  "secret_fields": [],
+  "source": {
+    "catalog_url": "https://github.com/LavX/bazarr-provider-catalog/blob/main/catalog.json",
+    "commit": "0000000000000000000000000000000000000000",
+    "path": "providers/subtitulamostv",
+    "ref": "main",
+    "repo": "LavX/bazarr-provider-catalog",
+    "trusted": true,
+    "type": "github"
+  },
+  "supported_media": [
+    "episode"
+  ],
+  "version": "0.1.2"
+}

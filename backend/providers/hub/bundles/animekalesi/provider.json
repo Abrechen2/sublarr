@@ -1,0 +1,47 @@
+{
+  "api_version": "bazarr.provider-hub.v1",
+  "bundle_sha256": "81463c61b8b021eafb87619ef1438815acf789c97cc080c749cc352f8a7a0366",
+  "config_schema": {
+    "additionalProperties": false,
+    "properties": {
+      "request_delay_ms": {
+        "default": 0,
+        "description": "Optional politeness delay between HTTP calls to animekalesi.com.",
+        "maximum": 5000,
+        "minimum": 0,
+        "title": "Delay between requests (ms)",
+        "type": "integer"
+      }
+    },
+    "type": "object"
+  },
+  "dependencies": {
+    "requirements": []
+  },
+  "description": "Scrapes AnimeKalesi episode subtitle pages for Turkish anime subtitles. Direct subtitle files and ZIP packages are supported.",
+  "entry_class": "AnimeKalesiProvider",
+  "entry_module": "provider",
+  "files": {
+    "provider.py": "526ad59e1feb071cf169750bb676ff2420a609e2d708388dec415f53f441b7eb"
+  },
+  "languages": [
+    "tur"
+  ],
+  "name": "AnimeKalesi",
+  "provider_id": "animekalesi",
+  "schema_version": 1,
+  "secret_fields": [],
+  "source": {
+    "catalog_url": "https://github.com/LavX/bazarr-provider-catalog/blob/main/catalog.json",
+    "commit": "0000000000000000000000000000000000000000",
+    "path": "providers/animekalesi",
+    "ref": "main",
+    "repo": "LavX/bazarr-provider-catalog",
+    "trusted": true,
+    "type": "github"
+  },
+  "supported_media": [
+    "episode"
+  ],
+  "version": "0.1.4"
+}

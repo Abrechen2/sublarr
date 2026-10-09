@@ -1,0 +1,89 @@
+{
+  "api_version": "bazarr.provider-hub.v1",
+  "bundle_sha256": "cdb890c7f7a9bd30ca39dcb02aa8cc7b09e2d046fab30640ff219b7ecb52d0d8",
+  "config_schema": {
+    "additionalProperties": false,
+    "properties": {
+      "request_delay_ms": {
+        "default": 0,
+        "description": "Optional politeness delay between HTTP calls to my-subs.co.",
+        "maximum": 5000,
+        "minimum": 0,
+        "title": "Delay between requests (ms)",
+        "type": "integer"
+      }
+    },
+    "type": "object"
+  },
+  "dependencies": {
+    "requirements": []
+  },
+  "description": "Scrapes my-subs.co for TV and movie subtitle files. No login or API key required.",
+  "entry_class": "MySubsProvider",
+  "entry_module": "provider",
+  "files": {
+    "provider.py": "20ebe426b072ce49538ebf79946b6ce8ed2889a51b20a58d462a2cb5201804d3"
+  },
+  "languages": [
+    "eng",
+    "spa",
+    "fra",
+    "deu",
+    "ita",
+    "por",
+    "pol",
+    "rus",
+    "tur",
+    "ara",
+    "hin",
+    "ind",
+    "nld",
+    "zho",
+    "jpn",
+    "kor",
+    "ces",
+    "ell",
+    "hun",
+    "ron",
+    "bul",
+    "swe",
+    "dan",
+    "nor",
+    "fin",
+    "ukr",
+    "slk",
+    "hrv",
+    "srp",
+    "slv",
+    "lit",
+    "lav",
+    "est",
+    "vie",
+    "tha",
+    "msa",
+    "fil",
+    "heb",
+    "fas",
+    "urd",
+    "ben",
+    "sqi"
+  ],
+  "name": "My-Subs",
+  "provider_id": "my_subs",
+  "schema_version": 1,
+  "secret_fields": [],
+  "source": {
+    "catalog_url": "https://github.com/LavX/bazarr-provider-catalog/blob/main/catalog.json",
+    "commit": "0000000000000000000000000000000000000000",
+    "path": "providers/my_subs",
+    "ref": "main",
+    "repo": "LavX/bazarr-provider-catalog",
+    "trusted": true,
+    "type": "github"
+  },
+  "supported_media": [
+    "movie",
+    "episode"
+  ],
+  "version": "0.1.3"
+}

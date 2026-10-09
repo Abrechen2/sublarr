@@ -1,0 +1,48 @@
+{
+  "api_version": "bazarr.provider-hub.v1",
+  "bundle_sha256": "3e63de3b408b8c97792068a85471955a4c2efe7283930db583608cb3caeca02c",
+  "config_schema": {
+    "additionalProperties": false,
+    "properties": {
+      "request_delay_ms": {
+        "default": 0,
+        "description": "Optional politeness delay between HTTP calls to subs4free.info.",
+        "maximum": 5000,
+        "minimum": 0,
+        "title": "Delay between requests (ms)",
+        "type": "integer"
+      }
+    },
+    "type": "object"
+  },
+  "dependencies": {
+    "requirements": []
+  },
+  "description": "Scrapes subs4free.info for Greek and English movie subtitles. Supports the legacy anti-block download flow plus ZIP and RAR archives.",
+  "entry_class": "Subs4FreeProvider",
+  "entry_module": "provider",
+  "files": {
+    "provider.py": "a513c190737d08d72b93e6731407eee03ed97d6ef7df5496bc2952940e899252"
+  },
+  "languages": [
+    "ell",
+    "eng"
+  ],
+  "name": "Subs4Free",
+  "provider_id": "subs4free",
+  "schema_version": 1,
+  "secret_fields": [],
+  "source": {
+    "catalog_url": "https://github.com/LavX/bazarr-provider-catalog/blob/main/catalog.json",
+    "commit": "0000000000000000000000000000000000000000",
+    "path": "providers/subs4free",
+    "ref": "main",
+    "repo": "LavX/bazarr-provider-catalog",
+    "trusted": true,
+    "type": "github"
+  },
+  "supported_media": [
+    "movie"
+  ],
+  "version": "0.1.4"
+}

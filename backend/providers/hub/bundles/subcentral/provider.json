@@ -1,0 +1,56 @@
+{
+  "api_version": "bazarr.provider-hub.v1",
+  "bundle_sha256": "96559184c1787b8a5ed411799f3469c028e4ae98028e182ae6ae7abe6db57310",
+  "config_schema": {
+    "additionalProperties": false,
+    "properties": {
+      "request_delay_ms": {
+        "default": 0,
+        "description": "Optional politeness delay between HTTP calls to subcentral.de.",
+        "maximum": 5000,
+        "minimum": 0,
+        "title": "Delay between requests (ms)",
+        "type": "integer"
+      }
+    },
+    "type": "object"
+  },
+  "dependencies": {
+    "requirements": [
+      {
+        "hashes": [
+          "sha256:877285e6adab3d6b0f9b295d954d121fc21a0305be8526038218e8f08be76df6"
+        ],
+        "name": "ua-generator",
+        "version": "2.1.6"
+      }
+    ]
+  },
+  "description": "Scrapes subcentral.de forum subtitle threads with a stable desktop Firefox identity. Guest thank-gate reveal and RAR downloads are supported.",
+  "entry_class": "SubCentralProvider",
+  "entry_module": "provider",
+  "files": {
+    "provider.py": "5769f31e12ceda201f3e9582e9dc01e7998f653eb0f83d04f4fe3ee51766aa0f"
+  },
+  "languages": [
+    "deu",
+    "eng"
+  ],
+  "name": "SubCentral.de",
+  "provider_id": "subcentral",
+  "schema_version": 1,
+  "secret_fields": [],
+  "source": {
+    "catalog_url": "https://github.com/LavX/bazarr-provider-catalog/blob/main/catalog.json",
+    "commit": "0000000000000000000000000000000000000000",
+    "path": "providers/subcentral",
+    "ref": "main",
+    "repo": "LavX/bazarr-provider-catalog",
+    "trusted": true,
+    "type": "github"
+  },
+  "supported_media": [
+    "episode"
+  ],
+  "version": "0.1.2"
+}

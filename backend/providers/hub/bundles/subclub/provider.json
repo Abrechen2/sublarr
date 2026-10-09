@@ -1,0 +1,48 @@
+{
+  "api_version": "bazarr.provider-hub.v1",
+  "bundle_sha256": "4df03992c79df890ab3fc0edda72a6349dd8a89e60496ca0feaa008dd3644789",
+  "config_schema": {
+    "additionalProperties": false,
+    "properties": {
+      "request_delay_ms": {
+        "default": 0,
+        "description": "Optional politeness delay between HTTP calls to subclub.eu.",
+        "maximum": 5000,
+        "minimum": 0,
+        "title": "Delay between requests (ms)",
+        "type": "integer"
+      }
+    },
+    "type": "object"
+  },
+  "dependencies": {
+    "requirements": []
+  },
+  "description": "Scrapes Subclub.eu for Estonian movie and episode subtitles. Direct file downloads and ZIP/RAR archive fallback are supported.",
+  "entry_class": "SubclubProvider",
+  "entry_module": "provider",
+  "files": {
+    "provider.py": "ab845315bd0a5fb9b07aa690ae4ddc2a44d509f8131252cb7d6d8ccd925bc2de"
+  },
+  "languages": [
+    "est"
+  ],
+  "name": "Subclub",
+  "provider_id": "subclub",
+  "schema_version": 1,
+  "secret_fields": [],
+  "source": {
+    "catalog_url": "https://github.com/LavX/bazarr-provider-catalog/blob/main/catalog.json",
+    "commit": "0000000000000000000000000000000000000000",
+    "path": "providers/subclub",
+    "ref": "main",
+    "repo": "LavX/bazarr-provider-catalog",
+    "trusted": true,
+    "type": "github"
+  },
+  "supported_media": [
+    "movie",
+    "episode"
+  ],
+  "version": "0.1.4"
+}

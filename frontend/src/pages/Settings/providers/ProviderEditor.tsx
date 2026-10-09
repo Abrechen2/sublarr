@@ -1,37 +1,40 @@
-import { useState } from 'react'
-import { useQuery } from '@tanstack/react-query'
-import { useTranslation } from 'react-i18next'
-import { Loader2, TestTube, Trash2, Download, Database } from 'lucide-react'
-import { SettingRow } from '@/components/shared/SettingRow'
-import ProviderKeysPool, { KEY_PROVIDERS } from '@/components/settings/ProviderKeysPool'
-import { listKeys } from '@/api/providerKeys'
-import { ProviderLanguageExcludes } from './ProviderLanguageExcludes'
-import type { ProviderInfo } from '@/lib/types'
+import { useState } from 'react';
+import { useQuery } from '@tanstack/react-query';
+import { useTranslation } from 'react-i18next';
+import { Loader2, TestTube, Trash2, Download, Database } from 'lucide-react';
+import { SettingRow } from '@/components/shared/SettingRow';
+import ProviderKeysPool, { KEY_PROVIDERS } from '@/components/settings/ProviderKeysPool';
+import { listKeys } from '@/api/providerKeys';
+import { ProviderLanguageExcludes } from './ProviderLanguageExcludes';
+import type { ProviderInfo } from '@/lib/types';
 import {
-  getStatusColor, getStatusLabel, getStatusBg,
-  getSuccessRateColor, getFieldDescription,
-} from './providerUtils'
+  getStatusColor,
+  getStatusLabel,
+  getStatusBg,
+  getSuccessRateColor,
+  getFieldDescription,
+} from './providerUtils';
 
 export interface ProviderEditorProps {
-  provider: ProviderInfo
-  cacheCount: number
-  fieldValues: Record<string, string>
-  testResult?: { healthy: boolean; message: string } | 'testing'
-  onFieldChange: (key: string, value: string) => void
-  onTest: () => void
+  provider: ProviderInfo;
+  cacheCount: number;
+  fieldValues: Record<string, string>;
+  testResult?: { healthy: boolean; message: string } | 'testing';
+  onFieldChange: (key: string, value: string) => void;
+  onTest: () => void;
   /** Fetch one real subtitle. Costs the account a download, so it is a
    *  separate action rather than part of the ordinary test. */
-  onTestDownload?: () => void
-  onToggle: () => void
-  onClearCache: () => void
-  onReEnable: () => void
-  onRemove?: () => void
+  onTestDownload?: () => void;
+  onToggle: () => void;
+  onClearCache: () => void;
+  onReEnable: () => void;
+  onRemove?: () => void;
   /** Optional content rendered in the header next to the title (e.g. modal close button). */
-  headerExtra?: React.ReactNode
+  headerExtra?: React.ReactNode;
   /** Optional content appended to the footer (right-aligned, e.g. modal close button). */
-  footerExtra?: React.ReactNode
+  footerExtra?: React.ReactNode;
   /** When true, the page-level title row is hidden — used inside ProviderEditModal which has its own title. */
-  hideTitle?: boolean
+  hideTitle?: boolean;
 }
 
 /**
@@ -42,27 +45,41 @@ export interface ProviderEditorProps {
  * the modal chrome. ProviderEditModal now wraps this component.
  */
 export function ProviderEditor({
-  provider, cacheCount, fieldValues, testResult,
-  onFieldChange, onTest, onTestDownload, onToggle, onClearCache, onReEnable, onRemove,
-  headerExtra, footerExtra, hideTitle,
+  provider,
+  cacheCount,
+  fieldValues,
+  testResult,
+  onFieldChange,
+  onTest,
+  onTestDownload,
+  onToggle,
+  onClearCache,
+  onReEnable,
+  onRemove,
+  headerExtra,
+  footerExtra,
+  hideTitle,
 }: ProviderEditorProps) {
-  const { t: tc } = useTranslation('common')
-  const { t: ts } = useTranslation('settings')
-  const [confirmRemove, setConfirmRemove] = useState(false)
-  const [errors, setErrors] = useState<Record<string, string>>({})
+  const { t: tc } = useTranslation('common');
+  const { t: ts } = useTranslation('settings');
+  const [confirmRemove, setConfirmRemove] = useState(false);
+  const [errors, setErrors] = useState<Record<string, string>>({});
 
   const validateField = (fieldKey: string, value: string, label: string) => {
     if (!value.trim()) {
-      setErrors(prev => ({ ...prev, [fieldKey]: ts('providers_tab.editor.field_required_error', { label }) }))
+      setErrors(prev => ({
+        ...prev,
+        [fieldKey]: ts('providers_tab.editor.field_required_error', { label }),
+      }));
     } else {
       setErrors(prev => {
-        const { [fieldKey]: _removed, ...rest } = prev
-        return rest
-      })
+        const { [fieldKey]: _removed, ...rest } = prev;
+        return rest;
+      });
     }
-  }
+  };
 
-  const configFields = provider.config_fields ?? []
+  const configFields = provider.config_fields ?? [];
 
   // #213: once the pool holds a key, searches read it and ignore the field
   // above — `_provider_credentials_configured` treats pool rows as the only
@@ -75,44 +92,52 @@ export function ProviderEditor({
     queryKey: ['provider-keys', provider.name],
     queryFn: () => listKeys(provider.name),
     enabled: (KEY_PROVIDERS as readonly string[]).includes(provider.name),
-  })
-  const poolKeyCount = poolKeysQuery.data?.length ?? 0
+  });
+  const poolKeyCount = poolKeysQuery.data?.length ?? 0;
 
   const handleTest = () => {
-    const newErrors: Record<string, string> = {}
+    const newErrors: Record<string, string> = {};
     for (const field of configFields) {
       if (field.required) {
-        const value = fieldValues[field.key] ?? ''
+        const value = fieldValues[field.key] ?? '';
         if (value !== '***configured***' && !value.trim()) {
-          newErrors[field.key] = ts('providers_tab.editor.field_required_error', { label: field.label })
+          newErrors[field.key] = ts('providers_tab.editor.field_required_error', {
+            label: field.label,
+          });
         }
       }
     }
     if (Object.keys(newErrors).length > 0) {
-      setErrors(newErrors)
-      return
+      setErrors(newErrors);
+      return;
     }
-    onTest()
-  }
+    onTest();
+  };
 
-  const statusColor = getStatusColor(provider)
-  const statusLabel = getStatusLabel(provider, ts)
-  const statusBg = getStatusBg(provider)
-  const hasStats = provider.stats && provider.stats.total_searches > 0
+  const statusColor = getStatusColor(provider);
+  const statusLabel = getStatusLabel(provider, ts);
+  const statusBg = getStatusBg(provider);
+  const hasStats = provider.stats && provider.stats.total_searches > 0;
   // The status pill row duplicates the toggle button when the provider is
   // plainly disabled with nothing else to report. Hide it in that case so the
   // detail pane has exactly one source of truth for the on/off state.
   const hasMessage =
-    !!provider.message && provider.message !== 'OK' && provider.message !== 'Not initialized'
+    !!provider.message && provider.message !== 'OK' && provider.message !== 'Not initialized';
   const showStatusRow =
-    provider.enabled || provider.stats?.auto_disabled || !!testResult || hasMessage
+    provider.enabled || provider.stats?.auto_disabled || !!testResult || hasMessage;
 
   return (
     <div data-testid={`provider-editor-${provider.name}`} className="flex flex-col">
       {/* Title row */}
       {!hideTitle && (
-        <div className="flex items-center justify-between mb-3 pb-3" style={{ borderBottom: '1px solid var(--border)' }}>
-          <h2 className="text-sm font-semibold capitalize m-0" style={{ color: 'var(--text-primary)' }}>
+        <div
+          className="flex items-center justify-between mb-3 pb-3"
+          style={{ borderBottom: '1px solid var(--border)' }}
+        >
+          <h2
+            className="text-sm font-semibold capitalize m-0"
+            style={{ color: 'var(--text-primary)' }}
+          >
             {provider.name.replace(/_/g, ' ')}
           </h2>
           {headerExtra}
@@ -122,10 +147,7 @@ export function ProviderEditor({
       {/* Body */}
       <div className="space-y-0">
         {/* Enabled toggle */}
-        <SettingRow
-          label={tc('ui.enabled')}
-          description={ts('providers_tab.editor.enable_hint')}
-        >
+        <SettingRow label={tc('ui.enabled')} description={ts('providers_tab.editor.enable_hint')}>
           <button
             onClick={onToggle}
             data-testid={`provider-editor-${provider.name}-toggle`}
@@ -148,7 +170,10 @@ export function ProviderEditor({
                 className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded text-xs font-medium"
                 style={{ backgroundColor: statusBg, color: statusColor }}
               >
-                <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ backgroundColor: statusColor }} />
+                <span
+                  className="w-1.5 h-1.5 rounded-full shrink-0"
+                  style={{ backgroundColor: statusColor }}
+                />
                 {statusLabel}
               </span>
               {testResult && testResult !== 'testing' && (
@@ -160,8 +185,12 @@ export function ProviderEditor({
                 </span>
               )}
               {testResult === 'testing' && (
-                <span className="flex items-center gap-1 text-xs" style={{ color: 'var(--text-muted)' }}>
-                  <Loader2 size={12} className="animate-spin" /> {ts('providers_tab.editor.testing')}
+                <span
+                  className="flex items-center gap-1 text-xs"
+                  style={{ color: 'var(--text-muted)' }}
+                >
+                  <Loader2 size={12} className="animate-spin" />{' '}
+                  {ts('providers_tab.editor.testing')}
                 </span>
               )}
             </div>
@@ -212,22 +241,30 @@ export function ProviderEditor({
                   style={{
                     width: `${(provider.stats.download_rate ?? provider.stats.success_rate) * 100}%`,
                     backgroundColor: getSuccessRateColor(
-                      provider.stats.download_rate ?? provider.stats.success_rate,
+                      provider.stats.download_rate ?? provider.stats.success_rate
                     ),
                   }}
                 />
               </div>
             </div>
-            <div className="flex items-center gap-3 text-[11px] flex-wrap" style={{ color: 'var(--text-muted)' }}>
+            <div
+              className="flex items-center gap-3 text-[11px] flex-wrap"
+              style={{ color: 'var(--text-muted)' }}
+            >
               {provider.stats.avg_response_time_ms > 0 && (
                 <span>Ø {Math.round(provider.stats.avg_response_time_ms)}ms</span>
               )}
               {provider.stats.last_response_time_ms > 0 && (
-                <span>{ts('providers_tab.editor.last_response')}: {Math.round(provider.stats.last_response_time_ms)}ms</span>
+                <span>
+                  {ts('providers_tab.editor.last_response')}:{' '}
+                  {Math.round(provider.stats.last_response_time_ms)}ms
+                </span>
               )}
               {provider.stats.consecutive_failures > 0 && (
                 <span style={{ color: 'var(--warning)' }}>
-                  {ts('providers_tab.editor.consecutive_failures', { count: provider.stats.consecutive_failures })}
+                  {ts('providers_tab.editor.consecutive_failures', {
+                    count: provider.stats.consecutive_failures,
+                  })}
                 </span>
               )}
             </div>
@@ -235,11 +272,17 @@ export function ProviderEditor({
               <div className="flex items-center gap-2">
                 <span
                   className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium"
-                  style={{ backgroundColor: 'color-mix(in srgb, var(--error) 12%, transparent)', color: 'var(--error)' }}
+                  style={{
+                    backgroundColor: 'color-mix(in srgb, var(--error) 12%, transparent)',
+                    color: 'var(--error)',
+                  }}
                 >
                   {ts('providers_tab.editor.locked_until')}{' '}
                   {provider.stats.disabled_until
-                    ? new Date(provider.stats.disabled_until).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+                    ? new Date(provider.stats.disabled_until).toLocaleTimeString([], {
+                        hour: '2-digit',
+                        minute: '2-digit',
+                      })
                     : ts('providers_tab.editor.unknown')}
                 </span>
                 <button
@@ -259,12 +302,21 @@ export function ProviderEditor({
         )}
 
         {/* Stats: downloads + cache */}
-        <div className="py-3 flex items-center gap-4" style={{ borderBottom: '1px solid var(--border)' }}>
-          <span className="flex items-center gap-1.5 text-xs" style={{ color: 'var(--text-secondary)' }}>
+        <div
+          className="py-3 flex items-center gap-4"
+          style={{ borderBottom: '1px solid var(--border)' }}
+        >
+          <span
+            className="flex items-center gap-1.5 text-xs"
+            style={{ color: 'var(--text-secondary)' }}
+          >
             <Download size={12} />
             {ts('providers_tab.editor.downloads_count', { count: provider.downloads })}
           </span>
-          <span className="flex items-center gap-1.5 text-xs" style={{ color: 'var(--text-secondary)' }}>
+          <span
+            className="flex items-center gap-1.5 text-xs"
+            style={{ color: 'var(--text-secondary)' }}
+          >
             <Database size={12} />
             {ts('providers_tab.editor.cached_count', { count: cacheCount })}
           </span>
@@ -273,47 +325,85 @@ export function ProviderEditor({
         {/* Credentials */}
         {configFields.length > 0 ? (
           <div className="pt-1">
-            {configFields.map((field) => {
-              const inputId = `provider-edit-${provider.name}-${field.key}`
-              const errorId = `${inputId}-error`
-              const hasError = !!errors[field.key]
+            {configFields.map(field => {
+              const inputId = `provider-edit-${provider.name}-${field.key}`;
+              const errorId = `${inputId}-error`;
+              const hasError = !!errors[field.key];
               return (
                 <SettingRow
                   key={field.key}
                   label={field.label}
-                  description={getFieldDescription(field.key, field.label, ts)}
+                  description={field.help || getFieldDescription(field.key, field.label, ts)}
                   htmlFor={inputId}
                 >
                   <div className="w-full">
-                    <input
-                      id={inputId}
-                      type={field.type}
-                      value={fieldValues[field.key] === '***configured***' ? '' : (fieldValues[field.key] ?? '')}
-                      onChange={(e) => onFieldChange(field.key, e.target.value)}
-                      onBlur={(e) => {
-                        if (field.required && fieldValues[field.key] !== '***configured***') {
-                          validateField(field.key, e.target.value, field.label)
+                    {field.type === 'checkbox' ? (
+                      <input
+                        id={inputId}
+                        type="checkbox"
+                        checked={(fieldValues[field.key] || field.default || '') === 'true'}
+                        onChange={e =>
+                          onFieldChange(field.key, e.target.checked ? 'true' : 'false')
                         }
-                      }}
-                      placeholder={
-                        fieldValues[field.key] === '***configured***'
-                          ? ts('providers_tab.editor.configured')
-                          : field.required
-                            ? ts('providers_tab.editor.required_field')
-                            : ts('providers_tab.editor.optional_field')
-                      }
-                      aria-describedby={hasError ? errorId : undefined}
-                      aria-invalid={hasError}
-                      className="w-full px-2.5 py-1.5 rounded text-xs transition-all focus:outline-none"
-                      style={{
-                        backgroundColor: 'var(--bg-primary)',
-                        border: `1px solid ${hasError ? 'var(--error)' : 'var(--border)'}`,
-                        color: 'var(--text-primary)',
-                        fontFamily: 'var(--font-mono)',
-                      }}
-                    />
+                      />
+                    ) : field.type === 'select' ? (
+                      <select
+                        id={inputId}
+                        value={fieldValues[field.key] || field.default || ''}
+                        onChange={e => onFieldChange(field.key, e.target.value)}
+                        className="w-full px-2.5 py-1.5 rounded text-xs focus:outline-none"
+                        style={{
+                          backgroundColor: 'var(--bg-primary)',
+                          border: '1px solid var(--border)',
+                          color: 'var(--text-primary)',
+                        }}
+                      >
+                        {(field.options ?? []).map(option => (
+                          <option key={option} value={option}>
+                            {option}
+                          </option>
+                        ))}
+                      </select>
+                    ) : (
+                      <input
+                        id={inputId}
+                        type={field.type}
+                        value={
+                          fieldValues[field.key] === '***configured***'
+                            ? ''
+                            : (fieldValues[field.key] ?? '')
+                        }
+                        onChange={e => onFieldChange(field.key, e.target.value)}
+                        onBlur={e => {
+                          if (field.required && fieldValues[field.key] !== '***configured***') {
+                            validateField(field.key, e.target.value, field.label);
+                          }
+                        }}
+                        placeholder={
+                          fieldValues[field.key] === '***configured***'
+                            ? ts('providers_tab.editor.configured')
+                            : field.required
+                              ? ts('providers_tab.editor.required_field')
+                              : ts('providers_tab.editor.optional_field')
+                        }
+                        aria-describedby={hasError ? errorId : undefined}
+                        aria-invalid={hasError}
+                        className="w-full px-2.5 py-1.5 rounded text-xs transition-all focus:outline-none"
+                        style={{
+                          backgroundColor: 'var(--bg-primary)',
+                          border: `1px solid ${hasError ? 'var(--error)' : 'var(--border)'}`,
+                          color: 'var(--text-primary)',
+                          fontFamily: 'var(--font-mono)',
+                        }}
+                      />
+                    )}
                     {hasError && (
-                      <p id={errorId} role="alert" className="text-xs mt-1" style={{ color: 'var(--error)' }}>
+                      <p
+                        id={errorId}
+                        role="alert"
+                        className="text-xs mt-1"
+                        style={{ color: 'var(--error)' }}
+                      >
                         {errors[field.key]}
                       </p>
                     )}
@@ -328,7 +418,7 @@ export function ProviderEditor({
                     )}
                   </div>
                 </SettingRow>
-              )
+              );
             })}
           </div>
         ) : (
@@ -370,7 +460,9 @@ export function ProviderEditor({
           )}
           {onRemove && confirmRemove && (
             <div className="flex items-center gap-1.5">
-              <span className="text-xs" style={{ color: 'var(--text-muted)' }}>{tc('ui.are_you_sure')}</span>
+              <span className="text-xs" style={{ color: 'var(--text-muted)' }}>
+                {tc('ui.are_you_sure')}
+              </span>
               <button
                 onClick={onRemove}
                 className="px-2.5 py-1.5 rounded text-xs font-medium"
@@ -439,5 +531,5 @@ export function ProviderEditor({
         </div>
       </div>
     </div>
-  )
+  );
 }

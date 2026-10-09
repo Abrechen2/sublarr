@@ -1692,6 +1692,8 @@
     "advanced_section": "Provider engine",
     "hidden_providers_hint": "Comma-separated provider IDs to hide from the list (e.g. opensubtitles,kitsunekko).",
     "dedup_on_download_hint": "Skip downloading a subtitle if an identical file is already present.",
+    "hub_enabled": "Catalog providers (Bazarr+)",
+    "hub_enabled_hint": "Loads 43 more subtitle sources from the Bazarr+ provider catalog, covering many languages. Then enable each source you want in the list; some need an account.",
     "auto_prioritize_hint": "Automatically sort providers by recent success rate.",
     "rate_limiting_hint": "Enforce per-provider request rate limits to avoid bans.",
     "search_timeout_hint": "Seconds before a provider search request times out.",

@@ -143,6 +143,19 @@ export function ProvidersSettings() {
           </FormGroup>
 
           <FormGroup
+            label={ts('providers_page.hub_enabled')}
+            hint={ts('providers_page.hub_enabled_hint')}
+            data-testid="form-group-provider-hub-enabled"
+          >
+            <div data-testid="toggle-provider-hub-enabled">
+              <Toggle
+                checked={boolVal(configData, 'provider_hub_enabled')}
+                onChange={(v) => save({ provider_hub_enabled: v })}
+              />
+            </div>
+          </FormGroup>
+
+          <FormGroup
             label={ts('providers_page.rate_limiting')}
             hint={ts('providers_page.rate_limiting_hint')}
             data-testid="form-group-provider-rate-limit-enabled"

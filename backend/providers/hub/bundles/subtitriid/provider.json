@@ -1,0 +1,89 @@
+{
+  "api_version": "bazarr.provider-hub.v1",
+  "bundle_sha256": "50bae796c4678e53e5bccb1d769f1a1fca09d194f88534a8669245737343f142",
+  "config_schema": {
+    "additionalProperties": false,
+    "properties": {
+      "request_delay_ms": {
+        "default": 0,
+        "description": "Optional politeness delay between HTTP calls to subtitri.do.am.",
+        "maximum": 5000,
+        "minimum": 0,
+        "title": "Delay between requests (ms)",
+        "type": "integer"
+      }
+    },
+    "type": "object"
+  },
+  "dependencies": {
+    "requirements": [
+      {
+        "hashes": [
+          "sha256:3c52e209ba0a4ad7aebe60436a4ab349c39e1e602e8c134221e546902ad25897"
+        ],
+        "name": "certifi",
+        "version": "2026.5.20"
+      },
+      {
+        "hashes": [
+          "sha256:0ea948db76d31190bf08bd371623927ee1339d5f2a0b4b1b4a4439a65298703c",
+          "sha256:1c2aed2e5e41f24ea8ef1590b8e848a79b56f3a5564a65ceec43c9d692dc7d8a",
+          "sha256:3dce51d0f5e7951f8bb4900c257dad282f49190fdbebecd4ba99bcc41fef404d",
+          "sha256:5649fd1c7bade02f320a462fdefd0b4bd3ce036065836d4f42e0de958038e116",
+          "sha256:6178f72c5508bfc5fd446a5905e698c6212932f25bcdd4b47a757a50605a90e2",
+          "sha256:bd6c2a1c7573c64738d716488d2cdd3c00e340e4835707d8fdb8dc1a66ef164e",
+          "sha256:e044c39e41b92c845bc815e5ae4230804e8e7bc29e399b0437d64222d92809dd"
+        ],
+        "name": "charset-normalizer",
+        "version": "3.4.7"
+      },
+      {
+        "hashes": [
+          "sha256:cc246e3a3f89580c3a951b5ad298ca4638078b2cdd4f115654332b5c26daded5"
+        ],
+        "name": "idna",
+        "version": "3.16"
+      },
+      {
+        "hashes": [
+          "sha256:2a0d60c172f83ac6ab31e4554906c0f3b3588d37b5cb939b1c061f4907e278e0"
+        ],
+        "name": "requests",
+        "version": "2.34.2"
+      },
+      {
+        "hashes": [
+          "sha256:9fb4c81ebbb1ce9531cce37674bbc6f1360472bc18ca9a553ede278ef7276897"
+        ],
+        "name": "urllib3",
+        "version": "2.7.0"
+      }
+    ]
+  },
+  "description": "Scrapes subtitri.do.am for Latvian movie subtitles. ZIP, RAR, and direct subtitle downloads are supported.",
+  "entry_class": "SubtitriIdProvider",
+  "entry_module": "provider",
+  "files": {
+    "provider.py": "97fd2026434a761b9628784687f590d07e6d6784655db8a9ee665bc8fd90ba35"
+  },
+  "languages": [
+    "lav"
+  ],
+  "name": "Subtitri.id",
+  "provider_id": "subtitriid",
+  "schema_version": 1,
+  "secret_fields": [],
+  "source": {
+    "catalog_url": "https://github.com/LavX/bazarr-provider-catalog/blob/main/catalog.json",
+    "commit": "0000000000000000000000000000000000000000",
+    "path": "providers/subtitriid",
+    "ref": "main",
+    "repo": "LavX/bazarr-provider-catalog",
+    "trusted": true,
+    "type": "github"
+  },
+  "supported_media": [
+    "movie"
+  ],
+  "version": "0.1.5"
+}

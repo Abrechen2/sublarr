@@ -1,0 +1,49 @@
+{
+  "api_version": "bazarr.provider-hub.v1",
+  "bundle_sha256": "719200ded2962660f0c23c629c7f2cda7230327185495e274638de1596ccb0fa",
+  "config_schema": {
+    "additionalProperties": false,
+    "properties": {
+      "request_delay_ms": {
+        "default": 0,
+        "description": "Optional politeness delay between HTTP calls to sous-titres.eu.",
+        "maximum": 5000,
+        "minimum": 0,
+        "title": "Delay between requests (ms)",
+        "type": "integer"
+      }
+    },
+    "type": "object"
+  },
+  "dependencies": {
+    "requirements": []
+  },
+  "description": "Scrapes Sous-Titres.eu for French and English movie and episode subtitles. ZIP and RAR downloads are supported.",
+  "entry_class": "SoustitreseuProvider",
+  "entry_module": "provider",
+  "files": {
+    "provider.py": "5a7f596fd886e9b56e0823a5b377b9e18d6280c17c5e94b812cddeea4bff6cf8"
+  },
+  "languages": [
+    "eng",
+    "fra"
+  ],
+  "name": "Sous-Titres.eu",
+  "provider_id": "soustitreseu",
+  "schema_version": 1,
+  "secret_fields": [],
+  "source": {
+    "catalog_url": "https://github.com/LavX/bazarr-provider-catalog/blob/main/catalog.json",
+    "commit": "0000000000000000000000000000000000000000",
+    "path": "providers/soustitreseu",
+    "ref": "main",
+    "repo": "LavX/bazarr-provider-catalog",
+    "trusted": true,
+    "type": "github"
+  },
+  "supported_media": [
+    "movie",
+    "episode"
+  ],
+  "version": "0.1.11"
+}
