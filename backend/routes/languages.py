@@ -35,6 +35,9 @@ def get_languages():
                     name:
                       type: string
                       description: English language name (e.g. "German")
+                    name_de:
+                      type: string
+                      description: German language name (e.g. "Deutsch")
     """
     from config import SUPPORTED_LANGUAGES
 

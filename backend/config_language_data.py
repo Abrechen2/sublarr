@@ -82,7 +82,7 @@ _LANGUAGE_TAGS: dict[str, set[str]] = {
 }
 
 # Ordered list of supported languages for the UI language picker
-SUPPORTED_LANGUAGES: list[dict] = [
+_CORE_LANGUAGES: list[dict] = [
     {"code": "af", "name": "Afrikaans"},
     {"code": "sq", "name": "Albanian"},
     {"code": "ar", "name": "Arabic"},
@@ -147,6 +147,36 @@ SUPPORTED_LANGUAGES: list[dict] = [
     {"code": "uz", "name": "Uzbek"},
     {"code": "vi", "name": "Vietnamese"},
 ]
+
+
+def _with_extra_languages() -> list[dict]:
+    """Core languages plus every other ISO 639-1 language, each with a German name.
+
+    New languages get tags too (code, both three-letter codes, English name),
+    so a track tagged ``bel`` resolves to ``be`` like ``ger`` resolves to
+    ``de``. A tag another language already owns is never taken over.
+    """
+    from config_language_names import EXTRA_LANGUAGES, GERMAN_NAMES
+
+    # "lat" names Latin in ISO 639-2 but Latin-American Spanish in common
+    # subtitle naming ("Movie.lat.srt"); claiming it for Latin would let the
+    # sidecar cleanup trash those files. It stays unknown, as before.
+    taken = {tag for tags in _LANGUAGE_TAGS.values() for tag in tags} | {"lat"}
+    entries = [
+        {**entry, "name_de": GERMAN_NAMES.get(entry["code"], entry["name"])}
+        for entry in _CORE_LANGUAGES
+    ]
+    for code, alpha3, alpha3b, name_en, name_de in EXTRA_LANGUAGES:
+        if code in _LANGUAGE_TAGS:
+            continue
+        tags = {code} | ({alpha3, alpha3b, name_en.lower()} - taken)
+        _LANGUAGE_TAGS[code] = tags
+        taken |= tags
+        entries.append({"code": code, "name": name_en, "name_de": name_de})
+    return sorted(entries, key=lambda entry: entry["name"])
+
+
+SUPPORTED_LANGUAGES: list[dict] = _with_extra_languages()
 
 
 def _get_language_tags(lang_code: str) -> set[str]:
