@@ -453,3 +453,24 @@ def test_switching_the_catalog_off_unregisters_its_providers(bundle):
     with patch.dict(_PROVIDER_CLASSES, {"fakehub": cls}):
         _unregister_hub_providers()
         assert "fakehub" not in _PROVIDER_CLASSES
+
+
+def test_an_any_language_search_asks_a_small_bundle_for_all_it_serves(bundle):
+    provider = _provider(bundle)
+    provider.search(_episode_query(languages=[]))
+    asked = provider.impl_class.search.__globals__["LAST"]["languages"]
+    assert {lang["alpha3"] for lang in asked} >= {"deu", "eng", "por", "zho"}
+
+
+def test_an_any_language_search_asks_a_large_bundle_for_the_installs_languages(bundle):
+    from types import SimpleNamespace
+
+    provider = _provider(bundle)
+    provider.languages = {f"x{i}" for i in range(20)} | {"de", "en"}
+    with patch(
+        "config.get_settings",
+        return_value=SimpleNamespace(target_language="de", source_language="en"),
+    ):
+        provider.search(_episode_query(languages=[]))
+    asked = provider.impl_class.search.__globals__["LAST"]["languages"]
+    assert [lang["alpha3"] for lang in asked] == ["deu", "eng"]

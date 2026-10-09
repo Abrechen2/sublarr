@@ -55,6 +55,9 @@ _SCORED_MATCHES = {
     "audio_codec",
     "hearing_impaired",
 }
+# An interactive "any language" search asks a bundle for all its languages
+# only up to this many; above it, the install's target and source language.
+_ANY_LANGUAGE_LIMIT = 8
 # Bundle error classes that mean "slow down" or "your account is the problem".
 _RATE_LIMIT_ERRORS = {"RateLimited", "APIThrottled"}
 _AUTH_ERRORS = {"AccountLoginFailed", "AccountRequired"}
@@ -236,7 +239,8 @@ class HubProvider(SubtitleProvider):
         kind = "episode" if query.is_episode else "movie"
         if kind not in (self.manifest.get("supported_media") or ["movie", "episode"]):
             return []
-        languages = request_payloads(query.languages)
+        wanted = self._search_languages(query)
+        languages = request_payloads(wanted)
         if not languages:
             return []
         try:
@@ -252,6 +256,26 @@ class HubProvider(SubtitleProvider):
             if result is not None:
                 results.append(result)
         return results
+
+    def _search_languages(self, query: VideoQuery) -> list[str]:
+        """The languages to ask for. An empty query means "any language".
+
+        The interactive search sends no languages so its list shows everything
+        available. A bundle needs at least one, and asking a 100-language
+        bundle for all of them can mean 100 requests — so a bundle that serves
+        a handful gets all of them, a large one the install's own target and
+        source language.
+        """
+        if query.languages:
+            return list(query.languages)
+        served = sorted(self.languages or [])
+        if 0 < len(served) <= _ANY_LANGUAGE_LIMIT:
+            return served
+        from config import get_settings
+
+        settings = get_settings()
+        own = [getattr(settings, "target_language", ""), getattr(settings, "source_language", "")]
+        return [code for code in dict.fromkeys(own) if code and (not served or code in served)]
 
     def _to_result(self, candidate, query: VideoQuery, kind: str) -> SubtitleResult | None:
         if not isinstance(candidate, dict) or not isinstance(
