@@ -115,8 +115,9 @@ def list_jobs():
     from db.jobs import get_jobs
 
     try:
-        page = request.args.get("page", 1, type=int)
-        per_page = min(request.args.get("per_page", 50, type=int), 200)
+        from utils.pagination import page_args
+
+        page, per_page = page_args(max_per_page=200)
         status_filter = request.args.get("status")
         result = get_jobs(page=page, per_page=per_page, status=status_filter)
         return jsonify(result)

@@ -7,15 +7,24 @@ from __future__ import annotations
 
 import importlib.util
 import logging
+import os
 import re
 import shutil
 import subprocess
+import tempfile
 import time
 from pathlib import Path
 
 from services.sync_engines.base import BaseSyncEngine, SyncResult
 
 logger = logging.getLogger(__name__)
+
+
+def _remove(path: str) -> None:
+    try:
+        os.unlink(path)
+    except OSError:
+        pass
 
 
 def _check_module(name: str) -> bool:
@@ -109,6 +118,10 @@ class FfsubsyncEngine(BaseSyncEngine):
         from security_utils import safe_subprocess_arg
         from services.sync_engines.concurrency import nice_prefix, sync_subprocess_lock
 
+        # ffsubsync writes to a temp file: its output caps every event at 10 s,
+        # so only its measured shift is used, applied to the original below.
+        fd, tmp_path = tempfile.mkstemp(suffix=src.suffix)
+        os.close(fd)
         out_path = str(src)
         cmd = [
             *nice_prefix(),
@@ -117,7 +130,7 @@ class FfsubsyncEngine(BaseSyncEngine):
             "-i",
             safe_subprocess_arg(subtitle_path),
             "-o",
-            safe_subprocess_arg(out_path),
+            safe_subprocess_arg(tmp_path),
         ]
         logger.info("ffsubsync: syncing %s against %s", subtitle_path, video_path)
 
@@ -134,6 +147,7 @@ class FfsubsyncEngine(BaseSyncEngine):
                     cmd, capture_output=True, text=True, timeout=effective_timeout
                 )
         except subprocess.TimeoutExpired:
+            _remove(tmp_path)
             return SyncResult(
                 engine=self.name,
                 ok=False,
@@ -143,6 +157,7 @@ class FfsubsyncEngine(BaseSyncEngine):
             )
 
         if proc.returncode != 0:
+            _remove(tmp_path)
             return SyncResult(
                 engine=self.name,
                 ok=False,
@@ -151,7 +166,28 @@ class FfsubsyncEngine(BaseSyncEngine):
                 reason=(proc.stderr or "").strip()[:64] or "non-zero exit",
             )
 
-        offset_ms = _parse_ffsubsync_shift((proc.stderr or "") + (proc.stdout or ""))
+        from services.video_sync import (
+            _parse_ffsubsync_scale,
+            framerate_scale_is_insane,
+            framerate_scale_message,
+            shift_original_into,
+        )
+
+        output = (proc.stderr or "") + (proc.stdout or "")
+        offset_ms = _parse_ffsubsync_shift(output)
+        scale = _parse_ffsubsync_scale(output)
+        if framerate_scale_is_insane(scale):
+            _remove(tmp_path)
+            return SyncResult(
+                engine=self.name,
+                ok=False,
+                offset_ms=offset_ms,
+                duration_ms=int((time.monotonic() - start) * 1000),
+                reason=framerate_scale_message(scale),
+            )
+        shift_original_into(subtitle_path, tmp_path, offset_ms)
+        shutil.copyfile(tmp_path, out_path)
+        _remove(tmp_path)
         _fire_after_sync_trigger(subtitle_path, video_path, self.name)
 
         return SyncResult(

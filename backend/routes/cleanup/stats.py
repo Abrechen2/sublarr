@@ -1,6 +1,6 @@
 """Cleanup stats + history routes."""
 
-from flask import jsonify, request
+from flask import jsonify
 
 from error_utils import handle_api_error
 from routes.cleanup import bp
@@ -98,9 +98,9 @@ def cleanup_history():
                     type: integer
     """
     from db.repositories.cleanup import CleanupRepository
+    from utils.pagination import page_args
 
-    page = request.args.get("page", 1, type=int)
-    per_page = min(request.args.get("per_page", 50, type=int), 200)
+    page, per_page = page_args(max_per_page=200)
 
     repo = CleanupRepository()
     result = repo.get_history(page, per_page)

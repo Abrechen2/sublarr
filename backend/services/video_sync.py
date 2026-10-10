@@ -191,6 +191,8 @@ def sync_with_ffsubsync(subtitle_path: str, video_path: str) -> dict:
         _audit("rejected", shift_ms, f"framerate_scale:{scale:.3f}")
         raise SyncSanityThresholdError(framerate_scale_message(scale))
 
+    shift_original_into(subtitle_path, out_path, shift_ms)
+
     # NOTE: shutil.move falls back to copy2 across filesystems and copy2's
     # copystat raises PermissionError on bind-mounted /media owned by a
     # different host user — leaving the destination already overwritten by
@@ -425,6 +427,35 @@ def framerate_scale_is_insane(scale: float) -> bool:
 
 def framerate_scale_message(scale: float) -> str:
     return f"ffsubsync framerate scale factor {scale:.3f} would stretch the timeline"
+
+
+_PYSUBS2_FORMATS = {"srt": "srt", "ass": "ass", "ssa": "ssa", "vtt": "vtt"}
+
+
+def shift_original_into(subtitle_path: str, out_path: str, shift_ms: int) -> bool:
+    """Write the original subtitle, moved by ``shift_ms``, to ``out_path``.
+
+    ffsubsync writes its output from the subtitles it parsed for alignment,
+    and that parse caps every event at ``max_subtitle_seconds`` (10 s): on
+    prod 2026-10-07, 120 signs and ED lines of one Attack on Titan episode
+    came back ending exactly 10 s after they started. With the scale gate
+    in place a sync is a pure shift, so the shift is applied to the
+    original instead and nothing else about the file changes.
+
+    Returns False when the original cannot be parsed; ``out_path`` then
+    keeps ffsubsync's own output, as before.
+    """
+    import pysubs2
+
+    ext = os.path.splitext(subtitle_path)[1].lstrip(".").lower()
+    try:
+        subs = pysubs2.load(subtitle_path, encoding="utf-8")
+    except Exception as exc:  # noqa: BLE001 — undecodable or malformed: keep ffsubsync's file
+        logger.warning("sync: could not re-read %s to apply the shift: %s", subtitle_path, exc)
+        return False
+    subs.shift(ms=shift_ms)
+    subs.save(out_path, encoding="utf-8", format_=_PYSUBS2_FORMATS.get(ext))
+    return True
 
 
 def _parse_ffsubsync_scale(output: str) -> float:

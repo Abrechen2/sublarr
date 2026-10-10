@@ -700,6 +700,8 @@
   },
   "whatsnew": {
     "v1160": {
+      "sync_title": "Auto-Sync kürzt keine Schilder mehr",
+      "sync_desc": "Der automatische Sync hat jede Zeile über 10 Sekunden auf genau 10 Sekunden gekürzt – Schilder und Karaoke verschwanden zu früh. Jetzt wird nur noch die gemessene Verschiebung übernommen.",
       "catalog_title": "43 neue Untertitel-Quellen aus dem Bazarr+-Katalog",
       "catalog_desc": "Quellen für viele Sprachen, darunter AvistaZ, CinemaZ, SubCentral, Titulky und Subtitlecat. Standardmäßig aus: in den Provider-Einstellungen „Katalog-Provider“ einschalten und dann jede gewünschte Quelle aktivieren.",
       "languages_title": "Alle Sprachen wählbar",

@@ -27,6 +27,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   of a text field.
 
 ### Fixed
+- **Auto-sync keeps long signs and karaoke lines** — ffsubsync caps every
+  event at 10 seconds in the file it writes, so each sync cut signs, ED
+  karaoke and long lines to exactly 10 seconds — 120 lines of one episode on
+  a real library, about 18 files a day. Sublarr now takes only the measured
+  shift from ffsubsync and applies it to the original subtitle; nothing else
+  about the file changes. This also covers the manual sync engines, which
+  now reject a stretched timeline too.
+- **List pages no longer fail on absurd page numbers** — A page number large
+  enough to overflow the database offset made the wanted list answer with a
+  server error. Page and page size are now clamped on every list endpoint.
 - **Plex scans only the folder that got a new subtitle** — The item lookup used
   a search filter that the Plex library rejects before anything reaches Plex,
   so every subtitle ended in a full scan of every Plex library, movie libraries

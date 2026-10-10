@@ -30,6 +30,7 @@ from services.video_sync import (
     _safe_remove,
     framerate_scale_is_insane,
     framerate_scale_message,
+    shift_original_into,
 )
 
 logger = logging.getLogger(__name__)
@@ -113,6 +114,7 @@ def _run_ffsubsync_preview(subtitle_path: str, video_path: str) -> tuple[int, st
         scale = _parse_ffsubsync_scale(result.stderr + result.stdout)
         if framerate_scale_is_insane(scale):
             raise SyncSanityThresholdError(framerate_scale_message(scale))
+        shift_original_into(subtitle_path, out_path, shift_ms)
         return shift_ms, out_path
     except BaseException:
         _safe_remove(out_path)

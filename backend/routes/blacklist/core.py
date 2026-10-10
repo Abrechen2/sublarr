@@ -54,9 +54,9 @@ def list_blacklist():
                     type: integer
     """
     from db.blacklist import get_blacklist_entries
+    from utils.pagination import page_args
 
-    page = request.args.get("page", 1, type=int)
-    per_page = min(request.args.get("per_page", 50, type=int), 200)
+    page, per_page = page_args(max_per_page=200)
     result = get_blacklist_entries(page=page, per_page=per_page)
     return jsonify(result)
 

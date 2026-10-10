@@ -37,9 +37,9 @@ def list_history():
           description: Paginated notification history
     """
     from db.repositories.notifications import NotificationRepository
+    from utils.pagination import page_args
 
-    page = request.args.get("page", 1, type=int)
-    per_page = request.args.get("per_page", 50, type=int)
+    page, per_page = page_args(max_per_page=200)
     event_type = request.args.get("event_type")
 
     repo = NotificationRepository()

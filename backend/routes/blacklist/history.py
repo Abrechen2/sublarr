@@ -100,9 +100,9 @@ def list_history():
                     type: integer
     """
     from db.library import get_download_history
+    from utils.pagination import page_args
 
-    page = request.args.get("page", 1, type=int)
-    per_page = min(request.args.get("per_page", 50, type=int), 200)
+    page, per_page = page_args(max_per_page=200)
     provider = request.args.get("provider")
     language = request.args.get("language")
     format_filter = request.args.get("format") or None

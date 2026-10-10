@@ -566,3 +566,64 @@ def test_ffsubsync_rejects_framerate_scaling(tmp_path):
         sync_with_ffsubsync(str(sub), "/video.mkv")
 
     assert sub.read_text() == original
+
+
+_LONG_SIGN_ASS = """[Script Info]
+ScriptType: v4.00+
+
+[V4+ Styles]
+Format: Name, Fontname, Fontsize, PrimaryColour, SecondaryColour, OutlineColour, BackColour, Bold, Italic, Underline, StrikeOut, ScaleX, ScaleY, Spacing, Angle, BorderStyle, Outline, Shadow, Alignment, MarginL, MarginR, MarginV, Encoding
+Style: Sign,Arial,40,&H00FFFFFF,&H000000FF,&H00000000,&H00000000,0,0,0,0,100,100,0,0,1,2,0,8,10,10,10,1
+
+[Events]
+Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
+Dialogue: 0,0:00:10.00,0:00:25.00,Sign,,0,0,0,,{\\\\pos(960,100)}A sign shown for fifteen seconds
+Dialogue: 0,0:00:30.00,0:00:32.00,Sign,,0,0,0,,Short line
+"""
+
+
+def test_ffsubsync_shift_is_applied_to_the_original_not_its_capped_output(tmp_path):
+    """ffsubsync caps every event at 10 s in the file it writes (prod 2026-10-07:
+    120 signs of one episode ended exactly 10 s after they started). Only its
+    measured shift is used; the 15 s sign keeps its 15 s."""
+    import pysubs2
+
+    from services.video_sync import sync_with_ffsubsync
+
+    sub = tmp_path / "ep.en.ass"
+    sub.write_text(_LONG_SIGN_ASS, encoding="utf-8")
+
+    def fake_run(cmd, **kwargs):
+        out = cmd[cmd.index("-o") + 1]
+        capped = _LONG_SIGN_ASS.replace("0:00:25.00", "0:00:20.00")
+        with open(out, "w", encoding="utf-8") as fh:
+            fh.write(capped.replace("0:00:10.00", "0:00:11.50"))
+        return MagicMock(
+            returncode=0,
+            stderr="INFO offset seconds: 1.500\nframerate scale factor: 1.000",
+            stdout="",
+        )
+
+    with (
+        patch("services.video_sync.shutil.which", return_value="/usr/bin/ffsubsync"),
+        patch("services.video_sync.subprocess.run", side_effect=fake_run),
+        patch("config.get_settings", return_value=MagicMock(sync_sanity_threshold_ms=60_000)),
+    ):
+        sync_with_ffsubsync(str(sub), "/video.mkv")
+
+    events = pysubs2.load(str(sub)).events
+    assert (events[0].start, events[0].end) == (11_500, 26_500)
+    assert (events[1].start, events[1].end) == (31_500, 33_500)
+    assert "\\pos(960,100)" in events[0].text
+
+
+def test_an_unreadable_original_keeps_ffsubsyncs_output(tmp_path):
+    from services.video_sync import shift_original_into
+
+    original = tmp_path / "ep.srt"
+    original.write_bytes(b"\xff\xfe\x00garbage")
+    out = tmp_path / "out.srt"
+    out.write_text("ffsubsync output")
+
+    assert shift_original_into(str(original), str(out), 1500) is False
+    assert out.read_text() == "ffsubsync output"
