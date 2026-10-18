@@ -63,7 +63,8 @@ class ShokoServer(MediaServer):
             "required": False,
             "default": "",
             "help": "from_path:to_path if Sublarr and Shoko see the media under "
-            "different roots (e.g. /media:/data). Leave blank if the paths match.",
+            "different roots (e.g. /media:/data). Separate several pairs with ; and "
+            "the longest matching from_path wins. Leave blank if the paths match.",
         },
     ]
 

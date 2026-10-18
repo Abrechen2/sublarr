@@ -53,7 +53,8 @@ class KodiServer(MediaServer):
             "type": "text",
             "required": False,
             "default": "",
-            "help": "from_path:to_path for Docker volume mapping (e.g. /media:/data)",
+            "help": "from_path:to_path for Docker volume mapping (e.g. /media:/data). "
+            "Separate several pairs with ; and the longest matching from_path wins.",
         },
     ]
 
