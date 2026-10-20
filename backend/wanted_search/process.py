@@ -127,9 +127,12 @@ def _check_profile_cutoff_and_audio(
 def _check_existing_sidecar(item: dict, item_id: int, item_lang: str, settings) -> dict | None:
     """Short-circuit when the target-language sidecar already exists on disk."""
     try:
+        from services.suspect_sidecars import existing_ignoring_suspects
         from translator import detect_existing_target_for_lang
 
         _existing = detect_existing_target_for_lang(item["file_path"], item_lang, probe_data=None)
+        # A quarantined (suspect) sidecar is what this search is to replace.
+        _existing = existing_ignoring_suspects(item["file_path"], item_lang, _existing)
     except Exception as _dex:
         logger.debug("existing-sidecar probe failed (non-fatal): %s", _dex)
         _existing = None

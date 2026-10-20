@@ -653,6 +653,12 @@ def save_subtitle(
         logger.error("Failed to write subtitle to %s: %s", output_path, e)
         raise RuntimeError(f"Cannot write subtitle file: {e}") from e
 
+    # A sidecar quarantined as another episode's subtitle was kept until now;
+    # this one replaces it (same name: already overwritten above).
+    from services.suspect_sidecars import retire_suspect_siblings
+
+    retire_suspect_siblings(output_path, result.language or "")
+
     # Register hash in dedup DB after successful write
     try:
         from db.repositories.cleanup import CleanupRepository as CleanupRepo

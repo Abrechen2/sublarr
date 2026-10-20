@@ -22,6 +22,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   from the "�"; lines edited since and the file's timings stay as they are.
 
 ### Fixed
+- **A subtitle of another episode no longer stays for good** — When the sync
+  found a downloaded subtitle shifted by more than the allowed limit, or
+  running past the end of the video, it left the file alone and gave up, and
+  because a subtitle was on disk the episode was never searched again. Such a
+  subtitle is now put on the blacklist and the episode is searched again. The
+  old file stays until a new subtitle is saved. Manual uploads and subtitles
+  you edited are never touched.
 - **A subtitle that does not fit the video's length is not saved** — A
   subtitle for the double-length Blu-ray first episode (45 minutes) was saved
   for a 24-minute episode, and the sync then shifted it by 5 seconds as if it
