@@ -29,6 +29,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   stays until a replacement is saved, and the series is rescanned once.
 
 ### Fixed
+- **The subtitle repair works on SQLite installs** — Scanning for damaged
+  subtitles used a query only PostgreSQL understands and failed with a server
+  error on every install that keeps its data in SQLite.
 - **A subtitle of another episode no longer stays for good** — When the sync
   found a downloaded subtitle shifted by more than the allowed limit, or
   running past the end of the video, it left the file alone and gave up, and

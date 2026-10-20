@@ -109,13 +109,15 @@ def _download_index(language: str | None) -> dict[tuple[str, str], tuple[str, st
         where += " AND language = :lang"
         params["lang"] = language
 
+    # Newest first, first one per (video, language) wins. Ordered here and
+    # deduplicated below rather than with DISTINCT ON, which SQLite lacks —
+    # the scan failed on every SQLite install.
     rows = db.session.execute(
         sql(f"""
-            SELECT DISTINCT ON (file_path, language)
-                   file_path, language, provider_name, subtitle_id
+            SELECT file_path, language, provider_name, subtitle_id
             FROM subtitle_downloads
             {where}
-            ORDER BY file_path, language, downloaded_at DESC
+            ORDER BY downloaded_at DESC, id DESC
         """),
         params,
     ).fetchall()
@@ -123,7 +125,7 @@ def _download_index(language: str | None) -> dict[tuple[str, str], tuple[str, st
     index: dict[tuple[str, str], tuple[str, str]] = {}
     for video_path, lang, provider, subtitle_id in rows:
         stem = os.path.splitext(video_path)[0]
-        index[(stem, lang)] = (provider, subtitle_id)
+        index.setdefault((stem, lang), (provider, subtitle_id))
     return index
 
 

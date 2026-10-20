@@ -232,3 +232,22 @@ def test_scan_leaves_clean_untouched_files_alone(app_ctx, tmp_path):
     report = _scan_with(tmp_path, {"Show - S01E01.de.srt": (ORIGINAL, content_hash(str(path)))})
     assert report.candidates == []
     assert report.untouched == 1
+
+
+def test_download_index_works_on_sqlite(app_ctx, tmp_path):
+    """The scan used Postgres-only DISTINCT ON and failed on every SQLite install."""
+    from db.providers import record_subtitle_download
+    from services.repair.scanner import _download_index
+
+    video = str(tmp_path / "Show - S01E01.mkv")
+    record_subtitle_download("opensubtitles", "old", "de", "srt", video, 90)
+    record_subtitle_download("subdl", "new", "de", "srt", video, 95)
+    record_subtitle_download("opensubtitles", "en-1", "en", "srt", video, 90)
+
+    index = _download_index("de")
+
+    assert index == {(str(tmp_path / "Show - S01E01"), "de"): ("subdl", "new")}
+    assert _download_index(None)[(str(tmp_path / "Show - S01E01"), "en")] == (
+        "opensubtitles",
+        "en-1",
+    )
