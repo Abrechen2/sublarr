@@ -282,6 +282,7 @@
     "stage_must_contain": "profile rule (must contain)",
     "stage_must_not_contain": "profile rule (must not contain)",
     "stage_release_group": "blocked release group",
+    "stage_wrong_episode": "other or unproven episode",
     "attempt_selected": "downloaded — final selection",
     "attempt_download_failed": "download failed, trying next candidate",
     "attempt_hash_blacklisted": "content blacklisted, trying next candidate",

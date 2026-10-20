@@ -53,6 +53,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   when CinemaZ or AvistaZ is enabled, once an hour per episode or movie. The
   frame-rate checks of SubsSabBz, SubsUnacs and Titulky now get the file's
   frame rate from Sonarr/Radarr, without an extra request.
+- **A subtitle for another episode is no longer downloaded** — Season 2
+  episodes got season 1's subtitle of the same number
+  (``Clevatess - S01E12`` for S02E12, ``[SubsPlease] Clevatess - 12``), and
+  catalog providers such as subtitlecat handed out a neighbouring episode
+  (``Overgeared_S01E03`` for S01E04), because the series and episode points
+  alone cleared the minimum score. Every result whose name states a different
+  season or episode is now dropped before scoring, for every provider. Absolute
+  naming (``S01E24`` or ``- 24`` for absolute episode 24), season packs of the
+  right season and hash matches are kept. A result that names no episode at
+  all is only used when the provider matched the episode itself. The decision
+  log lists the dropped results and why.
+- **AnimeTosho no longer takes a bare episode number for a later season** —
+  A release such as ``[SubsPlease] Clevatess - 12`` names no season, so it now
+  only matches episode 12 of season 1, or the episode whose absolute number is
+  12.
+- **Sonarr's absolute episode numbers are used for matching** — Releases
+  numbered absolutely are recognised by the absolute number Sonarr reports,
+  also without an AniDB mapping or Shoko. Searches still use absolute numbers
+  only for series set to absolute order; for those, Sonarr's number is now the
+  fallback when AniDB has no mapping.
 
 ## [1.16.0] - 2026-10-09
 

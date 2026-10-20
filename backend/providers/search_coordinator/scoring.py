@@ -8,6 +8,7 @@ import logging
 
 import decision_log
 from providers.base import SubtitleFormat, compute_score
+from providers.episode_gate import apply_episode_gate
 
 logger = logging.getLogger(__name__)
 
@@ -32,7 +33,7 @@ class SearchScoringMixin:
     ) -> list:
         """Post-search scoring / classification / filtering / sorting pipeline.
 
-        Runs in strict order: compute_score → forced classification →
+        Runs in strict order: compute_score → wrong-episode gate → forced classification →
         forced_only filter → language/format/min_score gates → blacklist →
         must_contain / must_not_contain → release-group exclude/prefer →
         final sort (ASS first, then score desc). Returns the filtered +
@@ -45,6 +46,22 @@ class SearchScoringMixin:
         for result in all_results:
             if result.score == 0:
                 compute_score(result, query)
+
+        # A result naming another season/episode is another episode, whatever
+        # it scores (Clevatess S02E12 <- S01E12). Runs for every provider,
+        # hub bundles included.
+        all_results, wrong_episode = apply_episode_gate(all_results, query)
+        if wrong_episode:
+            decision_log.filter_stage(
+                "wrong_episode",
+                len(wrong_episode),
+                len(all_results),
+                [r for r, _ in wrong_episode],
+                wanted=f"S{query.season:02d}E{query.episode:02d}",
+                reasons=[
+                    reason for _, reason in wrong_episode[: decision_log.MAX_REJECTED_SAMPLES]
+                ],
+            )
 
         # Post-search forced classification: use forced_detection to classify
         # results from providers without native forced support (e.g., AnimeTosho,
