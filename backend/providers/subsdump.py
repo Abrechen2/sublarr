@@ -310,14 +310,17 @@ class SubsDumpProvider(SubtitleProvider):
                 f"subsdump: no subtitle file found in archive for {result.subtitle_id}"
             )
 
-        # Prefer ASS/SSA, fall back to SRT
+        # Prefer ASS/SSA, fall back to SRT. The member's name replaces the
+        # listing's so the episode gate can check what was actually picked.
         for filename, content in files:
             ext = "." + filename.rsplit(".", 1)[-1].lower() if "." in filename else ""
             if ext in (".ass", ".ssa"):
+                result.filename = filename
                 result.format = _FORMAT_MAP.get(ext, SubtitleFormat.ASS)
                 return content
 
         filename, content = files[0]
         ext = "." + filename.rsplit(".", 1)[-1].lower() if "." in filename else ""
+        result.filename = filename
         result.format = _FORMAT_MAP.get(ext, SubtitleFormat.UNKNOWN)
         return content

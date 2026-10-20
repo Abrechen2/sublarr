@@ -223,6 +223,41 @@ class TestSuspectState:
 
         assert is_suspect_sidecar(sidecar)
 
+    @staticmethod
+    def _swap_in(sidecar: str, text: str) -> None:
+        """Move a new file onto the path, keeping size and mtime (``cp -p``, rsync -t)."""
+        stat = os.stat(sidecar)
+        staged = sidecar + ".restore"
+        with open(staged, "w") as fh:
+            fh.write(text)
+        os.utime(staged, ns=(stat.st_atime_ns, stat.st_mtime_ns))
+        os.replace(staged, sidecar)
+        suspect_sidecars.invalidate_cache()
+
+    def test_a_wrong_file_swapped_in_with_kept_metadata_is_suspect(self, episode, no_arr):
+        # VM 191 (rc.2): the digest was cached by path, mtime and size, so a
+        # same-sized file moved in with the old mtime kept the old verdict.
+        video, sidecar = episode
+        _record(video)
+        quarantine_wrong_sidecar(sidecar, video, "shift")
+        right = ASS.replace("Hallo", "Hello")  # same length as the wrong text
+        self._swap_in(sidecar, right)
+        assert not is_suspect_sidecar(sidecar)
+
+        self._swap_in(sidecar, ASS)
+
+        assert is_suspect_sidecar(sidecar)
+
+    def test_a_right_file_swapped_in_with_kept_metadata_is_not_suspect(self, episode, no_arr):
+        video, sidecar = episode
+        _record(video)
+        quarantine_wrong_sidecar(sidecar, video, "shift")
+        assert is_suspect_sidecar(sidecar)
+
+        self._swap_in(sidecar, ASS.replace("Hallo", "Hello"))
+
+        assert not is_suspect_sidecar(sidecar)
+
     def test_a_repeat_quarantine_flags_the_file_on_disk_now(self, episode, no_arr):
         # VM 191: flagging a path a second time returned True but left the old
         # flag, so the file on disk now was never suspect.

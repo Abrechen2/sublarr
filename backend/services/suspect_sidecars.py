@@ -59,13 +59,14 @@ _cache: (
     | None
 ) = None
 # (path, mtime_ns, size) -> SHA-256; a sidecar is hashed again only once it changed.
-_digests: dict[tuple[str, int, int], str] = {}
+_digests: dict[tuple, str] = {}
 
 
 def invalidate_cache() -> None:
     global _cache
     with _cache_lock:
         _cache = None
+    _digests.clear()
 
 
 def _norm(path: str) -> str:
@@ -77,18 +78,31 @@ def _aware(value: datetime) -> datetime:
 
 
 def _file_digest(path: str) -> str | None:
-    """SHA-256 of the file's bytes, or None when it cannot be read."""
+    """SHA-256 of the file's bytes, or None when it cannot be read.
+
+    Memoised per file version. Size and mtime alone are not one: a file moved
+    in with ``cp -p`` or ``rsync -t`` keeps both, so device, inode and ctime
+    (which no tool can set back) are in the key. The stat and the bytes come
+    from the same open file.
+    """
     try:
-        stat = os.stat(path)
-        key = (_norm(path), stat.st_mtime_ns, stat.st_size)
-        if key not in _digests:
-            with open(path, "rb") as fh:
+        with open(path, "rb") as fh:
+            stat = os.fstat(fh.fileno())
+            key = (
+                _norm(path),
+                stat.st_dev,
+                stat.st_ino,
+                stat.st_ctime_ns,
+                stat.st_mtime_ns,
+                stat.st_size,
+            )
+            digest = _digests.get(key)
+            if digest is None:
                 digest = hashlib.sha256(fh.read()).hexdigest()
-            if len(_digests) > 1024:
-                _digests.clear()
-            _digests[key] = digest
+                if len(_digests) > 1024:
+                    _digests.clear()
+                _digests[key] = digest
             return digest
-        return _digests.get(key)
     except OSError:
         return None
 

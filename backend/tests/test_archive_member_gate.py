@@ -121,3 +121,82 @@ class TestCustomApiNamesTheMember:
 
         assert content == SRT
         assert result.filename == "Synthetic.S01E05.srt"
+
+
+def _zip(name: str, data: bytes = SRT) -> bytes:
+    buf = io.BytesIO()
+    with zipfile.ZipFile(buf, "w") as archive:
+        archive.writestr(name, data)
+    return buf.getvalue()
+
+
+ASS = (
+    b"[Script Info]\nScriptType: v4.00+\n\n[Events]\n"
+    b"Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text\n"
+    b"Dialogue: 0,0:00:01.00,0:00:02.00,Default,,0,0,0,,Hallo\n"
+)
+
+
+class TestSubsDumpNamesTheMember:
+    """VM 191 (rc.2): SubsDump kept the listing name, so the member gate never ran."""
+
+    def _provider(self, archive: bytes):
+        from providers.subsdump import SubsDumpProvider
+
+        provider = SubsDumpProvider()
+        provider._session = MagicMock()
+        return provider, (
+            patch("providers.subsdump.validate_download_url", return_value=(True, "")),
+            patch("providers.subsdump._stream_download", return_value=archive),
+        )
+
+    def _download(self, member: str, data: bytes = SRT) -> SubtitleResult:
+        provider, patches = self._provider(_zip(member, data))
+        result = _result("archive", "Show.S02E05.zip", None)
+        result.provider_name = "subsdump"
+        result.download_url = "http://subsdump.invalid/download.zip"
+        with patches[0], patches[1]:
+            provider.download(result)
+        return result
+
+    def test_an_srt_member_becomes_the_result_filename(self):
+        assert self._download("Show.S01E05.srt").filename == "Show.S01E05.srt"
+
+    def test_an_ass_member_becomes_the_result_filename(self):
+        assert self._download("Show.S01E05.ass", ASS).filename == "Show.S01E05.ass"
+
+    def test_the_download_loop_rejects_another_seasons_member(self):
+        provider, patches = self._provider(_zip("Show.S01E05.srt"))
+        result = _result("archive", "Show.S02E05.zip", None)
+        result.provider_name = "subsdump"
+        result.download_url = "http://subsdump.invalid/download.zip"
+        from providers.download_manager import search_and_download_best
+
+        with patches[0], patches[1], patch("providers.download_manager.decision_log"):
+            best = search_and_download_best(
+                search_fn=lambda *_a, **_kw: [result],
+                download_fn=provider.download,
+                update_stats_fn=MagicMock(),
+                query=_query(),
+            )
+        assert best is None
+
+
+def test_every_archive_provider_names_the_member_it_picked():
+    """The member gate runs only when ``result.filename`` changes after download.
+
+    A built-in provider that unpacks an archive and keeps the listing name
+    lets another episode's member through unseen (SubsDump in rc.2).
+    """
+    import pathlib
+    import re
+
+    providers_dir = pathlib.Path(__file__).resolve().parent.parent / "providers"
+    extracting = re.compile(r"extract_subtitles_from_(zip|rar)\(|zipfile\.ZipFile\(")
+    silent = [
+        path.name
+        for path in sorted(providers_dir.glob("*.py"))
+        if extracting.search(source := path.read_text(encoding="utf-8"))
+        and "result.filename =" not in source
+    ]
+    assert silent == []

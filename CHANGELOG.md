@@ -44,7 +44,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   again at once, even if the episode was waiting out a long retry delay. The
   old file stays until a new subtitle is saved; only that file's content
   counts, so a new subtitle saved right away is accepted, and the same wrong
-  file put back later is caught again. Putting such a subtitle on the
+  file put back later is caught again, even when it is restored with its old
+  date and size. Putting such a subtitle on the
   blacklist yourself blocks it for every episode. Manual uploads and
   subtitles you edited are never touched.
 - **A subtitle that does not fit the video's length is not saved** — A
