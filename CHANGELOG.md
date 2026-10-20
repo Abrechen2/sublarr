@@ -22,6 +22,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   from the "�"; lines edited since and the file's timings stay as they are.
 
 ### Fixed
+- **A subtitle that does not fit the video's length is not saved** — A
+  subtitle for the double-length Blu-ray first episode (45 minutes) was saved
+  for a 24-minute episode, and the sync then shifted it by 5 seconds as if it
+  fitted. A downloaded subtitle that runs well past the end of the video (more
+  than 10 % or 2 minutes), or covers less than half of it, is now skipped and
+  the next candidate is tried. Forced and signs subtitles may cover little of
+  the video. The sync also refuses a subtitle that runs past the end of its
+  video. Both checks are skipped when the video's length is unknown.
 - **A sync without a measured offset no longer counts as done** — When
   ffsubsync finished without printing an offset, Sublarr read that as a shift
   of 0 ms and booked the subtitle as synced. It is now a failed sync. All

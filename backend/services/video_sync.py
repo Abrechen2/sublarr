@@ -84,6 +84,28 @@ class SyncSanityThresholdError(Exception):
     """
 
 
+class SyncShiftRejectedError(SyncSanityThresholdError):
+    """The measured shift exceeded ``sync_sanity_threshold_ms``.
+
+    Split from the framerate-scale rejection: a shift this large usually means
+    the subtitle belongs to another episode or cut, which callers may act on
+    (see ``services.suspect_sidecars``). ``shift_ms`` is the measured shift.
+    """
+
+    def __init__(self, message: str, shift_ms: int) -> None:
+        super().__init__(message)
+        self.shift_ms = shift_ms
+
+
+class SubtitleLengthMismatchError(SyncSanityThresholdError):
+    """The subtitle runs well past the end of the video it is to be timed to.
+
+    No shift can fix that: it is another episode or cut (prod 2026-10: a BD
+    double-length episode 1 "aligned" by -5 s to a 24-min file). Raised before
+    ffsubsync runs; the sidecar is left untouched.
+    """
+
+
 def sync_with_ffsubsync(subtitle_path: str, video_path: str) -> dict:
     """Sync subtitle to video using ffsubsync (speech-detection based).
 
@@ -129,6 +151,14 @@ def sync_with_ffsubsync(subtitle_path: str, video_path: str) -> dict:
         raise SyncUnavailableError(
             "ffsubsync is not installed. Install with: pip install ffsubsync"
         )
+
+    import subtitle_plausibility
+
+    overrun = subtitle_plausibility.file_overruns_video(subtitle_path, video_path)
+    if overrun:
+        logger.warning("ffsubsync: not syncing %s — %s", subtitle_path, overrun)
+        _audit("rejected", None, "length_mismatch")
+        raise SubtitleLengthMismatchError(f"subtitle does not fit the video: {overrun}")
 
     backup = _make_backup(subtitle_path)
     logger.info("ffsubsync: syncing %s against %s (backup: %s)", subtitle_path, video_path, backup)
@@ -190,8 +220,8 @@ def sync_with_ffsubsync(subtitle_path: str, video_path: str) -> dict:
             threshold,
         )
         _audit("rejected", shift_ms, f"exceeds_sanity_threshold:{threshold}ms")
-        raise SyncSanityThresholdError(
-            f"ffsubsync shift {shift_ms}ms exceeds sanity threshold {threshold}ms"
+        raise SyncShiftRejectedError(
+            f"ffsubsync shift {shift_ms}ms exceeds sanity threshold {threshold}ms", shift_ms
         )
 
     scale = _parse_ffsubsync_scale(result.stderr + result.stdout)
