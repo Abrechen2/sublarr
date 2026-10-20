@@ -22,6 +22,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   from the "�"; lines edited since and the file's timings stay as they are.
 
 ### Fixed
+- **An auto-disabled provider no longer pushes wanted items to a 30-day wait** —
+  When no provider answered because one was auto-disabled by Sublarr itself,
+  the item was charged a provider error each time and reached the 30-day retry
+  after five searches. Such a search is now retried after 6 hours, like one
+  that ran into Sublarr's own request budget.
 - **A path mapping matches whole folders only** — ``/media/movies:/data/films``
   also rewrote ``/media/movies-4k/...`` to ``/data/films-4k/...``, a folder the
   media server does not have.
