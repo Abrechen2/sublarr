@@ -103,6 +103,16 @@ def test_timeout_of_an_uninterruptible_job_is_recorded_as_abandoned(flask_app, d
     assert rows[0].status == "timeout_abandoned"
     assert rows[0].error_type == "TimeoutError"
 
+    # The abandoned worker owns the job lock until it exits (a87f5ede). Wait
+    # for that here: every test in this file shares the "test_job" id, so a
+    # lock still held when this test returns turns the next one's run into a
+    # skipped_overlap.
+    from services.scheduler import _get_job_run_lock
+
+    lock = _get_job_run_lock("test_job")
+    assert lock.acquire(timeout=10), "abandoned worker never released the job lock"
+    lock.release()
+
 
 def test_app_context_entered_before_fn(flask_app, db_session):
     """Regression for feedback_flask_app_context_in_threads."""
