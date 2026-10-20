@@ -19,7 +19,6 @@ state it reads through ``self`` (``session``, ``name``).
 
 import logging
 import os
-import re
 
 from werkzeug.utils import secure_filename as _secure_filename
 
@@ -30,21 +29,10 @@ from providers.base import (
     SubtitleResult,
     VideoQuery,
 )
+from providers.episode_gate import parse_claims
 from providers.opensubtitles_helpers import _FORMAT_MAP, _UPLOADER_RANK_BONUS, API_BASE
 
 logger = logging.getLogger(__name__)
-
-# ``S02E07`` / ``s2.e7`` / ``S02 E07`` in a filename or release name.
-_SEASON_EPISODE_RE = re.compile(r"(?<![a-z0-9])s(\d{1,3})[ ._-]?e(\d{1,4})", re.IGNORECASE)
-
-
-def _named_season_episode(*texts: str) -> tuple[int, int] | None:
-    """First ``S##E##`` pair found in ``texts``, or None."""
-    for text in texts:
-        match = _SEASON_EPISODE_RE.search(text or "")
-        if match:
-            return int(match.group(1)), int(match.group(2))
-    return None
 
 
 def _contradicts_query_season(query: VideoQuery, season, episode) -> bool:
@@ -52,14 +40,23 @@ def _contradicts_query_season(query: VideoQuery, season, episode) -> bool:
 
     The one sanctioned mismatch is anime that OpenSubtitles numbers as a
     single long season: S01E<absolute> is the queried episode when the query
-    carries that absolute number.
+    knows that absolute number (Shoko / AniDB mapping, else Sonarr's).
     """
     # Season 0 is OpenSubtitles' "unknown/specials" bucket, not a contradiction.
     if not season or query.season is None or season == query.season:
         return False
-    return not (
-        season == 1 and query.absolute_episode is not None and episode == query.absolute_episode
-    )
+    absolute = query.matching_absolute_episode
+    return not (season == 1 and absolute is not None and episode == absolute)
+
+
+def _named_season_episode(*texts: str) -> tuple[int, int] | None:
+    """First ``S##E##`` pair named in ``texts``, or None."""
+    for text in texts:
+        named = parse_claims(text).season_episodes
+        if named:
+            season, episodes = named[0]
+            return season, min(episodes)
+    return None
 
 
 def _wrong_season(query: VideoQuery, feature: dict, filename: str, release: str) -> str:

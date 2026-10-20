@@ -29,6 +29,7 @@ from providers.base import (
     VideoQuery,
     compute_score,
 )
+from providers.episode_gate import episode_gate_reason
 from providers.language_excludes import parse_language_excludes
 from providers.search_coordinator.cache import SearchCacheMixin
 from providers.search_coordinator.retry import SearchRetryMixin
@@ -462,7 +463,9 @@ class SearchCoordinatorMixin(SearchRetryMixin, SearchScoringMixin, SearchCacheMi
                         perfect_match_found = False
                         for result in results:
                             compute_score(result, query)
-                            if result.score >= 400:
+                            # A wrong episode is dropped later; it must not
+                            # end the search for the right one first.
+                            if result.score >= 400 and not episode_gate_reason(result, query):
                                 logger.info(
                                     "Perfect match found (score=%d) from provider %s, stopping search",
                                     result.score,

@@ -137,6 +137,12 @@ class VideoQuery:
     # AniDB absolute episode order (set by build_query_from_wanted when series
     # has absolute_order=True and a mapping exists in anidb_absolute_mappings)
     absolute_episode: int | None = None
+    # Sonarr's own absoluteEpisodeNumber. Only used to recognise absolute
+    # naming (S01E24, "Show - 24") when matching results: Jimaku, SubDL,
+    # AnimeTosho and the OpenSubtitles season collapse switch to absolute
+    # search whenever ``absolute_episode`` is set, and Sonarr's continuous
+    # number is not the AniDB number those searches need.
+    sonarr_absolute_episode: int | None = None
 
     # Forced/signs subtitle search
     forced_only: bool = False  # When True, providers filter for forced/signs subtitles
@@ -158,6 +164,17 @@ class VideoQuery:
     @property
     def is_episode(self) -> bool:
         return self.season is not None and self.episode is not None
+
+    @property
+    def matching_absolute_episode(self) -> int | None:
+        """Absolute number a release may name this episode by, or None.
+
+        The authoritative ``absolute_episode`` (Shoko, AniDB mapping) wins
+        over Sonarr's number.
+        """
+        if self.absolute_episode is not None:
+            return self.absolute_episode
+        return self.sonarr_absolute_episode
 
     @property
     def is_movie(self) -> bool:

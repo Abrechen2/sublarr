@@ -46,6 +46,9 @@ def _enrich_from_sonarr(query: VideoQuery, wanted_item: dict) -> bool:
         query.year = meta.get("year")
         query.season = meta.get("season")
         query.episode = meta.get("episode")
+        # Matching only; query.absolute_episode stays with Shoko / the AniDB
+        # mapping (see _resolve_anidb_absolute_episode for the one fallback).
+        query.sonarr_absolute_episode = meta.get("absolute_episode")
         query.imdb_id = meta.get("imdb_id", "")
         query.tvdb_id = meta.get("tvdb_id")
         query.anidb_id = meta.get("anidb_id")
@@ -344,6 +347,19 @@ def _resolve_anidb_absolute_episode(query: VideoQuery, wanted_item: dict) -> Non
                         query.season,
                         query.episode,
                         abs_ep,
+                    )
+                elif query.sonarr_absolute_episode is not None:
+                    # The series asks for absolute order; Sonarr's own number
+                    # is the best one left when AniDB has no mapping.
+                    query.absolute_episode = query.sonarr_absolute_episode
+                    logger.debug(
+                        "Wanted %d: absolute_order enabled, no AniDB mapping for "
+                        "TVDB %d S%02dE%02d — using Sonarr absolute %d",
+                        wanted_item["id"],
+                        query.tvdb_id,
+                        query.season,
+                        query.episode,
+                        query.sonarr_absolute_episode,
                     )
                 else:
                     logger.debug(

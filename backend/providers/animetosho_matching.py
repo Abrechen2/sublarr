@@ -68,11 +68,19 @@ def match_release(
         matches.add("season")
 
     episode = parsed.get("episode")
-    target = (
-        query.episode
-        if season is not None
-        else (query.absolute_episode if query.absolute_episode is not None else query.episode)
-    )
+    absolute = getattr(query, "matching_absolute_episode", query.absolute_episode)
+    if season is not None:
+        target = query.episode
+    elif absolute is not None:
+        target = absolute
+    elif query.season is not None and query.season > 1:
+        # "[SubsPlease] Clevatess - 12" names no season. Groups that restart
+        # numbering per season put the season into the name; a bare number
+        # is season 1's (or the absolute one, which this query lacks).
+        # A single-season series never asks for season > 1.
+        target = None
+    else:
+        target = query.episode
     if isinstance(episode, list):
         # A feed title such as "01-366" is an invitation to inspect its files,
         # never proof that every attachment belongs to the requested episode.
@@ -91,7 +99,7 @@ def match_release(
         if not min(numbers) <= target <= max(numbers):
             return None
     elif episode is not None:
-        if episode != target:
+        if target is None or episode != target:
             return None
         matches.add("episode")
     return matches

@@ -48,6 +48,7 @@ const STAGE_KEYS: Record<string, string> = {
   profile_must_contain: 'decision.stage_must_contain',
   profile_must_not_contain: 'decision.stage_must_not_contain',
   release_group_exclude: 'decision.stage_release_group',
+  wrong_episode: 'decision.stage_wrong_episode',
 }
 
 export const PROVIDER_SKIP_KEYS: Record<string, string> = {
@@ -122,7 +123,7 @@ function FilterStageRow({ stage, expert, t }: {
               <span className="uppercase shrink-0 font-mono">{r.language}</span>
               <span className="uppercase shrink-0 font-mono">{r.format}</span>
               <span className="shrink-0 tabular-nums font-mono">{r.score}</span>
-              <span className="truncate" title={r.filename}>{r.filename}</span>
+              <span className="truncate" title={stage.reasons?.[i] ?? r.filename}>{r.filename}</span>
             </div>
           ))}
         </div>

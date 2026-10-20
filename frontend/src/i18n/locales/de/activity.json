@@ -282,6 +282,7 @@
     "stage_must_contain": "Profil-Regel (muss enthalten)",
     "stage_must_not_contain": "Profil-Regel (darf nicht enthalten)",
     "stage_release_group": "blockierte Release-Group",
+    "stage_wrong_episode": "andere oder unbelegte Episode",
     "attempt_selected": "heruntergeladen — finale Auswahl",
     "attempt_download_failed": "Download fehlgeschlagen, nächster Kandidat",
     "attempt_hash_blacklisted": "Inhalt auf der Blacklist, nächster Kandidat",

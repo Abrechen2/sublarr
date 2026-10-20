@@ -78,6 +78,8 @@ export interface DecisionLogFilterStage {
   wanted?: string | string[]
   threshold?: number
   rule?: string[]
+  /** Why each rejected sample was dropped, same order (wrong_episode stage). */
+  reasons?: string[]
 }
 
 export interface DecisionLogDownloadAttempt {
