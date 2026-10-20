@@ -17,7 +17,6 @@ picks up where it left off, because progress is persisted per file.
 
 from __future__ import annotations
 
-import hashlib
 import logging
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
@@ -69,9 +68,10 @@ class RepairRun:
             self.failed += 1
 
 
-def _hash_bytes(raw: bytes) -> str:
-    text = raw.decode("utf-8", errors="replace").strip().replace("\r\n", "\n")
-    return hashlib.sha256(text.encode("utf-8")).hexdigest()
+def _hash_bytes(raw: bytes, language: str | None = None) -> str:
+    from dedup_engine import compute_content_hash_from_bytes
+
+    return compute_content_hash_from_bytes(raw, language)
 
 
 def fetch_original(candidate: RepairCandidate) -> bytes:
@@ -132,7 +132,7 @@ def _pristine_bak(candidate: RepairCandidate) -> bytes | None:
     except OSError:
         return None
 
-    if _hash_bytes(raw) != candidate.original_hash:
+    if _hash_bytes(raw, candidate.language) != candidate.original_hash:
         logger.debug("repair: .bak for %s is not pristine — ignoring it", candidate.file_path)
         return None
     return raw

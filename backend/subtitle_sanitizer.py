@@ -247,17 +247,20 @@ def sanitize_subtitle(content: bytes, fmt, language: str | None = None) -> bytes
     """
     fmt_value = fmt.value if hasattr(fmt, "value") else str(fmt)
 
+    if fmt_value in ("ass", "ssa", "srt", "vtt"):
+        # Before the format check and the parsers: both read the bytes as UTF-8.
+        # Before the size check too, so the limit applies to what is written:
+        # UTF-16 halves on the way, cp1251 nearly doubles, and a download (whose
+        # UTF-16 is converted earlier) and its repair re-download must agree.
+        from subtitle_encoding import ensure_utf8
+
+        content = ensure_utf8(content, language=language)
+
     limit = _MAX_ASS_BYTES if fmt_value in ("ass", "ssa") else _MAX_SUBTITLE_BYTES
     if len(content) > limit:
         raise ValueError(
             f"Subtitle too large: {len(content) // 1024} KB > {limit // 1024} KB limit"
         )
-
-    if fmt_value in ("ass", "ssa", "srt", "vtt"):
-        # Before the format check and the parsers: both read the bytes as UTF-8.
-        from subtitle_encoding import ensure_utf8
-
-        content = ensure_utf8(content, language=language)
 
     if fmt_value != "unknown" and not validate_content_type(content, fmt):
         raise ValueError(f"Content does not match expected format {fmt_value!r}")

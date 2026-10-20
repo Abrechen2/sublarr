@@ -98,7 +98,7 @@ def _text_for_hash(raw: bytes, language: str | None) -> str:
         return decode_subtitle_bytes(raw, language=language)
 
 
-def compute_content_hash_from_bytes(content: bytes) -> str:
+def compute_content_hash_from_bytes(content: bytes, language: str | None = None) -> str:
     """Compute SHA-256 content hash from in-memory subtitle bytes.
 
     Applies the same normalization as compute_subtitle_hash() (strip whitespace,
@@ -106,11 +106,12 @@ def compute_content_hash_from_bytes(content: bytes) -> str:
 
     Args:
         content: Raw subtitle file bytes.
+        language: The subtitle's language; picks the codepage of non-UTF-8 bytes.
 
     Returns:
         SHA-256 hex digest string.
     """
-    text = _text_for_hash(content, None)
+    text = _text_for_hash(content, language)
     normalized = text.strip().replace("\r\n", "\n")
     return hashlib.sha256(normalized.encode("utf-8")).hexdigest()
 

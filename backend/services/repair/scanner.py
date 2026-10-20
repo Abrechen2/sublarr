@@ -29,7 +29,6 @@ the language and extension:
 
 from __future__ import annotations
 
-import hashlib
 import os
 import re
 from dataclasses import dataclass
@@ -70,14 +69,22 @@ class ScanReport:
 
 
 def content_hash(path: str) -> str | None:
-    """SHA-256 of the file, normalised exactly like ``dedup_engine`` does."""
+    """SHA-256 of the file, by the same function ``dedup_engine`` hashes with.
+
+    A copy of it decoded non-UTF-8 files differently from the dedup scan that
+    fills ``subtitle_hashes``, so every legacy-encoded sidecar looked damaged
+    and spent a provider download on every run.
+    """
+    from dedup_engine import compute_content_hash_from_bytes
+    from subtitle_filename import parse_subtitle_filename
+
     try:
         with open(path, "rb") as fh:
             raw = fh.read()
     except OSError:
         return None
-    text = raw.decode("utf-8", errors="replace").strip().replace("\r\n", "\n")
-    return hashlib.sha256(text.encode("utf-8")).hexdigest()
+    parsed = parse_subtitle_filename(path)
+    return compute_content_hash_from_bytes(raw, parsed.language if parsed else None)
 
 
 def _download_index(language: str | None) -> dict[tuple[str, str], tuple[str, str]]:

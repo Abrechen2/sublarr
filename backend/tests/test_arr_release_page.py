@@ -59,6 +59,24 @@ def test_an_import_of_another_file_name_is_skipped_for_the_matching_one():
     assert pick_release_page(records, FILE) == "https://cinemaz.to/a"
 
 
+def test_a_manually_imported_file_has_no_release_page():
+    # The file on disk came from no grab; the replaced HDTV grab is another cut.
+    records = [
+        _imported("2026-10-02T00:00:00Z", None, "/data/tv/Show/Season 01/Show - S01E02.mkv"),
+        _imported("2026-09-02T00:00:00Z", "OLD", "/data/tv/Show/Season 01/Show - S01E02 HDTV.mkv"),
+        _grab("2026-09-01T00:00:00Z", "OLD", "https://cinemaz.to/111-hdtv-release"),
+    ]
+    assert pick_release_page(records, FILE) is None
+
+
+def test_an_import_whose_grab_is_gone_has_no_release_page():
+    records = [
+        _imported("2026-10-02T00:00:00Z", "LOST", "/data/tv/Show/Season 01/Show - S01E02.mkv"),
+        _grab("2026-09-01T00:00:00Z", "OTHER", "https://cinemaz.to/other"),
+    ]
+    assert pick_release_page(records, FILE) is None
+
+
 def test_without_a_matching_import_the_newest_grab_wins():
     records = [
         _grab("2026-08-13T20:51:02Z", "OLD", "https://cinemaz.to/old"),

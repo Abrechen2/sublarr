@@ -262,3 +262,39 @@ class TestUpload:
 
         _content, ext = prepare_upload("Movie.ass", _ass("Hallo Welt").encode("utf-16"), "de")
         assert ext == "ass"
+
+
+class TestSizeLimitAfterConversion:
+    """The limit applies to the UTF-8 that is written, on every path."""
+
+    def _big_srt(self, mb: float) -> str:
+        cue = "1\n00:00:01,000 --> 00:00:02,000\nПривет, как дела? Всё хорошо.\n\n"
+        return cue * int(mb * 1024 * 1024 / len(cue.encode("utf-8")))
+
+    def test_utf16_download_and_repair_agree(self, app_ctx):
+        from subtitle_sanitizer import _MAX_SUBTITLE_BYTES
+
+        text = self._big_srt(_MAX_SUBTITLE_BYTES / 1024 / 1024 * 0.9)
+        raw = text.encode("utf-16")
+        assert len(raw) > _MAX_SUBTITLE_BYTES  # only the UTF-16 is over
+        # The repair path hands the raw provider bytes to the normaliser.
+        assert normalise_downloaded_content(raw, "srt", language="ru")
+
+    def test_legacy_file_that_grows_past_the_limit_is_rejected(self):
+        from subtitle_sanitizer import _MAX_SUBTITLE_BYTES
+
+        text = self._big_srt(_MAX_SUBTITLE_BYTES / 1024 / 1024 * 1.1)
+        raw = text.encode("cp1251")
+        assert len(raw) < _MAX_SUBTITLE_BYTES  # under the limit as it came
+        with pytest.raises(ValueError, match="too large"):
+            sanitize_subtitle(raw, "srt", language="ru")
+
+
+def test_repair_scan_hashes_legacy_files_like_the_dedup_scan(tmp_path):
+    """A dedup scan fills subtitle_hashes; the repair scan compares against it."""
+    from dedup_engine import compute_subtitle_hash
+    from services.repair.scanner import content_hash
+
+    path = tmp_path / "Show.S01E01.de.srt"
+    path.write_bytes("1\r\n00:00:01,000 --> 00:00:02,000\r\nGrüße\r\n".encode("cp1252"))
+    assert content_hash(str(path)) == compute_subtitle_hash(str(path))["content_hash"]

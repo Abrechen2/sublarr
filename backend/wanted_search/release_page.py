@@ -41,27 +41,32 @@ def _records(records) -> list[dict]:
 def pick_release_page(records, file_path: str) -> str | None:
     """The release page of the grab the current file came from.
 
-    Prefers the grab whose ``downloadId`` matches the newest import of a file
-    with this file's name (paths differ between Sublarr and the *arr, names
-    do not), then the newest import at all, then the newest grab: a later
+    The grab whose ``downloadId`` matches the newest import of a file with
+    this file's name (paths differ between Sublarr and the *arr, names do
+    not). When that import has no grab — a manual import, or a grab no longer
+    in history — there is no page: any other grab is another release, and the
+    tracker bundles would fetch subtitles for a different cut. Only when no
+    import carries this name (the file was renamed since) does the newest
+    import stand in for it, and without any import the newest grab: a later
     grab may be an upgrade that was never imported.
     """
     ordered = _records(records)
     grabs = [r for r in ordered if r.get("eventType") == "grabbed" and r["data"].get("nzbInfoUrl")]
     if not grabs:
         return None
-    imports = [
-        r for r in ordered if r.get("eventType") == "downloadFolderImported" and r.get("downloadId")
-    ]
+    imports = [r for r in ordered if r.get("eventType") == "downloadFolderImported"]
     name = os.path.basename(file_path or "")
     same_file = [
         r for r in imports if os.path.basename(str(r["data"].get("importedPath") or "")) == name
     ]
-    for imported in same_file[:1] or imports[:1]:
-        for grab in grabs:
-            if grab.get("downloadId") == imported["downloadId"]:
-                return str(grab["data"]["nzbInfoUrl"])
-    return str(grabs[0]["data"]["nzbInfoUrl"])
+    current = (same_file or imports)[:1]
+    if not current:
+        return str(grabs[0]["data"]["nzbInfoUrl"])
+    download_id = current[0].get("downloadId")
+    for grab in grabs:
+        if download_id and grab.get("downloadId") == download_id:
+            return str(grab["data"]["nzbInfoUrl"])
+    return None
 
 
 def _wanted_by_search(query: VideoQuery) -> bool:
@@ -111,14 +116,17 @@ def enrich_release_page(query: VideoQuery, wanted_item: dict) -> None:
         return
     try:
         now = time.time()
+        # The file is part of the key: after an upgrade import it is another
+        # release, and the page cached for the old one must not be reused.
+        cache_key = (*key, query.file_path)
         with _cache_lock:
-            cached = _cache.get(key)
+            cached = _cache.get(cache_key)
         if cached and now < cached[1]:
             page = cached[0]
         else:
             page = pick_release_page(_read_history(key), query.file_path)
             with _cache_lock:
-                _cache[key] = (page, now + _CACHE_TTL)
+                _cache[cache_key] = (page, now + _CACHE_TTL)
         if page:
             query.info_url = page
             logger.debug("Wanted %s: release page from %s history", wanted_item.get("id"), key[0])
