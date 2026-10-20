@@ -122,6 +122,11 @@ class VideoQuery:
     source: str = ""  # BluRay, WEB-DL, etc.
     resolution: str = ""  # 1080p, 720p
     video_codec: str = ""  # x264, x265
+    fps: float | None = None  # frame rate, only when a caller already knows it
+    # The grabbed release's page on its indexer (Sonarr/Radarr history). The
+    # tracker catalog bundles (CinemaZ, AvistaZ) search that page and nothing
+    # else; no enricher fills it yet.
+    info_url: str = ""
 
     # Language preferences
     languages: list[str] = field(default_factory=list)  # ISO 639-1 codes to search for

@@ -27,6 +27,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   of a text field.
 
 ### Fixed
+- **Catalog providers get the details they search by** (#220) — TsukiHime
+  never searched an episode because Sublarr did not pass the AniDB episode
+  number, and dropped a movie's AniList id. Both are passed now; the episode
+  number is the absolute episode for absolute-ordered anime. Episodes still
+  need Shoko, the only source of the AniDB episode id TsukiHime requires, and
+  only a search given an AniList id (from the API) reaches it for a movie,
+  since Radarr has none. Sublarr also hands the catalog
+  providers a release page and frame rate when one is known, so CinemaZ,
+  AvistaZ and the frame-rate checks of Subs.sab.bz, Subsunacs and Titulky can
+  use them once Sublarr reads them from Sonarr/Radarr.
 - **Auto-sync keeps long signs and karaoke lines** — ffsubsync caps every
   event at 10 seconds in the file it writes, so each sync cut signs, ED
   karaoke and long lines to exactly 10 seconds — 120 lines of one episode on

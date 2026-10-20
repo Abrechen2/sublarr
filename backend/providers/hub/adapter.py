@@ -83,6 +83,9 @@ def video_from_query(query: VideoQuery) -> dict:
         "source": query.source or None,
         "resolution": query.resolution or None,
         "video_codec": query.video_codec or None,
+        "fps": query.fps or None,
+        # The tracker bundles (CinemaZ, AvistaZ) search only this release page.
+        "info_url": query.info_url or None,
         "hashes": {"opensubtitles": query.file_hash} if query.file_hash else {},
     }
     if query.is_episode:
@@ -99,6 +102,12 @@ def video_from_query(query: VideoQuery) -> dict:
                 "series_tvdb_id": query.tvdb_id,
                 "series_anidb_id": query.anidb_id,
                 "series_anidb_episode_id": query.anidb_episode_id,
+                # AniDB numbers episodes within each anime entry: that is the
+                # absolute episode when Sublarr resolved one. TsukiHime's
+                # episodes endpoint is keyed by this number.
+                "series_anidb_episode_no": (
+                    query.absolute_episode if query.absolute_episode is not None else query.episode
+                ),
                 "anilist_id": query.anilist_id,
             }
         )
@@ -109,6 +118,7 @@ def video_from_query(query: VideoQuery) -> dict:
                 "alternative_titles": [],
                 "imdb_id": query.imdb_id or None,
                 "tmdb_id": query.tmdb_id,
+                "anilist_id": query.anilist_id,
             }
         )
     return video
