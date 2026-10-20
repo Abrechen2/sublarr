@@ -102,12 +102,10 @@ def video_from_query(query: VideoQuery) -> dict:
                 "series_tvdb_id": query.tvdb_id,
                 "series_anidb_id": query.anidb_id,
                 "series_anidb_episode_id": query.anidb_episode_id,
-                # AniDB numbers episodes within each anime entry: that is the
-                # absolute episode when Sublarr resolved one. TsukiHime's
-                # episodes endpoint is keyed by this number.
-                "series_anidb_episode_no": (
-                    query.absolute_episode if query.absolute_episode is not None else query.episode
-                ),
+                # TsukiHime's episodes endpoint is keyed by the number within
+                # the AniDB entry. Only Shoko knows it; Sonarr's season and
+                # absolute numbers differ from the second AniDB entry on.
+                "series_anidb_episode_no": query.anidb_episode_no,
                 "anilist_id": query.anilist_id,
             }
         )

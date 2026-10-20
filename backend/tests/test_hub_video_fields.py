@@ -44,13 +44,18 @@ def _movie(**overrides):
 # -- the dict itself -----------------------------------------------------------
 
 
-def test_the_anidb_episode_number_is_the_absolute_episode_when_one_is_known():
+def test_the_anidb_episode_number_is_the_one_shoko_reported():
+    # AniDB numbers within each entry, and a second season is its own entry:
+    # Frieren S02E01 is episode 1 of its AniDB entry, absolute episode 29.
+    query = _episode(season=2, episode=1, absolute_episode=29, anidb_episode_no=1)
+    assert video_from_query(query)["series_anidb_episode_no"] == 1
+
+
+def test_without_an_anidb_episode_number_none_is_guessed():
+    # Sonarr's season or series-wide numbers are not AniDB's; a wrong number
+    # would fetch another episode's subtitle.
     video = video_from_query(_episode(season=2, episode=3, absolute_episode=15))
-    assert video["series_anidb_episode_no"] == 15
-
-
-def test_the_anidb_episode_number_falls_back_to_the_episode():
-    assert video_from_query(_episode())["series_anidb_episode_no"] == 2
+    assert video["series_anidb_episode_no"] is None
 
 
 def test_a_movie_carries_its_anilist_id():
@@ -85,7 +90,7 @@ def test_tsukihime_queries_the_episode_by_its_anidb_number():
         return {"id": 77} if path.startswith("/animes/anidb/") else []
 
     impl._get_json = fake_get_json
-    query = _episode(anidb_id=17617, anidb_episode_id=271234, absolute_episode=14)
+    query = _episode(anidb_id=17617, anidb_episode_id=271234, anidb_episode_no=14)
     assert impl.search(video_from_query(query), _GERMAN, {}) == []
     assert calls == ["/animes/anidb/17617", "/animes/77/episodes/14"]
 

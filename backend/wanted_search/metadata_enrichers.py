@@ -96,6 +96,8 @@ def _resolve_anidb_from_shoko(query: VideoQuery) -> bool:
         query.anidb_id = ids.anidb_anime_id
         if ids.anidb_episode_id:
             query.anidb_episode_id = ids.anidb_episode_id
+        if ids.absolute_episode is not None:
+            query.anidb_episode_no = ids.absolute_episode
         if ids.absolute_episode is not None and query.absolute_episode is None:
             query.absolute_episode = ids.absolute_episode
         logger.debug(

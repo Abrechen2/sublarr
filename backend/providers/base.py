@@ -114,6 +114,9 @@ class VideoQuery:
     # Anime IDs (for specialized providers)
     anidb_id: int | None = None
     anidb_episode_id: int | None = None
+    # The episode's number within its AniDB entry (Shoko). Not Sonarr's
+    # absolute number: a later season is its own AniDB entry, numbered from 1.
+    anidb_episode_no: int | None = None
     anilist_id: int | None = None
     tvdb_id: int | None = None
 
