@@ -79,9 +79,12 @@ def unanswered_summary() -> str | None:
 
 #: Unavailable only because of Sublarr's own limits — the provider is fine, our
 #: budget or request window is spent. Such a search must not escalate the backoff.
-#: ``auto_disabled`` is Sublarr's own breaker with its own cooldown; charging the
-#: item on top of it pushed items to error_count=5 / 30 days (prod 2026-10).
-OWN_LIMIT_REASONS = frozenset({"budget_exhausted", "rate_limited", "pool_cooling", "auto_disabled"})
+#: ``auto_disabled`` and ``circuit_open`` are Sublarr's own breakers with their own
+#: cooldowns; charging the item on top pushed items to error_count=5 / 30 days
+#: (prod 2026-10). A provider fault seen in the same search still escalates.
+OWN_LIMIT_REASONS = frozenset(
+    {"budget_exhausted", "rate_limited", "pool_cooling", "auto_disabled", "circuit_open"}
+)
 
 
 def unanswered_by_own_limits_only() -> bool:

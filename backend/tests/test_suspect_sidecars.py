@@ -269,3 +269,83 @@ class TestAutoSyncRunner:
         ):
             self._runner()._auto_sync("/m/ep.de.ass", "/m/ep.mkv")
         quarantine.assert_not_called()
+
+
+class TestSuspectBlacklistIsPerVideo:
+    """A subtitle wrong for S02E05 is the right one for S01E05.
+
+    Prod (Clevatess): OpenSubtitles 11835856 is S01E05's subtitle and was saved
+    for S02E05 too. Blocking it everywhere would keep it from S01E05, where it
+    belongs; it is blocked for the video it did not fit.
+    """
+
+    def _quarantine(self, tmp_path, name, sid="os-11835856"):
+        video = tmp_path / f"{name}.mkv"
+        video.touch()
+        sidecar = tmp_path / f"{name}.de.ass"
+        sidecar.write_text(ASS)
+        record_subtitle_download("opensubtitles", sid, "de", "ass", str(video), 96)
+        assert quarantine_wrong_sidecar(str(sidecar), str(video), "shift 46600ms")
+        return str(video)
+
+    def test_blocked_only_for_the_video_it_did_not_fit(self, app_ctx, tmp_path, no_arr):
+        from services.suspect_sidecars import blocks_result_for
+
+        suspect_sidecars.invalidate_cache()
+        wrong = self._quarantine(tmp_path, "Clevatess - S02E05")
+        right = str(tmp_path / "Clevatess - S01E05.mkv")
+        assert blocks_result_for("opensubtitles", "os-11835856", wrong) is True
+        assert blocks_result_for("opensubtitles", "os-11835856", right) is False
+
+    def test_a_second_video_it_did_not_fit_is_added(self, app_ctx, tmp_path, no_arr):
+        from services.suspect_sidecars import blocks_result_for
+
+        suspect_sidecars.invalidate_cache()
+        first = self._quarantine(tmp_path, "Clevatess - S02E05")
+        second = self._quarantine(tmp_path, "Clevatess - S03E05")
+        assert blocks_result_for("opensubtitles", "os-11835856", first) is True
+        assert blocks_result_for("opensubtitles", "os-11835856", second) is True
+        assert is_suspect_sidecar(str(tmp_path / "Clevatess - S02E05.de.ass"))
+        assert is_suspect_sidecar(str(tmp_path / "Clevatess - S03E05.de.ass"))
+
+    def test_a_user_blacklist_entry_still_blocks_everywhere(self, app_ctx, tmp_path):
+        from db.blacklist import add_blacklist_entry
+        from services.suspect_sidecars import blocks_result_for
+
+        suspect_sidecars.invalidate_cache()
+        add_blacklist_entry("opensubtitles", "os-1", reason="bad translation")
+        assert blocks_result_for("opensubtitles", "os-1", str(tmp_path / "any.mkv")) is True
+        assert blocks_result_for("opensubtitles", "os-2", str(tmp_path / "any.mkv")) is False
+
+    def test_search_filter_keeps_it_for_the_right_episode(self, app_ctx, tmp_path, no_arr):
+        from providers.base import SubtitleFormat, SubtitleResult, VideoQuery
+        from providers.search_coordinator.scoring import _blacklisted
+
+        suspect_sidecars.invalidate_cache()
+        self._quarantine(tmp_path, "Clevatess - S02E05")
+        result = SubtitleResult(
+            provider_name="opensubtitles",
+            subtitle_id="os-11835856",
+            language="de",
+            format=SubtitleFormat.ASS,
+        )
+        right = VideoQuery(file_path=str(tmp_path / "Clevatess - S01E05.mkv"))
+        wrong = VideoQuery(file_path=str(tmp_path / "Clevatess - S02E05.mkv"))
+        assert _blacklisted(result, right) is False
+        assert _blacklisted(result, wrong) is True
+
+
+def test_blacklist_api_lists_suspect_paths_without_flag_times(app_ctx, tmp_path, no_arr):
+    from db.blacklist import get_blacklist_entries
+
+    suspect_sidecars.invalidate_cache()
+    for name in ("Clevatess - S02E05", "Clevatess - S03E05"):
+        video = tmp_path / f"{name}.mkv"
+        video.touch()
+        (tmp_path / f"{name}.de.ass").write_text(ASS)
+        record_subtitle_download("opensubtitles", "os-9", "de", "ass", str(video), 96)
+        quarantine_wrong_sidecar(str(tmp_path / f"{name}.de.ass"), str(video), "shift")
+    (entry,) = get_blacklist_entries()["data"]
+    assert entry["file_path"] == (
+        f"{tmp_path / 'Clevatess - S02E05.de.ass'}, {tmp_path / 'Clevatess - S03E05.de.ass'}"
+    )

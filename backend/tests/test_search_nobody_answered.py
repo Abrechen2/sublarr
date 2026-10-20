@@ -235,6 +235,18 @@ class TestOwnLimitsDoNotEscalate:
         delta = kwargs["retry_after"] - datetime.now(UTC)
         assert delta < timedelta(hours=6, minutes=1)
 
+    def test_an_open_circuit_breaker_is_an_own_limit(self, mock_db, tracking):
+        """The breaker is Sublarr's too, with its own cooldown of minutes; a
+        provider outage of an hour must not push every searched item out by
+        days on top of it."""
+        decision_log.provider_skipped("animetosho", "circuit_open")
+
+        record_search_outcome(7, kind="no_result")
+
+        kwargs = mock_db.call_args.kwargs
+        assert "error_count_increment" not in kwargs
+        assert "own limits" in kwargs["error"]
+
     def test_a_high_error_count_does_not_stretch_an_own_limit_retry(
         self, mock_db, tracking, monkeypatch
     ):

@@ -45,7 +45,8 @@ _CACHE_TTL_S = 60.0
 _EPISODE_RE = re.compile(r"S\d{1,3}E\d{1,4}", re.IGNORECASE)
 
 _cache_lock = threading.Lock()
-_cache: tuple[float, dict[str, datetime]] | None = None
+# (time, suspect sidecar path -> flag time, (provider, subtitle id) -> its sidecars)
+_cache: tuple[float, dict[str, datetime], dict[tuple[str, str], set[str]]] | None = None
 
 
 def invalidate_cache() -> None:
@@ -62,13 +63,34 @@ def _aware(value: datetime) -> datetime:
     return value if value.tzinfo is not None else value.replace(tzinfo=UTC)
 
 
-def _suspects() -> dict[str, datetime]:
-    """Suspect sidecar path → flag time. Cached briefly: the scanner asks per file."""
+def _flagged_paths(file_path: str, added_at: datetime) -> list[tuple[str, datetime]]:
+    """The sidecars one suspect entry stands for, each with its own flag time.
+
+    One provider subtitle can be wrong for several videos (S01E05's subtitle
+    saved for S02E05 and S03E05), but the blacklist holds one row per
+    subtitle: each further sidecar is a line ``path<TAB>ISO time``. A line
+    without a time is the entry's first sidecar, flagged at ``added_at``.
+    """
+    flagged = []
+    for line in (file_path or "").splitlines():
+        path, _, stamp = line.partition("\t")
+        if not path:
+            continue
+        try:
+            at = _aware(datetime.fromisoformat(stamp)) if stamp else _aware(added_at)
+        except ValueError:
+            at = _aware(added_at)
+        flagged.append((path, at))
+    return flagged
+
+
+def _load() -> tuple[dict[str, datetime], dict[tuple[str, str], set[str]]]:
+    """Suspect entries, cached briefly: the scanner and the search ask per file."""
     global _cache
     now = time.monotonic()
     with _cache_lock:
         if _cache is not None and now - _cache[0] < _CACHE_TTL_S:
-            return _cache[1]
+            return _cache[1], _cache[2]
     try:
         from sqlalchemy import select
 
@@ -76,17 +98,58 @@ def _suspects() -> dict[str, datetime]:
         from extensions import db
 
         rows = db.session.execute(
-            select(BlacklistEntry.file_path, BlacklistEntry.added_at).where(
-                BlacklistEntry.reason.like(SUSPECT_REASON_PREFIX + "%")
-            )
+            select(
+                BlacklistEntry.provider_name,
+                BlacklistEntry.subtitle_id,
+                BlacklistEntry.file_path,
+                BlacklistEntry.added_at,
+            ).where(BlacklistEntry.reason.like(SUSPECT_REASON_PREFIX + "%"))
         ).all()
-        suspects = {_norm(p): _aware(at) for p, at in rows if p and at}
     except Exception as exc:  # noqa: BLE001 — unknown means "nothing is suspect"
         logger.debug("suspect sidecars: lookup failed: %s", exc)
-        return {}
+        return {}, {}
+    suspects: dict[str, datetime] = {}
+    entries: dict[tuple[str, str], set[str]] = {}
+    for provider, subtitle_id, file_path, added_at in rows:
+        if not added_at:
+            continue
+        for path, at in _flagged_paths(file_path, added_at):
+            suspects[_norm(path)] = at
+            entries.setdefault((provider, str(subtitle_id)), set()).add(path)
     with _cache_lock:
-        _cache = (now, suspects)
-    return suspects
+        _cache = (now, suspects, entries)
+    return suspects, entries
+
+
+def _suspects() -> dict[str, datetime]:
+    """Suspect sidecar path → flag time."""
+    return _load()[0]
+
+
+def _video_stem_of(sidecar: str) -> str:
+    from subtitle_filename import parse_subtitle_filename
+
+    parsed = parse_subtitle_filename(sidecar)
+    base = parsed.base if parsed else os.path.splitext(os.path.basename(sidecar))[0]
+    return _norm(os.path.join(os.path.dirname(sidecar), base))
+
+
+def blocks_result_for(provider_name: str, subtitle_id: str, video_path: str | None) -> bool:
+    """Whether the blacklist keeps this provider result from ``video_path``.
+
+    A user's blacklist entry blocks the subtitle everywhere. A suspect entry
+    only blocks it for the videos it was found not to fit: the subtitle of
+    S01E05 that was saved for S02E05 is still S01E05's subtitle.
+    """
+    from db.blacklist import is_blacklisted
+
+    if not is_blacklisted(provider_name, str(subtitle_id)):
+        return False
+    sidecars = _load()[1].get((provider_name, str(subtitle_id)))
+    if sidecars is None or not video_path:
+        return True
+    stem = _norm(os.path.splitext(video_path)[0])
+    return any(_video_stem_of(sidecar) == stem for sidecar in sidecars)
 
 
 def is_suspect_sidecar(path: str) -> bool:
@@ -173,6 +236,42 @@ def _download_vouching_for(subtitle_path: str):
     return video, language, download
 
 
+def _blacklist_for(
+    provider_name: str, subtitle_id: str, language: str, sidecar: str, video: str, reason: str
+) -> None:
+    """Add a suspect entry, or add ``sidecar`` to the suspect entry already there."""
+    from sqlalchemy import select
+
+    from db.blacklist import add_blacklist_entry
+    from db.models.core import BlacklistEntry
+    from extensions import db
+
+    entry = db.session.execute(
+        select(BlacklistEntry).where(
+            BlacklistEntry.provider_name == provider_name,
+            BlacklistEntry.subtitle_id == str(subtitle_id),
+        )
+    ).scalar_one_or_none()
+    if entry is None:
+        add_blacklist_entry(
+            provider_name=provider_name,
+            subtitle_id=subtitle_id,
+            language=language,
+            file_path=sidecar,
+            title=os.path.basename(video),
+            reason=f"{SUSPECT_REASON_PREFIX}: {reason}"[:500],
+        )
+        return
+    if not (entry.reason or "").startswith(SUSPECT_REASON_PREFIX):
+        return  # the user blacklisted it already: blocked everywhere
+    known = {_norm(path) for path, _at in _flagged_paths(entry.file_path, entry.added_at)}
+    if _norm(sidecar) in known:
+        return
+    line = f"{sidecar}\t{datetime.now(UTC).isoformat()}"
+    entry.file_path = f"{entry.file_path}\n{line}" if entry.file_path else line
+    db.session.commit()
+
+
 def quarantine_wrong_sidecar(subtitle_path: str, video_path: str, reason: str) -> bool:
     """Blacklist, flag and requeue a downloaded sidecar that belongs elsewhere.
 
@@ -189,15 +288,13 @@ def quarantine_wrong_sidecar(subtitle_path: str, video_path: str, reason: str) -
             )
             return False
         video, language, download = vouched
-        from db.blacklist import add_blacklist_entry
-
-        add_blacklist_entry(
-            provider_name=download.provider_name,
-            subtitle_id=download.subtitle_id,
-            language=language,
-            file_path=subtitle_path,
-            title=os.path.basename(video_path or video),
-            reason=f"{SUSPECT_REASON_PREFIX}: {reason}"[:500],
+        _blacklist_for(
+            download.provider_name,
+            download.subtitle_id,
+            language,
+            subtitle_path,
+            video_path or video,
+            reason,
         )
         invalidate_cache()
         logger.warning(

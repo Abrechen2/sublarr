@@ -129,10 +129,8 @@ class SearchScoringMixin:
             )
 
         # Filter blacklisted subtitles
-        from db.blacklist import is_blacklisted
-
         before = all_results
-        all_results = [r for r in all_results if not is_blacklisted(r.provider_name, r.subtitle_id)]
+        all_results = [r for r in all_results if not _blacklisted(r, query)]
         decision_log.filter_stage(
             "blacklist",
             len(before) - len(all_results),
@@ -213,3 +211,10 @@ class SearchScoringMixin:
         )
 
         return all_results
+
+
+def _blacklisted(result, query) -> bool:
+    """Blacklisted for this query's video (suspect entries are per video)."""
+    from services.suspect_sidecars import blocks_result_for
+
+    return blocks_result_for(result.provider_name, result.subtitle_id, query.file_path)

@@ -160,7 +160,7 @@ class BlacklistRepository(BaseRepository):
 
         total_pages = max(1, (count + per_page - 1) // per_page)
         return {
-            "data": [self._to_dict(e) for e in entries],
+            "data": [self._entry_dict(e) for e in entries],
             "page": page,
             "per_page": per_page,
             "total": count,
@@ -170,3 +170,10 @@ class BlacklistRepository(BaseRepository):
     def get_blacklist_count(self) -> int:
         """Get total number of blacklisted subtitles."""
         return self.session.execute(select(func.count()).select_from(BlacklistEntry)).scalar() or 0
+
+    def _entry_dict(self, entry: BlacklistEntry) -> dict:
+        """An entry for the API; a suspect entry's sidecars without their flag times."""
+        data = self._to_dict(entry)
+        paths = [line.partition("\t")[0] for line in (data.get("file_path") or "").splitlines()]
+        data["file_path"] = ", ".join(p for p in paths if p)
+        return data
