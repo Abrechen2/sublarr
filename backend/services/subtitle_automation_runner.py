@@ -320,7 +320,11 @@ class SubtitleAutomationRunner:
         Both paths come off the row rather than from the wanted item: the
         item is usually deleted the moment its subtitle lands.
         """
-        from services.video_sync import sync_with_ffsubsync
+        from services.video_sync import (
+            SubtitleLengthMismatchError,
+            SyncShiftRejectedError,
+            sync_with_ffsubsync,
+        )
 
         if not video_path:
             # Only reachable for a row written before `video_path` existed.
@@ -330,7 +334,19 @@ class SubtitleAutomationRunner:
                 f"auto_sync row for {subtitle_path} has no video_path; cannot sync"
             )
         logger.info("auto-sync: starting ffsubsync for %s against %s", subtitle_path, video_path)
-        sync_with_ffsubsync(subtitle_path, video_path)
+        try:
+            sync_with_ffsubsync(subtitle_path, video_path)
+        except (SyncShiftRejectedError, SubtitleLengthMismatchError) as exc:
+            # A shift past the sanity threshold, or a subtitle running past
+            # the end of the video, means another episode or cut (prod
+            # 2026-10, Clevatess). Booking the row terminal alone left that
+            # file in place for good: a target ASS on disk keeps the episode
+            # out of the wanted queue. Quarantine it (blacklist + requeue);
+            # it stays on disk until a replacement lands.
+            from services.suspect_sidecars import quarantine_wrong_sidecar
+
+            quarantine_wrong_sidecar(subtitle_path, video_path, str(exc))
+            raise
         logger.info("auto-sync: complete for %s", subtitle_path)
 
     def process_one(self, *, task_types: set[str] | None = None) -> bool:

@@ -227,6 +227,34 @@ def download_subtitle(
         return None
 
 
+class _LengthCheck:
+    """Per-search length plausibility gate; the video duration is probed once, lazily."""
+
+    _UNSET = object()
+
+    def __init__(self, query) -> None:
+        self._query = query
+        self._duration = self._UNSET
+
+    def reason(self, result: SubtitleResult, content: bytes) -> str | None:
+        """Why ``content`` cannot belong to the queried video, or None. Never raises."""
+        try:
+            import subtitle_plausibility as plausibility
+
+            if self._duration is self._UNSET:
+                self._duration = plausibility.video_duration_s(
+                    getattr(self._query, "file_path", "") or ""
+                )
+            return plausibility.length_mismatch(
+                content,
+                self._duration,
+                partial_ok=plausibility.is_partial_subtitle(result, self._query),
+            )
+        except Exception as exc:  # noqa: BLE001 — a check that cannot run must not block
+            logger.debug("Length plausibility check skipped: %s", exc)
+            return None
+
+
 def search_and_download_best(
     search_fn,
     download_fn,
@@ -264,6 +292,7 @@ def search_and_download_best(
         return None
 
     rate_limited_providers: set[str] = set()
+    length_check = _LengthCheck(query)
     for result in results:
         if result.provider_name in rate_limited_providers:
             decision_log.download_attempt(result.provider_name, result.subtitle_id, "rate_limited")
@@ -286,6 +315,21 @@ def search_and_download_best(
                     )
                     decision_log.download_attempt(
                         result.provider_name, result.subtitle_id, "hash_blacklisted"
+                    )
+                    continue
+                mismatch = length_check.reason(result, content)
+                if mismatch:
+                    # Downloaded fine, but for another cut or episode (prod
+                    # 2026-10: BD double-length ep 1 on a 24-min file). Not a
+                    # provider failure; the next candidate may well fit.
+                    logger.info(
+                        "Skipping %s/%s: length does not fit the video: %s",
+                        result.provider_name,
+                        result.subtitle_id,
+                        mismatch,
+                    )
+                    decision_log.download_attempt(
+                        result.provider_name, result.subtitle_id, "length_mismatch", detail=mismatch
                     )
                     continue
                 update_stats_fn(result.provider_name, success=True, score=result.score)
@@ -608,6 +652,12 @@ def save_subtitle(
     except OSError as e:
         logger.error("Failed to write subtitle to %s: %s", output_path, e)
         raise RuntimeError(f"Cannot write subtitle file: {e}") from e
+
+    # A sidecar quarantined as another episode's subtitle was kept until now;
+    # this one replaces it (same name: already overwritten above).
+    from services.suspect_sidecars import retire_suspect_siblings
+
+    retire_suspect_siblings(output_path, result.language or "")
 
     # Register hash in dedup DB after successful write
     try:

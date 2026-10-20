@@ -455,7 +455,7 @@ def test_parse_ffsubsync_shift():
     from services.video_sync import _parse_ffsubsync_shift
 
     assert _parse_ffsubsync_shift("offset: 1.234 s applied") == 1234
-    assert _parse_ffsubsync_shift("no offset info") == 0
+    assert _parse_ffsubsync_shift("no offset info") is None
     assert _parse_ffsubsync_shift("Offset: -0.5 s") == -500
     # ffsubsync ≥0.4 — rich-logger format with trailing source-location annotation
     assert (
@@ -474,11 +474,11 @@ def test_parse_ffsubsync_shift():
 
 
 def test_parse_ffsubsync_shift_engine_class():
-    """sync_engines.ffsubsync_engine._parse_ffsubsync_shift mirrors the legacy parser."""
+    """sync_engines.ffsubsync_engine._parse_ffsubsync_shift is the shared parser."""
     from services.sync_engines.ffsubsync_engine import _parse_ffsubsync_shift
 
     assert _parse_ffsubsync_shift("offset: 1.234 s applied") == 1234
-    assert _parse_ffsubsync_shift("no offset info") == 0
+    assert _parse_ffsubsync_shift("no offset info") is None
     assert _parse_ffsubsync_shift("Offset: -0.5 s") == -500
     assert _parse_ffsubsync_shift("estimated shift: 0.42s") == 420
     assert (

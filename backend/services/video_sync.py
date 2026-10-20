@@ -30,6 +30,10 @@ import tempfile
 # patch("services.video_sync.run_trigger")).
 from post_processing.pipeline import run_trigger
 from services.foreign_tracks.sidecars import carry_origin_after_rewrite, vouch_before_rewrite
+from services.sync_engines.ffsubsync_output import NO_OFFSET_MESSAGE
+from services.sync_engines.ffsubsync_output import (
+    parse_ffsubsync_shift as _parse_ffsubsync_shift,
+)
 from subtitle_encoding import load_subtitle_file
 
 logger = logging.getLogger(__name__)
@@ -80,6 +84,28 @@ class SyncSanityThresholdError(Exception):
     """
 
 
+class SyncShiftRejectedError(SyncSanityThresholdError):
+    """The measured shift exceeded ``sync_sanity_threshold_ms``.
+
+    Split from the framerate-scale rejection: a shift this large usually means
+    the subtitle belongs to another episode or cut, which callers may act on
+    (see ``services.suspect_sidecars``). ``shift_ms`` is the measured shift.
+    """
+
+    def __init__(self, message: str, shift_ms: int) -> None:
+        super().__init__(message)
+        self.shift_ms = shift_ms
+
+
+class SubtitleLengthMismatchError(SyncSanityThresholdError):
+    """The subtitle runs well past the end of the video it is to be timed to.
+
+    No shift can fix that: it is another episode or cut (prod 2026-10: a BD
+    double-length episode 1 "aligned" by -5 s to a 24-min file). Raised before
+    ffsubsync runs; the sidecar is left untouched.
+    """
+
+
 def sync_with_ffsubsync(subtitle_path: str, video_path: str) -> dict:
     """Sync subtitle to video using ffsubsync (speech-detection based).
 
@@ -126,6 +152,14 @@ def sync_with_ffsubsync(subtitle_path: str, video_path: str) -> dict:
             "ffsubsync is not installed. Install with: pip install ffsubsync"
         )
 
+    import subtitle_plausibility
+
+    overrun = subtitle_plausibility.file_overruns_video(subtitle_path, video_path)
+    if overrun:
+        logger.warning("ffsubsync: not syncing %s — %s", subtitle_path, overrun)
+        _audit("rejected", None, "length_mismatch")
+        raise SubtitleLengthMismatchError(f"subtitle does not fit the video: {overrun}")
+
     backup = _make_backup(subtitle_path)
     logger.info("ffsubsync: syncing %s against %s (backup: %s)", subtitle_path, video_path, backup)
     vouch = vouch_before_rewrite(subtitle_path)
@@ -162,6 +196,11 @@ def sync_with_ffsubsync(subtitle_path: str, video_path: str) -> dict:
     # Parse shift BEFORE touching the destination so the sanity gate can
     # reject mis-locks without overwriting the existing sidecar.
     shift_ms = _parse_ffsubsync_shift(result.stderr + result.stdout)
+    if shift_ms is None:
+        # Exit 0 without an offset line: the shift is unknown, not 0 ms.
+        _safe_remove(out_path)
+        _audit("error", None, "no_offset_in_output")
+        raise RuntimeError(NO_OFFSET_MESSAGE)
 
     # Sanity gate (matches services.sync_engines.orchestrator at line 70):
     # ffsubsync's speech detection can lock onto the wrong reference
@@ -181,8 +220,8 @@ def sync_with_ffsubsync(subtitle_path: str, video_path: str) -> dict:
             threshold,
         )
         _audit("rejected", shift_ms, f"exceeds_sanity_threshold:{threshold}ms")
-        raise SyncSanityThresholdError(
-            f"ffsubsync shift {shift_ms}ms exceeds sanity threshold {threshold}ms"
+        raise SyncShiftRejectedError(
+            f"ffsubsync shift {shift_ms}ms exceeds sanity threshold {threshold}ms", shift_ms
         )
 
     scale = _parse_ffsubsync_scale(result.stderr + result.stdout)
@@ -467,23 +506,3 @@ def _parse_ffsubsync_scale(output: str) -> float:
         except ValueError:
             pass
     return 1.0
-
-
-def _parse_ffsubsync_shift(output: str) -> int:
-    """Extract timing offset in milliseconds from ffsubsync output. Returns 0 if not parseable.
-
-    Handles both legacy and current ffsubsync output formats:
-        legacy: ``offset: 1.234 s applied`` / ``Offset: -0.5 s``
-        modern (≥0.4.x): ``INFO     offset seconds: 22.960``
-    """
-    m = re.search(
-        r"offset(?:\s+seconds)?\s*:\s*(-?\d+(?:\.\d+)?)",
-        output,
-        re.IGNORECASE,
-    )
-    if m:
-        try:
-            return int(float(m.group(1)) * 1000)
-        except ValueError:
-            pass
-    return 0

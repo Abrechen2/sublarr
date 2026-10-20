@@ -20,6 +20,7 @@ from db.profiles import get_movie_profile, get_series_profile
 from db.providers import is_machine_translated
 from db.wanted import upsert_wanted_item
 from services.scheduler.cancellation import abort_requested
+from services.suspect_sidecars import existing_ignoring_suspects
 from translator import (
     detect_existing_target_for_lang,
     find_existing_target_file,
@@ -101,6 +102,9 @@ def _check_language_for_item(
     every existing caller keeps its current meaning.
     """
     existing = detect_existing_target_for_lang(mapped_path, target_lang, probe_data)
+    # A sidecar quarantined as another episode's subtitle must not satisfy
+    # the language, or the episode is never searched again.
+    existing = existing_ignoring_suspects(mapped_path, target_lang, existing)
     machine_translated = (
         keep_seeking_mt
         and existing in ("ass", "srt")

@@ -209,13 +209,31 @@ class TestOwnLimitsDoNotEscalate:
 
     def test_a_provider_fault_keeps_the_escalating_backoff(self, mock_db, tracking):
         decision_log.provider_skipped("opensubtitles", "budget_exhausted")
-        decision_log.provider_skipped("animetosho", "auto_disabled")
+        decision_log.provider_failed("animetosho", "error", detail="HTTP 500")
 
         record_search_outcome(7, kind="no_result")
 
         kwargs = mock_db.call_args.kwargs
         assert kwargs["error_count_increment"] == 1
         assert "own limits" not in kwargs["error"]
+
+    def test_an_auto_disabled_provider_is_an_own_limit(self, mock_db, tracking):
+        """Prod 2026-10 (Clevatess): "No provider answered: ... animetosho
+        auto_disabled" pushed items to error_count=5 / retry 30 days.
+        ``auto_disabled`` is Sublarr's own circuit breaker with its own
+        cooldown — the item must get the fixed retry, not the error curve."""
+        decision_log.provider_skipped("animetosho", "auto_disabled")
+        decision_log.provider_skipped("opensubtitles", "budget_exhausted")
+
+        record_search_outcome(7, kind="no_result")
+
+        kwargs = mock_db.call_args.kwargs
+        assert "error_count_increment" not in kwargs
+        assert "search_count_increment" not in kwargs
+        assert "own limits" in kwargs["error"]
+        assert "animetosho auto_disabled" in kwargs["error"]
+        delta = kwargs["retry_after"] - datetime.now(UTC)
+        assert delta < timedelta(hours=6, minutes=1)
 
     def test_a_high_error_count_does_not_stretch_an_own_limit_retry(
         self, mock_db, tracking, monkeypatch

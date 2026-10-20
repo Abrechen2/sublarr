@@ -8,7 +8,6 @@ from __future__ import annotations
 import importlib.util
 import logging
 import os
-import re
 import shutil
 import subprocess
 import tempfile
@@ -16,6 +15,10 @@ import time
 from pathlib import Path
 
 from services.sync_engines.base import BaseSyncEngine, SyncResult
+from services.sync_engines.ffsubsync_output import NO_OFFSET_MESSAGE
+from services.sync_engines.ffsubsync_output import (
+    parse_ffsubsync_shift as _parse_ffsubsync_shift,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -47,26 +50,6 @@ def _backup_before_sync(subtitle_path: str) -> None:
         create_or_get_bak(subtitle_path)
     except OSError as exc:
         logger.warning("sync backup failed for %s: %s", subtitle_path, exc)
-
-
-def _parse_ffsubsync_shift(output: str) -> int:
-    """Extract estimated shift in milliseconds from ffsubsync stdout/stderr.
-
-    Handles both legacy and current ffsubsync output formats:
-        legacy: ``estimated shift: 1.234s`` / ``offset: 1.234 s applied``
-        modern (≥0.4.x): ``INFO     offset seconds: 22.960``
-    """
-    match = re.search(
-        r"(?:estimated\s+shift|offset)(?:\s+seconds)?\s*:?\s*(-?\d+(?:\.\d+)?)",
-        output,
-        re.IGNORECASE,
-    )
-    if not match:
-        return 0
-    try:
-        return int(float(match.group(1)) * 1000)
-    except ValueError:
-        return 0
 
 
 def _fire_after_sync_trigger(subtitle_path: str, video_or_ref: str, engine: str) -> None:
@@ -175,6 +158,16 @@ class FfsubsyncEngine(BaseSyncEngine):
 
         output = (proc.stderr or "") + (proc.stdout or "")
         offset_ms = _parse_ffsubsync_shift(output)
+        if offset_ms is None:
+            # Exit 0 without an offset line: the shift is unknown, not 0 ms.
+            _remove(tmp_path)
+            return SyncResult(
+                engine=self.name,
+                ok=False,
+                offset_ms=0,
+                duration_ms=int((time.monotonic() - start) * 1000),
+                reason=NO_OFFSET_MESSAGE,
+            )
         scale = _parse_ffsubsync_scale(output)
         if framerate_scale_is_insane(scale):
             _remove(tmp_path)

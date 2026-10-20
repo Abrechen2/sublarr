@@ -19,6 +19,7 @@ import shutil
 import subprocess
 import tempfile
 
+from services.sync_engines.ffsubsync_output import NO_OFFSET_MESSAGE
 from services.video_sync import (
     SyncSanityThresholdError,
     SyncUnavailableError,
@@ -105,6 +106,8 @@ def _run_ffsubsync_preview(subtitle_path: str, video_path: str) -> tuple[int, st
         if result.returncode != 0:
             raise RuntimeError(f"ffsubsync failed: {result.stderr.strip()}")
         shift_ms = _parse_ffsubsync_shift(result.stderr + result.stdout)
+        if shift_ms is None:
+            raise RuntimeError(NO_OFFSET_MESSAGE)
         threshold = getattr(get_settings(), "sync_sanity_threshold_ms", 60_000)
         if abs(shift_ms) > threshold:
             raise SyncSanityThresholdError(
