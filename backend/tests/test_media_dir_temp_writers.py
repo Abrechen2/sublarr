@@ -168,6 +168,7 @@ def test_diff_apply_keeps_sidecar_readable(client, tmp_path):
                 "original": ORIG_ASS,
                 "modified": MOD_ASS,
                 "rejected_indices": [],
+                "last_modified": os.path.getmtime(sub),
             },
         )
     finally:
