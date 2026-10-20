@@ -43,6 +43,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   or RAR whose name had no Latin letters (``简体.srt``) was skipped.
 - **Different subtitles no longer count as duplicates** — Two non-UTF-8 files
   of the same shape could get the same content hash.
+- **Catalog providers get the details they search by** (#220) — TsukiHime
+  never searched an episode because Sublarr did not pass the AniDB episode
+  number, and dropped a movie's AniList id. Both are passed now. Episodes
+  need Shoko, the only source of the AniDB episode id and number, and
+  only a search given an AniList id (from the API) reaches it for a movie,
+  since Radarr has none. CinemaZ and AvistaZ never searched at all: they read
+  only the release page a file was grabbed from, which Sublarr did not know.
+  The wanted search now takes it from the Sonarr/Radarr history, so files
+  grabbed from those trackers are searched there. The history is read only
+  when CinemaZ or AvistaZ is enabled, once an hour per episode or movie. The
+  frame-rate checks of SubsSabBz, SubsUnacs and Titulky now get the file's
+  frame rate from Sonarr/Radarr, without an extra request.
 - **Auto-sync keeps long signs and karaoke lines** — ffsubsync caps every
   event at 10 seconds in the file it writes, so each sync cut signs, ED
   karaoke and long lines to exactly 10 seconds — 120 lines of one episode on

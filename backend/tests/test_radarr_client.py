@@ -525,6 +525,7 @@ class TestGetMovieMetadata:
             "imdb_id": "tt0245429",
             "tmdb_id": 129,
             "genres": ["Animation", "Fantasy"],
+            "fps": None,  # no movieFile in this answer
         }
 
     def test_returns_none_when_movie_not_found(self, client, mock_session):

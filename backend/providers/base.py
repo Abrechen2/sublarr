@@ -114,6 +114,9 @@ class VideoQuery:
     # Anime IDs (for specialized providers)
     anidb_id: int | None = None
     anidb_episode_id: int | None = None
+    # The episode's number within its AniDB entry (Shoko). Not Sonarr's
+    # absolute number: a later season is its own AniDB entry, numbered from 1.
+    anidb_episode_no: int | None = None
     anilist_id: int | None = None
     tvdb_id: int | None = None
 
@@ -122,6 +125,11 @@ class VideoQuery:
     source: str = ""  # BluRay, WEB-DL, etc.
     resolution: str = ""  # 1080p, 720p
     video_codec: str = ""  # x264, x265
+    fps: float | None = None  # frame rate from Sonarr/Radarr mediaInfo, if known
+    # The grabbed release's page on its indexer (Sonarr/Radarr history, see
+    # wanted_search/release_page.py). The tracker catalog bundles (CinemaZ,
+    # AvistaZ) search that page and nothing else.
+    info_url: str = ""
 
     # Language preferences
     languages: list[str] = field(default_factory=list)  # ISO 639-1 codes to search for

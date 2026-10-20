@@ -430,7 +430,25 @@ class TestShokoEnricher:
 
         assert query.anidb_id == 6789
         assert query.anidb_episode_id == 112233
+        assert query.anidb_episode_no == 5
         assert query.absolute_episode == 5
+
+    def test_anidb_episode_number_is_kept_apart_from_sonarrs_absolute(self):
+        from wanted_search.metadata_enrichers import _resolve_anidb_from_shoko
+
+        query = self._query()
+        query.absolute_episode = 29  # Sonarr: series-wide, across seasons
+        fake_client = MagicMock()
+        fake_client.get_file_ids_by_path.return_value = _ids(
+            file_id=42, anime=18000, episode=300001, absolute=1
+        )
+        with (
+            patch("config.get_shoko_config", return_value={"url": "http://shoko:8111"}),
+            patch("metadata.shoko_client.ShokoClient", return_value=fake_client),
+        ):
+            assert _resolve_anidb_from_shoko(query) is True
+        assert query.anidb_episode_no == 1
+        assert query.absolute_episode == 29
 
     def test_returns_false_when_file_unknown_to_shoko(self):
         from wanted_search.metadata_enrichers import _resolve_anidb_from_shoko

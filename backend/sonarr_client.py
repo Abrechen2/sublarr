@@ -10,6 +10,7 @@ import time
 import requests
 
 from config import get_settings
+from mediainfo_utils import arr_video_fps
 
 logger = logging.getLogger(__name__)
 
@@ -365,7 +366,7 @@ class SonarrClient(_SonarrDiagnosticsMixin):
 
         Returns:
             dict: {series_title, season, episode, year, imdb_id, tvdb_id,
-                   anidb_id, anilist_id, title}
+                   anidb_id, anilist_id, title, fps}
             or None on error
         """
         series = self.get_series_by_id(series_id)
@@ -412,7 +413,19 @@ class SonarrClient(_SonarrDiagnosticsMixin):
             "tvdb_id": tvdb_id,
             "anidb_id": anidb_id,
             "anilist_id": anilist_id,
+            # GET /episode/{id} embeds the episode file and its mediaInfo.
+            "fps": arr_video_fps(episode.get("episodeFile")),
         }
+
+    def get_episode_history(self, episode_id):
+        """History records (grabs, imports, ...) of one episode, as a list.
+
+        GET /history?episodeId=X answers a page ``{"records": [...]}``; one
+        page of 50 covers an episode's grabs and imports in practice.
+        """
+        result = self._get("/history", params={"episodeId": episode_id, "pageSize": 50})
+        records = result.get("records") if isinstance(result, dict) else None
+        return records if isinstance(records, list) else []
 
     # extended_health_check + get_library_info live on
     # _SonarrDiagnosticsMixin — see sonarr_diagnostics.py.

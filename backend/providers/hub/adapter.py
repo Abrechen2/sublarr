@@ -84,6 +84,9 @@ def video_from_query(query: VideoQuery) -> dict:
         "source": query.source or None,
         "resolution": query.resolution or None,
         "video_codec": query.video_codec or None,
+        "fps": query.fps or None,
+        # The tracker bundles (CinemaZ, AvistaZ) search only this release page.
+        "info_url": query.info_url or None,
         "hashes": {"opensubtitles": query.file_hash} if query.file_hash else {},
     }
     if query.is_episode:
@@ -100,6 +103,10 @@ def video_from_query(query: VideoQuery) -> dict:
                 "series_tvdb_id": query.tvdb_id,
                 "series_anidb_id": query.anidb_id,
                 "series_anidb_episode_id": query.anidb_episode_id,
+                # TsukiHime's episodes endpoint is keyed by the number within
+                # the AniDB entry. Only Shoko knows it; Sonarr's season and
+                # absolute numbers differ from the second AniDB entry on.
+                "series_anidb_episode_no": query.anidb_episode_no,
                 "anilist_id": query.anilist_id,
             }
         )
@@ -110,6 +117,7 @@ def video_from_query(query: VideoQuery) -> dict:
                 "alternative_titles": [],
                 "imdb_id": query.imdb_id or None,
                 "tmdb_id": query.tmdb_id,
+                "anilist_id": query.anilist_id,
             }
         )
     return video
