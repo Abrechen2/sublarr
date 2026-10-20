@@ -30,6 +30,10 @@ import tempfile
 # patch("services.video_sync.run_trigger")).
 from post_processing.pipeline import run_trigger
 from services.foreign_tracks.sidecars import carry_origin_after_rewrite, vouch_before_rewrite
+from services.sync_engines.ffsubsync_output import NO_OFFSET_MESSAGE
+from services.sync_engines.ffsubsync_output import (
+    parse_ffsubsync_shift as _parse_ffsubsync_shift,
+)
 from subtitle_encoding import load_subtitle_file
 
 logger = logging.getLogger(__name__)
@@ -162,6 +166,11 @@ def sync_with_ffsubsync(subtitle_path: str, video_path: str) -> dict:
     # Parse shift BEFORE touching the destination so the sanity gate can
     # reject mis-locks without overwriting the existing sidecar.
     shift_ms = _parse_ffsubsync_shift(result.stderr + result.stdout)
+    if shift_ms is None:
+        # Exit 0 without an offset line: the shift is unknown, not 0 ms.
+        _safe_remove(out_path)
+        _audit("error", None, "no_offset_in_output")
+        raise RuntimeError(NO_OFFSET_MESSAGE)
 
     # Sanity gate (matches services.sync_engines.orchestrator at line 70):
     # ffsubsync's speech detection can lock onto the wrong reference
@@ -467,23 +476,3 @@ def _parse_ffsubsync_scale(output: str) -> float:
         except ValueError:
             pass
     return 1.0
-
-
-def _parse_ffsubsync_shift(output: str) -> int:
-    """Extract timing offset in milliseconds from ffsubsync output. Returns 0 if not parseable.
-
-    Handles both legacy and current ffsubsync output formats:
-        legacy: ``offset: 1.234 s applied`` / ``Offset: -0.5 s``
-        modern (≥0.4.x): ``INFO     offset seconds: 22.960``
-    """
-    m = re.search(
-        r"offset(?:\s+seconds)?\s*:\s*(-?\d+(?:\.\d+)?)",
-        output,
-        re.IGNORECASE,
-    )
-    if m:
-        try:
-            return int(float(m.group(1)) * 1000)
-        except ValueError:
-            pass
-    return 0

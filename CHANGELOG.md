@@ -22,6 +22,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   from the "�"; lines edited since and the file's timings stay as they are.
 
 ### Fixed
+- **A sync without a measured offset no longer counts as done** — When
+  ffsubsync finished without printing an offset, Sublarr read that as a shift
+  of 0 ms and booked the subtitle as synced. It is now a failed sync. All
+  sync paths read ffsubsync's output the same way.
 - **An auto-disabled provider no longer pushes wanted items to a 30-day wait** —
   When no provider answered because one was auto-disabled by Sublarr itself,
   the item was charged a provider error each time and reached the 30-day retry
