@@ -13,6 +13,13 @@ from db.repositories.base import BaseRepository
 
 logger = logging.getLogger(__name__)
 
+#: Reason prefix of an entry ``services.suspect_sidecars`` wrote: the subtitle
+#: is blocked only for the videos it was found not to fit.
+SUSPECT_REASON_PREFIX = "Suspect wrong subtitle"
+#: A suspect entry the user then blacklisted outright: blocked everywhere, and
+#: its sidecars stay suspect.
+SUSPECT_BLOCKED_EVERYWHERE = SUSPECT_REASON_PREFIX + ", blocked everywhere"
+
 
 class BlacklistRepository(BaseRepository):
     """Repository for blacklist_entries table operations."""
@@ -47,6 +54,18 @@ class BlacklistRepository(BaseRepository):
         ).scalar_one_or_none()
 
         if existing:
+            reason_text = existing.reason or ""
+            if (
+                reason_text.startswith(SUSPECT_REASON_PREFIX)
+                and not reason_text.startswith(SUSPECT_BLOCKED_EVERYWHERE)
+                and not (reason or "").startswith(SUSPECT_REASON_PREFIX)
+            ):
+                # A suspect entry blocks one video; the user now blocks the
+                # subtitle everywhere (VM 191: the API said 201 and nothing changed).
+                existing.reason = (
+                    f"{SUSPECT_BLOCKED_EVERYWHERE}: {reason or 'blacklisted by user'}"[:500]
+                )
+                self._commit()
             return existing.id
 
         # If a file_hash was provided, also check by (provider, file_hash)

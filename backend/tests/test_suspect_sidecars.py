@@ -33,6 +33,16 @@ ASS = (
     "Dialogue: 0,0:00:01.00,0:00:02.00,Default,,0,0,0,,Hallo\n"
 )
 SRT = "1\n00:00:01,000 --> 00:00:02,000\nHallo\n"
+FULL_ASS = (
+    "[Script Info]\nScriptType: v4.00+\n\n[V4+ Styles]\n"
+    "Format: Name, Fontname, Fontsize, PrimaryColour, SecondaryColour, OutlineColour, "
+    "BackColour, Bold, Italic, Underline, StrikeOut, ScaleX, ScaleY, Spacing, Angle, "
+    "BorderStyle, Outline, Shadow, Alignment, MarginL, MarginR, MarginV, Encoding\n"
+    "Style: Default,Arial,20,&H00FFFFFF,&H000000FF,&H00000000,&H00000000,0,0,0,0,"
+    "100,100,0,0,1,2,2,2,10,10,10,1\n\n[Events]\n"
+    "Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text\n"
+    "Dialogue: 0,0:00:01.00,0:00:02.00,Default,,0,0,0,,Korrekte neue Folge\n"
+)
 
 
 @pytest.fixture
@@ -103,6 +113,41 @@ class TestQuarantine:
         video, sidecar = episode
         assert quarantine_wrong_sidecar(sidecar, video, "shift") is False
 
+    def test_requeue_clears_the_old_backoff(self, episode, no_arr):
+        # VM 191: an item in slow mode kept its 30-day retry_after after the
+        # requeue, so the new search waited out the old failure.
+        from datetime import UTC, datetime, timedelta
+
+        from db.models.core import WantedItem
+        from db.wanted import upsert_wanted_item
+        from extensions import db
+
+        video, sidecar = episode
+        _record(video)
+        upsert_wanted_item(
+            item_type="episode",
+            file_path=video,
+            title="Clevatess",
+            season_episode="S01E01",
+            target_language="de",
+        )
+        row = db.session.query(WantedItem).filter_by(file_path=video).one()
+        row.retry_after = datetime.now(UTC) + timedelta(days=30)
+        row.search_count = 30
+        row.error_count = 12
+        row.failure_kind = "no_result_slow"
+        db.session.commit()
+
+        assert quarantine_wrong_sidecar(sidecar, video, "shift") is True
+
+        db.session.refresh(row)
+        assert (row.retry_after, row.search_count, row.error_count, row.failure_kind) == (
+            None,
+            0,
+            0,
+            None,
+        )
+
     def test_requeue_rescans_the_sonarr_series(self, episode):
         video, sidecar = episode
         _record(video)
@@ -127,9 +172,112 @@ class TestSuspectState:
         video, sidecar = episode
         _record(video)
         quarantine_wrong_sidecar(sidecar, video, "shift")
+        with open(sidecar, "w") as fh:
+            fh.write(ASS.replace("Hallo", "Die richtige Folge"))
+
+        assert not is_suspect_sidecar(sidecar)
+
+    def test_a_replacement_saved_right_away_is_not_suspect(self, episode, no_arr, monkeypatch):
+        # VM 191 (RC 1.17.0-rc.1): a replacement saved within the 60 s grace
+        # after the flag stayed suspect for good, since its mtime never moves on.
+        from providers.base import SubtitleFormat, SubtitleResult
+        from providers.download_manager import save_subtitle
+
+        video, sidecar = episode
+        _record(video)
+        quarantine_wrong_sidecar(sidecar, video, "shift")
+        monkeypatch.setattr("security_utils.is_safe_path", lambda *a, **kw: True)
+        replacement = SubtitleResult(
+            provider_name="opensubtitles",
+            subtitle_id="os-new",
+            language="de",
+            format=SubtitleFormat.ASS,
+            content=FULL_ASS.encode(),
+        )
+
+        save_subtitle(replacement, sidecar)
+        suspect_sidecars.invalidate_cache()
+
+        assert not is_suspect_sidecar(sidecar)
+        assert existing_ignoring_suspects(video, "de", "ass") == "ass"
+
+    def test_touching_the_flagged_file_does_not_clear_it(self, episode, no_arr):
+        video, sidecar = episode
+        _record(video)
+        quarantine_wrong_sidecar(sidecar, video, "shift")
         later = time.time() + 600
         os.utime(sidecar, (later, later))
 
+        assert is_suspect_sidecar(sidecar), "same bytes, same wrong subtitle"
+
+    def test_the_same_wrong_file_restored_is_suspect_again(self, episode, no_arr):
+        video, sidecar = episode
+        _record(video)
+        quarantine_wrong_sidecar(sidecar, video, "shift")
+        with open(sidecar, "w") as fh:
+            fh.write(ASS.replace("Hallo", "Ersatz"))
+        assert not is_suspect_sidecar(sidecar)
+
+        with open(sidecar, "w") as fh:
+            fh.write(ASS)
+
+        assert is_suspect_sidecar(sidecar)
+
+    def test_a_repeat_quarantine_flags_the_file_on_disk_now(self, episode, no_arr):
+        # VM 191: flagging a path a second time returned True but left the old
+        # flag, so the file on disk now was never suspect.
+        from datetime import UTC, datetime, timedelta
+
+        from db.models.core import BlacklistEntry
+        from extensions import db
+
+        video, sidecar = episode
+        _record(video)
+        quarantine_wrong_sidecar(sidecar, video, "shift")
+        # The first flag is old; the file has been replaced since.
+        entry = db.session.query(BlacklistEntry).one()
+        entry.added_at = datetime.now(UTC) - timedelta(minutes=10)
+        entry.file_path = entry.file_path.partition("\t")[0]
+        db.session.commit()
+        with open(sidecar, "w") as fh:
+            fh.write(ASS.replace("Hallo", "Auch falsch"))
+        _record(video)
+
+        assert quarantine_wrong_sidecar(sidecar, video, "rejected again") is True
+
+        assert is_suspect_sidecar(sidecar)
+
+    def test_two_providers_wrong_files_under_one_name_are_both_suspect(self, episode, no_arr):
+        # Provider A's wrong file is quarantined, provider B's replacement under
+        # the same name is wrong too: whichever row loads last must not hide the other.
+        video, sidecar = episode
+        _record(video, sid="at-123")
+        quarantine_wrong_sidecar(sidecar, video, "shift")
+        with open(sidecar, "w") as fh:
+            fh.write(ASS.replace("Hallo", "Auch falsch"))
+        record_subtitle_download("opensubtitles", "os-9", "de", "ass", video, 300)
+        assert quarantine_wrong_sidecar(sidecar, video, "shift") is True
+
+        assert is_suspect_sidecar(sidecar)
+        with open(sidecar, "w") as fh:
+            fh.write(ASS)
+        assert is_suspect_sidecar(sidecar), "provider A's bytes are back"
+
+    def test_a_flag_from_before_digests_is_judged_by_mtime(self, episode, no_arr):
+        from db.models.core import BlacklistEntry
+        from extensions import db
+
+        video, sidecar = episode
+        _record(video)
+        quarantine_wrong_sidecar(sidecar, video, "shift")
+        entry = db.session.query(BlacklistEntry).one()
+        entry.file_path = sidecar  # the pre-1.17.0 form: a bare path
+        db.session.commit()
+        suspect_sidecars.invalidate_cache()
+        assert is_suspect_sidecar(sidecar)
+
+        later = time.time() + 600
+        os.utime(sidecar, (later, later))
         assert not is_suspect_sidecar(sidecar)
 
     def test_existing_ignores_a_suspect_ass(self, episode, no_arr):
@@ -316,6 +464,25 @@ class TestSuspectBlacklistIsPerVideo:
         add_blacklist_entry("opensubtitles", "os-1", reason="bad translation")
         assert blocks_result_for("opensubtitles", "os-1", str(tmp_path / "any.mkv")) is True
         assert blocks_result_for("opensubtitles", "os-2", str(tmp_path / "any.mkv")) is False
+
+    def test_the_user_blacklisting_it_blocks_it_everywhere(self, app_ctx, tmp_path, no_arr):
+        # VM 191: POST /blacklist on a suspect entry answered 201 and changed
+        # nothing; the subtitle stayed allowed for every other video.
+        from services.suspect_sidecars import blocks_result_for
+
+        suspect_sidecars.invalidate_cache()
+        wrong = self._quarantine(tmp_path, "Clevatess - S02E05")
+        response = app_ctx.test_client().post(
+            "/api/v1/blacklist",
+            json={"provider_name": "opensubtitles", "subtitle_id": "os-11835856", "reason": "bad"},
+        )
+        assert response.status_code == 201
+        suspect_sidecars.invalidate_cache()
+
+        other = str(tmp_path / "Clevatess - S01E05.mkv")
+        assert blocks_result_for("opensubtitles", "os-11835856", other) is True
+        assert blocks_result_for("opensubtitles", "os-11835856", wrong) is True
+        assert is_suspect_sidecar(str(tmp_path / "Clevatess - S02E05.de.ass"))
 
     def test_search_filter_keeps_it_for_the_right_episode(self, app_ctx, tmp_path, no_arr):
         from providers.base import SubtitleFormat, SubtitleResult, VideoQuery

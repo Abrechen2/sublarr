@@ -136,4 +136,8 @@ class MediaServer(ABC):
         if best is None:
             return file_path
         from_path, to_path = best
-        return to_path + file_path[len(from_path) :]
+        # Join at the folder boundary whichever side spells the trailing
+        # separator: "/media/tv/:/data/tv" gave "/data/tvShow/ep.mkv".
+        from_root = from_path.rstrip("/\\")
+        to_root = to_path.rstrip("/\\")
+        return to_root + file_path[len(from_root) :]

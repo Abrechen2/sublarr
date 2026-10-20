@@ -18,6 +18,7 @@ import decision_log
 # Plan B6 — post-processing pipeline trigger (module-level import so tests can
 # patch("providers.download_manager.run_trigger")).
 from post_processing.pipeline import run_trigger
+from providers import episode_gate
 from providers.base import (
     ProviderNotApplicableError,
     ProviderRateLimitError,
@@ -297,6 +298,7 @@ def search_and_download_best(
         if result.provider_name in rate_limited_providers:
             decision_log.download_attempt(result.provider_name, result.subtitle_id, "rate_limited")
             continue
+        listed_filename = result.filename
         try:
             content = download_fn(result)
             if content is not None:
@@ -317,6 +319,25 @@ def search_and_download_best(
                         result.provider_name, result.subtitle_id, "hash_blacklisted"
                     )
                     continue
+                if result.filename != listed_filename:
+                    wrong_member = episode_gate.archive_member_reason(
+                        result, result.filename, query
+                    )
+                    if wrong_member:
+                        # The listing named this episode, the archive held another.
+                        logger.info(
+                            "Skipping %s/%s: %s",
+                            result.provider_name,
+                            result.subtitle_id,
+                            wrong_member,
+                        )
+                        decision_log.download_attempt(
+                            result.provider_name,
+                            result.subtitle_id,
+                            "episode_mismatch",
+                            detail=wrong_member,
+                        )
+                        continue
                 mismatch = length_check.reason(result, content)
                 if mismatch:
                     # Downloaded fine, but for another cut or episode (prod

@@ -31,7 +31,7 @@ from __future__ import annotations
 
 import os
 import re
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 
 from sqlalchemy import text as sql
 
@@ -66,6 +66,9 @@ class ScanReport:
     missing_from_disk: int
     unresolvable: int
     already_repaired: int
+    #: Repaired as far as provable; cues edited since the download keep their
+    #: "�". Listed, not offered again: a re-download proves nothing more.
+    partially_repaired: list[str] = field(default_factory=list)
 
     @property
     def repairable(self) -> int:
@@ -129,20 +132,20 @@ def _download_index(language: str | None) -> dict[tuple[str, str], tuple[str, st
     return index
 
 
-def _repaired_paths() -> dict[str, str]:
-    """file_path -> hash of the file as repair left it, so a repair is done once."""
+def _repaired_paths() -> dict[str, tuple[str, str]]:
+    """file_path -> (hash of the file as repair left it, status), so a repair is done once."""
     try:
         # 'undamaged' counts too: the pipeline moved the file's hash but never harmed
         # its text. Re-checking it would cost a download to learn the same thing again.
         rows = db.session.execute(
             sql(
-                "SELECT file_path, repaired_hash FROM subtitle_repairs "
-                "WHERE status IN ('repaired', 'undamaged')"
+                "SELECT file_path, repaired_hash, status FROM subtitle_repairs "
+                "WHERE status IN ('repaired', 'undamaged', 'partial')"
             )
         ).fetchall()
     except Exception:  # noqa: BLE001 — table may not exist yet on an old DB
         return {}
-    return {p: h for p, h in rows}
+    return {p: (h, st) for p, h, st in rows}
 
 
 def scan(language: str | None = None, limit: int | None = None) -> ScanReport:
@@ -162,6 +165,7 @@ def scan(language: str | None = None, limit: int | None = None) -> ScanReport:
     repaired = _repaired_paths()
 
     candidates: list[RepairCandidate] = []
+    partial: list[str] = []
     untouched = missing = unresolvable = already = 0
 
     for path, stored_hash, lang, fmt in rows:
@@ -175,9 +179,16 @@ def scan(language: str | None = None, limit: int | None = None) -> ScanReport:
             continue
 
         # Repaired already? Then the current content is repair's own output, and
-        # differing from the pristine hash is expected — not damage.
-        if repaired.get(path) == actual:
-            already += 1
+        # differing from the pristine hash is expected — not damage. A file
+        # changed after its repair was edited by hand (the UI asks for that
+        # after a partial repair): another download could prove nothing.
+        repaired_hash, repaired_status = repaired.get(path, ("", ""))
+        if repaired_status in ("repaired", "partial") or repaired_hash == actual:
+            # "�" left in a file repaired before 1.17.0-rc.2 counted as done too.
+            if repaired_status != "undamaged" and _has_mangled_letters(path):
+                partial.append(path)
+            else:
+                already += 1
             continue
 
         # The old decode's "�" are written into the file — and into its stored
@@ -219,4 +230,5 @@ def scan(language: str | None = None, limit: int | None = None) -> ScanReport:
         missing_from_disk=missing,
         unresolvable=unresolvable,
         already_repaired=already,
+        partially_repaired=partial,
     )

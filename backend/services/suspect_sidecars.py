@@ -18,35 +18,48 @@ the user edited):
      plain wanted row when neither knows the file).
 
 The file itself is kept until a replacement lands: one saved under the same
-name replaces it (and its newer mtime ends the suspect state), one saved in
-the other format retires it (:func:`retire_suspect_siblings`).
+name replaces it, one saved in the other format retires it
+(:func:`retire_suspect_siblings`). The flag records the SHA-256 of the file it
+was raised on, so only those bytes are suspect: a replacement saved in the
+same second is not (an mtime grace window kept it suspect for good), and the
+same wrong file restored later is again.
 """
 
 from __future__ import annotations
 
+import hashlib
 import logging
 import os
 import re
 import threading
 import time
 from datetime import UTC, datetime, timedelta
+from typing import NamedTuple
+
+from db.repositories.blacklist import SUSPECT_BLOCKED_EVERYWHERE, SUSPECT_REASON_PREFIX
 
 logger = logging.getLogger(__name__)
 
-SUSPECT_REASON_PREFIX = "Suspect wrong subtitle"
+__all__ = ["SUSPECT_BLOCKED_EVERYWHERE", "SUSPECT_REASON_PREFIX"]
 #: Only an automatic provider download is quarantined; a user's own choice
 #: (manual upload, interactive pick) or an extraction never is.
 _QUARANTINE_SOURCES = frozenset({"provider"})
 _SIDECAR_FORMATS = ("ass", "srt")
-#: A sidecar written later than its suspect flag by more than this was
-#: replaced since and is no longer the suspect file.
+#: Flags written before 1.17.0 carry no digest: a sidecar written later than
+#: such a flag by more than this was replaced since.
 _REPLACED_GRACE = timedelta(seconds=60)
 _CACHE_TTL_S = 60.0
 _EPISODE_RE = re.compile(r"S\d{1,3}E\d{1,4}", re.IGNORECASE)
 
 _cache_lock = threading.Lock()
-# (time, suspect sidecar path -> flag time, (provider, subtitle id) -> its sidecars)
-_cache: tuple[float, dict[str, datetime], dict[tuple[str, str], set[str]]] | None = None
+# (time, suspect sidecar path -> flag, (provider, subtitle id) -> its sidecars,
+#  entries the user blocked everywhere)
+_cache: (
+    tuple[float, dict[str, list[_Flag]], dict[tuple[str, str], set[str]], set[tuple[str, str]]]
+    | None
+) = None
+# (path, mtime_ns, size) -> SHA-256; a sidecar is hashed again only once it changed.
+_digests: dict[tuple[str, int, int], str] = {}
 
 
 def invalidate_cache() -> None:
@@ -63,34 +76,63 @@ def _aware(value: datetime) -> datetime:
     return value if value.tzinfo is not None else value.replace(tzinfo=UTC)
 
 
-def _flagged_paths(file_path: str, added_at: datetime) -> list[tuple[str, datetime]]:
-    """The sidecars one suspect entry stands for, each with its own flag time.
+def _file_digest(path: str) -> str | None:
+    """SHA-256 of the file's bytes, or None when it cannot be read."""
+    try:
+        stat = os.stat(path)
+        key = (_norm(path), stat.st_mtime_ns, stat.st_size)
+        if key not in _digests:
+            with open(path, "rb") as fh:
+                digest = hashlib.sha256(fh.read()).hexdigest()
+            if len(_digests) > 1024:
+                _digests.clear()
+            _digests[key] = digest
+            return digest
+        return _digests.get(key)
+    except OSError:
+        return None
+
+
+class _Flag(NamedTuple):
+    at: datetime
+    #: SHA-256 of the flagged file; None for a flag written before 1.17.0.
+    digest: str | None
+
+
+def _flagged_paths(file_path: str, added_at: datetime) -> list[tuple[str, _Flag]]:
+    """The sidecars one suspect entry stands for, each with its own flag.
 
     One provider subtitle can be wrong for several videos (S01E05's subtitle
     saved for S02E05 and S03E05), but the blacklist holds one row per
-    subtitle: each further sidecar is a line ``path<TAB>ISO time``. A line
-    without a time is the entry's first sidecar, flagged at ``added_at``.
+    subtitle: one line per sidecar, ``path<TAB>ISO time<TAB>sha256``. A line
+    without a time was flagged at ``added_at``; one without a digest predates
+    1.17.0 and is judged by mtime.
     """
     flagged = []
     for line in (file_path or "").splitlines():
-        path, _, stamp = line.partition("\t")
+        path, _, rest = line.partition("\t")
         if not path:
             continue
+        stamp, _, digest = rest.partition("\t")
         try:
             at = _aware(datetime.fromisoformat(stamp)) if stamp else _aware(added_at)
         except ValueError:
             at = _aware(added_at)
-        flagged.append((path, at))
+        flagged.append((path, _Flag(at, digest or None)))
     return flagged
 
 
-def _load() -> tuple[dict[str, datetime], dict[tuple[str, str], set[str]]]:
+def _flag_line(sidecar: str) -> str:
+    return f"{sidecar}\t{datetime.now(UTC).isoformat()}\t{_file_digest(sidecar) or ''}"
+
+
+def _load() -> tuple[dict[str, list[_Flag]], dict[tuple[str, str], set[str]], set[tuple[str, str]]]:
     """Suspect entries, cached briefly: the scanner and the search ask per file."""
     global _cache
     now = time.monotonic()
     with _cache_lock:
         if _cache is not None and now - _cache[0] < _CACHE_TTL_S:
-            return _cache[1], _cache[2]
+            return _cache[1], _cache[2], _cache[3]
     try:
         from sqlalchemy import select
 
@@ -103,26 +145,32 @@ def _load() -> tuple[dict[str, datetime], dict[tuple[str, str], set[str]]]:
                 BlacklistEntry.subtitle_id,
                 BlacklistEntry.file_path,
                 BlacklistEntry.added_at,
+                BlacklistEntry.reason,
             ).where(BlacklistEntry.reason.like(SUSPECT_REASON_PREFIX + "%"))
         ).all()
     except Exception as exc:  # noqa: BLE001 — unknown means "nothing is suspect"
         logger.debug("suspect sidecars: lookup failed: %s", exc)
-        return {}, {}
-    suspects: dict[str, datetime] = {}
+        return {}, {}, set()
+    suspects: dict[str, list[_Flag]] = {}
     entries: dict[tuple[str, str], set[str]] = {}
-    for provider, subtitle_id, file_path, added_at in rows:
+    everywhere: set[tuple[str, str]] = set()
+    for provider, subtitle_id, file_path, added_at, reason in rows:
         if not added_at:
             continue
-        for path, at in _flagged_paths(file_path, added_at):
-            suspects[_norm(path)] = at
-            entries.setdefault((provider, str(subtitle_id)), set()).add(path)
+        key = (provider, str(subtitle_id))
+        if (reason or "").startswith(SUSPECT_BLOCKED_EVERYWHERE):
+            everywhere.add(key)
+        for path, flag in _flagged_paths(file_path, added_at):
+            # Two providers' wrong files can have been saved under one name.
+            suspects.setdefault(_norm(path), []).append(flag)
+            entries.setdefault(key, set()).add(path)
     with _cache_lock:
-        _cache = (now, suspects, entries)
-    return suspects, entries
+        _cache = (now, suspects, entries, everywhere)
+    return suspects, entries, everywhere
 
 
-def _suspects() -> dict[str, datetime]:
-    """Suspect sidecar path → flag time."""
+def _suspects() -> dict[str, list[_Flag]]:
+    """Suspect sidecar path → its flags (one per blacklist entry that names it)."""
     return _load()[0]
 
 
@@ -145,23 +193,31 @@ def blocks_result_for(provider_name: str, subtitle_id: str, video_path: str | No
 
     if not is_blacklisted(provider_name, str(subtitle_id)):
         return False
-    sidecars = _load()[1].get((provider_name, str(subtitle_id)))
-    if sidecars is None or not video_path:
+    _, entries, everywhere = _load()
+    key = (provider_name, str(subtitle_id))
+    sidecars = entries.get(key)
+    if sidecars is None or key in everywhere or not video_path:
         return True
     stem = _norm(os.path.splitext(video_path)[0])
     return any(_video_stem_of(sidecar) == stem for sidecar in sidecars)
 
 
 def is_suspect_sidecar(path: str) -> bool:
-    """True while ``path`` is the very file that was flagged (not replaced since)."""
-    flagged_at = _suspects().get(_norm(path))
-    if flagged_at is None:
+    """True while ``path`` holds the very bytes one of its flags was raised on."""
+    flags = _suspects().get(_norm(path))
+    if not flags:
         return False
+    return any(_flag_holds(path, flag) for flag in flags)
+
+
+def _flag_holds(path: str, flag: _Flag) -> bool:
+    if flag.digest:
+        return _file_digest(path) == flag.digest
     try:
         mtime = datetime.fromtimestamp(os.path.getmtime(path), tz=UTC)
     except OSError:
         return False
-    return mtime <= flagged_at + _REPLACED_GRACE
+    return mtime <= flag.at + _REPLACED_GRACE
 
 
 def existing_ignoring_suspects(video_path: str, language: str, existing: str | None):
@@ -257,18 +313,21 @@ def _blacklist_for(
             provider_name=provider_name,
             subtitle_id=subtitle_id,
             language=language,
-            file_path=sidecar,
+            file_path=_flag_line(sidecar),
             title=os.path.basename(video),
             reason=f"{SUSPECT_REASON_PREFIX}: {reason}"[:500],
         )
         return
     if not (entry.reason or "").startswith(SUSPECT_REASON_PREFIX):
         return  # the user blacklisted it already: blocked everywhere
-    known = {_norm(path) for path, _at in _flagged_paths(entry.file_path, entry.added_at)}
-    if _norm(sidecar) in known:
-        return
-    line = f"{sidecar}\t{datetime.now(UTC).isoformat()}"
-    entry.file_path = f"{entry.file_path}\n{line}" if entry.file_path else line
+    # Flagged again (the same wrong file restored or re-picked): the line is
+    # rewritten, so the flag stands for the bytes on disk now.
+    lines = [
+        line
+        for line in (entry.file_path or "").splitlines()
+        if line and _norm(line.partition("\t")[0]) != _norm(sidecar)
+    ]
+    entry.file_path = "\n".join([*lines, _flag_line(sidecar)])
     db.session.commit()
 
 
@@ -378,19 +437,45 @@ def requeue_videos(videos: list[tuple[str, str]]) -> None:
                 except Exception as exc:  # noqa: BLE001
                     logger.warning("suspect sidecar: rescan of %s failed: %s", owner, exc)
                     rescanned[owner] = False
-            if rescanned[owner]:
-                continue
-        _plain_wanted_row(video, language)
+        if owner is None or not rescanned[owner]:
+            _plain_wanted_row(video, language)
+        _clear_backoff(video, language)
 
 
 def _requeue(video: str, language: str) -> None:
     """Get a fresh wanted search for ``video``/``language``. Never raises."""
     try:
-        if _rescan_arr(video):
-            return
+        rescanned = _rescan_arr(video)
     except Exception as exc:  # noqa: BLE001 — fall back to a plain row
         logger.warning("suspect sidecar: arr rescan for %s failed: %s", video, exc)
-    _plain_wanted_row(video, language)
+        rescanned = False
+    if not rescanned:
+        _plain_wanted_row(video, language)
+    _clear_backoff(video, language)
+
+
+def _clear_backoff(video: str, language: str) -> None:
+    """Let the requeued search run now, not after the item's old backoff.
+
+    An episode that searched in vain for weeks sits in slow mode (30 days
+    between attempts); its wrong subtitle being found changes the question,
+    so the attempts start over (VM 191: the requeue kept the 30-day wait).
+    Never raises.
+    """
+    try:
+        from db.repositories.wanted import WantedRepository
+        from db.wanted import get_wanted_items_by_path
+
+        ids = [
+            item["id"]
+            for item in get_wanted_items_by_path(video)
+            if (item.get("target_language") or "") == language
+        ]
+        WantedRepository().reset_search_attempts(ids)
+    except Exception as exc:  # noqa: BLE001 — see docstring
+        logger.warning(
+            "suspect sidecar: could not reset backoff of %s/%s: %s", video, language, exc
+        )
 
 
 def _plain_wanted_row(video: str, language: str) -> None:

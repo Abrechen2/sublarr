@@ -6,6 +6,7 @@
  * them back: blocked for that video only, kept until a replacement is saved,
  * searched again. Listing is free; nothing is downloaded until the search runs.
  */
+import { useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useMutation, useQuery } from '@tanstack/react-query';
 import { RotateCcw, SearchX } from 'lucide-react';
@@ -29,6 +30,18 @@ export function WrongEpisodePanel({ language }: { language: string }) {
   const requeue = useMutation({
     mutationFn: () => requeueWrongEpisodes(language || undefined),
   });
+  const resetRequeue = requeue.reset;
+
+  // The done state belongs to the scan it acted on: another language, or a
+  // new scan, can be requeued again (VM 191: the button stayed disabled).
+  useEffect(() => {
+    resetRequeue();
+  }, [language, resetRequeue]);
+
+  const rescan = () => {
+    resetRequeue();
+    void refetch();
+  };
 
   return (
     <div className="space-y-3 border-t border-border pt-4">
@@ -42,7 +55,7 @@ export function WrongEpisodePanel({ language }: { language: string }) {
 
       <div className="flex items-center gap-2">
         <button
-          onClick={() => refetch()}
+          onClick={rescan}
           disabled={scanning}
           className="rounded px-3 py-1.5 text-xs font-medium border border-border disabled:opacity-50"
         >

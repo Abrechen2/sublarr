@@ -35,6 +35,11 @@ def has_mangled_letters(raw: bytes) -> bool:
     return MANGLED.encode("utf-8") in raw
 
 
+def damaged_cues(raw: bytes, fmt: str = "srt") -> int:
+    """How many cues of a sidecar still carry replacement characters."""
+    return sum(MANGLED in event.text for event in _load(raw, fmt).events)
+
+
 def _load(raw: bytes, fmt: str) -> pysubs2.SSAFile:
     from subtitle_encoding import decode_subtitle_bytes
 
@@ -70,6 +75,9 @@ def restore_encoding(
     *, original: bytes, on_disk: bytes, fmt: str = "srt", language: str | None = None
 ) -> bytes:
     """Return ``on_disk`` with every provable cue's letters taken from ``original``.
+
+    Cues that cannot be proven keep their "�"; :func:`damaged_cues` on the
+    result says how many.
 
     Args:
         original: The provider's file, as the download path normalises it now.

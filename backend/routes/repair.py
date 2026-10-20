@@ -65,6 +65,8 @@ def scan_damaged():
             "missing_from_disk": report.missing_from_disk,
             "unresolvable": report.unresolvable,
             "already_repaired": report.already_repaired,
+            "partially_repaired": len(report.partially_repaired),
+            "partially_repaired_files": report.partially_repaired[:50],
             "recoverable_from_backup": from_bak,
             "needs_download": sum(needs_download.values()),
             "needs_download_by_provider": needs_download,

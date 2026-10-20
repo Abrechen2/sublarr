@@ -38,8 +38,8 @@ _SEASON_EPISODE_RE = re.compile(
     r"(?<![a-z0-9])s(\d{1,3})[ ._-]?e(\d{1,4})((?:(?:[ ._]?e|-e?)\d{1,4}(?![\dp]))*)",
     re.IGNORECASE,
 )
-# ``2x07``; four-digit sides (``1920x1080``) are resolutions, not episodes.
-_CROSS_RE = re.compile(r"(?<![a-z0-9])(\d{1,2})x(\d{2,3})(?![a-z0-9])", re.IGNORECASE)
+# ``2x07`` / ``1x5``; four-digit sides (``1920x1080``) are resolutions, not episodes.
+_CROSS_RE = re.compile(r"(?<![a-z0-9])(\d{1,2})x(\d{1,3})(?![a-z0-9])", re.IGNORECASE)
 # ``S02`` / ``Season 2`` / ``S01-S02`` with no episode after it.
 _SEASON_RE = re.compile(
     r"(?<![a-z0-9])(?:s|season[ ._-]?)(\d{1,2})(?:\s?-\s?(?:s|season[ ._-]?)(\d{1,2}))?(?![0-9])",
@@ -172,14 +172,34 @@ def episode_gate_reason(result: SubtitleResult, query: VideoQuery) -> str:
         return ""
     contradiction = next((detail for kind, detail in verdicts if kind == "contradict"), "")
     if contradiction:
-        absolute = query.matching_absolute_episode
-        wanted = f"S{query.season:02d}E{query.episode:02d}"
-        if absolute is not None:
-            wanted += f" (absolute {absolute})"
-        return f"names {contradiction}, query is {wanted}"
+        return f"names {contradiction}, query is {_wanted_label(query)}"
     if "episode" in result.matches or "season" in kinds or _resolves_pack(result):
         return ""
     return "no episode evidence (no episode match and no numbering in the name)"
+
+
+def _wanted_label(query: VideoQuery) -> str:
+    wanted = f"S{query.season:02d}E{query.episode:02d}"
+    absolute = query.matching_absolute_episode
+    if absolute is not None:
+        wanted += f" (absolute {absolute})"
+    return wanted
+
+
+def archive_member_reason(result: SubtitleResult, member: str, query: VideoQuery) -> str:
+    """Why the file a provider took out of an archive is not the queried episode.
+
+    The gate before download only sees the listing: a ``Show.S02E05.zip``
+    whose one member is ``Show.S01E05.srt`` passed it (VM 191, RC 1.17.0-rc.1).
+    Only a name that contradicts the query rejects; a member without
+    numbering is left to the listing that already passed.
+    """
+    if not member or not query.is_episode or "hash" in result.matches:
+        return ""
+    kind, detail = _verdict(parse_claims(member), query)
+    if kind != "contradict":
+        return ""
+    return f"archive member {member!r} names {detail}, query is {_wanted_label(query)}"
 
 
 def apply_episode_gate(

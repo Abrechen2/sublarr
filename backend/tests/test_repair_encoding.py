@@ -251,3 +251,123 @@ def test_download_index_works_on_sqlite(app_ctx, tmp_path):
         "opensubtitles",
         "en-1",
     )
+
+
+# -- a repair that cannot prove every cue ------------------------------------------
+
+
+def test_a_partial_repair_says_so_and_stays_visible(app_ctx, tmp_path):
+    """VM 191 (RC 1.17.0-rc.1): one cue restored, one edited cue kept its "�",
+    and the outcome said "repaired" — the scan then counted the file as done
+    and the damage left in it was never shown again."""
+    from db.repositories.cleanup import CleanupRepository
+    from services.repair import job
+    from services.repair.runner import RepairCandidate, content_hash, repair_one
+    from services.repair.scanner import scan
+
+    path = tmp_path / "Show - S01E01.de.srt"
+    path.write_bytes(_mangled(ORIGINAL).replace(b"aus M", b"von M"))
+    stored = content_hash(str(path))
+    CleanupRepository().upsert_hash(
+        file_path=str(path), content_hash=stored, file_size=1, format="srt", language="de"
+    )
+    candidate = RepairCandidate(
+        file_path=str(path),
+        language="de",
+        fmt="srt",
+        original_hash=stored,
+        provider="opensubtitles",
+        subtitle_id="42",
+        kind="encoding",
+    )
+
+    with patch("services.repair.runner.fetch_original", return_value=ORIGINAL):
+        outcome = repair_one(candidate)
+
+    assert outcome.status == "partial"
+    assert "1 cue(s) still damaged" in outcome.detail
+    texts = _texts(path.read_bytes())
+    assert texts[1] == "Das Mädchen läuft über die Brücke."
+    assert "�" in texts[0]
+
+    report = scan(language="de")
+    assert report.partially_repaired == [str(path)]
+    assert report.already_repaired == 0
+    assert report.candidates == [], "a re-download proves nothing more; not offered again"
+    assert "partial" in job.RepairState().as_dict()
+
+
+def test_a_full_repair_is_not_partial(app_ctx, mangled_candidate):
+    from services.repair.runner import repair_one
+
+    with (
+        patch("services.repair.runner.fetch_original", return_value=ORIGINAL),
+        patch("services.repair.runner._record_repair") as record,
+    ):
+        outcome = repair_one(mangled_candidate)
+    assert outcome.status == "repaired"
+    assert record.call_args.kwargs["status"] == "repaired"
+
+
+def test_the_scan_route_lists_partial_repairs(app_ctx, tmp_path):
+    from services.repair.scanner import ScanReport
+
+    report = ScanReport(
+        candidates=[],
+        untouched=0,
+        missing_from_disk=0,
+        unresolvable=0,
+        already_repaired=2,
+        partially_repaired=["/media/a.de.srt"],
+    )
+    with patch("services.repair.scanner.scan", return_value=report):
+        body = app_ctx.test_client().get("/api/v1/repair/scan").get_json()
+    assert body["partially_repaired"] == 1
+    assert body["partially_repaired_files"] == ["/media/a.de.srt"]
+    assert body["already_repaired"] == 2
+
+
+def _scan_after_repair(tmp_path, raw, status, repaired_hash):
+    from unittest.mock import MagicMock
+
+    from services.repair import scanner
+
+    path = tmp_path / "Show - S01E01.de.srt"
+    path.write_bytes(raw)
+    result = MagicMock()
+    result.fetchall.return_value = [(str(path), "stored-at-download", "de", "srt")]
+    index = {(str(tmp_path / "Show - S01E01"), "de"): ("opensubtitles", "42")}
+    with (
+        patch.object(scanner.db.session, "execute", return_value=result),
+        patch.object(scanner, "_download_index", return_value=index),
+        patch.object(scanner, "_repaired_paths", return_value={str(path): (repaired_hash, status)}),
+    ):
+        return scanner.scan(), str(path)
+
+
+def test_a_partial_repair_fixed_by_hand_is_not_downloaded_again(app_ctx, tmp_path):
+    # The UI asks for the lines left with "�" to be fixed by hand; that moves
+    # the hash, and a re-download could prove nothing about the edited file.
+    report, _ = _scan_after_repair(tmp_path, ORIGINAL, "partial", "hash-before-the-edit")
+    assert report.candidates == []
+    assert report.partially_repaired == []
+    assert report.already_repaired == 1
+
+
+def test_a_repair_that_left_replacement_characters_is_listed_as_partial(app_ctx, tmp_path):
+    # Repairs before 1.17.0-rc.2 were all recorded as "repaired".
+    from services.repair.scanner import content_hash
+
+    raw = _mangled(ORIGINAL).replace(b"aus M", b"von M")
+    (tmp_path / "probe.srt").write_bytes(raw)
+    report, path = _scan_after_repair(
+        tmp_path, raw, "repaired", content_hash(str(tmp_path / "probe.srt"))
+    )
+    assert report.partially_repaired == [path]
+    assert report.already_repaired == 0
+    assert report.candidates == []
+
+
+def test_an_undamaged_file_changed_since_is_checked_again(app_ctx, tmp_path):
+    report, _ = _scan_after_repair(tmp_path, _mangled(ORIGINAL), "undamaged", "older-hash")
+    assert [c.kind for c in report.candidates] == ["encoding"]

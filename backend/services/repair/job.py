@@ -26,6 +26,7 @@ class RepairState:
     total: int = 0
     done: int = 0
     repaired: int = 0
+    partial: int = 0
     from_bak: int = 0
     from_provider: int = 0
     skipped_unprovable: int = 0
@@ -112,8 +113,11 @@ def _execute(*, language: str | None, dry_run: bool, limit: int | None) -> None:
                 _state.resume_at = resume_at.isoformat()
             break
 
-        if outcome.status == "repaired":
-            _state.repaired += 1
+        if outcome.status in ("repaired", "partial"):
+            if outcome.status == "repaired":
+                _state.repaired += 1
+            else:
+                _state.partial += 1
             if "from bak" in outcome.detail:
                 _state.from_bak += 1
             elif "from provider" in outcome.detail:
@@ -122,7 +126,7 @@ def _execute(*, language: str | None, dry_run: bool, limit: int | None) -> None:
             _state.skipped_unprovable += 1
         elif outcome.status == "nothing_to_restore":
             _state.skipped_nothing_to_restore += 1
-        elif outcome.status != "repaired":
+        else:
             _state.failed += 1
 
         _state.done += 1
@@ -130,9 +134,10 @@ def _execute(*, language: str | None, dry_run: bool, limit: int | None) -> None:
         del _state.recent[20:]
 
     logger.info(
-        "repair: finished — %d restored (%d from backups, %d re-downloaded), "
+        "repair: finished — %d restored, %d partly (%d from backups, %d re-downloaded), "
         "%d unprovable, %d failed",
         _state.repaired,
+        _state.partial,
         _state.from_bak,
         _state.from_provider,
         _state.skipped_unprovable,

@@ -14,12 +14,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `/media/movies` as `/data/films`) could only be mapped for one of them,
   and every subtitle for the other ended in a full library scan. Pairs can now
   be separated with `;`, and the longest matching one is applied. A single
-  pair works as before. (#223, thanks @azuretek)
+  pair works as before, and a trailing slash on either side of a pair is
+  fine. (#223, thanks @azuretek)
 - **Subtitle repair restores letters saved as "�"** — Files an older version
   saved with "�" in place of umlauts, accents or Cyrillic are found by the
   repair scan. The repair downloads the original again and takes over the
   letters line by line, only where a line matches the original exactly apart
   from the "�"; lines edited since and the file's timings stay as they are.
+  A file where some lines could not be proven this way is listed as partly
+  repaired, so the "�" left in the lines you edited can be fixed by hand.
 
 - **Find subtitles of another episode that are already saved** — Subtitles
   saved before the new episode check (for example season 1's twelfth episode
@@ -38,7 +41,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   because a subtitle was on disk the episode was never searched again. Such a
   subtitle is now put on the blacklist for that episode — the same subtitle
   stays available for the episode it belongs to — and the episode is searched
-  again. The old file stays until a new subtitle is saved. Manual uploads and
+  again at once, even if the episode was waiting out a long retry delay. The
+  old file stays until a new subtitle is saved; only that file's content
+  counts, so a new subtitle saved right away is accepted, and the same wrong
+  file put back later is caught again. Putting such a subtitle on the
+  blacklist yourself blocks it for every episode. Manual uploads and
   subtitles you edited are never touched.
 - **A subtitle that does not fit the video's length is not saved** — A
   subtitle for the double-length Blu-ray first episode (45 minutes) was saved
@@ -97,8 +104,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   season or episode is now dropped before scoring, for every provider. Absolute
   naming (``S01E24`` or ``- 24`` for absolute episode 24), season packs of the
   right season and hash matches are kept. A result that names no episode at
-  all is only used when the provider matched the episode itself. The decision
-  log lists the dropped results and why.
+  all is only used when the provider matched the episode itself. Numbering
+  such as ``1x5`` counts too, and so does the name of the file a provider
+  takes out of an archive: ``Show.S02E05.zip`` holding ``Show.S01E05.srt`` is
+  skipped for the next candidate. The decision log lists the dropped results
+  and why.
 - **AnimeTosho no longer takes a bare episode number for a later season** —
   A release such as ``[SubsPlease] Clevatess - 12`` names no season, so it now
   only matches episode 12 of season 1, or the episode whose absolute number is

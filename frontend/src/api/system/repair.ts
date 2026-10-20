@@ -7,6 +7,9 @@ export interface RepairScan {
   missing_from_disk: number
   unresolvable: number
   already_repaired: number
+  /** Repaired as far as provable; edited lines still carry "�". */
+  partially_repaired: number
+  partially_repaired_files: string[]
   recoverable_from_backup: number
   needs_download: number
   needs_download_by_provider: Record<string, number>
@@ -19,6 +22,7 @@ export interface RepairStatus {
   total: number
   done: number
   repaired: number
+  partial: number
   from_bak: number
   from_provider: number
   skipped_unprovable: number

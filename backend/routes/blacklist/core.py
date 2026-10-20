@@ -140,6 +140,9 @@ def add_to_blacklist():
         reason=data.get("reason", ""),
         file_hash=file_hash,
     )
+    from services.suspect_sidecars import invalidate_cache
+
+    invalidate_cache()  # a suspect entry may now block everywhere
 
     return jsonify({"status": "added", "id": entry_id, "file_hash": file_hash}), 201
 

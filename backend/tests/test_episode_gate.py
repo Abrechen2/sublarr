@@ -65,6 +65,24 @@ class TestWrongEpisodeIsDropped:
         result = _result(filename="[SubsPlease] Clevatess - 12 (1080p).ass", provider="animetosho")
         assert episode_gate_reason(result, _query(sonarr_absolute_episode=24))
 
+    @pytest.mark.parametrize("name", ["Show.1x5.srt", "Show 1x05.srt", "Show.1x005.srt"])
+    def test_single_digit_cross_numbering_of_another_season(self, name):
+        # VM 191 (RC 1.17.0-rc.1): "1x5" was not read as numbering at all, so
+        # the "episode" match let season 1's fifth through for S02E05.
+        reason = episode_gate_reason(
+            _result(filename=name), _query(episode=5, sonarr_absolute_episode=17)
+        )
+        assert "S01E05" in reason
+
+    def test_single_digit_cross_numbering_of_the_queried_episode(self):
+        assert episode_gate_reason(_result(filename="Show.2x5.srt"), _query(episode=5)) == ""
+
+    @pytest.mark.parametrize("name", ["Show.1920x1080.srt", "Show.x264.srt", "Show.5x1080.srt"])
+    def test_resolutions_and_codecs_are_not_cross_numbering(self, name):
+        from providers.episode_gate import parse_claims
+
+        assert parse_claims(name).season_episodes == []
+
     def test_overgeared_s01e03_for_s01e04(self):
         result = _result(
             filename="Overgeared_S01E03.srt",

@@ -26,13 +26,15 @@ const finding = {
   reason: 'names S01E12, query is S02E12',
 };
 
-function renderPanel() {
+function renderPanel(language = 'de') {
   const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } });
-  return render(
+  const panel = (lang: string) => (
     <QueryClientProvider client={qc}>
-      <WrongEpisodePanel language="de" />
+      <WrongEpisodePanel language={lang} />
     </QueryClientProvider>
   );
+  const view = render(panel(language));
+  return { ...view, switchTo: (lang: string) => view.rerender(panel(lang)) };
 }
 
 describe('WrongEpisodePanel', () => {
@@ -76,5 +78,43 @@ describe('WrongEpisodePanel', () => {
     fireEvent.click(screen.getByText('repair.wrong_episode.scan'));
     await screen.findByText('repair.wrong_episode.none');
     await waitFor(() => expect(mockRequeue).not.toHaveBeenCalled());
+  });
+
+  it('can requeue another language after the first one is done', async () => {
+    // VM 191 (RC 1.17.0-rc.1): the done state outlived the language switch,
+    // so the second language's findings could never be requeued.
+    mockScan.mockImplementation(async (language: string) => ({
+      count: 1,
+      findings: [{ ...finding, language, sidecar: `/tv/Clevatess - S02E12.${language}.srt` }],
+    }));
+    mockRequeue.mockResolvedValue(undefined);
+    const { switchTo } = renderPanel('de');
+    fireEvent.click(screen.getByText('repair.wrong_episode.scan'));
+    fireEvent.click(await screen.findByText('repair.wrong_episode.requeue:1'));
+    await screen.findByText('repair.wrong_episode.requeued');
+
+    switchTo('en');
+    fireEvent.click(screen.getByText('repair.wrong_episode.scan'));
+    await screen.findByText('Clevatess - S02E12.en.srt');
+    const button = screen.getByText('repair.wrong_episode.requeue:1').closest('button');
+    await waitFor(() => expect(button?.disabled).toBe(false));
+    expect(screen.queryByText('repair.wrong_episode.requeued')).toBeNull();
+
+    fireEvent.click(button!);
+    await waitFor(() => expect(mockRequeue).toHaveBeenLastCalledWith('en'));
+  });
+
+  it('a new scan of the same language can be requeued again', async () => {
+    mockScan.mockResolvedValue({ count: 1, findings: [finding] });
+    mockRequeue.mockResolvedValue(undefined);
+    renderPanel();
+    fireEvent.click(screen.getByText('repair.wrong_episode.scan'));
+    fireEvent.click(await screen.findByText('repair.wrong_episode.requeue:1'));
+    await screen.findByText('repair.wrong_episode.requeued');
+
+    fireEvent.click(screen.getByText('repair.wrong_episode.scan'));
+
+    const button = screen.getByText('repair.wrong_episode.requeue:1').closest('button');
+    await waitFor(() => expect(button?.disabled).toBe(false));
   });
 });

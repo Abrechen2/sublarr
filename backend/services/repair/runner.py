@@ -45,7 +45,7 @@ class QuotaExhaustedError(Exception):
 @dataclass
 class RepairOutcome:
     file_path: str
-    status: str  # repaired | unprovable | nothing_to_restore | unavailable | error
+    status: str  # repaired | partial | unprovable | nothing_to_restore | unavailable | error
     detail: str = ""
 
 
@@ -53,6 +53,7 @@ class RepairOutcome:
 class RepairRun:
     dry_run: bool
     repaired: int = 0
+    partial: int = 0
     skipped: int = 0
     failed: int = 0
     quota_exhausted: bool = False
@@ -62,6 +63,8 @@ class RepairRun:
         self.outcomes.append(outcome)
         if outcome.status == "repaired":
             self.repaired += 1
+        elif outcome.status == "partial":
+            self.partial += 1
         elif outcome.status in ("unprovable", "nothing_to_restore", "unavailable"):
             self.skipped += 1
         else:
@@ -211,18 +214,40 @@ def repair_one(candidate: RepairCandidate, *, dry_run: bool = False) -> RepairOu
         logger.warning("repair: restore failed for %s: %s", candidate.file_path, exc)
         return RepairOutcome(candidate.file_path, "error", str(exc))
 
+    status, detail = "repaired", f"original from {source}"
+    remaining = _still_damaged(candidate, repaired)
+    if remaining:
+        # Cues edited since the download cannot be proven and keep their "�".
+        # Calling that "repaired" hid them (VM 191, RC 1.17.0-rc.1).
+        status = "partial"
+        detail += f"; {remaining} cue(s) still damaged, edited since the download"
+
     if dry_run:
         # Report the source even on a dry run — the point of it is to show how
         # many repairs are free (from a backup) before spending any quota.
-        return RepairOutcome(candidate.file_path, "repaired", f"dry run — original from {source}")
+        return RepairOutcome(candidate.file_path, status, f"dry run — {detail}")
 
     # Gate 3 — atomic write, then remember it so it is never repaired twice.
     from utils.atomic_write import atomic_write_bytes
 
     atomic_write_bytes(candidate.file_path, repaired)
-    _record_repair(candidate, repaired_hash=content_hash(candidate.file_path) or "")
-    logger.info("repair: restored %s (original from %s)", candidate.file_path, source)
-    return RepairOutcome(candidate.file_path, "repaired", f"original from {source}")
+    _record_repair(candidate, repaired_hash=content_hash(candidate.file_path) or "", status=status)
+    logger.info("repair: restored %s (%s)", candidate.file_path, detail)
+    return RepairOutcome(candidate.file_path, status, detail)
+
+
+def _still_damaged(candidate: RepairCandidate, repaired: bytes) -> int:
+    """Cues an encoding repair could not prove; 0 for a pipeline repair."""
+    if candidate.kind != "encoding":
+        return 0
+    from services.repair.encoding_restore import damaged_cues, has_mangled_letters
+
+    if not has_mangled_letters(repaired):
+        return 0
+    try:
+        return damaged_cues(repaired, candidate.fmt) or 1
+    except Exception:  # noqa: BLE001 — unparsable still means damaged
+        return 1
 
 
 def _record_repair(

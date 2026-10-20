@@ -7,8 +7,13 @@ import pytest
 class TestAPIPerformance:
     """Performance tests for API endpoints."""
 
-    def test_health_endpoint_performance(self, client, benchmark):
+    def test_health_endpoint_performance(self, client, benchmark, monkeypatch):
         """Benchmark health endpoint response time."""
+        from extensions import limiter
+
+        # /health is limited to 60/minute; the benchmark's 100+ rounds measure
+        # the endpoint, not the limiter's 429.
+        monkeypatch.setattr(limiter, "enabled", False)
         result = benchmark(client.get, "/api/v1/health")
         assert result.status_code == 200
         # Health checks providers (may involve network); generous threshold

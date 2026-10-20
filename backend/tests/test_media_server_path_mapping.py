@@ -85,6 +85,10 @@ def test_a_second_library_root_gets_a_partial_scan_not_a_full_one():
         # The folder itself, a trailing slash on from_path, and Windows separators.
         ("/media/tv:/data/tv", "/media/tv", "/data/tv"),
         ("/media/tv/:/data/tv/", "/media/tv/Show/ep.mkv", "/data/tv/Show/ep.mkv"),
+        # A trailing slash on one side only still joins at the separator.
+        ("/media/tv/:/data/tv", "/media/tv/Show/ep.mkv", "/data/tv/Show/ep.mkv"),
+        ("/media/tv:/data/tv/", "/media/tv/Show/ep.mkv", "/data/tv/Show/ep.mkv"),
+        ("/:/data", "/media/ep.mkv", "/data/media/ep.mkv"),
         ("D\\Media:/data", "D\\Media\\Show\\ep.mkv", "/data\\Show\\ep.mkv"),
     ],
 )

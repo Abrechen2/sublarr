@@ -104,6 +104,21 @@ export function SubtitleRepairPanel() {
               <span className="text-primary">{scan.already_repaired}</span>
             </div>
           )}
+          {scan.partially_repaired > 0 && (
+            <div className="space-y-1">
+              <div className="flex items-center justify-between gap-2">
+                <span className="text-warning">{t('repair.partially_repaired')}</span>
+                <span className="text-primary">{scan.partially_repaired}</span>
+              </div>
+              <ul className="space-y-0.5 max-h-32 overflow-y-auto text-[11px] text-muted">
+                {scan.partially_repaired_files.map(file => (
+                  <li key={file} className="break-all">
+                    {file.split('/').pop()}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
           <p className="text-[11px] text-muted pt-1">{t('repair.safety')}</p>
         </div>
       )}
@@ -156,6 +171,11 @@ export function SubtitleRepairPanel() {
           </div>
           <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-[11px] text-muted pt-1">
             <span>{t('repair.restored')}: {status.repaired}</span>
+            {status.partial > 0 && (
+              <span className="text-warning">
+                {t('repair.partial')}: {status.partial}
+              </span>
+            )}
             <span>{t('repair.from_backup')}: {status.from_bak}</span>
             <span>{t('repair.unprovable')}: {status.skipped_unprovable}</span>
             <span>{t('repair.failed')}: {status.failed}</span>

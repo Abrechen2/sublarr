@@ -461,6 +461,7 @@ class CustomApiProvider(SubtitleProvider):
                 raise ProviderError(f"{self.name}: no subtitle file found in archive")
             files.sort(key=lambda f: 0 if f[0].lower().endswith((".ass", ".ssa")) else 1)
             filename, content = files[0]
+            result.filename = filename
             ext = "." + filename.rsplit(".", 1)[-1].lower() if "." in filename else ""
             result.format = _FORMAT_MAP.get(ext, SubtitleFormat.UNKNOWN)
         elif result.format == SubtitleFormat.UNKNOWN and result.filename:
