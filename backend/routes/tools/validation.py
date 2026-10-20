@@ -10,6 +10,7 @@ from flask import jsonify, request
 
 from routes.tools import bp
 from routes.tools._helpers import _validate_file_path
+from subtitle_encoding import load_subtitle_file
 
 logger = logging.getLogger(__name__)
 
@@ -201,7 +202,6 @@ def parse_cues():
         500:
           description: Parse error
     """
-    import pysubs2
 
     data = request.get_json() or {}
     file_path = data.get("file_path", "")
@@ -213,7 +213,7 @@ def parse_cues():
     abs_path = result
 
     try:
-        subs = pysubs2.load(abs_path)
+        subs = load_subtitle_file(abs_path)
 
         ext = os.path.splitext(abs_path)[1].lower()
         fmt = "ass" if ext in (".ass", ".ssa") else "srt"

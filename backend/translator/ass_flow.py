@@ -19,8 +19,6 @@ import logging
 import os
 import tempfile
 
-import pysubs2
-
 from ass_drawing import holds_language
 from ass_lexer import (
     LAYOUT,
@@ -37,6 +35,7 @@ from ass_utils import (
     split_around_drawings,
     text_outside_drawing,
 )
+from subtitle_encoding import load_subtitle_file
 from translator.errors import ASS_REVIEW_REQUIRED, NO_TRANSLATABLE_DIALOGUE, TranslationAbortedError
 
 logger = logging.getLogger(__name__)
@@ -318,7 +317,7 @@ def translate_ass(
     try:
         _extract_subtitle_stream(mkv_path, stream_info, tmp_path)
 
-        subs = pysubs2.load(tmp_path)
+        subs = load_subtitle_file(tmp_path)
         logger.info("Loaded %d events, %d styles", len(subs.events), len(subs.styles))
 
         dialog_styles, signs_styles = classify_styles(subs)
@@ -493,7 +492,7 @@ def _translate_external_ass(
     _core.check_disk_space(output_path)
 
     try:
-        subs = pysubs2.load(ass_path)
+        subs = load_subtitle_file(ass_path)
         logger.info("Loaded external ASS: %d events, %d styles", len(subs.events), len(subs.styles))
 
         dialog_styles, signs_styles = classify_styles(subs)

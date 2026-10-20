@@ -42,7 +42,7 @@ def _do_upload(video_path: str):
     try:
         from services.trash_locations import media_paths
 
-        content, ext = prepare_upload(upload.filename, upload.read())
+        content, ext = prepare_upload(upload.filename, upload.read(), language)
         saved = save_manual_subtitle(
             video_path, content, ext, language, modifier, overwrite, media_paths()
         )

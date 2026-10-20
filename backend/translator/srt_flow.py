@@ -17,8 +17,7 @@ import os
 import re
 import tempfile
 
-import pysubs2
-
+from subtitle_encoding import load_subtitle_file
 from translator.errors import NO_TRANSLATABLE_DIALOGUE, TranslationAbortedError
 
 logger = logging.getLogger(__name__)
@@ -121,7 +120,7 @@ def _translate_srt(
     """
     import translator.core as _core
 
-    subs = pysubs2.load(srt_path)
+    subs = load_subtitle_file(srt_path)
     logger.info("Loaded SRT with %d events", len(subs.events))
 
     dialog_indices = []

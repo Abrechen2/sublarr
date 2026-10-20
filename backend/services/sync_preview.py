@@ -19,8 +19,6 @@ import shutil
 import subprocess
 import tempfile
 
-import pysubs2
-
 from services.video_sync import (
     SyncSanityThresholdError,
     SyncUnavailableError,
@@ -32,6 +30,7 @@ from services.video_sync import (
     framerate_scale_message,
     shift_original_into,
 )
+from subtitle_encoding import load_subtitle_file
 
 logger = logging.getLogger(__name__)
 
@@ -65,7 +64,7 @@ def _locked_subprocess(cmd: list[str], timeout: int):
 
 def load_cues(path: str) -> list[dict]:
     """Parse a subtitle file into ``[{start, end, text}]`` (ms + plaintext)."""
-    subs = pysubs2.load(path)
+    subs = load_subtitle_file(path)
     return [
         {"start": e.start, "end": e.end, "text": e.plaintext}
         for e in subs.events

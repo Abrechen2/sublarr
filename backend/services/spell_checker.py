@@ -7,6 +7,8 @@ Uses pyenchant (Python binding for Hunspell) for spell checking.
 import logging
 import re
 
+from subtitle_encoding import load_subtitle_file
+
 logger = logging.getLogger(__name__)
 
 # Try to import pyenchant, but make it optional
@@ -206,10 +208,8 @@ def check_subtitle_file(
         }
 
     try:
-        import pysubs2
-
         # Load subtitle file
-        subs = pysubs2.load(file_path)
+        subs = load_subtitle_file(file_path)
 
         # Initialize spell checker
         checker = SpellChecker(language)

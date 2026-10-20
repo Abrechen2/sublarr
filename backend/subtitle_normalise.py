@@ -22,17 +22,19 @@ import logging
 logger = logging.getLogger(__name__)
 
 
-def normalise_downloaded_content(content: bytes, fmt) -> bytes:
+def normalise_downloaded_content(content: bytes, fmt, language: str | None = None) -> bytes:
     """Return ``content`` as ``save_subtitle`` would write (and hash) it.
 
     ``fmt`` accepts a ``SubtitleFormat`` or a plain string ("srt", "ass", ...).
+    ``language`` picks the codepage a non-UTF-8 download is read in; the
+    download and the repair path must pass the same one.
     Mirrors the download path's error handling: a failing step is logged and
     skipped, never fatal — a subtitle that cannot be tidied is still a subtitle.
     """
     try:
         from subtitle_sanitizer import sanitize_subtitle
 
-        content = sanitize_subtitle(content, fmt)
+        content = sanitize_subtitle(content, fmt, language=language)
     except ValueError as exc:
         raise RuntimeError(f"Subtitle failed security check: {exc}") from exc
     except Exception as exc:  # noqa: BLE001 — mirrors save_subtitle

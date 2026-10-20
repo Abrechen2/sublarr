@@ -9,21 +9,26 @@ from services.subtitle_health.text_utils import decode_with_confidence
 _MIN_CONF = 0.5  # refuse to rewrite if we cannot decode confidently
 
 
-def reencode_bytes(raw: bytes) -> bytes:
-    text, _enc, _conf = decode_with_confidence(raw)
+def reencode_bytes(raw: bytes, language: str | None = None) -> bytes:
+    text, _enc, _conf = decode_with_confidence(raw, language=language)
     text = text.replace("\r\n", "\n").replace("\r", "\n")
     return text.encode("utf-8")
 
 
 def apply_to_sidecar(path: str, *, finding_id=None) -> dict:
     from services.subtitle_health import store
+    from subtitle_filename import parse_subtitle_filename
 
     with open(path, "rb") as fh:
         original = fh.read()
-    _text, _enc, conf = decode_with_confidence(original)
+    # The language in the file name is what makes a legacy decode trustworthy;
+    # without it only a BOM or valid UTF-8 is confident enough to rewrite.
+    parsed = parse_subtitle_filename(path)
+    language = parsed.language if parsed else None
+    _text, _enc, conf = decode_with_confidence(original, language=language)
     if conf < _MIN_CONF:
         return {"changed": False, "reason": "decode confidence too low"}
-    fixed = reencode_bytes(original)
+    fixed = reencode_bytes(original, language=language)
     if fixed == original:
         return {"changed": False, "reason": "already clean utf-8"}
     trashed = backup_sidecar(path)

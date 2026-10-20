@@ -11,7 +11,7 @@ import re
 from collections import Counter
 from typing import Any
 
-import pysubs2
+from subtitle_encoding import load_subtitle_file
 
 logger = logging.getLogger(__name__)
 
@@ -223,7 +223,7 @@ def _collect_texts(directory: str, source_lang: str) -> list[str]:
                 continue
             filepath = os.path.join(root, filename)
             try:
-                subs = pysubs2.load(filepath, encoding="utf-8")
+                subs = load_subtitle_file(filepath)
                 for event in subs:
                     if event.text:
                         texts.append(event.text)

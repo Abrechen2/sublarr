@@ -12,6 +12,7 @@ from flask import jsonify, request
 
 from routes.tools import bp
 from routes.tools._helpers import PYSUBS2_EXT, SUPPORTED_FORMATS, _validate_file_path
+from subtitle_encoding import load_subtitle_file
 
 logger = logging.getLogger(__name__)
 
@@ -54,7 +55,6 @@ def spell_check():
                   type: string
                   default: de_DE
     """
-    import pysubs2
 
     data = request.get_json(force=True, silent=True) or {}
     error, result = _validate_file_path(data.get("file_path", ""))
@@ -75,7 +75,7 @@ def spell_check():
         return jsonify({"error": f"Hunspell not available for {language}: {e}"}), 503
 
     try:
-        subs = pysubs2.load(abs_path)
+        subs = load_subtitle_file(abs_path)
         errors = []
         word_re = re.compile(r"\b[a-zA-ZäöüÄÖÜß]+\b")
         for cue in subs:
@@ -142,7 +142,6 @@ def convert_format():
         500:
           description: Conversion failed
     """
-    import pysubs2
 
     from config import get_settings, map_path
     from security_utils import is_safe_path
@@ -212,29 +211,12 @@ def convert_format():
             }
         ), 409
 
-    # B2 (audit 2026-05-08): pysubs2.load() defaults to UTF-8 and explodes on
-    # CP1252/Latin-1 SRTs ("utf-8 codec can't decode byte 0xa3..."). Mirror the
-    # chardet-then-load pattern from /tools/content + /tools/analysis.
-    detected_encoding = "utf-8"
-    try:
-        import chardet  # type: ignore[import-untyped]
-
-        with open(source_path, "rb") as _raw:
-            sample = _raw.read(32768)
-        det = chardet.detect(sample) if sample else {}
-        detected_encoding = (det.get("encoding") or "utf-8") if isinstance(det, dict) else "utf-8"
-    except ImportError:
-        detected_encoding = "utf-8"
-    except OSError:
-        detected_encoding = "utf-8"
+    # B2 (audit 2026-05-08): load_subtitle_file() defaults to UTF-8 and explodes on
+    # CP1252/Latin-1 SRTs ("utf-8 codec can't decode byte 0xa3...").
+    from subtitle_encoding import load_subtitle_file
 
     try:
-        try:
-            subs = pysubs2.load(source_path, encoding=detected_encoding)
-        except (UnicodeDecodeError, LookupError):
-            # Fallback: lenient latin-1 decode never raises; pysubs2 will still
-            # parse cue timing correctly even with a wrong textual fallback.
-            subs = pysubs2.load(source_path, encoding="latin-1")
+        subs = load_subtitle_file(source_path)
         subs.save(output_path, format_=target_format)
     except Exception as e:
         return jsonify({"error": f"Conversion failed: {e}"}), 500

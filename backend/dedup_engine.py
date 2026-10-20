@@ -49,9 +49,16 @@ def compute_subtitle_hash(file_path: str) -> dict:
     if not os.path.isfile(file_path):
         raise FileNotFoundError(f"File not found: {file_path}")
 
-    # Read content
-    with open(file_path, encoding="utf-8", errors="replace") as f:
-        content = f.read()
+    # Extract language via the shared parser. ``language`` stays None for
+    # unparseable filenames (no language slot, alien extensions, etc.) —
+    # matches the previous behaviour where the regex simply did not match.
+    parsed = parse_subtitle_filename(file_path)
+    language = parsed.language if parsed else None
+
+    with open(file_path, "rb") as f:
+        raw = f.read()
+    # Universal newlines, as the text-mode read this replaced produced.
+    content = _text_for_hash(raw, language).replace("\r\n", "\n").replace("\r", "\n")
 
     # Normalize: strip, replace \r\n with \n
     normalized = content.strip().replace("\r\n", "\n")
@@ -64,12 +71,6 @@ def compute_subtitle_hash(file_path: str) -> dict:
     ext = os.path.splitext(file_path)[1].lower()
     format_name = ext.lstrip(".")  # "srt", "ass", "ssa"
 
-    # Extract language via the shared parser. ``language`` stays None for
-    # unparseable filenames (no language slot, alien extensions, etc.) —
-    # matches the previous behaviour where the regex simply did not match.
-    parsed = parse_subtitle_filename(file_path)
-    language = parsed.language if parsed else None
-
     line_count = len(normalized.splitlines())
 
     return {
@@ -80,6 +81,21 @@ def compute_subtitle_hash(file_path: str) -> dict:
         "language": language,
         "line_count": line_count,
     }
+
+
+def _text_for_hash(raw: bytes, language: str | None) -> str:
+    """UTF-8 exactly as before (BOM character included, so stored hashes hold).
+
+    Anything else is decoded properly first: read as UTF-8 with replacement, two
+    different cp1251 texts of the same shape both became "������ ���" and were
+    reported as duplicates.
+    """
+    try:
+        return raw.decode("utf-8")
+    except UnicodeDecodeError:
+        from subtitle_encoding import decode_subtitle_bytes
+
+        return decode_subtitle_bytes(raw, language=language)
 
 
 def compute_content_hash_from_bytes(content: bytes) -> str:
@@ -94,7 +110,7 @@ def compute_content_hash_from_bytes(content: bytes) -> str:
     Returns:
         SHA-256 hex digest string.
     """
-    text = content.decode("utf-8", errors="replace")
+    text = _text_for_hash(content, None)
     normalized = text.strip().replace("\r\n", "\n")
     return hashlib.sha256(normalized.encode("utf-8")).hexdigest()
 

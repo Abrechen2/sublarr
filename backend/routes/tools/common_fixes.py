@@ -92,18 +92,9 @@ def common_fixes():
         # legacy code read every file as UTF-8 with errors=replace and then
         # wrote the result back as UTF-8 — silently mangling the content
         # whenever the user only asked for a non-encoding fix.
-        source_encoding = "utf-8"
-        try:
-            import chardet
+        from subtitle_encoding import read_subtitle_text
 
-            with open(abs_path, "rb") as f:
-                raw = f.read()
-            detected = chardet.detect(raw)
-            source_encoding = detected.get("encoding", "utf-8") or "utf-8"
-            content = raw.decode(source_encoding, errors="replace")
-        except ImportError:
-            with open(abs_path, encoding="utf-8", errors="replace") as f:
-                content = f.read()
+        content, source_encoding, _basis = read_subtitle_text(abs_path, universal_newlines=False)
 
         lines_before = len(content.splitlines())
         applied = []

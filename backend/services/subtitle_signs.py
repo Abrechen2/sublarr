@@ -13,6 +13,7 @@ from enum import StrEnum
 from typing import Literal
 
 from services.subtitle_cues import cue_statistics
+from subtitle_encoding import load_subtitle_file
 
 logger = logging.getLogger(__name__)
 
@@ -99,9 +100,7 @@ def classify_sidecar(path: str, *, use_density: bool) -> Subtype:
     ass_content = None
     if path.lower().endswith((".ass", ".ssa")):
         try:
-            import pysubs2
-
-            ass_content = pysubs2.load(path)
+            ass_content = load_subtitle_file(path)
         except Exception as exc:
             logger.debug("subtitle_signs: could not parse ASS %s: %s", path, exc)
             ass_content = None

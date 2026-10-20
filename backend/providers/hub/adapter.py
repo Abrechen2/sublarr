@@ -17,6 +17,7 @@ import base64
 import hashlib
 import logging
 import os
+import re
 import socket
 import urllib.error
 from typing import Any, ClassVar
@@ -361,6 +362,16 @@ class HubProvider(SubtitleProvider):
         if content.get("empty") is not False or "content_b64" not in content:
             raise ProviderError(f"{self.name} returned no subtitle content")
         data = _b64(content["content_b64"], content.get("content_sha256"), self.name)
+        data = _undo_doubled_wide_line_breaks(data)
+        if content.get("encoding"):
+            # A bundle that detected the encoding itself (ktuvit's Hebrew
+            # windows-1255) knows better than any guess made later. Applied here,
+            # so the repair path's re-download reads the same text as the first
+            # download did. The "latin-1" several bundles return for anything
+            # that is not UTF-8 is ignored by ensure_utf8.
+            from subtitle_encoding import ensure_utf8
+
+            data = ensure_utf8(data, language=result.language, hint=str(content["encoding"]))
         fmt = str(content.get("format") or "").lower()
         name = result.filename
         if fmt and _format_of(name) is SubtitleFormat.UNKNOWN:
@@ -414,6 +425,30 @@ class HubProvider(SubtitleProvider):
                     return name, data
             raise ProviderError(f"{self.name} archive member {wanted!r} is missing")
         return _pick_member(files, result, self.name)
+
+
+def _undo_doubled_wide_line_breaks(data: bytes) -> bytes:
+    """Repair a UTF-16/32 body whose CRLFs a bundle turned into two line breaks.
+
+    Most bundles normalise line endings on the bytes (``replace(b"\\r", b"\\n")``).
+    In UTF-16 that turns every CRLF into LF LF, so each cue's number, timing
+    and text end up separated by blank lines and the file no longer parses.
+    The damage is recognisable: every run of line breaks is even, while a real
+    subtitle always has single breaks (number -> timing). Only then is every
+    run halved; the bundles are pinned copies, so it cannot be fixed there.
+    """
+    from subtitle_encoding import decode_subtitle_bytes, is_wide_unicode
+
+    if not is_wide_unicode(data):
+        return data
+    text = decode_subtitle_bytes(data)
+    if "\r" in text:
+        return data
+    runs = [len(m) for m in re.findall(r"\n+", text)]
+    if not runs or any(n % 2 for n in runs):
+        return data
+    repaired = re.sub(r"\n+", lambda m: "\n" * (len(m.group()) // 2), text)
+    return repaired.encode("utf-8")
 
 
 def _b64(text, expected_sha256, provider_name: str) -> bytes:

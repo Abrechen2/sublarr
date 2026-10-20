@@ -41,6 +41,7 @@ from health_fixes import (
     fix_timing_overlaps,
     fix_zero_duration,
 )
+from subtitle_encoding import load_subtitle_file
 
 logger = logging.getLogger(__name__)
 
@@ -89,7 +90,6 @@ def run_health_checks(file_path: str) -> dict:
     Returns:
         Dict with file_path, checks_run, issues, score, checked_at.
     """
-    import pysubs2
 
     all_issues = []
     checks_run = 0
@@ -111,7 +111,7 @@ def run_health_checks(file_path: str) -> dict:
 
     # Parse subtitle
     try:
-        subs = pysubs2.load(file_path)
+        subs = load_subtitle_file(file_path)
     except Exception as e:
         logger.error("Cannot parse subtitle %s: %s", file_path, e)
         return {
@@ -169,14 +169,13 @@ def apply_fixes(file_path: str, fix_names: list) -> dict:
     Returns:
         Dict with fixes_applied, counts, new_score.
     """
-    import pysubs2
 
     # Create backup using same .bak pattern as tools.py
     base, ext = os.path.splitext(file_path)
     bak_path = f"{base}.bak{ext}"
     shutil.copy2(file_path, bak_path)
 
-    subs = pysubs2.load(file_path)
+    subs = load_subtitle_file(file_path)
 
     fixes_applied = []
     counts = {}

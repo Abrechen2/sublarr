@@ -27,6 +27,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   of a text field.
 
 ### Fixed
+- **Subtitles that are not UTF-8 keep their letters** — A subtitle saved in an
+  older encoding (Windows-1250/1251/1252/1253, Greek, Cyrillic, Turkish,
+  Hebrew, Chinese GBK/Big5, ...) was written to disk with every umlaut,
+  accent or non-Latin letter replaced by "�", from every provider and from
+  manual uploads. Sublarr now reads each file in the encoding its language was
+  written in, or the one the provider detected, and saves it as UTF-8. UTF-16
+  subtitles are accepted instead of being rejected as binary data. The check
+  that catches subtitles in the wrong language now also works for these files.
+  The editor, the subtitle tools, the health check and the re-encode fix use
+  the same detection, and tools that open an existing subtitle no longer fail
+  on a non-UTF-8 file. Files already saved with "�" cannot be restored this
+  way; download them again.
+- **Archive members with non-Latin names are found** — A subtitle inside a ZIP
+  or RAR whose name had no Latin letters (``简体.srt``) was skipped.
+- **Different subtitles no longer count as duplicates** — Two non-UTF-8 files
+  of the same shape could get the same content hash.
 - **Auto-sync keeps long signs and karaoke lines** — ffsubsync caps every
   event at 10 seconds in the file it writes, so each sync cut signs, ED
   karaoke and long lines to exactly 10 seconds — 120 lines of one episode on

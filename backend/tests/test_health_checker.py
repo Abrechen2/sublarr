@@ -313,10 +313,13 @@ class TestCheckEncodingIssues:
         # Shift-JIS encoded Japanese text
         raw = "こんにちは世界".encode("shift_jis")
         issues = check_encoding_issues(subs, raw_bytes=raw)
-        # chardet should detect non-UTF-8 encoding
-        [i for i in issues if "not UTF-8" in i.get("message", "")]
-        # Whether detected depends on chardet confidence, so just verify no crash
-        assert isinstance(issues, list)
+        assert any("not UTF-8" in i.get("message", "") for i in issues)
+
+    def test_cp1252_is_reported_with_its_encoding(self):
+        subs = _make_subs([])
+        raw = "1\n00:00:01,000 --> 00:00:02,000\nGrüße\n".encode("cp1252")
+        issues = check_encoding_issues(subs, raw_bytes=raw)
+        assert any("not UTF-8" in i["message"] for i in issues)
 
     def test_chardet_import_error_fallback(self):
         """When chardet is not available, fallback to manual UTF-8 decode check."""
@@ -329,8 +332,8 @@ class TestCheckEncodingIssues:
             patch("builtins.__import__", side_effect=_import_blocker("chardet")),
         ):
             issues = check_encoding_issues(subs, raw_bytes=raw)
-        # Should detect non-UTF-8 bytes via fallback
-        assert any("non-UTF8" in i.get("message", "") for i in issues)
+        # Still detected without chardet
+        assert any("not UTF-8" in i.get("message", "") for i in issues)
 
     def test_chardet_import_error_fallback_valid_utf8(self):
         """When chardet is unavailable but bytes are valid UTF-8, no issue."""

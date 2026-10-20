@@ -30,6 +30,7 @@ import tempfile
 # patch("services.video_sync.run_trigger")).
 from post_processing.pipeline import run_trigger
 from services.foreign_tracks.sidecars import carry_origin_after_rewrite, vouch_before_rewrite
+from subtitle_encoding import load_subtitle_file
 
 logger = logging.getLogger(__name__)
 
@@ -445,11 +446,10 @@ def shift_original_into(subtitle_path: str, out_path: str, shift_ms: int) -> boo
     Returns False when the original cannot be parsed; ``out_path`` then
     keeps ffsubsync's own output, as before.
     """
-    import pysubs2
 
     ext = os.path.splitext(subtitle_path)[1].lstrip(".").lower()
     try:
-        subs = pysubs2.load(subtitle_path, encoding="utf-8")
+        subs = load_subtitle_file(subtitle_path)
     except Exception as exc:  # noqa: BLE001 — undecodable or malformed: keep ffsubsync's file
         logger.warning("sync: could not re-read %s to apply the shift: %s", subtitle_path, exc)
         return False

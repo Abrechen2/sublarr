@@ -6,6 +6,7 @@ from flask import jsonify, request
 
 from routes.tools import bp
 from routes.tools._helpers import _create_backup, _validate_file_path
+from subtitle_encoding import load_subtitle_file
 
 logger = logging.getLogger(__name__)
 
@@ -178,7 +179,6 @@ def advanced_sync():
         500:
           description: Processing error
     """
-    import pysubs2
 
     data = request.get_json() or {}
     file_path = data.get("file_path", "")
@@ -196,7 +196,7 @@ def advanced_sync():
     abs_path = result
 
     try:
-        subs = pysubs2.load(abs_path)
+        subs = load_subtitle_file(abs_path)
         event_count = len([e for e in subs.events if not e.is_comment])
 
         if operation == "offset":

@@ -69,20 +69,11 @@ def preview_file():
     abs_path = result
 
     try:
-        # Detect encoding
-        detected_encoding = "utf-8"
-        try:
-            import chardet
+        from subtitle_encoding import read_subtitle_text
 
-            with open(abs_path, "rb") as f:
-                raw = f.read(4096)
-            det = chardet.detect(raw)
-            detected_encoding = det.get("encoding", "utf-8") or "utf-8"
-        except ImportError:
-            pass
-
-        with open(abs_path, encoding=detected_encoding, errors="replace") as f:
-            all_lines = f.readlines()
+        decoded = read_subtitle_text(abs_path)
+        detected_encoding = decoded.encoding
+        all_lines = decoded.text.splitlines()
 
         total_lines = len(all_lines)
         preview_lines = [line.rstrip("\n\r") for line in all_lines[:100]]
@@ -165,20 +156,9 @@ def get_file_content():
     abs_path = result
 
     try:
-        # Detect encoding
-        detected_encoding = "utf-8"
-        try:
-            import chardet
+        from subtitle_encoding import read_subtitle_text
 
-            with open(abs_path, "rb") as f:
-                raw = f.read()
-            det = chardet.detect(raw)
-            detected_encoding = det.get("encoding", "utf-8") or "utf-8"
-        except ImportError:
-            pass
-
-        with open(abs_path, encoding=detected_encoding, errors="replace") as f:
-            content = f.read()
+        content, detected_encoding, _basis = read_subtitle_text(abs_path)
 
         ext = os.path.splitext(abs_path)[1].lower()
         fmt = "ass" if ext in (".ass", ".ssa") else "srt"
@@ -376,20 +356,9 @@ def get_backup_content():
         if not os.path.exists(bak_path):
             return jsonify({"error": f"No backup found for {file_path}"}), 404
 
-        # Detect encoding of backup file
-        detected_encoding = "utf-8"
-        try:
-            import chardet
+        from subtitle_encoding import read_subtitle_text
 
-            with open(bak_path, "rb") as f:
-                raw = f.read()
-            det = chardet.detect(raw)
-            detected_encoding = det.get("encoding", "utf-8") or "utf-8"
-        except ImportError:
-            pass
-
-        with open(bak_path, encoding=detected_encoding, errors="replace") as f:
-            content = f.read()
+        content, detected_encoding, _basis = read_subtitle_text(bak_path)
 
         return jsonify(
             {

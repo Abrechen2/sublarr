@@ -77,6 +77,19 @@ class FakeProvider:
         if mode == "plain":
             return {"content_b64": base64.b64encode(body).decode(), "content_sha256":
                     hashlib.sha256(body).hexdigest(), "format": "srt", "empty": False}
+        if mode == "utf16crlf":
+            raw = "1\\r\\n00:00:01,000 --> 00:00:02,000\\r\\nHallo\\r\\n\\r\\n2\\r\\n00:00:03,000 --> 00:00:04,000\\r\\nWelt\\r\\n".encode("utf-16")
+            # What the bundles' byte-level line-ending fix does to UTF-16.
+            raw = raw.replace(b"\\r\\n", b"\\n").replace(b"\\r", b"\\n")
+            return {"content_b64": base64.b64encode(raw).decode(), "format": "srt",
+                    "empty": False}
+        if mode in ("hebrew", "greek"):
+            text = "שלום עולם, מה שלומך?" if mode == "hebrew" else "Γειά σου κόσμε, τι κάνεις;"
+            raw = ("1\\n00:00:01,000 --> 00:00:02,000\\n" + text + "\\n").encode(
+                "cp1255" if mode == "hebrew" else "cp1253")
+            return {"content_b64": base64.b64encode(raw).decode(), "format": "srt",
+                    "encoding": "windows-1255" if mode == "hebrew" else "latin-1",
+                    "empty": False}
         if mode == "badsum":
             return {"content_b64": base64.b64encode(body).decode(), "content_sha256": "0" * 64,
                     "empty": False}
@@ -266,6 +279,39 @@ def test_content_b64_is_decoded_and_checked(bundle):
     result = provider.search(_episode_query())[0]
     assert provider.download(result) == SRT
     assert result.content == SRT
+
+
+def test_the_encoding_a_bundle_detected_is_applied(bundle):
+    provider = _provider(bundle)
+    result = provider.search(_episode_query())[0]
+    result.provider_data["payload"] = {"mode": "hebrew"}
+    assert "שלום עולם, מה שלומך?" in provider.download(result).decode("utf-8")
+
+
+def test_a_latin1_placeholder_does_not_turn_greek_into_latin(bundle):
+    provider = _provider(bundle)
+    result = provider.search(_episode_query())[0]
+    result.language = "el"
+    result.provider_data["payload"] = {"mode": "greek"}
+    assert "Γειά σου κόσμε" in provider.download(result).decode("utf-8")
+
+
+def test_utf16_line_breaks_doubled_by_a_bundle_are_undone(bundle):
+    provider = _provider(bundle)
+    result = provider.search(_episode_query())[0]
+    result.provider_data["payload"] = {"mode": "utf16crlf"}
+    assert provider.download(result).decode("utf-8") == (
+        "1\n00:00:01,000 --> 00:00:02,000\nHallo\n\n2\n00:00:03,000 --> 00:00:04,000\nWelt\n"
+    )
+
+
+def test_undoing_doubled_breaks_leaves_real_blank_lines_alone():
+    from providers.hub.adapter import _undo_doubled_wide_line_breaks
+
+    lf = "1\n00:00:01,000 --> 00:00:02,000\nHallo\n\n2\n00:00:03,000 --> 00:00:04,000\nWelt\n"
+    raw = lf.encode("utf-16")
+    assert _undo_doubled_wide_line_breaks(raw) == raw
+    assert _undo_doubled_wide_line_breaks(lf.encode()) == lf.encode()
 
 
 def test_a_checksum_mismatch_is_an_error(bundle):

@@ -52,7 +52,9 @@ def test_line_fix_route_returns_500_with_error_json_on_pysubs2_failure(client, e
     must be a structured 500 instead of an unhandled traceback."""
     srt = _make_srt(f"test_line_fix_err_{label.replace('-', '_')}.srt")
     try:
-        with patch("pysubs2.load", side_effect=RuntimeError("simulated parse failure")):
+        with patch(
+            "pysubs2.SSAFile.from_string", side_effect=RuntimeError("simulated parse failure")
+        ):
             rv = client.post(endpoint, json={"file_path": srt})
         assert rv.status_code == 500
         body = rv.get_json()

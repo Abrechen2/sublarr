@@ -26,8 +26,10 @@ class StripHtmlOp(BaseOp):
     def execute(self, context: dict) -> OpResult:
         start = time.monotonic()
         try:
+            from subtitle_encoding import read_subtitle_text
+
             path = Path(context["subtitle_path"])
-            text = path.read_text(encoding="utf-8", errors="replace")
+            text = read_subtitle_text(str(path), universal_newlines=False).text
             cleaned = _HTML_TAG_RE.sub("", text)
             if cleaned != text:
                 path.write_text(cleaned, encoding="utf-8")
@@ -63,7 +65,7 @@ class RemoveBomOp(BaseOp):
 class ConvertEncodingOp(BaseOp):
     op_id = "convert_encoding"
     label = "Convert encoding"
-    description = "Re-encode the subtitle to UTF-8 (auto-detects source encoding via chardet)."
+    description = "Re-encode the subtitle to UTF-8 (detects the source encoding from its language)."
     config_schema: list[dict] = []
 
     def execute(self, context: dict) -> OpResult:
@@ -77,15 +79,10 @@ class ConvertEncodingOp(BaseOp):
                 return OpResult(self.op_id, True, _elapsed_ms(start), "already utf-8")
             except UnicodeDecodeError:
                 pass
-            try:
-                import chardet
+            from subtitle_encoding import read_subtitle_text
 
-                detected = chardet.detect(raw) or {}
-                enc = detected.get("encoding") or "windows-1252"
-            except ImportError:
-                enc = "windows-1252"
-            text = raw.decode(enc, errors="replace")
-            path.write_text(text, encoding="utf-8")
+            text, enc, _basis = read_subtitle_text(str(path), universal_newlines=False)
+            path.write_bytes(text.encode("utf-8"))
             return OpResult(self.op_id, True, _elapsed_ms(start), f"converted from {enc}")
         except Exception as exc:
             return OpResult(self.op_id, False, _elapsed_ms(start), str(exc))

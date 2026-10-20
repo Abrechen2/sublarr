@@ -231,15 +231,16 @@ def validate_content_type(content: bytes, fmt) -> bool:
     return True
 
 
-def sanitize_subtitle(content: bytes, fmt) -> bytes:
+def sanitize_subtitle(content: bytes, fmt, language: str | None = None) -> bytes:
     """Main sanitization gate — validates and sanitizes subtitle content.
 
     Args:
         content: Raw subtitle file bytes.
         fmt: SubtitleFormat instance indicating the file type.
+        language: The subtitle's language, the best guide to a legacy encoding.
 
     Returns:
-        Sanitized subtitle bytes.
+        Sanitized subtitle bytes (UTF-8 for text formats).
 
     Raises:
         ValueError: If content exceeds size limit or fails content-type check.
@@ -251,6 +252,12 @@ def sanitize_subtitle(content: bytes, fmt) -> bytes:
         raise ValueError(
             f"Subtitle too large: {len(content) // 1024} KB > {limit // 1024} KB limit"
         )
+
+    if fmt_value in ("ass", "ssa", "srt", "vtt"):
+        # Before the format check and the parsers: both read the bytes as UTF-8.
+        from subtitle_encoding import ensure_utf8
+
+        content = ensure_utf8(content, language=language)
 
     if fmt_value != "unknown" and not validate_content_type(content, fmt):
         raise ValueError(f"Content does not match expected format {fmt_value!r}")

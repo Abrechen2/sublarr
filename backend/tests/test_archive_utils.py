@@ -156,3 +156,26 @@ class TestSafeReadZipMember:
             assert safe_read_zip_member(zf, "small.json") == b"{}"
         # The default value is exposed as the module constant.
         assert _MAX_EXTRACTED_BYTES == 50 * 1024 * 1024
+
+
+class TestNonLatinMemberNames:
+    """secure_filename reduced "简体.srt" to "srt", and the member was dropped."""
+
+    def test_chinese_member_name_is_kept(self):
+        results = extract_subtitles_from_zip(_make_zip({"简体.srt": b"zh"}))
+        assert len(results) == 1
+        name, body = results[0]
+        assert name.endswith(".srt")
+        assert name.isascii()
+        assert body == b"zh"
+
+    def test_two_non_latin_names_do_not_collapse(self):
+        results = extract_subtitles_from_zip(_make_zip({"简体.srt": b"a", "繁體.srt": b"b"}))
+        assert len({name for name, _ in results}) == 2
+
+    def test_partly_latin_name_keeps_its_latin_part(self):
+        results = extract_subtitles_from_zip(_make_zip({"Ταινία S01E02.srt": b"x"}))
+        assert results[0][0].startswith("S01E02")
+
+    def test_name_without_extension_is_still_skipped(self):
+        assert extract_subtitles_from_zip(_make_zip({"简体": b"x"})) == []

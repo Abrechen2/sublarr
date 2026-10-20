@@ -441,6 +441,15 @@ def save_subtitle(
     if not result.content:
         raise ValueError("SubtitleResult has no content (download first)")
 
+    # The P4 check counts NULs and format detection looks for ASCII markers, so
+    # UTF-16/32 (half NULs) would be rejected as binary. Only those are converted
+    # up front; legacy codepages are checked as they came and converted by the
+    # sanitizer, so a binary signature is still seen as one.
+    from subtitle_encoding import ensure_utf8, is_wide_unicode
+
+    if is_wide_unicode(result.content):
+        result.content = ensure_utf8(result.content, language=result.language)
+
     # Validate content against declared format before processing (P4)
     fmt_hint = result.format.value if result.format != SubtitleFormat.UNKNOWN else "srt"
     valid, reason = _validate_subtitle_content(result.content, fmt_hint)
@@ -510,7 +519,9 @@ def save_subtitle(
     # in the first place.
     from subtitle_normalise import normalise_downloaded_content
 
-    result.content = normalise_downloaded_content(result.content, result.format)
+    result.content = normalise_downloaded_content(
+        result.content, result.format, language=result.language
+    )
 
     # The provider's language label is a claim; the letters are the evidence.
     # Prod 2026-09-06: OpenSubtitles delivered "German" (score 4) that was

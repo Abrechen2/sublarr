@@ -120,20 +120,9 @@ def compare_files():
         abs_path = result
 
         try:
-            # Detect encoding
-            detected_encoding = "utf-8"
-            try:
-                import chardet
+            from subtitle_encoding import read_subtitle_text
 
-                with open(abs_path, "rb") as f:
-                    raw = f.read()
-                det = chardet.detect(raw)
-                detected_encoding = det.get("encoding", "utf-8") or "utf-8"
-            except ImportError:
-                pass
-
-            with open(abs_path, encoding=detected_encoding, errors="replace") as f:
-                content = f.read()
+            content, detected_encoding, _basis = read_subtitle_text(abs_path)
 
             ext = os.path.splitext(abs_path)[1].lower()
             fmt = "ass" if ext in (".ass", ".ssa") else "srt"

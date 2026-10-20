@@ -10,34 +10,24 @@ _ASS_TAG_RE = re.compile(r"\{\\[^}]*\}")
 ASS_ESCAPE_RE = re.compile(r"(?<!\\)\\[Nnh]")
 _SRT_TS_RE = re.compile(r"^\d+\s*$|-->")
 
-# Decode candidates in priority order after UTF-8.
-_FALLBACK_ENCODINGS = ("cp1252", "latin-1")
+# How far a decode can be trusted, by what picked its encoding. The re-encoder
+# rewrites a file only at 0.5 or more, so a chardet guess (which reads a short
+# German file as Big5) is reported but never written back.
+_CONFIDENCE_BY_BASIS = {"hint": 0.8, "language": 0.8, "chardet": 0.4, "fallback": 0.2}
 
 
-def decode_with_confidence(data: bytes) -> tuple[str, str, float]:
+def decode_with_confidence(data: bytes, language: str | None = None) -> tuple[str, str, float]:
     """Decode bytes, returning (text, encoding, confidence in [0,1]).
 
-    BOM -> UTF-8 -> fallback codecs. Confidence reflects how clean the decode
-    was (replacement-char rate). Mojibake/encoding checks build on this.
+    Same detection as the download path (``subtitle_encoding``): BOM, UTF-8,
+    the codepages of ``language``, then chardet. Confidence reflects both the
+    evidence and how clean the decode was (replacement-char rate).
     """
-    if data.startswith(b"\xef\xbb\xbf"):
-        text = data[3:].decode("utf-8", errors="replace")
-        rep = text.count("�")
-        conf = max(0.0, 1.0 - rep / max(1, len(text)))
-        return text, "utf-8-sig", conf
-    try:
-        return data.decode("utf-8"), "utf-8", 1.0
-    except UnicodeDecodeError:
-        pass
-    for enc in _FALLBACK_ENCODINGS:
-        try:
-            return data.decode(enc), enc, 0.6
-        except UnicodeDecodeError:
-            continue
-    text = data.decode("utf-8", errors="replace")
-    rep = text.count("�")
-    conf = max(0.0, 1.0 - rep / max(1, len(text)))
-    return text, "utf-8-replace", conf
+    from subtitle_encoding import detect_encoding
+
+    text, encoding, basis = detect_encoding(data, language=language)
+    clean = max(0.0, 1.0 - text.count("\ufffd") / max(1, len(text)))
+    return text, encoding, clean * _CONFIDENCE_BY_BASIS.get(basis, 1.0)
 
 
 def strip_ass_tags(text: str) -> str:

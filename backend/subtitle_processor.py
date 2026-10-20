@@ -12,6 +12,7 @@ from enum import StrEnum
 
 import pysubs2
 
+from subtitle_encoding import load_subtitle_file
 from subtitle_types import Change, _ms_to_str
 
 logger = logging.getLogger(__name__)
@@ -66,7 +67,7 @@ def apply_mods(path: str, mods: list[ModConfig], dry_run: bool = False) -> Proce
     ordered_mods = [mods_by_name[n] for n in _MOD_ORDER if n in mods_by_name]
 
     fmt = ext.lstrip(".")  # ".srt" → "srt", ".ass" → "ass", etc.
-    subs = pysubs2.load(path, format_=fmt, encoding="utf-8")
+    subs = load_subtitle_file(path, format_=fmt)
     all_changes: list[Change] = []
 
     for mod_config in ordered_mods:

@@ -33,7 +33,7 @@ def _ext_of(filename: str) -> str:
     return os.path.splitext(filename or "")[1].lstrip(".").lower()
 
 
-def _sanitize_or_raise(raw: bytes, fmt) -> bytes:
+def _sanitize_or_raise(raw: bytes, fmt, language: str | None) -> bytes:
     """Run the sanitizer, converting a ValueError into an UploadError(422).
 
     Shared by every accepted-format branch so the try/except isn't duplicated.
@@ -41,13 +41,16 @@ def _sanitize_or_raise(raw: bytes, fmt) -> bytes:
     from subtitle_sanitizer import sanitize_subtitle
 
     try:
-        return sanitize_subtitle(raw, fmt)
+        return sanitize_subtitle(raw, fmt, language=language)
     except ValueError as e:
         raise UploadError(422, f"Subtitle failed the security check: {e}") from e
 
 
-def prepare_upload(filename: str, raw: bytes) -> tuple[bytes, str]:
+def prepare_upload(filename: str, raw: bytes, language: str | None = None) -> tuple[bytes, str]:
     """Validate + sanitize an uploaded subtitle. Returns (content, detected_ext).
+
+    ``language`` is the language the user filed it under; it decides which
+    codepage a non-UTF-8 file is read in.
 
     Raises UploadError(status, message) on any rejection.
     """
@@ -69,7 +72,14 @@ def prepare_upload(filename: str, raw: bytes) -> tuple[bytes, str]:
 
     from providers.base import SubtitleFormat
     from providers.format_validator import _validate_subtitle_content, detect_format_from_content
+    from subtitle_encoding import ensure_utf8, is_wide_unicode
     from subtitle_sanitizer import validate_content_type
+
+    # The checks below are byte-level: UTF-16/32 would fail them as "binary", so
+    # only those are converted first. Legacy codepages are checked as uploaded
+    # (a binary signature must stay one) and converted by the sanitizer.
+    if is_wide_unicode(raw):
+        raw = ensure_utf8(raw, language=language)
 
     # detect_format_from_content() only ever distinguishes ASS from SRT — it
     # never returns VTT. Detect the WEBVTT magic ourselves first so content
@@ -91,7 +101,7 @@ def prepare_upload(filename: str, raw: bytes) -> tuple[bytes, str]:
         valid, reason = _validate_subtitle_content(raw, "vtt")
         if not valid:
             raise UploadError(422, reason or "File content is not a recognised text subtitle.")
-        return _sanitize_or_raise(raw, SubtitleFormat.VTT), "vtt"
+        return _sanitize_or_raise(raw, SubtitleFormat.VTT, language), "vtt"
 
     fmt = detect_format_from_content(raw)
     detected = getattr(fmt, "value", "unknown")
@@ -107,7 +117,7 @@ def prepare_upload(filename: str, raw: bytes) -> tuple[bytes, str]:
     if not valid:
         raise UploadError(422, reason or "File content is not a recognised text subtitle.")
 
-    return _sanitize_or_raise(raw, fmt), detected
+    return _sanitize_or_raise(raw, fmt, language), detected
 
 
 def build_sidecar_path(video_path: str, language: str, modifier: str | None, ext: str) -> str:

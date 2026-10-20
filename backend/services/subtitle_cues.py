@@ -22,21 +22,13 @@ class Cue:
 
 def load_cues(path: str) -> list[Cue]:
     """Parse a subtitle file into plaintext cues via pysubs2 (encoding-safe)."""
-    import pysubs2
+    from subtitle_encoding import load_subtitle_file
 
     try:
-        subs = pysubs2.load(path)
-    except Exception:
-        try:
-            import chardet
-
-            with open(path, "rb") as fh:
-                raw = fh.read()
-            enc = (chardet.detect(raw).get("encoding") or "utf-8").lower()
-            subs = pysubs2.SSAFile.from_string(raw.decode(enc, errors="replace"))
-        except Exception as exc:
-            logger.debug("subtitle_cues: could not parse %s: %s", path, exc)
-            return []
+        subs = load_subtitle_file(path)
+    except Exception as exc:
+        logger.debug("subtitle_cues: could not parse %s: %s", path, exc)
+        return []
 
     cues: list[Cue] = []
     for ev in subs:

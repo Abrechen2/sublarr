@@ -10,7 +10,7 @@ Five defect classes handled:
   2. Wrong newline encoding (CRLFCRLF, lone CR)
   3. Invalid decimals in timestamps (e.g. `00:00:01,4`)
   4. Overlapping cues in SRT
-  5. Encoding mis-detection (content labeled UTF-8 but actually Windows-1252)
+  5. Content that is not UTF-8 (legacy codepages, UTF-16)
 
 Public API:
   - repair_bytes(data: bytes, fmt: str) -> bytes
@@ -22,6 +22,8 @@ from __future__ import annotations
 
 import logging
 import re
+
+from subtitle_encoding import decode_subtitle_bytes
 
 logger = logging.getLogger(__name__)
 
@@ -41,9 +43,8 @@ def repair_bytes(data: bytes, fmt: str) -> bytes:
     if data.startswith(_UTF8_BOM):
         data = data[len(_UTF8_BOM) :]
 
-    # Decode — try UTF-8 first, then Windows-1252 (common SRT encoding),
-    # then chardet as last resort.
-    text = _decode_robust(data)
+    # Decode — UTF-8 first, then chardet, then Windows-1252.
+    text = decode_subtitle_bytes(data)
 
     # Normalize newlines to LF
     text = text.replace("\r\n", "\n").replace("\r", "\n")
@@ -58,32 +59,6 @@ def repair_bytes(data: bytes, fmt: str) -> bytes:
         text = repair_ass(text)
 
     return text.encode("utf-8")
-
-
-def _decode_robust(data: bytes) -> str:
-    """Decode bytes to str with fallback strategy."""
-    for encoding in ("utf-8-sig", "utf-8"):
-        try:
-            return data.decode(encoding)
-        except UnicodeDecodeError:
-            pass
-
-    # Try chardet as last resort
-    try:
-        import chardet  # vendored transitive dep from B1
-
-        detected = chardet.detect(data) or {}
-        encoding = detected.get("encoding")
-        if encoding:
-            try:
-                return data.decode(encoding, errors="replace")
-            except (LookupError, UnicodeDecodeError):
-                pass
-    except ImportError:
-        pass
-
-    # Ultimate fallback
-    return data.decode("windows-1252", errors="replace")
 
 
 _SRT_TIMESTAMP_RE = re.compile(r"(\b\d{2}:\d{2}:\d{2}),(\d{1,3})\b")

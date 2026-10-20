@@ -145,6 +145,26 @@ class TestComputeSubtitleHash:
         bytes_hash = compute_content_hash_from_bytes(content.encode("utf-8"))
         assert file_hash == bytes_hash
 
+    def test_different_cp1251_texts_are_not_duplicates(self, tmp_path):
+        # Read as UTF-8 with replacement, both were "������ ���".
+        a = tmp_path / "a.ru.srt"
+        b = tmp_path / "b.ru.srt"
+        a.write_bytes("1\n00:00:01,000 --> 00:00:02,000\nПривет мир\n".encode("cp1251"))
+        b.write_bytes("1\n00:00:01,000 --> 00:00:02,000\nДобрый дом\n".encode("cp1251"))
+        assert (
+            compute_subtitle_hash(str(a))["content_hash"]
+            != compute_subtitle_hash(str(b))["content_hash"]
+        )
+
+    def test_utf8_bom_file_hash_is_unchanged(self, tmp_path):
+        """Stored hashes of UTF-8 files (BOM included) must not move."""
+        import hashlib
+
+        f = tmp_path / "bom.de.srt"
+        f.write_bytes(b"\xef\xbb\xbf1\r\n00:00:01,000 --> 00:00:02,000\r\nHallo\r\n")
+        expected = hashlib.sha256("﻿1\n00:00:01,000 --> 00:00:02,000\nHallo".encode()).hexdigest()
+        assert compute_subtitle_hash(str(f))["content_hash"] == expected
+
 
 # ── TestScanForDuplicates ───────────────────────────────────────────────────
 

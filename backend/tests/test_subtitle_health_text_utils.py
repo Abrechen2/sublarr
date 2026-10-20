@@ -29,3 +29,15 @@ def test_extract_cue_text_srt_drops_numbers_and_timestamps():
 
 def test_strip_ass_tags_for_analysis():
     assert text_utils.strip_ass_tags("{\\i1}Hallo{\\i0}\\Nwelt") == "Hallo welt"
+
+
+def test_decode_with_confidence_uses_the_language():
+    text, enc, conf = text_utils.decode_with_confidence("Да, конечно.".encode("cp1251"), "ru")
+    assert text == "Да, конечно."
+    assert enc == "cp1251"
+    assert conf >= 0.5
+
+
+def test_decode_with_confidence_chardet_guess_is_below_the_rewrite_floor():
+    _text, _enc, conf = text_utils.decode_with_confidence("Да, конечно.".encode("cp1251"))
+    assert conf < 0.5

@@ -21,6 +21,8 @@ import re
 
 import requests
 
+from subtitle_encoding import load_subtitle_file
+
 logger = logging.getLogger(__name__)
 
 # Higher is worse, 0-3 per axis. Encoding damage is measured in Python (it is
@@ -60,9 +62,8 @@ def sidecar_path_for(video_path: str, language: str, fmt: str) -> str:
 
 def sample_cues(subtitle_path: str, max_cues: int) -> list[str]:
     """Load a subtitle file and return up to max_cues evenly-spaced plaintext cues."""
-    import pysubs2
 
-    subs = pysubs2.load(subtitle_path)
+    subs = load_subtitle_file(subtitle_path)
     texts: list[str] = []
     seen: set[str] = set()
     for ev in subs.events:

@@ -29,7 +29,7 @@ lxml>=5.1.0
 pysubs2>=1.7.0
 pysrt>=1.1.2
 rarfile>=4.2
-chardet>=5.2.0
+chardet>=7.0,<8  # subtitle_encoding: detect_all() ranking is tested against 7.x
 guessit>=3.8.0
 
 # --- Translation backends ---

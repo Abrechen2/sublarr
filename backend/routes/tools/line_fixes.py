@@ -6,6 +6,7 @@ from flask import jsonify, request
 
 from routes.tools import bp
 from routes.tools._helpers import _create_backup, _validate_file_path
+from subtitle_encoding import load_subtitle_file
 
 logger = logging.getLogger(__name__)
 
@@ -41,7 +42,6 @@ def overlap_fix():
                   backup_path:
                     type: string
     """
-    import pysubs2
 
     data = request.get_json(force=True, silent=True) or {}
     error, result = _validate_file_path(data.get("file_path", ""))
@@ -51,7 +51,7 @@ def overlap_fix():
     abs_path = result
     try:
         bak = _create_backup(abs_path)
-        subs = pysubs2.load(abs_path)
+        subs = load_subtitle_file(abs_path)
         fixed = 0
         for i in range(len(subs) - 1):
             if subs[i].end > subs[i + 1].start:
@@ -91,7 +91,6 @@ def timing_normalize():
                   type: integer
                   default: 10000
     """
-    import pysubs2
 
     data = request.get_json(force=True, silent=True) or {}
     error, result = _validate_file_path(data.get("file_path", ""))
@@ -103,7 +102,7 @@ def timing_normalize():
     max_ms = int(data.get("max_ms", 10000))
     try:
         bak = _create_backup(abs_path)
-        subs = pysubs2.load(abs_path)
+        subs = load_subtitle_file(abs_path)
         extended = too_long = 0
         for cue in subs:
             dur = cue.end - cue.start
@@ -154,7 +153,7 @@ def merge_lines():
     gap_ms = int(data.get("gap_ms", 200))
     try:
         bak = _create_backup(abs_path)
-        subs = pysubs2.load(abs_path)
+        subs = load_subtitle_file(abs_path)
         new_subs = pysubs2.SSAFile()
         new_subs.styles = subs.styles
         merged = 0
@@ -213,7 +212,7 @@ def split_lines():
     max_chars = int(data.get("max_chars", 80))
     try:
         bak = _create_backup(abs_path)
-        subs = pysubs2.load(abs_path)
+        subs = load_subtitle_file(abs_path)
         new_subs = pysubs2.SSAFile()
         new_subs.styles = subs.styles
         split_count = 0

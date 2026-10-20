@@ -107,39 +107,22 @@ def check_encoding_issues(subs, raw_bytes=None) -> list:
             }
         )
 
-    # Detect non-UTF8 via chardet
-    try:
-        import chardet
+    # Anything else that is not UTF-8. Same detection as the download path, so
+    # the encoding named here is the one a re-encode would read it as.
+    from subtitle_encoding import detect_encoding
 
-        det = chardet.detect(raw_bytes[:8192])
-        encoding = (det.get("encoding") or "utf-8").lower()
-        confidence = det.get("confidence", 0)
-        if encoding not in ("utf-8", "ascii") and confidence > 0.7:
-            issues.append(
-                {
-                    "check": "encoding_issues",
-                    "severity": "warning",
-                    "message": f"File encoding detected as {encoding} (confidence: {confidence:.0%}) -- not UTF-8",
-                    "line": None,
-                    "auto_fixable": False,
-                    "fix": None,
-                }
-            )
-    except ImportError:
-        # chardet not available -- try decoding as UTF-8
-        try:
-            raw_bytes.decode("utf-8")
-        except UnicodeDecodeError:
-            issues.append(
-                {
-                    "check": "encoding_issues",
-                    "severity": "warning",
-                    "message": "File contains non-UTF8 bytes (chardet not installed for detailed detection)",
-                    "line": None,
-                    "auto_fixable": False,
-                    "fix": None,
-                }
-            )
+    encoding = detect_encoding(raw_bytes).encoding
+    if encoding not in ("utf-8", "utf-8-sig", "utf-16", "utf-32"):
+        issues.append(
+            {
+                "check": "encoding_issues",
+                "severity": "warning",
+                "message": f"File encoding detected as {encoding} -- not UTF-8",
+                "line": None,
+                "auto_fixable": False,
+                "fix": None,
+            }
+        )
 
     return issues
 

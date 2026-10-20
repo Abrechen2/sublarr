@@ -106,7 +106,7 @@ def fetch_original(candidate: RepairCandidate) -> bytes:
     # first production dry run did.
     from subtitle_normalise import normalise_downloaded_content
 
-    return normalise_downloaded_content(content, candidate.fmt)
+    return normalise_downloaded_content(content, candidate.fmt, language=candidate.language)
 
 
 def _pristine_bak(candidate: RepairCandidate) -> bytes | None:
