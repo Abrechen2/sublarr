@@ -43,6 +43,21 @@ MEDIAINFO_CODEC_MAP = {
 }
 
 
+def arr_video_fps(file_info) -> float | None:
+    """The frame rate Sonarr/Radarr scanned for a file (``mediaInfo.videoFps``).
+
+    Read from the episode or movie file the *arr already returned, so no
+    probe of the file itself. None when unknown or not a positive number.
+    """
+    media_info = (file_info or {}).get("mediaInfo") if isinstance(file_info, dict) else None
+    value = (media_info or {}).get("videoFps") if isinstance(media_info, dict) else None
+    try:
+        fps = float(value)
+    except (TypeError, ValueError):
+        return None
+    return fps if fps > 0 else None
+
+
 @functools.lru_cache(maxsize=1)
 def _is_mediainfo_available() -> bool:
     """Check once per process whether mediainfo is on PATH. Thread-safe via lru_cache."""

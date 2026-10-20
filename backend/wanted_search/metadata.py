@@ -127,6 +127,7 @@ from wanted_search.metadata_enrichers import (  # noqa: F401 — re-exported for
     _resolve_anidb_id_for_standalone,
     _validate_minimum_query_data,
 )
+from wanted_search.release_page import enrich_release_page  # noqa: E402
 
 
 def build_query_from_wanted(wanted_item: dict) -> VideoQuery:
@@ -171,6 +172,9 @@ def build_query_from_wanted(wanted_item: dict) -> VideoQuery:
 
     _resolve_anidb_absolute_episode(query, wanted_item)
     _enrich_release_metadata(query, wanted_item)
+    # Release page for the tracker bundles; reads *arr history only when one
+    # of them is enabled.
+    enrich_release_page(query, wanted_item)
     _compute_file_hash_for_query(query)
 
     if wanted_item.get("subtitle_type", "full") == "forced":

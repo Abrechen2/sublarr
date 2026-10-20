@@ -50,6 +50,7 @@ def _enrich_from_sonarr(query: VideoQuery, wanted_item: dict) -> bool:
         query.tvdb_id = meta.get("tvdb_id")
         query.anidb_id = meta.get("anidb_id")
         query.anilist_id = meta.get("anilist_id")
+        query.fps = meta.get("fps")
         logger.debug(
             "Built query from Sonarr metadata: %s S%02dE%02d",
             query.series_title,
@@ -230,6 +231,7 @@ def _enrich_from_radarr(query: VideoQuery, wanted_item: dict) -> bool:
         query.imdb_id = meta.get("imdb_id", "")
         query.tmdb_id = meta.get("tmdb_id")
         query.genres = meta.get("genres", [])
+        query.fps = meta.get("fps")
         logger.debug(
             "Built query from Radarr metadata: %s (%s)", query.title, query.year or "no year"
         )

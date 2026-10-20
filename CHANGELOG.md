@@ -33,10 +33,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   number is the absolute episode for absolute-ordered anime. Episodes still
   need Shoko, the only source of the AniDB episode id TsukiHime requires, and
   only a search given an AniList id (from the API) reaches it for a movie,
-  since Radarr has none. Sublarr also hands the catalog
-  providers a release page and frame rate when one is known, so CinemaZ,
-  AvistaZ and the frame-rate checks of Subs.sab.bz, Subsunacs and Titulky can
-  use them once Sublarr reads them from Sonarr/Radarr.
+  since Radarr has none. CinemaZ and AvistaZ never searched at all: they read
+  only the release page a file was grabbed from, which Sublarr did not know.
+  The wanted search now takes it from the Sonarr/Radarr history, so files
+  grabbed from those trackers are searched there. The history is read only
+  when CinemaZ or AvistaZ is enabled, once an hour per episode or movie. The
+  frame-rate checks of SubsSabBz, SubsUnacs and Titulky now get the file's
+  frame rate from Sonarr/Radarr, without an extra request.
 - **Auto-sync keeps long signs and karaoke lines** — ffsubsync caps every
   event at 10 seconds in the file it writes, so each sync cut signs, ED
   karaoke and long lines to exactly 10 seconds — 120 lines of one episode on

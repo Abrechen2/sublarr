@@ -10,6 +10,7 @@ import time
 import requests
 
 from config import get_settings
+from mediainfo_utils import arr_video_fps
 
 logger = logging.getLogger(__name__)
 
@@ -299,7 +300,7 @@ class RadarrClient:
         """Get rich metadata for building a VideoQuery.
 
         Returns:
-            dict: {title, year, imdb_id, tmdb_id, genres} or None on error
+            dict: {title, year, imdb_id, tmdb_id, genres, fps} or None on error
         """
         movie = self.get_movie_by_id(movie_id)
         if not movie:
@@ -310,7 +311,17 @@ class RadarrClient:
             "imdb_id": movie.get("imdbId", ""),
             "tmdb_id": movie.get("tmdbId"),
             "genres": movie.get("genres", []),
+            # GET /movie/{id} embeds the movie file and its mediaInfo.
+            "fps": arr_video_fps(movie.get("movieFile")),
         }
+
+    def get_movie_history(self, movie_id):
+        """History records (grabs, imports, ...) of one movie, as a list.
+
+        GET /history/movie?movieId=X answers a plain list, not a page.
+        """
+        result = self._get("/history/movie", params={"movieId": movie_id})
+        return result if isinstance(result, list) else []
 
     def extended_health_check(self):
         """Extended diagnostic health check for Radarr.

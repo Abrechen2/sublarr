@@ -122,10 +122,10 @@ class VideoQuery:
     source: str = ""  # BluRay, WEB-DL, etc.
     resolution: str = ""  # 1080p, 720p
     video_codec: str = ""  # x264, x265
-    fps: float | None = None  # frame rate, only when a caller already knows it
-    # The grabbed release's page on its indexer (Sonarr/Radarr history). The
-    # tracker catalog bundles (CinemaZ, AvistaZ) search that page and nothing
-    # else; no enricher fills it yet.
+    fps: float | None = None  # frame rate from Sonarr/Radarr mediaInfo, if known
+    # The grabbed release's page on its indexer (Sonarr/Radarr history, see
+    # wanted_search/release_page.py). The tracker catalog bundles (CinemaZ,
+    # AvistaZ) search that page and nothing else.
     info_url: str = ""
 
     # Language preferences
