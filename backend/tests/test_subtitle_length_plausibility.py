@@ -6,6 +6,7 @@ double-length episode 1 — was saved for a 1420 s episode, and ffsubsync then
 the next one, and the sync refuses to time a file that overruns its video.
 """
 
+import time
 from contextlib import nullcontext
 from unittest.mock import MagicMock, patch
 
@@ -66,6 +67,32 @@ class TestSpan:
 
     def test_unparseable_is_none(self):
         assert subtitle_span(b"not a subtitle at all") is None
+
+    @pytest.mark.parametrize(
+        "content",
+        [
+            b"1" * 5_000_000,
+            b"," * 5_000_000,
+            b"Dialogue:" + b"," * 5_000_000,
+            b"Dialogue: " + b"1:" * 2_000_000,
+            (b"00:00:01,000 " * 400_000) + b"-->",
+            b"1:00:00,000 --> " * 300_000,
+            b"Dialogue: 0," * 400_000,
+        ],
+        ids=["digits", "commas", "dialogue-commas", "dialogue-colons", "srt-long", "arrows", "dlg"],
+    )
+    def test_pathological_input_finishes_quickly(self, content):
+        """Provider content is untrusted (up to 20 MB): the scan must stay linear."""
+        start = time.perf_counter()
+        subtitle_span(content)
+        assert time.perf_counter() - start < 1.0
+
+    def test_many_lines_finish_quickly(self):
+        content = b"Dialogue: 0,0:00:01.00,0:00:02.00,Default,,0,0,0,,x\n" * 300_000
+        start = time.perf_counter()
+        span = subtitle_span(content)
+        assert time.perf_counter() - start < 2.0
+        assert span.events == 200_000
 
 
 class TestLengthMismatch:

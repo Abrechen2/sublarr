@@ -33,14 +33,20 @@ MIN_COVERAGE = 0.5
 _STRAY_EVENTS = 3
 _STRAY_SHARE = 0.02
 
+# Subtitle content is untrusted provider input (up to 20 MB). Both patterns are
+# applied per line with ``match`` (anchored), every quantifier is bounded and
+# overlong lines are skipped, so a pathological file costs linear time.
+_TS = r"(\d{1,2}):(\d{1,2}):(\d{1,2})(?:[.,](\d{1,3}))?"
 _ASS_EVENT = re.compile(
-    r"^Dialogue:\s*[^,]*,\s*(\d+):(\d{1,2}):(\d{1,2})(?:[.,](\d{1,3}))?\s*,"
-    r"\s*(\d+):(\d{1,2}):(\d{1,2})(?:[.,](\d{1,3}))?\s*,",
-    re.MULTILINE,
+    r"Dialogue:[ \t]{0,8}[^,\n]{0,16},[ \t]{0,8}" + _TS + r"[ \t]{0,8},[ \t]{0,8}" + _TS
 )
-_SRT_EVENT = re.compile(
-    r"(?:(\d+):)?(\d{1,2}):(\d{2})[,.](\d{1,3})\s*-->\s*(?:(\d+):)?(\d{1,2}):(\d{2})[,.](\d{1,3})"
-)
+_SRT_TS = r"(?:(\d{1,2}):)?(\d{1,2}):(\d{2})[,.](\d{1,3})"
+_SRT_EVENT = re.compile(r"[ \t]{0,8}" + _SRT_TS + r"[ \t]{0,8}-->[ \t]{0,8}" + _SRT_TS)
+#: Lines longer than this are not timing lines (an ASS Dialogue line keeps its
+#: times in the first few dozen characters, so only that prefix is examined).
+_MAX_TIMING_PREFIX = 128
+#: Upper bound on timing lines examined; far above any real subtitle.
+_MAX_EVENTS = 200_000
 _PARTIAL_RELEASE = re.compile(r"(?<![a-z])(signs?|forced|songs?)(?![a-z])", re.IGNORECASE)
 
 
@@ -74,15 +80,21 @@ def subtitle_span(content: bytes) -> SubtitleSpan | None:
     """
     if not content:
         return None
-    text = _decode(content)
-    pairs = [
-        (_seconds(*m.groups()[:4]), _seconds(*m.groups()[4:])) for m in _ASS_EVENT.finditer(text)
-    ]
-    if not pairs:
-        pairs = [
-            (_seconds(*m.groups()[:4]), _seconds(*m.groups()[4:]))
-            for m in _SRT_EVENT.finditer(text)
-        ]
+    ass_pairs: list[tuple[float, float]] = []
+    srt_pairs: list[tuple[float, float]] = []
+    for line in _decode(content).splitlines():
+        if len(ass_pairs) + len(srt_pairs) >= _MAX_EVENTS:
+            break
+        head = line[:_MAX_TIMING_PREFIX]
+        if head.startswith("Dialogue:"):
+            m = _ASS_EVENT.match(head)
+            if m:
+                ass_pairs.append((_seconds(*m.groups()[:4]), _seconds(*m.groups()[4:])))
+        elif len(line) <= _MAX_TIMING_PREFIX and "-->" in line:
+            m = _SRT_EVENT.match(line)
+            if m:
+                srt_pairs.append((_seconds(*m.groups()[:4]), _seconds(*m.groups()[4:])))
+    pairs = ass_pairs or srt_pairs
     if not pairs:
         return None
     ends = tuple(sorted(end for _, end in pairs))
