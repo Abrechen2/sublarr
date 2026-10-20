@@ -53,6 +53,10 @@ class RepairCandidate:
     original_hash: str
     provider: str
     subtitle_id: str
+    # "pipeline": rewritten by the old HI pipeline (restore.restore_subtitle).
+    # "encoding": letters lost to the old UTF-8-with-replacement decode
+    # (encoding_restore.restore_encoding).
+    kind: str = "pipeline"
 
 
 @dataclass(frozen=True)
@@ -85,6 +89,16 @@ def content_hash(path: str) -> str | None:
         return None
     parsed = parse_subtitle_filename(path)
     return compute_content_hash_from_bytes(raw, parsed.language if parsed else None)
+
+
+def _has_mangled_letters(path: str) -> bool:
+    from services.repair.encoding_restore import has_mangled_letters
+
+    try:
+        with open(path, "rb") as fh:
+            return has_mangled_letters(fh.read())
+    except OSError:
+        return False
 
 
 def _download_index(language: str | None) -> dict[tuple[str, str], tuple[str, str]]:
@@ -158,14 +172,17 @@ def scan(language: str | None = None, limit: int | None = None) -> ScanReport:
             missing += 1
             continue
 
-        if actual == stored_hash:
-            untouched += 1
-            continue
-
         # Repaired already? Then the current content is repair's own output, and
         # differing from the pristine hash is expected — not damage.
         if repaired.get(path) == actual:
             already += 1
+            continue
+
+        # The old decode's "�" are written into the file — and into its stored
+        # hash — at download time, so an untouched hash proves nothing here.
+        kind = "encoding" if _has_mangled_letters(path) else "pipeline"
+        if kind == "pipeline" and actual == stored_hash:
+            untouched += 1
             continue
 
         match = _SIDECAR_RE.match(os.path.basename(path))
@@ -188,6 +205,7 @@ def scan(language: str | None = None, limit: int | None = None) -> ScanReport:
                 original_hash=stored_hash,
                 provider=provider,
                 subtitle_id=str(subtitle_id),
+                kind=kind,
             )
         )
         if limit and len(candidates) >= limit:

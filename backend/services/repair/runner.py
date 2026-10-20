@@ -139,7 +139,13 @@ def _pristine_bak(candidate: RepairCandidate) -> bytes | None:
 
 
 def obtain_original(candidate: RepairCandidate) -> tuple[bytes, str]:
-    """Get the pristine original — from the local .bak if provable, else the provider."""
+    """Get the pristine original — from the local .bak if provable, else the provider.
+
+    An encoding candidate always goes to the provider: its .bak was copied from
+    the file the old decode wrote, so the letters are missing there too.
+    """
+    if candidate.kind == "encoding":
+        return fetch_original(candidate), "provider"
     local = _pristine_bak(candidate)
     if local is not None:
         return local, "bak"
@@ -174,7 +180,17 @@ def repair_one(candidate: RepairCandidate, *, dry_run: bool = False) -> RepairOu
     # the right original and that nobody has edited the file since. A hash match
     # is kept only as a shortcut for the .bak path, which needs no replay.
     try:
-        repaired = restore_subtitle(original=original, on_disk=on_disk, fmt=candidate.fmt)
+        if candidate.kind == "encoding":
+            from services.repair.encoding_restore import restore_encoding
+
+            repaired = restore_encoding(
+                original=original,
+                on_disk=on_disk,
+                fmt=candidate.fmt,
+                language=candidate.language,
+            )
+        else:
+            repaired = restore_subtitle(original=original, on_disk=on_disk, fmt=candidate.fmt)
     except RestoreRefusedError as exc:
         from services.repair.restore import NOTHING_TO_RESTORE
 

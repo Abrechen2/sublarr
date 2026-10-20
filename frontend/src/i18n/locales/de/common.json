@@ -937,7 +937,7 @@
   },
   "repair": {
     "title": "Beschädigte Untertitel reparieren",
-    "intro": "Ein Fehler in Sublarr (vor 1.6.6) hat Wörter aus Untertiteln gelöscht. Die Reparatur holt das unversehrte Original zurück — aus einer nachweislich sauberen Sicherung oder, falls nötig, per erneutem Download beim Anbieter.",
+    "intro": "Ein Fehler in Sublarr (vor 1.6.6) hat Wörter aus Untertiteln gelöscht. Die Reparatur holt das unversehrte Original zurück — aus einer nachweislich sauberen Sicherung oder, falls nötig, per erneutem Download beim Anbieter. Außerdem stellt sie Umlaute, Akzente und andere Buchstaben wieder her, die ältere Versionen in Untertiteln ohne UTF-8-Kodierung als „�“ gespeichert haben.",
     "language": "Sprache",
     "scan": "Prüfen",
     "scanning": "Prüfe…",
@@ -945,7 +945,7 @@
     "from_backup": "Aus Sicherung (gratis)",
     "needs_download": "Erneuter Download nötig",
     "already_repaired": "Bereits repariert",
-    "safety": "Es wird nichts überschrieben, ohne dass der alte Fehler-Code aus dem Original exakt die Datei auf deiner Platte erzeugt — erst das beweist, dass es das richtige Original ist und du die Datei nicht selbst bearbeitet hast. Lässt sich das nicht zeigen, bleibt die Datei unangetastet. Die Synchronisation bleibt erhalten.",
+    "safety": "Es wird nichts überschrieben, ohne dass der alte Fehler-Code aus dem Original exakt die Datei auf deiner Platte erzeugt — erst das beweist, dass es das richtige Original ist und du die Datei nicht selbst bearbeitet hast. Lässt sich das nicht zeigen, bleibt die Datei unangetastet. Die Synchronisation bleibt erhalten. Bei „�“-Dateien wird jede Zeile einzeln geprüft: Nur wenn sie bis auf die „�“ exakt mit dem Original übereinstimmt, werden die Buchstaben übernommen — selbst bearbeitete Zeilen bleiben, wie sie sind.",
     "dry_run": "Testlauf",
     "dry_run_limit": "Limit",
     "quota_note": "Beide Läufe laden jede geprüfte Datei beim Anbieter neu herunter und verbrauchen dessen Tageskontingent (z. B. 1.000 Downloads/Tag bei OpenSubtitles). Der Testlauf speichert dabei keine Ergebnisse — was er prüft, lädt ein späterer Lauf noch einmal. Er ist deshalb auf das eingestellte Limit begrenzt. Die Reparatur merkt sich jeden Fortschritt und setzt nach erschöpftem Kontingent automatisch fort.",

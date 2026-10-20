@@ -67,6 +67,8 @@ _SINGLE_BYTE_CODECS: dict[str, tuple[str, ...]] = {
     **dict.fromkeys(_WESTERN_LANGUAGES.split(), ("windows-1252",)),
     **dict.fromkeys(_CENTRAL_LANGUAGES.split(), ("windows-1250", "iso-8859-2")),
     **dict.fromkeys(("be", "bg", "mk", "ru", "uk"), ("windows-1251", "koi8-r")),
+    # Serbian is written in both scripts; Cyrillic read as cp1250 is implausible.
+    "sr": ("windows-1250", "windows-1251"),
     "el": ("windows-1253", "iso-8859-7"),
     "tr": ("windows-1254", "iso-8859-9"),
     **dict.fromkeys(("he", "yi"), ("windows-1255", "iso-8859-8")),
@@ -76,11 +78,22 @@ _SINGLE_BYTE_CODECS: dict[str, tuple[str, ...]] = {
     "th": ("cp874",),
 }
 
-# Languages in Latin script. A legacy decode of theirs that is mostly non-ASCII
-# letters is not the language but a multi-byte file read one byte at a time
-# (GBK read as cp1252 is "ÄãºÃ£¬"); even Vietnamese stays well under half.
-_LATIN_SCRIPT_LANGUAGES = frozenset(
-    (_WESTERN_LANGUAGES + " " + _CENTRAL_LANGUAGES + " " + _BALTIC_LANGUAGES + " tr vi").split()
+# Codepages of Latin-script languages. A decode in one of them that is mostly
+# non-ASCII letters is not Latin text but something else read one byte at a time
+# (GBK read as cp1252 is "ÄãºÃ£¬", Cyrillic cp1251 read as cp1250 is
+# "Ïðèâåò"); even Vietnamese or Czech text stays near a third.
+_LATIN_SCRIPT_CODECS = frozenset(
+    codecs.lookup(name).name
+    for name in (
+        "windows-1250",
+        "windows-1252",
+        "windows-1254",
+        "windows-1257",
+        "windows-1258",
+        "iso-8859-2",
+        "iso-8859-9",
+        "iso-8859-13",
+    )
 )
 _MAX_NON_ASCII_LETTER_SHARE = 0.5
 _MIN_LETTERS_TO_JUDGE = 20
@@ -159,8 +172,8 @@ def _strict(data: bytes, encoding: str) -> str | None:
     return None if _C1_CONTROLS.search(text) else text
 
 
-def _plausible_for(text: str, base_language: str) -> bool:
-    if base_language not in _LATIN_SCRIPT_LANGUAGES:
+def _plausible_for(text: str, encoding: str) -> bool:
+    if codecs.lookup(encoding).name not in _LATIN_SCRIPT_CODECS:
         return True
     letters = [c for c in text if c.isalpha()]
     if len(letters) < _MIN_LETTERS_TO_JUDGE:
@@ -230,7 +243,7 @@ def detect_encoding(data: bytes, language: str | None = None, hint: str | None =
     base = _base_language(language)
     for encoding in _SINGLE_BYTE_CODECS.get(base, ()):
         text = _strict(data, encoding)
-        if text is not None and _plausible_for(text, base):
+        if text is not None and _plausible_for(text, encoding):
             return Decoded(text, codecs.lookup(encoding).name, "language")
 
     candidates = _chardet_candidates(data)

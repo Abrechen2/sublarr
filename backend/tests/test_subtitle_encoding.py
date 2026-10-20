@@ -9,7 +9,7 @@ repair pass's chardet fallback never got to see the original bytes.
 
 import pytest
 
-from subtitle_encoding import decode_subtitle_bytes, ensure_utf8
+from subtitle_encoding import decode_subtitle_bytes, detect_encoding, ensure_utf8
 from subtitle_normalise import normalise_downloaded_content
 from subtitle_sanitizer import sanitize_subtitle
 
@@ -298,3 +298,17 @@ def test_repair_scan_hashes_legacy_files_like_the_dedup_scan(tmp_path):
     path = tmp_path / "Show.S01E01.de.srt"
     path.write_bytes("1\r\n00:00:01,000 --> 00:00:02,000\r\nGrüße\r\n".encode("cp1252"))
     assert content_hash(str(path)) == compute_subtitle_hash(str(path))["content_hash"]
+
+
+@pytest.mark.parametrize(
+    ("encoding", "text"),
+    [
+        ("cp1250", "Dobar dan, kako ste? Hvala, dobro sam. Šta ima novo, čoveče?"),
+        ("cp1251", "Добар дан, како сте? Хвала, добро сам. Шта има ново, човече?"),
+    ],
+)
+def test_serbian_in_either_script(encoding, text):
+    raw = _srt(text).encode(encoding)
+    decoded = detect_encoding(raw, language="sr")
+    assert decoded.text == _srt(text)
+    assert decoded.basis == "language"
