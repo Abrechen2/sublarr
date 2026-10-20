@@ -167,14 +167,17 @@ def test_an_alias_named_sidecar_is_carried(app_ctx, tmp_path):
 
 class _Proc:
     returncode = 0
-    stdout = "offset 0.5 s applied"
+    # ffsubsync's real log line. Since 47a2b65f the ffsubsync writers keep
+    # only the offset it reports and apply it to the original, so this line,
+    # not the file the fake writes, decides what lands in the sidecar: it
+    # has to match the +500 ms that _SYNCED carries.
+    stdout = "INFO     offset seconds: 0.500"
     stderr = ""
 
 
 def _fake_run(cmd, *a, **kw):
-    # Every writer passes its output file as the last argument: the legacy
-    # wrappers a temp file they then copy over the sidecar, the engines the
-    # sidecar itself.
+    # Every writer passes its output file as the last argument: a temp file
+    # that is then copied over the sidecar, or the sidecar itself.
     _rewrite(cmd[-1])
     return _Proc()
 
@@ -217,8 +220,12 @@ def test_every_sync_writer_keeps_a_download_genuine(app_ctx, tmp_path, monkeypat
             with patch("services.sync_engines.orchestrator.write_sync_job_run"):
                 assert SyncOrchestrator([AlassEngine()]).sync(sidecar, reference).ok
 
+    # strip(): the ffsubsync writers re-serialise through pysubs2, which ends
+    # an SRT with a blank line.
     with open(sidecar, encoding="utf-8") as fh:
-        assert fh.read() == _SYNCED, "the fake sync must really have rewritten the sidecar"
+        assert fh.read().strip() == _SYNCED.strip(), (
+            "the fake sync must really have rewritten the sidecar"
+        )
     assert real_sidecar_languages(video, {"de"}) == {"de"}
 
 
