@@ -14,7 +14,45 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `/media/movies` as `/data/films`) could only be mapped for one of them,
   and every subtitle for the other ended in a full library scan. Pairs can now
   be separated with `;`, and the longest matching one is applied. A single
-  pair works as before.
+  pair works as before. (#223, thanks @azuretek)
+- **Subtitle repair restores letters saved as "�"** — Files an older version
+  saved with "�" in place of umlauts, accents or Cyrillic are found by the
+  repair scan. The repair downloads the original again and takes over the
+  letters line by line, only where a line matches the original exactly apart
+  from the "�"; lines edited since and the file's timings stay as they are.
+
+### Fixed
+- **A path mapping matches whole folders only** — ``/media/movies:/data/films``
+  also rewrote ``/media/movies-4k/...`` to ``/data/films-4k/...``, a folder the
+  media server does not have.
+- **Subtitles that are not UTF-8 keep their letters** — A subtitle saved in an
+  older encoding (Windows-1250/1251/1252/1253, Greek, Cyrillic, Turkish,
+  Hebrew, Chinese GBK/Big5, ...) was written to disk with every umlaut,
+  accent or non-Latin letter replaced by "�", from every provider and from
+  manual uploads. Sublarr now reads each file in the encoding its language was
+  written in, or the one the provider detected, and saves it as UTF-8. UTF-16
+  subtitles are accepted instead of being rejected as binary data. The check
+  that catches subtitles in the wrong language now also works for these files.
+  The editor, the subtitle tools, the health check and the re-encode fix use
+  the same detection, and tools that open an existing subtitle no longer fail
+  on a non-UTF-8 file. Files already saved with "�" are restored by the
+  subtitle repair (see Added).
+- **Archive members with non-Latin names are found** — A subtitle inside a ZIP
+  or RAR whose name had no Latin letters (``简体.srt``) was skipped.
+- **Different subtitles no longer count as duplicates** — Two non-UTF-8 files
+  of the same shape could get the same content hash.
+- **Catalog providers get the details they search by** (#220) — TsukiHime
+  never searched an episode because Sublarr did not pass the AniDB episode
+  number, and dropped a movie's AniList id. Both are passed now. Episodes
+  need Shoko, the only source of the AniDB episode id and number, and
+  only a search given an AniList id (from the API) reaches it for a movie,
+  since Radarr has none. CinemaZ and AvistaZ never searched at all: they read
+  only the release page a file was grabbed from, which Sublarr did not know.
+  The wanted search now takes it from the Sonarr/Radarr history, so files
+  grabbed from those trackers are searched there. The history is read only
+  when CinemaZ or AvistaZ is enabled, once an hour per episode or movie. The
+  frame-rate checks of SubsSabBz, SubsUnacs and Titulky now get the file's
+  frame rate from Sonarr/Radarr, without an extra request.
 
 ## [1.16.0] - 2026-10-09
 
@@ -38,34 +76,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   of a text field.
 
 ### Fixed
-- **Subtitles that are not UTF-8 keep their letters** — A subtitle saved in an
-  older encoding (Windows-1250/1251/1252/1253, Greek, Cyrillic, Turkish,
-  Hebrew, Chinese GBK/Big5, ...) was written to disk with every umlaut,
-  accent or non-Latin letter replaced by "�", from every provider and from
-  manual uploads. Sublarr now reads each file in the encoding its language was
-  written in, or the one the provider detected, and saves it as UTF-8. UTF-16
-  subtitles are accepted instead of being rejected as binary data. The check
-  that catches subtitles in the wrong language now also works for these files.
-  The editor, the subtitle tools, the health check and the re-encode fix use
-  the same detection, and tools that open an existing subtitle no longer fail
-  on a non-UTF-8 file. Files already saved with "�" cannot be restored this
-  way; download them again.
-- **Archive members with non-Latin names are found** — A subtitle inside a ZIP
-  or RAR whose name had no Latin letters (``简体.srt``) was skipped.
-- **Different subtitles no longer count as duplicates** — Two non-UTF-8 files
-  of the same shape could get the same content hash.
-- **Catalog providers get the details they search by** (#220) — TsukiHime
-  never searched an episode because Sublarr did not pass the AniDB episode
-  number, and dropped a movie's AniList id. Both are passed now. Episodes
-  need Shoko, the only source of the AniDB episode id and number, and
-  only a search given an AniList id (from the API) reaches it for a movie,
-  since Radarr has none. CinemaZ and AvistaZ never searched at all: they read
-  only the release page a file was grabbed from, which Sublarr did not know.
-  The wanted search now takes it from the Sonarr/Radarr history, so files
-  grabbed from those trackers are searched there. The history is read only
-  when CinemaZ or AvistaZ is enabled, once an hour per episode or movie. The
-  frame-rate checks of SubsSabBz, SubsUnacs and Titulky now get the file's
-  frame rate from Sonarr/Radarr, without an extra request.
 - **Auto-sync keeps long signs and karaoke lines** — ffsubsync caps every
   event at 10 seconds in the file it writes, so each sync cut signs, ED
   karaoke and long lines to exactly 10 seconds — 120 lines of one episode on

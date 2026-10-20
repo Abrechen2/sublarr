@@ -22,6 +22,18 @@ class RefreshResult:
     needs_library_refresh: bool = False
 
 
+def _is_under(file_path: str, folder: str) -> bool:
+    """Whether ``file_path`` is ``folder`` or inside it.
+
+    A plain prefix test lets "/media/movies" match "/media/movies-4k/...": with
+    several pairs that maps a library onto another library's root.
+    """
+    if not folder or not file_path.startswith(folder):
+        return False
+    rest = file_path[len(folder) :]
+    return not rest or folder.endswith(("/", "\\")) or rest.startswith(("/", "\\"))
+
+
 class MediaServer(ABC):
     """Abstract base class for media server backends.
 
@@ -116,7 +128,7 @@ class MediaServer(ABC):
             if ":" not in pair:
                 continue
             from_path, to_path = pair.split(":", 1)
-            if not file_path.startswith(from_path):
+            if not _is_under(file_path, from_path):
                 continue
             if best is None or len(from_path) > len(best[0]):
                 best = (from_path, to_path)

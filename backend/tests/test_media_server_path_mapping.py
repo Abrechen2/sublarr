@@ -70,3 +70,23 @@ def test_a_second_library_root_gets_a_partial_scan_not_a_full_one():
     assert result.success
     movies.update.assert_called_once_with(path="/data/films/Film (2020)")
     tv.update.assert_not_called()
+
+
+@pytest.mark.parametrize(
+    "mapping, path, expected",
+    [
+        # A from_path is a folder: "/media/movies" is not a prefix of "/media/movies-4k".
+        (TWO_ROOTS, "/media/movies-4k/F/F.mkv", "/media/movies-4k/F/F.mkv"),
+        (
+            "/media/movies:/data/films;/media:/data",
+            "/media/movies-4k/F.mkv",
+            "/data/movies-4k/F.mkv",
+        ),
+        # The folder itself, a trailing slash on from_path, and Windows separators.
+        ("/media/tv:/data/tv", "/media/tv", "/data/tv"),
+        ("/media/tv/:/data/tv/", "/media/tv/Show/ep.mkv", "/data/tv/Show/ep.mkv"),
+        ("D\\Media:/data", "D\\Media\\Show\\ep.mkv", "/data\\Show\\ep.mkv"),
+    ],
+)
+def test_a_from_path_only_matches_whole_folders(mapping, path, expected):
+    assert _mapper(mapping).apply_path_mapping(path) == expected
