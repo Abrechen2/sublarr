@@ -365,8 +365,8 @@ class SonarrClient(_SonarrDiagnosticsMixin):
         """Get rich metadata for building a VideoQuery.
 
         Returns:
-            dict: {series_title, season, episode, year, imdb_id, tvdb_id,
-                   anidb_id, anilist_id, title, fps}
+            dict: {series_title, season, episode, absolute_episode, year,
+                   imdb_id, tvdb_id, anidb_id, anilist_id, title, fps}
             or None on error
         """
         series = self.get_series_by_id(series_id)
@@ -408,6 +408,8 @@ class SonarrClient(_SonarrDiagnosticsMixin):
             "year": series.get("year"),
             "season": episode.get("seasonNumber"),
             "episode": episode.get("episodeNumber"),
+            # Sonarr numbers every series continuously, anime or not.
+            "absolute_episode": episode.get("absoluteEpisodeNumber"),
             "title": episode.get("title", ""),
             "imdb_id": series.get("imdbId", ""),
             "tvdb_id": tvdb_id,
