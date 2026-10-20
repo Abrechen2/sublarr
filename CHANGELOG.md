@@ -5,6 +5,17 @@ All notable changes to Sublarr are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Added
+- **Media server path mapping takes several pairs** - The path mapping of a
+  Plex, Jellyfin, Kodi or Shoko server held one `from:to` pair, so a server
+  that mounts each library under its own root (`/media/tv` as `/data/tv`,
+  `/media/movies` as `/data/films`) could only be mapped for one of them,
+  and every subtitle for the other ended in a full library scan. Pairs can now
+  be separated with `;`, and the longest matching one is applied. A single
+  pair works as before.
+
 ## [1.16.0] - 2026-10-09
 
 ### Added

@@ -91,8 +91,17 @@ class MediaServer(ABC):
     def apply_path_mapping(self, file_path: str) -> str:
         """Transform file_path using optional path_mapping from config.
 
-        If path_mapping is set as "from_path:to_path", replaces from_path
-        prefix with to_path. If not set, returns file_path unchanged.
+        path_mapping holds one or more "from_path:to_path" pairs separated by
+        ";", e.g. "/media/tv:/data/tv;/media/movies:/data/films". The pair
+        whose from_path is the longest prefix of file_path is applied, so a
+        specific pair wins over a general one in any order. A single pair
+        behaves as it always has. If no pair matches, or none is set,
+        file_path is returned unchanged.
+
+        One pair cannot describe a server that mounts each library under its
+        own root, or under a name that differs in more than the prefix, and a
+        path the mapping misses ends in a full library scan instead of a
+        partial one.
 
         Args:
             file_path: Original file path
@@ -100,11 +109,19 @@ class MediaServer(ABC):
         Returns:
             Mapped file path
         """
-        path_mapping = self.config.get("path_mapping", "")
-        if not path_mapping or ":" not in path_mapping:
-            return file_path
+        path_mapping = self.config.get("path_mapping", "") or ""
+        best = None
+        for pair in path_mapping.split(";"):
+            pair = pair.strip()
+            if ":" not in pair:
+                continue
+            from_path, to_path = pair.split(":", 1)
+            if not file_path.startswith(from_path):
+                continue
+            if best is None or len(from_path) > len(best[0]):
+                best = (from_path, to_path)
 
-        from_path, to_path = path_mapping.split(":", 1)
-        if file_path.startswith(from_path):
-            return to_path + file_path[len(from_path) :]
-        return file_path
+        if best is None:
+            return file_path
+        from_path, to_path = best
+        return to_path + file_path[len(from_path) :]
