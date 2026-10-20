@@ -699,6 +699,16 @@
     }
   },
   "whatsnew": {
+    "v1170": {
+      "encoding_title": "Umlaute und Sonderzeichen bleiben erhalten",
+      "encoding_desc": "Untertitel in älteren Kodierungen (z. B. Windows-1252, Kyrillisch, Griechisch, Chinesisch) werden jetzt richtig gelesen und als UTF-8 gespeichert, statt Buchstaben durch „�“ zu ersetzen. UTF-16-Untertitel werden angenommen.",
+      "episode_title": "Keine Untertitel der falschen Folge mehr",
+      "episode_desc": "Treffer, deren Release eine andere Staffel oder Folge nennt, werden verworfen – auch bei Katalog-Providern. Untertitel, die nicht zur Länge des Videos passen oder deren Sync abgelehnt wird, werden für diese Folge gesperrt und neu gesucht.",
+      "repair_title": "Reparatur für alte Fehler",
+      "repair_desc": "Die Untertitel-Reparatur in den Systemeinstellungen stellt „�“-Buchstaben aus dem Original wieder her und findet gespeicherte Untertitel einer anderen Folge, um sie neu zu suchen.",
+      "mapping_title": "Mehrere Pfad-Mappings pro Medienserver",
+      "mapping_desc": "Das Pfad-Mapping von Plex, Jellyfin, Kodi und Shoko nimmt mehrere Paare, getrennt mit ; – der längste passende Pfad gewinnt."
+    },
     "v1160": {
       "sync_title": "Auto-Sync kürzt keine Schilder mehr",
       "sync_desc": "Der automatische Sync hat jede Zeile über 10 Sekunden auf genau 10 Sekunden gekürzt – Schilder und Karaoke verschwanden zu früh. Jetzt wird nur noch die gemessene Verschiebung übernommen.",

@@ -699,6 +699,16 @@
     }
   },
   "whatsnew": {
+    "v1170": {
+      "encoding_title": "Umlauts and special characters are kept",
+      "encoding_desc": "Subtitles in older encodings (e.g. Windows-1252, Cyrillic, Greek, Chinese) are now read correctly and saved as UTF-8 instead of having letters replaced by \"�\". UTF-16 subtitles are accepted.",
+      "episode_title": "No more subtitles of the wrong episode",
+      "episode_desc": "Results whose release names another season or episode are dropped, catalog providers included. Subtitles that do not fit the video's length or whose sync is rejected are blocked for that episode and searched again.",
+      "repair_title": "Repair for old mistakes",
+      "repair_desc": "The subtitle repair in the system settings restores letters saved as \"�\" from the original and finds saved subtitles of another episode to search them again.",
+      "mapping_title": "Several path mappings per media server",
+      "mapping_desc": "The path mapping of Plex, Jellyfin, Kodi and Shoko takes several pairs separated by ; — the longest matching path wins."
+    },
     "v1160": {
       "sync_title": "Auto-sync no longer cuts signs short",
       "sync_desc": "The automatic sync cut every line longer than 10 seconds to exactly 10 seconds, so signs and karaoke vanished early. Now only the measured shift is applied.",
