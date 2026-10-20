@@ -3,9 +3,12 @@
 GET  /api/v1/repair/scan    — what is damaged, and where each original comes from
 POST /api/v1/repair/run     — start a restore pass (dry_run writes nothing)
 GET  /api/v1/repair/status  — progress of the running pass
+GET  /api/v1/repair/wrong-episodes          — saved subtitles of another episode
+POST /api/v1/repair/wrong-episodes/requeue  — block them for their video and search again
 """
 
 import logging
+import threading
 
 from flask import Blueprint, current_app, jsonify, request
 
@@ -113,3 +116,63 @@ def repair_status():
     from services.repair import job
 
     return jsonify(job.get_state()), 200
+
+
+@bp.route("/wrong-episodes", methods=["GET"])
+def wrong_episodes():
+    """Saved automatic downloads whose winning release names another episode.
+
+    Reads the database and the files' names only; downloads and changes nothing.
+    ---
+    get:
+      summary: Find saved subtitles of another episode
+      parameters:
+        - in: query
+          name: language
+          schema: {type: string}
+      responses:
+        200:
+          description: Findings
+    """
+    from services.wrong_episode_audit import scan_wrong_episodes
+
+    findings = scan_wrong_episodes(language=request.args.get("language") or None)
+    return jsonify({"count": len(findings), "findings": [f.as_dict() for f in findings]}), 200
+
+
+_requeue_lock = threading.Lock()
+
+
+@bp.route("/wrong-episodes/requeue", methods=["POST"])
+def requeue_wrong_episodes():
+    """Block each finding for its video, keep the file until replaced, search again.
+
+    The findings are computed here, not taken from the request.
+    ---
+    post:
+      summary: Requeue saved subtitles of another episode
+      responses:
+        202:
+          description: Started
+        409:
+          description: Already running
+    """
+    body = request.get_json(silent=True) or {}
+    language = body.get("language") or None
+    if not _requeue_lock.acquire(blocking=False):
+        return jsonify({"error": "a requeue is already running"}), 409
+    app = current_app._get_current_object()
+
+    def _run():
+        try:
+            with app.app_context():
+                from services.wrong_episode_audit import requeue_findings, scan_wrong_episodes
+
+                requeue_findings(scan_wrong_episodes(language=language))
+        except Exception as exc:  # noqa: BLE001 — a background thread must log, not die silently
+            logger.exception("wrong-episode requeue failed: %s", exc)
+        finally:
+            _requeue_lock.release()
+
+    threading.Thread(target=_run, name="wrong-episode-requeue", daemon=True).start()
+    return jsonify({"status": "started", "language": language}), 202

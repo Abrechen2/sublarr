@@ -21,14 +21,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   letters line by line, only where a line matches the original exactly apart
   from the "�"; lines edited since and the file's timings stay as they are.
 
+- **Find subtitles of another episode that are already saved** — Subtitles
+  saved before the new episode check (for example season 1's twelfth episode
+  on S02E12) were never looked at again. The subtitle repair in the system
+  settings now lists saved subtitles whose release names another episode and
+  can search for them again: each is blocked for that episode only, its file
+  stays until a replacement is saved, and the series is rescanned once.
+
 ### Fixed
 - **A subtitle of another episode no longer stays for good** — When the sync
   found a downloaded subtitle shifted by more than the allowed limit, or
   running past the end of the video, it left the file alone and gave up, and
   because a subtitle was on disk the episode was never searched again. Such a
-  subtitle is now put on the blacklist and the episode is searched again. The
-  old file stays until a new subtitle is saved. Manual uploads and subtitles
-  you edited are never touched.
+  subtitle is now put on the blacklist for that episode — the same subtitle
+  stays available for the episode it belongs to — and the episode is searched
+  again. The old file stays until a new subtitle is saved. Manual uploads and
+  subtitles you edited are never touched.
 - **A subtitle that does not fit the video's length is not saved** — A
   subtitle for the double-length Blu-ray first episode (45 minutes) was saved
   for a 24-minute episode, and the sync then shifted it by 5 seconds as if it
@@ -42,10 +50,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   of 0 ms and booked the subtitle as synced. It is now a failed sync. All
   sync paths read ffsubsync's output the same way.
 - **An auto-disabled provider no longer pushes wanted items to a 30-day wait** —
-  When no provider answered because one was auto-disabled by Sublarr itself,
-  the item was charged a provider error each time and reached the 30-day retry
-  after five searches. Such a search is now retried after 6 hours, like one
-  that ran into Sublarr's own request budget.
+  When no provider answered because one was auto-disabled by Sublarr itself
+  or its circuit breaker was open, the item was charged a provider error each
+  time and reached the 30-day retry after five searches. Such a search is now
+  retried after 6 hours, like one that ran into Sublarr's own request budget.
 - **A path mapping matches whole folders only** — ``/media/movies:/data/films``
   also rewrote ``/media/movies-4k/...`` to ``/data/films-4k/...``, a folder the
   media server does not have.

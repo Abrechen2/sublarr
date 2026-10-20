@@ -272,7 +272,9 @@ def _blacklist_for(
     db.session.commit()
 
 
-def quarantine_wrong_sidecar(subtitle_path: str, video_path: str, reason: str) -> bool:
+def quarantine_wrong_sidecar(
+    subtitle_path: str, video_path: str, reason: str, *, requeue: bool = True
+) -> bool:
     """Blacklist, flag and requeue a downloaded sidecar that belongs elsewhere.
 
     Returns True when the sidecar was quarantined. Never raises — the caller
@@ -306,7 +308,8 @@ def quarantine_wrong_sidecar(subtitle_path: str, video_path: str, reason: str) -
             video,
             reason,
         )
-        _requeue(video, language)
+        if requeue:
+            _requeue(video, language)
         return True
     except Exception as exc:  # noqa: BLE001 — see docstring
         logger.warning("suspect sidecar: quarantine of %s failed: %s", subtitle_path, exc)
@@ -318,24 +321,66 @@ def _is_under(path: str, root: str) -> bool:
     return bool(root) and _norm(path).startswith(root + os.sep)
 
 
-def _rescan_arr(video: str) -> bool:
-    """Rescan the Sonarr series / Radarr movie holding ``video``; True when one ran."""
+def _arr_owner(video: str, series_list: list, movie_list: list) -> tuple[str, int] | None:
+    """("series" | "movie", id) of the Sonarr series / Radarr movie holding ``video``."""
     from config import map_path
+
+    for kind, items in (("series", series_list), ("movie", movie_list)):
+        for item in items:
+            if item.get("id") and _is_under(video, map_path(item.get("path") or "")):
+                return kind, item["id"]
+    return None
+
+
+def _arr_lists() -> tuple[list, list]:
     from radarr_client import get_radarr_client
-    from services.wanted_scanner import get_scanner
     from sonarr_client import get_sonarr_client
 
     sonarr = get_sonarr_client()
-    if sonarr:
-        for series in sonarr.get_series() or []:
-            if series.get("id") and _is_under(video, map_path(series.get("path") or "")):
-                return "error" not in get_scanner().scan_series(series["id"])
     radarr = get_radarr_client()
-    if radarr:
-        for movie in radarr.get_movies() or []:
-            if movie.get("id") and _is_under(video, map_path(movie.get("path") or "")):
-                return "error" not in get_scanner().scan_movie(movie["id"])
-    return False
+    return (
+        (sonarr.get_series() or []) if sonarr else [],
+        (radarr.get_movies() or []) if radarr else [],
+    )
+
+
+def _rescan(owner: tuple[str, int]) -> bool:
+    from services.wanted_scanner import get_scanner
+
+    kind, item_id = owner
+    scanner = get_scanner()
+    outcome = scanner.scan_series(item_id) if kind == "series" else scanner.scan_movie(item_id)
+    return "error" not in outcome
+
+
+def _rescan_arr(video: str) -> bool:
+    """Rescan the Sonarr series / Radarr movie holding ``video``; True when one ran."""
+    owner = _arr_owner(video, *_arr_lists())
+    return owner is not None and _rescan(owner)
+
+
+def requeue_videos(videos: list[tuple[str, str]]) -> None:
+    """``_requeue`` for many (video, language) pairs: each series is rescanned once."""
+    if not videos:
+        return
+    try:
+        lists = _arr_lists()
+    except Exception as exc:  # noqa: BLE001 — fall back to plain rows
+        logger.warning("suspect sidecar: arr lookup failed: %s", exc)
+        lists = ([], [])
+    rescanned: dict[tuple[str, int], bool] = {}
+    for video, language in videos:
+        owner = _arr_owner(video, *lists)
+        if owner is not None:
+            if owner not in rescanned:
+                try:
+                    rescanned[owner] = _rescan(owner)
+                except Exception as exc:  # noqa: BLE001
+                    logger.warning("suspect sidecar: rescan of %s failed: %s", owner, exc)
+                    rescanned[owner] = False
+            if rescanned[owner]:
+                continue
+        _plain_wanted_row(video, language)
 
 
 def _requeue(video: str, language: str) -> None:
@@ -345,6 +390,10 @@ def _requeue(video: str, language: str) -> None:
             return
     except Exception as exc:  # noqa: BLE001 — fall back to a plain row
         logger.warning("suspect sidecar: arr rescan for %s failed: %s", video, exc)
+    _plain_wanted_row(video, language)
+
+
+def _plain_wanted_row(video: str, language: str) -> None:
     try:
         from db.wanted import upsert_wanted_item
 

@@ -936,6 +936,17 @@
     "settingLabel": "Anonymous usage statistics"
   },
   "repair": {
+    "wrong_episode": {
+      "title": "Subtitles of another episode",
+      "intro": "Subtitles saved before the episode check sometimes belong to another episode — season 1's twelfth on S02E12, for example. A search never looks at a saved subtitle again; this finds them by their release name. Search again blocks the subtitle for that episode only, keeps the file until a replacement is saved, and starts a new search.",
+      "scan": "Check",
+      "requeue": "Search again ({{count}})",
+      "requeued": "Started — the episodes are back on the wanted list shortly.",
+      "requeue_failed": "Could not start — is a pass already running?",
+      "none": "No subtitles of another episode found.",
+      "found": "{{count}} subtitles name another episode in their release:",
+      "more": "… and {{count}} more."
+    },
     "title": "Repair damaged subtitles",
     "intro": "A bug in Sublarr (before 1.6.6) deleted words from subtitles. Repair brings the pristine original back — from a provably clean backup, or by re-downloading it from the provider where necessary. It also restores the umlauts, accents and other letters that older versions saved as \"�\" in subtitles without UTF-8 encoding.",
     "language": "Language",

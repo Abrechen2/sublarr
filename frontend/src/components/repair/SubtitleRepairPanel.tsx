@@ -11,6 +11,7 @@ import { useTranslation } from 'react-i18next'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { AlertTriangle, Download, HardDriveDownload, Loader2, ShieldCheck } from 'lucide-react'
 import { scanDamaged, startRepair, getRepairStatus } from '@/api/system/repair'
+import { WrongEpisodePanel } from './WrongEpisodePanel'
 
 export function SubtitleRepairPanel() {
   const { t } = useTranslation('common')
@@ -171,6 +172,8 @@ export function SubtitleRepairPanel() {
           {status.error && <p className="text-[11px] text-danger pt-1">{status.error}</p>}
         </div>
       )}
+
+      <WrongEpisodePanel language={language} />
     </div>
   )
 }

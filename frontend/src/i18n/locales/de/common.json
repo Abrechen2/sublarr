@@ -936,6 +936,17 @@
     "settingLabel": "Anonyme Nutzungsstatistik"
   },
   "repair": {
+    "wrong_episode": {
+      "title": "Untertitel einer anderen Folge",
+      "intro": "Untertitel, die vor der Folgenprüfung gespeichert wurden, gehören manchmal zu einer anderen Folge – etwa die zwölfte Folge der ersten Staffel bei S02E12. Die Suche sieht gespeicherte Untertitel nie wieder an. Hier werden sie anhand des Release-Namens gefunden. Erneut suchen sperrt den Untertitel nur für diese Folge, behält die Datei, bis ein Ersatz gespeichert ist, und startet eine neue Suche.",
+      "scan": "Prüfen",
+      "requeue": "Erneut suchen ({{count}})",
+      "requeued": "Gestartet – die Folgen stehen gleich wieder in der Wanted-Liste.",
+      "requeue_failed": "Konnte nicht gestartet werden – läuft schon ein Durchlauf?",
+      "none": "Keine Untertitel einer anderen Folge gefunden.",
+      "found": "{{count}} Untertitel nennen im Release eine andere Folge:",
+      "more": "… und {{count}} weitere."
+    },
     "title": "Beschädigte Untertitel reparieren",
     "intro": "Ein Fehler in Sublarr (vor 1.6.6) hat Wörter aus Untertiteln gelöscht. Die Reparatur holt das unversehrte Original zurück — aus einer nachweislich sauberen Sicherung oder, falls nötig, per erneutem Download beim Anbieter. Außerdem stellt sie Umlaute, Akzente und andere Buchstaben wieder her, die ältere Versionen in Untertiteln ohne UTF-8-Kodierung als „�“ gespeichert haben.",
     "language": "Sprache",

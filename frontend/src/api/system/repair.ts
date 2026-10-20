@@ -48,3 +48,27 @@ export async function getRepairStatus(): Promise<RepairStatus> {
   const { data } = await api.get('/repair/status')
   return data
 }
+
+/** A saved subtitle whose winning release names another episode than its video. */
+export interface WrongEpisodeFinding {
+  video: string
+  sidecar: string
+  language: string
+  provider: string
+  subtitle_id: string
+  release: string
+  reason: string
+}
+
+export async function scanWrongEpisodes(
+  language?: string,
+): Promise<{ count: number; findings: WrongEpisodeFinding[] }> {
+  const { data } = await api.get('/repair/wrong-episodes', {
+    params: language ? { language } : {},
+  })
+  return data
+}
+
+export async function requeueWrongEpisodes(language?: string): Promise<void> {
+  await api.post('/repair/wrong-episodes/requeue', language ? { language } : {})
+}

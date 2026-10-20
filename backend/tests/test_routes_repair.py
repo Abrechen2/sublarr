@@ -89,3 +89,39 @@ def test_status_reports_progress(client):
     body = resp.get_json()
     assert body["total"] == 2413
     assert body["done"] == 17
+
+
+def test_wrong_episodes_lists_findings(client):
+    from services.wrong_episode_audit import WrongEpisodeFinding
+
+    finding = WrongEpisodeFinding(
+        video="/tv/Clevatess - S02E12.mkv",
+        sidecar="/tv/Clevatess - S02E12.de.srt",
+        language="de",
+        provider="opensubtitles",
+        subtitle_id="11975292",
+        release="Clevatess - S01E12 [CR WEB-DL 1080p]",
+        reason="names S01E12, query is S02E12",
+    )
+    with patch("services.wrong_episode_audit.scan_wrong_episodes", return_value=[finding]):
+        rv = client.get("/api/v1/repair/wrong-episodes")
+    assert rv.status_code == 200
+    body = rv.get_json()
+    assert body["count"] == 1
+    assert body["findings"][0]["release"] == "Clevatess - S01E12 [CR WEB-DL 1080p]"
+
+
+def test_wrong_episodes_requeue_runs_in_the_background(client):
+    import threading
+
+    done = threading.Event()
+    with (
+        patch("services.wrong_episode_audit.scan_wrong_episodes", return_value=["f"]),
+        patch(
+            "services.wrong_episode_audit.requeue_findings",
+            side_effect=lambda findings: done.set() or len(findings),
+        ),
+    ):
+        rv = client.post("/api/v1/repair/wrong-episodes/requeue", json={})
+        assert rv.status_code == 202
+        assert done.wait(5)
