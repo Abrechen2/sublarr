@@ -8,9 +8,11 @@ saved subtitle is never looked at again.
 
 The audit reads, for each video and language, the release the newest
 automatic download won with (from its decision log) and asks the search's
-own gate about it. Only an explicit contradiction is reported ("S01E12" for
-S02E12); a name without numbering, or a bare number the season may own, is
-not. A hash match identified the file and is trusted.
+own gate about it, with Sonarr's absolute number and episode title as the
+search has them. Only an explicit contradiction is reported ("S01E12" for
+S02E12); a name without numbering, a bare number the season may own, or a
+bare number under "Part 2" (a split cour) is not. A hash match identified
+the file and is trusted.
 
 Requeueing hands each finding to the same quarantine a rejected sync uses:
 the subtitle is blocked for that video only, the file stays until a
@@ -108,9 +110,67 @@ def _newest_provider_downloads(language: str | None) -> list:
     return [row for row in newest.values() if (row.source or "provider") == "provider"]
 
 
-def _finding_for(row) -> WrongEpisodeFinding | None:
+class _SonarrEpisodes:
+    """Sonarr's absolute number and title for a video, looked up on demand.
+
+    The search gate gets both from Sonarr; without them the audit took
+    "Shingeki no Kyojin - 60" for S04E01 and "S03E39 Game Start" for S03E01
+    as other episodes (prod 1.17.0-rc.4). Only contradicted videos are looked
+    up: the series list once, each series' episodes once.
+    """
+
+    def __init__(self):
+        self._client = False  # not fetched yet
+        self._series: list | None = None
+        self._episodes: dict[int, dict[tuple[int, int], tuple[int | None, str]]] = {}
+
+    def _sonarr(self):
+        if self._client is False:
+            try:
+                from sonarr_client import get_sonarr_client
+
+                self._client = get_sonarr_client()
+            except Exception as exc:  # noqa: BLE001 — the audit works without Sonarr
+                logger.debug("wrong-episode audit: no Sonarr: %s", exc)
+                self._client = None
+        return self._client
+
+    def lookup(self, video: str, season: int, episode: int) -> tuple[int | None, str]:
+        from services.suspect_sidecars import _arr_owner
+
+        sonarr = self._sonarr()
+        if sonarr is None:
+            return None, ""
+        if self._series is None:
+            self._series = sonarr.get_series() or []
+        owner = _arr_owner(video, self._series, [])
+        if owner is None:
+            return None, ""
+        series_id = owner[1]
+        if series_id not in self._episodes:
+            self._episodes[series_id] = {
+                (e.get("seasonNumber"), e.get("episodeNumber")): (
+                    e.get("absoluteEpisodeNumber"),
+                    e.get("title") or "",
+                )
+                for e in sonarr.get_episodes(series_id) or []
+            }
+        return self._episodes[series_id].get((season, episode), (None, ""))
+
+
+def _bare_split_cour(*names: str) -> bool:
+    """A bare number under "Part 2" / "2nd Season": only the cour split says which episode."""
+    from providers.episode_gate import parse_claims
+
+    claims = [parse_claims(name) for name in names if name]
+    return not any(c.season_episodes or c.seasons for c in claims) and any(
+        c.vague_season and c.bare for c in claims
+    )
+
+
+def _finding_for(row, sonarr: _SonarrEpisodes) -> WrongEpisodeFinding | None:
     from providers.base import SubtitleFormat, SubtitleResult, VideoQuery
-    from providers.episode_gate import episode_gate_reason
+    from providers.episode_gate import episode_gate_reason, parse_claims
     from services.suspect_sidecars import is_suspect_sidecar
 
     numbering = _video_numbering(row.file_path)
@@ -133,12 +193,23 @@ def _finding_for(row) -> WrongEpisodeFinding | None:
         release_info=release,
         matches=_breakdown_keys(row.score_breakdown),
     )
-    reason = episode_gate_reason(
-        result, VideoQuery(file_path=row.file_path, season=season, episode=episode)
-    )
+    query = VideoQuery(file_path=row.file_path, season=season, episode=episode)
+    reason = episode_gate_reason(result, query)
+    # Without Sonarr's absolute number a bare "- 12" may be S02E12; with it,
+    # it may turn out to be season 1's twelfth, so bare numbers are looked up too.
+    bare = any(parse_claims(name).bare for name in (filename, release) if name)
+    if not (reason.startswith("names ") or bare) or _bare_split_cour(filename, release):
+        return None
+    absolute, title = sonarr.lookup(row.file_path, season, episode)
+    if absolute is not None or title:
+        query.sonarr_absolute_episode = absolute
+        query.title = title
+        reason = episode_gate_reason(result, query)
     # Only what the name contradicts; "no episode evidence" says nothing about
     # a subtitle that was already watched against its video.
-    if not reason.startswith("names ") or _may_be_absolute(season, episode, filename, release):
+    if not reason.startswith("names "):
+        return None
+    if absolute is None and _may_be_absolute(season, episode, filename, release):
         return None
     return WrongEpisodeFinding(
         video=row.file_path,
@@ -154,9 +225,10 @@ def _finding_for(row) -> WrongEpisodeFinding | None:
 def scan_wrong_episodes(language: str | None = None) -> list[WrongEpisodeFinding]:
     """Saved automatic downloads whose winning release names another episode."""
     findings = []
+    sonarr = _SonarrEpisodes()
     for row in _newest_provider_downloads(language):
         try:
-            finding = _finding_for(row)
+            finding = _finding_for(row, sonarr)
         except Exception as exc:  # noqa: BLE001 — one odd row must not stop the audit
             logger.debug("wrong-episode audit: skipped %s: %s", row.file_path, exc)
             continue

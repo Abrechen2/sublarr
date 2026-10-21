@@ -263,3 +263,128 @@ class TestEarlyExit:
 
         assert results == [wrong]
         assert exits == []
+
+
+class TestProdAuditFalseAlarms:
+    """Prod 1.17.0-rc.4: the wrong-episode audit flagged 377 saved subtitles,
+    about a quarter of them the right episode under other numbering. The same
+    gate runs on every search, where those names were dropped as well."""
+
+    @pytest.mark.parametrize(
+        "release,season,episode",
+        [
+            ("[LostYears] Peter Grill and the Philosopher's Time - 05-08 (WEB 1080p x264)", 1, 7),
+            ("[Redc4t] Death Note - 13-24 [BD 720p] [Batch]", 1, 24),
+            ("[Redc4t] Death Note - 21-22 [BD 1080p]", 1, 22),
+            ("[Erai-raws] Re-Creators - 01 ~ 22 [1080p][Multiple Subtitle]", 1, 2),
+            ("[MA0MA0] To Be Hero X (Tu Bian Yingxiong X) - S01 E01~E12 [Pb]", 1, 3),
+            ("[Maximus] Fire Force S2 - Ep. 01 - 19 [1080p x265 Dual Audio AAC]", 2, 12),
+            ("[USD] Kuma Kuma Kuma Bear - S01 - E01-03 [1080p HEVC 10bits]", 1, 3),
+            ("[AnimeRG] Twin Star Exorcists Episode 1 - 14 [720p] [Multi-Sub]", 1, 11),
+        ],
+    )
+    def test_a_batch_range_holding_the_episode_is_kept(self, release, season, episode):
+        result = _result(release_info=release, matches={"series"}, provider="animetosho")
+        assert episode_gate_reason(result, _query(season=season, episode=episode)) == ""
+
+    @pytest.mark.parametrize(
+        "release",
+        [
+            "[Erai-raws] Re-Creators - 01 ~ 22 [1080p]",
+            "[Redc4t] Death Note - 13-24 [BD 720p] [Batch]",
+        ],
+    )
+    def test_a_batch_range_without_the_episode_is_dropped(self, release):
+        result = _result(release_info=release, matches={"series"}, provider="animetosho")
+        assert "episode" in episode_gate_reason(result, _query(season=1, episode=25))
+
+    def test_a_year_span_is_not_a_range(self):
+        result = _result(release_info="Show - 2019-2021 Complete", matches={"series"})
+        assert episode_gate_reason(result, _query(season=1, episode=5)) == (
+            "no episode evidence (no episode match and no numbering in the name)"
+        )
+
+    @pytest.mark.parametrize(
+        "release,season,episode,absolute",
+        [
+            ("[Crunchyroll] My Hero Academia S03E39 Game Start_[eng]", 3, 1, 39),
+            (
+                "[Cunchyroll] That Time I Got Reincarnated as a Slime S02E25 Rimuru's Busy Life",
+                2,
+                1,
+                25,
+            ),
+        ],
+    )
+    def test_continuous_numbering_by_absolute_is_kept(self, release, season, episode, absolute):
+        result = _result(release_info=release)
+        query = _query(season=season, episode=episode, sonarr_absolute_episode=absolute)
+        assert episode_gate_reason(result, query) == ""
+
+    def test_a_later_seasons_same_number_is_not_continuous_numbering(self):
+        # S01E05 is absolute 5; "S02E05" is season 2's fifth, the Clevatess case
+        # the other way round, not a continuously numbered S01E05.
+        result = _result(release_info="Clevatess - S02E05 [CR WEB-DL 1080p]")
+        query = _query(season=1, episode=5, sonarr_absolute_episode=5)
+        assert "S02E05" in episode_gate_reason(result, query)
+
+    def test_continuous_numbering_of_a_later_season_is_dropped(self):
+        # S05E25 cannot be absolute 25 counted from a season-2 episode's past.
+        result = _result(release_info="Show S05E25 Something")
+        query = _query(season=2, episode=1, sonarr_absolute_episode=25)
+        assert "S05E25" in episode_gate_reason(result, query)
+
+    def test_the_episode_title_in_the_name_is_the_episode(self):
+        result = _result(release_info="[Crunchyroll] My Hero Academia S03E39 Game Start_[eng]")
+        query = _query(season=3, episode=1, title="Game Start")
+        assert episode_gate_reason(result, query) == ""
+
+    @pytest.mark.parametrize("title", ["Episode 11", "Folge 3", "Pilot", ""])
+    def test_a_generic_title_proves_nothing(self, title):
+        result = _result(release_info="[AMZN] Dropkick on my Devil! S01E11 Episode 11")
+        query = _query(season=2, episode=11, title=title)
+        assert "S01E11" in episode_gate_reason(result, query)
+
+
+class TestCodexReviewOfRc5:
+    """Counterexamples from the independent review of the rc.5 draft."""
+
+    def test_a_title_inside_a_longer_title_is_not_the_episode(self):
+        result = _result(release_info="Show S01E12 The Beginning of the End")
+        query = _query(season=1, episode=1, title="The Beginning")
+        assert "S01E12" in episode_gate_reason(result, query)
+
+    def test_the_series_name_as_title_proves_nothing(self):
+        result = _result(release_info="Clevatess S01E05 Clevatess [1080p]")
+        query = _query(season=2, episode=5, title="Clevatess")
+        assert "S01E05" in episode_gate_reason(result, query)
+
+    def test_the_whole_release_title_must_be_the_episode_title(self):
+        result = _result(release_info="[Crunchyroll] My Hero Academia S03E39 Game Start_[eng]")
+        assert episode_gate_reason(result, _query(season=3, episode=1, title="Game Start")) == ""
+
+    def test_an_intermediate_seasons_absolute_number_is_not_continuous(self):
+        # S03E01 is absolute 25 here; "S02E25" may be season 2's own 25th.
+        result = _result(release_info="Show S02E25 Something")
+        query = _query(season=3, episode=1, sonarr_absolute_episode=25)
+        assert "S02E25" in episode_gate_reason(result, query)
+
+    @pytest.mark.parametrize("release", ["Show - 01-12-2025 [1080p]", "Show - 11-12.5 [1080p]"])
+    def test_dates_and_fractions_are_not_ranges(self, release):
+        result = _result(release_info=release, matches={"series"})
+        assert episode_gate_reason(result, _query(season=1, episode=5)) != ""
+
+    def test_a_recap_episode_is_not_the_next_episode(self):
+        result = _result(release_info="86 - Eighty Six - 11.5 [1080p]", matches={"series"})
+        assert "11.5" in episode_gate_reason(result, _query(season=1, episode=12))
+
+    def test_a_tilde_range_is_capped(self):
+        result = _result(release_info="Show S01E01~E900", matches={"series"})
+        assert "S01E01" in episode_gate_reason(result, _query(season=1, episode=700))
+
+    def test_a_title_rescued_listing_keeps_its_archive_member(self):
+        from providers.episode_gate import archive_member_reason
+
+        result = _result(release_info="[Crunchyroll] My Hero Academia S03E39 Game Start")
+        query = _query(season=3, episode=1, title="Game Start")
+        assert archive_member_reason(result, "My Hero Academia S03E39.srt", query) == ""

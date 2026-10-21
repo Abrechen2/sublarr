@@ -138,6 +138,90 @@ def test_requeue_rescans_each_series_once(app_ctx, tmp_path):
         patch("config.map_path", side_effect=lambda p: p),
         patch("services.wanted_scanner.get_scanner", return_value=scanner),
     ):
-        assert requeue_findings(scan_wrong_episodes()) == 2
+        findings = scan_wrong_episodes()  # looks up Sonarr's numbering itself
+        sonarr.get_series.reset_mock()
+        assert requeue_findings(findings) == 2
     scanner.scan_series.assert_called_once_with(1084)
     sonarr.get_series.assert_called_once()
+
+
+@pytest.fixture
+def sonarr_library(app_ctx, tmp_path):
+    """A Sonarr series holding tmp_path, with absolute numbers and titles."""
+    from unittest.mock import MagicMock
+
+    suspect_sidecars.invalidate_cache()
+    sonarr = MagicMock()
+    sonarr.get_series.return_value = [{"id": 7, "path": str(tmp_path)}]
+    sonarr.get_episodes.return_value = [
+        {
+            "seasonNumber": 4,
+            "episodeNumber": 1,
+            "absoluteEpisodeNumber": 60,
+            "title": "The Other Side of the Sea",
+        },
+        {"seasonNumber": 3, "episodeNumber": 1, "absoluteEpisodeNumber": 39, "title": "Game Start"},
+        {
+            "seasonNumber": 2,
+            "episodeNumber": 5,
+            "absoluteEpisodeNumber": 17,
+            "title": "Battle With Oneself",
+        },
+    ]
+    with (
+        patch("sonarr_client.get_sonarr_client", return_value=sonarr),
+        patch("radarr_client.get_radarr_client", return_value=None),
+        patch("config.map_path", side_effect=lambda p: p),
+    ):
+        yield tmp_path, sonarr
+    suspect_sidecars.invalidate_cache()
+
+
+class TestProdFalseAlarms:
+    """Prod 1.17.0-rc.4 flagged ~100 subtitles that were the right episode."""
+
+    def test_an_absolute_number_from_sonarr_is_the_episode(self, sonarr_library):
+        folder, _ = sonarr_library
+        _download(folder, "Attack on Titan - S04E01", "Shingeki no Kyojin (The Final Season) - 60")
+        assert scan_wrong_episodes() == []
+
+    def test_the_sonarr_title_in_the_release_is_the_episode(self, sonarr_library):
+        folder, _ = sonarr_library
+        _download(
+            folder, "My Hero Academia - S03E01", "[Crunchyroll] My Hero Academia S03E40 Game Start"
+        )
+        assert scan_wrong_episodes() == []
+
+    def test_a_batch_range_holding_the_episode_is_not_flagged(self, library):
+        _download(library, "Death Note - S01E24", "[Redc4t] Death Note - 13-24 [BD 720p] [Batch]")
+        assert scan_wrong_episodes() == []
+
+    def test_a_split_cour_bare_number_is_left_alone(self, library):
+        # "Part 2 - 10" may be Sonarr's S03E21; only Sonarr's cour split knows.
+        _download(
+            library, "Dr. STONE - S03E21", "[Erai-raws] Dr Stone - New World Part 2 - 10 [1080p]"
+        )
+        assert scan_wrong_episodes() == []
+
+    def test_clevatess_is_still_flagged_with_sonarr_metadata(self, sonarr_library):
+        folder, sonarr = sonarr_library
+        video = _download(folder, "Clevatess - S02E05", "Clevatess - S01E05 [CR WEB-DL 1080p]")
+        assert [f.video for f in scan_wrong_episodes()] == [video]
+
+    def test_sonarr_is_asked_once_per_series(self, sonarr_library):
+        folder, sonarr = sonarr_library
+        _download(folder, "Clevatess - S02E05", "Clevatess - S01E05")
+        _download(folder, "Clevatess - S02E06", "Clevatess - S01E06")
+        scan_wrong_episodes()
+        sonarr.get_series.assert_called_once()
+        sonarr.get_episodes.assert_called_once_with(7)
+
+
+def test_a_bare_number_is_checked_against_sonarrs_absolute(sonarr_library):
+    # Without Sonarr "- 12" may be S02E12; Sonarr says S02E12 is absolute 24.
+    folder, sonarr = sonarr_library
+    sonarr.get_episodes.return_value = [
+        {"seasonNumber": 2, "episodeNumber": 12, "absoluteEpisodeNumber": 24, "title": "Finale"}
+    ]
+    video = _download(folder, "Clevatess - S02E12", "[SubsPlease] Clevatess - 12 (1080p)")
+    assert [f.video for f in scan_wrong_episodes()] == [video]

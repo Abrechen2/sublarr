@@ -28,7 +28,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   saved before the new episode check (for example season 1's twelfth episode
   on S02E12) were never looked at again. The subtitle repair in the system
   settings now lists saved subtitles whose release names another episode and
-  can search for them again: each is blocked for that episode only, its file
+  can search for them again. It checks them with Sonarr's absolute numbers and
+  episode titles, as the search does, and leaves a bare number under "Part 2"
+  alone, because only the split of the season says which episode that is: each is blocked for that episode only, its file
   stays until a replacement is saved, and the series is rescanned once.
 
 ### Fixed
@@ -108,8 +110,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   all is only used when the provider matched the episode itself. Numbering
   such as ``1x5`` counts too, and so does the name of the file a provider
   takes out of an archive: ``Show.S02E05.zip`` holding ``Show.S01E05.srt`` is
-  skipped for the next candidate. The decision log lists the dropped results
-  and why.
+  skipped for the next candidate. A batch such as ``Death Note - 13-24`` or
+  ``Re-Creators - 01 ~ 22`` counts for every episode in its range, and
+  continuous numbering (``My Hero Academia S03E39`` for S03E01, absolute 39)
+  or the episode's own title in the release name counts as that episode. The
+  decision log lists the dropped results and why.
 - **AnimeTosho no longer takes a bare episode number for a later season** —
   A release such as ``[SubsPlease] Clevatess - 12`` names no season, so it now
   only matches episode 12 of season 1, or the episode whose absolute number is

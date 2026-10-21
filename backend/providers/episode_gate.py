@@ -33,9 +33,10 @@ from providers.base import SubtitleResult, VideoQuery
 
 logger = logging.getLogger(__name__)
 
-# ``S02E07`` / ``s2.e7`` / ``S02 E07`` / ``S01E01E02`` / ``S01E01-E03`` / ``S01E01-03``.
+# ``S02E07`` / ``s2.e7`` / ``S02 E07`` / ``S01E01E02`` / ``S01E01-E03`` / ``S01E01-03`` /
+# ``S01 E01~E12``.
 _SEASON_EPISODE_RE = re.compile(
-    r"(?<![a-z0-9])s(\d{1,3})[ ._-]?e(\d{1,4})((?:(?:[ ._]?e|-e?)\d{1,4}(?![\dp]))*)",
+    r"(?<![a-z0-9])s(\d{1,3})[ ._-]?e(\d{1,4})((?:(?:[ ._]?e|-e?|\s*~\s*e?)\d{1,4}(?![\dp]))*)",
     re.IGNORECASE,
 )
 # ``2x07`` / ``1x5``; four-digit sides (``1920x1080``) are resolutions, not episodes.
@@ -50,11 +51,23 @@ _VAGUE_SEASON_RE = re.compile(
     r"(?<![a-z0-9])(?:season|\d+(?:st|nd|rd|th)|part[ ._-]?\d|ii|iii|iv|vi)(?![a-z0-9])",
     re.IGNORECASE,
 )
-# Anime-style bare numbers: "Show - 12", "Show - 12v2", "Show E12", "Show EP12", "Episode 12".
-_BARE_RE = re.compile(
-    r"(?:\s-\s|_-_|(?<![a-z0-9])(?:ep?|episode)[ ._]?)(\d{1,4})(?:v\d)?(?=$|[\s._\[\](),-])",
+# Batch ranges: "Show - 13-24", "Show - 01 ~ 22", "Show - Ep. 01 - 19", "Episode 1 - 14",
+# "Show - E01-03". A range names every episode in it, not its first or last.
+_EP = r"(?:(?:ep?|episodes?)\.?[ ._]?)"
+_BARE_RANGE_RE = re.compile(
+    r"(?:\s-\s|_-_|(?<![a-z0-9])(?=e))" + _EP + r"?(\d{1,4})(?:v\d)?"
+    r"\s*[-~\u2013]\s*" + _EP + r"?(\d{1,4})(?:v\d)?(?![.-]\d)(?=$|[\s._\[\](),-])",
     re.IGNORECASE,
 )
+_MAX_RANGE = 500
+# Anime-style bare numbers: "Show - 12", "Show - 12v2", "Show E12", "Show EP12", "Episode 12".
+_BARE_RE = re.compile(
+    r"(?:\s-\s|_-_|(?<![a-z0-9])(?:ep?|episode)[ ._]?)(\d{1,4})(?:v\d)?(?!\.\d)"
+    r"(?=$|[\s._\[\](),-])",
+    re.IGNORECASE,
+)
+# A recap between two episodes: "Show - 11.5". It is no regular episode at all.
+_FRACTION_RE = re.compile(r"(?:\s-\s|_-_)(\d{1,4}\.\d)(?=$|[\s_\[\](),-])")
 
 _YEARS = (1900, 2099)
 
@@ -67,17 +80,36 @@ class _Claims:
     seasons: set[int] = field(default_factory=set)
     vague_season: bool = False
     bare: set[int] = field(default_factory=set)
+    fractions: set[str] = field(default_factory=set)
 
     @property
     def empty(self) -> bool:
-        return not (self.season_episodes or self.seasons or self.bare)
+        return not (self.season_episodes or self.seasons or self.bare or self.fractions)
 
 
 def _episodes(first: str, rest: str) -> set[int]:
     numbers = [int(first), *(int(n) for n in re.findall(r"\d+", rest or ""))]
-    if rest and "-" in rest and len(numbers) == 2 and numbers[0] < numbers[1]:
+    if (
+        rest
+        and re.search(r"[-~]", rest)
+        and len(numbers) == 2
+        and 0 < numbers[1] - numbers[0] <= _MAX_RANGE
+    ):
         return set(range(numbers[0], numbers[1] + 1))
     return set(numbers)
+
+
+def _is_year(number: int) -> bool:
+    return _YEARS[0] <= number <= _YEARS[1]
+
+
+def _take_range(match: re.Match, bare: set[int]) -> str:
+    """Add a batch range's episodes to ``bare``; leave anything else for _BARE_RE."""
+    low, high = int(match.group(1)), int(match.group(2))
+    if low >= high or high - low > _MAX_RANGE or _is_year(low) or _is_year(high):
+        return match.group(0)
+    bare.update(range(low, high + 1))
+    return " "
 
 
 def parse_claims(text: str) -> _Claims:
@@ -98,11 +130,13 @@ def parse_claims(text: str) -> _Claims:
         claims.seasons.update(range(min(low, high), max(low, high) + 1))
     rest = _SEASON_RE.sub(" ", rest)
     claims.vague_season = bool(_VAGUE_SEASON_RE.search(rest))
+    rest = _BARE_RANGE_RE.sub(lambda m: _take_range(m, claims.bare), rest)
+    claims.fractions.update(m.group(1) for m in _FRACTION_RE.finditer(rest))
     claims.bare.update(
         number
         for number in (int(m.group(1)) for m in _BARE_RE.finditer(rest))
         # "Show - 2024 [1080p]" is a year, not episode 2024.
-        if not _YEARS[0] <= number <= _YEARS[1]
+        if not _is_year(number)
     )
     return claims
 
@@ -110,14 +144,17 @@ def parse_claims(text: str) -> _Claims:
 def contradicts_query_numbering(query: VideoQuery, season: int, episodes: set[int]) -> bool:
     """True when ``SxxEyy`` names another episode than the query.
 
-    The one sanctioned mismatch is anime numbered as a single long season:
-    S01E<absolute> is the queried episode when the query knows its absolute
-    number.
+    The one sanctioned mismatch is continuous numbering: S01E<absolute> for
+    anime numbered as one long season, and Crunchyroll's S03E39 for S03E01
+    (absolute 39) or S02E25 for S02E01. Only season 1 or the queried season
+    may carry the absolute number: "S02E05" for S01E05 (absolute 5) is
+    season 2's fifth, and "S02E25" for S03E01 (absolute 25) may be season
+    2's own twenty-fifth.
     """
-    if season == query.season:
-        return not episodes & _wanted_episodes(query)
+    if season == query.season and episodes & _wanted_episodes(query):
+        return False
     absolute = query.matching_absolute_episode
-    return not (season == 1 and absolute is not None and absolute in episodes)
+    return not (absolute is not None and absolute in episodes and season in {1, query.season})
 
 
 def _wanted_episodes(query: VideoQuery) -> set[int]:
@@ -147,6 +184,8 @@ def _verdict(claims: _Claims, query: VideoQuery) -> tuple[str, str]:
         if claims.bare & allowed:
             return "match", ""
         return "contradict", f"episode {min(claims.bare)}"
+    if claims.fractions:
+        return "contradict", f"episode {min(claims.fractions)}"
     if claims.seasons:
         return "season", ""
     return "", ""
@@ -171,11 +210,57 @@ def episode_gate_reason(result: SubtitleResult, query: VideoQuery) -> str:
     if "match" in kinds:
         return ""
     contradiction = next((detail for kind, detail in verdicts if kind == "contradict"), "")
+    if contradiction and _names_episode_title(query, result):
+        return ""
     if contradiction:
         return f"names {contradiction}, query is {_wanted_label(query)}"
     if "episode" in result.matches or "season" in kinds or _resolves_pack(result):
         return ""
     return "no episode evidence (no episode match and no numbering in the name)"
+
+
+_GENERIC_TITLE_RE = re.compile(r"(?:episode|folge|ep|chapter|kapitel|part|teil|tba|tbd)?\s*\d*")
+_MIN_TITLE = 8
+
+
+def _normalise(text: str) -> str:
+    return " ".join(re.findall(r"[a-z0-9]+", (text or "").casefold()))
+
+
+# Where a release's own episode title ends: a tag, a bracket or a quality marker.
+_TITLE_END_RE = re.compile(
+    r"[\[(]|_\[|\b(?:\d{3,4}p|web(?:-?dl|rip)?|bluray|bdrip|hdtv|x26[45]|h\.?26[45]|hevc|"
+    r"aac|amzn|cr|nf|dsnp|multi|dual|eng|ger|german|english)\b",
+    re.IGNORECASE,
+)
+
+
+def _release_title(text: str) -> str:
+    """The episode title a release names right after its ``SxxEyy``, normalised."""
+    match = _SEASON_EPISODE_RE.search(text or "")
+    if not match:
+        return ""
+    tail = text[match.end() :]
+    end = _TITLE_END_RE.search(tail)
+    return _normalise(tail[: end.start()] if end else tail)
+
+
+def _names_episode_title(query: VideoQuery, result: SubtitleResult) -> bool:
+    """The release's own title is the queried episode's title, so it is that episode.
+
+    Releases number by their own scheme ("My Hero Academia S03E39 Game Start"
+    for Sonarr's S03E01 "Game Start"); the title does not change with it.
+    The whole title must match ("The Beginning" is not "The Beginning of the
+    End"); generic, short and series-name titles prove nothing.
+    """
+    title = _normalise(query.title) if query.is_episode else ""
+    if (
+        len(title) < _MIN_TITLE
+        or _GENERIC_TITLE_RE.fullmatch(title)
+        or title == _normalise(query.series_title)
+    ):
+        return False
+    return any(_release_title(text) == title for text in (result.filename, result.release_info))
 
 
 def _wanted_label(query: VideoQuery) -> str:
@@ -197,7 +282,7 @@ def archive_member_reason(result: SubtitleResult, member: str, query: VideoQuery
     if not member or not query.is_episode or "hash" in result.matches:
         return ""
     kind, detail = _verdict(parse_claims(member), query)
-    if kind != "contradict":
+    if kind != "contradict" or _names_episode_title(query, result):
         return ""
     return f"archive member {member!r} names {detail}, query is {_wanted_label(query)}"
 
