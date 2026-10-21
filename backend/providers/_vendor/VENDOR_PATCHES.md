@@ -9,7 +9,12 @@ and any patches applied after import.
 - **Version:** 2.2.0
 - **Commit:** 929424c25bb405a0771b8c5418262723f3e446b6
 - **License:** MIT (see `LICENSE_subliminal`)
-- **Patches applied:** none
+- **Patches applied:**
+  - `providers/podnapisi.py`, `providers/tvsubtitles.py` (1.17.0): `download_subtitle`
+    sets `subtitle.archive_member` to the name of the file it takes out of the
+    ZIP. `SubliminalProviderAdapter.download` copies it to `result.filename` so
+    the archive member episode gate sees it. Guarded by
+    `tests/test_archive_member_gate.py::test_every_vendored_archive_provider_names_the_member`.
 
 ## babelfish
 

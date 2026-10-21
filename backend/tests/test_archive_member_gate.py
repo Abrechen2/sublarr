@@ -12,6 +12,9 @@ import io
 import zipfile
 from unittest.mock import MagicMock, patch
 
+import pytest
+
+import providers._vendor  # noqa: F401 — puts the vendored subliminal on the path
 from providers.base import SubtitleFormat, SubtitleResult, VideoQuery
 from providers.episode_gate import archive_member_reason
 
@@ -198,5 +201,89 @@ def test_every_archive_provider_names_the_member_it_picked():
         for path in sorted(providers_dir.glob("*.py"))
         if extracting.search(source := path.read_text(encoding="utf-8"))
         and "result.filename =" not in source
+    ]
+    assert silent == []
+
+
+def _subliminal(provider_cls, subtitle):
+    """A Subliminal-backed result whose download hits a canned ZIP response."""
+    from providers.subliminal_adapter import _to_sublarr_result
+
+    provider = provider_cls()
+    provider.initialize()
+    provider._impl.session = MagicMock()
+    result = _to_sublarr_result(subtitle, provider.name)
+    result.matches = {"series", "season", "episode"}
+    return provider, result
+
+
+def _respond_with(provider, archive: bytes) -> None:
+    response = MagicMock(content=archive, text="")
+    response.raise_for_status.return_value = None
+    provider._impl.session.get.return_value = response
+
+
+def _podnapisi():
+    from babelfish import Language
+    from subliminal.providers.podnapisi import PodnapisiSubtitle
+
+    from providers.subliminal_podnapisi import PodnapisiSubliminalProvider
+
+    subtitle = PodnapisiSubtitle(
+        Language("deu"), "pn-1", title="Show", season=2, episode=5, releases=["Show.S02E05"]
+    )
+    return _subliminal(PodnapisiSubliminalProvider, subtitle)
+
+
+def _tvsubtitles():
+    from babelfish import Language
+    from subliminal.providers.tvsubtitles import TVsubtitlesSubtitle
+
+    from providers.subliminal_tvsubtitles import TVsubtitlesSubliminalProvider
+
+    subtitle = TVsubtitlesSubtitle(
+        Language("deu"), "tv-1", series="Show", season=2, episode=5, release="Show.S02E05"
+    )
+    return _subliminal(TVsubtitlesSubliminalProvider, subtitle)
+
+
+class TestSubliminalNamesTheMember:
+    """VM 191 (rc.3): the vendored Podnapisi/TVSubtitles unzip and dropped the name."""
+
+    @pytest.mark.parametrize("make", [_podnapisi, _tvsubtitles], ids=["podnapisi", "tvsubtitles"])
+    def test_the_member_becomes_the_result_filename(self, make):
+        provider, result = make()
+        _respond_with(provider, _zip("Show.S01E05.srt"))
+
+        assert provider.download(result) == SRT
+        assert result.filename == "Show.S01E05.srt"
+
+    @pytest.mark.parametrize("make", [_podnapisi, _tvsubtitles], ids=["podnapisi", "tvsubtitles"])
+    @pytest.mark.parametrize("season,kept", [(2, True), (1, False)])
+    def test_the_download_loop_judges_the_member(self, make, season, kept):
+        from providers.download_manager import search_and_download_best
+
+        provider, result = make()
+        _respond_with(provider, _zip(f"Show.S{season:02}E05.srt"))
+        with patch("providers.download_manager.decision_log"):
+            best = search_and_download_best(
+                search_fn=lambda *_a, **_kw: [result],
+                download_fn=provider.download,
+                update_stats_fn=MagicMock(),
+                query=_query(),
+            )
+        assert (best is not None) is kept
+
+
+def test_every_vendored_archive_provider_names_the_member():
+    """Vendored Subliminal providers that unzip must leave ``archive_member`` behind."""
+    import pathlib
+
+    vendored = pathlib.Path(__file__).resolve().parent.parent / "providers/_vendor/subliminal"
+    silent = [
+        path.name
+        for path in sorted((vendored / "providers").glob("*.py"))
+        if "ZipFile(" in (source := path.read_text(encoding="utf-8"))
+        and "subtitle.archive_member =" not in source
     ]
     assert silent == []

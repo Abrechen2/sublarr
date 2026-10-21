@@ -258,6 +258,26 @@ class TestSuspectState:
 
         assert not is_suspect_sidecar(sidecar)
 
+    def test_bytes_count_even_when_every_stat_field_is_unchanged(
+        self, episode, no_arr, monkeypatch
+    ):
+        # VM 191 (rc.3): an in-place rewrite inside one timestamp tick, with the
+        # mtime set back, leaves inode, size, mtime and ctime as they were.
+        video, sidecar = episode
+        _record(video)
+        quarantine_wrong_sidecar(sidecar, video, "shift")
+        frozen = os.stat(sidecar)
+        monkeypatch.setattr(suspect_sidecars.os, "fstat", lambda _fd: frozen)
+        monkeypatch.setattr(suspect_sidecars.os, "stat", lambda *_a, **_kw: frozen)
+
+        with open(sidecar, "w") as fh:
+            fh.write(ASS.replace("Hallo", "Hello"))
+        assert not is_suspect_sidecar(sidecar)
+
+        with open(sidecar, "w") as fh:
+            fh.write(ASS)
+        assert is_suspect_sidecar(sidecar)
+
     def test_a_repeat_quarantine_flags_the_file_on_disk_now(self, episode, no_arr):
         # VM 191: flagging a path a second time returned True but left the old
         # flag, so the file on disk now was never suspect.

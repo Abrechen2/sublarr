@@ -21,6 +21,7 @@ and Subliminal's `Video` / `Subtitle` types.
 from __future__ import annotations
 
 import logging
+import os
 
 from subliminal.video import Episode, Movie, Video
 
@@ -248,4 +249,9 @@ class SubliminalProviderAdapter(SubtitleProvider):
                 "from the same adapter instance that produced them."
             )
         self._impl.download_subtitle(subliminal_sub)
+        # Vendored providers that unzip leave the member's name behind (see
+        # _vendor/VENDOR_PATCHES.md) so the episode gate can check it.
+        member = getattr(subliminal_sub, "archive_member", None)
+        if member:
+            result.filename = os.path.basename(member)
         return subliminal_sub.content or b""

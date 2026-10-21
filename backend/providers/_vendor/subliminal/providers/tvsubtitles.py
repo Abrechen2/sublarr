@@ -329,4 +329,6 @@ class TVsubtitlesProvider(Provider):
                 msg = 'More than one file to unzip'
                 raise ProviderError(msg)
 
+            # Sublarr patch: keep the member name for the episode gate.
+            subtitle.archive_member = zf.namelist()[0]
             subtitle.content = fix_line_ending(zf.read(zf.namelist()[0]))
