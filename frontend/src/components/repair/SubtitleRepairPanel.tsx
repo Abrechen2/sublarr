@@ -17,7 +17,6 @@ export function SubtitleRepairPanel() {
   const { t } = useTranslation('common')
   const qc = useQueryClient()
   const [language, setLanguage] = useState('de')
-  const [dryLimit, setDryLimit] = useState('25')
 
   const { data: status } = useQuery({
     queryKey: ['repair-status'],
@@ -35,17 +34,14 @@ export function SubtitleRepairPanel() {
     enabled: false,
   })
 
-  // A dry run downloads every file it checks and persists nothing — unlimited,
-  // one click can burn the provider's whole daily allowance for zero progress.
-  // It is therefore always capped; an empty/invalid input falls back to 25.
-  const dryRunLimit = Math.max(1, parseInt(dryLimit, 10) || 25)
-
+  // A dry run downloads nothing; "backups only" restores what a pristine .bak
+  // can without touching a provider, so the quota stays with the wanted search.
   const run = useMutation({
-    mutationFn: (dry: boolean) =>
+    mutationFn: (mode: 'dry' | 'local' | 'full') =>
       startRepair({
         language: language || undefined,
-        dry_run: dry,
-        ...(dry ? { limit: dryRunLimit } : {}),
+        dry_run: mode === 'dry',
+        local_only: mode === 'local',
       }),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['repair-status'] }),
   })
@@ -127,24 +123,22 @@ export function SubtitleRepairPanel() {
 
       <div className="flex items-center gap-2">
         <button
-          onClick={() => run.mutate(true)}
+          onClick={() => run.mutate('dry')}
           disabled={running || !scan?.damaged}
           className="rounded px-3 py-1.5 text-xs font-medium border border-border disabled:opacity-50"
         >
           {t('repair.dry_run')}
         </button>
-        <label className="flex items-center gap-1 text-[11px] text-muted">
-          {t('repair.dry_run_limit')}
-          <input
-            type="number"
-            min={1}
-            value={dryLimit}
-            onChange={(e) => setDryLimit(e.target.value)}
-            className="w-16 rounded border border-border bg-page px-2 py-1 text-xs"
-          />
-        </label>
         <button
-          onClick={() => run.mutate(false)}
+          onClick={() => run.mutate('local')}
+          disabled={running || !scan?.recoverable_from_backup}
+          className="flex items-center gap-1.5 rounded px-3 py-1.5 text-xs font-medium border border-border disabled:opacity-50"
+        >
+          <ShieldCheck size={13} />
+          {t('repair.start_local')}
+        </button>
+        <button
+          onClick={() => run.mutate('full')}
           disabled={running || !scan?.damaged}
           className="flex items-center gap-1.5 rounded px-3 py-1.5 text-xs font-medium text-white disabled:opacity-50"
           style={{ backgroundColor: 'var(--accent)' }}
@@ -161,6 +155,7 @@ export function SubtitleRepairPanel() {
             <span className="text-primary font-medium">
               {status.done} / {status.total}
               {status.dry_run ? ` — ${t('repair.dry_run')}` : ''}
+              {status.local_only ? ` — ${t('repair.start_local')}` : ''}
             </span>
           </div>
           <div className="h-1.5 w-full rounded bg-border overflow-hidden">
@@ -178,6 +173,11 @@ export function SubtitleRepairPanel() {
             )}
             <span>{t('repair.from_backup')}: {status.from_bak}</span>
             <span>{t('repair.unprovable')}: {status.skipped_unprovable}</span>
+            {status.deferred > 0 && (
+              <span>
+                {t('repair.deferred')}: {status.deferred}
+              </span>
+            )}
             <span>{t('repair.failed')}: {status.failed}</span>
           </div>
           {status.quota_exhausted && (

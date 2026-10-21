@@ -46,7 +46,11 @@ class QuotaExhaustedError(Exception):
 class RepairOutcome:
     file_path: str
     status: str  # repaired | partial | unprovable | nothing_to_restore | unavailable | error
+    #  | deferred | would_download
     detail: str = ""
+    #: Deferred because the provider's quota ran out this pass (and when it resets).
+    quota_spent: bool = False
+    reset_at: object = None
 
 
 @dataclass
@@ -56,6 +60,8 @@ class RepairRun:
     partial: int = 0
     skipped: int = 0
     failed: int = 0
+    #: Needed a download this pass did not make (local only, dry run, spent quota).
+    deferred: int = 0
     quota_exhausted: bool = False
     outcomes: list[RepairOutcome] = field(default_factory=list)
 
@@ -67,8 +73,18 @@ class RepairRun:
             self.partial += 1
         elif outcome.status in ("unprovable", "nothing_to_restore", "unavailable"):
             self.skipped += 1
+        elif outcome.status in DEFERRED:
+            self.deferred += 1
         else:
             self.failed += 1
+
+
+#: Outcomes of a candidate that needs a provider download this pass did not make.
+DEFERRED = ("deferred", "would_download")
+
+
+class _DownloadNotAllowedError(Exception):
+    """The original is only at the provider, and this pass may not download."""
 
 
 def _hash_bytes(raw: bytes, language: str | None = None) -> str:
@@ -141,24 +157,46 @@ def _pristine_bak(candidate: RepairCandidate) -> bytes | None:
     return raw
 
 
-def obtain_original(candidate: RepairCandidate) -> tuple[bytes, str]:
+def obtain_original(
+    candidate: RepairCandidate, *, allow_download: bool = True
+) -> tuple[bytes, str]:
     """Get the pristine original — from the local .bak if provable, else the provider.
 
     An encoding candidate always goes to the provider: its .bak was copied from
     the file the old decode wrote, so the letters are missing there too.
     """
-    if candidate.kind == "encoding":
-        return fetch_original(candidate), "provider"
-    local = _pristine_bak(candidate)
+    local = _pristine_bak(candidate) if candidate.kind != "encoding" else None
     if local is not None:
         return local, "bak"
+    if not allow_download:
+        raise _DownloadNotAllowedError(candidate.file_path)
     return fetch_original(candidate), "provider"
 
 
-def repair_one(candidate: RepairCandidate, *, dry_run: bool = False) -> RepairOutcome:
-    """Restore one sidecar. Raises :class:`QuotaExhaustedError` if the allowance is gone."""
+def order_local_first(
+    candidates: list[RepairCandidate],
+) -> tuple[list[RepairCandidate], list[RepairCandidate]]:
+    """(free from a pristine .bak, needs a provider): every free restore goes first."""
+    local, remote = [], []
+    for candidate in candidates:
+        free = candidate.kind != "encoding" and _pristine_bak(candidate) is not None
+        (local if free else remote).append(candidate)
+    return local, remote
+
+
+def repair_one(
+    candidate: RepairCandidate, *, dry_run: bool = False, local_only: bool = False
+) -> RepairOutcome:
+    """Restore one sidecar. Raises :class:`QuotaExhaustedError` if the allowance is gone.
+
+    A dry run and a local-only pass never download: a candidate whose original
+    is only at the provider comes back "would_download" / "deferred".
+    """
     try:
-        original, source = obtain_original(candidate)
+        original, source = obtain_original(candidate, allow_download=not (dry_run or local_only))
+    except _DownloadNotAllowedError:
+        status = "would_download" if dry_run else "deferred"
+        return RepairOutcome(candidate.file_path, status, f"needs {candidate.provider}")
     except QuotaExhaustedError:
         raise
     except LookupError as exc:
@@ -278,15 +316,57 @@ def _record_repair(
 
 
 def run_repair(
-    candidates: list[RepairCandidate], *, dry_run: bool = False, limit: int | None = None
+    candidates: list[RepairCandidate],
+    *,
+    dry_run: bool = False,
+    limit: int | None = None,
+    local_only: bool = False,
 ) -> RepairRun:
-    """Repair each candidate, stopping cleanly when the provider quota runs out."""
+    """Repair every free candidate first, then the downloads, provider by provider.
+
+    A spent quota defers that provider's remaining candidates and nothing else.
+    """
     run = RepairRun(dry_run=dry_run)
-    for candidate in candidates[:limit] if limit else candidates:
-        try:
-            run.record(repair_one(candidate, dry_run=dry_run))
-        except QuotaExhaustedError as exc:
-            run.quota_exhausted = True
-            logger.warning("repair: provider quota exhausted, stopping: %s", exc)
-            break
+    for _candidate, outcome in iter_repairs(
+        candidates[:limit] if limit else candidates, dry_run=dry_run, local_only=local_only
+    ):
+        run.record(outcome)
+        run.quota_exhausted |= outcome.quota_spent
     return run
+
+
+def iter_repairs(candidates: list[RepairCandidate], *, dry_run: bool, local_only: bool):
+    """Yield (candidate, outcome): free restores first, then provider downloads.
+
+    The local phase never downloads, even if a backup vanished since it was
+    sorted; that candidate is deferred instead. A provider whose quota runs out
+    is not asked again this pass.
+    """
+    local, remote = order_local_first(candidates)
+    for candidate in local:
+        yield candidate, repair_one(candidate, dry_run=dry_run, local_only=True)
+    spent: set[str] = set()
+    for candidate in remote:
+        if local_only or candidate.provider in spent:
+            yield (
+                candidate,
+                RepairOutcome(candidate.file_path, "deferred", f"needs {candidate.provider}"),
+            )
+            continue
+        try:
+            yield candidate, repair_one(candidate, dry_run=dry_run)
+        except QuotaExhaustedError as exc:
+            spent.add(candidate.provider)
+            logger.warning(
+                "repair: %s quota exhausted, deferring its repairs: %s", candidate.provider, exc
+            )
+            yield (
+                candidate,
+                RepairOutcome(
+                    candidate.file_path,
+                    "deferred",
+                    f"{candidate.provider} quota",
+                    quota_spent=True,
+                    reset_at=getattr(exc, "reset_at", None),
+                ),
+            )

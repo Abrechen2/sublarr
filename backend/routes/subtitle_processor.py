@@ -18,10 +18,22 @@ from datetime import UTC, datetime
 
 from flask import Blueprint, current_app, jsonify, request
 
-from config import get_settings, map_path
+import config
 from security_utils import is_safe_path
 from services.background_tasks import submit_background
 from subtitle_filename import find_existing_bak
+
+
+# Looked up on every call, not bound at import: a test that first imports this
+# module inside patch("config.get_settings") otherwise leaves it reading the
+# mock for the rest of the run.
+def get_settings():
+    return config.get_settings()
+
+
+def map_path(path):
+    return config.map_path(path)
+
 
 bp = Blueprint("subtitle_processor", __name__, url_prefix="/api/v1")
 logger = logging.getLogger(__name__)

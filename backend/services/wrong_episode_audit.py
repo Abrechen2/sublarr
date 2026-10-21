@@ -122,7 +122,9 @@ class _SonarrEpisodes:
     def __init__(self):
         self._client = False  # not fetched yet
         self._series: list | None = None
-        self._episodes: dict[int, dict[tuple[int, int], tuple[int | None, str]]] = {}
+        self._episodes: dict[int, dict[tuple[int, int], tuple[int | None, str, int | None]]] = {}
+        self._aliases: dict[int, list[tuple[str, int | None, int | None]]] = {}
+        self._titles: dict[int, str] = {}
 
     def _sonarr(self):
         if self._client is False:
@@ -135,27 +137,43 @@ class _SonarrEpisodes:
                 self._client = None
         return self._client
 
-    def lookup(self, video: str, season: int, episode: int) -> tuple[int | None, str]:
+    def lookup(self, video: str, season: int, episode: int) -> dict:
+        """{"absolute", "title", "scene_season", "aliases"} for the video's episode."""
         from services.suspect_sidecars import _arr_owner
+        from sonarr_client import series_aliases
 
         sonarr = self._sonarr()
         if sonarr is None:
-            return None, ""
+            return {}
         if self._series is None:
             self._series = sonarr.get_series() or []
         owner = _arr_owner(video, self._series, [])
         if owner is None:
-            return None, ""
+            return {}
         series_id = owner[1]
+        if series_id not in self._aliases:
+            series = next((s for s in self._series if s.get("id") == series_id), {})
+            self._aliases[series_id] = series_aliases(series)
+            self._titles[series_id] = series.get("title") or ""
         if series_id not in self._episodes:
             self._episodes[series_id] = {
                 (e.get("seasonNumber"), e.get("episodeNumber")): (
                     e.get("absoluteEpisodeNumber"),
                     e.get("title") or "",
+                    e.get("sceneSeasonNumber"),
                 )
                 for e in sonarr.get_episodes(series_id) or []
             }
-        return self._episodes[series_id].get((season, episode), (None, ""))
+        episodes = self._episodes[series_id]
+        absolute, title, scene = episodes.get((season, episode), (None, "", None))
+        return {
+            "absolute": absolute,
+            "title": title,
+            "scene_season": scene,
+            "season_size": sum(1 for s, _e in episodes if s == season) or None,
+            "aliases": self._aliases[series_id],
+            "series_title": self._titles[series_id],
+        }
 
 
 def _bare_split_cour(*names: str) -> bool:
@@ -165,6 +183,17 @@ def _bare_split_cour(*names: str) -> bool:
     claims = [parse_claims(name) for name in names if name]
     return not any(c.season_episodes or c.seasons for c in claims) and any(
         c.vague_season and c.bare for c in claims
+    )
+
+
+def _has_scoped_title(*names: str) -> bool:
+    """A bare number after a series title that Sonarr might scope to a season."""
+    from providers.episode_gate import parse_claims
+
+    return any(
+        (claims := parse_claims(name)).bare and claims.title_words and not claims.season_episodes
+        for name in names
+        if name
     )
 
 
@@ -195,17 +224,36 @@ def _finding_for(row, sonarr: _SonarrEpisodes) -> WrongEpisodeFinding | None:
     )
     query = VideoQuery(file_path=row.file_path, season=season, episode=episode)
     reason = episode_gate_reason(result, query)
-    # Sonarr only clears a contradiction here, it never raises one: "Psycho-Pass 2
-    # - 01" or "Bahamut Genesis - 01" number the sequel's season in its title, so
-    # a bare number Sonarr's absolute rejects is still often the right episode
-    # (prod 1.17.0-rc.5: 140 such false findings).
-    if not reason.startswith("names ") or _bare_split_cour(filename, release):
+    if _bare_split_cour(filename, release):
         return None
-    absolute, title = sonarr.lookup(row.file_path, season, episode)
-    if absolute is not None or title:
-        query.sonarr_absolute_episode = absolute
-        query.title = title
+    if reason.startswith("names "):
+        # Sonarr's absolute number and title only clear a contradiction: a
+        # bare number its absolute rejects is still often the right episode
+        # ("Psycho-Pass 2 - 01"; prod 1.17.0-rc.5: 140 such false findings).
+        meta = sonarr.lookup(row.file_path, season, episode)
+        absolute = meta.get("absolute")
+        if meta:
+            query.sonarr_absolute_episode = absolute
+            query.title = meta["title"]
+            query.series_aliases = meta["aliases"]
+            query.scene_season = meta["scene_season"]
+            query.season_size = meta["season_size"]
+            query.series_title = meta["series_title"]
+            reason = episode_gate_reason(result, query)
+    elif _has_scoped_title(filename, release):
+        # A title Sonarr scopes to another season is evidence by itself:
+        # "Dr Stone - Science Future - 10" (season 4) saved for S03E10.
+        meta = sonarr.lookup(row.file_path, season, episode)
+        absolute = meta.get("absolute")
+        query.series_aliases = meta.get("aliases") or []
+        query.scene_season = meta.get("scene_season")
+        query.season_size = meta.get("season_size")
+        query.series_title = meta.get("series_title") or ""
         reason = episode_gate_reason(result, query)
+        if "by its title" not in reason:
+            return None
+    else:
+        return None
     # Only what the name contradicts; "no episode evidence" says nothing about
     # a subtitle that was already watched against its video.
     if not reason.startswith("names "):

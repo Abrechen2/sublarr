@@ -31,6 +31,7 @@ from providers.base import (
 )
 from providers.episode_gate import parse_claims
 from providers.opensubtitles_helpers import _FORMAT_MAP, _UPLOADER_RANK_BONUS, API_BASE
+from providers.series_aliases import normalise
 
 logger = logging.getLogger(__name__)
 
@@ -57,6 +58,31 @@ def _named_season_episode(*texts: str) -> tuple[int, int] | None:
             season, episodes = named[0]
             return season, min(episodes)
     return None
+
+
+def _series_identity(query: VideoQuery, feature: dict) -> str:
+    """ "match", "mismatch" or "" (unknown): is this result's parent the query's series?
+
+    ``feature_details.title`` is the episode's own title; the series is in
+    ``parent_imdb_id`` / ``parent_title``. A title search for "To Love-Ru"
+    returned "Dare to Love Me" and "An Archdemon's Dilemma" episodes whose only
+    match was the episode number (prod 1.17.0-rc.5).
+    """
+    parent_imdb = str(feature.get("parent_imdb_id") or "").lower().removeprefix("tt").lstrip("0")
+    query_imdb = (query.imdb_id or "").lower().removeprefix("tt").lstrip("0")
+    if parent_imdb and query_imdb:
+        return "match" if parent_imdb == query_imdb else "mismatch"
+    # A parent title proves the series when it is the series or an alias. A
+    # different one proves nothing: "Shingeki no Kyojin" is "Attack on Titan",
+    # and Sonarr's aliases are incomplete.
+    parent_title = normalise(feature.get("parent_title") or "")
+    if parent_title and query.series_title:
+        names = {normalise(query.series_title)} | {
+            normalise(alias[0]) for alias in query.series_aliases or ()
+        }
+        if parent_title in names:
+            return "match"
+    return ""
 
 
 def _wrong_season(query: VideoQuery, feature: dict, filename: str, release: str) -> str:
@@ -157,6 +183,15 @@ class _OpenSubtitlesFetchMixin:
                             wrong_season,
                         )
                         continue
+                    identity = _series_identity(query, feature) if query.is_episode else ""
+                    if identity == "mismatch" and "hash" not in matches:
+                        logger.debug(
+                            "OpenSubtitles: dropping %s for %s — another series (%s)",
+                            filename,
+                            query.display_name,
+                            feature.get("parent_title") or feature.get("parent_imdb_id"),
+                        )
+                        continue
                     if query.is_episode:
                         feat_season = feature.get("season_number")
                         feat_episode = feature.get("episode_number")
@@ -172,8 +207,9 @@ class _OpenSubtitlesFetchMixin:
                             and feat_episode == query.absolute_episode
                         ):
                             matches.add("episode")
-                        if (
-                            query.series_title
+                        if identity == "match" or (
+                            not identity
+                            and query.series_title
                             and query.series_title.lower()
                             in (feature.get("title", "") or "").lower()
                         ):

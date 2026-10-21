@@ -111,13 +111,14 @@ def test_refuses_a_hand_edited_file(app_ctx, candidate, damaged_file):
     assert damaged_file.read_bytes() == before, "a hand-edited file must never be overwritten"
 
 
-def test_dry_run_writes_nothing(app_ctx, candidate, damaged_file):
+def test_dry_run_writes_nothing_and_downloads_nothing(app_ctx, candidate, damaged_file):
     before = damaged_file.read_bytes()
 
-    with patch("services.repair.runner.fetch_original", return_value=ORIGINAL):
+    with patch("services.repair.runner.fetch_original", return_value=ORIGINAL) as fetch:
         outcome = repair_one(candidate, dry_run=True)
 
-    assert outcome.status == "repaired"
+    fetch.assert_not_called()
+    assert outcome.status == "would_download"
     assert damaged_file.read_bytes() == before
 
 
@@ -139,4 +140,5 @@ def test_quota_exhaustion_stops_the_run_cleanly(app_ctx, candidate):
 
     assert run.quota_exhausted is True
     assert run.repaired == 1
-    assert len(run.outcomes) == 1, "no work is attempted after the quota is gone"
+    assert calls["n"] == 2, "the spent provider is not asked again"
+    assert [o.status for o in run.outcomes] == ["repaired", "deferred", "deferred"]

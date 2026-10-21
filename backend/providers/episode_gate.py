@@ -30,13 +30,14 @@ import re
 from dataclasses import dataclass, field
 
 from providers.base import SubtitleResult, VideoQuery
+from providers.series_aliases import release_title_words, title_scope
 
 logger = logging.getLogger(__name__)
 
 # ``S02E07`` / ``s2.e7`` / ``S02 E07`` / ``S01E01E02`` / ``S01E01-E03`` / ``S01E01-03`` /
-# ``S01 E01~E12``.
+# ``S01 E01~E12`` / ``S01E 07``.
 _SEASON_EPISODE_RE = re.compile(
-    r"(?<![a-z0-9])s(\d{1,3})[ ._-]?e(\d{1,4})((?:(?:[ ._]?e|-e?|\s*~\s*e?)\d{1,4}(?![\dp]))*)",
+    r"(?<![a-z0-9])s(\d{1,3})[ ._-]?e ?(\d{1,4})((?:(?:[ ._]?e ?|-e?|\s*~\s*e?)\d{1,4}(?![\dp]))*)",
     re.IGNORECASE,
 )
 # ``2x07`` / ``1x5``; four-digit sides (``1920x1080``) are resolutions, not episodes.
@@ -81,6 +82,8 @@ class _Claims:
     vague_season: bool = False
     bare: set[int] = field(default_factory=set)
     fractions: set[str] = field(default_factory=set)
+    # The words of the series title the name opens with (see series_aliases).
+    title_words: tuple[str, ...] = ()
 
     @property
     def empty(self) -> bool:
@@ -116,6 +119,7 @@ def parse_claims(text: str) -> _Claims:
     """Season/episode numbering named in ``text`` (empty claims when none)."""
     claims = _Claims()
     text = text or ""
+    claims.title_words = release_title_words(text)
     for match in _SEASON_EPISODE_RE.finditer(text):
         claims.season_episodes.append(
             (int(match.group(1)), _episodes(match.group(2), match.group(3)))
@@ -169,6 +173,22 @@ def _verdict(claims: _Claims, query: VideoQuery) -> tuple[str, str]:
                 return "match", ""
         season, episodes = claims.season_episodes[0]
         return "contradict", f"S{season:02d}E{min(episodes):02d}"
+    scope = title_scope(claims.title_words, query)
+    if scope is not None and not claims.seasons and claims.bare:
+        # "Road to Berlin - 05": the title names season 3, the number is its own
+        # and is not checked against the absolute number.
+        if scope != "this":
+            return "contradict", f"{scope} by its title"
+        if claims.bare & _wanted_episodes(query):
+            return "match", ""
+        # "Shingeki no Kyojin (The Final Season) - 60" for S04E01: a number the
+        # season cannot hold is its absolute one; "Show II - 13" for a season of
+        # unknown or 13+ episodes may be its own thirteenth.
+        absolute = query.matching_absolute_episode
+        size = getattr(query, "season_size", None)
+        if absolute in claims.bare and size is not None and absolute > size:
+            return "match", ""
+        return "contradict", f"episode {min(claims.bare)}"
     absolute = query.matching_absolute_episode
     if claims.seasons and query.season not in claims.seasons:
         if absolute is not None and absolute in claims.bare:

@@ -92,6 +92,29 @@ def invalidate_client():
 from sonarr_diagnostics import _SonarrDiagnosticsMixin  # noqa: E402
 
 
+def _season_size(series: dict, season: int | None) -> int | None:
+    """Episodes Sonarr lists for ``season`` (its statistics), or None."""
+    for entry in series.get("seasons") or []:
+        if entry.get("seasonNumber") == season:
+            stats = entry.get("statistics") or {}
+            return stats.get("totalEpisodeCount") or stats.get("episodeCount") or None
+    return None
+
+
+def series_aliases(series: dict) -> list[tuple[str, int | None, int | None]]:
+    """A series' alternate titles as (title, seasonNumber, sceneSeasonNumber).
+
+    The episode gate reads a season-scoped title ("Strike Witches - Road to
+    Berlin", scene season 3) as that season; -1 means every season. Library and
+    scene season can differ ("Criminal Minds Evolution": 16 and 1).
+    """
+    return [
+        (alt["title"], alt.get("seasonNumber"), alt.get("sceneSeasonNumber"))
+        for alt in series.get("alternateTitles") or []
+        if alt.get("title")
+    ]
+
+
 class SonarrClient(_SonarrDiagnosticsMixin):
     """Sonarr v3 REST API Client."""
 
@@ -411,6 +434,9 @@ class SonarrClient(_SonarrDiagnosticsMixin):
             # Sonarr numbers every series continuously, anime or not.
             "absolute_episode": episode.get("absoluteEpisodeNumber"),
             "title": episode.get("title", ""),
+            "series_aliases": series_aliases(series),
+            "scene_season": episode.get("sceneSeasonNumber"),
+            "season_size": _season_size(series, episode.get("seasonNumber")),
             "imdb_id": series.get("imdbId", ""),
             "tvdb_id": tvdb_id,
             "anidb_id": anidb_id,

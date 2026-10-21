@@ -23,6 +23,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   from the "�"; lines edited since and the file's timings stay as they are.
   A file where some lines could not be proven this way is listed as partly
   repaired, so the "�" left in the lines you edited can be fixed by hand.
+  Every file a pristine backup can restore is repaired first, without any
+  download; "Backups only" stops there and leaves the provider allowance to
+  the wanted search. When one provider's daily allowance runs out, the pass
+  carries on with the others, and a dry run downloads nothing.
 
 - **Find subtitles of another episode that are already saved** — Subtitles
   saved before the new episode check (for example season 1's twelfth episode
@@ -30,8 +34,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   settings now lists saved subtitles whose release names another episode and
   can search for them again. It checks them with Sonarr's absolute numbers and
   episode titles, as the search does, and leaves a bare number under "Part 2"
-  alone, because only the split of the season says which episode that is: each is blocked for that episode only, its file
-  stays until a replacement is saved, and the series is rescanned once.
+  alone, because only the split of the season says which episode that is. A
+  release whose title Sonarr assigns to another season is listed too
+  (``Dr Stone - Science Future - 10``, season 4, saved for S03E10). Each is
+  blocked for that episode only, its file stays until a replacement is saved,
+  and the series is rescanned once.
 
 ### Fixed
 - **The subtitle repair works on SQLite installs** — Scanning for damaged
@@ -113,8 +120,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   skipped for the next candidate. A batch such as ``Death Note - 13-24`` or
   ``Re-Creators - 01 ~ 22`` counts for every episode in its range, and
   continuous numbering (``My Hero Academia S03E39`` for S03E01, absolute 39)
-  or the episode's own title in the release name counts as that episode. The
-  decision log lists the dropped results and why.
+  or the episode's own title in the release name counts as that episode. A
+  sequel named by its own title is read through the alternate titles Sonarr
+  lists for each season: ``Strike Witches - Road to Berlin - 05`` is S03E05 and
+  ``Psycho-Pass 2 - 01`` is S02E01, while ``Bahamut Genesis - 01`` (season 1)
+  is not S02E01; ``S01E 07`` reads as S01E07. The decision log lists the
+  dropped results and why.
+- **OpenSubtitles no longer hands out another series' episodes** — A title
+  search for "To Love-Ru" returned episodes of "Dare to Love Me" and "An
+  Archdemon's Dilemma", and they were saved because the series check compared
+  the query with the episode's own title. A result whose parent IMDb id is
+  another series is now dropped, and only the series' own title or one of its
+  Sonarr aliases counts as a series match.
 - **AnimeTosho no longer takes a bare episode number for a later season** —
   A release such as ``[SubsPlease] Clevatess - 12`` names no season, so it now
   only matches episode 12 of season 1, or the episode whose absolute number is

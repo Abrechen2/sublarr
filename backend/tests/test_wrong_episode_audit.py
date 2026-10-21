@@ -237,3 +237,71 @@ def test_sonarrs_absolute_confirms_an_explicit_contradiction(sonarr_library):
     ]
     video = _download(folder, "American Dad! - S16E10", "American Dad S01E17 Rough Trade")
     assert [f.video for f in scan_wrong_episodes()] == [video]
+
+
+def test_a_title_sonarr_scopes_to_another_season_is_a_finding(sonarr_library):
+    # Prod replay: "Dr Stone - Science Future - 10" (Sonarr scene season 4)
+    # saved for S03E10. The bare number alone proves nothing; the title does.
+    folder, sonarr = sonarr_library
+    sonarr.get_series.return_value = [
+        {
+            "id": 7,
+            "path": str(folder),
+            "alternateTitles": [
+                {"title": "Dr. Stone: New World", "sceneSeasonNumber": 3},
+                {"title": "Dr. Stone: Science Future", "sceneSeasonNumber": 4},
+            ],
+        }
+    ]
+    sonarr.get_episodes.return_value = [
+        {
+            "seasonNumber": 3,
+            "episodeNumber": 10,
+            "absoluteEpisodeNumber": 34,
+            "title": "SCIENCE WARS",
+        }
+    ]
+    video = _download(
+        folder, "Dr. STONE - S03E10", "[Erai-raws] Dr Stone - Science Future - 10 [1080p]"
+    )
+    findings = scan_wrong_episodes()
+    assert [f.video for f in findings] == [video]
+    assert "season 4 by its title" in findings[0].reason
+
+
+def test_a_title_scoped_to_the_videos_season_is_not_a_finding(sonarr_library):
+    folder, sonarr = sonarr_library
+    sonarr.get_series.return_value = [
+        {
+            "id": 7,
+            "path": str(folder),
+            "alternateTitles": [
+                {"title": "Strike Witches - Road to Berlin", "sceneSeasonNumber": 3}
+            ],
+        }
+    ]
+    sonarr.get_episodes.return_value = [
+        {"seasonNumber": 3, "episodeNumber": 5, "absoluteEpisodeNumber": 33, "title": "Queen"}
+    ]
+    _download(folder, "Strike Witches - S03E05", "[Golumpa] Strike Witches - Road to Berlin - 05")
+    assert scan_wrong_episodes() == []
+
+
+def test_the_bare_series_title_scoped_to_season_one_proves_nothing(sonarr_library):
+    # Sonarr lists the series' own title as scene season 1 (Railgun, K-ON!). With
+    # the title itself voting "every season", "Show - 01" for S02E01 is not a
+    # season-1 finding by its title.
+    folder, sonarr = sonarr_library
+    sonarr.get_series.return_value = [
+        {
+            "id": 7,
+            "title": "Show",
+            "path": str(folder),
+            "alternateTitles": [{"title": "Show", "sceneSeasonNumber": 1}],
+        }
+    ]
+    sonarr.get_episodes.return_value = [
+        {"seasonNumber": 2, "episodeNumber": 1, "absoluteEpisodeNumber": 13, "title": "X"}
+    ]
+    _download(folder, "Show - S02E01", "[Group] Show - 01 [1080p]")
+    assert scan_wrong_episodes() == []

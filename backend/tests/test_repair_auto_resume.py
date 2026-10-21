@@ -145,16 +145,19 @@ def test_tick_leaves_the_pending_entry_for_the_run_to_claim():
 # --- the job persists / clears the pending resume ---------------------------
 
 
-def _run_execute(*, dry_run: bool, outcomes):
+def _run_execute(*, dry_run: bool, outcomes, local_only: bool = False):
     """Drive job._execute with a canned scan + repair_one behaviour."""
 
     from types import SimpleNamespace
 
     class _Report:
         repairable = len(outcomes)
-        candidates = [SimpleNamespace(file_path=f"/x/{i}.de.srt") for i in range(len(outcomes))]
+        candidates = [
+            SimpleNamespace(file_path=f"/x/{i}.de.srt", provider="opensubtitles")
+            for i in range(len(outcomes))
+        ]
 
-    def _repair_one(candidate, *, dry_run):
+    def _repair_one(candidate, *, dry_run, local_only=False):
         result = outcomes.pop(0)
         if isinstance(result, Exception):
             raise result
@@ -163,8 +166,9 @@ def _run_execute(*, dry_run: bool, outcomes):
     with (
         patch("services.repair.scanner.scan", return_value=_Report()),
         patch("services.repair.runner.repair_one", side_effect=_repair_one),
+        patch("services.repair.runner.order_local_first", side_effect=lambda c: ([], list(c))),
     ):
-        job._execute(language="de", dry_run=dry_run, limit=None)
+        job._execute(language="de", dry_run=dry_run, limit=None, local_only=local_only)
 
 
 def test_quota_stop_on_a_sharp_run_schedules_the_resume():
@@ -197,3 +201,9 @@ def test_a_dry_run_does_not_claim_the_pending_resume():
     resume.schedule_resume(language="de", reset_at=None)
     _run_execute(dry_run=True, outcomes=[])
     assert resume.pending_resume() is not None
+
+
+def test_a_local_only_pass_neither_claims_nor_schedules_a_resume():
+    resume.schedule_resume(language="de", reset_at=None)
+    _run_execute(dry_run=False, local_only=True, outcomes=[])
+    assert resume.pending_resume() is not None, "the downloads it skipped still wait"

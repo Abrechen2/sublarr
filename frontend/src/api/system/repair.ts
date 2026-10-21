@@ -28,6 +28,9 @@ export interface RepairStatus {
   skipped_unprovable: number
   skipped_nothing_to_restore: number
   failed: number
+  /** Needed a download this pass did not make (backups only, or quota spent). */
+  deferred: number
+  local_only: boolean
   quota_exhausted: boolean
   resume_at: string | null
   last_file: string
@@ -43,6 +46,7 @@ export async function scanDamaged(language?: string): Promise<RepairScan> {
 export async function startRepair(opts: {
   language?: string
   dry_run?: boolean
+  local_only?: boolean
   limit?: number
 }): Promise<void> {
   await api.post('/repair/run', opts)

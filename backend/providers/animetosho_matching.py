@@ -10,6 +10,7 @@ import unicodedata
 from guessit import guessit
 
 from providers.base import VideoQuery
+from providers.series_aliases import release_title_words, title_scope
 
 
 def _normalise_title(title: str) -> str:
@@ -31,6 +32,11 @@ def match_release(
         parse_title, options={"type": "episode" if query.episode is not None else "movie"}
     )
     matches = set()
+    # A sequel title Sonarr scopes to a season ("Road to Berlin" -> S03) names
+    # that season and numbers its own episodes; any other season is not it.
+    scope = title_scope(release_title_words(title), query) if query.episode is not None else None
+    if scope is not None and scope != "this":
+        return None
     expected_title = query.series_title or query.title
     parsed_title = parsed.get("title")
     alternative_title = parsed.get("alternative_title")
@@ -43,7 +49,9 @@ def match_release(
         # an alternative_title. It is still part of the series identity.
         # Named arc packs are checked through their individual files instead.
         parsed_title = f"{parsed_title} {alternative_title}"
-    if parsed_title and expected_title:
+    if scope == "this":
+        matches.add("series")
+    elif parsed_title and expected_title:
         titles = parsed_title if isinstance(parsed_title, list) else [parsed_title]
         if _normalise_title(expected_title) not in {_normalise_title(t) for t in titles}:
             return None
@@ -69,7 +77,12 @@ def match_release(
 
     episode = parsed.get("episode")
     absolute = getattr(query, "matching_absolute_episode", query.absolute_episode)
-    if season is not None:
+    if scope == "this" and isinstance(episode, int) and episode != query.episode:
+        # Under the season's own title a number the season cannot hold is its
+        # absolute one ("Shingeki no Kyojin (The Final Season) - 60", S04E01).
+        size = getattr(query, "season_size", None)
+        target = absolute if absolute is not None and size and absolute > size else query.episode
+    elif season is not None or scope == "this":
         target = query.episode
     elif absolute is not None:
         target = absolute

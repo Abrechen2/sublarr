@@ -182,9 +182,10 @@ def test_runner_dry_run_writes_nothing(app_ctx, mangled_candidate):
     from services.repair.runner import repair_one
 
     before = open(mangled_candidate.file_path, "rb").read()
-    with patch("services.repair.runner.fetch_original", return_value=ORIGINAL):
+    with patch("services.repair.runner.fetch_original", return_value=ORIGINAL) as fetch:
         outcome = repair_one(mangled_candidate, dry_run=True)
-    assert outcome.status == "repaired"
+    fetch.assert_not_called()
+    assert outcome.status == "would_download"
     assert open(mangled_candidate.file_path, "rb").read() == before
 
 

@@ -35,28 +35,19 @@ def scan_damaged():
         200:
           description: Scan report
     """
-    from services.repair.runner import _hash_bytes
+    from services.repair.runner import order_local_first
     from services.repair.scanner import scan
-    from subtitle_filename import find_existing_bak
 
     language = request.args.get("language") or None
     report = scan(language=language)
 
-    from_bak = 0
+    # The same split the repair pass makes, so "backups only" never promises
+    # work it will defer (an encoding candidate's .bak holds the damage too).
+    local, remote = order_local_first(report.candidates)
+    from_bak = len(local)
     needs_download: dict[str, int] = {}
-    for candidate in report.candidates:
-        bak = find_existing_bak(candidate.file_path)
-        pristine = False
-        if bak:
-            try:
-                with open(bak, "rb") as fh:
-                    pristine = _hash_bytes(fh.read()) == candidate.original_hash
-            except OSError:
-                pristine = False
-        if pristine:
-            from_bak += 1
-        else:
-            needs_download[candidate.provider] = needs_download.get(candidate.provider, 0) + 1
+    for candidate in remote:
+        needs_download[candidate.provider] = needs_download.get(candidate.provider, 0) + 1
 
     return jsonify(
         {
@@ -94,14 +85,21 @@ def run_repair_job():
     dry_run = bool(body.get("dry_run", False))
     limit = body.get("limit")
     limit = int(limit) if limit else None
+    local_only = bool(body.get("local_only", False))
 
     started = job.start(
-        current_app._get_current_object(), language=language, dry_run=dry_run, limit=limit
+        current_app._get_current_object(),
+        language=language,
+        dry_run=dry_run,
+        limit=limit,
+        local_only=local_only,
     )
     if not started:
         return jsonify({"error": "a repair pass is already running"}), 409
 
-    return jsonify({"status": "started", "dry_run": dry_run, "language": language}), 202
+    return jsonify(
+        {"status": "started", "dry_run": dry_run, "local_only": local_only, "language": language}
+    ), 202
 
 
 @bp.route("/status", methods=["GET"])

@@ -70,6 +70,15 @@ def test_run_starts_a_pass(client):
     assert start.call_args.kwargs["language"] == "de"
 
 
+def test_run_passes_local_only(client):
+    with patch("services.repair.job.start", return_value=True) as start:
+        resp = client.post("/api/v1/repair/run", json={"local_only": True})
+
+    assert resp.status_code == 202
+    assert resp.get_json()["local_only"] is True
+    assert start.call_args.kwargs["local_only"] is True
+
+
 def test_a_second_pass_is_refused(client):
     """Two passes would race on the same files and spend the quota twice."""
     with patch("services.repair.job.start", return_value=False):
@@ -125,3 +134,32 @@ def test_wrong_episodes_requeue_runs_in_the_background(client):
         rv = client.post("/api/v1/repair/wrong-episodes/requeue", json={})
         assert rv.status_code == 202
         assert done.wait(5)
+
+
+def test_scan_counts_an_encoding_candidate_as_a_download(client):
+    # Its .bak was written by the old decode and holds the damage too, so the
+    # pass never restores it from there; the scan must not promise that.
+    from types import SimpleNamespace
+
+    encoding = SimpleNamespace(file_path="/x/a.de.srt", provider="subdl", kind="encoding")
+    pipeline = SimpleNamespace(file_path="/x/b.de.srt", provider="opensubtitles", kind="pipeline")
+    report = SimpleNamespace(
+        candidates=[encoding, pipeline],
+        repairable=2,
+        untouched=0,
+        missing_from_disk=0,
+        unresolvable=0,
+        already_repaired=0,
+        partially_repaired=[],
+    )
+    with (
+        patch("services.repair.scanner.scan", return_value=report),
+        patch(
+            "services.repair.runner._pristine_bak",
+            side_effect=lambda c: b"original",  # both have a hash-matching .bak
+        ),
+    ):
+        body = client.get("/api/v1/repair/scan").get_json()
+
+    assert body["recoverable_from_backup"] == 1
+    assert body["needs_download_by_provider"] == {"subdl": 1}

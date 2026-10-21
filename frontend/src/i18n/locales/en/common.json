@@ -969,15 +969,16 @@
     "partially_repaired": "Partly repaired — lines you edited still contain \"�\" and need fixing by hand",
     "safety": "Nothing is overwritten unless the old buggy code, applied to the original, reproduces the file on your disk exactly — only that proves it is the right original and that you did not edit the file yourself. If it cannot be shown, the file is left alone. The sync is preserved. For \"�\" files every line is checked on its own: the letters are taken over only when the line matches the original exactly apart from the \"�\" — lines you edited stay as they are.",
     "dry_run": "Dry run",
-    "dry_run_limit": "Limit",
-    "quota_note": "Both runs re-download every file they check and spend the provider's daily allowance (e.g. 1,000 downloads/day on OpenSubtitles). A dry run saves no results — whatever it checks, a later run downloads again. It is therefore capped at the configured limit. The repair remembers all progress and resumes automatically once the allowance resets.",
+    "quota_note": "The dry run downloads nothing: it shows what can be repaired for free from backups and what would need a provider download. \"Backups only\" repairs without spending any provider quota. \"Start repair\" restores every backup first and then downloads again (e.g. 1,000 downloads/day on OpenSubtitles). When one provider's quota runs out it carries on with the others and resumes automatically.",
     "start": "Start repair",
     "restored": "Restored",
     "partial": "Partly restored",
     "failed": "Failed",
     "quota_exhausted": "The provider's daily allowance is spent. The next run picks up where this one stopped.",
     "quota_resume": "The provider's daily allowance is spent. The run resumes automatically at {{time}} — nothing is downloaded twice.",
-    "unprovable": "Unprovable (skipped)"
+    "unprovable": "Unprovable (skipped)",
+    "start_local": "Backups only",
+    "deferred": "Deferred (needs a download)"
   },
   "score_breakdown": {
     "title": "Score breakdown",

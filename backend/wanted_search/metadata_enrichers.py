@@ -49,6 +49,9 @@ def _enrich_from_sonarr(query: VideoQuery, wanted_item: dict) -> bool:
         # Matching only; query.absolute_episode stays with Shoko / the AniDB
         # mapping (see _resolve_anidb_absolute_episode for the one fallback).
         query.sonarr_absolute_episode = meta.get("absolute_episode")
+        query.series_aliases = list(meta.get("series_aliases") or [])
+        query.scene_season = meta.get("scene_season")
+        query.season_size = meta.get("season_size")
         query.imdb_id = meta.get("imdb_id", "")
         query.tvdb_id = meta.get("tvdb_id")
         query.anidb_id = meta.get("anidb_id")

@@ -32,6 +32,9 @@ class RepairState:
     skipped_unprovable: int = 0
     skipped_nothing_to_restore: int = 0
     failed: int = 0
+    #: Needed a download this pass did not make (local only, or quota spent).
+    deferred: int = 0
+    local_only: bool = False
     quota_exhausted: bool = False
     resume_at: str | None = None
     started_at: str | None = None
@@ -55,8 +58,19 @@ def is_running() -> bool:
     return _state.running
 
 
-def start(app, *, language: str | None = None, dry_run: bool = False, limit: int | None = None):
-    """Kick off a repair pass. Returns False if one is already running."""
+def start(
+    app,
+    *,
+    language: str | None = None,
+    dry_run: bool = False,
+    limit: int | None = None,
+    local_only: bool = False,
+):
+    """Kick off a repair pass. Returns False if one is already running.
+
+    ``local_only`` restores what a pristine .bak can and downloads nothing, so
+    the provider allowance stays with the wanted search.
+    """
     global _state
 
     with _lock:
@@ -66,13 +80,14 @@ def start(app, *, language: str | None = None, dry_run: bool = False, limit: int
             running=True,
             dry_run=dry_run,
             language=language,
+            local_only=local_only,
             started_at=datetime.now(UTC).isoformat(),
         )
 
     def _run():
         with app.app_context():
             try:
-                _execute(language=language, dry_run=dry_run, limit=limit)
+                _execute(language=language, dry_run=dry_run, limit=limit, local_only=local_only)
             except Exception as exc:  # noqa: BLE001 — a crash must not leave it "running"
                 logger.exception("repair job failed: %s", exc)
                 _state.error = str(exc)
@@ -84,34 +99,43 @@ def start(app, *, language: str | None = None, dry_run: bool = False, limit: int
     return True
 
 
-def _execute(*, language: str | None, dry_run: bool, limit: int | None) -> None:
+def _execute(
+    *, language: str | None, dry_run: bool, limit: int | None, local_only: bool = False
+) -> None:
     from services.repair import resume
-    from services.repair.runner import QuotaExhaustedError, repair_one
+    from services.repair.runner import DEFERRED, iter_repairs
     from services.repair.scanner import scan
 
-    if not dry_run:
+    if not dry_run and not local_only:
         # This sharp run claims any pending auto-resume: it either finishes the
         # work or schedules a fresh resume when the quota runs out again.
         resume.clear_resume()
 
     report = scan(language=language, limit=limit)
     _state.total = report.repairable
-    logger.info("repair: %d sidecars to restore (dry_run=%s)", report.repairable, dry_run)
+    logger.info(
+        "repair: %d sidecars to restore (dry_run=%s, local_only=%s)",
+        report.repairable,
+        dry_run,
+        local_only,
+    )
 
-    for candidate in report.candidates:
+    # Free restores from a pristine .bak first, then downloads provider by
+    # provider; a spent quota defers that provider only (prod 1.17.0-rc.6:
+    # 3,401 free restores waited behind the first OpenSubtitles refusal).
+    for candidate, outcome in iter_repairs(
+        report.candidates, dry_run=dry_run, local_only=local_only
+    ):
         _state.last_file = candidate.file_path
-        try:
-            outcome = repair_one(candidate, dry_run=dry_run)
-        except QuotaExhaustedError as exc:
+        if outcome.quota_spent and not _state.quota_exhausted:
             _state.quota_exhausted = True
-            logger.warning("repair: provider quota exhausted — stopping: %s", exc)
+            logger.warning("repair: %s — deferring that provider", outcome.detail)
             if not dry_run:
                 # Finish the job without a human: persist a resume and let the
                 # repair_resume scheduler tick restart the pass once the
                 # provider's daily allowance is back.
-                resume_at = resume.schedule_resume(language=language, reset_at=exc.reset_at)
+                resume_at = resume.schedule_resume(language=language, reset_at=outcome.reset_at)
                 _state.resume_at = resume_at.isoformat()
-            break
 
         if outcome.status in ("repaired", "partial"):
             if outcome.status == "repaired":
@@ -126,6 +150,8 @@ def _execute(*, language: str | None, dry_run: bool, limit: int | None) -> None:
             _state.skipped_unprovable += 1
         elif outcome.status == "nothing_to_restore":
             _state.skipped_nothing_to_restore += 1
+        elif outcome.status in DEFERRED:
+            _state.deferred += 1
         else:
             _state.failed += 1
 
@@ -135,11 +161,12 @@ def _execute(*, language: str | None, dry_run: bool, limit: int | None) -> None:
 
     logger.info(
         "repair: finished — %d restored, %d partly (%d from backups, %d re-downloaded), "
-        "%d unprovable, %d failed",
+        "%d unprovable, %d deferred, %d failed",
         _state.repaired,
         _state.partial,
         _state.from_bak,
         _state.from_provider,
         _state.skipped_unprovable,
+        _state.deferred,
         _state.failed,
     )

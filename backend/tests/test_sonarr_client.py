@@ -469,6 +469,36 @@ class TestGetEpisodeMetadata:
         assert result["tvdb_id"] == 78857
         assert result["imdb_id"] == "tt0409591"
 
+    def test_season_scoped_alternate_titles_are_returned(self, client, mock_session):
+        series = {
+            "id": 2,
+            "title": "Strike Witches",
+            "seasons": [{"seasonNumber": 3, "statistics": {"totalEpisodeCount": 12}}],
+            "alternateTitles": [
+                {"title": "Strike Witches - Road to Berlin", "sceneSeasonNumber": 3},
+                {"title": "Strike Witches 2", "seasonNumber": 2},
+                {"title": "Dr Stone", "sceneSeasonNumber": -1},
+                {"title": ""},
+            ],
+        }
+        episode = {
+            "id": 7,
+            "seasonNumber": 3,
+            "episodeNumber": 5,
+            "title": "Queen",
+            "sceneSeasonNumber": 3,
+        }
+        mock_session.get.side_effect = [_ok_response(series), _ok_response(episode)]
+        with patch.dict("sys.modules", {"anidb_mapper": MagicMock(get_anidb_id=lambda **_: None)}):
+            result = client.get_episode_metadata(2, 7)
+        assert result["series_aliases"] == [
+            ("Strike Witches - Road to Berlin", None, 3),
+            ("Strike Witches 2", 2, None),
+            ("Dr Stone", None, -1),
+        ]
+        assert result["scene_season"] == 3
+        assert result["season_size"] == 12
+
     def test_series_not_found(self, client, mock_session):
         mock_session.get.return_value = _error_response(404)
         assert client.get_episode_metadata(999, 100) is None

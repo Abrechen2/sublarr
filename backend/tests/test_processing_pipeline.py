@@ -126,3 +126,17 @@ def test_pipeline_noop_when_no_mods_enabled(tmp_path, monkeypatch):
         _run_pipeline_for_path(str(sub), series_id=None)
 
     assert called == []
+
+
+def test_settings_are_looked_up_when_used_not_when_imported():
+    """A test that imports this module inside patch("config.get_settings") must
+    not leave it reading the mock forever (xdist order made the noop test above
+    fail once 1.17.0-rc.7 added tests)."""
+    from unittest.mock import MagicMock, patch
+
+    import routes.subtitle_processor as module
+
+    sentinel = MagicMock(name="settings")
+    with patch("config.get_settings", return_value=sentinel):
+        assert module.get_settings() is sentinel
+    assert module.get_settings() is not sentinel

@@ -143,6 +143,15 @@ class VideoQuery:
     # search whenever ``absolute_episode`` is set, and Sonarr's continuous
     # number is not the AniDB number those searches need.
     sonarr_absolute_episode: int | None = None
+    # Sonarr's alternate titles as (title, seasonNumber, sceneSeasonNumber): a
+    # sequel named by its own title ("Strike Witches - Road to Berlin") names
+    # that season. ``scene_season`` is the episode's scene season, which a
+    # scene-scoped alias is compared with (see providers/series_aliases.py).
+    series_aliases: list[tuple[str, int | None, int | None]] = field(default_factory=list)
+    scene_season: int | None = None
+    # How many episodes Sonarr lists for the queried season: a number above it
+    # under the season's own title can only be the absolute number.
+    season_size: int | None = None
 
     # Forced/signs subtitle search
     forced_only: bool = False  # When True, providers filter for forced/signs subtitles

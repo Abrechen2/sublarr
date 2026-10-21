@@ -969,15 +969,16 @@
     "partially_repaired": "Teilweise repariert — selbst bearbeitete Zeilen enthalten noch „�“ und müssen von Hand korrigiert werden",
     "safety": "Es wird nichts überschrieben, ohne dass der alte Fehler-Code aus dem Original exakt die Datei auf deiner Platte erzeugt — erst das beweist, dass es das richtige Original ist und du die Datei nicht selbst bearbeitet hast. Lässt sich das nicht zeigen, bleibt die Datei unangetastet. Die Synchronisation bleibt erhalten. Bei „�“-Dateien wird jede Zeile einzeln geprüft: Nur wenn sie bis auf die „�“ exakt mit dem Original übereinstimmt, werden die Buchstaben übernommen — selbst bearbeitete Zeilen bleiben, wie sie sind.",
     "dry_run": "Testlauf",
-    "dry_run_limit": "Limit",
-    "quota_note": "Beide Läufe laden jede geprüfte Datei beim Anbieter neu herunter und verbrauchen dessen Tageskontingent (z. B. 1.000 Downloads/Tag bei OpenSubtitles). Der Testlauf speichert dabei keine Ergebnisse — was er prüft, lädt ein späterer Lauf noch einmal. Er ist deshalb auf das eingestellte Limit begrenzt. Die Reparatur merkt sich jeden Fortschritt und setzt nach erschöpftem Kontingent automatisch fort.",
+    "quota_note": "Der Testlauf lädt nichts herunter: Er zeigt, was sich kostenlos aus Sicherungen reparieren lässt und was einen Download beim Anbieter bräuchte. „Nur aus Sicherungen“ repariert ohne jedes Anbieter-Kontingent. „Reparatur starten“ stellt zuerst alle Sicherungen wieder her und lädt danach neu herunter (z. B. 1.000 Downloads/Tag bei OpenSubtitles). Ist das Kontingent eines Anbieters aufgebraucht, macht sie mit den anderen weiter und setzt automatisch fort.",
     "start": "Reparatur starten",
     "restored": "Repariert",
     "partial": "Teilweise repariert",
     "failed": "Fehlgeschlagen",
     "quota_exhausted": "Das Tageskontingent des Anbieters ist aufgebraucht. Der nächste Lauf macht dort weiter, wo dieser aufgehört hat.",
     "quota_resume": "Das Tageskontingent des Anbieters ist aufgebraucht. Der Lauf setzt am {{time}} automatisch fort — nichts wird doppelt heruntergeladen.",
-    "unprovable": "Nicht beweisbar (übersprungen)"
+    "unprovable": "Nicht beweisbar (übersprungen)",
+    "start_local": "Nur aus Sicherungen",
+    "deferred": "Verschoben (Download nötig)"
   },
   "score_breakdown": {
     "title": "Score-Aufschlüsselung",
