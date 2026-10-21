@@ -139,3 +139,27 @@ def test_a_dry_run_downloads_nothing(app_ctx, mixed):
     assert calls == []
     statuses = _statuses(run)
     assert statuses["B"] == "repaired" and statuses["A"] == "would_download"
+
+
+def test_a_file_that_cannot_be_written_fails_alone(app_ctx, mixed):
+    # RC tier 1.17.0-rc.7: one PermissionError on the first write ended the
+    # whole pass ("error": "[Errno 13] Permission denied"), 0 of 22 done.
+    from utils.atomic_write import atomic_write_bytes
+
+    first = {"seen": False}
+
+    def write(path, data):
+        if not first["seen"]:
+            first["seen"] = True
+            raise PermissionError(13, "Permission denied", path)
+        atomic_write_bytes(path, data)
+
+    with (
+        patch("utils.atomic_write.atomic_write_bytes", side_effect=write),
+        patch("services.repair.runner._record_repair"),
+    ):
+        run = run_repair(mixed, local_only=True)
+
+    statuses = sorted(o.status for o in run.outcomes)
+    assert statuses == ["deferred", "deferred", "deferred", "error", "repaired"]
+    assert run.failed == 1 and run.repaired == 1

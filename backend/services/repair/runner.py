@@ -268,7 +268,12 @@ def repair_one(
     # Gate 3 — atomic write, then remember it so it is never repaired twice.
     from utils.atomic_write import atomic_write_bytes
 
-    atomic_write_bytes(candidate.file_path, repaired)
+    try:
+        atomic_write_bytes(candidate.file_path, repaired)
+    except OSError as exc:
+        # One unwritable folder must not end the pass for every other file.
+        logger.warning("repair: cannot write %s: %s", candidate.file_path, exc)
+        return RepairOutcome(candidate.file_path, "error", f"write failed: {exc}")
     _record_repair(candidate, repaired_hash=content_hash(candidate.file_path) or "", status=status)
     logger.info("repair: restored %s (%s)", candidate.file_path, detail)
     return RepairOutcome(candidate.file_path, status, detail)

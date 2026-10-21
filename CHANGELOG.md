@@ -26,7 +26,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   Every file a pristine backup can restore is repaired first, without any
   download; "Backups only" stops there and leaves the provider allowance to
   the wanted search. When one provider's daily allowance runs out, the pass
-  carries on with the others, and a dry run downloads nothing.
+  carries on with the others, and a dry run downloads nothing. A file that
+  cannot be written fails on its own instead of ending the pass.
 
 - **Find subtitles of another episode that are already saved** — Subtitles
   saved before the new episode check (for example season 1's twelfth episode
