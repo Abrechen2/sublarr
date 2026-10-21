@@ -217,11 +217,23 @@ class TestProdFalseAlarms:
         sonarr.get_episodes.assert_called_once_with(7)
 
 
-def test_a_bare_number_is_checked_against_sonarrs_absolute(sonarr_library):
-    # Without Sonarr "- 12" may be S02E12; Sonarr says S02E12 is absolute 24.
+def test_sonarr_never_turns_a_bare_number_into_a_finding(sonarr_library):
+    # A sequel numbers its season in the title ("Psycho-Pass 2 - 01" for S02E01,
+    # absolute 23); Sonarr's absolute alone cannot tell it from season 1's first.
     folder, sonarr = sonarr_library
     sonarr.get_episodes.return_value = [
-        {"seasonNumber": 2, "episodeNumber": 12, "absoluteEpisodeNumber": 24, "title": "Finale"}
+        {"seasonNumber": 2, "episodeNumber": 1, "absoluteEpisodeNumber": 23, "title": "Scales"}
     ]
-    video = _download(folder, "Clevatess - S02E12", "[SubsPlease] Clevatess - 12 (1080p)")
+    _download(folder, "Psycho-Pass - S02E01", "[Erai-raws] Psycho-Pass 2 - 01 ~ 11 [1080p]")
+    assert scan_wrong_episodes() == []
+
+
+def test_sonarrs_absolute_confirms_an_explicit_contradiction(sonarr_library):
+    # S01E17 for S16E10 may look like absolute numbering without Sonarr; Sonarr
+    # says S16E10 is absolute 266, so it is season 1's seventeenth.
+    folder, sonarr = sonarr_library
+    sonarr.get_episodes.return_value = [
+        {"seasonNumber": 16, "episodeNumber": 10, "absoluteEpisodeNumber": 266, "title": "Wild"}
+    ]
+    video = _download(folder, "American Dad! - S16E10", "American Dad S01E17 Rough Trade")
     assert [f.video for f in scan_wrong_episodes()] == [video]

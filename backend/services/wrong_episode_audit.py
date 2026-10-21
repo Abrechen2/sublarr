@@ -170,7 +170,7 @@ def _bare_split_cour(*names: str) -> bool:
 
 def _finding_for(row, sonarr: _SonarrEpisodes) -> WrongEpisodeFinding | None:
     from providers.base import SubtitleFormat, SubtitleResult, VideoQuery
-    from providers.episode_gate import episode_gate_reason, parse_claims
+    from providers.episode_gate import episode_gate_reason
     from services.suspect_sidecars import is_suspect_sidecar
 
     numbering = _video_numbering(row.file_path)
@@ -195,10 +195,11 @@ def _finding_for(row, sonarr: _SonarrEpisodes) -> WrongEpisodeFinding | None:
     )
     query = VideoQuery(file_path=row.file_path, season=season, episode=episode)
     reason = episode_gate_reason(result, query)
-    # Without Sonarr's absolute number a bare "- 12" may be S02E12; with it,
-    # it may turn out to be season 1's twelfth, so bare numbers are looked up too.
-    bare = any(parse_claims(name).bare for name in (filename, release) if name)
-    if not (reason.startswith("names ") or bare) or _bare_split_cour(filename, release):
+    # Sonarr only clears a contradiction here, it never raises one: "Psycho-Pass 2
+    # - 01" or "Bahamut Genesis - 01" number the sequel's season in its title, so
+    # a bare number Sonarr's absolute rejects is still often the right episode
+    # (prod 1.17.0-rc.5: 140 such false findings).
+    if not reason.startswith("names ") or _bare_split_cour(filename, release):
         return None
     absolute, title = sonarr.lookup(row.file_path, season, episode)
     if absolute is not None or title:
