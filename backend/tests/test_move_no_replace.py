@@ -4,6 +4,7 @@ Codex review of 1.17.0-rc.11: an exists-check before ``shutil.move`` leaves a
 window in which a subtitle saved meanwhile is replaced for good.
 """
 
+import contextlib
 import errno
 import os
 from unittest.mock import patch
@@ -137,3 +138,23 @@ def test_a_failed_close_leaves_no_partial_file(tmp_path):
 
     assert not dst.exists()
     assert src.read_bytes() == b"alt"
+
+
+@pytest.mark.parametrize("links", [True, False])
+def test_a_symlink_source_is_refused(tmp_path, links):
+    """Security review: copying through a planted link would read its target."""
+    secret = tmp_path / "secret"
+    secret.write_bytes(b"geheim")
+    src, dst = tmp_path / "a.srt.quality.json", tmp_path / "media" / "a.srt.quality.json"
+    dst.parent.mkdir()
+    src.symlink_to(secret)
+    share = (
+        contextlib.nullcontext()
+        if links
+        else patch("utils.atomic_write.os.link", side_effect=OSError(errno.EXDEV, "x"))
+    )
+    with share, pytest.raises(OSError):
+        move_no_replace(str(src), str(dst))
+
+    assert not dst.exists()
+    assert src.is_symlink()

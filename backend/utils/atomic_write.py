@@ -232,15 +232,20 @@ def move_no_replace(src: str, dst: str) -> None:
     moment ago: an exists-check before ``shutil.move`` leaves a window in which
     a subtitle saved meanwhile is overwritten for good. A hard link (or, where
     the share cannot link, an exclusive create) fails instead of replacing.
+
+    A symlink at ``src`` is refused: copying through it would read whatever
+    it points at (the trash lives on a share users can write to).
     """
+    if os.path.islink(src):
+        raise OSError(errno.ELOOP, "refusing to move a symlink", src)
     try:
-        os.link(src, dst)
+        os.link(src, dst, follow_symlinks=False)
     except FileExistsError:
         raise
     except OSError as exc:
         if exc.errno not in _NO_LINK_ERRNOS:
             raise
-        with open(src, "rb") as reader:
+        with open(os.open(src, os.O_RDONLY | getattr(os, "O_NOFOLLOW", 0)), "rb") as reader:
             writer = open(dst, "xb")  # noqa: SIM115 — closed inside the cleanup scope
             ours = os.fstat(writer.fileno())
             try:

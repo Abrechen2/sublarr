@@ -315,7 +315,7 @@ def restore_trash_batch(batch_id: str):
 
         # Restore .quality.json sidecar if it was trashed
         quality_trashed = trashed + ".quality.json"
-        if os.path.exists(quality_trashed):
+        if os.path.exists(quality_trashed) and is_safe_path(quality_trashed, trash_root):
             try:
                 move_no_replace(quality_trashed, original + ".quality.json")
             except OSError:
