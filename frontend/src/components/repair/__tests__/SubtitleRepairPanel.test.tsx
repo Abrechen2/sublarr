@@ -26,6 +26,7 @@ const scan = {
   untouched: 0,
   missing_from_disk: 0,
   unresolvable: 0,
+  quarantined: 0,
   already_repaired: 0,
   partially_repaired: 0,
   partially_repaired_files: [],

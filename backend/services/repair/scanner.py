@@ -36,6 +36,7 @@ from dataclasses import dataclass, field
 from sqlalchemy import text as sql
 
 from extensions import db
+from services.suspect_sidecars import is_suspect_sidecar
 
 # <stem>.<lang>[.<modifier>].<ext> — the shape Sublarr writes sidecars in.
 _SIDECAR_RE = re.compile(
@@ -69,6 +70,8 @@ class ScanReport:
     #: Repaired as far as provable; cues edited since the download keep their
     #: "�". Listed, not offered again: a re-download proves nothing more.
     partially_repaired: list[str] = field(default_factory=list)
+    #: Quarantined as another episode's subtitle — replaced, not repaired.
+    quarantined: int = 0
 
     @property
     def repairable(self) -> int:
@@ -166,7 +169,7 @@ def scan(language: str | None = None, limit: int | None = None) -> ScanReport:
 
     candidates: list[RepairCandidate] = []
     partial: list[str] = []
-    untouched = missing = unresolvable = already = 0
+    untouched = missing = unresolvable = already = quarantined = 0
 
     for path, stored_hash, lang, fmt in rows:
         if not os.path.exists(path):
@@ -209,6 +212,10 @@ def scan(language: str | None = None, limit: int | None = None) -> ScanReport:
             unresolvable += 1
             continue
 
+        if is_suspect_sidecar(path):
+            quarantined += 1
+            continue
+
         provider, subtitle_id = hit
         candidates.append(
             RepairCandidate(
@@ -231,4 +238,5 @@ def scan(language: str | None = None, limit: int | None = None) -> ScanReport:
         unresolvable=unresolvable,
         already_repaired=already,
         partially_repaired=partial,
+        quarantined=quarantined,
     )

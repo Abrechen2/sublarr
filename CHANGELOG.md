@@ -28,6 +28,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   the wanted search. When one provider's daily allowance runs out, the pass
   carries on with the others, and a dry run downloads nothing. A file that
   cannot be written fails on its own instead of ending the pass.
+  A sidecar quarantined as another episode's subtitle is left alone: the
+  repair used to restore it from its backup, which made the wrong subtitle
+  look genuine again.
 
 - **Find subtitles of another episode that are already saved** — Subtitles
   saved before the new episode check (for example season 1's twelfth episode
@@ -39,7 +42,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   release whose title Sonarr assigns to another season is listed too
   (``Dr Stone - Science Future - 10``, season 4, saved for S03E10). Each is
   blocked for that episode only, its file stays until a replacement is saved,
-  and the series is rescanned once.
+  and the series is rescanned once. The episode stays in the wanted list
+  until then: a wanted scan used to drop it again because the quarantined
+  subtitle was still on disk. The same bytes from another provider are
+  rejected instead of counted as a duplicate, the fallback translation no
+  longer takes the quarantined file for an existing subtitle, and the health
+  check's automatic fixes leave it alone.
 
 ### Fixed
 - **The subtitle repair works on SQLite installs** — Scanning for damaged

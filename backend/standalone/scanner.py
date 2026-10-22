@@ -517,9 +517,11 @@ class StandaloneScanner(_StandaloneProcessMixin):
         """
         try:
             from ass_probe import has_target_language_stream
+            from services.suspect_sidecars import existing_ignoring_suspects
             from translator import detect_existing_target_for_lang
 
             sidecar = detect_existing_target_for_lang(file_path, target_lang)
+            sidecar = existing_ignoring_suspects(file_path, target_lang, sidecar)
             if sidecar == "ass":
                 return "ass"
             probe_data = _probe_embedded_tracks(file_path)

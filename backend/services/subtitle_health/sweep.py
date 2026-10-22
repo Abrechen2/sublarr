@@ -9,6 +9,7 @@ from services.scheduler.cancellation import abort_requested
 from services.subtitle_health import store
 from services.subtitle_health.apply import apply_fix
 from services.subtitle_health.scan import scan_episode
+from services.suspect_sidecars import is_suspect_sidecar
 from sonarr_client import get_sonarr_client
 
 logger = logging.getLogger(__name__)
@@ -94,6 +95,10 @@ def subtitle_health_sweep_tick() -> None:
                 if finding.get("target_kind") != "sidecar":
                     continue  # auto-fix never touches embedded streams
                 if not _is_stable(finding.get("target_path", "")):
+                    continue
+                if is_suspect_sidecar(finding.get("target_path", "")):
+                    # Quarantined as another episode's subtitle: a rewrite
+                    # would move its bytes off the flag (see suspect_sidecars).
                     continue
                 try:
                     apply_fix(finding["id"], action)

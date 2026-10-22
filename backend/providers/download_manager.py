@@ -602,6 +602,7 @@ def save_subtitle(
         )
 
     # Duplicate detection: skip write if identical content already exists on disk
+    suspect_duplicate = None
     try:
         from config import get_settings as _get_settings_dedup
         from db.repositories.cleanup import CleanupRepository
@@ -634,7 +635,14 @@ def save_subtitle(
                 repo.delete_hashes_by_paths(stale_paths)
                 logger.debug("Cleaned %d stale hash entries", len(stale_paths))
 
-            if duplicate_path:
+            from services.suspect_sidecars import is_suspect_sidecar
+
+            if duplicate_path and is_suspect_sidecar(duplicate_path):
+                # The very bytes quarantined as another episode's subtitle,
+                # from another provider. Not a duplicate of a good subtitle:
+                # the caller would drop the wanted item as served.
+                suspect_duplicate = duplicate_path
+            elif duplicate_path:
                 logger.info(
                     "Duplicate subtitle skipped: hash %s already at %s",
                     content_hash[:12],
@@ -645,6 +653,12 @@ def save_subtitle(
         raise
     except Exception as e:
         logger.debug("Dedup check skipped: %s", e)
+    if suspect_duplicate:
+        raise RuntimeError(
+            "Downloaded subtitle rejected — identical to "
+            f"{os.path.basename(suspect_duplicate)}, quarantined as another episode's "
+            f"subtitle (provider={result.provider_name}, id={result.subtitle_id})"
+        )
 
     # Create directory with error handling
     try:

@@ -149,6 +149,7 @@ def test_scan_counts_an_encoding_candidate_as_a_download(client):
         untouched=0,
         missing_from_disk=0,
         unresolvable=0,
+        quarantined=0,
         already_repaired=0,
         partially_repaired=[],
     )

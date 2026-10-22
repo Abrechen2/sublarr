@@ -55,6 +55,7 @@ def scan_damaged():
             "untouched": report.untouched,
             "missing_from_disk": report.missing_from_disk,
             "unresolvable": report.unresolvable,
+            "quarantined": report.quarantined,
             "already_repaired": report.already_repaired,
             "partially_repaired": len(report.partially_repaired),
             "partially_repaired_files": report.partially_repaired[:50],

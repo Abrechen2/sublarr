@@ -23,6 +23,7 @@ from config import get_settings
 from db.activity import log_activity
 from db.models.activity import EVENT_SCAN
 from services.scheduler.cancellation import abort_requested
+from services.suspect_sidecars import existing_ignoring_suspects
 from services.wanted_item_scanner import scan_radarr_movie, scan_sonarr_series
 from services.wanted_scanner_scheduler import (  # noqa: F401 — re-exported for back-compat
     _WantedSchedulerMixin,
@@ -359,6 +360,8 @@ class WantedScanner(_WantedSchedulerMixin, _WantedScanSourcesMixin):
             settings = get_settings()
             if target_lang:
                 existing = detect_existing_target_for_lang(path, target_lang)
+                # A quarantined sidecar is not the subtitle the item waits for.
+                existing = existing_ignoring_suspects(path, target_lang, existing)
             else:
                 from translator import detect_existing_target
 

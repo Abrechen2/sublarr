@@ -192,6 +192,16 @@ def repair_one(
     A dry run and a local-only pass never download: a candidate whose original
     is only at the provider comes back "would_download" / "deferred".
     """
+    from services.suspect_sidecars import is_suspect_sidecar
+
+    # Quarantined as another episode's subtitle: its replacement is on the way,
+    # and rewriting the bytes would move them off the suspect flag — the wrong
+    # file would read as genuine again (prod 1.17.0-rc.8: 14 of 228).
+    if is_suspect_sidecar(candidate.file_path):
+        return RepairOutcome(
+            candidate.file_path, "unavailable", "quarantined as another episode's subtitle"
+        )
+
     try:
         original, source = obtain_original(candidate, allow_download=not (dry_run or local_only))
     except _DownloadNotAllowedError:

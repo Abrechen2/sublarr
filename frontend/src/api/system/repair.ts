@@ -6,6 +6,8 @@ export interface RepairScan {
   untouched: number
   missing_from_disk: number
   unresolvable: number
+  /** Quarantined as another episode's subtitle — replaced, never repaired. */
+  quarantined: number
   already_repaired: number
   /** Repaired as far as provable; edited lines still carry "�". */
   partially_repaired: number
