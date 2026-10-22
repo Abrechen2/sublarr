@@ -141,7 +141,12 @@ def translate_file(
     probe_data = _get_media_streams(mkv_path)
 
     if not force:
+        from services.suspect_sidecars import existing_ignoring_suspects
+
         target_status = detect_existing_target_for_lang(mkv_path, tgt_lang, probe_data)
+        # A sidecar quarantined as another episode's subtitle is what this
+        # translation is to replace; "already exists" would end the search.
+        target_status = existing_ignoring_suspects(mkv_path, tgt_lang, target_status)
     else:
         target_status = None
 

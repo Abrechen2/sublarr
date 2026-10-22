@@ -45,9 +45,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   and the series is rescanned once. The episode stays in the wanted list
   until then: a wanted scan used to drop it again because the quarantined
   subtitle was still on disk. The same bytes from another provider are
-  rejected instead of counted as a duplicate, the fallback translation no
-  longer takes the quarantined file for an existing subtitle, and the health
-  check's automatic fixes leave it alone.
+  rejected instead of counted as a duplicate, neither the fallback translation
+  nor the translator itself takes the quarantined file for an existing
+  subtitle (a translation queued from a downloaded source used to answer
+  "already exists" and close the episode), and the health check's automatic
+  fixes leave it alone.
 
 ### Fixed
 - **The subtitle repair works on SQLite installs** — Scanning for damaged

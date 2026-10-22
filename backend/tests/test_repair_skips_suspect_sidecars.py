@@ -195,3 +195,27 @@ def test_health_sweep_does_not_auto_fix_a_quarantined_sidecar(app_ctx):
         sweep.subtitle_health_sweep_tick()
 
     fix.assert_not_called()
+
+
+def test_translation_does_not_skip_over_a_quarantined_ass(episode, no_arr):  # noqa: F811
+    """Prod rc.9 (2026-10-22): 23 quarantined episodes lost their wanted item.
+
+    The search downloaded an English source and queued its translation; the
+    translator found the quarantined German ASS, answered "already exists" and
+    the fallback deleted the item as satisfied.
+    """
+    from translator import translate_file
+
+    video, sidecar = episode
+    with patch("translator.get_media_streams", return_value={"streams": []}):
+        assert translate_file(video, target_language="de")["stats"].get("skipped")
+
+        _quarantine(video, sidecar)
+        with (
+            patch("translator.core.find_any_source_sub", return_value=(None, None)) as source,
+            patch("translator.core._search_providers_for_source_sub", return_value=(None, None, None, None)),
+        ):
+            result = translate_file(video, target_language="de")
+
+    source.assert_called()
+    assert "already exists" not in (result.get("stats") or {}).get("reason", "")
