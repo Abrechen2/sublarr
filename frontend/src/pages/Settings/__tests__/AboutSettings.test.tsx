@@ -133,4 +133,13 @@ describe('AboutSettings', () => {
     expect(link).toHaveAttribute('target', '_blank')
     expect(screen.getByTestId('usage-stats-controller')).toHaveTextContent('Controller: Dennis Wittke')
   })
+
+  // ── abrechen2 credit ────────────────────────────────────────────────────
+
+  it('credits abrechen2 next to the version info', () => {
+    renderWithProviders(<AboutSettings />)
+    const link = screen.getByRole('link', { name: 'A project by abrechen2' })
+    expect(link).toHaveAttribute('href', 'https://www.abrechen2.de/en/')
+    expect(screen.getByTestId('section-version')).toContainElement(link)
+  })
 })

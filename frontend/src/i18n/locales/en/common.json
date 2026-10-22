@@ -1007,5 +1007,9 @@
     "media_root_unreachable": "media folder unreachable",
     "empty_keep_languages": "no languages to keep configured — sweep refuses to run",
     "probe_failures": "several files in a row could not be read — paused"
+  },
+  "about": {
+    "credit_prefix": "A project by",
+    "credit_url": "https://www.abrechen2.de/en/"
   }
 }

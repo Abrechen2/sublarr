@@ -11,6 +11,7 @@ import { SettingsSection } from '@/components/settings/SettingsSection'
 import { FormLayout } from '@/components/settings/layouts'
 import type { FormSectionDef } from '@/components/settings/layouts'
 import { getHealth } from '@/api/client'
+import { AbrechenCredit } from '@/components/brand/AbrechenCredit'
 
 // Settings Template B (FormLayout) — Codex-named reference for an info-heavy
 // page. titleKeys reuse the existing about_page.*_title strings (the
@@ -84,6 +85,9 @@ export function AboutSettings() {
               >
                 <Sparkles size={13} /> {tc('whatsnew.title', { version: wnVersion ?? version })}
               </button>
+            </div>
+            <div className="mt-3">
+              <AbrechenCredit />
             </div>
           </SettingsSection>
 
