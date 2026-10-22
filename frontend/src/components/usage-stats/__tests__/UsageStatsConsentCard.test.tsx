@@ -29,7 +29,7 @@ describe('UsageStatsConsentCard', () => {
     render(<UsageStatsConsentCard />)
     expect(screen.getByTestId('usage-stats-privacy-link')).toHaveAttribute(
       'href',
-      'https://sublarr.de/datenschutz/#nutzungsstatistik',
+      'https://www.abrechen2.de/sublarr/datenschutz/#nutzungsstatistik',
     )
     expect(screen.getByTestId('usage-stats-controller')).toHaveTextContent(
       'Verantwortlich: Dennis Wittke',
@@ -43,7 +43,7 @@ describe('UsageStatsConsentCard', () => {
     render(<UsageStatsConsentCard />)
     expect(screen.getByTestId('usage-stats-privacy-link')).toHaveAttribute(
       'href',
-      'https://sublarr.de/en/privacy/#usage-statistics',
+      'https://www.abrechen2.de/en/sublarr/privacy/#usage-statistics',
     )
     expect(screen.getByTestId('usage-stats-controller')).toHaveTextContent(
       'Controller: Dennis Wittke',

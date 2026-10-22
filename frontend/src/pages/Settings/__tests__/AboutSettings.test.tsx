@@ -129,7 +129,7 @@ describe('AboutSettings', () => {
     expect(screen.getByTestId('usage-stats-toggle')).toBeInTheDocument()
     expect(screen.getAllByText('Usage statistics').length).toBeGreaterThan(0)
     const link = screen.getByTestId('usage-stats-privacy-link')
-    expect(link).toHaveAttribute('href', 'https://sublarr.de/en/privacy/#usage-statistics')
+    expect(link).toHaveAttribute('href', 'https://www.abrechen2.de/en/sublarr/privacy/#usage-statistics')
     expect(link).toHaveAttribute('target', '_blank')
     expect(screen.getByTestId('usage-stats-controller')).toHaveTextContent('Controller: Dennis Wittke')
   })
