@@ -909,8 +909,8 @@
       "load_desc": "Die Oberfläche wird vorkomprimiert ausgeliefert (rund 77% kleiner) und dauerhaft gecacht — der erste Aufruf jeder Seite ist spürbar schneller.",
       "load2_title": "Weniger Hintergrundlast",
       "load2_desc": "Die Oberfläche pollt seltener und nutzt WebSocket als primären Kanal für Logs und Budget.",
-      "stats_title": "Anonyme Nutzungsstatistik (opt-in)",
-      "stats_desc": "Optional und DSGVO-first: anonyme, grob zusammengefasste Nutzungsdaten helfen bei der Weiterentwicklung. Standardmäßig aus."
+      "stats_title": "Nutzungsstatistik (opt-in)",
+      "stats_desc": "Optional und DSGVO-first: pseudonyme, grob zusammengefasste Nutzungsdaten helfen bei der Weiterentwicklung. Standardmäßig aus."
     },
     "v160": {
       "combined_title": "Kombinierte Untertitel",
@@ -928,12 +928,15 @@
     }
   },
   "usageStats": {
-    "title": "Anonyme Nutzungsstatistik senden?",
-    "body": "Hilf Sublarr besser zu werden: sende anonym Version, Plattform, aktive Provider, welche Funktionen du nutzt und grobe Größen-Kategorien deiner Library. Keine IP, keine Pfade, keine Titel, keine Schlüssel. Opt-in, standardmäßig aus — jederzeit in den Einstellungen abschaltbar; beim Abschalten werden deine Daten gelöscht.",
+    "title": "Nutzungsstatistik senden?",
+    "body": "Hilf Sublarr besser zu werden: sende datensparsam Version, Plattform, aktive Provider, welche Funktionen du nutzt und grobe Größen-Kategorien deiner Library. Die Berichte sind über eine zufällige Installations-ID verknüpft, also pseudonym. Keine IP-Speicherung, keine Pfade, keine Titel, keine Schlüssel. Opt-in, standardmäßig aus — jederzeit in den Einstellungen abschaltbar; beim Abschalten werden deine Daten gelöscht.",
     "whatIsSent": "Was wird gesendet?",
-    "accept": "Ja, anonym teilen",
+    "accept": "Ja, teilen",
     "decline": "Nein danke",
-    "settingLabel": "Anonyme Nutzungsstatistik"
+    "settingLabel": "Nutzungsstatistik",
+    "privacyLink": "Datenschutzerklärung",
+    "privacyUrl": "https://sublarr.de/datenschutz/#nutzungsstatistik",
+    "controller": "Verantwortlich: Dennis Wittke"
   },
   "repair": {
     "title": "Beschädigte Untertitel reparieren",

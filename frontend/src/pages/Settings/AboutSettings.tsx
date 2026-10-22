@@ -2,6 +2,7 @@ import { Heart, Github, AlertCircle, Info, MessageCircle, Users, Sparkles, BarCh
 import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { useUsageStatsConsent } from '@/hooks/useUsageStatsConsent'
+import { UsageStatsLegalNote } from '@/components/usage-stats/UsageStatsLegalNote'
 import { WhatsNewModal } from '@/components/layout/WhatsNewModal'
 import { WHATS_NEW, versionKey } from '@/content/whatsNew'
 import { useTranslation } from 'react-i18next'
@@ -86,7 +87,7 @@ export function AboutSettings() {
             </div>
           </SettingsSection>
 
-          {/* ── Anonymous usage statistics (opt-in) ─────────────────────── */}
+          {/* ── Usage statistics (opt-in, pseudonymous) ─────────────────── */}
           <SettingsSection
             title={tc('usageStats.settingLabel')}
             description={tc('usageStats.body')}
@@ -108,6 +109,9 @@ export function AboutSettings() {
                 {tc('usageStats.settingLabel')}
               </span>
             </label>
+            <div className="mt-2">
+              <UsageStatsLegalNote />
+            </div>
           </SettingsSection>
         </div>
         </section>

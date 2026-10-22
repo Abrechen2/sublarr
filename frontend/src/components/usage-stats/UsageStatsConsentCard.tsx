@@ -1,8 +1,9 @@
 import { useTranslation } from 'react-i18next'
 import { useUsageStatsConsent } from '@/hooks/useUsageStatsConsent'
+import { UsageStatsLegalNote } from './UsageStatsLegalNote'
 
 /**
- * Opt-in consent card for anonymous usage statistics. Reused in onboarding,
+ * Opt-in consent card for pseudonymous usage statistics. Reused in onboarding,
  * the What's-New modal (existing installs), and Settings. "No" carries equal
  * visual weight — no dark pattern.
  */
@@ -31,6 +32,7 @@ export function UsageStatsConsentCard({
       >
         {t('usageStats.whatIsSent')}
       </a>
+      <UsageStatsLegalNote />
       <div className="flex gap-2 pt-1">
         <button
           data-testid="usage-stats-accept"
