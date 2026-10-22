@@ -136,6 +136,12 @@ class WantedScanner(_WantedSchedulerMixin, _WantedScanSourcesMixin):
             )
 
             since = self._last_scan_timestamp if is_incremental else None
+            if not is_incremental:
+                # Files quarantined while they were still kept on disk: out of
+                # the folder, so the scan below and every job after it sees none.
+                from services.suspect_sidecars import trash_quarantined_on_disk
+
+                trash_quarantined_on_disk()
 
             # One source is the unit of work. A stop between sources is safe;
             # a stop *within* one is not, because the cleanup below removes

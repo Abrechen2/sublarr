@@ -167,6 +167,20 @@ def _reset_budget_singleton():
     reset_singleton_for_tests()
 
 
+@pytest.fixture(autouse=True)
+def _reset_suspect_sidecar_cache():
+    """The suspect-sidecar lookup is cached per process for 60 s.
+
+    A test that quarantined something left its flags visible to the next test
+    on the same worker, so "nothing is suspect" depended on test order.
+    """
+    from services import suspect_sidecars
+
+    suspect_sidecars.invalidate_cache()
+    yield
+    suspect_sidecars.invalidate_cache()
+
+
 @pytest.fixture
 def app_ctx(temp_db):
     """Provide Flask application context for DB-layer unit tests."""

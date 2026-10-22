@@ -24,6 +24,7 @@ from routes.subtitles.helpers import (
     scan_subtitle_sidecars,
 )
 from security_utils import is_safe_path
+from utils.atomic_write import move_no_replace
 
 logger = logging.getLogger(__name__)
 
@@ -293,23 +294,30 @@ def restore_trash_batch(batch_id: str):
         # Restore: create parent dirs if needed
         try:
             os.makedirs(os.path.dirname(original), exist_ok=True)
-            shutil.move(trashed, original)
+            # Never over a subtitle saved since (a quarantined file's
+            # replacement, say): shutil.move replaced it silently, and the
+            # batch is deleted once restored. The trashed file stays here.
+            move_no_replace(trashed, original)
             restored += 1
-            # A restored file keeps its old mtime and would otherwise inherit the
-            # newest download record's standing (policy B) — its origin is unknown.
-            from services.subtitle_restore import mark_restored_safely
-
-            mark_restored_safely(original)
+        except FileExistsError:
+            logger.warning("restore: %s exists again, not overwriting it", original)
+            failed += 1
+            continue
         except OSError as exc:
             logger.warning("restore: failed to move %s -> %s: %s", trashed, original, exc)
             failed += 1
             continue
+        # A restored file keeps its old mtime and would otherwise inherit the
+        # newest download record's standing (policy B) — its origin is unknown.
+        from services.subtitle_restore import mark_restored_safely
+
+        mark_restored_safely(original)
 
         # Restore .quality.json sidecar if it was trashed
         quality_trashed = trashed + ".quality.json"
         if os.path.exists(quality_trashed):
             try:
-                shutil.move(quality_trashed, original + ".quality.json")
+                move_no_replace(quality_trashed, original + ".quality.json")
             except OSError:
                 pass
 

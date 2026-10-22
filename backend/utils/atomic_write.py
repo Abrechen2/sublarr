@@ -14,6 +14,7 @@ This mirrors the proven pattern already used by the remux pipeline
 """
 
 import contextlib
+import errno
 import logging
 import os
 import re
@@ -28,6 +29,7 @@ __all__ = [
     "atomic_write_bytes",
     "atomic_write_via",
     "atomic_save_subs",
+    "move_no_replace",
     "sweep_orphaned_temps",
 ]
 
@@ -215,3 +217,46 @@ def atomic_save_subs(subs, path: str, **save_kwargs) -> None:
     Forwards ``save_kwargs`` (e.g. ``format_``, ``encoding``) to ``subs.save``.
     """
     atomic_write_via(path, lambda tmp: subs.save(tmp, **save_kwargs))
+
+
+#: link() refusals that mean "this share cannot hard-link", not "dst exists".
+_NO_LINK_ERRNOS = frozenset(
+    {errno.EXDEV, errno.EPERM, errno.EACCES, errno.ENOTSUP, errno.EOPNOTSUPP, errno.EMLINK}
+)
+
+
+def move_no_replace(src: str, dst: str) -> None:
+    """Move ``src`` to ``dst`` without ever replacing a file at ``dst``.
+
+    Raises ``FileExistsError`` when ``dst`` exists, also when it appeared a
+    moment ago: an exists-check before ``shutil.move`` leaves a window in which
+    a subtitle saved meanwhile is overwritten for good. A hard link (or, where
+    the share cannot link, an exclusive create) fails instead of replacing.
+    """
+    try:
+        os.link(src, dst)
+    except FileExistsError:
+        raise
+    except OSError as exc:
+        if exc.errno not in _NO_LINK_ERRNOS:
+            raise
+        with open(src, "rb") as reader:
+            writer = open(dst, "xb")  # noqa: SIM115 — closed inside the cleanup scope
+            ours = os.fstat(writer.fileno())
+            try:
+                with writer:  # closing flushes, and can fail (disk full) as well
+                    shutil.copyfileobj(reader, writer)
+            except BaseException:
+                _remove_if_ours(dst, ours)
+                raise
+        with contextlib.suppress(OSError):
+            shutil.copystat(src, dst)  # an old PUID's file may refuse it
+    os.remove(src)
+
+
+def _remove_if_ours(path: str, ours: os.stat_result) -> None:
+    """Remove the half-copied ``path`` unless another file has replaced it since."""
+    with contextlib.suppress(OSError):
+        now = os.stat(path)
+        if (now.st_dev, now.st_ino) == (ours.st_dev, ours.st_ino):
+            os.remove(path)

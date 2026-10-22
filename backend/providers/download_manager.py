@@ -653,6 +653,12 @@ def save_subtitle(
         raise
     except Exception as e:
         logger.debug("Dedup check skipped: %s", e)
+    from services.suspect_sidecars import is_quarantined_content
+
+    if not suspect_duplicate and is_quarantined_content(output_path, result.content):
+        # The quarantined file is in the trash, so the check above has nothing
+        # on disk to match; these are still its bytes.
+        suspect_duplicate = output_path
     if suspect_duplicate:
         raise RuntimeError(
             "Downloaded subtitle rejected — identical to "

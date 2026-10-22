@@ -41,17 +41,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   alone, because only the split of the season says which episode that is. A
   release whose title Sonarr assigns to another season is listed too
   (``Dr Stone - Science Future - 10``, season 4, saved for S03E10). Each is
-  blocked for that episode only, its file stays until a replacement is saved,
-  and the series is rescanned once. The episode stays in the wanted list
-  until then: a wanted scan used to drop it again because the quarantined
-  subtitle was still on disk. The same bytes from another provider are
-  rejected instead of counted as a duplicate, neither the fallback translation
-  nor the translator itself takes the quarantined file for an existing
-  subtitle (a translation queued from a downloaded source used to answer
-  "already exists" and close the episode), and the health check's automatic
-  fixes leave it alone.
+  blocked for that episode only, its file goes to the subtitle trash (one
+  batch you can restore from there), and the series is rescanned once. The
+  episode stays in the wanted list until a replacement is saved, and the same
+  bytes from another provider are refused. Earlier release candidates kept the
+  wrong file next to the video until then, and one job after another took it
+  for an existing subtitle: the wanted scan's cleanup, the translator (a
+  translation queued from a downloaded source answered "already exists" and
+  closed the episode) and the sync. Files quarantined that way are moved to
+  the trash by the next full wanted scan; one you restored yourself stays.
 
 ### Fixed
+- **Restoring from the subtitle trash never overwrites** — A subtitle saved at
+  the same place since it was trashed was replaced by the restored file, and
+  the batch was deleted afterwards, so the newer subtitle was lost for good.
+  The restore now leaves that file alone and keeps the old one in the trash.
 - **The subtitle repair works on SQLite installs** — Scanning for damaged
   subtitles used a query only PostgreSQL understands and failed with a server
   error on every install that keeps its data in SQLite.

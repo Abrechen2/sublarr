@@ -17,16 +17,24 @@ the user edited):
   3. requeues the item (a scan of its Sonarr series / Radarr movie, or a
      plain wanted row when neither knows the file).
 
-The file itself is kept until a replacement lands: one saved under the same
-name replaces it, one saved in the other format retires it
-(:func:`retire_suspect_siblings`). The flag records the SHA-256 of the file it
-was raised on, so only those bytes are suspect: a replacement saved in the
-same second is not (an mtime grace window kept it suspect for good), and the
-same wrong file restored later is again.
+The file itself goes to the subtitle trash (one restorable batch), so no job
+can take it for an existing subtitle any more. Until 1.17.0-rc.11 it stayed on
+disk until a replacement landed, and every job that asks "is there a
+subtitle?" or rewrites one had to check the flag itself; prod 1.17.0 lost
+quarantined episodes through one such job after another (the repair, the wanted
+scan's cleanup, the translator, the sync). Files flagged while they were still
+kept are moved out by :func:`trash_quarantined_on_disk`; a file the trash
+cannot take stays and is still guarded by the flag.
+
+The flag records the SHA-256 of the file it was raised on, so only those bytes
+are suspect: a replacement saved in the same second is not (an mtime grace
+window kept it suspect for good), and the same wrong file saved again is
+refused (:func:`is_quarantined_content`).
 """
 
 from __future__ import annotations
 
+import contextlib
 import hashlib
 import logging
 import os
@@ -227,12 +235,173 @@ def existing_ignoring_suspects(video_path: str, language: str, existing: str | N
     from translator import find_existing_target_file
 
     found = {fmt: find_existing_target_file(video_path, language, fmt) for fmt in _SIDECAR_FORMATS}
-    if not any(found.values()):
-        return existing  # an embedded track, not a sidecar
+    if not found[existing] or not is_suspect_sidecar(found[existing]):
+        # The answer came from a genuine sidecar, or from an embedded track:
+        # an embedded ASS next to an SRT sidecar reads "ass" and must stay so
+        # (it read "srt" whenever anything at all was suspect).
+        return existing
     for fmt in _SIDECAR_FORMATS:
         if found[fmt] and not is_suspect_sidecar(found[fmt]):
             return fmt
     return None
+
+
+def is_quarantined_content(path: str, content: bytes) -> bool:
+    """True when ``content`` is a file quarantined for the video ``path`` belongs to.
+
+    The flagged file is in the trash, so the duplicate check finds nothing on
+    disk to compare against; another provider serving the same bytes would
+    otherwise save the wrong subtitle again. Matched per video, not per name:
+    the same bytes quarantined as ``.ger.ass`` must not return as ``.de.ass``.
+    """
+    suspects = _suspects()
+    if not suspects:
+        return False
+    stem = _video_stem_of(path)
+    digest = hashlib.sha256(content).hexdigest()
+    return any(
+        flag.digest == digest
+        for flagged, flags in suspects.items()
+        if _video_stem_of(flagged) == stem
+        for flag in flags
+    )
+
+
+def _put_back(trashed: str, original: str) -> bool:
+    """Move ``trashed`` back to ``original`` unless something is there now."""
+    from utils.atomic_write import move_no_replace
+
+    try:
+        move_no_replace(trashed, original)
+    except FileExistsError:
+        return False
+    with contextlib.suppress(OSError):
+        move_no_replace(trashed + ".quality.json", original + ".quality.json")
+    return True
+
+
+def _holds_flagged_bytes(original: str, trashed: str) -> bool:
+    """Whether the file moved out of ``original`` is the one that was flagged there."""
+    return any(_flag_holds(trashed, flag) for flag in _suspects().get(_norm(original), ()))
+
+
+def _trash(sidecars: list[str], *, notify: bool = True) -> list[str]:
+    """Move ``sidecars`` into one restorable trash batch; returns those quarantined.
+
+    The batch's manifest names a file before the file is moved: a batch
+    without one never shows on the trash page, so a move it does not record
+    would lose the file. A file whose entry cannot be written is not moved.
+
+    Each file is checked after the move, not before: what was moved is what
+    was at the path then, so a replacement saved in between is never taken
+    for the quarantined file. It goes straight back, or — if yet another file
+    landed there — stays restorable in the batch. Never raises: a file the
+    trash refuses stays where it is, still flagged.
+    """
+    if not sidecars:
+        return []
+    in_trash: list[dict] = []
+    quarantined: list[str] = []
+    try:
+        import shutil
+        import uuid
+
+        from config import get_settings
+        from services.sidecar_trash import get_batch_dir, trash_sidecar, write_manifest
+
+        media_path = getattr(get_settings(), "media_path", "/media")
+        batch_id = uuid.uuid4().hex
+        batch_dir = get_batch_dir(media_path, batch_id)
+        for sidecar in sidecars:
+            # A fresh batch of one folder's files: no name collides, so this is
+            # where trash_sidecar puts it.
+            planned = {
+                "original": sidecar,
+                "trashed": os.path.join(batch_dir, os.path.basename(sidecar)),
+            }
+            try:
+                write_manifest(batch_dir, batch_id, [*in_trash, planned])
+            except OSError as exc:
+                logger.warning("suspect sidecar: no trash manifest, %s stays: %s", sidecar, exc)
+                break
+            trashed, error = trash_sidecar(sidecar, media_path, batch_dir)
+            if error:
+                logger.warning("suspect sidecar: could not trash %s: %s", sidecar, error)
+                continue
+            entry = {"original": sidecar, "trashed": trashed}
+            in_trash.append(entry)
+            if _holds_flagged_bytes(sidecar, trashed):
+                quarantined.append(sidecar)
+                continue
+            logger.info("suspect sidecar: %s was replaced meanwhile, putting it back", sidecar)
+            if _put_back(trashed, sidecar):
+                in_trash.remove(entry)
+        if in_trash:
+            # Drops the entries of files not moved; a failure here leaves a
+            # manifest naming a few files more than the batch holds.
+            write_manifest(batch_dir, batch_id, in_trash)
+        else:
+            shutil.rmtree(batch_dir, ignore_errors=True)
+    except Exception as exc:  # noqa: BLE001 — see docstring
+        logger.warning("suspect sidecar: could not trash %s: %s", sidecars, exc)
+    if notify and quarantined:
+        _notify(quarantined)
+    return quarantined
+
+
+def _notify(sidecars: list[str]) -> None:
+    """Tell the media servers the subtitle is gone (they would keep offering it)."""
+    try:
+        from providers.download_manager import _video_for_sidecar
+        from services.media_server_notify import notify_media_servers_batch
+
+        notify_media_servers_batch([_video_for_sidecar(s) or s for s in sidecars])
+    except Exception as exc:  # noqa: BLE001 — a refresh is a courtesy
+        logger.debug("suspect sidecar: media server refresh failed: %s", exc)
+
+
+def _restored_since_flagged(path: str, flags: list[_Flag]) -> bool:
+    """The user put the file back (trash restore, rollback) after it was flagged."""
+    from services.foreign_tracks.sidecars import _RESTORED, _identify, _latest_origin
+
+    identity = _identify(path)
+    if identity is None:
+        return False
+    origin = _latest_origin(identity[0], identity[1])
+    if origin is None or origin.origin != _RESTORED:
+        return False
+    flagged_at = max(flag.at for flag in flags)
+    return _aware(origin.recorded_at) > flagged_at
+
+
+def trash_quarantined_on_disk() -> int:
+    """Move quarantined sidecars still on disk to the trash; returns how many.
+
+    Those are files flagged before quarantine moved them out (1.17.0-rc.10 and
+    older) and files the trash refused then. A file the user restored after it
+    was flagged is theirs to keep. One trash batch per folder, one media server
+    refresh for all of them. Never raises.
+    """
+    try:
+        by_folder: dict[str, list[str]] = {}
+        for path, flags in _suspects().items():
+            if not os.path.isfile(path) or not is_suspect_sidecar(path):
+                continue
+            if _restored_since_flagged(path, flags):
+                continue
+            by_folder.setdefault(os.path.dirname(path), []).append(path)
+        moved = [
+            sidecar
+            for paths in by_folder.values()
+            for sidecar in _trash(sorted(paths), notify=False)
+        ]
+        if moved:
+            _notify(moved)
+            logger.info("suspect sidecars: moved %d quarantined file(s) to the trash", len(moved))
+        return len(moved)
+    except Exception as exc:  # noqa: BLE001 — see docstring
+        logger.warning("suspect sidecars: trashing quarantined files failed: %s", exc)
+        return 0
 
 
 def retire_suspect_siblings(saved_path: str, language: str) -> None:
@@ -353,13 +522,15 @@ def quarantine_wrong_sidecar(
             reason,
         )
         invalidate_cache()
+        trashed = bool(_trash([subtitle_path]))
         logger.warning(
-            "suspect sidecar: %s (%s/%s) does not fit %s — blacklisted, kept until "
-            "replaced, wanted search requeued: %s",
+            "suspect sidecar: %s (%s/%s) does not fit %s — blacklisted, %s, wanted "
+            "search requeued: %s",
             subtitle_path,
             download.provider_name,
             download.subtitle_id,
             video,
+            "moved to the trash" if trashed else "kept (the trash refused it)",
             reason,
         )
         if requeue:

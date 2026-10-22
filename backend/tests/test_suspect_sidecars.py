@@ -46,13 +46,26 @@ FULL_ASS = (
 
 
 @pytest.fixture
+def kept_on_disk():
+    """Quarantine as if the trash refused the file: it stays, flagged."""
+    with patch("services.suspect_sidecars._trash", return_value=[]):
+        yield
+
+
+@pytest.fixture
 def episode(app_ctx, tmp_path):
+    """A downloaded sidecar whose quarantine leaves it on disk.
+
+    That is a file the trash refused: the flag's guards are what still keep it
+    from counting. tests/test_quarantine_lifecycle.py covers the move itself.
+    """
     video = tmp_path / "Clevatess - S01E01.mkv"
     video.touch()
     sidecar = tmp_path / "Clevatess - S01E01.de.ass"
     sidecar.write_text(ASS)
     suspect_sidecars.invalidate_cache()
-    yield str(video), str(sidecar)
+    with patch("services.suspect_sidecars._trash", return_value=[]):
+        yield str(video), str(sidecar)
     suspect_sidecars.invalidate_cache()
 
 
@@ -78,7 +91,7 @@ class TestQuarantine:
 
         assert is_blacklisted("animetosho", "at-123")
         assert is_suspect_sidecar(sidecar)
-        assert os.path.isfile(sidecar), "kept until a replacement is saved"
+        assert os.path.isfile(sidecar), "kept: the trash refused it"
         items = get_wanted_items_by_path(video)
         assert [(i["target_language"], i["status"]) for i in items] == [("de", "wanted")]
 
@@ -474,6 +487,7 @@ class TestAutoSyncRunner:
         quarantine.assert_not_called()
 
 
+@pytest.mark.usefixtures("kept_on_disk")
 class TestSuspectBlacklistIsPerVideo:
     """A subtitle wrong for S02E05 is the right one for S01E05.
 

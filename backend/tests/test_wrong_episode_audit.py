@@ -9,6 +9,7 @@ video, kept until a replacement is saved, searched again.
 """
 
 import json
+import os
 from unittest.mock import patch
 
 import pytest
@@ -27,7 +28,10 @@ ASS = (
 
 
 @pytest.fixture
-def library(app_ctx, tmp_path):
+def library(app_ctx, tmp_path, monkeypatch):
+    from config import get_settings
+
+    monkeypatch.setattr(get_settings(), "media_path", str(tmp_path), raising=False)
     suspect_sidecars.invalidate_cache()
     with (
         patch("sonarr_client.get_sonarr_client", return_value=None),
@@ -96,7 +100,7 @@ def test_a_replaced_sidecar_is_judged_by_its_newest_download(library):
 
 def test_requeue_quarantines_each_finding(library):
     from db.wanted import get_wanted_items_by_path
-    from services.suspect_sidecars import blocks_result_for, is_suspect_sidecar
+    from services.suspect_sidecars import blocks_result_for
 
     video = _download(library, "Clevatess - S02E12", "Clevatess - S01E12")
     findings = scan_wrong_episodes()
@@ -104,7 +108,7 @@ def test_requeue_quarantines_each_finding(library):
     assert requeue_findings(findings) == 1
 
     sidecar = video.replace(".mkv", ".de.ass")
-    assert is_suspect_sidecar(sidecar)
+    assert not os.path.exists(sidecar), "moved to the trash"
     assert blocks_result_for("opensubtitles", "os-Clevatess - S02E12", video)
     assert [i["status"] for i in get_wanted_items_by_path(video)] == ["wanted"]
     assert scan_wrong_episodes() == [], "a quarantined sidecar is not reported again"

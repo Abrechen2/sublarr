@@ -18,7 +18,7 @@ from db.wanted import get_wanted_items_by_path
 from services import suspect_sidecars
 from services.suspect_sidecars import is_suspect_sidecar, quarantine_wrong_sidecar
 from tests.test_repair_encoding import ORIGINAL, _mangled, _scan_with
-from tests.test_suspect_sidecars import _record, episode, no_arr  # noqa: F401 — fixtures
+from tests.test_suspect_sidecars import _record, episode, kept_on_disk, no_arr  # noqa: F401 — fixtures
 
 
 def _quarantine(video, sidecar):
@@ -56,7 +56,7 @@ def test_repair_leaves_a_quarantined_sidecar_alone(episode, no_arr):  # noqa: F8
     assert is_suspect_sidecar(sidecar)
 
 
-def test_scan_does_not_offer_a_quarantined_sidecar(app_ctx, tmp_path, no_arr):  # noqa: F811
+def test_scan_does_not_offer_a_quarantined_sidecar(app_ctx, tmp_path, no_arr, kept_on_disk):  # noqa: F811
     video = tmp_path / "Show - S01E01.mkv"
     video.touch()
     sidecar = tmp_path / "Show - S01E01.de.srt"
@@ -213,7 +213,10 @@ def test_translation_does_not_skip_over_a_quarantined_ass(episode, no_arr):  # n
         _quarantine(video, sidecar)
         with (
             patch("translator.core.find_any_source_sub", return_value=(None, None)) as source,
-            patch("translator.core._search_providers_for_source_sub", return_value=(None, None, None, None)),
+            patch(
+                "translator.core._search_providers_for_source_sub",
+                return_value=(None, None, None, None),
+            ),
         ):
             result = translate_file(video, target_language="de")
 

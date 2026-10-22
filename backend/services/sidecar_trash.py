@@ -137,5 +137,8 @@ def write_manifest(
     }
     os.makedirs(batch_dir, exist_ok=True)
     manifest_path = os.path.join(batch_dir, "manifest.json")
-    with open(manifest_path, "w", encoding="utf-8") as fh:
-        json.dump(manifest, fh, indent=2)
+    # Atomic: a rewrite that fails halfway (disk full) must leave the previous
+    # manifest readable, or the batch drops off the trash page with its files.
+    from utils.atomic_write import atomic_write_bytes
+
+    atomic_write_bytes(manifest_path, json.dumps(manifest, indent=2).encode("utf-8"))
