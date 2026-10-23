@@ -475,10 +475,16 @@ class OpenSubtitlesProvider(SubtitleProvider, _OpenSubtitlesFetchMixin):
             resp = self._request_download_link(file_id)
 
         if resp.status_code == 406:
-            # 406 = daily download quota exhausted
             body = {}
             with contextlib.suppress(Exception):
                 body = resp.json()
+            if isinstance(body, dict) and body.get("message") and "remaining" not in body:
+                # 406 also answers a file OpenSubtitles no longer has ("Invalid
+                # file_id") — that body carries no quota fields. Reading it as
+                # the daily quota stopped every download for the rest of the
+                # day (prod 1.17.0-rc.12: a repair pass, 974 downloads left).
+                raise ProviderError(f"OpenSubtitles refused file {file_id}: {body.get('message')}")
+            # 406 with quota fields = daily download quota exhausted
             remaining = body.get("remaining", "0")
             reset_time = body.get("reset_time_utc") or body.get("reset_time", "unknown")
             logger.warning(

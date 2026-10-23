@@ -52,6 +52,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   the trash by the next full wanted scan; one you restored yourself stays.
 
 ### Fixed
+- **A deleted OpenSubtitles file no longer stops OpenSubtitles for the day** —
+  OpenSubtitles answers a request for a file it no longer has with the same
+  status code it uses for a spent daily quota. Sublarr read every such answer
+  as the quota, so one deleted subtitle stopped all OpenSubtitles downloads
+  until midnight UTC, both in the wanted search and in the subtitle repair. A
+  missing file now fails on its own, and the next one is tried.
 - **Provider credentials no longer save one letter at a time** — The text and
   password fields in a provider's settings saved on every keystroke. After the
   first save the page reloaded the password as hidden, the field emptied, and
