@@ -64,6 +64,23 @@ export function ProviderEditor({
   const { t: ts } = useTranslation('settings');
   const [confirmRemove, setConfirmRemove] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
+  // Text and password fields are drafts until the user leaves the field (or
+  // presses Enter). Saving per keystroke stored a credential one letter at a
+  // time: the refetch after the first save came back masked as
+  // ***configured***, the input emptied, and the next letter started a new
+  // one-character password.
+  const [drafts, setDrafts] = useState<Record<string, string>>({});
+
+  const commitDraft = (fieldKey: string) => {
+    if (!(fieldKey in drafts)) return;
+    const { [fieldKey]: draft, ...rest } = drafts;
+    setDrafts(rest);
+    if (draft === fieldValues[fieldKey]) return;
+    // A stored secret renders as an empty input; typing and deleting again
+    // must not wipe it.
+    if (draft === '' && fieldValues[fieldKey] === '***configured***') return;
+    onFieldChange(fieldKey, draft);
+  };
 
   const validateField = (fieldKey: string, value: string, label: string) => {
     if (!value.trim()) {
@@ -369,13 +386,25 @@ export function ProviderEditor({
                         id={inputId}
                         type={field.type}
                         value={
-                          fieldValues[field.key] === '***configured***'
-                            ? ''
-                            : (fieldValues[field.key] ?? '')
+                          field.key in drafts
+                            ? drafts[field.key]
+                            : fieldValues[field.key] === '***configured***'
+                              ? ''
+                              : (fieldValues[field.key] ?? '')
                         }
-                        onChange={e => onFieldChange(field.key, e.target.value)}
+                        onChange={e =>
+                          setDrafts(prev => ({ ...prev, [field.key]: e.target.value }))
+                        }
+                        onKeyDown={e => {
+                          if (e.key === 'Enter') commitDraft(field.key);
+                        }}
                         onBlur={e => {
-                          if (field.required && fieldValues[field.key] !== '***configured***') {
+                          const typed = field.key in drafts;
+                          commitDraft(field.key);
+                          if (
+                            field.required &&
+                            (typed || fieldValues[field.key] !== '***configured***')
+                          ) {
                             validateField(field.key, e.target.value, field.label);
                           }
                         }}
