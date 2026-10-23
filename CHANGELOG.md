@@ -52,6 +52,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   the trash by the next full wanted scan; one you restored yourself stays.
 
 ### Fixed
+- **Provider credentials no longer save one letter at a time** — The text and
+  password fields in a provider's settings saved on every keystroke. After the
+  first save the page reloaded the password as hidden, the field emptied, and
+  the next letter started a new one-letter password, so an account login such
+  as OpenSubtitles VIP never took effect. The fields now save once, when you
+  leave the field or press Enter, and typing and deleting again no longer wipes
+  a stored password.
 - **Restoring from the subtitle trash never overwrites** — A subtitle saved at
   the same place since it was trashed was replaced by the restored file, and
   the batch was deleted afterwards, so the newer subtitle was lost for good.
