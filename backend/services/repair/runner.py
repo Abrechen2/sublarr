@@ -257,6 +257,16 @@ def repair_one(
                     status="undamaged",
                 )
             return RepairOutcome(candidate.file_path, "nothing_to_restore", str(exc))
+        if not dry_run and source == "provider":
+            # Remember it while the file stays as it is: unrecorded, every pass
+            # re-downloaded the same unprovable files first, and once a day had
+            # passed they counted against the quota again (prod 1.17.0-rc.12:
+            # the first 19 OpenSubtitles downloads, all unprovable).
+            _record_repair(
+                candidate,
+                repaired_hash=content_hash(candidate.file_path) or "",
+                status="unprovable",
+            )
         return RepairOutcome(candidate.file_path, "unprovable", str(exc))
     except Exception as exc:  # noqa: BLE001
         logger.warning("repair: restore failed for %s: %s", candidate.file_path, exc)

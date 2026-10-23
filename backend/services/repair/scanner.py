@@ -72,6 +72,8 @@ class ScanReport:
     partially_repaired: list[str] = field(default_factory=list)
     #: Quarantined as another episode's subtitle — replaced, not repaired.
     quarantined: int = 0
+    #: Downloaded once and found unprovable; skipped until the file changes.
+    unprovable_after_download: int = 0
 
     @property
     def repairable(self) -> int:
@@ -143,7 +145,7 @@ def _repaired_paths() -> dict[str, tuple[str, str]]:
         rows = db.session.execute(
             sql(
                 "SELECT file_path, repaired_hash, status FROM subtitle_repairs "
-                "WHERE status IN ('repaired', 'undamaged', 'partial')"
+                "WHERE status IN ('repaired', 'undamaged', 'partial', 'unprovable')"
             )
         ).fetchall()
     except Exception:  # noqa: BLE001 — table may not exist yet on an old DB
@@ -169,7 +171,7 @@ def scan(language: str | None = None, limit: int | None = None) -> ScanReport:
 
     candidates: list[RepairCandidate] = []
     partial: list[str] = []
-    untouched = missing = unresolvable = already = quarantined = 0
+    untouched = missing = unresolvable = already = quarantined = unprovable = 0
 
     for path, stored_hash, lang, fmt in rows:
         if not os.path.exists(path):
@@ -186,7 +188,13 @@ def scan(language: str | None = None, limit: int | None = None) -> ScanReport:
         # changed after its repair was edited by hand (the UI asks for that
         # after a partial repair): another download could prove nothing.
         repaired_hash, repaired_status = repaired.get(path, ("", ""))
-        if repaired_status in ("repaired", "partial") or repaired_hash == actual:
+        if repaired_status == "unprovable":
+            # A download already showed no replay reproduces this file. Only an
+            # edit since then could change that — then it is a candidate again.
+            if repaired_hash == actual:
+                unprovable += 1
+                continue
+        elif repaired_status in ("repaired", "partial") or repaired_hash == actual:
             # "�" left in a file repaired before 1.17.0-rc.2 counted as done too.
             if repaired_status != "undamaged" and _has_mangled_letters(path):
                 partial.append(path)
@@ -237,6 +245,7 @@ def scan(language: str | None = None, limit: int | None = None) -> ScanReport:
         missing_from_disk=missing,
         unresolvable=unresolvable,
         already_repaired=already,
+        unprovable_after_download=unprovable,
         partially_repaired=partial,
         quarantined=quarantined,
     )

@@ -52,6 +52,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   the trash by the next full wanted scan; one you restored yourself stays.
 
 ### Fixed
+- **The subtitle repair no longer downloads the same unprovable files every
+  day** — When a downloaded original could not prove the damage, the repair
+  forgot that, so every pass and every daily resume fetched those files first
+  and spent the quota on them again. It now remembers them and only checks a
+  file again once it has changed on disk.
 - **A deleted OpenSubtitles file no longer stops OpenSubtitles for the day** —
   OpenSubtitles answers a request for a file it no longer has with the same
   status code it uses for a spent daily quota. Sublarr read every such answer

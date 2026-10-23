@@ -57,6 +57,7 @@ def scan_damaged():
             "unresolvable": report.unresolvable,
             "quarantined": report.quarantined,
             "already_repaired": report.already_repaired,
+            "unprovable_after_download": report.unprovable_after_download,
             "partially_repaired": len(report.partially_repaired),
             "partially_repaired_files": report.partially_repaired[:50],
             "recoverable_from_backup": from_bak,
