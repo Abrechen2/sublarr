@@ -211,7 +211,7 @@ def sync_with_ffsubsync(subtitle_path: str, video_path: str) -> dict:
     # auto-sync.
     from config import get_settings
 
-    threshold = getattr(get_settings(), "sync_sanity_threshold_ms", 60_000)
+    threshold = getattr(get_settings(), "sync_sanity_threshold_ms", 45_000)
     if abs(shift_ms) > threshold:
         _safe_remove(out_path)
         logger.warning(

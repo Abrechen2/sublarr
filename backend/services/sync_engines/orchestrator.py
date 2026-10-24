@@ -22,7 +22,7 @@ class SyncOrchestrator:
       - result.ok is False
     """
 
-    def __init__(self, engines: list[BaseSyncEngine], sanity_threshold_ms: int = 60_000) -> None:
+    def __init__(self, engines: list[BaseSyncEngine], sanity_threshold_ms: int = 45_000) -> None:
         self.engines = engines
         self.sanity_threshold_ms = sanity_threshold_ms
 
@@ -131,7 +131,7 @@ def get_default_orchestrator() -> SyncOrchestrator:
         from services.sync_engines.alass_engine import AlassEngine
         from services.sync_engines.ffsubsync_engine import FfsubsyncEngine
 
-        threshold = getattr(get_settings(), "sync_sanity_threshold_ms", 60_000)
+        threshold = getattr(get_settings(), "sync_sanity_threshold_ms", 45_000)
         _default_orchestrator = SyncOrchestrator(
             engines=[FfsubsyncEngine(), AlassEngine()],
             sanity_threshold_ms=threshold,
