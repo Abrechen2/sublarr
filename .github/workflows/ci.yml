@@ -202,15 +202,9 @@ jobs:
       # Audits requirements.txt, not the ambient environment. Auditing the
       # installed env dragged in pip/setuptools/build-tool noise that had
       # nothing to do with what Sublarr ships.
-      #
-      # PYSEC-2026-3447 (setuptools, CVE-2026-59890) is ignored deliberately:
-      # it only affects building an sdist with MANIFEST.in exclude directives,
-      # which Sublarr never does, and the fix (83.0.0) is out of reach because
-      # requirements.txt pins setuptools<81 so ffsubsync's webrtcvad fallback
-      # keeps working (84aac466). Remove this ignore when that pin lifts.
       - name: pip-audit (CVE check)
         working-directory: ./backend
-        run: pip-audit -r requirements.txt --desc --ignore-vuln PYSEC-2026-3447
+        run: pip-audit -r requirements.txt --desc
 
       # Scope + suppressions live in backend/.bandit, shared with pre-commit.
       # The gate is HIGH severity at HIGH confidence; everything below that is

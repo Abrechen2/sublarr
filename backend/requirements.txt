@@ -23,7 +23,7 @@ ua-generator==2.1.6
 deepl>=1.20.0
 openai>=1.0.0
 google-cloud-translate>=3.10.0
-apprise==1.9.2
+apprise==1.13.1
 prometheus-client==0.25.0
 psutil==6.1.0
 APScheduler>=3.10,<4
@@ -43,12 +43,11 @@ psycopg2-binary==2.9.10  # Optional: PostgreSQL support
 redis==7.1.0  # Optional: Redis caching/queue
 rq==2.6.1  # Optional: Redis-based job queue
 # Optional — video sync engines (graceful degradation if not installed)
-# ffsubsync transitively imports `pkg_resources` (via webrtcvad) which the
-# Python 3.12 base image no longer ships by default. setuptools used to
-# bundle pkg_resources, but stopped doing so in 81+. Pin to the last line
-# that still ships it so ffsubsync's voice-activity-detection codepath does
-# not crash on videos without embedded subtitle streams.
-setuptools>=70,<81
+# setuptools used to be pinned <81 so webrtcvad (via ffsubsync) could import
+# pkg_resources. webrtcvad-wheels 2.0.14 reads its version through
+# importlib.metadata on Python 3.8+, so that shim is no longer needed and the
+# pin only kept setuptools on releases with known advisories.
+setuptools>=84.1.0
 ffsubsync>=0.4.26
 # alass is a standalone binary — see https://github.com/kaegi/alass/releases
 

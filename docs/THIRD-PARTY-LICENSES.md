@@ -56,7 +56,7 @@ Anything outside this set fails CI and triggers a manual review.
 | deepl | ≥1.20.0 | MIT | `MIT` | ✅ |
 | openai | ≥1.0.0 | Apache-2.0 | `Apache-2.0` | ✅ |
 | google-cloud-translate | ≥3.10.0 | Apache-2.0 | `Apache-2.0` | ✅ |
-| apprise | 1.9.2 | BSD-2-Clause | `BSD-2-Clause` | ✅ |
+| apprise | 1.13.1 | BSD-2-Clause | `BSD-2-Clause` | ✅ |
 | prometheus-client | 0.25.0 | Apache-2.0 AND BSD-2-Clause | `Apache-2.0 AND BSD-2-Clause` | ✅ |
 | psutil | 6.1.0 | BSD-3-Clause | `BSD-3-Clause` | ✅ |
 | APScheduler | ≥3.10,<4 | MIT | `MIT` | ✅ |
@@ -70,7 +70,7 @@ Anything outside this set fails CI and triggers a manual review.
 | psycopg2-binary | 2.9.10 | LGPL-3.0-or-later | `LGPL-3.0-or-later` | ✅ |
 | redis | 7.1.0 | MIT | `MIT` | ✅ |
 | rq | 2.6.1 | BSD-3-Clause | `BSD-3-Clause` | ✅ |
-| setuptools | ≥70,<81 | MIT | `MIT` | ✅ |
+| setuptools | ≥84.1.0 | MIT | `MIT` | ✅ |
 | ffsubsync | ≥0.4.26 | MIT | `MIT` | ✅ |
 | chardet | ≥5.2.0 | **LGPL-2.1-or-later** | `LGPL-2.1-or-later` | ✅ |
 | dogpile.cache | ≥1.3.0 | MIT | `MIT` | ✅ |

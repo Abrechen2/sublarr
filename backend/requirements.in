@@ -53,11 +53,11 @@ dogpile.cache>=1.3.0
 stevedore>=5.2.0
 
 # --- Optional at runtime (graceful degradation via try/except) ---
-apprise>=1.9.0
+apprise>=1.11.0
 ffsubsync>=0.4.26
-# ffsubsync transitively imports pkg_resources via webrtcvad — setuptools>=81
-# dropped pkg_resources so we pin to the last compatible release.
-setuptools>=70,<81
+# webrtcvad-wheels (via ffsubsync) no longer needs pkg_resources, so setuptools
+# is free to move; >=84.1.0 keeps it past GHSA-xmj3-9gf7-h52w.
+setuptools>=84.1.0
 pyenchant>=3.2.0   # spell-checker (disabled if unavailable)
 pytesseract>=0.3.10  # OCR for image-based subs (disabled if unavailable)
 psycopg2-binary>=2.9  # PostgreSQL driver (SQLite still works without)
