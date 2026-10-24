@@ -5,6 +5,19 @@ All notable changes to Sublarr are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.17.2] - 2026-10-24
+
+### Security
+- **Notifications no longer follow redirects** — Apprise is updated from
+  1.9.2 to 1.13.1. Older versions followed HTTP redirects from notification
+  endpoints by default (PYSEC-2026-4200), so a notification URL that
+  redirected could send the message somewhere else.
+- **setuptools updated** — setuptools had been held below 81 because
+  ffsubsync's voice detection needed `pkg_resources`. The current webrtcvad
+  no longer does, so the hold is lifted and setuptools moves to 84.1 or newer
+  (GHSA-xmj3-9gf7-h52w, PYSEC-2026-3447). The CI vulnerability check now runs
+  without exceptions.
+
 ## [1.17.1] - 2026-10-24
 
 ### Fixed
