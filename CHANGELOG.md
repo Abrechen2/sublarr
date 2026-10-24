@@ -92,7 +92,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   subtitle is now put on the blacklist for that episode — the same subtitle
   stays available for the episode it belongs to — and the episode is searched
   again at once, even if the episode was waiting out a long retry delay. The
-  old file stays until a new subtitle is saved; only that file's content
+  wrong file is moved to the subtitle trash; only that file's content
   counts, so a new subtitle saved right away is accepted, and the same wrong
   file put back later is caught again, even when it is restored with its old
   date and size. Putting such a subtitle on the
