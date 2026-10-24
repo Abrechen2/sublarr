@@ -34,11 +34,13 @@ jobs:
   # Decides whether the workflow should run at all. Skips on:
   #   • RC tags (vX.Y.Z-...-rc.N) — the deploy skill handles RC build/push/release
   #     manually; CI rebuilding here would diverge from the bytes the human tested.
-  #   • Final tags whose Docker image ALREADY exists on GHCR — the deploy skill's
-  #     promote step (`imagetools create`) retags the RC bytes as :VERSION/:latest/
-  #     :stable. Letting CI rebuild on the subsequent tag push would clobber those
-  #     promoted bytes with a fresh CI build, breaking the "no rebuild for
-  #     promotion" guarantee.
+  #   • Final tags whose Docker image ALREADY exists on GHCR — never overwrite a
+  #     published release image.
+  # A final tag is the promotion: this workflow rebuilds the tested RC's commit
+  # as :VERSION/:latest/:stable, so the image reports VERSION instead of the
+  # -rc.N it was tested as (retagging the RC bytes kept SUBLARR_VERSION=X.Y.Z-rc.N
+  # baked in for every self-hoster). The validate job refuses a tag that does
+  # not sit on a commit that was built and pushed as an RC of this version.
   # workflow_dispatch always runs (manual emergency path).
   gate:
     name: Gate
@@ -91,9 +93,9 @@ jobs:
           IMAGE_LC="ghcr.io/$(echo '${{ github.repository }}' | tr '[:upper:]' '[:lower:]')"
           if docker manifest inspect "$IMAGE_LC:$VERSION" >/dev/null 2>&1; then
             echo "should_run=false" >> "$GITHUB_OUTPUT"
-            echo "reason=image-already-on-ghcr (deploy skill already promoted RC bytes)" >> "$GITHUB_OUTPUT"
+            echo "reason=image-already-on-ghcr (release image already published)" >> "$GITHUB_OUTPUT"
             echo "ℹ️  Skipping: $IMAGE_LC:$VERSION already exists on GHCR"
-            echo "    Rebuilding here would clobber the RC-tested bytes."
+            echo "    Rebuilding here would replace a published release image."
             echo "    Use workflow_dispatch if a deliberate rebuild is required."
             exit 0
           fi
@@ -137,6 +139,28 @@ jobs:
             exit 1
           fi
           echo "✅  Release $TAG does not exist yet"
+
+      - name: Verify the tag sits on a tested RC
+        # Promotion rebuilds this commit, so it must be the commit an RC of this
+        # version was built from: every RC build pushes :sha-<short> with
+        # SUBLARR_VERSION=<version>-rc.N baked in. workflow_dispatch skips it
+        # (deliberate rebuilds, emergencies).
+        if: github.event_name == 'push' && needs.gate.outputs.prerelease == 'false'
+        run: |
+          VERSION="${{ needs.gate.outputs.version }}"
+          IMAGE_LC="ghcr.io/$(echo '${{ github.repository }}' | tr '[:upper:]' '[:lower:]')"
+          SHORT="${GITHUB_SHA::7}"
+          if ! docker buildx imagetools inspect "$IMAGE_LC:sha-$SHORT" >/dev/null 2>&1; then
+            echo "❌  No image $IMAGE_LC:sha-$SHORT — this commit was never built as an RC."
+            exit 1
+          fi
+          BAKED=$(docker buildx imagetools inspect "$IMAGE_LC:sha-$SHORT" --format '{{json .Image}}' \
+            | python3 -c "import json,sys; d=json.load(sys.stdin); d=d.get('linux/amd64', d); print(next((e.split('=',1)[1] for e in d['config'].get('Env', []) if e.startswith('SUBLARR_VERSION=')), ''))")
+          if [[ ! "$BAKED" =~ ^${VERSION//./\\.}-rc\.[0-9]+$ ]]; then
+            echo "❌  $IMAGE_LC:sha-$SHORT reports '$BAKED', not an RC of $VERSION."
+            exit 1
+          fi
+          echo "✅  $GITHUB_SHA was tested as $BAKED"
 
   # ─── 2. CI checks ─────────────────────────────────────────────────────────
   ci:
@@ -186,9 +210,12 @@ jobs:
           platforms: linux/amd64,linux/arm64
           # push_docker input is only set for workflow_dispatch; for tag push always push
           push: ${{ github.event_name == 'push' || inputs.push_docker != false }}
+          build-args: |
+            VERSION=${{ needs.validate.outputs.version }}
           tags: |
             ${{ env.IMAGE_LC }}:${{ needs.validate.outputs.version }}
             ${{ env.IMAGE_LC }}:latest
+            ${{ env.IMAGE_LC }}:stable
           labels: |
             org.opencontainers.image.version=${{ needs.validate.outputs.version }}
             org.opencontainers.image.revision=${{ github.sha }}
@@ -221,7 +248,7 @@ jobs:
             /^## \[$VERSION\]/ { found=1; next }
             /^## \[/           { if (found) exit }
             found              { print }
-          " CHANGELOG.md | sed '/^[[:space:]]*$/d' | head -80)
+          " CHANGELOG.md)
 
           if [[ -z "$NOTES" ]]; then
             NOTES="See CHANGELOG.md for details."

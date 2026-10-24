@@ -56,6 +56,7 @@ jobs:
             type=ref,event=branch
             type=sha,prefix=sha-,format=short
             type=raw,value=${{ inputs.version }},enable=${{ inputs.version != '' }}
+            type=raw,value=rc-latest,enable=${{ contains(inputs.version, '-rc.') }}
 
       - name: Build and push
         uses: docker/build-push-action@v7
