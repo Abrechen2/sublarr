@@ -28,10 +28,33 @@ adapted to Sublarr's media-locality (the library is local to Cardinal).
 |---|---|---|---|
 | **`/deploy-beta`** | `master` HEAD → `:beta` (+ `:beta-<shortsha>`), **amd64-only** | Beta :5767 | On-demand bleeding edge. No version bump / tag. `:beta` is GHCR-only. |
 | **`/deploy`** | `:X.Y.Z-rc.N`, multi-arch | RC :5766 | After deploy, **mirrors prod DB into RC** via `stage-rc-from-prod.sh`. Per-release candidate. |
-| **`/release`** | retag rc → `:X.Y.Z` / `:latest` / `:stable` | Prod :5765 | Promote-only, byte-identical to the tested RC. |
+| **`/release`** | push tag `vX.Y.Z` on the tested RC's commit → `release.yml` rebuilds it as `:X.Y.Z` / `:latest` / `:stable` | Prod :5765 | Same commit as the tested RC, built with `VERSION=X.Y.Z` so it reports `X.Y.Z`, not `-rc.N`. |
 
 - `:beta` is amd64-only for fast, frequent on-demand builds; RC and final tags stay
   multi-arch (amd64 + arm64) for Raspberry Pi / Apple-Silicon self-hosters.
+
+## Promotion rebuilds the RC's commit
+
+Until 1.17.0 a release retagged the RC image. The bytes were the tested ones,
+but they carried `SUBLARR_VERSION=X.Y.Z-rc.N`, so every self-hosted install of
+a final release reported the RC tag (prod hid it with a compose override).
+Since 1.17.1 the release tag is the promotion:
+
+1. Bump `backend/VERSION`, build and deploy `X.Y.Z-rc.N` as usual (CI
+   `docker-build.yml -f version=X.Y.Z-rc.N` or `~/bin/sublarr-winbuild`). Both
+   push `:sha-<short>` and `:rc-latest` for an RC.
+2. When the RC is approved, tag **that commit** `vX.Y.Z` and push the tag.
+3. `release.yml` refuses a tag whose `:sha-<short>` image does not report an
+   RC of `X.Y.Z`, runs CI, builds the commit with `VERSION=X.Y.Z` (multi-arch)
+   as `:X.Y.Z` / `:latest` / `:stable`, and creates the GitHub release from the
+   CHANGELOG section. It never overwrites an existing `:X.Y.Z`.
+4. Deploy prod on `:X.Y.Z`, mirror the finals to Docker Hub, check the health
+   endpoint reports `X.Y.Z`.
+
+The final image is the tested commit, not the tested bytes: dependencies are
+resolved again at build time, so smoke-test prod on `:X.Y.Z` after the deploy
+(health, version, a search) instead of assuming bit identity. Never push the
+release tag on a commit that was not deployed as an RC.
 
 ## Release gate — before `/release` promotes anything
 
