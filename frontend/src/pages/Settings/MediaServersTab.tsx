@@ -249,8 +249,8 @@ export function MediaServersTab() {
                   </SettingRow>
                 </div>
 
-                {/* Dynamic config fields */}
-                {typeInfo?.config_fields.map((field) => {
+                {/* Dynamic config fields; path_mapping gets its own translated row below */}
+                {typeInfo?.config_fields.filter((field) => field.key !== 'path_mapping').map((field) => {
                   const fieldDescription = getFieldDescription(field.key, serverDisplayName)
                   return (
                     <SettingRow
