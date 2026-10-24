@@ -17,6 +17,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   no longer does, so the hold is lifted and setuptools moves to 84.1 or newer
   (GHSA-xmj3-9gf7-h52w, PYSEC-2026-3447). The CI vulnerability check now runs
   without exceptions.
+- **follow-redirects updated to 1.16.1** — The frontend's HTTP client pulled
+  in a version that could keep credential headers across a cross-origin
+  redirect. The browser build does not use it, but the shipped lockfile no
+  longer carries it.
 
 ## [1.17.1] - 2026-10-24
 

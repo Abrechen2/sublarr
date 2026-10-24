@@ -38,7 +38,9 @@ def _safe_basename(path: str) -> str:
         # Every letter of the name was non-ASCII ("简体.srt" -> "srt"): keep the
         # extension, or the subtitle check drops the member, and make the name
         # unique, or two members collapse into one.
-        digest = hashlib.sha1(raw.encode("utf-8", "surrogateescape")).hexdigest()[:8]
+        digest = hashlib.sha1(
+            raw.encode("utf-8", "surrogateescape"), usedforsecurity=False
+        ).hexdigest()[:8]
         safe_stem = secure_filename(stem) or "subtitle"
         return f"{safe_stem}-{digest}{ext.lower()}"
     return safe

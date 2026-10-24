@@ -13,7 +13,10 @@
 #   venv, env         third-party installs, not shipped source
 #   tests             asserts, fixtures, deliberately malformed inputs
 #   providers/_vendor vendored subliminal; upstream's xmlrpc and md5 choices
-exclude = ./venv,./env,./tests,./providers/_vendor,./__pycache__,./node_modules
+#   providers/hub/bundles  catalog providers from LavX/bazarr-provider-catalog;
+#                     every file is pinned by sha256 in its provider.json, so
+#                     they are not edited here (their sha1/md5 build result ids)
+exclude = ./venv,./env,./tests,./providers/_vendor,./providers/hub/bundles,./__pycache__,./node_modules
 
 # skips — confirmed false positives. Do not suppress real issues here.
 #   B104  binding to 0.0.0.0 — expected inside a Docker container
