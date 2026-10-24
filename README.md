@@ -63,7 +63,7 @@ Honest answer first, because your time is worth more than our install count.
 
 | Feature | Status |
 |---------|--------|
-| Subtitle search & download (21 providers + embedded extraction) | Core — most-tested path |
+| Subtitle search & download (29 built-in providers, 43 opt-in catalog providers, embedded extraction) | Core — most-tested path |
 | ASS-first scoring, deduplication, trust scoring | Core — most-tested path |
 | Sonarr/Radarr webhook integration | Core — most-tested path |
 | Standalone mode (no *arr required) | Core — filesystem watching + NFO metadata |
@@ -73,7 +73,7 @@ Honest answer first, because your time is worth more than our install count.
 | **LLM translation via Ollama / DeepL / Google** | **⚠️ Beta — experimental, quality varies** |
 
 ### 🔍 Subtitle Search & Download
-- **21 providers** — AnimeTosho, Jimaku, OpenSubtitles, SubDL, Subscene, Subf2m, Subsource, SubsDump, Addic7ed, BetaSeries, Titlovi, Titrari, TVSubtitles, Gestdown, Kitsunekko, Napisy24, Podnapisi, YIFY, Zimuku, LegendasDivX, TurkceAltyazi — plus embedded subtitle extraction
+- **29 built-in providers** (plus 43 opt-in catalog providers) — AnimeTosho, Jimaku, OpenSubtitles, SubDL, Subscene, Subf2m, Subsource, SubsDump, Addic7ed, BetaSeries, Titlovi, Titrari, TVSubtitles, Gestdown, Kitsunekko, Napisy24, Podnapisi, YIFY, Zimuku, LegendasDivX, TurkceAltyazi — plus embedded subtitle extraction
 - **Custom HTTP/JSON provider** — connect private subtitle servers or adapt any REST API via configuration (field mapping, multiple instances, no code required) — see [docs/CUSTOM_PROVIDER_API.md](docs/CUSTOM_PROVIDER_API.md)
 - **ASS-first scoring** — ASS/SSA gets +50 bonus over SRT; format, dialect, sync quality, and uploader reputation scored
 - **Smart deduplication** — avoids re-downloading identical files via SHA-256 hashing

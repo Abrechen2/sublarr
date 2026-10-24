@@ -5,7 +5,7 @@ All notable changes to Sublarr are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [1.17.0] - 2026-10-20
+## [1.17.0] - 2026-10-24
 
 ### Added
 - **Media server path mapping takes several pairs** - The path mapping of a
@@ -50,6 +50,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   translation queued from a downloaded source answered "already exists" and
   closed the episode) and the sync. Files quarantined that way are moved to
   the trash by the next full wanted scan; one you restored yourself stays.
+
+### Changed
+- **Usage statistics are described as pseudonymous** — The opt-in usage
+  statistics are linked by a random install ID, so the consent card and the
+  settings toggle no longer call them anonymous. They say the IP address is
+  not stored, link the privacy policy and name the controller.
+- **Settings > About names the maker** — The line "A project by <abrechen2 />"
+  below the version links to www.abrechen2.de.
 
 ### Fixed
 - **The subtitle repair no longer downloads the same unprovable files every
