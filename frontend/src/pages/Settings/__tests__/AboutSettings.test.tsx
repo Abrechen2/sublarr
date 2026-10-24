@@ -121,4 +121,25 @@ describe('AboutSettings', () => {
     expect(link).toHaveAttribute('href', 'https://github.com/abrechen2/sublarr/issues')
     expect(link).toHaveAttribute('target', '_blank')
   })
+
+  // ── Usage statistics: informed consent ──────────────────────────────────
+
+  it('links the privacy policy and names the controller next to the usage-stats toggle', () => {
+    renderWithProviders(<AboutSettings />)
+    expect(screen.getByTestId('usage-stats-toggle')).toBeInTheDocument()
+    expect(screen.getAllByText('Usage statistics').length).toBeGreaterThan(0)
+    const link = screen.getByTestId('usage-stats-privacy-link')
+    expect(link).toHaveAttribute('href', 'https://www.abrechen2.de/en/sublarr/privacy/#usage-statistics')
+    expect(link).toHaveAttribute('target', '_blank')
+    expect(screen.getByTestId('usage-stats-controller')).toHaveTextContent('Controller: Dennis Wittke')
+  })
+
+  // ── abrechen2 credit ────────────────────────────────────────────────────
+
+  it('credits abrechen2 next to the version info', () => {
+    renderWithProviders(<AboutSettings />)
+    const link = screen.getByRole('link', { name: 'A project by abrechen2' })
+    expect(link).toHaveAttribute('href', 'https://www.abrechen2.de/en/')
+    expect(screen.getByTestId('section-version')).toContainElement(link)
+  })
 })

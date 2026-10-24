@@ -2,6 +2,7 @@ import { Heart, Github, AlertCircle, Info, MessageCircle, Users, Sparkles, BarCh
 import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { useUsageStatsConsent } from '@/hooks/useUsageStatsConsent'
+import { UsageStatsLegalNote } from '@/components/usage-stats/UsageStatsLegalNote'
 import { WhatsNewModal } from '@/components/layout/WhatsNewModal'
 import { WHATS_NEW, versionKey } from '@/content/whatsNew'
 import { useTranslation } from 'react-i18next'
@@ -10,6 +11,7 @@ import { SettingsSection } from '@/components/settings/SettingsSection'
 import { FormLayout } from '@/components/settings/layouts'
 import type { FormSectionDef } from '@/components/settings/layouts'
 import { getHealth } from '@/api/client'
+import { AbrechenCredit } from '@/components/brand/AbrechenCredit'
 
 // Settings Template B (FormLayout) — Codex-named reference for an info-heavy
 // page. titleKeys reuse the existing about_page.*_title strings (the
@@ -84,9 +86,12 @@ export function AboutSettings() {
                 <Sparkles size={13} /> {tc('whatsnew.title', { version: wnVersion ?? version })}
               </button>
             </div>
+            <div className="mt-3">
+              <AbrechenCredit />
+            </div>
           </SettingsSection>
 
-          {/* ── Anonymous usage statistics (opt-in) ─────────────────────── */}
+          {/* ── Usage statistics (opt-in, pseudonymous) ─────────────────── */}
           <SettingsSection
             title={tc('usageStats.settingLabel')}
             description={tc('usageStats.body')}
@@ -108,6 +113,9 @@ export function AboutSettings() {
                 {tc('usageStats.settingLabel')}
               </span>
             </label>
+            <div className="mt-2">
+              <UsageStatsLegalNote />
+            </div>
           </SettingsSection>
         </div>
         </section>

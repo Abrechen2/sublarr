@@ -919,8 +919,8 @@
       "load_desc": "The UI is served pre-compressed (about 77% smaller) and cached permanently — the first visit to each page is noticeably faster.",
       "load2_title": "Lower background load",
       "load2_desc": "The UI polls less often and uses WebSocket as the primary channel for logs and budget.",
-      "stats_title": "Anonymous usage stats (opt-in)",
-      "stats_desc": "Optional and GDPR-first: anonymous, coarsely bucketed usage data helps guide development. Off by default."
+      "stats_title": "Usage stats (opt-in)",
+      "stats_desc": "Optional and GDPR-first: pseudonymous, coarsely bucketed usage data helps guide development. Off by default."
     },
     "v160": {
       "combined_title": "Combined subtitles",
@@ -938,12 +938,15 @@
     }
   },
   "usageStats": {
-    "title": "Send anonymous usage statistics?",
-    "body": "Help make Sublarr better: anonymously share version, platform, active providers, which features you use, and rough size buckets of your library. No IP, no paths, no titles, no keys. Opt-in and off by default — turn it off any time in Settings, which deletes your data.",
+    "title": "Send usage statistics?",
+    "body": "Help make Sublarr better: share minimal data: version, platform, active providers, which features you use, and rough size buckets of your library. Reports are linked by a random install ID, so they are pseudonymous. No IP storage, no paths, no titles, no keys. Opt-in and off by default — turn it off any time in Settings, which deletes your data.",
     "whatIsSent": "What is sent?",
-    "accept": "Yes, share anonymously",
+    "accept": "Yes, share",
     "decline": "No thanks",
-    "settingLabel": "Anonymous usage statistics"
+    "settingLabel": "Usage statistics",
+    "privacyLink": "Privacy policy",
+    "privacyUrl": "https://www.abrechen2.de/en/sublarr/privacy/#usage-statistics",
+    "controller": "Controller: Dennis Wittke"
   },
   "repair": {
     "wrong_episode": {
@@ -1028,5 +1031,9 @@
     "media_root_unreachable": "media folder unreachable",
     "empty_keep_languages": "no languages to keep configured — sweep refuses to run",
     "probe_failures": "several files in a row could not be read — paused"
+  },
+  "about": {
+    "credit_prefix": "A project by",
+    "credit_url": "https://www.abrechen2.de/en/"
   }
 }
