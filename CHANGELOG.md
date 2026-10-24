@@ -5,6 +5,23 @@ All notable changes to Sublarr are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Fixed
+- **The Sonarr/Radarr path mapping matches whole folders** — The path
+  mapping for Sonarr and Radarr paths took the first pair whose remote prefix
+  was a plain string prefix: `/data/movies=/mnt/movies` also rewrote
+  `/data/movies-4k/...`, a general pair listed first shadowed a specific one,
+  and a trailing slash on one side only glued the rest of the path onto the
+  folder name (`/mnt/tvShow/...`). Pairs now match whole folders only, the
+  longest matching pair wins in any order, and a trailing slash on either side
+  is fine, the same rules the media server mapping follows since 1.17.0.
+- **The media server form shows the path mapping once** — Every media server
+  showed its Path Mapping field twice, both bound to the same value.
+- **The repair says where a subtitle of another episode goes** — The finder's
+  description said the file is kept until a replacement is saved; it is moved
+  to the subtitle trash, where it can be restored.
+
 ## [1.17.0] - 2026-10-24
 
 ### Added
