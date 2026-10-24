@@ -168,6 +168,8 @@ jobs:
     needs: validate
     if: ${{ !inputs.skip_tests || github.event_name == 'push' }}
     uses: ./.github/workflows/ci.yml
+    with:
+      full: true
 
   # ─── 3. Docker build & push ────────────────────────────────────────────────
   docker:

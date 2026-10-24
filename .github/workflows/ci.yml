@@ -6,6 +6,13 @@ on:
   pull_request:
     branches: [master]
   workflow_call:
+    # In a called workflow github.event_name is the caller's event ("push" for
+    # a release tag), never "workflow_call", so the release asks for the full
+    # run explicitly; the paths filter sees no changes on a tag.
+    inputs:
+      full:
+        type: boolean
+        default: false
 
 # Cancel in-progress runs for the same branch/PR — saves CI minutes
 concurrency:
@@ -42,7 +49,7 @@ jobs:
   backend-tests:
     name: Backend tests (${{ matrix.shard }}/4)
     needs: changes
-    if: needs.changes.outputs.backend == 'true' || github.event_name == 'workflow_call'
+    if: needs.changes.outputs.backend == 'true' || inputs.full
     runs-on: ubuntu-latest
     timeout-minutes: 60
     strategy:
@@ -124,7 +131,7 @@ jobs:
   backend:
     name: Backend (Python 3.12)
     needs: [changes, backend-tests]
-    if: always() && (needs.changes.outputs.backend == 'true' || github.event_name == 'workflow_call')
+    if: always() && (needs.changes.outputs.backend == 'true' || inputs.full)
     runs-on: ubuntu-latest
     steps:
       - name: All shards passed
@@ -138,7 +145,7 @@ jobs:
   frontend:
     name: Frontend (Node 24)
     needs: changes
-    if: needs.changes.outputs.frontend == 'true' || github.event_name == 'workflow_call'
+    if: needs.changes.outputs.frontend == 'true' || inputs.full
     runs-on: ubuntu-latest
     timeout-minutes: 45
     steps:
@@ -172,7 +179,7 @@ jobs:
   security:
     name: Security Scan
     needs: changes
-    if: needs.changes.outputs.backend == 'true' || needs.changes.outputs.frontend == 'true' || github.event_name == 'workflow_call'
+    if: needs.changes.outputs.backend == 'true' || needs.changes.outputs.frontend == 'true' || inputs.full
     runs-on: ubuntu-latest
     timeout-minutes: 30
     permissions:
@@ -253,7 +260,7 @@ jobs:
   semgrep:
     name: Semgrep
     needs: changes
-    if: needs.changes.outputs.backend == 'true' || needs.changes.outputs.frontend == 'true' || github.event_name == 'workflow_call'
+    if: needs.changes.outputs.backend == 'true' || needs.changes.outputs.frontend == 'true' || inputs.full
     runs-on: ubuntu-latest
     timeout-minutes: 20
     permissions:
@@ -282,7 +289,7 @@ jobs:
   trivy:
     name: Trivy
     needs: changes
-    if: needs.changes.outputs.backend == 'true' || needs.changes.outputs.frontend == 'true' || github.event_name == 'workflow_call'
+    if: needs.changes.outputs.backend == 'true' || needs.changes.outputs.frontend == 'true' || inputs.full
     runs-on: ubuntu-latest
     timeout-minutes: 20
     permissions:
