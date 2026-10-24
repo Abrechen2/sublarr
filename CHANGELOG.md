@@ -8,6 +8,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [1.17.1] - 2026-10-24
 
 ### Fixed
+- **A release reports its own version** — The 1.17.0 image reported itself
+  as `1.17.0-rc.15`, the release candidate it was promoted from, in the
+  settings, the health endpoint and the usage statistics. Release images are
+  now built from the tested release candidate's code with the release's own
+  version.
 - **The Sonarr/Radarr path mapping matches whole folders** — The path
   mapping for Sonarr and Radarr paths took the first pair whose remote prefix
   was a plain string prefix: `/data/movies=/mnt/movies` also rewrote
