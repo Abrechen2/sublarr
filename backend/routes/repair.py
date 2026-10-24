@@ -147,7 +147,7 @@ _requeue_lock = threading.Lock()
 
 @bp.route("/wrong-episodes/requeue", methods=["POST"])
 def requeue_wrong_episodes():
-    """Block each finding for its video, keep the file until replaced, search again.
+    """Block each finding for its video, move the file to the trash, search again.
 
     The findings are computed here, not taken from the request.
     ---

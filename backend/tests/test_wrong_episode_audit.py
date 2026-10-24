@@ -5,7 +5,7 @@ AnimeTosho (1.14.2), S02E05/E06/E10/E12 were saved with their S01 namesakes.
 Nothing revisits a saved subtitle, so those files stayed. The audit reads the
 release each download won with and puts it through the search's own episode
 gate; a contradiction is quarantined like a rejected sync: blocked for that
-video, kept until a replacement is saved, searched again.
+video, moved to the subtitle trash, searched again.
 """
 
 import json

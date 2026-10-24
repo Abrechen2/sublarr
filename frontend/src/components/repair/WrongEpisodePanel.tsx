@@ -3,7 +3,7 @@
  *
  * Downloads from before the episode gate are never revisited by a search, so
  * this lists those whose winning release names another episode and can send
- * them back: blocked for that video only, kept until a replacement is saved,
+ * them back: blocked for that video only, moved to the subtitle trash,
  * searched again. Listing is free; nothing is downloaded until the search runs.
  */
 import { useEffect } from 'react';

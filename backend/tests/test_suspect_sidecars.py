@@ -7,7 +7,7 @@ scanner never queued the episode again — the wrong subtitle stayed for good.
 
 Now such a sidecar, when Sublarr downloaded it from a provider, is
 blacklisted (provider + subtitle id), marked suspect and requeued for a fresh
-search. The file stays until a replacement is saved.
+search. The file goes to the subtitle trash.
 """
 
 import os

@@ -951,7 +951,7 @@
   "repair": {
     "wrong_episode": {
       "title": "Subtitles of another episode",
-      "intro": "Subtitles saved before the episode check sometimes belong to another episode — season 1's twelfth on S02E12, for example. A search never looks at a saved subtitle again; this finds them by their release name. Search again blocks the subtitle for that episode only, keeps the file until a replacement is saved, and starts a new search.",
+      "intro": "Subtitles saved before the episode check sometimes belong to another episode — season 1's twelfth on S02E12, for example. A search never looks at a saved subtitle again; this finds them by their release name. Search again blocks the subtitle for that episode only, moves the file to the subtitle trash (you can restore it from there), and starts a new search.",
       "scan": "Check",
       "requeue": "Search again ({{count}})",
       "requeued": "Started — the episodes are back on the wanted list shortly.",

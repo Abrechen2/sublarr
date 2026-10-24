@@ -951,7 +951,7 @@
   "repair": {
     "wrong_episode": {
       "title": "Untertitel einer anderen Folge",
-      "intro": "Untertitel, die vor der Folgenprüfung gespeichert wurden, gehören manchmal zu einer anderen Folge – etwa die zwölfte Folge der ersten Staffel bei S02E12. Die Suche sieht gespeicherte Untertitel nie wieder an. Hier werden sie anhand des Release-Namens gefunden. Erneut suchen sperrt den Untertitel nur für diese Folge, behält die Datei, bis ein Ersatz gespeichert ist, und startet eine neue Suche.",
+      "intro": "Untertitel, die vor der Folgenprüfung gespeichert wurden, gehören manchmal zu einer anderen Folge – etwa die zwölfte Folge der ersten Staffel bei S02E12. Die Suche sieht gespeicherte Untertitel nie wieder an. Hier werden sie anhand des Release-Namens gefunden. Erneut suchen sperrt den Untertitel nur für diese Folge, verschiebt die Datei in den Untertitel-Papierkorb (dort lässt sie sich wiederherstellen) und startet eine neue Suche.",
       "scan": "Prüfen",
       "requeue": "Erneut suchen ({{count}})",
       "requeued": "Gestartet – die Folgen stehen gleich wieder in der Wanted-Liste.",

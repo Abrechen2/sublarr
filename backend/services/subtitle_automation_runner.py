@@ -341,8 +341,8 @@ class SubtitleAutomationRunner:
             # the end of the video, means another episode or cut (prod
             # 2026-10, Clevatess). Booking the row terminal alone left that
             # file in place for good: a target ASS on disk keeps the episode
-            # out of the wanted queue. Quarantine it (blacklist + requeue);
-            # it stays on disk until a replacement lands.
+            # out of the wanted queue. Quarantine it: blacklist, move the file
+            # to the subtitle trash, requeue.
             from services.suspect_sidecars import quarantine_wrong_sidecar
 
             quarantine_wrong_sidecar(subtitle_path, video_path, str(exc))

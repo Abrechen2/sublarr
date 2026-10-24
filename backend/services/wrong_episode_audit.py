@@ -15,8 +15,8 @@ bare number under "Part 2" (a split cour) is not. A hash match identified
 the file and is trusted.
 
 Requeueing hands each finding to the same quarantine a rejected sync uses:
-the subtitle is blocked for that video only, the file stays until a
-replacement is saved, and the episode is searched again.
+the subtitle is blocked for that video only, the file goes to the
+subtitle trash, and the episode is searched again.
 """
 
 from __future__ import annotations
