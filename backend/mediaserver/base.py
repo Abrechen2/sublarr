@@ -8,6 +8,8 @@ TranslationBackend ABC pattern in translation/base.py.
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
 
+from config_utils import is_under_folder as _is_under
+
 
 @dataclass
 class RefreshResult:
@@ -20,18 +22,6 @@ class RefreshResult:
     # The item was not found and ``library_fallback=False`` held the library
     # refresh back — the caller decides whether (and how often) to run one.
     needs_library_refresh: bool = False
-
-
-def _is_under(file_path: str, folder: str) -> bool:
-    """Whether ``file_path`` is ``folder`` or inside it.
-
-    A plain prefix test lets "/media/movies" match "/media/movies-4k/...": with
-    several pairs that maps a library onto another library's root.
-    """
-    if not folder or not file_path.startswith(folder):
-        return False
-    rest = file_path[len(folder) :]
-    return not rest or folder.endswith(("/", "\\")) or rest.startswith(("/", "\\"))
 
 
 class MediaServer(ABC):
