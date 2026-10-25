@@ -87,7 +87,7 @@ def _seed(conn) -> None:
         ),
         t,
     )
-    for path in ("/m/Show/S01E01.de.srt", "/m/Other/x.srt"):
+    for path in ("/m/Show/S01E01.de.srt", "/m/Show/Extras/x.srt"):
         conn.execute(
             sa.text(
                 "INSERT INTO subtitle_health_findings (episode_id, target_kind, target_path, lang, "
@@ -145,7 +145,7 @@ def test_moves_standalone_rows_once_without_arr(app_ctx):
         assert _keys(conn, "movie_language_profiles", "radarr_movie_id") == [-4]
         assert _keys(conn, "series_settings", "sonarr_series_id") == [-3]
         assert _keys(conn, "glossary_entries", "series_id") == [-3, None]
-        assert _finding_ids(conn) == [("/m/Other/x.srt", 11), ("/m/Show/S01E01.de.srt", -5)]
+        assert _finding_ids(conn) == [("/m/Show/Extras/x.srt", 11), ("/m/Show/S01E01.de.srt", -5)]
 
     # Second start: marker present, nothing happens even if a new row appears.
     with engine.begin() as conn:
@@ -222,6 +222,291 @@ def test_an_existing_owner_key_row_is_not_overwritten(app_ctx):
             )
         )
     assert rows == [(-3, 1), (3, 2), (8, 2)]
+
+
+def _insert(conn, sql: str, **params) -> None:
+    conn.execute(sa.text(sql), {"t": _NOW, **params})
+
+
+def _download(conn, path: str) -> None:
+    _insert(
+        conn,
+        "INSERT INTO subtitle_downloads (provider_name, subtitle_id, language, file_path, "
+        "downloaded_at) VALUES ('p', 's', 'de', :p, :t)",
+        p=path,
+    )
+
+
+def _config(conn, key: str, value: str) -> None:
+    _insert(
+        conn,
+        "INSERT INTO config_entries (key, value, updated_at) VALUES (:k, :v, :t)",
+        k=key,
+        v=value,
+    )
+
+
+def _assert_untouched(conn, *, series: bool, movies: bool) -> None:
+    if series:
+        assert _keys(conn, "series_language_profiles", "sonarr_series_id") == [3, 8]
+        assert _keys(conn, "series_settings", "sonarr_series_id") == [3]
+        assert _keys(conn, "glossary_entries", "series_id") == [3, None]
+        assert ("/m/Show/S01E01.de.srt", 11) in _finding_ids(conn)
+    if movies:
+        assert _keys(conn, "movie_language_profiles", "radarr_movie_id") == [4]
+
+
+def test_drained_radarr_queue_with_download_history_moves_nothing(app_ctx, caplog):
+    """Codex finding: Radarr's wanted rows drained by successful downloads,
+    Radarr removed before the upgrade. Its download history is still there, so
+    movie 4's settings must not go to standalone movie 4."""
+    from services.standalone_owner_keys import migrate_legacy_owner_keys
+
+    engine = _engine(app_ctx)
+    _profiles()
+    with engine.begin() as conn:
+        _seed(conn)
+        _download(conn, "/m/Show/S01E01.de.srt")  # standalone's own: no evidence
+        _download(conn, "/movies/Film (2020)/Film.de.srt")  # not a standalone title
+
+    with caplog.at_level("WARNING", logger="services.standalone_owner_keys"):
+        result = migrate_legacy_owner_keys(engine, sonarr_configured=False, radarr_configured=False)
+    assert result == {"series": 0, "movies": 0, "findings": 0}
+    with engine.connect() as conn:
+        # A path cannot be told apart between Sonarr and Radarr: both sides stay.
+        _assert_untouched(conn, series=True, movies=True)
+    warnings = [r for r in caplog.records if r.levelname == "WARNING"]
+    assert len(warnings) == 1
+    msg = warnings[0].getMessage()
+    assert "subtitle_downloads" in msg and "kept" in msg
+
+
+def test_old_radarr_url_keeps_movie_rows(app_ctx):
+    from services.standalone_owner_keys import migrate_legacy_owner_keys
+
+    engine = _engine(app_ctx)
+    _profiles()
+    with engine.begin() as conn:
+        _seed(conn)
+        _config(conn, "radarr_url", "http://radarr:7878")
+
+    result = migrate_legacy_owner_keys(engine, sonarr_configured=False, radarr_configured=False)
+    assert result["movies"] == 0 and result["series"] > 0
+    with engine.connect() as conn:
+        _assert_untouched(conn, series=False, movies=True)
+        assert _keys(conn, "series_language_profiles", "sonarr_series_id") == [-3, 8]
+
+
+def test_old_sonarr_instances_keep_series_rows(app_ctx):
+    from services.standalone_owner_keys import migrate_legacy_owner_keys
+
+    engine = _engine(app_ctx)
+    _profiles()
+    with engine.begin() as conn:
+        _seed(conn)
+        _config(conn, "sonarr_instances_json", '[{"name": "a", "url": "http://s"}]')
+        # Cleared fields are no evidence.
+        _config(conn, "radarr_url", "")
+        _config(conn, "radarr_instances_json", "[]")
+
+    result = migrate_legacy_owner_keys(engine, sonarr_configured=False, radarr_configured=False)
+    assert result["series"] == 0 and result["findings"] == 0 and result["movies"] == 1
+    with engine.connect() as conn:
+        _assert_untouched(conn, series=True, movies=False)
+        assert _keys(conn, "movie_language_profiles", "radarr_movie_id") == [-4]
+
+
+def test_job_context_with_arr_ids_is_evidence(app_ctx):
+    from services.standalone_owner_keys import migrate_legacy_owner_keys
+
+    engine = _engine(app_ctx)
+    _profiles()
+    with engine.begin() as conn:
+        _seed(conn)
+        _insert(
+            conn,
+            "INSERT INTO jobs (id, file_path, status, bazarr_context_json, created_at) "
+            "VALUES ('j1', '/m/Show/S01E01.en.srt', 'completed', :c, :t)",
+            c='{"sonarr_series_id": 3, "sonarr_episode_id": 70}',
+        )
+
+    result = migrate_legacy_owner_keys(engine, sonarr_configured=False, radarr_configured=False)
+    assert result["series"] == 0 and result["movies"] == 1
+    with engine.connect() as conn:
+        _assert_untouched(conn, series=True, movies=False)
+
+
+def test_automation_queue_radarr_id_is_evidence(app_ctx):
+    from services.standalone_owner_keys import migrate_legacy_owner_keys
+
+    engine = _engine(app_ctx)
+    _profiles()
+    with engine.begin() as conn:
+        _seed(conn)
+        _insert(
+            conn,
+            "INSERT INTO subtitle_automation_queue (wanted_item_id, task_type, file_path, "
+            "radarr_movie_id, target_language, state, attempt_count, created_at, updated_at) "
+            "VALUES (1, 'foreign_track_cleanup', '/m/Film.mkv', 4, 'de', 'done', 0, :t, :t)",
+        )
+
+    result = migrate_legacy_owner_keys(engine, sonarr_configured=False, radarr_configured=False)
+    assert result["movies"] == 0 and result["series"] > 0
+    with engine.connect() as conn:
+        _assert_untouched(conn, series=False, movies=True)
+
+
+def test_health_finding_outside_standalone_titles_is_evidence(app_ctx):
+    from services.standalone_owner_keys import migrate_legacy_owner_keys
+
+    engine = _engine(app_ctx)
+    _profiles()
+    with engine.begin() as conn:
+        _seed(conn)
+        _insert(
+            conn,
+            "INSERT INTO subtitle_health_findings (episode_id, target_kind, target_path, lang, "
+            "issue_type, severity, count, snippets_json, raw_hash, status, scanner_version, "
+            "detected_at) VALUES (900, 'sidecar', '/tv/Other/S01E01.de.srt', 'de', 'mojibake', "
+            "'warning', 1, '[]', 'h', 'open', 1, :t)",
+        )
+
+    result = migrate_legacy_owner_keys(engine, sonarr_configured=False, radarr_configured=False)
+    assert result == {"series": 0, "movies": 0, "findings": 0}
+    with engine.connect() as conn:
+        _assert_untouched(conn, series=True, movies=True)
+
+
+def test_standalone_only_history_moves_exactly_once(app_ctx):
+    """History that only touches standalone titles is no arr evidence."""
+    from services.standalone_owner_keys import migrate_legacy_owner_keys
+
+    engine = _engine(app_ctx)
+    _profiles()
+    with engine.begin() as conn:
+        _seed(conn)
+        _download(conn, "/m/Show/S01E01.de.srt")
+        _download(conn, "/m/Film.de.srt")
+        _insert(
+            conn,
+            "INSERT INTO upgrade_history (file_path, upgraded_at) VALUES ('/m/Film.de.ass', :t)",
+        )
+        _insert(
+            conn,
+            "INSERT INTO jobs (id, file_path, status, bazarr_context_json, created_at) "
+            "VALUES ('j1', '/m/Show/S01E01.en.srt', 'completed', :c, :t)",
+            c='{"standalone_series_id": 3}',
+        )
+        _config(conn, "sonarr_url", "")
+
+    result = migrate_legacy_owner_keys(engine, sonarr_configured=False, radarr_configured=False)
+    assert result["series"] > 0 and result["movies"] == 1
+    with engine.connect() as conn:
+        assert _keys(conn, "series_language_profiles", "sonarr_series_id") == [-3, 8]
+        assert _keys(conn, "movie_language_profiles", "radarr_movie_id") == [-4]
+    assert (
+        migrate_legacy_owner_keys(engine, sonarr_configured=False, radarr_configured=False) is None
+    )
+    with engine.connect() as conn:
+        assert _keys(conn, "movie_language_profiles", "radarr_movie_id") == [-4]
+
+
+def test_kept_rows_are_not_moved_on_a_later_start(app_ctx):
+    """Ambiguous once means kept for good: the evidence going away later
+    (history pruned, config entry deleted) must not move the rows silently."""
+    from services.standalone_owner_keys import migrate_legacy_owner_keys
+
+    engine = _engine(app_ctx)
+    _profiles()
+    with engine.begin() as conn:
+        _seed(conn)
+        _download(conn, "/movies/Film (2020)/Film.de.srt")
+
+    migrate_legacy_owner_keys(engine, sonarr_configured=False, radarr_configured=False)
+    with engine.begin() as conn:
+        conn.execute(sa.text("DELETE FROM subtitle_downloads"))
+    assert (
+        migrate_legacy_owner_keys(engine, sonarr_configured=False, radarr_configured=False) is None
+    )
+    with engine.connect() as conn:
+        _assert_untouched(conn, series=True, movies=True)
+
+
+def _seed_overlap_1032(conn) -> None:
+    """Prod-copy repro: Sonarr series 1032 has a profile and settings, and a
+    standalone series got row id 1032 as well."""
+    _insert(
+        conn,
+        "INSERT INTO standalone_series (id, title, folder_path, created_at, updated_at) "
+        "VALUES (1032, 'Show', '/m/Show', :t, :t)",
+    )
+    _insert(
+        conn, "INSERT INTO series_language_profiles (sonarr_series_id, profile_id) VALUES (1032, 2)"
+    )
+    _insert(
+        conn,
+        "INSERT INTO series_settings (sonarr_series_id, absolute_order, min_attempts_per_day, "
+        "cleanup_foreign_tracks, updated_at) VALUES (1032, 1, 0, 0, :t)",
+    )
+    # The Sonarr period: wanted rows (later drained) and its download history.
+    _insert(
+        conn,
+        "INSERT INTO wanted_items (item_type, file_path, title, sonarr_series_id, status, "
+        "priority, error_count, added_at, updated_at) VALUES ('episode', "
+        "'/tv/Sonarr Show/S01E01.mkv', 'Sonarr Show', 1032, 'wanted', 'standard', 0, :t, :t)",
+    )
+    _download(conn, "/tv/Sonarr Show/S01E01.de.srt")
+
+
+def _drain_wanted_and_rebuild_search_index(engine) -> None:
+    from db.search import init_search_tables, rebuild_search_index
+
+    with engine.begin() as conn:
+        conn.execute(sa.text("DELETE FROM wanted_items"))
+    init_search_tables()
+    rebuild_search_index()  # what app start does before the move
+
+
+def _series_keys_1032(engine):
+    with engine.connect() as conn:
+        return (
+            _keys(conn, "series_language_profiles", "sonarr_series_id"),
+            _keys(conn, "series_settings", "sonarr_series_id"),
+        )
+
+
+def test_prod_repro_drained_wanted_and_rebuilt_search_index_moves_nothing(app_ctx):
+    """Sonarr unconfigured, its wanted rows drained, the search index rebuilt
+    from the (now empty) wanted table: only durable history remains, and it
+    must keep Sonarr series 1032's rows away from standalone series 1032."""
+    from services.standalone_owner_keys import migrate_legacy_owner_keys
+
+    engine = _engine(app_ctx)
+    _profiles()
+    with engine.begin() as conn:
+        _seed_overlap_1032(conn)
+    _drain_wanted_and_rebuild_search_index(engine)
+
+    result = migrate_legacy_owner_keys(engine, sonarr_configured=False, radarr_configured=False)
+    assert result["series"] == 0
+    assert _series_keys_1032(engine) == ([1032], [1032])
+
+
+def test_prod_repro_stored_sonarr_url_alone_moves_nothing(app_ctx):
+    """Same repro without download history: the stored Sonarr URL keeps them."""
+    from services.standalone_owner_keys import migrate_legacy_owner_keys
+
+    engine = _engine(app_ctx)
+    _profiles()
+    with engine.begin() as conn:
+        _seed_overlap_1032(conn)
+        conn.execute(sa.text("DELETE FROM subtitle_downloads"))
+        _config(conn, "sonarr_url", "http://sonarr:8989")
+    _drain_wanted_and_rebuild_search_index(engine)
+
+    result = migrate_legacy_owner_keys(engine, sonarr_configured=False, radarr_configured=False)
+    assert result["series"] == 0
+    assert _series_keys_1032(engine) == ([1032], [1032])
 
 
 def test_startup_runs_the_move(tmp_path, monkeypatch):
