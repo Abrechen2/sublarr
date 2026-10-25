@@ -193,7 +193,12 @@ def _standalone_task_refusal(task_type: str, claim: dict) -> str | None:
         owner = _owner_ids(claim.get("wanted_item_id"), claim.get("radarr_movie_id"))
         return wanted_item_path_refusal({"file_path": claim.get("file_path"), **owner})
     if task_type == SubtitleAutomationQueueEntry.TASK_AUTO_SYNC:
+        # Only a standalone owner tightens the check. A Sonarr/Radarr key would
+        # exempt the row from it, so those rows keep the path-only check
+        # (media_path for files under a watched or series folder), as before.
         owner = _owner_ids(claim.get("series_key"), claim.get("radarr_movie_id"))
+        if not any(key.startswith("standalone_") for key in owner):
+            owner = {}
         for path in (claim.get("file_path"), claim.get("video_path")):
             refusal = wanted_item_path_refusal({"file_path": path, **owner}) if path else None
             if refusal:

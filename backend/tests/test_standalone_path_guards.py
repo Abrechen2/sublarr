@@ -608,3 +608,27 @@ def test_auto_sync_row_stores_the_owner_keys(media, tmp_path):
     )
     row = db.session.query(SubtitleAutomationQueueEntry).one()
     assert row.series_key == -3 and row.radarr_movie_id is None
+
+
+def test_arr_keyed_auto_sync_row_keeps_the_media_folder_check(escaped, monkeypatch):
+    """A Sonarr key on an auto-sync row must not exempt a file under a
+    standalone folder that escapes the media folder."""
+    from services.subtitle_automation_runner import SubtitleAutomationRunner
+
+    _, video, _ = escaped
+    claim = {
+        "id": 1,
+        "wanted_item_id": 99,
+        "file_path": video[:-4] + ".de.srt",
+        "video_path": video,
+        "target_language": "de",
+        "task_type": "auto_sync",
+        "series_key": 7,
+        "radarr_movie_id": None,
+        "attempt_count": 0,
+    }
+    touched = []
+    monkeypatch.setattr(SubtitleAutomationRunner, "_auto_sync", lambda *a, **k: touched.append(a))
+    queue = _FakeQueue(claim)
+    assert SubtitleAutomationRunner(queue).process_one() is True
+    assert touched == [] and queue.failed
