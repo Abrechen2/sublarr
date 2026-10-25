@@ -113,6 +113,19 @@ def test_profiles_overrides_movie_roundtrip(client, with_arr, tmp_path):
     assert resolved.get_json()["scope"]["name"] == "Film"
 
 
+@pytest.mark.parametrize("arr_fixture", ["no_arr", "with_arr"])
+def test_standalone_series_detail_shows_its_absolute_order(client, tmp_path, request, arr_fixture):
+    """The series page read a hardcoded False (1.18.0-rc.2 end-to-end test, F4)."""
+    request.getfixturevalue(arr_fixture)
+    sid = _series(client, tmp_path)
+    assert client.get(f"/api/v1/library/series/{-sid}").get_json()["absolute_order"] is False
+
+    resp = client.put(f"/api/v1/library/series/{-sid}/settings", json={"absolute_order": True})
+    assert resp.status_code == 200, resp.get_json()
+
+    assert client.get(f"/api/v1/library/series/{-sid}").get_json()["absolute_order"] is True
+
+
 # Resolved scope labels: a positive id is Sonarr's/Radarr's when configured
 # (1.18.0-rc.2 end-to-end test, F5).
 

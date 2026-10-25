@@ -54,6 +54,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   kept. With Sonarr or Radarr configured, its settings are never used for a
   standalone title with the same number.
 
+- **The absolute-order switch of a standalone series stays on** — The
+  standalone series page always showed the AniDB absolute-order switch as
+  off after a reload, although the setting was saved and used. It now shows
+  the saved value.
 - **The series health scan saves its results** — Scanning a whole series
   for subtitle problems ran without access to the database. For a standalone
   series it stopped before scanning anything, and for a Sonarr series the

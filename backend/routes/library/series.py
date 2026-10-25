@@ -222,6 +222,8 @@ def _get_standalone_series_detail(series_id: int, settings) -> dict | None:
 
     global_default = bool(getattr(settings, "cleanup_foreign_tracks_default", False))
     cleanup_override: bool | None = None
+    # AniDB absolute order lives in the same row (PUT /library/series/<id>/settings).
+    absolute_order = False
     try:
         from db.models.core import SeriesSettings
         from services.standalone_owner_keys import get_row
@@ -229,6 +231,7 @@ def _get_standalone_series_detail(series_id: int, settings) -> dict | None:
         settings_row = get_row(SeriesSettings, standalone_key(series_id))
         if settings_row is not None:
             cleanup_override = settings_row.cleanup_foreign_tracks
+            absolute_order = bool(settings_row.absolute_order)
     except Exception as exc:
         logger.debug("Could not load series settings for standalone %d: %s", series_id, exc)
 
@@ -254,7 +257,7 @@ def _get_standalone_series_detail(series_id: int, settings) -> dict | None:
         "target_language_names": target_language_names,
         "source_language": settings.source_language,
         "source_language_name": settings.source_language_name,
-        "absolute_order": False,
+        "absolute_order": absolute_order,
         "cleanup_foreign_tracks_override": cleanup_override,
         "cleanup_foreign_tracks_effective": should_cleanup_foreign_tracks(
             series_override=cleanup_override, global_default=global_default
