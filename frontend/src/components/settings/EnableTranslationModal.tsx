@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { FlaskConical, X } from 'lucide-react'
+import { Languages, X } from 'lucide-react'
 import { useUpdateConfig } from '@/hooks/useApi'
 
 interface EnableTranslationModalProps {
@@ -44,53 +44,29 @@ export function EnableTranslationModal({ onClose }: EnableTranslationModalProps)
 
         {/* Header */}
         <div className="flex items-center gap-3">
-          <div
-            className="flex items-center justify-center rounded-lg shrink-0"
-            style={{ width: 40, height: 40, backgroundColor: 'var(--warning-bg)' }}
-          >
-            <FlaskConical size={20} style={{ color: 'var(--warning)' }} />
+          <div className="flex items-center justify-center rounded-lg shrink-0 w-10 h-10 bg-accent-bg">
+            <Languages size={20} className="text-accent" />
           </div>
-          <div>
-            <div className="font-bold text-base" style={{ color: 'var(--text-primary)' }}>
-              {t('enable_translation_modal.title')}
-            </div>
-            <div
-              className="text-xs font-semibold rounded-full px-2 py-0.5 inline-block mt-0.5"
-              style={{ backgroundColor: 'var(--warning-bg)', color: 'var(--warning)' }}
-            >
-              BETA
-            </div>
+          <div className="font-bold text-base text-foreground">
+            {t('enable_translation_modal.title')}
           </div>
         </div>
 
-        {/* Warning body */}
-        <div
-          className="rounded-lg text-sm leading-relaxed"
-          style={{
-            padding: '12px 16px',
-            backgroundColor: 'var(--warning-bg)',
-            border: '1px solid var(--warning)',
-            color: 'var(--text-secondary)',
-          }}
-        >
-          <p>
-            {t('enable_translation_modal.warning_body')}
-          </p>
-          <p className="mt-2">
-            {t('enable_translation_modal.requirement_prefix')}<strong>Ollama</strong>{t('enable_translation_modal.requirement_suffix')}
-          </p>
+        {/* Body */}
+        <div className="text-sm leading-relaxed text-secondary">
+          <p>{t('enable_translation_modal.body')}</p>
+          <p className="mt-2">{t('enable_translation_modal.requirement')}</p>
         </div>
 
-        {/* Checkbox */}
+        {/* Acknowledgement */}
         <label className="flex items-start gap-3 cursor-pointer select-none">
           <input
             type="checkbox"
             checked={understood}
             onChange={(e) => setUnderstood(e.target.checked)}
-            className="mt-0.5 shrink-0"
-            style={{ accentColor: 'var(--accent)', width: 16, height: 16 }}
+            className="mt-0.5 shrink-0 w-4 h-4 accent-accent"
           />
-          <span className="text-sm" style={{ color: 'var(--text-secondary)' }}>
+          <span className="text-sm text-secondary">
             {t('enable_translation_modal.understand_checkbox')}
           </span>
         </label>
@@ -111,13 +87,7 @@ export function EnableTranslationModal({ onClose }: EnableTranslationModalProps)
           <button
             onClick={handleEnable}
             disabled={!understood || updateConfig.isPending}
-            className="px-4 py-2 rounded-md text-sm font-semibold"
-            style={{
-              backgroundColor: understood ? 'var(--accent)' : 'var(--bg-elevated)',
-              color: understood ? '#fff' : 'var(--text-muted)',
-              border: '1px solid transparent',
-              opacity: !understood || updateConfig.isPending ? 0.5 : 1,
-            }}
+            className="px-4 py-2 rounded-md text-sm font-semibold bg-accent text-white border border-transparent disabled:opacity-50"
           >
             {t('enable_translation_modal.enable_button')}
           </button>

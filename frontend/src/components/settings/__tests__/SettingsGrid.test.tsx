@@ -89,6 +89,12 @@ describe('SettingsGrid', () => {
     expect(screen.getByTestId('settings-card-system')).toBeInTheDocument()
   })
 
+  it('does not label the Translation card as beta', () => {
+    renderWithRouter(<SettingsGrid />)
+    const badge = screen.getByTestId('settings-card-badge-translation')
+    expect(badge.textContent ?? '').not.toMatch(/beta/i)
+  })
+
   it('renders a count or tag element on each card', () => {
     renderWithRouter(<SettingsGrid />)
     const badges = screen.getAllByTestId(/^settings-card-badge-/)

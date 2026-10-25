@@ -12,10 +12,12 @@ describe('EnableTranslationModal', () => {
     mockMutate.mockClear()
   })
 
-  it('renders beta warning text', () => {
+  it('renders the own-risk notice without beta framing', () => {
     render(<EnableTranslationModal onClose={vi.fn()} />)
-    expect(screen.getByText('BETA')).toBeInTheDocument()
-    expect(screen.getByText(/experimental/i)).toBeInTheDocument()
+    expect(screen.getByText(/use at your own risk/i)).toBeInTheDocument()
+    expect(screen.getByText(/configured translation backend/i)).toBeInTheDocument()
+    expect(screen.queryByText(/beta/i)).not.toBeInTheDocument()
+    expect(screen.queryByText(/experimental/i)).not.toBeInTheDocument()
   })
 
   it('Enable button is disabled until checkbox is checked', () => {

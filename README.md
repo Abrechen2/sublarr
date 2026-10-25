@@ -36,7 +36,7 @@ It follows the *arr-suite design philosophy: connect it to Sonarr/Radarr, set up
 </p>
 
 > [!NOTE]
-> **Stable core.** The subtitle search, scoring, download and *arr-integration paths are stable. **LLM translation remains experimental** (see below). Always keep backups of your subtitle files before enabling automation, and read the [CHANGELOG](CHANGELOG.md) before upgrading. Solo-maintained project — bug reports and contributions welcome.
+> **Stable core.** The subtitle search, scoring, download and *arr-integration paths are stable. **LLM translation is optional and off by default**; its quality depends on the backend you choose (see below). Always keep backups of your subtitle files before enabling automation, and read the [CHANGELOG](CHANGELOG.md) before upgrading. Solo-maintained project — bug reports and contributions welcome.
 
 ---
 
@@ -63,7 +63,7 @@ Honest answer first, because your time is worth more than our install count.
 
 ## ✨ Features
 
-### What's core vs. what's beta
+### What's core vs. what's optional
 
 | Feature | Status |
 |---------|--------|
@@ -74,7 +74,7 @@ Honest answer first, because your time is worth more than our install count.
 | Language profiles (mustContain, cutoff, audioExclude) | Core — functional |
 | Subtitle editor, waveform sync, format conversion | Core — functional, rough edges possible |
 | Post-download processing pipeline | Core — functional |
-| **LLM translation via Ollama / DeepL / Google** | **⚠️ Beta — experimental, quality varies** |
+| LLM translation via Ollama / DeepL / Google | Optional, off by default — quality depends on backend, model and language pair; use at your own risk |
 
 ### 🔍 Subtitle Search & Download
 - **29 built-in providers** (plus 43 opt-in catalog providers) — AnimeTosho, Jimaku, OpenSubtitles, SubDL, Subscene, Subf2m, Subsource, SubsDump, Addic7ed, BetaSeries, Titlovi, Titrari, TVSubtitles, Gestdown, Kitsunekko, Napisy24, Podnapisi, YIFY, Zimuku, LegendasDivX, TurkceAltyazi — plus embedded subtitle extraction
@@ -124,9 +124,9 @@ Honest answer first, because your time is worth more than our install count.
 - **Batch search** — run searches across all wanted items with live progress bar
 - **Anime-only mode** — optionally limit wanted scanning to anime series
 
-### 🌐 LLM Translation *(optional · experimental · off by default)*
+### 🌐 LLM Translation *(optional · off by default)*
 
-Sublarr can *optionally* translate subtitles with a local or cloud LLM (Ollama, DeepL, Google, LibreTranslate, or any OpenAI-compatible endpoint). It is **disabled by default and not a headline feature** — quality varies a lot by model and language pair, so treat it as a bonus, not a reason to use Sublarr. EN→DE anime is the best-tested path.
+Sublarr can *optionally* translate subtitles with a local or cloud LLM (Ollama, DeepL, Google, LibreTranslate, or any OpenAI-compatible endpoint). It is **disabled by default** and you turn it on explicitly. The result depends on the backend, model and language pair you choose — use it at your own risk. EN→DE anime is the best-tested path.
 
 If you want to try it, see the [translation docs](https://sublarr.de/docs/user-guide/translation-llm/).
 
@@ -146,7 +146,7 @@ If you want to try it, see the [translation docs](https://sublarr.de/docs/user-g
 
 Current as of the [latest release](https://github.com/Abrechen2/sublarr/releases/latest). These are real constraints, not roadmap teasers — worth reading before you install rather than after.
 
-- **LLM translation is experimental and off by default.** Quality varies sharply by backend, model and language pair. Cloud backends (DeepL, Claude, Gemini) are the reliable end; local Ollama models are usable but need tuning. Never point it at a library you have no backup of.
+- **LLM translation is off by default and its quality depends on your choice of translator.** Results vary by backend, model and language pair; use it at your own risk. Cloud backends (DeepL, Claude, Gemini) are the reliable end; local Ollama models are usable but need tuning. Never point it at a library you have no backup of.
 - **One shared password, no user accounts.** Sublarr's UI auth is a single password — no usernames, no roles, no per-user audit trail. For genuine multi-user setups, put it behind a reverse proxy with forward-auth; Sublarr reads proxy auth headers natively (Authelia / authentik, `proxy_auth_enabled`).
 - **One instance per library.** The scheduler assumes a single primary. Extra replicas must run with `SUBLARR_SCHEDULER_ROLE=disabled` or every recurring job fires twice. There is no worker pool and no multi-host distribution.
 - **No auto-update, by design.** The UI tells you when a newer release exists; you run the upgrade. Read the [CHANGELOG](CHANGELOG.md) first — this project moves quickly.
@@ -269,9 +269,9 @@ All settings use the `SUBLARR_` prefix. They can be set via environment variable
 | `SUBLARR_LOG_LEVEL` | `INFO` | Log level (`DEBUG`, `INFO`, `WARNING`, `ERROR`) |
 | `PUID` / `PGID` | `1000` | Container user/group IDs |
 
-### Translation *(beta)*
+### Translation
 
-> Translation is disabled by default (`SUBLARR_WANTED_AUTO_TRANSLATE=false`). When disabled, only subtitle download runs — no LLM calls are made. Enable only if you have a working Ollama instance and accept variable quality.
+> Translation is disabled by default (`SUBLARR_WANTED_AUTO_TRANSLATE=false`). When disabled, only subtitle download runs — no LLM calls are made. Enable it once a translation backend is configured; the result depends on the backend and model you choose.
 
 | Variable | Default | Description |
 |---|---|---|
@@ -360,7 +360,7 @@ What it does:
 - **Rescan after download** — like Jellyfin/Emby, Shoko is told to rescan the file after
   a subtitle is written so it picks up the new external subtitle.
 
-### Ollama (Local LLM — translation beta)
+### Ollama (Local LLM for translation)
 
 > ⚠️ Translation quality is variable. Only enable if you need it.
 > The custom `anime-translator-*` GGUFs we previously published are
@@ -457,7 +457,7 @@ Every Sublarr instance ships its own interactive API reference:
 | FAQ | [Getting Started → FAQ](https://sublarr.de/docs/getting-started/faq/) |
 | Sonarr/Radarr/Jellyfin setup | [User Guide → Integrations](https://sublarr.de/docs/user-guide/integrations/) |
 | Language profiles | [User Guide → Language Profiles](https://sublarr.de/docs/user-guide/language-profiles/) |
-| LLM translation (beta) | [User Guide → Translation & LLM](https://sublarr.de/docs/user-guide/translation-llm/) |
+| LLM translation | [User Guide → Translation & LLM](https://sublarr.de/docs/user-guide/translation-llm/) |
 | Standalone mode | [Getting Started → Installation (Scenario 2)](https://sublarr.de/docs/getting-started/installation/) |
 | Subtitle scoring algorithm | [User Guide → Settings → Providers (Scoring)](https://sublarr.de/docs/user-guide/settings/providers/#subtitle-scoring) |
 | Provider system | [User Guide → Settings → Providers](https://sublarr.de/docs/user-guide/settings/providers/) |
@@ -565,7 +565,7 @@ Contributions are welcome — bug reports, feature requests, and pull requests.
 
 ## 💬 Community
 
-- **Discord** — [discord.gg/WjatsKzHXz](https://discord.gg/WjatsKzHXz) — live chat, install help, beta testing
+- **Discord** — [discord.gg/WjatsKzHXz](https://discord.gg/WjatsKzHXz) — live chat, install help, release testing
 - **Reddit** — [r/Sublarr](https://www.reddit.com/r/Sublarr/) — announcements, showcases, discussions
 - **GitHub Issues** — [bug reports & feature requests](https://github.com/Abrechen2/sublarr/issues)
 

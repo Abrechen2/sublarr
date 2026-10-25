@@ -941,8 +941,8 @@ def extract_embedded_sub(
         item_id: ID of the wanted item.
         file_path: Absolute path to the media file.
         auto_translate: If True, trigger translation of the primary
-            extracted SRT after extraction. Translation is a Beta-gated
-            feature in production; the scheduler-driven drain passes
+            extracted SRT after extraction. Translation is opt-in
+            (off by default); the scheduler-driven drain passes
             False so it stays manual.
         remove_from_container: Tri-state opt-in for the container rewrite.
             None (default) resolves to the
