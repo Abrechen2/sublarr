@@ -501,3 +501,44 @@ def test_automation_drain_refuses_escaped_cleanup_and_sync(escaped, monkeypatch,
     assert SubtitleAutomationRunner(queue).process_one() is True
     assert touched == []
     assert queue.failed and "media folder" in queue.failed[0][1]
+
+
+# --- Codex round 4 ------------------------------------------------------------
+
+
+def test_untagged_arr_file_under_a_watched_folder_is_not_refused(media, monkeypatch):
+    """A Radarr movie in a watched folder, symlinked elsewhere inside the media
+    folder: a path-only task (auto-sync) must keep the arr behaviour."""
+    from db.standalone import upsert_watched_folder
+    from services.standalone_library import wanted_item_path_refusal
+
+    real = _video(media / "storage" / "Film.mkv")
+    watch = media / "watch"
+    watch.mkdir()
+    os.symlink(real, watch / "Film.mkv")
+    upsert_watched_folder(str(watch))
+    assert wanted_item_path_refusal({"file_path": str(watch / "Film.mkv")}) is None
+
+
+def test_untagged_file_escaping_the_media_folder_is_refused(escaped):
+    from services.standalone_library import wanted_item_path_refusal
+
+    _, video, _ = escaped
+    assert wanted_item_path_refusal({"file_path": video})
+
+
+def test_wanted_cleanup_rows_carry_their_ids(media):
+    from db.wanted import get_wanted_items_for_cleanup, upsert_wanted_item
+
+    upsert_wanted_item(
+        item_type="episode",
+        file_path="/tv/Show/S01E01.mkv",
+        title="Show",
+        season_episode="S01E01",
+        target_language="de",
+        sonarr_series_id=7,
+        sonarr_episode_id=70,
+        instance_name="Sonarr",
+    )
+    row = get_wanted_items_for_cleanup()[0]
+    assert row["sonarr_series_id"] == 7 and row["standalone_series_id"] is None

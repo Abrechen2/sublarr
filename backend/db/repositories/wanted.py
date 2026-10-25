@@ -638,6 +638,13 @@ class WantedRepository(BaseRepository, _WantedUpsertMixin, _WantedUpdatesMixin):
             WantedItem.file_path,
             WantedItem.target_language,
             WantedItem.instance_name,
+            # Source ids: the standalone path guard tells arr rows from
+            # standalone rows by them (docs/specs/standalone-ids.md).
+            WantedItem.sonarr_series_id,
+            WantedItem.sonarr_episode_id,
+            WantedItem.radarr_movie_id,
+            WantedItem.standalone_series_id,
+            WantedItem.standalone_movie_id,
         )
         rows = self.session.execute(stmt).all()
         return [
@@ -646,6 +653,11 @@ class WantedRepository(BaseRepository, _WantedUpsertMixin, _WantedUpdatesMixin):
                 "file_path": r[1],
                 "target_language": r[2] or "",
                 "instance_name": r[3] or "",
+                "sonarr_series_id": r[4],
+                "sonarr_episode_id": r[5],
+                "radarr_movie_id": r[6],
+                "standalone_series_id": r[7],
+                "standalone_movie_id": r[8],
             }
             for r in rows
         ]

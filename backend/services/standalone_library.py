@@ -350,13 +350,17 @@ def wanted_item_path_refusal(item: dict | None) -> str | None:
         roots = _standalone_roots(required=tagged)
         if roots is None:
             return None
-        if not tagged:
-            # A row / job / queue task without ids is standalone when it lies
-            # (as written) under a watched folder or a standalone series folder.
-            roots = [root for root in roots if _lexically_under(path, root)]
-            if not roots:
+        if tagged:
+            allowed = any(standalone_path_allowed(path, root) for root in roots)
+        else:
+            # A row / job / queue task without ids may be a standalone file
+            # when it lies (as written) under a watched folder or a standalone
+            # series folder - or a Sonarr/Radarr file in the same tree. Only
+            # the boundary both share is enforced: the resolved file must lie
+            # inside media_path (what the arr paths are held to anyway).
+            if not any(_lexically_under(path, root) for root in roots):
                 return None
-        allowed = any(standalone_path_allowed(path, root) for root in roots)
+            allowed = in_media_root(path)
     if allowed:
         return None
     logger.warning("Wanted %s: %s (%s) - skipped, row kept", item.get("id"), OUTSIDE_REASON, path)

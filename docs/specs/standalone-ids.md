@@ -334,7 +334,11 @@ the `file_path` fallback, so nothing breaks in between.
   `instance_name = 'standalone'` row) against the watched folders, both
   against `media_path` — runs before any preflight, ffprobe, sidecar
   detection, provider search, download, extraction, translation or MT
-  replacement (`process_wanted_item`, `search_wanted_item`,
+  replacement. Rows or tasks without any id are treated as standalone
+  when tagged `instance_name = 'standalone'` (full check) or when they lie
+  under a watched folder or standalone series folder (then only `media_path`
+  containment, because they may be arr files). Entry points:
+  (`process_wanted_item`, `search_wanted_item`,
   `search_providers_for_item`, `download_specific_for_item`,
   `extract_embedded_sub` (single, batch, drain), the automation drain's
   sidecar translation, retranslation (service and route), the extract route,
@@ -471,3 +475,11 @@ Follow-up Codex rounds on the fix:
   tasks are rechecked at execution (cleanup rows carry the owner keys;
   auto-sync rows are recognised by lying under a watched folder or a
   standalone series folder).
+* Round 4: path-only items (auto-sync tasks, jobs without ids) under a
+  watched folder can be Sonarr/Radarr files in the same tree, and the
+  wanted cleanup dropped the source ids before calling the guard. Untagged
+  items are now held only to the boundary both share (the resolved file
+  inside `media_path`, what arr paths already follow); the cleanup rows
+  carry their ids, so standalone rows get the full owner-folder check and
+  arr rows are exempt as before. (Fixed after the last review round; not
+  re-reviewed by Codex.)
