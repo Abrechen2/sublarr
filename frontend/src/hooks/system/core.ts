@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
 import { getSetupStatus, completeSetup, type SetupProfile } from '@/api/health';
+import { getOnboardingStatus } from '@/api/settings';
 import {
   getBudgetState,
   getDetailedHealth,
@@ -103,6 +104,15 @@ export function useSetupStatus() {
   return useQuery({
     queryKey: ['system', 'setup', 'status'],
     queryFn: getSetupStatus,
+    staleTime: 60_000,
+    retry: 0,
+  });
+}
+
+export function useOnboardingStatus() {
+  return useQuery({
+    queryKey: ['onboarding', 'status'],
+    queryFn: getOnboardingStatus,
     staleTime: 60_000,
     retry: 0,
   });

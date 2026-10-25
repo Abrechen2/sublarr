@@ -25,7 +25,8 @@ import { useKeyboardShortcuts } from '@/hooks/useKeyboardShortcuts'
 import { AuthGuard } from '@/components/auth/AuthGuard'
 import { ErrorBoundary } from '@/components/shared/ErrorBoundary'
 import FirstRunWizard, { shouldShowWizard } from '@/components/Setup/FirstRunWizard'
-import { useSetupStatus } from '@/hooks/useSystemApi'
+import { useOnboardingStatus, useSetupStatus } from '@/hooks/useSystemApi'
+import { markOnboardingRedirected, shouldOpenOnboarding } from '@/components/Setup/onboardingRedirect'
 import { useConfig } from '@/hooks/useApi'
 
 // Route-level code splitting: each page is lazy-loaded as a separate chunk
@@ -178,7 +179,13 @@ function GlobalShortcuts({ onToggleShortcutsModal }: { onToggleShortcutsModal: (
 function FirstRunWizardMount() {
   const location = useLocation()
   const { data: setupStatus } = useSetupStatus()
+  const { data: onboardingStatus } = useOnboardingStatus()
   const [wizardOpen, setWizardOpen] = useState(false)
+  const openOnboarding = shouldOpenOnboarding(onboardingStatus, setupStatus, location.pathname)
+
+  useEffect(() => {
+    if (openOnboarding) markOnboardingRedirected()
+  }, [openOnboarding])
 
   useEffect(() => {
     if (shouldShowWizard(setupStatus)) {
@@ -186,6 +193,8 @@ function FirstRunWizardMount() {
     }
   }, [setupStatus])
 
+  // A fresh install gets the full setup wizard, not just the scheduler modal.
+  if (openOnboarding) return <Navigate to="/onboarding" replace />
   if (!wizardOpen || location.pathname === '/onboarding') return null
   return <FirstRunWizard onClose={() => setWizardOpen(false)} />
 }

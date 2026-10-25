@@ -14,7 +14,9 @@
     "mediaservers": "Medienserver (Optional)",
     "scan": "Erster Scan",
     "library": "Bibliothekstyp",
-    "performance": "Performance"
+    "performance": "Performance",
+    "language": "Sprachen",
+    "automation": "Automatisierung"
   },
   "step_info": "Schritt {{step}} von {{total}}",
   "mode_step": {
@@ -58,7 +60,8 @@
   "language_step": {
     "target_language": "Zielsprache",
     "source_language": "Quellsprache",
-    "help": "Untertitel werden in der Zielsprache gesucht. Die Quellsprache wird verwendet, wenn Sublarr übersetzen oder transkribieren muss."
+    "help": "Untertitel werden in der Zielsprache gesucht. Die Quellsprache wird verwendet, wenn Sublarr übersetzen oder transkribieren muss.",
+    "description": "Wähle, in welcher Sprache Untertitel gesucht werden."
   },
   "automation_step": {
     "auto_search_label": "Automatisch nach fehlenden Untertiteln suchen",
@@ -71,7 +74,8 @@
     "interval_3h": "3 Stunden",
     "interval_6h": "6 Stunden",
     "interval_12h": "12 Stunden",
-    "interval_24h": "24 Stunden"
+    "interval_24h": "24 Stunden",
+    "description": "Lege fest, wie Sublarr nach fehlenden Untertiteln sucht."
   },
   "ollama_step": {
     "description": "Richte das LLM-Übersetzungs-Backend ein.",
