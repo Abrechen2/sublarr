@@ -59,6 +59,7 @@ def _load_profile_filters(item: dict, item_id: int) -> dict:
     """Resolve the effective language profile filters for a wanted item."""
     from db.models.core import LanguageProfile, MovieLanguageProfile, SeriesLanguageProfile
     from extensions import db as _db
+    from services.standalone_owner_keys import get_row
     from wanted_search.profile_filters import load_profile_filters
 
     _profile_obj = None
@@ -67,11 +68,11 @@ def _load_profile_filters(item: dict, item_id: int) -> dict:
         _series_key = series_key_for_item(item)
         _movie_key = movie_key_for_item(item)
         if _series_key is not None:
-            _slp = _db.session.get(SeriesLanguageProfile, _series_key)
+            _slp = get_row(SeriesLanguageProfile, _series_key)
             if _slp:
                 _profile_obj = _db.session.get(LanguageProfile, _slp.profile_id)
         elif _movie_key is not None:
-            _mlp = _db.session.get(MovieLanguageProfile, _movie_key)
+            _mlp = get_row(MovieLanguageProfile, _movie_key)
             if _mlp:
                 _profile_obj = _db.session.get(LanguageProfile, _mlp.profile_id)
     except Exception as _pe:

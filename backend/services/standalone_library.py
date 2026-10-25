@@ -290,6 +290,31 @@ def episode_file_for_wire_id(wire_id: int) -> tuple[dict, str] | None:
 OUTSIDE_REASON = "standalone file lies outside its folder or the media folder"
 
 
+def _watched_roots(*, required: bool) -> list[str] | None:
+    """Watched folder paths. ``None`` when they cannot be read and the row is
+    not known to be standalone (no app context / database in a unit test, a
+    transient DB error): an untagged row is then treated as before. For a
+    standalone row the error propagates, so it is never used unchecked."""
+    from db.standalone import get_watched_folders
+
+    try:
+        folders = get_watched_folders(enabled_only=False) or []
+    except Exception:
+        if required:
+            raise
+        logger.debug("watched folders unreadable; untagged row not checked", exc_info=True)
+        return None
+    return [f.get("path") or "" for f in folders]
+
+
+def _lexically_under(path: str, root: str) -> bool:
+    """``path`` as written (no symlinks resolved) lies under ``root``."""
+    if not path or not root:
+        return False
+    norm, base = os.path.normpath(path), os.path.normpath(root)
+    return norm == base or norm.startswith(base.rstrip(os.sep) + os.sep)
+
+
 def wanted_item_path_refusal(item: dict | None) -> str | None:
     """Why a standalone wanted row's file must not be used now, or ``None``.
 
@@ -311,22 +336,20 @@ def wanted_item_path_refusal(item: dict | None) -> str | None:
 
         series = get_standalone_series(int(item["standalone_series_id"])) or {}
         allowed = standalone_path_allowed(path, series.get("folder_path") or "")
-    elif item.get("standalone_movie_id") or (
-        item.get("instance_name") == "standalone"
-        and not (
-            item.get("sonarr_series_id")
-            or item.get("sonarr_episode_id")
-            or item.get("radarr_movie_id")
-        )
+    elif (
+        item.get("sonarr_series_id") or item.get("sonarr_episode_id") or item.get("radarr_movie_id")
     ):
-        from db.standalone import get_watched_folders
-
-        allowed = any(
-            standalone_path_allowed(path, folder.get("path") or "")
-            for folder in get_watched_folders(enabled_only=False) or []
-        )
-    else:
         return None
+    else:
+        tagged = bool(item.get("standalone_movie_id")) or item.get("instance_name") == "standalone"
+        roots = _watched_roots(required=tagged)
+        if roots is None:
+            return None
+        # A standalone movie row, or a row / job without ids that is tagged
+        # standalone or lies (as written) under a watched folder.
+        if not (tagged or any(_lexically_under(path, root) for root in roots)):
+            return None
+        allowed = any(standalone_path_allowed(path, root) for root in roots)
     if allowed:
         return None
     logger.warning("Wanted %s: %s (%s) - skipped, row kept", item.get("id"), OUTSIDE_REASON, path)

@@ -215,9 +215,13 @@ class TranslationRepository(BaseRepository, _TranslationCacheMixin):
         entry = self.session.get(GlossaryEntry, entry_id)
         if entry is None or entry.series_id is None or entry.series_id <= 0:
             return entry
-        from services.standalone_owner_keys import SERIES, claim, legacy_key
+        from services.standalone_owner_keys import SERIES, claim, legacy_key, superseded_legacy
 
         owner_key = -entry.series_id
+        if superseded_legacy(SERIES, entry.series_id):
+            # The title took its terms over; this old row is never read again
+            # and must not change (a stale client still holds its id).
+            return None
         if legacy_key(owner_key, SERIES) != entry.series_id:
             return entry
         copy_id = (claim(owner_key, SERIES) or {}).get(entry_id)

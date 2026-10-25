@@ -233,8 +233,15 @@ def retranslate_batch():
             succeeded = 0
             failed = 0
 
+            from services.standalone_library import wanted_item_path_refusal
+
             for job in outdated:
                 file_path = job["file_path"]
+                context = job.get("arr_context") or {}
+                if wanted_item_path_refusal({**context, "file_path": file_path}):
+                    processed += 1
+                    failed += 1
+                    continue
                 if not os.path.exists(file_path):
                     processed += 1
                     failed += 1

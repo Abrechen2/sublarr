@@ -443,3 +443,15 @@ A further cold Codex review reported three issues; all fixed:
   the containment check. One safe enumerator now (Security).
 * P2b — stored standalone wanted rows whose folder now escapes `media_path`
   were still probed and searched. Checked at every pipeline entry (Security).
+
+Follow-up Codex rounds on the fix:
+
+* Round 1: a stale legacy glossary id could still change the old row after
+  the title claimed (now refused: `superseded_legacy`); batch probe, batch
+  retranslate, the wanted cleanup and bulk auto-sync bypassed the path
+  guard / safe enumerator (now guarded; rows or jobs without ids count as
+  standalone when tagged so or lying under a watched folder); the search's
+  profile filters read the assignment without the fallback (now
+  `get_row`). Not changed: priority override and minimum daily attempts
+  are joined on `sonarr_series_id` only, so they never applied to standalone
+  wanted rows, before or after 1.18 — a missing feature, not a regression.

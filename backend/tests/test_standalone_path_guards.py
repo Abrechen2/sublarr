@@ -301,3 +301,84 @@ def test_sonarr_rows_keep_the_existing_behaviour(media, monkeypatch):
     monkeypatch.setattr(process, "_check_profile_cutoff_and_audio", _stop)
     process.process_wanted_item(item_id)
     assert reached == [item_id]
+
+
+# --- Codex round 1 ------------------------------------------------------------
+
+
+def test_batch_probe_skips_an_escaped_row(escaped, monkeypatch):
+    from flask import current_app
+
+    import routes.wanted.batch_probe as bp_mod
+    from db.wanted import get_wanted_item
+
+    sid, video, _ = escaped
+    item_id = _wanted(sid, video)
+
+    def _boom(*a, **kw):
+        raise AssertionError("probed an escaped file")
+
+    monkeypatch.setattr("ass_utils.get_media_streams", _boom)
+    monkeypatch.setattr(bp_mod, "_process_probe_result", _boom)
+    bp_mod._run_batch_probe([get_wanted_item(item_id)], current_app._get_current_object())
+    assert get_wanted_item(item_id) is not None
+
+
+def test_batch_retranslate_skips_an_escaped_standalone_job(escaped, monkeypatch):
+    from flask import current_app
+
+    import routes.translate.retranslate as rt
+
+    sid, video, real = escaped
+    sidecar = os.path.join(real, "Season 1", "Show - S01E01.de.ass")
+    with open(sidecar, "w") as fh:
+        fh.write("x")
+    job = {"id": "j1", "file_path": video, "arr_context": {"standalone_series_id": sid}}
+
+    def _boom(*a, **kw):
+        raise AssertionError("translated an escaped file")
+
+    monkeypatch.setattr("db.jobs.get_outdated_jobs", lambda *_a, **_k: [job])
+    monkeypatch.setattr("translator.translate_file", _boom)
+    monkeypatch.setattr(rt, "_is_translation_enabled", lambda: True)
+    monkeypatch.setattr(rt, "submit_background", lambda fn, *a, **kw: fn())
+    with current_app.test_request_context():
+        rt.retranslate_batch()
+    assert os.path.exists(sidecar), "an external subtitle was deleted"
+
+
+def test_wanted_cleanup_leaves_an_escaped_row_alone(escaped, monkeypatch):
+    from db.wanted import get_wanted_item
+    from services.wanted_scanner_core import WantedScanner
+
+    sid, video, _ = escaped
+    item_id = _wanted(sid, video)
+
+    def _boom(*a, **kw):
+        raise AssertionError("inspected an escaped file")
+
+    monkeypatch.setattr("services.wanted_scanner_core.detect_existing_target_for_lang", _boom)
+    WantedScanner._cleanup(WantedScanner.__new__(WantedScanner), set())
+    assert get_wanted_item(item_id) is not None
+
+
+def test_bulk_auto_sync_does_not_walk_an_escaped_folder(escaped, spies, tmp_path):
+    from routes.video_sync import _bulk_videos_from_standalone
+
+    sid, _, _ = escaped
+    assert _bulk_videos_from_standalone(sid) == []
+    assert _bulk_videos_from_standalone(None) == []
+    assert _touched_outside(spies, str(tmp_path / "outside")) == []
+
+
+def test_job_without_ids_under_a_watched_folder_is_detected_as_standalone(escaped):
+    from db.standalone import upsert_watched_folder
+    from services.standalone_library import wanted_item_path_refusal
+
+    sid, video, _ = escaped
+    folder = os.path.dirname(os.path.dirname(os.path.dirname(video)))
+    upsert_watched_folder(folder)
+    assert wanted_item_path_refusal({"file_path": video})
+    assert wanted_item_path_refusal({"file_path": video, "sonarr_series_id": 7}) is None
+    # Not under any watched folder and untagged: not standalone, unchanged.
+    assert wanted_item_path_refusal({"file_path": "/tv/Show/S01E01.mkv"}) is None

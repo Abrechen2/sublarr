@@ -172,6 +172,15 @@ def legacy_key(owner_key: int | None, kind: str) -> int | None:
     return standalone_id
 
 
+def superseded_legacy(kind: str, standalone_id: int) -> bool:
+    """A positive key that was a standalone title's and has been taken over.
+
+    True while the arr is not configured and the standalone id is claimed:
+    the row is then nobody's live data and is kept unchanged.
+    """
+    return not _arr_configured(kind) and _claimed(kind, int(standalone_id))
+
+
 def readable_legacy_ids(kind: str) -> frozenset[int]:
     """Standalone ids whose positive-key rows may currently be read (bulk readers)."""
     if _arr_configured(kind) or arr_evidence(kind):

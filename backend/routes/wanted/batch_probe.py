@@ -183,8 +183,13 @@ def _gated_probe(file_path: str):
 def _run_batch_probe(items, app):
     """Background thread: ffprobe all items, extract all embedded sub streams, update DB."""
     from services.media_io_gate import media_io_gate
+    from services.standalone_library import wanted_item_path_refusal
 
     max_workers = media_io_gate.cap_workers(getattr(get_settings(), "scan_metadata_max_workers", 4))
+    with app.app_context():
+        # A standalone file now outside its folder / the media folder is
+        # never probed or extracted (the row is kept).
+        items = [it for it in items if not wanted_item_path_refusal(it)]
     _init_batch_probe_state(len(items))
     start_time = time.time()
     try:

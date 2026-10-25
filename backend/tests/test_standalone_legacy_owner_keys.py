@@ -561,3 +561,30 @@ def test_startup_leaves_pure_standalone_legacy_rows_alone(tmp_path, monkeypatch)
 
     _boot(db_path, monkeypatch)
     assert _file_snapshot(db_path) == before
+
+
+# --- Codex round 1 ------------------------------------------------------------
+
+
+def test_search_profile_filters_use_the_legacy_assignment(app_ctx, no_arr):
+    from db.models.core import LanguageProfile
+    from extensions import db
+    from wanted_search.process import _load_profile_filters
+
+    _seed_legacy()
+    db.session.get(LanguageProfile, 2).cutoff_language = "fr"
+    db.session.commit()
+    assert _load_profile_filters({"standalone_series_id": 3}, 1)["cutoff_language"] == "fr"
+
+
+def test_stale_legacy_glossary_id_after_claim_never_changes_the_old_row(app_ctx, no_arr):
+    from db.translation import delete_glossary_entry, get_glossary_entries, update_glossary_entry
+
+    _seed_legacy()
+    legacy = {e["source_term"]: e["id"] for e in get_glossary_entries(-3)}
+    assert update_glossary_entry(legacy["Wall"], target_term="Wand") is True  # claims
+    # A stale client still holds the legacy id of the other term.
+    assert delete_glossary_entry(legacy["Titan"]) is False
+    assert update_glossary_entry(legacy["Titan"], target_term="X") is False
+    _legacy_rows_intact()
+    assert sorted(e["source_term"] for e in get_glossary_entries(-3)) == ["Titan", "Wall"]

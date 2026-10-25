@@ -405,11 +405,15 @@ class WantedScanner(_WantedSchedulerMixin, _WantedScanSourcesMixin):
         share) does — and that must never turn into a wipe.
         """
         from db.wanted import get_wanted_items_for_cleanup
+        from services.standalone_library import wanted_item_path_refusal
 
         items = get_wanted_items_for_cleanup()
         to_remove_ids = []
 
         for item in items:
+            if wanted_item_path_refusal(item):
+                # Escaped standalone file: not inspected, row kept.
+                continue
             path = item["file_path"]
             target_lang = item.get("target_language", "")
             instance_name = item.get("instance_name", "")

@@ -341,33 +341,31 @@ def _bulk_videos_from_radarr() -> list[str]:
 
 
 def _bulk_videos_from_standalone(series_id: int | None = None) -> list[str]:
-    """Walk standalone series folders (one series, or all plus every
-    standalone movie file) and return concrete video files."""
+    """Video files of standalone series (one series, or all plus every
+    standalone movie file), through the shared safe enumerator: a series
+    folder or file outside its folder / the media folder is never walked or
+    returned (docs/specs/standalone-ids.md, Security)."""
     from db.repositories.standalone import StandaloneRepository
+    from services.standalone_library import allowed_series_files, movie_path_in_watched_folder
 
     repo = StandaloneRepository()
-    folder_paths: list[str] = []
-    videos: list[str] = []
     if series_id is not None:
         series = repo.get_standalone_series(int(series_id))
-        if series and series.get("folder_path"):
-            folder_paths.append(series["folder_path"])
+        series_rows = [series] if series else []
+        movies = []
     else:
-        for s in repo.get_all_standalone_series() or []:
-            if s.get("folder_path"):
-                folder_paths.append(s["folder_path"])
+        series_rows = list(repo.get_all_standalone_series() or [])
         # Standalone movies are single files (no folder_path column).
-        for m in repo.get_all_standalone_movies() or []:
-            if m.get("file_path"):
-                videos.append(m["file_path"])
+        movies = [m.get("file_path") for m in repo.get_all_standalone_movies() or []]
 
-    for folder in folder_paths:
-        if not os.path.isdir(folder):
-            continue
-        for root, _dirs, files in os.walk(folder):
-            for name in files:
-                if os.path.splitext(name)[1].lower() in _BULK_VIDEO_EXTENSIONS:
-                    videos.append(os.path.join(root, name))
+    videos: list[str] = []
+    for series in series_rows:
+        videos += [
+            fp
+            for fp, _ in allowed_series_files(series)
+            if os.path.splitext(fp)[1].lower() in _BULK_VIDEO_EXTENSIONS
+        ]
+    videos += [fp for fp in movies if fp and movie_path_in_watched_folder(fp)]
     return videos
 
 

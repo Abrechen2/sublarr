@@ -658,6 +658,10 @@ def _bulk_standalone_library(client, tmp_path):
         m = StandaloneMovie(title="Film", file_path=movie, created_at=now, updated_at=now)
         db.session.add_all([a, b, m])
         db.session.commit()
+        from db.standalone import upsert_watched_folder
+
+        # Standalone movies must lie in a watched folder (the movie resolver's rule).
+        upsert_watched_folder(str(movies))
         return a.id
 
 
