@@ -240,8 +240,10 @@ def list_runs(job_id: str):
 
 def _audit_log(job_id: str, action: str) -> None:
     """Log admin action for audit trail."""
+    from security_utils import api_key_actor
+
     api_key = request.headers.get("X-Api-Key", "")
-    fp = api_key[:6] if api_key else "anon"
+    fp = api_key_actor(api_key)
     logger.info(
         "scheduler_admin_action job_id=%s action=%s actor=%s",
         job_id,
