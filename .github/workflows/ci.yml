@@ -14,6 +14,10 @@ on:
         type: boolean
         default: false
 
+# Least privilege for every job: none of them writes to the repository.
+permissions:
+  contents: read
+
 # Cancel in-progress runs for the same branch/PR — saves CI minutes
 concurrency:
   group: ci-${{ github.ref }}
@@ -30,7 +34,7 @@ jobs:
       frontend: ${{ steps.filter.outputs.frontend }}
     steps:
       - uses: actions/checkout@v7
-      - uses: dorny/paths-filter@v4
+      - uses: dorny/paths-filter@ceb8a2b8f2d89434be7ff52d3de7ec3738c5cc9d # v4.0.3
         id: filter
         with:
           filters: |
@@ -182,9 +186,6 @@ jobs:
     if: needs.changes.outputs.backend == 'true' || needs.changes.outputs.frontend == 'true' || inputs.full
     runs-on: ubuntu-latest
     timeout-minutes: 30
-    permissions:
-      contents: read
-      security-events: write
     steps:
       - uses: actions/checkout@v7
 
@@ -197,7 +198,7 @@ jobs:
         working-directory: ./backend
         run: |
           python -m pip install --upgrade pip
-          pip install pip-audit bandit[sarif]
+          pip install pip-audit bandit
 
       # Audits requirements.txt, not the ambient environment. Auditing the
       # installed env dragged in pip/setuptools/build-tool noise that had
@@ -207,23 +208,18 @@ jobs:
         run: pip-audit -r requirements.txt --desc
 
       # Scope + suppressions live in backend/.bandit, shared with pre-commit.
-      # The gate is HIGH severity at HIGH confidence; everything below that is
-      # reported into the Security tab via SARIF rather than blocking a push.
+      # The gate is HIGH severity at HIGH confidence. Nothing is uploaded to
+      # GitHub code scanning: the report step below prints MEDIUM and above
+      # into this job's log. LOW findings (subprocess imports, try/except/pass)
+      # are bandit's informational class and stay out of the log on purpose.
       - name: bandit (static security — gate)
         working-directory: ./backend
         run: bandit -r . --ini .bandit --severity-level high --confidence-level high
 
-      - name: bandit (full report → SARIF)
+      - name: bandit (medium+ report — log only)
         if: always()
         working-directory: ./backend
-        run: bandit -r . --ini .bandit -f sarif -o bandit.sarif || true
-
-      - name: Upload bandit SARIF
-        if: always()
-        uses: github/codeql-action/upload-sarif@v4
-        with:
-          sarif_file: backend/bandit.sarif
-          category: bandit
+        run: bandit -r . --ini .bandit --severity-level medium || true
 
       - uses: actions/setup-node@v7
         with:
@@ -248,67 +244,54 @@ jobs:
         run: npm audit --audit-level=high || true
 
   # ─── Semgrep (deeper static analysis) ─────────────────────────────────────
-  # Reports into the Security tab rather than blocking. It is new here; making
-  # it a gate before we have seen its baseline would just teach us to ignore a
-  # red check. Promote to blocking once the findings are triaged.
+  # Report only, into this job's log; nothing is uploaded to GitHub code
+  # scanning. Its baseline is dominated by audit rules (raw SQL in migrations,
+  # dynamic urllib) that are reviewed false positives, so a blocking Semgrep
+  # would be a red check people learn to click past. Tests, vendored and
+  # sha256-pinned catalog code are not ours to fix and are excluded.
   semgrep:
     name: Semgrep
     needs: changes
     if: needs.changes.outputs.backend == 'true' || needs.changes.outputs.frontend == 'true' || inputs.full
     runs-on: ubuntu-latest
     timeout-minutes: 20
-    permissions:
-      contents: read
-      security-events: write
     container:
       image: semgrep/semgrep
     steps:
       - uses: actions/checkout@v7
 
-      - name: Run Semgrep
-        run: semgrep scan --config p/default --config p/python --config p/typescript --sarif --output semgrep.sarif --exclude backend/venv --exclude backend/providers/_vendor --exclude frontend/node_modules
+      - name: Run Semgrep (report only)
+        run: >-
+          semgrep scan --config p/default --config p/python --config p/typescript
+          --exclude backend/venv
+          --exclude backend/tests
+          --exclude backend/providers/_vendor
+          --exclude backend/providers/hub/bundles
+          --exclude frontend/node_modules
+          --exclude 'frontend/src/**/__tests__'
         continue-on-error: true
-
-      - name: Upload Semgrep SARIF
-        if: always()
-        uses: github/codeql-action/upload-sarif@v4
-        with:
-          sarif_file: semgrep.sarif
-          category: semgrep
 
   # ─── Trivy (dependency + container surface) ───────────────────────────────
   # Sublarr ships a Docker image and never scanned it. This scans the repo
   # filesystem (lockfiles + Dockerfile) — the image itself is scanned in
-  # docker-build.yml where it is actually built.
+  # docker-build.yml where it is actually built. Report only, as a table in
+  # this job's log: a CVE published overnight in a transitive dependency must
+  # not block an unrelated push. npm audit and pip-audit above are the gates.
   trivy:
     name: Trivy
     needs: changes
     if: needs.changes.outputs.backend == 'true' || needs.changes.outputs.frontend == 'true' || inputs.full
     runs-on: ubuntu-latest
     timeout-minutes: 20
-    permissions:
-      contents: read
-      security-events: write
     steps:
       - uses: actions/checkout@v7
 
-      - name: Trivy filesystem scan
-        uses: aquasecurity/trivy-action@v0.36.0
+      - name: Trivy filesystem scan (report only)
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
         with:
           scan-type: fs
           scan-ref: .
-          format: sarif
-          output: trivy.sarif
+          format: table
           severity: CRITICAL,HIGH
-          # Without this the SARIF carries every severity regardless of the
-          # filter above, and the Security tab fills with LOW noise.
-          limit-severities-for-sarif: true
           skip-dirs: backend/venv,backend/providers/_vendor,frontend/node_modules
         continue-on-error: true
-
-      - name: Upload Trivy SARIF
-        if: always()
-        uses: github/codeql-action/upload-sarif@v4
-        with:
-          sarif_file: trivy.sarif
-          category: trivy
