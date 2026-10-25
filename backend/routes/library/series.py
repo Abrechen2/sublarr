@@ -56,6 +56,40 @@ def _enumerate_series_episode_files(folder_path: str) -> list[tuple[str, dict]]:
     return out
 
 
+def standalone_series_video_paths(series_id: int) -> list[str] | None:
+    """Every episode video of a standalone series, or None for an unknown id.
+
+    The folder on disk is the source of truth (``wanted_items`` only holds
+    episodes still missing a subtitle — exactly the wrong set for bulk
+    actions on existing subtitles). Falls back to the ``wanted_items`` paths
+    while the folder is unreachable, like the series detail.
+    """
+    from sqlalchemy import text
+
+    from db import get_db
+    from db.standalone import get_standalone_series
+
+    series = get_standalone_series(series_id)
+    if not series:
+        return None
+    paths = [fp for fp, _ in _enumerate_series_episode_files(series.get("folder_path", ""))]
+    if paths:
+        return sorted(paths)
+    rows = (
+        get_db()
+        .execute(
+            text(
+                "SELECT DISTINCT file_path FROM wanted_items"
+                " WHERE standalone_series_id=:sid AND file_path != ''"
+                " ORDER BY file_path"
+            ),
+            {"sid": series_id},
+        )
+        .fetchall()
+    )
+    return [r[0] for r in rows if r[0]]
+
+
 def _get_standalone_series_detail(series_id: int, settings) -> dict | None:
     """Build a Sonarr-compatible series detail dict from standalone DB data."""
     import re

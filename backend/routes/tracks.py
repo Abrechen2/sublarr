@@ -726,21 +726,11 @@ def batch_extract_series_tracks(series_id):
                     else []
                 )
             else:
-                # Standalone fallback: read file paths directly from wanted_items table
-                from sqlalchemy import text as _text
+                # Standalone: every episode file in the series folder (not
+                # just the wanted_items rows, which lack satisfied episodes).
+                from routes.library.series import standalone_series_video_paths
 
-                from db import get_db
-
-                db = get_db()
-                rows = db.execute(
-                    _text(
-                        "SELECT DISTINCT file_path FROM wanted_items"
-                        " WHERE standalone_series_id=:sid AND file_path != ''"
-                        " ORDER BY file_path"
-                    ),
-                    {"sid": series_id},
-                ).fetchall()
-                video_paths = [r[0] for r in rows if r[0]]
+                video_paths = standalone_series_video_paths(series_id) or []
                 logger.info(
                     "[batch-extract-tracks] standalone mode: %d files for series %d",
                     len(video_paths),

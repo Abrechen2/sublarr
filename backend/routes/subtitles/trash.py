@@ -122,20 +122,14 @@ def batch_delete_series_subtitles(series_id: int):
     # Collect video file paths — via Sonarr or standalone DB
     video_paths: list[str] = []
     if client is None:
-        from sqlalchemy import text
+        # Standalone: every episode file in the series folder — wanted_items
+        # alone misses exactly the episodes that have subtitles.
+        from routes.library.series import standalone_series_video_paths
 
-        from db import get_db
-        from db.standalone import get_standalone_series
-
-        if get_standalone_series(series_id) is None:
-            return jsonify({"error": "Sonarr not configured"}), 503
-
-        db = get_db()
-        rows = db.execute(
-            text("SELECT file_path FROM wanted_items WHERE standalone_series_id=:sid"),
-            {"sid": series_id},
-        ).fetchall()
-        video_paths = [row.file_path for row in rows if row.file_path]
+        standalone_paths = standalone_series_video_paths(series_id)
+        if standalone_paths is None:
+            return jsonify({"error": "Series not found"}), 404
+        video_paths = standalone_paths
     else:
         episode_files = client.get_episode_files_by_series(series_id)
         for file_info in (episode_files or {}).values():

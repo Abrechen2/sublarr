@@ -341,13 +341,9 @@ def _series_video_paths(series_id: int) -> list[str]:
         episode_files = client.get_episode_files_by_series(series_id) or {}
         return [_map_path(fi["path"]) for fi in episode_files.values() if fi.get("path")]
 
-    from db.standalone import get_standalone_series
-    from routes.library.series import _enumerate_series_episode_files
+    from routes.library.series import standalone_series_video_paths
 
-    series = get_standalone_series(series_id)
-    if not series:
-        return []
-    return [fp for fp, _ in _enumerate_series_episode_files(series.get("folder_path", ""))]
+    return standalone_series_video_paths(series_id) or []
 
 
 def _library_series_ids() -> list[int]:
