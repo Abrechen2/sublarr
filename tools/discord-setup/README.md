@@ -16,9 +16,42 @@ Sublarr's server was built by hand and is not managed as code.
 | `npm run edit -- <channel> <messageId> --file <path> [--dry-run]` | Replace the text of one of the bot's own messages in a text channel; the dry run prints current and new text. Discord marks it "(edited)" but sends no notification |
 | `npm run announce -- <beta\|rc\|release> [version] [--notes-file <path>\|--notes <text>] [--dry-run]` | Post a release embed built from `CHANGELOG.md` (or the given notes) plus the GitHub tag link |
 
+Add `--targets discord,mastodon,bluesky` to `announce` to post the same
+announcement to more than Discord (default: `discord` only). See
+[Mastodon and Bluesky](#mastodon-and-bluesky).
+
 `npm run read` needs no `--` because it takes no flags. `reply` and `announce`
 do, because npm would otherwise try to interpret `--dry-run` / `--file` /
 `--notes-file` as its own flags rather than passing them through.
+
+## Mastodon and Bluesky
+
+```bash
+npm run -s announce -- release 1.17.2 --notes-file notes.md --targets discord,mastodon,bluesky --dry-run
+```
+
+`--targets` takes a comma-separated list of `discord`, `mastodon`, `bluesky`.
+Without it only Discord is used, exactly as before. `--dry-run` prints, per
+target, the exact text (plus Bluesky facets and link card) and posts nothing;
+it needs no credentials and says which variables a real run would be missing.
+
+| Target | Env variables (in `.env`, names only here) | Limit |
+|---|---|---|
+| Mastodon | `MASTODON_INSTANCE` (e.g. `https://fosstodon.org`), `MASTODON_ACCESS_TOKEN` (`write:statuses`) | 500 chars |
+| Bluesky | `BLUESKY_HANDLE`, `BLUESKY_APP_PASSWORD` (an app password, never the account password); optional `BLUESKY_SERVICE` (default `https://bsky.social`) | 300 graphemes |
+
+The post is a title line, 2-4 highlight bullets taken from the notes (bullets
+in the notes; a bold lead such as `- **Lead.** detail` contributes only the
+lead), the release URL and hashtags. Highlights are cut at word boundaries and
+the URL is never shortened. Bluesky gets a clickable link facet (UTF-8 byte
+offsets), hashtag facets and an `app.bsky.embed.external` link card without a
+thumbnail. Mastodon posts use an `Idempotency-Key` per version, so a repeated
+run does not double-post.
+
+Targets are independent: if one lacks its variables or the API rejects it, the
+error names the missing variable(s) (never the values), the remaining targets
+still run, and the exit code is 1. Secrets belong in Infisical
+(`external-apis`), not in git.
 
 ## Release announcements: this is the only path
 

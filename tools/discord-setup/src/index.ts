@@ -7,6 +7,7 @@ import { runEdit } from "./editMessage.js";
 import { runAnnounce, readRepoVersion, readRepoChangelog } from "./announce.js";
 import { extractChangelogEntry } from "./changelog.js";
 import { parseArgs } from "./args.js";
+import { parseTargets, runSocial, type SocialTarget } from "./social.js";
 import { log } from "./log.js";
 
 const USAGE =
@@ -17,8 +18,9 @@ const USAGE =
   "                             post into a forum thread or text channel\n" +
   "  edit <channel> <messageId> --file <path> [--dry-run]\n" +
   "                             replace the text of one of the bot's own messages\n" +
-  "  announce <beta|rc|release> [version] [--notes-file <path> | --notes <text>] [--dry-run]\n" +
-  "                             post a release announcement embed";
+  "  announce <beta|rc|release> [version] [--notes-file <path> | --notes <text>]\n" +
+  "                       [--targets discord,mastodon,bluesky] [--dry-run]\n" +
+  "                             post a release announcement (default target: discord)";
 
 /**
  * Read a file passed via a CLI flag (`--file`, `--notes-file`), with an error
@@ -133,7 +135,7 @@ async function main(): Promise<void> {
     // positional arguments (type, version) are read.
     const { positional, values, flags } = parseArgs(
       process.argv.slice(3),
-      ["--notes-file", "--notes"],
+      ["--notes-file", "--notes", "--targets"],
       ["--dry-run"],
     );
     const type = positional[0];
@@ -166,22 +168,49 @@ async function main(): Promise<void> {
       notes = changelog ? extractChangelogEntry(changelog, version) : null;
     }
 
-    const dryRun = flags["--dry-run"];
-    if (dryRun) {
-      // A dry-run preview builds and prints the embed without ever calling
-      // login() (see runAnnounce's docstring) — it needs neither the bot
-      // token nor the guild id, so loadEnv() must not run ahead of this
-      // branch. It used to, which meant previewing an announcement failed
-      // outright without a working `.env`, even though the preview path
-      // never connects to Discord at all.
-      await runAnnounce(createClient(), "", "", type, version, notes, true);
+    let targets;
+    try {
+      targets = parseTargets(values["--targets"]);
+    } catch (err) {
+      log(err instanceof Error ? err.message : String(err));
+      process.exitCode = 1;
       return;
     }
+    const socialTargets = targets.filter((t): t is SocialTarget => t !== "discord");
+    const withDiscord = targets.includes("discord");
+    const dryRun = flags["--dry-run"];
 
-    const { token, guildId } = loadEnv();
-    const client = createClient();
-    await runAnnounce(client, token, guildId, type, version, notes, false);
-    return; // runAnnounce owns login + destroy
+    if (dryRun && !withDiscord) {
+      log("=== DRY RUN — nothing was posted ===");
+    }
+    if (withDiscord) {
+      if (dryRun) {
+        // A dry-run preview builds and prints the embed without ever calling
+        // login() (see runAnnounce's docstring) — it needs neither the bot
+        // token nor the guild id, so loadEnv() must not run ahead of this
+        // branch.
+        log("--- discord ---");
+        await runAnnounce(createClient(), "", "", type, version, notes, true);
+      } else if (socialTargets.length === 0) {
+        const { token, guildId } = loadEnv();
+        const client = createClient();
+        await runAnnounce(client, token, guildId, type, version, notes, false);
+      } else {
+        // Several targets: a Discord failure must not stop the others.
+        try {
+          const { token, guildId } = loadEnv();
+          await runAnnounce(createClient(), token, guildId, type, version, notes, false);
+        } catch (err) {
+          log(`ERROR [discord]: ${err instanceof Error ? err.message : String(err)}`);
+          process.exitCode = 1;
+        }
+      }
+    }
+    if (socialTargets.length > 0) {
+      const failed = await runSocial(socialTargets, type, version, notes, dryRun);
+      if (failed.length > 0) process.exitCode = 1;
+    }
+    return;
   }
 }
 
