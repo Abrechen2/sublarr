@@ -382,3 +382,76 @@ def test_job_without_ids_under_a_watched_folder_is_detected_as_standalone(escape
     assert wanted_item_path_refusal({"file_path": video, "sonarr_series_id": 7}) is None
     # Not under any watched folder and untagged: not standalone, unchanged.
     assert wanted_item_path_refusal({"file_path": "/tv/Show/S01E01.mkv"}) is None
+
+
+# --- Codex round 2 ------------------------------------------------------------
+
+
+def test_scheduled_local_translation_skips_an_escaped_row(escaped, monkeypatch):
+    from types import SimpleNamespace
+
+    from db.wanted import get_wanted_item
+    from services.wanted_search_filters import _split_local_translate_items
+
+    sid, video, _ = escaped
+    item = get_wanted_item(_wanted(sid, video))
+    probed = []
+    monkeypatch.setattr(
+        "translator._helpers.find_any_source_sub",
+        lambda path, **kw: probed.append(path) or ("/x.en.srt", "en"),
+    )
+    local, remaining = _split_local_translate_items(
+        [item], SimpleNamespace(wanted_auto_translate=True)
+    )
+    assert probed == []
+    assert local == [] and remaining == []
+
+
+def test_queued_translation_job_rechecks_containment(escaped, monkeypatch):
+    from services.translation_jobs import run_job
+
+    sid, video, _ = escaped
+    job = {
+        "id": "j1",
+        "file_path": video,
+        "status": "queued",
+        "arr_context": {"standalone_series_id": sid},
+    }
+    updates = []
+    translated = []
+    monkeypatch.setattr(
+        "translator.translate_file", lambda path, **kw: translated.append(path) or {}
+    )
+    monkeypatch.setattr("db.jobs.get_job", lambda _id: job)
+    monkeypatch.setattr("db.jobs.update_job", lambda *a, **kw: updates.append(a))
+    assert run_job(job) is None
+    assert translated == []
+    assert updates and updates[-1][1] == "failed"
+
+
+def test_glossary_suggest_does_not_read_an_escaped_folder(escaped, spies, tmp_path, monkeypatch):
+    from flask import current_app
+
+    sid, _, real = escaped
+    with open(os.path.join(real, "Season 1", "Show - S01E01.en.srt"), "w") as fh:
+        fh.write("1\n00:00:01,000 --> 00:00:02,000\nEren Eren Eren\n")
+    client = current_app.test_client()
+    resp = client.post(f"/api/v1/series/{-sid}/glossary/suggest", json={"min_freq": 1})
+    assert resp.status_code == 200
+    assert resp.get_json()["candidates"] == []
+    assert _touched_outside(spies, str(tmp_path / "outside")) == []
+
+
+def test_glossary_suggest_skips_a_sidecar_symlinked_outside(media, tmp_path):
+    from flask import current_app
+
+    folder = media / "Show"
+    _video(folder / "Show - S01E01.mkv")
+    secret = tmp_path / "outside" / "x.en.srt"
+    secret.write_text("1\n00:00:01,000 --> 00:00:02,000\nMikasa Mikasa Mikasa\n")
+    os.symlink(secret, folder / "Show - S01E01.en.srt")
+    sid = _series(str(folder))
+    resp = current_app.test_client().post(
+        f"/api/v1/series/{-sid}/glossary/suggest", json={"min_freq": 1}
+    )
+    assert "Mikasa" not in str(resp.get_json())

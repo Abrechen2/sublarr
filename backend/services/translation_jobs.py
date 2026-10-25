@@ -83,6 +83,16 @@ def run_job(job_data):
         )
         return None
 
+    from services.standalone_library import wanted_item_path_refusal
+
+    refusal = wanted_item_path_refusal(
+        {**(job_data.get("arr_context") or {}), "file_path": job_data["file_path"]}
+    )
+    if refusal:
+        # Rechecked at execution: the folder may have changed since queueing.
+        update_job(job_id, "failed", error=refusal)
+        return None
+
     try:
         update_job(job_id, "running")
 

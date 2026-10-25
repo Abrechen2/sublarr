@@ -588,3 +588,19 @@ def test_stale_legacy_glossary_id_after_claim_never_changes_the_old_row(app_ctx,
     assert update_glossary_entry(legacy["Titan"], target_term="X") is False
     _legacy_rows_intact()
     assert sorted(e["source_term"] for e in get_glossary_entries(-3)) == ["Titan", "Wall"]
+
+
+def test_scope_tree_drops_superseded_legacy_rows(client, no_arr):
+    with client.application.app_context():
+        _seed_legacy()
+    assert (
+        client.put(
+            "/api/v1/language-profiles/assign",
+            json={"type": "series", "arr_id": -3, "profile_id": 1},
+        ).status_code
+        == 200
+    )
+    tree = client.get("/api/v1/profiles-overrides/scopes").get_json()
+    ids = [e["id"] for node in tree["profiles"] for e in node.get("series", [])]
+    assert 3 not in ids
+    assert ids.count(-3) == 1

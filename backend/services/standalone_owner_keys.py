@@ -207,15 +207,22 @@ def claimed_ids(kind: str) -> frozenset[int]:
 def legacy_ids_as_owner_keys(kind: str, rows: list[tuple[int, object]]) -> list[tuple[int, object]]:
     """Bulk readers: ``(key, value)`` rows of one table with the fallback applied.
 
-    A positive key that is a readable legacy standalone id (and has no
-    owner-key row in ``rows``) is reported under its owner key instead; all
-    other rows pass through unchanged.
+    With the arr configured the rows pass through unchanged. Without it, a
+    positive key that is a readable legacy standalone id (and has no
+    owner-key row in ``rows``) is reported under its owner key, and a
+    superseded one (its title has an owner-key row in ``rows`` or claimed)
+    is left out: it is nobody's live setting any more.
     """
+    if not any(key and key > 0 for key, _ in rows) or _arr_configured(kind):
+        return list(rows)
     keys = {key for key, _ in rows}
-    readable = readable_legacy_ids(kind) if any(k and k > 0 for k in keys) else frozenset()
+    readable = readable_legacy_ids(kind)
+    claimed = claimed_ids(kind)
     out = []
     for key, value in rows:
-        if key and key > 0 and key in readable and -key not in keys:
+        if key and key > 0 and (-key in keys or key in claimed):
+            continue
+        if key and key > 0 and key in readable:
             out.append((-key, value))
         else:
             out.append((key, value))

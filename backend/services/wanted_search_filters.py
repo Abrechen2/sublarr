@@ -270,11 +270,15 @@ def _split_local_translate_items(items: list[dict], settings) -> tuple[list[dict
     if not getattr(settings, "wanted_auto_translate", False):
         return [], items
 
+    from services.standalone_library import wanted_item_path_refusal
     from translator._helpers import find_any_source_sub
 
     local_items = []
     remaining = []
     for item in items:
+        if wanted_item_path_refusal(item):
+            # Escaped standalone file: neither probed here nor searched later.
+            continue
         if item.get("existing_sub") in _EMBEDDED_TYPES:
             remaining.append(item)
             continue

@@ -201,7 +201,7 @@ def _classify_term(term: str) -> str:
     return "other"
 
 
-def _collect_texts(directory: str, source_lang: str) -> list[str]:
+def _collect_texts(directory: str, source_lang: str, path_filter=None) -> list[str]:
     """Walk *directory* recursively and collect all subtitle event texts.
 
     Looks for files matching ``*.{source_lang}.ass`` and ``*.{source_lang}.srt``.
@@ -222,6 +222,8 @@ def _collect_texts(directory: str, source_lang: str) -> list[str]:
             if not any(filename.endswith(sfx) for sfx in suffixes):
                 continue
             filepath = os.path.join(root, filename)
+            if path_filter is not None and not path_filter(filepath):
+                continue
             try:
                 subs = load_subtitle_file(filepath)
                 for event in subs:
@@ -277,6 +279,7 @@ def extract_candidates(
     source_lang: str = "en",
     min_freq: int = 3,
     max_candidates: int = 200,
+    path_filter=None,
 ) -> list[dict[str, Any]]:
     """Extract frequency-based proper-noun candidates from subtitle sidecars.
 
@@ -300,7 +303,7 @@ def extract_candidates(
         logger.debug("glossary_extractor: directory does not exist: %s", directory)
         return []
 
-    texts = _collect_texts(directory, source_lang)
+    texts = _collect_texts(directory, source_lang, path_filter)
     if not texts:
         return []
 

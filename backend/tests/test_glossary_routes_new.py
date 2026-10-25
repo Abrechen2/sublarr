@@ -70,6 +70,11 @@ def test_suggest_sonarr_not_configured(client, monkeypatch):
 
 def test_suggest_standalone_series_uses_folder_path(client, monkeypatch):
     """Without Sonarr the standalone series folder is scanned for candidates."""
+    from config import reload_settings
+
+    # The folder must lie inside the media folder (1.18 standalone containment).
+    monkeypatch.setenv("SUBLARR_MEDIA_PATH", "/media")
+    reload_settings()
     monkeypatch.setattr("sonarr_client.get_sonarr_client", lambda: None)
     monkeypatch.setattr(
         "db.standalone.get_standalone_series",
@@ -77,7 +82,7 @@ def test_suggest_standalone_series_uses_folder_path(client, monkeypatch):
     )
     captured = {}
 
-    def fake_extract(directory, source_lang, min_freq, max_candidates):
+    def fake_extract(directory, source_lang, min_freq, max_candidates, path_filter=None):
         captured["directory"] = directory
         return [{"source_term": "Konoha", "term_type": "place", "frequency": 5}]
 

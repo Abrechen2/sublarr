@@ -236,11 +236,9 @@ def _settings_rows(kind: str, rows: list, key_col: str, probe) -> list[tuple[str
     # Only a positive key can be ambiguous; ask for the client only then.
     if not any(key > 0 for key, _ in pairs) or probe._get_client():
         return [(kind, key, row) for key, row in pairs]
-    from services.standalone_owner_keys import claimed_ids, legacy_ids_as_owner_keys
+    from services.standalone_owner_keys import legacy_ids_as_owner_keys
 
-    pairs = legacy_ids_as_owner_keys(kind, pairs)
-    superseded = {key for key, _ in pairs if key < 0} | {-i for i in claimed_ids(kind)}
-    return [(kind, key, row) for key, row in pairs if not (key > 0 and -key in superseded)]
+    return [(kind, key, row) for key, row in legacy_ids_as_owner_keys(kind, pairs)]
 
 
 def override_paths() -> OverrideSet:

@@ -128,15 +128,22 @@ def suggest_glossary_candidates(series_id):
     from sonarr_client import get_sonarr_client
 
     ref = resolve_series_ref(series_id)
+    path_filter = None
     if not ref.is_standalone:
         series = get_sonarr_client().get_series_by_id(series_id)
         media_path = map_path(series["path"]) if series and series.get("path") else ""
     else:
         # Standalone: the series folder from the standalone scan.
         from db.standalone import get_standalone_series
+        from services.standalone_library import series_folder_allowed, standalone_path_allowed
 
         series = get_standalone_series(ref.id)
         media_path = (series or {}).get("folder_path") or ""
+        if media_path and not series_folder_allowed(media_path):
+            # Never read subtitles behind a folder that leads out of the media folder.
+            media_path = ""
+        folder = media_path
+        path_filter = lambda fp: standalone_path_allowed(fp, folder)  # noqa: E731
     if not media_path:
         return jsonify(
             {"candidates": [], "series_id": series_id, "message": "Series media path not found"}
@@ -151,6 +158,7 @@ def suggest_glossary_candidates(series_id):
         source_lang=source_lang,
         min_freq=min_freq,
         max_candidates=100,
+        **({"path_filter": path_filter} if path_filter else {}),
     )
 
     return jsonify({"candidates": candidates, "series_id": series_id})

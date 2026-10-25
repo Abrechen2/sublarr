@@ -455,3 +455,12 @@ Follow-up Codex rounds on the fix:
   `get_row`). Not changed: priority override and minimum daily attempts
   are joined on `sonarr_series_id` only, so they never applied to standalone
   wanted rows, before or after 1.18 — a missing feature, not a regression.
+* Round 2: the scheduled search's local-sidecar translation split, queued
+  translation jobs (rechecked at execution from the job's `arr_context` /
+  path) and the standalone glossary suggestions (folder refused, every
+  sidecar filtered) now go through the guard; superseded legacy rows are
+  left out of the bulk readers (overrides scope tree, sweep). Not changed:
+  `/translate/batch` on a directory checks only its root against
+  `media_path` and follows file symlinks inside it. That is the generic
+  (non-standalone) media policy, unchanged by this work; refusing symlinked
+  files there would refuse symlink-farm Sonarr libraries.
