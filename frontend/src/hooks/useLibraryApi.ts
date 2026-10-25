@@ -328,10 +328,12 @@ export function useBatchAction() {
 
 // ─── Fansub Preferences ──────────────────────────────────────────────────────
 
-export function useSeriesFansubPrefs(seriesId: number) {
+/** ``null`` disables the query. Negative ids are standalone series. */
+export function useSeriesFansubPrefs(seriesId: number | null) {
   return useQuery({
     queryKey: ['series-fansub-prefs', seriesId],
-    queryFn: () => getSeriesFansubPrefs(seriesId),
+    queryFn: () => getSeriesFansubPrefs(seriesId as number),
+    enabled: seriesId != null,
   })
 }
 

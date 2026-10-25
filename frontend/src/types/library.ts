@@ -30,6 +30,8 @@ export interface SeriesInfo {
   missing_count: number
   // "sonarr" | "standalone" — present in mixed-mode library responses.
   source?: string
+  // Standalone titles have a negative `id`; this is their positive row id.
+  standalone_id?: number
 }
 
 
@@ -45,6 +47,7 @@ export interface MovieInfo {
   missing_count?: number
   // "radarr" | "standalone" — present in mixed-mode library responses.
   source?: string
+  standalone_id?: number
 }
 
 export interface EpisodeInfo {
@@ -59,6 +62,11 @@ export interface EpisodeInfo {
   subtitle_providers?: Record<string, string | null> // lang -> provider name or null
   audio_languages: string[]
   monitored: boolean
+  // Standalone episodes: `id` is the stable negative episode id, `wanted_id`
+  // the wanted row of the file (null when every language is satisfied).
+  source?: string
+  standalone_id?: number
+  wanted_id?: number | null
 }
 
 export interface SeriesDetail {
@@ -81,8 +89,10 @@ export interface SeriesDetail {
   source_language: string
   source_language_name: string
   episodes: EpisodeInfo[]
-  // "standalone" when built from watched folders (no Sonarr); absent for Sonarr.
+  // "standalone" when built from watched folders; absent for Sonarr. A
+  // standalone series has a negative `id` and its row id in `standalone_id`.
   source?: string
+  standalone_id?: number
   absolute_order?: boolean
   // 0.71.1: per-series foreign-track cleanup override.
   //   cleanup_foreign_tracks_override: raw SeriesSettings value (null = inherit).

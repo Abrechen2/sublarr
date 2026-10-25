@@ -241,3 +241,4 @@ def test_standalone_movie_detail_reads_its_profile(client, no_arr, tmp_path):
         data = client.get(f"/api/v1/standalone/movies/{movie_id}").get_json()
         assert data["profile_id"] == p
         assert data["standalone_id"] == mid
+        assert data["id"] == -mid

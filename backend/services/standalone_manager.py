@@ -231,6 +231,10 @@ def enrich_movie_detail(movie: dict, movie_id: int) -> dict:
         profile = get_default_profile()
     movie["profile_name"] = profile.get("name", "Default") if profile else "Default"
     movie["profile_id"] = profile.get("id") if profile else None
+    # The negative wire id (docs/specs/standalone-ids.md): the movie page sends
+    # it back for profile, subtitle and wanted calls, which keeps it apart
+    # from a Radarr movie of the same number.
+    movie["id"] = -movie_id
     movie["standalone_id"] = movie_id
     movie["source"] = "standalone"
 

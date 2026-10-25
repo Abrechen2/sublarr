@@ -47,11 +47,13 @@ const mockSeries: Record<string, unknown> = {
   ],
 }
 
-// Standalone series (no Sonarr, #226): the satisfied episode has a negative
-// synthetic id, so the page must hand its file_path to the episode endpoints.
+// Standalone series (docs/specs/standalone-ids.md): series and episodes have
+// stable negative ids; the page still hands the file_path to the episode
+// endpoints so a stale id resolves too.
 const standaloneSeries = {
   ...mockSeries,
-  id: 7,
+  id: -7,
+  standalone_id: 7,
   title: 'My Show',
   source: 'standalone',
   episodes: [
@@ -64,6 +66,9 @@ const standaloneSeries = {
       file_path: '/media/my-show/s01e02.mkv',
       subtitles: { de: 'ass' },
       subtitle_scores: {},
+      source: 'standalone',
+      standalone_id: 1,
+      wanted_id: null,
     },
   ],
 }
@@ -73,6 +78,7 @@ const episodeSearchMutate = vi.fn()
 const interactiveModalProps = vi.fn()
 const seasonGroupProps = vi.fn()
 let currentWanted: unknown = null
+const fansubPrefsIds = vi.fn()
 
 // ─── API hooks ────────────────────────────────────────────────────────────────
 
@@ -85,9 +91,10 @@ vi.mock('@/hooks/useApi', () => ({
   useUpdateSeriesSettings: () => ({ mutate: vi.fn(), isPending: false }),
   useRefreshAnidbMapping: () => ({ mutate: vi.fn(), isPending: false }),
   useStreamingEnabled: () => ({ data: false }),
-  useSeriesFansubPrefs: () => ({
-    data: { preferred_groups: [], excluded_groups: [] },
-  }),
+  useSeriesFansubPrefs: (id: number | null) => {
+    fansubPrefsIds(id)
+    return { data: { preferred_groups: [], excluded_groups: [] } }
+  },
   useRescanSeries: () => ({ mutate: vi.fn(), isPending: false }),
 }))
 
@@ -271,11 +278,37 @@ describe('SeriesDetailPage episode actions (#226)', () => {
       .episodeWantedMap
   }
 
-  it('maps standalone episodes to their own wanted id for skip/accept', () => {
+  it('maps a standalone episode to the wanted row of its file for skip/accept', () => {
     currentSeries = standaloneSeries
-    currentWanted = { data: [{ id: 55, sonarr_episode_id: null, standalone_series_id: 7 }] }
-    renderSeriesDetail('7')
-    expect(lastWantedMap().get(55)).toBe(55)
+    currentWanted = {
+      data: [
+        {
+          id: 55,
+          sonarr_episode_id: null,
+          standalone_series_id: 7,
+          file_path: '/media/my-show/s01e02.mkv',
+        },
+      ],
+    }
+    renderSeriesDetail('-7')
+    expect(lastWantedMap().get(-1)).toBe(55)
+    expect(lastWantedMap().has(55)).toBe(false)
+  })
+
+  it('prefers the wanted id the backend attaches to a standalone episode', () => {
+    currentSeries = {
+      ...standaloneSeries,
+      episodes: [{ ...standaloneSeries.episodes[0], wanted_id: 77 }],
+    }
+    currentWanted = { data: [] }
+    renderSeriesDetail('-7')
+    expect(lastWantedMap().get(-1)).toBe(77)
+  })
+
+  it('asks for the fansub preferences of a negative standalone id', () => {
+    currentSeries = standaloneSeries
+    renderSeriesDetail('-7')
+    expect(fansubPrefsIds).toHaveBeenCalledWith(-7)
   })
 
   it('maps Sonarr episodes by sonarr_episode_id', () => {
@@ -293,7 +326,7 @@ describe('SeriesDetailPage episode actions (#226)', () => {
 
   it('sends the file path for a standalone episode search', () => {
     currentSeries = standaloneSeries
-    renderSeriesDetail('7')
+    renderSeriesDetail('-7')
     fireEvent.click(screen.getByText('stub-search'))
     expect(episodeSearchMutate).toHaveBeenCalledWith(
       { episodeId: -1, filePath: '/media/my-show/s01e02.mkv' },
@@ -303,7 +336,7 @@ describe('SeriesDetailPage episode actions (#226)', () => {
 
   it('passes the file path to the interactive search modal for standalone', () => {
     currentSeries = standaloneSeries
-    renderSeriesDetail('7')
+    renderSeriesDetail('-7')
     fireEvent.click(screen.getByText('stub-interactive'))
     expect(lastModalProps()).toMatchObject({
       episodeId: -1,
@@ -314,7 +347,7 @@ describe('SeriesDetailPage episode actions (#226)', () => {
   it('requests standalone history with the file path', async () => {
     currentSeries = standaloneSeries
     const { episodeHistory } = await import('@/api/client')
-    renderSeriesDetail('7')
+    renderSeriesDetail('-7')
     fireEvent.click(screen.getByText('stub-history'))
     await waitFor(() =>
       expect(episodeHistory).toHaveBeenCalledWith(-1, '/media/my-show/s01e02.mkv'),
