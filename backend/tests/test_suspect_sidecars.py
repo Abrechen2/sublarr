@@ -161,6 +161,59 @@ class TestQuarantine:
             None,
         )
 
+    def test_requeue_keeps_the_standalone_series_link(self, episode, no_arr, tmp_path):
+        """Standalone mode: the requeue upsert overwrote an existing row's
+        standalone_series_id with NULL, so the episode left its series page."""
+        from datetime import UTC, datetime
+
+        from db.models.standalone import StandaloneSeries
+        from db.wanted import upsert_wanted_item
+        from extensions import db
+
+        video, sidecar = episode
+        _record(video)
+        now = datetime.now(UTC)
+        series = StandaloneSeries(
+            title="Clevatess", folder_path=str(tmp_path), created_at=now, updated_at=now
+        )
+        db.session.add(series)
+        db.session.commit()
+        upsert_wanted_item(
+            item_type="episode",
+            file_path=video,
+            title="Clevatess -- S01E01",
+            season_episode="S01E01",
+            target_language="de",
+            instance_name="standalone",
+            standalone_series_id=series.id,
+            status="ignored",
+        )
+
+        assert quarantine_wrong_sidecar(sidecar, video, "shift") is True
+
+        items = get_wanted_items_by_path(video)
+        assert [(i["standalone_series_id"], i["instance_name"]) for i in items] == [
+            (series.id, "standalone")
+        ]
+
+    def test_requeue_links_a_standalone_movie_by_its_file(self, app_ctx, tmp_path, no_arr):
+        from datetime import UTC, datetime
+
+        from db.models.standalone import StandaloneMovie
+        from extensions import db
+
+        video = tmp_path / "Film (2020).mkv"
+        video.touch()
+        now = datetime.now(UTC)
+        movie = StandaloneMovie(title="Film", file_path=str(video), created_at=now, updated_at=now)
+        db.session.add(movie)
+        db.session.commit()
+
+        suspect_sidecars._plain_wanted_row(str(video), "de")
+
+        items = get_wanted_items_by_path(str(video))
+        assert [(i["standalone_movie_id"], i["item_type"]) for i in items] == [(movie.id, "movie")]
+
     def test_requeue_rescans_the_sonarr_series(self, episode):
         video, sidecar = episode
         _record(video)

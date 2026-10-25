@@ -644,20 +644,49 @@ def _clear_backoff(video: str, language: str) -> None:
         )
 
 
+def _standalone_owner(video: str) -> dict:
+    """``upsert_wanted_item`` kwargs linking ``video`` to its standalone series
+    (folder contains it) or movie (same file), or ``{}``.
+
+    Without them the upsert's update branch overwrote an existing row's
+    standalone ids with NULL, and the row vanished from the standalone series
+    page and cleanup until the next standalone scan re-adopted it.
+    """
+    from db.standalone import get_standalone_movies, get_standalone_series
+
+    for movie in get_standalone_movies() or []:
+        if movie.get("id") and movie.get("file_path") and _norm(movie["file_path"]) == _norm(video):
+            return {"standalone_movie_id": movie["id"], "instance_name": "standalone"}
+    best: dict = {}
+    best_len = -1
+    for series in get_standalone_series() or []:
+        folder = series.get("folder_path") or ""
+        if series.get("id") and _is_under(video, folder) and len(folder) > best_len:
+            best_len = len(folder)
+            best = {"standalone_series_id": series["id"], "instance_name": "standalone"}
+    return best
+
+
 def _plain_wanted_row(video: str, language: str) -> None:
     try:
         from db.wanted import upsert_wanted_item
 
         name = os.path.splitext(os.path.basename(video))[0]
         episode = _EPISODE_RE.search(name)
+        try:
+            owner = _standalone_owner(video)
+        except Exception as exc:  # noqa: BLE001 — a plain row is still better than none
+            logger.warning("suspect sidecar: standalone lookup for %s failed: %s", video, exc)
+            owner = {}
         # The next scan of the series/movie fills in the arr ids on this row
-        # (same file, language and type).
+        # (same file, language and type); standalone owners are linked here.
         upsert_wanted_item(
             item_type="episode" if episode else "movie",
             file_path=video,
             title=name,
             season_episode=episode.group(0).upper() if episode else "",
             target_language=language,
+            **owner,
         )
     except Exception as exc:  # noqa: BLE001 — see docstring
         logger.warning("suspect sidecar: could not requeue %s/%s: %s", video, language, exc)
