@@ -110,7 +110,7 @@ More: [Scope and limitations](https://sublarr.de/docs/getting-started/scope-and-
 - [Scheduler admin](https://sublarr.de/docs/user-guide/settings/scheduler/) under *Settings → System → Scheduler* (run now, pause, resume, edit trigger)
 
 ### 🌐 Translation
-Off by default. Turn it on in *Settings → Translation* and configure a backend: Ollama, DeepL, LibreTranslate, any OpenAI-compatible endpoint, Google Cloud Translation, Claude, Gemini, DeepSeek, Mistral, ChatGPT, Azure Translator or MyMemory. Quality depends on the chosen backend, model and language pair. See [Translation](https://sublarr.de/docs/user-guide/translation-llm/).
+Off by default. Turn it on in *Settings → Translation* and configure a backend: Ollama, DeepL, LibreTranslate, any OpenAI-compatible endpoint, Google Cloud Translation, Claude, Gemini, DeepSeek, Mistral, ChatGPT, Azure Translator or MyMemory. The result depends on the translation backend and model you choose — use at your own risk. See [Translation](https://sublarr.de/docs/user-guide/translation-llm/).
 
 ---
 
