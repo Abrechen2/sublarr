@@ -5,7 +5,7 @@ import logging
 from flask import current_app, jsonify, request
 
 from events import emit_event
-from routes.wanted import _sonarr_missing, bp
+from routes.wanted import bp
 from services.background_tasks import submit_background
 
 logger = logging.getLogger(__name__)
@@ -117,20 +117,28 @@ def list_wanted():
     if sort_dir and sort_dir not in VALID_SORT_DIR:
         return jsonify({"error": f"Invalid sort_dir value: {sort_dir}"}), 400
 
+    from services.media_ids import resolve_series_ref, standalone_id_from
+
+    series_ref = resolve_series_ref(series_id) if series_id is not None else None
+    if movie_id is not None and movie_id < 0:
+        # The movie filter has always meant a standalone movie; accept its
+        # negative wire id too.
+        movie_id = standalone_id_from(movie_id)
+
     result = get_wanted_items(
         page=page,
         per_page=per_page,
         item_type=item_type,
         status=status_filter,
-        series_id=series_id,
+        series_id=series_ref.id if series_ref is not None else None,
         movie_id=movie_id,
         subtitle_type=subtitle_type,
         sort_by=sort_by,
         sort_dir=sort_dir,
         search=search,
-        # Standalone mode (no Sonarr): series ids are standalone series ids,
-        # the same rule the series detail uses.
-        standalone_series=series_id is not None and _sonarr_missing(),
+        # Negative = standalone series; a positive id without Sonarr is a
+        # legacy standalone id (the rule the series detail uses).
+        standalone_series=series_ref is not None and series_ref.is_standalone,
     )
     return jsonify(result)
 

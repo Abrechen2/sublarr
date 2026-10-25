@@ -54,7 +54,9 @@ def show(client, tmp_path):
     ep2 = season / "My Show - S01E02 [1080p].mkv"
     ep1.write_bytes(b"\x00")
     ep2.write_bytes(b"\x00")
-    (season / "My Show - S01E02 [1080p].de.srt").write_text("1\n00:00:01,000 --> 00:00:02,000\nHallo\n")
+    (season / "My Show - S01E02 [1080p].de.srt").write_text(
+        "1\n00:00:01,000 --> 00:00:02,000\nHallo\n"
+    )
 
     now = datetime.now(UTC)
     with client.application.app_context():

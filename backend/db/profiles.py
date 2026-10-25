@@ -111,6 +111,25 @@ def get_movie_profile(radarr_movie_id: int) -> dict:
     return _get_repo().get_movie_profile(radarr_movie_id)
 
 
+def get_profile_for_item(item: dict | None) -> dict:
+    """The profile governing a wanted item / arr_context: series, movie, default.
+
+    Standalone titles are looked up under their owner key (the negated id,
+    docs/specs/standalone-ids.md), so a standalone series never reads the
+    assignment of the Sonarr series that shares its number. Falls back to the
+    default profile like ``get_series_profile`` / ``get_movie_profile``.
+    """
+    from services.media_ids import movie_key_for_item, series_key_for_item
+
+    series_key = series_key_for_item(item)
+    if series_key is not None:
+        return get_series_profile(series_key)
+    movie_key = movie_key_for_item(item)
+    if movie_key is not None:
+        return get_movie_profile(movie_key)
+    return get_default_profile()
+
+
 def assign_series_profile(sonarr_series_id: int, profile_id: int):
     """Assign a language profile to a series."""
     return _get_repo().set_series_profile(sonarr_series_id, profile_id)

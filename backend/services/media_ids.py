@@ -13,7 +13,10 @@ configured, else a standalone row id (clients and bookmarks from 1.17.x).
 
 from __future__ import annotations
 
+import logging
 from dataclasses import dataclass
+
+logger = logging.getLogger(__name__)
 
 SONARR = "sonarr"
 RADARR = "radarr"
@@ -85,14 +88,32 @@ def resolve_movie_ref(movie_id: int) -> MediaRef:
     return MediaRef(STANDALONE, movie_id)
 
 
+def _legacy_key(ref: MediaRef, request_id: int, exists) -> int:
+    # A positive id without the arr is a standalone title only when that row
+    # exists; anything else keeps being stored under the id as sent (pre-1.18).
+    if ref.is_standalone and request_id > 0:
+        try:
+            known = bool(exists(ref.id))
+        except Exception:  # noqa: BLE001 — cannot tell: keep the pre-1.18 key
+            logger.debug("standalone lookup for id %s failed", ref.id, exc_info=True)
+            known = False
+        if not known:
+            return request_id
+    return ref.key
+
+
 def series_owner_key(series_id: int) -> int:
     """Key a series-keyed table row is stored under for this request id."""
-    return resolve_series_ref(series_id).key
+    from db.standalone import get_standalone_series
+
+    return _legacy_key(resolve_series_ref(series_id), int(series_id), get_standalone_series)
 
 
 def movie_owner_key(movie_id: int) -> int:
     """Key a movie-keyed table row is stored under for this request id."""
-    return resolve_movie_ref(movie_id).key
+    from db.standalone import get_standalone_movies
+
+    return _legacy_key(resolve_movie_ref(movie_id), int(movie_id), get_standalone_movies)
 
 
 def series_key_for_item(item: dict | None) -> int | None:
@@ -115,3 +136,19 @@ def movie_key_for_item(item: dict | None) -> int | None:
     if item.get("standalone_movie_id"):
         return standalone_key(item["standalone_movie_id"])
     return None
+
+
+def owner_key_url_values(_endpoint, values) -> None:
+    """Blueprint ``url_value_preprocessor``: turn ``series_id`` / ``movie_id``
+    view args into the owner key their rows are stored under.
+
+    For the per-title settings blueprints (overrides, fansub preferences,
+    audio track preference): a negative id and a Sonarr/Radarr id stay as
+    they are; a legacy positive standalone id becomes its negated id.
+    """
+    if not values:
+        return
+    if isinstance(values.get("series_id"), int):
+        values["series_id"] = series_owner_key(values["series_id"])
+    if isinstance(values.get("movie_id"), int):
+        values["movie_id"] = movie_owner_key(values["movie_id"])

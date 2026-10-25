@@ -244,4 +244,5 @@ def test_batch_process_library_standalone_iterates_standalone_series(app_ctx, te
     ):
         _batch_process_library("all")
 
-    assert sorted(processed_ids) == sorted([a, b])
+    # Standalone series are handed on by their negative id (the source flag).
+    assert sorted(processed_ids) == sorted([-a, -b])

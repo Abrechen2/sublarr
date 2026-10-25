@@ -462,22 +462,24 @@ class StandaloneScanner(_StandaloneProcessMixin):
     # Internal helpers
     # -----------------------------------------------------------------------
 
-    def _get_target_languages(self) -> list[str]:
-        """Get target languages from the default language profile.
+    def _get_target_languages(self, owner: dict | None = None) -> list[str]:
+        """Target languages of the profile of ``owner`` (default profile without one).
 
-        Falls back to the global target_language setting when the default
-        profile has no target_languages configured. Logs a warning in that
-        case so users can spot a misconfigured profile (the standalone
-        scanner has no per-file profile binding — it always uses the
-        default).
+        ``owner`` is ``{"standalone_series_id": id}`` or
+        ``{"standalone_movie_id": id}``; the title's own profile assignment
+        (stored under its owner key) wins over the default profile.
+
+        Falls back to the global target_language setting when the profile has
+        no target_languages configured, with a warning so users can spot a
+        misconfigured profile.
 
         Returns:
             List of target language codes.
         """
         try:
-            from db.profiles import get_default_profile
+            from db.profiles import get_default_profile, get_profile_for_item
 
-            profile = get_default_profile()
+            profile = get_profile_for_item(owner) if owner else get_default_profile()
             if profile:
                 langs = profile.get("target_languages", [])
                 if langs:
@@ -572,7 +574,9 @@ class StandaloneScanner(_StandaloneProcessMixin):
                 ],
             )
         except Exception as e:
-            logger.warning("Standalone: could not record episode ids for series %s: %s", series_id, e)
+            logger.warning(
+                "Standalone: could not record episode ids for series %s: %s", series_id, e
+            )
             self._recover_session()
 
     def _language_satisfied(self, file_path: str, target_lang: str, existing: str | None) -> bool:

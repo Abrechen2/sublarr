@@ -120,9 +120,12 @@ def search_wanted_item(item_id: int) -> dict:
 
     # Per-series format requirement: "require_ass" skips the SRT searches
     # (3+4) entirely so no SRT candidates are ever offered for this series.
+    from services.media_ids import series_key_for_item
     from services.series_format import REQUIRE_ASS, get_series_format_requirement
 
-    require_ass = get_series_format_requirement(item.get("sonarr_series_id")) == REQUIRE_ASS
+    # Sonarr id, or the owner key of a standalone series.
+    series_key = series_key_for_item(item)
+    require_ass = get_series_format_requirement(series_key) == REQUIRE_ASS
     if require_ass:
         logger.info("Wanted %d: series requires ASS subtitles, skipping SRT searches", item_id)
 
@@ -188,12 +191,11 @@ def search_wanted_item(item_id: int) -> dict:
     except Exception as e:
         logger.warning("Release-group tier scoring failed for wanted %d: %s", item_id, e)
 
-    # Apply per-series fansub group preferences
-    series_id = item.get("sonarr_series_id")
-    if series_id:
+    # Apply per-series fansub group preferences (standalone: owner key)
+    if series_key:
         from db.repositories.fansub_prefs import FansubPreferenceRepository
 
-        fansub = FansubPreferenceRepository().get_fansub_prefs(series_id)
+        fansub = FansubPreferenceRepository().get_fansub_prefs(series_key)
         if fansub:
             _apply_fansub_rules(
                 all_results,

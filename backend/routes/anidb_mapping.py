@@ -150,7 +150,7 @@ def clear_series_mappings(tvdb_id: int):
 # ---------------------------------------------------------------------------
 
 
-@bp.route("/settings/<int:sonarr_series_id>", methods=["GET"])
+@bp.route("/settings/<int(signed=True):sonarr_series_id>", methods=["GET"])
 def get_series_settings(sonarr_series_id: int):
     """Return series-level settings including absolute_order flag.
     ---
@@ -169,7 +169,10 @@ def get_series_settings(sonarr_series_id: int):
           description: Series settings
     """
     from db.repositories.anidb import AnidbRepository
+    from services.media_ids import series_owner_key
 
+    # A standalone series (negative id) is stored under its owner key.
+    sonarr_series_id = series_owner_key(sonarr_series_id)
     settings = AnidbRepository().get_series_settings(sonarr_series_id)
     if settings is None:
         settings = {"sonarr_series_id": sonarr_series_id, "absolute_order": False}
@@ -178,7 +181,7 @@ def get_series_settings(sonarr_series_id: int):
     return jsonify({"success": True, "data": settings})
 
 
-@bp.route("/settings/<int:sonarr_series_id>", methods=["PUT"])
+@bp.route("/settings/<int(signed=True):sonarr_series_id>", methods=["PUT"])
 def update_series_settings(sonarr_series_id: int):
     """Update series-level settings.
 
@@ -216,7 +219,10 @@ def update_series_settings(sonarr_series_id: int):
     if "absolute_order" not in body:
         return jsonify({"success": False, "error": "absolute_order field required"}), 400
 
+    from services.media_ids import series_owner_key
+
     enabled = bool(body["absolute_order"])
+    sonarr_series_id = series_owner_key(sonarr_series_id)
     AnidbRepository().set_absolute_order(sonarr_series_id, enabled)
     return jsonify(
         {"success": True, "sonarr_series_id": sonarr_series_id, "absolute_order": enabled}

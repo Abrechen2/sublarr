@@ -131,8 +131,9 @@ def get_library():
 
             from config import is_standalone_mode
             from db import get_db
-            from db.profiles import get_default_profile
+            from db.profiles import get_default_profile, get_series_profile_map
             from db.standalone import get_standalone_movies, get_standalone_series
+            from services.media_ids import standalone_key
 
             if is_standalone_mode():
                 default_profile = get_default_profile()
@@ -140,6 +141,8 @@ def get_library():
                 profile_name = (
                     default_profile.get("name", "Default") if default_profile else "Default"
                 )
+                # Standalone assignments live under the owner key (negated id).
+                standalone_profiles = get_series_profile_map()
 
                 db = get_db()
 
@@ -160,9 +163,12 @@ def get_library():
                             if s.get("poster_url")
                             else ""
                         )
+                        assigned = standalone_profiles.get(standalone_key(s["id"])) or {}
                         result["series"].append(
                             {
-                                "id": s["id"],
+                                # Negative wire id = standalone (the source flag).
+                                "id": standalone_key(s["id"]),
+                                "standalone_id": s["id"],
                                 "title": s["title"],
                                 "year": s.get("year"),
                                 "seasons": s.get("season_count") or 0,
@@ -171,8 +177,8 @@ def get_library():
                                 "path": s.get("folder_path", ""),
                                 "poster": poster,
                                 "status": "continuing",
-                                "profile_id": profile_id,
-                                "profile_name": profile_name,
+                                "profile_id": assigned.get("profile_id", profile_id),
+                                "profile_name": assigned.get("profile_name", profile_name),
                                 "missing_count": series_missing_map.get(s["id"], 0),
                                 "source": "standalone",
                             }
@@ -205,7 +211,8 @@ def get_library():
                         )
                         result["movies"].append(
                             {
-                                "id": m["id"],
+                                "id": standalone_key(m["id"]),
+                                "standalone_id": m["id"],
                                 "title": title,
                                 "year": m.get("year"),
                                 "has_file": True,

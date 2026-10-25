@@ -159,7 +159,7 @@ def bak_exists():
     return jsonify({"exists": exists}), 200
 
 
-@bp.route("/library/series/<int:series_id>/process", methods=["POST"])
+@bp.route("/library/series/<int(signed=True):series_id>/process", methods=["POST"])
 def process_series(series_id):
     """Trigger background processing for all subtitles in a series."""
     global _batch_running
@@ -212,7 +212,7 @@ def process_all():
     return jsonify({"status": "started", "filter": filter_mode}), 202
 
 
-@bp.route("/library/series/<int:series_id>/processing-config", methods=["PATCH"])
+@bp.route("/library/series/<int(signed=True):series_id>/processing-config", methods=["PATCH"])
 def update_series_processing_config(series_id):
     """Save per-series processing override config."""
     from db.models.core import SeriesSettings
@@ -222,13 +222,17 @@ def update_series_processing_config(series_id):
     allowed = {"hi_removal", "common_fixes", "credit_removal", "auto_sync"}
     config = {k: v for k, v in data.items() if k in allowed}
 
-    row = _db.session.get(SeriesSettings, series_id)
+    from services.media_ids import series_owner_key
+
+    # Standalone series: stored under the owner key (negated id).
+    key = series_owner_key(series_id)
+    row = _db.session.get(SeriesSettings, key)
     if row:
         row.processing_config = json.dumps(config) if config else None
         row.updated_at = datetime.now(UTC)
     else:
         row = SeriesSettings(
-            sonarr_series_id=series_id,
+            sonarr_series_id=key,
             processing_config=json.dumps(config) if config else None,
             updated_at=datetime.now(UTC),
         )
@@ -334,20 +338,21 @@ def _series_video_paths(series_id: int) -> list[str]:
     """Video files of a series: from Sonarr, or (no Sonarr client) from the
     standalone series folder — same rule as the series detail."""
     from config import map_path as _map_path
+    from services.media_ids import resolve_series_ref
     from sonarr_client import get_sonarr_client
 
-    client = get_sonarr_client()
-    if client:
-        episode_files = client.get_episode_files_by_series(series_id) or {}
+    ref = resolve_series_ref(series_id)
+    if not ref.is_standalone:
+        episode_files = get_sonarr_client().get_episode_files_by_series(series_id) or {}
         return [_map_path(fi["path"]) for fi in episode_files.values() if fi.get("path")]
 
     from routes.library.series import standalone_series_video_paths
 
-    return standalone_series_video_paths(series_id) or []
+    return standalone_series_video_paths(ref.id) or []
 
 
 def _library_series_ids() -> list[int]:
-    """Sonarr series ids, or the standalone series ids without Sonarr."""
+    """Sonarr series ids, or the standalone series' negative ids without Sonarr."""
     from sonarr_client import get_sonarr_client
 
     client = get_sonarr_client()
@@ -355,8 +360,9 @@ def _library_series_ids() -> list[int]:
         return [s["id"] for s in client.get_series() or [] if s.get("id")]
 
     from db.standalone import get_standalone_series
+    from services.media_ids import standalone_key
 
-    return [s["id"] for s in get_standalone_series() or [] if s.get("id")]
+    return [standalone_key(s["id"]) for s in get_standalone_series() or [] if s.get("id")]
 
 
 def _batch_process_series(series_id: int) -> None:
@@ -365,9 +371,10 @@ def _batch_process_series(series_id: int) -> None:
     from events import emit_event
     from extensions import db as _db
     from routes.subtitles import scan_subtitle_sidecars
+    from services.media_ids import series_owner_key
     from subtitle_processor import apply_mods, resolve_config
 
-    row = _db.session.get(SeriesSettings, series_id)
+    row = _db.session.get(SeriesSettings, series_owner_key(series_id))
     series_cfg = json.loads(row.processing_config) if (row and row.processing_config) else None
 
     s = get_settings()

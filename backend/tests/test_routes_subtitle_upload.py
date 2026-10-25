@@ -182,12 +182,14 @@ def test_upload_episode_subtitle_no_video_file_404(client, monkeypatch):
 
 def test_upload_movie_subtitle_success_records_manual_source(client, temp_dir):
     from db.models.providers import SubtitleDownload
-    from db.standalone import upsert_standalone_movie
+    from db.standalone import upsert_standalone_movie, upsert_watched_folder
 
     video = os.path.join(temp_dir, "Movie (2020).mkv")
     Path(video).touch()
 
     with client.application.app_context():
+        # A standalone movie file must lie inside a watched folder.
+        upsert_watched_folder(temp_dir, media_type="movie")
         movie_id = upsert_standalone_movie("Movie", str(video), year=2020)
 
     resp = _upload(

@@ -471,9 +471,7 @@ def test_list_episode_subtitles_standalone_episode(client, temp_dir, monkeypatch
 
         # The path must lie inside the folder of the series that owns the row.
         db.session.add(
-            StandaloneSeries(
-                id=1, title="S", folder_path=temp_dir, created_at=now, updated_at=now
-            )
+            StandaloneSeries(id=1, title="S", folder_path=temp_dir, created_at=now, updated_at=now)
         )
         wi = WantedItem(
             item_type="episode",

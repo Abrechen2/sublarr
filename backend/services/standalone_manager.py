@@ -225,11 +225,14 @@ def enrich_movie_detail(movie: dict, movie_id: int) -> dict:
     ).fetchone()
     movie["wanted_count"] = row[0] if row else 0
 
-    profile = get_movie_profile(movie_id)
+    # Standalone assignments are stored under the owner key (negated id).
+    profile = get_movie_profile(-movie_id)
     if not profile:
         profile = get_default_profile()
     movie["profile_name"] = profile.get("name", "Default") if profile else "Default"
     movie["profile_id"] = profile.get("id") if profile else None
+    movie["standalone_id"] = movie_id
+    movie["source"] = "standalone"
 
     return movie
 

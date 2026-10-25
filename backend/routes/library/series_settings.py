@@ -9,7 +9,7 @@ from routes.library import bp
 logger = logging.getLogger(__name__)
 
 
-@bp.route("/library/series/<int:series_id>/settings", methods=["PUT"])
+@bp.route("/library/series/<int(signed=True):series_id>/settings", methods=["PUT"])
 def update_series_settings(series_id):
     """Update per-series settings (e.g. absolute_order flag).
     ---
@@ -60,13 +60,16 @@ def update_series_settings(series_id):
     if "absolute_order" not in body:
         return jsonify({"success": False, "error": "absolute_order field required"}), 400
 
+    from services.media_ids import series_owner_key
+
     enabled = bool(body["absolute_order"])
-    AnidbRepository().set_absolute_order(series_id, enabled)
+    # Standalone series: stored under the owner key (negated id).
+    AnidbRepository().set_absolute_order(series_owner_key(series_id), enabled)
     logger.debug("Series %d: absolute_order set to %s", series_id, enabled)
     return jsonify({"success": True, "series_id": series_id, "absolute_order": enabled})
 
 
-@bp.route("/series/<int:series_id>/glossary/suggest", methods=["POST"])
+@bp.route("/series/<int(signed=True):series_id>/glossary/suggest", methods=["POST"])
 def suggest_glossary_candidates(series_id):
     """Extract glossary term candidates from subtitle sidecars for a series.
     ---
@@ -121,17 +124,18 @@ def suggest_glossary_candidates(series_id):
     """
     import routes.library as _lib_pkg
     from config import map_path
+    from services.media_ids import resolve_series_ref
     from sonarr_client import get_sonarr_client
 
-    sonarr = get_sonarr_client()
-    if sonarr:
-        series = sonarr.get_series_by_id(series_id)
+    ref = resolve_series_ref(series_id)
+    if not ref.is_standalone:
+        series = get_sonarr_client().get_series_by_id(series_id)
         media_path = map_path(series["path"]) if series and series.get("path") else ""
     else:
-        # Standalone mode: the series folder from the standalone scan.
+        # Standalone: the series folder from the standalone scan.
         from db.standalone import get_standalone_series
 
-        series = get_standalone_series(series_id)
+        series = get_standalone_series(ref.id)
         media_path = (series or {}).get("folder_path") or ""
     if not media_path:
         return jsonify(

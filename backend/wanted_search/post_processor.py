@@ -373,10 +373,9 @@ def download_specific_for_item(
         except (OSError, RuntimeError) as e:
             return {"success": False, "error": f"Failed to save subtitle: {e}"}
 
-        arr_context = {}
-        for key in ("sonarr_series_id", "sonarr_episode_id", "radarr_movie_id"):
-            if item.get(key):
-                arr_context[key] = item[key]
+        from wanted_search.process import _build_arr_context
+
+        arr_context = _build_arr_context(item)
 
         # Create a translation job so it appears in Activity/Queue
         job = create_job(file_path, force=False, arr_context=arr_context or None)

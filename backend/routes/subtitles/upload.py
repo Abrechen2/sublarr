@@ -62,7 +62,7 @@ def upload_episode_subtitle(ep_id: int):
     return _do_upload(video_path)
 
 
-@bp.route("/library/movies/<int:movie_id>/subtitles/upload", methods=["POST"])
+@bp.route("/library/movies/<int(signed=True):movie_id>/subtitles/upload", methods=["POST"])
 def upload_movie_subtitle(movie_id: int):
     from services.movie_video_path import resolve_movie_video_path
 

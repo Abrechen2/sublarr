@@ -30,7 +30,7 @@ def list_episode_subtitles(ep_id: int):
     return jsonify({"subtitles": sidecars, "video_path": video_path}), 200
 
 
-@bp.route("/library/movies/<int:movie_id>/subtitles", methods=["GET"])
+@bp.route("/library/movies/<int(signed=True):movie_id>/subtitles", methods=["GET"])
 def list_movie_subtitles(movie_id: int):
     """Return sidecars for a standalone or Radarr movie's video file."""
     from services.movie_video_path import resolve_movie_video_path

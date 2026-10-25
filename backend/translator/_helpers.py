@@ -228,17 +228,22 @@ def _submit_whisper_job(mkv_path: str, arr_context: dict = None):
 
 
 def _extract_series_id(arr_context):
-    """Extract Sonarr series_id from arr_context.
+    """Extract the glossary series key from arr_context.
+
+    The Sonarr series id, or the owner key (negated id) of a standalone
+    series — the key its per-series glossary entries are stored under.
 
     Returns:
-        int or None: Series ID if found, None otherwise
+        int or None: Series key if found, None otherwise
     """
     if not arr_context:
         return None
 
-    # Try direct series_id field
-    if arr_context.get("sonarr_series_id"):
-        return arr_context["sonarr_series_id"]
+    from services.media_ids import series_key_for_item
+
+    key = series_key_for_item(arr_context)
+    if key is not None:
+        return key
 
     # Try series.id (from webhook)
     series = arr_context.get("series", {})
@@ -261,14 +266,12 @@ def _resolve_backend_for_context(arr_context, target_language):
     Returns:
         tuple: (translation_backend: str, fallback_chain: list[str])
     """
-    from db.profiles import get_default_profile, get_movie_profile, get_series_profile
+    from db.profiles import get_default_profile, get_profile_for_item
 
     profile = None
     if arr_context:
-        if arr_context.get("sonarr_series_id"):
-            profile = get_series_profile(arr_context["sonarr_series_id"])
-        elif arr_context.get("radarr_movie_id"):
-            profile = get_movie_profile(arr_context["radarr_movie_id"])
+        # Sonarr/Radarr ids, or a standalone series/movie by its owner key.
+        profile = get_profile_for_item(arr_context)
 
     if not profile:
         profile = get_default_profile()

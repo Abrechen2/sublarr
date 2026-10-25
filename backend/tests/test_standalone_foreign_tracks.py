@@ -1,7 +1,9 @@
 """Foreign-track cleanup switches and policies of standalone titles.
 
 The standalone series page and movie page save ``cleanup_foreign_tracks`` and
-track-policy overrides under the standalone id. Without Sonarr/Radarr:
+track-policy overrides under the owner key, the negated standalone id
+(docs/specs/standalone-ids.md), so they never share a row with a Sonarr
+series or Radarr movie of the same number. Before that, without Sonarr/Radarr:
 
 * the sweep's ``override_paths`` raised "Sonarr is not configured" for such a
   row, marked the whole set incomplete and paused stripping everywhere;
@@ -73,7 +75,7 @@ def test_switched_off_standalone_series_is_excluded_and_set_complete(app_ctx, no
     from services.foreign_tracks.policy import override_paths
 
     sid = _standalone_series("/media/standalone/Show")
-    _series_settings(sid, cleanup_foreign_tracks=False)
+    _series_settings(-sid, cleanup_foreign_tracks=False)
 
     result = override_paths()
     assert result.complete is True
@@ -86,7 +88,7 @@ def test_standalone_movie_override_is_keyed_by_its_file(app_ctx, no_arr):
     from services.foreign_tracks.policy import is_excluded, override_paths
 
     mid = _standalone_movie("/media/movies/Film.mkv")
-    _movie_settings(mid, cleanup_foreign_tracks=False)
+    _movie_settings(-mid, cleanup_foreign_tracks=False)
 
     result = override_paths()
     assert result.complete is True
@@ -99,7 +101,7 @@ def test_standalone_series_policy_override_becomes_a_pair(app_ctx, no_arr):
     from services.foreign_tracks.policy import override_paths
 
     sid = _standalone_series("/media/standalone/Show")
-    _series_settings(sid, cleanup_keep_sdh=True)
+    _series_settings(-sid, cleanup_keep_sdh=True)
 
     result = override_paths()
     assert result.complete is True
@@ -120,7 +122,7 @@ def test_standalone_paths_are_not_remote_mapped(app_ctx, no_arr):
     from services.foreign_tracks.policy import override_paths
 
     sid = _standalone_series("/media/standalone/Show")
-    _series_settings(sid, cleanup_foreign_tracks=False)
+    _series_settings(-sid, cleanup_foreign_tracks=False)
 
     with patch("config_utils.map_path", side_effect=lambda p: "/mapped" + p):
         result = override_paths()
@@ -142,7 +144,7 @@ def test_hook_honours_a_switched_off_standalone_series(app_ctx, no_arr, monkeypa
 
     _global_on(monkeypatch)
     sid = _standalone_series("/media/standalone/Show")
-    _series_settings(sid, cleanup_foreign_tracks=False)
+    _series_settings(-sid, cleanup_foreign_tracks=False)
 
     assert foreign_track_cleanup_decision({"standalone_series_id": sid}) is False
 
@@ -152,14 +154,13 @@ def test_hook_honours_a_switched_off_standalone_movie(app_ctx, no_arr, monkeypat
 
     _global_on(monkeypatch)
     mid = _standalone_movie("/media/movies/Film.mkv")
-    _movie_settings(mid, cleanup_foreign_tracks=False)
+    _movie_settings(-mid, cleanup_foreign_tracks=False)
 
     assert foreign_track_cleanup_decision({"standalone_movie_id": mid}) is False
 
 
-def test_hook_ignores_standalone_ids_while_sonarr_is_configured(app_ctx, monkeypatch):
-    """With Sonarr configured, SeriesSettings ids are Sonarr ids — a standalone
-    id must not pick up an unrelated Sonarr series' switch."""
+def test_sonarr_switch_does_not_reach_a_standalone_series(app_ctx, monkeypatch):
+    """Mixed mode: Sonarr series 5's switch is not standalone series 5's."""
     from services.foreign_track_cleanup import foreign_track_cleanup_decision, settings_ids
 
     monkeypatch.setattr("sonarr_client.get_sonarr_client", lambda *a, **kw: object())
@@ -167,17 +168,48 @@ def test_hook_ignores_standalone_ids_while_sonarr_is_configured(app_ctx, monkeyp
     _global_on(monkeypatch)
     _series_settings(5, cleanup_foreign_tracks=False)
 
-    assert settings_ids({"standalone_series_id": 5}) == (None, None)
+    assert settings_ids({"standalone_series_id": 5}) == (-5, None)
     assert foreign_track_cleanup_decision({"standalone_series_id": 5}) is True
+    assert foreign_track_cleanup_decision({"sonarr_series_id": 5}) is False
+
+
+def test_standalone_switch_counts_with_sonarr_configured(app_ctx, monkeypatch):
+    from services.foreign_track_cleanup import foreign_track_cleanup_decision
+    from services.foreign_tracks.policy import override_paths
+
+    class _Sonarr:
+        def lookup_series(self, series_id):
+            raise AssertionError("a standalone series must not be looked up in Sonarr")
+
+    monkeypatch.setattr("sonarr_client.get_sonarr_client", lambda *a, **kw: _Sonarr())
+    monkeypatch.setattr("radarr_client.get_radarr_client", lambda *a, **kw: None)
+    _global_on(monkeypatch)
+    sid = _standalone_series("/media/standalone/Show")
+    _series_settings(-sid, cleanup_foreign_tracks=False)
+
+    assert foreign_track_cleanup_decision({"standalone_series_id": sid}) is False
+    result = override_paths()
+    assert result.complete is True
+    assert result.excluded == ["/media/standalone/Show"]
 
 
 def test_settings_ids_prefers_arr_ids(no_arr):
     from services.foreign_track_cleanup import settings_ids
 
     assert settings_ids({"sonarr_series_id": 3, "standalone_series_id": 9}) == (3, None)
-    assert settings_ids({"standalone_series_id": 9}) == (9, None)
-    assert settings_ids({"standalone_movie_id": 4}) == (None, 4)
+    assert settings_ids({"standalone_series_id": 9}) == (-9, None)
+    assert settings_ids({"standalone_movie_id": 4}) == (None, -4)
     assert settings_ids({}) == (None, None)
+
+
+def test_unknown_negative_key_pauses_the_strip(app_ctx, no_arr):
+    from services.foreign_tracks.policy import override_paths
+
+    _series_settings(-999, cleanup_foreign_tracks=False)
+
+    result = override_paths()
+    assert result.complete is False
+    assert result.failed == ("series -999",)
 
 
 # --- series detail shows the saved switch -------------------------------------
@@ -186,7 +218,7 @@ def test_settings_ids_prefers_arr_ids(no_arr):
 def test_standalone_series_detail_shows_the_saved_cleanup_switch(client, no_arr, tmp_path):
     with client.application.app_context():
         sid = _standalone_series(str(tmp_path))
-        _series_settings(sid, cleanup_foreign_tracks=False)
+        _series_settings(-sid, cleanup_foreign_tracks=False)
 
     resp = client.get(f"/api/v1/library/series/{sid}")
     assert resp.status_code == 200

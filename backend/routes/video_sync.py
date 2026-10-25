@@ -407,16 +407,22 @@ def auto_sync_bulk():
     raw_paths: list[str] = []
     sources: dict[str, int] = {}
 
+    from services.media_ids import resolve_series_ref
     from sonarr_client import get_sonarr_client
 
     # Standalone mode (no Sonarr): "series" and "library" — the only scopes
-    # the Library page sends — mean the standalone library, and a series id
-    # is a standalone series id (same rule as the series detail).
+    # the Library page sends — mean the standalone library. A negative
+    # series id is a standalone series whatever is configured; a positive one
+    # without Sonarr is a legacy standalone id (same rule as the series detail).
     standalone_mode = get_sonarr_client() is None
 
     if scope == "series":
-        if standalone_mode:
-            series_paths = _bulk_videos_from_standalone(series_id)
+        try:
+            series_ref = resolve_series_ref(int(series_id))
+        except (TypeError, ValueError):
+            return jsonify({"error": "series_id must be an integer"}), 400
+        if series_ref.is_standalone:
+            series_paths = _bulk_videos_from_standalone(series_ref.id)
             sources["standalone"] = len(series_paths)
         else:
             series_paths = _bulk_videos_from_sonarr(series_id)

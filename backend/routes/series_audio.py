@@ -9,12 +9,18 @@ import logging
 from flask import Blueprint, jsonify, request
 
 from db.repositories.series_audio import SeriesAudioRepository
+from services.media_ids import owner_key_url_values
 
 bp = Blueprint("series_audio", __name__, url_prefix="/api/v1/series")
+
+# Standalone titles are stored under their owner key (negated id), see
+# docs/specs/standalone-ids.md; the view functions receive that key.
+bp.url_value_preprocessor(owner_key_url_values)
+
 logger = logging.getLogger(__name__)
 
 
-@bp.route("/<int:series_id>/audio-track-pref", methods=["GET"])
+@bp.route("/<int(signed=True):series_id>/audio-track-pref", methods=["GET"])
 def get_audio_track_pref(series_id: int):
     """Return the pinned audio track index for a series.
 
@@ -25,7 +31,7 @@ def get_audio_track_pref(series_id: int):
     return jsonify({"series_id": series_id, "preferred_audio_track_index": pref})
 
 
-@bp.route("/<int:series_id>/audio-track-pref", methods=["PUT"])
+@bp.route("/<int(signed=True):series_id>/audio-track-pref", methods=["PUT"])
 def set_audio_track_pref(series_id: int):
     """Set or clear the pinned audio track index for a series.
 

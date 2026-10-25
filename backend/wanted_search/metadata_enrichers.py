@@ -380,8 +380,9 @@ def _resolve_anidb_absolute_episode(query: VideoQuery, wanted_item: dict) -> Non
                 _abs_err,
             )
     elif wanted_item.get("standalone_series_id") and query.absolute_episode is None:
-        # Standalone items have no per-series absolute_order flag — try resolving anyway
-        # if a TVDB→absolute mapping exists in the DB (populated by AniDB sync).
+        # Standalone items: the series' absolute_order flag (stored under its
+        # owner key) is not required — try resolving anyway if a TVDB→absolute
+        # mapping exists in the DB (populated by AniDB sync), as before.
         try:
             from db.repositories.anidb import AnidbRepository
 

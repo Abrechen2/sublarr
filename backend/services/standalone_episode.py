@@ -92,10 +92,10 @@ def _locate_series_file(file_path: str) -> _SeriesFile | None:
 
 def _target_languages(series_id: int) -> list[str]:
     from config import get_settings
-    from db.profiles import get_default_profile
+    from db.profiles import get_profile_for_item
 
     settings = get_settings()
-    profile = get_default_profile()
+    profile = get_profile_for_item({"standalone_series_id": series_id})
     langs = (profile or {}).get("target_languages") or []
     return list(langs) or [settings.target_language]
 

@@ -41,25 +41,15 @@ class _OverrideUnavailableError(Exception):
 
 
 def settings_ids(item: dict) -> tuple[int | None, int | None]:
-    """The ``(series_id, movie_id)`` the item's series/movie settings are
-    keyed by: the Sonarr/Radarr id, or — only while that arr is not
-    configured — the standalone id, which is what the standalone series and
-    movie pages save their switches and track policies under. With the arr
-    configured the id space belongs to it, so a standalone id is not read.
+    """The ``(series_id, movie_id)`` keys the item's series/movie settings are
+    stored under: the Sonarr/Radarr id, or the owner key (negated id) of a
+    standalone series/movie — what the standalone pages save their switches
+    and track policies under (docs/specs/standalone-ids.md). The sign keeps
+    the two apart, with or without an arr configured.
     """
-    series_id = item.get("sonarr_series_id")
-    if not series_id and item.get("standalone_series_id"):
-        from sonarr_client import get_sonarr_client
+    from services.media_ids import movie_key_for_item, series_key_for_item
 
-        if get_sonarr_client() is None:
-            series_id = item["standalone_series_id"]
-    movie_id = item.get("radarr_movie_id")
-    if not movie_id and item.get("standalone_movie_id"):
-        from radarr_client import get_radarr_client
-
-        if get_radarr_client() is None:
-            movie_id = item["standalone_movie_id"]
-    return series_id or None, movie_id or None
+    return series_key_for_item(item), movie_key_for_item(item)
 
 
 def _get_title_override(item: dict) -> bool | None:

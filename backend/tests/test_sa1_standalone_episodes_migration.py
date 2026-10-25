@@ -205,6 +205,8 @@ def test_downgrade_drops_table_and_negative_findings(tmp_path):
             mig.downgrade()
     with engine.connect() as conn:
         assert not sa.inspect(conn).has_table("standalone_episodes")
-        left = [r[0] for r in conn.execute(sa.text("SELECT episode_id FROM subtitle_health_findings"))]
+        left = [
+            r[0] for r in conn.execute(sa.text("SELECT episode_id FROM subtitle_health_findings"))
+        ]
     engine.dispose()
     assert left == [7]

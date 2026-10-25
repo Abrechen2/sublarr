@@ -21,22 +21,25 @@ _ZIP_SIZE_LIMIT = 50 * 1024 * 1024  # 50 MB
 
 def _get_series_path(series_id: int) -> str | None:
     """Resolve series filesystem path via Sonarr or standalone DB, applying path mapping."""
+    from services.media_ids import standalone_id_from
     from sonarr_client import get_sonarr_client
 
-    try:
-        client = get_sonarr_client()
-        series = client.get_series_by_id(series_id)
-        if series:
-            raw_path = series.get("path", "")
-            return map_path(raw_path) if raw_path else None
-    except Exception as exc:
-        logger.warning("Failed to resolve series path via Sonarr for id=%s: %s", series_id, exc)
+    standalone_id = standalone_id_from(series_id)
+    if standalone_id is None:
+        try:
+            client = get_sonarr_client()
+            series = client.get_series_by_id(series_id)
+            if series:
+                raw_path = series.get("path", "")
+                return map_path(raw_path) if raw_path else None
+        except Exception as exc:
+            logger.warning("Failed to resolve series path via Sonarr for id=%s: %s", series_id, exc)
 
-    # Fallback: standalone series
+    # Standalone series: a negative id, or the legacy positive id fallback.
     try:
         from db.standalone import get_standalone_series
 
-        standalone = get_standalone_series(series_id)
+        standalone = get_standalone_series(standalone_id or series_id)
         if standalone:
             raw_path = standalone.get("folder_path", "")
             return map_path(raw_path) if raw_path else None
@@ -53,7 +56,7 @@ def _scan_series_subtitles(series_path: str, warnings: list) -> list[dict]:
     return _scan_subtitle_files(series_path, warnings)
 
 
-@bp.route("/series/<int:series_id>/subtitles/export", methods=["GET"])
+@bp.route("/series/<int(signed=True):series_id>/subtitles/export", methods=["GET"])
 def export_series_subtitles(series_id: int):
     """Export all subtitle sidecar files for a series as a ZIP download.
 

@@ -34,9 +34,8 @@ def test_sonarr_mode_missing_file_returns_none(app_ctx):
 
 def test_standalone_mode_resolves_via_wanted_items(app_ctx, temp_db, tmp_path):
     from db.models.core import WantedItem
-    from extensions import db
-
     from db.models.standalone import StandaloneSeries
+    from extensions import db
 
     video = tmp_path / "ep.mkv"
     video.write_bytes(b"x")

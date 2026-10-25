@@ -8,13 +8,19 @@ DELETE /api/v1/series/<id>/fansub-prefs — clear prefs
 from flask import Blueprint, jsonify, request
 
 from db.repositories.fansub_prefs import FansubPreferenceRepository
+from services.media_ids import owner_key_url_values
 
 bp = Blueprint("fansub_prefs", __name__, url_prefix="/api/v1/series")
+
+# Standalone titles are stored under their owner key (negated id), see
+# docs/specs/standalone-ids.md; the view functions receive that key.
+bp.url_value_preprocessor(owner_key_url_values)
+
 
 _DEFAULTS = {"preferred_groups": [], "excluded_groups": [], "bonus": 20}
 
 
-@bp.route("/<int:series_id>/fansub-prefs", methods=["GET"])
+@bp.route("/<int(signed=True):series_id>/fansub-prefs", methods=["GET"])
 def get_fansub_prefs(series_id: int):
     """Return fansub preferences for a series (defaults if not configured)."""
     prefs = FansubPreferenceRepository().get_fansub_prefs(series_id)
@@ -23,7 +29,7 @@ def get_fansub_prefs(series_id: int):
     return jsonify(prefs)
 
 
-@bp.route("/<int:series_id>/fansub-prefs", methods=["PUT"])
+@bp.route("/<int(signed=True):series_id>/fansub-prefs", methods=["PUT"])
 def set_fansub_prefs(series_id: int):
     """Upsert fansub preferences for a series."""
     data = request.get_json(force=True, silent=True) or {}
@@ -62,7 +68,7 @@ def set_fansub_prefs(series_id: int):
     )
 
 
-@bp.route("/<int:series_id>/fansub-prefs", methods=["DELETE"])
+@bp.route("/<int(signed=True):series_id>/fansub-prefs", methods=["DELETE"])
 def delete_fansub_prefs(series_id: int):
     """Remove fansub preferences for a series (resets to defaults)."""
     FansubPreferenceRepository().delete_fansub_prefs(series_id)

@@ -148,6 +148,10 @@ def test_combine_movie_success(client, temp_dir, monkeypatch):
     _write_sidecar(temp_dir, "movie", "de", _SRT_DE)
     _write_sidecar(temp_dir, "movie", "en", _SRT_EN)
     monkeypatch.setattr("db.standalone.get_standalone_movies", lambda mid: {"file_path": video})
+    # A standalone movie file must lie inside a watched folder.
+    monkeypatch.setattr(
+        "db.standalone.get_watched_folders", lambda enabled_only=True: [{"path": temp_dir}]
+    )
 
     resp = _combine(
         client,

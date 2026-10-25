@@ -109,17 +109,30 @@ def test_radarr_directory_is_not_a_video(client, radarr_video):
     assert client.get("/api/v1/library/movies/99/subtitles").status_code == 404
 
 
-def test_standalone_id_keeps_priority(app_ctx, radarr_video, monkeypatch, tmp_path):
+def test_negative_id_is_the_standalone_movie_positive_is_radarr(
+    app_ctx, radarr_video, monkeypatch, tmp_path
+):
+    """Since 1.18.0 standalone movies have negative ids (docs/specs/standalone-ids.md).
+
+    The old "standalone row first" lookup answered Radarr movie 99 with an
+    unrelated standalone movie that happened to have row id 99.
+    """
     from services.movie_video_path import resolve_movie_video_path
 
-    _, _, radarr = radarr_video
+    video, _, radarr = radarr_video
     standalone = tmp_path / "Standalone.mkv"
     standalone.touch()
     monkeypatch.setattr(
         "db.standalone.get_standalone_movies", lambda mid: {"file_path": str(standalone)}
     )
-    assert resolve_movie_video_path(99) == str(standalone)
+    monkeypatch.setattr(
+        "db.standalone.get_watched_folders", lambda enabled_only=True: [{"path": str(tmp_path)}]
+    )
+    monkeypatch.setattr("services.trash_locations.media_paths", lambda: [str(tmp_path)])
+
+    assert resolve_movie_video_path(-99) == str(standalone)
     radarr.get_movie_by_id.assert_not_called()
+    assert resolve_movie_video_path(99) == str(video)
 
 
 def test_radarr_detail_reports_real_wanted_count(client, radarr_video):
@@ -193,5 +206,29 @@ def test_standalone_movies_outside_the_media_roots_still_resolve(
     monkeypatch.setattr(
         "db.standalone.get_standalone_movies", lambda mid: {"file_path": str(standalone)}
     )
+    monkeypatch.setattr(
+        "db.standalone.get_watched_folders",
+        lambda enabled_only=True: [{"path": str(tmp_path / "watched")}],
+    )
 
-    assert resolve_movie_video_path(99) == str(standalone)
+    assert resolve_movie_video_path(-99) == str(standalone)
+
+
+def test_standalone_movie_outside_every_watched_folder_is_refused(
+    app_ctx, radarr_video, monkeypatch, tmp_path
+):
+    """The scanner follows symlinks; a recorded path must still lie in a watched folder."""
+    from services.movie_video_path import resolve_movie_video_path
+
+    standalone = tmp_path / "elsewhere" / "Standalone.mkv"
+    standalone.parent.mkdir()
+    standalone.touch()
+    monkeypatch.setattr(
+        "db.standalone.get_standalone_movies", lambda mid: {"file_path": str(standalone)}
+    )
+    monkeypatch.setattr(
+        "db.standalone.get_watched_folders",
+        lambda enabled_only=True: [{"path": str(tmp_path / "watched")}],
+    )
+
+    assert resolve_movie_video_path(-99) is None

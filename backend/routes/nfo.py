@@ -28,16 +28,17 @@ logger = logging.getLogger(__name__)
 def _get_series_path_for_nfo(series_id: int) -> str | None:
     """Return the local filesystem path for a series, or None if not found."""
     try:
+        from services.media_ids import resolve_series_ref
         from sonarr_client import get_sonarr_client
 
-        client = get_sonarr_client()
-        if client is None:
-            # Standalone mode: the series folder from the standalone scan.
+        ref = resolve_series_ref(series_id)
+        if ref.is_standalone:
+            # Standalone (negative id, or no Sonarr): the scanned series folder.
             from db.standalone import get_standalone_series
 
-            standalone = get_standalone_series(series_id)
+            standalone = get_standalone_series(ref.id)
             return (standalone or {}).get("folder_path") or None
-        series = client.get_series_by_id(series_id)
+        series = get_sonarr_client().get_series_by_id(series_id)
         if not series:
             return None
         raw_path = series.get("path", "")
@@ -104,7 +105,7 @@ def export_subtitle_nfo():
 # ---------------------------------------------------------------------------
 
 
-@bp.route("/series/<int:series_id>/subtitles/export-nfo", methods=["POST"])
+@bp.route("/series/<int(signed=True):series_id>/subtitles/export-nfo", methods=["POST"])
 @limiter.limit("5 per minute")
 def export_series_nfo(series_id: int):
     """Write NFO sidecars for all subtitle files in a series.

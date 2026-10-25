@@ -16,23 +16,12 @@ logger = logging.getLogger(__name__)
 def _resolve_profile_for_item(item: dict) -> dict | None:
     """Resolve the LanguageProfile dict governing a wanted item.
 
-    Mirrors the series -> movie -> default resolution order used elsewhere
-    (e.g. services.embedded_extractor.resolve_profile_for_item), but also
-    covers standalone-managed items which store their series/movie id under
-    ``standalone_series_id`` / ``standalone_movie_id`` instead of the
-    Sonarr/Radarr-native fields. The assignment tables (SeriesLanguageProfile /
-    MovieLanguageProfile) are keyed by that same id regardless of origin, so
-    ``get_series_profile`` / ``get_movie_profile`` work unchanged for both.
+    Series -> movie -> default, standalone titles under their owner key
+    (``db.profiles.get_profile_for_item``).
     """
-    from db.profiles import get_default_profile, get_movie_profile, get_series_profile
+    from db.profiles import get_profile_for_item
 
-    sid = item.get("sonarr_series_id") or item.get("standalone_series_id")
-    mid = item.get("radarr_movie_id") or item.get("standalone_movie_id")
-    if sid:
-        return get_series_profile(sid)
-    if mid:
-        return get_movie_profile(mid)
-    return get_default_profile()
+    return get_profile_for_item(item)
 
 
 def resolve_keep_seeking(item: dict) -> bool:

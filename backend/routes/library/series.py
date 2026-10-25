@@ -36,15 +36,17 @@ def _get_standalone_series_detail(series_id: int, settings) -> dict | None:
     from sqlalchemy import bindparam, text
 
     from db import get_db
-    from db.profiles import get_default_profile
+    from db.profiles import get_profile_for_item
     from db.standalone import get_standalone_series
+    from services.media_ids import standalone_key
     from translator import detect_existing_target_for_lang
 
     series = get_standalone_series(series_id)
     if not series:
         return None
 
-    profile = get_default_profile()
+    # The series' own profile assignment (owner key = negated id), else default.
+    profile = get_profile_for_item({"standalone_series_id": series_id})
     target_languages = (
         profile.get("target_languages", [settings.target_language])
         if profile
@@ -156,7 +158,6 @@ def _get_standalone_series_detail(series_id: int, settings) -> dict | None:
     # Stable episode ids (docs/specs/standalone-ids.md): every file gets a
     # standalone_episodes row and the API id is its negated id — the same for
     # wanted and satisfied episodes, unchanged by rescans.
-    from services.media_ids import standalone_key
     from services.standalone_library import ensure_episode_ids
 
     episode_row_ids = ensure_episode_ids(series_id, [(fp, p) for fp, p in episode_files if fp])
@@ -219,10 +220,9 @@ def _get_standalone_series_detail(series_id: int, settings) -> dict | None:
 
     poster = f"/api/v1/standalone/series/{series_id}/poster" if series.get("poster_url") else ""
 
-    # The cleanup switch is saved under the standalone id (PATCH
-    # /series/<id>/settings from this page); without a row it inherits the
-    # global default. It used to be hard-coded to null, so a saved choice
-    # snapped back to "inherit" on reload.
+    # The cleanup switch is saved under the owner key (PATCH
+    # /series/<id>/settings from this page sends the negative id); without a
+    # row it inherits the global default.
     from services.foreign_track_cleanup import should_cleanup_foreign_tracks
 
     global_default = bool(getattr(settings, "cleanup_foreign_tracks_default", False))
@@ -231,7 +231,7 @@ def _get_standalone_series_detail(series_id: int, settings) -> dict | None:
         from db.models.core import SeriesSettings
         from extensions import db as _ext_db
 
-        settings_row = _ext_db.session.get(SeriesSettings, series_id)
+        settings_row = _ext_db.session.get(SeriesSettings, standalone_key(series_id))
         if settings_row is not None:
             cleanup_override = settings_row.cleanup_foreign_tracks
     except Exception as exc:
@@ -328,10 +328,9 @@ def get_series_detail(series_id):
     from config import get_settings, map_path
     from db import get_db
     from db.profiles import get_default_profile, get_series_profile
+    from services.media_ids import resolve_series_ref
     from sonarr_client import get_sonarr_client
     from translator import detect_existing_target_for_lang
-
-    from services.media_ids import resolve_series_ref
 
     settings = get_settings()
 

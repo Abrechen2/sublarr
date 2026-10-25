@@ -202,7 +202,9 @@ def extract_track(ep_id, index):
     ), 200
 
 
-@bp.route("/library/episodes/<int(signed=True):ep_id>/tracks/<int:index>/use-as-source", methods=["POST"])
+@bp.route(
+    "/library/episodes/<int(signed=True):ep_id>/tracks/<int:index>/use-as-source", methods=["POST"]
+)
 def use_track_as_source(ep_id, index):
     """Extract subtitle track content to a tempfile, read it inline. Audio tracks return 400."""
     video_path = _get_video_path(ep_id)
@@ -536,7 +538,7 @@ def scan_episode_health(ep_id):
     return jsonify(result.to_dict()), 200
 
 
-@bp.route("/library/series/<int:series_id>/health/scan", methods=["POST"])
+@bp.route("/library/series/<int(signed=True):series_id>/health/scan", methods=["POST"])
 def scan_series_health(series_id):
     """Kick off a background subtitle-health scan for a whole series.
 
@@ -682,7 +684,7 @@ def _cleanup_series_sidecars(episode_files: dict, keep_langs: set, keep_format: 
     return deleted
 
 
-@bp.route("/library/series/<int:series_id>/batch-extract-tracks", methods=["POST"])
+@bp.route("/library/series/<int(signed=True):series_id>/batch-extract-tracks", methods=["POST"])
 def batch_extract_series_tracks(series_id):
     """Extract all embedded subtitle tracks from every episode file in a series.
 
@@ -692,10 +694,12 @@ def batch_extract_series_tracks(series_id):
     app = current_app._get_current_object()
 
     def _run(app):
+        from services.media_ids import resolve_series_ref
         from sonarr_client import get_sonarr_client
 
         with app.app_context():
-            client = get_sonarr_client()
+            ref = resolve_series_ref(series_id)
+            client = None if ref.is_standalone else get_sonarr_client()
 
             # Collect video file paths — from Sonarr or standalone DB
             if client is not None:
@@ -730,7 +734,7 @@ def batch_extract_series_tracks(series_id):
                 # just the wanted_items rows, which lack satisfied episodes).
                 from routes.library.series import standalone_series_video_paths
 
-                video_paths = standalone_series_video_paths(series_id) or []
+                video_paths = standalone_series_video_paths(ref.id) or []
                 logger.info(
                     "[batch-extract-tracks] standalone mode: %d files for series %d",
                     len(video_paths),

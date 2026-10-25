@@ -9,10 +9,16 @@ from flask import Blueprint, jsonify, request
 
 from db.models.core import SeriesSettings
 from extensions import db
+from services.media_ids import owner_key_url_values
 
 logger = logging.getLogger(__name__)
 
 bp = Blueprint("series_settings_overrides", __name__, url_prefix="/api/v1/series")
+
+# Standalone titles are stored under their owner key (negated id), see
+# docs/specs/standalone-ids.md; the view functions receive that key.
+bp.url_value_preprocessor(owner_key_url_values)
+
 
 _ALLOWED_PRIORITY = {"premium", "standard", "backlog"}
 _ALLOWED_FORMAT_REQUIREMENTS = {"require_ass"}
@@ -20,7 +26,7 @@ _MIN_ATTEMPTS_MIN = 0
 _MIN_ATTEMPTS_MAX = 50
 
 
-@bp.route("/<int:series_id>/settings", methods=["PATCH"])
+@bp.route("/<int(signed=True):series_id>/settings", methods=["PATCH"])
 def patch_series_settings(series_id: int):
     data = request.get_json(silent=True) or {}
 
