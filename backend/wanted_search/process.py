@@ -1368,6 +1368,14 @@ def process_wanted_item(
     if not item:
         return {"wanted_id": item_id, "status": "error", "error": "Item not found"}
 
+    # A standalone file now outside its folder / the media folder is never
+    # probed, inspected or searched (the row is kept; a rescan drops it).
+    from services.standalone_library import wanted_item_path_refusal
+
+    refusal = wanted_item_path_refusal(item)
+    if refusal:
+        return {"wanted_id": item_id, "status": "skipped", "reason": refusal}
+
     settings = get_settings()
     item_lang = item.get("target_language") or settings.target_language
     _pf = _load_profile_filters(item, item_id)

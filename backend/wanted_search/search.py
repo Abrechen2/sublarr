@@ -7,6 +7,7 @@ from config import get_settings
 from db.wanted import get_wanted_item, update_wanted_search
 from providers import get_provider_manager
 from providers.base import SubtitleFormat
+from services.standalone_library import wanted_item_path_refusal
 from wanted_search.metadata import build_query_from_wanted
 from wanted_search.scoring import (
     _apply_fansub_rules,
@@ -95,6 +96,9 @@ def search_wanted_item(item_id: int) -> dict:
     item = get_wanted_item(item_id)
     if not item:
         return {"error": "Item not found", "wanted_id": item_id}
+    refusal = wanted_item_path_refusal(item)
+    if refusal:
+        return {"error": refusal, "wanted_id": item_id}
 
     settings = get_settings()
     manager = get_provider_manager()
@@ -234,6 +238,9 @@ def search_providers_for_item(item_id: int, all_providers: bool = False) -> dict
     item = get_wanted_item(item_id)
     if not item:
         return {"error": "Item not found", "wanted_id": item_id}
+    refusal = wanted_item_path_refusal(item)
+    if refusal:
+        return {"error": refusal, "wanted_id": item_id}
 
     manager = get_provider_manager()
 

@@ -22,10 +22,10 @@ def _episode_title(series_title: str, season: int, episode: int) -> str:
 
 # Moved to services.standalone_library (services must not import routes);
 # re-exported under the old names for the route modules and tests using them.
-from services.standalone_library import (  # noqa: E402
-    enumerate_series_episode_files as _enumerate_series_episode_files,
+from services.standalone_library import (
+    allowed_series_files,  # noqa: E402
+    standalone_series_video_paths,  # noqa: E402, F401
 )
-from services.standalone_library import standalone_series_video_paths  # noqa: E402, F401
 
 
 def _get_standalone_series_detail(series_id: int, settings) -> dict | None:
@@ -71,16 +71,11 @@ def _get_standalone_series_detail(series_id: int, settings) -> dict | None:
     # only holds episodes still MISSING a target subtitle; it drains as subs land
     # and churns during a rescan's DELETE+re-INSERT, so a fully-satisfied series
     # would otherwise render "0 episodes". Enumerate the folder and use
-    # wanted_items purely to enrich status.
-    episode_files = _enumerate_series_episode_files(series.get("folder_path", ""))
-
-    # Fallback: folder missing/unreachable (mount down) -- degrade to the
-    # wanted_items paths rather than showing nothing.
-    if not episode_files:
-        episode_files = [
-            (fp, {})
-            for fp in sorted({i.get("file_path", "") for i in wanted_items if i.get("file_path")})
-        ]
+    # wanted_items purely to enrich status. The shared enumerator falls back to
+    # the wanted paths while the folder is unreachable, and refuses a folder or
+    # path outside the series folder / media folder before anything below
+    # touches it (subtitle detection, episode rows).
+    episode_files = allowed_series_files(series)
 
     # Map file_path -> wanted_item for enrichment (id, season_episode, existing_sub).
     wanted_by_fp: dict = {}
@@ -229,9 +224,9 @@ def _get_standalone_series_detail(series_id: int, settings) -> dict | None:
     cleanup_override: bool | None = None
     try:
         from db.models.core import SeriesSettings
-        from extensions import db as _ext_db
+        from services.standalone_owner_keys import get_row
 
-        settings_row = _ext_db.session.get(SeriesSettings, standalone_key(series_id))
+        settings_row = get_row(SeriesSettings, standalone_key(series_id))
         if settings_row is not None:
             cleanup_override = settings_row.cleanup_foreign_tracks
     except Exception as exc:
@@ -560,9 +555,9 @@ def get_series_detail(series_id):
     cleanup_override: bool | None = None
     try:
         from db.models.core import SeriesSettings
-        from extensions import db as _db
+        from services.standalone_owner_keys import get_row
 
-        row = _db.session.get(SeriesSettings, series_id)
+        row = get_row(SeriesSettings, series_id)
         if row:
             if row.processing_config:
                 processing_config = _json.loads(row.processing_config)

@@ -55,6 +55,10 @@ def retranslate_item(item_id: int) -> str | None:
     item = get_wanted_item(item_id)
     if not item:
         return None
+    from services.standalone_library import wanted_item_path_refusal
+
+    if wanted_item_path_refusal(item):
+        return None
 
     file_path = item.get("file_path") or item.get("path")
     if not file_path or not os.path.exists(file_path):

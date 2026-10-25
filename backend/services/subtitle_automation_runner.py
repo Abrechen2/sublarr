@@ -210,6 +210,11 @@ class SubtitleAutomationRunner:
             raise FileNotFoundError(
                 f"wanted item {wanted_item_id} no longer exists; dropping its translation"
             )
+        from services.standalone_library import wanted_item_path_refusal
+
+        refusal = wanted_item_path_refusal(item)
+        if refusal:
+            raise ValueError(refusal)
         result = _fallback_translate_file(
             {
                 "item": item,

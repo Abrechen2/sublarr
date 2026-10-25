@@ -310,6 +310,11 @@ def download_specific_for_item(
     item = get_wanted_item(item_id)
     if not item:
         return {"success": False, "error": "Item not found"}
+    from services.standalone_library import wanted_item_path_refusal
+
+    refusal = wanted_item_path_refusal(item)
+    if refusal:
+        return {"success": False, "error": refusal}
 
     settings = get_settings()
     item_lang = item.get("target_language") or settings.target_language

@@ -36,16 +36,29 @@ class StandaloneEpisodeFile:
     episode: int
 
 
+def series_folder_allowed(folder_path: str | None) -> bool:
+    """Whether a standalone series folder may be enumerated at all.
+
+    The folder itself must resolve (symlinks and ``..``) inside
+    ``media_path``: a folder symlinked out of the media tree is refused
+    before anything below it is listed, parsed or inspected.
+    """
+    return bool(folder_path) and "\x00" not in folder_path and in_media_root(folder_path)
+
+
 def enumerate_series_episode_files(folder_path: str) -> list[tuple[str, dict]]:
     """``(file_path, parsed)`` for every episode video under a series folder.
 
-    Extras (trailers/samples/…) are skipped. ``[]`` when the folder is
-    missing or unreachable, so callers can fall back to ``wanted_items``.
+    Safe by construction: a folder outside ``media_path`` is never walked,
+    and a file is only parsed after it passed ``standalone_path_allowed``
+    (a file symlinked out of the folder or the media tree is left out).
+    Extras (trailers/samples/...) are skipped. ``[]`` when the folder is
+    refused, missing or unreachable.
     """
     from standalone.parser import is_video_file, parse_media_file
     from standalone.scanner import _is_extra_file
 
-    if not folder_path or not os.path.isdir(folder_path):
+    if not series_folder_allowed(folder_path) or not os.path.isdir(folder_path):
         return []
 
     out: list[tuple[str, dict]] = []
@@ -54,6 +67,8 @@ def enumerate_series_episode_files(folder_path: str) -> list[tuple[str, dict]]:
             for filename in files:
                 fp = os.path.join(root, filename)
                 if not is_video_file(fp) or _is_extra_file(fp):
+                    continue
+                if not standalone_path_allowed(fp, folder_path):
                     continue
                 try:
                     parsed = parse_media_file(fp)
@@ -64,6 +79,30 @@ def enumerate_series_episode_files(folder_path: str) -> list[tuple[str, dict]]:
         logger.warning("Standalone episode enumeration failed for %s: %s", folder_path, exc)
         return []
     return out
+
+
+def allowed_series_files(series: dict) -> list[tuple[str, dict]]:
+    """The episode files of a standalone series row that may be used.
+
+    The one enumerator for the series page, the bulk actions, the sidecar
+    map and the health scans: the folder on disk, or - while it is
+    unreachable - the ``wanted_items`` paths, each checked with
+    ``standalone_path_allowed`` before it is returned. Nothing at all for a
+    series whose folder resolves outside ``media_path``.
+    """
+    folder = series.get("folder_path") or ""
+    if not series_folder_allowed(folder):
+        if folder:
+            logger.warning(
+                "Standalone series %s: folder %s resolves outside the media folder - not listed",
+                series.get("id"),
+                folder,
+            )
+        return []
+    files = enumerate_series_episode_files(folder)
+    if files:
+        return files
+    return [(fp, {}) for fp in _wanted_paths(series["id"]) if standalone_path_allowed(fp, folder)]
 
 
 def _wanted_paths(series_id: int) -> list[str]:
@@ -99,9 +138,7 @@ def standalone_series_video_paths(series_id: int) -> list[str] | None:
     series = get_standalone_series(series_id)
     if not series:
         return None
-    folder = series.get("folder_path", "")
-    paths = [fp for fp, _ in enumerate_series_episode_files(folder)] or _wanted_paths(series_id)
-    return sorted(p for p in paths if standalone_path_allowed(p, folder))
+    return sorted(fp for fp, _ in allowed_series_files(series))
 
 
 def _numbers(parsed: dict | None) -> tuple[int | None, int | None]:
@@ -143,9 +180,7 @@ def series_episode_files(series_id: int) -> list[StandaloneEpisodeFile] | None:
     series = get_standalone_series(series_id)
     if not series:
         return None
-    files = enumerate_series_episode_files(series.get("folder_path", ""))
-    if not files:
-        files = [(fp, {}) for fp in _wanted_paths(series_id)]
+    files = allowed_series_files(series)
     ids = ensure_episode_ids(series_id, files)
     out = []
     for fp, parsed in files:
@@ -250,3 +285,49 @@ def episode_file_for_wire_id(wire_id: int) -> tuple[dict, str] | None:
         return None
     path = episode_path_in_series(row["file_path"], row["standalone_series_id"])
     return (row, path) if path else None
+
+
+OUTSIDE_REASON = "standalone file lies outside its folder or the media folder"
+
+
+def wanted_item_path_refusal(item: dict | None) -> str | None:
+    """Why a standalone wanted row's file must not be used now, or ``None``.
+
+    Checked before any preflight, probe, search, extraction or translation
+    of a stored wanted row: its folder or file may have been swapped for a
+    symlink out of the media tree since the scan. An episode must resolve
+    inside its series folder, a movie inside a watched folder, and both
+    inside ``media_path`` (``standalone_path_allowed``). Existence is not
+    checked here; the pipeline reports a missing file as before.
+
+    Sonarr/Radarr rows answer ``None``: their paths stay governed by the
+    ``media_path`` checks at the call sites, unchanged.
+    """
+    if not item:
+        return None
+    path = item.get("file_path") or ""
+    if item.get("standalone_series_id"):
+        from db.standalone import get_standalone_series
+
+        series = get_standalone_series(int(item["standalone_series_id"])) or {}
+        allowed = standalone_path_allowed(path, series.get("folder_path") or "")
+    elif item.get("standalone_movie_id") or (
+        item.get("instance_name") == "standalone"
+        and not (
+            item.get("sonarr_series_id")
+            or item.get("sonarr_episode_id")
+            or item.get("radarr_movie_id")
+        )
+    ):
+        from db.standalone import get_watched_folders
+
+        allowed = any(
+            standalone_path_allowed(path, folder.get("path") or "")
+            for folder in get_watched_folders(enabled_only=False) or []
+        )
+    else:
+        return None
+    if allowed:
+        return None
+    logger.warning("Wanted %s: %s (%s) - skipped, row kept", item.get("id"), OUTSIDE_REASON, path)
+    return OUTSIDE_REASON

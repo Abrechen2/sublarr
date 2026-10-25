@@ -41,16 +41,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Standalone files are checked where they are used** — A standalone
   episode or movie file is only used when it still lies inside its series
   folder or a watched folder, also after a symlink was changed.
-- **Former Sonarr/Radarr settings stay where they were on upgrade** — The
-  one-time upgrade step that moves standalone titles' profiles and settings
-  to their new ids could hand a removed Sonarr's or Radarr's settings to a
-  standalone title with the same number once the Wanted queue was empty.
-  It now moves them only when nothing (a saved Sonarr/Radarr address,
-  download or upgrade history, blacklist, health findings or translation
-  jobs for other files, or from before the standalone title was added)
-  shows the install ever used Sonarr or Radarr.
-  Otherwise the settings stay untouched and the log says how many were kept,
-  so you can assign profiles to those standalone titles on the Library page.
+- **Existing standalone settings keep working, nothing is moved** — Profiles,
+  settings, glossary terms and fansub preferences saved for standalone
+  series and movies before 1.18 stay where they are; no upgrade step
+  rewrites them. A standalone title keeps using them as long as Sonarr (for
+  series) or Radarr (for movies) is not configured and nothing shows it ever
+  was (a saved Sonarr/Radarr address, or wanted items, translation jobs or
+  queue entries with Sonarr/Radarr ids). New changes are stored per title:
+  the first change copies the title's old settings along, so the others are
+  kept. With Sonarr or Radarr configured, its settings are never used for a
+  standalone title with the same number.
 
 ### Security
 - **Standalone files outside the media folder are no longer touched** — A
@@ -60,7 +60,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   and every sidecar the auto-fix rewrites, must now also lie inside the media
   folder. The scanner and the folder watcher no longer pick up files behind
   symlinks that lead outside it (one log line says how many were skipped),
-  and a watched folder that itself leads outside it is not scanned.
+  and a watched folder that itself leads outside it is not scanned. The
+  series page, bulk actions, the sidecar list and the health scans no longer
+  look into a series folder that leads outside it, and Wanted search,
+  download, embedded extraction and translation skip stored standalone
+  items whose file now lies outside it (the item is kept).
 
 ### Changed
 - **Watched folders must be inside the media folder** — A watched folder
@@ -74,9 +78,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   responses give standalone series, movies and episodes a negative `id`; the
   database row id is in `standalone_id`. The old positive ids keep working
   when Sonarr or Radarr is not configured. Sonarr and Radarr ids are
-  unchanged. Saved standalone profiles and settings move to the new ids at
-  the first start when no Sonarr or Radarr is or was in use; otherwise
-  standalone titles start from the default settings.
+  unchanged.
 - **Database migrations wait for each other on PostgreSQL** — Two instances
   starting at once could read the old database layout while the other was
   still saving its changes. The second one now waits until the first is

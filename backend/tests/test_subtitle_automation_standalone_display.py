@@ -45,7 +45,7 @@ class TestStandaloneEmbeddedFallback:
             now = datetime.now(UTC)
             item = WantedItem(
                 title="Episode 1",
-                file_path=str(tmp_path / "ep01.mkv"),
+                file_path=str(tmp_path / "series1" / "ep01.mkv"),
                 standalone_series_id=9001,
                 target_language="de",
                 missing_languages='["de"]',
@@ -99,7 +99,7 @@ class TestStandaloneEmbeddedFallback:
             now = datetime.now(UTC)
             item = WantedItem(
                 title="Episode 1",
-                file_path=str(tmp_path / "ep01.mkv"),
+                file_path=str(tmp_path / "series2" / "ep01.mkv"),
                 standalone_series_id=9002,
                 target_language="de",
                 missing_languages='["de"]',

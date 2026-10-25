@@ -106,6 +106,11 @@ def retranslate_single(job_id):
         wanted_item = get_wanted_item(job_id)
         if not wanted_item:
             return jsonify({"error": "Item not found"}), 404
+        from services.standalone_library import wanted_item_path_refusal
+
+        refusal = wanted_item_path_refusal(wanted_item)
+        if refusal:
+            return jsonify({"error": refusal}), 400
         file_path = wanted_item["file_path"]
     else:
         file_path = job["file_path"]

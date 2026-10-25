@@ -966,6 +966,12 @@ def extract_embedded_sub(
         # itself, so nothing user-facing changes.
         raise FileNotFoundError(f"Wanted item {item_id} no longer exists")
 
+    from services.standalone_library import wanted_item_path_refusal
+
+    refusal = wanted_item_path_refusal({**item, "file_path": file_path or item.get("file_path")})
+    if refusal:
+        raise ValueError(refusal)
+
     if not file_path or not os.path.exists(file_path):
         raise FileNotFoundError(f"Media file not found: {file_path}")
 

@@ -105,9 +105,13 @@ def _replace_original(item: dict, preview: dict) -> bool:
     never left without the subtitle it had.
     """
     from services import mt_sidecars
+    from services.standalone_library import wanted_item_path_refusal
     from wanted_search import process_wanted_item
 
     item_id = item.get("id")
+    if wanted_item_path_refusal(item):
+        # Never move sidecars next to a standalone file outside the media folder.
+        return False
     moved = mt_sidecars.retire(mt_sidecars.mt_sidecar_paths(item, preview.get("output_path")))
     before = mt_sidecars.target_sidecars(item)
 

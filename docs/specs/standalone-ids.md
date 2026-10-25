@@ -143,7 +143,7 @@ so those readers (`metadata_enrichers`, `series_format`, `series_audio`,
 
 Readers use one resolver, `db.profiles.get_profile_for_item(item)`
 (series -> movie -> default, with the standalone columns mapped through
-`owner_key_for_item`). It replaces the per-module copies in
+`owner_key_for_item`; the pre-1.18 fallback of section 4 applies inside it). It replaces the per-module copies in
 `services/embedded_extractor.py`, `services/mt_provisional.py`,
 `wanted_search/process.py`, `translator/_helpers.py`, the standalone scanner,
 `services/standalone_episode.py`, `services/standalone_manager.py` and the
@@ -154,69 +154,93 @@ Translation jobs: `arr_context` (persisted with the job) additionally carries
 selection and glossary lookup derive the owner key from it, so a retried job
 keeps its title's profile and glossary.
 
-### 4. Moving existing standalone rows to their owner key
+### 4. Pre-1.18 rows: read where they are, never moved
 
 Existing standalone installs have positive-key rows that belong to standalone
 titles (profile assignments from the Library page, the cleanup switch saved by
 1.17.3, glossary entries, fansub preferences). Whether a positive key in those
-tables belongs to Sonarr or to a standalone series cannot be read from the
-data: before 1.18.0 it was decided by "is a Sonarr client configured" at the
+tables belongs to Sonarr/Radarr or to a standalone title cannot be read from
+the data: before 1.18.0 it was decided by "is the arr configured" at the
 moment of the write.
 
-So the move is a **one-shot startup repair**, not an Alembic data migration:
-it needs the effective configuration (environment plus `config_entries`
-overlay), which Alembic's `env.py` does not load.
-`services/standalone_owner_keys.py::migrate_legacy_owner_keys()` runs once per
-database after the settings overlay is loaded, for tracked and untracked
-databases alike, recorded by a marker row (`sa2_standalone_owner_keys`) in the
-existing `untracked_data_repairs` marker table, in one transaction with the
-data change (same contract as the untracked repairs: a failure leaves no
-marker and is retried next start, never blocks startup):
+Decision (maintainer, after the Codex review of the RC): **no row is moved,
+rewritten or deleted because of this, at startup or ever.** Absence of
+evidence never authorises moving rows. Release candidates of 1.18.0 ran a
+one-time startup move; it is removed together with its startup call (no
+released version ever moved rows; the `sa2_standalone_owner_keys` marker
+those RCs wrote into `untracked_data_repairs` is no longer read or written
+and is harmless). Instead (`services/standalone_owner_keys.py`):
 
-* A side moves only with **affirmative evidence the install never used that
-  arr**, all of: the arr is not configured now; no non-empty
-  `sonarr_url`/`sonarr_instances_json` (`radarr_url`/`radarr_instances_json`)
-  in `config_entries`; no durable row carrying an arr id (a translation
-  job's `arr_context`, for Radarr the automation queue's `radarr_movie_id`);
-  and no durable history row (`subtitle_downloads`, `upgrade_history`,
-  `blacklist_entries`, `jobs`, `sidecar_origins`, `subtitle_health_findings`)
-  for a file outside the standalone titles (inside a standalone series
-  folder, or a standalone movie file and its sidecars), or for a file inside
-  one recorded before that title's `created_at` (the arr handled the same
-  folder before it was imported as standalone; an unreadable timestamp also
-  counts). The history is only read when the cheaper checks found nothing.
-  Residual gap: an arr used *after* the standalone title was created, with
-  no stored URL and only env configuration, leaves no trace. An empty wanted queue
-  is **no** evidence: successful downloads delete wanted rows (Codex review
-  of 1.18.0, finding 1), and `search_series` is not consulted at all because
-  startup rebuilds it from `wanted_items` before the move runs (a prod-copy
-  migration test moved Sonarr series 1032's rows that way). A wanted row
-  that still carries an arr id only adds a reason to keep.
-  A foreign history path cannot be attributed to Sonarr or Radarr, so it
-  keeps both sides.
-* series side, when that holds: each row whose
-  positive key `K` is an existing `standalone_series.id` and that has no
-  `-K` row yet is rewritten to `-K` (`UPDATE ... SET key = -K`). Rows that
-  would collide stay where they are.
-* movie side, when that holds for Radarr: same for
-  `standalone_movies.id`.
-* health findings (series side, same condition): a finding whose
-  `episode_id` is a standalone wanted row id and whose target is that video
-  or a sidecar next to it (same folder, file name starts with the video's
-  stem) is rekeyed to the episode's negative id; anything else is left as is.
-* With the arr configured, or any sign it was used, nothing is moved: the
-  rows may be the arr's, and an ambiguous row is kept where it is rather than
-  guessed (one warning with the count and the evidence, so the user can
-  reassign the titles' settings on the Library page). The marker is written
-  for a kept result too: evidence that disappears later never moves the rows
-  on a later start.
-* The marker table is created for tracked databases as well, and the marker
-  row is inserted in the same transaction as the moves before they run; a
-  concurrent second starter fails on the marker's primary key and rolls back.
+* **Readers** look up the owner key (negated id) first. When the table has
+  no row under it, they read the legacy positive key (= the standalone row
+  id), read-only, when all of these hold (`legacy_key(owner_key, kind)`):
+  * the matching arr is **not configured** (Sonarr for series, Radarr for
+    movies) — a configured arr owns every positive key, so a standalone
+    title then never reads one;
+  * **no durable arr evidence** (`arr_evidence(kind)`): a non-empty
+    `sonarr_url`/`sonarr_instances_json` (`radarr_url`/`radarr_instances_json`)
+    in `config_entries`, a `wanted_items` row with a Sonarr (Radarr) id, a
+    translation job whose `arr_context` carries one, for movies an automation
+    queue row with a Radarr id. These are `LIMIT 1` probes, cached per
+    process (found evidence sticks, "none" is re-checked after 5 minutes).
+    Download/upgrade/blacklist/health history is deliberately **not** used:
+    a deleted, renamed or re-imported standalone title leaves history that
+    looks foreign and would switch the fallback off for standalone-only
+    installs, and the scan is not cheap;
+  * the title has **not claimed** its rows (`standalone_legacy_claims`, below);
+  * the standalone title **exists**.
+* One reader per table, so the rule lives in one place:
+  `standalone_owner_keys.get_row(model, key)` for the one-row-per-title
+  tables (`series_settings`, `movie_settings`, `series_language_profiles`,
+  `movie_language_profiles`, `fansub_preferences`) — used by
+  `ProfileRepository.get_series_profile/get_movie_profile` (so
+  `db.profiles.get_profile_for_item` and every profile consumer),
+  `AnidbRepository` (absolute order, series settings), `SeriesAudioRepository`,
+  `FansubPreferenceRepository`, `services.series_format`,
+  `services.foreign_tracks.policy.resolve_policy`,
+  `services.foreign_track_cleanup`, the processing-config readers in
+  `routes/subtitle_processor.py`, the overrides/resolved routes and the
+  series detail; `glossary_owner_key(series_id)` for `glossary_entries`
+  (all four glossary readers in `TranslationRepository`, so the glossary
+  page, export, translator and suggestions). Bulk readers (library profile
+  map, overrides scope tree, the track-policy sweep) map readable legacy
+  rows to their owner key with `legacy_ids_as_owner_keys`; the sweep leaves
+  out a legacy row whose title has its own row or claimed, and pauses (marks
+  the set incomplete) for a positive row it cannot attribute while the arr
+  is not configured, as it did for unknown ids before.
+* **Writers** write the owner key, as before. The first write for a title
+  whose legacy rows are still readable calls `claim(owner_key, kind)`: in
+  the writer's own transaction it records `(kind, standalone_id)` in
+  `standalone_legacy_claims` and copies every legacy row of that title that
+  has no owner-key counterpart to the owner key (`INSERT ... SELECT`, and
+  the glossary entries one by one). So changing one setting keeps the
+  others, adding a glossary term keeps the old terms, and a later delete
+  under the owner key never brings the legacy row back (the claim switches
+  the fallback off for the title). The legacy rows are never changed. A
+  glossary edit or delete by entry id that targets a legacy entry still
+  being read through the fallback is applied to its copy instead. Writers
+  go through `row_for_write(model, key)` / `claim()`; deleting a standalone
+  title records a claim too, so a reused row id never inherits the old rows.
+  A concurrent first write that loses the claim's primary key rolls back
+  and leaves the winner's copy.
+* **Sonarr/Radarr ids** (positive keys with the arr configured) behave
+  exactly as before: plain primary-key reads, no claim, no copy.
+* **1032 case** (Sonarr removed, a standalone series that got the same row
+  id): nothing is moved. While nothing durable shows Sonarr was used, the
+  standalone series reads that row read-only — accepted: reading is never
+  destructive, and the first change gives the title its own rows. A stored
+  Sonarr URL or a wanted row / job with a Sonarr id switches the fallback off.
+* **Health findings** keyed by wanted ids (1.17.3) are not migrated or
+  rekeyed. The next health scan (series scan or nightly sweep) writes each
+  standalone episode's findings under its stable negative id, which is what
+  the episode pages read. Rows left under an old wanted id are not shown
+  there; they stay in the table (and in the report totals) until removed,
+  exactly as they were before the upgrade.
 
-No row is deleted and no value is changed besides the key, so nothing is lost;
-an install that had a Sonarr period keeps its positive rows and its standalone
-titles start on the inherited defaults (logged once).
+New table `standalone_legacy_claims` (`kind`, `standalone_id`, `claimed_at`;
+primary key `(kind, standalone_id)`), Alembic revision
+`sa2_standalone_legacy_claims` (schema only, created when missing) and
+`create_all()` for untracked databases.
 
 ### 5. Migration `sa1_standalone_episodes` (Alembic)
 
@@ -295,6 +319,31 @@ the `file_path` fallback, so nothing breaks in between.
   after it was added), skips symlinks under a watched folder that resolve
   out of it (one warning per scan), and the watcher's per-file entry point
   (`process_single_file`) skips such files too.
+* Enumeration is safe by construction (Codex review of 1.18.0, P2a): one
+  enumerator, `standalone_library.allowed_series_files(series)`, serves the
+  series page, the bulk actions (`standalone_series_video_paths`), the
+  sidecar map and the health scan/sweep (`series_episode_files`). It refuses
+  a series folder that resolves outside `media_path` before walking it
+  (`series_folder_allowed`), checks every file with `standalone_path_allowed`
+  before it is parsed, and checks every `wanted_items` fallback path the
+  same way, so nothing outside is inspected for subtitles or gets an
+  episode row.
+* Stored wanted rows are checked before use (P2b):
+  `standalone_library.wanted_item_path_refusal(item)` — a standalone episode
+  row against its series folder, a standalone movie (or an untagged
+  `instance_name = 'standalone'` row) against the watched folders, both
+  against `media_path` — runs before any preflight, ffprobe, sidecar
+  detection, provider search, download, extraction, translation or MT
+  replacement (`process_wanted_item`, `search_wanted_item`,
+  `search_providers_for_item`, `download_specific_for_item`,
+  `extract_embedded_sub` (single, batch, drain), the automation drain's
+  sidecar translation, retranslation (service and route), the extract route,
+  `mt_reseek._replace_original`). A refused row is skipped with status
+  `skipped` and a warning; it is not deleted (a rescan drops it). Rows
+  without standalone ids keep their existing `media_path` checks unchanged.
+* Containment uses `realpath` on both sides, so a `media_path` that is
+  itself a symlink, trailing slashes and `.`/`..` segments in stored paths
+  are accepted as long as the resolved file lies inside.
 * No path-handling rule is widened (see item 6).
 
 ## Per-gap status
@@ -336,7 +385,8 @@ code. Disposition:
 1. Doc claimed "implemented" — accepted, status changed.
 2. Startup move could hand a former Sonarr period's rows to standalone titles
    — accepted: the move also requires the data to show no Sonarr/Radarr
-   history; ambiguous rows stay.
+   history; ambiguous rows stay. (Superseded: the move is removed, see the
+   re-review below.)
 3. SQLite may reuse autoincrement ids — accepted: `sqlite_autoincrement=True`.
 4. Downgrade drops identities that health findings still reference —
    accepted: downgrade deletes negative-id findings first.
@@ -352,7 +402,8 @@ code. Disposition:
    containment re-checked at use for episodes and movies.
 9. Legacy positive-id branch trusts stored paths — accepted: same check.
 10. Existing health findings keyed by wanted ids — accepted: rekeyed when
-    unambiguous (section 4), otherwise left alone.
+    unambiguous, otherwise left alone. (Superseded: not migrated any more;
+    regenerated by the next health scan, section 4.)
 11. Fansub, format requirement, absolute order read only `sonarr_series_id`
     — accepted.
 12. `series_audio` and `anidb_mapping` settings routes unsigned — accepted.
@@ -379,3 +430,16 @@ all fixed:
    Sonarr's.
 4. The overrides tree named standalone titles by their positive id — it uses
    the owner key now.
+
+### Re-review of the RC (owner keys, media_path)
+
+A further cold Codex review reported three issues; all fixed:
+
+* P1 — the one-time owner-key move rewrote rows on the absence of evidence.
+  Decided by the maintainer: removed. Pre-1.18 rows are read where they are
+  and copied on a title's first change (section 4).
+* P2a — the series page, the wanted-row fallback and the bulk / sidecar /
+  health enumerators walked and inspected an escaped series folder before
+  the containment check. One safe enumerator now (Security).
+* P2b — stored standalone wanted rows whose folder now escapes `media_path`
+  were still probed and searched. Checked at every pipeline entry (Security).

@@ -130,6 +130,12 @@ def extract_embedded_sub(item_id):
     if not item:
         return jsonify({"error": "Item not found"}), 404
 
+    from services.standalone_library import wanted_item_path_refusal
+
+    refusal = wanted_item_path_refusal(item)
+    if refusal:
+        return jsonify({"error": refusal}), 400
+
     file_path = item.get("file_path")
     if not file_path or not os.path.exists(file_path):
         return jsonify({"error": "File not found"}), 404
