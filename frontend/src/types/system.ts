@@ -197,6 +197,9 @@ export interface StandaloneSeries {
   wanted_count?: number
   created_at: string
   updated_at: string
+  /** Database row id (same as `id` in the /standalone/* responses). */
+  standalone_id?: number
+  source?: 'standalone'
 }
 
 export interface StandaloneMovie {
@@ -213,6 +216,9 @@ export interface StandaloneMovie {
   updated_at: string
   profile_name?: string
   profile_id?: number | null
+  /** Database row id. The movie detail's `id` is the negative wire id. */
+  standalone_id?: number
+  source?: 'standalone' | 'radarr'
 }
 
 export interface MovieDetail extends StandaloneMovie {

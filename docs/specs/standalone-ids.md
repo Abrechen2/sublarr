@@ -319,8 +319,16 @@ the `file_path` fallback, so nothing breaks in between.
   (`resolve_series_ref` / `resolve_movie_ref`); with the arr configured the
   name comes from Sonarr/Radarr (1.18.0-rc.2 end-to-end test, F5).
 * `/api/v1/standalone/*` (standalone-only namespace) accepts both the
-  positive row id and the negative wire id for a series/movie and returns the
-  row as before plus `standalone_id`; poster URLs keep the positive row id.
+  positive row id and the negative wire id for a series/movie. The series
+  list, series detail and movie list return the row as before (positive
+  `id`) plus `standalone_id` (the same row id) and `source: "standalone"`.
+  The movie detail (`/standalone/movies/<id>`) is the exception: the movie
+  page loads it and sends its `id` back to the profile, subtitle and wanted
+  routes, so it answers with the negative wire id in `id` and the row id in
+  `standalone_id` (a Radarr movie, reached by a positive id with Radarr
+  configured, keeps its Radarr id and `source: "radarr"`). Poster URLs keep
+  the positive row id. (`standalone_id` was missing from the series list,
+  series detail and movie list until the 1.18.0-rc.2 end-to-end test, F7.)
 * Which titles the library list shows is unchanged (standalone series only
   when Sonarr returns none, standalone movies only when Radarr returns none).
   Listing both at once is now safe id-wise but is a product decision.

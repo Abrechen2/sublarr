@@ -94,7 +94,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   responses give standalone series, movies and episodes a negative `id`; the
   database row id is in `standalone_id`. The old positive ids keep working
   when Sonarr or Radarr is not configured. Sonarr and Radarr ids are
-  unchanged.
+  unchanged. The series and movie lists under `/api/v1/standalone/` keep
+  their positive `id` and now also carry `standalone_id` and `source`.
 - **Database migrations wait for each other on PostgreSQL** — Two instances
   starting at once could read the old database layout while the other was
   still saving its changes. The second one now waits until the first is

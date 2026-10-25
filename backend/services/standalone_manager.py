@@ -63,6 +63,13 @@ def validate_folder_exists_for_scan(folder_id: int) -> dict | None:
 # ---------------------------------------------------------------------------
 
 
+def _tag_standalone_row(row: dict) -> None:
+    """The ``/standalone/*`` row shape: as before (positive ``id``) plus
+    ``standalone_id`` and ``source`` (docs/specs/standalone-ids.md)."""
+    row["standalone_id"] = row.get("id")
+    row["source"] = "standalone"
+
+
 def enrich_series_list(series_list: list[dict]) -> list[dict]:
     """Add wanted_count to each series dict from the wanted_items table.
 
@@ -82,6 +89,7 @@ def enrich_series_list(series_list: list[dict]) -> list[dict]:
             {"sid": series["id"]},
         ).fetchone()
         series["wanted_count"] = row[0] if row else 0
+        _tag_standalone_row(series)
     return series_list
 
 
@@ -98,6 +106,7 @@ def enrich_series_detail(series: dict, series_id: int) -> dict:
         {"sid": series_id},
     ).fetchall()
     series["wanted_items"] = [dict(row._mapping) for row in rows]
+    _tag_standalone_row(series)
     return series
 
 
@@ -208,6 +217,7 @@ def enrich_movie_list(movies: list[dict]) -> list[dict]:
             {"mid": movie["id"]},
         ).fetchone()
         movie["wanted_count"] = row[0] if row else 0
+        _tag_standalone_row(movie)
     return movies
 
 
