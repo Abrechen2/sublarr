@@ -73,6 +73,14 @@ def _sa1(conn) -> int:
     return backfill_episodes(conn)
 
 
+def _sa4(conn) -> int:
+    from db.migrations.versions.sa4_standalone_title_autoincrement import (
+        ensure_title_autoincrement,
+    )
+
+    return ensure_title_autoincrement(conn)
+
+
 # (Alembic revision id, repair) — in migration order. Add every future data
 # migration here as well, or untracked installs never receive it.
 REPAIRS: list[tuple[str, Callable]] = [
@@ -82,6 +90,9 @@ REPAIRS: list[tuple[str, Callable]] = [
     ("tm4_wrong_direction", _tm4),
     ("wq1_refund_unanswered", _wq1),
     ("sa1_standalone_episodes", _sa1),
+    # Schema rebuild rather than data, but create_all() cannot change an
+    # existing table, so untracked installs only get it from here.
+    ("sa4_standalone_title_autoincrement", _sa4),
 ]
 
 

@@ -201,10 +201,12 @@ class StandaloneRepository(BaseRepository):
         entry = self.session.get(StandaloneSeries, series_id)
         if not entry:
             return False
-        from services.standalone_owner_keys import SERIES, claim_deleted_title
+        from services.standalone_owner_keys import SERIES, claim_deleted_title, delete_owner_rows
 
-        # Its pre-1.18 rows must never pass to a later series with this id.
+        # Its pre-1.18 rows must never pass to a later series with this id,
+        # and its own rows go with it (same transaction).
         claim_deleted_title(SERIES, series_id)
+        delete_owner_rows(SERIES, series_id)
         self.session.delete(entry)
         self._commit()
         return True
@@ -299,9 +301,10 @@ class StandaloneRepository(BaseRepository):
         entry = self.session.get(StandaloneMovie, movie_id)
         if not entry:
             return False
-        from services.standalone_owner_keys import MOVIE, claim_deleted_title
+        from services.standalone_owner_keys import MOVIE, claim_deleted_title, delete_owner_rows
 
         claim_deleted_title(MOVIE, movie_id)
+        delete_owner_rows(MOVIE, movie_id)
         self.session.delete(entry)
         self._commit()
         return True

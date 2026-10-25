@@ -50,6 +50,10 @@ class StandaloneSeries(db.Model):
     __table_args__ = (
         Index("idx_standalone_series_tmdb", "tmdb_id"),
         Index("idx_standalone_series_anilist", "anilist_id"),
+        # The id is the owner key (-id) of rows in other tables; SQLite must
+        # never hand a deleted series' id to a new one (migration
+        # sa4_standalone_title_autoincrement rebuilds existing tables).
+        {"sqlite_autoincrement": True},
     )
 
 
@@ -114,7 +118,11 @@ class StandaloneMovie(db.Model):
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
 
-    __table_args__ = (Index("idx_standalone_movies_tmdb", "tmdb_id"),)
+    __table_args__ = (
+        Index("idx_standalone_movies_tmdb", "tmdb_id"),
+        # Never reuse a deleted movie's id, see StandaloneSeries.
+        {"sqlite_autoincrement": True},
+    )
 
 
 class MetadataCache(db.Model):

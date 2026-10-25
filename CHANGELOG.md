@@ -52,6 +52,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   kept. With Sonarr or Radarr configured, its settings are never used for a
   standalone title with the same number.
 
+- **A new standalone title no longer inherits a deleted title's settings** —
+  On SQLite, a series or movie added after another one was deleted could get
+  the deleted title's number, and with it its language profile, its
+  settings (including the switch that removes foreign audio and subtitle
+  tracks) and its glossary terms. Numbers are no longer reused, and deleting
+  a standalone title now also deletes its profile assignment, settings,
+  fansub preferences and glossary terms. The upgrade makes sure no number of
+  an earlier deleted title is handed out again.
+
 ### Security
 - **Standalone files outside the media folder are no longer touched** — A
   standalone series folder that was a symlink out of the media folder let

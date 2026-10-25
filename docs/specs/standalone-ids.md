@@ -219,8 +219,11 @@ and is harmless). Instead (`services/standalone_owner_keys.py`):
   the fallback off for the title). The legacy rows are never changed. A
   glossary edit or delete by entry id that targets a legacy entry still
   being read through the fallback is applied to its copy instead. Writers
-  go through `row_for_write(model, key)` / `claim()`; deleting a standalone
-  title records a claim too, so a reused row id never inherits the old rows.
+  go through `row_for_write(model, key)` / `claim()`. Deleting a standalone
+  title records a claim too, so its legacy positive rows are never read
+  again, and removes every row under its owner key
+  (`delete_owner_rows`: profile assignment, settings, fansub preferences,
+  glossary entries) in the same transaction as the title's delete.
   A concurrent first write that loses the claim's primary key rolls back
   and leaves the winner's copy.
 * **Sonarr/Radarr ids** (positive keys with the arr configured) behave
@@ -241,6 +244,31 @@ New table `standalone_legacy_claims` (`kind`, `standalone_id`, `claimed_at`;
 primary key `(kind, standalone_id)`), Alembic revision
 `sa2_standalone_legacy_claims` (schema only, created when missing) and
 `create_all()` for untracked databases.
+
+### 4a. Title ids are never reused (`sa4_standalone_title_autoincrement`)
+
+The owner key of a title is its row id, so a reused id hands the new title
+whatever still lies under the old key. `standalone_series` and
+`standalone_movies` therefore carry `sqlite_autoincrement=True` like
+`standalone_episodes` (PostgreSQL sequences never reuse ids). The 1.18.0-rc.2
+end-to-end test found both tables without it: a new title got a deleted
+title's id, profile, cleanup switch and glossary.
+
+Alembic revision `sa4_standalone_title_autoincrement` (revises
+`sa3_automation_queue_series_key`), function `ensure_title_autoincrement`
+(also registered in `db/untracked_data_repairs.py`; `create_all()` gives new
+databases the right tables, but never changes existing ones):
+
+* SQLite only, PostgreSQL is a no-op. A table that already has AUTOINCREMENT
+  is not rebuilt, so a second run changes nothing.
+* Rebuild: new table from a snapshot of the columns, rows copied with their
+  ids, old table dropped, new one renamed, indexes recreated.
+* `sqlite_sequence` is raised (never lowered) to the highest id that is live
+  or still referenced: owner keys in the profile/settings/fansub/glossary
+  tables and the automation queue, claims, `wanted_items` and
+  `standalone_episodes` series ids. So an orphaned row of a title deleted
+  before the upgrade is never inherited either.
+* `downgrade()` keeps AUTOINCREMENT: it only stops id reuse.
 
 ### 5. Migration `sa1_standalone_episodes` (Alembic)
 

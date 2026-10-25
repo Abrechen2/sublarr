@@ -386,6 +386,30 @@ def claim(owner_key: int | None, kind: str) -> dict[int, int] | None:
     return mapping
 
 
+def delete_owner_rows(kind: str, standalone_id: int) -> int:
+    """A deleted standalone title: remove every row stored under its owner key.
+
+    Profile assignment, settings (incl. the foreign-track cleanup switch),
+    fansub preferences and, for series, glossary entries. Only the negated
+    id is touched; positive keys belong to Sonarr/Radarr or are pre-1.18
+    rows (``claim_deleted_title`` stops those being read). Staged in the
+    caller's session, so it commits with the title's delete. Returns the
+    number of rows removed.
+    """
+    owner_key = -int(standalone_id)
+    session = _session()
+    removed = 0
+    for model, key_col in _single_row_models(kind):
+        table = model.__table__
+        removed += session.execute(sa.delete(table).where(table.c[key_col] == owner_key)).rowcount
+    if kind == SERIES:
+        from db.models.translation import GlossaryEntry
+
+        table = GlossaryEntry.__table__
+        removed += session.execute(sa.delete(table).where(table.c.series_id == owner_key)).rowcount
+    return removed
+
+
 def claim_deleted_title(kind: str, standalone_id: int) -> None:
     """A deleted standalone title: its legacy rows are never read again.
 
