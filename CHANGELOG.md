@@ -5,6 +5,56 @@ All notable changes to Sublarr are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.18.0] - unreleased
+
+### Added
+- **Standalone series and movies use their own language profile** — A
+  profile assigned to a standalone series or movie on the Library or movie
+  page was ignored almost everywhere: the scan, the series page, searches,
+  provider and scoring choice, the translation backend and the glossary all
+  used the default profile. They now use the title's profile. The series
+  page and the Library show it.
+- **Subtitle health covers standalone series** — The series health scan and
+  the nightly health sweep did nothing without Sonarr. They now scan the
+  episodes of standalone series too, also next to Sonarr.
+- **Rescanning a single standalone title** — Asking the Wanted scanner to
+  rescan one standalone series or movie answered "Sonarr not configured"; it
+  now rescans that series folder or movie file.
+
+### Fixed
+- **Every standalone episode keeps its id** — An episode that already had all
+  its subtitles got a placeholder id, so its Tracks, Health, Combine and
+  subtitle actions answered "not found", and the other episodes' ids changed
+  with every rescan. Each episode file now has a permanent id, and all
+  episode actions work for every episode.
+- **Standalone and Sonarr/Radarr titles no longer mix** — With Sonarr or
+  Radarr configured next to watched folders, a standalone series or movie
+  could pick up the settings, profile, glossary or cleanup switch of the
+  Sonarr series or Radarr movie with the same number, and a Radarr movie
+  page could show a standalone movie instead. Standalone titles now have
+  their own ids, and pages and settings stay with the right title.
+- **Fewer false "subtitle of another episode" findings for standalone
+  anime** — The repair scan flagged releases that count episodes from the
+  start of the show ("One Piece - 892" for season 21 episode 1). It now
+  uses the AniDB episode number when it knows it and leaves such numbers
+  alone for anime otherwise. Real mix-ups are still found.
+- **Standalone files are checked where they are used** — A standalone
+  episode or movie file is only used when it still lies inside its series
+  folder or a watched folder, also after a symlink was changed.
+
+### Changed
+- **Standalone ids in the API are negative** — The library, series and movie
+  responses give standalone series, movies and episodes a negative `id`; the
+  database row id is in `standalone_id`. The old positive ids keep working
+  when Sonarr or Radarr is not configured. Sonarr and Radarr ids are
+  unchanged. Saved standalone profiles and settings move to the new ids at
+  the first start when no Sonarr or Radarr is or was in use; otherwise
+  standalone titles start from the default settings.
+- **Database migrations wait for each other on PostgreSQL** — Two instances
+  starting at once could read the old database layout while the other was
+  still saving its changes. The second one now waits until the first is
+  done.
+
 ## [1.17.4] - 2026-10-25
 
 ### Fixed

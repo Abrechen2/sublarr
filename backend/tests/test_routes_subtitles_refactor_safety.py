@@ -18,20 +18,20 @@ import flask
 import routes.subtitles as subtitles_mod
 
 EXPECTED_URL_RULES = {
-    ("/api/v1/library/episodes/<int:ep_id>/subtitles", "GET"),
-    ("/api/v1/library/movies/<int:movie_id>/subtitles", "GET"),
-    ("/api/v1/library/series/<int:series_id>/subtitles", "GET"),
-    ("/api/v1/library/episodes/<int:ep_id>/subtitles/upload", "POST"),
-    ("/api/v1/library/movies/<int:movie_id>/subtitles/upload", "POST"),
-    ("/api/v1/library/episodes/<int:ep_id>/subtitles/combine", "POST"),
-    ("/api/v1/library/movies/<int:movie_id>/subtitles/combine", "POST"),
+    ("/api/v1/library/episodes/<int(signed=True):ep_id>/subtitles", "GET"),
+    ("/api/v1/library/movies/<int(signed=True):movie_id>/subtitles", "GET"),
+    ("/api/v1/library/series/<int(signed=True):series_id>/subtitles", "GET"),
+    ("/api/v1/library/episodes/<int(signed=True):ep_id>/subtitles/upload", "POST"),
+    ("/api/v1/library/movies/<int(signed=True):movie_id>/subtitles/upload", "POST"),
+    ("/api/v1/library/episodes/<int(signed=True):ep_id>/subtitles/combine", "POST"),
+    ("/api/v1/library/movies/<int(signed=True):movie_id>/subtitles/combine", "POST"),
     ("/api/v1/library/subtitles/combine-batch", "POST"),
     ("/api/v1/library/subtitles", "DELETE"),
-    ("/api/v1/library/series/<int:series_id>/subtitles/batch-delete", "POST"),
+    ("/api/v1/library/series/<int(signed=True):series_id>/subtitles/batch-delete", "POST"),
     ("/api/v1/library/trash", "GET"),
     ("/api/v1/library/trash/<batch_id>/restore", "POST"),
     ("/api/v1/library/trash/<batch_id>", "DELETE"),
-    ("/api/v1/series/<int:series_id>/subtitles/export", "GET"),
+    ("/api/v1/series/<int(signed=True):series_id>/subtitles/export", "GET"),
     ("/api/v1/subtitles/download", "GET"),
 }
 

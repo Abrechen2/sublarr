@@ -614,6 +614,13 @@ def create_app(testing=False):
         # wrote it. A no-op if the re-apply above already stamped this path.
         stamp_log_fingerprint()
 
+        # Once per database: pre-1.18 standalone rows move to their owner key
+        # (docs/specs/standalone-ids.md). Needs the effective arr config, so it
+        # runs here and not in Alembic; never blocks startup.
+        from services.standalone_owner_keys import run_at_startup as _owner_keys_at_startup
+
+        _owner_keys_at_startup(sa_db.engine)
+
         # Auto-generate API key on first start if not set via env or DB.
         # Skip when SUBLARR_API_KEY is explicitly set (even to "") — that means
         # the operator consciously chose to disable API-key auth (also covers tests).

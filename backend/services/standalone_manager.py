@@ -102,8 +102,9 @@ def enrich_series_detail(series: dict, series_id: int) -> dict:
 
 
 def delete_series_cascade(series_id: int) -> None:
-    """Delete wanted items for a series, then delete the series itself."""
+    """Delete wanted items and episode ids for a series, then the series itself."""
     from db import get_db
+    from db.repositories.standalone_episodes import StandaloneEpisodeRepository
     from db.standalone import delete_standalone_series
 
     db = get_db()
@@ -112,6 +113,7 @@ def delete_series_cascade(series_id: int) -> None:
         {"sid": series_id},
     )
     db.commit()
+    StandaloneEpisodeRepository().delete_episodes_for_series(series_id)
     delete_standalone_series(series_id)
 
 
@@ -223,11 +225,18 @@ def enrich_movie_detail(movie: dict, movie_id: int) -> dict:
     ).fetchone()
     movie["wanted_count"] = row[0] if row else 0
 
-    profile = get_movie_profile(movie_id)
+    # Standalone assignments are stored under the owner key (negated id).
+    profile = get_movie_profile(-movie_id)
     if not profile:
         profile = get_default_profile()
     movie["profile_name"] = profile.get("name", "Default") if profile else "Default"
     movie["profile_id"] = profile.get("id") if profile else None
+    # The negative wire id (docs/specs/standalone-ids.md): the movie page sends
+    # it back for profile, subtitle and wanted calls, which keeps it apart
+    # from a Radarr movie of the same number.
+    movie["id"] = -movie_id
+    movie["standalone_id"] = movie_id
+    movie["source"] = "standalone"
 
     return movie
 

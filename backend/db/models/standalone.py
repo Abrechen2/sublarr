@@ -53,6 +53,32 @@ class StandaloneSeries(db.Model):
     )
 
 
+class StandaloneEpisode(db.Model):
+    """One episode video file of a standalone series, with a stable id.
+
+    The API hands out ``-id`` for a standalone episode (see
+    docs/specs/standalone-ids.md). ``sqlite_autoincrement`` keeps SQLite from
+    reusing the id of a deleted row, so a stale id can never name another file.
+    No foreign key, like ``wanted_items.standalone_series_id``: rows are
+    removed with their series in ``services.standalone_manager``.
+    """
+
+    __tablename__ = "standalone_episodes"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    standalone_series_id: Mapped[int] = mapped_column(Integer, nullable=False)
+    file_path: Mapped[str] = mapped_column(Text, nullable=False, unique=True)
+    season: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    episode: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+
+    __table_args__ = (
+        Index("idx_standalone_episodes_series", "standalone_series_id"),
+        {"sqlite_autoincrement": True},
+    )
+
+
 class StandaloneMovie(db.Model):
     """Movie discovered in standalone mode (not from Radarr)."""
 

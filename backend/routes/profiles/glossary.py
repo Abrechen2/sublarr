@@ -57,8 +57,12 @@ def list_glossary():
                     nullable: true
     """
     from db.translation import get_glossary_entries, search_glossary_terms
+    from services.media_ids import series_owner_key
 
     series_id = request.args.get("series_id", type=int)
+    if series_id is not None:
+        # Standalone series: entries live under the owner key (negated id).
+        series_id = series_owner_key(series_id)
     query = request.args.get("query", "").strip()
 
     if query:
@@ -240,7 +244,11 @@ def export_glossary_tsv():
               schema:
                 type: string
     """
+    from services.media_ids import series_owner_key
+
     series_id = request.args.get("series_id", type=int)
+    if series_id is not None:
+        series_id = series_owner_key(series_id)
     tsv_content, filename = export_glossary_as_tsv(series_id)
 
     return Response(

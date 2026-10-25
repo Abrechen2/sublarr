@@ -20,26 +20,30 @@ _ZIP_SIZE_LIMIT = 50 * 1024 * 1024  # 50 MB
 
 
 def _get_series_path(series_id: int) -> str | None:
-    """Resolve series filesystem path via Sonarr or standalone DB, applying path mapping."""
+    """Resolve the series folder: Sonarr's (path-mapped) or the standalone one."""
+    from services.media_ids import resolve_series_ref
     from sonarr_client import get_sonarr_client
 
-    try:
-        client = get_sonarr_client()
-        series = client.get_series_by_id(series_id)
-        if series:
-            raw_path = series.get("path", "")
+    ref = resolve_series_ref(series_id)
+    if not ref.is_standalone:
+        # A Sonarr id is Sonarr's only: no fall-through to the standalone
+        # series that happens to have the same number.
+        try:
+            series = get_sonarr_client().get_series_by_id(series_id)
+            raw_path = (series or {}).get("path", "")
             return map_path(raw_path) if raw_path else None
-    except Exception as exc:
-        logger.warning("Failed to resolve series path via Sonarr for id=%s: %s", series_id, exc)
+        except Exception as exc:
+            logger.warning("Failed to resolve series path via Sonarr for id=%s: %s", series_id, exc)
+            return None
 
-    # Fallback: standalone series
+    # Standalone series (negative id, or a positive id without Sonarr): the
+    # scanned folder is local, so no remote-path mapping applies.
     try:
         from db.standalone import get_standalone_series
 
-        standalone = get_standalone_series(series_id)
+        standalone = get_standalone_series(ref.id)
         if standalone:
-            raw_path = standalone.get("folder_path", "")
-            return map_path(raw_path) if raw_path else None
+            return standalone.get("folder_path") or None
     except Exception as exc:
         logger.warning("Failed to resolve standalone series path for id=%s: %s", series_id, exc)
 
@@ -53,7 +57,7 @@ def _scan_series_subtitles(series_path: str, warnings: list) -> list[dict]:
     return _scan_subtitle_files(series_path, warnings)
 
 
-@bp.route("/series/<int:series_id>/subtitles/export", methods=["GET"])
+@bp.route("/series/<int(signed=True):series_id>/subtitles/export", methods=["GET"])
 def export_series_subtitles(series_id: int):
     """Export all subtitle sidecar files for a series as a ZIP download.
 

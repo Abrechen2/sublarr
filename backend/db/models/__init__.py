@@ -58,6 +58,7 @@ from db.models.scheduler import JobRun  # noqa: F401
 from db.models.standalone import (
     AnidbMapping,
     MetadataCache,
+    StandaloneEpisode,
     StandaloneMovie,
     StandaloneSeries,
     WatchedFolder,
@@ -113,6 +114,7 @@ __all__ = [
     "WatchedFolder",
     "StandaloneSeries",
     "StandaloneMovie",
+    "StandaloneEpisode",
     "MetadataCache",
     "AnidbMapping",
     # quality

@@ -1140,15 +1140,11 @@ def resolve_profile_for_item(item: dict, settings, *, strict: bool = False) -> d
     to the default profile — for the foreign-track cleanup, where a narrower
     default keep-set would strip the title's own languages irreversibly.
     """
-    from db.profiles import get_default_profile, get_movie_profile, get_series_profile
+    from db.profiles import get_default_profile, get_profile_for_item
 
     try:
-        if item.get("sonarr_series_id"):
-            profile = get_series_profile(item["sonarr_series_id"])
-        elif item.get("radarr_movie_id"):
-            profile = get_movie_profile(item["radarr_movie_id"])
-        else:
-            profile = get_default_profile()
+        # Sonarr/Radarr ids, or the owner key of a standalone series/movie.
+        profile = get_profile_for_item(item)
     except Exception as exc:
         if strict:
             raise

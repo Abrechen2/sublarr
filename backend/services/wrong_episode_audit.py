@@ -176,6 +176,106 @@ class _SonarrEpisodes:
         }
 
 
+class _StandaloneEpisodes:
+    """What the standalone library knows about a video's episode (gap 4).
+
+    No Sonarr: the owning standalone series (deepest folder), its AniDB
+    absolute number when the TVDB->AniDB mapping knows it, and how many
+    episode files the season has. ``standalone_anime`` marks an anime series,
+    whose releases commonly number episodes absolutely.
+    """
+
+    def __init__(self):
+        self._series: list | None = None
+        self._sizes: dict[int, dict[int, int]] = {}
+
+    def _owner(self, video: str) -> dict | None:
+        from db.standalone import get_standalone_series
+        from security_utils import is_safe_path
+
+        if self._series is None:
+            self._series = get_standalone_series() or []
+        best, best_len = None, -1
+        for series in self._series:
+            folder = series.get("folder_path") or ""
+            if folder and len(folder) > best_len and is_safe_path(video, folder):
+                best, best_len = series, len(folder)
+        return best
+
+    def _season_size(self, series_id: int, season: int) -> int | None:
+        if series_id not in self._sizes:
+            from db.repositories.standalone_episodes import StandaloneEpisodeRepository
+
+            sizes: dict[int, int] = {}
+            for row in StandaloneEpisodeRepository().get_episodes_for_series(series_id):
+                if row.get("season") is not None:
+                    sizes[row["season"]] = sizes.get(row["season"], 0) + 1
+            self._sizes[series_id] = sizes
+        return self._sizes[series_id].get(season)
+
+    def lookup(self, video: str, season: int, episode: int) -> dict:
+        series = self._owner(video)
+        if series is None:
+            return {}
+        absolute = None
+        if series.get("tvdb_id"):
+            try:
+                from db.repositories.anidb import AnidbRepository
+
+                absolute = AnidbRepository().get_anidb_absolute(series["tvdb_id"], season, episode)
+            except Exception as exc:  # noqa: BLE001 — the audit works without AniDB
+                logger.debug("wrong-episode audit: AniDB lookup failed: %s", exc)
+        return {
+            "absolute": absolute,
+            "title": "",
+            "scene_season": None,
+            "season_size": self._season_size(series["id"], season),
+            "aliases": [],
+            "series_title": series.get("title") or "",
+            "standalone_anime": bool(series.get("is_anime")),
+        }
+
+
+class _EpisodeMetadata:
+    """Sonarr's metadata for a video, else the standalone library's."""
+
+    def __init__(self):
+        self._sonarr = _SonarrEpisodes()
+        self._standalone = _StandaloneEpisodes()
+
+    def lookup(self, video: str, season: int, episode: int) -> dict:
+        meta = self._sonarr.lookup(video, season, episode)
+        if meta:
+            return meta
+        try:
+            return self._standalone.lookup(video, season, episode)
+        except Exception as exc:  # noqa: BLE001 — no metadata is a valid answer
+            logger.debug("wrong-episode audit: standalone lookup failed: %s", exc)
+            return {}
+
+
+def _may_be_absolute_anime(season: int, episode: int, size: int | None, *names: str) -> bool:
+    """Whether an anime release may number this episode absolutely.
+
+    Without an absolute number to compare: a bare number past the episode's
+    own ("One Piece - 892" for S21E01), or an SxxEyy of the video's season
+    past the season's episode count ("S03E40" for S03E01 of a 25-episode
+    season). A number inside the season is still another episode.
+    """
+    from providers.episode_gate import parse_claims
+
+    for name in names:
+        if not name:
+            continue
+        claims = parse_claims(name)
+        if claims.bare and min(claims.bare) > episode:
+            return True
+        for claimed_season, episodes in claims.season_episodes:
+            if claimed_season == season and size and min(episodes) > size:
+                return True
+    return False
+
+
 def _bare_split_cour(*names: str) -> bool:
     """A bare number under "Part 2" / "2nd Season": only the cour split says which episode."""
     from providers.episode_gate import parse_claims
@@ -197,7 +297,7 @@ def _has_scoped_title(*names: str) -> bool:
     )
 
 
-def _finding_for(row, sonarr: _SonarrEpisodes) -> WrongEpisodeFinding | None:
+def _finding_for(row, sonarr: _SonarrEpisodes | _EpisodeMetadata) -> WrongEpisodeFinding | None:
     from providers.base import SubtitleFormat, SubtitleResult, VideoQuery
     from providers.episode_gate import episode_gate_reason
     from services.suspect_sidecars import is_suspect_sidecar
@@ -226,6 +326,7 @@ def _finding_for(row, sonarr: _SonarrEpisodes) -> WrongEpisodeFinding | None:
     reason = episode_gate_reason(result, query)
     if _bare_split_cour(filename, release):
         return None
+    meta: dict = {}
     if reason.startswith("names "):
         # Sonarr's absolute number and title only clear a contradiction: a
         # bare number its absolute rejects is still often the right episode
@@ -260,6 +361,12 @@ def _finding_for(row, sonarr: _SonarrEpisodes) -> WrongEpisodeFinding | None:
         return None
     if absolute is None and _may_be_absolute(season, episode, filename, release):
         return None
+    if (
+        absolute is None
+        and meta.get("standalone_anime")
+        and _may_be_absolute_anime(season, episode, meta.get("season_size"), filename, release)
+    ):
+        return None
     return WrongEpisodeFinding(
         video=row.file_path,
         sidecar=sidecar,
@@ -274,7 +381,7 @@ def _finding_for(row, sonarr: _SonarrEpisodes) -> WrongEpisodeFinding | None:
 def scan_wrong_episodes(language: str | None = None) -> list[WrongEpisodeFinding]:
     """Saved automatic downloads whose winning release names another episode."""
     findings = []
-    sonarr = _SonarrEpisodes()
+    sonarr = _EpisodeMetadata()
     for row in _newest_provider_downloads(language):
         try:
             finding = _finding_for(row, sonarr)

@@ -28,8 +28,13 @@ from services.inheritance_resolver import (
     resolve_for_movie,
     resolve_for_series,
 )
+from services.media_ids import owner_key_url_values
 
 bp = Blueprint("profiles_overrides", __name__, url_prefix="/api/v1/profiles-overrides")
+
+# Standalone titles are stored under their owner key (negated id), see
+# docs/specs/standalone-ids.md; the view functions receive that key.
+bp.url_value_preprocessor(owner_key_url_values)
 
 
 # ─── /scopes ─────────────────────────────────────────────────────────────────
@@ -91,9 +96,9 @@ def get_scopes():
         # Strip episode-tail like " — S01E01 [DE]" if present.
         clean = title.split(" — ")[0] if " — " in title else title
         series_id_titles[sid] = clean or f"#{sid}"
-    # standalone_series: manual library entries with their own id + title.
+    # standalone_series: their rows live under the owner key (negated id).
     for row in _safe_query("SELECT id, title FROM standalone_series"):
-        sid, title = int(row[0]), str(row[1] or "")
+        sid, title = -int(row[0]), str(row[1] or "")
         series_id_titles.setdefault(sid, title or f"#{sid}")
     # Sonarr/Radarr fallback for IDs that have no title in our caches yet
     # (e.g. items added to the override tree purely via the SeriesDetail
@@ -114,7 +119,7 @@ def get_scopes():
 
     movie_id_titles: dict[int, str] = {}
     for row in _safe_query("SELECT id, title FROM standalone_movies"):
-        mid, title = int(row[0]), str(row[1] or "")
+        mid, title = -int(row[0]), str(row[1] or "")
         movie_id_titles[mid] = title or f"#{mid}"
     missing_movie_ids = {mid for mid in eligible_movie_ids if mid not in movie_id_titles}
     if missing_movie_ids:
@@ -246,13 +251,20 @@ def _series_known_to_sublarr(series_id: int) -> bool:
         return True
     if SeriesSettings.query.get(series_id) is not None:
         return True
-    for sql in (
-        "SELECT 1 FROM search_series WHERE id = :id LIMIT 1",
-        "SELECT 1 FROM wanted_items WHERE sonarr_series_id = :id LIMIT 1",
-        "SELECT 1 FROM standalone_series WHERE id = :id LIMIT 1",
-    ):
+    if series_id < 0:
+        # Owner key of a standalone series (docs/specs/standalone-ids.md).
+        queries = ("SELECT 1 FROM standalone_series WHERE id = :id LIMIT 1",)
+        lookup_id = -series_id
+    else:
+        queries = (
+            "SELECT 1 FROM search_series WHERE id = :id LIMIT 1",
+            "SELECT 1 FROM wanted_items WHERE sonarr_series_id = :id LIMIT 1",
+            "SELECT 1 FROM standalone_series WHERE id = :id LIMIT 1",
+        )
+        lookup_id = series_id
+    for sql in queries:
         try:
-            if db.session.execute(text(sql), {"id": series_id}).fetchone():
+            if db.session.execute(text(sql), {"id": lookup_id}).fetchone():
                 return True
         except Exception:
             continue
@@ -264,6 +276,12 @@ def _series_title(series_id: int) -> str:
     plus a Sonarr API fallback for items that exist only in series_settings."""
     from sqlalchemy import text
 
+    if series_id < 0:
+        row = db.session.execute(
+            text("SELECT title FROM standalone_series WHERE id = :id LIMIT 1"),
+            {"id": -series_id},
+        ).fetchone()
+        return str(row[0]) if row and row[0] else f"#{series_id}"
     for sql in (
         "SELECT title FROM search_series WHERE id = :id LIMIT 1",
         "SELECT title FROM standalone_series WHERE id = :id LIMIT 1",
@@ -282,7 +300,7 @@ def _series_title(series_id: int) -> str:
     return f"#{series_id}"
 
 
-@bp.route("/resolved/series/<int:series_id>", methods=["GET"])
+@bp.route("/resolved/series/<int(signed=True):series_id>", methods=["GET"])
 @require_api_key
 def get_resolved_series(series_id: int):
     if not _series_known_to_sublarr(series_id):
@@ -304,12 +322,18 @@ def _movie_known_to_sublarr(movie_id: int) -> bool:
         return True
     if MovieSettings.query.get(movie_id) is not None:
         return True
-    for sql in (
-        "SELECT 1 FROM wanted_items WHERE radarr_movie_id = :id LIMIT 1",
-        "SELECT 1 FROM standalone_movies WHERE id = :id LIMIT 1",
-    ):
+    if movie_id < 0:
+        queries = ("SELECT 1 FROM standalone_movies WHERE id = :id LIMIT 1",)
+        lookup_id = -movie_id
+    else:
+        queries = (
+            "SELECT 1 FROM wanted_items WHERE radarr_movie_id = :id LIMIT 1",
+            "SELECT 1 FROM standalone_movies WHERE id = :id LIMIT 1",
+        )
+        lookup_id = movie_id
+    for sql in queries:
         try:
-            if db.session.execute(text(sql), {"id": movie_id}).fetchone():
+            if db.session.execute(text(sql), {"id": lookup_id}).fetchone():
                 return True
         except Exception:
             continue
@@ -322,19 +346,21 @@ def _movie_title(movie_id: int) -> str:
     try:
         row = db.session.execute(
             text("SELECT title FROM standalone_movies WHERE id = :id LIMIT 1"),
-            {"id": movie_id},
+            {"id": -movie_id if movie_id < 0 else movie_id},
         ).fetchone()
         if row and row[0]:
             return str(row[0])
     except Exception:
         pass
+    if movie_id < 0:
+        return f"#{movie_id}"
     radarr_title = get_radarr_movie_titles().get(movie_id)
     if radarr_title:
         return radarr_title
     return f"#{movie_id}"
 
 
-@bp.route("/resolved/movie/<int:movie_id>", methods=["GET"])
+@bp.route("/resolved/movie/<int(signed=True):movie_id>", methods=["GET"])
 @require_api_key
 def get_resolved_movie(movie_id: int):
     if not _movie_known_to_sublarr(movie_id):
@@ -377,7 +403,7 @@ def _serialize_for_storage(field: str, value) -> object:
     return value
 
 
-@bp.route("/series/<int:series_id>", methods=["PATCH"])
+@bp.route("/series/<int(signed=True):series_id>", methods=["PATCH"])
 @require_api_key
 def patch_series(series_id: int):
     try:
@@ -403,7 +429,7 @@ def patch_series(series_id: int):
     return jsonify({"ok": True})
 
 
-@bp.route("/movie/<int:movie_id>", methods=["PATCH"])
+@bp.route("/movie/<int(signed=True):movie_id>", methods=["PATCH"])
 @require_api_key
 def patch_movie(movie_id: int):
     try:
@@ -429,7 +455,7 @@ def patch_movie(movie_id: int):
     return jsonify({"ok": True})
 
 
-@bp.route("/series/<int:series_id>/reset", methods=["POST"])
+@bp.route("/series/<int(signed=True):series_id>/reset", methods=["POST"])
 @require_api_key
 def reset_series(series_id: int):
     ss = SeriesSettings.query.get(series_id)
@@ -443,7 +469,7 @@ def reset_series(series_id: int):
     return jsonify({"ok": True})
 
 
-@bp.route("/movie/<int:movie_id>/reset", methods=["POST"])
+@bp.route("/movie/<int(signed=True):movie_id>/reset", methods=["POST"])
 @require_api_key
 def reset_movie(movie_id: int):
     ms = MovieSettings.query.get(movie_id)
@@ -460,7 +486,7 @@ def reset_movie(movie_id: int):
 # ─── CREATE / DELETE override rows ───────────────────────────────────────────
 
 
-@bp.route("/series/<int:series_id>/create-override", methods=["POST"])
+@bp.route("/series/<int(signed=True):series_id>/create-override", methods=["POST"])
 @require_api_key
 def create_override_series(series_id: int):
     """Idempotent INSERT of an empty series_settings row.
@@ -478,7 +504,7 @@ def create_override_series(series_id: int):
     return jsonify({"created": not existed}), 201 if not existed else 200
 
 
-@bp.route("/series/<int:series_id>", methods=["DELETE"])
+@bp.route("/series/<int(signed=True):series_id>", methods=["DELETE"])
 @require_api_key
 def delete_series_settings(series_id: int):
     """Drop the series_settings row for *series_id* (idempotent)."""
@@ -489,7 +515,7 @@ def delete_series_settings(series_id: int):
     return jsonify({"deleted": ss is not None})
 
 
-@bp.route("/movie/<int:movie_id>/create-override", methods=["POST"])
+@bp.route("/movie/<int(signed=True):movie_id>/create-override", methods=["POST"])
 @require_api_key
 def create_override_movie(movie_id: int):
     """Idempotent INSERT of an empty movie_settings row.
@@ -507,7 +533,7 @@ def create_override_movie(movie_id: int):
     return jsonify({"created": not existed}), 201 if not existed else 200
 
 
-@bp.route("/movie/<int:movie_id>", methods=["DELETE"])
+@bp.route("/movie/<int(signed=True):movie_id>", methods=["DELETE"])
 @require_api_key
 def delete_movie_settings(movie_id: int):
     """Drop the movie_settings row for *movie_id* (idempotent)."""

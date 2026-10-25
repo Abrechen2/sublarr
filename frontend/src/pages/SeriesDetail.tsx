@@ -62,18 +62,28 @@ export function SeriesDetailPage() {
 
   const episodeWantedMap = useMemo((): Map<number, number> => {
     const map = new Map<number, number>()
-    if (!seriesWanted?.data) return map
-    // Standalone episodes are keyed by their wanted-item id already.
-    const standalone = series?.source === 'standalone'
-    for (const item of seriesWanted.data) {
-      if (standalone) {
-        map.set(item.id, item.id)
-      } else if (item.sonarr_episode_id != null) {
+    if (series?.source === 'standalone') {
+      // Standalone episodes have their own stable (negative) id; the wanted
+      // row is the one of the episode's file (docs/specs/standalone-ids.md).
+      const wantedByPath = new Map<string, number>()
+      for (const item of seriesWanted?.data ?? []) {
+        if (item.file_path && !wantedByPath.has(item.file_path)) {
+          wantedByPath.set(item.file_path, item.id)
+        }
+      }
+      for (const ep of series.episodes ?? []) {
+        const wantedId = ep.wanted_id ?? wantedByPath.get(ep.file_path)
+        if (wantedId != null) map.set(ep.id, wantedId)
+      }
+      return map
+    }
+    for (const item of seriesWanted?.data ?? []) {
+      if (item.sonarr_episode_id != null) {
         map.set(item.sonarr_episode_id, item.id)
       }
     }
     return map
-  }, [seriesWanted?.data, series?.source])
+  }, [seriesWanted?.data, series?.source, series?.episodes])
 
   // Episode action state
   const [expandedEp, setExpandedEp] = useState<{ id: number; mode: 'search' | 'history' | 'glossary' | 'tracks' } | null>(null)
@@ -175,7 +185,8 @@ export function SeriesDetailPage() {
   const [seriesSearchStarted, setSeriesSearchStarted] = useState(false)
 
   // Fansub override indicator
-  const { data: fansubPrefs } = useSeriesFansubPrefs(seriesId ?? -1)
+  // -1 is a valid (standalone) id now, so "no id" is null, not a sentinel.
+  const { data: fansubPrefs } = useSeriesFansubPrefs(seriesId)
   const hasFansubOverride = seriesId !== null && (
     (fansubPrefs?.preferred_groups.length ?? 0) > 0 ||
     (fansubPrefs?.excluded_groups.length ?? 0) > 0

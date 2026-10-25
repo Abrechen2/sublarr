@@ -486,8 +486,11 @@ def save_subtitle(
         result: SubtitleResult with content populated.
         output_path: Suggested path. The extension is treated as a hint
             and may be rewritten to match the actual subtitle format.
-        series_id: Sonarr series ID for per-series pipeline overrides.
-        movie_id: Radarr movie ID. Used only to enqueue the foreign-track
+        series_id: Series owner key for per-series pipeline overrides — the
+            Sonarr series ID, or the negated id of a standalone series
+            (``services.media_ids.series_key_for_item``).
+        movie_id: Movie owner key (Radarr movie ID, or the negated id of a
+            standalone movie). Used only to enqueue the foreign-track
             cleanup with the movie's id (so the drain resolves the movie's
             language profile and track-policy override); the post-processing
             pipeline itself has no per-movie overrides. Pass when the wanted

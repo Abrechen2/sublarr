@@ -160,7 +160,8 @@ def _run_remux(job_id: str, video_path: str, stream_index: int, subtitle_track_i
 
 
 @bp.route(
-    "/library/episodes/<int:ep_id>/tracks/<int:index>/remove-from-container", methods=["POST"]
+    "/library/episodes/<int(signed=True):ep_id>/tracks/<int:index>/remove-from-container",
+    methods=["POST"],
 )
 def remove_track_from_container(ep_id: int, index: int):
     """Start an async remux job to remove subtitle track `index` from the video container."""
@@ -205,7 +206,9 @@ def remove_track_from_container(ep_id: int, index: int):
     return jsonify({"job_id": job_id, "status": "queued"}), 202
 
 
-@bp.route("/library/episodes/<int:ep_id>/tracks/<int:index>/set-default", methods=["POST"])
+@bp.route(
+    "/library/episodes/<int(signed=True):ep_id>/tracks/<int:index>/set-default", methods=["POST"]
+)
 def set_track_default(ep_id: int, index: int):
     """Make stream `index` the default track for its type (audio/subtitle).
 

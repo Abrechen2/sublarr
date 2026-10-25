@@ -34,11 +34,16 @@ def test_sonarr_mode_missing_file_returns_none(app_ctx):
 
 def test_standalone_mode_resolves_via_wanted_items(app_ctx, temp_db, tmp_path):
     from db.models.core import WantedItem
+    from db.models.standalone import StandaloneSeries
     from extensions import db
 
     video = tmp_path / "ep.mkv"
     video.write_bytes(b"x")
     now = datetime.now(UTC)
+    # The path must lie inside the folder of the series that owns the row.
+    db.session.add(
+        StandaloneSeries(id=1, title="S", folder_path=str(tmp_path), created_at=now, updated_at=now)
+    )
     wi = WantedItem(
         item_type="episode",
         title="Standalone Ep",

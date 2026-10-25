@@ -193,10 +193,15 @@ class _ArrProbe:
     def path_of(self, title_id: int) -> str | None:
         """The title's folder, or None when the arr confirms it is gone.
 
-        Without a configured arr the id is resolved as a standalone title
-        (path returned as-is: standalone paths are local, no remote mapping).
-        Raises ``_UnresolvedError`` for anything short of a confirmed answer.
+        A negative id is the owner key of a standalone title
+        (docs/specs/standalone-ids.md) and is resolved as one whatever arr is
+        configured; so is a positive id without a configured arr (rows saved
+        before 1.18.0). Standalone paths are returned as-is: they are local,
+        no remote mapping. Raises ``_UnresolvedError`` for anything short of
+        a confirmed answer.
         """
+        if title_id < 0:
+            return self._standalone_path(-title_id)
         client = self._get_client()
         if not client:
             return self._standalone_path(title_id)
@@ -259,7 +264,7 @@ def override_paths() -> OverrideSet:
                 )
                 continue
             # Arr paths need remote-path mapping; standalone paths are local.
-            path = map_path(path) if probe._get_client() else path
+            path = map_path(path) if title_id > 0 and probe._get_client() else path
             if switched_off:
                 excluded.append(path)
                 continue

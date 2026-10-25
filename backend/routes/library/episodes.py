@@ -73,7 +73,9 @@ def _resolve_episode_wanted_id(episode_id: int) -> tuple[int | None, object | No
     """
     from sonarr_client import get_sonarr_client
 
-    sonarr = get_sonarr_client()
+    # A negative id is a standalone episode whatever is configured; a
+    # positive one without Sonarr is the legacy standalone wanted-row id.
+    sonarr = get_sonarr_client() if episode_id > 0 else None
     if not sonarr:
         from services.standalone_episode import (
             StandaloneEpisodeNotFoundError,
@@ -112,7 +114,7 @@ def episode_search(episode_id):
           required: true
           schema:
             type: integer
-          description: Sonarr episode ID, or in standalone mode the standalone wanted item ID (negative synthetic ID for an episode without one)
+          description: Sonarr episode ID, or a negative standalone episode ID (a positive ID without Sonarr is read as a standalone wanted item ID)
         - in: query
           name: file_path
           required: false
@@ -161,7 +163,7 @@ def episode_search_providers_interactive(episode_id):
           required: true
           schema:
             type: integer
-          description: Sonarr episode ID, or in standalone mode the standalone wanted item ID (negative synthetic ID for an episode without one)
+          description: Sonarr episode ID, or a negative standalone episode ID (a positive ID without Sonarr is read as a standalone wanted item ID)
         - in: query
           name: file_path
           required: false
@@ -202,7 +204,7 @@ def episode_download_specific(episode_id):
           required: true
           schema:
             type: integer
-          description: Sonarr episode ID, or in standalone mode the standalone wanted item ID (negative synthetic ID for an episode without one)
+          description: Sonarr episode ID, or a negative standalone episode ID (a positive ID without Sonarr is read as a standalone wanted item ID)
         - in: query
           name: file_path
           required: false
@@ -284,7 +286,7 @@ def episode_history(episode_id):
           required: true
           schema:
             type: integer
-          description: Sonarr episode ID, or in standalone mode the standalone wanted item ID (negative synthetic ID for an episode without one)
+          description: Sonarr episode ID, or a negative standalone episode ID (a positive ID without Sonarr is read as a standalone wanted item ID)
         - in: query
           name: file_path
           required: false
@@ -309,10 +311,11 @@ def episode_history(episode_id):
     from db.cache import get_episode_history
     from sonarr_client import get_sonarr_client
 
-    sonarr = get_sonarr_client()
+    sonarr = get_sonarr_client() if episode_id > 0 else None
     if not sonarr:
-        # Standalone (#226): the wanted row id, or synthetic id + file_path.
-        # Read-only — never creates a wanted row.
+        # Standalone (#226): the stable negative episode id, the legacy wanted
+        # row id, or a 1.17.3 stand-in id + file_path. Read-only — never
+        # creates a wanted row.
         from services.standalone_episode import resolve_standalone_episode_file
 
         file_path = resolve_standalone_episode_file(

@@ -16,6 +16,7 @@ from db.wanted import delete_wanted_item, get_wanted_item, update_wanted_status
 from error_handler import DuplicateSubtitleError
 from providers import get_provider_manager
 from providers.base import SubtitleFormat
+from services.media_ids import movie_key_for_item, series_key_for_item
 from translator import get_forced_output_path
 from wanted_search.metadata import build_query_from_wanted
 
@@ -135,8 +136,8 @@ def _process_forced_wanted_item(item, item_id, item_lang, manager):
                     saved_path = manager.save_subtitle(
                         result,
                         output_path,
-                        series_id=item.get("sonarr_series_id"),
-                        movie_id=item.get("radarr_movie_id"),
+                        series_id=series_key_for_item(item),
+                        movie_id=movie_key_for_item(item),
                     )
                     record_subtitle_download(
                         result.provider_name,
@@ -210,8 +211,8 @@ def _process_forced_wanted_item(item, item_id, item_lang, manager):
                     saved_path = manager.save_subtitle(
                         result,
                         output_path,
-                        series_id=item.get("sonarr_series_id"),
-                        movie_id=item.get("radarr_movie_id"),
+                        series_id=series_key_for_item(item),
+                        movie_id=movie_key_for_item(item),
                     )
                     record_subtitle_download(
                         result.provider_name,
@@ -352,8 +353,8 @@ def download_specific_for_item(
             actual_source_path = manager.save_subtitle(
                 target_result,
                 tmp_source_path,
-                series_id=item.get("sonarr_series_id"),
-                movie_id=item.get("radarr_movie_id"),
+                series_id=series_key_for_item(item),
+                movie_id=movie_key_for_item(item),
             )
             source_created_this_run = True
             record_subtitle_download(
@@ -373,10 +374,9 @@ def download_specific_for_item(
         except (OSError, RuntimeError) as e:
             return {"success": False, "error": f"Failed to save subtitle: {e}"}
 
-        arr_context = {}
-        for key in ("sonarr_series_id", "sonarr_episode_id", "radarr_movie_id"):
-            if item.get(key):
-                arr_context[key] = item[key]
+        from wanted_search.process import _build_arr_context
+
+        arr_context = _build_arr_context(item)
 
         # Create a translation job so it appears in Activity/Queue
         job = create_job(file_path, force=False, arr_context=arr_context or None)
@@ -471,8 +471,8 @@ def download_specific_for_item(
         actual_path = manager.save_subtitle(
             target_result,
             output_path,
-            series_id=item.get("sonarr_series_id"),
-            movie_id=item.get("radarr_movie_id"),
+            series_id=series_key_for_item(item),
+            movie_id=movie_key_for_item(item),
         )
         record_subtitle_download(
             provider_name,

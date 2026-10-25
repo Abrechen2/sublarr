@@ -107,8 +107,8 @@ def test_standalone_series_detail_shows_the_embedded_track(embedded_on, tmp_path
     from routes.library.series import _get_standalone_series_detail
 
     monkeypatch.setattr(
-        "db.profiles.get_default_profile",
-        lambda: {"target_languages": ["en"], "target_language_names": ["English"]},
+        "db.profiles.get_profile_for_item",
+        lambda item: {"target_languages": ["en"], "target_language_names": ["English"]},
     )
     folder = tmp_path / "Show"
     folder.mkdir()

@@ -121,10 +121,13 @@ def run_migrations_online():
     with connectable.begin() as connection:
         # Concurrent-safety: if two containers boot at the same time they
         # would both observe has_table=False for a fresh table and race
-        # into colliding CREATE TABLE. For PostgreSQL acquire a session-
-        # wide advisory lock so only one migrator runs at a time; losers
-        # block until the winner commits and then see the tables already
-        # exist (idempotent guards in each migration skip the DDL).
+        # into colliding CREATE TABLE. For PostgreSQL acquire a
+        # transaction-scoped advisory lock so only one migrator runs at a
+        # time; losers block until the winner COMMITS (the lock is released
+        # by the commit or rollback of this transaction, never earlier) and
+        # then see the tables already exist (idempotent guards in each
+        # migration skip the DDL). The session lock used before was released
+        # just before the commit, so a loser could read the old schema.
         # SQLite is single-writer so no lock is needed there.
         dialect_name = connection.dialect.name
         if dialect_name == "postgresql":
@@ -135,7 +138,7 @@ def run_migrations_online():
             # different key.
             _ADVISORY_KEY = 0x5FA0B4A2  # crc32("sublarr.migrations")
             logger.info("Acquiring PostgreSQL advisory lock for migrations…")
-            connection.execute(text(f"SELECT pg_advisory_lock({_ADVISORY_KEY})"))
+            connection.execute(text(f"SELECT pg_advisory_xact_lock({_ADVISORY_KEY})"))
 
         # Stamp existing databases before running migrations
         stamp_existing_db_if_needed(connection)
@@ -149,13 +152,8 @@ def run_migrations_online():
 
         context.run_migrations()
 
-        # Release the advisory lock on the same connection that acquired it.
-        # The ``with connectable.begin()`` block will commit immediately
-        # after, closing the session and releasing any remaining locks.
-        if dialect_name == "postgresql":
-            from sqlalchemy import text
-
-            connection.execute(text(f"SELECT pg_advisory_unlock({_ADVISORY_KEY})"))
+        # The advisory lock is transaction-scoped: the commit at the end of
+        # ``connectable.begin()`` releases it.
 
 
 if context.is_offline_mode():

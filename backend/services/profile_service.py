@@ -332,6 +332,23 @@ def delete_profile(profile_id: int) -> dict:
     return {"status": "deleted", "id": profile_id}
 
 
+def _assignment_key(item_type: str, arr_id: int) -> int:
+    """Owner key the assignment is stored under.
+
+    A standalone title (negative id, or a positive id without the arr — the
+    pre-1.18 form) is stored under its negated id and must exist; an arr id is
+    stored as is, unchanged from before.
+    """
+    from db.standalone import get_standalone_movies, get_standalone_series
+    from services.media_ids import movie_owner_key, series_owner_key
+
+    if arr_id < 0:
+        lookup = get_standalone_series if item_type == "series" else get_standalone_movies
+        if not lookup(-arr_id):
+            raise ProfileNotFoundError(f"Standalone {item_type} not found")
+    return series_owner_key(arr_id) if item_type == "series" else movie_owner_key(arr_id)
+
+
 def assign_profile_to_item(data: dict) -> dict:
     """Assign a profile to a series or movie.
 
@@ -355,8 +372,10 @@ def assign_profile_to_item(data: dict) -> dict:
     # Validate ID types before any DB lookup. Previously a string arr_id
     # ("abc") sailed through the truthiness check and surfaced as a 500
     # from the underlying driver.
-    if not isinstance(arr_id, int) or isinstance(arr_id, bool) or arr_id < 1:
-        raise ProfileValidationError("arr_id must be a positive integer")
+    # A negative arr_id names a standalone series/movie (its owner key, see
+    # docs/specs/standalone-ids.md); positive ids keep their old meaning.
+    if not isinstance(arr_id, int) or isinstance(arr_id, bool) or arr_id == 0:
+        raise ProfileValidationError("arr_id must be a non-zero integer")
     if not isinstance(profile_id, int) or isinstance(profile_id, bool) or profile_id < 1:
         raise ProfileValidationError("profile_id must be a positive integer")
 
@@ -364,10 +383,11 @@ def assign_profile_to_item(data: dict) -> dict:
     if not profile:
         raise ProfileNotFoundError("Profile not found")
 
+    key = _assignment_key(item_type, arr_id)
     if item_type == "series":
-        assign_series_profile(arr_id, profile_id)
+        assign_series_profile(key, profile_id)
     else:  # validated to be "movie" above
-        assign_movie_profile(arr_id, profile_id)
+        assign_movie_profile(key, profile_id)
 
     return {"status": "assigned", "type": item_type, "arr_id": arr_id, "profile_id": profile_id}
 
@@ -405,8 +425,14 @@ def create_glossary(data: dict) -> dict:
     if not source_term or not target_term:
         raise ProfileValidationError("source_term and target_term are required")
 
+    series_id = data.get("series_id")
+    if isinstance(series_id, int) and not isinstance(series_id, bool) and series_id:
+        from services.media_ids import series_owner_key
+
+        # Standalone series: stored under the owner key (negated id).
+        series_id = series_owner_key(series_id)
     entry_id = add_glossary_entry(
-        data.get("series_id"),
+        series_id,
         source_term,
         target_term,
         data.get("notes", "").strip(),

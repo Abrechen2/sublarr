@@ -46,7 +46,7 @@ def list_series():
         return jsonify({"error": "Failed to list standalone series"}), 500
 
 
-@bp.route("/series/<int:series_id>", methods=["GET"])
+@bp.route("/series/<int(signed=True):series_id>", methods=["GET"])
 def get_series(series_id):
     """Get a single standalone series with its files and wanted status.
     ---
@@ -89,7 +89,7 @@ def get_series(series_id):
         return jsonify({"error": "Failed to get standalone series"}), 500
 
 
-@bp.route("/series/<int:series_id>/poster", methods=["GET"])
+@bp.route("/series/<int(signed=True):series_id>/poster", methods=["GET"])
 @limiter.limit("120/minute")
 def series_poster(series_id):
     """Serve the local poster image for a standalone series.
@@ -120,7 +120,7 @@ def series_poster(series_id):
         return jsonify({"error": "Failed to serve poster"}), 500
 
 
-@bp.route("/series/<int:series_id>", methods=["DELETE"])
+@bp.route("/series/<int(signed=True):series_id>", methods=["DELETE"])
 def delete_series(series_id):
     """Delete a standalone series and its wanted items.
     ---
@@ -167,7 +167,7 @@ def delete_series(series_id):
         return jsonify({"error": "Failed to delete standalone series"}), 500
 
 
-@bp.route("/series/<int:series_id>/scan", methods=["POST"])
+@bp.route("/series/<int(signed=True):series_id>/scan", methods=["POST"])
 def scan_series(series_id):
     """Trigger a re-scan of a single standalone series.
     ---
@@ -219,7 +219,7 @@ def scan_series(series_id):
         return jsonify({"error": "Internal server error"}), 500
 
 
-@bp.route("/series/<int:series_id>/refresh-metadata", methods=["POST"])
+@bp.route("/series/<int(signed=True):series_id>/refresh-metadata", methods=["POST"])
 def refresh_series_metadata(series_id):
     """Re-resolve metadata for a standalone series in the background.
 

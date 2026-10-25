@@ -3,9 +3,9 @@ standalone modes.
 
 Sonarr libraries key episodes by the Sonarr episode-file id and resolve the
 path through the Sonarr client (then ``map_path`` for remote-path mapping).
-Standalone libraries have no Sonarr: an "episode" is a ``wanted_items`` row
-(``standalone_series_id`` set) and the row's ``id`` is what the UI/API passes
-as ``ep_id`` — its ``file_path`` is the video itself.
+Standalone episodes are ``standalone_episodes`` rows; the UI/API passes their
+negated id as ``ep_id`` (a positive id without Sonarr is the legacy
+``wanted_items`` row id).
 
 Before this resolver, the episode combine/upload/track endpoints called
 ``get_sonarr_client()`` directly and returned 503 "Sonarr not configured" on a
@@ -24,12 +24,22 @@ logger = logging.getLogger(__name__)
 def resolve_episode_video_path(ep_id: int) -> str | None:
     """Return the on-disk video path for ``ep_id``, or ``None`` if unresolved.
 
-    Sonarr mode: resolve via the Sonarr client + ``map_path``. Standalone mode
-    (no Sonarr client): treat ``ep_id`` as a ``wanted_items`` row id and use its
-    ``file_path`` directly (same as the standalone movie endpoints — no
-    remote-path mapping applies to local standalone media).
+    * Negative id: a standalone episode (``-standalone_episodes.id``), with or
+      without Sonarr configured — the sign keeps the two id spaces apart.
+    * Positive id with Sonarr: the Sonarr episode, via the client +
+      ``map_path`` (unchanged).
+    * Positive id without Sonarr: the legacy standalone ``wanted_items`` row id.
+
+    Standalone paths are only returned when they are a video file inside the
+    owning series folder (``services.standalone_library``); no remote-path
+    mapping applies to local standalone media.
     """
     from config import map_path
+    from services.standalone_episode import resolve_standalone_episode_file
+
+    if ep_id < 0:
+        return resolve_standalone_episode_file(ep_id)
+
     from sonarr_client import get_sonarr_client
 
     client = get_sonarr_client()
@@ -40,25 +50,8 @@ def resolve_episode_video_path(ep_id: int) -> str | None:
         video_path = map_path(raw_path)
         return video_path if os.path.exists(video_path) else None
 
-    # Standalone: ep_id is a wanted_items row id (an episode of a standalone
-    # series). Its file_path is the video file.
-    from sqlalchemy import text
-
-    from extensions import db
-
     try:
-        row = db.session.execute(
-            text(
-                "SELECT file_path FROM wanted_items "
-                "WHERE id = :id AND standalone_series_id IS NOT NULL"
-            ),
-            {"id": ep_id},
-        ).fetchone()
+        return resolve_standalone_episode_file(ep_id)
     except Exception as exc:  # pragma: no cover - defensive
         logger.warning("standalone episode path lookup failed for %s: %s", ep_id, exc)
         return None
-
-    if not row or not row[0]:
-        return None
-    video_path = row[0]
-    return video_path if os.path.exists(video_path) else None

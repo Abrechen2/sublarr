@@ -94,7 +94,7 @@ def delete_subtitles():
     return jsonify({"batch_id": batch_id, "deleted": deleted, "failed": failed}), 200
 
 
-@bp.route("/library/series/<int:series_id>/subtitles/batch-delete", methods=["POST"])
+@bp.route("/library/series/<int(signed=True):series_id>/subtitles/batch-delete", methods=["POST"])
 def batch_delete_series_subtitles(series_id: int):
     """Move subtitle sidecars for a series to trash, filtered by language and/or format.
 
@@ -117,21 +117,23 @@ def batch_delete_series_subtitles(series_id: int):
         {f.lower() for f in body["formats"]} if body.get("formats") else None
     )
 
-    client = get_sonarr_client()
+    from services.media_ids import resolve_series_ref
+
+    ref = resolve_series_ref(series_id)
 
     # Collect video file paths — via Sonarr or standalone DB
     video_paths: list[str] = []
-    if client is None:
+    if ref.is_standalone:
         # Standalone: every episode file in the series folder — wanted_items
         # alone misses exactly the episodes that have subtitles.
         from routes.library.series import standalone_series_video_paths
 
-        standalone_paths = standalone_series_video_paths(series_id)
+        standalone_paths = standalone_series_video_paths(ref.id)
         if standalone_paths is None:
             return jsonify({"error": "Series not found"}), 404
         video_paths = standalone_paths
     else:
-        episode_files = client.get_episode_files_by_series(series_id)
+        episode_files = get_sonarr_client().get_episode_files_by_series(series_id)
         for file_info in (episode_files or {}).values():
             raw_path = file_info.get("path")
             if raw_path:

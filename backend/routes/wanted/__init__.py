@@ -5,12 +5,18 @@ from flask import Blueprint
 bp = Blueprint("wanted", __name__, url_prefix="/api/v1")
 
 
-def _sonarr_missing() -> bool:
-    """True in standalone mode: no Sonarr client, so a ``series_id`` is a
-    standalone series id (the rule the series detail uses)."""
-    from sonarr_client import get_sonarr_client
+def _series_wanted(series_id: int) -> list:
+    """Wanted items of a series id: negative = standalone series, positive =
+    Sonarr's, or a legacy standalone id without Sonarr (the rule the series
+    detail uses, see services.media_ids)."""
+    from db.wanted import get_wanted_for_series
+    from services.media_ids import resolve_series_ref
 
-    return get_sonarr_client() is None
+    try:
+        ref = resolve_series_ref(int(series_id))
+    except (TypeError, ValueError):
+        return []
+    return get_wanted_for_series(ref.id, standalone=ref.is_standalone)
 
 
 import routes.wanted.automation  # noqa: E402, F401

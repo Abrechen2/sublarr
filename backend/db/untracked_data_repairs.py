@@ -67,6 +67,12 @@ def _wq1(conn) -> int:
     return refund_unanswered(conn, configured_max_attempts(conn))
 
 
+def _sa1(conn) -> int:
+    from db.migrations.versions.sa1_standalone_episodes import backfill_episodes
+
+    return backfill_episodes(conn)
+
+
 # (Alembic revision id, repair) — in migration order. Add every future data
 # migration here as well, or untracked installs never receive it.
 REPAIRS: list[tuple[str, Callable]] = [
@@ -75,6 +81,7 @@ REPAIRS: list[tuple[str, Callable]] = [
     ("tm3_strip_soft", _tm3),
     ("tm4_wrong_direction", _tm4),
     ("wq1_refund_unanswered", _wq1),
+    ("sa1_standalone_episodes", _sa1),
 ]
 
 

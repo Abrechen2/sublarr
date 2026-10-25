@@ -20,6 +20,7 @@ from db.wanted import (
 from error_handler import DuplicateSubtitleError
 from providers import get_provider_manager
 from providers.base import SubtitleFormat
+from services.media_ids import movie_key_for_item, series_key_for_item
 from services.scheduler.cancellation import abort_requested
 from translator.errors import TranslationAbortedError
 from upgrade_scorer import should_upgrade
@@ -62,14 +63,15 @@ def _load_profile_filters(item: dict, item_id: int) -> dict:
 
     _profile_obj = None
     try:
-        _sonarr_sid = item.get("sonarr_series_id")
-        _radarr_mid = item.get("radarr_movie_id")
-        if _sonarr_sid:
-            _slp = _db.session.get(SeriesLanguageProfile, int(_sonarr_sid))
+        # Sonarr/Radarr ids, or the owner key (negated id) of a standalone title.
+        _series_key = series_key_for_item(item)
+        _movie_key = movie_key_for_item(item)
+        if _series_key is not None:
+            _slp = _db.session.get(SeriesLanguageProfile, _series_key)
             if _slp:
                 _profile_obj = _db.session.get(LanguageProfile, _slp.profile_id)
-        elif _radarr_mid:
-            _mlp = _db.session.get(MovieLanguageProfile, int(_radarr_mid))
+        elif _movie_key is not None:
+            _mlp = _db.session.get(MovieLanguageProfile, _movie_key)
             if _mlp:
                 _profile_obj = _db.session.get(LanguageProfile, _mlp.profile_id)
     except Exception as _pe:
@@ -398,8 +400,8 @@ def _try_target_ass_direct(ctx: dict) -> dict | None:
             saved_path = manager.save_subtitle(
                 result,
                 output_path,
-                series_id=item.get("sonarr_series_id"),
-                movie_id=item.get("radarr_movie_id"),
+                series_id=series_key_for_item(item),
+                movie_id=movie_key_for_item(item),
             )
             if is_upgrade:
                 _retire_replaced_srt(ctx, result, new_score, keep=saved_path)
@@ -646,8 +648,8 @@ def _try_source_ass_translation(ctx: dict) -> dict | None:
             actual_source_path = manager.save_subtitle(
                 result,
                 tmp_source_path,
-                series_id=item.get("sonarr_series_id"),
-                movie_id=item.get("radarr_movie_id"),
+                series_id=series_key_for_item(item),
+                movie_id=movie_key_for_item(item),
             )
             source_created_this_run = True
             record_subtitle_download(
@@ -820,8 +822,8 @@ def _try_target_srt_direct(ctx: dict) -> dict | None:
             saved_path = manager.save_subtitle(
                 result,
                 output_path,
-                series_id=item.get("sonarr_series_id"),
-                movie_id=item.get("radarr_movie_id"),
+                series_id=series_key_for_item(item),
+                movie_id=movie_key_for_item(item),
             )
             record_subtitle_download(
                 result.provider_name,
@@ -936,8 +938,8 @@ def _try_source_srt_translation(ctx: dict) -> dict | None:
             actual_source_path = manager.save_subtitle(
                 result,
                 tmp_source_path,
-                series_id=item.get("sonarr_series_id"),
-                movie_id=item.get("radarr_movie_id"),
+                series_id=series_key_for_item(item),
+                movie_id=movie_key_for_item(item),
             )
             source_created_this_run = True
             record_subtitle_download(
@@ -1256,15 +1258,25 @@ def _fallback_translate_file(ctx: dict) -> dict:
         }
 
 
+ARR_CONTEXT_KEYS = (
+    "sonarr_series_id",
+    "sonarr_episode_id",
+    "radarr_movie_id",
+    "standalone_series_id",
+    "standalone_movie_id",
+)
+
+
 def _build_arr_context(item: dict) -> dict:
-    """Return a minimal arr_context dict for translator glossary / integration lookup."""
+    """Return a minimal arr_context dict for translator glossary / integration lookup.
+
+    Standalone ids travel along so the translation (also a retried job) uses
+    the title's profile backend and glossary.
+    """
     arr_context: dict = {}
-    if item.get("sonarr_series_id"):
-        arr_context["sonarr_series_id"] = item["sonarr_series_id"]
-    if item.get("sonarr_episode_id"):
-        arr_context["sonarr_episode_id"] = item["sonarr_episode_id"]
-    if item.get("radarr_movie_id"):
-        arr_context["radarr_movie_id"] = item["radarr_movie_id"]
+    for key in ARR_CONTEXT_KEYS:
+        if item.get(key):
+            arr_context[key] = item[key]
     return arr_context
 
 
@@ -1642,9 +1654,10 @@ def _run_search_steps(ctx: dict) -> dict:
 
     # Per-series format requirement: "require_ass" never falls back to SRT
     # provider results, regardless of what Steps 1+2 returned.
+    from services.media_ids import series_key_for_item
     from services.series_format import REQUIRE_ASS, get_series_format_requirement
 
-    _require_ass = get_series_format_requirement(item.get("sonarr_series_id")) == REQUIRE_ASS
+    _require_ass = get_series_format_requirement(series_key_for_item(item)) == REQUIRE_ASS
     if _require_ass:
         logger.info("Wanted %d: series requires ASS subtitles, skipping SRT steps", item_id)
         decision_log.step_skipped(

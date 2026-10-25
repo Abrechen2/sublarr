@@ -109,9 +109,13 @@ class _StandaloneProcessMixin:
             )
             resolved_title = meta.get("title", display_title)
 
+        # Stable episode ids (docs/specs/standalone-ids.md) for every file of
+        # the group, wanted or not.
+        self._record_episode_ids(series_id, files)
+
         # Check each episode for missing target subtitles
         wanted_added = 0
-        target_languages = self._get_target_languages()
+        target_languages = self._get_target_languages({"standalone_series_id": series_id})
 
         for f in files:
             file_path = f["file_path"]
@@ -228,7 +232,7 @@ class _StandaloneProcessMixin:
 
         # Check for missing target subtitles
         wanted_added = 0
-        target_languages = self._get_target_languages()
+        target_languages = self._get_target_languages({"standalone_movie_id": movie_id})
 
         for target_lang in target_languages:
             existing = self._check_existing_subtitle(file_path, target_lang)
@@ -359,7 +363,7 @@ class _StandaloneProcessMixin:
 
                 # Check for missing subtitles
                 wanted = False
-                target_languages = self._get_target_languages()
+                target_languages = self._get_target_languages({"standalone_series_id": series_id})
                 season = parsed.get("season")
                 episode = parsed.get("episode")
 
