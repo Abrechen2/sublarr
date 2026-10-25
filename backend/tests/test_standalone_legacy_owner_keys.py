@@ -604,3 +604,20 @@ def test_scope_tree_drops_superseded_legacy_rows(client, no_arr):
     ids = [e["id"] for node in tree["profiles"] for e in node.get("series", [])]
     assert 3 not in ids
     assert ids.count(-3) == 1
+
+
+def test_standalone_cleanup_queue_row_is_no_radarr_evidence(app_ctx, no_arr):
+    """Cleanup rows store the movie owner key, negative for standalone movies."""
+    from db.profiles import get_profile_for_item
+
+    _seed_legacy()
+    from db.repositories.subtitle_automation_queue import SubtitleAutomationQueueRepository
+
+    SubtitleAutomationQueueRepository().enqueue(
+        wanted_item_id=0,
+        file_path="/m/Film.mkv",
+        target_language="de",
+        task_type="foreign_track_cleanup",
+        radarr_movie_id=-4,
+    )
+    assert get_profile_for_item({"standalone_movie_id": 4})["id"] == 2

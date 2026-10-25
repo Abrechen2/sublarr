@@ -464,3 +464,10 @@ Follow-up Codex rounds on the fix:
   `media_path` and follows file symlinks inside it. That is the generic
   (non-standalone) media policy, unchanged by this work; refusing symlinked
   files there would refuse symlink-farm Sonarr libraries.
+* Round 3: the arr evidence counted the automation queue's negative
+  `radarr_movie_id` (a standalone movie's owner key) as Radarr use, which
+  switched the fallback off for all standalone movies; only positive ids
+  count now. The automation drain's foreign-track cleanup and auto-sync
+  tasks are rechecked at execution (cleanup rows carry the owner keys;
+  auto-sync rows are recognised by lying under a watched folder or a
+  standalone series folder).

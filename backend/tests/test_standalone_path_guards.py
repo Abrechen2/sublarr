@@ -455,3 +455,49 @@ def test_glossary_suggest_skips_a_sidecar_symlinked_outside(media, tmp_path):
         f"/api/v1/series/{-sid}/glossary/suggest", json={"min_freq": 1}
     )
     assert "Mikasa" not in str(resp.get_json())
+
+
+# --- Codex round 3 ------------------------------------------------------------
+
+
+class _FakeQueue:
+    def __init__(self, claim):
+        self.claim = claim
+        self.failed = []
+
+    def claim_next(self, **_kw):
+        claim, self.claim = self.claim, None
+        return claim
+
+    def mark_failed(self, entry_id, error="", next_retry_at=None):
+        self.failed.append((entry_id, error, next_retry_at))
+
+    def mark_done(self, entry_id):
+        raise AssertionError("an escaped task completed")
+
+
+@pytest.mark.parametrize("task", ["foreign_track_cleanup", "auto_sync"])
+def test_automation_drain_refuses_escaped_cleanup_and_sync(escaped, monkeypatch, task):
+    from services.subtitle_automation_runner import SubtitleAutomationRunner
+
+    sid, video, _ = escaped
+    sidecar = video[:-4] + ".de.srt"
+    claim = {
+        "id": 1,
+        "wanted_item_id": -sid,  # cleanup rows carry the series owner key
+        "file_path": video if task == "foreign_track_cleanup" else sidecar,
+        "video_path": video,
+        "target_language": "de",
+        "task_type": task,
+        "radarr_movie_id": None,
+        "attempt_count": 0,
+    }
+    touched = []
+    monkeypatch.setattr(
+        SubtitleAutomationRunner, "_foreign_track_cleanup", lambda *a, **k: touched.append(a)
+    )
+    monkeypatch.setattr(SubtitleAutomationRunner, "_auto_sync", lambda *a, **k: touched.append(a))
+    queue = _FakeQueue(claim)
+    assert SubtitleAutomationRunner(queue).process_one() is True
+    assert touched == []
+    assert queue.failed and "media folder" in queue.failed[0][1]

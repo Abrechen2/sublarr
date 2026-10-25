@@ -290,21 +290,26 @@ def episode_file_for_wire_id(wire_id: int) -> tuple[dict, str] | None:
 OUTSIDE_REASON = "standalone file lies outside its folder or the media folder"
 
 
-def _watched_roots(*, required: bool) -> list[str] | None:
-    """Watched folder paths. ``None`` when they cannot be read and the row is
-    not known to be standalone (no app context / database in a unit test, a
-    transient DB error): an untagged row is then treated as before. For a
-    standalone row the error propagates, so it is never used unchecked."""
-    from db.standalone import get_watched_folders
+def _standalone_roots(*, required: bool) -> list[str] | None:
+    """Watched folders, then standalone series folders.
+
+    ``None`` when they cannot be read and the row is not known to be
+    standalone (no app context / database in a unit test, a transient DB
+    error): an untagged row is then treated as before. For a standalone row
+    the error propagates, so it is never used unchecked.
+    """
+    from db.standalone import get_standalone_series, get_watched_folders
 
     try:
-        folders = get_watched_folders(enabled_only=False) or []
+        roots = [f.get("path") or "" for f in get_watched_folders(enabled_only=False) or []]
+        if not required:
+            roots += [s.get("folder_path") or "" for s in get_standalone_series() or []]
     except Exception:
         if required:
             raise
-        logger.debug("watched folders unreadable; untagged row not checked", exc_info=True)
+        logger.debug("standalone roots unreadable; untagged row not checked", exc_info=True)
         return None
-    return [f.get("path") or "" for f in folders]
+    return [root for root in roots if root]
 
 
 def _lexically_under(path: str, root: str) -> bool:
@@ -342,13 +347,15 @@ def wanted_item_path_refusal(item: dict | None) -> str | None:
         return None
     else:
         tagged = bool(item.get("standalone_movie_id")) or item.get("instance_name") == "standalone"
-        roots = _watched_roots(required=tagged)
+        roots = _standalone_roots(required=tagged)
         if roots is None:
             return None
-        # A standalone movie row, or a row / job without ids that is tagged
-        # standalone or lies (as written) under a watched folder.
-        if not (tagged or any(_lexically_under(path, root) for root in roots)):
-            return None
+        if not tagged:
+            # A row / job / queue task without ids is standalone when it lies
+            # (as written) under a watched folder or a standalone series folder.
+            roots = [root for root in roots if _lexically_under(path, root)]
+            if not roots:
+                return None
         allowed = any(standalone_path_allowed(path, root) for root in roots)
     if allowed:
         return None

@@ -176,6 +176,39 @@ def _eligible_task_types() -> set[str]:
     return eligible
 
 
+def _standalone_task_refusal(task_type: str, claim: dict) -> str | None:
+    """Cleanup and auto-sync tasks touch the files directly: check a
+    standalone file against its folder and the media folder first.
+
+    Cleanup rows carry the series owner key in ``wanted_item_id`` and the
+    movie owner key in ``radarr_movie_id`` (negative for standalone titles);
+    auto-sync rows carry only paths, so they are recognised by lying under a
+    watched folder. Extraction and sidecar translation check the wanted row
+    themselves.
+    """
+    from services.standalone_library import wanted_item_path_refusal
+
+    if task_type == SubtitleAutomationQueueEntry.TASK_FOREIGN_TRACK_CLEANUP:
+        item = {"file_path": claim.get("file_path")}
+        series_key = claim.get("wanted_item_id") or 0
+        movie_key = claim.get("radarr_movie_id") or 0
+        if series_key < 0:
+            item["standalone_series_id"] = -series_key
+        elif movie_key < 0:
+            item["standalone_movie_id"] = -movie_key
+        elif series_key > 0:
+            item["sonarr_series_id"] = series_key
+        elif movie_key > 0:
+            item["radarr_movie_id"] = movie_key
+        return wanted_item_path_refusal(item)
+    if task_type == SubtitleAutomationQueueEntry.TASK_AUTO_SYNC:
+        for path in (claim.get("file_path"), claim.get("video_path")):
+            refusal = wanted_item_path_refusal({"file_path": path}) if path else None
+            if refusal:
+                return refusal
+    return None
+
+
 class SubtitleAutomationRunner:
     """Pull items off the queue and drive `_extract_embedded_sub` for each."""
 
@@ -370,6 +403,13 @@ class SubtitleAutomationRunner:
         task_type = claim.get("task_type") or "embedded_extract"
         # attempt_count BEFORE this attempt; mark_failed will increment it.
         prior_attempt = claim.get("attempt_count") or 0
+        refusal = _standalone_task_refusal(task_type, claim)
+        if refusal:
+            # Rechecked at execution: the folder may have changed since the
+            # task was queued. Closed out, the row is kept for the record.
+            logger.warning("subtitle_automation: %s for %s - not run", refusal, file_path)
+            self._repo.mark_failed(entry_id, error=refusal, next_retry_at=None)
+            return True
         try:
             if task_type == SubtitleAutomationQueueEntry.TASK_SIDECAR_TRANSLATE:
                 self._translate_sidecar(wanted_item_id, file_path, claim["target_language"])

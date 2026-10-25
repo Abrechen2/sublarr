@@ -57,15 +57,17 @@ _CONFIG_KEYS = {
 }
 
 # (table, SQL condition) whose first match is evidence. Fixed SQL, no input.
+# Only positive ids count: the automation queue stores the movie *owner key*,
+# negative for a standalone movie.
 _ID_EVIDENCE = {
     SERIES: (
-        ("wanted_items", "sonarr_series_id IS NOT NULL OR sonarr_episode_id IS NOT NULL"),
+        ("wanted_items", "sonarr_series_id > 0 OR sonarr_episode_id > 0"),
         ("jobs", "bazarr_context_json LIKE '%\"sonarr_%'"),
     ),
     MOVIE: (
-        ("wanted_items", "radarr_movie_id IS NOT NULL"),
+        ("wanted_items", "radarr_movie_id > 0"),
         ("jobs", "bazarr_context_json LIKE '%\"radarr_%'"),
-        ("subtitle_automation_queue", "radarr_movie_id IS NOT NULL"),
+        ("subtitle_automation_queue", "radarr_movie_id > 0"),
     ),
 }
 
