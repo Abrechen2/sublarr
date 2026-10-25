@@ -102,8 +102,9 @@ def enrich_series_detail(series: dict, series_id: int) -> dict:
 
 
 def delete_series_cascade(series_id: int) -> None:
-    """Delete wanted items for a series, then delete the series itself."""
+    """Delete wanted items and episode ids for a series, then the series itself."""
     from db import get_db
+    from db.repositories.standalone_episodes import StandaloneEpisodeRepository
     from db.standalone import delete_standalone_series
 
     db = get_db()
@@ -112,6 +113,7 @@ def delete_series_cascade(series_id: int) -> None:
         {"sid": series_id},
     )
     db.commit()
+    StandaloneEpisodeRepository().delete_episodes_for_series(series_id)
     delete_standalone_series(series_id)
 
 

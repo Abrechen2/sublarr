@@ -15,7 +15,7 @@ from routes.subtitles.helpers import scan_subtitle_sidecars
 logger = logging.getLogger(__name__)
 
 
-@bp.route("/library/episodes/<int:ep_id>/subtitles", methods=["GET"])
+@bp.route("/library/episodes/<int(signed=True):ep_id>/subtitles", methods=["GET"])
 def list_episode_subtitles(ep_id: int):
     """Return all subtitle sidecar files found next to this episode's video file."""
     # Sonarr or standalone (wanted_items row id) — same resolver the track,
@@ -43,37 +43,36 @@ def list_movie_subtitles(movie_id: int):
     return jsonify({"subtitles": sidecars, "video_path": file_path}), 200
 
 
-@bp.route("/library/series/<int:series_id>/subtitles", methods=["GET"])
+@bp.route("/library/series/<int(signed=True):series_id>/subtitles", methods=["GET"])
 def list_series_subtitles(series_id: int):
     """Return all subtitle sidecar files for every episode in a series.
 
     Uses a single Sonarr call to get all episode file paths, then scans in parallel.
     Response: { subtitles: { "<sonarr_ep_id>": [SidecarSubtitle, ...] } }
     """
+    from services.media_ids import resolve_series_ref
     from sonarr_client import get_sonarr_client
 
-    client = get_sonarr_client()
-    if client is None:
-        # Standalone fallback: scan wanted_items for this series
-        from sqlalchemy import text
+    ref = resolve_series_ref(series_id)
+    if ref.is_standalone:
+        # Every episode file of the folder, keyed by its stable episode id —
+        # the id the series detail hands out (also for satisfied episodes,
+        # which the old wanted_items-based map left out).
+        from services.standalone_library import series_episode_files
 
-        from db import get_db
-        from db.standalone import get_standalone_series
-
-        if get_standalone_series(series_id) is None:
+        files = series_episode_files(ref.id)
+        if files is None:
+            if series_id < 0:
+                return jsonify({"error": "Series not found"}), 404
             return jsonify({"error": "Sonarr not configured"}), 503
-
-        db = get_db()
-        rows = db.execute(
-            text("SELECT id, file_path FROM wanted_items WHERE standalone_series_id=:sid"),
-            {"sid": series_id},
-        ).fetchall()
         result: dict[str, list[dict]] = {}
-        for row in rows:
-            sidecars = scan_subtitle_sidecars(row.file_path)
+        for ep in files:
+            sidecars = scan_subtitle_sidecars(ep.file_path)
             if sidecars:
-                result[str(row.id)] = sidecars
+                result[str(ep.wire_id)] = sidecars
         return jsonify({"subtitles": result})
+
+    client = get_sonarr_client()
 
     episode_files = client.get_episode_files_by_series(series_id)
     if not episode_files:

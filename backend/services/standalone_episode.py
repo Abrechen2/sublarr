@@ -1,23 +1,23 @@
-"""Resolve a standalone-mode episode to its ``wanted_items`` row (#226).
+"""Resolve a standalone-mode episode id to its file and ``wanted_items`` row.
 
-Standalone libraries have no Sonarr. The standalone series detail
-(``routes/library/series.py``) hands the UI one of two episode ids:
+Since 1.18.0 a standalone episode's API id is ``-standalone_episodes.id``
+(stable, see docs/specs/standalone-ids.md). Older ids still resolve:
 
-* the ``wanted_items`` row id while the episode still misses a subtitle, or
-* a negative synthetic id once every target language is satisfied (there is no
-  row to point at). For those the UI also sends the episode's ``file_path``.
+* a positive id without Sonarr is a standalone ``wanted_items`` row id
+  (<= 1.17.2 clients);
+* the 1.17.3 stand-in ``-(index + 1)`` comes with the episode's
+  ``file_path``; when the id's row does not name that file, the path decides.
 
 The episode search / interactive search / download-selected endpoints need a
 wanted item, because they reuse the exact ``wanted_search`` functions the
 Wanted page uses. This module finds that row, or creates it for a satisfied
 episode from the standalone records (series title, SxxEyy from the filename,
-target language from the default profile — the standalone scanner has no
-per-series profile binding either).
+first target language of the series' profile).
 
-A client-supplied ``file_path`` is only accepted when it resolves (symlinks and
-``..`` included) to an existing video file inside a known standalone series
-folder, so the endpoint cannot be used to create wanted rows for arbitrary
-paths.
+No path is used unless it is an existing video file that resolves (symlinks
+and ``..`` included) inside the folder of the standalone series that owns it
+(``services.standalone_library``), whether it came from our own records or
+from the client's ``file_path``.
 """
 
 from __future__ import annotations
@@ -90,7 +90,7 @@ def _locate_series_file(file_path: str) -> _SeriesFile | None:
     return best
 
 
-def _target_languages() -> list[str]:
+def _target_languages(series_id: int) -> list[str]:
     from config import get_settings
     from db.profiles import get_default_profile
 
@@ -136,33 +136,66 @@ def _season_episode(file_path: str) -> str:
     return ""
 
 
+def _identity(episode_id: int, file_path: str | None) -> tuple[_SeriesFile, int | None] | None:
+    """``(series file, legacy wanted row id or None)`` for an episode id/path pair."""
+    from db.standalone import get_standalone_series
+    from services.standalone_library import episode_file_for_wire_id, episode_path_in_series
+
+    if episode_id < 0:
+        hit = episode_file_for_wire_id(episode_id)
+        if hit is not None and _same_file(hit[1], file_path):
+            row, path = hit
+            series = get_standalone_series(row["standalone_series_id"]) or {}
+            return (
+                _SeriesFile(
+                    series_id=row["standalone_series_id"],
+                    series_title=series.get("title") or "",
+                    file_path=path,
+                ),
+                None,
+            )
+    else:
+        row = _standalone_wanted_row(episode_id)
+        if row and _same_file(row.get("file_path") or "", file_path):
+            path = episode_path_in_series(row.get("file_path"), row["standalone_series_id"])
+            if path:
+                series = get_standalone_series(row["standalone_series_id"]) or {}
+                return (
+                    _SeriesFile(
+                        series_id=row["standalone_series_id"],
+                        series_title=series.get("title") or "",
+                        file_path=path,
+                    ),
+                    row["id"],
+                )
+
+    located = _locate_series_file(file_path or "")
+    return (located, None) if located else None
+
+
 def resolve_standalone_episode_file(episode_id: int, file_path: str | None = None) -> str | None:
     """Return the video path of a standalone episode without creating anything."""
-    row = _standalone_wanted_row(episode_id)
-    if row and row.get("file_path") and _same_file(row["file_path"], file_path):
-        return row["file_path"]
-    located = _locate_series_file(file_path or "")
-    return located.file_path if located else None
+    found = _identity(episode_id, file_path)
+    return found[0].file_path if found else None
 
 
 def resolve_standalone_episode_wanted_id(episode_id: int, file_path: str | None = None) -> int:
     """Return the ``wanted_items`` id to search/download for a standalone episode.
 
-    Order: the row with ``episode_id`` (when it belongs to a standalone series
-    and, if given, matches ``file_path``); else the existing row for
-    ``file_path``; else a new ``wanted`` row for the profile's first target
-    language. Raises :class:`StandaloneEpisodeNotFoundError` when neither the id nor
-    the path identify a standalone episode.
+    Order: the legacy wanted row ``episode_id`` names (positive id, matching
+    ``file_path`` if given); else the existing row for the episode's file;
+    else a new ``wanted`` row for the series profile's first target language.
+    Raises :class:`StandaloneEpisodeNotFoundError` when neither the id nor the
+    path identify a standalone episode.
     """
-    row = _standalone_wanted_row(episode_id)
-    if row and _same_file(row.get("file_path") or "", file_path):
-        return row["id"]
-
-    located = _locate_series_file(file_path or "")
-    if located is None:
+    found = _identity(episode_id, file_path)
+    if found is None:
         raise StandaloneEpisodeNotFoundError(f"Standalone episode {episode_id} not found")
+    located, legacy_row_id = found
+    if legacy_row_id is not None:
+        return legacy_row_id
 
-    languages = _target_languages()
+    languages = _target_languages(located.series_id)
     existing = _existing_row_for_file(located.file_path, languages)
     if existing:
         return existing["id"]

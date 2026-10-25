@@ -98,7 +98,7 @@ def _movie_video_path(movie_id: int) -> tuple[str | None, tuple]:
     return file_path, ()
 
 
-@bp.route("/library/episodes/<int:ep_id>/subtitles/combine", methods=["POST"])
+@bp.route("/library/episodes/<int(signed=True):ep_id>/subtitles/combine", methods=["POST"])
 def combine_episode_subtitles(ep_id: int):
     video_path, err = _episode_video_path(ep_id)
     if video_path is None:

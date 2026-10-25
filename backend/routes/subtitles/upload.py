@@ -52,7 +52,7 @@ def _do_upload(video_path: str):
     return jsonify({"saved_path": saved, "language": language, "format": ext}), 201
 
 
-@bp.route("/library/episodes/<int:ep_id>/subtitles/upload", methods=["POST"])
+@bp.route("/library/episodes/<int(signed=True):ep_id>/subtitles/upload", methods=["POST"])
 def upload_episode_subtitle(ep_id: int):
     from services.episode_video_path import resolve_episode_video_path
 

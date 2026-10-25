@@ -20,74 +20,12 @@ def _episode_title(series_title: str, season: int, episode: int) -> str:
     return series_title
 
 
-def _enumerate_series_episode_files(folder_path: str) -> list[tuple[str, dict]]:
-    """List ``(file_path, parsed)`` for every episode video file under a
-    standalone series folder, skipping extras (trailers/samples/…).
-
-    Returns ``[]`` when the folder is missing or unreachable so the caller can
-    fall back to ``wanted_items`` rather than showing nothing while a mount is
-    down. This is the source of truth for "which episodes exist" — wanted_items
-    only holds episodes still MISSING a subtitle, so it can't be used for the
-    full listing.
-    """
-    import os
-
-    from standalone.parser import is_video_file, parse_media_file
-    from standalone.scanner import _is_extra_file
-
-    if not folder_path or not os.path.isdir(folder_path):
-        return []
-
-    out: list[tuple[str, dict]] = []
-    try:
-        for root, _dirs, files in os.walk(folder_path):
-            for filename in files:
-                fp = os.path.join(root, filename)
-                if not is_video_file(fp) or _is_extra_file(fp):
-                    continue
-                try:
-                    parsed = parse_media_file(fp)
-                except Exception:  # pragma: no cover - guessit hiccup on odd names
-                    parsed = {}
-                out.append((fp, parsed))
-    except OSError as exc:
-        logger.warning("Standalone episode enumeration failed for %s: %s", folder_path, exc)
-        return []
-    return out
-
-
-def standalone_series_video_paths(series_id: int) -> list[str] | None:
-    """Every episode video of a standalone series, or None for an unknown id.
-
-    The folder on disk is the source of truth (``wanted_items`` only holds
-    episodes still missing a subtitle — exactly the wrong set for bulk
-    actions on existing subtitles). Falls back to the ``wanted_items`` paths
-    while the folder is unreachable, like the series detail.
-    """
-    from sqlalchemy import text
-
-    from db import get_db
-    from db.standalone import get_standalone_series
-
-    series = get_standalone_series(series_id)
-    if not series:
-        return None
-    paths = [fp for fp, _ in _enumerate_series_episode_files(series.get("folder_path", ""))]
-    if paths:
-        return sorted(paths)
-    rows = (
-        get_db()
-        .execute(
-            text(
-                "SELECT DISTINCT file_path FROM wanted_items"
-                " WHERE standalone_series_id=:sid AND file_path != ''"
-                " ORDER BY file_path"
-            ),
-            {"sid": series_id},
-        )
-        .fetchall()
-    )
-    return [r[0] for r in rows if r[0]]
+# Moved to services.standalone_library (services must not import routes);
+# re-exported under the old names for the route modules and tests using them.
+from services.standalone_library import (  # noqa: E402
+    enumerate_series_episode_files as _enumerate_series_episode_files,
+)
+from services.standalone_library import standalone_series_video_paths  # noqa: E402, F401
 
 
 def _get_standalone_series_detail(series_id: int, settings) -> dict | None:
@@ -215,9 +153,17 @@ def _get_standalone_series_detail(series_id: int, settings) -> dict | None:
         if _fp and _lang and _existing:
             wanted_fallback_sa.setdefault(_fp, {})[_lang] = _existing
 
+    # Stable episode ids (docs/specs/standalone-ids.md): every file gets a
+    # standalone_episodes row and the API id is its negated id — the same for
+    # wanted and satisfied episodes, unchanged by rescans.
+    from services.media_ids import standalone_key
+    from services.standalone_library import ensure_episode_ids
+
+    episode_row_ids = ensure_episode_ids(series_id, [(fp, p) for fp, p in episode_files if fp])
+
     episodes = []
     seen: set = set()
-    for idx, (fp, parsed) in enumerate(episode_files):
+    for fp, parsed in episode_files:
         if not fp or fp in seen:
             continue
         seen.add(fp)
@@ -241,10 +187,7 @@ def _get_standalone_series_detail(series_id: int, settings) -> dict | None:
             subtitles[lang] = fs or wanted_fallback_sa.get(fp, {}).get(lang, "")
         ep_scores_sa = standalone_scores.get(fp, {})
 
-        # Episode id: the wanted_item id while the episode is still wanted; a
-        # stable negative synthetic id once satisfied so the row still renders
-        # with a unique key.
-        ep_id = wi.get("id") if wi else -(idx + 1)
+        ep_id = standalone_key(episode_row_ids[fp])
         title = (wi.get("title") if wi else "") or _episode_title(
             series.get("title", ""), season, episode
         )
@@ -265,6 +208,10 @@ def _get_standalone_series_detail(series_id: int, settings) -> dict | None:
                 },
                 "audio_languages": [],
                 "monitored": True,
+                "source": "standalone",
+                "standalone_id": episode_row_ids[fp],
+                # The wanted row the skip/accept buttons act on, if any.
+                "wanted_id": wi.get("id") if wi else None,
             }
         )
 
@@ -291,7 +238,9 @@ def _get_standalone_series_detail(series_id: int, settings) -> dict | None:
         logger.debug("Could not load series settings for standalone %d: %s", series_id, exc)
 
     return {
-        "id": series.get("id"),
+        # Negative wire id (the source flag); the row id is standalone_id.
+        "id": standalone_key(series_id),
+        "standalone_id": series_id,
         "title": series.get("title", ""),
         "year": series.get("year"),
         "path": series.get("folder_path", ""),
@@ -320,7 +269,7 @@ def _get_standalone_series_detail(series_id: int, settings) -> dict | None:
     }
 
 
-@bp.route("/library/series/<int:series_id>", methods=["GET"])
+@bp.route("/library/series/<int(signed=True):series_id>", methods=["GET"])
 def get_series_detail(series_id):
     """Get detailed series info with episodes and subtitle status.
     ---
@@ -337,7 +286,7 @@ def get_series_detail(series_id):
           required: true
           schema:
             type: integer
-          description: Sonarr series ID
+          description: Sonarr series ID, or a negative standalone series ID
       responses:
         200:
           description: Series detail
@@ -382,15 +331,20 @@ def get_series_detail(series_id):
     from sonarr_client import get_sonarr_client
     from translator import detect_existing_target_for_lang
 
+    from services.media_ids import resolve_series_ref
+
     settings = get_settings()
 
-    sonarr = get_sonarr_client()
-    if not sonarr:
-        # Try standalone fallback before giving up
-        standalone_response = _get_standalone_series_detail(series_id, settings)
+    ref = resolve_series_ref(series_id)
+    if ref.is_standalone:
+        standalone_response = _get_standalone_series_detail(ref.id, settings)
         if standalone_response is not None:
             return jsonify(standalone_response)
+        if series_id < 0:
+            return jsonify({"error": "Series not found"}), 404
         return jsonify({"error": "Sonarr not configured"}), 503
+
+    sonarr = get_sonarr_client()
 
     series = sonarr.get_series_by_id(series_id)
     if not series:
