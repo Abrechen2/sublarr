@@ -6,6 +6,14 @@ import { SubtitleHealthSettings } from './SubtitleHealthSettings'
 import * as api from '@/api/subtitleHealth'
 
 vi.mock('@/api/subtitleHealth')
+// The AI quality section reads /config. Left unmocked, that request failed
+// after the test ended and its dev fallback logged while vitest closed the
+// worker ("Closing rpc while onUserConsoleLog was pending"), failing CI.
+const CONFIG = { data: {} }
+vi.mock('@/hooks/useApi', () => ({
+  useConfig: () => CONFIG,
+  useUpdateConfig: () => ({ mutate: vi.fn(), isPending: false }),
+}))
 vi.mock('react-i18next', () => ({
   useTranslation: () => ({ t: (k: string, o?: any) => (o ? `${k} ${JSON.stringify(o)}` : k) }),
 }))
