@@ -207,3 +207,5 @@ Have an idea? Open a
 
 See [sublarr.de/docs/development/contributing](https://sublarr.de/docs/development/contributing/)
 for how to submit features, bug reports, and pull requests.
+
+- **Trusted hosts (DNS-rebinding hardening)** — optional `SUBLARR_ALLOWED_HOSTS`: reject requests whose `Host` is not listed (HTTP and Socket.IO). Matters for installs without a password, whose API is otherwise reachable from a rebinding page. Raised by the security review of the Socket.IO same-origin fix (Forgejo #60).
