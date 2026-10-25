@@ -30,6 +30,7 @@ from flask import Blueprint, jsonify, request
 
 from ass_utils import get_media_streams
 from config import get_settings
+from error_utils import internal_error_response
 from remux import RemuxError, remove_subtitle_stream
 from remux.backup_cleanup import cleanup_old_backups, list_backups
 from security_utils import is_safe_path
@@ -361,7 +362,7 @@ def restore_backup():
         logger.info("Remux restore: %s → %s", backup_path, video_path)
     except OSError as exc:
         logger.error("Remux restore failed: %s", exc)
-        return jsonify({"error": f"Restore failed: {exc}"}), 500
+        return internal_error_response("Restore failed")
 
     sidecars_deleted = 0
     if delete_sidecars:
@@ -400,7 +401,7 @@ def delete_backup():
         logger.info("MKV backup deleted: %s", backup_path)
     except OSError as exc:
         logger.error("Failed to delete MKV backup: %s", exc)
-        return jsonify({"error": f"Delete failed: {exc}"}), 500
+        return internal_error_response("Delete failed")
 
     return jsonify({"deleted": backup_path}), 200
 

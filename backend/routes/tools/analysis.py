@@ -9,6 +9,7 @@ import logging
 from flask import jsonify, request
 
 from chapters import get_chapters
+from error_utils import internal_error_response
 from routes.tools import bp
 from routes.tools._helpers import _validate_file_path
 from security_utils import is_safe_path
@@ -139,7 +140,7 @@ def compare_files():
 
         except Exception as exc:
             logger.error("Compare read failed for %s: %s", abs_path, exc)
-            return jsonify({"error": f"Failed to read {fp}: {exc}"}), 500
+            return internal_error_response(f"Failed to read {fp}")
 
     return jsonify({"panels": panels})
 
@@ -199,4 +200,4 @@ def quality_trends():
         return jsonify({"trends": trends, "days": days})
     except Exception as exc:
         logger.error("Quality trends failed: %s", exc)
-        return jsonify({"error": f"Quality trends failed: {exc}"}), 500
+        return internal_error_response("Quality trends failed")

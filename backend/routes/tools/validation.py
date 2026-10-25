@@ -8,6 +8,7 @@ import os
 
 from flask import jsonify, request
 
+from error_utils import internal_error_response
 from routes.tools import bp
 from routes.tools._helpers import _validate_file_path
 from subtitle_encoding import load_subtitle_file
@@ -297,4 +298,4 @@ def parse_cues():
 
     except Exception as exc:
         logger.error("Parse failed for %s: %s", abs_path, exc)
-        return jsonify({"error": f"Parse failed: {exc}"}), 500
+        return internal_error_response("Parse failed")

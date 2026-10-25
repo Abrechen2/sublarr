@@ -14,6 +14,7 @@ from concurrent.futures import ThreadPoolExecutor
 
 from flask import Blueprint, current_app, jsonify, request
 
+from error_utils import internal_error_response
 from extensions import limiter
 
 bp = Blueprint("video_sync", __name__, url_prefix="/api/v1/tools")
@@ -170,7 +171,7 @@ def start_sync():
             reference_path = tmp_path
             cleanup_ref = tmp_path
         except Exception as exc:
-            return jsonify({"error": f"Failed to extract reference track: {exc}"}), 500
+            return internal_error_response("Failed to extract reference track", exc)
 
     job_id = str(uuid.uuid4())
     _update_job(job_id, "queued")
@@ -232,9 +233,9 @@ def sync_compare_endpoint():
             video_path=video_path or None,
             reference_path=reference_path or None,
         )
-    except Exception as exc:  # pragma: no cover - defensive; per-engine errors are captured inside
+    except Exception:  # pragma: no cover - defensive; per-engine errors are captured inside
         logger.exception("sync compare failed for %s", subtitle_path)
-        return jsonify({"error": f"Sync compare failed: {exc}"}), 500
+        return internal_error_response("Sync compare failed")
 
     return jsonify(result), 200
 

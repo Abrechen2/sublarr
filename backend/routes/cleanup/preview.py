@@ -8,6 +8,7 @@ import shutil
 
 from flask import jsonify, request
 
+from error_utils import internal_error_response
 from routes.cleanup import bp
 
 logger = logging.getLogger(__name__)
@@ -152,7 +153,7 @@ def cleanup_non_target_subs():
                     keep_langs.add(src)
     except Exception as exc:
         logger.error("Profile aggregation failed: %s", exc)
-        return jsonify({"error": f"could not aggregate profiles: {exc}"}), 500
+        return internal_error_response("could not aggregate profiles")
 
     if not keep_langs:
         return (

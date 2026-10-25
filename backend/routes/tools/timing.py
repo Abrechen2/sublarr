@@ -6,6 +6,7 @@ import re
 
 from flask import jsonify, request
 
+from error_utils import internal_error_response
 from routes.tools import bp
 from routes.tools._helpers import _create_backup, _validate_file_path
 
@@ -107,7 +108,7 @@ def detect_opening_ending():
 
     except Exception as exc:
         logger.error("OP/ED detection failed for %s: %s", abs_path, exc)
-        return jsonify({"error": f"OP/ED detection failed: {exc}"}), 500
+        return internal_error_response("OP/ED detection failed")
 
 
 @bp.route("/adjust-timing", methods=["POST"])
@@ -240,4 +241,4 @@ def adjust_timing():
 
     except Exception as exc:
         logger.error("Timing adjustment failed for %s: %s", abs_path, exc)
-        return jsonify({"error": f"Timing adjustment failed: {exc}"}), 500
+        return internal_error_response("Timing adjustment failed")

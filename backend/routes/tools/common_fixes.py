@@ -5,6 +5,7 @@ import os
 
 from flask import jsonify, request
 
+from error_utils import internal_error_response
 from routes.tools import bp
 from routes.tools._helpers import _create_backup, _validate_file_path
 
@@ -187,4 +188,4 @@ def common_fixes():
 
     except Exception as exc:
         logger.error("Common fixes failed for %s: %s", abs_path, exc)
-        return jsonify({"error": f"Common fixes failed: {exc}"}), 500
+        return internal_error_response("Common fixes failed")

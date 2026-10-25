@@ -5,6 +5,7 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 
 from flask import jsonify
 
+from error_utils import internal_error_response, public_error_text
 from routes.integrations import bp
 
 logger = logging.getLogger(__name__)
@@ -35,14 +36,14 @@ def health_sonarr():
                 results.append(
                     {
                         "name": name,
-                        "connection": {"healthy": False, "message": str(exc)},
+                        "connection": {"healthy": False, "message": public_error_text(exc)},
                     }
                 )
 
         return jsonify({"instances": results})
     except Exception as exc:
         logger.error("Sonarr health check failed: %s", exc)
-        return jsonify({"error": f"Sonarr health check failed: {exc}"}), 500
+        return internal_error_response("Sonarr health check failed")
 
 
 @bp.route("/health/radarr", methods=["GET"])
@@ -70,14 +71,14 @@ def health_radarr():
                 results.append(
                     {
                         "name": name,
-                        "connection": {"healthy": False, "message": str(exc)},
+                        "connection": {"healthy": False, "message": public_error_text(exc)},
                     }
                 )
 
         return jsonify({"instances": results})
     except Exception as exc:
         logger.error("Radarr health check failed: %s", exc)
-        return jsonify({"error": f"Radarr health check failed: {exc}"}), 500
+        return internal_error_response("Radarr health check failed")
 
 
 @bp.route("/health/jellyfin", methods=["GET"])
@@ -103,7 +104,7 @@ def health_jellyfin():
         return jsonify({"connection": {"healthy": healthy, "message": message}})
     except Exception as exc:
         logger.error("Jellyfin health check failed: %s", exc)
-        return jsonify({"error": f"Jellyfin health check failed: {exc}"}), 500
+        return internal_error_response("Jellyfin health check failed")
 
 
 @bp.route("/health/mediaservers", methods=["GET"])
@@ -132,21 +133,21 @@ def health_mediaservers():
                     health = instance.extended_health_check()
                     entry.update(health)
                 except Exception as exc:
-                    entry["connection"] = {"healthy": False, "message": str(exc)}
+                    entry["connection"] = {"healthy": False, "message": public_error_text(exc)}
             else:
                 # Fall back to basic health_check
                 try:
                     healthy, message = instance.health_check()
                     entry["connection"] = {"healthy": healthy, "message": message}
                 except Exception as exc:
-                    entry["connection"] = {"healthy": False, "message": str(exc)}
+                    entry["connection"] = {"healthy": False, "message": public_error_text(exc)}
 
             results.append(entry)
 
         return jsonify({"instances": results})
     except Exception as exc:
         logger.error("Media servers health check failed: %s", exc)
-        return jsonify({"error": f"Media servers health check failed: {exc}"}), 500
+        return internal_error_response("Media servers health check failed")
 
 
 def _health_all_sonarr():
@@ -162,7 +163,12 @@ def _health_all_sonarr():
                 health = client.extended_health_check()
                 out.append({"name": name, **health})
             except Exception as exc:
-                out.append({"name": name, "connection": {"healthy": False, "message": str(exc)}})
+                out.append(
+                    {
+                        "name": name,
+                        "connection": {"healthy": False, "message": public_error_text(exc)},
+                    }
+                )
     except Exception as exc:
         logger.debug("Sonarr health aggregation failed: %s", exc)
     return "sonarr", out
@@ -181,7 +187,12 @@ def _health_all_radarr():
                 health = client.extended_health_check()
                 out.append({"name": name, **health})
             except Exception as exc:
-                out.append({"name": name, "connection": {"healthy": False, "message": str(exc)}})
+                out.append(
+                    {
+                        "name": name,
+                        "connection": {"healthy": False, "message": public_error_text(exc)},
+                    }
+                )
     except Exception as exc:
         logger.debug("Radarr health aggregation failed: %s", exc)
     return "radarr", out
@@ -202,7 +213,7 @@ def _health_all_jellyfin():
         return "jellyfin", {"connection": {"healthy": healthy, "message": message}}
     except Exception as exc:
         logger.debug("Jellyfin health aggregation failed: %s", exc)
-        return "jellyfin", {"connection": {"healthy": False, "message": str(exc)}}
+        return "jellyfin", {"connection": {"healthy": False, "message": public_error_text(exc)}}
 
 
 def _health_all_media_servers():
@@ -220,13 +231,13 @@ def _health_all_media_servers():
                 try:
                     entry.update(instance.extended_health_check())
                 except Exception as exc:
-                    entry["connection"] = {"healthy": False, "message": str(exc)}
+                    entry["connection"] = {"healthy": False, "message": public_error_text(exc)}
             else:
                 try:
                     healthy, message = instance.health_check()
                     entry["connection"] = {"healthy": healthy, "message": message}
                 except Exception as exc:
-                    entry["connection"] = {"healthy": False, "message": str(exc)}
+                    entry["connection"] = {"healthy": False, "message": public_error_text(exc)}
             out.append(entry)
     except Exception as exc:
         logger.debug("Media servers health aggregation failed: %s", exc)

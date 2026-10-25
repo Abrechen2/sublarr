@@ -5,6 +5,7 @@ import os
 
 from flask import jsonify, request
 
+from error_utils import internal_error_response
 from routes.tools import bp
 from routes.tools._helpers import _create_backup, _validate_file_path
 
@@ -106,7 +107,7 @@ def remove_hi():
 
     except Exception as exc:
         logger.error("HI removal failed for %s: %s", abs_path, exc)
-        return jsonify({"error": f"HI removal failed: {exc}"}), 500
+        return internal_error_response("HI removal failed")
 
 
 @bp.route("/remove-credits", methods=["POST"])
@@ -220,4 +221,4 @@ def remove_credits():
 
     except Exception as exc:
         logger.error("Credit removal failed for %s: %s", abs_path, exc)
-        return jsonify({"error": f"Credit removal failed: {exc}"}), 500
+        return internal_error_response("Credit removal failed")

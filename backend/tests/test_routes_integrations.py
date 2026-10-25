@@ -445,6 +445,8 @@ class TestHealthSonarr:
 
         assert rv.status_code == 500
         assert "Sonarr health check failed" in rv.get_json()["error"]
+        # The exception text goes to the log, never to the client.
+        assert "config broken" not in rv.get_data(as_text=True)
 
 
 # ---------------------------------------------------------------------------
