@@ -29,6 +29,14 @@ from services.inheritance_resolver import (
     resolve_for_series,
 )
 from services.media_ids import owner_key_url_values
+from services.standalone_owner_keys import (
+    MOVIE,
+    SERIES,
+    claim,
+    get_row,
+    legacy_ids_as_owner_keys,
+    row_for_write,
+)
 
 bp = Blueprint("profiles_overrides", __name__, url_prefix="/api/v1/profiles-overrides")
 
@@ -50,18 +58,23 @@ def get_scopes():
     ).all()
 
     # Build profile_id → list of series/movies via the mapping tables.
-    series_map = SeriesLanguageProfile.query.all()
-    movie_map = MovieLanguageProfile.query.all()
+    # Pre-1.18 rows a standalone title still reads are listed by owner key.
+    series_map = legacy_ids_as_owner_keys(
+        SERIES, [(m.sonarr_series_id, m.profile_id) for m in SeriesLanguageProfile.query.all()]
+    )
+    movie_map = legacy_ids_as_owner_keys(
+        MOVIE, [(m.radarr_movie_id, m.profile_id) for m in MovieLanguageProfile.query.all()]
+    )
     series_by_profile: dict[int, list[int]] = {}
     movie_by_profile: dict[int, list[int]] = {}
     assigned_series_ids: set[int] = set()
     assigned_movie_ids: set[int] = set()
-    for m in series_map:
-        series_by_profile.setdefault(m.profile_id, []).append(m.sonarr_series_id)
-        assigned_series_ids.add(m.sonarr_series_id)
-    for m in movie_map:
-        movie_by_profile.setdefault(m.profile_id, []).append(m.radarr_movie_id)
-        assigned_movie_ids.add(m.radarr_movie_id)
+    for title_id, profile_id in series_map:
+        series_by_profile.setdefault(profile_id, []).append(title_id)
+        assigned_series_ids.add(title_id)
+    for title_id, profile_id in movie_map:
+        movie_by_profile.setdefault(profile_id, []).append(title_id)
+        assigned_movie_ids.add(title_id)
 
     # Sublarr does not maintain a master `series` / `movies` table — Sonarr
     # and Radarr own that. We aggregate every series/movie that has *any*
@@ -81,8 +94,18 @@ def get_scopes():
     # ONLY series/movies that have an explicit settings row OR a profile mapping.
     # search_series / wanted_items / standalone_* are NOT ID sources for the tree
     # (they would make the list too noisy). They are still used for title lookup.
-    settings_series_ids: set[int] = {int(ss.sonarr_series_id) for ss in SeriesSettings.query.all()}
-    settings_movie_ids: set[int] = {int(ms.radarr_movie_id) for ms in MovieSettings.query.all()}
+    settings_series_ids: set[int] = {
+        key
+        for key, _ in legacy_ids_as_owner_keys(
+            SERIES, [(int(ss.sonarr_series_id), None) for ss in SeriesSettings.query.all()]
+        )
+    }
+    settings_movie_ids: set[int] = {
+        key
+        for key, _ in legacy_ids_as_owner_keys(
+            MOVIE, [(int(ms.radarr_movie_id), None) for ms in MovieSettings.query.all()]
+        )
+    }
     eligible_series_ids: set[int] = assigned_series_ids | settings_series_ids
     eligible_movie_ids: set[int] = assigned_movie_ids | settings_movie_ids
 
@@ -247,9 +270,7 @@ def _series_known_to_sublarr(series_id: int) -> bool:
     row, wanted-item row, or standalone-library row exists for it."""
     from sqlalchemy import text
 
-    if SeriesLanguageProfile.query.filter_by(sonarr_series_id=series_id).first():
-        return True
-    if SeriesSettings.query.get(series_id) is not None:
+    if get_row(SeriesLanguageProfile, series_id) or get_row(SeriesSettings, series_id):
         return True
     if series_id < 0:
         # Owner key of a standalone series (docs/specs/standalone-ids.md).
@@ -307,8 +328,8 @@ def get_resolved_series(series_id: int):
         return jsonify({"error": "series not found"}), 404
 
     title = _series_title(series_id)
-    mapping = SeriesLanguageProfile.query.filter_by(sonarr_series_id=series_id).first()
-    series = SeriesSettings.query.get(series_id)
+    mapping = get_row(SeriesLanguageProfile, series_id)
+    series = get_row(SeriesSettings, series_id)
     profile = LanguageProfile.query.get(mapping.profile_id) if mapping else None
     cfg = get_settings()
     settings = resolve_for_series(series=series, profile=profile, global_cfg=cfg)
@@ -318,9 +339,7 @@ def get_resolved_series(series_id: int):
 def _movie_known_to_sublarr(movie_id: int) -> bool:
     from sqlalchemy import text
 
-    if MovieLanguageProfile.query.filter_by(radarr_movie_id=movie_id).first():
-        return True
-    if MovieSettings.query.get(movie_id) is not None:
+    if get_row(MovieLanguageProfile, movie_id) or get_row(MovieSettings, movie_id):
         return True
     if movie_id < 0:
         queries = ("SELECT 1 FROM standalone_movies WHERE id = :id LIMIT 1",)
@@ -367,8 +386,8 @@ def get_resolved_movie(movie_id: int):
         return jsonify({"error": "movie not found"}), 404
 
     title = _movie_title(movie_id)
-    mapping = MovieLanguageProfile.query.filter_by(radarr_movie_id=movie_id).first()
-    movie = MovieSettings.query.get(movie_id)
+    mapping = get_row(MovieLanguageProfile, movie_id)
+    movie = get_row(MovieSettings, movie_id)
     profile = LanguageProfile.query.get(mapping.profile_id) if mapping else None
     cfg = get_settings()
     settings = resolve_for_movie(movie=movie, profile=profile, global_cfg=cfg)
@@ -413,13 +432,7 @@ def patch_series(series_id: int):
             {"error": "validation failed", "details": e.errors(include_context=False)}
         ), 422
 
-    ss = SeriesSettings.query.get(series_id)
-    if ss is None:
-        ss = SeriesSettings(
-            sonarr_series_id=series_id,
-            updated_at=datetime.now(UTC),
-        )
-        db.session.add(ss)
+    ss = row_for_write(SeriesSettings, series_id, updated_at=datetime.now(UTC))
 
     for field_name, value in patch.changes.items():
         col = _column_name_for_field(field_name)
@@ -439,13 +452,7 @@ def patch_movie(movie_id: int):
             {"error": "validation failed", "details": e.errors(include_context=False)}
         ), 422
 
-    ms = MovieSettings.query.get(movie_id)
-    if ms is None:
-        ms = MovieSettings(
-            radarr_movie_id=movie_id,
-            updated_at=datetime.now(UTC),
-        )
-        db.session.add(ms)
+    ms = row_for_write(MovieSettings, movie_id, updated_at=datetime.now(UTC))
 
     for field_name, value in patch.changes.items():
         col = _column_name_for_field(field_name)
@@ -458,8 +465,11 @@ def patch_movie(movie_id: int):
 @bp.route("/series/<int(signed=True):series_id>/reset", methods=["POST"])
 @require_api_key
 def reset_series(series_id: int):
+    claimed = claim(series_id, SERIES) is not None
     ss = SeriesSettings.query.get(series_id)
     if ss is None:
+        if claimed:
+            db.session.commit()
         return jsonify({"ok": True})  # nothing to reset
     for field in INHERITABLE_FIELDS:
         if hasattr(ss, field.override_col) and field.display_name not in {"min_attempts_per_day"}:
@@ -472,8 +482,11 @@ def reset_series(series_id: int):
 @bp.route("/movie/<int(signed=True):movie_id>/reset", methods=["POST"])
 @require_api_key
 def reset_movie(movie_id: int):
+    claimed = claim(movie_id, MOVIE) is not None
     ms = MovieSettings.query.get(movie_id)
     if ms is None:
+        if claimed:
+            db.session.commit()
         return jsonify({"ok": True})
     for field in INHERITABLE_FIELDS:
         if hasattr(ms, field.override_col) and field.display_name not in {"min_attempts_per_day"}:
@@ -493,7 +506,9 @@ def create_override_series(series_id: int):
 
     Returns 201 if a new row was created, 200 if one already existed.
     """
+    claim(series_id, SERIES)
     existed = SeriesSettings.query.get(series_id) is not None
+    db.session.commit()
     if not existed:
         ss = SeriesSettings(
             sonarr_series_id=series_id,
@@ -508,10 +523,11 @@ def create_override_series(series_id: int):
 @require_api_key
 def delete_series_settings(series_id: int):
     """Drop the series_settings row for *series_id* (idempotent)."""
+    claim(series_id, SERIES)
     ss = SeriesSettings.query.get(series_id)
     if ss is not None:
         db.session.delete(ss)
-        db.session.commit()
+    db.session.commit()
     return jsonify({"deleted": ss is not None})
 
 
@@ -522,7 +538,9 @@ def create_override_movie(movie_id: int):
 
     Returns 201 if a new row was created, 200 if one already existed.
     """
+    claim(movie_id, MOVIE)
     existed = MovieSettings.query.get(movie_id) is not None
+    db.session.commit()
     if not existed:
         ms = MovieSettings(
             radarr_movie_id=movie_id,
@@ -537,8 +555,9 @@ def create_override_movie(movie_id: int):
 @require_api_key
 def delete_movie_settings(movie_id: int):
     """Drop the movie_settings row for *movie_id* (idempotent)."""
+    claim(movie_id, MOVIE)
     ms = MovieSettings.query.get(movie_id)
     if ms is not None:
         db.session.delete(ms)
-        db.session.commit()
+    db.session.commit()
     return jsonify({"deleted": ms is not None})

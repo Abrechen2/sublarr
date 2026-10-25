@@ -17,7 +17,9 @@ class SeriesAudioRepository(BaseRepository):
 
     def get_audio_track_pref(self, series_id: int) -> int | None:
         """Return the pinned audio track index for a series, or None if not set."""
-        row = self.session.get(SeriesSettings, series_id)
+        from services.standalone_owner_keys import get_row
+
+        row = get_row(SeriesSettings, series_id)
         return row.preferred_audio_track_index if row else None
 
     def set_audio_track_pref(self, series_id: int, track_index: int | None) -> None:
@@ -26,19 +28,11 @@ class SeriesAudioRepository(BaseRepository):
         Creates a series_settings row if one does not exist yet.
         Pass track_index=None to clear the preference (auto-select resumes).
         """
+        from services.standalone_owner_keys import row_for_write
+
         now = self._now()
-        existing = self.session.get(SeriesSettings, series_id)
-        if existing:
-            existing.preferred_audio_track_index = track_index
-            existing.updated_at = now
-        else:
-            self.session.add(
-                SeriesSettings(
-                    sonarr_series_id=series_id,
-                    absolute_order=0,
-                    preferred_audio_track_index=track_index,
-                    updated_at=now,
-                )
-            )
+        row = row_for_write(SeriesSettings, series_id, absolute_order=0, updated_at=now)
+        row.preferred_audio_track_index = track_index
+        row.updated_at = now
         self._commit()
         logger.debug("Series %d preferred_audio_track_index -> %s", series_id, track_index)

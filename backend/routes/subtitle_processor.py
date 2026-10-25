@@ -225,18 +225,12 @@ def update_series_processing_config(series_id):
     from services.media_ids import series_owner_key
 
     # Standalone series: stored under the owner key (negated id).
+    from services.standalone_owner_keys import row_for_write
+
     key = series_owner_key(series_id)
-    row = _db.session.get(SeriesSettings, key)
-    if row:
-        row.processing_config = json.dumps(config) if config else None
-        row.updated_at = datetime.now(UTC)
-    else:
-        row = SeriesSettings(
-            sonarr_series_id=key,
-            processing_config=json.dumps(config) if config else None,
-            updated_at=datetime.now(UTC),
-        )
-        _db.session.add(row)
+    row = row_for_write(SeriesSettings, key, updated_at=datetime.now(UTC))
+    row.processing_config = json.dumps(config) if config else None
+    row.updated_at = datetime.now(UTC)
     _db.session.commit()
 
     return jsonify({"status": "ok", "series_id": series_id, "config": config}), 200
@@ -300,7 +294,6 @@ def _run_pipeline_for_path(subtitle_path: str, series_id: int | None) -> None:
         return
 
     from db.models.core import SeriesSettings
-    from extensions import db as _db
     from subtitle_processor import apply_mods, resolve_config
 
     s = get_settings()
@@ -310,9 +303,11 @@ def _run_pipeline_for_path(subtitle_path: str, series_id: int | None) -> None:
         "credit_removal": s.auto_process_credit_removal,
     }
 
+    from services.standalone_owner_keys import get_row
+
     series_cfg = None
     if series_id is not None:
-        row = _db.session.get(SeriesSettings, series_id)
+        row = get_row(SeriesSettings, series_id)
         if row and row.processing_config:
             try:
                 series_cfg = json.loads(row.processing_config)
@@ -369,12 +364,12 @@ def _batch_process_series(series_id: int) -> None:
     """Process all subtitle sidecars for a series. Called in background thread."""
     from db.models.core import SeriesSettings
     from events import emit_event
-    from extensions import db as _db
     from routes.subtitles import scan_subtitle_sidecars
     from services.media_ids import series_owner_key
+    from services.standalone_owner_keys import get_row
     from subtitle_processor import apply_mods, resolve_config
 
-    row = _db.session.get(SeriesSettings, series_owner_key(series_id))
+    row = get_row(SeriesSettings, series_owner_key(series_id))
     series_cfg = json.loads(row.processing_config) if (row and row.processing_config) else None
 
     s = get_settings()
@@ -444,7 +439,7 @@ def _batch_process_series(series_id: int) -> None:
 def _batch_process_library(filter_mode: str) -> None:
     """Process all series in library. filter_mode: 'all' | 'unprocessed'."""
     from db.models.core import SeriesSettings
-    from extensions import db as _db
+    from services.standalone_owner_keys import get_row
 
     try:
         series_ids = _library_series_ids()
@@ -454,7 +449,7 @@ def _batch_process_library(filter_mode: str) -> None:
 
     for series_id in series_ids:
         if filter_mode == "unprocessed":
-            row = _db.session.get(SeriesSettings, series_id)
+            row = get_row(SeriesSettings, series_id)
             if row and row.processing_config is not None:
                 continue  # already has processing config, skip
         _batch_process_series(series_id)

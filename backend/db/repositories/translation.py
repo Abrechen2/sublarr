@@ -30,6 +30,15 @@ from db.repositories.translation_cache import (  # noqa: F401 — re-exported fo
 logger = logging.getLogger(__name__)
 
 
+def _read_key(series_id):
+    """Series key whose glossary is read (pre-1.18 fallback for standalone keys)."""
+    if series_id is None or series_id >= 0:
+        return series_id
+    from services.standalone_owner_keys import glossary_owner_key
+
+    return glossary_owner_key(series_id)
+
+
 class TranslationRepository(BaseRepository, _TranslationCacheMixin):
     """Repository for translation-related table operations."""
 
@@ -94,6 +103,11 @@ class TranslationRepository(BaseRepository, _TranslationCacheMixin):
             confidence: Float 0-1 set by LLM extractor; None for manual entries.
             approved: 1 for approved/manual entries, 0 for pending AI suggestions.
         """
+        if series_id is not None and series_id < 0:
+            from services.standalone_owner_keys import SERIES, claim
+
+            # First term for a standalone title: keep its pre-1.18 terms.
+            claim(series_id, SERIES)
         now = self._now()
         entry = GlossaryEntry(
             series_id=series_id,
@@ -112,6 +126,7 @@ class TranslationRepository(BaseRepository, _TranslationCacheMixin):
 
     def get_glossary_entries(self, series_id: int) -> list[dict]:
         """Get all glossary entries for a series."""
+        series_id = _read_key(series_id)
         stmt = (
             select(GlossaryEntry)
             .where(GlossaryEntry.series_id == series_id)
@@ -126,6 +141,7 @@ class TranslationRepository(BaseRepository, _TranslationCacheMixin):
         Returns:
             List of {source_term, target_term} dicts, limited to 15 most recent.
         """
+        series_id = _read_key(series_id)
         stmt = (
             select(GlossaryEntry.source_term, GlossaryEntry.target_term)
             .where(GlossaryEntry.series_id == series_id)
@@ -158,6 +174,7 @@ class TranslationRepository(BaseRepository, _TranslationCacheMixin):
         Returns:
             List of {source_term, target_term} dicts, max 30 entries.
         """
+        series_id = _read_key(series_id)
         # Global entries
         global_stmt = (
             select(GlossaryEntry.source_term, GlossaryEntry.target_term)
@@ -188,6 +205,31 @@ class TranslationRepository(BaseRepository, _TranslationCacheMixin):
         merged = {**global_dict, **series_dict}
         return list(merged.values())[:30]
 
+    def _entry_for_write(self, entry_id: int):
+        """The entry to change for ``entry_id``.
+
+        A pre-1.18 entry of a standalone series that is still read through
+        the legacy fallback is never changed in place: the series' terms are
+        copied to its owner key first and the copy is returned.
+        """
+        entry = self.session.get(GlossaryEntry, entry_id)
+        if entry is None or entry.series_id is None or entry.series_id <= 0:
+            return entry
+        from services.standalone_owner_keys import SERIES, claim, legacy_key
+
+        owner_key = -entry.series_id
+        if legacy_key(owner_key, SERIES) != entry.series_id:
+            return entry
+        copy_id = (claim(owner_key, SERIES) or {}).get(entry_id)
+        # No copy (a concurrent first write won the claim): not found, never
+        # an in-place change of the old row.
+        return self.session.get(GlossaryEntry, copy_id) if copy_id else None
+
+    def writable_entry_id(self, entry_id: int) -> int | None:
+        """``entry_id``, or the id of its owner-key copy (see ``_entry_for_write``)."""
+        entry = self._entry_for_write(entry_id)
+        return entry.id if entry is not None else None
+
     def get_glossary_entry(self, entry_id: int) -> dict | None:
         """Get a single glossary entry by ID."""
         entry = self.session.get(GlossaryEntry, entry_id)
@@ -208,7 +250,7 @@ class TranslationRepository(BaseRepository, _TranslationCacheMixin):
         Pass ``confidence=None`` explicitly to clear the confidence value.
         Omit ``confidence`` (default sentinel ``...``) to leave it unchanged.
         """
-        entry = self.session.get(GlossaryEntry, entry_id)
+        entry = self._entry_for_write(entry_id)
         if entry is None:
             return False
 
@@ -241,7 +283,7 @@ class TranslationRepository(BaseRepository, _TranslationCacheMixin):
 
     def delete_glossary_entry(self, entry_id: int) -> bool:
         """Delete a glossary entry. Returns True if deleted."""
-        entry = self.session.get(GlossaryEntry, entry_id)
+        entry = self._entry_for_write(entry_id)
         if entry is None:
             return False
         self.session.delete(entry)
@@ -251,6 +293,11 @@ class TranslationRepository(BaseRepository, _TranslationCacheMixin):
     def delete_glossary_entries_for_series(self, series_id: int) -> int:
         """Delete all glossary entries for a series. Returns count deleted."""
         from sqlalchemy import delete as sa_delete
+
+        if series_id is not None and series_id < 0:
+            from services.standalone_owner_keys import SERIES, claim
+
+            claim(series_id, SERIES)
 
         result = self.session.execute(
             sa_delete(GlossaryEntry).where(GlossaryEntry.series_id == series_id)
@@ -265,6 +312,7 @@ class TranslationRepository(BaseRepository, _TranslationCacheMixin):
         When series_id is an int, searches per-series entries only.
         """
         search_pattern = f"%{query}%"
+        series_id = _read_key(series_id)
 
         if series_id is None:
             series_filter = GlossaryEntry.series_id.is_(None)

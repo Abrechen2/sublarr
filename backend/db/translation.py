@@ -87,6 +87,11 @@ def get_glossary_entry(entry_id: int) -> dict | None:
     return _get_repo().get_glossary_entry(entry_id)
 
 
+def glossary_entry_id_for_write(entry_id: int) -> int | None:
+    """The id to change for ``entry_id`` (a copy for a pre-1.18 standalone term)."""
+    return _get_repo().writable_entry_id(entry_id)
+
+
 def update_glossary_entry(
     entry_id: int,
     source_term: str = None,

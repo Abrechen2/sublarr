@@ -59,6 +59,7 @@ from db.models.standalone import (
     AnidbMapping,
     MetadataCache,
     StandaloneEpisode,
+    StandaloneLegacyClaim,
     StandaloneMovie,
     StandaloneSeries,
     WatchedFolder,
@@ -115,6 +116,7 @@ __all__ = [
     "StandaloneSeries",
     "StandaloneMovie",
     "StandaloneEpisode",
+    "StandaloneLegacyClaim",
     "MetadataCache",
     "AnidbMapping",
     # quality

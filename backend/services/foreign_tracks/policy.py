@@ -56,19 +56,19 @@ def resolve_policy(series_id: int | None = None, movie_id: int | None = None) ->
     """
     from config import get_settings
     from db.models.core import MovieSettings, SeriesSettings
-    from extensions import db
     from services.inheritance_resolver import resolve_for_movie, resolve_for_series
+    from services.standalone_owner_keys import get_row
 
     settings = get_settings()
     try:
         if series_id:
-            row = db.session.get(SeriesSettings, series_id)
+            row = get_row(SeriesSettings, series_id)
             if row is not None:
                 return _from_resolved(
                     resolve_for_series(series=row, profile=None, global_cfg=settings)
                 )
         if movie_id:
-            row = db.session.get(MovieSettings, movie_id)
+            row = get_row(MovieSettings, movie_id)
             if row is not None:
                 return _from_resolved(
                     resolve_for_movie(movie=row, profile=None, global_cfg=settings)
@@ -224,6 +224,25 @@ class _ArrProbe:
         raise _UnresolvedError(f"{self.label} answered HTTP {status}")
 
 
+def _settings_rows(kind: str, rows: list, key_col: str, probe) -> list[tuple[str, int, object]]:
+    """``(kind, owner key, row)`` for the sweep, with the pre-1.18 fallback.
+
+    With the arr configured every positive key is the arr's. Without it, a
+    readable pre-1.18 standalone row is reported under its owner key
+    (``resolve_policy`` reads it from there) and a superseded one (its title
+    has an owner-key row or took its rows over) is left out.
+    """
+    pairs = [(int(getattr(r, key_col)), r) for r in rows]
+    # Only a positive key can be ambiguous; ask for the client only then.
+    if not any(key > 0 for key, _ in pairs) or probe._get_client():
+        return [(kind, key, row) for key, row in pairs]
+    from services.standalone_owner_keys import claimed_ids, legacy_ids_as_owner_keys
+
+    pairs = legacy_ids_as_owner_keys(kind, pairs)
+    superseded = {key for key, _ in pairs if key < 0} | {-i for i in claimed_ids(kind)}
+    return [(kind, key, row) for key, row in pairs if not (key > 0 and -key in superseded)]
+
+
 def override_paths() -> OverrideSet:
     """Resolve the folders of every series/movie with a policy override or with
     the cleanup switched off. Called once per sweep slice.
@@ -247,8 +266,12 @@ def override_paths() -> OverrideSet:
     failed: list[str] = []
     probes = {"series": _ArrProbe("series"), "movie": _ArrProbe("movie")}
 
-    rows = [("series", r.sonarr_series_id, r) for r in db.session.query(SeriesSettings).all()]
-    rows += [("movie", r.radarr_movie_id, r) for r in db.session.query(MovieSettings).all()]
+    rows = _settings_rows(
+        "series", db.session.query(SeriesSettings).all(), "sonarr_series_id", probes["series"]
+    )
+    rows += _settings_rows(
+        "movie", db.session.query(MovieSettings).all(), "radarr_movie_id", probes["movie"]
+    )
     for kind, title_id, row in rows:
         switched_off = _is_switched_off(row)
         if not (switched_off or _has_override(row)):
@@ -256,6 +279,11 @@ def override_paths() -> OverrideSet:
         label = f"{kind} {title_id}"
         try:
             probe = probes[kind]
+            if title_id > 0 and not probe._get_client():
+                # Without the arr, a positive key that is not a readable
+                # pre-1.18 standalone row cannot be attributed: it may be the
+                # unconfigured arr's (docs/specs/standalone-ids.md).
+                raise _UnresolvedError(f"{label} may belong to an unconfigured arr")
             path = probe.path_of(title_id)
             if path is None:
                 logger.warning(

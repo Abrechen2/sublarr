@@ -23,9 +23,9 @@ def get_series_format_requirement(sonarr_series_id: int | None) -> str | None:
         return None
     try:
         from db.models.core import SeriesSettings
-        from extensions import db
+        from services.standalone_owner_keys import get_row
 
-        ss = db.session.get(SeriesSettings, sonarr_series_id)
+        ss = get_row(SeriesSettings, sonarr_series_id)
         if ss is None:
             return None
         value = ss.subtitle_format_requirement

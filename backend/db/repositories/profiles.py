@@ -334,6 +334,9 @@ class ProfileRepository(BaseRepository):
 
     def set_series_profile(self, sonarr_series_id: int, profile_id: int):
         """Assign a language profile to a series."""
+        from services.standalone_owner_keys import SERIES, claim
+
+        claim(sonarr_series_id, SERIES)
         entry = SeriesLanguageProfile(
             sonarr_series_id=sonarr_series_id,
             profile_id=profile_id,
@@ -342,22 +345,24 @@ class ProfileRepository(BaseRepository):
         self._commit()
 
     def get_series_profile(self, sonarr_series_id: int) -> dict:
-        """Get the language profile assigned to a series. Falls back to default."""
-        stmt = (
-            select(LanguageProfile)
-            .join(
-                SeriesLanguageProfile,
-                SeriesLanguageProfile.profile_id == LanguageProfile.id,
-            )
-            .where(SeriesLanguageProfile.sonarr_series_id == sonarr_series_id)
-        )
-        row = self.session.execute(stmt).scalars().first()
+        """Get the language profile assigned to a series. Falls back to default.
+
+        A standalone owner key without its own row reads the title's pre-1.18
+        assignment where allowed (services/standalone_owner_keys.py).
+        """
+        from services.standalone_owner_keys import get_row
+
+        mapping = get_row(SeriesLanguageProfile, sonarr_series_id)
+        row = self.session.get(LanguageProfile, mapping.profile_id) if mapping else None
         if row:
             return self._row_to_profile(row)
         return self.get_default_profile()
 
     def remove_series_profile(self, sonarr_series_id: int) -> bool:
         """Remove a series profile assignment. Returns True if deleted."""
+        from services.standalone_owner_keys import SERIES, claim
+
+        claim(sonarr_series_id, SERIES)
         stmt = delete(SeriesLanguageProfile).where(
             SeriesLanguageProfile.sonarr_series_id == sonarr_series_id
         )
@@ -369,6 +374,9 @@ class ProfileRepository(BaseRepository):
 
     def set_movie_profile(self, radarr_movie_id: int, profile_id: int):
         """Assign a language profile to a movie."""
+        from services.standalone_owner_keys import MOVIE, claim
+
+        claim(radarr_movie_id, MOVIE)
         entry = MovieLanguageProfile(
             radarr_movie_id=radarr_movie_id,
             profile_id=profile_id,
@@ -377,22 +385,23 @@ class ProfileRepository(BaseRepository):
         self._commit()
 
     def get_movie_profile(self, radarr_movie_id: int) -> dict:
-        """Get the language profile assigned to a movie. Falls back to default."""
-        stmt = (
-            select(LanguageProfile)
-            .join(
-                MovieLanguageProfile,
-                MovieLanguageProfile.profile_id == LanguageProfile.id,
-            )
-            .where(MovieLanguageProfile.radarr_movie_id == radarr_movie_id)
-        )
-        row = self.session.execute(stmt).scalars().first()
+        """Get the language profile assigned to a movie. Falls back to default.
+
+        Same pre-1.18 fallback for standalone owner keys as series.
+        """
+        from services.standalone_owner_keys import get_row
+
+        mapping = get_row(MovieLanguageProfile, radarr_movie_id)
+        row = self.session.get(LanguageProfile, mapping.profile_id) if mapping else None
         if row:
             return self._row_to_profile(row)
         return self.get_default_profile()
 
     def remove_movie_profile(self, radarr_movie_id: int) -> bool:
         """Remove a movie profile assignment. Returns True if deleted."""
+        from services.standalone_owner_keys import MOVIE, claim
+
+        claim(radarr_movie_id, MOVIE)
         stmt = delete(MovieLanguageProfile).where(
             MovieLanguageProfile.radarr_movie_id == radarr_movie_id
         )
@@ -432,7 +441,15 @@ class ProfileRepository(BaseRepository):
             SeriesLanguageProfile.profile_id == LanguageProfile.id,
         )
         rows = self.session.execute(stmt).all()
-        return {row[0]: {"profile_id": row[1], "profile_name": row[2]} for row in rows}
+        out = {row[0]: {"profile_id": row[1], "profile_name": row[2]} for row in rows}
+        # Standalone series still on their pre-1.18 assignment (read-only
+        # fallback, services/standalone_owner_keys.py) are listed by owner key.
+        from services.standalone_owner_keys import SERIES, readable_legacy_ids
+
+        for standalone_id in readable_legacy_ids(SERIES):
+            if standalone_id in out and -standalone_id not in out:
+                out[-standalone_id] = out[standalone_id]
+        return out
 
     def get_series_missing_counts(self) -> dict:
         """Get wanted item counts per series: {series_id: count}."""

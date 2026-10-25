@@ -61,13 +61,13 @@ def _get_title_override(item: dict) -> bool | None:
     """
     try:
         from db.models.core import MovieSettings, SeriesSettings
-        from extensions import db
+        from services.standalone_owner_keys import get_row
 
         series_id, movie_id = settings_ids(item)
         if series_id:
-            row = db.session.get(SeriesSettings, series_id)
+            row = get_row(SeriesSettings, series_id)
         elif movie_id:
-            row = db.session.get(MovieSettings, movie_id)
+            row = get_row(MovieSettings, movie_id)
         else:
             return None
     except Exception as exc:  # noqa: BLE001 — surfaced as "unavailable", never as "inherit"

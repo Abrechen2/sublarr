@@ -448,9 +448,15 @@ def update_glossary(entry_id: int, data: dict) -> dict:
 
     Raises ``ProfileNotFoundError`` / ``ProfileValidationError``.
     """
-    from db.translation import get_glossary_entry, update_glossary_entry
+    from db.translation import (
+        get_glossary_entry,
+        glossary_entry_id_for_write,
+        update_glossary_entry,
+    )
 
-    entry = get_glossary_entry(entry_id)
+    # A pre-1.18 standalone term is edited as a copy under the owner key.
+    entry_id = glossary_entry_id_for_write(entry_id)
+    entry = get_glossary_entry(entry_id) if entry_id is not None else None
     if not entry:
         raise ProfileNotFoundError("Entry not found")
 

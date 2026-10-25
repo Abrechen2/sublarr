@@ -168,6 +168,18 @@ def _reset_budget_singleton():
 
 
 @pytest.fixture(autouse=True)
+def _reset_standalone_legacy_evidence():
+    """The arr evidence behind the standalone legacy-key fallback is cached
+    per process; a test that stored a Sonarr URL must not switch the fallback
+    off for the next test on the same worker."""
+    from services import standalone_owner_keys
+
+    standalone_owner_keys.reset_cache()
+    yield
+    standalone_owner_keys.reset_cache()
+
+
+@pytest.fixture(autouse=True)
 def _reset_suspect_sidecar_cache():
     """The suspect-sidecar lookup is cached per process for 60 s.
 

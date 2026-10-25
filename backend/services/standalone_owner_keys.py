@@ -1,417 +1,383 @@
-"""Move pre-1.18 standalone rows to their owner key — once per database.
+"""Pre-1.18 standalone rows: read where they are, copied on the first write.
 
 Before 1.18.0 the standalone pages wrote a title's profile assignment,
 settings, glossary entries and fansub preferences under its positive row id
 whenever no Sonarr (series) or Radarr (movie) client was configured. Since
-1.18.0 those rows live under the negated id (docs/specs/standalone-ids.md),
-so that standalone series 3 and Sonarr series 3 never share a row.
+1.18.0 they are written under the owner key, the negated id
+(docs/specs/standalone-ids.md), so standalone series 3 and Sonarr series 3
+never share a row.
 
 Whether a positive key belongs to the arr or to a standalone title cannot be
-read from the row: it depended on the configuration at the time of the write.
-So a side is moved only with affirmative evidence that the install never used
-that arr — all of:
+read from the row, so no row is ever moved, rewritten or deleted because of
+it. Instead:
 
-* the arr is not configured now;
-* no arr URL / instance list was ever stored in ``config_entries``;
-* no durable row carries an arr id (translation job contexts, the
-  automation queue);
-* no durable history row (downloads, upgrades, blacklist, translation jobs,
-  sidecar origins, health findings) names a file outside the standalone
-  titles, or a file inside one that was recorded before that title was
-  created (the arr handled the same folder before it was imported as
-  standalone).
+* Readers ask for the owner key first. When there is no row under it, the
+  legacy positive key (= the standalone row id) is read instead, read-only,
+  if all of these hold (``legacy_key``):
 
-Wanted rows and the search index are no evidence that the arr was unused: a
-successful download deletes wanted rows, and startup rebuilds the search
-index from them before this runs. A wanted row that still carries an arr id
-only adds a reason to keep (it can never cause a move).
+  - the matching arr (Sonarr for series, Radarr for movies) is not
+    configured — a configured arr owns every positive key;
+  - no durable evidence shows the install ever used that arr (a stored arr
+    URL / instance list, a wanted row, translation job or automation queue
+    row with an arr id; cached, see ``arr_evidence``);
+  - the title has not claimed its rows yet (``standalone_legacy_claims``);
+  - the standalone title exists.
 
-Otherwise that side's rows stay exactly where they are (nothing copied or
-deleted) and one warning says how many were kept and why, so the user can
-reassign the settings on the Library page. A row whose owner key already
-exists stays as well.
+* Writers write the owner key, as before. The first write for a title whose
+  legacy rows are still readable first copies them to the owner key and
+  records the claim (``claim``), in the writer's own transaction: changing
+  one setting keeps the others, adding a glossary term keeps the old terms,
+  and deleting under the owner key never brings the old rows back. The
+  legacy rows themselves stay untouched.
 
-Runs at startup after the settings overlay is loaded (the "arr configured"
-rule needs the effective configuration, which Alembic's env.py does not
-have), for tracked and untracked databases. The marker row in
-``untracked_data_repairs`` is written in the same transaction, before the
-moves, so a second concurrent starter fails on its primary key and rolls back,
-and a failed move leaves no marker and is retried on the next start. A kept
-(ambiguous) result also writes the marker: evidence that disappears later
-(pruned history) must not move the rows silently on a later start.
+Nothing runs at startup. The ``sa2_standalone_owner_keys`` marker that
+release candidates of 1.18.0 wrote into ``untracked_data_repairs`` is no
+longer read or written; it is harmless.
 """
 
 from __future__ import annotations
 
 import logging
-import os
+import threading
+import time
 from datetime import UTC, datetime
 
 import sqlalchemy as sa
 
 logger = logging.getLogger(__name__)
 
-MARKER = "sa2_standalone_owner_keys"
-
-# (table, key column) — fixed names, never user input.
-_SERIES_TABLES = (
-    ("series_language_profiles", "sonarr_series_id"),
-    ("series_settings", "sonarr_series_id"),
-    ("fansub_preferences", "sonarr_series_id"),
-    ("glossary_entries", "series_id"),
-)
-_MOVIE_TABLES = (
-    ("movie_language_profiles", "radarr_movie_id"),
-    ("movie_settings", "radarr_movie_id"),
-)
+SERIES = "series"
+MOVIE = "movie"
 
 # Config keys whose non-empty value means the arr was set up at some point.
 # A cleared field ("" / "[]") is no evidence.
-_SONARR_CONFIG_KEYS = ("sonarr_url", "sonarr_instances_json")
-_RADARR_CONFIG_KEYS = ("radarr_url", "radarr_instances_json")
+_CONFIG_KEYS = {
+    SERIES: ("sonarr_url", "sonarr_instances_json"),
+    MOVIE: ("radarr_url", "radarr_instances_json"),
+}
 
-# Durable history that records a media or subtitle path:
-# (table, path column, timestamp column).
-_PATH_HISTORY = (
-    ("subtitle_downloads", "file_path", "downloaded_at"),
-    ("upgrade_history", "file_path", "upgraded_at"),
-    ("blacklist_entries", "file_path", "added_at"),
-    ("jobs", "file_path", "created_at"),
-    ("sidecar_origins", "video_path", "recorded_at"),
-    ("subtitle_health_findings", "target_path", "detected_at"),
-)
+# (table, SQL condition) whose first match is evidence. Fixed SQL, no input.
+_ID_EVIDENCE = {
+    SERIES: (
+        ("wanted_items", "sonarr_series_id IS NOT NULL OR sonarr_episode_id IS NOT NULL"),
+        ("jobs", "bazarr_context_json LIKE '%\"sonarr_%'"),
+    ),
+    MOVIE: (
+        ("wanted_items", "radarr_movie_id IS NOT NULL"),
+        ("jobs", "bazarr_context_json LIKE '%\"radarr_%'"),
+        ("subtitle_automation_queue", "radarr_movie_id IS NOT NULL"),
+    ),
+}
 
-
-def _tables(conn) -> set[str]:
-    return set(sa.inspect(conn).get_table_names())
-
-
-def _has_rows(conn, sql: str) -> bool:
-    return conn.execute(sa.text(sql)).first() is not None
-
-
-def _config_evidence(conn, tables: set[str], keys: tuple[str, ...]) -> str | None:
-    if "config_entries" not in tables:
-        return None
-    for key in keys:
-        value = conn.execute(
-            sa.text("SELECT value FROM config_entries WHERE key = :k"), {"k": key}
-        ).scalar()
-        if value is not None and value.strip() not in ("", "[]"):
-            return f"config_entries.{key} is set"
-    return None
+# "No evidence" is re-checked after this many seconds; found evidence sticks
+# for the life of the process (it only disappears when history is pruned).
+_EVIDENCE_TTL_S = 300.0
+_evidence_cache: dict[str, tuple[float, str | None]] = {}
+_cache_lock = threading.Lock()
 
 
-def _sonarr_id_evidence(conn, tables: set[str]) -> str | None:
-    if "wanted_items" in tables and _has_rows(
-        conn,
-        "SELECT 1 FROM wanted_items "
-        "WHERE sonarr_series_id IS NOT NULL OR sonarr_episode_id IS NOT NULL",
-    ):
-        return "wanted_items rows with a Sonarr id"
-    if "jobs" in tables and _has_rows(
-        conn, "SELECT 1 FROM jobs WHERE bazarr_context_json LIKE '%\"sonarr_%'"
-    ):
-        return "translation jobs with a Sonarr id"
-    # search_series is deliberately not consulted: startup rebuilds it from
-    # wanted_items before this move runs, so it says nothing wanted_items
-    # does not.
-    return None
+def reset_cache() -> None:
+    """Forget cached evidence (tests; after a config change)."""
+    with _cache_lock:
+        _evidence_cache.clear()
 
 
-def _radarr_id_evidence(conn, tables: set[str]) -> str | None:
-    if "wanted_items" in tables and _has_rows(
-        conn, "SELECT 1 FROM wanted_items WHERE radarr_movie_id IS NOT NULL"
-    ):
-        return "wanted_items rows with a Radarr id"
-    if "jobs" in tables and _has_rows(
-        conn, "SELECT 1 FROM jobs WHERE bazarr_context_json LIKE '%\"radarr_%'"
-    ):
-        return "translation jobs with a Radarr id"
-    if "subtitle_automation_queue" in tables and _has_rows(
-        conn, "SELECT 1 FROM subtitle_automation_queue WHERE radarr_movie_id IS NOT NULL"
-    ):
-        return "automation queue rows with a Radarr id"
-    return None
+def _session():
+    from extensions import db
+
+    return db.session
 
 
-def _norm(path: str) -> str:
-    return os.path.normpath(path.replace("\\", "/"))
+def _arr_configured(kind: str) -> bool:
+    from services.media_ids import _radarr_configured, _sonarr_configured
+
+    return _sonarr_configured() if kind == SERIES else _radarr_configured()
 
 
-def _as_utc(value) -> datetime | None:
-    """A DB timestamp (datetime, or ISO text on SQLite) as aware UTC; None if unreadable."""
-    if isinstance(value, datetime):
-        stamp = value
-    else:
-        try:
-            stamp = datetime.fromisoformat(str(value))
-        except (TypeError, ValueError):
-            return None
-    return stamp if stamp.tzinfo else stamp.replace(tzinfo=UTC)
-
-
-class _StandaloneFiles:
-    """Which standalone title (if any) a recorded path belongs to, and since when.
-
-    Lookups are dictionary hits per ancestor directory, so the cost is the
-    path depth, not the library size.
-    """
-
-    def __init__(self, conn, tables: set[str]):
-        self.folders: dict[str, datetime | None] = {}
-        self.files: dict[str, datetime | None] = {}
-        self.movies: dict[str, list[tuple[str, datetime | None]]] = {}  # dir -> (stem., since)
-        if "standalone_series" in tables:
-            for folder, created in conn.execute(
-                sa.text("SELECT folder_path, created_at FROM standalone_series")
-            ):
-                if folder:
-                    self.folders[_norm(folder).rstrip("/") or "/"] = _as_utc(created)
-        if "standalone_movies" in tables:
-            for path, created in conn.execute(
-                sa.text("SELECT file_path, created_at FROM standalone_movies")
-            ):
-                if path:
-                    path, since = _norm(path), _as_utc(created)
-                    self.files[path] = since
-                    stem = os.path.splitext(os.path.basename(path))[0]
-                    self.movies.setdefault(os.path.dirname(path), []).append((stem + ".", since))
-
-    def owner_since(self, path: str) -> tuple[bool, datetime | None]:
-        """``(owned, owner's created_at)`` for a recorded path."""
-        path = _norm(path)
-        if path in self.files:
-            return True, self.files[path]
-        directory, name = os.path.dirname(path), os.path.basename(path)
-        for stem, since in self.movies.get(directory, ()):
-            if name.startswith(stem):
-                return True, since
-        current = directory
-        while True:
-            if current in self.folders:
-                return True, self.folders[current]
-            parent = os.path.dirname(current)
-            if parent == current:
-                return False, None
-            current = parent
-
-
-def _foreign_path_evidence(conn, tables: set[str]) -> str | None:
-    """A history row the standalone titles cannot account for.
-
-    That is a file outside every standalone title, or a file inside one but
-    recorded before that title existed (Sonarr/Radarr handled the same folder
-    before it was imported as standalone). Which arr cannot be told from a
-    path, so this counts against both sides. An unreadable timestamp counts
-    as evidence too.
-    """
-    owned = _StandaloneFiles(conn, tables)
-    for table, col, ts in _PATH_HISTORY:
+def _find_evidence(kind: str) -> str | None:
+    session = _session()
+    tables = set(sa.inspect(session.get_bind()).get_table_names())
+    if "config_entries" in tables:
+        for key in _CONFIG_KEYS[kind]:
+            value = session.execute(
+                sa.text("SELECT value FROM config_entries WHERE key = :k"), {"k": key}
+            ).scalar()
+            if value is not None and str(value).strip() not in ("", "[]"):
+                return f"config_entries.{key} is set"
+    for table, condition in _ID_EVIDENCE[kind]:
         if table not in tables:
             continue
-        rows = conn.execute(
-            sa.text(
-                f"SELECT {col}, MIN({ts}) FROM {table} "  # noqa: S608 — fixed names
-                f"WHERE {col} IS NOT NULL AND {col} != '' GROUP BY {col}"
-            )
-        )
-        for path, first_seen in rows:
-            is_owned, since = owned.owner_since(path)
-            if not is_owned:
-                return f"{table} rows for files outside the standalone titles"
-            seen = _as_utc(first_seen)
-            if since is None or seen is None or seen < since:
-                return f"{table} rows older than the standalone title they belong to"
+        sql = f"SELECT 1 FROM {table} WHERE {condition} LIMIT 1"  # noqa: S608 — fixed SQL
+        if session.execute(sa.text(sql)).first() is not None:
+            return f"{table} rows with an arr id"
     return None
 
 
-def _ids(conn, tables: set[str], table: str) -> list[int]:
-    if table not in tables:
-        return []
-    return [r[0] for r in conn.execute(sa.text(f"SELECT id FROM {table}"))]  # noqa: S608
+def arr_evidence(kind: str) -> str | None:
+    """Why the install may have used this kind's arr, or ``None``.
 
-
-def _count_candidates(conn, tables: set[str], specs, owner_ids: list[int]) -> int:
-    """Positive-key rows the move would have rewritten (reported as kept)."""
-    ids = set(owner_ids)
-    kept = 0
-    for table, col in specs:
-        if table not in tables or not ids:
-            continue
-        for (key,) in conn.execute(
-            sa.text(f"SELECT {col} FROM {table} WHERE {col} > 0")  # noqa: S608 — fixed names
-        ):
-            kept += key in ids
-    return kept
-
-
-def _move_keys(conn, tables: set[str], specs, owner_ids: list[int]) -> int:
-    moved = 0
-    for table, col in specs:
-        if table not in tables:
-            continue
-        for owner_id in owner_ids:
-            taken = conn.execute(
-                sa.text(f"SELECT 1 FROM {table} WHERE {col} = :key"),  # noqa: S608 — fixed names
-                {"key": -owner_id},
-            ).first()
-            if taken:
-                # An owner-key row exists already (unique tables would collide;
-                # for the glossary, two sets would be mixed): keep the old row.
-                continue
-            result = conn.execute(
-                sa.text(f"UPDATE {table} SET {col} = :new WHERE {col} = :old"),  # noqa: S608
-                {"new": -owner_id, "old": owner_id},
-            )
-            moved += result.rowcount or 0
-    return moved
-
-
-def _belongs_to(target: str, video: str) -> bool:
-    if os.path.normpath(target) == os.path.normpath(video):
-        return True
-    stem = os.path.splitext(os.path.basename(video))[0]
-    return os.path.dirname(target) == os.path.dirname(video) and os.path.basename(
-        target
-    ).startswith(stem + ".")
-
-
-def _rekey_findings(conn, tables: set[str]) -> int:
-    """Findings keyed by a standalone wanted row id -> that episode's negative id."""
-    if not {"subtitle_health_findings", "wanted_items", "standalone_episodes"} <= tables:
-        return 0
-    rows = conn.execute(
-        sa.text(
-            "SELECT f.id, f.target_path, w.file_path, e.id "
-            "FROM subtitle_health_findings f "
-            "JOIN wanted_items w ON w.id = f.episode_id AND w.standalone_series_id IS NOT NULL "
-            "JOIN standalone_episodes e ON e.file_path = w.file_path "
-            "WHERE f.episode_id > 0"
-        )
-    ).fetchall()
-    moved = 0
-    for finding_id, target, video, episode_row_id in rows:
-        if not target or not video or not _belongs_to(target, video):
-            continue
-        conn.execute(
-            sa.text("UPDATE subtitle_health_findings SET episode_id = :e WHERE id = :id"),
-            {"e": -int(episode_row_id), "id": finding_id},
-        )
-        moved += 1
-    return moved
-
-
-def _arr_evidence(conn, tables: set[str], *, configured: bool, name: str, keys, id_check, shared):
-    """Why this side may have been the arr's, or ``None`` when it never was.
-
-    ``shared`` is a callable: the history scan runs only when the cheap
-    checks found nothing, and at most once for both sides.
+    Cheap, durable signals only. Download history is deliberately not used:
+    a deleted or renamed standalone title leaves history that looks foreign,
+    and that would switch the fallback off for standalone-only installs.
     """
-    if configured:
-        return f"{name} is configured"
-    return _config_evidence(conn, tables, keys) or id_check(conn, tables) or shared()
-
-
-def migrate_legacy_owner_keys(
-    engine, *, sonarr_configured: bool, radarr_configured: bool
-) -> dict[str, int] | None:
-    """Apply the move once; ``None`` when it already ran, else the counts."""
-    from db.untracked_data_repairs import MARKER_TABLE, _ensure_marker_table
-
-    _ensure_marker_table(engine)
-    with engine.connect() as conn:
-        done = conn.execute(
-            sa.text(f"SELECT 1 FROM {MARKER_TABLE} WHERE revision = :r"),  # noqa: S608
-            {"r": MARKER},
-        ).first()
-    if done:
-        return None
-
-    kept: list[str] = []
-    with engine.begin() as conn:
-        conn.execute(
-            sa.text(
-                f"INSERT INTO {MARKER_TABLE} (revision, applied_at, affected) "  # noqa: S608
-                "VALUES (:r, :at, 0)"
-            ),
-            {"r": MARKER, "at": datetime.now(UTC).isoformat()},
-        )
-        tables = _tables(conn)
-        counts = {"series": 0, "movies": 0, "findings": 0}
-        series_ids = _ids(conn, tables, "standalone_series")
-        movie_ids = _ids(conn, tables, "standalone_movies")
-        history: list[str | None] = []
-
-        def shared() -> str | None:
-            if not history:
-                history.append(_foreign_path_evidence(conn, tables))
-            return history[0]
-
-        if series_ids:
-            reason = _arr_evidence(
-                conn,
-                tables,
-                configured=sonarr_configured,
-                name="Sonarr",
-                keys=_SONARR_CONFIG_KEYS,
-                id_check=_sonarr_id_evidence,
-                shared=shared,
-            )
-            if reason:
-                n = _count_candidates(conn, tables, _SERIES_TABLES, series_ids)
-                if n:
-                    kept.append(f"{n} series row(s) ({reason})")
-            else:
-                counts["series"] = _move_keys(conn, tables, _SERIES_TABLES, series_ids)
-                counts["findings"] = _rekey_findings(conn, tables)
-
-        if movie_ids:
-            reason = _arr_evidence(
-                conn,
-                tables,
-                configured=radarr_configured,
-                name="Radarr",
-                keys=_RADARR_CONFIG_KEYS,
-                id_check=_radarr_id_evidence,
-                shared=shared,
-            )
-            if reason:
-                n = _count_candidates(conn, tables, _MOVIE_TABLES, movie_ids)
-                if n:
-                    kept.append(f"{n} movie row(s) ({reason})")
-            else:
-                counts["movies"] = _move_keys(conn, tables, _MOVIE_TABLES, movie_ids)
-
-        conn.execute(
-            sa.text(f"UPDATE {MARKER_TABLE} SET affected = :n WHERE revision = :r"),  # noqa: S608
-            {"n": sum(counts.values()), "r": MARKER},
-        )
-    if kept:
-        logger.warning(
-            "Standalone owner keys: kept %s on their old ids because they may belong to "
-            "Sonarr/Radarr; the matching standalone titles start on inherited settings. "
-            "Reassign profiles and settings for those titles on the Library page if needed.",
-            " and ".join(kept),
-        )
-    logger.info(
-        "Standalone owner keys: moved %d series row(s), %d movie row(s), %d health finding(s)",
-        counts["series"],
-        counts["movies"],
-        counts["findings"],
-    )
-    return counts
-
-
-def run_at_startup(engine) -> None:
-    """Startup hook: never blocks startup; a failure is retried next start."""
+    now = time.monotonic()
+    with _cache_lock:
+        cached = _evidence_cache.get(kind)
+    if cached is not None and (cached[1] is not None or now - cached[0] < _EVIDENCE_TTL_S):
+        return cached[1]
     try:
-        from config_instances import get_radarr_instances, get_sonarr_instances
-
-        migrate_legacy_owner_keys(
-            engine,
-            sonarr_configured=bool(get_sonarr_instances()),
-            radarr_configured=bool(get_radarr_instances()),
+        reason = _find_evidence(kind)
+    except Exception:  # noqa: BLE001 — cannot tell: do not read positive keys
+        logger.warning("Standalone legacy keys: evidence check failed", exc_info=True)
+        return "evidence check failed"
+    with _cache_lock:
+        previous = _evidence_cache.get(kind)
+        _evidence_cache[kind] = (now, reason)
+    if reason and (previous is None or previous[1] is None):
+        logger.warning(
+            "Standalone legacy keys: %s; pre-1.18 settings saved under positive ids are not "
+            "used for standalone %s",
+            reason,
+            "series" if kind == SERIES else "movies",
         )
-    except Exception:
-        logger.warning("Standalone owner-key move failed; will retry on next start", exc_info=True)
+    return reason
+
+
+def _claimed(kind: str, standalone_id: int) -> bool:
+    from db.models.standalone import StandaloneLegacyClaim
+
+    return _session().get(StandaloneLegacyClaim, (kind, standalone_id)) is not None
+
+
+def _standalone_exists(kind: str, standalone_id: int) -> bool:
+    from db.models.standalone import StandaloneMovie, StandaloneSeries
+
+    model = StandaloneSeries if kind == SERIES else StandaloneMovie
+    return _session().get(model, standalone_id) is not None
+
+
+def legacy_key(owner_key: int | None, kind: str) -> int | None:
+    """The pre-1.18 positive key to read for a standalone owner key, or None.
+
+    ``None`` for a Sonarr/Radarr key, a configured arr, arr evidence, a
+    claimed title or an unknown title.
+    """
+    if owner_key is None or int(owner_key) >= 0:
+        return None
+    standalone_id = -int(owner_key)
+    if _arr_configured(kind) or arr_evidence(kind):
+        return None
+    if _claimed(kind, standalone_id) or not _standalone_exists(kind, standalone_id):
+        return None
+    return standalone_id
+
+
+def readable_legacy_ids(kind: str) -> frozenset[int]:
+    """Standalone ids whose positive-key rows may currently be read (bulk readers)."""
+    if _arr_configured(kind) or arr_evidence(kind):
+        return frozenset()
+    from db.models.standalone import StandaloneMovie, StandaloneSeries
+
+    model = StandaloneSeries if kind == SERIES else StandaloneMovie
+    ids = {r[0] for r in _session().execute(sa.select(model.id))}
+    return frozenset(ids - claimed_ids(kind))
+
+
+def claimed_ids(kind: str) -> frozenset[int]:
+    """Standalone ids that took their pre-1.18 rows over (or were deleted)."""
+    from db.models.standalone import StandaloneLegacyClaim
+
+    return frozenset(
+        r[0]
+        for r in _session().execute(
+            sa.select(StandaloneLegacyClaim.standalone_id).where(StandaloneLegacyClaim.kind == kind)
+        )
+    )
+
+
+def legacy_ids_as_owner_keys(kind: str, rows: list[tuple[int, object]]) -> list[tuple[int, object]]:
+    """Bulk readers: ``(key, value)`` rows of one table with the fallback applied.
+
+    A positive key that is a readable legacy standalone id (and has no
+    owner-key row in ``rows``) is reported under its owner key instead; all
+    other rows pass through unchanged.
+    """
+    keys = {key for key, _ in rows}
+    readable = readable_legacy_ids(kind) if any(k and k > 0 for k in keys) else frozenset()
+    out = []
+    for key, value in rows:
+        if key and key > 0 and key in readable and -key not in keys:
+            out.append((-key, value))
+        else:
+            out.append((key, value))
+    return out
+
+
+# ---------------------------------------------------------------------------
+# Tables
+# ---------------------------------------------------------------------------
+
+
+def _single_row_models(kind: str):
+    """(model, key column name) of the one-row-per-title tables of ``kind``."""
+    from db.models.core import (
+        FansubPreference,
+        MovieLanguageProfile,
+        MovieSettings,
+        SeriesLanguageProfile,
+        SeriesSettings,
+    )
+
+    if kind == SERIES:
+        return (
+            (SeriesLanguageProfile, "sonarr_series_id"),
+            (SeriesSettings, "sonarr_series_id"),
+            (FansubPreference, "sonarr_series_id"),
+        )
+    return ((MovieLanguageProfile, "radarr_movie_id"), (MovieSettings, "radarr_movie_id"))
+
+
+def _kind_of(model) -> str:
+    return MOVIE if model.__tablename__.startswith("movie_") else SERIES
+
+
+def get_row(model, key: int | None):
+    """The row of a one-row-per-title table for ``key``, with the legacy fallback.
+
+    ``model`` is SeriesSettings, MovieSettings, SeriesLanguageProfile,
+    MovieLanguageProfile or FansubPreference. A positive key is a plain
+    primary-key lookup.
+    """
+    if not key:
+        return None
+    session = _session()
+    row = session.get(model, int(key))
+    if row is not None:
+        return row
+    legacy = legacy_key(key, _kind_of(model))
+    return session.get(model, legacy) if legacy is not None else None
+
+
+def row_for_write(model, key: int, **defaults):
+    """The row to change for ``key``: claims the title first, creates it if missing.
+
+    The new row is added to the session, not committed.
+    """
+    claim(key, _kind_of(model))
+    session = _session()
+    row = session.get(model, int(key))
+    if row is None:
+        key_col = model.__mapper__.primary_key[0].name
+        row = model(**{key_col: int(key)}, **defaults)
+        session.add(row)
+    return row
+
+
+def glossary_owner_key(series_id: int | None) -> int | None:
+    """The series key whose glossary is read for ``series_id`` (legacy fallback)."""
+    if series_id is None or int(series_id) >= 0:
+        return series_id
+    from db.models.translation import GlossaryEntry
+
+    session = _session()
+    has_own = session.execute(
+        sa.select(GlossaryEntry.id).where(GlossaryEntry.series_id == int(series_id)).limit(1)
+    ).first()
+    if has_own is not None:
+        return series_id
+    legacy = legacy_key(series_id, SERIES)
+    return legacy if legacy is not None else series_id
+
+
+def _copy_single_rows(kind: str, owner_key: int, legacy: int) -> None:
+    session = _session()
+    for model, key_col in _single_row_models(kind):
+        table = model.__table__
+        if session.get(model, owner_key) is not None:
+            continue
+        others = [c.name for c in table.columns if c.name != key_col]
+        session.execute(
+            sa.insert(table).from_select(
+                [key_col, *others],
+                sa.select(sa.literal(owner_key), *[table.c[c] for c in others]).where(
+                    table.c[key_col] == legacy
+                ),
+            )
+        )
+
+
+def _copy_glossary(owner_key: int, legacy: int) -> dict[int, int]:
+    from db.models.translation import GlossaryEntry
+
+    session = _session()
+    if session.execute(
+        sa.select(GlossaryEntry.id).where(GlossaryEntry.series_id == owner_key).limit(1)
+    ).first():
+        return {}
+    fields = [c.name for c in GlossaryEntry.__table__.columns if c.name not in ("id", "series_id")]
+    rows = session.execute(
+        sa.select(GlossaryEntry).where(GlossaryEntry.series_id == legacy).order_by(GlossaryEntry.id)
+    ).scalars()
+    copies = [
+        (old, GlossaryEntry(series_id=owner_key, **{f: getattr(old, f) for f in fields}))
+        for old in rows
+    ]
+    session.add_all([new for _, new in copies])
+    session.flush()
+    return {old.id: new.id for old, new in copies}
+
+
+def claim(owner_key: int | None, kind: str) -> dict[int, int] | None:
+    """Before a write under ``owner_key``: take over the title's legacy rows.
+
+    When the legacy rows are still readable (``legacy_key``), copies every
+    one of them that has no owner-key counterpart yet to the owner key and
+    records the claim, in the caller's session (committed with the caller's
+    write). Returns ``{legacy glossary entry id: copy id}`` when it claimed,
+    ``None`` when there was nothing to claim (Sonarr/Radarr keys, titles
+    without readable legacy rows) or a concurrent writer claimed first.
+
+    Call it before staging changes: losing a concurrent first-write race
+    rolls the session back and leaves the winner's copy in place.
+    """
+    legacy = legacy_key(owner_key, kind)
+    if legacy is None:
+        return None
+    from sqlalchemy.exc import IntegrityError
+
+    from db.models.standalone import StandaloneLegacyClaim
+
+    session = _session()
+    try:
+        session.add(
+            StandaloneLegacyClaim(kind=kind, standalone_id=legacy, claimed_at=datetime.now(UTC))
+        )
+        session.flush()
+        _copy_single_rows(kind, int(owner_key), legacy)
+        mapping = _copy_glossary(int(owner_key), legacy) if kind == SERIES else {}
+        session.flush()
+    except IntegrityError:
+        session.rollback()
+        logger.debug("Standalone legacy claim for %s %s raced; using the winner's", kind, legacy)
+        return None
+    logger.info(
+        "Standalone %s %d: copied its pre-1.18 settings to the new id on first change",
+        kind,
+        legacy,
+    )
+    return mapping
+
+
+def claim_deleted_title(kind: str, standalone_id: int) -> None:
+    """A deleted standalone title: its legacy rows are never read again.
+
+    Without this a reused row id (SQLite reuses the highest id after a
+    delete) would inherit them. Added to the caller's session.
+    """
+    if _claimed(kind, standalone_id):
+        return
+    from db.models.standalone import StandaloneLegacyClaim
+
+    _session().add(
+        StandaloneLegacyClaim(kind=kind, standalone_id=standalone_id, claimed_at=datetime.now(UTC))
+    )

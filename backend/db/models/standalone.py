@@ -5,7 +5,7 @@ All column types and defaults match the existing SCHEMA DDL in db/__init__.py ex
 
 from datetime import datetime
 
-from sqlalchemy import DateTime, Index, Integer, Text
+from sqlalchemy import DateTime, Index, Integer, String, Text
 from sqlalchemy.orm import Mapped, mapped_column
 
 from extensions import db
@@ -77,6 +77,25 @@ class StandaloneEpisode(db.Model):
         Index("idx_standalone_episodes_series", "standalone_series_id"),
         {"sqlite_autoincrement": True},
     )
+
+
+class StandaloneLegacyClaim(db.Model):
+    """A standalone title whose pre-1.18 positive-key rows are no longer read.
+
+    Before 1.18.0 a standalone title's profile, settings, glossary and fansub
+    rows were stored under its positive row id. They are still read from
+    there (read-only) until the title's first write since the upgrade: that
+    write copies them to the owner key (the negated id) and records the claim
+    here, so a later delete under the owner key never brings the old rows
+    back. Also written when the title is deleted, so a reused row id never
+    inherits them. See docs/specs/standalone-ids.md.
+    """
+
+    __tablename__ = "standalone_legacy_claims"
+
+    kind: Mapped[str] = mapped_column(String(10), primary_key=True)  # "series" | "movie"
+    standalone_id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    claimed_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
 
 
 class StandaloneMovie(db.Model):

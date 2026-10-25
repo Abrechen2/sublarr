@@ -134,34 +134,27 @@ class AnidbRepository(BaseRepository):
 
     def get_absolute_order(self, sonarr_series_id: int) -> bool:
         """Return True if the series has absolute_order enabled."""
-        row = self.session.execute(
-            select(SeriesSettings.absolute_order).where(
-                SeriesSettings.sonarr_series_id == sonarr_series_id
-            )
-        ).scalar_one_or_none()
-        return bool(row) if row is not None else False
+        from services.standalone_owner_keys import get_row
+
+        row = get_row(SeriesSettings, sonarr_series_id)
+        return bool(row.absolute_order) if row is not None else False
 
     def set_absolute_order(self, sonarr_series_id: int, enabled: bool) -> None:
         """Enable or disable absolute_order mode for a series."""
+        from services.standalone_owner_keys import row_for_write
+
         now = self._now()
-        existing = self.session.get(SeriesSettings, sonarr_series_id)
-        if existing:
-            existing.absolute_order = 1 if enabled else 0
-            existing.updated_at = now
-        else:
-            self.session.add(
-                SeriesSettings(
-                    sonarr_series_id=sonarr_series_id,
-                    absolute_order=1 if enabled else 0,
-                    updated_at=now,
-                )
-            )
+        row = row_for_write(SeriesSettings, sonarr_series_id, absolute_order=0, updated_at=now)
+        row.absolute_order = 1 if enabled else 0
+        row.updated_at = now
         self._commit()
         logger.debug("Series %d absolute_order set to %s", sonarr_series_id, enabled)
 
     def get_series_settings(self, sonarr_series_id: int) -> dict | None:
         """Return the full settings dict for a series, or None if not set."""
-        row = self.session.get(SeriesSettings, sonarr_series_id)
+        from services.standalone_owner_keys import get_row
+
+        row = get_row(SeriesSettings, sonarr_series_id)
         return self._to_dict(row) if row else None
 
     def list_series_with_absolute_order(self) -> list:

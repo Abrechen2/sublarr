@@ -13,8 +13,14 @@ class FansubPreferenceRepository(BaseRepository):
     """Read/write fansub group preferences for a series."""
 
     def get_fansub_prefs(self, series_id: int) -> dict | None:
-        """Return fansub prefs for series_id, or None if not set."""
-        row = self.session.get(FansubPreference, series_id)
+        """Return fansub prefs for series_id, or None if not set.
+
+        A standalone owner key without its own row reads the pre-1.18 row
+        where allowed (services/standalone_owner_keys.py).
+        """
+        from services.standalone_owner_keys import get_row
+
+        row = get_row(FansubPreference, series_id)
         if row is None:
             return None
         return {
@@ -32,30 +38,25 @@ class FansubPreferenceRepository(BaseRepository):
         bonus: int,
     ) -> None:
         """Upsert fansub preferences for series_id."""
+        from services.standalone_owner_keys import row_for_write
+
         now = self._now()
-        existing = self.session.get(FansubPreference, series_id)
-        if existing:
-            existing.preferred_groups_json = json.dumps(preferred)
-            existing.excluded_groups_json = json.dumps(excluded)
-            existing.bonus = bonus
-            existing.updated_at = now
-        else:
-            self.session.add(
-                FansubPreference(
-                    sonarr_series_id=series_id,
-                    preferred_groups_json=json.dumps(preferred),
-                    excluded_groups_json=json.dumps(excluded),
-                    bonus=bonus,
-                    updated_at=now,
-                )
-            )
+        row = row_for_write(FansubPreference, series_id, updated_at=now)
+        row.preferred_groups_json = json.dumps(preferred)
+        row.excluded_groups_json = json.dumps(excluded)
+        row.bonus = bonus
+        row.updated_at = now
         self._commit()
         logger.debug("Series %d fansub prefs updated", series_id)
 
     def delete_fansub_prefs(self, series_id: int) -> None:
         """Remove fansub preferences row for series_id (no-op if absent)."""
+        from services.standalone_owner_keys import SERIES, claim
+
+        claimed = claim(series_id, SERIES) is not None
         row = self.session.get(FansubPreference, series_id)
         if row:
             self.session.delete(row)
-            self._commit()
             logger.debug("Series %d fansub prefs deleted", series_id)
+        if row or claimed:
+            self._commit()

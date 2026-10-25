@@ -75,16 +75,12 @@ def patch_series_settings(series_id: int):
                 }
             ), 400
 
+    from services.standalone_owner_keys import row_for_write
+
     now = datetime.now(UTC)
-    row = db.session.get(SeriesSettings, series_id)
-    if row is None:
-        row = SeriesSettings(
-            sonarr_series_id=series_id,
-            absolute_order=0,
-            min_attempts_per_day=0,
-            updated_at=now,
-        )
-        db.session.add(row)
+    row = row_for_write(
+        SeriesSettings, series_id, absolute_order=0, min_attempts_per_day=0, updated_at=now
+    )
 
     if "priority_override" in data:
         row.priority_override = data["priority_override"]
