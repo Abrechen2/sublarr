@@ -6,13 +6,13 @@ Subtitle manager for Sonarr and Radarr. It finds, checks and repairs subtitles f
 
 ## Features
 
-- **29 built-in providers**, including OpenSubtitles, SubDL, AnimeTosho, Jimaku and Kitsunekko, plus 43 opt-in providers from the Bazarr+ catalog
+- **28 built-in provider integrations**, including OpenSubtitles, SubDL, AnimeTosho, Jimaku and Kitsunekko, plus 43 opt-in providers from the Bazarr+ catalog
 - **Right episode, every time:** every download is checked for season and episode, and a repair scan finds saved subtitles that belong to another episode
 - **Anime-aware matching** with Sonarr's absolute episode numbers, ASS-first scoring
 - **Sync** with ffsubsync and alass
 - **Encoding repair:** non-UTF-8 subtitles keep their letters, broken characters ("�") are restored
 - **Media servers:** refreshes Jellyfin, Plex and Emby after a download
-- **Translation (optional, experimental):** Ollama or an OpenAI-compatible API when no subtitle exists in your language
+- **Translation (optional):** Ollama, DeepL, LibreTranslate, OpenAI-compatible APIs and more when no subtitle exists in your language
 - **Bazarr migration:** imports connections, language profiles and blacklist
 - Single container, SQLite by default; amd64 and arm64
 
