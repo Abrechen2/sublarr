@@ -190,3 +190,58 @@ def test_batch_process_library_handles_sonarr_exception(app_ctx, temp_db):
         _batch_process_library("all")  # must not raise
 
     assert processed_ids == []
+
+
+# ─── Standalone mode (no Sonarr) ─────────────────────────────────────────────
+
+
+def _add_standalone_series(tmp_path, name="show"):
+    from db.models.standalone import StandaloneSeries
+    from extensions import db as _db
+
+    folder = tmp_path / name
+    folder.mkdir()
+    (folder / "Show - S01E01.mkv").write_bytes(b"\x00")
+    (folder / "Show - S01E01.de.srt").write_text("1\n00:00:01,000 --> 00:00:02,000\nHallo\n")
+    (folder / "Show - S01E01.de.hi.srt").write_text("1\n00:00:01,000 --> 00:00:02,000\n[x]\n")
+    row = StandaloneSeries(
+        title=name, folder_path=str(folder), created_at=_now(), updated_at=_now()
+    )
+    _db.session.add(row)
+    _db.session.commit()
+    return row.id, folder
+
+
+def test_batch_process_series_standalone_processes_folder_sidecars(app_ctx, temp_db, tmp_path):
+    """Without Sonarr a series id is a standalone series: its folder's sidecars
+    are processed (variant sidecars still skipped) and completion is emitted."""
+    from routes.subtitle_processor import _batch_process_series
+
+    series_id, folder = _add_standalone_series(tmp_path)
+    result = MagicMock(changes=[], backed_up=False)
+    with (
+        patch("sonarr_client.get_sonarr_client", return_value=None),
+        patch("routes.subtitle_processor._build_pipeline_mods", return_value=["mod"]),
+        patch("subtitle_processor.apply_mods", return_value=result) as mock_apply,
+        patch("events.emit_event") as mock_emit,
+    ):
+        _batch_process_series(series_id)
+
+    assert [c.args[0] for c in mock_apply.call_args_list] == [str(folder / "Show - S01E01.de.srt")]
+    completed = [c for c in mock_emit.call_args_list if c.args[0] == "batch_process_completed"]
+    assert completed and completed[0].args[1] == {"series_id": series_id, "total": 1}
+
+
+def test_batch_process_library_standalone_iterates_standalone_series(app_ctx, temp_db, tmp_path):
+    from routes.subtitle_processor import _batch_process_library
+
+    a, _ = _add_standalone_series(tmp_path, "a")
+    b, _ = _add_standalone_series(tmp_path, "b")
+    processed_ids = []
+    with (
+        patch("sonarr_client.get_sonarr_client", return_value=None),
+        patch("routes.subtitle_processor._batch_process_series", side_effect=processed_ids.append),
+    ):
+        _batch_process_library("all")
+
+    assert sorted(processed_ids) == sorted([a, b])

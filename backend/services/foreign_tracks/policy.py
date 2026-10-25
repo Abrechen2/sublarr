@@ -166,14 +166,40 @@ class _ArrProbe:
                 self._healthy = False
         return self._healthy
 
+    def _standalone_path(self, title_id: int) -> str:
+        """Standalone mode (no arr configured): the settings id is a
+        standalone series/movie id — the series detail and movie pages save
+        overrides under it. A series maps to its folder, a movie to its file
+        (movies can share a folder, so the folder would over-match).
+
+        Raises ``_UnresolvedError`` when there is no such record, so an
+        unconfigured arr with an unknown id still pauses the strip.
+        """
+        try:
+            if self.kind == "series":
+                from db.standalone import get_standalone_series
+
+                path = (get_standalone_series(title_id) or {}).get("folder_path")
+            else:
+                from db.standalone import get_standalone_movies
+
+                path = (get_standalone_movies(title_id) or {}).get("file_path")
+        except Exception as exc:  # noqa: BLE001 — unreadable is unresolved, never "missing"
+            raise _UnresolvedError(f"standalone lookup failed: {exc}") from exc
+        if not path:
+            raise _UnresolvedError(f"{self.label} is not configured")
+        return path
+
     def path_of(self, title_id: int) -> str | None:
         """The title's folder, or None when the arr confirms it is gone.
 
+        Without a configured arr the id is resolved as a standalone title
+        (path returned as-is: standalone paths are local, no remote mapping).
         Raises ``_UnresolvedError`` for anything short of a confirmed answer.
         """
         client = self._get_client()
         if not client:
-            raise _UnresolvedError(f"{self.label} is not configured")
+            return self._standalone_path(title_id)
         if self._dead:
             raise _UnresolvedError(f"{self.label} did not answer earlier in this run")
         if self.kind == "series":
@@ -224,15 +250,18 @@ def override_paths() -> OverrideSet:
             continue
         label = f"{kind} {title_id}"
         try:
-            path = probes[kind].path_of(title_id)
+            probe = probes[kind]
+            path = probe.path_of(title_id)
             if path is None:
                 logger.warning(
                     "track policy: %s has settings but its arr no longer knows it — skipped",
                     label,
                 )
                 continue
+            # Arr paths need remote-path mapping; standalone paths are local.
+            path = map_path(path) if probe._get_client() else path
             if switched_off:
-                excluded.append(map_path(path))
+                excluded.append(path)
                 continue
             if kind == "series":
                 policy = resolve_policy(series_id=title_id)
@@ -240,7 +269,7 @@ def override_paths() -> OverrideSet:
                 policy = resolve_policy(movie_id=title_id)
             if policy is None:
                 raise _UnresolvedError("policy resolution failed")
-            pairs.append((map_path(path), policy))
+            pairs.append((path, policy))
         except Exception as exc:  # noqa: BLE001 — one failing title must not abort the others
             failed.append(label)
             logger.warning(

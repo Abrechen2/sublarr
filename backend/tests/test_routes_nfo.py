@@ -244,3 +244,28 @@ def test_export_series_unsafe_db_path(app, monkeypatch, tmp_path):
     assert data["exported"] == 0
     assert data["skipped"] == 1
     assert written == []  # write_nfo must NOT have been called
+
+
+# ---------------------------------------------------------------------------
+# Series path resolution — Sonarr and standalone mode
+# ---------------------------------------------------------------------------
+
+
+def test_series_path_standalone_mode_uses_folder_path(monkeypatch):
+    """Without Sonarr the series id is a standalone series: its folder is used
+    (previously ``None.get_series_by_id`` raised and the route said 404)."""
+    monkeypatch.setattr("sonarr_client.get_sonarr_client", lambda *a, **kw: None)
+    monkeypatch.setattr(
+        "db.standalone.get_standalone_series",
+        lambda sid: {"id": sid, "folder_path": "/media/standalone/show"} if sid == 7 else None,
+    )
+    assert nfo_module._get_series_path_for_nfo(7) == "/media/standalone/show"
+    assert nfo_module._get_series_path_for_nfo(8) is None
+
+
+def test_series_path_sonarr_mode_maps_series_path(monkeypatch):
+    client = MagicMock()
+    client.get_series_by_id.return_value = {"id": 3, "path": "/tv/show"}
+    monkeypatch.setattr("sonarr_client.get_sonarr_client", lambda *a, **kw: client)
+    monkeypatch.setattr("config.map_path", lambda p: "/local" + p)
+    assert nfo_module._get_series_path_for_nfo(3) == "/local/tv/show"

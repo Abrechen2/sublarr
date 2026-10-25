@@ -11,7 +11,7 @@ from flask import current_app, jsonify, request
 from events import emit_event
 from extensions import socketio
 from routes.batch_state import wanted_batch_lock, wanted_batch_state
-from routes.wanted import bp
+from routes.wanted import _sonarr_missing, bp
 from services.background_tasks import submit_background
 
 logger = logging.getLogger(__name__)
@@ -193,7 +193,7 @@ def wanted_batch_search():
         if series_id and not item_ids:
             from db.wanted import get_wanted_for_series
 
-            series_items = get_wanted_for_series(series_id)
+            series_items = get_wanted_for_series(series_id, standalone=_sonarr_missing())
             item_ids = [
                 item["id"] for item in series_items if item.get("status") in ("wanted", "failed")
             ]
@@ -210,8 +210,9 @@ def wanted_batch_search():
             from db.wanted import get_wanted_for_series
 
             collected: list[int] = []
+            standalone = _sonarr_missing()
             for sid in series_ids:
-                series_items = get_wanted_for_series(sid)
+                series_items = get_wanted_for_series(sid, standalone=standalone)
                 collected.extend(
                     item["id"]
                     for item in series_items

@@ -81,6 +81,8 @@ export interface SeriesDetail {
   source_language: string
   source_language_name: string
   episodes: EpisodeInfo[]
+  // "standalone" when built from watched folders (no Sonarr); absent for Sonarr.
+  source?: string
   absolute_order?: boolean
   // 0.71.1: per-series foreign-track cleanup override.
   //   cleanup_foreign_tracks_override: raw SeriesSettings value (null = inherit).

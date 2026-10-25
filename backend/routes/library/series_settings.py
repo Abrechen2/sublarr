@@ -124,13 +124,16 @@ def suggest_glossary_candidates(series_id):
     from sonarr_client import get_sonarr_client
 
     sonarr = get_sonarr_client()
-    if not sonarr:
-        return jsonify(
-            {"candidates": [], "series_id": series_id, "message": "Sonarr not configured"}
-        )
+    if sonarr:
+        series = sonarr.get_series_by_id(series_id)
+        media_path = map_path(series["path"]) if series and series.get("path") else ""
+    else:
+        # Standalone mode: the series folder from the standalone scan.
+        from db.standalone import get_standalone_series
 
-    series = sonarr.get_series_by_id(series_id)
-    if not series or not series.get("path"):
+        series = get_standalone_series(series_id)
+        media_path = (series or {}).get("folder_path") or ""
+    if not media_path:
         return jsonify(
             {"candidates": [], "series_id": series_id, "message": "Series media path not found"}
         )
@@ -139,7 +142,6 @@ def suggest_glossary_candidates(series_id):
     source_lang = (body.get("source_lang") or "en").strip()
     min_freq = int(body.get("min_freq") or 3)
 
-    media_path = map_path(series["path"])
     candidates = _lib_pkg.extract_candidates(
         media_path,
         source_lang=source_lang,

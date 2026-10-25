@@ -63,13 +63,17 @@ export function SeriesDetailPage() {
   const episodeWantedMap = useMemo((): Map<number, number> => {
     const map = new Map<number, number>()
     if (!seriesWanted?.data) return map
+    // Standalone episodes are keyed by their wanted-item id already.
+    const standalone = series?.source === 'standalone'
     for (const item of seriesWanted.data) {
-      if (item.sonarr_episode_id != null) {
+      if (standalone) {
+        map.set(item.id, item.id)
+      } else if (item.sonarr_episode_id != null) {
         map.set(item.sonarr_episode_id, item.id)
       }
     }
     return map
-  }, [seriesWanted?.data])
+  }, [seriesWanted?.data, series?.source])
 
   // Episode action state
   const [expandedEp, setExpandedEp] = useState<{ id: number; mode: 'search' | 'history' | 'glossary' | 'tracks' } | null>(null)
@@ -155,7 +159,14 @@ export function SeriesDetailPage() {
   const [healthScores, setHealthScores] = useState<Record<string, number | null>>({})
 
   // Interactive search modal state
-  const [interactiveEp, setInteractiveEp] = useState<{ id: number; title: string } | null>(null)
+  const [interactiveEp, setInteractiveEp] = useState<{ id: number; title: string; filePath?: string } | null>(null)
+  // Standalone episodes are resolved by file path when they have no wanted
+  // item (negative synthetic id) — Sonarr episodes by their Sonarr id (#226).
+  const isStandalone = series?.source === 'standalone'
+  const episodeFilePath = useCallback(
+    (ep: EpisodeInfo) => (isStandalone && ep.file_path ? ep.file_path : undefined),
+    [isStandalone],
+  )
 
   const episodeSearch = useEpisodeSearch()
   const _episodeHistory = useEpisodeHistory(expandedEp?.mode === 'history' ? expandedEp.id : 0)
@@ -250,7 +261,7 @@ export function SeriesDetailPage() {
       return
     }
     setExpandedEp({ id: ep.id, mode: 'search' })
-    episodeSearch.mutate(ep.id, {
+    episodeSearch.mutate({ episodeId: ep.id, filePath: episodeFilePath(ep) }, {
       onSuccess: (data) => {
         setSearchResults((prev) => ({ ...prev, [ep.id]: data }))
       },
@@ -258,7 +269,7 @@ export function SeriesDetailPage() {
         toast(t('series_detail.search_failed'), 'error')
       },
     })
-  }, [expandedEp, episodeSearch])
+  }, [expandedEp, episodeSearch, episodeFilePath])
 
   const handleHistory = useCallback((ep: EpisodeInfo) => {
     if (expandedEp?.id === ep.id && expandedEp?.mode === 'history') {
@@ -268,14 +279,14 @@ export function SeriesDetailPage() {
     setExpandedEp({ id: ep.id, mode: 'history' })
     // Fetch history via mutation-style (since the hook is lazy)
     import('@/api/client').then(({ episodeHistory: fetchHistory }) => {
-      fetchHistory(ep.id).then((data) => {
+      fetchHistory(ep.id, episodeFilePath(ep)).then((data) => {
         setHistoryEntries((prev) => ({ ...prev, [ep.id]: data.entries }))
       }).catch(() => {
         setHistoryEntries((prev) => ({ ...prev, [ep.id]: [] }))
         toast(t('series_detail.load_history_failed'), 'error')
       })
     })
-  }, [expandedEp])
+  }, [expandedEp, episodeFilePath])
 
   const handleProcess = useCallback((wantedId: number) => {
     processItem.mutate(wantedId, {
@@ -500,13 +511,7 @@ export function SeriesDetailPage() {
   const handleNfoExport = useCallback(async () => {
     if (!seriesId) return
     try {
-      const blob = await exportSeriesNfo(seriesId)
-      const url = URL.createObjectURL(blob)
-      const a = document.createElement('a')
-      a.href = url
-      a.download = `series-${seriesId}-nfo.zip`
-      a.click()
-      URL.revokeObjectURL(url)
+      await exportSeriesNfo(seriesId)
       toast(t('series_detail.nfo_exported'), 'success')
     } catch {
       toast(t('series_detail.nfo_export_failed'), 'error')
@@ -716,7 +721,7 @@ export function SeriesDetailPage() {
             onExtract={handleExtract}
             expandedEp={expandedEp}
             onSearch={handleSearch}
-            onInteractiveSearch={(ep) => setInteractiveEp({ id: ep.id, title: `${series.title} ${ep.title ? `– ${ep.title}` : ''}`.trim() })}
+            onInteractiveSearch={(ep) => setInteractiveEp({ id: ep.id, title: `${series.title} ${ep.title ? `– ${ep.title}` : ''}`.trim(), filePath: episodeFilePath(ep) })}
             onHistory={handleHistory}
             onTracks={handleTracks}
             onClose={handleClose}
@@ -982,6 +987,7 @@ export function SeriesDetailPage() {
       <InteractiveSearchModal
         open={!!interactiveEp}
         episodeId={interactiveEp?.id}
+        episodeFilePath={interactiveEp?.filePath}
         itemTitle={interactiveEp?.title ?? ''}
         onClose={() => setInteractiveEp(null)}
         onDownloaded={() => setInteractiveEp(null)}

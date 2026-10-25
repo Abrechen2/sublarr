@@ -5,6 +5,46 @@ All notable changes to Sublarr are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.17.3] - 2026-10-25
+
+### Fixed
+- **Standalone mode can search and download subtitles for an episode** (#226)
+  — Without Sonarr, searching an episode from the series page, the
+  interactive search and downloading a picked result all failed with
+  "Sonarr not configured". They now find the episode in the scanned folders
+  and use the same search and download as the Wanted page, also for episodes
+  that already have all their subtitles. The episode history works too.
+- **Standalone series search finds the missing episodes** — "Search all
+  missing", the season search and the Library multi-select search reported
+  nothing to search for a standalone series, and the series page's skip and
+  accept buttons did nothing. They now find the series' wanted episodes.
+- **Standalone episode subtitle list and glossary suggestions** — The Tracks
+  panel's list of subtitle files stayed empty and the glossary found no
+  candidate terms for standalone series. Both now work without Sonarr.
+- **Library auto-sync and batch processing cover standalone media** — Bulk
+  auto-sync from the Library page queued nothing without Sonarr, and
+  standalone movies were skipped by every bulk sync. Batch subtitle
+  processing reported "started" but did nothing. Both now process the
+  standalone series and movies. The auto-sync start message also shows the
+  number of queued files again instead of an empty count.
+- **Series NFO export works** — The NFO export button on the series page
+  always failed, with or without Sonarr. It now writes the NFO files for the
+  series' subtitles, standalone series included.
+- **Standalone cleanup switches are respected** — Saving the foreign-track
+  cleanup switch or a track policy for a standalone series or movie paused
+  the foreign-track cleanup for the whole library. The switch was also
+  ignored after a download, so a series with cleanup turned off could still
+  have tracks removed, and the series page always showed "inherit". The
+  switch and policy now apply to that series or movie only, and the page
+  shows the saved value.
+- **Requeued standalone episodes stay on their series page** — When a
+  subtitle was rejected as belonging to another episode, the new search
+  entry lost its link to the standalone series or movie until the next scan.
+- **Series cleanup reaches every standalone episode** — Deleting subtitles
+  for a standalone series and extracting embedded tracks for it only
+  covered episodes that were still missing a subtitle. They now cover every
+  episode file in the series folder.
+
 ## [1.17.2] - 2026-10-24
 
 ### Security

@@ -447,10 +447,44 @@ def test_purge_batch_success(client, temp_dir, monkeypatch):
 # ---------------------------------------------------------------------------
 
 
-def test_list_episode_subtitles_sonarr_not_configured(client, monkeypatch):
+def test_list_episode_subtitles_standalone_unknown_episode_is_404(client, monkeypatch):
+    # No Sonarr = standalone mode: an unknown id is a 404, not 503 "Sonarr not configured".
     monkeypatch.setattr("sonarr_client.get_sonarr_client", lambda *a, **kw: None)
     resp = client.get("/api/v1/library/episodes/1/subtitles")
-    assert resp.status_code == 503
+    assert resp.status_code == 404
+
+
+def test_list_episode_subtitles_standalone_episode(client, temp_dir, monkeypatch):
+    """Standalone episodes (wanted_items rows) list their sidecars without Sonarr."""
+    from datetime import UTC, datetime
+
+    from db.models.core import WantedItem
+    from extensions import db
+
+    monkeypatch.setattr("sonarr_client.get_sonarr_client", lambda *a, **kw: None)
+    video = os.path.join(temp_dir, "episode.mkv")
+    Path(video).touch()
+    _make_sub(temp_dir, "episode.de.srt")
+    now = datetime.now(UTC)
+    with client.application.app_context():
+        wi = WantedItem(
+            item_type="episode",
+            title="Standalone Ep",
+            file_path=video,
+            standalone_series_id=1,
+            status="wanted",
+            added_at=now,
+            updated_at=now,
+        )
+        db.session.add(wi)
+        db.session.commit()
+        wid = wi.id
+
+    resp = client.get(f"/api/v1/library/episodes/{wid}/subtitles")
+    assert resp.status_code == 200
+    data = resp.get_json()
+    assert data["video_path"] == video
+    assert [s["language"] for s in data["subtitles"]] == ["de"]
 
 
 def test_list_episode_subtitles_no_file(client, monkeypatch):

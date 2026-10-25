@@ -327,7 +327,8 @@ export function useHistoryStats() {
 
 export function useEpisodeSearch() {
   return useMutation({
-    mutationFn: (episodeId: number) => episodeSearch(episodeId),
+    mutationFn: ({ episodeId, filePath }: { episodeId: number; filePath?: string }) =>
+      episodeSearch(episodeId, filePath),
   })
 }
 
@@ -353,10 +354,15 @@ export function useSearchInteractive(itemId: number | null, enabled = false, all
   })
 }
 
-export function useSearchInteractiveEpisode(episodeId: number | null, enabled = false, allProviders = false) {
+export function useSearchInteractiveEpisode(
+  episodeId: number | null,
+  enabled = false,
+  allProviders = false,
+  filePath?: string,
+) {
   return useQuery({
-    queryKey: ['interactive-search', 'episode', episodeId, allProviders],
-    queryFn: () => searchInteractiveEpisode(episodeId!, allProviders),
+    queryKey: ['interactive-search', 'episode', episodeId, allProviders, filePath ?? null],
+    queryFn: () => searchInteractiveEpisode(episodeId!, allProviders, filePath),
     enabled: enabled && !!episodeId,
     staleTime: 0,
     gcTime: 5 * 60_000,

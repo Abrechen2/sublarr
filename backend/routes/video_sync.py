@@ -340,20 +340,27 @@ def _bulk_videos_from_radarr() -> list[str]:
     return out
 
 
-def _bulk_videos_from_standalone() -> list[str]:
-    """Walk standalone series + movie folders and yield concrete video files."""
+def _bulk_videos_from_standalone(series_id: int | None = None) -> list[str]:
+    """Walk standalone series folders (one series, or all plus every
+    standalone movie file) and return concrete video files."""
     from db.repositories.standalone import StandaloneRepository
 
     repo = StandaloneRepository()
     folder_paths: list[str] = []
-    for s in repo.get_all_standalone_series() or []:
-        if s.get("folder_path"):
-            folder_paths.append(s["folder_path"])
-    for m in repo.get_all_standalone_movies() or []:
-        if m.get("folder_path"):
-            folder_paths.append(m["folder_path"])
-
     videos: list[str] = []
+    if series_id is not None:
+        series = repo.get_standalone_series(int(series_id))
+        if series and series.get("folder_path"):
+            folder_paths.append(series["folder_path"])
+    else:
+        for s in repo.get_all_standalone_series() or []:
+            if s.get("folder_path"):
+                folder_paths.append(s["folder_path"])
+        # Standalone movies are single files (no folder_path column).
+        for m in repo.get_all_standalone_movies() or []:
+            if m.get("file_path"):
+                videos.append(m["file_path"])
+
     for folder in folder_paths:
         if not os.path.isdir(folder):
             continue
@@ -400,13 +407,29 @@ def auto_sync_bulk():
     raw_paths: list[str] = []
     sources: dict[str, int] = {}
 
+    from sonarr_client import get_sonarr_client
+
+    # Standalone mode (no Sonarr): "series" and "library" — the only scopes
+    # the Library page sends — mean the standalone library, and a series id
+    # is a standalone series id (same rule as the series detail).
+    standalone_mode = get_sonarr_client() is None
+
     if scope == "series":
-        raw_paths.extend(_bulk_videos_from_sonarr(series_id))
-        sources["sonarr"] = len(raw_paths)
+        if standalone_mode:
+            series_paths = _bulk_videos_from_standalone(series_id)
+            sources["standalone"] = len(series_paths)
+        else:
+            series_paths = _bulk_videos_from_sonarr(series_id)
+            sources["sonarr"] = len(series_paths)
+        raw_paths.extend(series_paths)
     if scope in ("library", "all"):
         sonarr_paths = _bulk_videos_from_sonarr(None)
         raw_paths.extend(sonarr_paths)
         sources["sonarr"] = len(sonarr_paths)
+    if scope == "library" and standalone_mode:
+        standalone_paths = _bulk_videos_from_standalone()
+        raw_paths.extend(standalone_paths)
+        sources["standalone"] = len(standalone_paths)
     if scope in ("radarr", "all"):
         radarr_paths = _bulk_videos_from_radarr()
         raw_paths.extend(radarr_paths)
@@ -456,6 +479,9 @@ def auto_sync_bulk():
     return jsonify(
         {
             "queued": queued,
+            # The Library page reads status/total_items (AutoSyncBulkResult).
+            "status": "started",
+            "total_items": queued,
             "engine": engine,
             "scope": scope,
             "videos_considered": sources,

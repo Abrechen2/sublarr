@@ -325,8 +325,15 @@ export function useDownloadSpecific() {
 export function useDownloadSpecificEpisode() {
   const qc = useQueryClient()
   return useMutation({
-    mutationFn: ({ episodeId, payload }: { episodeId: number; payload: DownloadSpecificPayload }) =>
-      downloadSpecificEpisode(episodeId, payload),
+    mutationFn: ({
+      episodeId,
+      payload,
+      filePath,
+    }: {
+      episodeId: number
+      payload: DownloadSpecificPayload
+      filePath?: string
+    }) => downloadSpecificEpisode(episodeId, payload, filePath),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['series'] })
     },

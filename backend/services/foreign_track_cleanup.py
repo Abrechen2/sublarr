@@ -40,6 +40,28 @@ class _OverrideUnavailableError(Exception):
     """The series/movie switch could not be read."""
 
 
+def settings_ids(item: dict) -> tuple[int | None, int | None]:
+    """The ``(series_id, movie_id)`` the item's series/movie settings are
+    keyed by: the Sonarr/Radarr id, or — only while that arr is not
+    configured — the standalone id, which is what the standalone series and
+    movie pages save their switches and track policies under. With the arr
+    configured the id space belongs to it, so a standalone id is not read.
+    """
+    series_id = item.get("sonarr_series_id")
+    if not series_id and item.get("standalone_series_id"):
+        from sonarr_client import get_sonarr_client
+
+        if get_sonarr_client() is None:
+            series_id = item["standalone_series_id"]
+    movie_id = item.get("radarr_movie_id")
+    if not movie_id and item.get("standalone_movie_id"):
+        from radarr_client import get_radarr_client
+
+        if get_radarr_client() is None:
+            movie_id = item["standalone_movie_id"]
+    return series_id or None, movie_id or None
+
+
 def _get_title_override(item: dict) -> bool | None:
     """The item's own ``cleanup_foreign_tracks`` switch — the series' for an
     episode, the movie's for a movie — or None when it has none.
@@ -51,10 +73,11 @@ def _get_title_override(item: dict) -> bool | None:
         from db.models.core import MovieSettings, SeriesSettings
         from extensions import db
 
-        if item.get("sonarr_series_id"):
-            row = db.session.get(SeriesSettings, item["sonarr_series_id"])
-        elif item.get("radarr_movie_id"):
-            row = db.session.get(MovieSettings, item["radarr_movie_id"])
+        series_id, movie_id = settings_ids(item)
+        if series_id:
+            row = db.session.get(SeriesSettings, series_id)
+        elif movie_id:
+            row = db.session.get(MovieSettings, movie_id)
         else:
             return None
     except Exception as exc:  # noqa: BLE001 — surfaced as "unavailable", never as "inherit"
@@ -252,9 +275,8 @@ def maybe_run_foreign_track_cleanup(
         from services.foreign_tracks.sidecars import real_sidecar_languages
 
         if policy is None:
-            policy = resolve_policy(
-                series_id=item.get("sonarr_series_id"), movie_id=item.get("radarr_movie_id")
-            )
+            series_id, movie_id = settings_ids(item)
+            policy = resolve_policy(series_id=series_id, movie_id=movie_id)
         if policy is None:
             # The override exists but cannot be read right now. The global
             # policy may strip more than it — fail, so the queue retries.

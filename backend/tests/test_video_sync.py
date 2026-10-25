@@ -631,3 +631,78 @@ def test_an_unreadable_original_keeps_ffsubsyncs_output(tmp_path):
 
     assert shift_original_into(str(original), str(out), 1500) is False
     assert out.read_text() == "ffsubsync output"
+
+
+# ─── /auto-sync/bulk in standalone mode (no Sonarr) ─────────────────────────
+
+
+def _bulk_standalone_library(client, tmp_path):
+    """Two standalone series folders and one standalone movie, one sidecar each."""
+    from datetime import UTC, datetime
+
+    from db.models.standalone import StandaloneMovie, StandaloneSeries
+    from extensions import db
+
+    show_a = tmp_path / "show_a"
+    show_b = tmp_path / "show_b"
+    movies = tmp_path / "movies"
+    for d in (show_a, show_b, movies):
+        d.mkdir()
+    _bulk_make_video(show_a, "a01", langs=("de",))
+    _bulk_make_video(show_b, "b01", langs=("de",))
+    movie = _bulk_make_video(movies, "film", langs=("de",))
+    now = datetime.now(UTC)
+    with client.application.app_context():
+        a = StandaloneSeries(title="A", folder_path=str(show_a), created_at=now, updated_at=now)
+        b = StandaloneSeries(title="B", folder_path=str(show_b), created_at=now, updated_at=now)
+        m = StandaloneMovie(title="Film", file_path=movie, created_at=now, updated_at=now)
+        db.session.add_all([a, b, m])
+        db.session.commit()
+        return a.id
+
+
+def test_bulk_series_scope_standalone_mode_uses_series_folder(client, tmp_path, monkeypatch):
+    """Library page's per-series bulk sync sends scope='series' — without Sonarr
+    the id is a standalone series id."""
+    monkeypatch.setattr("sonarr_client.get_sonarr_client", lambda *a, **kw: None)
+    series_id = _bulk_standalone_library(client, tmp_path)
+    with patch("routes.video_sync._submit_sync") as mock_submit:
+        resp = client.post(
+            "/api/v1/tools/auto-sync/bulk", json={"scope": "series", "series_id": series_id}
+        )
+    assert resp.status_code == 202
+    data = resp.get_json()
+    assert data["videos_considered"] == {"standalone": 1}
+    assert data["queued"] == data["total_items"] == 1
+    assert mock_submit.call_args.args[4].endswith("a01.mkv")
+
+
+def test_bulk_library_scope_standalone_mode_includes_series_and_movies(
+    client, tmp_path, monkeypatch
+):
+    """scope='library' without Sonarr covers standalone series and movie files
+    (movies have file_path, not folder_path, and were silently skipped)."""
+    monkeypatch.setattr("sonarr_client.get_sonarr_client", lambda *a, **kw: None)
+    _bulk_standalone_library(client, tmp_path)
+    with patch("routes.video_sync._submit_sync") as mock_submit:
+        resp = client.post("/api/v1/tools/auto-sync/bulk", json={"scope": "library"})
+    assert resp.status_code == 202
+    data = resp.get_json()
+    assert data["videos_considered"]["standalone"] == 3
+    assert data["queued"] == 3
+    import os
+
+    videos = {os.path.basename(c.args[4]) for c in mock_submit.call_args_list}
+    assert videos == {"a01.mkv", "b01.mkv", "film.mkv"}
+
+
+def test_bulk_series_scope_with_sonarr_ignores_standalone(client, monkeypatch):
+    monkeypatch.setattr("sonarr_client.get_sonarr_client", lambda *a, **kw: object())
+    with (
+        patch("routes.video_sync._bulk_videos_from_sonarr", return_value=[]) as mock_sonarr,
+        patch("routes.video_sync._bulk_videos_from_standalone") as mock_sa,
+    ):
+        resp = client.post("/api/v1/tools/auto-sync/bulk", json={"scope": "series", "series_id": 3})
+    assert resp.status_code == 202
+    mock_sonarr.assert_called_once_with(3)
+    mock_sa.assert_not_called()

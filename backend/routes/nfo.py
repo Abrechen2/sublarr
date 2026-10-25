@@ -31,13 +31,19 @@ def _get_series_path_for_nfo(series_id: int) -> str | None:
         from sonarr_client import get_sonarr_client
 
         client = get_sonarr_client()
+        if client is None:
+            # Standalone mode: the series folder from the standalone scan.
+            from db.standalone import get_standalone_series
+
+            standalone = get_standalone_series(series_id)
+            return (standalone or {}).get("folder_path") or None
         series = client.get_series_by_id(series_id)
         if not series:
             return None
         raw_path = series.get("path", "")
         if not raw_path:
             return None
-        from path_mapper import map_path
+        from config import map_path
 
         return map_path(raw_path)
     except Exception as exc:

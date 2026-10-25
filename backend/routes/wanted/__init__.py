@@ -4,6 +4,15 @@ from flask import Blueprint
 
 bp = Blueprint("wanted", __name__, url_prefix="/api/v1")
 
+
+def _sonarr_missing() -> bool:
+    """True in standalone mode: no Sonarr client, so a ``series_id`` is a
+    standalone series id (the rule the series detail uses)."""
+    from sonarr_client import get_sonarr_client
+
+    return get_sonarr_client() is None
+
+
 import routes.wanted.automation  # noqa: E402, F401
 import routes.wanted.batch_extract  # noqa: E402, F401
 import routes.wanted.batch_probe  # noqa: E402, F401

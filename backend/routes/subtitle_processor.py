@@ -330,6 +330,35 @@ def _run_pipeline_for_path(subtitle_path: str, series_id: int | None) -> None:
         logger.warning("[pipeline] failed for %s: %s", subtitle_path, exc)
 
 
+def _series_video_paths(series_id: int) -> list[str]:
+    """Video files of a series: from Sonarr, or (no Sonarr client) from the
+    standalone series folder — same rule as the series detail."""
+    from config import map_path as _map_path
+    from sonarr_client import get_sonarr_client
+
+    client = get_sonarr_client()
+    if client:
+        episode_files = client.get_episode_files_by_series(series_id) or {}
+        return [_map_path(fi["path"]) for fi in episode_files.values() if fi.get("path")]
+
+    from routes.library.series import standalone_series_video_paths
+
+    return standalone_series_video_paths(series_id) or []
+
+
+def _library_series_ids() -> list[int]:
+    """Sonarr series ids, or the standalone series ids without Sonarr."""
+    from sonarr_client import get_sonarr_client
+
+    client = get_sonarr_client()
+    if client:
+        return [s["id"] for s in client.get_series() or [] if s.get("id")]
+
+    from db.standalone import get_standalone_series
+
+    return [s["id"] for s in get_standalone_series() or [] if s.get("id")]
+
+
 def _batch_process_series(series_id: int) -> None:
     """Process all subtitle sidecars for a series. Called in background thread."""
     from db.models.core import SeriesSettings
@@ -352,22 +381,12 @@ def _batch_process_series(series_id: int) -> None:
     if not mods:
         return
 
-    from config import map_path as _map_path
-    from sonarr_client import get_sonarr_client
+    video_paths = _series_video_paths(series_id)
 
-    client = get_sonarr_client()
-    if not client:
-        return
-    episode_files = client.get_episode_files_by_series(series_id)
-
-    total = len(episode_files)
+    total = len(video_paths)
     processed = 0
 
-    for file_info in episode_files.values():
-        raw_path = file_info.get("path")
-        if not raw_path:
-            continue
-        video_path = _map_path(raw_path)
+    for video_path in video_paths:
         sidecars = scan_subtitle_sidecars(video_path)
         for sidecar in sidecars:
             sub_path = sidecar["path"]
@@ -419,22 +438,14 @@ def _batch_process_library(filter_mode: str) -> None:
     """Process all series in library. filter_mode: 'all' | 'unprocessed'."""
     from db.models.core import SeriesSettings
     from extensions import db as _db
-    from sonarr_client import get_sonarr_client
-
-    client = get_sonarr_client()
-    if not client:
-        return
 
     try:
-        all_series = client.get_series()
+        series_ids = _library_series_ids()
     except Exception as exc:
         logger.warning("[batch-process-library] failed to fetch series: %s", exc)
         return
 
-    for series in all_series:
-        series_id = series.get("id")
-        if not series_id:
-            continue
+    for series_id in series_ids:
         if filter_mode == "unprocessed":
             row = _db.session.get(SeriesSettings, series_id)
             if row and row.processing_config is not None:
