@@ -10,7 +10,7 @@
 
 [![Version](https://img.shields.io/github/v/release/Abrechen2/sublarr?label=version&color=teal)](https://github.com/Abrechen2/sublarr/releases/latest)
 [![CI](https://github.com/Abrechen2/sublarr/actions/workflows/ci.yml/badge.svg?branch=master)](https://github.com/Abrechen2/sublarr/actions/workflows/ci.yml)
-[![security](https://img.shields.io/badge/ruff_%2B_bandit_%2B_pip--audit_%2B_npm_audit_%2B_Semgrep_%2B_Trivy_%2B_CodeQL-22c55e.svg)](#-security)
+[![security](https://img.shields.io/badge/ruff_%2B_bandit_%2B_pip--audit_%2B_npm_audit_%2B_Semgrep_%2B_Trivy-22c55e.svg)](#-security)
 [![License: GPL-3.0](https://img.shields.io/badge/License-GPL--3.0-blue.svg)](LICENSE)
 [![Python 3.12+](https://img.shields.io/badge/Python-3.12+-3776ab.svg)](https://www.python.org/)
 [![React 19](https://img.shields.io/badge/React-19-61dafb.svg)](https://react.dev/)
@@ -200,7 +200,7 @@ Keep backups of your subtitle files before enabling automation.
 CI runs on every push to `master`.
 
 - **Blocks the build:** `ruff check` + `ruff format --check`, `pip-audit -r requirements.txt` (no ignored advisories), `bandit` at HIGH severity / HIGH confidence ([`backend/.bandit`](backend/.bandit)), `npm audit --omit=dev --audit-level=high`, custom lint gates (`is_safe_path()` argument order, UI-first config, no `routes` imports in `services`), backend and frontend test suites.
-- **Reports to the [Security tab](https://github.com/Abrechen2/sublarr/security/code-scanning) without blocking:** Semgrep, Trivy, CodeQL (Python and TypeScript, plus a weekly run), bandit findings below the gate, `npm audit` over dev dependencies.
+- **Reported in the CI job log, non-blocking:** Semgrep, Trivy, bandit findings below the gate, `npm audit` over dev dependencies. Nothing is uploaded to GitHub code scanning.
 
 Report vulnerabilities as described in [SECURITY.md](SECURITY.md).
 
