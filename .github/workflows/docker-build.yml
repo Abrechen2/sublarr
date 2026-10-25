@@ -28,6 +28,8 @@ jobs:
     permissions:
       contents: read
       packages: write
+    env:
+      DOCKERHUB_TOKEN: ${{ secrets.DOCKERHUB_TOKEN }}
 
     steps:
       - name: Checkout
@@ -71,3 +73,13 @@ jobs:
           cache-from: type=gha
           cache-to: type=gha,mode=max
           provenance: false
+
+      # Docker Hub only carries the moving :rc-latest for release candidates;
+      # the immutable -rc.N tags stay on GHCR. Finals are mirrored by release.yml.
+      - name: Mirror rc-latest to Docker Hub
+        if: contains(inputs.version, '-rc.') && env.DOCKERHUB_TOKEN != ''
+        run: |
+          echo "$DOCKERHUB_TOKEN" | docker login docker.io -u abrechen2 --password-stdin
+          docker buildx imagetools create \
+            -t docker.io/abrechen2/sublarr:rc-latest \
+            "${{ env.REGISTRY }}/$(echo '${{ env.IMAGE_NAME }}' | tr '[:upper:]' '[:lower:]'):rc-latest"

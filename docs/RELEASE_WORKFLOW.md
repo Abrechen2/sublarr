@@ -46,10 +46,10 @@ Since 1.17.1 the release tag is the promotion:
 2. When the RC is approved, tag **that commit** `vX.Y.Z` and push the tag.
 3. `release.yml` refuses a tag whose `:sha-<short>` image does not report an
    RC of `X.Y.Z`, runs CI, builds the commit with `VERSION=X.Y.Z` (multi-arch)
-   as `:X.Y.Z` / `:latest` / `:stable`, and creates the GitHub release from the
-   CHANGELOG section. It never overwrites an existing `:X.Y.Z`.
-4. Deploy prod on `:X.Y.Z`, mirror the finals to Docker Hub, check the health
-   endpoint reports `X.Y.Z`.
+   as `:X.Y.Z` / `:latest` / `:stable`, mirrors those to Docker Hub, and creates
+   the GitHub release from the CHANGELOG section. It never overwrites an
+   existing `:X.Y.Z`.
+4. Deploy prod on `:X.Y.Z`, check the health endpoint reports `X.Y.Z`.
 
 The final image is the tested commit, not the tested bytes: dependencies are
 resolved again at build time, so smoke-test prod on `:X.Y.Z` after the deploy
@@ -98,6 +98,9 @@ requires `FORCE=1` — it must never run against Prod or Beta.
 
 - **GHCR** (`ghcr.io/abrechen2/sublarr`) — primary; receives everything (`:beta`, `-rc.N`, finals).
 - **Docker Hub** (`docker.io/abrechen2/sublarr`) — mirrors final tags + rolling `:rc-latest`.
+  Both workflows copy them with the `DOCKERHUB_TOKEN` secret; without it they
+  warn and skip. A failed mirror never blocks the GitHub release — rerun the
+  "Mirror to Docker Hub" job.
   `:beta` stays GHCR-only.
 
 ## Beta compose (canonical reference)
