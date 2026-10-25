@@ -5,6 +5,16 @@ All notable changes to Sublarr are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.17.3] - 2026-10-25
+
+### Fixed
+- **Standalone mode can search and download subtitles for an episode** (#226)
+  — Without Sonarr, searching an episode from the series page, the
+  interactive search and downloading a picked result all failed with
+  "Sonarr not configured". They now find the episode in the scanned folders
+  and use the same search and download as the Wanted page, also for episodes
+  that already have all their subtitles. The episode history works too.
+
 ## [1.17.2] - 2026-10-24
 
 ### Security

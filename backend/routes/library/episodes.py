@@ -46,7 +46,56 @@ def _get_or_create_episode_wanted(
     return item_id, None
 
 
-@bp.route("/episodes/<int:episode_id>/search", methods=["POST"])
+def _sonarr_target_language(series_id) -> str:
+    """First target language of the series' profile (default profile fallback)."""
+    from config import get_settings
+    from db.profiles import get_default_profile, get_series_profile
+
+    settings = get_settings()
+    profile = get_series_profile(series_id) if series_id else get_default_profile()
+    target_languages = (
+        profile.get("target_languages", [settings.target_language])
+        if profile
+        else [settings.target_language]
+    )
+    return target_languages[0] if target_languages else settings.target_language
+
+
+def _resolve_episode_wanted_id(episode_id: int) -> tuple[int | None, object | None]:
+    """Resolve an episode id to the wanted item that search/download operate on.
+
+    Sonarr mode: ``episode_id`` is a Sonarr episode id. Standalone mode (no
+    Sonarr client, same rule as the series detail): it is the standalone
+    ``wanted_items`` row id, or a negative synthetic id plus a ``file_path``
+    query parameter for an episode with no wanted row yet (#226).
+
+    Returns ``(item_id, None)`` or ``(None, flask_response)``.
+    """
+    from sonarr_client import get_sonarr_client
+
+    sonarr = get_sonarr_client()
+    if not sonarr:
+        from services.standalone_episode import (
+            StandaloneEpisodeNotFoundError,
+            resolve_standalone_episode_wanted_id,
+        )
+
+        try:
+            return resolve_standalone_episode_wanted_id(
+                episode_id, request.args.get("file_path") or None
+            ), None
+        except StandaloneEpisodeNotFoundError:
+            return None, (jsonify({"error": "Episode not found"}), 404)
+
+    episode = sonarr.get_episode_by_id(episode_id) if episode_id > 0 else None
+    if not episode:
+        return None, (jsonify({"error": "Episode not found"}), 404)
+
+    target_lang = _sonarr_target_language(episode.get("seriesId"))
+    return _get_or_create_episode_wanted(sonarr, episode, episode_id, target_lang)
+
+
+@bp.route("/episodes/<int(signed=True):episode_id>/search", methods=["POST"])
 def episode_search(episode_id):
     """Search providers for a specific episode's subtitles.
     ---
@@ -63,7 +112,13 @@ def episode_search(episode_id):
           required: true
           schema:
             type: integer
-          description: Sonarr episode ID
+          description: Sonarr episode ID, or in standalone mode the standalone wanted item ID (negative synthetic ID for an episode without one)
+        - in: query
+          name: file_path
+          required: false
+          schema:
+            type: string
+          description: Standalone mode only — the episode's video path, used when the ID has no wanted item
       responses:
         200:
           description: Search results
@@ -76,34 +131,10 @@ def episode_search(episode_id):
           description: Search error
         404:
           description: Episode not found or has no file
-        503:
-          description: Sonarr not configured
     """
-    from config import get_settings
-    from db.profiles import get_default_profile, get_series_profile
-    from sonarr_client import get_sonarr_client
     from wanted_search import search_wanted_item
 
-    settings = get_settings()
-
-    sonarr = get_sonarr_client()
-    if not sonarr:
-        return jsonify({"error": "Sonarr not configured"}), 503
-
-    episode = sonarr.get_episode_by_id(episode_id)
-    if not episode:
-        return jsonify({"error": "Episode not found"}), 404
-
-    series_id = episode.get("seriesId")
-    profile = get_series_profile(series_id) if series_id else get_default_profile()
-    target_languages = (
-        profile.get("target_languages", [settings.target_language])
-        if profile
-        else [settings.target_language]
-    )
-    target_lang = target_languages[0] if target_languages else settings.target_language
-
-    item_id, err = _get_or_create_episode_wanted(sonarr, episode, episode_id, target_lang)
+    item_id, err = _resolve_episode_wanted_id(episode_id)
     if err:
         return err
 
@@ -113,7 +144,7 @@ def episode_search(episode_id):
     return jsonify(result)
 
 
-@bp.route("/episodes/<int:episode_id>/search-providers", methods=["GET"])
+@bp.route("/episodes/<int(signed=True):episode_id>/search-providers", methods=["GET"])
 def episode_search_providers_interactive(episode_id):
     """Return all provider results for interactive subtitle selection (episode view).
     ---
@@ -130,39 +161,22 @@ def episode_search_providers_interactive(episode_id):
           required: true
           schema:
             type: integer
-          description: Sonarr episode ID
+          description: Sonarr episode ID, or in standalone mode the standalone wanted item ID (negative synthetic ID for an episode without one)
+        - in: query
+          name: file_path
+          required: false
+          schema:
+            type: string
+          description: Standalone mode only — the episode's video path, used when the ID has no wanted item
       responses:
         200:
           description: All provider results
         404:
           description: Episode not found or has no file
-        503:
-          description: Sonarr not configured
     """
-    from config import get_settings
-    from db.profiles import get_default_profile, get_series_profile
-    from sonarr_client import get_sonarr_client
     from wanted_search import search_providers_for_item
 
-    settings = get_settings()
-    sonarr = get_sonarr_client()
-    if not sonarr:
-        return jsonify({"error": "Sonarr not configured"}), 503
-
-    episode = sonarr.get_episode_by_id(episode_id)
-    if not episode:
-        return jsonify({"error": "Episode not found"}), 404
-
-    series_id = episode.get("seriesId")
-    profile = get_series_profile(series_id) if series_id else get_default_profile()
-    target_languages = (
-        profile.get("target_languages", [settings.target_language])
-        if profile
-        else [settings.target_language]
-    )
-    target_lang = target_languages[0] if target_languages else settings.target_language
-
-    item_id, err = _get_or_create_episode_wanted(sonarr, episode, episode_id, target_lang)
+    item_id, err = _resolve_episode_wanted_id(episode_id)
     if err:
         return err
 
@@ -171,7 +185,7 @@ def episode_search_providers_interactive(episode_id):
     return jsonify(result)
 
 
-@bp.route("/episodes/<int:episode_id>/download-specific", methods=["POST"])
+@bp.route("/episodes/<int(signed=True):episode_id>/download-specific", methods=["POST"])
 def episode_download_specific(episode_id):
     """Download a specific subtitle chosen via interactive search (episode view).
     ---
@@ -188,7 +202,13 @@ def episode_download_specific(episode_id):
           required: true
           schema:
             type: integer
-          description: Sonarr episode ID
+          description: Sonarr episode ID, or in standalone mode the standalone wanted item ID (negative synthetic ID for an episode without one)
+        - in: query
+          name: file_path
+          required: false
+          schema:
+            type: string
+          description: Standalone mode only — the episode's video path, used when the ID has no wanted item
       requestBody:
         required: true
         content:
@@ -213,19 +233,9 @@ def episode_download_specific(episode_id):
           description: Validation or download error
         404:
           description: Episode not found or has no file
-        503:
-          description: Sonarr not configured
     """
-    from config import get_settings
-    from db.profiles import get_default_profile, get_series_profile
     from events import emit_event
-    from sonarr_client import get_sonarr_client
     from wanted_search import download_specific_for_item
-
-    settings = get_settings()
-    sonarr = get_sonarr_client()
-    if not sonarr:
-        return jsonify({"error": "Sonarr not configured"}), 503
 
     data = request.get_json() or {}
     provider_name = (data.get("provider_name") or "").strip()
@@ -236,20 +246,7 @@ def episode_download_specific(episode_id):
     if not provider_name or not subtitle_id or not language:
         return jsonify({"error": "provider_name, subtitle_id, and language are required"}), 400
 
-    episode = sonarr.get_episode_by_id(episode_id)
-    if not episode:
-        return jsonify({"error": "Episode not found"}), 404
-
-    series_id = episode.get("seriesId")
-    profile = get_series_profile(series_id) if series_id else get_default_profile()
-    target_languages = (
-        profile.get("target_languages", [settings.target_language])
-        if profile
-        else [settings.target_language]
-    )
-    target_lang = target_languages[0] if target_languages else settings.target_language
-
-    item_id, err = _get_or_create_episode_wanted(sonarr, episode, episode_id, target_lang)
+    item_id, err = _resolve_episode_wanted_id(episode_id)
     if err:
         return err
 
@@ -270,7 +267,7 @@ def episode_download_specific(episode_id):
     return jsonify(result)
 
 
-@bp.route("/episodes/<int:episode_id>/history", methods=["GET"])
+@bp.route("/episodes/<int(signed=True):episode_id>/history", methods=["GET"])
 def episode_history(episode_id):
     """Get download/translation history for a specific episode.
     ---
@@ -287,7 +284,13 @@ def episode_history(episode_id):
           required: true
           schema:
             type: integer
-          description: Sonarr episode ID
+          description: Sonarr episode ID, or in standalone mode the standalone wanted item ID (negative synthetic ID for an episode without one)
+        - in: query
+          name: file_path
+          required: false
+          schema:
+            type: string
+          description: Standalone mode only — the episode's video path, used when the ID has no wanted item
       responses:
         200:
           description: Episode history
@@ -301,8 +304,6 @@ def episode_history(episode_id):
                     items:
                       type: object
                       additionalProperties: true
-        503:
-          description: Sonarr not configured
     """
     from config import map_path
     from db.cache import get_episode_history
@@ -310,9 +311,16 @@ def episode_history(episode_id):
 
     sonarr = get_sonarr_client()
     if not sonarr:
-        return jsonify({"error": "Sonarr not configured"}), 503
+        # Standalone (#226): the wanted row id, or synthetic id + file_path.
+        # Read-only — never creates a wanted row.
+        from services.standalone_episode import resolve_standalone_episode_file
 
-    file_path = sonarr.get_episode_file_path(episode_id)
+        file_path = resolve_standalone_episode_file(
+            episode_id, request.args.get("file_path") or None
+        )
+        return jsonify({"entries": get_episode_history(file_path) if file_path else []})
+
+    file_path = sonarr.get_episode_file_path(episode_id) if episode_id > 0 else None
     if not file_path:
         return jsonify({"entries": []})
 

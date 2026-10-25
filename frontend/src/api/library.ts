@@ -30,15 +30,30 @@ export async function getMovieDetail(movieId: number): Promise<MovieDetail> {
 
 // ─── Episode Search & History ─────────────────────────────────────────────────
 
-export async function episodeSearch(episodeId: number): Promise<WantedSearchResponse> {
-  const { data } = await api.post(`/episodes/${episodeId}/search`);
+/** Standalone episodes (no Sonarr) are keyed by their wanted-item id, or a
+ *  negative synthetic id once fully subtitled — the backend then resolves the
+ *  episode from its `file_path` (#226). Sonarr episodes pass no path. */
+function episodeParams(filePath?: string): { file_path: string } | undefined {
+  return filePath ? { file_path: filePath } : undefined;
+}
+
+export async function episodeSearch(
+  episodeId: number,
+  filePath?: string
+): Promise<WantedSearchResponse> {
+  const { data } = await api.post(`/episodes/${episodeId}/search`, undefined, {
+    params: episodeParams(filePath),
+  });
   return data;
 }
 
 export async function episodeHistory(
-  episodeId: number
+  episodeId: number,
+  filePath?: string
 ): Promise<{ entries: EpisodeHistoryEntry[] }> {
-  const { data } = await api.get(`/episodes/${episodeId}/history`);
+  const { data } = await api.get(`/episodes/${episodeId}/history`, {
+    params: episodeParams(filePath),
+  });
   return data;
 }
 
@@ -97,10 +112,15 @@ export async function searchInteractive(
 
 export async function searchInteractiveEpisode(
   episodeId: number,
-  allProviders = false
+  allProviders = false,
+  filePath?: string
 ): Promise<InteractiveSearchResponse> {
+  const params = {
+    ...(allProviders ? { all_providers: true } : {}),
+    ...episodeParams(filePath),
+  };
   const { data } = await api.get(`/episodes/${episodeId}/search-providers`, {
-    params: allProviders ? { all_providers: true } : undefined,
+    params: Object.keys(params).length ? params : undefined,
   });
   return data;
 }
@@ -115,9 +135,12 @@ export async function downloadSpecific(
 
 export async function downloadSpecificEpisode(
   episodeId: number,
-  payload: DownloadSpecificPayload
+  payload: DownloadSpecificPayload,
+  filePath?: string
 ): Promise<DownloadSpecificResult> {
-  const { data } = await api.post(`/episodes/${episodeId}/download-specific`, payload);
+  const { data } = await api.post(`/episodes/${episodeId}/download-specific`, payload, {
+    params: episodeParams(filePath),
+  });
   return data;
 }
 

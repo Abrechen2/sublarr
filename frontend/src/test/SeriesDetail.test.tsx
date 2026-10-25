@@ -5,7 +5,7 @@
  * page-level behaviour: title rendering, season grouping, and navigation.
  */
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { render, screen } from '@testing-library/react'
+import { render, screen, fireEvent, waitFor } from '@testing-library/react'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { MemoryRouter, Route, Routes } from 'react-router-dom'
 import { SeriesDetailPage } from '@/pages/SeriesDetail'
@@ -20,7 +20,7 @@ vi.mock('react-i18next', () => ({
 
 // ─── Mock data ────────────────────────────────────────────────────────────────
 
-const mockSeries = {
+const mockSeries: Record<string, unknown> = {
   id: 1,
   title: 'Attack on Titan',
   sonarr_id: 1,
@@ -47,11 +47,36 @@ const mockSeries = {
   ],
 }
 
+// Standalone series (no Sonarr, #226): the satisfied episode has a negative
+// synthetic id, so the page must hand its file_path to the episode endpoints.
+const standaloneSeries = {
+  ...mockSeries,
+  id: 7,
+  title: 'My Show',
+  source: 'standalone',
+  episodes: [
+    {
+      id: -1,
+      season: 1,
+      episode: 2,
+      title: 'My Show -- S01E02',
+      has_file: true,
+      file_path: '/media/my-show/s01e02.mkv',
+      subtitles: { de: 'ass' },
+      subtitle_scores: {},
+    },
+  ],
+}
+
+let currentSeries: Record<string, unknown> = mockSeries
+const episodeSearchMutate = vi.fn()
+const interactiveModalProps = vi.fn()
+
 // ─── API hooks ────────────────────────────────────────────────────────────────
 
 vi.mock('@/hooks/useApi', () => ({
-  useSeriesDetail: () => ({ data: mockSeries, isLoading: false, error: null }),
-  useEpisodeSearch: () => ({ mutate: vi.fn(), isPending: false }),
+  useSeriesDetail: () => ({ data: currentSeries, isLoading: false, error: null }),
+  useEpisodeSearch: () => ({ mutate: episodeSearchMutate, isPending: false }),
   useEpisodeHistory: () => ({ data: null }),
   useProcessWantedItem: () => ({ mutate: vi.fn(), isPending: false }),
   useStartWantedBatch: () => ({ mutate: vi.fn(), isPending: false }),
@@ -116,8 +141,25 @@ vi.mock('@/components/series/SeasonTabs', () => ({
 }))
 
 vi.mock('@/components/series/SeasonGroup', () => ({
-  SeasonGroup: ({ season }: { season: number }) => (
-    <div data-testid={`season-group-${season}`}>Season {season}</div>
+  SeasonGroup: ({
+    season,
+    episodes,
+    onSearch,
+    onInteractiveSearch,
+    onHistory,
+  }: {
+    season: number
+    episodes: unknown[]
+    onSearch: (ep: unknown) => void
+    onInteractiveSearch: (ep: unknown) => void
+    onHistory: (ep: unknown) => void
+  }) => (
+    <div data-testid={`season-group-${season}`}>
+      Season {season}
+      <button onClick={() => onSearch(episodes[0])}>stub-search</button>
+      <button onClick={() => onInteractiveSearch(episodes[0])}>stub-interactive</button>
+      <button onClick={() => onHistory(episodes[0])}>stub-history</button>
+    </div>
   ),
 }))
 
@@ -150,7 +192,10 @@ vi.mock('@/components/shared/SubtitleCleanupModal', () => ({
 }))
 
 vi.mock('@/components/wanted/InteractiveSearchModal', () => ({
-  InteractiveSearchModal: () => null,
+  InteractiveSearchModal: (props: Record<string, unknown>) => {
+    interactiveModalProps(props)
+    return null
+  },
 }))
 
 vi.mock('@/components/comparison/ComparisonSelector', () => ({
@@ -191,6 +236,7 @@ function renderSeriesDetail(seriesId = '1') {
 describe('SeriesDetailPage', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    currentSeries = mockSeries
   })
 
   it('renders series title via SeriesHero', () => {
@@ -210,5 +256,58 @@ describe('SeriesDetailPage', () => {
   it('renders season summary bar for the current season', () => {
     renderSeriesDetail()
     expect(screen.getByTestId('season-summary-bar')).toBeInTheDocument()
+  })
+})
+
+describe('SeriesDetailPage episode actions (#226)', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+  })
+
+  function lastModalProps() {
+    const calls = interactiveModalProps.mock.calls
+    return calls[calls.length - 1][0] as { episodeId?: number; episodeFilePath?: string }
+  }
+
+  it('sends the file path for a standalone episode search', () => {
+    currentSeries = standaloneSeries
+    renderSeriesDetail('7')
+    fireEvent.click(screen.getByText('stub-search'))
+    expect(episodeSearchMutate).toHaveBeenCalledWith(
+      { episodeId: -1, filePath: '/media/my-show/s01e02.mkv' },
+      expect.any(Object),
+    )
+  })
+
+  it('passes the file path to the interactive search modal for standalone', () => {
+    currentSeries = standaloneSeries
+    renderSeriesDetail('7')
+    fireEvent.click(screen.getByText('stub-interactive'))
+    expect(lastModalProps()).toMatchObject({
+      episodeId: -1,
+      episodeFilePath: '/media/my-show/s01e02.mkv',
+    })
+  })
+
+  it('requests standalone history with the file path', async () => {
+    currentSeries = standaloneSeries
+    const { episodeHistory } = await import('@/api/client')
+    renderSeriesDetail('7')
+    fireEvent.click(screen.getByText('stub-history'))
+    await waitFor(() =>
+      expect(episodeHistory).toHaveBeenCalledWith(-1, '/media/my-show/s01e02.mkv'),
+    )
+  })
+
+  it('keeps Sonarr episodes keyed by id only', () => {
+    currentSeries = mockSeries
+    renderSeriesDetail('1')
+    fireEvent.click(screen.getByText('stub-search'))
+    expect(episodeSearchMutate).toHaveBeenCalledWith(
+      { episodeId: 101, filePath: undefined },
+      expect.any(Object),
+    )
+    fireEvent.click(screen.getByText('stub-interactive'))
+    expect(lastModalProps()).toMatchObject({ episodeId: 101, episodeFilePath: undefined })
   })
 })

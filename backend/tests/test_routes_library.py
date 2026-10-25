@@ -539,10 +539,11 @@ def test_series_settings_disable_absolute_order(client):
 # ---------------------------------------------------------------------------
 
 
-def test_episode_search_sonarr_not_configured(client, monkeypatch):
+def test_episode_search_standalone_unknown_episode_is_404(client, monkeypatch):
+    # No Sonarr = standalone mode (#226): an unknown id is a 404, not a 503.
     monkeypatch.setattr("sonarr_client.get_sonarr_client", lambda *a, **kw: None)
     resp = client.post("/api/v1/episodes/1/search")
-    assert resp.status_code == 503
+    assert resp.status_code == 404
 
 
 def test_episode_search_episode_not_found(client, monkeypatch):
@@ -606,10 +607,12 @@ def test_episode_search_success(client, monkeypatch, temp_dir, mock_provider_man
 # ---------------------------------------------------------------------------
 
 
-def test_episode_history_sonarr_not_configured(client, monkeypatch):
+def test_episode_history_standalone_unknown_episode_is_empty(client, monkeypatch):
+    # No Sonarr = standalone mode (#226): unknown id -> no entries, not a 503.
     monkeypatch.setattr("sonarr_client.get_sonarr_client", lambda *a, **kw: None)
     resp = client.get("/api/v1/episodes/1/history")
-    assert resp.status_code == 503
+    assert resp.status_code == 200
+    assert resp.get_json()["entries"] == []
 
 
 def test_episode_history_no_file(client, monkeypatch):
@@ -650,10 +653,11 @@ def test_episode_history_with_entries(client, monkeypatch):
 # ---------------------------------------------------------------------------
 
 
-def test_episode_search_providers_sonarr_not_configured(client, monkeypatch):
+def test_episode_search_providers_standalone_unknown_episode_is_404(client, monkeypatch):
+    # No Sonarr = standalone mode (#226): an unknown id is a 404, not a 503.
     monkeypatch.setattr("sonarr_client.get_sonarr_client", lambda *a, **kw: None)
     resp = client.get("/api/v1/episodes/1/search-providers")
-    assert resp.status_code == 503
+    assert resp.status_code == 404
 
 
 def test_episode_search_providers_episode_not_found(client, monkeypatch):
@@ -684,10 +688,11 @@ def test_download_specific_missing_fields(client, monkeypatch):
     assert resp.status_code == 400
 
 
-def test_download_specific_sonarr_not_configured(client, monkeypatch):
+def test_download_specific_standalone_unknown_episode_is_404(client, monkeypatch):
+    # No Sonarr = standalone mode (#226): an unknown id is a 404, not a 503.
     monkeypatch.setattr("sonarr_client.get_sonarr_client", lambda *a, **kw: None)
     resp = client.post(
         "/api/v1/episodes/1/download-specific",
         json={"provider_name": "animetosho", "subtitle_id": "123", "language": "de"},
     )
-    assert resp.status_code == 503
+    assert resp.status_code == 404

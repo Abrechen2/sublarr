@@ -27,6 +27,9 @@ interface InteractiveSearchModalProps {
   itemTitle: string
   itemId?: number
   episodeId?: number
+  /** Standalone episodes only: the video path the backend resolves the
+   *  episode by when it has no wanted item yet (#226). */
+  episodeFilePath?: string
   onClose: () => void
   onDownloaded: () => void
 }
@@ -43,6 +46,7 @@ export function InteractiveSearchModal({
   itemTitle,
   itemId,
   episodeId,
+  episodeFilePath,
   onClose,
   onDownloaded,
 }: InteractiveSearchModalProps) {
@@ -63,7 +67,12 @@ export function InteractiveSearchModal({
 
   // Only one of itemId/episodeId is used — choose the right query hook
   const wantedQuery = useSearchInteractive(itemId ?? null, open && !!itemId, allProviders)
-  const episodeQuery = useSearchInteractiveEpisode(episodeId ?? null, open && !!episodeId, allProviders)
+  const episodeQuery = useSearchInteractiveEpisode(
+    episodeId ?? null,
+    open && !!episodeId,
+    allProviders,
+    episodeFilePath,
+  )
 
   const query = itemId ? wantedQuery : episodeQuery
   const downloadWanted = useDownloadSpecific()
@@ -140,7 +149,7 @@ export function InteractiveSearchModal({
       if (itemId) {
         res = await downloadWanted.mutateAsync({ itemId, payload })
       } else if (episodeId) {
-        res = await downloadEpisode.mutateAsync({ episodeId, payload })
+        res = await downloadEpisode.mutateAsync({ episodeId, payload, filePath: episodeFilePath })
       }
 
       if (res?.success) {
@@ -158,7 +167,7 @@ export function InteractiveSearchModal({
     } finally {
       downloadingRef.current = null
     }
-  }, [popover, itemId, episodeId, downloadWanted, downloadEpisode, onDownloaded, queryClient])
+  }, [popover, itemId, episodeId, episodeFilePath, downloadWanted, downloadEpisode, onDownloaded, queryClient])
 
   if (!open) return null
 
