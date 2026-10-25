@@ -511,13 +511,7 @@ export function SeriesDetailPage() {
   const handleNfoExport = useCallback(async () => {
     if (!seriesId) return
     try {
-      const blob = await exportSeriesNfo(seriesId)
-      const url = URL.createObjectURL(blob)
-      const a = document.createElement('a')
-      a.href = url
-      a.download = `series-${seriesId}-nfo.zip`
-      a.click()
-      URL.revokeObjectURL(url)
+      await exportSeriesNfo(seriesId)
       toast(t('series_detail.nfo_exported'), 'success')
     } catch {
       toast(t('series_detail.nfo_export_failed'), 'error')

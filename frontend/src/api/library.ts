@@ -384,12 +384,13 @@ export async function batchExtractAllTracks(seriesId: number): Promise<{ status:
   return data;
 }
 
-export async function exportSeriesNfo(seriesId: number): Promise<Blob> {
-  const { data } = await api.post(
-    '/subtitles/export-nfo',
-    { series_id: seriesId },
-    { responseType: 'blob' }
-  );
+/** Writes an NFO sidecar next to every subtitle of the series (Sonarr or
+ *  standalone). The single-file `/subtitles/export-nfo` route needs `?path=`
+ *  and answered 400 to the `{series_id}` body this used to send. */
+export async function exportSeriesNfo(
+  seriesId: number
+): Promise<{ status: string; exported: number; skipped: number }> {
+  const { data } = await api.post(`/series/${seriesId}/subtitles/export-nfo`);
   return data;
 }
 
