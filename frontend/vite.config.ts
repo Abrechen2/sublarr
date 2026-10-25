@@ -66,10 +66,11 @@ export default defineConfig({
     },
     proxy: {
       '/api': 'http://localhost:5765',
+      // No changeOrigin: the backend accepts a Socket.IO origin that matches
+      // the Host header, so Host must stay localhost:5173 like the Origin.
       '/socket.io': {
         target: 'http://localhost:5765',
         ws: true,
-        changeOrigin: true,
       },
     },
   },

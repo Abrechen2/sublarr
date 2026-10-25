@@ -41,7 +41,7 @@
     "db_path_hint": "Pfad zur SQLite-Datenbankdatei. Bei Änderung muss die vorhandene Datei manuell verschoben werden.",
     "scan_engine_hint": "Werkzeug zum Auslesen von Video-Metadaten. Auto wählt das beste verfügbare aus.",
     "log_format_hint": "json eignet sich für Log-Aggregations-Werkzeuge. text ist für Menschen lesbar.",
-    "cors_origins_hint": "Kommagetrennte Liste erlaubter CORS-Origins. Nur nötig, wenn Sublarr von einer anderen Domain aus genutzt wird.",
+    "cors_origins_hint": "Kommagetrennte Liste zusätzlich erlaubter Origins. Die eigene Adresse von Sublarr ist immer erlaubt; nur nötig, wenn eine andere Seite sich mit Sublarr verbindet.",
     "db_pool_size_hint": "Maximale Anzahl von SQLite-Verbindungen im Pool.",
     "redis_url_hint": "Redis-Verbindungs-URL. Leer lassen, um die eingebaute In-Memory-Warteschlange zu nutzen.",
     "plugins_dir_hint": "Verzeichnis, in dem Sublarr nach installierten Plugins sucht."

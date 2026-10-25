@@ -138,9 +138,10 @@ class BootSettings(BaseSettings):
     log_file: str = "log/sublarr.log"
     log_format: str = "text"  # "text" or "json" (structured for log aggregation)
 
-    # Comma-separated allowed CORS/WebSocket origins (e.g. "https://app.example.com").
-    # Defaults to localhost dev origins; set "*" only in fully trusted environments.
-    cors_origins: str = "http://localhost:5173,http://localhost:5765"
+    # Comma-separated EXTRA Socket.IO origins (e.g. "https://app.example.com").
+    # The app's own origin (request Host) is always allowed, so the empty
+    # default means same-origin only. Set "*" only in fully trusted environments.
+    cors_origins: str = ""
 
     model_config = {
         "env_prefix": "SUBLARR_",

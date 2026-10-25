@@ -226,12 +226,16 @@ def create_app(testing=False):
     # warning per ignored variable so the migration is visible.
     warn_on_ignored_env_vars()
 
-    # Initialize SocketIO with the app — restrict origins to configured allowlist
-    _cors_origins_raw = getattr(
-        settings, "cors_origins", "http://localhost:5173,http://localhost:5765"
+    # Initialize SocketIO with the app. Same-origin is always allowed (matched
+    # against the Host header); SUBLARR_CORS_ORIGINS only adds foreign origins.
+    # See socketio_origins.py for why X-Forwarded-* is not trusted (#60).
+    from socketio_origins import build_origin_checker
+
+    socketio.init_app(
+        app,
+        cors_allowed_origins=build_origin_checker(getattr(settings, "cors_origins", "")),
+        async_mode="threading",
     )
-    _cors_origins = [o.strip() for o in _cors_origins_raw.split(",") if o.strip()]
-    socketio.init_app(app, cors_allowed_origins=_cors_origins, async_mode="threading")
 
     # Serve under the configured base_url as well as at the root. This has to
     # come AFTER socketio.init_app: that call wraps app.wsgi_app in its own

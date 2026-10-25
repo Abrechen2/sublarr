@@ -149,7 +149,7 @@ Only these bootstrap variables are read from the environment (`backend/config_se
 |---|---|---|
 | `SUBLARR_PORT` | `5765` | HTTP port |
 | `SUBLARR_API_KEY` | *(empty)* | Optional API key (`X-Api-Key` header); empty = no API-key auth |
-| `SUBLARR_CORS_ORIGINS` | `http://localhost:5173,http://localhost:5765` | Allowed CORS / WebSocket origins |
+| `SUBLARR_CORS_ORIGINS` | *(empty)* | Extra Socket.IO origins, comma-separated. Sublarr's own origin is always allowed; behind a reverse proxy, forward the original `Host` header (nginx: `proxy_set_header Host $http_host;`) or list the public origin here |
 | `SUBLARR_MEDIA_PATH` | `/media` | Media library root inside the container |
 | `SUBLARR_CONFIG_DIR` | `/config` | Persistent config directory |
 | `SUBLARR_DB_PATH` | `/config/sublarr.db` | SQLite database path |
