@@ -20,6 +20,13 @@ Rules:
 
 Requests without an ``Origin`` header (non-browser clients) are not checked
 by Engine.IO at all; the Socket.IO connect handler still authenticates them.
+
+DNS rebinding: a page on a rebinding domain gets Origin == Host and passes
+this check. That is not a new exposure. With an API key or UI password set,
+the connect handler in app.py still needs the session cookie (bound to the
+real host, so the rebinding page never has it) or the key. Without either,
+the REST API is already open to that page, and it never had an Origin check.
+Real protection is a trusted-hosts list for the whole app, not this check.
 """
 
 from __future__ import annotations
