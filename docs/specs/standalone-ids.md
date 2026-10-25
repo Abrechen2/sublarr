@@ -1,6 +1,6 @@
 # Standalone ids: stable episode identity and a collision-free id space
 
-Status: proposed for 1.18.0, revised after the Codex design review (see
+Status: implemented for 1.18.0, revised after the Codex design review (see
 "Review log"). "Per-gap status" lists what is deferred.
 
 ## Problem
@@ -324,3 +324,23 @@ code. Disposition:
 13. Translation `arr_context` drops standalone ownership — accepted.
 14. Frontend maps wanted ids to episode ids — accepted: matched by file path.
 15. `/standalone/*` contract undefined — accepted: both id forms accepted.
+
+### Review of the implementation
+
+A second, cold Codex review of `git diff master...HEAD` found four issues,
+all fixed:
+
+1. A positive movie id that a configured Radarr does not know fell through
+   to the standalone movie of the same number (`movie_video_path`,
+   `/standalone/movies/<id>`) — now not found; standalone movies are reached
+   by their negative id, or by a positive id only without Radarr.
+2. The wanted pipeline passed only `sonarr_series_id` / `radarr_movie_id` to
+   `save_subtitle`, so a standalone download ran the post-download pipeline
+   and the foreign-track cleanup without the title's settings — the owner
+   keys are passed now.
+3. The series ZIP export applied the Sonarr remote-path mapping to a
+   standalone folder and fell back to a standalone series after a failed
+   Sonarr lookup — standalone folders are used as is, Sonarr ids stay
+   Sonarr's.
+4. The overrides tree named standalone titles by their positive id — it uses
+   the owner key now.

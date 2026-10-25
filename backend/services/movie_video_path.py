@@ -41,8 +41,8 @@ def resolve_movie_video_path(movie_id: int) -> str | None:
     """Video file of a movie id, same id rules as the movie detail.
 
     Negative: a standalone movie. Positive: Radarr's movie when Radarr is
-    configured (falling back to a standalone row of that id when Radarr does
-    not know it, as the detail does), else a legacy standalone row id.
+    configured (an id Radarr does not know is not found — it must not reach
+    the standalone movie of the same number), else a legacy standalone row id.
     """
     from radarr_client import get_radarr_client
     from services.media_ids import standalone_id_from
@@ -55,8 +55,6 @@ def resolve_movie_video_path(movie_id: int) -> str | None:
     if client is None:
         return _standalone_movie_path(movie_id)
     movie = client.get_movie_by_id(movie_id)
-    if not movie:
-        return _standalone_movie_path(movie_id)
     path = radarr_movie_video_path(movie, client) if movie else None
     if not path or not os.path.isfile(path):
         return None

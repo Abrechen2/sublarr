@@ -102,7 +102,12 @@ def _standalone_episodes():
     from db.standalone import get_standalone_series
     from services.standalone_library import episode_path_in_series, series_episode_files
 
-    for series in get_standalone_series() or []:
+    try:
+        all_series = get_standalone_series() or []
+    except Exception:  # noqa: BLE001 — the Sonarr part of the sweep must still count
+        logger.warning("subtitle_health sweep: standalone series unavailable", exc_info=True)
+        return
+    for series in all_series:
         for ep in series_episode_files(series["id"]) or []:
             yield ep.wire_id, episode_path_in_series(ep.file_path, series["id"])
 

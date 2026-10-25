@@ -20,6 +20,7 @@ from db.wanted import (
 from error_handler import DuplicateSubtitleError
 from providers import get_provider_manager
 from providers.base import SubtitleFormat
+from services.media_ids import movie_key_for_item, series_key_for_item
 from services.scheduler.cancellation import abort_requested
 from translator.errors import TranslationAbortedError
 from upgrade_scorer import should_upgrade
@@ -58,7 +59,6 @@ def _load_profile_filters(item: dict, item_id: int) -> dict:
     """Resolve the effective language profile filters for a wanted item."""
     from db.models.core import LanguageProfile, MovieLanguageProfile, SeriesLanguageProfile
     from extensions import db as _db
-    from services.media_ids import movie_key_for_item, series_key_for_item
     from wanted_search.profile_filters import load_profile_filters
 
     _profile_obj = None
@@ -400,8 +400,8 @@ def _try_target_ass_direct(ctx: dict) -> dict | None:
             saved_path = manager.save_subtitle(
                 result,
                 output_path,
-                series_id=item.get("sonarr_series_id"),
-                movie_id=item.get("radarr_movie_id"),
+                series_id=series_key_for_item(item),
+                movie_id=movie_key_for_item(item),
             )
             if is_upgrade:
                 _retire_replaced_srt(ctx, result, new_score, keep=saved_path)
@@ -648,8 +648,8 @@ def _try_source_ass_translation(ctx: dict) -> dict | None:
             actual_source_path = manager.save_subtitle(
                 result,
                 tmp_source_path,
-                series_id=item.get("sonarr_series_id"),
-                movie_id=item.get("radarr_movie_id"),
+                series_id=series_key_for_item(item),
+                movie_id=movie_key_for_item(item),
             )
             source_created_this_run = True
             record_subtitle_download(
@@ -822,8 +822,8 @@ def _try_target_srt_direct(ctx: dict) -> dict | None:
             saved_path = manager.save_subtitle(
                 result,
                 output_path,
-                series_id=item.get("sonarr_series_id"),
-                movie_id=item.get("radarr_movie_id"),
+                series_id=series_key_for_item(item),
+                movie_id=movie_key_for_item(item),
             )
             record_subtitle_download(
                 result.provider_name,
@@ -938,8 +938,8 @@ def _try_source_srt_translation(ctx: dict) -> dict | None:
             actual_source_path = manager.save_subtitle(
                 result,
                 tmp_source_path,
-                series_id=item.get("sonarr_series_id"),
-                movie_id=item.get("radarr_movie_id"),
+                series_id=series_key_for_item(item),
+                movie_id=movie_key_for_item(item),
             )
             source_created_this_run = True
             record_subtitle_download(

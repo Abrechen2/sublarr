@@ -81,18 +81,19 @@ def get_movie(movie_id):
 
     # A negative id is a standalone movie. A positive one is Radarr's when
     # Radarr is configured (the library lists standalone movies with negative
-    # ids), else -- and when Radarr does not know it -- a standalone row id.
+    # ids) and must not fall through to the standalone movie of that number;
+    # without Radarr it is a standalone row id (pre-1.18 links).
     ref = resolve_movie_ref(movie_id)
     if ref.kind == RADARR:
         fallback = get_radarr_movie_fallback(movie_id)
         if fallback:
             return jsonify(fallback)
+        return jsonify({"error": "Movie not found"}), 404
     movie = get_standalone_movies(ref.id)
     if not movie:
-        # Legacy positive id without Radarr: the old order tried Radarr last.
-        fallback = (
-            get_radarr_movie_fallback(movie_id) if movie_id > 0 and ref.kind != RADARR else None
-        )
+        # Legacy positive id: the old order tried Radarr last (a no-op
+        # without a Radarr client).
+        fallback = get_radarr_movie_fallback(movie_id) if movie_id > 0 else None
         if fallback:
             return jsonify(fallback)
         return jsonify({"error": "Movie not found"}), 404

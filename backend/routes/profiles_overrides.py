@@ -96,9 +96,9 @@ def get_scopes():
         # Strip episode-tail like " — S01E01 [DE]" if present.
         clean = title.split(" — ")[0] if " — " in title else title
         series_id_titles[sid] = clean or f"#{sid}"
-    # standalone_series: manual library entries with their own id + title.
+    # standalone_series: their rows live under the owner key (negated id).
     for row in _safe_query("SELECT id, title FROM standalone_series"):
-        sid, title = int(row[0]), str(row[1] or "")
+        sid, title = -int(row[0]), str(row[1] or "")
         series_id_titles.setdefault(sid, title or f"#{sid}")
     # Sonarr/Radarr fallback for IDs that have no title in our caches yet
     # (e.g. items added to the override tree purely via the SeriesDetail
@@ -119,7 +119,7 @@ def get_scopes():
 
     movie_id_titles: dict[int, str] = {}
     for row in _safe_query("SELECT id, title FROM standalone_movies"):
-        mid, title = int(row[0]), str(row[1] or "")
+        mid, title = -int(row[0]), str(row[1] or "")
         movie_id_titles[mid] = title or f"#{mid}"
     missing_movie_ids = {mid for mid in eligible_movie_ids if mid not in movie_id_titles}
     if missing_movie_ids:

@@ -20,29 +20,30 @@ _ZIP_SIZE_LIMIT = 50 * 1024 * 1024  # 50 MB
 
 
 def _get_series_path(series_id: int) -> str | None:
-    """Resolve series filesystem path via Sonarr or standalone DB, applying path mapping."""
-    from services.media_ids import standalone_id_from
+    """Resolve the series folder: Sonarr's (path-mapped) or the standalone one."""
+    from services.media_ids import resolve_series_ref
     from sonarr_client import get_sonarr_client
 
-    standalone_id = standalone_id_from(series_id)
-    if standalone_id is None:
+    ref = resolve_series_ref(series_id)
+    if not ref.is_standalone:
+        # A Sonarr id is Sonarr's only: no fall-through to the standalone
+        # series that happens to have the same number.
         try:
-            client = get_sonarr_client()
-            series = client.get_series_by_id(series_id)
-            if series:
-                raw_path = series.get("path", "")
-                return map_path(raw_path) if raw_path else None
+            series = get_sonarr_client().get_series_by_id(series_id)
+            raw_path = (series or {}).get("path", "")
+            return map_path(raw_path) if raw_path else None
         except Exception as exc:
             logger.warning("Failed to resolve series path via Sonarr for id=%s: %s", series_id, exc)
+            return None
 
-    # Standalone series: a negative id, or the legacy positive id fallback.
+    # Standalone series (negative id, or a positive id without Sonarr): the
+    # scanned folder is local, so no remote-path mapping applies.
     try:
         from db.standalone import get_standalone_series
 
-        standalone = get_standalone_series(standalone_id or series_id)
+        standalone = get_standalone_series(ref.id)
         if standalone:
-            raw_path = standalone.get("folder_path", "")
-            return map_path(raw_path) if raw_path else None
+            return standalone.get("folder_path") or None
     except Exception as exc:
         logger.warning("Failed to resolve standalone series path for id=%s: %s", series_id, exc)
 
