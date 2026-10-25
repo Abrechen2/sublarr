@@ -52,6 +52,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   kept. With Sonarr or Radarr configured, its settings are never used for a
   standalone title with the same number.
 
+- **The series health scan saves its results** — Scanning a whole series
+  for subtitle problems ran without access to the database. For a standalone
+  series it stopped before scanning anything, and for a Sonarr series the
+  results were not saved, so the episode pages did not show them afterwards.
+  The scan now finishes and saves its findings for both.
 - **A new standalone title no longer inherits a deleted title's settings** —
   On SQLite, a series or movie added after another one was deleted could get
   the deleted title's number, and with it its language profile, its

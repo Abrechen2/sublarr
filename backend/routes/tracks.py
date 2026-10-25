@@ -548,9 +548,14 @@ def scan_series_health(series_id):
     """
     from services.subtitle_health.series_scan import run_series_scan
 
+    # The pool thread has no Flask context; a standalone series is looked up
+    # in the database before its episodes are scanned.
+    app = current_app._get_current_object()
+
     def _job():
-        summary = run_series_scan(series_id)
-        emit_event("subtitle_health_complete", summary)
+        with app.app_context():
+            summary = run_series_scan(series_id)
+            emit_event("subtitle_health_complete", summary)
 
     submit_background(_job)
     return jsonify({"status": "started", "series_id": series_id}), 202
