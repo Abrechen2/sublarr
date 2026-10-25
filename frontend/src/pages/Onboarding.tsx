@@ -5,6 +5,7 @@ import { updateConfig, completeOnboarding, getHealth, getMediaServerTypes, saveM
 import type { SetupBenchmark, SetupProfile } from '@/api/health'
 import { testSonarrInstance, testRadarrInstance, testApiKey } from '@/api/settings'
 import { toast } from '@/components/shared/Toast'
+import { apiErrorMessage } from '@/lib/apiError'
 import { Loader2, CheckCircle, ArrowRight, ArrowLeft, Server, Globe, Cpu, Search, Play, Monitor, Plus, TestTube, Trash2, Eye, EyeOff, FolderOpen, Languages, Zap, AlertCircle, Clapperboard, Sparkles, Library, Gauge } from 'lucide-react'
 import type { MediaServerType, MediaServerInstance, MediaServerTestResult } from '@/lib/types'
 
@@ -250,9 +251,10 @@ export default function Onboarding() {
             enabled: true,
           }))
         const folderResults = await Promise.allSettled(folderPayloads)
-        const folderFailures = folderResults.filter((r) => r.status === 'rejected').length
-        if (folderFailures > 0) {
-          toast(t('errors.folder_save', { count: folderFailures }), 'error')
+        const rejected = folderResults.filter((r): r is PromiseRejectedResult => r.status === 'rejected')
+        if (rejected.length > 0) {
+          // Show why (e.g. a folder outside the media folder), not just how many.
+          toast(apiErrorMessage(rejected[0].reason, t('errors.folder_save', { count: rejected.length })), 'error')
         }
       } else {
         await updateConfig(toSave)
