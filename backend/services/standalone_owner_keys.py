@@ -17,7 +17,9 @@ that arr — all of:
   automation queue);
 * no durable history row (downloads, upgrades, blacklist, translation jobs,
   sidecar origins, health findings) names a file outside the standalone
-  titles.
+  titles, or a file inside one that was recorded before that title was
+  created (the arr handled the same folder before it was imported as
+  standalone).
 
 Wanted rows and the search index are no evidence that the arr was unused: a
 successful download deletes wanted rows, and startup rebuilds the search
@@ -68,14 +70,15 @@ _MOVIE_TABLES = (
 _SONARR_CONFIG_KEYS = ("sonarr_url", "sonarr_instances_json")
 _RADARR_CONFIG_KEYS = ("radarr_url", "radarr_instances_json")
 
-# Durable history that records a media or subtitle path: (table, path column).
+# Durable history that records a media or subtitle path:
+# (table, path column, timestamp column).
 _PATH_HISTORY = (
-    ("subtitle_downloads", "file_path"),
-    ("upgrade_history", "file_path"),
-    ("blacklist_entries", "file_path"),
-    ("jobs", "file_path"),
-    ("sidecar_origins", "video_path"),
-    ("subtitle_health_findings", "target_path"),
+    ("subtitle_downloads", "file_path", "downloaded_at"),
+    ("upgrade_history", "file_path", "upgraded_at"),
+    ("blacklist_entries", "file_path", "added_at"),
+    ("jobs", "file_path", "created_at"),
+    ("sidecar_origins", "video_path", "recorded_at"),
+    ("subtitle_health_findings", "target_path", "detected_at"),
 )
 
 
@@ -136,49 +139,90 @@ def _norm(path: str) -> str:
     return os.path.normpath(path.replace("\\", "/"))
 
 
+def _as_utc(value) -> datetime | None:
+    """A DB timestamp (datetime, or ISO text on SQLite) as aware UTC; None if unreadable."""
+    if isinstance(value, datetime):
+        stamp = value
+    else:
+        try:
+            stamp = datetime.fromisoformat(str(value))
+        except (TypeError, ValueError):
+            return None
+    return stamp if stamp.tzinfo else stamp.replace(tzinfo=UTC)
+
+
 class _StandaloneFiles:
-    """Answers "does this recorded path belong to a known standalone title?"."""
+    """Which standalone title (if any) a recorded path belongs to, and since when.
+
+    Lookups are dictionary hits per ancestor directory, so the cost is the
+    path depth, not the library size.
+    """
 
     def __init__(self, conn, tables: set[str]):
-        self.folders: list[str] = []
-        self.files: set[str] = set()
-        self.movies: list[tuple[str, str]] = []  # (directory, stem + ".")
+        self.folders: dict[str, datetime | None] = {}
+        self.files: dict[str, datetime | None] = {}
+        self.movies: dict[str, list[tuple[str, datetime | None]]] = {}  # dir -> (stem., since)
         if "standalone_series" in tables:
-            for (folder,) in conn.execute(sa.text("SELECT folder_path FROM standalone_series")):
+            for folder, created in conn.execute(
+                sa.text("SELECT folder_path, created_at FROM standalone_series")
+            ):
                 if folder:
-                    self.folders.append(_norm(folder).rstrip("/") + "/")
+                    self.folders[_norm(folder).rstrip("/") or "/"] = _as_utc(created)
         if "standalone_movies" in tables:
-            for (path,) in conn.execute(sa.text("SELECT file_path FROM standalone_movies")):
+            for path, created in conn.execute(
+                sa.text("SELECT file_path, created_at FROM standalone_movies")
+            ):
                 if path:
-                    path = _norm(path)
-                    self.files.add(path)
+                    path, since = _norm(path), _as_utc(created)
+                    self.files[path] = since
                     stem = os.path.splitext(os.path.basename(path))[0]
-                    self.movies.append((os.path.dirname(path), stem + "."))
+                    self.movies.setdefault(os.path.dirname(path), []).append((stem + ".", since))
 
-    def owns(self, path: str) -> bool:
+    def owner_since(self, path: str) -> tuple[bool, datetime | None]:
+        """``(owned, owner's created_at)`` for a recorded path."""
         path = _norm(path)
-        if path in self.files or any(path.startswith(f) for f in self.folders):
-            return True
+        if path in self.files:
+            return True, self.files[path]
         directory, name = os.path.dirname(path), os.path.basename(path)
-        return any(directory == d and name.startswith(s) for d, s in self.movies)
+        for stem, since in self.movies.get(directory, ()):
+            if name.startswith(stem):
+                return True, since
+        current = directory
+        while True:
+            if current in self.folders:
+                return True, self.folders[current]
+            parent = os.path.dirname(current)
+            if parent == current:
+                return False, None
+            current = parent
 
 
 def _foreign_path_evidence(conn, tables: set[str]) -> str | None:
-    """A history row for a file outside every standalone title.
+    """A history row the standalone titles cannot account for.
 
-    Such a file came through Sonarr or Radarr; which of the two cannot be told
-    from the path, so this counts against both sides.
+    That is a file outside every standalone title, or a file inside one but
+    recorded before that title existed (Sonarr/Radarr handled the same folder
+    before it was imported as standalone). Which arr cannot be told from a
+    path, so this counts against both sides. An unreadable timestamp counts
+    as evidence too.
     """
     owned = _StandaloneFiles(conn, tables)
-    for table, col in _PATH_HISTORY:
+    for table, col, ts in _PATH_HISTORY:
         if table not in tables:
             continue
         rows = conn.execute(
-            sa.text(f"SELECT DISTINCT {col} FROM {table} WHERE {col} IS NOT NULL")  # noqa: S608
+            sa.text(
+                f"SELECT {col}, MIN({ts}) FROM {table} "  # noqa: S608 — fixed names
+                f"WHERE {col} IS NOT NULL AND {col} != '' GROUP BY {col}"
+            )
         )
-        for (path,) in rows:
-            if path and not owned.owns(path):
+        for path, first_seen in rows:
+            is_owned, since = owned.owner_since(path)
+            if not is_owned:
                 return f"{table} rows for files outside the standalone titles"
+            seen = _as_utc(first_seen)
+            if since is None or seen is None or seen < since:
+                return f"{table} rows older than the standalone title they belong to"
     return None
 
 
@@ -259,10 +303,14 @@ def _rekey_findings(conn, tables: set[str]) -> int:
 
 
 def _arr_evidence(conn, tables: set[str], *, configured: bool, name: str, keys, id_check, shared):
-    """Why this side may have been the arr's, or ``None`` when it never was."""
+    """Why this side may have been the arr's, or ``None`` when it never was.
+
+    ``shared`` is a callable: the history scan runs only when the cheap
+    checks found nothing, and at most once for both sides.
+    """
     if configured:
         return f"{name} is configured"
-    return _config_evidence(conn, tables, keys) or id_check(conn, tables) or shared
+    return _config_evidence(conn, tables, keys) or id_check(conn, tables) or shared()
 
 
 def migrate_legacy_owner_keys(
@@ -293,7 +341,12 @@ def migrate_legacy_owner_keys(
         counts = {"series": 0, "movies": 0, "findings": 0}
         series_ids = _ids(conn, tables, "standalone_series")
         movie_ids = _ids(conn, tables, "standalone_movies")
-        shared = _foreign_path_evidence(conn, tables) if series_ids or movie_ids else None
+        history: list[str | None] = []
+
+        def shared() -> str | None:
+            if not history:
+                history.append(_foreign_path_evidence(conn, tables))
+            return history[0]
 
         if series_ids:
             reason = _arr_evidence(

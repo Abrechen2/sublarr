@@ -509,6 +509,47 @@ def test_prod_repro_stored_sonarr_url_alone_moves_nothing(app_ctx):
     assert _series_keys_1032(engine) == ([1032], [1032])
 
 
+def test_history_older_than_the_standalone_title_is_evidence(app_ctx):
+    """Codex re-review: Sonarr removed, its config cleared, the same folder
+    imported as standalone. Its download history now lies inside the
+    standalone folder, but it predates the standalone title, so it was not
+    the standalone title's."""
+    from services.standalone_owner_keys import migrate_legacy_owner_keys
+
+    engine = _engine(app_ctx)
+    _profiles()
+    with engine.begin() as conn:
+        _seed(conn)  # standalone titles created at _NOW
+        _insert(
+            conn,
+            "INSERT INTO subtitle_downloads (provider_name, subtitle_id, language, file_path, "
+            "downloaded_at) VALUES ('p', 's', 'de', '/m/Show/S01E01.de.srt', :old)",
+            old=datetime(2025, 1, 1, tzinfo=UTC),
+        )
+
+    result = migrate_legacy_owner_keys(engine, sonarr_configured=False, radarr_configured=False)
+    assert result == {"series": 0, "movies": 0, "findings": 0}
+    with engine.connect() as conn:
+        _assert_untouched(conn, series=True, movies=True)
+
+
+def test_no_history_scan_when_both_sides_are_decided(app_ctx, monkeypatch):
+    """Both arrs configured: the history tables are not read at all."""
+    from services import standalone_owner_keys as mod
+
+    engine = _engine(app_ctx)
+    _profiles()
+    with engine.begin() as conn:
+        _seed(conn)
+
+    def _boom(*a, **kw):
+        raise AssertionError("history scanned")
+
+    monkeypatch.setattr(mod, "_foreign_path_evidence", _boom)
+    result = mod.migrate_legacy_owner_keys(engine, sonarr_configured=True, radarr_configured=True)
+    assert result == {"series": 0, "movies": 0, "findings": 0}
+
+
 def test_startup_runs_the_move(tmp_path, monkeypatch):
     """Wired into create_app: an untracked SQLite install without arr gets it."""
     from config import reload_settings

@@ -47,7 +47,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   standalone title with the same number once the Wanted queue was empty.
   It now moves them only when nothing (a saved Sonarr/Radarr address,
   download or upgrade history, blacklist, health findings or translation
-  jobs for other files) shows the install ever used Sonarr or Radarr.
+  jobs for other files, or from before the standalone title was added)
+  shows the install ever used Sonarr or Radarr.
   Otherwise the settings stay untouched and the log says how many were kept,
   so you can assign profiles to those standalone titles on the Library page.
 
@@ -57,8 +58,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   search, download, the health scan and the nightly health auto-fix read and
   rewrite subtitle files outside it. Every standalone episode and movie file,
   and every sidecar the auto-fix rewrites, must now also lie inside the media
-  folder, and the scanner no longer picks up files behind symlinks that lead
-  outside it (one log line says how many were skipped).
+  folder. The scanner and the folder watcher no longer pick up files behind
+  symlinks that lead outside it (one log line says how many were skipped),
+  and a watched folder that itself leads outside it is not scanned.
 
 ### Changed
 - **Watched folders must be inside the media folder** — A watched folder

@@ -271,7 +271,14 @@ class _StandaloneProcessMixin:
         Returns:
             Dict with type, title, wanted (bool).
         """
+        from services.standalone_library import in_media_root
         from standalone.parser import parse_media_file
+
+        # Same rule as the full scan: a file that resolves out of media_path
+        # (symlink) is not registered.
+        if not in_media_root(file_path):
+            logger.warning("Skipped %s: it resolves outside the media folder", file_path)
+            return {"type": "skipped", "title": "", "wanted": False}
 
         try:
             parsed = parse_media_file(file_path)

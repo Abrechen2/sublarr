@@ -365,14 +365,20 @@ class StandaloneScanner(_StandaloneProcessMixin):
         # already entered. Short-circuits at first repeat so total
         # traversal stays linear.
         #
-        # A symlink (directory or file) that resolves out of ``media_path``
-        # is not registered: every use of a standalone path re-checks it
-        # against ``media_path`` and would refuse it anyway. Only applied
-        # when the watched folder itself is inside ``media_path`` (folders
-        # from before 1.18 that are not are flagged on the settings page).
+        # With a ``media_path`` set, nothing that resolves out of it is
+        # registered: every use of a standalone path re-checks it against
+        # ``media_path`` and would refuse it anyway. A watched folder that
+        # resolves outside (added before 1.18, or turned into a symlink
+        # since) is not walked at all; inside one, symlinks leading out are
+        # skipped. Nothing is deleted for it: the cleanups go by existence.
         from services.standalone_library import in_media_root
 
-        guard_media = bool(getattr(get_settings(), "media_path", "")) and in_media_root(folder_path)
+        guard_media = bool(getattr(get_settings(), "media_path", ""))
+        if guard_media and not in_media_root(folder_path):
+            logger.warning(
+                "Watched folder %s resolves outside the media folder; not scanned", folder_path
+            )
+            return (0, 0, 0)
         escaped: list[str] = []
         video_files = []
         seen_dirs: set[tuple[int, int]] = set()

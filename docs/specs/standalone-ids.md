@@ -181,7 +181,12 @@ marker and is retried next start, never blocks startup):
   and no durable history row (`subtitle_downloads`, `upgrade_history`,
   `blacklist_entries`, `jobs`, `sidecar_origins`, `subtitle_health_findings`)
   for a file outside the standalone titles (inside a standalone series
-  folder, or a standalone movie file and its sidecars). An empty wanted queue
+  folder, or a standalone movie file and its sidecars), or for a file inside
+  one recorded before that title's `created_at` (the arr handled the same
+  folder before it was imported as standalone; an unreadable timestamp also
+  counts). The history is only read when the cheaper checks found nothing.
+  Residual gap: an arr used *after* the standalone title was created, with
+  no stored URL and only env configuration, leaves no trace. An empty wanted queue
   is **no** evidence: successful downloads delete wanted rows (Codex review
   of 1.18.0, finding 1), and `search_series` is not consulted at all because
   startup rebuilds it from `wanted_items` before the move runs (a prod-copy
@@ -285,8 +290,11 @@ the `file_path` fallback, so nothing breaks in between.
   extract / process), the series sidecar map, the health series scan and
   sweep, and the sweep's auto-fix (a standalone finding's target must lie
   next to its video and inside `media_path`). Without `media_path` only the
-  folder check applies. The scanner skips symlinks under a watched folder
-  inside `media_path` that resolve out of it (one warning per scan).
+  folder check applies. With `media_path` set, the scanner does not walk a
+  watched folder that resolves outside it (also one turned into a symlink
+  after it was added), skips symlinks under a watched folder that resolve
+  out of it (one warning per scan), and the watcher's per-file entry point
+  (`process_single_file`) skips such files too.
 * No path-handling rule is widened (see item 6).
 
 ## Per-gap status

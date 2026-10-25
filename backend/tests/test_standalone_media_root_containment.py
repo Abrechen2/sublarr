@@ -314,3 +314,49 @@ def test_sidecar_map_skips_episodes_outside_media(app_ctx, escaped):
     resp = app_ctx.test_client().get(f"/api/v1/library/series/{-sid}/subtitles")
     assert resp.status_code == 200
     assert resp.get_json()["subtitles"] == {}
+
+
+def test_scanner_skips_a_watched_root_that_resolves_outside_media(media, tmp_path, caplog):
+    """Codex re-review: the watched folder itself turned into a symlink out of
+    the media tree must not be walked."""
+    from db.models.standalone import StandaloneEpisode
+    from extensions import db
+    from standalone.scanner import StandaloneScanner
+
+    real = tmp_path / "outside" / "TV" / "Show" / "Season 1"
+    real.mkdir(parents=True)
+    (real / "Show - S01E01.mkv").write_bytes(b"\x00")
+    os.symlink(tmp_path / "outside" / "TV", media / "TV")
+
+    scanner = StandaloneScanner(metadata_resolver=_Resolver())
+    with (
+        patch("standalone.scanner._probe_embedded_tracks", return_value=None) as probe,
+        caplog.at_level("WARNING", logger="standalone.scanner"),
+    ):
+        assert scanner.scan_folder({"path": str(media / "TV"), "media_type": "tv"}) == (0, 0, 0)
+
+    probe.assert_not_called()
+    assert db.session.query(StandaloneEpisode).count() == 0
+    assert any("outside the media folder" in r.getMessage() for r in caplog.records)
+
+
+def test_watcher_single_file_outside_media_is_skipped(media, tmp_path):
+    """The watcher's per-file entry point applies the same rule as a full scan."""
+    from db.models.core import WantedItem
+    from db.models.standalone import StandaloneSeries
+    from extensions import db
+    from standalone.scanner import StandaloneScanner
+
+    real = tmp_path / "outside" / "Show - S01E01.mkv"
+    real.write_bytes(b"\x00")
+    link = media / "Show - S01E01.mkv"
+    os.symlink(real, link)
+
+    scanner = StandaloneScanner(metadata_resolver=_Resolver())
+    with patch("standalone.scanner._probe_embedded_tracks", return_value=None) as probe:
+        result = scanner.process_single_file(str(link))
+
+    assert result["type"] == "skipped" and result["wanted"] is False
+    probe.assert_not_called()
+    assert db.session.query(StandaloneSeries).count() == 0
+    assert db.session.query(WantedItem).count() == 0

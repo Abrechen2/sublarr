@@ -344,6 +344,7 @@ class TestScanFolder:
 
         mock_settings = MagicMock()
         mock_settings.standalone_skip_extras = True
+        mock_settings.media_path = ""  # containment is tested elsewhere
 
         with patch("config.get_settings", return_value=mock_settings):
             result = scanner._scan_folder(folder)
@@ -360,6 +361,7 @@ class TestScanFolder:
         folder = {"path": str(tmp_path)}
         mock_settings = MagicMock()
         mock_settings.standalone_skip_extras = True
+        mock_settings.media_path = ""  # containment is tested elsewhere
 
         series_groups = {
             "show": [{"file_path": str(ep1), "title": "Show", "season": 1, "episode": 1}]
@@ -383,6 +385,7 @@ class TestScanFolder:
         folder = {"id": 7, "path": str(tmp_path), "label": "x", "media_type": "auto"}
         mock_settings = MagicMock()
         mock_settings.standalone_skip_extras = True
+        mock_settings.media_path = ""  # containment is tested elsewhere
 
         with (
             patch("config.get_settings", return_value=mock_settings),
@@ -399,6 +402,7 @@ class TestScanFolder:
         folder = {"path": str(tmp_path), "label": "synthetic"}
         mock_settings = MagicMock()
         mock_settings.standalone_skip_extras = True
+        mock_settings.media_path = ""  # containment is tested elsewhere
 
         with (
             patch("config.get_settings", return_value=mock_settings),
@@ -429,6 +433,7 @@ class TestScanFolder:
         folder = {"path": str(tmp_path)}
         mock_settings = MagicMock()
         mock_settings.standalone_skip_extras = True
+        mock_settings.media_path = ""  # containment is tested elsewhere
 
         series_groups = {
             "showa": [{"file_path": str(ep1), "title": "ShowA", "season": 1, "episode": 1}],
@@ -473,6 +478,7 @@ class TestScanFolder:
         folder = {"path": str(tmp_path)}
         mock_settings = MagicMock()
         mock_settings.standalone_skip_extras = True
+        mock_settings.media_path = ""  # containment is tested elsewhere
 
         with (
             patch("config.get_settings", return_value=mock_settings),
@@ -1014,6 +1020,7 @@ class TestCleanupStaleWanted:
         scanner = StandaloneScanner()
         mock_settings = MagicMock()
         mock_settings.standalone_skip_extras = True
+        mock_settings.media_path = ""  # containment is tested elsewhere
 
         mock_db = MagicMock()
         mock_db.execute.return_value.fetchall.return_value = [
@@ -1037,6 +1044,7 @@ class TestCleanupStaleWanted:
         scanner = StandaloneScanner()
         mock_settings = MagicMock()
         mock_settings.standalone_skip_extras = True
+        mock_settings.media_path = ""  # containment is tested elsewhere
 
         trailer = tmp_path / "trailer.mkv"
         trailer.write_bytes(b"\x00")
@@ -1060,6 +1068,7 @@ class TestCleanupStaleWanted:
         scanner = StandaloneScanner()
         mock_settings = MagicMock()
         mock_settings.standalone_skip_extras = True
+        mock_settings.media_path = ""  # containment is tested elsewhere
 
         existing = tmp_path / "ep01.mkv"
         existing.write_bytes(b"\x00")
