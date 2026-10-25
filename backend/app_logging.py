@@ -12,6 +12,7 @@ import re
 from logging.handlers import RotatingFileHandler
 
 from extensions import socketio
+from log_safety import LineBreakEscapeFilter
 from secret_redaction import SecretRedactionFilter, redact
 
 # `[%(request_id)s]` sits AFTER the level and BEFORE the logger name on purpose.
@@ -613,8 +614,13 @@ def _setup_logging(settings, *, stamp: bool = True) -> None:
     # these handlers, so a credential in any record is scrubbed before it
     # exists anywhere a user could copy it from. It used to be installed on
     # the two urllib3 loggers only (providers/http_session.py).
+    #
+    # Line breaks in logged values are escaped first (log injection, see
+    # log_safety.py), then secrets are redacted from the rendered message.
     for handler in root.handlers:
         if not any(isinstance(f, RequestIdFilter) for f in handler.filters):
             handler.addFilter(RequestIdFilter())
+        if not any(isinstance(f, LineBreakEscapeFilter) for f in handler.filters):
+            handler.addFilter(LineBreakEscapeFilter())
         if not any(isinstance(f, SecretRedactionFilter) for f in handler.filters):
             handler.addFilter(SecretRedactionFilter())
