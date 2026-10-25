@@ -1,0 +1,24 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="56 56 400 400" width="512" height="512">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#22dcd3"/>
+      <stop offset="1" stop-color="#0846a8"/>
+    </linearGradient>
+    <linearGradient id="ink" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#0d9bd0"/>
+      <stop offset="1" stop-color="#0b6cb8"/>
+    </linearGradient>
+  </defs>
+  <circle cx="256" cy="256" r="196" fill="url(#bg)"/>
+  <path fill="#fff" d="M156 136H356C386 136 406 156 406 186V262C406 292 386 312 356 312H218L160 362L170 312H156C126 312 106 292 106 262V186C106 156 126 136 156 136Z"/>
+  <g fill="url(#ink)" fill-rule="evenodd">
+    <path d="M140 262L163 182H185L208 262H190L185 245H163L158 262ZM167 230H181L174 204Z"/>
+    <path d="M316 182H346C366 182 376 192 376 205C376 214 371 220 363 222C374 224 381 232 381 243C381 256 371 262 351 262H316ZM334 196V215H346C354 215 358 211 358 205C358 199 354 196 346 196ZM334 229V248H349C358 248 362 244 362 238C362 232 358 229 349 229Z"/>
+    <path d="M208 199H278V187L304 205L278 223V211H208Z"/>
+    <path d="M304 233H234V221L208 239L234 257V245H304Z"/>
+  </g>
+  <g fill="#1bb8cf">
+    <rect x="182" y="279" width="148" height="8" rx="4"/>
+    <rect x="206" y="295" width="100" height="8" rx="4"/>
+  </g>
+</svg>

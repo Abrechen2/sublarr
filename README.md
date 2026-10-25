@@ -31,6 +31,10 @@ Sublarr is a self-hosted subtitle manager for anime and media libraries. It auto
 
 It follows the *arr-suite design philosophy: connect it to Sonarr/Radarr, set up your language profiles, and let it handle everything automatically via webhooks. Or run it standalone — no *arr setup required.
 
+<p align="center">
+  <img src="assets/screenshots/tour.gif" alt="Sublarr tour: dashboard, library, series detail and wanted list" width="900" />
+</p>
+
 > [!NOTE]
 > **Stable core.** The subtitle search, scoring, download and *arr-integration paths are stable. **LLM translation remains experimental** (see below). Always keep backups of your subtitle files before enabling automation, and read the [CHANGELOG](CHANGELOG.md) before upgrading. Solo-maintained project — bug reports and contributions welcome.
 
@@ -381,6 +385,12 @@ Set `SUBLARR_OLLAMA_URL` to your Ollama host. For Docker, use `http://host.docke
 ---
 
 ## 🖥️ UI Overview
+
+| Dashboard | Library |
+|---|---|
+| ![Dashboard](assets/screenshots/dashboard.webp) | ![Library](assets/screenshots/library.webp) |
+| **Series detail** | **Wanted** |
+| ![Series detail](assets/screenshots/series-detail.webp) | ![Wanted](assets/screenshots/wanted.webp) |
 
 | Page | Description |
 |---|---|
