@@ -173,14 +173,27 @@ existing `untracked_data_repairs` marker table, in one transaction with the
 data change (same contract as the untracked repairs: a failure leaves no
 marker and is retried next start, never blocks startup):
 
-* series side, only when **no Sonarr instance is configured and the data
-  shows no Sonarr history** (no `wanted_items` row with a `sonarr_series_id`,
-  no `search_series` row): each row whose
+* A side moves only with **affirmative evidence the install never used that
+  arr**, all of: the arr is not configured now; no non-empty
+  `sonarr_url`/`sonarr_instances_json` (`radarr_url`/`radarr_instances_json`)
+  in `config_entries`; no durable row carrying an arr id (a translation
+  job's `arr_context`, for Radarr the automation queue's `radarr_movie_id`);
+  and no durable history row (`subtitle_downloads`, `upgrade_history`,
+  `blacklist_entries`, `jobs`, `sidecar_origins`, `subtitle_health_findings`)
+  for a file outside the standalone titles (inside a standalone series
+  folder, or a standalone movie file and its sidecars). An empty wanted queue
+  is **no** evidence: successful downloads delete wanted rows (Codex review
+  of 1.18.0, finding 1), and `search_series` is not consulted at all because
+  startup rebuilds it from `wanted_items` before the move runs (a prod-copy
+  migration test moved Sonarr series 1032's rows that way). A wanted row
+  that still carries an arr id only adds a reason to keep.
+  A foreign history path cannot be attributed to Sonarr or Radarr, so it
+  keeps both sides.
+* series side, when that holds: each row whose
   positive key `K` is an existing `standalone_series.id` and that has no
   `-K` row yet is rewritten to `-K` (`UPDATE ... SET key = -K`). Rows that
   would collide stay where they are.
-* movie side, only when **no Radarr instance is configured and no
-  `wanted_items` row has a `radarr_movie_id`**: same for
+* movie side, when that holds for Radarr: same for
   `standalone_movies.id`.
 * health findings (series side, same condition): a finding whose
   `episode_id` is a standalone wanted row id and whose target is that video
@@ -188,7 +201,10 @@ marker and is retried next start, never blocks startup):
   stem) is rekeyed to the episode's negative id; anything else is left as is.
 * With the arr configured, or any sign it was used, nothing is moved: the
   rows may be the arr's, and an ambiguous row is kept where it is rather than
-  guessed (logged once with the count).
+  guessed (one warning with the count and the evidence, so the user can
+  reassign the titles' settings on the Library page). The marker is written
+  for a kept result too: evidence that disappears later never moves the rows
+  on a later start.
 * The marker table is created for tracked databases as well, and the marker
   row is inserted in the same transaction as the moves before they run; a
   concurrent second starter fails on the marker's primary key and rolls back.
@@ -259,7 +275,18 @@ the `file_path` fallback, so nothing breaks in between.
 * The scanner follows directory symlinks, so a recorded path is not trusted
   by itself: the resolver re-checks every standalone episode path (new and
   legacy branch) against its series folder and every standalone movie path
-  against the watched folders, with symlinks resolved, at the moment of use.
+  against the watched folders, with symlinks resolved, at the moment of use —
+  and, independently, against `media_path` (`standalone_library.
+  standalone_path_allowed`), because the series or watched folder can itself
+  be a symlink out of the media tree, in which case resolving both sides
+  makes the folder check pass (Codex review of 1.18.0, finding 2). Callers:
+  `episode_path_in_series`, `movie_path_in_watched_folder`, the 1.17.3
+  `file_path` fallback, `standalone_series_video_paths` (bulk trash /
+  extract / process), the series sidecar map, the health series scan and
+  sweep, and the sweep's auto-fix (a standalone finding's target must lie
+  next to its video and inside `media_path`). Without `media_path` only the
+  folder check applies. The scanner skips symlinks under a watched folder
+  inside `media_path` that resolve out of it (one warning per scan).
 * No path-handling rule is widened (see item 6).
 
 ## Per-gap status
