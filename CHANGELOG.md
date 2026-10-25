@@ -5,6 +5,19 @@ All notable changes to Sublarr are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.17.4] - 2026-10-25
+
+### Fixed
+- **Live updates work when Sublarr is not opened via localhost** — Socket.IO
+  only accepted the origins in `SUBLARR_CORS_ORIGINS`, which defaulted to
+  localhost. Opened through a LAN IP or a domain, the page loaded but every
+  live connection was refused, so progress, toasts and queue updates never
+  arrived and no error showed. Sublarr now always accepts its own origin
+  (matched against the `Host` header); `SUBLARR_CORS_ORIGINS` defaults to
+  empty and only adds other origins. `X-Forwarded-*` headers are not
+  trusted, so a reverse proxy has to pass the original `Host` on (Traefik
+  and Caddy do by default; nginx: `proxy_set_header Host $http_host;`).
+
 ## [1.17.3] - 2026-10-25
 
 ### Security
