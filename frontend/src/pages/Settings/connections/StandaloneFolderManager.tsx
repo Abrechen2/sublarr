@@ -34,6 +34,7 @@ import {
 import { toast } from '@/components/shared/Toast'
 import { Toggle } from '@/components/shared/Toggle'
 import { boolVal } from '@/lib/configUtils'
+import { apiErrorMessage } from '@/lib/apiError'
 import type { WatchedFolder } from '@/lib/types'
 
 export function StandaloneFolderManager() {
@@ -80,7 +81,7 @@ export function StandaloneFolderManager() {
           setShowAdd(false)
           toast(t('library_sources.folder_added'))
         },
-        onError: () => toast(t('library_sources.folder_add_failed'), 'error'),
+        onError: (err) => toast(apiErrorMessage(err, t('library_sources.folder_add_failed')), 'error'),
       },
     )
   }
@@ -101,7 +102,7 @@ export function StandaloneFolderManager() {
           setEditingId(null)
           toast(t('library_sources.folder_updated'))
         },
-        onError: () => toast(t('library_sources.folder_update_failed'), 'error'),
+        onError: (err) => toast(apiErrorMessage(err, t('library_sources.folder_update_failed')), 'error'),
       },
     )
   }
@@ -274,6 +275,15 @@ export function StandaloneFolderManager() {
                           <span>{t('library_sources.last_scan')} {new Date(folder.last_scan_at).toLocaleString()}</span>
                         )}
                       </div>
+                      {folder.outside_media_path && (
+                        <div
+                          data-testid={`folder-outside-media-${folder.id}`}
+                          className="mt-1 text-[11px]"
+                          style={{ color: 'var(--warning)' }}
+                        >
+                          {t('library_sources.outside_media_path')}
+                        </div>
+                      )}
                     </div>
                     <div className="flex items-center gap-1.5 shrink-0">
                       <button

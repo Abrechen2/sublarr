@@ -166,7 +166,8 @@
     "folder_scan_failed": "Failed to start folder scan",
     "standalone_auto_activated_hint": "Standalone mode is auto-activated (no Sonarr/Radarr configured).",
     "enable_standalone": "Enable standalone mode",
-    "enable_standalone_desc": "Direct filesystem scanning without Sonarr/Radarr."
+    "enable_standalone_desc": "Direct filesystem scanning without Sonarr/Radarr.",
+    "outside_media_path": "This folder is outside the media folder, so Sublarr can't work on its files. Mount it in the container inside the media folder and add it again from there."
   },
   "notifications": {
     "on_download": "Notify on Download",

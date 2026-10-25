@@ -43,6 +43,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   folder or a watched folder, also after a symlink was changed.
 
 ### Changed
+- **Watched folders must be inside the media folder** — A watched folder
+  outside the media folder was accepted with only a log line. Its files were
+  scanned into the library, but search, download, sync and the track tools
+  refused them. Adding or moving a folder there is now refused with a
+  message that says how to mount it, and the settings mark existing folders
+  outside the media folder. The add and edit forms also show the server's
+  reason instead of a generic "could not add the folder".
 - **Standalone ids in the API are negative** — The library, series and movie
   responses give standalone series, movies and episodes a negative `id`; the
   database row id is in `standalone_id`. The old positive ids keep working

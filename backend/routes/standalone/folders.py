@@ -14,10 +14,8 @@ logger = logging.getLogger(__name__)
 # System paths that must never be used as a watched folder. Even on a
 # single-tenant homelab API a typo ("/" or "/etc") would walk the entire
 # container with ``followlinks=True`` and persist arbitrary file paths
-# into ``wanted_items.file_path``. The blocklist is intentionally
-# conservative — we don't strictly require paths under ``media_path``
-# (some homelabs mount media at non-default locations), but we refuse the
-# obviously-wrong roots.
+# into ``wanted_items.file_path``. The blocklist still guards installs
+# without a ``media_path``; with one set, folders must also sit inside it.
 _FORBIDDEN_FOLDER_ROOTS = (
     "/",
     "/etc",
@@ -46,9 +44,10 @@ def _validate_watched_folder_path(path: str) -> str | None:
       1. ``os.path.isdir`` — folder must exist
       2. realpath canonicalisation — symlinks resolved up-front
       3. forbidden-roots blocklist — refuses ``/``, ``/etc``, etc.
-      4. ``is_safe_path`` against the configured ``media_path`` when set —
-         soft check, only logged on miss; doesn't reject (homelab users
-         frequently mount media outside the default).
+      4. inside the configured ``media_path`` when one is set. Every file
+         endpoint (search, download, sync, tracks) only touches files under
+         ``media_path``, so a folder outside it would be scanned into the
+         library but nothing could be done with its files.
     """
     # Reject the literal forbidden roots even before isdir-check so the
     # test passes on every platform (on Windows ``os.path.isdir("/")``
@@ -71,23 +70,26 @@ def _validate_watched_folder_path(path: str) -> str | None:
         if root != "/" and norm.startswith(root + "/"):
             return f"Refusing forbidden system path: {path}"
 
-    # Soft boundary check against media_path
-    try:
-        from config import get_settings
-        from security_utils import is_safe_path
-
-        media_path = getattr(get_settings(), "media_path", "")
-        if media_path and not is_safe_path(canonical, media_path):
-            logger.info(
-                "Watched folder %s is outside media_path=%s — accepted but "
-                "flagged. Verify this is intentional.",
-                canonical,
-                media_path,
-            )
-    except Exception:
-        # Soft check; never block on this path.
-        logger.debug("Soft media_path boundary check skipped", exc_info=True)
+    media_path = _media_path()
+    if media_path and _outside_media_path(canonical, media_path):
+        return (
+            f"{path} is outside the media folder {media_path}. Sublarr can only "
+            f"work on files inside it: mount the folder in the container under "
+            f"{media_path.rstrip('/')}/… and add that path instead."
+        )
     return None
+
+
+def _media_path() -> str:
+    from config import get_settings
+
+    return getattr(get_settings(), "media_path", "") or ""
+
+
+def _outside_media_path(path: str, media_path: str) -> bool:
+    from security_utils import is_safe_path
+
+    return not is_safe_path(os.path.realpath(path), media_path)
 
 
 def _hot_reload_standalone() -> None:
@@ -142,7 +144,18 @@ def list_folders():
 
     try:
         folders = get_watched_folders(enabled_only=False)
-        return jsonify(folders)
+        media_path = _media_path()
+        # Folders added before 1.18 may sit outside the media folder; the UI
+        # flags them so the user knows why their files can't be processed.
+        flagged = [
+            {
+                **f,
+                "outside_media_path": bool(media_path)
+                and _outside_media_path(f["path"], media_path),
+            }
+            for f in folders
+        ]
+        return jsonify(flagged)
     except Exception as e:
         logger.error("Failed to list watched folders: %s", e)
         return jsonify({"error": "Failed to list watched folders"}), 500

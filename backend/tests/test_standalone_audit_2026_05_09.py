@@ -304,9 +304,14 @@ class TestFolderBoundary:
         assert _validate_watched_folder_path("/proc") is not None
 
     def test_validate_accepts_real_dir(self, tmp_path):
+        from types import SimpleNamespace
+        from unittest.mock import patch
+
         from routes.standalone.folders import _validate_watched_folder_path
 
-        assert _validate_watched_folder_path(str(tmp_path)) is None
+        # Since 1.18 a watched folder must sit inside media_path.
+        with patch("config.get_settings", return_value=SimpleNamespace(media_path=str(tmp_path))):
+            assert _validate_watched_folder_path(str(tmp_path)) is None
 
     def test_validate_rejects_missing_dir(self):
         from routes.standalone.folders import _validate_watched_folder_path

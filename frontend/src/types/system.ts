@@ -176,6 +176,8 @@ export interface WatchedFolder {
   last_scan_at: string
   created_at: string
   updated_at: string
+  /** Outside media_path: scanned, but its files cannot be processed (since 1.18 refused when adding). */
+  outside_media_path?: boolean
 }
 
 export interface StandaloneSeries {

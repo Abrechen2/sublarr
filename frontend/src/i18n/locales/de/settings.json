@@ -166,7 +166,8 @@
     "folder_scan_failed": "Fehler beim Starten des Ordner-Scans",
     "standalone_auto_activated_hint": "Standalone-Modus ist automatisch aktiviert (kein Sonarr/Radarr konfiguriert).",
     "enable_standalone": "Standalone-Modus aktivieren",
-    "enable_standalone_desc": "Direktes Dateisystem-Scanning ohne Sonarr/Radarr."
+    "enable_standalone_desc": "Direktes Dateisystem-Scanning ohne Sonarr/Radarr.",
+    "outside_media_path": "Dieser Ordner liegt außerhalb des Medienordners. Sublarr kann seine Dateien nicht bearbeiten. Binde ihn im Container unterhalb des Medienordners ein und füge ihn dort neu hinzu."
   },
   "notifications": {
     "on_download": "Benachrichtigung bei Download",
