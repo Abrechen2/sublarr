@@ -7,7 +7,47 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [1.17.3] - 2026-10-25
 
+### Security
+- **No more probing of files outside the library** — The web UI's file
+  serving, the translate and sync endpoints and duplicate cleanup revealed
+  whether a path outside the media folder exists; the file serving did so
+  without a login. They no longer do. The alass reference subtitle must be
+  inside the media folder like the other paths, and a manually chosen
+  subtitle's language must be a language code.
+- **Error responses no longer carry exception text** — Failing API calls
+  answered with the raw exception, which could include file paths, library
+  internals or a request URL with an API key in it. They now return a short
+  message and the request id; the details are in the log. Connection tests
+  keep the reason, with credentials removed.
+- **Log lines cannot be forged** — A line break in a logged value (a file
+  name, a request parameter) started a fake log record. Line breaks in
+  logged values are now written as `\n`.
+- **Audit log lines no longer include part of the API key** — They show a
+  short fingerprint instead.
+- **undici updated to 6.29.1** in the Discord helper tool (two
+  denial-of-service advisories).
+
+### Changed
+- **Translation is no longer labelled beta** — The Translation settings page
+  opens with a neutral intro instead of the "Beta Feature" warning, the BETA
+  pills on the Settings tile and in the enable dialog are gone, and the AI
+  quality check drops its "Experimental" prefix. Translation stays off by
+  default and still needs an explicit enable; the "use at your own risk"
+  note and the acknowledgement stay, because the result depends on the
+  backend and model you choose. The enable dialog names any configured
+  backend as the requirement, not only Ollama.
+- **Security scanners report in the CI log** — CodeQL is removed; bandit,
+  Semgrep and Trivy print their findings in the CI job log instead of the
+  GitHub Security tab. The blocking checks are unchanged. Third-party
+  GitHub Actions are pinned to commit SHAs and workflows default to
+  read-only permissions.
+
 ### Fixed
+- **A new install opens the setup wizard** — A first visit landed on an
+  empty dashboard; the guided setup was only reachable from Settings →
+  General. A fresh install now opens it once. Existing installs are not
+  sent there. The Language and Automation steps also showed a raw key
+  instead of their title.
 - **Standalone mode can search and download subtitles for an episode** (#226)
   — Without Sonarr, searching an episode from the series page, the
   interactive search and downloading a picked result all failed with
