@@ -54,6 +54,13 @@ def _sweep_enabled() -> bool:
     )
 
 
+def _standalone_target_allowed(target: str, video_path: str) -> bool:
+    """A standalone finding's target must resolve next to its video and inside media_path."""
+    from services.standalone_library import standalone_path_allowed
+
+    return standalone_path_allowed(target, os.path.dirname(video_path))
+
+
 def _sweep_episode(ep_id: int, path: str | None, auto: bool) -> bool:
     """Scan one episode and auto-fix its findings; True when it was scanned."""
     if not path or not os.path.exists(path):
@@ -76,6 +83,18 @@ def _sweep_episode(ep_id: int, path: str | None, auto: bool) -> bool:
         if is_suspect_sidecar(finding.get("target_path", "")):
             # Quarantined as another episode's subtitle: a rewrite
             # would move its bytes off the flag (see suspect_sidecars).
+            continue
+        if (
+            ep_id is not None
+            and ep_id < 0
+            and not _standalone_target_allowed(finding.get("target_path", ""), path)
+        ):
+            # A standalone sidecar that resolves out of the episode's folder
+            # or the media tree (symlink) is never rewritten unattended.
+            logger.warning(
+                "subtitle_health sweep: auto-fix skipped for %s (outside the media folder)",
+                finding.get("target_path", ""),
+            )
             continue
         try:
             apply_fix(finding["id"], action)

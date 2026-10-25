@@ -74,10 +74,13 @@ def test_video_paths_include_episodes_without_wanted_rows(app_ctx, tmp_path):
 def test_video_paths_fall_back_to_wanted_rows_when_folder_is_gone(app_ctx, tmp_path):
     from routes.library.series import standalone_series_video_paths
 
-    sid = _series(str(tmp_path / "unmounted"))
-    _wanted(sid, "/unmounted/Show - S01E03.mkv")
+    folder = tmp_path / "unmounted"
+    sid = _series(str(folder))
+    _wanted(sid, str(folder / "Show - S01E03.mkv"))
+    # A recorded path outside the series folder is not used (symlink/escape guard).
+    _wanted(sid, "/elsewhere/Show - S01E04.mkv")
 
-    assert standalone_series_video_paths(sid) == ["/unmounted/Show - S01E03.mkv"]
+    assert standalone_series_video_paths(sid) == [str(folder / "Show - S01E03.mkv")]
 
 
 def test_video_paths_unknown_series_is_none(app_ctx):

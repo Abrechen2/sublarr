@@ -364,6 +364,16 @@ class StandaloneScanner(_StandaloneProcessMixin):
         # ``(st_dev, st_ino)`` tuple and prune subdirectories we've
         # already entered. Short-circuits at first repeat so total
         # traversal stays linear.
+        #
+        # A symlink (directory or file) that resolves out of ``media_path``
+        # is not registered: every use of a standalone path re-checks it
+        # against ``media_path`` and would refuse it anyway. Only applied
+        # when the watched folder itself is inside ``media_path`` (folders
+        # from before 1.18 that are not are flagged on the settings page).
+        from services.standalone_library import in_media_root
+
+        guard_media = bool(getattr(get_settings(), "media_path", "")) and in_media_root(folder_path)
+        escaped: list[str] = []
         video_files = []
         seen_dirs: set[tuple[int, int]] = set()
         for root, dirs, files in os.walk(folder_path, followlinks=True):
@@ -397,13 +407,27 @@ class StandaloneScanner(_StandaloneProcessMixin):
                 if (cstat.st_dev, cstat.st_ino) in seen_dirs:
                     logger.debug("Pruning already-visited subdir: %s", child)
                     continue
+                if guard_media and os.path.islink(child) and not in_media_root(child):
+                    escaped.append(child)
+                    continue
                 pruned.append(d)
             dirs[:] = pruned
 
             for filename in files:
                 full_path = os.path.join(root, filename)
                 if is_video_file(full_path) and (not skip_extras or not _is_extra_file(full_path)):
+                    if guard_media and os.path.islink(full_path) and not in_media_root(full_path):
+                        escaped.append(full_path)
+                        continue
                     video_files.append(full_path)
+
+        if escaped:
+            logger.warning(
+                "Skipped %d symlink(s) in %s that lead outside the media folder (first: %s)",
+                len(escaped),
+                folder_path,
+                escaped[0],
+            )
 
         if not video_files:
             logger.debug("No video files in %s", folder_path)

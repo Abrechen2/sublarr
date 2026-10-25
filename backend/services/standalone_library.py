@@ -10,7 +10,9 @@ Recorded paths are not trusted by themselves: the scanner follows directory
 symlinks, and a file can be swapped for a symlink after the scan. A path is
 only used when it is an existing video file that resolves (symlinks and
 ``..`` resolved) inside the folder of the series that owns it, or, for a
-movie, inside a watched folder.
+movie, inside a watched folder — and, independently, inside ``media_path``
+(``standalone_path_allowed``), so an owner folder that is itself a symlink
+out of the media tree cannot vouch for its files.
 """
 
 from __future__ import annotations
@@ -88,16 +90,18 @@ def standalone_series_video_paths(series_id: int) -> list[str] | None:
     """Every episode video of a standalone series (row id), or None if unknown.
 
     Falls back to the ``wanted_items`` paths while the folder is unreachable.
+    Paths that resolve outside the series folder or ``media_path`` (a
+    symlink out of the media tree) are left out: the bulk actions using this
+    list read, rewrite and trash files next to them.
     """
     from db.standalone import get_standalone_series
 
     series = get_standalone_series(series_id)
     if not series:
         return None
-    paths = [fp for fp, _ in enumerate_series_episode_files(series.get("folder_path", ""))]
-    if paths:
-        return sorted(paths)
-    return _wanted_paths(series_id)
+    folder = series.get("folder_path", "")
+    paths = [fp for fp, _ in enumerate_series_episode_files(folder)] or _wanted_paths(series_id)
+    return sorted(p for p in paths if standalone_path_allowed(p, folder))
 
 
 def _numbers(parsed: dict | None) -> tuple[int | None, int | None]:
@@ -165,6 +169,36 @@ def series_episode_files(series_id: int) -> list[StandaloneEpisodeFile] | None:
 # ---------------------------------------------------------------------------
 
 
+def in_media_root(path: str) -> bool:
+    """True when ``path`` resolves (symlinks and ``..``) inside ``media_path``.
+
+    ``media_path`` is resolved on its own, so a series folder or watched
+    folder that is itself a symlink out of the media tree cannot vouch for
+    the files under it. Without a ``media_path`` every path passes and the
+    owner-folder check alone applies (behaviour before 1.18.0).
+    """
+    from config import get_settings
+    from security_utils import is_safe_path
+
+    media_path = getattr(get_settings(), "media_path", "") or ""
+    if not media_path:
+        return True
+    return is_safe_path(path, media_path)
+
+
+def standalone_path_allowed(path: str, owner_folder: str) -> bool:
+    """The one containment check every standalone episode/movie path goes through.
+
+    ``path`` must resolve inside ``owner_folder`` (the series folder, or a
+    watched folder for a movie) **and** inside ``media_path``.
+    """
+    from security_utils import is_safe_path
+
+    if not path or not owner_folder:
+        return False
+    return is_safe_path(path, owner_folder) and in_media_root(path)
+
+
 def _usable_video(path: str | None) -> str | None:
     from standalone.parser import is_video_file
 
@@ -179,14 +213,13 @@ def _usable_video(path: str | None) -> str | None:
 def episode_path_in_series(path: str | None, series_id: int | None) -> str | None:
     """``path`` when it is a video file inside the folder of standalone series ``series_id``."""
     from db.standalone import get_standalone_series
-    from security_utils import is_safe_path
 
     candidate = _usable_video(path)
     if candidate is None or not series_id:
         return None
     series = get_standalone_series(int(series_id))
     folder = (series or {}).get("folder_path") or ""
-    if not folder or not is_safe_path(candidate, folder):
+    if not standalone_path_allowed(candidate, folder):
         return None
     return candidate
 
@@ -194,14 +227,12 @@ def episode_path_in_series(path: str | None, series_id: int | None) -> str | Non
 def movie_path_in_watched_folder(path: str | None) -> str | None:
     """``path`` when it is a video file inside any watched folder."""
     from db.standalone import get_watched_folders
-    from security_utils import is_safe_path
 
     candidate = _usable_video(path)
     if candidate is None:
         return None
     for folder in get_watched_folders(enabled_only=False) or []:
-        root = folder.get("path") or ""
-        if root and is_safe_path(candidate, root):
+        if standalone_path_allowed(candidate, folder.get("path") or ""):
             return candidate
     return None
 

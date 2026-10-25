@@ -58,7 +58,7 @@ def list_series_subtitles(series_id: int):
         # Every episode file of the folder, keyed by its stable episode id —
         # the id the series detail hands out (also for satisfied episodes,
         # which the old wanted_items-based map left out).
-        from services.standalone_library import series_episode_files
+        from services.standalone_library import episode_path_in_series, series_episode_files
 
         files = series_episode_files(ref.id)
         if files is None:
@@ -67,6 +67,8 @@ def list_series_subtitles(series_id: int):
             return jsonify({"error": "Sonarr not configured"}), 503
         result: dict[str, list[dict]] = {}
         for ep in files:
+            if episode_path_in_series(ep.file_path, ref.id) is None:
+                continue  # resolves outside the series folder or media_path
             sidecars = scan_subtitle_sidecars(ep.file_path)
             if sidecars:
                 result[str(ep.wire_id)] = sidecars

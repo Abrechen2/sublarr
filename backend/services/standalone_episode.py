@@ -16,8 +16,8 @@ first target language of the series' profile).
 
 No path is used unless it is an existing video file that resolves (symlinks
 and ``..`` included) inside the folder of the standalone series that owns it
-(``services.standalone_library``), whether it came from our own records or
-from the client's ``file_path``.
+and inside ``media_path`` (``services.standalone_library``), whether it came
+from our own records or from the client's ``file_path``.
 """
 
 from __future__ import annotations
@@ -61,11 +61,12 @@ def _locate_series_file(file_path: str) -> _SeriesFile | None:
     """Validate ``file_path`` and find the standalone series that owns it.
 
     The path must be absolute, contain no NUL, be an existing video file and
-    resolve (``security_utils.is_safe_path``: symlinks and ``..`` resolved)
-    inside a standalone series folder. The deepest matching folder wins.
+    resolve (symlinks and ``..`` resolved) inside a standalone series folder
+    and inside ``media_path`` (``standalone_library.standalone_path_allowed``).
+    The deepest matching folder wins.
     """
     from db.standalone import get_standalone_series
-    from security_utils import is_safe_path
+    from services.standalone_library import standalone_path_allowed
     from standalone.parser import is_video_file
 
     if not file_path or "\x00" in file_path or not os.path.isabs(file_path):
@@ -80,7 +81,7 @@ def _locate_series_file(file_path: str) -> _SeriesFile | None:
         series_dir = series.get("folder_path") or ""
         if not series_dir or len(series_dir) <= best_len:
             continue
-        if is_safe_path(candidate, series_dir):
+        if standalone_path_allowed(candidate, series_dir):
             best_len = len(series_dir)
             best = _SeriesFile(
                 series_id=series["id"],
