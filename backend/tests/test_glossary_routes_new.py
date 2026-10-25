@@ -68,6 +68,32 @@ def test_suggest_sonarr_not_configured(client, monkeypatch):
     assert "message" in data
 
 
+def test_suggest_standalone_series_uses_folder_path(client, monkeypatch):
+    """Without Sonarr the standalone series folder is scanned for candidates."""
+    monkeypatch.setattr("sonarr_client.get_sonarr_client", lambda: None)
+    monkeypatch.setattr(
+        "db.standalone.get_standalone_series",
+        lambda sid: {"id": sid, "folder_path": "/media/standalone/naruto"},
+    )
+    captured = {}
+
+    def fake_extract(directory, source_lang, min_freq, max_candidates):
+        captured["directory"] = directory
+        return [{"source_term": "Konoha", "term_type": "place", "frequency": 5}]
+
+    monkeypatch.setattr("routes.library.extract_candidates", fake_extract)
+
+    resp = client.post(
+        "/api/v1/series/7/glossary/suggest",
+        data=json.dumps({}),
+        content_type="application/json",
+    )
+
+    assert resp.status_code == 200
+    assert captured["directory"] == "/media/standalone/naruto"
+    assert resp.get_json()["candidates"][0]["source_term"] == "Konoha"
+
+
 def test_suggest_uses_defaults_when_no_body(client, monkeypatch):
     """POST /series/<id>/glossary/suggest uses source_lang='en' and min_freq=3 by default."""
     captured = {}
