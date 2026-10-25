@@ -238,9 +238,23 @@ def _get_standalone_series_detail(series_id: int, settings) -> dict | None:
 
     poster = f"/api/v1/standalone/series/{series_id}/poster" if series.get("poster_url") else ""
 
-    # Standalone series have no SeriesSettings row — override is always null,
-    # effective policy mirrors the global default.
+    # The cleanup switch is saved under the standalone id (PATCH
+    # /series/<id>/settings from this page); without a row it inherits the
+    # global default. It used to be hard-coded to null, so a saved choice
+    # snapped back to "inherit" on reload.
+    from services.foreign_track_cleanup import should_cleanup_foreign_tracks
+
     global_default = bool(getattr(settings, "cleanup_foreign_tracks_default", False))
+    cleanup_override: bool | None = None
+    try:
+        from db.models.core import SeriesSettings
+        from extensions import db as _ext_db
+
+        settings_row = _ext_db.session.get(SeriesSettings, series_id)
+        if settings_row is not None:
+            cleanup_override = settings_row.cleanup_foreign_tracks
+    except Exception as exc:
+        logger.debug("Could not load series settings for standalone %d: %s", series_id, exc)
 
     return {
         "id": series.get("id"),
@@ -263,8 +277,10 @@ def _get_standalone_series_detail(series_id: int, settings) -> dict | None:
         "source_language": settings.source_language,
         "source_language_name": settings.source_language_name,
         "absolute_order": False,
-        "cleanup_foreign_tracks_override": None,
-        "cleanup_foreign_tracks_effective": global_default,
+        "cleanup_foreign_tracks_override": cleanup_override,
+        "cleanup_foreign_tracks_effective": should_cleanup_foreign_tracks(
+            series_override=cleanup_override, global_default=global_default
+        ),
         "episodes": episodes,
         "source": "standalone",
     }
