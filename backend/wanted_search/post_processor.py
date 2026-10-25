@@ -7,6 +7,7 @@ and interactive download of specific provider results.
 
 import logging
 import os
+import re
 
 from config import get_settings
 from db.jobs import create_job, record_stat, update_job
@@ -19,6 +20,11 @@ from translator import get_forced_output_path
 from wanted_search.metadata import build_query_from_wanted
 
 logger = logging.getLogger(__name__)
+
+# A language tag ("de", "eng", "pt-BR", "zh-Hant-TW", "es-419"). The value comes
+# from the request and is spliced into the sidecar name (<base>.<lang>.<ext>),
+# so anything else — "../../Other/Show/x" — is refused rather than written.
+_LANGUAGE_TAG_RE = re.compile(r"^[A-Za-z]{2,3}(-[A-Za-z0-9]{2,8}){0,2}\Z")
 
 
 def _try_auto_sync(
@@ -297,6 +303,9 @@ def download_specific_for_item(
     Returns:
         dict: {success, path, format, translated, error}
     """
+    if not isinstance(language, str) or not _LANGUAGE_TAG_RE.match(language):
+        return {"success": False, "error": "Invalid language code"}
+
     item = get_wanted_item(item_id)
     if not item:
         return {"success": False, "error": "Item not found"}

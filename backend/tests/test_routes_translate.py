@@ -139,9 +139,23 @@ def test_translate_async_missing_file_path(client):
     assert "file_path" in data["error"]
 
 
-def test_translate_async_file_not_found(client):
-    resp = client.post("/api/v1/translate", json={"file_path": "/no/such/file.srt"})
+def test_translate_async_file_not_found(client, temp_dir, monkeypatch):
+    monkeypatch.setenv("SUBLARR_MEDIA_PATH", temp_dir)
+    from config import reload_settings
+
+    reload_settings()
+
+    resp = client.post(
+        "/api/v1/translate", json={"file_path": os.path.join(temp_dir, "no-such-file.srt")}
+    )
     assert resp.status_code == 404
+
+
+def test_translate_missing_file_outside_media_is_403_not_404(client):
+    """Containment is checked first: the 404 must not confirm host paths."""
+    for url in ("/api/v1/translate", "/api/v1/translate/sync"):
+        resp = client.post(url, json={"file_path": "/no/such/file.srt"})
+        assert resp.status_code == 403, url
 
 
 def test_translate_async_path_outside_media(client, temp_dir, monkeypatch):
@@ -195,8 +209,15 @@ def test_translate_sync_missing_file_path(client):
     assert resp.status_code == 400
 
 
-def test_translate_sync_file_not_found(client):
-    resp = client.post("/api/v1/translate/sync", json={"file_path": "/no/such/file.srt"})
+def test_translate_sync_file_not_found(client, temp_dir, monkeypatch):
+    monkeypatch.setenv("SUBLARR_MEDIA_PATH", temp_dir)
+    from config import reload_settings
+
+    reload_settings()
+
+    resp = client.post(
+        "/api/v1/translate/sync", json={"file_path": os.path.join(temp_dir, "no-such-file.srt")}
+    )
     assert resp.status_code == 404
 
 

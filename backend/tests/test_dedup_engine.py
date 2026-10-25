@@ -437,6 +437,33 @@ class TestDeleteDuplicates:
         assert result["deleted"] == 0
         assert any("symlink" in e.lower() for e in result["errors"])
 
+    def test_symlink_outside_media_path_is_reported_as_outside(self, tmp_path):
+        """Containment is checked before islink(): for a host path outside the
+        library the answer must not reveal whether it is a symlink."""
+        media = tmp_path / "media"
+        media.mkdir()
+        keep = _write_file(media / "keep.srt", "content")
+        outside = tmp_path / "outside"
+        outside.mkdir()
+        host_file = _write_file(outside / "host.conf", "not a subtitle")
+        link_path = outside / "link.srt"
+        try:
+            link_path.symlink_to(host_file)
+        except OSError:
+            pytest.skip("Symlink creation not supported on this platform")
+
+        mock_settings, mock_repo = self._setup_mocks(media)
+
+        with (
+            patch("config.get_settings", return_value=mock_settings),
+            patch("db.repositories.cleanup.CleanupRepository", return_value=mock_repo),
+        ):
+            result = delete_duplicates([str(link_path)], str(keep))
+
+        assert result["deleted"] == 0
+        assert result["errors"] == [f"Skipping path outside media_path: {link_path}"]
+        assert keep.exists()
+
     def test_skip_path_outside_media_path(self, tmp_path):
         keep = _write_file(tmp_path / "keep.srt", "content")
         outside = _write_file(tmp_path / "dup.srt", "content")

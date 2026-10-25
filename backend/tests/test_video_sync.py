@@ -31,7 +31,11 @@ def test_start_sync_missing_file_path(client):
 
 
 def test_start_sync_nonexistent_subtitle(client):
-    """POST with non-existent subtitle file returns 404."""
+    """A missing subtitle outside media_path is refused (403) before the 404.
+
+    Containment is checked first so the 404 never confirms host paths; the
+    404 case inside media_path is covered in test_video_sync_path_guards.py.
+    """
     resp = client.post(
         "/api/v1/tools/video-sync",
         json={
@@ -40,7 +44,7 @@ def test_start_sync_nonexistent_subtitle(client):
             "engine": "ffsubsync",
         },
     )
-    assert resp.status_code == 404
+    assert resp.status_code == 403
 
 
 def test_start_sync_ffsubsync_missing_video_path(client, tmp_path):

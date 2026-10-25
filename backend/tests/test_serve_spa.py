@@ -88,3 +88,23 @@ def test_path_traversal_is_blocked(spa_app):
     # send_from_directory must reject escaping the static dir.
     r = app.test_client().get("/../../../etc/passwd")
     assert r.status_code in (403, 404) or b"passwd" not in r.data
+
+
+def test_traversal_is_not_an_existence_oracle(spa_app, tmp_path):
+    """A path escaping the static dir gets the SPA shell, whether or not it exists.
+
+    The route is reachable without login. Joining the raw path with
+    os.path.join answered 404 for an existing outside file and 200 (index)
+    for a missing one, which told an anonymous caller what is on the host.
+    """
+    app, _ = spa_app
+    (tmp_path / "secret.txt").write_text("outside the static folder")
+    client = app.test_client()
+
+    exists = client.get("/..%2Fsecret.txt")
+    missing = client.get("/..%2Fno-such-file.txt")
+
+    assert exists.status_code == missing.status_code == 200
+    assert exists.data == missing.data
+    assert b"outside the static folder" not in exists.data
+    assert b"<!doctype html>" in exists.data
