@@ -179,25 +179,13 @@ function CategoryCard({
         (e.currentTarget as HTMLDivElement).style.boxShadow = 'none'
       }}
     >
-      {/* Top-right: feature-tag for translation card, plain muted text for others */}
+      {/* Top-right: enable/enabled status for translation card, plain muted text for others */}
       {isTranslationCard ? (
         <div
           data-testid={`settings-card-badge-${category.id}`}
           className="absolute flex items-center gap-1"
           style={{ top: 18, right: 18 }}
         >
-          <span
-            style={{
-              fontSize: 9,
-              fontWeight: 700,
-              padding: '2px 6px',
-              borderRadius: 999,
-              backgroundColor: 'var(--warning-bg, rgba(245,158,11,0.15))',
-              color: 'var(--warning, #f59e0b)',
-            }}
-          >
-            BETA
-          </span>
           <span
             style={{
               fontSize: 9,

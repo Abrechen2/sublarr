@@ -233,11 +233,10 @@
     "fix_defects_applied": "{{count}} Timing-Korrekturen angewendet"
   },
   "enable_translation_modal": {
-    "title": "Übersetzung aktivieren",
-    "warning_body": "Die KI-Übersetzungsfunktion ist experimentell und funktioniert aktuell nicht zuverlässig genug für den produktiven Einsatz. Ergebnisse können stark variieren — abhängig von Modell, Prompt und Eingabequalität.",
-    "requirement_prefix": "Voraussetzung: Ein laufender ",
-    "requirement_suffix": "-Server mit einem konfigurierten Modell.",
-    "understand_checkbox": "Ich verstehe, dass dies eine Beta-Funktion ist, und nutze sie auf eigenes Risiko.",
+    "title": "Übersetzung aktivieren?",
+    "body": "Sublarr erstellt dann einen Untertitel in deiner Sprache, wenn kein Provider einen hat. Das Ergebnis hängt vom gewählten Übersetzer und Modell ab. Nutzung auf eigenes Risiko.",
+    "requirement": "Voraussetzung: ein eingerichtetes Übersetzungs-Backend, z. B. Ollama, DeepL oder eine OpenAI-kompatible API.",
+    "understand_checkbox": "Ich verstehe, dass die Qualität der Übersetzung vom gewählten Übersetzer abhängt.",
     "cancel": "Abbrechen",
     "enable_button": "Übersetzung aktivieren"
   },

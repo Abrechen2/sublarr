@@ -27,7 +27,7 @@ export interface PaginatedBlacklist {
 
 // â”€â”€â”€ History â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
-/** Advisory LLM quality verdict for a downloaded subtitle (experimental). */
+/** Advisory LLM quality verdict for a downloaded subtitle. */
 export interface AIQualityInfo {
   verdict: 'green' | 'yellow' | 'red' | string
   scores?: Record<string, number>

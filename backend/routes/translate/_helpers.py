@@ -88,7 +88,7 @@ BACKEND_TEMPLATES = [
             "ollama pull qwen2.5:14b-instruct\n\n"
             "# Or use the Install button above — Sublarr pulls it automatically."
         ),
-        "tags": ["instruct", "general", "local", "9GB", "beta"],
+        "tags": ["instruct", "general", "local", "9GB"],
         "languages": ["multi"],
         "size_gb": 9.0,
     },
@@ -111,7 +111,7 @@ BACKEND_TEMPLATES = [
             "ollama pull llama3.1:8b-instruct\n\n"
             "# Or use the Install button above — Sublarr pulls it automatically."
         ),
-        "tags": ["instruct", "general", "local", "5GB", "beta"],
+        "tags": ["instruct", "general", "local", "5GB"],
         "languages": ["multi"],
         "size_gb": 5.0,
     },

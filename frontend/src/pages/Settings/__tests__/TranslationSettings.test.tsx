@@ -324,6 +324,16 @@ describe('TranslationSettings', () => {
     expect(mockDisableMutate).toHaveBeenCalledOnce()
   })
 
+  // ── Intro banner ─────────────────────────────────────────────────────────────
+
+  it('renders a neutral intro banner with the own-risk notice', () => {
+    renderPage()
+    const banner = screen.getByTestId('translation-intro-banner')
+    expect(banner).toHaveTextContent(/use at your own risk/i)
+    expect(banner.textContent ?? '').not.toMatch(/beta|experimental/i)
+    expect(screen.queryByTestId('translation-beta-banner')).not.toBeInTheDocument()
+  })
+
   // ── Enable (when disabled) ──────────────────────────────────────────────────
 
   it('shows Enable button and hides Disable zone when translation is disabled', () => {

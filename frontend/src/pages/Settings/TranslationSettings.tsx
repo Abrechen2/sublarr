@@ -14,7 +14,7 @@
 import { lazy, Suspense, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
-import { Server, MessageSquare, BookOpen, Settings2, RefreshCw, Layers, FlaskConical, AlertTriangle } from 'lucide-react'
+import { Server, MessageSquare, BookOpen, Settings2, RefreshCw, Layers, Info, AlertTriangle } from 'lucide-react'
 import { SettingsDetailLayout } from '@/components/settings/SettingsDetailLayout'
 import { SettingsSection } from '@/components/settings/SettingsSection'
 import { FormGroup } from '@/components/settings/FormGroup'
@@ -26,7 +26,7 @@ import type { FormSectionDef } from '@/components/settings/layouts'
 // The Whisper link-tile is rendered between Sync Engine and Episode Context
 // but DELIBERATELY excluded from the TOC: it's a navigation cross-link to
 // the dedicated Transcription page, not a TranslationSettings section. The
-// Beta-banner (top) and Danger Zone (bottom) are page-chrome, not sections,
+// intro banner (top) and Danger Zone (bottom) are page-chrome, not sections,
 // so they also live outside the FormLayout grid.
 //
 // If a 7th real section ever needs to land here, the page MUST split into
@@ -121,39 +121,25 @@ export function TranslationSettings() {
         'Backends, prompts, glossary, quality, and sync settings',
       )}
     >
-      {/* Beta warning banner */}
+      {/* Intro banner */}
       <div
-        data-testid="translation-beta-banner"
-        style={{
-          display: 'flex',
-          gap: 12,
-          padding: '12px 16px',
-          borderRadius: 8,
-          backgroundColor: 'var(--warning-bg, rgba(245,158,11,0.1))',
-          border: '1px solid var(--warning, #f59e0b)',
-          marginBottom: 8,
-        }}
+        data-testid="translation-intro-banner"
+        className="flex gap-3 px-4 py-3 mb-2 rounded-lg bg-accent-bg border border-accent-dim"
       >
-        <FlaskConical size={18} style={{ color: 'var(--warning, #f59e0b)', flexShrink: 0, marginTop: 1 }} />
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-          <span style={{ fontWeight: 600, fontSize: 13, color: 'var(--warning, #f59e0b)' }}>
-            {t('translation_page.beta_title', 'Beta Feature')}
+        <Info size={18} className="text-accent shrink-0 mt-px" />
+        <div className="flex flex-col gap-1">
+          <span className="font-semibold text-[13px] text-foreground">
+            {t('translation_page.intro_title', 'Translation')}
           </span>
-          <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>
-            {t('translation_page.beta_body')}
+          <span className="text-xs text-muted">
+            {t('translation_page.intro_body')}
           </span>
         </div>
         {!translationEnabled && (
           <button
             onClick={handleEnable}
             data-testid="enable-translation-btn"
-            className="shrink-0 self-center px-3 py-1.5 rounded-md text-sm font-semibold"
-            style={{
-              marginLeft: 'auto',
-              backgroundColor: 'var(--warning, #f59e0b)',
-              color: '#fff',
-              border: 'none',
-            }}
+            className="shrink-0 self-center ml-auto px-3 py-1.5 rounded-md text-sm font-semibold bg-accent text-white border-none"
           >
             {t('translation_page.enable_button', 'Enable translation')}
           </button>

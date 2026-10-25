@@ -17,7 +17,7 @@ const inputStyle = {
 }
 
 /**
- * AIQualitySettings — advisory AI subtitle-quality badge (experimental).
+ * AIQualitySettings — advisory AI subtitle-quality badge.
  * Maps to ai_quality_enabled, ai_quality_model, ai_quality_max_cues.
  * The verdict is display-only: it never modifies files and never feeds
  * into scoring or upgrades (ROADMAP "AI direction" guardrails).
@@ -37,7 +37,7 @@ export function AIQualitySettings() {
       title={t('ai_quality_page.title', 'AI Quality Check')}
       description={t(
         'ai_quality_page.description',
-        'Experimental: after each download, a local LLM samples a few lines and rates machine-translation likelihood, OCR artifacts and grammar. Shown as a badge in History — advisory only, never changes files or scores.',
+        'After each download, a local LLM samples a few lines and rates machine-translation likelihood, OCR artifacts and grammar. Shown as a badge in History — advisory only, never changes files or scores. The verdict is an AI estimate and depends on the model you use.',
       )}
       icon={<Sparkles size={16} style={{ color: 'var(--accent)' }} />}
     >

@@ -170,7 +170,7 @@ class UISettings(BaseModel):
     backoff_base: int = 5
 
     # Translation
-    translation_enabled: bool = False  # Must be explicitly enabled — Beta feature
+    translation_enabled: bool = False  # Off by default; the user enables it explicitly
     source_language: str = "en"
     target_language: str = "de"
     source_language_name: str = "English"
@@ -437,7 +437,7 @@ class UISettings(BaseModel):
     # is unavailable.
     dubtitle_verify_on_download: bool = False
 
-    # AI subtitle-quality badge (advisory, experimental). After a download, an
+    # AI subtitle-quality badge (advisory only). After a download, an
     # LLM samples ~ai_quality_max_cues cues from the saved sidecar and rates
     # machine-translation likelihood, OCR artifacts and grammar; the verdict is
     # shown as a green/yellow/red badge in History. Read-only by design: the

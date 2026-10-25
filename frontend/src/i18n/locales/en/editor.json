@@ -233,11 +233,10 @@
     "fix_defects_applied": "{{count}} timing fixes applied"
   },
   "enable_translation_modal": {
-    "title": "Enable Translation",
-    "warning_body": "The AI translation feature is experimental and currently does not work reliably enough for production use. Results can vary greatly — depending on model, prompt and input quality.",
-    "requirement_prefix": "Requirement: A running ",
-    "requirement_suffix": " server with a configured model.",
-    "understand_checkbox": "I understand this is a beta feature and use it at my own risk.",
+    "title": "Enable translation?",
+    "body": "Sublarr then creates a subtitle in your language when no provider has one. The result depends on the translation backend and model you choose. Use at your own risk.",
+    "requirement": "Requirement: a configured translation backend, for example Ollama, DeepL or an OpenAI-compatible API.",
+    "understand_checkbox": "I understand that the translation quality depends on the translator I choose.",
     "cancel": "Cancel",
     "enable_button": "Enable Translation"
   },
