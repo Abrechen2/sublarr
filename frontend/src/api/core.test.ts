@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest'
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import axios from 'axios'
 import { api, bootstrapApiKey } from './core'
 
@@ -104,8 +104,35 @@ describe('401 response interceptor', () => {
     handlers: Array<{ rejected: (error: unknown) => Promise<unknown> }>
   }).handlers[0].rejected
 
+  const original = window.location
+  let assigned: string | null
+
+  const stubLocation = (pathname: string) => {
+    assigned = null
+    Object.defineProperty(window, 'location', {
+      configurable: true,
+      value: {
+        pathname,
+        get href() {
+          return `http://localhost${pathname}`
+        },
+        set href(value: string) {
+          assigned = value
+        },
+      },
+    })
+  }
+
+  // Every 401 here may trigger the /login redirect. Without a stub jsdom
+  // performs a real navigation and logs "Not implemented: navigation", which
+  // can arrive after teardown and fail the run as an unhandled error.
   beforeEach(() => {
     localStorage.clear()
+    stubLocation('/wanted')
+  })
+
+  afterEach(() => {
+    Object.defineProperty(window, 'location', { configurable: true, value: original })
   })
 
   it('clears a stale stored key on 401 so the next load re-bootstraps', async () => {
@@ -125,29 +152,6 @@ describe('401 response interceptor', () => {
   })
 
   describe('redirect behaviour', () => {
-    const original = window.location
-    let assigned: string | null
-
-    const stubLocation = (pathname: string) => {
-      assigned = null
-      Object.defineProperty(window, 'location', {
-        configurable: true,
-        value: {
-          pathname,
-          get href() {
-            return `http://localhost${pathname}`
-          },
-          set href(value: string) {
-            assigned = value
-          },
-        },
-      })
-    }
-
-    afterEach(() => {
-      Object.defineProperty(window, 'location', { configurable: true, value: original })
-    })
-
     it('redirects to /login on a 401 raised from another page', async () => {
       stubLocation('/wanted')
       await expect(
