@@ -97,6 +97,7 @@ class SubtitleAutomationQueueRepository(BaseRepository):
         source_language: str | None = None,
         video_path: str | None = None,
         radarr_movie_id: int | None = None,
+        series_key: int | None = None,
     ) -> int:
         """Idempotent enqueue by `(wanted_item_id, task_type, file_path)`.
 
@@ -119,7 +120,10 @@ class SubtitleAutomationQueueRepository(BaseRepository):
         `radarr_movie_id` is only meaningful for `foreign_track_cleanup`: a
         movie download's row (`wanted_item_id=0`, per that task's convention)
         carries the Radarr movie id here so the drain can resolve a
-        per-movie track-policy override.
+        per-movie track-policy override. For `auto_sync` it carries the movie
+        owner key and `series_key` the series owner key (negative for
+        standalone titles), so the drain can recheck a standalone file against
+        its owner folder.
         """
         now = self._now()
         existing = (
@@ -151,6 +155,7 @@ class SubtitleAutomationQueueRepository(BaseRepository):
                 existing.target_language = target_language
                 existing.source_language = source_language
                 existing.radarr_movie_id = radarr_movie_id
+                existing.series_key = series_key
                 existing.updated_at = now
                 self._commit()
             return existing.id
@@ -162,6 +167,7 @@ class SubtitleAutomationQueueRepository(BaseRepository):
             target_language=target_language,
             source_language=source_language,
             radarr_movie_id=radarr_movie_id,
+            series_key=series_key,
             state="pending",
             attempt_count=0,
             created_at=now,

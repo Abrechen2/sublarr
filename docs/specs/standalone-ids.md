@@ -481,5 +481,13 @@ Follow-up Codex rounds on the fix:
   items are now held only to the boundary both share (the resolved file
   inside `media_path`, what arr paths already follow); the cleanup rows
   carry their ids, so standalone rows get the full owner-folder check and
-  arr rows are exempt as before. (Fixed after the last review round; not
-  re-reviewed by Codex.)
+  arr rows are exempt as before.
+* Round 5: that left auto-sync rows of standalone titles with the
+  `media_path` check only, so a `Season 1` folder swapped for a symlink to
+  another folder inside the media folder was synced. Auto-sync rows now
+  store the owner keys at enqueue (`series_key`, migration
+  `sa3_automation_queue_series_key`, and `radarr_movie_id`), and the drain
+  rechecks them against the owner folder. Rows queued before the upgrade
+  keep the path-only check. A whole series folder swapped for a symlink
+  inside the media folder is not refused: the owner folder is resolved too,
+  and `media_path` stays the trust boundary, as for Sonarr/Radarr.

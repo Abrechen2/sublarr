@@ -436,7 +436,12 @@ def _try_target_ass_direct(ctx: dict) -> dict | None:
             if not verify_dubtitle_on_keep(saved_path, file_path, settings):
                 _flag_dub_mismatch(saved_path)
             _try_auto_sync(
-                saved_path, file_path, settings, item_id=item_id, target_language=item_lang
+                saved_path,
+                file_path,
+                settings,
+                item_id=item_id,
+                target_language=item_lang,
+                item=item,
             )
             delete_wanted_item(item_id)
             return {
@@ -748,6 +753,7 @@ def _try_source_ass_translation(ctx: dict) -> dict | None:
                 settings,
                 item_id=item_id,
                 target_language=item_lang,
+                item=item,
             )
 
             from services.mt_provisional import finalize_translation
@@ -854,7 +860,12 @@ def _try_target_srt_direct(ctx: dict) -> dict | None:
             if not verify_dubtitle_on_keep(saved_path, file_path, settings):
                 _flag_dub_mismatch(saved_path)
             _try_auto_sync(
-                saved_path, file_path, settings, item_id=item_id, target_language=item_lang
+                saved_path,
+                file_path,
+                settings,
+                item_id=item_id,
+                target_language=item_lang,
+                item=item,
             )
             delete_wanted_item(item_id)
             return {
@@ -1038,6 +1049,7 @@ def _try_source_srt_translation(ctx: dict) -> dict | None:
                 settings,
                 item_id=item_id,
                 target_language=item_lang,
+                item=item,
             )
 
             from services.mt_provisional import finalize_translation

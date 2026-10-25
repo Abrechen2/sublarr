@@ -565,6 +565,12 @@ class SubtitleAutomationQueueEntry(db.Model):
     # Only meaningful for foreign_track_cleanup: the Radarr movie id, when the
     # row came from a movie download. See the class docstring.
     radarr_movie_id: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    # Only meaningful for auto_sync: the series owner key (negative for a
+    # standalone series), so the drain can recheck a standalone sidecar
+    # against its series folder. `radarr_movie_id` carries the movie owner key
+    # for the same purpose. `wanted_item_id` cannot: the item is deleted right
+    # after the row is written.
+    series_key: Mapped[int | None] = mapped_column(Integer, nullable=True)
     target_language: Mapped[str] = mapped_column(String(8), nullable=False)
     # Only meaningful for sidecar_translate: the language of the source file.
     source_language: Mapped[str | None] = mapped_column(String(8), nullable=True)

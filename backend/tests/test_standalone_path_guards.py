@@ -542,3 +542,69 @@ def test_wanted_cleanup_rows_carry_their_ids(media):
     )
     row = get_wanted_items_for_cleanup()[0]
     assert row["sonarr_series_id"] == 7 and row["standalone_series_id"] is None
+
+
+# --- Codex round 5 ------------------------------------------------------------
+
+
+@pytest.fixture
+def swapped_inside(media):
+    """``media/Show/Season 1`` is a symlink to ``media/Other/Season 1``: inside
+    the media folder, but outside the standalone series folder."""
+    real = media / "Other" / "Season 1"
+    video = _video(real / "Show - S01E01.mkv")
+    (real / "Show - S01E01.de.srt").write_text("1\n")
+    show = media / "Show"
+    show.mkdir()
+    sid = _series(str(show))
+    os.symlink(real, show / "Season 1")
+    return sid, str(show / "Season 1" / "Show - S01E01.mkv"), video
+
+
+def test_automation_drain_rechecks_auto_sync_against_its_series_folder(swapped_inside, monkeypatch):
+    """An auto-sync row keeps its standalone owner, so a series folder swapped
+    for a symlink elsewhere inside the media folder is still refused."""
+    from services.subtitle_automation_runner import SubtitleAutomationRunner
+
+    sid, video, _ = swapped_inside
+    claim = {
+        "id": 1,
+        "wanted_item_id": 99,
+        "file_path": video[:-4] + ".de.srt",
+        "video_path": video,
+        "target_language": "de",
+        "task_type": "auto_sync",
+        "series_key": -sid,
+        "radarr_movie_id": None,
+        "attempt_count": 0,
+    }
+    touched = []
+    monkeypatch.setattr(SubtitleAutomationRunner, "_auto_sync", lambda *a, **k: touched.append(a))
+    queue = _FakeQueue(claim)
+    assert SubtitleAutomationRunner(queue).process_one() is True
+    assert touched == []
+    assert queue.failed
+
+
+def test_auto_sync_row_stores_the_owner_keys(media, tmp_path):
+    from types import SimpleNamespace
+
+    from db.models.core import SubtitleAutomationQueueEntry
+    from extensions import db
+    from wanted_search.post_processor import _try_auto_sync
+
+    video = _video(media / "Show" / "Show - S01E01.mkv")
+    sidecar = video[:-4] + ".de.srt"
+    with open(sidecar, "w") as fh:
+        fh.write("1\n")
+    settings = SimpleNamespace(auto_sync_after_download=True, auto_sync_engine="ffsubsync")
+    _try_auto_sync(
+        sidecar,
+        video,
+        settings,
+        item_id=5,
+        target_language="de",
+        item={"standalone_series_id": 3},
+    )
+    row = db.session.query(SubtitleAutomationQueueEntry).one()
+    assert row.series_key == -3 and row.radarr_movie_id is None

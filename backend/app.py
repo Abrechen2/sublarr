@@ -177,6 +177,10 @@ def _patch_pre_alembic_columns(engine, inspect_fn) -> None:
             patches.append(
                 "ALTER TABLE subtitle_automation_queue ADD COLUMN radarr_movie_id INTEGER"
             )
+        # series_key: the series owner key of an auto-sync row (migration
+        # sa3_automation_queue_series_key).
+        if "series_key" not in existing:
+            patches.append("ALTER TABLE subtitle_automation_queue ADD COLUMN series_key INTEGER")
 
     if not patches:
         return

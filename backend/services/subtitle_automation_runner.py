@@ -180,33 +180,39 @@ def _standalone_task_refusal(task_type: str, claim: dict) -> str | None:
     """Cleanup and auto-sync tasks touch the files directly: check a
     standalone file against its folder and the media folder first.
 
-    Cleanup rows carry the series owner key in ``wanted_item_id`` and the
-    movie owner key in ``radarr_movie_id`` (negative for standalone titles);
-    auto-sync rows carry only paths, so they are recognised by lying under a
+    Cleanup rows carry the series owner key in ``wanted_item_id``, auto-sync
+    rows in ``series_key``; both carry the movie owner key in
+    ``radarr_movie_id`` (negative for standalone titles). Auto-sync rows
+    queued before 1.18 have no keys and are recognised by lying under a
     watched folder. Extraction and sidecar translation check the wanted row
     themselves.
     """
     from services.standalone_library import wanted_item_path_refusal
 
     if task_type == SubtitleAutomationQueueEntry.TASK_FOREIGN_TRACK_CLEANUP:
-        item = {"file_path": claim.get("file_path")}
-        series_key = claim.get("wanted_item_id") or 0
-        movie_key = claim.get("radarr_movie_id") or 0
-        if series_key < 0:
-            item["standalone_series_id"] = -series_key
-        elif movie_key < 0:
-            item["standalone_movie_id"] = -movie_key
-        elif series_key > 0:
-            item["sonarr_series_id"] = series_key
-        elif movie_key > 0:
-            item["radarr_movie_id"] = movie_key
-        return wanted_item_path_refusal(item)
+        owner = _owner_ids(claim.get("wanted_item_id"), claim.get("radarr_movie_id"))
+        return wanted_item_path_refusal({"file_path": claim.get("file_path"), **owner})
     if task_type == SubtitleAutomationQueueEntry.TASK_AUTO_SYNC:
+        owner = _owner_ids(claim.get("series_key"), claim.get("radarr_movie_id"))
         for path in (claim.get("file_path"), claim.get("video_path")):
-            refusal = wanted_item_path_refusal({"file_path": path}) if path else None
+            refusal = wanted_item_path_refusal({"file_path": path, **owner}) if path else None
             if refusal:
                 return refusal
     return None
+
+
+def _owner_ids(series_key: int | None, movie_key: int | None) -> dict:
+    """Wanted-row id fields for a queue row's owner keys (negative = standalone)."""
+    series_key, movie_key = series_key or 0, movie_key or 0
+    if series_key < 0:
+        return {"standalone_series_id": -series_key}
+    if movie_key < 0:
+        return {"standalone_movie_id": -movie_key}
+    if series_key > 0:
+        return {"sonarr_series_id": series_key}
+    if movie_key > 0:
+        return {"radarr_movie_id": movie_key}
+    return {}
 
 
 class SubtitleAutomationRunner:

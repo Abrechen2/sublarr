@@ -35,6 +35,7 @@ def _try_auto_sync(
     *,
     item_id: int,
     target_language: str,
+    item: dict | None = None,
 ) -> None:
     """Queue a sync job if auto_sync_after_download is enabled.
 
@@ -84,6 +85,8 @@ def _try_auto_sync(
             video_path=video_path,
             target_language=target_language,
             task_type=SubtitleAutomationQueueEntry.TASK_AUTO_SYNC,
+            series_key=series_key_for_item(item),
+            radarr_movie_id=movie_key_for_item(item),
         )
         logger.info("Auto-sync: queued %s against %s", subtitle_path, video_path)
     except Exception as e:
@@ -461,7 +464,9 @@ def download_specific_for_item(
         if out:
             # `item_lang`, not `language`: what landed on disk here is the
             # translation, not the source that was downloaded to make it.
-            _try_auto_sync(out, file_path, settings, item_id=item_id, target_language=item_lang)
+            _try_auto_sync(
+                out, file_path, settings, item_id=item_id, target_language=item_lang, item=item
+            )
         _try_auto_combine(item, file_path)
         return {
             "success": True,
@@ -496,6 +501,7 @@ def download_specific_for_item(
             settings,
             item_id=item_id,
             target_language=language,
+            item=item,
         )
         _try_auto_combine(item, file_path)
         return {
@@ -509,7 +515,9 @@ def download_specific_for_item(
         return {"success": False, "error": f"Failed to save subtitle: {e}"}
 
     delete_wanted_item(item_id)
-    _try_auto_sync(actual_path, file_path, settings, item_id=item_id, target_language=language)
+    _try_auto_sync(
+        actual_path, file_path, settings, item_id=item_id, target_language=language, item=item
+    )
     _try_auto_combine(item, file_path)
     return {
         "success": True,
