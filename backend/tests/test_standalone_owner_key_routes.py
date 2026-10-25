@@ -113,6 +113,77 @@ def test_profiles_overrides_movie_roundtrip(client, with_arr, tmp_path):
     assert resolved.get_json()["scope"]["name"] == "Film"
 
 
+# Resolved scope labels: a positive id is Sonarr's/Radarr's when configured
+# (1.18.0-rc.2 end-to-end test, F5).
+
+
+def _arr_settings(client, series_key: int, movie_key: int) -> None:
+    from db.models.core import MovieSettings, SeriesSettings
+    from extensions import db
+
+    now = datetime.now(UTC)
+    with client.application.app_context():
+        db.session.add(SeriesSettings(sonarr_series_id=series_key, updated_at=now))
+        db.session.add(MovieSettings(radarr_movie_id=movie_key, updated_at=now))
+        db.session.commit()
+
+
+def _arr_titles(monkeypatch, series: dict, movies: dict) -> None:
+    monkeypatch.setattr("routes.profiles_overrides.get_sonarr_series_titles", lambda: series)
+    monkeypatch.setattr("routes.profiles_overrides.get_radarr_movie_titles", lambda: movies)
+
+
+def test_resolved_positive_ids_are_not_labelled_with_standalone_titles(
+    client, tmp_path, with_arr, monkeypatch
+):
+    _arr_titles(monkeypatch, {}, {})
+    sid = _series(client, tmp_path)
+    mid = _movie(client, tmp_path)
+    _arr_settings(client, sid, mid)
+
+    series = client.get(f"/api/v1/profiles-overrides/resolved/series/{sid}").get_json()
+    movie = client.get(f"/api/v1/profiles-overrides/resolved/movie/{mid}").get_json()
+
+    assert series["scope"]["name"] == f"#{sid}"
+    assert movie["scope"]["name"] == f"#{mid}"
+
+
+def test_resolved_positive_ids_use_the_arr_titles(client, tmp_path, with_arr, monkeypatch):
+    sid = _series(client, tmp_path)
+    mid = _movie(client, tmp_path)
+    _arr_settings(client, sid, mid)
+    _arr_titles(monkeypatch, {sid: "Sonarr Show"}, {mid: "Radarr Film"})
+
+    series = client.get(f"/api/v1/profiles-overrides/resolved/series/{sid}").get_json()
+    movie = client.get(f"/api/v1/profiles-overrides/resolved/movie/{mid}").get_json()
+
+    assert series["scope"]["name"] == "Sonarr Show"
+    assert movie["scope"]["name"] == "Radarr Film"
+
+
+def test_resolved_positive_id_known_only_as_standalone_is_unknown_with_arr(
+    client, tmp_path, with_arr
+):
+    sid = _series(client, tmp_path)
+    mid = _movie(client, tmp_path)
+
+    assert client.get(f"/api/v1/profiles-overrides/resolved/series/{sid}").status_code == 404
+    assert client.get(f"/api/v1/profiles-overrides/resolved/movie/{mid}").status_code == 404
+
+
+def test_resolved_legacy_positive_ids_keep_standalone_titles_without_arr(client, tmp_path, no_arr):
+    sid = _series(client, tmp_path)
+    mid = _movie(client, tmp_path)
+
+    series = client.get(f"/api/v1/profiles-overrides/resolved/series/{sid}")
+    movie = client.get(f"/api/v1/profiles-overrides/resolved/movie/{mid}")
+
+    assert series.status_code == 200
+    assert series.get_json()["scope"]["name"] == "Show"
+    assert movie.status_code == 200
+    assert movie.get_json()["scope"]["name"] == "Film"
+
+
 def test_fansub_prefs_and_audio_pref_use_the_owner_key(client, no_arr, tmp_path):
     from db.models.core import FansubPreference
     from extensions import db

@@ -31,8 +31,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   Radarr configured next to watched folders, a standalone series or movie
   could pick up the settings, profile, glossary or cleanup switch of the
   Sonarr series or Radarr movie with the same number, and a Radarr movie
-  page could show a standalone movie instead. Standalone titles now have
-  their own ids, and pages and settings stay with the right title.
+  page could show a standalone movie instead. The settings overview of a
+  Sonarr series or Radarr movie could also carry the name of a standalone
+  title with the same number. Standalone titles now have their own ids, and
+  pages, names and settings stay with the right title.
 - **Fewer false "subtitle of another episode" findings for standalone
   anime** — The repair scan flagged releases that count episodes from the
   start of the show ("One Piece - 892" for season 21 episode 1). It now

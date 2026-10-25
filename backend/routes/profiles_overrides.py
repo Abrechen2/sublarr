@@ -265,6 +265,19 @@ def get_resolved_profile(profile_id: int):
     return jsonify(_resolved_response("profile", profile_id, profile.name, out))
 
 
+def _positive_is_standalone(item_id: int, kind: str) -> bool:
+    """A positive id names a standalone row only while its arr is not configured.
+
+    With Sonarr (series) or Radarr (movie) configured every positive id is the
+    arr's, so a standalone row with the same number must not label or
+    "know" it (docs/specs/standalone-ids.md).
+    """
+    from services.media_ids import resolve_movie_ref, resolve_series_ref
+
+    resolve = resolve_series_ref if kind == "series" else resolve_movie_ref
+    return resolve(item_id).is_standalone
+
+
 def _series_known_to_sublarr(series_id: int) -> bool:
     """Series is 'known' if any of: profile mapping, settings row, search-cache
     row, wanted-item row, or standalone-library row exists for it."""
@@ -280,8 +293,9 @@ def _series_known_to_sublarr(series_id: int) -> bool:
         queries = (
             "SELECT 1 FROM search_series WHERE id = :id LIMIT 1",
             "SELECT 1 FROM wanted_items WHERE sonarr_series_id = :id LIMIT 1",
-            "SELECT 1 FROM standalone_series WHERE id = :id LIMIT 1",
         )
+        if _positive_is_standalone(series_id, "series"):
+            queries += ("SELECT 1 FROM standalone_series WHERE id = :id LIMIT 1",)
         lookup_id = series_id
     for sql in queries:
         try:
@@ -303,10 +317,10 @@ def _series_title(series_id: int) -> str:
             {"id": -series_id},
         ).fetchone()
         return str(row[0]) if row and row[0] else f"#{series_id}"
-    for sql in (
-        "SELECT title FROM search_series WHERE id = :id LIMIT 1",
-        "SELECT title FROM standalone_series WHERE id = :id LIMIT 1",
-    ):
+    queries = ("SELECT title FROM search_series WHERE id = :id LIMIT 1",)
+    if _positive_is_standalone(series_id, "series"):
+        queries += ("SELECT title FROM standalone_series WHERE id = :id LIMIT 1",)
+    for sql in queries:
         try:
             row = db.session.execute(text(sql), {"id": series_id}).fetchone()
             if row and row[0]:
@@ -345,10 +359,9 @@ def _movie_known_to_sublarr(movie_id: int) -> bool:
         queries = ("SELECT 1 FROM standalone_movies WHERE id = :id LIMIT 1",)
         lookup_id = -movie_id
     else:
-        queries = (
-            "SELECT 1 FROM wanted_items WHERE radarr_movie_id = :id LIMIT 1",
-            "SELECT 1 FROM standalone_movies WHERE id = :id LIMIT 1",
-        )
+        queries = ("SELECT 1 FROM wanted_items WHERE radarr_movie_id = :id LIMIT 1",)
+        if _positive_is_standalone(movie_id, "movie"):
+            queries += ("SELECT 1 FROM standalone_movies WHERE id = :id LIMIT 1",)
         lookup_id = movie_id
     for sql in queries:
         try:
@@ -362,15 +375,16 @@ def _movie_known_to_sublarr(movie_id: int) -> bool:
 def _movie_title(movie_id: int) -> str:
     from sqlalchemy import text
 
-    try:
-        row = db.session.execute(
-            text("SELECT title FROM standalone_movies WHERE id = :id LIMIT 1"),
-            {"id": -movie_id if movie_id < 0 else movie_id},
-        ).fetchone()
-        if row and row[0]:
-            return str(row[0])
-    except Exception:
-        pass
+    if movie_id < 0 or _positive_is_standalone(movie_id, "movie"):
+        try:
+            row = db.session.execute(
+                text("SELECT title FROM standalone_movies WHERE id = :id LIMIT 1"),
+                {"id": abs(movie_id)},
+            ).fetchone()
+            if row and row[0]:
+                return str(row[0])
+        except Exception:
+            pass
     if movie_id < 0:
         return f"#{movie_id}"
     radarr_title = get_radarr_movie_titles().get(movie_id)

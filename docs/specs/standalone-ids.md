@@ -313,6 +313,11 @@ the `file_path` fallback, so nothing breaks in between.
   to the configured arr. The movie routes' old "standalone row first" lookup
   for a positive id is replaced by "Radarr when configured, else standalone"
   — the old order answered a Radarr movie with an unrelated standalone movie.
+* `/profiles-overrides/resolved/{series,movie}/<id>`: a positive id is looked
+  up in `standalone_series` / `standalone_movies` (for its scope name and
+  for "is this title known") only while the matching arr is not configured
+  (`resolve_series_ref` / `resolve_movie_ref`); with the arr configured the
+  name comes from Sonarr/Radarr (1.18.0-rc.2 end-to-end test, F5).
 * `/api/v1/standalone/*` (standalone-only namespace) accepts both the
   positive row id and the negative wire id for a series/movie and returns the
   row as before plus `standalone_id`; poster URLs keep the positive row id.
