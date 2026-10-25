@@ -5,7 +5,7 @@ import logging
 from flask import current_app, jsonify, request
 
 from events import emit_event
-from routes.wanted import bp
+from routes.wanted import _sonarr_missing, bp
 from services.background_tasks import submit_background
 
 logger = logging.getLogger(__name__)
@@ -128,6 +128,9 @@ def list_wanted():
         sort_by=sort_by,
         sort_dir=sort_dir,
         search=search,
+        # Standalone mode (no Sonarr): series ids are standalone series ids,
+        # the same rule the series detail uses.
+        standalone_series=series_id is not None and _sonarr_missing(),
     )
     return jsonify(result)
 

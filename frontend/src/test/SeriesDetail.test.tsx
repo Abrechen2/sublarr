@@ -71,6 +71,8 @@ const standaloneSeries = {
 let currentSeries: Record<string, unknown> = mockSeries
 const episodeSearchMutate = vi.fn()
 const interactiveModalProps = vi.fn()
+const seasonGroupProps = vi.fn()
+let currentWanted: unknown = null
 
 // ─── API hooks ────────────────────────────────────────────────────────────────
 
@@ -90,7 +92,7 @@ vi.mock('@/hooks/useApi', () => ({
 }))
 
 vi.mock('@/hooks/useWantedApi', () => ({
-  useWantedItems: () => ({ data: null }),
+  useWantedItems: () => ({ data: currentWanted }),
   useUpdateWantedStatus: () => ({ mutate: vi.fn() }),
 }))
 
@@ -141,26 +143,24 @@ vi.mock('@/components/series/SeasonTabs', () => ({
 }))
 
 vi.mock('@/components/series/SeasonGroup', () => ({
-  SeasonGroup: ({
-    season,
-    episodes,
-    onSearch,
-    onInteractiveSearch,
-    onHistory,
-  }: {
+  SeasonGroup: (props: {
     season: number
     episodes: unknown[]
     onSearch: (ep: unknown) => void
     onInteractiveSearch: (ep: unknown) => void
     onHistory: (ep: unknown) => void
-  }) => (
+  }) => {
+    seasonGroupProps(props)
+    const { season, episodes, onSearch, onInteractiveSearch, onHistory } = props
+    return (
     <div data-testid={`season-group-${season}`}>
       Season {season}
       <button onClick={() => onSearch(episodes[0])}>stub-search</button>
       <button onClick={() => onInteractiveSearch(episodes[0])}>stub-interactive</button>
       <button onClick={() => onHistory(episodes[0])}>stub-history</button>
     </div>
-  ),
+    )
+  },
 }))
 
 vi.mock('@/components/series/EpisodeGrid', () => ({
@@ -262,6 +262,28 @@ describe('SeriesDetailPage', () => {
 describe('SeriesDetailPage episode actions (#226)', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    currentWanted = null
+  })
+
+  function lastWantedMap() {
+    const calls = seasonGroupProps.mock.calls
+    return (calls[calls.length - 1][0] as { episodeWantedMap: Map<number, number> })
+      .episodeWantedMap
+  }
+
+  it('maps standalone episodes to their own wanted id for skip/accept', () => {
+    currentSeries = standaloneSeries
+    currentWanted = { data: [{ id: 55, sonarr_episode_id: null, standalone_series_id: 7 }] }
+    renderSeriesDetail('7')
+    expect(lastWantedMap().get(55)).toBe(55)
+  })
+
+  it('maps Sonarr episodes by sonarr_episode_id', () => {
+    currentSeries = mockSeries
+    currentWanted = { data: [{ id: 9, sonarr_episode_id: 101 }] }
+    renderSeriesDetail('1')
+    expect(lastWantedMap().get(101)).toBe(9)
+    expect(lastWantedMap().has(9)).toBe(false)
   })
 
   function lastModalProps() {

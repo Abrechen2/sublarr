@@ -63,13 +63,17 @@ export function SeriesDetailPage() {
   const episodeWantedMap = useMemo((): Map<number, number> => {
     const map = new Map<number, number>()
     if (!seriesWanted?.data) return map
+    // Standalone episodes are keyed by their wanted-item id already.
+    const standalone = series?.source === 'standalone'
     for (const item of seriesWanted.data) {
-      if (item.sonarr_episode_id != null) {
+      if (standalone) {
+        map.set(item.id, item.id)
+      } else if (item.sonarr_episode_id != null) {
         map.set(item.sonarr_episode_id, item.id)
       }
     }
     return map
-  }, [seriesWanted?.data])
+  }, [seriesWanted?.data, series?.source])
 
   // Episode action state
   const [expandedEp, setExpandedEp] = useState<{ id: number; mode: 'search' | 'history' | 'glossary' | 'tracks' } | null>(null)

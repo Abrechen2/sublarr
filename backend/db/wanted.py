@@ -88,8 +88,13 @@ def get_wanted_items(
     sort_by: str = "added_at",
     sort_dir: str = "desc",
     search: str = None,
+    *,
+    standalone_series: bool = False,
 ) -> dict:
-    """Get paginated wanted items with optional filters, sorting, and text search."""
+    """Get paginated wanted items with optional filters, sorting, and text search.
+
+    ``standalone_series`` makes ``series_id`` match ``standalone_series_id``.
+    """
     return _get_repo().get_wanted_items(
         page,
         per_page,
@@ -101,6 +106,7 @@ def get_wanted_items(
         sort_by=sort_by,
         sort_dir=sort_dir,
         search=search,
+        standalone_series=standalone_series,
     )
 
 
@@ -247,9 +253,9 @@ def get_series_missing_counts() -> dict:
     return _get_repo().get_series_missing_counts()
 
 
-def get_wanted_for_series(sonarr_series_id: int) -> list:
-    """Get all wanted items for a specific series."""
-    return _get_repo().get_wanted_for_series(sonarr_series_id)
+def get_wanted_for_series(series_id: int, *, standalone: bool = False) -> list:
+    """Get all wanted items for a Sonarr series (or a standalone one)."""
+    return _get_repo().get_wanted_for_series(series_id, standalone=standalone)
 
 
 def get_wanted_by_subtitle_type() -> dict:

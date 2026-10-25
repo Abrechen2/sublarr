@@ -75,6 +75,8 @@ class WantedRepository(BaseRepository, _WantedUpsertMixin, _WantedUpdatesMixin):
         sort_dir: str = "desc",
         search: str = None,
         preset_conditions: dict = None,
+        *,
+        standalone_series: bool = False,
     ) -> dict:
         """Get paginated wanted items with optional filters, sorting, and text search."""
         # Clamp before arithmetic. An unclamped page reached Postgres as
@@ -94,7 +96,14 @@ class WantedRepository(BaseRepository, _WantedUpsertMixin, _WantedUpdatesMixin):
         if status:
             conditions.append(WantedItem.status == status)
         if series_id is not None:
-            conditions.append(WantedItem.sonarr_series_id == series_id)
+            # ``standalone_series``: series_id names a standalone series (no
+            # Sonarr), whose rows carry standalone_series_id instead.
+            series_col = (
+                WantedItem.standalone_series_id
+                if standalone_series
+                else WantedItem.sonarr_series_id
+            )
+            conditions.append(series_col == series_id)
         if movie_id is not None:
             conditions.append(WantedItem.standalone_movie_id == movie_id)
         if subtitle_type:
@@ -405,9 +414,10 @@ class WantedRepository(BaseRepository, _WantedUpsertMixin, _WantedUpdatesMixin):
             "exhausted": exhausted,
         }
 
-    def get_wanted_for_series(self, sonarr_series_id: int) -> list:
-        """Get all wanted items for a specific series."""
-        stmt = select(WantedItem).where(WantedItem.sonarr_series_id == sonarr_series_id)
+    def get_wanted_for_series(self, series_id: int, *, standalone: bool = False) -> list:
+        """Get all wanted items for a Sonarr series, or a standalone one."""
+        col = WantedItem.standalone_series_id if standalone else WantedItem.sonarr_series_id
+        stmt = select(WantedItem).where(col == series_id)
         rows = self.session.execute(stmt).scalars().all()
         return [self._row_to_wanted(r) for r in rows]
 
