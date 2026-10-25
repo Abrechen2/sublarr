@@ -263,8 +263,55 @@ class WantedScanner(_WantedSchedulerMixin, _WantedScanSourcesMixin):
         self._last_scan_timestamp = None
         return self.scan_all(incremental=False)
 
+    @staticmethod
+    def _standalone_id(item_id: int, arr_configured, lookup) -> int | None:
+        """Row id of the standalone title an id names, or None for an arr id.
+
+        Negative ids are standalone (docs/specs/standalone-ids.md); a positive
+        id is one only without the arr and when that standalone row exists.
+        """
+        from services.media_ids import standalone_id_from
+
+        standalone_id = standalone_id_from(item_id)
+        if standalone_id is not None:
+            return standalone_id
+        if arr_configured() or not lookup(item_id):
+            return None
+        return item_id
+
+    def _scan_standalone_series(self, series_id: int) -> dict | None:
+        from db.standalone import get_standalone_series
+        from sonarr_client import get_sonarr_client
+
+        standalone_id = self._standalone_id(
+            series_id, lambda: get_sonarr_client() is not None, get_standalone_series
+        )
+        if standalone_id is None:
+            return None
+        from standalone.scanner import get_scanner as get_standalone_scanner
+
+        return {**get_standalone_scanner().scan_series(standalone_id), "series_id": series_id}
+
+    def _scan_standalone_movie(self, movie_id: int) -> dict | None:
+        from db.standalone import get_standalone_movies
+        from radarr_client import get_radarr_client
+        from services.standalone_library import movie_path_in_watched_folder
+
+        standalone_id = self._standalone_id(
+            movie_id, lambda: get_radarr_client() is not None, get_standalone_movies
+        )
+        if standalone_id is None:
+            return None
+        movie = get_standalone_movies(standalone_id)
+        path = movie_path_in_watched_folder((movie or {}).get("file_path"))
+        if not path:
+            return {"error": f"movie_{movie_id}_not_found"}
+        from standalone.scanner import get_scanner as get_standalone_scanner
+
+        return {**get_standalone_scanner().process_single_file(path), "movie_id": movie_id}
+
     def scan_series(self, series_id: int) -> dict:
-        """Scan a single Sonarr series."""
+        """Scan a single Sonarr series, or a standalone one (negative id)."""
         if not self._scan_lock.acquire(blocking=False):
             return {"error": "scan_already_running"}
 
@@ -274,6 +321,10 @@ class WantedScanner(_WantedSchedulerMixin, _WantedScanSourcesMixin):
         try:
             settings = get_settings()
             from sonarr_client import get_sonarr_client
+
+            standalone = self._scan_standalone_series(series_id)
+            if standalone is not None:
+                return standalone
 
             sonarr = get_sonarr_client()
             if not sonarr:
@@ -298,7 +349,7 @@ class WantedScanner(_WantedSchedulerMixin, _WantedScanSourcesMixin):
             self._scan_lock.release()
 
     def scan_movie(self, movie_id: int) -> dict:
-        """Scan a single Radarr movie."""
+        """Scan a single Radarr movie, or a standalone one (negative id)."""
         if not self._scan_lock.acquire(blocking=False):
             return {"error": "scan_already_running"}
 
@@ -308,6 +359,10 @@ class WantedScanner(_WantedSchedulerMixin, _WantedScanSourcesMixin):
         try:
             settings = get_settings()
             from radarr_client import get_radarr_client
+
+            standalone = self._scan_standalone_movie(movie_id)
+            if standalone is not None:
+                return standalone
 
             radarr = get_radarr_client()
             if not radarr:
