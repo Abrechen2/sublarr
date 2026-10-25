@@ -10,6 +10,7 @@ from collections import OrderedDict
 
 from flask import jsonify, request
 
+from error_utils import internal_error_response
 from routes.tools import bp
 from routes.tools._helpers import PYSUBS2_EXT, SUPPORTED_FORMATS, _validate_file_path
 from subtitle_encoding import load_subtitle_file
@@ -72,7 +73,7 @@ def spell_check():
             f"/usr/share/hunspell/{language}.aff",
         )
     except Exception as e:
-        return jsonify({"error": f"Hunspell not available for {language}: {e}"}), 503
+        return internal_error_response(f"Hunspell not available for {language}", e, status=503)
 
     try:
         subs = load_subtitle_file(abs_path)
@@ -85,7 +86,7 @@ def spell_check():
                     errors.append({"word": word, "start_ms": cue.start, "text": cue.text})
     except Exception as exc:
         logger.error("spell-check failed for %s: %s", abs_path, exc)
-        return jsonify({"error": f"spell-check failed: {exc}"}), 500
+        return internal_error_response("spell-check failed")
 
     logger.info("spell-check: %d errors in %s", len(errors), abs_path)
     return jsonify({"errors": errors, "total": len(errors)})
@@ -219,7 +220,7 @@ def convert_format():
         subs = load_subtitle_file(source_path)
         subs.save(output_path, format_=target_format)
     except Exception as e:
-        return jsonify({"error": f"Conversion failed: {e}"}), 500
+        return internal_error_response("Conversion failed", e)
     finally:
         if cleanup_source:
             with contextlib.suppress(OSError):

@@ -17,6 +17,7 @@ import os
 
 from flask import Blueprint, jsonify, request
 
+from error_utils import internal_error_response
 from security_utils import is_safe_path
 
 logger = logging.getLogger(__name__)
@@ -59,7 +60,7 @@ def bazarr_mapping_report():
         return jsonify(report)
     except Exception as exc:
         logger.error("Bazarr mapping report failed: %s", exc)
-        return jsonify({"error": f"Mapping report failed: {exc}"}), 500
+        return internal_error_response("Mapping report failed")
 
 
 # ---------------------------------------------------------------------------
@@ -94,7 +95,7 @@ def compat_check_batch():
         return jsonify(result)
     except Exception as exc:
         logger.error("Batch compat check failed: %s", exc)
-        return jsonify({"error": f"Compatibility check failed: {exc}"}), 500
+        return internal_error_response("Compatibility check failed")
 
 
 # ---------------------------------------------------------------------------
@@ -134,7 +135,7 @@ def compat_check_single():
         return jsonify(result)
     except Exception as exc:
         logger.error("Single compat check failed: %s", exc)
-        return jsonify({"error": f"Compatibility check failed: {exc}"}), 500
+        return internal_error_response("Compatibility check failed")
 
 
 # Register route submodules — must come after bp is defined.

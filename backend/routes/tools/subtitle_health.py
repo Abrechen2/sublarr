@@ -4,6 +4,7 @@ import logging
 
 from flask import jsonify, request
 
+from error_utils import internal_error_response
 from routes.tools import bp
 from routes.tools._helpers import _validate_file_path
 
@@ -110,7 +111,7 @@ def health_check():
 
         except Exception as exc:
             logger.error("Health check failed for %s: %s", abs_path, exc)
-            return jsonify({"error": f"Health check failed: {exc}"}), 500
+            return internal_error_response("Health check failed")
 
     # Batch mode
     if file_paths:
@@ -306,4 +307,4 @@ def health_fix():
 
     except Exception as exc:
         logger.error("Health fix failed for %s: %s", abs_path, exc)
-        return jsonify({"error": f"Health fix failed: {exc}"}), 500
+        return internal_error_response("Health fix failed")

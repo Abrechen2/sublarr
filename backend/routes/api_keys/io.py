@@ -14,6 +14,7 @@ from datetime import UTC, datetime
 
 from flask import jsonify, request, send_file
 
+from error_utils import internal_error_response
 from routes.api_keys import bp
 from routes.api_keys.helpers import API_KEY_REGISTRY
 
@@ -375,7 +376,7 @@ def import_bazarr():
             preview_migration,
         )
     except ImportError as exc:
-        return jsonify({"error": f"Bazarr migrator not available: {exc}"}), 500
+        return internal_error_response("Bazarr migrator not available", exc)
 
     config_data = {}
     db_data = {}

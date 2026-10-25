@@ -4,6 +4,7 @@ import logging
 
 from flask import jsonify, request
 
+from error_utils import internal_error_response
 from routes.tools import bp
 from routes.tools._helpers import _create_backup, _validate_file_path
 from subtitle_encoding import load_subtitle_file
@@ -60,7 +61,7 @@ def overlap_fix():
         subs.save(abs_path)
     except Exception as exc:
         logger.error("overlap-fix failed for %s: %s", abs_path, exc)
-        return jsonify({"error": f"overlap-fix failed: {exc}"}), 500
+        return internal_error_response("overlap-fix failed")
 
     logger.info("overlap-fix: %d overlaps fixed in %s", fixed, abs_path)
     return jsonify({"fixed": fixed, "backup_path": bak})
@@ -114,7 +115,7 @@ def timing_normalize():
         subs.save(abs_path)
     except Exception as exc:
         logger.error("timing-normalize failed for %s: %s", abs_path, exc)
-        return jsonify({"error": f"timing-normalize failed: {exc}"}), 500
+        return internal_error_response("timing-normalize failed")
 
     logger.info("timing-normalize: extended=%d, too_long=%d in %s", extended, too_long, abs_path)
     return jsonify({"extended": extended, "too_long": too_long, "backup_path": bak})
@@ -173,7 +174,7 @@ def merge_lines():
         new_subs.save(abs_path)
     except Exception as exc:
         logger.error("merge-lines failed for %s: %s", abs_path, exc)
-        return jsonify({"error": f"merge-lines failed: {exc}"}), 500
+        return internal_error_response("merge-lines failed")
 
     logger.info("merge-lines: %d merges in %s", merged, abs_path)
     return jsonify({"merged": merged, "backup_path": bak})
@@ -237,7 +238,7 @@ def split_lines():
         new_subs.save(abs_path)
     except Exception as exc:
         logger.error("split-lines failed for %s: %s", abs_path, exc)
-        return jsonify({"error": f"split-lines failed: {exc}"}), 500
+        return internal_error_response("split-lines failed")
 
     logger.info("split-lines: %d splits in %s", split_count, abs_path)
     return jsonify({"split": split_count, "backup_path": bak})

@@ -5,6 +5,7 @@ Git URL validation, URL SSRF validation, and environment variable sanitization.
 All security-sensitive operations should use these helpers.
 """
 
+import hashlib
 import ipaddress
 import os
 import socket
@@ -395,3 +396,16 @@ def sanitize_env_value(value: str) -> str:
         Sanitized string safe for use as an env var value.
     """
     return value.replace("\n", " ").replace("\r", " ").replace("\x00", "")[:1024]
+
+
+def api_key_actor(api_key: str | None) -> str:
+    """Actor label for an audit log line: a short SHA-256 fingerprint of the key.
+
+    The admin audit lines used to log the first six characters of the API key,
+    which puts part of a live credential into every log and support bundle.
+    A fingerprint still tells two callers apart and matches across lines, and
+    gives away nothing about the key itself.
+    """
+    if not api_key:
+        return "anon"
+    return "key-" + hashlib.sha256(api_key.encode("utf-8")).hexdigest()[:8]

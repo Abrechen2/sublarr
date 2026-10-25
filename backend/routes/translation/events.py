@@ -18,9 +18,11 @@ bp = Blueprint("translation_admin", __name__, url_prefix="/api/v1/translation")
 
 
 def _audit_log(action: str, **kwargs) -> None:
-    """Log admin mutation for audit trail. First 6 chars of API key as actor."""
+    """Log admin mutation for audit trail. Actor is a fingerprint of the API key."""
+    from security_utils import api_key_actor
+
     api_key = request.headers.get("X-Api-Key", "")
-    fp = api_key[:6] if api_key else "anon"
+    fp = api_key_actor(api_key)
     extras = " ".join(f"{k}={v}" for k, v in kwargs.items())
     logger.info(
         "translation_admin_action action=%s actor=%s %s",

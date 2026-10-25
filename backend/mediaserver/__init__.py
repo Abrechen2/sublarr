@@ -15,6 +15,7 @@ import json
 import logging
 
 from circuit_breaker import CircuitBreaker
+from error_utils import public_error_text
 from mediaserver.base import MediaServer, RefreshResult
 
 logger = logging.getLogger(__name__)
@@ -263,7 +264,7 @@ class MediaServerManager:
                         "type": type(instance).name,
                         "instance_key": instance_key,
                         "healthy": False,
-                        "message": str(e),
+                        "message": public_error_text(e),
                         "enabled": self._instance_enabled.get(instance_key, True),
                     }
                 )

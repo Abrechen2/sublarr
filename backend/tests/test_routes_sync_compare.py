@@ -20,10 +20,20 @@ def test_compare_requires_file_path(client):
     assert resp.status_code == 400
 
 
-def test_compare_missing_file_404(client, temp_dir):
+def test_compare_missing_file_404(client, temp_dir, monkeypatch):
+    # Containment is checked before existence, so both paths must be inside
+    # media_path for the 404 to be reachable.
+    monkeypatch.setenv("SUBLARR_MEDIA_PATH", temp_dir)
+    from config import reload_settings
+
+    reload_settings()
+
     resp = client.post(
         "/api/v1/tools/video-sync/compare",
-        json={"file_path": os.path.join(temp_dir, "nope.srt"), "video_path": "/v.mkv"},
+        json={
+            "file_path": os.path.join(temp_dir, "nope.srt"),
+            "video_path": os.path.join(temp_dir, "v.mkv"),
+        },
     )
     assert resp.status_code == 404
 

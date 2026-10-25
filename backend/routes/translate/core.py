@@ -85,12 +85,13 @@ def translate_async():
     if not file_path:
         return jsonify({"error": "file_path is required"}), 400
 
-    if not os.path.exists(file_path):
-        return jsonify({"error": f"File not found: {file_path}"}), 404
-
-    # Security: ensure file_path is under the configured media_path
+    # Security: ensure file_path is under the configured media_path. Checked
+    # before existence, so a 404 never confirms a path outside media_path.
     if not is_safe_path(file_path, get_settings().media_path):
         return jsonify({"error": "file_path must be under the configured media_path"}), 403
+
+    if not os.path.exists(file_path):
+        return jsonify({"error": f"File not found: {file_path}"}), 404
 
     # Feature gate: refuse to enqueue when the user has disabled the
     # translation feature. Without this, /translate/disable was cosmetic
@@ -193,12 +194,12 @@ def translate_sync():
     if not file_path:
         return jsonify({"error": "file_path is required"}), 400
 
-    if not os.path.exists(file_path):
-        return jsonify({"error": f"File not found: {file_path}"}), 404
-
-    # Security: ensure file_path is under the configured media_path
+    # Security: containment before existence (see translate_async above).
     if not is_safe_path(file_path, get_settings().media_path):
         return jsonify({"error": "file_path must be under the configured media_path"}), 403
+
+    if not os.path.exists(file_path):
+        return jsonify({"error": f"File not found: {file_path}"}), 404
 
     if not _is_translation_enabled():
         return jsonify({"error": "Translation is disabled in configuration"}), 503

@@ -12,6 +12,7 @@ import subprocess
 import time
 from concurrent.futures import ThreadPoolExecutor
 
+from error_utils import public_error_text
 from security_utils import sanitize_env_value
 
 logger = logging.getLogger(__name__)
@@ -118,7 +119,7 @@ class HookEngine:
                 "exit_code": -1,
                 "stdout": "",
                 "stderr": "",
-                "error": str(e),
+                "error": public_error_text(e),
                 "duration_ms": round(duration_ms, 1),
             }
 

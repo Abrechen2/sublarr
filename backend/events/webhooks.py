@@ -16,6 +16,7 @@ from datetime import UTC, datetime
 import requests
 from requests.adapters import HTTPAdapter
 
+from error_utils import public_error_text
 from utils.bounded_retry import BoundedRetry
 
 logger = logging.getLogger(__name__)
@@ -140,7 +141,7 @@ class WebhookDispatcher:
             return {
                 "success": False,
                 "status_code": 0,
-                "error": str(e),
+                "error": public_error_text(e),
                 "duration_ms": round(duration_ms, 1),
             }
 

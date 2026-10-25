@@ -5,6 +5,7 @@ import logging
 from flask import jsonify, request
 
 from cache_response import cached_get
+from error_utils import public_error_text
 from extensions import limiter
 from providers.base import VideoQuery
 from routes.providers import bp
@@ -205,8 +206,8 @@ def test_provider(provider_name):
         except Exception as e:
             result["health_check"] = {
                 "healthy": False,
-                "message": f"Health check failed: {str(e)}",
-                "error": str(e),
+                "message": f"Health check failed: {public_error_text(e)}",
+                "error": public_error_text(e),
             }
 
         # Optional search test
@@ -256,19 +257,19 @@ def test_provider(provider_name):
                 result["search_test"] = {
                     "success": False,
                     "error": "authentication_failed",
-                    "message": str(e),
+                    "message": public_error_text(e),
                 }
             except ProviderRateLimitError as e:
                 result["search_test"] = {
                     "success": False,
                     "error": "rate_limit_exceeded",
-                    "message": str(e),
+                    "message": public_error_text(e),
                 }
             except Exception as e:
                 result["search_test"] = {
                     "success": False,
                     "error": "search_failed",
-                    "message": str(e),
+                    "message": public_error_text(e),
                 }
 
             # Optional download test — only meaningful on top of a search.
@@ -303,19 +304,19 @@ def test_provider(provider_name):
                         result["download_test"] = {
                             "success": False,
                             "error": "authentication_failed",
-                            "message": str(e),
+                            "message": public_error_text(e),
                         }
                     except ProviderRateLimitError as e:
                         result["download_test"] = {
                             "success": False,
                             "error": "rate_limit_exceeded",
-                            "message": str(e),
+                            "message": public_error_text(e),
                         }
                     except Exception as e:
                         result["download_test"] = {
                             "success": False,
                             "error": "download_failed",
-                            "message": str(e),
+                            "message": public_error_text(e),
                         }
 
         return jsonify(result)

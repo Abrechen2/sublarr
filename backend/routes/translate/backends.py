@@ -5,6 +5,7 @@ import logging
 import requests
 from flask import jsonify, request
 
+from error_utils import internal_error_response
 from routes.translate import bp
 from routes.translate._helpers import BACKEND_TEMPLATES
 
@@ -344,7 +345,7 @@ def ollama_pull_model():
     except requests.ConnectionError:
         return jsonify({"error": f"Cannot connect to Ollama at {ollama_url}"}), 502
     except requests.HTTPError as e:
-        return jsonify({"error": f"Ollama pull failed: {e}"}), 502
+        return internal_error_response("Ollama pull failed", e, status=502)
     except Exception:
         logger.exception("ollama_pull_model failed")
         return jsonify({"error": "Internal server error"}), 500

@@ -291,14 +291,16 @@ def delete_duplicates(file_paths: list[str], keep_path: str) -> dict:
 
     for fp in file_paths:
         try:
-            if os.path.islink(fp):
-                errors.append(f"Skipping symlink (not deleted for safety): {fp}")
-                logger.warning("Skipping symlink during dedup deletion: %s", fp)
-                continue
-
+            # Containment first: answering "symlink" for a path outside
+            # media_path would tell the caller what exists on the host.
             if not is_safe_path(fp, media_path):
                 errors.append(f"Skipping path outside media_path: {fp}")
                 logger.warning("Dedup deletion refused for path outside media_path: %s", fp)
+                continue
+
+            if os.path.islink(fp):
+                errors.append(f"Skipping symlink (not deleted for safety): {fp}")
+                logger.warning("Skipping symlink during dedup deletion: %s", fp)
                 continue
 
             if not os.path.isfile(fp):

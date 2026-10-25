@@ -4,6 +4,7 @@ import logging
 
 from flask import jsonify, request
 
+from error_utils import internal_error_response
 from routes.tools import bp
 from routes.tools._helpers import _create_backup, _validate_file_path
 from subtitle_encoding import load_subtitle_file
@@ -338,4 +339,4 @@ def advanced_sync():
 
     except Exception as exc:
         logger.error("Advanced sync failed for %s: %s", abs_path, exc)
-        return jsonify({"error": f"Advanced sync failed: {exc}"}), 500
+        return internal_error_response("Advanced sync failed")

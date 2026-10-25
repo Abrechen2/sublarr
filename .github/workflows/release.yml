@@ -24,6 +24,11 @@ on:
         type: boolean
         default: true
 
+# Read-only by default; the docker and release jobs ask for the writes they
+# need (packages, contents) themselves.
+permissions:
+  contents: read
+
 # Only one release can run at a time
 concurrency:
   group: release
@@ -54,16 +59,27 @@ jobs:
     steps:
       - name: Decide
         id: decide
+        # The tag name and the dispatch input reach the script through env, not
+        # ${{ }} interpolation, so they are data and never shell code. VERSION
+        # is then held to a strict semver shape: every later job interpolates
+        # this job's outputs, so this is the one place they get validated.
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          EVENT_NAME: ${{ github.event_name }}
+          REF_NAME: ${{ github.ref_name }}
+          INPUT_VERSION: ${{ inputs.version }}
         run: |
           set -e
-          if [[ "${{ github.event_name }}" == "push" ]]; then
-            TAG="${{ github.ref_name }}"
+          if [[ "$EVENT_NAME" == "push" ]]; then
+            TAG="$REF_NAME"
             VERSION="${TAG#v}"
           else
-            VERSION="${{ inputs.version }}"
+            VERSION="$INPUT_VERSION"
             TAG="v${VERSION}"
+          fi
+          if [[ ! "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.-]+)?$ ]]; then
+            echo "❌  '$VERSION' is not a version like 1.2.3 or 1.2.3-rc.1"
+            exit 1
           fi
           echo "version=$VERSION" >> "$GITHUB_OUTPUT"
           echo "tag=$TAG"         >> "$GITHUB_OUTPUT"
@@ -74,7 +90,7 @@ jobs:
           fi
 
           # workflow_dispatch always runs — operator chose this explicitly.
-          if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
+          if [[ "$EVENT_NAME" == "workflow_dispatch" ]]; then
             echo "should_run=true" >> "$GITHUB_OUTPUT"
             echo "reason=workflow_dispatch" >> "$GITHUB_OUTPUT"
             exit 0
@@ -189,24 +205,24 @@ jobs:
       - uses: actions/checkout@v7
 
       - name: Set up QEMU
-        uses: docker/setup-qemu-action@v4
+        uses: docker/setup-qemu-action@99012661954931238ded8c8b007157a8430204e1 # v4.4.0
 
       - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v4
+        uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
 
       - name: Lowercase image name
         # GHCR requires lowercase — github.repository may contain uppercase owner
-        run: echo "IMAGE_LC=ghcr.io/$(echo '${{ github.repository }}' | tr '[:upper:]' '[:lower:]')" >> $GITHUB_ENV
+        run: echo "IMAGE_LC=ghcr.io/$(echo '${{ github.repository }}' | tr '[:upper:]' '[:lower:]')" >> "$GITHUB_ENV"
 
       - name: Log in to GHCR
-        uses: docker/login-action@v4
+        uses: docker/login-action@81c6f93d4bc991e510b342a00b419b3bb4efc5c6 # v4.7.0
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ secrets.GHCR_TOKEN || secrets.GITHUB_TOKEN }}
 
       - name: Build and push
-        uses: docker/build-push-action@v7
+        uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
         with:
           context: .
           platforms: linux/amd64,linux/arm64
@@ -249,11 +265,11 @@ jobs:
 
       - name: Set up Docker Buildx
         if: env.DOCKERHUB_TOKEN != ''
-        uses: docker/setup-buildx-action@v4
+        uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
 
       - name: Log in to Docker Hub
         if: env.DOCKERHUB_TOKEN != ''
-        uses: docker/login-action@v4
+        uses: docker/login-action@81c6f93d4bc991e510b342a00b419b3bb4efc5c6 # v4.7.0
         with:
           username: abrechen2
           password: ${{ secrets.DOCKERHUB_TOKEN }}

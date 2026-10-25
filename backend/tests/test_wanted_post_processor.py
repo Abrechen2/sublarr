@@ -519,6 +519,31 @@ class TestDownloadSpecificForItem:
         assert out["success"] is False
         assert "not found" in out["error"].lower()
 
+    @pytest.mark.parametrize(
+        "language", ["../../Other/Show/x", "en/../../x", "e", "en\n", "", None, "en-US-x"]
+    )
+    def test_rejects_a_language_that_is_not_a_tag(self, language):
+        """The language becomes part of the sidecar file name; anything that is
+        not a language tag is refused before any lookup, search or write."""
+        with (
+            self._patched_module() as mod,
+            patch.object(mod, "get_wanted_item") as get_item,
+        ):
+            out = mod.download_specific_for_item(1, "prov", "sub1", language, False)
+
+        assert out == {"success": False, "error": "Invalid language code"}
+        get_item.assert_not_called()
+
+    @pytest.mark.parametrize("language", ["de", "eng", "pt-BR", "zh-Hant", "zh-Hant-TW", "es-419"])
+    def test_accepts_language_tags(self, language):
+        with (
+            self._patched_module() as mod,
+            patch.object(mod, "get_wanted_item", return_value=None),
+        ):
+            out = mod.download_specific_for_item(1, "prov", "sub1", language, False)
+
+        assert out["error"] == "Item not found"
+
     def test_search_fails(self):
         """Returns error when provider search raises."""
         manager = MagicMock()

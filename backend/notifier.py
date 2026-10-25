@@ -11,6 +11,8 @@ import json
 import logging
 import threading
 
+from error_utils import public_error_text
+
 logger = logging.getLogger(__name__)
 
 _apprise_instance = None
@@ -399,7 +401,7 @@ def test_notification(url: str = None) -> dict:
         else:
             return {"success": False, "message": "Notification delivery failed"}
     except Exception as e:
-        return {"success": False, "message": str(e)}
+        return {"success": False, "message": public_error_text(e)}
 
 
 def get_notification_status() -> dict:

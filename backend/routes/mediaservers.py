@@ -5,6 +5,7 @@ import logging
 
 from flask import Blueprint, jsonify, request
 
+from error_utils import public_error_text
 from extensions import limiter
 from security_utils import validate_service_url
 
@@ -312,7 +313,7 @@ def test_instance():
         healthy, message = instance.health_check()
         return jsonify({"healthy": healthy, "message": message})
     except Exception as e:
-        return jsonify({"healthy": False, "message": str(e)})
+        return jsonify({"healthy": False, "message": public_error_text(e)})
 
 
 @bp.route("/mediaservers/health", methods=["GET"])

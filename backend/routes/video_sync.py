@@ -14,6 +14,7 @@ from concurrent.futures import ThreadPoolExecutor
 
 from flask import Blueprint, current_app, jsonify, request
 
+from error_utils import internal_error_response
 from extensions import limiter
 
 bp = Blueprint("video_sync", __name__, url_prefix="/api/v1/tools")
@@ -118,11 +119,12 @@ def start_sync():
 
     if not subtitle_path:
         return jsonify({"error": "file_path is required"}), 400
-    if not os.path.exists(subtitle_path):
-        return jsonify({"error": f"Subtitle file not found: {subtitle_path}"}), 404
 
     # Security: ensure paths are under media_path. Use is_safe_path which
     # resolves symlinks via realpath — manual abspath/startswith does not.
+    # Containment is checked before existence, so a 404 never confirms a path
+    # outside media_path. reference_path is read by alass, so it is held to
+    # the same root as in /video-sync/compare.
     from config import get_settings
     from security_utils import is_safe_path
 
@@ -131,6 +133,10 @@ def start_sync():
         return jsonify({"error": "file_path must be under the configured media_path"}), 403
     if video_path and not is_safe_path(video_path, _s.media_path):
         return jsonify({"error": "video_path must be under the configured media_path"}), 403
+    if reference_path and not is_safe_path(reference_path, _s.media_path):
+        return jsonify({"error": "reference_path must be under the configured media_path"}), 403
+    if not os.path.exists(subtitle_path):
+        return jsonify({"error": f"Subtitle file not found: {subtitle_path}"}), 404
 
     if engine == "ffsubsync":
         if not video_path:
@@ -170,7 +176,7 @@ def start_sync():
             reference_path = tmp_path
             cleanup_ref = tmp_path
         except Exception as exc:
-            return jsonify({"error": f"Failed to extract reference track: {exc}"}), 500
+            return internal_error_response("Failed to extract reference track", exc)
 
     job_id = str(uuid.uuid4())
     _update_job(job_id, "queued")
@@ -208,14 +214,13 @@ def sync_compare_endpoint():
 
     if not subtitle_path:
         return jsonify({"error": "file_path is required"}), 400
-    if not os.path.exists(subtitle_path):
-        return jsonify({"error": f"Subtitle file not found: {subtitle_path}"}), 404
     if not video_path and not reference_path:
         return jsonify({"error": "video_path or reference_path is required"}), 400
 
     from config import get_settings
     from security_utils import is_safe_path
 
+    # Containment before existence (see start_sync).
     _s = get_settings()
     if not is_safe_path(subtitle_path, _s.media_path):
         return jsonify({"error": "file_path must be under the configured media_path"}), 403
@@ -223,6 +228,8 @@ def sync_compare_endpoint():
         return jsonify({"error": "video_path must be under the configured media_path"}), 403
     if reference_path and not is_safe_path(reference_path, _s.media_path):
         return jsonify({"error": "reference_path must be under the configured media_path"}), 403
+    if not os.path.exists(subtitle_path):
+        return jsonify({"error": f"Subtitle file not found: {subtitle_path}"}), 404
 
     from services.sync_preview import sync_compare
 
@@ -232,9 +239,9 @@ def sync_compare_endpoint():
             video_path=video_path or None,
             reference_path=reference_path or None,
         )
-    except Exception as exc:  # pragma: no cover - defensive; per-engine errors are captured inside
+    except Exception:  # pragma: no cover - defensive; per-engine errors are captured inside
         logger.exception("sync compare failed for %s", subtitle_path)
-        return jsonify({"error": f"Sync compare failed: {exc}"}), 500
+        return internal_error_response("Sync compare failed")
 
     return jsonify(result), 200
 
@@ -257,19 +264,20 @@ def auto_sync():
         return jsonify({"error": "file_path is required"}), 400
     if not video_path:
         return jsonify({"error": "video_path is required"}), 400
-    if not os.path.exists(subtitle_path):
-        return jsonify({"error": f"Subtitle file not found: {subtitle_path}"}), 404
-    if not os.path.exists(video_path):
-        return jsonify({"error": f"Video file not found: {video_path}"}), 404
 
     from config import get_settings
     from security_utils import is_safe_path
 
+    # Containment before existence (see start_sync).
     _s = get_settings()
     if not is_safe_path(subtitle_path, _s.media_path):
         return jsonify({"error": "file_path must be under the configured media_path"}), 403
     if not is_safe_path(video_path, _s.media_path):
         return jsonify({"error": "video_path must be under the configured media_path"}), 403
+    if not os.path.exists(subtitle_path):
+        return jsonify({"error": f"Subtitle file not found: {subtitle_path}"}), 404
+    if not os.path.exists(video_path):
+        return jsonify({"error": f"Video file not found: {video_path}"}), 404
 
     job_id = str(uuid.uuid4())
     _update_job(job_id, "queued")

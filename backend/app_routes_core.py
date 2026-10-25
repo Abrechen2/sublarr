@@ -9,6 +9,7 @@ routes.register_blueprints().
 def _register_app_routes(app):
     """Register app-level routes: /metrics and SPA fallback."""
     from flask import jsonify, request, send_from_directory
+    from werkzeug.security import safe_join
 
     @app.route("/api/v1/metrics", methods=["GET"])
     def prometheus_metrics():
@@ -38,7 +39,8 @@ def _register_app_routes(app):
         chosen_encoding = None
         serve_rel = rel_path
         for enc_name, suffix in _ENCODINGS:
-            if enc_name in accept and os.path.isfile(os.path.join(static_dir, rel_path + suffix)):
+            candidate = safe_join(static_dir, rel_path + suffix)
+            if enc_name in accept and candidate and os.path.isfile(candidate):
                 chosen_encoding = enc_name
                 serve_rel = rel_path + suffix
                 break
@@ -72,7 +74,12 @@ def _register_app_routes(app):
 
         static_dir = app.static_folder or "static"
 
-        if path and os.path.isfile(os.path.join(static_dir, path)):
+        # safe_join, not os.path.join: this route is reachable without login,
+        # and `/..%2F..%2Fetc%2Fpasswd` must not turn the 200-vs-404 answer
+        # into a probe for files outside the static folder. A path that
+        # escapes it gets index.html like any other unknown client route.
+        static_file = safe_join(static_dir, path) if path else None
+        if static_file and os.path.isfile(static_file):
             return _send_static(static_dir, path)
 
         index_path = os.path.join(static_dir, "index.html")

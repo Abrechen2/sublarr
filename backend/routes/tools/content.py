@@ -5,6 +5,7 @@ import os
 
 from flask import jsonify, request
 
+from error_utils import internal_error_response
 from routes.tools import bp
 from routes.tools._helpers import _create_backup, _validate_file_path
 
@@ -92,7 +93,7 @@ def preview_file():
 
     except Exception as exc:
         logger.error("Preview failed for %s: %s", abs_path, exc)
-        return jsonify({"error": f"Preview failed: {exc}"}), 500
+        return internal_error_response("Preview failed")
 
 
 # -- Content (Full Read/Write for Editor) --------------------------------------
@@ -176,7 +177,7 @@ def get_file_content():
 
     except Exception as exc:
         logger.error("Content read failed for %s: %s", abs_path, exc)
-        return jsonify({"error": f"Content read failed: {exc}"}), 500
+        return internal_error_response("Content read failed")
 
 
 @bp.route("/content", methods=["PUT"])
@@ -293,7 +294,7 @@ def save_file_content():
 
     except Exception as exc:
         logger.error("Content save failed for %s: %s", abs_path, exc)
-        return jsonify({"error": f"Content save failed: {exc}"}), 500
+        return internal_error_response("Content save failed")
 
 
 # -- Backup Content (for Diff View) --------------------------------------------
@@ -370,4 +371,4 @@ def get_backup_content():
 
     except Exception as exc:
         logger.error("Backup read failed for %s: %s", abs_path, exc)
-        return jsonify({"error": f"Backup read failed: {exc}"}), 500
+        return internal_error_response("Backup read failed")
