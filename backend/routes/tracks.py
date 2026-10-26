@@ -550,7 +550,10 @@ def scan_series_health(series_id):
     def _job():
         with app.app_context():
             summary = run_series_scan(series_id)
-            emit_event("subtitle_health_complete", summary)
+            # The per-episode rows carry file paths and are already persisted
+            # as findings; the event (WebSocket, hooks, webhooks) gets the totals.
+            totals = {k: v for k, v in summary.items() if k != "episodes"}
+            emit_event("subtitle_health_complete", totals)
 
     submit_background(_job)
     return jsonify({"status": "started", "series_id": series_id}), 202

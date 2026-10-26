@@ -41,6 +41,8 @@ wanted_item_searched = sublarr_signals.signal("wanted_item_searched")
 provider_state_changed = sublarr_signals.signal("provider_state_changed")
 provider_degraded = sublarr_signals.signal("provider_degraded")
 provider_budget_updated = sublarr_signals.signal("provider_budget_updated")
+subtitle_health_progress = sublarr_signals.signal("subtitle_health_progress")
+subtitle_health_complete = sublarr_signals.signal("subtitle_health_complete")
 
 # ---- Catalog dict (machine-readable metadata) ----------------------------------
 
@@ -337,6 +339,32 @@ EVENT_CATALOG: dict[str, dict] = {
         "payload_keys": [
             "provider",
             "usage",
+        ],
+    },
+    "subtitle_health_progress": {
+        "signal": subtitle_health_progress,
+        "label": "Subtitle Health Progress",
+        "description": "Per-episode progress update during a series subtitle-health scan.",
+        "payload_keys": [
+            "series_id",
+            "done",
+            "total",
+            "episode_id",
+            "issue_count",
+        ],
+    },
+    "subtitle_health_complete": {
+        "signal": subtitle_health_complete,
+        "label": "Subtitle Health Complete",
+        "description": "A series subtitle-health scan completed.",
+        "payload_keys": [
+            "series_id",
+            "error",
+            "episodes_scanned",
+            "episodes_skipped",
+            "total_issues",
+            "by_type",
+            "affected_episodes",
         ],
     },
 }

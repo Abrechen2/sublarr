@@ -17,6 +17,7 @@ import { PlayerModal } from '@/components/player/PlayerModal'
 import type { PlayerSubtitleTrack } from '@/lib/types'
 import { autoSyncFile, batchExtractAllTracks, listSeriesSubtitles, deleteSubtitles, exportSeriesSubtitles, exportSeriesNfo } from '@/api/client'
 import { scanSeriesHealth } from '@/api/subtitleHealth'
+import { seriesHealthScanToast, type SeriesHealthScanComplete } from '@/lib/subtitleHealthScan'
 import { useWebSocket } from '@/hooks/useWebSocket'
 import { ProgressBar } from '@/components/shared/ProgressBar'
 import { InteractiveSearchModal } from '@/components/wanted/InteractiveSearchModal'
@@ -151,6 +152,12 @@ export function SeriesDetailPage() {
           ? t('series_detail.extraction_failed_count', { count: d.failed })
           : t('series_detail.extraction_done_all_present')
       toast(msg, d.failed > 0 ? 'error' : 'success')
+    },
+    onSubtitleHealthComplete: (data) => {
+      const d = data as SeriesHealthScanComplete
+      if (d.series_id !== seriesId) return
+      const { message, kind } = seriesHealthScanToast(d, t)
+      toast(message, kind)
     },
   })
 

@@ -92,6 +92,12 @@ def test_standalone_series_scan_job_has_an_app_context(client, no_sonarr, tmp_pa
     complete = [c for c in emitted.call_args_list if c.args[0] == "subtitle_health_complete"]
     assert len(complete) == 1
     assert complete[0].args[1]["episodes_scanned"] == 1
+    # The event goes to WebSocket clients, hooks and webhooks: only the
+    # catalogued summary keys, never the per-episode rows with file paths.
+    from events.catalog import EVENT_CATALOG
+
+    allowed = set(EVENT_CATALOG["subtitle_health_complete"]["payload_keys"])
+    assert set(complete[0].args[1]) <= allowed
 
 
 def test_sonarr_series_scan_job_has_an_app_context(client, tmp_path, monkeypatch):
