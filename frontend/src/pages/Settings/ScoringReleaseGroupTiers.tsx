@@ -168,14 +168,14 @@ export function ScoringReleaseGroupTiers() {
           maxLength={100}
           onChange={(e) => setNewGroup(e.target.value)}
           onKeyDown={(e) => { if (e.key === 'Enter') addGroup() }}
-          style={{ ...inputStyle, flex: 1 }}
+          style={{ ...inputStyle, flex: 1, minWidth: 0 }}
         />
         <button
           data-testid="btn-tier-add"
           onClick={addGroup}
           disabled={!newGroup.trim()}
           style={{
-            display: 'flex', alignItems: 'center', gap: 4,
+            display: 'flex', alignItems: 'center', gap: 4, flexShrink: 0, whiteSpace: 'nowrap',
             padding: '4px 10px', borderRadius: 6, fontSize: 11, fontWeight: 500,
             background: 'var(--bg-surface)', border: '1px solid var(--border)',
             color: 'var(--text)', cursor: newGroup.trim() ? 'pointer' : 'default',
