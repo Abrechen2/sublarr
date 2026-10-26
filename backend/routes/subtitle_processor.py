@@ -423,7 +423,6 @@ def _batch_process_series(series_id: int) -> None:
                     "status": status,
                     "changes": changes_count,
                     "backed_up": result.backed_up if (status == "ok" and result) else False,
-                    "sub_path": sub_path,
                 },
             )
 

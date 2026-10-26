@@ -34,27 +34,31 @@ def _emitted_event_names() -> dict[str, str]:
     return names
 
 
-# Known gaps, older than this test and out of its fix's scope. Drop a name
-# here once it is catalogued; the second test fails while a listed name is
-# already in the catalog, so the list cannot go stale.
-_KNOWN_UNCATALOGUED = frozenset(
-    {"batch_process_progress", "batch_process_completed", "wanted_search_failed"}
-)
-
-
 def test_every_emitted_event_is_in_the_catalog():
     emitted = _emitted_event_names()
     assert "subtitle_health_complete" in emitted  # the scanner itself works
-    missing = {
-        name: where
-        for name, where in emitted.items()
-        if name not in EVENT_CATALOG and name not in _KNOWN_UNCATALOGUED
-    }
+    missing = {name: where for name, where in emitted.items() if name not in EVENT_CATALOG}
     assert not missing, f"emit_event names missing from EVENT_CATALOG: {missing}"
 
 
-def test_known_gaps_are_still_gaps():
-    assert not (_KNOWN_UNCATALOGUED & set(EVENT_CATALOG))
+def test_batch_process_progress_sends_no_absolute_path():
+    """The event reaches hooks and webhooks; the catalog rule omits absolute paths."""
+    path = BACKEND / "routes" / "subtitle_processor.py"
+    tree = ast.parse(path.read_text(encoding="utf-8"))
+    payloads = [
+        node.args[1]
+        for node in ast.walk(tree)
+        if isinstance(node, ast.Call)
+        and getattr(node.func, "id", None) == "emit_event"
+        and len(node.args) > 1
+        and isinstance(node.args[0], ast.Constant)
+        and node.args[0].value == "batch_process_progress"
+    ]
+    assert payloads and all(isinstance(p, ast.Dict) for p in payloads)
+    allowed = set(EVENT_CATALOG["batch_process_progress"]["payload_keys"])
+    for payload in payloads:
+        keys = {k.value for k in payload.keys if isinstance(k, ast.Constant)}
+        assert keys <= allowed, keys - allowed
 
 
 def test_catalog_entries_have_the_common_shape():

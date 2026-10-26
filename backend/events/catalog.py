@@ -43,6 +43,9 @@ provider_degraded = sublarr_signals.signal("provider_degraded")
 provider_budget_updated = sublarr_signals.signal("provider_budget_updated")
 subtitle_health_progress = sublarr_signals.signal("subtitle_health_progress")
 subtitle_health_complete = sublarr_signals.signal("subtitle_health_complete")
+batch_process_progress = sublarr_signals.signal("batch_process_progress")
+batch_process_completed = sublarr_signals.signal("batch_process_completed")
+wanted_search_failed = sublarr_signals.signal("wanted_search_failed")
 
 # ---- Catalog dict (machine-readable metadata) ----------------------------------
 
@@ -365,6 +368,38 @@ EVENT_CATALOG: dict[str, dict] = {
             "total_issues",
             "by_type",
             "affected_episodes",
+        ],
+    },
+    "batch_process_progress": {
+        "signal": batch_process_progress,
+        "label": "Batch Process Progress",
+        "description": "Per-file progress update while subtitle mods are applied to a series.",
+        "payload_keys": [
+            "series_id",
+            "current",
+            "total",
+            "filename",
+            "status",
+            "changes",
+            "backed_up",
+        ],
+    },
+    "batch_process_completed": {
+        "signal": batch_process_completed,
+        "label": "Batch Process Complete",
+        "description": "Subtitle mods were applied to every subtitle of a series.",
+        "payload_keys": [
+            "series_id",
+            "total",
+        ],
+    },
+    "wanted_search_failed": {
+        "signal": wanted_search_failed,
+        "label": "Wanted Search Failed",
+        "description": "The background search over all wanted items crashed.",
+        "payload_keys": [
+            "error",
+            "include_upgrades",
         ],
     },
 }
