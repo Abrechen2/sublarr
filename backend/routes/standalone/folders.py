@@ -398,6 +398,12 @@ def delete_folder(folder_id):
         # Titles first: if this fails the folder is still there to retry.
         _remove_titles_left_by(folder["path"], exclude_id=folder_id)
         delete_watched_folder(folder_id)
+        # Again once the row is gone: a running scan may have committed a
+        # title in between, and it only prunes for folders it sees removed.
+        try:
+            _remove_titles_left_by(folder["path"])
+        except Exception as exc:
+            logger.warning("Second title cleanup for folder %d failed: %s", folder_id, exc)
         _hot_reload_standalone()
         return jsonify({"success": True})
     except Exception as e:

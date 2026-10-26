@@ -274,3 +274,100 @@ def test_an_unreadable_symlink_target_keeps_the_titles(api, media, monkeypatch):
     assert api.delete(f"/api/v1/standalone/folders/{gone}").status_code == 200
 
     assert _ids("standalone_series") == {sid}
+
+
+def test_a_title_kept_through_a_symlink_goes_with_the_last_folder_reaching_it(api, media):
+    # A goes first; New still reaches the show through its symlink. When New
+    # goes as well nothing covers the show any more, although it never lay
+    # under New's path.
+    storage = _folder(media / "A")
+    library = media / "New"
+    linking = _folder(library)
+    _folder(media / "AB")
+    _series(media / "A" / "Show")
+    _movie(media / "A" / "film.mkv")
+    keep = _series(media / "AB" / "Other")
+    (library / "Show").symlink_to(media / "A" / "Show")
+    (library / "film.mkv").symlink_to(media / "A" / "film.mkv")
+
+    assert api.delete(f"/api/v1/standalone/folders/{storage}").status_code == 200
+    assert len(_ids("standalone_series")) == 2
+    assert len(_ids("standalone_movies")) == 1
+
+    assert api.delete(f"/api/v1/standalone/folders/{linking}").status_code == 200
+
+    assert _ids("standalone_series") == {keep}
+    assert _ids("standalone_movies") == set()
+    assert _wanted_owners() == {(keep, None)}
+
+
+def test_an_unreadable_removed_folder_only_takes_titles_under_its_path(api, media):
+    library = media / "New"
+    gone = _folder(library)
+    outside = _series(media / "A" / "Show")
+    (library / "Show").symlink_to(media / "A" / "Show")
+    inside = _series(library / "Local")
+    library.rename(media / "Unmounted")  # the removed folder cannot be walked
+
+    assert api.delete(f"/api/v1/standalone/folders/{gone}").status_code == 200
+
+    assert _ids("standalone_series") == {outside}
+    assert inside not in _ids("standalone_series")
+
+
+def test_titles_committed_before_the_folder_row_is_deleted_go_too(api, media, monkeypatch):
+    # A running scan can commit a title after the route's first cleanup but
+    # before the folder row is gone; the scan still sees the folder then.
+    import db.standalone as dbs
+
+    gone = _folder(media / "A")
+    real_delete = dbs.delete_watched_folder
+
+    def delete_after_a_late_title(folder_id):
+        _series(media / "A" / "Late")
+        return real_delete(folder_id)
+
+    monkeypatch.setattr(dbs, "delete_watched_folder", delete_after_a_late_title)
+
+    assert api.delete(f"/api/v1/standalone/folders/{gone}").status_code == 200
+
+    assert _ids("standalone_series") == set()
+    assert _wanted_owners() == set()
+
+
+def test_removing_a_series_drops_its_episode_health_findings(api, media):
+    from db.models.core import SubtitleHealthFinding
+    from db.models.standalone import StandaloneEpisode
+    from extensions import db
+
+    gone = _folder(media / "A")
+    _folder(media / "AB")
+    kept_finding = None
+    for folder in (media / "A" / "Show", media / "AB" / "Other"):
+        ep = StandaloneEpisode(
+            standalone_series_id=_series(folder),
+            file_path=str(folder / "ep.mkv"),
+            season=1,
+            episode=1,
+            created_at=_NOW,
+            updated_at=_NOW,
+        )
+        db.session.add(ep)
+        db.session.commit()
+        db.session.add(
+            SubtitleHealthFinding(
+                episode_id=-ep.id,
+                target_kind="sidecar",
+                target_path=str(folder / "ep.en.srt"),
+                issue_type="encoding",
+                severity="low",
+                detected_at=_NOW,
+            )
+        )
+        db.session.commit()
+        kept_finding = -ep.id
+
+    assert api.delete(f"/api/v1/standalone/folders/{gone}").status_code == 200
+
+    rows = db.session.execute(sa.text("SELECT episode_id FROM subtitle_health_findings"))
+    assert {r[0] for r in rows} == {kept_finding}

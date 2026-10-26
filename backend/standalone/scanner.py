@@ -113,6 +113,10 @@ class StandaloneScanner(_StandaloneProcessMixin):
         """
         self._resolver = metadata_resolver
         self._scan_lock = threading.Lock()
+        # Guards _rescan_pending together with taking and releasing
+        # _scan_lock, so a request arriving as a scan ends is never dropped.
+        self._pending_lock = threading.Lock()
+        self._rescan_pending = False
         self._scanning = False
 
     @property
@@ -149,18 +153,45 @@ class StandaloneScanner(_StandaloneProcessMixin):
     def scan_all_folders(self) -> dict:
         """Scan all enabled watched folders for media files.
 
-        Non-blocking: skips if a scan is already in progress.
+        Non-blocking: while a scan is in progress the request is noted and
+        the running scan makes one more pass when it ends.
 
         Returns:
-            Summary dict with keys: folders_scanned, series_found,
-            movies_found, wanted_added, duration_seconds.
-            Returns {"error": "scan_already_running"} if skipped.
+            Summary dict (of the last pass) with keys: folders_scanned,
+            series_found, movies_found, wanted_added, duration_seconds.
+            Returns {"error": "scan_already_running"} when deferred.
         """
-        if not self._scan_lock.acquire(blocking=False):
-            logger.warning("Standalone scan already running, skipping")
-            return {"error": "scan_already_running"}
+        with self._pending_lock:
+            if not self._scan_lock.acquire(blocking=False):
+                # Any number of requests coalesce into that one extra pass,
+                # so a folder added, moved or removed meanwhile is seen.
+                self._rescan_pending = True
+                logger.info("Standalone scan already running; another pass follows it")
+                return {"error": "scan_already_running"}
+            self._rescan_pending = False
+            self._scanning = True
 
-        self._scanning = True
+        released = False
+        try:
+            while True:
+                summary = self._scan_all_once()
+                with self._pending_lock:
+                    again = self._rescan_pending and not abort_requested()
+                    self._rescan_pending = False
+                    if not again:
+                        self._scanning = False
+                        self._scan_lock.release()
+                        released = True
+                        return summary
+                logger.info("Standalone scan asked for during the last pass; scanning again")
+        finally:
+            if not released:
+                with self._pending_lock:
+                    self._scanning = False
+                    self._scan_lock.release()
+
+    def _scan_all_once(self) -> dict:
+        """One pass over every enabled watched folder, then the cleanups."""
         start = time.time()
         total_series = 0
         total_movies = 0
@@ -233,9 +264,6 @@ class StandaloneScanner(_StandaloneProcessMixin):
         except Exception as e:
             logger.exception("Standalone scan failed: %s", e)
             return {"error": str(e)}
-        finally:
-            self._scanning = False
-            self._scan_lock.release()
 
     def scan_series(self, series_id: int) -> dict:
         """Re-scan a single standalone series folder.
@@ -349,6 +377,10 @@ class StandaloneScanner(_StandaloneProcessMixin):
                 update_watched_folder_last_scan(int(folder_id))
             except Exception as e:
                 logger.debug("Failed to update last_scan_at for folder %s: %s", folder_id, e)
+
+        if self._folder_removed(folder):
+            logger.info("Watched folder %s was removed; not scanned", folder_path)
+            return (0, 0, 0)
 
         if not os.path.isdir(folder_path):
             logger.warning("Watched folder does not exist: %s", folder_path)
@@ -465,8 +497,16 @@ class StandaloneScanner(_StandaloneProcessMixin):
                 except Exception as e:
                     logger.warning("Failed to parse %s: %s", vf, e)
 
+        # The folder can be deleted or moved while this runs. The route
+        # removes its titles then, but this scan would bring back the ones
+        # it commits afterwards: stop early and prune them once done.
+        removed = False
+
         # Process series groups
         for title, files in series_groups.items():
+            if self._folder_removed(folder):
+                removed = True
+                break
             try:
                 w = self._process_series_group(title, files, folder)
                 series_count += 1
@@ -477,6 +517,9 @@ class StandaloneScanner(_StandaloneProcessMixin):
 
         # Process movies
         for file_path, parsed in movie_files:
+            if removed or self._folder_removed(folder):
+                removed = True
+                break
             try:
                 w = self._process_movie(parsed, file_path, folder)
                 movie_count += 1
@@ -485,8 +528,57 @@ class StandaloneScanner(_StandaloneProcessMixin):
                 logger.error("Error processing movie '%s': %s", file_path, e)
                 self._recover_session()
 
+        if removed or self._folder_removed(folder):
+            self._prune_removed_folder(folder_path)
+            return (0, 0, 0)
+
         _stamp()
         return (series_count, movie_count, wanted_count)
+
+    @staticmethod
+    def _folder_removed(folder: dict) -> bool:
+        """Whether the watched folder was deleted or moved since it was read.
+
+        Only a folder from the DB (with an id) can tell; when the lookup
+        fails the folder counts as still there, so nothing is pruned on a
+        guess. Plain SQL, because the session's identity map would hand back
+        the row as this scan first loaded it.
+        """
+        folder_id = folder.get("id")
+        if not folder_id:
+            return False
+        try:
+            from db import get_db
+
+            row = (
+                get_db()
+                .execute(
+                    text("SELECT path FROM watched_folders WHERE id=:id"), {"id": int(folder_id)}
+                )
+                .fetchone()
+            )
+        except Exception as e:
+            logger.debug("Watched folder %s lookup failed: %s", folder_id, e)
+            return False
+        return row is None or row[0] != folder.get("path")
+
+    def _prune_removed_folder(self, folder_path: str) -> None:
+        """Remove the titles this scan committed for a folder removed meanwhile."""
+        try:
+            from db.standalone import get_watched_folders
+            from services.standalone_manager import remove_titles_left_by_folder
+
+            remaining = [f.get("path") or "" for f in get_watched_folders(enabled_only=False) or []]
+            result = remove_titles_left_by_folder(folder_path, remaining)
+            logger.info(
+                "Watched folder %s was removed during its scan: pruned %d series, %d movies",
+                folder_path,
+                result.get("series_removed", 0),
+                result.get("movies_removed", 0),
+            )
+        except Exception as e:
+            logger.error("Pruning titles of removed folder %s failed: %s", folder_path, e)
+            self._recover_session()
 
     # -----------------------------------------------------------------------
     # Internal helpers

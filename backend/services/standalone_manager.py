@@ -112,25 +112,37 @@ def enrich_series_detail(series: dict, series_id: int) -> dict:
 
 
 def delete_series_cascade(series_id: int) -> None:
-    """Delete wanted items and episode ids for a series, then the series itself."""
+    """Delete wanted items, health findings and episode ids for a series, then
+    the series itself."""
     from db import get_db
     from db.repositories.standalone_episodes import StandaloneEpisodeRepository
     from db.standalone import delete_standalone_series
 
     db = get_db()
+    episodes = StandaloneEpisodeRepository()
     db.execute(
         text("DELETE FROM wanted_items WHERE standalone_series_id=:sid"),
         {"sid": series_id},
     )
+    # Health findings key a standalone episode by its wire id (-id).
+    wire_ids = [-e["id"] for e in episodes.get_episodes_for_series(series_id)]
+    if wire_ids:
+        from db.models.core import SubtitleHealthFinding
+
+        db.query(SubtitleHealthFinding).filter(
+            SubtitleHealthFinding.episode_id.in_(wire_ids)
+        ).delete(synchronize_session=False)
     db.commit()
-    StandaloneEpisodeRepository().delete_episodes_for_series(series_id)
+    episodes.delete_episodes_for_series(series_id)
     delete_standalone_series(series_id)
 
 
 def remove_titles_left_by_folder(old_root: str, remaining_roots: list[str]) -> dict:
-    """Delete the titles under ``old_root`` that no remaining watched folder covers.
+    """Delete the titles ``old_root`` covered that no remaining watched folder covers.
 
-    Called when a watched folder is removed or moved to another path. Each
+    Called when a watched folder is removed or moved to another path, and by
+    the scanner for a folder removed while it was being scanned. ``old_root``
+    covers the titles under its path and those its symlinks reach. Each
     title goes through the same cascade as a manual title delete (wanted
     rows, episode ids, owner-key rows). Paths compare by component, so
     ``/media/A`` never claims ``/media/AB``. Nothing on disk is touched.
@@ -151,15 +163,33 @@ def remove_titles_left_by_folder(old_root: str, remaining_roots: list[str]) -> d
             for root in roots
         )
 
+    # Titles old_root reached only through its own symlinks (kept when
+    # another folder went earlier) are candidates too. While old_root cannot
+    # be walked only the titles under its path are, so a dropped mount never
+    # costs titles that lie elsewhere.
+    try:
+        old_targets = _symlink_targets([old_root]) if old_root else []
+    except OSError:
+        old_targets = []
+
+    def candidate(path: str, nested_counts: bool) -> bool:
+        return under_old_root(path, nested_counts) or (
+            bool(old_targets)
+            and (
+                covered(path, old_targets, nested_counts)
+                or covered(os.path.realpath(path), old_targets, nested_counts)
+            )
+        )
+
     series = [
         (s["id"], s["folder_path"])
         for s in get_standalone_series() or []
-        if under_old_root(s["folder_path"], True)
+        if candidate(s["folder_path"], True)
     ]
     movies = [
         (m["id"], m["file_path"])
         for m in get_standalone_movies() or []
-        if under_old_root(m["file_path"], False)
+        if candidate(m["file_path"], False)
     ]
     roots = [r for r in remaining_roots if r]
     if (series or movies) and roots:
@@ -510,7 +540,16 @@ def launch_folder_scan(app, folder_id: int, folder_path: str) -> None:
                 from standalone.scanner import get_scanner
 
                 scanner = get_scanner()
-                scanner.scan_folder(folder_path)
+                # With the id the scan notices the folder being removed meanwhile.
+                scanner.scan_folder(
+                    {
+                        "id": folder_id,
+                        "path": folder_path,
+                        "label": "",
+                        "media_type": "auto",
+                        "enabled": True,
+                    }
+                )
             except Exception as e:
                 logger.error("Standalone scan for folder %d failed: %s", folder_id, e)
 
