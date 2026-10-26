@@ -85,22 +85,30 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   the same way and now reach the UI, hooks and webhooks.
 - **Removing a watched folder removes its titles** — Deleting a watched
   folder left its series and movies in the library. They are now removed
-  with their wanted items and settings, unless another watched folder still
-  covers them. Files on disk are never touched.
+  with their wanted items, settings and health findings, unless another
+  watched folder still covers them (also through a symlink or as a season
+  folder of the series). If a remaining folder cannot be read, nothing is
+  removed. A scan that is running while the folder is removed no longer
+  brings its titles back, and a scan requested during a running scan is
+  no longer dropped but runs once the current one ends. Files on disk are
+  never touched.
 - **Changing a watched folder's path no longer duplicates it** — Saving a
   watched folder with a new path created a second folder and left the old
   one unchanged. The folder is now updated in place, and a path another
   folder already uses is refused.
-- **The settings overview of a Radarr movie loads** — A Radarr movie with
-  no saved settings and no wanted items showed "movie not found" in its
-  settings overview. It now shows the inherited values.
+- **The settings overview of a Sonarr series or Radarr movie loads** — A
+  Sonarr series or Radarr movie with no saved settings and no wanted items
+  showed "not found" in its settings overview. It now shows the inherited
+  values.
 - **Health turns unhealthy when the database upgrade fails** — When the
   database upgrade at startup failed, Sublarr kept running on the old
   schema and still reported itself healthy. `/api/v1/health` now answers
-  503 "unhealthy" with the reason, so Docker marks the container unhealthy.
+  503 "unhealthy" with the reason, so Docker marks the container unhealthy,
+  and the dashboard shows a red banner.
 - **Phone layout** — Settings pages, Settings → Connections (where the
-  watched-folder buttons could not be tapped), series pages, Activity and
-  Logs no longer scroll sideways on a phone. Series with many seasons get a
+  watched-folder buttons could not be tapped), series pages (the episode
+  list scrolls on its own), Activity and Logs no longer scroll sideways on
+  a phone. Series with many seasons get a
   scrollable season strip on every screen size.
 - **German UI** — The series page stats, the season summary, "Add instance",
   the Connections breadcrumb and the "Advanced" badge were English in the
