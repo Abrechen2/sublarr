@@ -86,6 +86,22 @@ def health_detailed():
         subsystems["database"] = {"healthy": False, "message": str(exc)}
         overall_healthy = False
 
+    # Schema revision recorded by the startup `alembic upgrade head`. Absent for
+    # Alembic-untracked databases, which never run the upgrade.
+    from flask import current_app
+
+    from db.migration_state import get_problem
+
+    migration_problem = get_problem(current_app)
+    if migration_problem is not None:
+        subsystems["database_migrations"] = {
+            "healthy": False,
+            "message": migration_problem.reason,
+            "current": migration_problem.current,
+            "head": migration_problem.head,
+        }
+        overall_healthy = False
+
     # Ollama — reported always, but it only gates overall health when Ollama is
     # actually a configured translation backend. `ollama_url` defaults to
     # localhost:11434, so an install translating via DeepL/ChatGPT (or not

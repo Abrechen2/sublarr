@@ -134,6 +134,40 @@ def _health_check_media_servers():
         return {"media_servers": "error"}, None
 
 
+def _caller_is_authenticated() -> bool:
+    """Whether /health may include version and service detail for this caller."""
+    # Unauthenticated probes (uptime monitors, scanners) receive only the
+    # status code (200/503) and the {"status": ...} field — enough for a
+    # liveness check, not enough to fingerprint the deployment or learn
+    # internal service URLs (e.g. "Cannot connect to Sonarr at
+    # http://192.168.1.10:8989" leaks into service_status when Sonarr
+    # is down).
+    #
+    # The "treat caller as authenticated when no api_key configured" path
+    # used to ignore ui_auth_enabled — the same auth-layer-composition
+    # bug as /auth/bootstrap (audit 2026-04-30). Now exposes details only
+    # when no auth is configured at all (api_key="" AND ui_auth=False),
+    # matching the truly-open deployment.
+    import hmac as _hmac
+
+    from flask import session as _session
+
+    import ui_auth as _ui_auth
+    from config import get_settings as _get_settings
+
+    _settings = _get_settings()
+    _api_key = getattr(_settings, "api_key", None)
+    _provided = request.headers.get("X-Api-Key") or request.args.get("apikey", "")
+    _key_ok = bool(_api_key and _hmac.compare_digest(_provided, _api_key))
+    _session_ok = bool(_session.get("ui_authenticated"))
+    try:
+        _ui_auth_on = _ui_auth.is_ui_auth_enabled()
+    except Exception:
+        _ui_auth_on = False
+    _no_auth_configured = not _api_key and not _ui_auth_on
+    return _key_ok or _session_ok or _no_auth_configured
+
+
 @bp.route("/health", methods=["GET"])
 @limiter.limit("60/minute")
 def health():
@@ -213,44 +247,23 @@ def health():
         if overall is False:  # None = optional, False = required service is down
             healthy = False
 
+    # A failed or incomplete startup migration leaves the app serving on a
+    # stale schema; that is a hard fault for the container HEALTHCHECK.
+    from db.migration_state import get_problem
+
+    migration_problem = get_problem(_app)
+    if migration_problem is not None:
+        service_status["database_migrations"] = migration_problem.reason
+        healthy = False
+
     status_code = 200 if healthy else 503
 
-    # Include version and service detail only for authenticated callers.
-    # Unauthenticated probes (uptime monitors, scanners) receive only the
-    # status code (200/503) and the {"status": ...} field — enough for a
-    # liveness check, not enough to fingerprint the deployment or learn
-    # internal service URLs (e.g. "Cannot connect to Sonarr at
-    # http://192.168.1.10:8989" leaks into service_status when Sonarr
-    # is down).
-    #
-    # The "treat caller as authenticated when no api_key configured" path
-    # used to ignore ui_auth_enabled — the same auth-layer-composition
-    # bug as /auth/bootstrap (audit 2026-04-30). Now exposes details only
-    # when no auth is configured at all (api_key="" AND ui_auth=False),
-    # matching the truly-open deployment.
-    import hmac as _hmac
-
-    from flask import session as _session
-
-    import ui_auth as _ui_auth
-    from config import get_settings as _get_settings
-
-    _settings = _get_settings()
-    _api_key = getattr(_settings, "api_key", None)
-    _provided = request.headers.get("X-Api-Key") or request.args.get("apikey", "")
-    _key_ok = bool(_api_key and _hmac.compare_digest(_provided, _api_key))
-    _session_ok = bool(_session.get("ui_authenticated"))
-    try:
-        _ui_auth_on = _ui_auth.is_ui_auth_enabled()
-    except Exception:
-        _ui_auth_on = False
-    _no_auth_configured = not _api_key and not _ui_auth_on
-    _authenticated = _key_ok or _session_ok or _no_auth_configured
-
     body: dict = {"status": "healthy" if healthy else "unhealthy"}
-    if _authenticated:
+    if _caller_is_authenticated():
         body["version"] = __version__
         body["services"] = service_status
+        if migration_problem is not None:
+            body["reason"] = migration_problem.reason
 
     return jsonify(body), status_code
 

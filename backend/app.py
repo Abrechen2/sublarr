@@ -417,27 +417,15 @@ def create_app(testing=False):
             except Exception as _e:
                 logger.warning("Untracked DB data repairs skipped: %s", _e, exc_info=True)
         else:
-            # Run pending Alembic migrations automatically so new columns are always present
-            try:
-                from alembic import command as _alembic_cmd
-                from alembic.config import Config as _AlembicConfig
+            # Run pending Alembic migrations automatically so new columns are
+            # always present. A failure is not fatal for startup, but it is
+            # recorded so /health reports unhealthy instead of serving on a
+            # stale schema while claiming to be fine.
+            from db.migration_state import EXTENSION_KEY, run_startup_migrations
 
-                _alembic_cfg = _AlembicConfig()
-                _alembic_cfg.set_main_option(
-                    "script_location",
-                    os.path.join(os.path.dirname(__file__), "db", "migrations"),
-                )
-                _alembic_cfg.set_main_option("sqlalchemy.url", str(sa_db.engine.url))
-                _alembic_cmd.upgrade(_alembic_cfg, "head")
-                logger.info("Alembic migrations applied (upgrade head)")
-            except Exception as _e:
-                # exc_info=True captures the full traceback so we can tell
-                # *why* a migration failed. Without it this path logged an
-                # empty reason for some exception types (e.g. AssertionError
-                # from autocommit_block misuse), which hid a real bug for
-                # weeks: the chain was pinned one revision behind head and
-                # every subsequent migration silently skipped.
-                logger.warning("Alembic auto-upgrade failed (non-fatal): %s", _e, exc_info=True)
+            app.extensions[EXTENSION_KEY] = run_startup_migrations(
+                sa_db.engine, os.path.join(os.path.dirname(__file__), "db", "migrations")
+            )
         # ai_quality_results is created idempotently rather than via a migration.
         # This dates from the 2026-07-30 beta batch, when the chain still had
         # diverged heads; they were unified in eeb79287c3b6 and `upgrade head`
