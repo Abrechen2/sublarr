@@ -207,9 +207,7 @@ class StandaloneRepository(BaseRepository):
         # and its own rows go with it (same transaction).
         claim_deleted_title(SERIES, series_id)
         delete_owner_rows(SERIES, series_id)
-        self.session.delete(entry)
-        self._commit()
-        return True
+        return self._delete_title_row(entry, StandaloneSeries, series_id)
 
     def get_standalone_series_by_folder(self, folder_path: str) -> dict | None:
         """Get a standalone series by its folder path."""
@@ -305,9 +303,19 @@ class StandaloneRepository(BaseRepository):
 
         claim_deleted_title(MOVIE, movie_id)
         delete_owner_rows(MOVIE, movie_id)
-        self.session.delete(entry)
+        return self._delete_title_row(entry, StandaloneMovie, movie_id)
+
+    def _delete_title_row(self, entry, model, title_id: int) -> bool:
+        """Delete a title row by id; False when a concurrent delete got there first.
+
+        A plain DELETE instead of ``session.delete``: the ORM expects to
+        remove the row it loaded, and a concurrent cleanup may already have
+        removed it.
+        """
+        removed = self.session.execute(delete(model).where(model.id == title_id)).rowcount
+        self.session.expunge(entry)
         self._commit()
-        return True
+        return bool(removed)
 
     def get_standalone_movie_by_path(self, file_path: str) -> dict | None:
         """Get a standalone movie by its file path."""

@@ -420,12 +420,22 @@ def claim_deleted_title(kind: str, standalone_id: int) -> None:
     """A deleted standalone title: its legacy rows are never read again.
 
     Without this a reused row id (SQLite reuses the highest id after a
-    delete) would inherit them. Added to the caller's session.
+    delete) would inherit them. Runs in the caller's session. Idempotent and
+    race-safe: two cleanups deleting the same title at once both pass, the
+    second one's insert does nothing (``ON CONFLICT DO NOTHING``).
     """
     if _claimed(kind, standalone_id):
         return
     from db.models.standalone import StandaloneLegacyClaim
 
-    _session().add(
-        StandaloneLegacyClaim(kind=kind, standalone_id=standalone_id, claimed_at=datetime.now(UTC))
+    session = _session()
+    table = StandaloneLegacyClaim.__table__
+    if session.get_bind().dialect.name == "postgresql":
+        from sqlalchemy.dialects.postgresql import insert
+    else:
+        from sqlalchemy.dialects.sqlite import insert
+    session.execute(
+        insert(table)
+        .values(kind=kind, standalone_id=standalone_id, claimed_at=datetime.now(UTC))
+        .on_conflict_do_nothing(index_elements=[table.c.kind, table.c.standalone_id])
     )
