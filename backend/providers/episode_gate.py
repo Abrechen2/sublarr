@@ -68,7 +68,12 @@ _BARE_RE = re.compile(
     re.IGNORECASE,
 )
 # A recap between two episodes: "Show - 11.5". It is no regular episode at all.
-_FRACTION_RE = re.compile(r"(?:\s-\s|_-_)(\d{1,4}\.\d)(?=$|[\s_\[\](),-])")
+# A file name may end right after it ("Show - 11.5.srt").
+_FRACTION_RE = re.compile(
+    r"(?:\s-\s|_-_)(\d{1,4}\.\d)"
+    r"(?=$|[\s_\[\](),-]|\.(?:srt|ass|ssa|vtt|sub|idx|sup|mkv|mp4|avi|zip|rar|7z)$)",
+    re.IGNORECASE,
+)
 
 _YEARS = (1900, 2099)
 
