@@ -165,8 +165,15 @@ def remove_titles_left_by_folder(old_root: str, remaining_roots: list[str]) -> d
         # The scanner follows symlinks, so a remaining folder also covers
         # whatever its symlinks point at.
         roots = roots + _symlink_targets(roots)
-    series_ids = [sid for sid, path in series if not covered(path, roots, True)]
-    movie_ids = [mid for mid, path in movies if not covered(path, roots, False)]
+
+    def kept(path: str, nested_counts: bool) -> bool:
+        # A stored path may still carry the alias it was scanned through.
+        return covered(path, roots, nested_counts) or covered(
+            os.path.realpath(path), roots, nested_counts
+        )
+
+    series_ids = [sid for sid, path in series if not kept(path, True)]
+    movie_ids = [mid for mid, path in movies if not kept(path, False)]
     for sid in series_ids:
         delete_series_cascade(sid)
     for mid in movie_ids:

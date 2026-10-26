@@ -228,3 +228,17 @@ def test_symlink_loops_end(api, media):
     assert api.delete(f"/api/v1/standalone/folders/{storage}").status_code == 200
 
     assert _ids("standalone_series") == set()
+
+
+def test_titles_stored_through_an_aliased_root_stay(api, media):
+    _folder(media / "A")
+    alias = media / "Alias"
+    alias.symlink_to(media / "A")
+    gone = _folder(alias)
+    sid = _series(alias / "Show")
+    mid = _movie(alias / "film.mkv")
+
+    assert api.delete(f"/api/v1/standalone/folders/{gone}").status_code == 200
+
+    assert _ids("standalone_series") == {sid}
+    assert _ids("standalone_movies") == {mid}
