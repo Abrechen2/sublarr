@@ -182,15 +182,30 @@ def remove_titles_left_by_folder(old_root: str, remaining_roots: list[str]) -> d
 
 
 def _symlink_targets(roots: list[str]) -> list[str]:
-    """Resolved targets of every symlink below ``roots`` (links are not followed)."""
-    targets: list[str] = []
-    for root in roots:
+    """Resolved targets of the roots and of every symlink reachable below them.
+
+    Directory links are walked in turn (each resolved target once, so link
+    loops end), which covers chains like ``bridge -> /media/B`` holding
+    ``show -> /media/A/Show``.
+    """
+    seen: set[str] = set()
+    pending = list(roots)
+    while pending:
+        root = os.path.realpath(pending.pop())
+        if root in seen:
+            continue
+        seen.add(root)
         for dirpath, dirnames, filenames in os.walk(root):
             for name in dirnames + filenames:
                 full = os.path.join(dirpath, name)
-                if os.path.islink(full):
-                    targets.append(os.path.realpath(full))
-    return targets
+                if not os.path.islink(full):
+                    continue
+                target = os.path.realpath(full)
+                if os.path.isdir(target):
+                    pending.append(target)
+                else:
+                    seen.add(target)
+    return sorted(seen)
 
 
 def scan_series_or_fallback(series_id: int) -> dict | None:

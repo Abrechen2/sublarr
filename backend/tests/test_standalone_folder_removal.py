@@ -197,3 +197,34 @@ def test_titles_a_remaining_folder_reaches_through_a_symlink_stay(api, media):
 
     assert _ids("standalone_series") == {sid}
     assert _ids("standalone_movies") == {mid}
+
+
+def test_symlink_chains_and_a_symlinked_root_keep_coverage(api, media):
+    storage = _folder(media / "A")
+    sid = _series(media / "A" / "Show")
+    bridge = media / "AB"
+    (bridge / "show").symlink_to(media / "A" / "Show")
+    library = media / "New"
+    (library / "bridge").symlink_to(bridge)
+    _folder(library)
+    linked_root = media / "Linked"
+    linked_root.symlink_to(media / "A")
+    _folder(linked_root)
+    mid = _movie(media / "A" / "film.mkv")
+
+    assert api.delete(f"/api/v1/standalone/folders/{storage}").status_code == 200
+
+    assert _ids("standalone_series") == {sid}
+    assert _ids("standalone_movies") == {mid}
+
+
+def test_symlink_loops_end(api, media):
+    storage = _folder(media / "A")
+    _series(media / "A" / "Show")
+    loop = media / "New"
+    (loop / "self").symlink_to(loop)
+    _folder(loop)
+
+    assert api.delete(f"/api/v1/standalone/folders/{storage}").status_code == 200
+
+    assert _ids("standalone_series") == set()
