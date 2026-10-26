@@ -303,6 +303,11 @@ def _series_known_to_sublarr(series_id: int) -> bool:
                 return True
         except Exception:
             continue
+    if series_id > 0:
+        # A Sonarr series whose subtitles are complete may have no Sublarr
+        # row at all; recognise it through the cached Sonarr id->title map
+        # (empty when Sonarr is not configured).
+        return series_id in get_sonarr_series_titles()
     return False
 
 

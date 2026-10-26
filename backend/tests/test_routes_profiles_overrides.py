@@ -282,3 +282,49 @@ def test_get_resolved_negative_movie_does_not_consult_radarr(client, sample_prof
         resp = client.get("/api/v1/profiles-overrides/resolved/movie/-4242")
     assert resp.status_code == 404
     titles.assert_not_called()
+
+
+def test_get_resolved_series_known_to_sonarr_only_returns_200(client, sample_profiles_data):
+    """A Sonarr series with no Sublarr row resolves with inherited values."""
+    from unittest.mock import patch
+
+    with patch(
+        "routes.profiles_overrides.get_sonarr_series_titles",
+        return_value={934: "Complete Series"},
+    ):
+        resp = client.get("/api/v1/profiles-overrides/resolved/series/934")
+    assert resp.status_code == 200
+    data = resp.get_json()
+    assert data["scope"] == {"type": "series", "id": 934, "name": "Complete Series"}
+    assert len(data["settings"]) > 0
+
+
+def test_get_resolved_series_unknown_to_sonarr_returns_404(client, sample_profiles_data):
+    from unittest.mock import patch
+
+    with patch(
+        "routes.profiles_overrides.get_sonarr_series_titles",
+        return_value={934: "Complete Series"},
+    ):
+        resp = client.get("/api/v1/profiles-overrides/resolved/series/9999")
+    assert resp.status_code == 404
+
+
+def test_get_resolved_series_without_sonarr_keeps_404(client, sample_profiles_data):
+    from unittest.mock import patch
+
+    with patch("routes.profiles_overrides.get_sonarr_series_titles", return_value={}):
+        resp = client.get("/api/v1/profiles-overrides/resolved/series/934")
+    assert resp.status_code == 404
+
+
+def test_get_resolved_negative_series_does_not_consult_sonarr(client, sample_profiles_data):
+    from unittest.mock import patch
+
+    with patch(
+        "routes.profiles_overrides.get_sonarr_series_titles",
+        return_value={934: "Complete Series"},
+    ) as titles:
+        resp = client.get("/api/v1/profiles-overrides/resolved/series/-934")
+    assert resp.status_code == 404
+    titles.assert_not_called()
