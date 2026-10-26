@@ -390,7 +390,9 @@ class TestCodexReviewOfRc5:
         assert archive_member_reason(result, "My Hero Academia S03E39.srt", query) == ""
 
 
-@pytest.mark.parametrize("ext", ["srt", "ass", "ssa", "vtt", "sub"])
+@pytest.mark.parametrize(
+    "ext", ["srt", "ass", "ssa", "vtt", "sub", "en.srt", "de.forced.ass", "pt-br.srt"]
+)
 def test_a_recap_file_name_with_its_extension_is_not_the_episode(ext):
     result = _result(filename=f"Harbor Tales - 11.5.{ext}", matches={"series", "episode"})
     assert "11.5" in episode_gate_reason(result, _query(season=1, episode=11))
