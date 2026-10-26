@@ -67,9 +67,11 @@ export function PathMappingEditor({
       </label>
       <div className="space-y-2">
         {rows.length > 0 && (
+          // Column labels only from md up; below, the inputs stack and
+          // carry the labels themselves (aria-label + placeholder).
           <div
-            className="grid gap-2 text-xs font-medium"
-            style={{ gridTemplateColumns: '1fr 1fr 2rem', color: 'var(--text-muted)' }}
+            className="hidden md:grid md:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_2rem] gap-2 text-xs font-medium"
+            style={{ color: 'var(--text-muted)' }}
           >
             <span>{t('path_mapping.remote_path')}</span>
             <span>{t('path_mapping.local_path')}</span>
@@ -77,17 +79,20 @@ export function PathMappingEditor({
           </div>
         )}
         {rows.map((row, i) => (
+          // Below md remote and local stack in one column next to the remove
+          // button; from md up the three sit in one row. minmax(0, 1fr) and
+          // min-w-0 let the inputs shrink below their natural width.
           <div
             key={i}
-            className="grid gap-2 items-center"
-            style={{ gridTemplateColumns: '1fr 1fr 2rem' }}
+            className="grid grid-cols-[minmax(0,1fr)_2rem] md:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_2rem] gap-2 items-center"
           >
             <input
               type="text"
               value={row.remote}
               onChange={(e) => updateRow(i, 'remote', e.target.value)}
               placeholder="/data/media"
-              className="px-3 py-2 rounded-md text-sm focus:outline-none"
+              aria-label={t('path_mapping.remote_path')}
+              className="col-start-1 row-start-1 w-full min-w-0 px-3 py-2 rounded-md text-sm focus:outline-none"
               style={{
                 backgroundColor: 'var(--bg-primary)',
                 border: '1px solid var(--border)',
@@ -101,7 +106,8 @@ export function PathMappingEditor({
               value={row.local}
               onChange={(e) => updateRow(i, 'local', e.target.value)}
               placeholder={t('path_mapping.example_windows')}
-              className="px-3 py-2 rounded-md text-sm focus:outline-none"
+              aria-label={t('path_mapping.local_path')}
+              className="col-start-1 row-start-2 md:col-start-2 md:row-start-1 w-full min-w-0 px-3 py-2 rounded-md text-sm focus:outline-none"
               style={{
                 backgroundColor: 'var(--bg-primary)',
                 border: '1px solid var(--border)',
@@ -112,7 +118,7 @@ export function PathMappingEditor({
             />
             <button
               onClick={() => removeRow(i)}
-              className="p-1.5 rounded transition-all duration-150"
+              className="col-start-2 row-start-1 row-span-2 md:col-start-3 md:row-span-1 justify-self-center p-1.5 rounded transition-all duration-150"
               style={{ color: 'var(--text-muted)' }}
               title={t('path_mapping.remove_mapping')}
               onMouseEnter={(e) => { e.currentTarget.style.color = 'var(--error)' }}
@@ -154,7 +160,7 @@ export function PathMappingEditor({
             value={testPath}
             onChange={(e) => setTestPath(e.target.value)}
             placeholder="/data/media/anime/Series.mkv"
-            className="flex-1 px-3 py-2 rounded-md text-sm focus:outline-none"
+            className="flex-1 min-w-0 px-3 py-2 rounded-md text-sm focus:outline-none"
             style={{
               backgroundColor: 'var(--bg-primary)',
               border: '1px solid var(--border)',
@@ -169,7 +175,7 @@ export function PathMappingEditor({
           <button
             onClick={handleTestPath}
             disabled={isTesting || !testPath.trim()}
-            className="flex items-center gap-1.5 px-3 py-2 rounded-md text-sm font-medium transition-all duration-150"
+            className="flex shrink-0 items-center gap-1.5 px-3 py-2 rounded-md text-sm font-medium transition-all duration-150"
             style={{
               border: '1px solid var(--border)',
               color: 'var(--text-secondary)',
@@ -191,7 +197,7 @@ export function PathMappingEditor({
           </button>
         </div>
         {testResult && (
-          <div className="text-xs space-y-1" style={{ color: 'var(--text-secondary)', fontFamily: 'var(--font-mono)' }}>
+          <div className="text-xs space-y-1 break-all" style={{ color: 'var(--text-secondary)', fontFamily: 'var(--font-mono)' }}>
             <div>
               <span style={{ color: 'var(--text-muted)' }}>{t('path_mapping.mapped_to')}</span>{' '}
               <span style={{ color: 'var(--accent)' }}>{testResult.mapped_path}</span>
