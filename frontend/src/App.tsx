@@ -251,8 +251,9 @@ function AppInner({
             {/* min-h-screen kept intentionally: avoids content reflow when the banner is dismissed */}
             <main
               id="main-content"
-              className="flex-1 min-w-0 min-h-screen main-content-area"
-              style={{ padding: '24px 32px 60px', maxWidth: '1680px' }}
+              // 16px side gutter on phones, the original 32px from md up.
+              className="flex-1 min-w-0 min-h-screen main-content-area px-4 pt-6 pb-[60px] md:px-8"
+              style={{ maxWidth: '1680px' }}
             >
               <AnimatedRoutes />
             </main>

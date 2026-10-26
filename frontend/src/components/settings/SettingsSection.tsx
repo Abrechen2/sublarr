@@ -28,7 +28,7 @@ export function SettingsSection({
     <div
       data-testid="settings-section"
       className={cn(
-        'border border-[var(--border)] bg-[var(--bg-surface)]',
+        'min-w-0 border border-[var(--border)] bg-[var(--bg-surface)]',
         className,
       )}
       style={{ borderRadius: 'var(--radius-lg)', padding: '22px 24px', marginBottom: 0 }}

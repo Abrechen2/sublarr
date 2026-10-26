@@ -158,7 +158,7 @@ export function StandaloneFolderManager() {
       </div>
 
       {/* Folder list header + add button */}
-      <div className="flex items-center justify-between pt-2">
+      <div className="flex flex-wrap items-center justify-between gap-2 pt-2">
         <h4 className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>
           {t('library_sources.watched_folders')}
         </h4>
@@ -212,7 +212,7 @@ export function StandaloneFolderManager() {
                         value={editLabel}
                         onChange={(e) => setEditLabel(e.target.value)}
                         placeholder={t('library_sources.label_placeholder')}
-                        className="flex-1 px-2.5 py-1.5 rounded text-sm focus:outline-none"
+                        className="flex-1 min-w-0 px-2.5 py-1.5 rounded text-sm focus:outline-none"
                         style={{
                           backgroundColor: 'var(--bg-surface)',
                           border: '1px solid var(--border)',
@@ -254,9 +254,9 @@ export function StandaloneFolderManager() {
                 ) : (
                   <div className="flex items-center justify-between gap-3">
                     <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2">
+                      <div className="flex items-center gap-2 min-w-0">
                         <span
-                          className="text-sm truncate"
+                          className="text-sm truncate min-w-0"
                           style={{ color: 'var(--text-primary)', fontFamily: 'var(--font-mono)', fontSize: '13px' }}
                           title={folder.path}
                         >
@@ -269,7 +269,7 @@ export function StandaloneFolderManager() {
                           {folder.media_type}
                         </span>
                       </div>
-                      <div className="flex items-center gap-3 mt-1 text-[11px]" style={{ color: 'var(--text-muted)' }}>
+                      <div className="flex flex-wrap items-center gap-x-3 gap-y-0.5 mt-1 text-[11px]" style={{ color: 'var(--text-muted)' }}>
                         {folder.label && <span>{folder.label}</span>}
                         {folder.last_scan_at && (
                           <span>{t('library_sources.last_scan')} {new Date(folder.last_scan_at).toLocaleString()}</span>
@@ -368,7 +368,7 @@ export function StandaloneFolderManager() {
               value={newLabel}
               onChange={(e) => setNewLabel(e.target.value)}
               placeholder={t('library_sources_tab.label_optional')}
-              className="flex-1 px-2.5 py-1.5 rounded text-sm focus:outline-none"
+              className="flex-1 min-w-0 px-2.5 py-1.5 rounded text-sm focus:outline-none"
               style={{
                 backgroundColor: 'var(--bg-surface)',
                 border: '1px solid var(--border)',

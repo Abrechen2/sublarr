@@ -181,7 +181,7 @@ describe('SonarrMultiInstanceSection (Step 25)', () => {
 
   it('renders the Add instance button', () => {
     renderWithProviders(<ConnectionsSettings />)
-    expect(screen.getByTestId('sonarr-add-instance-btn')).toBeInTheDocument()
+    expect(screen.getByTestId('sonarr-add-instance-btn')).toHaveTextContent('Add instance')
   })
 
   it('clicking Add calls updateConfig with a new instance appended', async () => {
@@ -224,7 +224,7 @@ describe('RadarrMultiInstanceSection (Step 26)', () => {
 
   it('renders the Add instance button', () => {
     renderWithProviders(<ConnectionsSettings />)
-    expect(screen.getByTestId('radarr-add-instance-btn')).toBeInTheDocument()
+    expect(screen.getByTestId('radarr-add-instance-btn')).toHaveTextContent('Add instance')
   })
 
   it('clicking Add calls updateConfig with a new radarr instance appended', async () => {

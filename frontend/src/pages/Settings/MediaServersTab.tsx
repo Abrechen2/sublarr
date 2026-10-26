@@ -130,7 +130,7 @@ export function MediaServersTab() {
   return (
     <div className="space-y-3">
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex flex-wrap items-center justify-between gap-2">
         <span className="text-xs font-medium" style={{ color: 'var(--text-secondary)' }}>
           {localInstances.length > 0
             ? localInstances.length === 1

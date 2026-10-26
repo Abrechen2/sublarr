@@ -52,7 +52,7 @@ export function ConnectionsSettings() {
       subtitle={tc('ui.configure_external')}
       breadcrumb={[
         { label: t('settings.breadcrumb.settings', 'Settings'), href: '/settings' },
-        { label: 'Connections' },
+        { label: tc('ui.connections') },
       ]}
     >
       <FormLayout sections={SECTIONS}>

@@ -1902,7 +1902,10 @@
     "api_key": "API Key",
     "sonarr": "Sonarr",
     "radarr": "Radarr",
-    "title": "Media Servers"
+    "title": "Media Servers",
+    "add_instance": "Add instance",
+    "test_instance": "Test",
+    "connection_failed": "Connection failed"
   },
   "connections_metadata": {
     "tmdb_placeholder": "Enter TMDB v3 API key",

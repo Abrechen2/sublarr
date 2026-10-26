@@ -153,7 +153,7 @@ function InstanceCard({
             onChange={(e) => onNameChange(e.target.value)}
             onBlur={onNameBlur}
             autoFocus
-            className="flex-1 text-sm font-medium focus:outline-none rounded px-1"
+            className="flex-1 min-w-0 text-sm font-medium focus:outline-none rounded px-1"
             style={{
               backgroundColor: 'var(--bg-elevated)',
               border: '1px solid var(--accent-dim)',
@@ -186,7 +186,7 @@ function InstanceCard({
           type="button"
           onClick={onTest}
           disabled={state.testing || !inst.url.trim()}
-          className="flex items-center gap-1 px-2 py-1 rounded text-xs transition-all duration-150"
+          className="flex shrink-0 items-center gap-1 px-2 py-1 rounded text-xs transition-all duration-150"
           style={{
             border: '1px solid var(--border)',
             color: 'var(--text-secondary)',
@@ -197,7 +197,7 @@ function InstanceCard({
           {state.testing
             ? <Loader2 size={11} className="animate-spin" />
             : <TestTube size={11} />}
-          Test
+          {t('connections_media_servers.test_instance')}
         </button>
 
         {/* Remove button */}
@@ -245,7 +245,7 @@ function InstanceCard({
             value={inst.api_key}
             onChange={(e) => onApiKeyChange(e.target.value)}
             placeholder={t('connections_media_servers.api_key')}
-            className="flex-1 focus:outline-none"
+            className="flex-1 min-w-0 focus:outline-none"
             style={inputStyle}
           />
           <button
@@ -269,6 +269,7 @@ function InstanceCard({
 // ─── Sonarr Multi-Instance Section ───────────────────────────────────────────
 
 function SonarrMultiInstanceSection() {
+  const { t } = useTranslation('settings')
   const { data: configData } = useConfig()
   const updateConfig = useUpdateConfig()
   const testSonarr = useTestSonarrInstance()
@@ -330,7 +331,7 @@ function SonarrMultiInstanceSection() {
         onError: () => {
           setStatuses((prev) => ({
             ...prev,
-            [inst.id]: { status: 'error', message: 'Connection failed', testing: false },
+            [inst.id]: { status: 'error', message: t('connections_media_servers.connection_failed'), testing: false },
           }))
         },
       },
@@ -381,7 +382,7 @@ function SonarrMultiInstanceSection() {
         }}
       >
         <Plus size={12} />
-        Add instance
+        {t('connections_media_servers.add_instance')}
       </button>
     </div>
   )
@@ -390,6 +391,7 @@ function SonarrMultiInstanceSection() {
 // ─── Radarr Multi-Instance Section ───────────────────────────────────────────
 
 function RadarrMultiInstanceSection() {
+  const { t } = useTranslation('settings')
   const { data: configData } = useConfig()
   const updateConfig = useUpdateConfig()
   const testRadarr = useTestRadarrInstance()
@@ -451,7 +453,7 @@ function RadarrMultiInstanceSection() {
         onError: () => {
           setStatuses((prev) => ({
             ...prev,
-            [inst.id]: { status: 'error', message: 'Connection failed', testing: false },
+            [inst.id]: { status: 'error', message: t('connections_media_servers.connection_failed'), testing: false },
           }))
         },
       },
@@ -502,7 +504,7 @@ function RadarrMultiInstanceSection() {
         }}
       >
         <Plus size={12} />
-        Add instance
+        {t('connections_media_servers.add_instance')}
       </button>
     </div>
   )
@@ -533,8 +535,8 @@ function StandaloneSection() {
 
   return (
     <div className="space-y-4">
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-3">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <div className="flex flex-wrap items-center gap-x-3 gap-y-1 min-w-0">
           <span
             className="text-sm font-medium px-2 py-0.5 rounded-full"
             style={{

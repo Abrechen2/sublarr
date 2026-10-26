@@ -1,4 +1,4 @@
-import type { ReactNode } from 'react'
+import type { CSSProperties, ReactNode } from 'react'
 import { useTranslation } from 'react-i18next'
 
 /**
@@ -85,13 +85,14 @@ export function FormLayout({
   return (
     <div
       data-testid="form-layout"
-      className="grid gap-5"
-      style={{ gridTemplateColumns: `1fr ${tocWidth}px` }}
+      // Phones stack to one column; the TOC column only appears from md up.
+      className="grid gap-5 grid-cols-1 md:grid-cols-[minmax(0,1fr)_var(--form-toc-width)]"
+      style={{ '--form-toc-width': `${tocWidth}px` } as CSSProperties}
     >
       {/* Scroll content */}
       <div
         data-testid="form-content"
-        className="bg-[var(--bg-surface)] border border-[var(--border)] rounded-lg p-6"
+        className="min-w-0 bg-[var(--bg-surface)] border border-[var(--border)] rounded-lg p-4 md:p-6"
       >
         {children}
       </div>
@@ -99,10 +100,12 @@ export function FormLayout({
       {/* Right rail: TOC + health */}
       <aside
         data-testid="form-toc"
-        className="self-start sticky top-4 flex flex-col gap-3"
+        // Below md the TOC is hidden (the page is a single scroll column);
+        // a health rail, if any, still renders under the content.
+        className={`${healthRail ? 'flex' : 'hidden md:flex'} min-w-0 flex-col gap-3 md:self-start md:sticky md:top-4`}
       >
         <nav
-          className="bg-[var(--bg-surface)] border border-[var(--border)] rounded-lg p-3"
+          className="hidden md:block bg-[var(--bg-surface)] border border-[var(--border)] rounded-lg p-3"
           aria-label={t('settings:form_layout.page_sections')}
         >
           <h3 className="text-[10px] font-bold uppercase tracking-wider text-muted m-0 mb-2 px-1">
