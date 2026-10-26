@@ -137,12 +137,26 @@ def remove_titles_left_by_folder(old_root: str, remaining_roots: list[str]) -> d
     from db.standalone import get_standalone_movies, get_standalone_series
     from services.standalone_library import lexically_under
 
-    def orphaned(path: str) -> bool:
-        return lexically_under(path, old_root) and not any(
-            lexically_under(path, root) for root in remaining_roots if root
-        )
+    def orphaned(path: str, nested_counts: bool = False) -> bool:
+        if not lexically_under(path, old_root):
+            return False
+        for root in remaining_roots:
+            if not root:
+                continue
+            if lexically_under(path, root):
+                return False
+            # A series lives at its show folder even when the watched folder
+            # is one of its season folders, so a remaining folder inside the
+            # series still covers it.
+            if nested_counts and lexically_under(root, path):
+                return False
+        return True
 
-    series_ids = [s["id"] for s in get_standalone_series() or [] if orphaned(s["folder_path"])]
+    series_ids = [
+        s["id"]
+        for s in get_standalone_series() or []
+        if orphaned(s["folder_path"], nested_counts=True)
+    ]
     movie_ids = [m["id"] for m in get_standalone_movies() or [] if orphaned(m["file_path"])]
     for sid in series_ids:
         delete_series_cascade(sid)

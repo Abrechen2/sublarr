@@ -160,3 +160,16 @@ def test_titles_also_under_another_folder_stay(api, media):
 
     assert _ids("standalone_series") == {sid}
     assert _ids("standalone_movies") == {mid}
+
+
+def test_series_kept_when_a_remaining_folder_lies_inside_it(api, media):
+    # The scanner stores a series at its show folder even when the watched
+    # folder is one of its season folders, so a remaining season folder
+    # still covers the series after the outer folder goes.
+    outer = _folder(media / "A")
+    _folder(media / "A" / "Show" / "Season 1")
+    sid = _series(media / "A" / "Show")
+
+    assert api.delete(f"/api/v1/standalone/folders/{outer}").status_code == 200
+
+    assert _ids("standalone_series") == {sid}
