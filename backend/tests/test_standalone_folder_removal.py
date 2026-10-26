@@ -173,3 +173,12 @@ def test_series_kept_when_a_remaining_folder_lies_inside_it(api, media):
     assert api.delete(f"/api/v1/standalone/folders/{outer}").status_code == 200
 
     assert _ids("standalone_series") == {sid}
+
+
+def test_deleting_the_only_season_folder_removes_its_series(api, media):
+    season = _folder(media / "A" / "Show" / "Season 1")
+    _series(media / "A" / "Show")
+
+    assert api.delete(f"/api/v1/standalone/folders/{season}").status_code == 200
+
+    assert _ids("standalone_series") == set()

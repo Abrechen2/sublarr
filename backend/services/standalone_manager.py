@@ -138,16 +138,17 @@ def remove_titles_left_by_folder(old_root: str, remaining_roots: list[str]) -> d
     from services.standalone_library import lexically_under
 
     def orphaned(path: str, nested_counts: bool = False) -> bool:
-        if not lexically_under(path, old_root):
+        # A series lives at its show folder even when the watched folder is
+        # one of its season folders, so folders inside the series count too.
+        if not lexically_under(path, old_root) and not (
+            nested_counts and lexically_under(old_root, path)
+        ):
             return False
         for root in remaining_roots:
             if not root:
                 continue
             if lexically_under(path, root):
                 return False
-            # A series lives at its show folder even when the watched folder
-            # is one of its season folders, so a remaining folder inside the
-            # series still covers it.
             if nested_counts and lexically_under(root, path):
                 return False
         return True
