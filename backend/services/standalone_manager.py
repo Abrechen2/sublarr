@@ -137,28 +137,36 @@ def remove_titles_left_by_folder(old_root: str, remaining_roots: list[str]) -> d
     from db.standalone import get_standalone_movies, get_standalone_series
     from services.standalone_library import lexically_under
 
-    def orphaned(path: str, nested_counts: bool = False) -> bool:
+    def under_old_root(path: str, nested_counts: bool) -> bool:
         # A series lives at its show folder even when the watched folder is
         # one of its season folders, so folders inside the series count too.
-        if not lexically_under(path, old_root) and not (
+        return lexically_under(path, old_root) or (
             nested_counts and lexically_under(old_root, path)
-        ):
-            return False
-        for root in remaining_roots:
-            if not root:
-                continue
-            if lexically_under(path, root):
-                return False
-            if nested_counts and lexically_under(root, path):
-                return False
-        return True
+        )
 
-    series_ids = [
-        s["id"]
+    def covered(path: str, roots: list[str], nested_counts: bool) -> bool:
+        return any(
+            lexically_under(path, root) or (nested_counts and lexically_under(root, path))
+            for root in roots
+        )
+
+    series = [
+        (s["id"], s["folder_path"])
         for s in get_standalone_series() or []
-        if orphaned(s["folder_path"], nested_counts=True)
+        if under_old_root(s["folder_path"], True)
     ]
-    movie_ids = [m["id"] for m in get_standalone_movies() or [] if orphaned(m["file_path"])]
+    movies = [
+        (m["id"], m["file_path"])
+        for m in get_standalone_movies() or []
+        if under_old_root(m["file_path"], False)
+    ]
+    roots = [r for r in remaining_roots if r]
+    if (series or movies) and roots:
+        # The scanner follows symlinks, so a remaining folder also covers
+        # whatever its symlinks point at.
+        roots = roots + _symlink_targets(roots)
+    series_ids = [sid for sid, path in series if not covered(path, roots, True)]
+    movie_ids = [mid for mid, path in movies if not covered(path, roots, False)]
     for sid in series_ids:
         delete_series_cascade(sid)
     for mid in movie_ids:
@@ -171,6 +179,18 @@ def remove_titles_left_by_folder(old_root: str, remaining_roots: list[str]) -> d
             len(movie_ids),
         )
     return {"series_removed": len(series_ids), "movies_removed": len(movie_ids)}
+
+
+def _symlink_targets(roots: list[str]) -> list[str]:
+    """Resolved targets of every symlink below ``roots`` (links are not followed)."""
+    targets: list[str] = []
+    for root in roots:
+        for dirpath, dirnames, filenames in os.walk(root):
+            for name in dirnames + filenames:
+                full = os.path.join(dirpath, name)
+                if os.path.islink(full):
+                    targets.append(os.path.realpath(full))
+    return targets
 
 
 def scan_series_or_fallback(series_id: int) -> dict | None:

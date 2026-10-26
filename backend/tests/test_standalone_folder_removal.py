@@ -182,3 +182,18 @@ def test_deleting_the_only_season_folder_removes_its_series(api, media):
     assert api.delete(f"/api/v1/standalone/folders/{season}").status_code == 200
 
     assert _ids("standalone_series") == set()
+
+
+def test_titles_a_remaining_folder_reaches_through_a_symlink_stay(api, media):
+    storage = _folder(media / "A")
+    library = media / "New"
+    _folder(library)
+    sid = _series(media / "A" / "Show")
+    mid = _movie(media / "A" / "film.mkv")
+    (library / "Show").symlink_to(media / "A" / "Show")
+    (library / "film.mkv").symlink_to(media / "A" / "film.mkv")
+
+    assert api.delete(f"/api/v1/standalone/folders/{storage}").status_code == 200
+
+    assert _ids("standalone_series") == {sid}
+    assert _ids("standalone_movies") == {mid}
