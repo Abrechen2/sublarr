@@ -53,7 +53,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   the first change copies the title's old settings along, so the others are
   kept. With Sonarr or Radarr configured, its settings are never used for a
   standalone title with the same number.
-
 - **The absolute-order switch of a standalone series stays on** — The
   standalone series page always showed the AniDB absolute-order switch as
   off after a reload, although the setting was saved and used. It now shows
@@ -71,6 +70,41 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   a standalone title now also deletes its profile assignment, settings,
   fansub preferences and glossary terms. The upgrade makes sure no number of
   an earlier deleted title is handed out again.
+- **The series health scan finds Sonarr's files and their sidecars** — The
+  scan of a whole Sonarr series, and the nightly sweep, used Sonarr's own
+  file paths without the path mapping, so with a mapping (for example
+  `/tv` → `/media`) they checked no episode at all and still reported
+  success. They also ignored subtitle files next to the video, reported
+  those episodes as missing a language and overwrote the findings of a
+  single-episode scan. All scans now open the same files, and a series
+  scan that finds no file says so.
+- **Health scans report their progress** — The progress and finish events
+  of a series health scan were dropped, so the page never learned that the
+  scan was done. It now shows a message when the scan finishes. Three
+  other events (batch processing and a failed wanted search) were dropped
+  the same way and now reach the UI, hooks and webhooks.
+- **Removing a watched folder removes its titles** — Deleting a watched
+  folder left its series and movies in the library. They are now removed
+  with their wanted items and settings, unless another watched folder still
+  covers them. Files on disk are never touched.
+- **Changing a watched folder's path no longer duplicates it** — Saving a
+  watched folder with a new path created a second folder and left the old
+  one unchanged. The folder is now updated in place, and a path another
+  folder already uses is refused.
+- **The settings overview of a Radarr movie loads** — A Radarr movie with
+  no saved settings and no wanted items showed "movie not found" in its
+  settings overview. It now shows the inherited values.
+- **Health turns unhealthy when the database upgrade fails** — When the
+  database upgrade at startup failed, Sublarr kept running on the old
+  schema and still reported itself healthy. `/api/v1/health` now answers
+  503 "unhealthy" with the reason, so Docker marks the container unhealthy.
+- **Phone layout** — Settings pages, Settings → Connections (where the
+  watched-folder buttons could not be tapped), series pages, Activity and
+  Logs no longer scroll sideways on a phone. Series with many seasons get a
+  scrollable season strip on every screen size.
+- **German UI** — The series page stats, the season summary, "Add instance",
+  the Connections breadcrumb and the "Advanced" badge were English in the
+  German interface (or German in the English one) and are now translated.
 
 ### Security
 - **Standalone files outside the media folder are no longer touched** — A
