@@ -1,4 +1,4 @@
-import type { ReactNode } from 'react'
+import type { CSSProperties, ReactNode } from 'react'
 import { useTranslation } from 'react-i18next'
 
 /**
@@ -51,9 +51,14 @@ export function RulesLayout({
   const { t } = useTranslation('settings')
   const hasRail = Boolean(healthRail)
 
-  const gridTemplate = hasRail
-    ? `${treeWidth}px 1fr ${railWidth}px`
-    : `${treeWidth}px 1fr`
+  // Phones stack tree, detail and rail; the column template applies from md up.
+  const gridStyle = {
+    '--rules-tree-width': `${treeWidth}px`,
+    '--rules-rail-width': `${railWidth}px`,
+  } as CSSProperties
+  const mdColumns = hasRail
+    ? 'md:grid-cols-[var(--rules-tree-width)_minmax(0,1fr)_var(--rules-rail-width)]'
+    : 'md:grid-cols-[var(--rules-tree-width)_minmax(0,1fr)]'
 
   return (
     <div data-testid="rules-layout" className="flex flex-col gap-4">
@@ -64,13 +69,13 @@ export function RulesLayout({
       )}
 
       <div
-        className="grid bg-[var(--bg-surface)] border border-[var(--border)] rounded-lg overflow-hidden"
-        style={{ gridTemplateColumns: gridTemplate, minHeight: '520px' }}
+        className={`grid grid-cols-1 ${mdColumns} md:min-h-[520px] bg-[var(--bg-surface)] border border-[var(--border)] rounded-lg overflow-hidden`}
+        style={gridStyle}
       >
         {/* Left: scope tree */}
         <aside
           data-testid="rules-scope-tree"
-          className="border-r border-[var(--border)] p-3 overflow-y-auto"
+          className="min-w-0 border-b md:border-b-0 md:border-r border-[var(--border)] p-3 overflow-y-auto"
           aria-label={t('rules_layout.scope_tree')}
         >
           {scopeTree}
@@ -79,7 +84,7 @@ export function RulesLayout({
         {/* Center: resolved + override + other rules, stacked */}
         <section
           data-testid="rules-detail"
-          className="p-6 overflow-y-auto flex flex-col gap-4"
+          className="min-w-0 p-4 md:p-6 overflow-y-auto flex flex-col gap-4"
         >
           <div data-testid="rules-resolved">{resolvedHeader}</div>
           <div data-testid="rules-override">{overrideWidget}</div>
@@ -90,7 +95,7 @@ export function RulesLayout({
         {hasRail && (
           <aside
             data-testid="rules-rail"
-            className="border-l border-[var(--border)] p-4 overflow-y-auto"
+            className="min-w-0 border-t md:border-t-0 md:border-l border-[var(--border)] p-4 overflow-y-auto"
           >
             {healthRail}
           </aside>
