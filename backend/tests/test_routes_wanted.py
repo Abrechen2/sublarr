@@ -448,6 +448,35 @@ def test_search_upgrades_emits_failure_event_when_worker_crashes(client, monkeyp
     assert failure_events[0][1]["include_upgrades"] is True
 
 
+def test_search_failure_event_redacts_credentials(client, monkeypatch):
+    """The event reaches hooks and webhooks: the error text must not carry a key."""
+    mock_scanner = MagicMock()
+    mock_scanner.is_searching = False
+    mock_scanner.search_all.side_effect = RuntimeError(
+        "GET https://provider.example/api?apikey=s3cr3tKEYvalue123 failed\n"
+        "Authorization: Bearer abcdefghijklmnop"
+    )
+    monkeypatch.setattr("services.wanted_scanner.get_scanner", lambda: mock_scanner)
+
+    captured: list[tuple[str, dict]] = []
+    monkeypatch.setattr(
+        "routes.wanted.bulk_actions.emit_event",
+        lambda evt, payload: captured.append((evt, payload)),
+    )
+    monkeypatch.setattr(
+        "routes.wanted.bulk_actions.submit_background",
+        lambda fn, *a, **k: fn(*a, **k),
+    )
+
+    resp = client.post("/api/v1/wanted/search-all")
+    assert resp.status_code == 202
+
+    error = next(p for e, p in captured if e == "wanted_search_failed")["error"]
+    assert "s3cr3tKEYvalue123" not in error
+    assert "abcdefghijklmnop" not in error
+    assert "\n" not in error
+
+
 def test_batch_action_reset_attempts_unparks_the_queue(app_and_client):
     """#184: after an install-level fix, the operator says "try again now".
 

@@ -31,10 +31,14 @@ def _spawn_search_worker(*, include_upgrades: bool) -> None:
         except Exception as exc:
             logger.exception("wanted_search worker crashed (include_upgrades=%s)", include_upgrades)
             try:
+                from error_utils import public_error_text
+
                 with app.app_context():
+                    # Hooks and webhooks receive this: redact credentials
+                    # (e.g. API keys in request URLs) from the exception text.
                     emit_event(
                         "wanted_search_failed",
-                        {"error": str(exc), "include_upgrades": include_upgrades},
+                        {"error": public_error_text(exc), "include_upgrades": include_upgrades},
                     )
             except Exception:
                 logger.debug("emit wanted_search_failed itself failed", exc_info=True)
