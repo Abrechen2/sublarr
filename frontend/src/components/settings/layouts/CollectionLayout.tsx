@@ -1,4 +1,4 @@
-import type { ReactNode } from 'react'
+import type { CSSProperties, ReactNode } from 'react'
 import { useTranslation } from 'react-i18next'
 
 /**
@@ -66,22 +66,21 @@ export function CollectionLayout<T>({
   // signature for binary compatibility but is no longer applied.
   void railWidth
 
-  const gridTemplate = `${listWidth}px 1fr`
-
   return (
     <div
       data-testid="collection-layout"
       className="flex flex-col bg-[var(--bg-surface)] border border-[var(--border)] rounded-lg overflow-hidden"
       style={{ minHeight: '520px' }}
     >
+      {/* Phones stack list above detail; side by side from md up. */}
       <div
-        className="grid"
-        style={{ gridTemplateColumns: gridTemplate }}
+        className="grid grid-cols-1 md:grid-cols-[var(--collection-list-width)_minmax(0,1fr)]"
+        style={{ '--collection-list-width': `${listWidth}px` } as CSSProperties}
       >
         {/* Master list */}
         <aside
           data-testid="collection-list"
-          className="border-r border-[var(--border)] p-3 flex flex-col gap-1 overflow-y-auto"
+          className="min-w-0 border-b md:border-b-0 md:border-r border-[var(--border)] p-3 flex flex-col gap-1 overflow-y-auto"
         >
           {listHeader && (
             <div data-testid="collection-list-header" className="px-2 pt-1 pb-2">
@@ -118,7 +117,7 @@ export function CollectionLayout<T>({
         {/* Detail editor */}
         <section
           data-testid="collection-detail"
-          className="p-6 overflow-y-auto"
+          className="min-w-0 p-4 md:p-6 overflow-y-auto"
         >
           {renderDetail(selected)}
         </section>

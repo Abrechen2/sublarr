@@ -117,7 +117,7 @@ export function BackendCard({
         className={`w-full flex items-center justify-between gap-3 p-4 text-left transition-colors ${expanded ? 'rounded-t-lg' : 'rounded-lg'}`}
         style={{ backgroundColor: expanded ? 'var(--bg-surface-hover)' : undefined }}
       >
-        <div className="flex items-center gap-3 min-w-0">
+        <div className="flex flex-wrap items-center gap-x-3 gap-y-1 min-w-0">
           <span className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>
             {backend.display_name}
           </span>
@@ -238,7 +238,7 @@ export function BackendCard({
                         onChange={(e) => setFormValues((v) => ({ ...v, [field.key]: e.target.value }))}
                         placeholder={field.default || (field.required ? t('backend_card.placeholder_required') : t('backend_card.placeholder_optional'))}
                         rows={3}
-                        className="flex-1 px-2.5 py-1.5 rounded text-xs transition-all duration-150 focus:outline-none resize-y"
+                        className="flex-1 min-w-0 px-2.5 py-1.5 rounded text-xs transition-all duration-150 focus:outline-none resize-y"
                         style={{
                           backgroundColor: 'var(--bg-primary)',
                           border: '1px solid var(--border)',
@@ -252,7 +252,7 @@ export function BackendCard({
                         value={formValues[field.key] === '***' ? '' : (formValues[field.key] ?? field.default ?? '')}
                         onChange={(e) => setFormValues((v) => ({ ...v, [field.key]: e.target.value }))}
                         placeholder={formValues[field.key] === '***' ? t('backend_card.placeholder_configured') : field.default || (field.required ? t('backend_card.placeholder_required') : t('backend_card.placeholder_optional'))}
-                        className="flex-1 px-2.5 py-1.5 rounded text-xs transition-all duration-150 focus:outline-none"
+                        className="flex-1 min-w-0 px-2.5 py-1.5 rounded text-xs transition-all duration-150 focus:outline-none"
                         style={{
                           backgroundColor: 'var(--bg-primary)',
                           border: '1px solid var(--border)',
@@ -284,7 +284,7 @@ export function BackendCard({
           )}
 
           {/* Action buttons */}
-          <div className="flex items-center gap-2 pt-2" style={{ borderTop: '1px solid var(--border)' }}>
+          <div className="flex flex-wrap items-center gap-2 pt-2" style={{ borderTop: '1px solid var(--border)' }}>
             <button
               onClick={onTest}
               className="flex items-center gap-1.5 px-3 py-1.5 rounded text-xs font-medium transition-all duration-150"

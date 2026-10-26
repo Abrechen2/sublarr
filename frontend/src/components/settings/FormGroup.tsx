@@ -219,8 +219,10 @@ export function FormGroup({
       {/* Control group — right side */}
       <div
         data-testid="form-group-control"
-        className="flex items-center gap-2"
-        style={{ minWidth: '260px', justifyContent: 'flex-end' }}
+        // The 260px floor only applies beside the label (md+); stacked on a
+        // phone the control may shrink to the card width.
+        className="flex items-center gap-2 min-w-0 md:min-w-[260px]"
+        style={{ justifyContent: 'flex-end' }}
       >
         {children}
       </div>

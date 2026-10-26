@@ -121,7 +121,7 @@ export function ScoringReleaseGroupTiers() {
           >
             {idx + 1}.
           </span>
-          <span style={{ flex: 1, fontSize: 13 }}>{group}</span>
+          <span style={{ flex: 1, minWidth: 0, fontSize: 13, overflowWrap: 'anywhere' }}>{group}</span>
           <span
             style={{
               fontSize: 11, color: 'var(--success)',

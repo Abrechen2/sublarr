@@ -337,7 +337,7 @@ export function TranslationBackendsTab() {
 
       <DefaultBackendSection />
 
-      <div className="flex items-center justify-between">
+      <div className="flex flex-wrap items-center justify-between gap-2">
         <span className="text-xs font-medium" style={{ color: 'var(--text-secondary)' }}>
           {t('settings:translation_backends.backends_available', { count: backends.length })}
         </span>

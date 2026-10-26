@@ -355,7 +355,7 @@ export function ScoringTab() {
     setFn: (w: Record<string, number>) => void,
     defaults: Record<string, number> | undefined
   ) => (
-    <div className="flex-1 min-w-[280px]">
+    <div className="flex-1 min-w-[min(280px,100%)]">
       <h4 className="text-xs font-semibold mb-2" style={{ color: 'var(--text-primary)' }}>{label}</h4>
       <div className="space-y-1">
         {Object.entries(currentWeights).map(([key, value]) => (

@@ -30,7 +30,7 @@ export function OllamaPullSection() {
 
   return (
     <SettingRow label={tc('ui.pull_ollama_model')} description={tc('settings:ollama_pull.description')}>
-      <div className="flex gap-2 items-center">
+      <div className="flex flex-wrap gap-2 items-center min-w-0">
         <input
           type="text"
           className="input-base"
@@ -45,7 +45,7 @@ export function OllamaPullSection() {
             borderRadius: '6px',
             padding: '6px 10px',
             fontSize: '13px',
-            minWidth: '180px',
+            minWidth: 'min(180px, 100%)',
           }}
         />
         <button

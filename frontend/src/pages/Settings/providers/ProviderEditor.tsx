@@ -148,7 +148,7 @@ export function ProviderEditor({
       {/* Title row */}
       {!hideTitle && (
         <div
-          className="flex items-center justify-between mb-3 pb-3"
+          className="flex flex-wrap items-center justify-between gap-2 mb-3 pb-3"
           style={{ borderBottom: '1px solid var(--border)' }}
         >
           <h2

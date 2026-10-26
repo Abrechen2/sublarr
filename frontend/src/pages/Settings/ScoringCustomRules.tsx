@@ -165,7 +165,7 @@ export function ScoringCustomRules() {
           placeholder={tc('settings:scoring_custom.name_placeholder')}
           maxLength={100}
           onChange={(e) => setName(e.target.value)}
-          style={{ ...inputStyle, width: 150 }}
+          style={{ ...inputStyle, width: 150, maxWidth: '100%' }}
         />
         <input
           type="text"
@@ -174,7 +174,7 @@ export function ScoringCustomRules() {
           placeholder={tc('settings:scoring_custom.pattern_placeholder')}
           maxLength={500}
           onChange={(e) => setPattern(e.target.value)}
-          style={{ ...inputStyle, flex: 1, minWidth: 160, fontFamily: 'var(--font-mono, monospace)' }}
+          style={{ ...inputStyle, flex: 1, minWidth: 'min(160px, 100%)', fontFamily: 'var(--font-mono, monospace)' }}
         />
         <input
           type="number"

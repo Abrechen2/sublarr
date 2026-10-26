@@ -400,7 +400,7 @@ export function ScoringTab() {
             value={rgPrefer}
             onChange={(e) => setRgPrefer(e.target.value)}
             placeholder="SubsPlease,Erai-raws"
-            style={{ ...inputStyle, width: 240 }}
+            style={{ ...inputStyle, width: 240, maxWidth: '100%' }}
           />
         </FormGroup>
 
@@ -416,7 +416,7 @@ export function ScoringTab() {
             value={rgExclude}
             onChange={(e) => setRgExclude(e.target.value)}
             placeholder="HorribleSubs"
-            style={{ ...inputStyle, width: 240 }}
+            style={{ ...inputStyle, width: 240, maxWidth: '100%' }}
           />
         </FormGroup>
 
@@ -520,7 +520,7 @@ export function ScoringTab() {
 
             <div
               data-testid="weight-tables"
-              style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: 24 }}
+              style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(280px, 100%), 1fr))', gap: 24 }}
             >
               <div data-testid="episode-weights">
                 <h4 style={{

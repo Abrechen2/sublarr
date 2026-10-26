@@ -37,10 +37,10 @@ export function WebhooksSection() {
           >
             <SettingRow label={t('webhooks_page.webhook_url_label')}>
               <div
-                className="flex items-center gap-2"
+                className="flex items-center gap-2 min-w-0"
                 style={{ fontFamily: 'var(--font-mono)', fontSize: '12px', color: 'var(--text-muted)' }}
               >
-                <span data-testid={`webhook-url-${w.service.toLowerCase()}`}>{fullUrl}</span>
+                <span data-testid={`webhook-url-${w.service.toLowerCase()}`} className="min-w-0 break-all">{fullUrl}</span>
                 <button
                   onClick={() => {
                     if (navigator.clipboard) {

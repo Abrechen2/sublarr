@@ -30,7 +30,7 @@ export function SettingRow({
       className={`grid grid-cols-1 md:grid-cols-[200px_1fr] gap-2 md:gap-6 items-start py-3 ${className}`}
       style={advanced ? { borderLeft: '2px solid var(--warning)', paddingLeft: '10px' } : undefined}
     >
-      <div className="flex flex-col gap-0.5 pt-0.5">
+      <div className="flex flex-col gap-0.5 pt-0.5 min-w-0">
         <div className="flex items-center gap-1.5 flex-wrap">
           {htmlFor ? (
             <label htmlFor={htmlFor} className="text-[13px] font-medium" style={{ color: 'var(--text-primary)' }}>
@@ -57,7 +57,7 @@ export function SettingRow({
           </span>
         )}
       </div>
-      <div className="flex items-center min-h-[32px]">{children}</div>
+      <div className="flex items-center min-w-0 min-h-[32px]">{children}</div>
     </div>
   )
 }

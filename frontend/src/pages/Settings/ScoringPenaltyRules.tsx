@@ -79,7 +79,7 @@ export function ScoringPenaltyRules() {
             hint={rule.description}
             data-testid={`form-group-penalty-rule-${rule.rule_id}`}
           >
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'flex-end', gap: 8 }}>
               <input
                 type="range"
                 min={-100}
