@@ -106,6 +106,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   schema and still reported itself healthy. `/api/v1/health` now answers
   503 "unhealthy" with the reason, so Docker marks the container unhealthy,
   and the dashboard shows a red banner.
+- **Recap files are not taken for the episode before them** — A subtitle
+  named like "Show - 11.5.srt" (a recap between episodes 11 and 12) could
+  be saved for episode 11. The recap number is now also recognised right
+  before the file extension.
+- **OpenSubtitles gives no series bonus for an episode title** — When
+  OpenSubtitles named another series as the parent but no IMDb id, an
+  episode whose own title matched the searched series still counted as
+  the right series and was ranked too high.
 - **Phone layout** — Settings pages, Settings → Connections (where the
   watched-folder buttons could not be tapped), series pages (the episode
   list scrolls on its own), Activity and Logs no longer scroll sideways on
