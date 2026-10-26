@@ -307,14 +307,16 @@ def glossary_owner_key(series_id: int | None) -> int | None:
     return legacy if legacy is not None else series_id
 
 
-def _copy_single_rows(kind: str, owner_key: int, legacy: int) -> None:
+def _copy_single_rows(kind: str, owner_key: int, legacy: int) -> int:
+    """Copy the legacy single-key rows to the owner key; returns how many were copied."""
     session = _session()
+    copied = 0
     for model, key_col in _single_row_models(kind):
         table = model.__table__
         if session.get(model, owner_key) is not None:
             continue
         others = [c.name for c in table.columns if c.name != key_col]
-        session.execute(
+        result = session.execute(
             sa.insert(table).from_select(
                 [key_col, *others],
                 sa.select(sa.literal(owner_key), *[table.c[c] for c in others]).where(
@@ -322,6 +324,8 @@ def _copy_single_rows(kind: str, owner_key: int, legacy: int) -> None:
                 ),
             )
         )
+        copied += max(result.rowcount or 0, 0)
+    return copied
 
 
 def _copy_glossary(owner_key: int, legacy: int) -> dict[int, int]:
@@ -371,18 +375,20 @@ def claim(owner_key: int | None, kind: str) -> dict[int, int] | None:
             StandaloneLegacyClaim(kind=kind, standalone_id=legacy, claimed_at=datetime.now(UTC))
         )
         session.flush()
-        _copy_single_rows(kind, int(owner_key), legacy)
+        copied = _copy_single_rows(kind, int(owner_key), legacy)
         mapping = _copy_glossary(int(owner_key), legacy) if kind == SERIES else {}
         session.flush()
     except IntegrityError:
         session.rollback()
         logger.debug("Standalone legacy claim for %s %s raced; using the winner's", kind, legacy)
         return None
-    logger.info(
-        "Standalone %s %d: copied its pre-1.18 settings to the new id on first change",
-        kind,
-        legacy,
-    )
+    if copied or mapping:
+        # A fresh 1.18 database claims too, but has nothing to copy.
+        logger.info(
+            "Standalone %s %d: copied its pre-1.18 settings to the new id on first change",
+            kind,
+            legacy,
+        )
     return mapping
 
 

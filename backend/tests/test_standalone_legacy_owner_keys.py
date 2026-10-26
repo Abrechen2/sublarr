@@ -274,6 +274,40 @@ def test_first_write_copies_legacy_rows_and_wins(app_ctx, no_arr):
     _legacy_rows_intact()
 
 
+_COPIED_MSG = "copied its pre-1.18 settings"
+
+
+def test_first_write_logs_the_copy_when_rows_were_copied(app_ctx, no_arr, caplog):
+    import logging
+
+    from services.standalone_owner_keys import SERIES, claim
+
+    _seed_legacy()
+    with caplog.at_level(logging.INFO, logger="services.standalone_owner_keys"):
+        claim(-3, SERIES)
+    assert any(_COPIED_MSG in r.getMessage() for r in caplog.records)
+
+
+def test_first_write_without_legacy_rows_logs_no_copy(app_ctx, no_arr, caplog):
+    """A fresh 1.18 database has nothing to copy, so it must not claim it did."""
+    import logging
+
+    from services.standalone_owner_keys import MOVIE, SERIES, claim
+
+    _sql(
+        "INSERT INTO standalone_series (id, title, folder_path, created_at, updated_at) "
+        "VALUES (7, 'Fresh', '/m/Fresh', :t, :t)"
+    )
+    _sql(
+        "INSERT INTO standalone_movies (id, title, file_path, created_at, updated_at) "
+        "VALUES (8, 'Fresh Film', '/m/Fresh.mkv', :t, :t)"
+    )
+    with caplog.at_level(logging.INFO, logger="services.standalone_owner_keys"):
+        claim(-7, SERIES)
+        claim(-8, MOVIE)
+    assert not any(_COPIED_MSG in r.getMessage() for r in caplog.records)
+
+
 def test_delete_after_claim_does_not_bring_the_legacy_row_back(client, no_arr):
     with client.application.app_context():
         _seed_legacy()
