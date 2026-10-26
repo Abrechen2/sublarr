@@ -51,6 +51,11 @@ def get_watched_folder(folder_id: int) -> dict | None:
     return _get_repo().get_watched_folder(folder_id)
 
 
+def update_watched_folder(folder_id: int, **fields) -> bool:
+    """Update one watched folder in place (same id). Returns False when it is gone."""
+    return _get_repo().update_watched_folder(folder_id, **fields)
+
+
 def delete_watched_folder(folder_id: int) -> bool:
     """Delete a watched folder by ID."""
     return _get_repo().delete_watched_folder(folder_id)

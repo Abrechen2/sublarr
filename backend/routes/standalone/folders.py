@@ -105,11 +105,12 @@ def _hot_reload_standalone() -> None:
         logger.warning("Standalone manager hot-reload failed: %s", exc)
 
 
-def _remove_titles_left_by(folder_id: int, old_path: str) -> None:
+def _remove_titles_left_by(old_path: str, exclude_id: int | None = None) -> None:
     """Delete the titles under ``old_path`` no other watched folder covers.
 
-    The scanner cannot do this later: with no watched folder left it skips
-    every cleanup (that guard keeps a mount hiccup from wiping the library).
+    ``exclude_id`` is the folder about to be deleted. The scanner cannot do
+    this later: with no watched folder left it skips every cleanup (that
+    guard keeps a mount hiccup from wiping the library).
     """
     from db.standalone import get_watched_folders
     from services.standalone_manager import remove_titles_left_by_folder
@@ -117,7 +118,7 @@ def _remove_titles_left_by(folder_id: int, old_path: str) -> None:
     remaining = [
         f.get("path") or ""
         for f in get_watched_folders(enabled_only=False) or []
-        if f.get("id") != folder_id
+        if f.get("id") != exclude_id
     ]
     remove_titles_left_by_folder(old_path, remaining)
 
@@ -302,10 +303,12 @@ def update_folder(folder_id):
           description: Invalid media_type or path
         404:
           description: Folder not found
+        409:
+          description: Another watched folder already uses the path
         500:
           description: Server error
     """
-    from db.standalone import get_watched_folder, upsert_watched_folder
+    from db.standalone import get_watched_folder, get_watched_folders, update_watched_folder
 
     folder = get_watched_folder(folder_id)
     if not folder:
@@ -313,7 +316,8 @@ def update_folder(folder_id):
 
     data = request.get_json(silent=True) or {}
 
-    path = data.get("path", folder["path"]).strip()
+    old_path = folder["path"]
+    path = (data.get("path") or old_path).strip()
     label = data.get("label", folder.get("label", ""))
     media_type = data.get("media_type", folder.get("media_type", "auto"))
     enabled = data.get("enabled", bool(folder.get("enabled", 1)))
@@ -321,7 +325,7 @@ def update_folder(folder_id):
     if media_type not in ("auto", "tv", "movie"):
         return jsonify({"error": "media_type must be one of: auto, tv, movie"}), 400
 
-    if path != folder["path"]:
+    if path != old_path:
         err = _validate_watched_folder_path(path)
         if err is not None:
             return jsonify({"error": err}), 400
@@ -329,8 +333,21 @@ def update_folder(folder_id):
         # path becomes the canonical target.
         path = os.path.realpath(path)
 
+    moved = path != old_path
+    if moved and any(
+        f.get("path") == path and f.get("id") != folder_id
+        for f in get_watched_folders(enabled_only=False) or []
+    ):
+        return jsonify({"error": f"Another watched folder already uses {path}"}), 409
+
     try:
-        upsert_watched_folder(path=path, label=label, media_type=media_type, enabled=enabled)
+        # In place by id: the path-keyed upsert would add a second folder.
+        if not update_watched_folder(
+            folder_id, path=path, label=label, media_type=media_type, enabled=1 if enabled else 0
+        ):
+            return jsonify({"error": "Folder not found"}), 404
+        if moved:
+            _remove_titles_left_by(old_path)
         updated = get_watched_folder(folder_id)
         _hot_reload_standalone()
         return jsonify(updated)
@@ -379,7 +396,7 @@ def delete_folder(folder_id):
 
     try:
         # Titles first: if this fails the folder is still there to retry.
-        _remove_titles_left_by(folder_id, folder["path"])
+        _remove_titles_left_by(folder["path"], exclude_id=folder_id)
         delete_watched_folder(folder_id)
         _hot_reload_standalone()
         return jsonify({"success": True})

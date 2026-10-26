@@ -198,7 +198,7 @@ class TestUpdateFolder:
         updated = {**existing, "label": "Updated"}
         with (
             patch(f"{DB_STANDALONE}.get_watched_folder", side_effect=[existing, updated]),
-            patch(f"{DB_STANDALONE}.upsert_watched_folder"),
+            patch(f"{DB_STANDALONE}.update_watched_folder", return_value=True),
         ):
             resp = client.put("/api/v1/standalone/folders/1", json={"label": "Updated"})
         assert resp.status_code == 200
@@ -583,7 +583,7 @@ class TestHotReloadOnFolderCRUD:
         updated = {**existing, "label": "Updated"}
         with (
             patch(f"{DB_STANDALONE}.get_watched_folder", side_effect=[existing, updated]),
-            patch(f"{DB_STANDALONE}.upsert_watched_folder"),
+            patch(f"{DB_STANDALONE}.update_watched_folder", return_value=True),
             patch(f"{ROUTES_FOLDERS}._hot_reload_standalone") as mock_reload,
         ):
             resp = client.put("/api/v1/standalone/folders/1", json={"label": "Updated"})
