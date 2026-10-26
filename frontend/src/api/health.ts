@@ -8,9 +8,18 @@ export async function getHealth(): Promise<HealthStatus> {
   return data
 }
 
-export async function getUpdateInfo(): Promise<UpdateInfo> {
-  const { data } = await api.get('/update')
-  return data
+/**
+ * The update check is a best-effort background poll that the backend
+ * rate-limits, so a 429 is an expected answer, not an error: resolve it as
+ * "no information" (null) instead of rejecting, so React Query neither
+ * retries nor surfaces it as a failed query.
+ */
+export async function getUpdateInfo(): Promise<UpdateInfo | null> {
+  const response = await api.get<UpdateInfo>('/update', {
+    validateStatus: (status) => (status >= 200 && status < 300) || status === 429,
+  })
+  if (response.status === 429) return null
+  return response.data
 }
 
 export async function getStats(): Promise<Stats> {
