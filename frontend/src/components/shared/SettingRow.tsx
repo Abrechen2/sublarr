@@ -1,4 +1,5 @@
 import type { ReactNode } from 'react'
+import { useTranslation } from 'react-i18next'
 import { InfoTooltip } from './InfoTooltip'
 import { useAdvancedSettings } from '@/contexts/AdvancedSettingsContext'
 
@@ -22,6 +23,7 @@ export function SettingRow({
   className = '',
 }: SettingRowProps) {
   const { showAdvanced } = useAdvancedSettings()
+  const { t } = useTranslation('settings')
 
   if (advanced && !showAdvanced) return null
 
@@ -47,7 +49,7 @@ export function SettingRow({
               className="text-[10px] px-1.5 py-0.5 rounded font-medium"
               style={{ backgroundColor: 'color-mix(in srgb, var(--warning) 12%, transparent)', color: 'var(--warning)' }}
             >
-              Erweitert
+              {t('advanced_badge')}
             </span>
           )}
         </div>
