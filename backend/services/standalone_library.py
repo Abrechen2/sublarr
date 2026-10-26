@@ -312,7 +312,7 @@ def _standalone_roots(*, required: bool) -> list[str] | None:
     return [root for root in roots if root]
 
 
-def _lexically_under(path: str, root: str) -> bool:
+def lexically_under(path: str, root: str) -> bool:
     """``path`` as written (no symlinks resolved) lies under ``root``."""
     if not path or not root:
         return False
@@ -358,7 +358,7 @@ def wanted_item_path_refusal(item: dict | None) -> str | None:
             # series folder - or a Sonarr/Radarr file in the same tree. Only
             # the boundary both share is enforced: the resolved file must lie
             # inside media_path (what the arr paths are held to anyway).
-            if not any(_lexically_under(path, root) for root in roots):
+            if not any(lexically_under(path, root) for root in roots):
                 return None
             allowed = in_media_root(path)
     if allowed:

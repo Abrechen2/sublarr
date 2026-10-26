@@ -105,6 +105,23 @@ def _hot_reload_standalone() -> None:
         logger.warning("Standalone manager hot-reload failed: %s", exc)
 
 
+def _remove_titles_left_by(folder_id: int, old_path: str) -> None:
+    """Delete the titles under ``old_path`` no other watched folder covers.
+
+    The scanner cannot do this later: with no watched folder left it skips
+    every cleanup (that guard keeps a mount hiccup from wiping the library).
+    """
+    from db.standalone import get_watched_folders
+    from services.standalone_manager import remove_titles_left_by_folder
+
+    remaining = [
+        f.get("path") or ""
+        for f in get_watched_folders(enabled_only=False) or []
+        if f.get("id") != folder_id
+    ]
+    remove_titles_left_by_folder(old_path, remaining)
+
+
 @bp.route("/folders", methods=["GET"])
 def list_folders():
     """List all watched folders (enabled_only=False for settings display).
@@ -361,6 +378,8 @@ def delete_folder(folder_id):
         return jsonify({"error": "Folder not found"}), 404
 
     try:
+        # Titles first: if this fails the folder is still there to retry.
+        _remove_titles_left_by(folder_id, folder["path"])
         delete_watched_folder(folder_id)
         _hot_reload_standalone()
         return jsonify({"success": True})

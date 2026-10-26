@@ -126,6 +126,38 @@ def delete_series_cascade(series_id: int) -> None:
     delete_standalone_series(series_id)
 
 
+def remove_titles_left_by_folder(old_root: str, remaining_roots: list[str]) -> dict:
+    """Delete the titles under ``old_root`` that no remaining watched folder covers.
+
+    Called when a watched folder is removed or moved to another path. Each
+    title goes through the same cascade as a manual title delete (wanted
+    rows, episode ids, owner-key rows). Paths compare by component, so
+    ``/media/A`` never claims ``/media/AB``. Nothing on disk is touched.
+    """
+    from db.standalone import get_standalone_movies, get_standalone_series
+    from services.standalone_library import lexically_under
+
+    def orphaned(path: str) -> bool:
+        return lexically_under(path, old_root) and not any(
+            lexically_under(path, root) for root in remaining_roots if root
+        )
+
+    series_ids = [s["id"] for s in get_standalone_series() or [] if orphaned(s["folder_path"])]
+    movie_ids = [m["id"] for m in get_standalone_movies() or [] if orphaned(m["file_path"])]
+    for sid in series_ids:
+        delete_series_cascade(sid)
+    for mid in movie_ids:
+        delete_movie_cascade(mid)
+    if series_ids or movie_ids:
+        logger.info(
+            "Watched folder %s removed: deleted %d series and %d movies",
+            old_root,
+            len(series_ids),
+            len(movie_ids),
+        )
+    return {"series_removed": len(series_ids), "movies_removed": len(movie_ids)}
+
+
 def scan_series_or_fallback(series_id: int) -> dict | None:
     """Re-scan a single standalone series via StandaloneScanner.
 
