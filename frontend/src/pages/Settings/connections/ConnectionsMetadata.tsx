@@ -17,6 +17,13 @@ import { SettingsSection } from '@/components/settings/SettingsSection'
 
 // ─── MetadataApiKeysSection ──────────────────────────────────────────────────
 
+// Key rows stack label above the controls below md so the input can shrink to the
+// available width; from md up they keep the label left, 260 px input right layout.
+const KEY_ROW_CLASS =
+  'flex flex-col items-stretch gap-2 py-3 md:flex-row md:items-center md:justify-between'
+const KEY_CONTROLS_CLASS = 'flex min-w-0 items-center gap-1.5'
+const KEY_INPUT_CLASS = 'focus:outline-none min-w-0 w-full md:w-[260px]'
+
 function MetadataApiKeysSection() {
   const { t } = useTranslation('common')
   const { data: configData } = useConfig()
@@ -70,7 +77,7 @@ function MetadataApiKeysSection() {
 
       {/* TMDB */}
       <div
-        className="flex items-center justify-between py-3"
+        className={KEY_ROW_CLASS}
         style={{ borderBottom: '1px solid rgba(42,46,56,0.5)' }}
       >
         <label
@@ -80,7 +87,7 @@ function MetadataApiKeysSection() {
         >
           {t('settings:connections_metadata.tmdb_api_key')}
         </label>
-        <div className="flex items-center gap-1.5">
+        <div className={KEY_CONTROLS_CLASS}>
           <input
             id="tmdb-api-key"
             data-testid="metadata-tmdb-api-key"
@@ -88,13 +95,13 @@ function MetadataApiKeysSection() {
             value={tmdbKey}
             onChange={(e) => setTmdbKey(e.target.value)}
             placeholder={t('settings:connections_metadata.tmdb_placeholder')}
-            className="focus:outline-none"
-            style={{ ...inputStyle, width: '260px' }}
+            className={KEY_INPUT_CLASS}
+            style={inputStyle}
           />
           <button
             type="button"
             onClick={() => setShowTmdb((v) => !v)}
-            className="p-1.5 rounded"
+            className="p-1.5 rounded shrink-0"
             style={{
               border: '1px solid var(--border)',
               color: 'var(--text-muted)',
@@ -108,7 +115,7 @@ function MetadataApiKeysSection() {
 
       {/* TVDB API Key */}
       <div
-        className="flex items-center justify-between py-3"
+        className={KEY_ROW_CLASS}
         style={{ borderBottom: '1px solid rgba(42,46,56,0.5)' }}
       >
         <label
@@ -118,7 +125,7 @@ function MetadataApiKeysSection() {
         >
           {t('settings:connections_metadata.tvdb_api_key')}
         </label>
-        <div className="flex items-center gap-1.5">
+        <div className={KEY_CONTROLS_CLASS}>
           <input
             id="tvdb-api-key"
             data-testid="metadata-tvdb-api-key"
@@ -126,13 +133,13 @@ function MetadataApiKeysSection() {
             value={tvdbKey}
             onChange={(e) => setTvdbKey(e.target.value)}
             placeholder={t('settings:connections_metadata.tvdb_placeholder')}
-            className="focus:outline-none"
-            style={{ ...inputStyle, width: '260px' }}
+            className={KEY_INPUT_CLASS}
+            style={inputStyle}
           />
           <button
             type="button"
             onClick={() => setShowTvdb((v) => !v)}
-            className="p-1.5 rounded"
+            className="p-1.5 rounded shrink-0"
             style={{
               border: '1px solid var(--border)',
               color: 'var(--text-muted)',
@@ -146,7 +153,7 @@ function MetadataApiKeysSection() {
 
       {/* TVDB PIN */}
       <div
-        className="flex items-center justify-between py-3"
+        className={KEY_ROW_CLASS}
         style={{ borderBottom: '1px solid rgba(42,46,56,0.5)' }}
       >
         <label
@@ -156,7 +163,7 @@ function MetadataApiKeysSection() {
         >
           {t('settings:connections_metadata.tvdb_pin')}
         </label>
-        <div className="flex items-center gap-1.5">
+        <div className={KEY_CONTROLS_CLASS}>
           <input
             id="tvdb-pin"
             data-testid="metadata-tvdb-pin"
@@ -164,13 +171,13 @@ function MetadataApiKeysSection() {
             value={tvdbPin}
             onChange={(e) => setTvdbPin(e.target.value)}
             placeholder={t('settings:connections_metadata.subscriber_pin')}
-            className="focus:outline-none"
-            style={{ ...inputStyle, width: '260px' }}
+            className={KEY_INPUT_CLASS}
+            style={inputStyle}
           />
           <button
             type="button"
             onClick={() => setShowPin((v) => !v)}
-            className="p-1.5 rounded"
+            className="p-1.5 rounded shrink-0"
             style={{
               border: '1px solid var(--border)',
               color: 'var(--text-muted)',
@@ -183,8 +190,8 @@ function MetadataApiKeysSection() {
       </div>
 
       {/* Metadata cache TTL */}
-      <div className="flex items-center justify-between py-3">
-        <div className="flex flex-col gap-0.5">
+      <div className="flex items-center justify-between gap-2 py-3">
+        <div className="flex min-w-0 flex-col gap-0.5">
           <label
             htmlFor="metadata-cache-ttl"
             className="text-[13px] font-medium"
