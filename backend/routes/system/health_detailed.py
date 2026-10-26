@@ -48,7 +48,10 @@ def health_detailed():
                 properties:
                   status:
                     type: string
-                    enum: [healthy, degraded]
+                    enum: [healthy, degraded, unhealthy]
+                    description: unhealthy when the schema is not at the
+                      migration head (matches /health), degraded for any
+                      other failing subsystem
                   subsystems:
                     type: object
                     additionalProperties:
@@ -56,7 +59,7 @@ def health_detailed():
         401:
           description: Unauthorized (API key required)
         503:
-          description: One or more subsystems degraded
+          description: One or more subsystems degraded or unhealthy
     """
     from config import get_settings
     from database_health import get_health_report
@@ -403,9 +406,16 @@ def health_detailed():
         subsystems["scheduler"] = {"healthy": True, "message": str(exc)}
 
     status_code = 200 if overall_healthy else 503
+    if overall_healthy:
+        overall_status = "healthy"
+    elif migration_problem is not None:
+        # Same hard fault /health reports as unhealthy: a stale schema.
+        overall_status = "unhealthy"
+    else:
+        overall_status = "degraded"
     return jsonify(
         {
-            "status": "healthy" if overall_healthy else "degraded",
+            "status": overall_status,
             "subsystems": subsystems,
         }
     ), status_code

@@ -295,6 +295,16 @@ function buildHealthRows(
     })
   }
 
+  const migrations = subsystems.database_migrations
+  if (migrations) {
+    rows.push({
+      key: 'database_migrations',
+      label: t('sidebar.healthMigrations'),
+      healthy: migrations.healthy,
+      detail: migrations.message ?? '',
+    })
+  }
+
   for (const diskKey of ['disk_config', 'disk_media'] as const) {
     const disk = subsystems[diskKey]
     if (disk && disk.percent !== undefined) {
@@ -363,21 +373,22 @@ function SystemHealthPanel() {
   }
 
   const rows = buildHealthRows(detailed.subsystems, t)
+  const unhealthy = detailed.status === 'unhealthy'
   const degraded = detailed.status !== 'healthy'
 
   return (
     <Panel testId="panel-system-health" title={t('sidebar.systemHealth')}>
       {degraded && (
         <div
-          data-testid="system-health-degraded"
+          data-testid={unhealthy ? 'system-health-unhealthy' : 'system-health-degraded'}
           style={{
             fontSize: '10px',
             fontWeight: 600,
-            color: 'var(--warning)',
+            color: unhealthy ? 'var(--error)' : 'var(--warning)',
             marginBottom: '6px',
           }}
         >
-          {t('sidebar.healthDegraded')}
+          {unhealthy ? t('sidebar.healthUnhealthy') : t('sidebar.healthDegraded')}
         </div>
       )}
       {rows.map((row) => (

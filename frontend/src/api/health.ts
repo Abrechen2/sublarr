@@ -58,12 +58,13 @@ export interface DetailedSubsystem {
 }
 
 export interface DetailedHealth {
-  status: 'healthy' | 'degraded'
+  /** 'unhealthy' when the schema is not at the migration head (as on /health). */
+  status: 'healthy' | 'degraded' | 'unhealthy'
   subsystems: Record<string, DetailedSubsystem>
 }
 
 export async function getDetailedHealth(): Promise<DetailedHealth> {
-  // 503 is a valid, fully-populated "degraded" response — don't treat it as
+  // 503 is a valid, fully-populated "degraded"/"unhealthy" response — don't treat it as
   // an error or the dev-mock interceptor would swallow the real payload.
   const { data } = await api.get('/health/detailed', {
     validateStatus: (s) => s === 200 || s === 503,

@@ -149,3 +149,11 @@ def test_health_detailed_flags_migration_failure(failed_migration_client):
     assert sub["message"] == _FAILED.reason
     assert sub["current"] == "oldrev123"
     assert sub["head"] == "newrev456"
+
+
+def test_health_detailed_status_matches_health_when_migration_failed(failed_migration_client):
+    """A schema off head is a hard fault: both endpoints say "unhealthy"."""
+    detailed = failed_migration_client.get("/api/v1/health/detailed").get_json()
+    liveness = failed_migration_client.get("/api/v1/health").get_json()
+    assert detailed["status"] == "unhealthy"
+    assert liveness["status"] == "unhealthy"

@@ -172,6 +172,8 @@
     "healthDiskMedia": "Speicher (Medien)",
     "healthFree": "frei",
     "healthConnected": "Verbunden",
-    "healthDegraded": "Einige Subsysteme sind beeinträchtigt"
+    "healthDegraded": "Einige Subsysteme sind beeinträchtigt",
+    "healthUnhealthy": "Sublarr ist nicht betriebsbereit: Die Datenbank-Migration ist unvollständig",
+    "healthMigrations": "Datenbank-Migration"
   }
 }

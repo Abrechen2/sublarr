@@ -4,6 +4,20 @@ import { BrowserRouter } from 'react-router-dom'
 import React from 'react'
 import { DashboardSidebar } from '../DashboardSidebar'
 
+const healthyDetailed = {
+  status: 'healthy',
+  subsystems: {
+    database: { healthy: true, backend: 'sqlite', size_bytes: 1048576, wal_mode: true },
+    disk_media: { healthy: true, percent: 42, free_bytes: 107374182400 },
+    arr_connectivity: {
+      healthy: true,
+      sonarr: [{ instance_name: 'Default', healthy: true, message: 'ok' }],
+      radarr: [],
+    },
+  },
+}
+const detailedHealth = vi.hoisted(() => ({ data: undefined as unknown }))
+
 const mockRefresh = vi.fn()
 const mockBatch = vi.fn()
 
@@ -23,21 +37,7 @@ vi.mock('@/hooks/useApi', () => ({
     },
     isLoading: false,
   }),
-  useDetailedHealth: () => ({
-    data: {
-      status: 'healthy',
-      subsystems: {
-        database: { healthy: true, backend: 'sqlite', size_bytes: 1048576, wal_mode: true },
-        disk_media: { healthy: true, percent: 42, free_bytes: 107374182400 },
-        arr_connectivity: {
-          healthy: true,
-          sonarr: [{ instance_name: 'Default', healthy: true, message: 'ok' }],
-          radarr: [],
-        },
-      },
-    },
-    isLoading: false,
-  }),
+  useDetailedHealth: () => ({ data: detailedHealth.data, isLoading: false }),
   useCleanupStats: () => ({
     data: { total_files: 8200, duplicate_files: 12, potential_savings_bytes: 52428800 },
     isLoading: false,
@@ -59,6 +59,7 @@ function wrap(ui: React.ReactElement) {
 }
 
 beforeEach(() => {
+  detailedHealth.data = healthyDetailed
   mockRefresh.mockClear()
   mockBatch.mockClear()
 })
@@ -136,5 +137,32 @@ describe('DashboardSidebar', () => {
     expect(screen.getByTestId('health-dot-disk_media')).toHaveAttribute('data-healthy', 'true')
     expect(screen.getByTestId('health-dot-sonarr-Default')).toHaveAttribute('data-healthy', 'true')
     expect(screen.queryByTestId('system-health-degraded')).not.toBeInTheDocument()
+  })
+
+  it('shows an unhealthy banner and the migration row when the schema is off head', () => {
+    detailedHealth.data = {
+      status: 'unhealthy',
+      subsystems: {
+        ...healthyDetailed.subsystems,
+        database_migrations: {
+          healthy: false,
+          message: 'database migration failed: at old, expected new',
+        },
+      },
+    }
+    wrap(<DashboardSidebar />)
+    expect(screen.getByTestId('system-health-unhealthy')).toHaveTextContent('sidebar.healthUnhealthy')
+    expect(screen.queryByTestId('system-health-degraded')).not.toBeInTheDocument()
+    expect(screen.getByTestId('health-dot-database_migrations')).toHaveAttribute(
+      'data-healthy',
+      'false',
+    )
+  })
+
+  it('keeps the degraded banner for a degraded status', () => {
+    detailedHealth.data = { ...healthyDetailed, status: 'degraded' }
+    wrap(<DashboardSidebar />)
+    expect(screen.getByTestId('system-health-degraded')).toBeInTheDocument()
+    expect(screen.queryByTestId('system-health-unhealthy')).not.toBeInTheDocument()
   })
 })
