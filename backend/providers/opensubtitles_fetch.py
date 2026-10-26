@@ -207,8 +207,15 @@ class _OpenSubtitlesFetchMixin:
                             and feat_episode == query.absolute_episode
                         ):
                             matches.add("episode")
+                        # The episode title stands in for the series only when the
+                        # API names no parent at all; next to another parent it is
+                        # just the episode's name and proves nothing.
+                        no_parent = not (
+                            feature.get("parent_title") or feature.get("parent_imdb_id")
+                        )
                         if identity == "match" or (
                             not identity
+                            and no_parent
                             and query.series_title
                             and query.series_title.lower()
                             in (feature.get("title", "") or "").lower()

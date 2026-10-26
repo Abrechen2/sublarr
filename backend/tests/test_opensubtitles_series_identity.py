@@ -103,3 +103,15 @@ class TestSeriesIdentity:
             file_hash="0123456789abcdef",
         )
         assert _names(results) == ["Other.S01E01.srt"]
+
+
+class TestEpisodeTitleIsNoSeriesProof:
+    def test_an_episode_title_naming_the_series_earns_no_series_match(self):
+        # The parent names another series; only the episode's own title
+        # carries the query's series name. That proves nothing.
+        results = _search(
+            [_item("Other.S01E01.srt", parent_title="Other Series", title="Harbor Tales")],
+            series_title="Harbor Tales",
+        )
+        assert _names(results) == ["Other.S01E01.srt"]
+        assert "series" not in results[0].matches
