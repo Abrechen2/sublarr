@@ -68,10 +68,11 @@ _BARE_RE = re.compile(
     re.IGNORECASE,
 )
 # A recap between two episodes: "Show - 11.5". It is no regular episode at all.
-# A file name may end right after it ("Show - 11.5.srt").
+# Right before a file extension only ".5" counts ("Show - 11.5.srt"): there
+# "Show - 2.0.srt" is more likely a subtitle version than a recap.
 _FRACTION_RE = re.compile(
-    r"(?:\s-\s|_-_)(\d{1,4}\.\d)"
-    r"(?=$|[\s_\[\](),-]|\.(?:srt|ass|ssa|vtt|sub|idx|sup|mkv|mp4|avi|zip|rar|7z)$)",
+    r"(?:\s-\s|_-_)(\d{1,4}\.\d)(?=$|[\s_\[\](),-])"
+    r"|(?:\s-\s|_-_)(\d{1,4}\.5)(?=\.(?:srt|ass|ssa|vtt|sub|idx|sup|mkv|mp4|avi|zip|rar|7z)$)",
     re.IGNORECASE,
 )
 
@@ -140,7 +141,7 @@ def parse_claims(text: str) -> _Claims:
     rest = _SEASON_RE.sub(" ", rest)
     claims.vague_season = bool(_VAGUE_SEASON_RE.search(rest))
     rest = _BARE_RANGE_RE.sub(lambda m: _take_range(m, claims.bare), rest)
-    claims.fractions.update(m.group(1) for m in _FRACTION_RE.finditer(rest))
+    claims.fractions.update(m.group(1) or m.group(2) for m in _FRACTION_RE.finditer(rest))
     claims.bare.update(
         number
         for number in (int(m.group(1)) for m in _BARE_RE.finditer(rest))

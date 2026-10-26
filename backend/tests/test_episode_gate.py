@@ -394,3 +394,9 @@ class TestCodexReviewOfRc5:
 def test_a_recap_file_name_with_its_extension_is_not_the_episode(ext):
     result = _result(filename=f"Harbor Tales - 11.5.{ext}", matches={"series", "episode"})
     assert "11.5" in episode_gate_reason(result, _query(season=1, episode=11))
+
+
+@pytest.mark.parametrize("name", ["Show - 2.0.srt", "Show - 1.2.srt"])
+def test_a_version_number_before_the_extension_is_no_recap(name):
+    result = _result(filename=name, matches={"series", "episode"})
+    assert episode_gate_reason(result, _query(season=1, episode=2)) == ""
