@@ -137,6 +137,62 @@ def delete_series_cascade(series_id: int) -> None:
     delete_standalone_series(series_id)
 
 
+# Rows whose standalone owner no longer exists. One statement per table, plain
+# NOT EXISTS so SQLite and PostgreSQL run the same SQL. Rows without a
+# standalone id (Sonarr/Radarr) never match. Episodes go before health
+# findings, so the findings of an orphaned episode go in the same sweep.
+# Health findings key a standalone episode by its wire id (-id).
+_ORPHAN_SWEEPS = (
+    (
+        "wanted_items",
+        "DELETE FROM wanted_items WHERE "
+        "(standalone_series_id IS NOT NULL AND NOT EXISTS "
+        "(SELECT 1 FROM standalone_series s WHERE s.id = wanted_items.standalone_series_id)) "
+        "OR (standalone_movie_id IS NOT NULL AND NOT EXISTS "
+        "(SELECT 1 FROM standalone_movies m WHERE m.id = wanted_items.standalone_movie_id))",
+    ),
+    (
+        "standalone_episodes",
+        "DELETE FROM standalone_episodes WHERE NOT EXISTS "
+        "(SELECT 1 FROM standalone_series s WHERE s.id = standalone_episodes.standalone_series_id)",
+    ),
+    (
+        "subtitle_health_findings",
+        "DELETE FROM subtitle_health_findings WHERE episode_id < 0 AND NOT EXISTS "
+        "(SELECT 1 FROM standalone_episodes e WHERE e.id = -subtitle_health_findings.episode_id)",
+    ),
+)
+
+
+def sweep_orphan_standalone_rows() -> dict:
+    """Delete standalone rows whose series, movie or episode no longer exists.
+
+    The safety net behind the title cascades: a scan that writes a title's
+    rows while the title is deleted under it (a watched folder removed
+    mid-scan) leaves rows no cascade reaches any more. Run after each folder
+    cleanup and at the end of each scan. Goes by the DB alone, never by the
+    disk, so an unreachable mount cannot trigger it. Returns removed counts
+    per table.
+    """
+    from db import get_db
+
+    db = get_db()
+    removed: dict[str, int] = {}
+    try:
+        for table, sql in _ORPHAN_SWEEPS:
+            removed[table] = db.execute(text(sql)).rowcount or 0
+        db.commit()
+    except Exception:
+        db.rollback()
+        raise
+    if any(removed.values()):
+        logger.info(
+            "Standalone cleanup: removed orphaned rows (%s)",
+            ", ".join(f"{t}={n}" for t, n in removed.items() if n),
+        )
+    return removed
+
+
 def remove_titles_left_by_folder(old_root: str, remaining_roots: list[str]) -> dict:
     """Delete the titles ``old_root`` covered that no remaining watched folder covers.
 
@@ -220,6 +276,9 @@ def remove_titles_left_by_folder(old_root: str, remaining_roots: list[str]) -> d
         delete_series_cascade(sid)
     for mid in movie_ids:
         delete_movie_cascade(mid)
+    # Rows a running scan wrote for a title deleted under it (incl. one an
+    # earlier cleanup deleted) have no title left to cascade from.
+    sweep_orphan_standalone_rows()
     if series_ids or movie_ids:
         logger.info(
             "Watched folder %s removed: deleted %d series and %d movies",

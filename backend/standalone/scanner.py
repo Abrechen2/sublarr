@@ -241,6 +241,8 @@ class StandaloneScanner(_StandaloneProcessMixin):
             self._cleanup_stale_wanted()
             # Cleanup: remove episode ids whose files no longer exist
             self._cleanup_stale_episodes()
+            # Cleanup: rows of titles deleted while this pass ran
+            self._sweep_orphans()
 
             duration = round(time.time() - start, 1)
             summary = {
@@ -561,6 +563,40 @@ class StandaloneScanner(_StandaloneProcessMixin):
             logger.debug("Watched folder %s lookup failed: %s", folder_id, e)
             return False
         return row is None or row[0] != folder.get("path")
+
+    @staticmethod
+    def _title_exists(column: str, title_id: int) -> bool:
+        """Whether the standalone series/movie row still exists.
+
+        ``column`` is ``standalone_series_id`` or ``standalone_movie_id``.
+        A folder delete can remove the title while this scan processes it;
+        its rows written afterwards would outlive it. Plain SQL (see
+        ``_folder_removed``). When the lookup fails the title counts as
+        there; the orphan sweep is the net for that case.
+        """
+        table = "standalone_series" if column == "standalone_series_id" else "standalone_movies"
+        try:
+            from db import get_db
+
+            row = (
+                get_db()
+                .execute(text(f"SELECT 1 FROM {table} WHERE id=:id"), {"id": int(title_id)})
+                .fetchone()
+            )
+        except Exception as e:
+            logger.debug("Standalone %s %s lookup failed: %s", table, title_id, e)
+            return True
+        return row is not None
+
+    def _sweep_orphans(self) -> None:
+        """Delete rows whose standalone title no longer exists (DB only)."""
+        try:
+            from services.standalone_manager import sweep_orphan_standalone_rows
+
+            sweep_orphan_standalone_rows()
+        except Exception as e:
+            logger.error("Standalone orphan sweep failed: %s", e)
+            self._recover_session()
 
     def _prune_removed_folder(self, folder_path: str) -> None:
         """Remove the titles this scan committed for a folder removed meanwhile."""

@@ -109,6 +109,13 @@ class _StandaloneProcessMixin:
             )
             resolved_title = meta.get("title", display_title)
 
+        # A folder delete may have removed the series meanwhile: write
+        # nothing more for it (its rows would outlive it).
+        owner_col = "standalone_series_id"
+        if not self._title_exists(owner_col, series_id):
+            logger.info("Standalone series %s was deleted during its scan; skipped", series_id)
+            return 0
+
         # Stable episode ids (docs/specs/standalone-ids.md) for every file of
         # the group, wanted or not.
         self._record_episode_ids(series_id, files)
@@ -118,6 +125,9 @@ class _StandaloneProcessMixin:
         target_languages = self._get_target_languages({"standalone_series_id": series_id})
 
         for f in files:
+            if not self._title_exists(owner_col, series_id):
+                logger.info("Standalone series %s was deleted during its scan", series_id)
+                break
             file_path = f["file_path"]
             season = f.get("season")
             episode = f.get("episode")
@@ -233,6 +243,10 @@ class _StandaloneProcessMixin:
         # Check for missing target subtitles
         wanted_added = 0
         target_languages = self._get_target_languages({"standalone_movie_id": movie_id})
+        if not self._title_exists("standalone_movie_id", movie_id):
+            # Deleted by a folder delete meanwhile: write nothing for it.
+            logger.info("Standalone movie %s was deleted during its scan; skipped", movie_id)
+            return 0
 
         for target_lang in target_languages:
             existing = self._check_existing_subtitle(file_path, target_lang)
