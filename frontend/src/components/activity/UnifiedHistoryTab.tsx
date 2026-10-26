@@ -27,7 +27,7 @@ export function UnifiedHistoryTab() {
   return (
     <div>
       {/* Sub-filter pills */}
-      <div style={{ display: 'flex', gap: '6px', marginBottom: '16px' }}>
+      <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px', marginBottom: '16px' }}>
         {pills.map((p) => (
           <button
             key={p.id}

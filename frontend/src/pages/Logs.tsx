@@ -139,7 +139,7 @@ export function LogsPage() {
         actions={
           <>
           {/* Level Filter */}
-          <div className="flex gap-1">
+          <div className="flex flex-wrap gap-1">
             {LOG_LEVELS.map((l) => {
               const isActive = (l === 'ALL' && !level) || level === l
               return (

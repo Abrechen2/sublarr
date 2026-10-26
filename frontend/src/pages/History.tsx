@@ -280,17 +280,17 @@ function SummaryCard({ icon: Icon, label, value, color }: {
 }) {
   return (
     <div
-      className="rounded-lg p-4 flex items-center gap-3"
+      className="min-w-0 rounded-lg p-3 sm:p-4 flex items-center gap-3"
       style={{ backgroundColor: 'var(--bg-surface)', border: '1px solid var(--border)' }}
     >
-      <div className="p-2 rounded-lg" style={{ backgroundColor: `${color}12` }}>
+      <div className="p-2 rounded-lg shrink-0" style={{ backgroundColor: `${color}12` }}>
         <Icon size={18} style={{ color }} />
       </div>
-      <div>
-        <div className="text-lg font-bold tabular-nums" style={{ fontFamily: 'var(--font-mono)' }}>
+      <div className="min-w-0">
+        <div className="text-lg font-bold tabular-nums truncate" style={{ fontFamily: 'var(--font-mono)' }}>
           {value}
         </div>
-        <div className="text-xs" style={{ color: 'var(--text-secondary)' }}>{label}</div>
+        <div className="text-xs truncate" style={{ color: 'var(--text-secondary)' }} title={label}>{label}</div>
       </div>
     </div>
   )

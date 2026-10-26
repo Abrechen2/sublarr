@@ -21,8 +21,9 @@ export function PageHeader({ title, subtitle, breadcrumb, actions, className }: 
       {breadcrumb && breadcrumb.length > 0 && (
         <Breadcrumb items={breadcrumb as BreadcrumbItem[]} />
       )}
-      <div className="flex items-start justify-between gap-4">
-        <div>
+      {/* Wraps on narrow screens: the actions drop below the title. */}
+      <div className="flex flex-wrap items-start justify-between gap-x-4 gap-y-3">
+        <div className="min-w-0">
           <h1
             className="text-[var(--text-primary)]"
             style={{ fontSize: '20px', fontWeight: 700, letterSpacing: '-0.5px' }}
@@ -39,7 +40,7 @@ export function PageHeader({ title, subtitle, breadcrumb, actions, className }: 
           )}
         </div>
         {actions && (
-          <div data-testid="page-header-actions" className="flex items-center gap-2 shrink-0">
+          <div data-testid="page-header-actions" className="flex flex-wrap items-center gap-2 shrink-0 max-w-full">
             {actions}
           </div>
         )}
