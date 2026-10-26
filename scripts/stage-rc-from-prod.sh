@@ -84,6 +84,25 @@ fi
 $SSH "docker exec $TARGET_PG psql -U $DBUSER -d $DB -q -c \"UPDATE config_entries SET value='' WHERE key='usage_stats_install_id';\"" \
   || echo "WARN: could not blank the cloned install id — RC will report as prod" >&2
 
+# --- Keep the first boot quiet -------------------------------------------
+# The config PUT below only lands once RC is up, but the boot itself reads
+# prod's wanted_scan_on_startup / wanted_search_on_startup and the live
+# intervals. Observed 2026-10-26: RC started a wanted search over prod's
+# backlog before the jobs were paused. Writing the quiet values into the
+# clone before the start closes that window; the PUT below stays as the
+# belt-and-braces path through the app.
+if [[ "${TRANSLATE:-}" == "1" ]]; then BOOT_AUTOMATION=True; else BOOT_AUTOMATION=False; fi
+BOOT_SQL="INSERT INTO config_entries (key, value, updated_at) VALUES
+  ('wanted_scan_on_startup','False',now()), ('wanted_search_on_startup','False',now()),
+  ('wanted_search_interval_hours','0',now()), ('upgrade_scan_interval_hours','0',now()),
+  ('wanted_scan_interval_hours','0',now()), ('wanted_auto_translate','False',now()),
+  ('subtitle_automation_enabled','$BOOT_AUTOMATION',now())
+  ON CONFLICT (key) DO UPDATE SET value=EXCLUDED.value, updated_at=EXCLUDED.updated_at;"
+$SSH "docker exec $TARGET_PG psql -U $DBUSER -d $DB -q -v ON_ERROR_STOP=1 -c \"$BOOT_SQL\"" || {
+  echo "REFUSE: could not write the quiet boot settings — leaving RC stopped" >&2
+  exit 8
+}
+
 $SSH "cp -a '$PROD_KEY' '$RC_KEY' && chmod 600 '$RC_KEY'"
 $SSH "cd $RC_COMPOSE_DIR && docker compose -p $RC_PROJECT up -d $RC_APP"
 
