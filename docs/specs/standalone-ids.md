@@ -245,7 +245,7 @@ primary key `(kind, standalone_id)`), Alembic revision
 `sa2_standalone_legacy_claims` (schema only, created when missing) and
 `create_all()` for untracked databases.
 
-### 4a. Title ids are never reused (`sa4_standalone_title_autoincrement`)
+### 4a. Title ids are never reused (`sa4_standalone_autoincrement`)
 
 The owner key of a title is its row id, so a reused id hands the new title
 whatever still lies under the old key. `standalone_series` and
@@ -254,7 +254,7 @@ whatever still lies under the old key. `standalone_series` and
 end-to-end test found both tables without it: a new title got a deleted
 title's id, profile, cleanup switch and glossary.
 
-Alembic revision `sa4_standalone_title_autoincrement` (revises
+Alembic revision `sa4_standalone_autoincrement` (revises
 `sa3_automation_queue_series_key`), function `ensure_title_autoincrement`
 (also registered in `db/untracked_data_repairs.py`; `create_all()` gives new
 databases the right tables, but never changes existing ones):

@@ -19,7 +19,7 @@ Idempotent: a table that already has AUTOINCREMENT is not rebuilt (only the
 seed is checked). PostgreSQL: no-op, its sequences never reuse ids.
 Untracked databases get the same function from ``db/untracked_data_repairs``.
 
-Revision ID: sa4_standalone_title_autoincrement
+Revision ID: sa4_standalone_autoincrement
 Revises: sa3_automation_queue_series_key
 """
 
@@ -30,7 +30,7 @@ import logging
 import sqlalchemy as sa
 from alembic import op
 
-revision = "sa4_standalone_title_autoincrement"
+revision = "sa4_standalone_autoincrement"
 down_revision = "sa3_automation_queue_series_key"
 branch_labels = None
 depends_on = None

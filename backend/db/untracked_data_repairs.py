@@ -74,7 +74,7 @@ def _sa1(conn) -> int:
 
 
 def _sa4(conn) -> int:
-    from db.migrations.versions.sa4_standalone_title_autoincrement import (
+    from db.migrations.versions.sa4_standalone_autoincrement import (
         ensure_title_autoincrement,
     )
 
@@ -92,7 +92,7 @@ REPAIRS: list[tuple[str, Callable]] = [
     ("sa1_standalone_episodes", _sa1),
     # Schema rebuild rather than data, but create_all() cannot change an
     # existing table, so untracked installs only get it from here.
-    ("sa4_standalone_title_autoincrement", _sa4),
+    ("sa4_standalone_autoincrement", _sa4),
 ]
 
 

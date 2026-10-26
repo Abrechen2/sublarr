@@ -157,7 +157,7 @@ def test_tracked_database_upgrades_and_backfills(tmp_path, monkeypatch):
     with engine.connect() as conn:
         version = conn.execute(sa.text("SELECT version_num FROM alembic_version")).scalar()
     engine.dispose()
-    assert version == "sa4_standalone_title_autoincrement"
+    assert version == "sa4_standalone_autoincrement"
 
     # A second start changes nothing.
     _boot(path, monkeypatch)

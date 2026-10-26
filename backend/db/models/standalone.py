@@ -52,7 +52,7 @@ class StandaloneSeries(db.Model):
         Index("idx_standalone_series_anilist", "anilist_id"),
         # The id is the owner key (-id) of rows in other tables; SQLite must
         # never hand a deleted series' id to a new one (migration
-        # sa4_standalone_title_autoincrement rebuilds existing tables).
+        # sa4_standalone_autoincrement rebuilds existing tables).
         {"sqlite_autoincrement": True},
     )
 

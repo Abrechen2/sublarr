@@ -1,4 +1,4 @@
-"""sa4_standalone_title_autoincrement: existing SQLite tables stop reusing ids.
+"""sa4_standalone_autoincrement: existing SQLite tables stop reusing ids.
 
 ``standalone_series`` / ``standalone_movies`` were created without
 AUTOINCREMENT, so SQLite handed a deleted title's id to the next new one and
@@ -203,7 +203,7 @@ def _boot(db_path, monkeypatch):
 
 
 def test_rebuild_is_idempotent_and_keeps_rows(tmp_path):
-    from db.migrations.versions.sa4_standalone_title_autoincrement import (
+    from db.migrations.versions.sa4_standalone_autoincrement import (
         ensure_title_autoincrement,
     )
 
@@ -223,7 +223,7 @@ def test_rebuild_is_idempotent_and_keeps_rows(tmp_path):
 
 def test_seed_never_lowers_an_existing_sequence(tmp_path):
     import db.models  # noqa: F401
-    from db.migrations.versions.sa4_standalone_title_autoincrement import (
+    from db.migrations.versions.sa4_standalone_autoincrement import (
         ensure_title_autoincrement,
     )
     from extensions import db
@@ -249,7 +249,7 @@ def test_seed_never_lowers_an_existing_sequence(tmp_path):
 
 
 def test_postgresql_is_a_no_op():
-    from db.migrations.versions.sa4_standalone_title_autoincrement import (
+    from db.migrations.versions.sa4_standalone_autoincrement import (
         ensure_title_autoincrement,
     )
 
@@ -285,7 +285,7 @@ def test_tracked_database_upgrades(tmp_path, monkeypatch):
     with engine.connect() as conn:
         version = conn.execute(sa.text("SELECT version_num FROM alembic_version")).scalar()
     engine.dispose()
-    assert version == "sa4_standalone_title_autoincrement"
+    assert version == "sa4_standalone_autoincrement"
 
     _boot(path, monkeypatch)
     _assert_rebuilt(path)
