@@ -364,8 +364,9 @@ export function TranslationSettings() {
           backgroundColor: 'var(--error-bg)',
         }}
       >
-        <div className="flex items-start justify-between gap-4">
-          <div className="flex items-start gap-3">
+        {/* Below sm the button moves under the text instead of overflowing the card */}
+        <div className="flex flex-col items-start gap-3 sm:flex-row sm:justify-between sm:gap-4">
+          <div className="flex min-w-0 items-start gap-3">
             <AlertTriangle size={18} style={{ color: 'var(--error)', flexShrink: 0, marginTop: 1 }} />
             <div>
               <div className="font-semibold text-sm" style={{ color: 'var(--error)' }}>
