@@ -369,6 +369,11 @@ def _movie_known_to_sublarr(movie_id: int) -> bool:
                 return True
         except Exception:
             continue
+    if movie_id > 0:
+        # Movies have no local library table (unlike search_series), so a
+        # Radarr movie without any Sublarr row is recognised through the
+        # cached Radarr id->title map (empty when Radarr is not configured).
+        return movie_id in get_radarr_movie_titles()
     return False
 
 

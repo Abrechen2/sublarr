@@ -236,3 +236,49 @@ def test_delete_movie_drops_settings_row(client, sample_profiles_data):
     from db.models.core import MovieSettings
 
     assert MovieSettings.query.get(3333) is None
+
+
+def test_get_resolved_movie_known_to_radarr_only_returns_200(client, sample_profiles_data):
+    """A Radarr movie with no override/profile/wanted row resolves with inherited values."""
+    from unittest.mock import patch
+
+    with patch(
+        "routes.profiles_overrides.get_radarr_movie_titles",
+        return_value={4242: "Complete Movie"},
+    ):
+        resp = client.get("/api/v1/profiles-overrides/resolved/movie/4242")
+    assert resp.status_code == 200
+    data = resp.get_json()
+    assert data["scope"] == {"type": "movie", "id": 4242, "name": "Complete Movie"}
+    assert len(data["settings"]) == 16
+
+
+def test_get_resolved_movie_unknown_to_radarr_returns_404(client, sample_profiles_data):
+    from unittest.mock import patch
+
+    with patch(
+        "routes.profiles_overrides.get_radarr_movie_titles",
+        return_value={4242: "Complete Movie"},
+    ):
+        resp = client.get("/api/v1/profiles-overrides/resolved/movie/9999")
+    assert resp.status_code == 404
+
+
+def test_get_resolved_movie_without_radarr_keeps_404(client, sample_profiles_data):
+    from unittest.mock import patch
+
+    with patch("routes.profiles_overrides.get_radarr_movie_titles", return_value={}):
+        resp = client.get("/api/v1/profiles-overrides/resolved/movie/4242")
+    assert resp.status_code == 404
+
+
+def test_get_resolved_negative_movie_does_not_consult_radarr(client, sample_profiles_data):
+    from unittest.mock import patch
+
+    with patch(
+        "routes.profiles_overrides.get_radarr_movie_titles",
+        return_value={4242: "Complete Movie"},
+    ) as titles:
+        resp = client.get("/api/v1/profiles-overrides/resolved/movie/-4242")
+    assert resp.status_code == 404
+    titles.assert_not_called()
