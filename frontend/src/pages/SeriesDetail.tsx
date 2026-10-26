@@ -724,71 +724,77 @@ export function SeriesDetailPage() {
         </div>
       )}
 
-      {/* Column header row */}
-      <EpisodeGridHeader />
+      {/* Episode grid: fixed columns, so below md it scrolls sideways instead of widening the page.
+          Desktop keeps visible overflow so the row action dropdowns are not clipped. */}
+      <div className="min-w-0 max-md:overflow-x-auto" data-testid="episode-grid-scroll">
+        <div className="space-y-4 max-md:min-w-[640px]">
+          {/* Column header row */}
+          <EpisodeGridHeader />
 
-      {/* Episode list — individual cards matching mockup */}
-      <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-        {currentSeason !== null && currentEpisodes.length > 0 ? (
-          <SeasonGroup
-            season={currentSeason}
-            episodes={currentEpisodes}
-            targetLanguages={series.target_languages}
-            seriesId={seriesId}
-            isExtracting={extractProgress !== null}
-            onExtract={handleExtract}
-            expandedEp={expandedEp}
-            onSearch={handleSearch}
-            onInteractiveSearch={(ep) => setInteractiveEp({ id: ep.id, title: `${series.title} ${ep.title ? `– ${ep.title}` : ''}`.trim(), filePath: episodeFilePath(ep) })}
-            onHistory={handleHistory}
-            onTracks={handleTracks}
-            onClose={handleClose}
-            searchResults={expandedEp ? searchResults[expandedEp.id] ?? null : null}
-            searchLoading={episodeSearch.isPending}
-            historyEntries={expandedEp ? historyEntries[expandedEp.id] ?? [] : []}
-            historyLoading={expandedEp?.mode === 'history' && !(expandedEp.id in historyEntries)}
-            onProcess={handleProcess}
-            onPreviewSub={(path, videoPath) => {
-              setEditorFilePath(path)
-              setEditorVideoPath(videoPath)
-              setEditorMode('preview')
-            }}
-            onEditSub={(path, videoPath) => {
-              setEditorFilePath(path)
-              setEditorVideoPath(videoPath)
-              setEditorMode('edit')
-            }}
-            onCompare={handleCompare}
-            onCombine={handleCombine}
-            onSync={handleSync}
-            onAutoSync={handleAutoSync}
-            onVideoSync={handleVideoSync}
-            onSyncCompare={handleSyncCompare}
-            onHealthCheck={handleHealthCheck}
-            healthScores={healthScores}
-            onOpenEditor={(path) => { setEditorFilePath(path); setEditorMode('edit') }}
-            sidecarMap={sidecarMap}
-            onDeleteSidecar={handleDeleteSidecar}
-            onOpenCleanupModal={() => setShowCleanupModal(true)}
-            onPreview={handlePreview}
-            streamingEnabled={streamingEnabled ?? false}
-            onRefreshSidecars={() => queryClient.invalidateQueries({ queryKey: ['series-subtitles', seriesId] })}
-            t={t}
-            episodeWantedMap={episodeWantedMap}
-            onSkipEpisode={(episodeId) => {
-              const wantedId = episodeWantedMap.get(episodeId)
-              if (wantedId != null) updateWantedStatus.mutate({ itemId: wantedId, status: 'ignored' })
-            }}
-            onAcceptEpisode={(episodeId) => {
-              const wantedId = episodeWantedMap.get(episodeId)
-              if (wantedId != null) updateWantedStatus.mutate({ itemId: wantedId, status: 'ignored' })
-            }}
-          />
-        ) : seasonGroups.length === 0 ? (
-          <div className="p-8 text-center text-sm" style={{ color: 'var(--text-muted)' }}>
-            {t('series_detail.no_episodes')}
+          {/* Episode list — individual cards matching mockup */}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+            {currentSeason !== null && currentEpisodes.length > 0 ? (
+              <SeasonGroup
+                season={currentSeason}
+                episodes={currentEpisodes}
+                targetLanguages={series.target_languages}
+                seriesId={seriesId}
+                isExtracting={extractProgress !== null}
+                onExtract={handleExtract}
+                expandedEp={expandedEp}
+                onSearch={handleSearch}
+                onInteractiveSearch={(ep) => setInteractiveEp({ id: ep.id, title: `${series.title} ${ep.title ? `– ${ep.title}` : ''}`.trim(), filePath: episodeFilePath(ep) })}
+                onHistory={handleHistory}
+                onTracks={handleTracks}
+                onClose={handleClose}
+                searchResults={expandedEp ? searchResults[expandedEp.id] ?? null : null}
+                searchLoading={episodeSearch.isPending}
+                historyEntries={expandedEp ? historyEntries[expandedEp.id] ?? [] : []}
+                historyLoading={expandedEp?.mode === 'history' && !(expandedEp.id in historyEntries)}
+                onProcess={handleProcess}
+                onPreviewSub={(path, videoPath) => {
+                  setEditorFilePath(path)
+                  setEditorVideoPath(videoPath)
+                  setEditorMode('preview')
+                }}
+                onEditSub={(path, videoPath) => {
+                  setEditorFilePath(path)
+                  setEditorVideoPath(videoPath)
+                  setEditorMode('edit')
+                }}
+                onCompare={handleCompare}
+                onCombine={handleCombine}
+                onSync={handleSync}
+                onAutoSync={handleAutoSync}
+                onVideoSync={handleVideoSync}
+                onSyncCompare={handleSyncCompare}
+                onHealthCheck={handleHealthCheck}
+                healthScores={healthScores}
+                onOpenEditor={(path) => { setEditorFilePath(path); setEditorMode('edit') }}
+                sidecarMap={sidecarMap}
+                onDeleteSidecar={handleDeleteSidecar}
+                onOpenCleanupModal={() => setShowCleanupModal(true)}
+                onPreview={handlePreview}
+                streamingEnabled={streamingEnabled ?? false}
+                onRefreshSidecars={() => queryClient.invalidateQueries({ queryKey: ['series-subtitles', seriesId] })}
+                t={t}
+                episodeWantedMap={episodeWantedMap}
+                onSkipEpisode={(episodeId) => {
+                  const wantedId = episodeWantedMap.get(episodeId)
+                  if (wantedId != null) updateWantedStatus.mutate({ itemId: wantedId, status: 'ignored' })
+                }}
+                onAcceptEpisode={(episodeId) => {
+                  const wantedId = episodeWantedMap.get(episodeId)
+                  if (wantedId != null) updateWantedStatus.mutate({ itemId: wantedId, status: 'ignored' })
+                }}
+              />
+            ) : seasonGroups.length === 0 ? (
+              <div className="p-8 text-center text-sm" style={{ color: 'var(--text-muted)' }}>
+                {t('series_detail.no_episodes')}
+              </div>
+            ) : null}
           </div>
-        ) : null}
+        </div>
       </div>
 
       {/* Sidecar Cleanup Modal */}
