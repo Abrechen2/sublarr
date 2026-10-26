@@ -8,6 +8,7 @@ import os
 from services.scheduler.cancellation import abort_requested
 from services.subtitle_health import store
 from services.subtitle_health.apply import apply_fix
+from services.subtitle_health.episode_inputs import sonarr_episode_video_path
 from services.subtitle_health.scan import scan_episode
 from services.suspect_sidecars import is_suspect_sidecar
 from sonarr_client import get_sonarr_client
@@ -104,12 +105,12 @@ def _sweep_episode(ep_id: int, path: str | None, auto: bool) -> bool:
 
 
 def _sonarr_episodes(client):
-    """Yield ``(episode id, video path)`` for every Sonarr episode, lazily."""
+    """Yield ``(episode id, local video path)`` for every Sonarr episode, lazily."""
     for series in client.get_series() or []:
         sid = series.get("id")
         for ep in client.get_episodes(sid) or []:
             ep_id = ep.get("id")
-            yield ep_id, (client.get_episode_file_path(ep_id) if ep_id else None)
+            yield ep_id, sonarr_episode_video_path(client, ep_id)
 
 
 def _standalone_episodes():

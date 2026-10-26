@@ -13,6 +13,7 @@ import logging
 import os
 
 from events import emit_event
+from services.subtitle_health.episode_inputs import sonarr_episode_video_path
 from services.subtitle_health.scan import scan_episode
 from sonarr_client import get_sonarr_client
 
@@ -24,6 +25,7 @@ def _empty(series_id: int, error: str) -> dict:
         "series_id": series_id,
         "error": error,
         "episodes_scanned": 0,
+        "episodes_skipped": 0,
         "total_issues": 0,
         "by_type": {},
         "affected_episodes": 0,
@@ -57,11 +59,10 @@ def _episode_targets(series_id: int) -> list[tuple[int, str | None]] | dict:
             )
         return [(ep.wire_id, episode_path_in_series(ep.file_path, standalone_id)) for ep in files]
 
-    targets = []
-    for ep in client.get_episodes(series_id) or []:
-        ep_id = ep.get("id")
-        targets.append((ep_id, client.get_episode_file_path(ep_id) if ep_id else None))
-    return targets
+    return [
+        (ep.get("id"), sonarr_episode_video_path(client, ep.get("id")))
+        for ep in client.get_episodes(series_id) or []
+    ]
 
 
 def run_series_scan(series_id: int) -> dict:
@@ -74,11 +75,13 @@ def run_series_scan(series_id: int) -> dict:
     by_type: dict[str, int] = {}
     episode_rows: list[dict] = []
     scanned = 0
+    skipped = 0
     affected = 0
     target_languages = _target_languages()
 
     for idx, (ep_id, path) in enumerate(targets):
         if not path or not os.path.exists(path):
+            skipped += 1
             continue
         try:
             result = scan_episode(
@@ -104,9 +107,19 @@ def run_series_scan(series_id: int) -> dict:
             },
         )
 
+    if skipped and not scanned:
+        # Usually a missing path mapping: Sonarr's paths do not exist here.
+        logger.warning(
+            "subtitle_health: series %s scan found no video file on disk, "
+            "%d episode path(s) skipped — check the path mapping",
+            series_id,
+            skipped,
+        )
+
     return {
         "series_id": series_id,
         "episodes_scanned": scanned,
+        "episodes_skipped": skipped,
         "total_issues": sum(by_type.values()),
         "by_type": by_type,
         "affected_episodes": affected,

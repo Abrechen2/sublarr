@@ -130,3 +130,26 @@ def test_sweep_autofix_only_safe_actions(app_ctx):
         for c in fx.call_args_list
     }
     assert actions <= {"repair_escapes", "reencode"}
+
+
+def test_sweep_applies_path_mapping_to_sonarr_paths(app_ctx):
+    """Sonarr reports /tv/...; with /tv -> /media the sweep must open /media/..."""
+    client = MagicMock()
+    client.get_series.return_value = [{"id": 1}]
+    client.get_episodes.return_value = [{"id": 11}]
+    client.get_episode_file_path.return_value = "/tv/Show/e11.mkv"
+    with (
+        patch("config.get_settings", return_value=MagicMock(path_mapping="/tv=/media")),
+        patch("services.subtitle_health.sweep._sweep_enabled", return_value=True),
+        patch("services.subtitle_health.sweep._standalone_episodes", return_value=iter(())),
+        patch("services.subtitle_health.sweep.get_sonarr_client", return_value=client),
+        patch(
+            "services.subtitle_health.sweep.os.path.exists",
+            side_effect=lambda p: p.startswith("/media/"),
+        ),
+        patch("services.subtitle_health.sweep.scan_episode") as scan,
+        patch("services.subtitle_health.sweep._auto_fix_enabled", return_value=False),
+    ):
+        sweep.subtitle_health_sweep_tick()
+    assert scan.called, "the mapped path exists, so the episode must be scanned"
+    assert scan.call_args.kwargs["video_path"] == "/media/Show/e11.mkv"
