@@ -571,7 +571,7 @@ export function SeriesDetailPage() {
           aria-hidden="true"
         >
           <ArrowLeft size={14} />
-          Back to Library
+          {t('series_detail.back_to_library')}
         </button>
       </div>
 
@@ -685,8 +685,8 @@ export function SeriesDetailPage() {
 
       {/* Season summary bar + search button */}
       {currentSeason !== null && (
-        <div className="flex items-center gap-2">
-          <div className="flex-1">
+        <div className="flex flex-col sm:flex-row sm:items-center gap-2">
+          <div className="flex-1 min-w-0">
             <SeasonSummaryBar
               season={currentSeason}
               episodes={currentEpisodes}
@@ -694,7 +694,7 @@ export function SeriesDetailPage() {
             />
           </div>
           <button
-            className="flex-shrink-0 text-xs px-3 py-1.5 rounded"
+            className="flex-shrink-0 self-start sm:self-auto text-xs px-3 py-1.5 rounded"
             style={{
               backgroundColor: 'var(--bg-surface)',
               border: '1px solid var(--border)',

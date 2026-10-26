@@ -383,7 +383,23 @@
     "delete_subtitle_title": "Untertitel löschen",
     "also_blacklist": "Auch zur Sperrliste hinzufügen",
     "delete": "Löschen",
-    "video_sync_done": "Video-Sync abgeschlossen"
+    "video_sync_done": "Video-Sync abgeschlossen",
+    "hero_stats": {
+      "episodes": "Episoden",
+      "with_subs": "Mit Untertiteln",
+      "missing": "Fehlend",
+      "low_score": "Niedriger Score"
+    },
+    "format_preferred": "{{format}} bevorzugt",
+    "season_summary": {
+      "title_one": "Staffel {{number}} — {{count}} Episode",
+      "title_other": "Staffel {{number}} — {{count}} Episoden",
+      "aria_label": "Zusammenfassung Staffel {{number}}",
+      "ok": "{{count}} OK",
+      "low": "{{count}} niedrig",
+      "missing": "{{count}} fehlend",
+      "tooltip": "{{ok}} OK, {{low}} niedrig, {{missing}} fehlend"
+    }
   },
   "episode_ui": {
     "season_select_all": "Alle Episoden dieser Staffel auswählen",

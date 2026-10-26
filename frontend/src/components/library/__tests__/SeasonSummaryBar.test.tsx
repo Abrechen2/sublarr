@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest'
 import { render, screen } from '@testing-library/react'
+import i18n from '@/i18n'
 import { SeasonSummaryBar } from '../SeasonSummaryBar'
 import type { EpisodeInfo } from '@/lib/types'
 
@@ -61,6 +62,32 @@ describe('SeasonSummaryBar', () => {
     // Only 1 file episode, which has a sub — should show 1 ok, no missing
     expect(screen.getByText('1 OK')).toBeInTheDocument()
     expect(screen.queryByText(/Missing/)).not.toBeInTheDocument()
+  })
+
+  it('pluralises the season title', () => {
+    const one = [makeEp({ subtitles: { de: 'ass' } })]
+    const { unmount } = render(<SeasonSummaryBar season={1} episodes={one} targetLanguages={['de']} />)
+    expect(screen.getByText('Season 1 — 1 episode')).toBeInTheDocument()
+    unmount()
+    const two = [makeEp({ id: 1 }), makeEp({ id: 2, episode: 2 })]
+    render(<SeasonSummaryBar season={2} episodes={two} targetLanguages={['de']} />)
+    expect(screen.getByText('Season 2 — 2 episodes')).toBeInTheDocument()
+  })
+
+  it('renders German copy when the UI language is German', async () => {
+    await i18n.changeLanguage('de')
+    try {
+      const episodes = [
+        makeEp({ id: 1, subtitles: {} }),
+        makeEp({ id: 2, episode: 2, subtitles: { de: 'ass' } }),
+      ]
+      render(<SeasonSummaryBar season={1} episodes={episodes} targetLanguages={['de']} />)
+      expect(screen.getByText('Staffel 1 — 2 Episoden')).toBeInTheDocument()
+      expect(screen.getByText('1 fehlend')).toBeInTheDocument()
+      expect(screen.getByLabelText('Zusammenfassung Staffel 1')).toBeInTheDocument()
+    } finally {
+      await i18n.changeLanguage('en')
+    }
   })
 
   it('does not show zero-count sections', () => {

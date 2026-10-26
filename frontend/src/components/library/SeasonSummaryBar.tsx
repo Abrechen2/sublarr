@@ -1,3 +1,4 @@
+import { useTranslation } from 'react-i18next'
 import type { EpisodeInfo } from '@/lib/types'
 
 interface SeasonSummaryBarProps {
@@ -31,6 +32,7 @@ function getEpisodeStatus(ep: EpisodeInfo, targetLanguages: string[]): EpisodeSt
 }
 
 export function SeasonSummaryBar({ season, episodes, targetLanguages }: SeasonSummaryBarProps) {
+  const { t } = useTranslation('library')
   const fileEpisodes = episodes.filter((ep) => ep.has_file)
   const total = fileEpisodes.length
 
@@ -47,36 +49,40 @@ export function SeasonSummaryBar({ season, episodes, targetLanguages }: SeasonSu
 
   return (
     <div
-      className="flex items-center"
+      // Wraps on narrow screens: the legend drops below the bar instead of
+      // pushing the page wider than the viewport.
+      className="flex flex-wrap items-center"
       style={{
         padding: '10px 16px',
         backgroundColor: 'var(--bg-surface)',
         border: '1px solid var(--border)',
         borderRadius: 'var(--radius-md)',
         marginBottom: '10px',
-        gap: '14px',
+        columnGap: '14px',
+        rowGap: '8px',
         fontSize: '12px',
       }}
-      aria-label={`Season ${season} summary`}
+      aria-label={t('series_detail.season_summary.aria_label', { number: season })}
     >
       <span
         className="flex-shrink-0"
         style={{ color: 'var(--text-muted)' }}
       >
-        Season {season} &mdash; {total} episodes
+        {t('series_detail.season_summary.title', { number: season, count: total })}
       </span>
 
       {/* 3-segment progress bar */}
       <div
         style={{
-          flex: 1,
+          flex: '1 1 80px',
+          minWidth: '80px',
           height: '6px',
           background: 'rgba(255,255,255,0.05)',
           borderRadius: '3px',
           overflow: 'hidden',
           display: 'flex',
         }}
-        title={`${okCount} ok, ${lowCount} low, ${missCount} missing`}
+        title={t('series_detail.season_summary.tooltip', { ok: okCount, low: lowCount, missing: missCount })}
       >
         <div style={{ height: '100%', width: `${okPercent}%`, background: 'var(--success)' }} />
         <div style={{ height: '100%', width: `${lowPercent}%`, background: 'var(--warning)' }} />
@@ -88,19 +94,19 @@ export function SeasonSummaryBar({ season, episodes, targetLanguages }: SeasonSu
         {okCount > 0 && (
           <span style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
             <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: 'var(--success)', display: 'inline-block' }} />
-            {okCount} OK
+            {t('series_detail.season_summary.ok', { count: okCount })}
           </span>
         )}
         {lowCount > 0 && (
           <span style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
             <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: 'var(--warning)', display: 'inline-block' }} />
-            {lowCount} Low
+            {t('series_detail.season_summary.low', { count: lowCount })}
           </span>
         )}
         {missCount > 0 && (
           <span style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
             <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: 'var(--error)', display: 'inline-block' }} />
-            {missCount} Missing
+            {t('series_detail.season_summary.missing', { count: missCount })}
           </span>
         )}
       </div>

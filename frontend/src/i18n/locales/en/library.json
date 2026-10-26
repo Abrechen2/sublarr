@@ -383,7 +383,23 @@
     "delete_subtitle_title": "Delete subtitle",
     "also_blacklist": "Also add to blacklist",
     "delete": "Delete",
-    "video_sync_done": "Video sync complete"
+    "video_sync_done": "Video sync complete",
+    "hero_stats": {
+      "episodes": "Episodes",
+      "with_subs": "With Subs",
+      "missing": "Missing",
+      "low_score": "Low Score"
+    },
+    "format_preferred": "{{format}} preferred",
+    "season_summary": {
+      "title_one": "Season {{number}} — {{count}} episode",
+      "title_other": "Season {{number}} — {{count}} episodes",
+      "aria_label": "Season {{number}} summary",
+      "ok": "{{count}} OK",
+      "low": "{{count}} Low",
+      "missing": "{{count}} Missing",
+      "tooltip": "{{ok}} ok, {{low}} low, {{missing}} missing"
+    }
   },
   "episode_ui": {
     "season_select_all": "Select all episodes in this season",

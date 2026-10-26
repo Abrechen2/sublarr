@@ -11,12 +11,17 @@ export function SeasonTabs({ seasons, activeSeason, onSeasonChange }: SeasonTabs
   const { t } = useTranslation('library')
 
   return (
-    // Pill-container matching .season-tabs in mockup
-    <div style={{
-      display: 'flex', gap: '2px',
-      background: 'var(--bg-surface)', borderRadius: 'var(--radius-md)',
-      padding: '3px', width: 'fit-content', marginBottom: '14px',
-    }}>
+    // Pill-container matching .season-tabs in mockup. Capped at the parent
+    // width and scrolls on its own, so many seasons never widen the page.
+    <div
+      data-testid="season-tabs"
+      className="overflow-x-auto"
+      style={{
+        display: 'flex', gap: '2px',
+        background: 'var(--bg-surface)', borderRadius: 'var(--radius-md)',
+        padding: '3px', width: 'fit-content', maxWidth: '100%', marginBottom: '14px',
+      }}
+    >
       {seasons.map((s) => (
         <button
           key={s}
@@ -24,6 +29,8 @@ export function SeasonTabs({ seasons, activeSeason, onSeasonChange }: SeasonTabs
           onClick={() => onSeasonChange(s)}
           style={{
             padding: '6px 16px',
+            flexShrink: 0,
+            whiteSpace: 'nowrap',
             borderRadius: '7px',
             fontSize: '12px',
             fontWeight: 500,

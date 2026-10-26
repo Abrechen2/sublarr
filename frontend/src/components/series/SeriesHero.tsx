@@ -32,8 +32,8 @@ function buildMetaTags(series: SeriesDetail, t: TFunction<'library'>): string[] 
   }
   // Format preference — infer from profile name
   const profile = (series.profile_name ?? '').toLowerCase()
-  if (profile.includes('ass')) tags.push('ASS preferred')
-  else if (profile.includes('srt')) tags.push('SRT preferred')
+  if (profile.includes('ass')) tags.push(t('series_detail.format_preferred', { format: 'ASS' }))
+  else if (profile.includes('srt')) tags.push(t('series_detail.format_preferred', { format: 'SRT' }))
   return tags
 }
 
@@ -80,13 +80,11 @@ export function SeriesHero({
         }}
       />
 
-      <div className="relative flex gap-6 p-5">
+      <div className="relative flex flex-col sm:flex-row gap-4 sm:gap-6 p-4 sm:p-5">
         {/* Poster */}
         <div
-          className="flex-shrink-0 rounded-lg overflow-hidden shadow-lg"
+          className="flex-shrink-0 rounded-lg overflow-hidden shadow-lg w-[120px] sm:w-[180px]"
           style={{
-            width: '180px',
-            minWidth: '180px',
             aspectRatio: '2/3',
             border: '1px solid var(--border)',
           }}
@@ -110,9 +108,10 @@ export function SeriesHero({
         {/* Info */}
         <div className="flex-1 min-w-0 flex flex-col gap-3">
           {/* Title + year */}
-          <div className="flex items-center gap-2.5">
+          <div className="flex flex-wrap items-center gap-x-2.5 gap-y-1 min-w-0">
             <h1
               data-testid="series-title"
+              className="min-w-0 break-words"
               style={{ fontSize: '24px', fontWeight: 700, letterSpacing: '-0.5px' }}
             >
               {series.title}
@@ -146,27 +145,31 @@ export function SeriesHero({
 
           {/* Stat boxes */}
           <div
-            style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '10px' }}
+            data-testid="series-hero-stats"
+            className="grid grid-cols-2 md:grid-cols-4"
+            style={{ gap: '10px' }}
           >
             {(
               [
-                { label: 'Episodes', value: totalEps, color: 'var(--accent)' },
-                { label: 'With Subs', value: withSubsCount, color: 'var(--success)' },
+                { key: 'episodes', label: t('series_detail.hero_stats.episodes'), value: totalEps, color: 'var(--accent)' },
+                { key: 'with_subs', label: t('series_detail.hero_stats.with_subs'), value: withSubsCount, color: 'var(--success)' },
                 {
-                  label: 'Missing',
+                  key: 'missing',
+                  label: t('series_detail.hero_stats.missing'),
                   value: missingCount,
                   color: missingCount > 0 ? 'var(--error)' : 'var(--success)',
                 },
                 {
-                  label: 'Low Score',
+                  key: 'low_score',
+                  label: t('series_detail.hero_stats.low_score'),
                   value: lowScoreCount,
                   color: lowScoreCount > 0 ? 'var(--warning)' : 'var(--text-muted)',
                 },
               ] as const
-            ).map(({ label, value, color }) => (
+            ).map(({ key, label, value, color }) => (
               <div
-                key={label}
-                className="flex flex-col items-center text-center"
+                key={key}
+                className="flex flex-col items-center text-center min-w-0"
                 style={{
                   backgroundColor: 'var(--bg-surface)',
                   border: '1px solid var(--border)',
