@@ -89,9 +89,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   watched folder still covers them (also through a symlink or as a season
   folder of the series). If a remaining folder cannot be read, nothing is
   removed. A scan that is running while the folder is removed no longer
-  brings its titles back, and a scan requested during a running scan is
-  no longer dropped but runs once the current one ends. Files on disk are
-  never touched.
+  brings its titles or their wanted items back, and a scan requested
+  during a running scan is no longer dropped but runs once the current one
+  ends. Removing the same folder twice at once no longer fails. Files on
+  disk are never touched.
 - **Changing a watched folder's path no longer duplicates it** — Saving a
   watched folder with a new path created a second folder and left the old
   one unchanged. The folder is now updated in place, and a path another
