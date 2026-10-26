@@ -204,6 +204,10 @@ class StandaloneScanner(_StandaloneProcessMixin):
             folders = get_watched_folders(enabled_only=True)
             if not folders:
                 logger.info("No enabled watched folders configured")
+                # Title cleanup is skipped without folders (a dropped mount
+                # must not empty the library), but rows whose title is
+                # already gone are DB-only and safe to drop.
+                self._sweep_orphans()
                 return {
                     "folders_scanned": 0,
                     "series_found": 0,

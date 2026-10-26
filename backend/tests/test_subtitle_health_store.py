@@ -106,3 +106,46 @@ def test_record_and_get_manifest(app_ctx):
     m = store.get_fix(fix_id)
     assert m["fixer"] == "repair_escapes"
     assert m["reversible"] is True
+
+
+def _standalone_result(episode_id: int):
+    result = _result()
+    result.episode_id = episode_id
+    result.issues[0].episode_id = episode_id
+    return result
+
+
+def test_findings_of_a_deleted_standalone_episode_are_not_saved(app_ctx):
+    # A series scan can finish after its watched folder (and the episode
+    # with it) was deleted; its findings must not outlive the episode.
+    store.persist_scan_result(_standalone_result(-817), scanner_version=1)
+    assert store.get_findings_for_episode(-817) == []
+
+
+def test_findings_of_a_live_standalone_episode_are_saved(app_ctx):
+    from datetime import UTC, datetime
+
+    import sqlalchemy as sa
+
+    from extensions import db
+
+    now = datetime(2026, 10, 1, tzinfo=UTC)
+    db.session.execute(
+        sa.text(
+            "INSERT INTO standalone_series (id, title, folder_path, created_at, updated_at) "
+            "VALUES (1, 'S', '/m', :t, :t)"
+        ),
+        {"t": now},
+    )
+    db.session.execute(
+        sa.text(
+            "INSERT INTO standalone_episodes (id, standalone_series_id, file_path, created_at, updated_at) "
+            "VALUES (817, 1, '/m/x.mkv', :t, :t)"
+        ),
+        {"t": now},
+    )
+    db.session.commit()
+
+    store.persist_scan_result(_standalone_result(-817), scanner_version=1)
+
+    assert len(store.get_findings_for_episode(-817)) == 1

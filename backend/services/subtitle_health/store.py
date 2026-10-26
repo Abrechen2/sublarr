@@ -18,6 +18,13 @@ def persist_scan_result(result, scanner_version: int = 1) -> None:
         return (target_path, stream_index, issue_type, lang, raw_hash)
 
     try:
+        if _standalone_episode_gone(result.episode_id):
+            # The scan outlived its episode (watched folder removed mid-scan).
+            logger.info(
+                "subtitle_health: episode %s was deleted during the scan, findings dropped",
+                result.episode_id,
+            )
+            return
         dismissed_keys: set = set()
         if result.episode_id is not None:
             # Remember user-dismissed findings (by logical identity incl. content
@@ -77,6 +84,20 @@ def persist_scan_result(result, scanner_version: int = 1) -> None:
     except Exception:
         db.session.rollback()
         logger.exception("subtitle_health: persist_scan_result failed")
+
+
+def _standalone_episode_gone(episode_id: int | None) -> bool:
+    """True for a standalone episode id (negative) with no episode row left."""
+    if episode_id is None or episode_id >= 0:
+        return False
+    from sqlalchemy import text
+
+    from extensions import db
+
+    row = db.session.execute(
+        text("SELECT 1 FROM standalone_episodes WHERE id = :id"), {"id": -episode_id}
+    ).first()
+    return row is None
 
 
 def _finding_to_dict(row) -> dict:

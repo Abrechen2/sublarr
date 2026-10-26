@@ -286,3 +286,13 @@ def test_a_folder_move_runs_the_sweep(api, tmp_path):
     assert api.put(f"/api/v1/standalone/folders/{fid}", json={"path": str(new)}).status_code == 200
 
     assert orphan not in _ids("wanted_items")
+
+
+def test_a_scan_without_folders_still_runs_the_sweep(scanner, tmp_path):
+    orphan_finding = _finding(-4242)
+    orphan_wanted = _wanted(file_path=str(tmp_path / "gone.mkv"), standalone_series_id=9999)
+
+    scanner.scan_all_folders()
+
+    assert orphan_finding not in _ids("subtitle_health_findings")
+    assert orphan_wanted not in _ids("wanted_items")
