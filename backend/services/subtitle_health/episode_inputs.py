@@ -7,6 +7,28 @@ each other. Each input is resolved here once.
 
 from __future__ import annotations
 
+import logging
+
+logger = logging.getLogger(__name__)
+
+
+def episode_sidecars(video_path: str) -> list[dict]:
+    """Sidecar subtitles next to ``video_path`` in ``scan_episode``'s shape.
+
+    A failing sidecar scan yields ``[]`` (embedded tracks are still scanned).
+    """
+    # Looked up at call time so tests patching routes.subtitles keep working.
+    from routes.subtitles import scan_subtitle_sidecars
+
+    try:
+        return [
+            {"path": sc.get("path"), "lang": sc.get("language", "und")}
+            for sc in scan_subtitle_sidecars(video_path)
+        ]
+    except Exception:
+        logger.warning("subtitle_health: sidecar scan failed for %s", video_path)
+        return []
+
 
 def sonarr_episode_video_path(client, ep_id: int | None) -> str | None:
     """Local video path of a Sonarr episode, with remote-path mapping applied.

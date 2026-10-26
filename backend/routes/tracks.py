@@ -513,8 +513,8 @@ def scan_episode_health(ep_id):
     Inspects embedded subtitle tracks (raw, via -c:s copy) and sidecar files,
     runs the registered checkers, and returns the findings. Writes nothing.
     """
-    from routes.subtitles import scan_subtitle_sidecars
     from services.subtitle_health import scan_episode
+    from services.subtitle_health.episode_inputs import episode_sidecars
 
     video_path = _get_video_path(ep_id)
     if not video_path:
@@ -522,15 +522,10 @@ def scan_episode_health(ep_id):
     if not os.path.exists(video_path):
         return jsonify({"error": "Video file not found on disk"}), 404
 
-    sidecars = []
     try:
-        for sc in scan_subtitle_sidecars(video_path):
-            sidecars.append({"path": sc.get("path"), "lang": sc.get("language", "und")})
-    except Exception:
-        logger.warning("subtitle_health: sidecar scan failed for %s", video_path)
-
-    try:
-        result = scan_episode(episode_id=ep_id, video_path=video_path, sidecars=sidecars)
+        result = scan_episode(
+            episode_id=ep_id, video_path=video_path, sidecars=episode_sidecars(video_path)
+        )
     except Exception:
         logger.exception("subtitle_health: scan failed for ep %d", ep_id)
         return jsonify({"error": "Subtitle health scan failed"}), 500

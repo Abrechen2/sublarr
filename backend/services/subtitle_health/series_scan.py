@@ -13,7 +13,7 @@ import logging
 import os
 
 from events import emit_event
-from services.subtitle_health.episode_inputs import sonarr_episode_video_path
+from services.subtitle_health.episode_inputs import episode_sidecars, sonarr_episode_video_path
 from services.subtitle_health.scan import scan_episode
 from sonarr_client import get_sonarr_client
 
@@ -85,7 +85,10 @@ def run_series_scan(series_id: int) -> dict:
             continue
         try:
             result = scan_episode(
-                episode_id=ep_id, video_path=path, target_languages=target_languages
+                episode_id=ep_id,
+                video_path=path,
+                sidecars=episode_sidecars(path),
+                target_languages=target_languages,
             )
         except Exception:
             logger.exception("subtitle_health: episode scan failed for ep %s", ep_id)

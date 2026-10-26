@@ -8,7 +8,7 @@ import os
 from services.scheduler.cancellation import abort_requested
 from services.subtitle_health import store
 from services.subtitle_health.apply import apply_fix
-from services.subtitle_health.episode_inputs import sonarr_episode_video_path
+from services.subtitle_health.episode_inputs import episode_sidecars, sonarr_episode_video_path
 from services.subtitle_health.scan import scan_episode
 from services.suspect_sidecars import is_suspect_sidecar
 from sonarr_client import get_sonarr_client
@@ -67,7 +67,7 @@ def _sweep_episode(ep_id: int, path: str | None, auto: bool) -> bool:
     if not path or not os.path.exists(path):
         return False
     try:
-        scan_episode(episode_id=ep_id, video_path=path)
+        scan_episode(episode_id=ep_id, video_path=path, sidecars=episode_sidecars(path))
     except Exception:
         logger.exception("subtitle_health sweep: scan failed ep %s", ep_id)
         return False

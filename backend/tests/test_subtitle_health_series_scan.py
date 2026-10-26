@@ -100,3 +100,32 @@ def test_run_series_scan_warns_when_no_file_exists(caplog):
     assert any("skipped" in r.getMessage() and "2" in r.getMessage() for r in caplog.records), [
         r.getMessage() for r in caplog.records
     ]
+
+
+def test_run_series_scan_passes_sidecars_like_the_episode_route():
+    """Without sidecars a sidecar-only episode gets a false missing_language."""
+    client = MagicMock()
+    client.get_episodes.return_value = [{"id": 1}]
+    client.get_episode_file_path.return_value = "/m/e1.mkv"
+    sidecar = {"path": "/m/e1.de.srt", "language": "de", "format": "srt"}
+
+    with (
+        patch("services.subtitle_health.series_scan.get_sonarr_client", return_value=client),
+        patch("services.subtitle_health.series_scan.os.path.exists", return_value=True),
+        patch("routes.subtitles.scan_subtitle_sidecars", return_value=[sidecar]),
+        patch(
+            "services.subtitle_health.series_scan.scan_episode",
+            side_effect=lambda episode_id, video_path, **k: _result(episode_id, 0),
+        ) as scan,
+        patch("services.subtitle_health.series_scan.emit_event"),
+    ):
+        series_scan.run_series_scan(series_id=7)
+
+    assert scan.call_args.kwargs["sidecars"] == [{"path": "/m/e1.de.srt", "lang": "de"}]
+
+
+def test_episode_sidecars_survives_a_failing_sidecar_scan():
+    from services.subtitle_health.episode_inputs import episode_sidecars
+
+    with patch("routes.subtitles.scan_subtitle_sidecars", side_effect=OSError("boom")):
+        assert episode_sidecars("/m/e1.mkv") == []

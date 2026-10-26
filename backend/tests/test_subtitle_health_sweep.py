@@ -27,7 +27,7 @@ def test_sweep_stops_at_the_next_episode_when_asked(app_ctx):
     scanned: list[int] = []
     event = threading.Event()
 
-    def fake_scan(*, episode_id, video_path):
+    def fake_scan(*, episode_id, video_path, **_):
         scanned.append(episode_id)
         event.set()  # the stop arrives while the first episode is in flight
 
@@ -153,3 +153,23 @@ def test_sweep_applies_path_mapping_to_sonarr_paths(app_ctx):
         sweep.subtitle_health_sweep_tick()
     assert scan.called, "the mapped path exists, so the episode must be scanned"
     assert scan.call_args.kwargs["video_path"] == "/media/Show/e11.mkv"
+
+
+def test_sweep_passes_sidecars_like_the_episode_route(app_ctx):
+    """The sweep's findings must match the single-episode scan's, sidecars included."""
+    client = MagicMock()
+    client.get_series.return_value = [{"id": 1}]
+    client.get_episodes.return_value = [{"id": 11}]
+    client.get_episode_file_path.return_value = "/m/e11.mkv"
+    sidecar = {"path": "/m/e11.de.ass", "language": "de", "format": "ass"}
+    with (
+        patch("services.subtitle_health.sweep._sweep_enabled", return_value=True),
+        patch("services.subtitle_health.sweep._standalone_episodes", return_value=iter(())),
+        patch("services.subtitle_health.sweep.get_sonarr_client", return_value=client),
+        patch("services.subtitle_health.sweep.os.path.exists", return_value=True),
+        patch("routes.subtitles.scan_subtitle_sidecars", return_value=[sidecar]),
+        patch("services.subtitle_health.sweep.scan_episode") as scan,
+        patch("services.subtitle_health.sweep._auto_fix_enabled", return_value=False),
+    ):
+        sweep.subtitle_health_sweep_tick()
+    assert scan.call_args.kwargs["sidecars"] == [{"path": "/m/e11.de.ass", "lang": "de"}]
