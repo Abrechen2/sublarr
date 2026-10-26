@@ -252,3 +252,25 @@ def test_an_unreadable_remaining_folder_keeps_the_titles(api, media):
     assert api.delete(f"/api/v1/standalone/folders/{gone}").status_code == 200
 
     assert _ids("standalone_series") == {sid}
+
+
+def test_an_unreadable_symlink_target_keeps_the_titles(api, media, monkeypatch):
+    import os
+
+    gone = _folder(media / "A")
+    sid = _series(media / "A" / "Show")
+    private = media / "AB"
+    (media / "New" / "bridge").symlink_to(private)
+    _folder(media / "New")
+    real_stat = os.stat
+
+    def stat(path, *a, **kw):
+        if os.fspath(path) == str(private):
+            raise PermissionError(13, "denied")
+        return real_stat(path, *a, **kw)
+
+    monkeypatch.setattr("services.standalone_manager.os.stat", stat)
+
+    assert api.delete(f"/api/v1/standalone/folders/{gone}").status_code == 200
+
+    assert _ids("standalone_series") == {sid}

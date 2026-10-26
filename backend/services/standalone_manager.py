@@ -6,6 +6,7 @@ HTTP-adapter shims and all business logic lives here.
 
 import logging
 import os
+import stat
 import threading
 
 from sqlalchemy import text
@@ -224,7 +225,11 @@ def _symlink_targets(roots: list[str]) -> list[str]:
                 if not os.path.islink(full):
                     continue
                 target = os.path.realpath(full)
-                if os.path.isdir(target):
+                try:
+                    is_dir = stat.S_ISDIR(os.stat(target).st_mode)
+                except FileNotFoundError:
+                    is_dir = False  # dangling link: nothing to walk
+                if is_dir:
                     pending.append(target)
                 else:
                     seen.add(target)
