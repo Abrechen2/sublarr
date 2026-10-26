@@ -33,7 +33,7 @@ def test_health_scan_returns_issues(client):
     with (
         patch("routes.tracks._get_video_path", return_value="/m/x.mkv"),
         patch("os.path.exists", return_value=True),
-        patch("routes.subtitles.scan_subtitle_sidecars", return_value=[]),
+        patch("services.sidecar_scan.scan_subtitle_sidecars", return_value=[]),
         patch("services.subtitle_health.scan_episode", return_value=fake),
     ):
         resp = client.post("/api/v1/library/episodes/54680/health/scan")

@@ -17,8 +17,7 @@ def episode_sidecars(video_path: str) -> list[dict]:
 
     A failing sidecar scan yields ``[]`` (embedded tracks are still scanned).
     """
-    # Looked up at call time so tests patching routes.subtitles keep working.
-    from routes.subtitles import scan_subtitle_sidecars
+    from services.sidecar_scan import scan_subtitle_sidecars
 
     try:
         return [

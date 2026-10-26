@@ -112,7 +112,7 @@ def test_run_series_scan_passes_sidecars_like_the_episode_route():
     with (
         patch("services.subtitle_health.series_scan.get_sonarr_client", return_value=client),
         patch("services.subtitle_health.series_scan.os.path.exists", return_value=True),
-        patch("routes.subtitles.scan_subtitle_sidecars", return_value=[sidecar]),
+        patch("services.sidecar_scan.scan_subtitle_sidecars", return_value=[sidecar]),
         patch(
             "services.subtitle_health.series_scan.scan_episode",
             side_effect=lambda episode_id, video_path, **k: _result(episode_id, 0),
@@ -127,5 +127,5 @@ def test_run_series_scan_passes_sidecars_like_the_episode_route():
 def test_episode_sidecars_survives_a_failing_sidecar_scan():
     from services.subtitle_health.episode_inputs import episode_sidecars
 
-    with patch("routes.subtitles.scan_subtitle_sidecars", side_effect=OSError("boom")):
+    with patch("services.sidecar_scan.scan_subtitle_sidecars", side_effect=OSError("boom")):
         assert episode_sidecars("/m/e1.mkv") == []

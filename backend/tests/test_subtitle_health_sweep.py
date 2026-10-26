@@ -167,7 +167,7 @@ def test_sweep_passes_sidecars_like_the_episode_route(app_ctx):
         patch("services.subtitle_health.sweep._standalone_episodes", return_value=iter(())),
         patch("services.subtitle_health.sweep.get_sonarr_client", return_value=client),
         patch("services.subtitle_health.sweep.os.path.exists", return_value=True),
-        patch("routes.subtitles.scan_subtitle_sidecars", return_value=[sidecar]),
+        patch("services.sidecar_scan.scan_subtitle_sidecars", return_value=[sidecar]),
         patch("services.subtitle_health.sweep.scan_episode") as scan,
         patch("services.subtitle_health.sweep._auto_fix_enabled", return_value=False),
     ):
