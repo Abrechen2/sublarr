@@ -164,7 +164,18 @@ def remove_titles_left_by_folder(old_root: str, remaining_roots: list[str]) -> d
     if (series or movies) and roots:
         # The scanner follows symlinks, so a remaining folder also covers
         # whatever its symlinks point at.
-        roots = roots + _symlink_targets(roots)
+        try:
+            roots = roots + _symlink_targets(roots)
+        except OSError as exc:
+            # Coverage is unknown while a remaining folder cannot be read
+            # (mount dropped, permissions), so nothing is deleted.
+            logger.warning(
+                "Watched folder %s removed: kept its titles, a remaining folder "
+                "could not be read (%s)",
+                old_root,
+                type(exc).__name__,
+            )
+            return {"series_removed": 0, "movies_removed": 0}
 
     def kept(path: str, nested_counts: bool) -> bool:
         # A stored path may still carry the alias it was scanned through.
@@ -193,8 +204,13 @@ def _symlink_targets(roots: list[str]) -> list[str]:
 
     Directory links are walked in turn (each resolved target once, so link
     loops end), which covers chains like ``bridge -> /media/B`` holding
-    ``show -> /media/A/Show``.
+    ``show -> /media/A/Show``. Raises ``OSError`` when a directory cannot be
+    read, because the result would then be incomplete.
     """
+
+    def fail(exc: OSError) -> None:
+        raise exc
+
     seen: set[str] = set()
     pending = list(roots)
     while pending:
@@ -202,7 +218,7 @@ def _symlink_targets(roots: list[str]) -> list[str]:
         if root in seen:
             continue
         seen.add(root)
-        for dirpath, dirnames, filenames in os.walk(root):
+        for dirpath, dirnames, filenames in os.walk(root, onerror=fail):
             for name in dirnames + filenames:
                 full = os.path.join(dirpath, name)
                 if not os.path.islink(full):

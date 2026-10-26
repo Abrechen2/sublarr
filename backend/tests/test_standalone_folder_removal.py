@@ -242,3 +242,13 @@ def test_titles_stored_through_an_aliased_root_stay(api, media):
 
     assert _ids("standalone_series") == {sid}
     assert _ids("standalone_movies") == {mid}
+
+
+def test_an_unreadable_remaining_folder_keeps_the_titles(api, media):
+    gone = _folder(media / "A")
+    _folder(media / "Missing")  # configured, but the mount is gone
+    sid = _series(media / "A" / "Show")
+
+    assert api.delete(f"/api/v1/standalone/folders/{gone}").status_code == 200
+
+    assert _ids("standalone_series") == {sid}
