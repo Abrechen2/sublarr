@@ -37,10 +37,12 @@ __all__ = [
 ]
 
 # The scheduler's ceiling for the job (its JobSpec uses this constant). The
-# sweep stops itself a few minutes earlier, so a normal night ends with a
-# saved resume point at INFO instead of a timeout ERROR.
+# sweep stops itself earlier, so a normal night ends with a saved resume point
+# at INFO instead of a timeout ERROR. The reserve covers one slow episode: an
+# embedded-track extraction may take up to 300 s, and an episode can have
+# several.
 SWEEP_TIMEOUT_S = 3600
-SWEEP_BUDGET_S = SWEEP_TIMEOUT_S - 5 * 60
+SWEEP_BUDGET_S = SWEEP_TIMEOUT_S - 15 * 60
 
 # Save the resume point every this many episodes as well, so a crash or
 # container restart mid-run does not throw the night's progress away.
@@ -251,6 +253,8 @@ def subtitle_health_sweep_tick() -> None:
     run = _SweepRun(_auto_fix_enabled(), _clock() + SWEEP_BUDGET_S)
     client = get_sonarr_client()
     start = load_cursor()
+    # A stop before the first episode keeps the old resume point.
+    run.cursor = start
     try:
         if run.walk(_library(client, start)):
             return

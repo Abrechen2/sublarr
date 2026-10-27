@@ -224,7 +224,8 @@ class _Library:
 
 def test_sweep_budget_leaves_room_before_the_job_timeout():
     assert sweep.SWEEP_BUDGET_S > 0
-    assert sweep.SWEEP_TIMEOUT_S - sweep.SWEEP_BUDGET_S >= 120
+    # One slow episode (several 300 s extractions) must still fit.
+    assert sweep.SWEEP_TIMEOUT_S - sweep.SWEEP_BUDGET_S >= 900
 
 
 def test_sweep_job_uses_the_shared_timeout():
@@ -353,3 +354,11 @@ def test_sweep_standalone_items_follow_sonarr_and_resume(app_ctx):
 
     lib.run(standalone=standalone)
     assert lib.scanned == [-4, 11, -6]
+
+
+def test_sweep_stopped_before_its_first_episode_keeps_the_resume_point(app_ctx):
+    lib = _Library({1: [11, 12], 2: [21]})
+    sweep.save_cursor((sweep.SOURCE_SONARR, 1, 12))
+    lib.run(budget_s=0)  # the budget is spent before the first episode
+    assert lib.scanned == []
+    assert sweep.load_cursor() == (sweep.SOURCE_SONARR, 1, 12)
