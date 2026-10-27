@@ -259,6 +259,11 @@ def subtitle_health_sweep_tick() -> None:
         return
     run = _SweepRun(_auto_fix_enabled(), _clock() + SWEEP_BUDGET_S)
     client = get_sonarr_client()
+    if client is not None and not client.get_series():
+        # get_series answers [] when Sonarr cannot be reached. Walking on would
+        # look like a finished Sonarr pass and move the resume point past it.
+        logger.info("subtitle_health sweep: Sonarr listed no series, skipped; resume point kept")
+        return
     start = load_cursor()
     # A stop before the first episode keeps the old resume point.
     run.cursor = start

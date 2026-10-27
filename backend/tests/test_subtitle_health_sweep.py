@@ -370,3 +370,14 @@ def test_sweep_keeps_the_resume_point_when_sonarr_lists_nothing(app_ctx):
     sweep.save_cursor((sweep.SOURCE_SONARR, 5, 51))
     lib.run()
     assert sweep.load_cursor() == (sweep.SOURCE_SONARR, 5, 51)
+
+
+def test_sweep_keeps_the_resume_point_when_sonarr_is_down_but_standalone_exists(app_ctx):
+    lib = _Library({})
+    sweep.save_cursor((sweep.SOURCE_SONARR, 5, 51))
+
+    def standalone(after):
+        yield (sweep.SOURCE_STANDALONE, 1, -1), lambda: "/m/s1.mkv"
+
+    lib.run(standalone=standalone)
+    assert sweep.load_cursor() == (sweep.SOURCE_SONARR, 5, 51)
