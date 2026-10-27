@@ -247,6 +247,13 @@ class _SweepRun:
         return False
 
 
+def _log_full_pass(run: _SweepRun) -> None:
+    logger.info(
+        "subtitle_health sweep: sweep completed a full pass (%d episode(s) scanned this run)",
+        run.scanned,
+    )
+
+
 def subtitle_health_sweep_tick() -> None:
     if not _sweep_enabled():
         return
@@ -258,16 +265,21 @@ def subtitle_health_sweep_tick() -> None:
     try:
         if run.walk(_library(client, start)):
             return
-        logger.info(
-            "subtitle_health sweep: sweep completed a full pass (%d episode(s) scanned this run)",
-            run.scanned,
-        )
-        save_cursor(None)
         if start is None:
+            if run.visited:
+                _log_full_pass(run)
+            save_cursor(None)
             return
         # Wrap around: from the top up to where this run began.
         run.cursor = None
-        if not run.walk(_library(client, None), upto=start):
+        stopped = run.walk(_library(client, None), upto=start)
+        if run.visited == 0:
+            # Nothing was listed at all, which is what a Sonarr outage looks
+            # like (get_series answers []): keep the resume point.
+            logger.info("subtitle_health sweep: no episodes listed, resume point kept")
+            return
+        _log_full_pass(run)
+        if not stopped:
             save_cursor(run.cursor)
     except BaseException:
         if run.cursor is not None:

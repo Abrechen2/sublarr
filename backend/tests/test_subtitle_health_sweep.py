@@ -362,3 +362,11 @@ def test_sweep_stopped_before_its_first_episode_keeps_the_resume_point(app_ctx):
     lib.run(budget_s=0)  # the budget is spent before the first episode
     assert lib.scanned == []
     assert sweep.load_cursor() == (sweep.SOURCE_SONARR, 1, 12)
+
+
+def test_sweep_keeps_the_resume_point_when_sonarr_lists_nothing(app_ctx):
+    # A Sonarr outage: get_series answers [] — that is no completed pass.
+    lib = _Library({})
+    sweep.save_cursor((sweep.SOURCE_SONARR, 5, 51))
+    lib.run()
+    assert sweep.load_cursor() == (sweep.SOURCE_SONARR, 5, 51)
