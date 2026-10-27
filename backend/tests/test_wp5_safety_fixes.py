@@ -61,7 +61,7 @@ class TestSubtitleHealthSweepGate:
         from services.subtitle_health import sweep as sweep_mod
 
         client = MagicMock()
-        client.get_series.return_value = []
+        client.list_series.return_value = []
 
         with (
             patch(
@@ -76,7 +76,7 @@ class TestSubtitleHealthSweepGate:
         ):
             sweep_mod.subtitle_health_sweep_tick()
 
-        client.get_series.assert_called_once()
+        client.list_series.assert_called_once()
 
 
 class TestTrashListNoPurge:

@@ -763,3 +763,16 @@ class TestInvalidateClient:
 
         assert sc._client is None
         assert sc._clients_cache == {}
+
+
+class TestListTellsOutageFromEmpty:
+    def test_an_empty_library_is_an_empty_list(self, client):
+        with patch.object(client, "_get", return_value=[]):
+            assert client.list_series() == []
+            assert client.list_episodes(1) == []
+
+    def test_an_outage_is_none(self, client):
+        with patch.object(client, "_get", return_value=None):
+            assert client.list_series() is None
+            assert client.list_episodes(1) is None
+            assert client.get_series() == []  # unchanged for existing callers

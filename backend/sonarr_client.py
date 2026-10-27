@@ -239,6 +239,15 @@ class SonarrClient(_SonarrDiagnosticsMixin):
         result = self._get("/series")
         return result or []
 
+    def list_series(self):
+        """All series, or None when Sonarr did not answer.
+
+        ``get_series`` answers [] for both an outage and an empty library;
+        callers that must tell them apart use this.
+        """
+        result = self._get("/series")
+        return result if isinstance(result, list) else None
+
     def get_series_by_id(self, series_id):
         """Get a single series by ID."""
         return self._get(f"/series/{series_id}")
@@ -273,6 +282,11 @@ class SonarrClient(_SonarrDiagnosticsMixin):
         """
         result = self._get("/episode", params={"seriesId": series_id})
         return result or []
+
+    def list_episodes(self, series_id):
+        """All episodes of a series, or None when Sonarr did not answer."""
+        result = self._get("/episode", params={"seriesId": series_id})
+        return result if isinstance(result, list) else None
 
     def get_episode_by_id(self, episode_id):
         """Get a single episode by ID.

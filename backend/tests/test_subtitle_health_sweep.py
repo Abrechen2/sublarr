@@ -22,6 +22,8 @@ def test_sweep_stops_at_the_next_episode_when_asked(app_ctx):
     client = MagicMock()
     client.get_series.return_value = [{"id": 1}]
     client.get_episodes.return_value = [{"id": 11}, {"id": 12}, {"id": 13}]
+    client.list_series.return_value = [{"id": 1}]
+    client.list_episodes.return_value = [{"id": 11}, {"id": 12}, {"id": 13}]
     client.get_episode_file_path.side_effect = lambda ep_id: f"/m/e{ep_id}.mkv"
 
     scanned: list[int] = []
@@ -54,6 +56,8 @@ def test_sweep_reports_only_by_default(app_ctx):
     client = MagicMock()
     client.get_series.return_value = [{"id": 1}]
     client.get_episodes.return_value = [{"id": 11}]
+    client.list_series.return_value = [{"id": 1}]
+    client.list_episodes.return_value = [{"id": 11}]
     client.get_episode_file_path.return_value = "/m/e11.mkv"
     with (
         patch("services.subtitle_health.sweep.get_sonarr_client", return_value=client),
@@ -71,6 +75,8 @@ def test_sweep_autofix_only_safe_actions(app_ctx):
     client = MagicMock()
     client.get_series.return_value = [{"id": 1}]
     client.get_episodes.return_value = [{"id": 11}]
+    client.list_series.return_value = [{"id": 1}]
+    client.list_episodes.return_value = [{"id": 11}]
     client.get_episode_file_path.return_value = "/m/e11.mkv"
     from services.subtitle_health.models import (
         Issue,
@@ -137,6 +143,8 @@ def test_sweep_applies_path_mapping_to_sonarr_paths(app_ctx):
     client = MagicMock()
     client.get_series.return_value = [{"id": 1}]
     client.get_episodes.return_value = [{"id": 11}]
+    client.list_series.return_value = [{"id": 1}]
+    client.list_episodes.return_value = [{"id": 11}]
     client.get_episode_file_path.return_value = "/tv/Show/e11.mkv"
     with (
         patch("config.get_settings", return_value=MagicMock(path_mapping="/tv=/media")),
@@ -160,6 +168,8 @@ def test_sweep_passes_sidecars_like_the_episode_route(app_ctx):
     client = MagicMock()
     client.get_series.return_value = [{"id": 1}]
     client.get_episodes.return_value = [{"id": 11}]
+    client.list_series.return_value = [{"id": 1}]
+    client.list_episodes.return_value = [{"id": 11}]
     client.get_episode_file_path.return_value = "/m/e11.mkv"
     sidecar = {"path": "/m/e11.de.ass", "language": "de", "format": "ass"}
     with (
@@ -193,6 +203,8 @@ class _Library:
             {"id": sid} for sid in reversed(list(self.series))
         ]
         self.client.get_episodes.side_effect = self._episodes
+        self.client.list_series.side_effect = self.client.get_series.side_effect
+        self.client.list_episodes.side_effect = self._episodes
         self.client.get_episode_file_path.side_effect = lambda ep_id: f"/m/e{ep_id}.mkv"
 
     def _episodes(self, sid):
@@ -365,8 +377,9 @@ def test_sweep_stopped_before_its_first_episode_keeps_the_resume_point(app_ctx):
 
 
 def test_sweep_keeps_the_resume_point_when_sonarr_lists_nothing(app_ctx):
-    # A Sonarr outage: get_series answers [] — that is no completed pass.
+    # A Sonarr outage is no completed pass.
     lib = _Library({})
+    lib.client.list_series.side_effect = lambda: None
     sweep.save_cursor((sweep.SOURCE_SONARR, 5, 51))
     lib.run()
     assert sweep.load_cursor() == (sweep.SOURCE_SONARR, 5, 51)
@@ -374,6 +387,7 @@ def test_sweep_keeps_the_resume_point_when_sonarr_lists_nothing(app_ctx):
 
 def test_sweep_keeps_the_resume_point_when_sonarr_is_down_but_standalone_exists(app_ctx):
     lib = _Library({})
+    lib.client.list_series.side_effect = lambda: None
     sweep.save_cursor((sweep.SOURCE_SONARR, 5, 51))
 
     def standalone(after):
@@ -381,3 +395,26 @@ def test_sweep_keeps_the_resume_point_when_sonarr_is_down_but_standalone_exists(
 
     lib.run(standalone=standalone)
     assert sweep.load_cursor() == (sweep.SOURCE_SONARR, 5, 51)
+
+
+def test_an_empty_sonarr_still_sweeps_standalone(app_ctx):
+    lib = _Library({})
+    seen = []
+
+    def standalone(after):
+        def path():
+            seen.append(-1)
+            return "/m/s1.mkv"
+
+        yield (sweep.SOURCE_STANDALONE, 1, -1), path
+
+    lib.run(standalone=standalone)
+    assert seen == [-1]
+
+
+def test_an_episode_list_failure_keeps_that_series_for_next_time(app_ctx):
+    lib = _Library({1: [11, 12], 2: [21], 3: [31]})
+    lib.client.list_episodes.side_effect = lambda sid: None if sid == 2 else lib._episodes(sid)
+    lib.run()
+    assert lib.scanned == [11, 12]
+    assert sweep.load_cursor() == (sweep.SOURCE_SONARR, 1, 12)

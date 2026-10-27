@@ -144,20 +144,28 @@ def _int_ids(rows) -> list[int]:
     return sorted({r.get("id") for r in rows or [] if isinstance(r.get("id"), int)})
 
 
-def _sonarr_episodes(client, after: Cursor | None = None):
+class _SonarrUnavailableError(Exception):
+    """Sonarr stopped answering during the walk."""
+
+
+def _sonarr_episodes(client, series_ids: list[int], after: Cursor | None = None):
     """Yield ``(cursor key, path getter)`` for every Sonarr episode after ``after``.
 
     Series and episodes are walked by id. Series before the cursor's series are
     skipped without fetching their episodes, and the video path is only looked
-    up for an episode that is actually swept.
+    up for an episode that is actually swept. Raises ``_SonarrUnavailableError``
+    when an episode list cannot be fetched, so that series is not skipped.
     """
     if after is not None and after[0] > SOURCE_SONARR:
         return
     after_series = after[1] if after is not None else None
-    for sid in _int_ids(client.get_series()):
+    for sid in series_ids:
         if after_series is not None and sid < after_series:
             continue
-        for ep_id in _int_ids(client.get_episodes(sid)):
+        episodes = client.list_episodes(sid)
+        if episodes is None:
+            raise _SonarrUnavailableError(sid)
+        for ep_id in _int_ids(episodes):
             key = (SOURCE_SONARR, sid, ep_id)
             if after is not None and key <= after:
                 continue
@@ -190,10 +198,10 @@ def _standalone_episodes(after: Cursor | None = None):
             yield key, functools.partial(episode_path_in_series, ep.file_path, sid)
 
 
-def _library(client, after: Cursor | None):
+def _library(client, series_ids: list[int], after: Cursor | None):
     """Every sweepable episode after ``after``, in cursor order."""
     if client is not None:
-        yield from _sonarr_episodes(client, after)
+        yield from _sonarr_episodes(client, series_ids, after)
     # Standalone series are swept as well, with or without Sonarr.
     yield from _standalone_episodes(after)
 
@@ -259,16 +267,20 @@ def subtitle_health_sweep_tick() -> None:
         return
     run = _SweepRun(_auto_fix_enabled(), _clock() + SWEEP_BUDGET_S)
     client = get_sonarr_client()
-    if client is not None and not client.get_series():
-        # get_series answers [] when Sonarr cannot be reached. Walking on would
-        # look like a finished Sonarr pass and move the resume point past it.
-        logger.info("subtitle_health sweep: Sonarr listed no series, skipped; resume point kept")
-        return
+    series_ids: list[int] = []
+    if client is not None:
+        series = client.list_series()
+        if series is None:
+            # Walking on would look like a finished Sonarr pass and move the
+            # resume point past every series.
+            logger.info("subtitle_health sweep: Sonarr unreachable, skipped; resume point kept")
+            return
+        series_ids = _int_ids(series)
     start = load_cursor()
     # A stop before the first episode keeps the old resume point.
     run.cursor = start
     try:
-        if run.walk(_library(client, start)):
+        if run.walk(_library(client, series_ids, start)):
             return
         if start is None:
             if run.visited:
@@ -277,15 +289,24 @@ def subtitle_health_sweep_tick() -> None:
             return
         # Wrap around: from the top up to where this run began.
         run.cursor = None
-        stopped = run.walk(_library(client, None), upto=start)
+        stopped = run.walk(_library(client, series_ids, None), upto=start)
         if run.visited == 0:
-            # Nothing was listed at all, which is what a Sonarr outage looks
-            # like (get_series answers []): keep the resume point.
+            # Nothing to sweep at all (no Sonarr series, no standalone
+            # episodes): keep the resume point for when there is again.
             logger.info("subtitle_health sweep: no episodes listed, resume point kept")
             return
         _log_full_pass(run)
         if not stopped:
             save_cursor(run.cursor)
+    except _SonarrUnavailableError as exc:
+        # Keep what was finished; the series that failed is swept next time.
+        if run.cursor is not None:
+            save_cursor(run.cursor)
+        logger.info(
+            "subtitle_health sweep: Sonarr stopped answering at series %s, resumes after %s",
+            exc,
+            run.cursor if run.cursor is not None else start,
+        )
     except BaseException:
         if run.cursor is not None:
             save_cursor(run.cursor)
