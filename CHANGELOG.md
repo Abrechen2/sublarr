@@ -77,7 +77,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   success. They also ignored subtitle files next to the video, reported
   those episodes as missing a language and overwrote the findings of a
   single-episode scan. All scans now open the same files, and a series
-  scan that finds no file says so.
+  scan that finds no file says so. The nightly sweep now resumes where it
+  stopped the night before instead of starting over at the first series,
+  and pauses itself before its time limit instead of being cut off with
+  an error.
 - **Health scans report their progress** — The progress and finish events
   of a series health scan were dropped, so the page never learned that the
   scan was done. It now shows a message when the scan finishes. Three
