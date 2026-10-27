@@ -87,7 +87,7 @@ def _build_default_jobs() -> list[JobSpec]:
     from services.repair.resume import repair_resume_tick
     from services.stats_rollup import stats_rollup_tick
     from services.subtitle_automation_runner import subtitle_automation_tick
-    from services.subtitle_health.sweep import subtitle_health_sweep_tick
+    from services.subtitle_health.sweep import SWEEP_TIMEOUT_S, subtitle_health_sweep_tick
     from services.usage_stats import usage_stats_tick
     from services.wanted_revive import revive_exhausted_by_age
     from services.wanted_scanner_scheduler import (
@@ -394,7 +394,9 @@ def _build_default_jobs() -> list[JobSpec]:
             id="subtitle_health_sweep",
             func=subtitle_health_sweep_tick,
             default_trigger=CronTrigger(hour=4, minute=30),
-            timeout_s=3600,
+            # Shared with the sweep, which pauses itself a few minutes earlier
+            # and resumes from a saved cursor the next night.
+            timeout_s=SWEEP_TIMEOUT_S,
             owner_module="services.subtitle_health.sweep",
             description="Scan the library for subtitle content defects (report-only unless auto-fix enabled).",
         ),

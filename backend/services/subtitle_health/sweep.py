@@ -2,18 +2,51 @@
 
 from __future__ import annotations
 
+import functools
 import logging
 import os
+import time
 
 from services.scheduler.cancellation import abort_requested
 from services.subtitle_health import store
 from services.subtitle_health.apply import apply_fix
 from services.subtitle_health.episode_inputs import episode_sidecars, sonarr_episode_video_path
 from services.subtitle_health.scan import scan_episode
+from services.subtitle_health.sweep_cursor import (
+    CURSOR_KEY,
+    SOURCE_SONARR,
+    SOURCE_STANDALONE,
+    Cursor,
+    load_cursor,
+    save_cursor,
+)
 from services.suspect_sidecars import is_suspect_sidecar
 from sonarr_client import get_sonarr_client
 
 logger = logging.getLogger(__name__)
+
+__all__ = [
+    "CURSOR_KEY",
+    "SOURCE_SONARR",
+    "SOURCE_STANDALONE",
+    "SWEEP_BUDGET_S",
+    "SWEEP_TIMEOUT_S",
+    "load_cursor",
+    "save_cursor",
+    "subtitle_health_sweep_tick",
+]
+
+# The scheduler's ceiling for the job (its JobSpec uses this constant). The
+# sweep stops itself a few minutes earlier, so a normal night ends with a
+# saved resume point at INFO instead of a timeout ERROR.
+SWEEP_TIMEOUT_S = 3600
+SWEEP_BUDGET_S = SWEEP_TIMEOUT_S - 5 * 60
+
+# Save the resume point every this many episodes as well, so a crash or
+# container restart mid-run does not throw the night's progress away.
+_CURSOR_SAVE_EVERY = 20
+
+_clock = time.monotonic
 
 # Only these two are ever auto-applied (spec auto-fix policy).
 _AUTO_ACTIONS = frozenset({"repair_escapes", "reencode"})
@@ -104,17 +137,33 @@ def _sweep_episode(ep_id: int, path: str | None, auto: bool) -> bool:
     return True
 
 
-def _sonarr_episodes(client):
-    """Yield ``(episode id, local video path)`` for every Sonarr episode, lazily."""
-    for series in client.get_series() or []:
-        sid = series.get("id")
-        for ep in client.get_episodes(sid) or []:
-            ep_id = ep.get("id")
-            yield ep_id, sonarr_episode_video_path(client, ep_id)
+def _int_ids(rows) -> list[int]:
+    """The integer ``id`` of every row, sorted — the walk order of the sweep."""
+    return sorted({r.get("id") for r in rows or [] if isinstance(r.get("id"), int)})
 
 
-def _standalone_episodes():
-    """Yield ``(negative episode id, video path)`` for every standalone episode.
+def _sonarr_episodes(client, after: Cursor | None = None):
+    """Yield ``(cursor key, path getter)`` for every Sonarr episode after ``after``.
+
+    Series and episodes are walked by id. Series before the cursor's series are
+    skipped without fetching their episodes, and the video path is only looked
+    up for an episode that is actually swept.
+    """
+    if after is not None and after[0] > SOURCE_SONARR:
+        return
+    after_series = after[1] if after is not None else None
+    for sid in _int_ids(client.get_series()):
+        if after_series is not None and sid < after_series:
+            continue
+        for ep_id in _int_ids(client.get_episodes(sid)):
+            key = (SOURCE_SONARR, sid, ep_id)
+            if after is not None and key <= after:
+                continue
+            yield key, functools.partial(sonarr_episode_video_path, client, ep_id)
+
+
+def _standalone_episodes(after: Cursor | None = None):
+    """Yield ``(cursor key, path getter)`` for every standalone episode after ``after``.
 
     Standalone findings are keyed by the stable negative episode id
     (docs/specs/standalone-ids.md), so they never collide with Sonarr's.
@@ -123,33 +172,100 @@ def _standalone_episodes():
     from services.standalone_library import episode_path_in_series, series_episode_files
 
     try:
-        all_series = get_standalone_series() or []
+        series_ids = _int_ids(get_standalone_series())
     except Exception:  # noqa: BLE001 — the Sonarr part of the sweep must still count
         logger.warning("subtitle_health sweep: standalone series unavailable", exc_info=True)
         return
-    for series in all_series:
-        for ep in series_episode_files(series["id"]) or []:
-            yield ep.wire_id, episode_path_in_series(ep.file_path, series["id"])
+    after_series = after[1] if after is not None and after[0] == SOURCE_STANDALONE else None
+    for sid in series_ids:
+        if after_series is not None and sid < after_series:
+            continue
+        files = sorted(series_episode_files(sid) or [], key=lambda f: f.wire_id)
+        for ep in files:
+            key = (SOURCE_STANDALONE, sid, ep.wire_id)
+            if after is not None and key <= after:
+                continue
+            yield key, functools.partial(episode_path_in_series, ep.file_path, sid)
 
 
-def subtitle_health_sweep_tick() -> None:
-    if not _sweep_enabled():
-        return
-    auto = _auto_fix_enabled()
-    client = get_sonarr_client()
-    sources = [_sonarr_episodes(client)] if client is not None else []
+def _library(client, after: Cursor | None):
+    """Every sweepable episode after ``after``, in cursor order."""
+    if client is not None:
+        yield from _sonarr_episodes(client, after)
     # Standalone series are swept as well, with or without Sonarr.
-    sources.append(_standalone_episodes())
-    scanned = 0
-    for episodes in sources:
-        for ep_id, path in episodes:
+    yield from _standalone_episodes(after)
+
+
+class _SweepRun:
+    """One night's walk: tracks the resume point and the time budget."""
+
+    def __init__(self, auto: bool, deadline: float):
+        self.auto = auto
+        self.deadline = deadline
+        self.scanned = 0
+        self.visited = 0
+        self.cursor: Cursor | None = None
+
+    def walk(self, items, upto: Cursor | None = None) -> bool:
+        """Sweep ``items`` (up to and including ``upto``); True when it had to stop."""
+        for key, path_of in items:
+            if upto is not None and key > upto:
+                return False
             # One episode is the unit of work: the ffprobe and any extraction
             # inside scan_episode cannot be interrupted, so a stop takes effect
             # between episodes. This sweep is why cancellation exists — without
             # the check it ran sixteen hours past its ceiling, one stream index
             # at a time, and a container restart was the only way to end it.
             if abort_requested():
-                logger.info("subtitle_health sweep: stopping as asked after %d episode(s)", scanned)
-                return
-            if _sweep_episode(ep_id, path, auto):
-                scanned += 1
+                save_cursor(self.cursor)
+                logger.info(
+                    "subtitle_health sweep: stopping as asked after %d episode(s), resumes after %s",
+                    self.scanned,
+                    self.cursor,
+                )
+                return True
+            if _clock() >= self.deadline:
+                # Stop before the scheduler's timeout does: a normal night ends
+                # here, at INFO, with the resume point saved.
+                save_cursor(self.cursor)
+                logger.info(
+                    "subtitle_health sweep: sweep paused after %d episode(s) (time budget %ds), "
+                    "resumes after %s",
+                    self.scanned,
+                    SWEEP_BUDGET_S,
+                    self.cursor,
+                )
+                return True
+            if _sweep_episode(key[2], path_of(), self.auto):
+                self.scanned += 1
+            self.cursor = key
+            self.visited += 1
+            if self.visited % _CURSOR_SAVE_EVERY == 0:
+                save_cursor(key)  # a crash or restart loses at most a few episodes
+        return False
+
+
+def subtitle_health_sweep_tick() -> None:
+    if not _sweep_enabled():
+        return
+    run = _SweepRun(_auto_fix_enabled(), _clock() + SWEEP_BUDGET_S)
+    client = get_sonarr_client()
+    start = load_cursor()
+    try:
+        if run.walk(_library(client, start)):
+            return
+        logger.info(
+            "subtitle_health sweep: sweep completed a full pass (%d episode(s) scanned this run)",
+            run.scanned,
+        )
+        save_cursor(None)
+        if start is None:
+            return
+        # Wrap around: from the top up to where this run began.
+        run.cursor = None
+        if not run.walk(_library(client, None), upto=start):
+            save_cursor(run.cursor)
+    except BaseException:
+        if run.cursor is not None:
+            save_cursor(run.cursor)
+        raise
