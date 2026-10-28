@@ -106,6 +106,7 @@ def test_sweep_covers_standalone_episodes(no_sonarr, show, monkeypatch):
         sweep.subtitle_health_sweep_tick()
 
     scanned = _scan_calls(scan)
-    assert [p for _, p in scanned] == sorted(paths)
+    # Walk order follows the episode ids, not the file names.
+    assert sorted(p for _, p in scanned) == sorted(paths)
     assert all(ep_id < 0 for ep_id, _ in scanned)
     assert sorted(c.args[0] for c in findings.call_args_list) == sorted(i for i, _ in scanned)
