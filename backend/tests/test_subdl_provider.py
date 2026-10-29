@@ -326,6 +326,30 @@ class TestDownload:
             provider.download(result)
 
 
+class TestResultForDownload:
+    """The repair runner re-fetches by stored id; SubDL downloads by path (#230)."""
+
+    def test_rebuilds_the_download_path_from_the_stored_id(self):
+        provider = _provider()
+        result = provider.result_for_download("3389884-8312959", "en")
+        payload = _zip(("Ratatouille.srt", _SRT))
+        with patch("providers.subdl._stream_download", return_value=payload) as dl:
+            content = provider.download(result)
+        assert content == _SRT
+        assert result.language == "en"
+        assert dl.call_args.args[1] == "https://dl.subdl.com/subtitle/3389884-8312959.zip"
+
+    def test_the_id_search_stored_round_trips(self):
+        provider, searched = _search_one(_subtitle(), _movie_query())
+        rebuilt = provider.result_for_download(searched.subtitle_id, "en")
+        assert rebuilt.provider_data["download_path"] == searched.provider_data["download_path"]
+
+    @pytest.mark.parametrize("bad", ["", "../etc/passwd", "1/2", "id?x=1"])
+    def test_a_malformed_id_is_rejected(self, bad):
+        with pytest.raises(ValueError, match="subtitle_id"):
+            _provider().result_for_download(bad, "en")
+
+
 # ---------------------------------------------------------------------------
 # _pick_best_subtitle()
 # ---------------------------------------------------------------------------

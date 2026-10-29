@@ -543,6 +543,26 @@ class SubDLProvider(SubtitleProvider):
             },
         )
 
+    def result_for_download(self, subtitle_id: str, language: str = "") -> SubtitleResult:
+        """Rebuild the "/subtitle/<id>.zip" path a search stored only the id of.
+
+        SubDL's API hands out every download as a ``.zip`` path, whatever the
+        archive really holds — ``_extract`` picks the format by magic bytes.
+        Without the episode the search knew, a season pack yields some file;
+        the repair runner's replay gate rejects it if it is the wrong one.
+        """
+        path = f"/subtitle/{subtitle_id}.zip"
+        match = _DOWNLOAD_PATH_RE.match(path)
+        if not match or match.group(1) != subtitle_id:
+            raise ValueError(f"SubDL subtitle_id must be '<sd>-<id>', got {subtitle_id!r}")
+        return SubtitleResult(
+            provider_name=self.name,
+            subtitle_id=subtitle_id,
+            language=language,
+            download_url=f"{DOWNLOAD_HOST}{path}",
+            provider_data={"download_path": path},
+        )
+
     def download(self, result: SubtitleResult) -> bytes:
         if not self.session:
             raise RuntimeError("SubDL not initialized")
