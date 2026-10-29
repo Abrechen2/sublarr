@@ -5,6 +5,21 @@ All notable changes to Sublarr are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.18.2] - 2026-10-29
+
+### Fixed
+- **Subtitle repair re-downloads from every provider** — Only OpenSubtitles,
+  Podnapisi, SubSource, AnimeTosho, SubDL and Custom API could fetch a saved
+  subtitle again; every other provider, including the catalog providers,
+  failed with a provider error. Each download now keeps where it came from
+  (without keys, tokens, cookies or passwords), and the repair fetches the
+  file from there. Subtitles saved before this version from those providers
+  are listed as unavailable with the reason instead of failing.
+- **Manual and forced downloads keep their decision log** — Downloading a
+  chosen result from the search dialog and downloading forced subtitles
+  stored no decision log, so History could not show why the subtitle was
+  chosen and the repair had nothing to fetch it from.
+
 ## [1.18.1] - 2026-10-29
 
 ### Fixed
