@@ -408,3 +408,61 @@ def test_a_version_number_before_the_extension_is_no_recap(name):
 def test_a_recap_with_a_version_suffix_is_not_the_episode(name):
     result = _result(filename=name, matches={"series", "episode"})
     assert "12.5" in episode_gate_reason(result, _query(season=1, episode=12))
+
+
+class TestStoryPartNumbering:
+    """Sonarr numbers classic Doctor Who per part, releases by story and part (#229)."""
+
+    @pytest.mark.parametrize(
+        ("release", "season", "episode", "title"),
+        [
+            ("s01e06p2 The Warriors of Death", 1, 28, "The Aztecs The Warriors of Death 2"),
+            ("067 s10e03p05 Frontier in Space", 10, 13, "Frontier in Space 5"),
+            ("116 s18e07p03 Logopolis", 18, 27, "Logopolis 3"),
+            ("The Underwater Menace 1", 4, 19, "The Underwater Menace 1"),
+            ("067 - Frontier in Space, episode 2", 10, 10, "Frontier in Space 2"),
+            ("Doctor Who [113-5P] State of Decay - 4 of 4", 18, 16, "State of Decay 4"),
+        ],
+    )
+    def test_the_story_title_and_part_are_the_episode(self, release, season, episode, title):
+        query = _query(season, episode, series_title="Doctor Who", title=title)
+        assert episode_gate_reason(_result(f"{release}.srt", release), query) == ""
+
+    def test_another_part_of_the_same_story_is_dropped(self):
+        query = _query(10, 13, series_title="Doctor Who", title="Frontier in Space 5")
+        release = "067 s10e03p02 Frontier in Space"
+        assert episode_gate_reason(_result(f"{release}.srt", release), query).startswith("names ")
+
+    def test_a_story_part_of_another_season_is_dropped(self):
+        query = _query(18, 27, series_title="Doctor Who", title="Logopolis 3")
+        release = "116 s17e07p03 Logopolis"
+        assert episode_gate_reason(_result(f"{release}.srt", release), query).startswith("names ")
+
+    def test_another_story_title_with_the_same_part_is_not_a_match(self):
+        query = _query(10, 10, series_title="Doctor Who", title="Frontier in Space 2")
+        release = "068 - Planet of the Daleks, episode 2"
+        assert episode_gate_reason(_result(f"{release}.srt", release), query).startswith("names ")
+
+
+class TestMultiEpisodeFiles:
+    def test_a_subtitle_for_an_episode_inside_the_range_matches(self):
+        query = _query(5, 1, series_title="Animaniacs", episodes=[1, 2, 3])
+        release = "Animaniacs (1993) S05E03 - Cute First"
+        assert episode_gate_reason(_result(f"{release}.srt", release), query) == ""
+
+
+class TestStoryPartReviewFindings:
+    def test_an_ordinary_split_episode_part_still_matches_its_episode(self):
+        query = _query(1, 6, series_title="Show")
+        assert episode_gate_reason(_result("Show.S01E06p2.srt", matches={"series"}), query) == ""
+
+    def test_a_title_and_part_do_not_override_another_season(self):
+        query = _query(1, 5, series_title="Show", title="The Reunion 2")
+        release = "Show.S02E03.The.Reunion.2.of.3.1080p"
+        assert episode_gate_reason(_result(f"{release}.srt", release), query).startswith("names ")
+
+    def test_another_part_beats_the_story_number(self):
+        # Doctor Who S01E06 is "The Edge of Destruction 1"; s01e06p2 is story 6 part 2.
+        query = _query(1, 6, series_title="Doctor Who", title="The Edge of Destruction 1")
+        release = "s01e06p2 The Edge of Destruction"
+        assert episode_gate_reason(_result(f"{release}.srt", release), query).startswith("names ")

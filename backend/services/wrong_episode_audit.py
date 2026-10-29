@@ -45,14 +45,15 @@ class WrongEpisodeFinding:
         return dict(self.__dict__)
 
 
-def _video_numbering(video: str) -> tuple[int, int] | None:
+def _video_numbering(video: str) -> tuple[int, list[int]] | None:
+    """Season and every episode the video holds ("S05E01-E03" holds three)."""
     from providers.episode_gate import parse_claims
 
     claims = parse_claims(os.path.basename(video))
     if not claims.season_episodes:
         return None
     season, episodes = claims.season_episodes[0]
-    return season, min(episodes)
+    return season, sorted(episodes)
 
 
 def _may_be_absolute(season: int, episode: int, *names: str) -> bool:
@@ -312,7 +313,8 @@ def _finding_for(row, sonarr: _SonarrEpisodes | _EpisodeMetadata) -> WrongEpisod
     if sidecar is None or is_suspect_sidecar(sidecar):
         return None
 
-    season, episode = numbering
+    season, episodes = numbering
+    episode = episodes[0]
     result = SubtitleResult(
         provider_name=row.provider_name,
         subtitle_id=str(row.subtitle_id),
@@ -322,7 +324,7 @@ def _finding_for(row, sonarr: _SonarrEpisodes | _EpisodeMetadata) -> WrongEpisod
         release_info=release,
         matches=_breakdown_keys(row.score_breakdown),
     )
-    query = VideoQuery(file_path=row.file_path, season=season, episode=episode)
+    query = VideoQuery(file_path=row.file_path, season=season, episode=episode, episodes=episodes)
     reason = episode_gate_reason(result, query)
     if _bare_split_cour(filename, release):
         return None

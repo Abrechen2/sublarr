@@ -15,7 +15,10 @@ What a name may say and still be the queried episode:
   (Shoko / AniDB mapping, else Sonarr's ``absoluteEpisodeNumber``);
 - a season pack (``S02``) of the queried season;
 - a bare ``- 12`` when no absolute number is known, or when the name marks
-  a season — it may be this season's twelfth.
+  a season — it may be this season's twelfth;
+- a serial's story title and part ("s01e06p2 The Warriors of Death",
+  "Frontier in Space, episode 2") when Sonarr titles the episode by story and
+  part ("The Aztecs The Warriors of Death 2") — classic Doctor Who.
 
 A hash match identifies the file itself and is never second-guessed. A
 result whose names carry no numbering at all keeps its current behaviour,
@@ -39,6 +42,10 @@ logger = logging.getLogger(__name__)
 _SEASON_EPISODE_RE = re.compile(
     r"(?<![a-z0-9])s(\d{1,3})[ ._-]?e ?(\d{1,4})((?:(?:[ ._]?e ?|-e?|\s*~\s*e?)\d{1,4}(?![\dp]))*)",
     re.IGNORECASE,
+)
+# Story/part numbering: ``s01e06p2`` is story 6, part 2 of season 1 — not episode 6.
+_STORY_PART_RE = re.compile(
+    r"(?<![a-z0-9])s(\d{1,3})[ ._-]?e ?(\d{1,4})[ ._-]?p ?(\d{1,2})(?![a-z0-9])", re.IGNORECASE
 )
 # ``2x07`` / ``1x5``; four-digit sides (``1920x1080``) are resolutions, not episodes.
 _CROSS_RE = re.compile(r"(?<![a-z0-9])(\d{1,2})x(\d{1,3})(?![a-z0-9])", re.IGNORECASE)
@@ -91,12 +98,16 @@ class _Claims:
     vague_season: bool = False
     bare: set[int] = field(default_factory=set)
     fractions: set[str] = field(default_factory=set)
+    # (season, story, part) of ``s01e06p2``.
+    story_parts: list[tuple[int, int, int]] = field(default_factory=list)
     # The words of the series title the name opens with (see series_aliases).
     title_words: tuple[str, ...] = ()
 
     @property
     def empty(self) -> bool:
-        return not (self.season_episodes or self.seasons or self.bare or self.fractions)
+        return not (
+            self.season_episodes or self.seasons or self.bare or self.fractions or self.story_parts
+        )
 
 
 def _episodes(first: str, rest: str) -> set[int]:
@@ -129,6 +140,8 @@ def parse_claims(text: str) -> _Claims:
     claims = _Claims()
     text = text or ""
     claims.title_words = release_title_words(text)
+    claims.story_parts = [tuple(map(int, m.groups())) for m in _STORY_PART_RE.finditer(text)]
+    text = _STORY_PART_RE.sub(" ", text)
     for match in _SEASON_EPISODE_RE.finditer(text):
         claims.season_episodes.append(
             (int(match.group(1)), _episodes(match.group(2), match.group(3)))
@@ -182,6 +195,20 @@ def _verdict(claims: _Claims, query: VideoQuery) -> tuple[str, str]:
                 return "match", ""
         season, episodes = claims.season_episodes[0]
         return "contradict", f"S{season:02d}E{min(episodes):02d}"
+    if claims.story_parts:
+        # Which Sonarr episode a story's part is only its title says
+        # (_names_story_part); another season is another season. "S01E06p2"
+        # may also be part 2 of an ordinary split S01E06, so the number still
+        # matches as an episode.
+        if any(
+            season == query.season and story in _wanted_episodes(query)
+            for season, story, _part in claims.story_parts
+        ):
+            return "match", ""
+        if any(season == query.season for season, _story, _part in claims.story_parts):
+            return "", ""
+        season, story, part = claims.story_parts[0]
+        return "contradict", f"S{season:02d}E{story:02d}P{part:02d}"
     scope = title_scope(claims.title_words, query)
     if scope is not None and not claims.seasons and claims.bare:
         # "Road to Berlin - 05": the title names season 3, the number is its own
@@ -236,7 +263,10 @@ def episode_gate_reason(result: SubtitleResult, query: VideoQuery) -> str:
         if text
     ]
     kinds = {kind for kind, _ in verdicts}
-    if "match" in kinds:
+    story = _names_story_part(query, result)
+    if story is False:
+        return f"names another part of the story, query is {_wanted_label(query)}"
+    if "match" in kinds or story:
         return ""
     contradiction = next((detail for kind, detail in verdicts if kind == "contradict"), "")
     if contradiction and _names_episode_title(query, result):
@@ -290,6 +320,62 @@ def _names_episode_title(query: VideoQuery, result: SubtitleResult) -> bool:
     ):
         return False
     return any(_release_title(text) == title for text in (result.filename, result.release_info))
+
+
+# Sonarr's per-part title of a serial: "The Aztecs The Warriors of Death 2".
+_TITLE_PART_RE = re.compile(r"^(.*\D)\s+(\d{1,2})$")
+
+
+def _names_story_part(query: VideoQuery, result: SubtitleResult) -> bool | None:
+    """Whether a release names the story title and part Sonarr titles the episode by.
+
+    True for the queried part, False for another part of the same story, None
+    when the names say nothing about the story. Sonarr numbers classic Doctor
+    Who per part ("Frontier in Space 5" is S10E13); releases number by story
+    ("s10e03p05 Frontier in Space") or by title and part ("Frontier in Space,
+    episode 2", "State of Decay - 4 of 4"). A ``sXXeYYpZZ`` release may name
+    only the episode's half of a combined title ("The Warriors of Death").
+    """
+    match = _TITLE_PART_RE.match((query.title or "").strip()) if query.is_episode else None
+    if not match:
+        return None
+    base, part = _normalise(match.group(1)), int(match.group(2))
+    if (
+        len(base) < _MIN_TITLE
+        or _GENERIC_TITLE_RE.fullmatch(base)
+        or base == _normalise(query.series_title)
+    ):
+        return None
+    verdict = None
+    for text in (result.filename, result.release_info):
+        if not text:
+            continue
+        claims = parse_claims(text)
+        if claims.story_parts and all(s != query.season for s, _st, _p in claims.story_parts):
+            continue  # another season's story; _verdict says so
+        if (claims.season_episodes or claims.seasons) and _verdict(claims, query)[
+            0
+        ] == "contradict":
+            continue  # "S02E03 The Reunion 2" is S02E03, whatever its title says
+        parts = claims.bare | {p for s, _st, p in claims.story_parts if s == query.season}
+        names = f" {_normalise(text)} "
+        if f" {base} " in names:
+            parts |= {int(n) for n in re.findall(rf" {re.escape(base)} (\d{{1,2}}) ", names)}
+        elif not any(_story_title_in(base, text, m) for m in _STORY_PART_RE.finditer(text)):
+            continue
+        if part in parts:
+            return True
+        if parts:
+            verdict = False
+    return verdict
+
+
+def _story_title_in(base: str, text: str, match: re.Match) -> bool:
+    """The title after ``sXXeYYpZZ`` is (part of) Sonarr's story title."""
+    tail = text[match.end() :]
+    end = _TITLE_END_RE.search(tail)
+    title = _normalise(tail[: end.start()] if end else tail)
+    return len(title) >= _MIN_TITLE and f" {title} " in f" {base} "
 
 
 def _wanted_label(query: VideoQuery) -> str:

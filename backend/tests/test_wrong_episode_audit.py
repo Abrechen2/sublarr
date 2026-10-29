@@ -309,3 +309,29 @@ def test_the_bare_series_title_scoped_to_season_one_proves_nothing(sonarr_librar
     ]
     _download(folder, "Show - S02E01", "[Group] Show - 01 [1080p]")
     assert scan_wrong_episodes() == []
+
+
+class TestIssue229FalseAlarms:
+    """Story/part numbering and multi-episode files are the right episode (#229)."""
+
+    def test_a_story_part_release_with_sonarrs_part_title_is_not_flagged(self, sonarr_library):
+        folder, sonarr = sonarr_library
+        sonarr.get_episodes.return_value = [
+            {"seasonNumber": 10, "episodeNumber": 10, "title": "Frontier in Space 2"},
+        ]
+        _download(folder, "Doctor Who (1963) - S10E10", "067 - Frontier in Space, episode 2")
+        assert scan_wrong_episodes() == []
+
+    def test_another_part_of_the_story_is_still_flagged(self, sonarr_library):
+        folder, sonarr = sonarr_library
+        sonarr.get_episodes.return_value = [
+            {"seasonNumber": 10, "episodeNumber": 13, "title": "Frontier in Space 5"},
+        ]
+        video = _download(folder, "Doctor Who (1963) - S10E13", "Frontier in Space S10E10")
+        assert [f.video for f in scan_wrong_episodes()] == [video]
+
+    def test_an_episode_inside_a_multi_episode_file_is_not_flagged(self, library):
+        _download(
+            library, "Animaniacs (1993) - S05E01-E03 - Three", "Animaniacs (1993) S05E03 - Cute"
+        )
+        assert scan_wrong_episodes() == []
