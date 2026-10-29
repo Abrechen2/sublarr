@@ -5,6 +5,27 @@ All notable changes to Sublarr are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.18.1] - 2026-10-29
+
+### Fixed
+- **Subtitle repair re-downloads from SubDL** — Every subtitle that came from
+  SubDL failed to repair with "SubDL result carries no download path". The
+  repair now downloads the original SubDL file again from its stored id
+  (#230).
+- **Path mapping for Sonarr and Radarr on Windows** — A Windows or UNC path
+  such as `\\server\share\TV\...` kept its backslashes after mapping, so the
+  file was not found. The remote prefix now matches with either `\` or `/`,
+  and the mapped path uses `/` (#228).
+- **Wrong-episode check and search with story/part numbering** — Classic
+  Doctor Who releases numbered by story and part (`s01e06p2`, "Frontier in
+  Space, episode 2", "State of Decay - 4 of 4") were reported as another
+  episode and dropped from searches. A release that names the story title
+  and part of Sonarr's episode title now counts as that episode; another
+  part of the same story is still rejected (#229).
+- **Wrong-episode check on multi-episode files** — For a file such as
+  `S05E01-E03`, a subtitle for E02 or E03 was reported as another episode.
+  Every episode in the file's range now counts (#229).
+
 ## [1.18.0] - 2026-10-26
 
 ### Added
