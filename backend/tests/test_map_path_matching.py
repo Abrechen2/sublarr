@@ -61,3 +61,41 @@ def test_no_matching_pair_leaves_the_path():
 def test_windows_gets_backslashes(monkeypatch):
     monkeypatch.setattr("config_utils.os.name", "nt")
     assert _mapped("/data/tv=D:/tv", "/data/tv/Show/ep.mkv") == "D:\\tv\\Show\\ep.mkv"
+
+
+# Sonarr/Radarr on Windows report "D:\..." or UNC "\\server\share\..." paths (#228).
+UNC_FILE = "\\\\192.168.1.198\\kuf\\Anime Season\\Show\\Staffel 02\\Show.S02E01.mkv"
+
+
+def test_a_windows_unc_path_maps_to_forward_slashes():
+    assert (
+        _mapped("\\\\192.168.1.198\\kuf=/media", UNC_FILE)
+        == "/media/Anime Season/Show/Staffel 02/Show.S02E01.mkv"
+    )
+
+
+@pytest.mark.parametrize(
+    "remote", ["//192.168.1.198/kuf", "\\\\192.168.1.198\\kuf\\", "//192.168.1.198/kuf/"]
+)
+def test_the_windows_prefix_matches_with_either_separator(remote):
+    assert (
+        _mapped(f"{remote}=/media", UNC_FILE)
+        == "/media/Anime Season/Show/Staffel 02/Show.S02E01.mkv"
+    )
+
+
+def test_a_drive_letter_path_maps_to_forward_slashes():
+    assert _mapped("D:\\TV=/mnt/tv", "D:\\TV\\Show\\ep.mkv") == "/mnt/tv/Show/ep.mkv"
+
+
+def test_a_windows_pair_still_matches_whole_folders_only():
+    assert _mapped("D:\\TV=/mnt/tv", "D:\\TV-4K\\Show\\ep.mkv") == "D:\\TV-4K\\Show\\ep.mkv"
+
+
+def test_a_backslash_in_a_posix_file_name_is_kept():
+    assert _mapped("/data/tv=/mnt/tv", "/data/tv/Show/a\\b.mkv") == "/mnt/tv/Show/a\\b.mkv"
+
+
+def test_a_windows_path_on_a_windows_host_keeps_backslashes(monkeypatch):
+    monkeypatch.setattr("config_utils.os.name", "nt")
+    assert _mapped("\\\\nas\\tv=T:\\", "\\\\nas\\tv\\Show\\ep.mkv") == "T:\\Show\\ep.mkv"

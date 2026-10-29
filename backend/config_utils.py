@@ -4,6 +4,10 @@ config.py re-exports map_path for backwards compatibility.
 """
 
 import os
+import re
+
+# "D:\..." or UNC "\\server\share\..." — what Sonarr/Radarr on Windows report.
+_WINDOWS_PATH_RE = re.compile(r"^(?:[A-Za-z]:[\\/]|\\\\)")
 
 
 def is_under_folder(path: str, folder: str) -> bool:
@@ -30,6 +34,8 @@ def map_path(path: str) -> str:
     so a specific pair beats a general one in any order.
 
     On Windows, forward slashes in the mapped path are converted to backslashes.
+    A Windows remote path ("D:\\TV\\...", "\\\\nas\\tv\\...") matches its pair
+    with either separator, and elsewhere its backslashes become "/".
 
     SECURITY NOTE: This function performs prefix replacement only.
     Callers that serve or delete files MUST validate the mapped result with
@@ -43,6 +49,8 @@ def map_path(path: str) -> str:
     if not mapping:
         return path
 
+    windows = bool(_WINDOWS_PATH_RE.match(path))
+    probe = path.replace("\\", "/") if windows else path
     best = None
     for pair in mapping.split(";"):
         pair = pair.strip()
@@ -53,7 +61,9 @@ def map_path(path: str) -> str:
         local_prefix = local_prefix.strip()
         if not remote_prefix or not local_prefix:
             continue
-        if not is_under_folder(path, remote_prefix):
+        if windows:
+            remote_prefix = remote_prefix.replace("\\", "/")
+        if not is_under_folder(probe, remote_prefix):
             continue
         if best is None or len(remote_prefix) > len(best[0]):
             best = (remote_prefix, local_prefix)
@@ -62,7 +72,7 @@ def map_path(path: str) -> str:
         return path
     remote_prefix, local_prefix = best
     # Join at the folder boundary whichever side spells the trailing separator.
-    mapped = local_prefix.rstrip("/\\") + path[len(remote_prefix.rstrip("/\\")) :]
+    mapped = local_prefix.rstrip("/\\") + probe[len(remote_prefix.rstrip("/\\")) :]
     if os.name == "nt":
         mapped = mapped.replace("/", "\\")
     return mapped
