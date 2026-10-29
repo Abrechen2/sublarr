@@ -1479,7 +1479,8 @@ def _search_flipped_item(
 
     # Forced subtitle handling: download-only, no translation
     if subtitle_type == "forced":
-        return _process_forced_wanted_item(item, item_id, item_lang, manager)
+        with decision_log.session(item, "forced"):
+            return _process_forced_wanted_item(item, item_id, item_lang, manager)
 
     # Build primary target-language query shared across Step 1 / Step 3
     query = build_query_from_wanted(item)

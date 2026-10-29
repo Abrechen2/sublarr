@@ -29,6 +29,7 @@ the language and extension:
 
 from __future__ import annotations
 
+import json
 import os
 import re
 from dataclasses import dataclass, field
@@ -58,6 +59,9 @@ class RepairCandidate:
     # "encoding": letters lost to the old UTF-8-with-replacement decode
     # (encoding_restore.restore_encoding).
     kind: str = "pipeline"
+    # JSON of the URL and provider data saved with the download — all a
+    # provider that downloads by URL needs to fetch it again.
+    download_ref: str = ""
 
 
 @dataclass(frozen=True)
@@ -109,8 +113,16 @@ def _has_mangled_letters(path: str) -> bool:
         return False
 
 
-def _download_index(language: str | None) -> dict[tuple[str, str], tuple[str, str]]:
-    """(video stem, language) -> (provider, subtitle_id), newest download wins."""
+def _saved_download_ref(decision_log_json: str | None) -> str:
+    try:
+        ref = ((json.loads(decision_log_json or "{}") or {}).get("final") or {}).get("download")
+    except (TypeError, ValueError, AttributeError):
+        return ""
+    return json.dumps(ref) if isinstance(ref, dict) and ref else ""
+
+
+def _download_index(language: str | None) -> dict[tuple[str, str], tuple[str, str, str]]:
+    """(video stem, language) -> (provider, subtitle_id, download_ref), newest wins."""
     where = "WHERE subtitle_id IS NOT NULL AND subtitle_id <> ''"
     params: dict = {}
     if language:
@@ -122,7 +134,7 @@ def _download_index(language: str | None) -> dict[tuple[str, str], tuple[str, st
     # the scan failed on every SQLite install.
     rows = db.session.execute(
         sql(f"""
-            SELECT file_path, language, provider_name, subtitle_id
+            SELECT file_path, language, provider_name, subtitle_id, decision_log_json
             FROM subtitle_downloads
             {where}
             ORDER BY downloaded_at DESC, id DESC
@@ -130,10 +142,11 @@ def _download_index(language: str | None) -> dict[tuple[str, str], tuple[str, st
         params,
     ).fetchall()
 
-    index: dict[tuple[str, str], tuple[str, str]] = {}
-    for video_path, lang, provider, subtitle_id in rows:
+    index: dict[tuple[str, str], tuple[str, str, str]] = {}
+    for video_path, lang, provider, subtitle_id, decision_log_json in rows:
         stem = os.path.splitext(video_path)[0]
-        index.setdefault((stem, lang), (provider, subtitle_id))
+        if (stem, lang) not in index:
+            index[(stem, lang)] = (provider, subtitle_id, _saved_download_ref(decision_log_json))
     return index
 
 
@@ -224,7 +237,7 @@ def scan(language: str | None = None, limit: int | None = None) -> ScanReport:
             quarantined += 1
             continue
 
-        provider, subtitle_id = hit
+        provider, subtitle_id, saved_ref = hit
         candidates.append(
             RepairCandidate(
                 file_path=path,
@@ -234,6 +247,7 @@ def scan(language: str | None = None, limit: int | None = None) -> ScanReport:
                 provider=provider,
                 subtitle_id=str(subtitle_id),
                 kind=kind,
+                download_ref=saved_ref,
             )
         )
         if limit and len(candidates) >= limit:

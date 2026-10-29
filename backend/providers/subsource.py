@@ -86,6 +86,7 @@ _FORMAT_MAP = {
 @register_provider
 class SubsourceProvider(SubtitleProvider):
     name = "subsource"
+    redownload_by_id = True
     languages = set(_LANG_MAP.keys())
     config_fields = [
         {"key": "subsource_api_key", "label": "API Key", "type": "password", "required": True},

@@ -24,6 +24,7 @@ Persistence:
 
 import json
 import logging
+from contextlib import contextmanager
 from contextvars import ContextVar
 from datetime import UTC, datetime
 
@@ -202,6 +203,12 @@ class DecisionLog:
                 "step": self._step,
             }
         )
+        from providers.download_ref import download_ref
+
+        ref = download_ref(result)
+        if ref:
+            # The repair re-fetches this exact file from it (providers.download_ref).
+            self.final["download"] = ref
 
     def upgrade_decision(self, approved: bool, reason: str, old_score: int, new_score: int):
         self.upgrade = {
@@ -286,6 +293,27 @@ def start(item: dict | None = None) -> DecisionLog:
 def finish() -> None:
     """Deactivate the current decision log."""
     _current.set(None)
+
+
+@contextmanager
+def session(item: dict | None, step: str):
+    """A log for a download outside ``process_wanted_item`` (forced, manual).
+
+    Joins an active log instead of replacing it. Without a log the download
+    row saves no decision, and with it no download details: the repair could
+    never fetch a file from a URL provider again.
+    """
+    from config import get_settings
+
+    started = _current.get() is None and getattr(get_settings(), "decision_log_enabled", True)
+    if started:
+        start(item)
+    set_step(step)
+    try:
+        yield
+    finally:
+        if started:
+            finish()
 
 
 def active() -> DecisionLog | None:

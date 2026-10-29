@@ -122,6 +122,7 @@ class PodnapisiProvider(SubtitleProvider):
     """
 
     name = "podnapisi"
+    redownload_by_id = True
     languages = {
         "en",
         "de",

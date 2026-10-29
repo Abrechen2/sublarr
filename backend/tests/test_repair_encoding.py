@@ -203,7 +203,7 @@ def _scan_with(tmp_path, files):
         path = tmp_path / name
         path.write_bytes(raw)
         rows.append((str(path), stored, "de", "srt"))
-    index = {(str(tmp_path / "Show - S01E01"), "de"): ("opensubtitles", "42")}
+    index = {(str(tmp_path / "Show - S01E01"), "de"): ("opensubtitles", "42", "")}
     result = MagicMock()
     result.fetchall.return_value = rows
     with (
@@ -247,11 +247,32 @@ def test_download_index_works_on_sqlite(app_ctx, tmp_path):
 
     index = _download_index("de")
 
-    assert index == {(str(tmp_path / "Show - S01E01"), "de"): ("subdl", "new")}
+    assert index == {(str(tmp_path / "Show - S01E01"), "de"): ("subdl", "new", "")}
     assert _download_index(None)[(str(tmp_path / "Show - S01E01"), "en")] == (
         "opensubtitles",
         "en-1",
+        "",
     )
+
+
+def test_download_index_carries_the_saved_download_details(app_ctx, tmp_path):
+    """A URL provider can only be re-fetched from what its download saved."""
+    import json
+
+    from db.models.providers import SubtitleDownload
+    from db.providers import record_subtitle_download
+    from extensions import db
+    from services.repair.scanner import _download_index
+
+    video = str(tmp_path / "Show - S01E01.mkv")
+    record_subtitle_download("subf2m", "1580751", "de", "srt", video, 90)
+    row = db.session.query(SubtitleDownload).filter_by(file_path=video).one()
+    ref = {"url": "https://subf2m.co/x/1580751", "provider_data": {"is_zip": True}}
+    row.decision_log_json = json.dumps({"final": {"download": ref}})
+    db.session.commit()
+
+    _provider, _sid, saved = _download_index("de")[(str(tmp_path / "Show - S01E01"), "de")]
+    assert json.loads(saved) == ref
 
 
 # -- a repair that cannot prove every cue ------------------------------------------
@@ -337,7 +358,7 @@ def _scan_after_repair(tmp_path, raw, status, repaired_hash):
     path.write_bytes(raw)
     result = MagicMock()
     result.fetchall.return_value = [(str(path), "stored-at-download", "de", "srt")]
-    index = {(str(tmp_path / "Show - S01E01"), "de"): ("opensubtitles", "42")}
+    index = {(str(tmp_path / "Show - S01E01"), "de"): ("opensubtitles", "42", "")}
     with (
         patch.object(scanner.db.session, "execute", return_value=result),
         patch.object(scanner, "_download_index", return_value=index),

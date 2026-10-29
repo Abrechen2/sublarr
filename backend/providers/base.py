@@ -531,6 +531,9 @@ class SubtitleProvider(ABC):
     timeout: int = 30
     max_retries: int = 2
     is_plugin: bool = False
+    #: ``download()`` needs nothing but the id (OpenSubtitles' file id), so the
+    #: repair can re-fetch a file from its stored ``subtitle_id`` alone.
+    redownload_by_id: bool = False
 
     # Budget-gate metadata (consumed by services.provider_budget.ProviderBudgetManager).
     # Subclasses SHOULD override with provider-specific limits per tier; the default
@@ -609,12 +612,19 @@ class SubtitleProvider(ABC):
         Callers that already know exactly which subtitle they want (the repair
         runner re-fetching a file it downloaded before) skip the search and go
         straight to ``download()``. The id alone is enough for providers that
-        resolve it server-side; providers that download from a URL must override
-        this and rebuild that URL, or ``download()`` gets nothing to fetch.
+        resolve it server-side (``redownload_by_id``); providers that download
+        from a URL override this when the id encodes it, else the repair falls
+        back to the URL saved with the download (providers.download_ref).
 
         Raises:
             ValueError: The id is not in this provider's stored format.
+            LookupError: The id alone cannot be downloaded.
         """
+        if not self.redownload_by_id:
+            raise LookupError(
+                f"{self.name} downloads by URL and this subtitle was saved without "
+                "its download details (before 1.18.2)"
+            )
         return SubtitleResult(
             provider_name=self.name,
             subtitle_id=subtitle_id,

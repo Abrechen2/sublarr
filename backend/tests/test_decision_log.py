@@ -120,6 +120,19 @@ class TestCollector:
         assert d["final"]["output_path"] == "/media/x.de.ass"
         assert d["searches"][0]["download_attempts"][0]["status"] == "selected"
 
+    def test_selected_keeps_the_download_details_for_the_repair(self):
+        decision_log.start({"id": 1})
+        result = _make_result()
+        result.download_url = "https://jimaku.cc/entry/7/download/a.ass"
+        result.provider_data = {"entry_name": "Show", "is_archive": False}
+        decision_log.selected(result)
+
+        final = decision_log.active().to_dict()["final"]
+        assert final["download"] == {
+            "url": "https://jimaku.cc/entry/7/download/a.ass",
+            "provider_data": {"entry_name": "Show", "is_archive": False},
+        }
+
     def test_oversize_payload_drops_rejected_samples(self):
         decision_log.start({"id": 1})
         decision_log.search_started(["de"], None, 0)
@@ -324,3 +337,23 @@ class TestRoutes:
         listed = client.get("/api/v1/wanted").get_json()["data"][0]
         assert listed["has_decision_log"] is True
         assert "last_decision_log_json" not in listed
+
+
+class TestSession:
+    def test_starts_and_ends_a_log_when_none_is_active(self):
+        with decision_log.session({"id": 3}, "manual"):
+            assert decision_log.active() is not None
+        assert decision_log.active() is None
+
+    def test_joins_an_active_log(self):
+        outer = decision_log.start({"id": 1})
+        with decision_log.session({"id": 3}, "forced"):
+            assert decision_log.active() is outer
+        assert decision_log.active() is outer
+
+    def test_respects_a_disabled_decision_log(self, monkeypatch):
+        from config import get_settings
+
+        monkeypatch.setattr(get_settings(), "decision_log_enabled", False, raising=False)
+        with decision_log.session({"id": 3}, "manual"):
+            assert decision_log.active() is None

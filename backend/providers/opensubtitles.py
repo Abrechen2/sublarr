@@ -72,6 +72,7 @@ class OpenSubtitlesProvider(SubtitleProvider, _OpenSubtitlesFetchMixin):
     """OpenSubtitles.com REST API v2 provider."""
 
     name = "opensubtitles"
+    redownload_by_id = True
 
     # Free tier caps at 1000 downloads/day, 5 req/sec. VIP tiers are documented at
     # https://www.opensubtitles.com/vip — we cap a bit below the hard limit to

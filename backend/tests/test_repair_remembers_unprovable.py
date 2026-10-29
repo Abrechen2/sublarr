@@ -83,7 +83,7 @@ def _scan_recorded(tmp_path, recorded):
     path = tmp_path / "Show - S01E01.de.srt"
     rows = MagicMock()
     rows.fetchall.return_value = [(str(path), "pristine", "de", "srt")]
-    index = {(str(tmp_path / "Show - S01E01"), "de"): ("opensubtitles", "7440128")}
+    index = {(str(tmp_path / "Show - S01E01"), "de"): ("opensubtitles", "7440128", "")}
     with (
         patch.object(scanner.db.session, "execute", return_value=rows),
         patch.object(scanner, "_download_index", return_value=index),

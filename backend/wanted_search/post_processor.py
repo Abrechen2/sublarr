@@ -9,6 +9,7 @@ import logging
 import os
 import re
 
+import decision_log
 from config import get_settings
 from db.jobs import create_job, record_stat, update_job
 from db.providers import record_subtitle_download
@@ -297,6 +298,22 @@ def download_specific_for_item(
     language: str,
     translate: bool,
 ) -> dict:
+    """Download a specific subtitle result and optionally translate it (see below).
+
+    Runs in its own decision log so the download keeps its details for a
+    later repair, like an automatic one.
+    """
+    with decision_log.session({"id": item_id}, "manual"):
+        return _download_specific_for_item(item_id, provider_name, subtitle_id, language, translate)
+
+
+def _download_specific_for_item(
+    item_id: int,
+    provider_name: str,
+    subtitle_id: str,
+    language: str,
+    translate: bool,
+) -> dict:
     """Download a specific subtitle result and optionally translate it.
 
     Re-searches providers to find the specific result by provider_name + subtitle_id,
@@ -347,6 +364,7 @@ def download_specific_for_item(
     content = manager.download(target_result)
     if content is None:
         return {"success": False, "error": "Download failed"}
+    decision_log.selected(target_result)
 
     from translator import get_output_path_for_lang
 

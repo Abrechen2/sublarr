@@ -17,6 +17,7 @@ picks up where it left off, because progress is persisted per file.
 
 from __future__ import annotations
 
+import json
 import logging
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
@@ -93,6 +94,26 @@ def _hash_bytes(raw: bytes, language: str | None = None) -> str:
     return compute_content_hash_from_bytes(raw, language)
 
 
+def _result_for(provider, candidate: RepairCandidate):
+    """The provider's own rebuild from the id, completed by the saved download details."""
+    from providers.base import SubtitleResult
+    from providers.download_ref import apply_download_ref
+
+    ref = json.loads(candidate.download_ref) if candidate.download_ref else None
+    try:
+        result = provider.result_for_download(candidate.subtitle_id, candidate.language)
+    except LookupError:
+        if not ref:
+            raise
+        result = SubtitleResult(
+            provider_name=provider.name,
+            subtitle_id=candidate.subtitle_id,
+            language=candidate.language,
+        )
+    apply_download_ref(result, ref)
+    return result
+
+
 def fetch_original(candidate: RepairCandidate) -> bytes:
     """Re-download the exact provider file this sidecar came from.
 
@@ -113,7 +134,7 @@ def fetch_original(candidate: RepairCandidate) -> bytes:
     if provider is None:
         raise LookupError(f"provider {candidate.provider!r} is not configured")
 
-    result = provider.result_for_download(candidate.subtitle_id, candidate.language)
+    result = _result_for(provider, candidate)
     try:
         content = provider.download(result)
     except ProviderRateLimitError as exc:

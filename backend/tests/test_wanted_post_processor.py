@@ -632,6 +632,41 @@ class TestDownloadSpecificForItem:
         mock_sync.assert_called_once()
         mock_record.assert_called_once()
 
+    def test_a_manual_download_saves_its_download_details(self):
+        """The repair re-fetches a URL provider's file from what the download saved."""
+        import json
+
+        import decision_log
+
+        mock_translator = MagicMock()
+        mock_translator.get_output_path_for_lang.return_value = "/out/sub.srt"
+        result = _make_result()
+        result.download_url = "https://subf2m.co/subtitles/show/english/1580751"
+        manager = MagicMock()
+        manager.search.return_value = [result]
+        manager.download.return_value = result.content
+        manager.save_subtitle.return_value = "/out/sub.srt"
+        saved = {}
+
+        def _record(*args, **kwargs):
+            saved["log"] = decision_log.snapshot_json()
+
+        with (
+            self._patched_module(mock_translator) as mod,
+            patch.object(mod, "get_wanted_item", return_value=_make_wanted_item()),
+            patch.object(mod, "get_settings", return_value=_make_settings()),
+            patch.object(mod, "build_query_from_wanted", return_value=MagicMock()),
+            patch.object(mod, "get_provider_manager", return_value=manager),
+            patch.object(mod, "delete_wanted_item"),
+            patch.object(mod, "_try_auto_sync", autospec=True),
+            patch.object(mod, "record_subtitle_download", side_effect=_record),
+        ):
+            mod.download_specific_for_item(1, "test_provider", "sub123", "en", False)
+
+        final = json.loads(saved["log"])["final"]
+        assert final["download"]["url"] == "https://subf2m.co/subtitles/show/english/1580751"
+        assert decision_log.active() is None
+
     def test_download_only_same_lang_no_translate(self):
         """translate=True but language == item_lang: no translation, just save."""
         mock_translator = MagicMock()
