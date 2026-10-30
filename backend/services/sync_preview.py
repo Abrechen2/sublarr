@@ -116,7 +116,9 @@ def _run_ffsubsync_preview(subtitle_path: str, video_path: str) -> tuple[int, st
             )
         scale = _parse_ffsubsync_scale(result.stderr + result.stdout)
         if framerate_scale_is_insane(scale):
-            plan = segment_sync_fallback(subtitle_path, video_path, out_path, threshold, scale)
+            plan = segment_sync_fallback(
+                subtitle_path, video_path, out_path, threshold, scale, shift_ms
+            )
             if plan is None:
                 raise SyncSanityThresholdError(framerate_scale_message(scale))
             return plan.main_offset_ms, out_path

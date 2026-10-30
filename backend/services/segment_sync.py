@@ -42,6 +42,8 @@ _CHANGE_PENALTY_CS = 1_500  # 15 s of net speech: a cut must clearly pay off
 _MAX_JUMP_MS = 10_000  # an edit adds or drops seconds, not half a minute
 _MAX_CHANGES = 3  # cold open / opening, eyecatch, ending: more is a drift
 _DECOYS = 8  # the speech rolled by k/9 of its length, k = 1..8
+_ANCHOR_MS = 2_000
+_MIN_DECOYS = 4  # fewer usable rolls (a short video) and nothing is trusted
 
 _NON_DIALOGUE_STYLE = re.compile(
     r"(?i)(?:^|[^a-z])(?:op|ed|ts)(?:[^a-z]|$)|sign|title|kara|song|insert|note"
@@ -50,7 +52,7 @@ _SONG_STYLE = re.compile(r"(?i)(?:^|[^a-z])(?:op|ed)(?:[^a-z]|$)|kara|song|inser
 _KARAOKE_TAG = re.compile(r"\\(?:k|kf|ko|K)\d")
 _MIN_CUT_PAUSE_MS = 300
 _SONG_MERGE_MS = 20_000  # an opening's instrumental bars are still the opening
-_TYPESET_TAG = re.compile(r"\\(?:pos|move|k|kf|ko|K|p[1-9])\b")
+_TYPESET_TAG = re.compile(r"\\(?:pos|move|p[1-9])\b|\\(?:k|kf|ko|K)\d")
 
 
 @dataclass(frozen=True)
@@ -166,10 +168,16 @@ def _stands_out(net: int, blocks, speech: np.ndarray, shifts_cs: np.ndarray) -> 
     by their spread (Slime S02E19: 7000 above the best decoy, spread 3300;
     random subtitles stayed below their best decoy).
     """
-    decoys = [
-        _best_path(blocks, np.roll(speech, len(speech) * k // (_DECOYS + 1)), shifts_cs)[1]
-        for k in range(1, _DECOYS + 1)
-    ]
+    # A roll closer than the shift range plus one jump can put the true
+    # alignment back within reach; such a decoy would match, not mislead.
+    near = 2 * int(shifts_cs[-1]) + _MAX_JUMP_MS // _CS
+    n = len(speech)
+    rolls = [n * k // (_DECOYS + 1) for k in range(1, _DECOYS + 1)]
+    rolls = [r for r in rolls if min(r, n - r) > near]
+    if len(rolls) < _MIN_DECOYS:
+        logger.info("segment sync: video too short to tell a fit from chance")
+        return False
+    decoys = [_best_path(blocks, np.roll(speech, r), shifts_cs)[1] for r in rolls]
     margin = max(float(np.std(decoys)), float(_CHANGE_PENALTY_CS))
     if net < max(decoys) + margin:
         logger.info(
@@ -206,6 +214,8 @@ def _cut_between(lo: int, hi: int, shown: list[tuple[int, int]]) -> int:
     are missing after its last line, before the episode title. The widest
     pause would have been the opening's 17 s of bars before its first lyric.
     """
+    if lo >= hi:
+        return hi  # the blocks overlap: the next one starts the new stretch
     covered = sorted((max(a, lo), min(b, hi)) for a, b in shown if b > lo and a < hi)
     at, reach = None, lo
     for a, b in [*covered, (hi, hi)]:
@@ -215,8 +225,15 @@ def _cut_between(lo: int, hi: int, shown: list[tuple[int, int]]) -> int:
     return at if at is not None else max(lo, hi - _MIN_CUT_PAUSE_MS // 2)
 
 
-def plan_segments(subs, speech: np.ndarray, *, max_offset_ms: int) -> SegmentPlan | None:
-    """The per-stretch shifts that put ``subs``' dialogue on ``speech``, or None."""
+def plan_segments(
+    subs, speech: np.ndarray, *, max_offset_ms: int, anchor_ms: int | None = None
+) -> SegmentPlan | None:
+    """The per-stretch shifts that put ``subs``' dialogue on ``speech``, or None.
+
+    ``anchor_ms`` is ffsubsync's own shift for the file; one stretch must lie
+    within ``_ANCHOR_MS`` of it (prod dry run 2026-10-30: a plan of +6.1 s for
+    a file ffsubsync put at +11.2 s was noise).
+    """
     spans = sorted((e.start, e.end) for e in subs.events if is_dialogue(e) and e.end > e.start)
     speech = np.asarray(speech)
     if not spans or len(speech) == 0:
@@ -230,6 +247,13 @@ def plan_segments(subs, speech: np.ndarray, *, max_offset_ms: int) -> SegmentPla
     changes = sum(1 for a, b in zip(offsets, offsets[1:]) if a != b)
     if changes > _MAX_CHANGES:
         logger.info("segment sync: %d shift changes look like a drift, not an edit", changes)
+        return None
+    edge = max_offset_ms - _MAX_JUMP_MS // 10
+    if any(abs(off) >= edge for off in offsets):
+        logger.info("segment sync: a shift at the edge of the search is no fit")
+        return None
+    if anchor_ms is not None and min(abs(off - anchor_ms) for off in offsets) > _ANCHOR_MS:
+        logger.info("segment sync: no stretch near ffsubsync's own %d ms", anchor_ms)
         return None
     if not _stands_out(net, blocks, speech, shifts_cs):
         return None
@@ -280,7 +304,12 @@ def load_speech(video_path: str) -> np.ndarray | None:
 
 
 def segment_sync_into(
-    subtitle_path: str, video_path: str, out_path: str, *, max_offset_ms: int
+    subtitle_path: str,
+    video_path: str,
+    out_path: str,
+    *,
+    max_offset_ms: int,
+    anchor_ms: int | None = None,
 ) -> SegmentPlan | None:
     """Write ``subtitle_path`` with one shift per stretch to ``out_path``.
 
@@ -297,7 +326,7 @@ def segment_sync_into(
     speech = load_speech(video_path)
     if speech is None:
         return None
-    plan = plan_segments(subs, speech, max_offset_ms=max_offset_ms)
+    plan = plan_segments(subs, speech, max_offset_ms=max_offset_ms, anchor_ms=anchor_ms)
     if plan is None:
         return None
     apply_plan(subs, plan)

@@ -180,7 +180,7 @@ class FfsubsyncEngine(BaseSyncEngine):
         reason = ""
         if framerate_scale_is_insane(scale):
             plan = segment_sync_fallback(
-                subtitle_path, video_path, tmp_path, self._max_offset_ms(), scale
+                subtitle_path, video_path, tmp_path, self._max_offset_ms(), scale, offset_ms
             )
             if plan is None:
                 _remove(tmp_path)

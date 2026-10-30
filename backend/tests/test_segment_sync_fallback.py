@@ -135,3 +135,18 @@ def test_the_preview_shows_the_segment_plan(tmp_path, speech):
         assert sub.read_text(encoding="utf-8") == SRT
     finally:
         os.remove(out_path)
+
+
+def test_a_pal_speed_up_is_not_cut_into_stretches(tmp_path, speech):
+    """25/24 is a real speed change; prod dry run 2026-10-30 planned -45 s for one."""
+    from services.video_sync import segment_sync_fallback
+
+    sub = tmp_path / "ep.de.srt"
+    sub.write_text(SRT, encoding="utf-8")
+    with patch("services.segment_sync.plan_segments", return_value=PLAN) as planner:
+        plan = segment_sync_fallback(
+            str(sub), "/video.mkv", str(tmp_path / "o.srt"), 45_000, 1.042, 0
+        )
+
+    assert plan is None
+    planner.assert_not_called()

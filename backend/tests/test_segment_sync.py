@@ -125,3 +125,42 @@ def test_the_cut_sits_in_the_last_pause_not_in_the_opening_bars():
     shown = [(133_570, 202_640), (204_260, 208_520)]
 
     assert 202_640 < _cut_between(113_000, 205_760, shown) < 204_260
+
+
+def test_overlapping_blocks_cut_where_the_next_one_starts():
+    """Codex review 2026-10-30: the cut landed after the next block's first cue."""
+    from services.segment_sync import _cut_between
+
+    assert _cut_between(100_000, 99_000, []) == 99_000
+
+
+def test_a_video_too_short_for_honest_decoys_gets_no_plan():
+    """Codex review 2026-10-30: in a 3-minute video a rolled decoy can be the
+    true alignment again, so no comparison is fair and nothing is trusted."""
+    lines = [(t, t + 1000, "Default") for t in range(20_000, 150_000, 3000)]
+    speech = _speech(lines, [(0, 10**9, 5000)], duration_s=180)
+
+    assert plan_segments(_subs(lines), speech, max_offset_ms=45_000) is None
+
+
+def test_karaoke_lines_are_not_dialogue():
+    from services.segment_sync import is_dialogue
+
+    event = pysubs2.SSAEvent(start=0, end=1000, style="Default", text="{\\k20}Hello {\\k40}world")
+
+    assert not is_dialogue(event)
+
+
+def test_a_plan_far_from_ffsubsyncs_own_shift_is_refused():
+    """Prod dry run 2026-10-30: +6.1 s planned for a file ffsubsync put at +11.2 s."""
+    speech = _speech(LINES, CUTS)
+
+    assert plan_segments(_subs(LINES), speech, max_offset_ms=45_000, anchor_ms=-2520) is not None
+    assert plan_segments(_subs(LINES), speech, max_offset_ms=45_000, anchor_ms=8000) is None
+
+
+def test_a_shift_at_the_edge_of_the_search_is_refused():
+    cuts = [(0, 10**9, 44_900)]
+    speech = _speech(LINES, cuts, 1500)
+
+    assert plan_segments(_subs(LINES), speech, max_offset_ms=45_000) is None

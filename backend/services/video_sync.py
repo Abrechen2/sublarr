@@ -227,7 +227,9 @@ def sync_with_ffsubsync(subtitle_path: str, video_path: str) -> dict:
     scale = _parse_ffsubsync_scale(result.stderr + result.stdout)
     reason = ""
     if framerate_scale_is_insane(scale):
-        plan = segment_sync_fallback(subtitle_path, video_path, out_path, threshold, scale)
+        plan = segment_sync_fallback(
+            subtitle_path, video_path, out_path, threshold, scale, shift_ms
+        )
         if plan is None:
             _safe_remove(out_path)
             _audit("rejected", shift_ms, f"framerate_scale:{scale:.3f}")
@@ -472,8 +474,16 @@ def framerate_scale_message(scale: float) -> str:
     return f"ffsubsync framerate scale factor {scale:.3f} would stretch the timeline"
 
 
+_SEGMENT_MAX_SCALE_DEVIATION = 0.002  # 1000/1001 and its rounding, not 25/24
+
+
 def segment_sync_fallback(
-    subtitle_path: str, video_path: str, out_path: str, max_offset_ms: int, scale: float
+    subtitle_path: str,
+    video_path: str,
+    out_path: str,
+    max_offset_ms: int,
+    scale: float,
+    shift_ms: int,
 ):
     """After a rejected framerate scale: one shift per stretch, written to ``out_path``.
 
@@ -481,8 +491,16 @@ def segment_sync_fallback(
     after the opening, at the eyecatch) with a framerate scale; the stretches
     still fit by plain shifts (prod 2026-10-30, Slime S02E19). Returns the
     plan, or None when there is none and the rejection stands.
+
+    Only for a scale near 1 (1000/1001): a 25/24 scale is a real speed-up
+    that no set of shifts repairs (prod dry run 2026-10-30: plans at -45 s
+    and +23 s for such files). ``shift_ms`` is ffsubsync's own shift, the
+    plan's anchor.
     """
     from services.segment_sync import segment_sync_into
+
+    if abs(scale - 1.0) > _SEGMENT_MAX_SCALE_DEVIATION:
+        return None
 
     logger.warning(
         "ffsubsync: framerate scale factor %.3f for %s — trying one shift per stretch",
@@ -490,7 +508,9 @@ def segment_sync_fallback(
         subtitle_path,
     )
     try:
-        return segment_sync_into(subtitle_path, video_path, out_path, max_offset_ms=max_offset_ms)
+        return segment_sync_into(
+            subtitle_path, video_path, out_path, max_offset_ms=max_offset_ms, anchor_ms=shift_ms
+        )
     except Exception as exc:  # noqa: BLE001 — the rejection stands
         logger.warning("segment sync failed for %s: %s", subtitle_path, exc, exc_info=True)
         return None
