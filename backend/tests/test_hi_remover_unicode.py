@@ -37,6 +37,7 @@ def test_a_cue_that_is_only_a_marker_goes(text):
         ("GABIRU: Los!", "Los!"),
         ("SÖREN: Hallo.", "Hallo."),
         ("(flüstert) Komm her.", "Komm her."),
+        ("Nein! (keucht) Sir Gabiru...", "Nein! Sir Gabiru..."),
     ],
 )
 def test_a_marker_inside_dialogue_goes_and_the_dialogue_stays(text, kept):
@@ -53,4 +54,13 @@ def test_a_marker_inside_dialogue_goes_and_the_dialogue_stays(text, kept):
     ],
 )
 def test_dialogue_without_markers_is_left_alone(text):
+    assert remove_hi_markers(text) == text
+
+
+@pytest.mark.parametrize(
+    "text",
+    ["(I love you.)", "[I love you.]", "I paid (in Euros).", "[Er kommt zurück. Bald.]"],
+)
+def test_bracketed_sentences_are_dialogue(text):
+    """Codex review 2026-10-30: the first cut deleted these."""
     assert remove_hi_markers(text) == text

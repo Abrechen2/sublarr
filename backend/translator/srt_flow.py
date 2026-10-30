@@ -238,6 +238,9 @@ def _translate_srt(
     logger.info("Saved SRT translation: %s", output_path)
 
     _core._write_quality_sidecar(output_path, quality_scores)
+    from translator._helpers import process_translated_output
+
+    process_translated_output(output_path)
     from nfo_export import maybe_write_nfo
 
     maybe_write_nfo(

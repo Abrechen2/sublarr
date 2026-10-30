@@ -419,6 +419,9 @@ def translate_ass(
         logger.info("Saved ASS translation: %s", output_path)
 
         _core._write_quality_sidecar(output_path, quality_scores)
+        from translator._helpers import process_translated_output
+
+        process_translated_output(output_path)
         _report_partial_translation(output_path, dialog_untranslated)
         from nfo_export import maybe_write_nfo
 
@@ -614,6 +617,9 @@ def _translate_external_ass(
         logger.info("Saved ASS translation from external source: %s", output_path)
 
         _core._write_quality_sidecar(output_path, quality_scores)
+        from translator._helpers import process_translated_output
+
+        process_translated_output(output_path)
         _report_partial_translation(output_path, dialog_untranslated)
         from nfo_export import maybe_write_nfo
 

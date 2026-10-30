@@ -21,18 +21,87 @@ class TranslatedOutputRejectedError(RuntimeError):
     """The sanitizer could not read a translation result; nothing was written."""
 
 
-def _run_processing_pipeline(output_path: str) -> None:
+_VIDEO_EXTENSIONS = (".mkv", ".mp4", ".avi", ".m4v", ".mov", ".wmv", ".webm", ".ts")
+
+
+def _series_id_for_sidecar(output_path: str) -> int | None:
+    """The Sonarr series of the video ``output_path`` belongs to, if Sublarr tracks it."""
+    from db.wanted import get_wanted_items_by_path
+    from subtitle_filename import parse_subtitle_filename
+
+    parsed = parse_subtitle_filename(output_path)
+    if parsed is None:
+        return None
+    stem = os.path.join(os.path.dirname(output_path), parsed.base)
+    for ext in _VIDEO_EXTENSIONS:
+        for item in get_wanted_items_by_path(stem + ext) or []:
+            if item.get("sonarr_series_id"):
+                return item["sonarr_series_id"]
+    return None
+
+
+def _event_starts(path: str) -> list[int] | None:
+    try:
+        from subtitle_encoding import load_subtitle_file
+
+        return [e.start for e in load_subtitle_file(path).events]
+    except Exception:  # noqa: BLE001 — unreadable: nothing to realign
+        return None
+
+
+def _realign_quality_scores(output_path: str, before: list[int], after: list[int]) -> None:
+    """Drop the scores of the cues processing removed, so the rest stay on their cue.
+
+    Removing a cue does not move the others, so the kept cues are found by
+    their start times in order. If processing also moved cues the scores
+    cannot be matched and the sidecar is removed rather than left wrong.
+    """
+    import json
+
+    sidecar = output_path + ".quality.json"
+    try:
+        with open(sidecar, encoding="utf-8") as fh:
+            scores = json.load(fh)
+    except (OSError, ValueError):
+        return
+    if not isinstance(scores, list) or len(scores) != len(before):
+        return
+    kept, i = [], 0
+    for start in after:
+        while i < len(before) and before[i] != start:
+            i += 1
+        if i == len(before):
+            kept = None
+            break
+        kept.append(scores[i])
+        i += 1
+    try:
+        if kept is None:
+            os.remove(sidecar)
+        else:
+            with open(sidecar, "w", encoding="utf-8") as fh:
+                json.dump(kept, fh)
+    except OSError as exc:
+        logger.warning("quality sidecar %s not realigned: %s", sidecar, exc)
+
+
+def process_translated_output(output_path: str) -> None:
     """Give a translation the same processing as a download (HI removal, fixes).
 
     Only provider downloads ran the pipeline: on prod 2026-10-30 a German
     translation of an English CC track kept 141 "[HERMES stöhnt]" markers
-    although HI removal was switched on. Uses the global settings; a series
-    override is not known here. Never raises — the translation is saved.
+    although HI removal was switched on. Call after the quality sidecar is
+    written; cues the processing removes take their scores with them. Never
+    raises — the translation is saved either way.
     """
     try:
         from routes.subtitle_processor import _run_pipeline_for_path
 
-        _run_pipeline_for_path(output_path, series_id=None)
+        before = _event_starts(output_path)
+        _run_pipeline_for_path(output_path, series_id=_series_id_for_sidecar(output_path))
+        after = _event_starts(output_path)
+        if before is not None and after is not None and len(after) != len(before):
+            _realign_quality_scores(output_path, before, after)
     except Exception as exc:  # noqa: BLE001 — processing is best-effort
         logger.warning("[pipeline] translation post-processing failed for %s: %s", output_path, exc)
 
@@ -67,7 +136,6 @@ def save_translated_output(subs, output_path: str, fmt: str) -> None:
         ) from exc
 
     atomic_write_bytes(output_path, data)
-    _run_processing_pipeline(output_path)
     _fire_after_translate(output_path)
 
 

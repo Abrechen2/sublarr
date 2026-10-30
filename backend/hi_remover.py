@@ -6,21 +6,40 @@ from subtitle text. Inspired by Bazarr/SubZero HI-removal patterns.
 
 import re
 
-# Square brackets hold no dialogue in a subtitle: whatever is inside is a
-# marker, in any language and any case ("[HERMES stöhnt]", "[Gelächter]").
-_SQUARE_BRACKETS = re.compile(r"\[[^\[\]\n]{1,80}\]")
-# Round brackets also carry asides, so only a lowercase or all-caps content
-# is a marker; decided per match so umlauts and accents count as letters.
+# A marker is a short description, not a sentence: "[HERMES stöhnt]",
+# "[schnappt nach Luft]", "(Seufzt)". Bracketed sentence punctuation means
+# dialogue ("[I love you.]"). Round brackets also hold asides, so there only
+# all-lowercase or all-caps content is a marker ("(in Euros)" and
+# "(Gott sei Dank)" stay); a capitalised one only when it is the whole cue.
+_MARKER_MAX_WORDS = 5
+_SENTENCE_PUNCT = re.compile(r"[.?!]")
+_SQUARE_BRACKETS = re.compile(r"\[([^\[\]\n]{1,80})\]")
 _ROUND_BRACKETS = re.compile(r"\(([^()\n]{1,80})\)")
 _SPEAKER_LABEL = re.compile(r"^([^\W\d_][^\W\d_ ]*(?: [^\W\d_]+){0,2}):\s+", re.MULTILINE)
 
 
-def _round_marker(match: re.Match) -> str:
+def _looks_like_marker(inner: str) -> bool:
+    inner = inner.strip()
+    return (
+        bool(inner)
+        and len(inner.split()) <= _MARKER_MAX_WORDS
+        and not _SENTENCE_PUNCT.search(inner)
+    )
+
+
+def _square_marker(match: re.Match) -> str:
+    return "" if _looks_like_marker(match.group(1)) else match.group(0)
+
+
+def _round_marker(match: re.Match, whole_cue: bool = False) -> str:
     inner = match.group(1).strip()
     letters = [c for c in inner if c.isalpha()]
-    if letters and (letters[0].islower() or all(c.isupper() for c in letters)):
+    if not letters or not _looks_like_marker(inner):
+        return match.group(0)
+    if all(c.isupper() for c in letters) or all(c.islower() for c in letters):
         return ""
-    return match.group(0)
+    # "(Seufzt)": a capitalised aside is a marker only when it is the whole cue.
+    return "" if whole_cue and len(inner.split()) <= 2 else match.group(0)
 
 
 def _speaker_label(match: re.Match) -> str:
@@ -57,11 +76,12 @@ def remove_hi_markers(text: str) -> str:
     result = text
     for pattern in _HI_PATTERNS:
         result = pattern.sub("", result)
-    result = _SQUARE_BRACKETS.sub("", result)
+    result = _SQUARE_BRACKETS.sub(_square_marker, result)
+    whole = re.fullmatch(r"\s*\(([^()\n]{1,80})\)\s*", result)
+    if whole:
+        result = _round_marker(whole, whole_cue=True)
     result = _ROUND_BRACKETS.sub(_round_marker, result)
     result = _SPEAKER_LABEL.sub(_speaker_label, result)
-    if re.fullmatch(r"\s*\([^()\n]{1,80}\)\s*", result):
-        result = ""  # a cue that is nothing but an aside: "(Seufzt)"
 
     # Clean up: collapse multiple spaces, strip lines
     result = re.sub(r"  +", " ", result)
