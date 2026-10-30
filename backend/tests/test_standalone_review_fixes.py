@@ -101,7 +101,7 @@ def test_download_of_a_standalone_episode_honours_its_cleanup_switch(
         score=300,
     )
 
-    with patch("routes.subtitle_processor._run_pipeline_for_path") as pipeline:
+    with patch("services.processing_pipeline._run_pipeline_for_path") as pipeline:
         save_subtitle(
             result,
             str(tmp_path / "Show - S01E01.de.srt"),

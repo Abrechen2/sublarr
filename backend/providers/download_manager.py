@@ -753,7 +753,7 @@ def save_subtitle(
 
     # Post-download processing pipeline
     try:
-        from routes.subtitle_processor import _run_pipeline_for_path
+        from services.processing_pipeline import _run_pipeline_for_path
 
         _run_pipeline_for_path(output_path, series_id=series_id)
     except Exception as _exc:

@@ -29,7 +29,7 @@ def _write(path):
 
 def _process(out, series_row=None, wanted=()):
     with (
-        patch("routes.subtitle_processor.get_settings", return_value=SETTINGS),
+        patch("services.processing_pipeline.get_settings", return_value=SETTINGS),
         patch("services.standalone_owner_keys.get_row", return_value=series_row),
         patch("db.wanted.get_wanted_items_by_path", side_effect=lambda p: list(wanted)),
     ):
@@ -72,7 +72,9 @@ def test_a_series_override_is_honoured(tmp_path):
 def test_a_failing_pipeline_keeps_the_translation(tmp_path):
     out = tmp_path / "Show - S02E20.de.srt"
     _write(out)
-    with patch("routes.subtitle_processor._run_pipeline_for_path", side_effect=RuntimeError("x")):
+    with patch(
+        "services.processing_pipeline._run_pipeline_for_path", side_effect=RuntimeError("x")
+    ):
         process_translated_output(str(out))
 
     assert len(pysubs2.load(str(out)).events) == 3

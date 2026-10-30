@@ -1036,7 +1036,7 @@ def extract_embedded_sub(
     # The same processing as a download (HI removal, common fixes): an
     # extracted CC track kept its markers (prod 2026-10-30, Slime S02E20).
     try:
-        from routes.subtitle_processor import _run_pipeline_for_path
+        from services.processing_pipeline import _run_pipeline_for_path
 
         _run_pipeline_for_path(output_path, series_id=item.get("sonarr_series_id"))
     except Exception as _pipeline_err:

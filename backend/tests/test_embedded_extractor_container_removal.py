@@ -332,7 +332,7 @@ class TestExtractEmbeddedSubRunsPipeline:
             patch("services.embedded_extractor.extract_and_cleanup", return_value=fake_result),
             patch("services.embedded_extractor.emit_event"),
             patch("services.embedded_extractor.log_activity"),
-            patch("routes.subtitle_processor._run_pipeline_for_path") as pipeline,
+            patch("services.processing_pipeline._run_pipeline_for_path") as pipeline,
         ):
             embedded_extractor.extract_embedded_sub(1, str(video))
 
