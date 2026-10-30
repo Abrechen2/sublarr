@@ -21,6 +21,22 @@ class TranslatedOutputRejectedError(RuntimeError):
     """The sanitizer could not read a translation result; nothing was written."""
 
 
+def _run_processing_pipeline(output_path: str) -> None:
+    """Give a translation the same processing as a download (HI removal, fixes).
+
+    Only provider downloads ran the pipeline: on prod 2026-10-30 a German
+    translation of an English CC track kept 141 "[HERMES stöhnt]" markers
+    although HI removal was switched on. Uses the global settings; a series
+    override is not known here. Never raises — the translation is saved.
+    """
+    try:
+        from routes.subtitle_processor import _run_pipeline_for_path
+
+        _run_pipeline_for_path(output_path, series_id=None)
+    except Exception as exc:  # noqa: BLE001 — processing is best-effort
+        logger.warning("[pipeline] translation post-processing failed for %s: %s", output_path, exc)
+
+
 def save_translated_output(subs, output_path: str, fmt: str) -> None:
     """Serialise, repair and sanitize a translation in memory, then write it once.
 
@@ -51,6 +67,7 @@ def save_translated_output(subs, output_path: str, fmt: str) -> None:
         ) from exc
 
     atomic_write_bytes(output_path, data)
+    _run_processing_pipeline(output_path)
     _fire_after_translate(output_path)
 
 

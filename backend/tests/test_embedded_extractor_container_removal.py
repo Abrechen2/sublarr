@@ -288,3 +288,52 @@ class TestExtractEmbeddedSubResolvesSetting:
             embedded_extractor.extract_embedded_sub(1, str(video))
 
         assert mock_eac.call_args.kwargs["remove_from_container"] is setting_value
+
+
+class TestExtractEmbeddedSubRunsPipeline:
+    """An extracted sidecar gets the download's processing (HI removal, fixes):
+    prod 2026-10-30, an extracted CC track kept its markers."""
+
+    def test_the_primary_sidecar_goes_through_the_pipeline(self, tmp_path):
+        from services import embedded_extractor
+        from services.embedded_extractor import ExtractResult
+
+        video = tmp_path / "Ep.mkv"
+        video.write_bytes(b"fake")
+        sidecar = str(tmp_path / "Ep.de.srt")
+        settings = _settings_mock(
+            embedded_extract_remove_from_container=False,
+            enable_subtitle_repair=False,
+            target_language="de",
+            media_path=str(tmp_path),
+        )
+        fake_result = ExtractResult(
+            any_extracted=True,
+            extracted=[{"language": "de", "format": "srt", "sub_index": 0, "output_path": sidecar}],
+            primary_output_path=sidecar,
+            primary_format="srt",
+            primary_language="de",
+            sidecars_trashed=0,
+        )
+
+        with (
+            patch("config.get_settings", return_value=settings),
+            patch(
+                "db.wanted.get_wanted_item",
+                return_value={"id": 1, "target_language": "de", "sonarr_series_id": 7},
+            ),
+            patch("db.wanted.update_existing_sub"),
+            patch("db.wanted.update_wanted_status"),
+            patch("ass_utils.get_media_streams", return_value={"streams": []}),
+            patch(
+                "services.embedded_extractor.resolve_profile_for_item",
+                return_value={"target_languages": ["de"]},
+            ),
+            patch("services.embedded_extractor.extract_and_cleanup", return_value=fake_result),
+            patch("services.embedded_extractor.emit_event"),
+            patch("services.embedded_extractor.log_activity"),
+            patch("routes.subtitle_processor._run_pipeline_for_path") as pipeline,
+        ):
+            embedded_extractor.extract_embedded_sub(1, str(video))
+
+        pipeline.assert_called_once_with(sidecar, series_id=7)

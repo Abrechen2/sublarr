@@ -6,6 +6,27 @@ from subtitle text. Inspired by Bazarr/SubZero HI-removal patterns.
 
 import re
 
+# Square brackets hold no dialogue in a subtitle: whatever is inside is a
+# marker, in any language and any case ("[HERMES stöhnt]", "[Gelächter]").
+_SQUARE_BRACKETS = re.compile(r"\[[^\[\]\n]{1,80}\]")
+# Round brackets also carry asides, so only a lowercase or all-caps content
+# is a marker; decided per match so umlauts and accents count as letters.
+_ROUND_BRACKETS = re.compile(r"\(([^()\n]{1,80})\)")
+_SPEAKER_LABEL = re.compile(r"^([^\W\d_][^\W\d_ ]*(?: [^\W\d_]+){0,2}):\s+", re.MULTILINE)
+
+
+def _round_marker(match: re.Match) -> str:
+    inner = match.group(1).strip()
+    letters = [c for c in inner if c.isalpha()]
+    if letters and (letters[0].islower() or all(c.isupper() for c in letters)):
+        return ""
+    return match.group(0)
+
+
+def _speaker_label(match: re.Match) -> str:
+    return "" if match.group(1).isupper() else match.group(0)
+
+
 # Compiled HI patterns for performance
 _HI_PATTERNS = [
     # Square brackets: [music], [door slams], [laughing]
@@ -36,6 +57,11 @@ def remove_hi_markers(text: str) -> str:
     result = text
     for pattern in _HI_PATTERNS:
         result = pattern.sub("", result)
+    result = _SQUARE_BRACKETS.sub("", result)
+    result = _ROUND_BRACKETS.sub(_round_marker, result)
+    result = _SPEAKER_LABEL.sub(_speaker_label, result)
+    if re.fullmatch(r"\s*\([^()\n]{1,80}\)\s*", result):
+        result = ""  # a cue that is nothing but an aside: "(Seufzt)"
 
     # Clean up: collapse multiple spaces, strip lines
     result = re.sub(r"  +", " ", result)
