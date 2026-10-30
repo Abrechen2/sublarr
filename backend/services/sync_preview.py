@@ -21,6 +21,7 @@ import tempfile
 
 from services.sync_engines.ffsubsync_output import NO_OFFSET_MESSAGE
 from services.video_sync import (
+    FFSUBSYNC_SHIFT_ONLY,
     SyncSanityThresholdError,
     SyncUnavailableError,
     _check_module,
@@ -98,6 +99,7 @@ def _run_ffsubsync_preview(subtitle_path: str, video_path: str) -> tuple[int, st
         safe_subprocess_arg(subtitle_path),
         "-o",
         safe_subprocess_arg(out_path),
+        *FFSUBSYNC_SHIFT_ONLY,
     ]
     # Any failure after the tempfile is created removes it (incl. get_settings /
     # shift-parse errors that sit between the subprocess and the return).

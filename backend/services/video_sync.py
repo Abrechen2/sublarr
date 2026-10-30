@@ -179,6 +179,7 @@ def sync_with_ffsubsync(subtitle_path: str, video_path: str) -> dict:
         safe_subprocess_arg(subtitle_path),
         "-o",
         safe_subprocess_arg(out_path),
+        *FFSUBSYNC_SHIFT_ONLY,
     ]
     try:
         with sync_subprocess_lock:
@@ -459,6 +460,13 @@ def _safe_remove(path: str) -> None:
 # and the stretch put the end of the episode ~60 s out. The shift alone stays
 # under sync_sanity_threshold_ms, so it needs its own gate.
 _MAX_FRAMERATE_SCALE_DEVIATION = 0.001
+
+# So every ffsubsync run measures a plain shift. With the scale gate alone, a
+# run that also reported a scale was thrown away whole, shift included: prod
+# 2026-10-30, Slime S02E19 stayed 2.5 s late because ffsubsync paired the
+# right shift with a 1000/1001 scale (and 1 - 0.999 > 0.001 in floats). 23
+# such files were left unsynced. The gate stays as a guard.
+FFSUBSYNC_SHIFT_ONLY = ("--no-fix-framerate",)
 
 
 def framerate_scale_is_insane(scale: float) -> bool:
