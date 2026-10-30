@@ -10,21 +10,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 - **Sync of subtitles made for another cut of the episode** — A subtitle
   taken from another release often has a few seconds more or less after the
-  opening or at the eyecatch. ffsubsync answered such a file with a framerate
-  change, Sublarr rejected that, and the subtitle stayed seconds out of step.
-  Sync now finds those cuts in the dialogue pauses and shifts each stretch on
-  its own; openings and signs move with the stretch they belong to. A file
-  whose timing drifts throughout is still left alone. Applies to automatic
-  sync, manual sync and the sync preview.
+  opening or at the eyecatch. ffsubsync answered such a file with a small
+  framerate change (1000/1001), Sublarr rejected that, and the subtitle
+  stayed seconds out of step. Sync now finds those cuts in the dialogue
+  pauses and shifts each stretch on its own; openings and signs move with
+  the stretch they belong to. The plan has to agree with ffsubsync's own
+  measurement and clearly beat chance, or the file is left as it was. A
+  25/24 speed difference is not touched. Applies to automatic sync, manual
+  sync and the sync preview.
 - **Hearing-impaired markers in other languages** — HI removal now also
-  removes markers such as "[HERMES stöhnt]", "[Gelächter]" or "(Seufzt)":
-  any text in square brackets, round brackets that start lowercase or are
-  all caps, and speaker labels with umlauts.
+  removes markers such as "[HERMES stöhnt]", "[Gelächter]" or "(seufzt)":
+  short bracketed text without sentence punctuation, in any case and with
+  umlauts, and speaker labels with umlauts. Bracketed sentences such as
+  "(I love you.)" stay.
 - **Translations and extracted subtitles get the same processing as
   downloads** — HI removal, common fixes and credit removal only ran on
   provider downloads, so a German translation of an English CC track kept
   every marker. Translated subtitles and subtitles extracted from the video
-  now run through the same processing.
+  now run through the same processing, with the series' own settings, and
+  the translation quality scores stay on their lines.
 
 ## [1.18.2] - 2026-10-29
 
