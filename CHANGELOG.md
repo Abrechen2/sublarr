@@ -8,12 +8,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [1.18.3] - 2026-10-30
 
 ### Fixed
-- **Sync no longer leaves subtitles out of step** — When ffsubsync also
-  suggested stretching the timeline (for example by 1000/1001), Sublarr
-  rejected the whole result and kept the subtitle unsynced, even when a
-  plain shift was right. A subtitle could stay seconds late this way.
-  ffsubsync now measures a plain shift only, in the automatic sync, the
-  manual sync and the sync preview.
+- **Sync of subtitles made for another cut of the episode** — A subtitle
+  taken from another release often has a few seconds more or less after the
+  opening or at the eyecatch. ffsubsync answered such a file with a framerate
+  change, Sublarr rejected that, and the subtitle stayed seconds out of step.
+  Sync now finds those cuts in the dialogue pauses and shifts each stretch on
+  its own; openings and signs move with the stretch they belong to. A file
+  whose timing drifts throughout is still left alone. Applies to automatic
+  sync, manual sync and the sync preview.
+- **Hearing-impaired markers in other languages** — HI removal now also
+  removes markers such as "[HERMES stöhnt]", "[Gelächter]" or "(Seufzt)":
+  any text in square brackets, round brackets that start lowercase or are
+  all caps, and speaker labels with umlauts.
+- **Translations and extracted subtitles get the same processing as
+  downloads** — HI removal, common fixes and credit removal only ran on
+  provider downloads, so a German translation of an English CC track kept
+  every marker. Translated subtitles and subtitles extracted from the video
+  now run through the same processing.
 
 ## [1.18.2] - 2026-10-29
 
