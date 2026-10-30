@@ -193,6 +193,27 @@ def _patch_pre_alembic_columns(engine, inspect_fn) -> None:
     _log.info("Pre-Alembic DB: patched %d missing column(s)", len(patches))
 
 
+def usable_plugins_dir(configured: str) -> str:
+    """``configured``, or one fixed temp folder when it cannot be created.
+
+    The fallback used to be a fresh ``mkdtemp`` per app start that nobody
+    removed: every test run left thousands of them, and on 2026-10-30 they
+    used up the build host's /tmp inodes (103 251 folders).
+    """
+    try:
+        os.makedirs(configured, exist_ok=True)
+        return configured
+    except PermissionError:
+        import tempfile
+
+        fallback = os.path.join(tempfile.gettempdir(), "sublarr_plugins")
+        os.makedirs(fallback, exist_ok=True)
+        logging.getLogger(__name__).warning(
+            "Cannot create plugins_dir %s (permission denied), using %s", configured, fallback
+        )
+        return fallback
+
+
 def create_app(testing=False):
     """Create and configure the Flask application.
 
@@ -636,17 +657,7 @@ def create_app(testing=False):
         # Initialize plugin system
         plugins_dir = getattr(settings, "plugins_dir", "")
         if plugins_dir:
-            try:
-                os.makedirs(plugins_dir, exist_ok=True)
-            except PermissionError:
-                import tempfile
-
-                plugins_dir = tempfile.mkdtemp(prefix="sublarr_plugins_")
-                logger.warning(
-                    "Cannot create plugins_dir %s (permission denied), using temp: %s",
-                    getattr(settings, "plugins_dir", ""),
-                    plugins_dir,
-                )
+            plugins_dir = usable_plugins_dir(plugins_dir)
             from providers.plugins import init_plugin_manager
 
             plugin_mgr = init_plugin_manager(plugins_dir)
