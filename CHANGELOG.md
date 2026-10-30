@@ -5,6 +5,16 @@ All notable changes to Sublarr are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.18.3] - 2026-10-30
+
+### Fixed
+- **Sync no longer leaves subtitles out of step** — When ffsubsync also
+  suggested stretching the timeline (for example by 1000/1001), Sublarr
+  rejected the whole result and kept the subtitle unsynced, even when a
+  plain shift was right. A subtitle could stay seconds late this way.
+  ffsubsync now measures a plain shift only, in the automatic sync, the
+  manual sync and the sync preview.
+
 ## [1.18.2] - 2026-10-29
 
 ### Fixed
