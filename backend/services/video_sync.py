@@ -225,13 +225,16 @@ def sync_with_ffsubsync(subtitle_path: str, video_path: str) -> dict:
         )
 
     scale = _parse_ffsubsync_scale(result.stderr + result.stdout)
+    reason = ""
     if framerate_scale_is_insane(scale):
-        _safe_remove(out_path)
-        logger.warning("ffsubsync: framerate scale factor %.3f — leaving sidecar untouched", scale)
-        _audit("rejected", shift_ms, f"framerate_scale:{scale:.3f}")
-        raise SyncSanityThresholdError(framerate_scale_message(scale))
-
-    shift_original_into(subtitle_path, out_path, shift_ms)
+        plan = segment_sync_fallback(subtitle_path, video_path, out_path, threshold, scale)
+        if plan is None:
+            _safe_remove(out_path)
+            _audit("rejected", shift_ms, f"framerate_scale:{scale:.3f}")
+            raise SyncSanityThresholdError(framerate_scale_message(scale))
+        shift_ms, reason = plan.main_offset_ms, segment_reason(plan)
+    else:
+        shift_original_into(subtitle_path, out_path, shift_ms)
 
     # NOTE: shutil.move falls back to copy2 across filesystems and copy2's
     # copystat raises PermissionError on bind-mounted /media owned by a
@@ -242,7 +245,7 @@ def sync_with_ffsubsync(subtitle_path: str, video_path: str) -> dict:
     _safe_remove(out_path)
     carry_origin_after_rewrite(vouch)
     logger.info("ffsubsync: done, estimated shift %dms", shift_ms)
-    _audit("ok", shift_ms, "")
+    _audit("ok", shift_ms, reason)
 
     # Plan B6 — fire after_sync post-processing trigger on the happy path.
     _fire_after_sync_trigger(subtitle_path, video_path, "ffsubsync")
@@ -467,6 +470,35 @@ def framerate_scale_is_insane(scale: float) -> bool:
 
 def framerate_scale_message(scale: float) -> str:
     return f"ffsubsync framerate scale factor {scale:.3f} would stretch the timeline"
+
+
+def segment_sync_fallback(
+    subtitle_path: str, video_path: str, out_path: str, max_offset_ms: int, scale: float
+):
+    """After a rejected framerate scale: one shift per stretch, written to ``out_path``.
+
+    ffsubsync answers a subtitle timed to another edit (a few seconds more
+    after the opening, at the eyecatch) with a framerate scale; the stretches
+    still fit by plain shifts (prod 2026-10-30, Slime S02E19). Returns the
+    plan, or None when there is none and the rejection stands.
+    """
+    from services.segment_sync import segment_sync_into
+
+    logger.warning(
+        "ffsubsync: framerate scale factor %.3f for %s — trying one shift per stretch",
+        scale,
+        subtitle_path,
+    )
+    try:
+        return segment_sync_into(subtitle_path, video_path, out_path, max_offset_ms=max_offset_ms)
+    except Exception as exc:  # noqa: BLE001 — the rejection stands
+        logger.warning("segment sync failed for %s: %s", subtitle_path, exc, exc_info=True)
+        return None
+
+
+def segment_reason(plan) -> str:
+    """Audit reason for a segment sync: the shifts, cut to the column's 64 chars."""
+    return ("segments:" + ",".join(str(o) for o in plan.offsets))[:64]
 
 
 _PYSUBS2_FORMATS = {"srt": "srt", "ass": "ass", "ssa": "ssa", "vtt": "vtt"}

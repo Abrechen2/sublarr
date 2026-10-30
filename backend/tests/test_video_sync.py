@@ -565,6 +565,7 @@ def test_ffsubsync_rejects_framerate_scaling(tmp_path):
         patch("services.video_sync.shutil.which", return_value="/usr/bin/ffsubsync"),
         patch("services.video_sync.subprocess.run", return_value=fake_result),
         patch("config.get_settings", return_value=fake_settings),
+        patch("services.segment_sync.load_speech", return_value=None),
         pytest.raises(SyncSanityThresholdError, match="framerate scale factor 1.042"),
     ):
         sync_with_ffsubsync(str(sub), "/video.mkv")

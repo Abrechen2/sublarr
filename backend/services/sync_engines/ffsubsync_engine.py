@@ -83,6 +83,12 @@ class FfsubsyncEngine(BaseSyncEngine):
     def is_available(self) -> bool:
         return bool(shutil.which("ffsubsync") or _check_module("ffsubsync"))
 
+    @staticmethod
+    def _max_offset_ms() -> int:
+        from config import get_settings
+
+        return getattr(get_settings(), "sync_sanity_threshold_ms", 45_000)
+
     def sync(self, subtitle_path: str, video_path: str) -> SyncResult:
         start = time.monotonic()
 
@@ -153,6 +159,8 @@ class FfsubsyncEngine(BaseSyncEngine):
             _parse_ffsubsync_scale,
             framerate_scale_is_insane,
             framerate_scale_message,
+            segment_reason,
+            segment_sync_fallback,
             shift_original_into,
         )
 
@@ -169,16 +177,23 @@ class FfsubsyncEngine(BaseSyncEngine):
                 reason=NO_OFFSET_MESSAGE,
             )
         scale = _parse_ffsubsync_scale(output)
+        reason = ""
         if framerate_scale_is_insane(scale):
-            _remove(tmp_path)
-            return SyncResult(
-                engine=self.name,
-                ok=False,
-                offset_ms=offset_ms,
-                duration_ms=int((time.monotonic() - start) * 1000),
-                reason=framerate_scale_message(scale),
+            plan = segment_sync_fallback(
+                subtitle_path, video_path, tmp_path, self._max_offset_ms(), scale
             )
-        shift_original_into(subtitle_path, tmp_path, offset_ms)
+            if plan is None:
+                _remove(tmp_path)
+                return SyncResult(
+                    engine=self.name,
+                    ok=False,
+                    offset_ms=offset_ms,
+                    duration_ms=int((time.monotonic() - start) * 1000),
+                    reason=framerate_scale_message(scale),
+                )
+            offset_ms, reason = plan.main_offset_ms, segment_reason(plan)
+        else:
+            shift_original_into(subtitle_path, tmp_path, offset_ms)
         shutil.copyfile(tmp_path, out_path)
         _remove(tmp_path)
         _fire_after_sync_trigger(subtitle_path, video_path, self.name)
@@ -189,4 +204,5 @@ class FfsubsyncEngine(BaseSyncEngine):
             offset_ms=offset_ms,
             duration_ms=int((time.monotonic() - start) * 1000),
             output_path=out_path,
+            reason=reason,
         )

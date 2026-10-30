@@ -29,6 +29,7 @@ from services.video_sync import (
     _safe_remove,
     framerate_scale_is_insane,
     framerate_scale_message,
+    segment_sync_fallback,
     shift_original_into,
 )
 from subtitle_encoding import load_subtitle_file
@@ -115,7 +116,10 @@ def _run_ffsubsync_preview(subtitle_path: str, video_path: str) -> tuple[int, st
             )
         scale = _parse_ffsubsync_scale(result.stderr + result.stdout)
         if framerate_scale_is_insane(scale):
-            raise SyncSanityThresholdError(framerate_scale_message(scale))
+            plan = segment_sync_fallback(subtitle_path, video_path, out_path, threshold, scale)
+            if plan is None:
+                raise SyncSanityThresholdError(framerate_scale_message(scale))
+            return plan.main_offset_ms, out_path
         shift_original_into(subtitle_path, out_path, shift_ms)
         return shift_ms, out_path
     except BaseException:
