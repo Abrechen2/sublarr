@@ -100,7 +100,6 @@ class FfsubsyncEngine(BaseSyncEngine):
 
         from security_utils import safe_subprocess_arg
         from services.sync_engines.concurrency import nice_prefix, sync_subprocess_lock
-        from services.video_sync import FFSUBSYNC_SHIFT_ONLY
 
         # ffsubsync writes to a temp file: its output caps every event at 10 s,
         # so only its measured shift is used, applied to the original below.
@@ -115,7 +114,6 @@ class FfsubsyncEngine(BaseSyncEngine):
             safe_subprocess_arg(subtitle_path),
             "-o",
             safe_subprocess_arg(tmp_path),
-            *FFSUBSYNC_SHIFT_ONLY,
         ]
         logger.info("ffsubsync: syncing %s against %s", subtitle_path, video_path)
 
