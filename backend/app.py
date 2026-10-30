@@ -193,25 +193,37 @@ def _patch_pre_alembic_columns(engine, inspect_fn) -> None:
     _log.info("Pre-Alembic DB: patched %d missing column(s)", len(patches))
 
 
+_fallback_plugins_dir: str | None = None
+
+
 def usable_plugins_dir(configured: str) -> str:
-    """``configured``, or one fixed temp folder when it cannot be created.
+    """``configured``, or this process's private temp folder when it cannot be created.
 
     The fallback used to be a fresh ``mkdtemp`` per app start that nobody
     removed: every test run left thousands of them, and on 2026-10-30 they
-    used up the build host's /tmp inodes (103 251 folders).
+    used up the build host's /tmp inodes (103 251 folders). It stays a
+    ``mkdtemp`` (unpredictable name, mode 0700) because plugins are code: a
+    fixed path in a shared /tmp could be planted by another local user. One
+    per process, removed at exit.
     """
+    global _fallback_plugins_dir
     try:
         os.makedirs(configured, exist_ok=True)
         return configured
     except PermissionError:
-        import tempfile
+        if _fallback_plugins_dir is None or not os.path.isdir(_fallback_plugins_dir):
+            import atexit
+            import shutil
+            import tempfile
 
-        fallback = os.path.join(tempfile.gettempdir(), "sublarr_plugins")
-        os.makedirs(fallback, exist_ok=True)
+            _fallback_plugins_dir = tempfile.mkdtemp(prefix="sublarr_plugins_")
+            atexit.register(shutil.rmtree, _fallback_plugins_dir, True)
         logging.getLogger(__name__).warning(
-            "Cannot create plugins_dir %s (permission denied), using %s", configured, fallback
+            "Cannot create plugins_dir %s (permission denied), using %s",
+            configured,
+            _fallback_plugins_dir,
         )
-        return fallback
+        return _fallback_plugins_dir
 
 
 def create_app(testing=False):
