@@ -26,6 +26,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   series or movie with an example path and points to the /media mount and
   the path mapping.
 
+### Security
+- **follow-redirects 1.16.2** — The HTTP library behind the web interface's
+  API calls is updated for GHSA-mrwp-f3q8-3g9p (credentials could follow a
+  redirect to another host).
+
 ## [1.18.3] - 2026-10-30
 
 ### Fixed
