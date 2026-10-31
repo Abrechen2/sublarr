@@ -110,3 +110,44 @@ def _run_pipeline_for_path(subtitle_path: str, series_id: int | None) -> None:
         logger.debug("[pipeline] processed %s", subtitle_path)
     except Exception as exc:
         logger.warning("[pipeline] failed for %s: %s", subtitle_path, exc)
+
+
+_VIDEO_EXTENSIONS = (".mkv", ".mp4", ".avi", ".m4v", ".mov", ".wmv", ".webm", ".ts")
+
+
+def series_key_for_sidecar(subtitle_path: str) -> int | None:
+    """Series owner key of the video ``subtitle_path`` belongs to, if Sublarr tracks it.
+
+    Standalone series answer with their negative owner key: passing only the
+    Sonarr id dropped a standalone series' own processing settings (#61 A25).
+    """
+    from db.wanted import get_wanted_items_by_path
+    from services.media_ids import series_key_for_item
+    from subtitle_filename import parse_subtitle_filename
+
+    parsed = parse_subtitle_filename(subtitle_path)
+    if parsed is None:
+        return None
+    stem = os.path.join(os.path.dirname(subtitle_path), parsed.base)
+    for ext in _VIDEO_EXTENSIONS:
+        for item in get_wanted_items_by_path(stem + ext) or []:
+            key = series_key_for_item(item)
+            if key is not None:
+                return key
+    return None
+
+
+def process_new_sidecar(subtitle_path: str, *, series_key: int | None = None) -> None:
+    """Give a sidecar Sublarr just wrote the same processing as a download.
+
+    One finish for every way a subtitle is made — download, translation,
+    automatic and manual extraction — so HI removal and fixes no longer
+    depend on the path it took (#61 A24). ``series_key`` is the owner key
+    when the caller knows it; otherwise it is looked up from the wanted
+    items. Never raises: the subtitle is kept either way.
+    """
+    try:
+        key = series_key if series_key is not None else series_key_for_sidecar(subtitle_path)
+        _run_pipeline_for_path(subtitle_path, series_id=key)
+    except Exception as exc:  # noqa: BLE001 — processing is best-effort
+        logger.warning("[pipeline] processing failed for %s: %s", subtitle_path, exc)

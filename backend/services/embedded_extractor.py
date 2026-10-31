@@ -200,6 +200,26 @@ def _full_ass_sidecar_for(file_path: str, language: str) -> str | None:
     return None
 
 
+def _finish_extracted_sidecar(path: str, settings, series_key: int | None) -> None:
+    """Repair, then process one freshly extracted sidecar. Never raises.
+
+    Repair fixes BOM, newlines, invalid decimals, overlapping cues and
+    encoding mis-detection (plan B5, opt-outable); it writes through a temp
+    file and ``os.replace`` (audit Gemini-2026-05-09 R4). Processing is the
+    same as for a download: an extracted CC track kept its markers
+    (prod 2026-10-30, Slime S02E20).
+    """
+    try:
+        if getattr(settings, "enable_subtitle_repair", True):
+            _repair_sidecar_file(path)
+    except Exception as exc:
+        logger.warning("subtitle_repair on embedded extract skipped for %s: %s", path, exc)
+
+    from services.processing_pipeline import process_new_sidecar
+
+    process_new_sidecar(path, series_key=series_key)
+
+
 def _has_dialogue(path: str) -> bool:
     """True when the file holds at least one subtitle line.
 
@@ -207,12 +227,9 @@ def _has_dialogue(path: str) -> bool:
     otherwise stop a perfectly good German track from being extracted
     (cold review, 2026-09-17).
     """
-    try:
-        with open(path, "rb") as fh:
-            return b"Dialogue:" in fh.read(_SIDECAR_SAMPLE_BYTES)
-    except OSError as exc:
-        logger.debug("Could not read %s while checking coverage: %s", path, exc)
-        return False
+    from subtitle_content import has_subtitle_lines
+
+    return has_subtitle_lines(path)
 
 
 def _quarantine_mislabelled_sidecar(path: str, log_label: str) -> None:
@@ -1013,34 +1030,15 @@ def extract_embedded_sub(
     output_path = result.primary_output_path
     primary_format = result.primary_format or "srt"
 
-    # Plan B5 — run repair on the primary extracted track (opt-outable).
-    # Fixes BOM, newlines, invalid decimals, overlapping cues, encoding
-    # mis-detection. Must never abort extraction — fall through on any error.
-    #
-    # Audit Gemini-2026-05-09 R4: the repair write used to be a plain
-    # ``Path.write_bytes`` against the live sidecar. A crash or ENOSPC
-    # mid-write would truncate the freshly-extracted file with no trash
-    # backup to fall back to. Same atomicity contract as the
-    # ``extract_subtitle_stream`` rewrite (G5/G12) — write to a temp
-    # file in the same directory, then ``os.replace`` it into place.
-    try:
-        if getattr(settings, "enable_subtitle_repair", True):
-            _repair_sidecar_file(output_path)
-    except Exception as _repair_err:
-        logger.warning(
-            "subtitle_repair on embedded extract skipped for %s: %s",
-            output_path,
-            _repair_err,
-        )
+    # Every sidecar this pass wrote gets the same finish — not only the
+    # primary one (#61 A24) — with the item's own series key, standalone
+    # series included (#61 A25).
+    from services.media_ids import series_key_for_item
 
-    # The same processing as a download (HI removal, common fixes): an
-    # extracted CC track kept its markers (prod 2026-10-30, Slime S02E20).
-    try:
-        from services.processing_pipeline import _run_pipeline_for_path
-
-        _run_pipeline_for_path(output_path, series_id=item.get("sonarr_series_id"))
-    except Exception as _pipeline_err:
-        logger.warning("[pipeline] embedded extract %s: %s", output_path, _pipeline_err)
+    series_key = series_key_for_item(item)
+    written = [e["output_path"] for e in result.extracted if e.get("output_path")]
+    for path in dict.fromkeys([output_path, *written]):
+        _finish_extracted_sidecar(path, settings, series_key)
 
     # Mark item as extracted — keep visible in Wanted for user-initiated cleanup/translate
     update_existing_sub(item_id, primary_format)

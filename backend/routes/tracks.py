@@ -197,6 +197,10 @@ def extract_track(ep_id, index):
         return jsonify({"error": "Extraction failed"}), 500
     except Exception:
         return jsonify({"error": "Internal server error"}), 500
+    # Same finish as an automatic extraction or a download (#61 A24).
+    from services.processing_pipeline import process_new_sidecar
+
+    process_new_sidecar(output_path)
     return jsonify(
         {"output_path": output_path, "language": language, "format": ext, "track": track}
     ), 200

@@ -160,30 +160,17 @@ def _video_files(root: str) -> list[str]:
 # ---------------------------------------------------------------------------
 
 
-#: Enough to see whether a subtitle file holds any line at all.
-_CONTENT_SAMPLE_BYTES = 65536
-
-
 def _has_subtitle_lines(path: str) -> bool:
     """True when the file holds at least one subtitle line.
 
-    ASS/SSA need a ``Dialogue:`` event, SRT/VTT a cue arrow. A file we cannot
-    read proves nothing, so it is NOT accepted as the replacement: the caller
-    would delete a working subtitle on the strength of a file it could not even
-    open (sandbox VM, 1.14.4-rc.7, with the .ass at mode 000).
+    A file we cannot read proves nothing, so it is NOT accepted as the
+    replacement: the caller would delete a working subtitle on the strength of
+    a file it could not even open (sandbox VM, 1.14.4-rc.7, with the .ass at
+    mode 000).
     """
-    ext = os.path.splitext(path)[1].lower()
-    try:
-        with open(path, "rb") as fh:
-            sample = fh.read(_CONTENT_SAMPLE_BYTES)
-    except OSError as exc:
-        logger.warning(
-            "%s cannot be read, so it does not count as the better format: %s", path, exc
-        )
-        return False
-    if ext in (".ass", ".ssa"):
-        return b"Dialogue:" in sample
-    return b"-->" in sample
+    from subtitle_content import has_subtitle_lines
+
+    return has_subtitle_lines(path)
 
 
 def _detect_sidecar_language(path: str) -> str | None:

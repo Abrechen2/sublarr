@@ -21,25 +21,6 @@ class TranslatedOutputRejectedError(RuntimeError):
     """The sanitizer could not read a translation result; nothing was written."""
 
 
-_VIDEO_EXTENSIONS = (".mkv", ".mp4", ".avi", ".m4v", ".mov", ".wmv", ".webm", ".ts")
-
-
-def _series_id_for_sidecar(output_path: str) -> int | None:
-    """The Sonarr series of the video ``output_path`` belongs to, if Sublarr tracks it."""
-    from db.wanted import get_wanted_items_by_path
-    from subtitle_filename import parse_subtitle_filename
-
-    parsed = parse_subtitle_filename(output_path)
-    if parsed is None:
-        return None
-    stem = os.path.join(os.path.dirname(output_path), parsed.base)
-    for ext in _VIDEO_EXTENSIONS:
-        for item in get_wanted_items_by_path(stem + ext) or []:
-            if item.get("sonarr_series_id"):
-                return item["sonarr_series_id"]
-    return None
-
-
 def _event_starts(path: str) -> list[int] | None:
     try:
         from subtitle_encoding import load_subtitle_file
@@ -95,10 +76,10 @@ def process_translated_output(output_path: str) -> None:
     raises — the translation is saved either way.
     """
     try:
-        from services.processing_pipeline import _run_pipeline_for_path
+        from services.processing_pipeline import process_new_sidecar
 
         before = _event_starts(output_path)
-        _run_pipeline_for_path(output_path, series_id=_series_id_for_sidecar(output_path))
+        process_new_sidecar(output_path)
         after = _event_starts(output_path)
         if before is not None and after is not None and len(after) != len(before):
             _realign_quality_scores(output_path, before, after)

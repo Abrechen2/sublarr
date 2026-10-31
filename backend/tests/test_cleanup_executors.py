@@ -309,7 +309,7 @@ def test_an_unreadable_preferred_file_is_not_proof_of_content(tmp_path):
     # Patch the module's own name, not builtins: a process-wide open() patch
     # also hits background threads and has made unrelated tests fail.
     with _patch(
-        "services.cleanup_executors.open",
+        "subtitle_content.open",
         create=True,
         side_effect=PermissionError("no read permission"),
     ):

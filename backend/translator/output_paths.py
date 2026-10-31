@@ -73,25 +73,33 @@ def detect_existing_target_for_lang(
     base = os.path.splitext(mkv_path)[0]
     lang_tags = _get_language_tags(target_language)
 
+    from subtitle_content import has_subtitle_lines
+
+    def _usable(path: str) -> bool:
+        return os.path.exists(path) and has_subtitle_lines(path, unreadable=True)
+
     if subtitle_type == "forced":
         # Only check for .forced. pattern files
         for tag in lang_tags:
-            if os.path.exists(f"{base}.{tag}.forced.ass"):
+            if _usable(f"{base}.{tag}.forced.ass"):
                 return "ass"
         for tag in lang_tags:
-            if os.path.exists(f"{base}.{tag}.forced.srt"):
+            if _usable(f"{base}.{tag}.forced.srt"):
                 return "srt"
         return None
 
     # Default "full" behavior: check non-forced files
-    # Check external files — ASS first (higher priority)
+    # Check external files — ASS first (higher priority). An empty or
+    # header-only sidecar is no subtitle: counting it kept the episode out
+    # of the wanted list for good (#61 A21). An unreadable one still counts,
+    # so a permissions problem does not turn into an endless re-download.
     for tag in lang_tags:
-        if os.path.exists(f"{base}.{tag}.ass"):
+        if _usable(f"{base}.{tag}.ass"):
             return "ass"
 
     has_srt = False
     for tag in lang_tags:
-        if os.path.exists(f"{base}.{tag}.srt"):
+        if _usable(f"{base}.{tag}.srt"):
             has_srt = True
             break
 
