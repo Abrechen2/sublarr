@@ -47,6 +47,38 @@ export const LIBRARY_TYPE_PRESET: Record<LibraryType, string | null> = {
   mixed: null,
 }
 
+export type OnboardingValues = Record<string, string>
+
+// Keys of `values` that only drive the wizard's own controls. The backend
+// knows no such settings and refuses the whole save on an unknown key, which
+// left every wizard step at "Failed to save settings" from 1.14.0 to 1.18.3.
+const UI_ONLY_KEYS = ['automation_enabled', 'search_interval_hours'] as const
+export const ARR_ONLY_KEYS = ['sonarr_url', 'sonarr_api_key', 'radarr_url', 'radarr_api_key', 'path_mapping'] as const
+export const STANDALONE_ONLY_KEYS = ['tmdb_api_key', 'tvdb_api_key'] as const
+// The backend default; a loopback URL is refused on save, so the untouched
+// default is left out instead of failing the step.
+export const DEFAULT_OLLAMA_URL = 'http://localhost:11434'
+
+/** The config the wizard saves: non-empty values of the chosen setup mode,
+ *  with the automation toggle and interval as the wanted-search interval. */
+export function buildOnboardingPayload(
+  values: OnboardingValues,
+  setupMode: 'arr' | 'standalone' | null,
+): Record<string, string> {
+  const payload: Record<string, string> = {}
+  for (const [k, v] of Object.entries(values)) {
+    if (v) payload[k] = v
+  }
+  const otherMode = setupMode === 'arr' ? STANDALONE_ONLY_KEYS : setupMode === 'standalone' ? ARR_ONLY_KEYS : []
+  for (const k of [...otherMode, ...UI_ONLY_KEYS]) delete payload[k]
+  if (payload.ollama_url === DEFAULT_OLLAMA_URL) delete payload.ollama_url
+  if (values.automation_enabled) {
+    payload.wanted_search_interval_hours =
+      values.automation_enabled === 'true' ? values.search_interval_hours || '24' : '0'
+  }
+  return payload
+}
+
 const inputStyle = {
   backgroundColor: 'var(--bg-primary)',
   border: '1px solid var(--border)',
@@ -129,7 +161,7 @@ export default function Onboarding() {
     opensubtitles_api_key: '',
     jimaku_api_key: '',
     subdl_api_key: '',
-    ollama_url: 'http://localhost:11434',
+    ollama_url: DEFAULT_OLLAMA_URL,
     ollama_model: 'qwen2.5:14b-instruct',
     target_language: 'de',
     target_language_name: 'German',
@@ -188,11 +220,10 @@ export default function Onboarding() {
   const set = (key: string, val: string) =>
     setValues((v) => ({ ...v, [key]: val }))
 
-  // Keys that only apply to one setup mode. saveAndNext filters by setupMode
-  // so a user who fills Sonarr credentials, goes back, and switches to
-  // standalone doesn't POST the stale Sonarr keys (B16).
-  const ARR_ONLY_KEYS = ['sonarr_url','sonarr_api_key','radarr_url','radarr_api_key','path_mapping'] as const
-  const STANDALONE_ONLY_KEYS = ['tmdb_api_key','tvdb_api_key'] as const
+  // Keys that only apply to one setup mode (ARR_ONLY_KEYS /
+  // STANDALONE_ONLY_KEYS): buildOnboardingPayload filters by setupMode so a
+  // user who fills Sonarr credentials, goes back, and switches to standalone
+  // doesn't POST the stale Sonarr keys (B16).
 
   const saveAndNext = async () => {
     setSaving(true)
@@ -227,16 +258,7 @@ export default function Onboarding() {
         return
       }
 
-      // Build the payload, then drop keys that belong to the *other* setup mode.
-      const toSave: Record<string, string> = {}
-      for (const [k, v] of Object.entries(values)) {
-        if (v) toSave[k] = v
-      }
-      if (setupMode === 'arr') {
-        for (const k of STANDALONE_ONLY_KEYS) delete toSave[k]
-      } else if (setupMode === 'standalone') {
-        for (const k of ARR_ONLY_KEYS) delete toSave[k]
-      }
+      const toSave = buildOnboardingPayload(values, setupMode)
 
       if (currentStepDef.id === 'standalone') {
         toSave.standalone_enabled = 'true'
@@ -265,8 +287,9 @@ export default function Onboarding() {
       }
 
       setStep((s) => s + 1)
-    } catch {
-      toast(t('errors.save_failed'), 'error')
+    } catch (err) {
+      // Say why (e.g. "Invalid URL for ollama_url: …"), not just that it failed.
+      toast(apiErrorMessage(err, t('errors.save_failed')), 'error')
     } finally {
       setSaving(false)
     }

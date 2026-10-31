@@ -175,6 +175,28 @@ def _requeue_status(lang_result: dict) -> str:
     return "provisional" if lang_result.get("machine_translated") else "wanted"
 
 
+def _warn_unmapped(title: str, missing: list[tuple[str, str]], total: int) -> None:
+    """Say why a title with files in Sonarr/Radarr gets no wanted items.
+
+    A path the *arr reports that is not visible here is skipped, which is right
+    for one file mid-import and wrong for all of them: then the mount or the
+    path mapping is off, and silence left a fresh install with an empty wanted
+    list and no clue (Discord install-help 2026-10-31).
+    """
+    if not missing:
+        return
+    remote, local = missing[0]
+    logger.warning(
+        "%s: %d of %d file(s) the *arr reports are not found here (e.g. %r, looked for %r)"
+        " — check the /media mount or Settings → path mapping",
+        title,
+        len(missing),
+        total,
+        remote,
+        local,
+    )
+
+
 def scan_radarr_movie(
     radarr,
     movie,
@@ -210,6 +232,7 @@ def scan_radarr_movie(
 
     mapped_path = map_path(file_path)
     if not os.path.exists(mapped_path):
+        _warn_unmapped(movie_title, [(file_path, mapped_path)], 1)
         return added, updated, scanned_paths
 
     scanned_paths.add(mapped_path)
@@ -317,6 +340,7 @@ def scan_sonarr_series(
 
     # Collect episode file paths for batch ffprobe
     episode_data = []
+    missing: list[tuple[str, str]] = []
     for ep in episodes:
         if not ep.get("hasFile"):
             continue
@@ -335,9 +359,12 @@ def scan_sonarr_series(
 
         mapped_path = map_path(file_path)
         if not os.path.exists(mapped_path):
+            missing.append((file_path, mapped_path))
             continue
 
         episode_data.append((ep, mapped_path))
+
+    _warn_unmapped(series_title, missing, len(missing) + len(episode_data))
 
     # Batch ffprobe
     probe_results = {}

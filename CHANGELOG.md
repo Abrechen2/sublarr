@@ -5,6 +5,27 @@ All notable changes to Sublarr are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.18.4] - 2026-10-31
+
+### Fixed
+- **Setup wizard could not save** — Every step of the first-run wizard
+  failed with "Failed to save settings" since 1.14.0: the wizard sent two
+  settings the server does not know, and the default Ollama address
+  (localhost) that the server refuses. Nothing entered in the wizard was
+  stored, the path mapping included. The wizard now saves only real
+  settings, stores the automatic search choice as the wanted-search
+  interval, and shows the server's reason when a save is refused.
+- **SubsDump searched a private network address by default** — The
+  provider came with a LAN address as its default server, so every new
+  install spent about 16 seconds per search waiting for a host that does not
+  exist. SubsDump now has no default address and stays inactive until you
+  enter the URL of your own SubsDump server.
+- **Wanted scan says why it finds nothing** — When the files Sonarr or
+  Radarr report are not visible inside Sublarr, the scan skipped them
+  without a word and the wanted list stayed empty. It now logs a warning per
+  series or movie with an example path and points to the /media mount and
+  the path mapping.
+
 ## [1.18.3] - 2026-10-30
 
 ### Fixed

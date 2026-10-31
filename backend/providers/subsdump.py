@@ -144,7 +144,7 @@ class SubsDumpProvider(SubtitleProvider):
             "label": "SubsDump URL",
             "type": "text",
             "required": True,
-            "default": "http://192.168.178.195",
+            "default": "",
         },
         {
             "key": "subsdump_api_key",
@@ -166,11 +166,15 @@ class SubsDumpProvider(SubtitleProvider):
         from config import get_settings
 
         settings = get_settings()
-        url = (
-            self.config.get("subsdump_url")
-            or getattr(settings, "subsdump_url", "")
-            or "http://192.168.178.195"
-        )
+        # No default host: SubsDump is the user's own server. A LAN address
+        # shipped as the default sent every install's searches to a dead host
+        # for 16 s (Discord install-help 2026-10-31).
+        url = str(
+            self.config.get("subsdump_url") or getattr(settings, "subsdump_url", "") or ""
+        ).strip()
+        if not url:
+            logger.info("subsdump: no SubsDump URL configured, provider will be disabled")
+            return
         api_key = self.config.get("subsdump_api_key") or getattr(settings, "subsdump_api_key", "")
 
         self._base = _normalize_url(url) + "/api/v1"
@@ -185,6 +189,8 @@ class SubsDumpProvider(SubtitleProvider):
             self._session = None
 
     def health_check(self) -> tuple[bool, str]:
+        if not self._session:
+            return False, "No SubsDump URL configured"
         try:
             r = self._session.get(self._base.replace("/api/v1", "/healthz"), timeout=5)
             r.raise_for_status()
@@ -196,6 +202,8 @@ class SubsDumpProvider(SubtitleProvider):
             return False, str(exc)
 
     def search(self, query: VideoQuery) -> list[SubtitleResult]:
+        if not self._session:
+            return []
         if not query.imdb_id:
             logger.debug("subsdump: no imdb_id — skipping")
             return []

@@ -303,7 +303,7 @@ class UISettings(BaseModel):
     subsource_api_key: str = ""
 
     # SubsDump (self-hosted Subscene archive)
-    subsdump_url: str = "http://192.168.178.195"
+    subsdump_url: str = ""
     subsdump_api_key: str = ""
 
     # Custom HTTP/JSON provider (generic, user-configured REST endpoint —
