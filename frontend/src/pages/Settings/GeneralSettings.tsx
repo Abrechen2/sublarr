@@ -238,8 +238,9 @@ export function GeneralSettings() {
                       data-testid="input-db-path"
                       style={inputStyle}
                       value={strVal(config, 'db_path', '/config/sublarr.db')}
-                      onChange={(e) => save({ db_path: e.target.value })}
-                      placeholder="/config/sublarr.db"
+                      readOnly
+                      aria-readonly="true"
+                      title={t('general_page.env_only')}
                     />
                   </FormGroup>
                 </>
@@ -257,8 +258,9 @@ export function GeneralSettings() {
                   data-testid="input-media-path"
                   style={inputStyle}
                   value={strVal(config, 'media_path', '/media')}
-                  onChange={(e) => save({ media_path: e.target.value })}
-                  placeholder="/media"
+                  readOnly
+                  aria-readonly="true"
+                  title={t('general_page.env_only')}
                 />
               </FormGroup>
 
@@ -274,9 +276,9 @@ export function GeneralSettings() {
                   data-testid="input-port"
                   style={{ ...inputStyle, maxWidth: '120px' }}
                   value={strVal(config, 'port', '5765')}
-                  onChange={(e) => save({ port: Number(e.target.value) })}
-                  min={1}
-                  max={65535}
+                  readOnly
+                  aria-readonly="true"
+                  title={t('general_page.env_only')}
                 />
               </FormGroup>
             </SettingsSection>

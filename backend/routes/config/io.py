@@ -74,9 +74,22 @@ def export_config():
                 additionalProperties: true
     """
     from config import get_settings
+    from config_settings import is_sensitive_config_key
+    from db.config import get_all_config_entries
+    from routes.config.payload import MASK_SENTINEL, env_only_keys
 
-    s = get_settings()
-    return jsonify(s.get_safe_config())
+    config = get_settings().get_safe_config()
+    # Boot fields come from the environment and cannot be imported (#61 A03);
+    # stored extension keys (hub.*) are settings too and belong in a backup
+    # (#61 A08), masked like the rest.
+    for key in env_only_keys():
+        config.pop(key, None)
+    for key, value in (get_all_config_entries() or {}).items():
+        if "." in key and key not in config:
+            config[key] = (
+                (MASK_SENTINEL if value else "") if is_sensitive_config_key(key) else value
+            )
+    return jsonify(config)
 
 
 @bp.route("/config/import", methods=["POST"])
@@ -136,8 +149,7 @@ def import_config():
           description: No config data provided
     """
     from config import reload_settings
-    from db.config import get_all_config_entries, save_config_entry
-    from security_utils import validate_service_url
+    from db.config import get_all_config_entries, save_config_entries
     from services.wanted_scanner import invalidate_scanner
 
     data = request.get_json(silent=True) or {}
@@ -147,44 +159,16 @@ def import_config():
     if not data:
         return jsonify({"error": "No config data provided"}), 400
 
-    from routes.config.keys import writable_config_keys
+    # The same rules as PUT /config (#61 A07). A refused key is skipped and
+    # reported rather than failing the whole backup; what passes is saved in
+    # one transaction.
+    from routes.config.payload import check_config_payload
 
-    valid_keys = writable_config_keys()
-    secret_keys = _secret_import_keys()
-
-    # Fail-closed: if valid_keys cannot be determined, reject the import entirely
-    if not valid_keys:
-        return jsonify(
-            {"error": "Cannot determine valid config keys - import rejected for safety"}
-        ), 500
-
-    from routes.config.bounds import validate_import_value
-
-    imported = []
-    skipped_secrets = []
-    skipped_invalid = []
-    # Mirror update_config's URL-field set so an attacker can't smuggle
-    # file://, link-local IPs, or cloud-metadata endpoints in via the
-    # import path.
-    _url_fields = {"ollama_url", "sonarr_url", "radarr_url", "jellyfin_url"}
-
-    for key, value in data.items():
-        if key in secret_keys:
-            skipped_secrets.append(key)
-            continue
-        if str(value) == "***configured***":
-            continue
-        if key in valid_keys:
-            if key in _url_fields and value:
-                ok, reason = validate_service_url(str(value))
-                if not ok:
-                    return jsonify({"error": f"Invalid URL for {key}: {reason}"}), 400
-            value, error = validate_import_value(key, value)
-            if error:
-                skipped_invalid.append({"key": key, "error": error})
-                continue
-            save_config_entry(key, str(value))
-            imported.append(key)
+    checked = check_config_payload(data, mode="import")
+    skipped_secrets = checked.skipped_secrets
+    skipped_invalid = checked.errors
+    save_config_entries(checked.values)
+    imported = list(checked.values)
 
     # Reload settings
     all_overrides = get_all_config_entries()

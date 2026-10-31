@@ -261,7 +261,7 @@ def _normalise_to_ip(host: str) -> "ipaddress.IPv4Address | ipaddress.IPv6Addres
     return addr
 
 
-def validate_service_url(url: str) -> tuple[bool, str | None]:
+def validate_service_url(url: str, *, allow_loopback: bool = False) -> tuple[bool, str | None]:
     """Validate that a service/provider URL is safe (SSRF prevention).
 
     Blocks dangerous schemes (file://, ftp://, gopher://, etc.), cloud
@@ -278,6 +278,9 @@ def validate_service_url(url: str) -> tuple[bool, str | None]:
 
     Args:
         url: URL to validate (e.g. Sonarr, Radarr, Ollama endpoint).
+        allow_loopback: accept 127.0.0.0/8 and ::1 — for a service that is
+            commonly run on the same host as Sublarr (Ollama on a bare-metal
+            install). Metadata, link-local and unspecified stay blocked.
 
     Returns:
         (True, None) if the URL is acceptable.
@@ -308,7 +311,7 @@ def validate_service_url(url: str) -> tuple[bool, str | None]:
     addr = _normalise_to_ip(host)
 
     if addr is not None:
-        ok, reason = _check_ip_address(addr, host)
+        ok, reason = _check_ip_address(addr, host, allow_loopback=allow_loopback)
         if not ok:
             return False, reason
         return True, None
@@ -338,14 +341,16 @@ def validate_service_url(url: str) -> tuple[bool, str | None]:
             continue
         if isinstance(resolved, ipaddress.IPv6Address) and resolved.ipv4_mapped is not None:
             resolved = resolved.ipv4_mapped
-        ok, reason = _check_ip_address(resolved, f"{host} ({ip_str})")
+        ok, reason = _check_ip_address(
+            resolved, f"{host} ({ip_str})", allow_loopback=allow_loopback
+        )
         if not ok:
             return False, reason
 
     return True, None
 
 
-def _check_ip_address(addr, label: str) -> tuple[bool, str | None]:
+def _check_ip_address(addr, label: str, *, allow_loopback: bool = False) -> tuple[bool, str | None]:
     """Return (False, reason) for any IP class we never want service URLs to point at.
 
     Used by ``validate_service_url`` for both literal IPs and DNS-resolved
@@ -354,7 +359,7 @@ def _check_ip_address(addr, label: str) -> tuple[bool, str | None]:
     """
     if addr.is_unspecified:
         return False, f"Unspecified address (0.0.0.0 / ::) is not a valid service host: {label!r}"
-    if addr.is_loopback:
+    if addr.is_loopback and not allow_loopback:
         return False, f"Loopback addresses are not allowed: {label!r}"
     if addr.is_link_local:
         return False, f"Link-local addresses are not allowed: {label!r}"

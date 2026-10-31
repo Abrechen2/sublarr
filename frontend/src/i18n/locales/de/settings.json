@@ -1134,11 +1134,11 @@
     "base_url": "Basis-URL",
     "base_url_hint": "Reverse-Proxy-Präfix wenn Sublarr unter einem Unterpfad läuft",
     "db_path": "Datenbankpfad",
-    "db_path_hint": "SQLite-Datenbankdatei. Nur ändern wenn die DB verschoben wurde.",
+    "db_path_hint": "SQLite-Datenbankdatei. Wird über die Umgebungsvariable SUBLARR_DB_PATH gesetzt; ändere sie in den Container-Einstellungen.",
     "media_path": "Medienpfad",
-    "media_path_hint": "Wurzelpfad des Medienverzeichnisses. Alle Medienpfade müssen darunter liegen.",
+    "media_path_hint": "Wurzelpfad des Medienverzeichnisses. Alle Medienpfade müssen darunter liegen. Wird über die Umgebungsvariable SUBLARR_MEDIA_PATH gesetzt; ändere sie in den Container-Einstellungen.",
     "port": "Port",
-    "port_hint": "HTTP-Port auf dem Sublarr hört. Standard: 5765.",
+    "port_hint": "HTTP-Port, auf dem Sublarr hört. Wird über die Umgebungsvariable SUBLARR_PORT gesetzt; ändere sie in den Container-Einstellungen.",
     "log_level": "Protokoll-Level",
     "log_level_hint": "Steuert die Ausführlichkeit des Backend-Protokolls",
     "log_file": "Protokolldatei-Pfad",
@@ -1149,7 +1149,8 @@
     "onboarding_desc": "Den geführten Ersteinrichtungs-Assistenten erneut durchlaufen.",
     "rerun_onboarding": "Assistent erneut starten",
     "rerun_onboarding_hint": "Öffnet den Assistenten von vorn. Bestehende Einstellungen bleiben erhalten, bis du sie im Assistenten selbst änderst.",
-    "rerun_onboarding_action": "Assistent öffnen"
+    "rerun_onboarding_action": "Assistent öffnen",
+    "env_only": "Wird über eine Umgebungsvariable gesetzt; ändere sie in den Container-Einstellungen."
   },
   "about_page": {
     "title": "Über",
@@ -2029,7 +2030,8 @@
       "last_run": "Letzter Lauf",
       "last_error": "Letzter Fehler",
       "run_now": "Jetzt ausführen",
-      "run_started": "Drain ausgelöst ({{n}} verarbeitet)."
+      "run_started": "Drain ausgelöst ({{n}} verarbeitet).",
+      "run_failed": "Die Abarbeitung ist fehlgeschlagen."
     }
   },
   "nav": {

@@ -17,6 +17,11 @@ def save_config_entry(key: str, value: str):
     return _get_repo().save_config_entry(key, value)
 
 
+def save_config_entries(entries: dict[str, str]) -> None:
+    """Save several config entries atomically."""
+    return _get_repo().save_config_entries(entries)
+
+
 def get_config_entry(key: str):
     """Get a config entry from the database."""
     return _get_repo().get_config_entry(key)

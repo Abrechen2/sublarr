@@ -1134,11 +1134,11 @@
     "base_url": "Base URL",
     "base_url_hint": "Reverse-proxy prefix if Sublarr is served at a sub-path",
     "db_path": "Database Path",
-    "db_path_hint": "SQLite database file. Only change if the DB has been moved.",
+    "db_path_hint": "SQLite database file. Set by the SUBLARR_DB_PATH environment variable; change it in your container settings.",
     "media_path": "Media Path",
-    "media_path_hint": "Root path of the media directory. All media paths must be below this.",
+    "media_path_hint": "Root path of the media directory. All media paths must be below this. Set by the SUBLARR_MEDIA_PATH environment variable; change it in your container settings.",
     "port": "Port",
-    "port_hint": "HTTP port Sublarr listens on. Default: 5765.",
+    "port_hint": "HTTP port Sublarr listens on. Set by the SUBLARR_PORT environment variable; change it in your container settings.",
     "log_level": "Log Level",
     "log_level_hint": "Controls the verbosity of backend logging",
     "log_file": "Log File Path",
@@ -1149,7 +1149,8 @@
     "onboarding_desc": "Walk through the guided first-time setup again.",
     "rerun_onboarding": "Re-run onboarding",
     "rerun_onboarding_hint": "Opens the wizard from the start. Existing settings stay as they are until you change them in the wizard itself.",
-    "rerun_onboarding_action": "Open wizard"
+    "rerun_onboarding_action": "Open wizard",
+    "env_only": "Set by an environment variable; change it in your container settings."
   },
   "about_page": {
     "title": "About",
@@ -2029,7 +2030,8 @@
       "last_run": "Last run",
       "last_error": "Last error",
       "run_now": "Run now",
-      "run_started": "Drain triggered ({{n}} processed)."
+      "run_started": "Drain triggered ({{n}} processed).",
+      "run_failed": "The drain failed."
     }
   },
   "nav": {

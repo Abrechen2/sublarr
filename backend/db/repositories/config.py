@@ -28,6 +28,16 @@ class ConfigRepository(BaseRepository):
         self.session.merge(entry)
         self._commit()
 
+    def save_config_entries(self, entries: dict[str, str]) -> None:
+        """Save several entries in one transaction: all of them or none.
+
+        PUT /config committed key by key, so a refused key late in a payload
+        left the earlier ones saved behind a 400 (#61 A06).
+        """
+        with self.batch():
+            for key, value in entries.items():
+                self.save_config_entry(key, value)
+
     def get_config_entry(self, key: str) -> str | None:
         """Get a config entry value by key (decrypted if encrypted)."""
         entry = self.session.get(ConfigEntry, key)

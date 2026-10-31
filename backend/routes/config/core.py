@@ -1,6 +1,5 @@
 """Core config routes — GET /config, PUT /config, POST /settings/path-mapping/test."""
 
-import json
 import logging
 import os
 import time
@@ -10,25 +9,10 @@ from flask import jsonify, request
 from cache_response import cached_get, invalidate_response_cache
 from events import emit_event
 from routes.config import bp
-from security_utils import is_safe_path, validate_service_url
+from routes.config.payload import MASK_SENTINEL as _MASK_SENTINEL
+from security_utils import is_safe_path
 
 logger = logging.getLogger(__name__)
-
-_MASK_SENTINEL = "***configured***"
-# Top-level config keys that hold a JSON-encoded array of instance dicts. Each
-# instance dict can carry secret-typed subkeys (api_key/token/password/secret)
-# that GET masks but the raw top-level scalar mask check would miss. We deep-
-# scan these blobs and merge masked subkeys with the stored instance.
-_INSTANCE_BLOB_KEYS = {
-    "sonarr_instances_json",
-    "radarr_instances_json",
-    "jellyfin_instances_json",
-    "emby_instances_json",
-    "plex_instances_json",
-    "kodi_instances_json",
-    "mediaservers_instances_json",
-}
-_SECRET_SUBKEYS = ("api_key", "apikey", "token", "password", "secret", "auth")
 
 
 def _provider_field_owners() -> dict[str, str]:
@@ -113,47 +97,6 @@ def _providers_became_usable(data: dict, before: dict) -> set[str]:
             became.add(owner)
 
     return became
-
-
-def _deep_unmask_instance_blob(new_raw: str, key: str) -> str | None:
-    """Replace any masked secret subkeys in new_raw with the stored value.
-
-    Returns the unmasked JSON string, or None if the new payload is unparseable
-    (in which case the caller should reject the update with 400 — never persist
-    raw mask sentinels into a JSON blob).
-    """
-    from db.config import get_config_entry
-
-    try:
-        new_list = json.loads(new_raw) if new_raw else []
-    except (TypeError, ValueError):
-        return None
-    if not isinstance(new_list, list):
-        return None
-
-    stored_raw = get_config_entry(key) or "[]"
-    try:
-        stored_list = json.loads(stored_raw)
-    except (TypeError, ValueError):
-        stored_list = []
-    stored_by_id = {str(inst.get("id", "")): inst for inst in stored_list if isinstance(inst, dict)}
-
-    for inst in new_list:
-        if not isinstance(inst, dict):
-            continue
-        stored = stored_by_id.get(str(inst.get("id", "")))
-        for sub in list(inst.keys()):
-            if not any(sub.lower().endswith(s) or sub.lower() == s for s in _SECRET_SUBKEYS):
-                continue
-            v = inst.get(sub)
-            if isinstance(v, str) and v == _MASK_SENTINEL:
-                if stored and isinstance(stored.get(sub), str):
-                    inst[sub] = stored[sub]
-                else:
-                    # Mask sent for a secret with no stored value — drop it
-                    # rather than persist the literal mask.
-                    inst.pop(sub, None)
-    return json.dumps(new_list)
 
 
 @bp.route("/config", methods=["GET"])
@@ -327,7 +270,7 @@ def update_config():
           description: No config values provided
     """
     from config import reload_settings
-    from db.config import get_all_config_entries, save_config_entry
+    from db.config import get_all_config_entries, save_config_entries
     from services.wanted_scanner import invalidate_scanner
 
     data = request.get_json(silent=True) or {}
@@ -337,45 +280,14 @@ def update_config():
     if not data:
         return jsonify({"error": "No config values provided"}), 400
 
-    # Check before any persistence: a rejected page-size change must not
-    # partially save other keys in the same request.
-    if "items_per_page" in data:
-        value = data["items_per_page"]
-        if isinstance(value, str):
-            try:
-                value = int(value.strip())
-            except ValueError:
-                value = None
-        if type(value) is not int or not 10 <= value <= 200:
-            return jsonify({"error": "items_per_page must be an integer between 10 and 200"}), 400
-        data["items_per_page"] = value
+    # Every key is checked before anything is written, and the payload is
+    # saved in one transaction: a refused key no longer leaves the others
+    # saved behind a 400 (#61 A06). Same rules as the import (#61 A07).
+    from routes.config.payload import check_config_payload
 
-    from routes.config.bounds import BOUNDED_INT_KEYS, coerce_bounded_int
-
-    for bounded_key in BOUNDED_INT_KEYS & data.keys():
-        coerced, error = coerce_bounded_int(bounded_key, data[bounded_key])
-        if error:
-            return jsonify({"error": error}), 400
-        data[bounded_key] = coerced
-
-    from routes.config.bounds import literal_choices, literal_keys
-
-    for literal_key in literal_keys() & data.keys():
-        choices = literal_choices(literal_key)
-        if data[literal_key] not in choices:
-            return (
-                jsonify({"error": f"{literal_key} must be one of {sorted(choices, key=str)}"}),
-                400,
-            )
-
-    # Validate that keys are ones this install knows. This used to read
-    # Settings.model_fields — an attribute the composite Settings class does
-    # not have — so the guarded expression yielded an empty set on every call
-    # and the `not valid_keys` branch below accepted any key name at all.
-    from routes.config.keys import writable_config_keys
-
-    valid_keys = writable_config_keys()
-    saved_keys = []
+    checked = check_config_payload(data, mode="put")
+    if checked.errors:
+        return jsonify({"error": checked.errors[0]["error"], "errors": checked.errors}), 400
 
     # Snapshot the provider-relevant values BEFORE anything is written, so the
     # revive below can tell a real change from a resend (#214). Only the keys
@@ -389,66 +301,8 @@ def update_config():
     except Exception:  # pragma: no cover — never break a settings save
         logger.debug("could not snapshot provider config before save", exc_info=True)
 
-    _ENUM_FIELDS = {
-        "log_level": {"DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"},
-        "auto_sync_engine": {"ffsubsync", "alass"},
-        "log_format": {"text", "json"},
-    }
-    # Config keys that hold outbound service URLs — validated to block dangerous schemes
-    # and cloud metadata endpoints before being persisted.
-    _URL_FIELDS = {
-        "ollama_url",
-        "sonarr_url",
-        "radarr_url",
-        "jellyfin_url",
-    }
-    _MAX_STRING_LENGTH = 4096
-
-    for key, value in data.items():
-        # Skip masked password values (user didn't change them)
-        if str(value) == _MASK_SENTINEL:
-            continue
-        # Deep-unmask JSON instance blobs: GET embeds the mask in subkeys
-        # (api_key, token, password, …); a naive top-level string compare
-        # misses those and persists the literal mask, wiping the credential.
-        if key in _INSTANCE_BLOB_KEYS and isinstance(value, str):
-            unmasked = _deep_unmask_instance_blob(value, key)
-            if unmasked is None:
-                return jsonify({"error": f"Invalid JSON payload for {key}"}), 400
-            value = unmasked
-        # Validate enum fields
-        if key in _ENUM_FIELDS and value not in _ENUM_FIELDS[key]:
-            return jsonify(
-                {"error": f"Invalid value for {key}: must be one of {sorted(_ENUM_FIELDS[key])}"}
-            ), 400
-        # Validate service URL fields — block dangerous schemes and metadata endpoints.
-        # Also validates any extension key (dot-notation) whose name ends with "_url" or "url".
-        _is_url_key = key in _URL_FIELDS or ("." in key and key.lower().endswith(("_url", "url")))
-        if _is_url_key and value:
-            ok, reason = validate_service_url(str(value))
-            if not ok:
-                return jsonify({"error": f"Invalid URL for {key}: {reason}"}), 400
-        # Enforce max string length
-        if isinstance(value, str) and len(value) > _MAX_STRING_LENGTH:
-            return jsonify(
-                {"error": f"Value for {key} exceeds maximum length of {_MAX_STRING_LENGTH}"}
-            ), 400
-        # Allow known config keys OR namespaced extension keys (dot-notation, e.g. translation.context_window_size)
-        is_extension_key = "." in key
-        if not (key in valid_keys or is_extension_key):
-            # Answer instead of silently storing it. A misspelled key used to
-            # report success and then do nothing, which is unfindable from the
-            # outside — and it let this endpoint write keys it has no business
-            # writing, ui_password_hash among them.
-            return jsonify({"error": f"Unknown config key: {key}"}), 400
-        # Sanitize credentials: strip whitespace from API keys and passwords
-        sanitized_value = (
-            str(value).strip()
-            if isinstance(value, str) or "api_key" in key.lower() or "password" in key.lower()
-            else str(value)
-        )
-        save_config_entry(key, sanitized_value)
-        saved_keys.append(key)
+    save_config_entries(checked.values)
+    saved_keys = list(checked.values)
 
     # Perf markers — measure each reconcile phase so a slow save (see the
     # ~12s-lag reports) self-diagnoses in the logs instead of guessing which

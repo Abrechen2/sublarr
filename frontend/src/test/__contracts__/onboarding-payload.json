@@ -1,0 +1,43 @@
+{
+  "arr": {
+    "sonarr_url": "http://192.168.10.40:8989",
+    "sonarr_api_key": "abc",
+    "radarr_url": "http://192.168.10.40:7878",
+    "radarr_api_key": "abc",
+    "path_mapping": "/data/media=/media",
+    "opensubtitles_api_key": "k",
+    "jimaku_api_key": "k",
+    "subdl_api_key": "k",
+    "ollama_url": "http://ollama:11434",
+    "ollama_model": "qwen2.5:14b-instruct",
+    "target_language": "de",
+    "target_language_name": "German",
+    "source_language": "en",
+    "source_language_name": "English",
+    "upgrade_enabled": "true",
+    "wanted_search_interval_hours": "6"
+  },
+  "standalone": {
+    "ollama_model": "qwen2.5:14b-instruct",
+    "target_language": "de",
+    "target_language_name": "German",
+    "source_language": "en",
+    "source_language_name": "English",
+    "tmdb_api_key": "tmdb",
+    "tvdb_api_key": "k",
+    "upgrade_enabled": "true",
+    "wanted_search_interval_hours": "6"
+  },
+  "automation_off": {
+    "sonarr_url": "http://192.168.10.40:8989",
+    "sonarr_api_key": "abc",
+    "path_mapping": "/data/media=/media",
+    "ollama_model": "qwen2.5:14b-instruct",
+    "target_language": "de",
+    "target_language_name": "German",
+    "source_language": "en",
+    "source_language_name": "English",
+    "upgrade_enabled": "true",
+    "wanted_search_interval_hours": "0"
+  }
+}

@@ -24,9 +24,10 @@ _SRT = b"1\n00:00:01,000 --> 00:00:02,000\nHallo\n"
 
 @pytest.fixture
 def media(client, tmp_path):
-    """Point media_path at tmp_path the way the UI would."""
-    response = client.put("/api/v1/config", json={"media_path": str(tmp_path)})
-    assert response.status_code == 200, response.get_json()
+    """tmp_path, which the fixtures' media root already contains.
+
+    media_path is environment-only: PUT /config never changed it (#61 A03).
+    """
     return tmp_path
 
 

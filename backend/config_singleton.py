@@ -77,48 +77,19 @@ def reload_settings(overrides: dict | None = None) -> Settings:
     ui = UISettings()
 
     if overrides:
-        # Overlay DB overrides for the runtime-reconfigurable boot fields
-        # (logging). BootSettings coerces types on model_copy, so string-form
-        # config_entries values (e.g. "DEBUG") apply cleanly.
+        # DB overrides for the UI fields and the runtime-reconfigurable boot
+        # fields (logging), decoded by type and validated (#61 A04: model_copy
+        # skipped validators, and lists arrived as their string form).
+        from config_values import apply_overrides
+
         boot_override = {
             key: value
             for key, value in overrides.items()
             if key in _RUNTIME_OVERRIDABLE_BOOT_FIELDS and value not in (None, "")
         }
         if boot_override:
-            try:
-                boot = boot.model_copy(update=boot_override)
-            except (ValueError, TypeError):
-                pass  # Invalid persisted value — keep the ENV/default boot value.
-
-        ui_fields = UISettings.model_fields
-        ui_data = ui.model_dump()
-        update: dict = {}
-        for key, value in overrides.items():
-            if key not in ui_fields:
-                # Could be a boot-field key (ignored — boot is ENV-only) or
-                # an obsolete field from a downgraded install. Drop silently
-                # rather than fail loud — config_entries can outlive schema.
-                continue
-            expected_type = type(ui_data[key])
-            try:
-                if expected_type is bool:
-                    update[key] = (
-                        value.lower() in ("true", "1", "yes")
-                        if isinstance(value, str)
-                        else bool(value)
-                    )
-                elif expected_type is int:
-                    update[key] = int(value)
-                elif expected_type is float:
-                    update[key] = float(value)
-                else:
-                    update[key] = str(value).strip()
-            except (ValueError, TypeError):
-                continue  # Skip invalid values
-
-        if update:
-            ui = ui.model_copy(update=update)
+            boot = apply_overrides(boot, boot_override)
+        ui = apply_overrides(ui, overrides)
 
     new_settings = Settings(boot=boot, ui=ui)
 

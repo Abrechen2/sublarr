@@ -1,3 +1,5 @@
+import { readFileSync, writeFileSync } from 'node:fs'
+import { resolve } from 'node:path'
 import { describe, it, expect } from 'vitest'
 import { buildOnboardingPayload } from '../pages/Onboarding'
 
@@ -59,5 +61,22 @@ describe('buildOnboardingPayload', () => {
     expect(standalone).not.toHaveProperty('sonarr_url')
     expect(standalone).not.toHaveProperty('path_mapping')
     expect(standalone.tmdb_api_key).toBe('tmdb')
+  })
+})
+
+// The contract with the backend: backend/tests/test_onboarding_payload_accepted.py
+// sends exactly this file through the real PUT /config validator. Regenerate
+// with UPDATE_CONTRACTS=1 after an intended change; CI only compares (#61 S1).
+describe('onboarding payload contract', () => {
+  it('matches the file the backend test sends', () => {
+    const contract = {
+      arr: buildOnboardingPayload({ ...VALUES, radarr_url: 'http://192.168.10.40:7878', radarr_api_key: 'abc', opensubtitles_api_key: 'k', jimaku_api_key: 'k', subdl_api_key: 'k', ollama_url: 'http://ollama:11434' }, 'arr'),
+      standalone: buildOnboardingPayload({ ...VALUES, tvdb_api_key: 'k' }, 'standalone'),
+      automation_off: buildOnboardingPayload({ ...VALUES, automation_enabled: 'false' }, 'arr'),
+    }
+    const file = resolve(__dirname, '__contracts__/onboarding-payload.json')
+    const text = JSON.stringify(contract, null, 2) + '\n'
+    if (process.env.UPDATE_CONTRACTS) writeFileSync(file, text)
+    expect(readFileSync(file, 'utf-8')).toBe(text)
   })
 })

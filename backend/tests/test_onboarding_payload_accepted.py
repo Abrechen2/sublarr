@@ -1,47 +1,50 @@
-"""Everything the setup wizard saves is a setting the config endpoint accepts.
+"""Everything the setup wizard saves is accepted by the real config endpoint.
 
 Discord install-help 2026-10-31: since 1.14.0 PUT /config refuses unknown keys,
 and the wizard still sent ``automation_enabled`` / ``search_interval_hours`` —
-every step answered "Failed to save settings", and the user's path mapping was
-never stored. The payload below is what ``buildOnboardingPayload``
-(frontend/src/pages/Onboarding.tsx) produces with every field filled.
+every step answered "Failed to save settings" and nothing, the path mapping
+included, was stored.
+
+The payloads are not a copy kept by hand (audit #61 S1): the frontend test
+``OnboardingPayload.test.ts`` writes what ``buildOnboardingPayload`` really
+produces to the contract file below and fails when the builder drifts from it.
 """
 
+import json
+from pathlib import Path
 from unittest.mock import patch
 
-ARR_PAYLOAD = {
-    "sonarr_url": "http://192.168.10.40:8989",
-    "sonarr_api_key": "0123456789abcdef0123456789abcdef",
-    "radarr_url": "http://192.168.10.40:7878",
-    "radarr_api_key": "0123456789abcdef0123456789abcdef",
-    "path_mapping": "/data/media=/media",
-    "opensubtitles_api_key": "k",
-    "jimaku_api_key": "k",
-    "subdl_api_key": "k",
-    "ollama_url": "http://ollama:11434",
-    "ollama_model": "qwen2.5:14b-instruct",
-    "target_language": "de",
-    "target_language_name": "German",
-    "source_language": "en",
-    "source_language_name": "English",
-    "upgrade_enabled": "true",
-    "wanted_search_interval_hours": "6",
-}
-STANDALONE_EXTRA = {"tmdb_api_key": "k", "tvdb_api_key": "k", "standalone_enabled": "true"}
+import pytest
+
+_CONTRACT = (
+    Path(__file__).resolve().parents[2] / "frontend/src/test/__contracts__/onboarding-payload.json"
+)
+PAYLOADS = json.loads(_CONTRACT.read_text(encoding="utf-8"))
 
 
-def _public_ip(*args, **kwargs):
+def _lan_address(*args, **kwargs):
     return [(2, 1, 6, "", ("192.168.10.40", 0))]
 
 
-def test_the_wizard_payload_is_saved(client):
-    with patch("socket.getaddrinfo", side_effect=_public_ip):
-        response = client.put("/api/v1/config", json={**ARR_PAYLOAD, **STANDALONE_EXTRA})
+@pytest.mark.parametrize("case", sorted(PAYLOADS))
+def test_the_wizard_payload_is_saved(client, case):
+    payload = PAYLOADS[case]
+    if case == "standalone":
+        payload = {**payload, "standalone_enabled": "true"}  # added by the standalone step
+
+    with patch("socket.getaddrinfo", side_effect=_lan_address):
+        response = client.put("/api/v1/config", json=payload)
 
     assert response.status_code == 200, response.get_json()
 
 
-def test_the_automation_off_choice_is_a_valid_interval(client):
-    response = client.put("/api/v1/config", json={"wanted_search_interval_hours": "0"})
+def test_the_saved_values_are_the_running_settings(client):
+    with patch("socket.getaddrinfo", side_effect=_lan_address):
+        client.put("/api/v1/config", json=PAYLOADS["arr"])
 
-    assert response.status_code == 200, response.get_json()
+    from config import get_settings
+
+    settings = get_settings()
+    assert settings.path_mapping == "/data/media=/media"
+    assert settings.wanted_search_interval_hours == 6
+    assert settings.upgrade_enabled is True

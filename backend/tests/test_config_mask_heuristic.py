@@ -69,8 +69,12 @@ def test_the_two_rules_differ_only_on_the_mapping_false_positives():
             or any(part in key for part in old_parts)
         )
 
-    changed = sorted({f for f in fields if old_rule(f) != is_sensitive_config_key(f)})
-    assert changed == ["anidb_fallback_to_mapping", "path_mapping"], changed
+    opened = sorted({f for f in fields if old_rule(f) and not is_sensitive_config_key(f)})
+    assert opened == ["anidb_fallback_to_mapping", "path_mapping"], opened
+    # Masking more is the safe direction; the one addition is a real API key
+    # whose name the old substring rule missed (#61 A01).
+    closed = sorted({f for f in fields if is_sensitive_config_key(f) and not old_rule(f)})
+    assert closed == ["opensubtitlescom_subliminal_apikey"], closed
 
 
 def test_masked_config_keeps_the_path_mapping_readable(app_ctx):

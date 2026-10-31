@@ -108,18 +108,15 @@ describe('GeneralSettings', () => {
     expect(input).toHaveValue(5765)
   })
 
-  it('calls updateConfig with media_path on change', () => {
+  // media_path, port and db_path come from the environment: the server
+  // ignored them on save and refuses them now (#61 A03), so they are shown,
+  // not edited.
+  it.each(['input-media-path', 'input-port'])('%s is read-only and saves nothing', (testId) => {
     renderWithProviders(<GeneralSettings />)
-    const input = screen.getByTestId('input-media-path')
-    fireEvent.change(input, { target: { value: '/data/media' } })
-    expect(mockMutate).toHaveBeenCalledWith({ media_path: '/data/media' })
-  })
-
-  it('calls updateConfig with port as number on change', () => {
-    renderWithProviders(<GeneralSettings />)
-    const input = screen.getByTestId('input-port')
-    fireEvent.change(input, { target: { value: '8080' } })
-    expect(mockMutate).toHaveBeenCalledWith({ port: 8080 })
+    const input = screen.getByTestId(testId)
+    expect(input).toHaveAttribute('readonly')
+    fireEvent.change(input, { target: { value: '1' } })
+    expect(mockMutate).not.toHaveBeenCalled()
   })
 
   it('advanced section is collapsed by default (db_path input hidden)', () => {
@@ -139,7 +136,7 @@ describe('GeneralSettings', () => {
     expect(screen.getByTestId('input-base-url')).toBeInTheDocument()
   })
 
-  it('calls updateConfig with db_path when advanced field changes', () => {
+  it('db_path is read-only and saves nothing', () => {
     renderWithProviders(<GeneralSettings />)
     const pathsSection = screen.getByTestId('settings.general.section-paths')
     const advancedToggle = pathsSection.querySelector(
@@ -147,8 +144,9 @@ describe('GeneralSettings', () => {
     ) as HTMLElement
     fireEvent.click(advancedToggle)
     const input = screen.getByTestId('input-db-path')
+    expect(input).toHaveAttribute('readonly')
     fireEvent.change(input, { target: { value: '/data/sublarr.db' } })
-    expect(mockMutate).toHaveBeenCalledWith({ db_path: '/data/sublarr.db' })
+    expect(mockMutate).not.toHaveBeenCalled()
   })
 
   // ── Logging section ──────────────────────────────────────────────────────
