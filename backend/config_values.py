@@ -17,6 +17,7 @@ from __future__ import annotations
 import ast
 import json
 import logging
+import math
 import types
 import typing
 from typing import Any
@@ -26,6 +27,11 @@ from pydantic import BaseModel, ValidationError
 logger = logging.getLogger(__name__)
 
 _COLLECTIONS = (list, dict, set, tuple)
+
+# GET /config goes to the browser as JSON: a float that is not finite is
+# written as "Infinity", which JSON.parse rejects, and an integer past 2**53
+# does not survive the round trip.
+MAX_SAFE_NUMBER = 2**53
 
 
 def serialize_config_value(value: Any) -> str:
@@ -48,13 +54,15 @@ def _base_type(annotation: Any) -> Any:
 
 def decode_config_value(annotation: Any, raw: Any) -> Any:
     """Turn stored text back into the field's type (validation comes after)."""
-    if not isinstance(raw, str):
-        return raw
     base = _base_type(annotation)
+    if not isinstance(raw, str):
+        if base in (int, float) and not isinstance(raw, bool):
+            return _checked_number(raw)
+        return raw
     if base is bool:
         return raw.strip().lower() in ("true", "1", "yes", "on")
     if base in (int, float):
-        return base(raw.strip())
+        return _checked_number(base(raw.strip()))
     if base in _COLLECTIONS:
         text = raw.strip()
         if not text:
@@ -69,6 +77,17 @@ def decode_config_value(annotation: Any, raw: Any) -> Any:
             # Hand-entered "de, en".
             return [part.strip() for part in text.split(",") if part.strip()]
     return raw.strip() if base is str else raw
+
+
+def _checked_number(value: Any) -> Any:
+    """``value`` unless it is a number the browser cannot hold (ValueError)."""
+    if isinstance(value, int | float) and not isinstance(value, bool):
+        # Compare before any float conversion: float(10**400) overflows.
+        if isinstance(value, float) and not math.isfinite(value):
+            raise ValueError("number is not finite")
+        if not -MAX_SAFE_NUMBER <= value <= MAX_SAFE_NUMBER:
+            raise ValueError("number is out of range")
+    return value
 
 
 def apply_overrides(model: BaseModel, overrides: dict[str, Any]) -> BaseModel:

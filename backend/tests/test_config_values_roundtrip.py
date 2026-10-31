@@ -75,3 +75,35 @@ def test_validation_reports_the_offending_key_only():
     )
 
     assert list(errors) == ["translation_quality_max_retries"]
+
+
+_HUGE = 10**400
+
+
+@pytest.mark.parametrize(
+    ("key", "value"),
+    [
+        ("gestdown_retry_delay_s", _HUGE),
+        ("gestdown_retry_delay_s", str(_HUGE)),
+        ("gestdown_retry_delay_s", float("inf")),
+        ("gestdown_retry_delay_s", "1e999"),
+        ("gestdown_retry_delay_s", "nan"),
+        ("disk_warning_threshold_percent", _HUGE),
+        ("disk_warning_threshold_percent", str(_HUGE)),
+        ("disk_warning_threshold_percent", 2**53 + 1),
+    ],
+)
+def test_a_number_the_browser_cannot_hold_is_refused(key, value):
+    # GET /config answered "Infinity" after one such PUT, which JSON.parse
+    # rejects: the whole settings page stopped loading.
+    assert list(validation_errors(UISettings(), {key: value})) == [key]
+
+
+def test_a_stored_number_the_browser_cannot_hold_keeps_the_default():
+    ui = apply_overrides(
+        UISettings(),
+        {"gestdown_retry_delay_s": "inf", "disk_warning_threshold_percent": str(_HUGE)},
+    )
+
+    assert ui.gestdown_retry_delay_s == UISettings().gestdown_retry_delay_s
+    assert ui.disk_warning_threshold_percent == UISettings().disk_warning_threshold_percent
