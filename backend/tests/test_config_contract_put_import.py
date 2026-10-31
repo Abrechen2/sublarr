@@ -111,7 +111,10 @@ def test_a_list_setting_keeps_its_type_through_put_and_reload(client):
 
 
 def test_a_masked_media_server_blob_keeps_its_secrets(client):
-    servers = [{"id": "a1", "type": "emby", "url": "http://192.168.10.5:8096", "api_key": "real"}]
+    # As stored on prod: media-server entries have no id.
+    servers = [
+        {"type": "emby", "name": "Cardinal", "url": "http://192.168.10.5:8096", "api_key": "real"}
+    ]
     assert (
         client.put("/api/v1/config", json={"media_servers_json": json.dumps(servers)}).status_code
         == 200
@@ -141,3 +144,49 @@ def test_an_instance_without_an_id_never_borrows_a_secret(client):
         from db.config import get_config_entry
 
         assert "api_key" not in json.loads(get_config_entry("sonarr_instances_json"))[0]
+
+
+def test_a_changed_address_never_receives_the_stored_secret(client):
+    """Security review of #61: URL changed + mask kept sent the key to the new host."""
+    stored = [{"id": "a1", "url": "http://192.168.10.5:8989", "api_key": "real"}]
+    client.put("/api/v1/config", json={"sonarr_instances_json": json.dumps(stored)})
+
+    moved = [{"id": "a1", "url": "http://192.168.10.66:8989", "api_key": "***configured***"}]
+    assert (
+        client.put("/api/v1/config", json={"sonarr_instances_json": json.dumps(moved)}).status_code
+        == 200
+    )
+
+    with client.application.app_context():
+        from db.config import get_config_entry
+
+        assert "api_key" not in json.loads(get_config_entry("sonarr_instances_json"))[0]
+
+
+def test_the_export_masks_hub_secrets_like_get(client):
+    from unittest.mock import patch
+
+    with client.application.app_context():
+        from db.config import save_config_entry
+
+        save_config_entry("hub.demo.token", "s3cret")
+        save_config_entry("hub.demo.flag", "on")
+    with patch("providers.hub.secret_config_keys", return_value={"hub.demo.token"}):
+        exported = client.get("/api/v1/config/export").get_json()
+        shown = _get(client)
+
+    assert exported["hub.demo.token"] == "***configured***"
+    assert exported["hub.demo.flag"] == "on"
+    assert {k: v for k, v in exported.items() if k.startswith("hub.")} == {
+        k: v for k, v in shown.items() if k.startswith("hub.")
+    }
+
+
+@pytest.mark.parametrize(
+    "key", ["plugin.x.command", "post_processing.op.script", "translation.foo"]
+)
+def test_an_import_does_not_write_other_namespaces(client, key):
+    body = client.post("/api/v1/config/import", json={key: "rm -rf /"}).get_json()
+
+    assert key not in body["imported_keys"]
+    assert [e["key"] for e in body["skipped_invalid"]] == [key]

@@ -74,21 +74,17 @@ def export_config():
                 additionalProperties: true
     """
     from config import get_settings
-    from config_settings import is_sensitive_config_key
-    from db.config import get_all_config_entries
-    from routes.config.payload import MASK_SENTINEL, env_only_keys
+    from routes.config.core import _hub_config_entries
+    from routes.config.payload import env_only_keys
 
     config = get_settings().get_safe_config()
-    # Boot fields come from the environment and cannot be imported (#61 A03);
-    # stored extension keys (hub.*) are settings too and belong in a backup
-    # (#61 A08), masked like the rest.
+    # Boot fields come from the environment and cannot be imported (#61 A03).
+    # Catalog-provider settings (hub.*) belong in a backup (#61 A08) — the
+    # same entries, masked by the same manifest rules, as GET /config. Other
+    # dotted namespaces (plugins, post-processing) are not part of a backup.
     for key in env_only_keys():
         config.pop(key, None)
-    for key, value in (get_all_config_entries() or {}).items():
-        if "." in key and key not in config:
-            config[key] = (
-                (MASK_SENTINEL if value else "") if is_sensitive_config_key(key) else value
-            )
+    config.update(_hub_config_entries())
     return jsonify(config)
 
 

@@ -45,6 +45,11 @@ export function InstanceEditor({
   const updateField = (idx: number, field: keyof InstanceEntry, val: string) => {
     const updated = [...instances]
     updated[idx] = { ...updated[idx], [field]: val }
+    // The server keeps a stored key only for the same address, so a new URL
+    // needs the key typed again — show that instead of a mask it will drop.
+    if (field === 'url' && updated[idx].api_key === '***configured***') {
+      updated[idx] = { ...updated[idx], api_key: '' }
+    }
     sync(updated)
   }
 

@@ -43,6 +43,8 @@ MASKED_BLOB_KEYS = frozenset(
     }
 )
 SECRET_SUBKEYS = ("api_key", "apikey", "token", "password", "secret", "auth", "pin")
+#: Where an instance's secret is sent; a stored secret is restored only for the same place.
+ENDPOINT_FIELDS = ("url", "host", "port", "base_url", "type", "server_url")
 
 
 @dataclass
@@ -65,13 +67,26 @@ def env_only_keys() -> frozenset[str]:
     return frozenset(BootSettings.model_fields) - _RUNTIME_OVERRIDABLE_BOOT_FIELDS
 
 
+def _identity(inst: dict) -> tuple:
+    """Which stored instance this is: its ``id``, else where it points.
+
+    Media-server entries carry no id; their address (url, type, name) is what
+    makes them the same server.
+    """
+    if inst.get("id"):
+        return ("id", str(inst["id"]))
+    return ("endpoint", *(str(inst.get(f) or "") for f in ("url", "type", "name")))
+
+
 def deep_unmask_blob(new_raw: str, key: str) -> str | None:
     """``new_raw`` with masked secret subkeys taken from the stored instance.
 
-    Instances are matched by their ``id``; one without an id, or whose id is
-    not unique in the stored list, never borrows a stored secret — the mask
-    is dropped instead (a guessed match could hand one server's key to
-    another). Returns None when ``new_raw`` is not a JSON array.
+    An instance borrows a stored secret only from the one stored instance
+    with the same identity (id, else url/type/name) AND the same address
+    (ENDPOINT_FIELDS). Otherwise the mask is dropped and the secret has to be
+    entered again — a guessed match, or a changed URL with the mask kept,
+    would send the stored key to another host (security review of #61).
+    Returns None when ``new_raw`` is not a JSON array.
     """
     from db.config import get_config_entry
 
@@ -85,16 +100,17 @@ def deep_unmask_blob(new_raw: str, key: str) -> str | None:
         stored_list = json.loads(get_config_entry(key) or "[]")
     except (TypeError, ValueError):
         stored_list = []
-    stored_ids = [str(i.get("id")) for i in stored_list if isinstance(i, dict) and i.get("id")]
-    stored_by_id = {
-        str(i["id"]): i
-        for i in stored_list
-        if isinstance(i, dict) and i.get("id") and stored_ids.count(str(i["id"])) == 1
+    stored_dicts = [i for i in stored_list if isinstance(i, dict)]
+    identities = [_identity(i) for i in stored_dicts]
+    stored_by_identity = {
+        ident: inst for ident, inst in zip(identities, stored_dicts) if identities.count(ident) == 1
     }
     for inst in new_list:
         if not isinstance(inst, dict):
             continue
-        stored = stored_by_id.get(str(inst.get("id"))) if inst.get("id") else None
+        stored = stored_by_identity.get(_identity(inst))
+        if stored and any(inst.get(f) != stored.get(f) for f in ENDPOINT_FIELDS):
+            stored = None
         for sub in list(inst):
             if not any(sub.lower() == s or sub.lower().endswith(s) for s in SECRET_SUBKEYS):
                 continue
@@ -105,6 +121,12 @@ def deep_unmask_blob(new_raw: str, key: str) -> str | None:
             else:
                 inst.pop(sub, None)
     return json.dumps(new_list)
+
+
+def _importable_dotted(key: str) -> bool:
+    from sensitive_keys import is_sensitive_key
+
+    return key.startswith("hub.") and not is_sensitive_key(key)
 
 
 def _check_value(key: str, value: object) -> tuple[object, str | None]:
@@ -175,6 +197,12 @@ def check_config_payload(data: dict, *, mode: Literal["put", "import"]) -> Check
         if key not in writable and "." not in key:
             # A misspelled key used to report success and do nothing.
             result.refuse(key, f"Unknown config key: {key}")
+            continue
+        if mode == "import" and "." in key and not _importable_dotted(key):
+            # A backup only carries non-secret catalog settings; plugin and
+            # post-processing namespaces (scripts, commands) never come in
+            # through an uploaded file.
+            result.refuse(key, f"{key} cannot be imported")
             continue
         value, error = _check_value(key, value)
         if error:
