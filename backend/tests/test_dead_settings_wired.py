@@ -36,3 +36,22 @@ def test_gestdown_waits_the_configured_retry_delay():
         provider.search(query)
 
     sleep.assert_called_once_with(2.5)
+
+
+def test_an_unbounded_gestdown_delay_falls_back_to_one_second():
+    from providers.base import VideoQuery
+    from providers.gestdown import GestdownProvider
+
+    provider = GestdownProvider()
+    provider.session = MagicMock()
+    provider.session.get.side_effect = [MagicMock(status_code=423), MagicMock(status_code=404)]
+    query = VideoQuery(series_title="Show", season=1, episode=2, languages=["en"])
+    with (
+        patch.object(GestdownProvider, "_find_show", return_value={"id": "s1"}),
+        patch.object(GestdownProvider, "_get_language_map", return_value={"en": 1}),
+        patch("config.get_settings", return_value=MagicMock(gestdown_retry_delay_s=float("inf"))),
+        patch("providers.gestdown.time.sleep") as sleep,
+    ):
+        provider.search(query)
+
+    sleep.assert_called_once_with(1.0)

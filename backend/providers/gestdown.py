@@ -362,7 +362,13 @@ class GestdownProvider(SubtitleProvider):
                     # (#61 A36: the setting was replaced by a fixed 1.0 s).
                     from config import get_settings
 
-                    retry_delay = float(getattr(get_settings(), "gestdown_retry_delay_s", 1.0))
+                    raw_delay = getattr(get_settings(), "gestdown_retry_delay_s", 1.0)
+                    # Bounded: a stored "inf" would hang the search in sleep().
+                    retry_delay = (
+                        min(float(raw_delay), 30.0)
+                        if isinstance(raw_delay, int | float) and 0 <= raw_delay <= 30
+                        else 1.0
+                    )
                     logger.debug("Gestdown: HTTP 423 (locked), retrying after %.1fs", retry_delay)
                     if retry_delay > 0:
                         time.sleep(retry_delay)

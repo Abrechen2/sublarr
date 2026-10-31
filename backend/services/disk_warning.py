@@ -29,9 +29,11 @@ def check_disk_warning(settings=None) -> list[dict]:
         from config import get_settings
 
         settings = get_settings()
-    threshold = float(getattr(settings, "disk_warning_threshold_percent", 90) or 0)
-    if threshold <= 0:
+    raw = getattr(settings, "disk_warning_threshold_percent", 90)
+    # A percentage; anything else (0, negative, a 400-digit number) means off.
+    if isinstance(raw, bool) or not isinstance(raw, int | float) or not 0 < raw <= 100:
         return []
+    threshold = float(raw)
     folders = {
         getattr(settings, "config_dir", "") or "",
         getattr(settings, "media_path", "") or "",

@@ -65,3 +65,13 @@ def test_the_job_is_registered():
     from services.scheduler import _build_default_jobs
 
     assert "disk_warning_check" in {spec.id for spec in _build_default_jobs()}
+
+
+@pytest.mark.parametrize("threshold", [0, -5, 10**400, 101])
+def test_an_impossible_threshold_means_off(threshold):
+    with _usage({"/config": 99.0, "/media": 99.0}), patch("notifier.send_notification") as notify:
+        assert (
+            disk_warning.check_disk_warning(_settings(disk_warning_threshold_percent=threshold))
+            == []
+        )
+    notify.assert_not_called()

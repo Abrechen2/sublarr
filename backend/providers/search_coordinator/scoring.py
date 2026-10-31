@@ -21,13 +21,16 @@ MAX_MIN_SCORE = 10_000
 
 
 def is_valid_min_score(value) -> bool:
-    """A finite number between 0 and MAX_MIN_SCORE (``1e309`` is JSON for infinity, #65)."""
-    return (
-        isinstance(value, int | float)
-        and not isinstance(value, bool)
-        and math.isfinite(value)
-        and 0 <= value <= MAX_MIN_SCORE
-    )
+    """A finite number between 0 and MAX_MIN_SCORE (``1e309`` is JSON for infinity, #65).
+
+    The range is checked before anything converts to float: ``math.isfinite``
+    on a 401-digit integer raised OverflowError (HTTP 500 on PUT and import).
+    """
+    if isinstance(value, bool) or not isinstance(value, int | float):
+        return False
+    if isinstance(value, float) and not math.isfinite(value):
+        return False
+    return 0 <= value <= MAX_MIN_SCORE
 
 
 def per_language_min_scores(settings) -> dict[str, int]:

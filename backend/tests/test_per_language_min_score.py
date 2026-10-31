@@ -18,7 +18,17 @@ def test_the_json_is_read_by_canonical_language():
 
 
 @pytest.mark.parametrize(
-    "raw", ["", "not json", "[1, 2]", None, '{"de": 1e309}', '{"de": NaN}', '{"de": -1e309}']
+    "raw",
+    [
+        "",
+        "not json",
+        "[1, 2]",
+        None,
+        '{"de": 1e309}',
+        '{"de": NaN}',
+        '{"de": -1e309}',
+        '{"de": ' + "1" + "0" * 400 + "}",
+    ],
 )
 def test_a_malformed_value_is_ignored(raw):
     assert per_language_min_scores(SimpleNamespace(score_threshold_per_language=raw)) == {}
@@ -38,6 +48,8 @@ def test_a_malformed_value_is_ignored(raw):
         ('{"de": NaN}', False),
         ('{"de": -5}', False),
         ('{"de": 10001}', False),
+        ('{"de": ' + "1" + "0" * 400 + "}", False),  # 401-digit integer (#65 follow-up)
+        ('{"de": -' + "1" + "0" * 400 + "}", False),
     ],
 )
 def test_put_checks_the_shape(client, value, ok):
@@ -80,3 +92,14 @@ def test_a_saved_threshold_reaches_a_manager_created_before_the_save(client, mon
         )
 
     assert [r.subtitle_id for r in kept] == ["en1"]
+
+
+def test_the_import_reports_a_huge_integer_instead_of_failing(client):
+    value = '{"de": ' + "1" + "0" * 400 + "}"
+
+    response = client.post("/api/v1/config/import", json={"score_threshold_per_language": value})
+
+    assert response.status_code == 200, response.get_json()
+    assert [e["key"] for e in response.get_json()["skipped_invalid"]] == [
+        "score_threshold_per_language"
+    ]
