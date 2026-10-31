@@ -1035,5 +1035,12 @@
   "about": {
     "credit_prefix": "A project by",
     "credit_url": "https://www.abrechen2.de/en/"
-  }
+  },
+  "comparison": {
+    "loading": "Loading subtitles…",
+    "load_failed": "The subtitles could not be loaded.",
+    "close": "Close comparison"
+  },
+  "saved": "Saved",
+  "save": "Save"
 }

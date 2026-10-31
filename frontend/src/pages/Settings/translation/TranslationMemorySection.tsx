@@ -5,6 +5,7 @@ import { ConfirmModal } from '@/components/shared/ConfirmModal'
 import { SettingRow } from '@/components/shared/SettingRow'
 import { Toggle } from '@/components/shared/Toggle'
 import { useConfig, useUpdateConfig, useTranslationMemoryStats, useClearTranslationMemoryCache } from '@/hooks/useApi'
+import { boolVal } from '@/lib/configUtils'
 import { useTranslation } from 'react-i18next'
 
 // ─── Translation Memory Section ─────────────────────────────────────────────
@@ -17,9 +18,7 @@ export function TranslationMemorySection() {
   const clearCache = useClearTranslationMemoryCache()
   const [showClearConfirm, setShowClearConfirm] = useState(false)
 
-  const enabled = config
-    ? (config as Record<string, unknown>)['translation_memory_enabled'] !== 'false'
-    : true
+  const enabled = boolVal(config, 'translation_memory_enabled', true)
 
   const threshold = config
     ? Number((config as Record<string, unknown>)['translation_memory_similarity_threshold'] ?? 0.85)

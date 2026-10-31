@@ -4,6 +4,7 @@ import { useTranslation } from 'react-i18next'
 import { SettingRow } from '@/components/shared/SettingRow'
 import { toast } from '@/components/shared/Toast'
 import { useExportConfig, useImportConfig } from '@/hooks/useSystemApi'
+import { apiErrorMessage } from '@/lib/apiError'
 
 // ─── ConfigExportImportTab ────────────────────────────────────────────────────
 
@@ -59,11 +60,22 @@ export function ConfigExportImportTab() {
     importMut.mutate(importData, {
       onSuccess: (result) => {
         toast(t('config_export_import.imported', { count: result.imported_keys.length }))
+        // Refused keys used to vanish silently (#61 A30): name them with the reason.
+        const skipped = result.skipped_invalid ?? []
+        if (skipped.length > 0) {
+          toast(
+            t('config_export_import.skipped_invalid', {
+              count: skipped.length,
+              details: skipped.map((s) => `${s.key}: ${s.error}`).join('; '),
+            }),
+            'error',
+          )
+        }
         setShowConfirm(false)
         setImportData(null)
       },
-      onError: () => {
-        toast(t('config_export_import.export_failed'), 'error')
+      onError: (err) => {
+        toast(apiErrorMessage(err, t('config_export_import.import_failed')), 'error')
         setShowConfirm(false)
         setImportData(null)
       },

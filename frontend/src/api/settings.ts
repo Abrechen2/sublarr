@@ -25,7 +25,15 @@ export async function exportConfig(): Promise<AppConfig> {
   return data
 }
 
-export async function importConfig(config: Record<string, unknown>): Promise<{ status: string; imported_keys: string[]; skipped_secrets: string[] }> {
+export interface ConfigImportResult {
+  status: string
+  imported_keys: string[]
+  skipped_secrets: string[]
+  /** Keys the server refused, with the reason (same rules as PUT /config). */
+  skipped_invalid: { key: string; error: string }[]
+}
+
+export async function importConfig(config: Record<string, unknown>): Promise<ConfigImportResult> {
   const { data } = await api.post('/config/import', config)
   return data
 }

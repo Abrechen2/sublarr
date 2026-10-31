@@ -36,27 +36,6 @@
     "pause": "Pausieren",
     "runNow": "Jetzt starten"
   },
-  "heroStats": {
-    "subtitlesTotal": "Untertitel",
-    "today": "Heute",
-    "subtitlesTotalSub": "Insgesamt verwaltet",
-    "missing": "Fehlend",
-    "pending": "ausstehende Suchen",
-    "allGood": "Alles ok",
-    "missingSub": "Automatisierung sucht",
-    "qualityAvg": "Qualität",
-    "qualityAvgDelta": "Ø Score",
-    "qualityAvgSub": "Durchschnitt",
-    "lowScore": "Niedriger Score",
-    "lowScoreUpgrade": "Upgrade nötig",
-    "lowScoreSub": "Unter Limit (60)"
-  },
-  "total_stats": {
-    "title": "Gesamtstatistik",
-    "translated": "Übersetzt",
-    "failed": "Fehlgeschlagen",
-    "skipped": "Übersprungen"
-  },
   "by_format": {
     "title": "Nach Format",
     "no_data": "Noch keine Daten"
@@ -73,11 +52,6 @@
     "scan_failed": "Scan fehlgeschlagen",
     "search_started": "Gesuchte-Suche gestartet",
     "search_failed": "Suche fehlgeschlagen"
-  },
-  "recent_activity": {
-    "title": "Letzte Aktivität",
-    "view_all": "Alle anzeigen",
-    "no_activity": "Keine aktuelle Aktivität"
   },
   "widgets": {
     "stat_cards": "Status-Übersicht",

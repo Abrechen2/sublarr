@@ -1035,5 +1035,12 @@
   "about": {
     "credit_prefix": "Ein Projekt von",
     "credit_url": "https://www.abrechen2.de/"
-  }
+  },
+  "comparison": {
+    "loading": "Untertitel werden geladen …",
+    "load_failed": "Die Untertitel konnten nicht geladen werden.",
+    "close": "Vergleich schließen"
+  },
+  "saved": "Gespeichert",
+  "save": "Speichern"
 }

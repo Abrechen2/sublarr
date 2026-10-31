@@ -6,6 +6,7 @@ import {
   useBazarrMigration, useConfirmBazarrImport,
 } from '@/hooks/useApi'
 import { toast } from '@/components/shared/Toast'
+import { apiErrorMessage } from '@/lib/apiError'
 import { BazarrImportPreview } from '@/components/settings/BazarrImportPreview'
 import {
   Loader2, Shield, ShieldCheck, ShieldAlert, TestTube,
@@ -198,7 +199,7 @@ export function ApiKeysTab({
   const handleUpdate = (service: string, keyName: string, value: string) => {
     updateKey.mutate({ service, keyName, value }, {
       onSuccess: () => toast(t('apiKeys.keyUpdated', 'Key updated successfully')),
-      onError: () => toast(t('apiKeys.keyUpdateFailed', 'Failed to update key'), 'error'),
+      onError: (err) => toast(apiErrorMessage(err, t('apiKeys.keyUpdateFailed', 'Failed to update key')), 'error'),
     })
   }
 
@@ -211,7 +212,7 @@ export function ApiKeysTab({
           toast(`${service}: ${result.message}`, 'error')
         }
       },
-      onError: () => toast(t('apiKeys.connection_failed', { service }), 'error'),
+      onError: (err) => toast(apiErrorMessage(err, t('apiKeys.connection_failed', { service })), 'error'),
     })
   }
 
@@ -226,7 +227,7 @@ export function ApiKeysTab({
         URL.revokeObjectURL(url)
         toast(t('apiKeys.exportSuccess', 'API keys exported'))
       },
-      onError: () => toast(t('apiKeys.exportFailed', 'Export failed'), 'error'),
+      onError: (err) => toast(apiErrorMessage(err, t('apiKeys.exportFailed', 'Export failed')), 'error'),
     })
   }
 
@@ -237,7 +238,7 @@ export function ApiKeysTab({
       onSuccess: (result) => {
         toast(t('apiKeys.imported_keys', { count: result.imported }) + (result.skipped > 0 ? t('apiKeys.imported_skipped', { count: result.skipped }) : ''))
       },
-      onError: () => toast(t('apiKeys.importFailed', 'Import failed'), 'error'),
+      onError: (err) => toast(apiErrorMessage(err, t('apiKeys.importFailed', 'Import failed')), 'error'),
     })
     e.target.value = ''
   }
@@ -268,7 +269,7 @@ export function ApiKeysTab({
         toast(t('apiKeys.bazarr_import_complete', { count }))
         result.warnings.forEach((w) => toast(w, 'error'))
       },
-      onError: () => toast(t('apiKeys.bazarr_import_failed'), 'error'),
+      onError: (err) => toast(apiErrorMessage(err, t('apiKeys.bazarr_import_failed')), 'error'),
     })
   }
 

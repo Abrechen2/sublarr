@@ -4,6 +4,7 @@ import { Loader2, Plus, Edit2, Trash2, Check, X, BookOpen, Search, Download } fr
 import { toast } from '@/components/shared/Toast'
 import { SettingRow } from '@/components/shared/SettingRow'
 import { Toggle } from '@/components/shared/Toggle'
+import { boolVal } from '@/lib/configUtils'
 import {
   useGlobalGlossaryEntries, useCreateGlossaryEntry, useUpdateGlossaryEntry, useDeleteGlossaryEntry,
   useExportGlossaryTsv, useConfig, useUpdateConfig,
@@ -33,9 +34,7 @@ export function GlobalGlossaryPanel() {
       )
     : entries
 
-  const glossaryEnabled = config
-    ? (config as Record<string, unknown>)['glossary_enabled'] !== 'false'
-    : true
+  const glossaryEnabled = boolVal(config, 'glossary_enabled', true)
   const glossaryMaxTerms = config
     ? Number((config as Record<string, unknown>)['glossary_max_terms'] ?? 20)
     : 20

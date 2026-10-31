@@ -10,7 +10,6 @@ import { strVal, boolVal } from '@/lib/configUtils'
 import { inputStyle, SCAN_ENGINES, SectionSkeleton } from './shared'
 
 export function SearchScanAdvancedContent() {
-  const { t } = useTranslation('common')
   const { t: tS } = useTranslation('settings')
   const { data: config, isLoading } = useConfig()
   const updateConfig = useUpdateConfig()
@@ -21,7 +20,7 @@ export function SearchScanAdvancedContent() {
   return (
     <div data-testid="search-scan-advanced-content">
       <FormGroup
-        label={t('automation_page.ffmpeg_timeout')}
+        label={tS('automation_page.ffmpeg_timeout')}
         hint="Maximale Wartezeit für ffprobe/ffmpeg-Operationen beim Scannen der Mediathek."
         htmlFor="ffmpeg-timeout"
         advanced
@@ -41,7 +40,7 @@ export function SearchScanAdvancedContent() {
       </FormGroup>
 
       <FormGroup
-        label={t('automation_page.metadata_engine')}
+        label={tS('automation_page.metadata_engine')}
         hint="Tool für das Auslesen von Mediendatei-Metadaten. 'auto' wählt automatisch."
         htmlFor="scan-metadata-engine"
         advanced
@@ -62,7 +61,7 @@ export function SearchScanAdvancedContent() {
       </FormGroup>
 
       <FormGroup
-        label={t('automation_page.metadata_worker')}
+        label={tS('automation_page.metadata_worker')}
         hint="Anzahl paralleler Threads für den Metadaten-Scan."
         htmlFor="scan-metadata-max-workers"
         advanced

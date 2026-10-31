@@ -119,5 +119,14 @@
       "probe": "Probing files",
       "strip": "Removing tracks"
     }
+  },
+  "charts": {
+    "searches": "Searches",
+    "downloads": "Downloads",
+    "success": "Success",
+    "failed": "Failed",
+    "avg_score": "Average score",
+    "issues": "Issues",
+    "translated": "Translated"
   }
 }

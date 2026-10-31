@@ -5,6 +5,7 @@ import { toast } from '@/components/shared/Toast'
 import { SettingRow } from '@/components/shared/SettingRow'
 import { Toggle } from '@/components/shared/Toggle'
 import { useConfig, useUpdateConfig } from '@/hooks/useApi'
+import { boolVal } from '@/lib/configUtils'
 
 // ─── Translation Quality Section ─────────────────────────────────────────────
 
@@ -13,9 +14,7 @@ export function TranslationQualitySection() {
   const { data: config } = useConfig()
   const updateConfig = useUpdateConfig()
 
-  const enabled = config
-    ? (config as Record<string, unknown>)['translation_quality_enabled'] !== 'false'
-    : true
+  const enabled = boolVal(config, 'translation_quality_enabled', true)
 
   const threshold = config
     ? Number((config as Record<string, unknown>)['translation_quality_threshold'] ?? 50)

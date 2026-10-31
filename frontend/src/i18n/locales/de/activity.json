@@ -220,7 +220,8 @@
     "cleanup_errors": "{{count}} Fehler bei der Bereinigung",
     "cleanup_failed": "Bereinigung fehlgeschlagen: {{error}}",
     "scanning": "Scanne: {{item}}",
-    "no_match_filters": "Keine Einträge entsprechen den aktuellen Filtern"
+    "no_match_filters": "Keine Einträge entsprechen den aktuellen Filtern",
+    "export_failed": "Export fehlgeschlagen"
   },
   "wanted_extra": {
     "target": "Ziel:",

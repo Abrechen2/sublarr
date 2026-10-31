@@ -20,9 +20,17 @@ api.interceptors.request.use((config) => {
 api.interceptors.response.use(
   (response) => response,
   (error) => {
-    // If we're in development and the backend is unreachable/not set up, return robust mock data
-    // to match the visual mockups during UI development.
-    if (import.meta.env.DEV && (error.code === 'ERR_NETWORK' || [404, 500, 502, 503, 504].includes(error.response?.status))) {
+    // UI development without a backend: mock data for failed reads, and only
+    // when asked for with VITE_MOCK_API=true. It used to answer every failed
+    // request in dev — a refused PUT /config looked like a successful save in
+    // local testing (#61 A32).
+    const method = (error.config?.method || 'get').toLowerCase()
+    if (
+      import.meta.env.DEV &&
+      import.meta.env.VITE_MOCK_API === 'true' &&
+      method === 'get' &&
+      (error.code === 'ERR_NETWORK' || [404, 500, 502, 503, 504].includes(error.response?.status))
+    ) {
       const url = error.config.url || ''
       console.log(`[MOCK] Returning mock data for failed request: ${url}`)
 
@@ -115,8 +123,11 @@ api.interceptors.response.use(
       // /login → /login is a full page reload, so a single background 401
       // (e.g. a request that raced the freshly-issued session cookie) puts
       // the UI into an endless reload loop instead of showing the form once.
-      if (window.location.pathname !== '/login') {
-        window.location.href = '/login'
+      // Under a reverse-proxy prefix the login page lives at <prefix>/login,
+      // like every other URL here (#61 A31).
+      const login = withBase('/login')
+      if (window.location.pathname !== login) {
+        window.location.href = login
       }
     }
     return Promise.reject(error)

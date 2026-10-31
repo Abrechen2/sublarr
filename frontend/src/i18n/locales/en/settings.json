@@ -116,24 +116,6 @@
     "max_items_per_run": "Max Items per Search Run",
     "upgrade_scan_interval_hint": "How often to scan for upgrade opportunities."
   },
-  "wanted_tab": {
-    "scan_interval": "Scan Interval (hours, 0=disabled)",
-    "scan_interval_hint": "How often Sublarr scans the library for new media without subtitles. Set to 0 to disable.",
-    "scan_on_startup": "Scan on Startup",
-    "scan_on_startup_hint": "Immediately scan the entire library when Sublarr starts.",
-    "search_interval_hint": "How often Sublarr searches providers for items in the Wanted list. Set to 0 to disable.",
-    "search_on_startup_hint": "Search providers for all Wanted items when Sublarr starts.",
-    "anime_only": "Anime Only (Sonarr)",
-    "anime_movies_only": "Anime Movies Only (Radarr)",
-    "max_search_attempts": "Max Search Attempts",
-    "max_search_attempts_hint": "Stop automatically searching after this many failed attempts. The item stays in Wanted and can be searched manually.",
-    "skip_srt_hint": "When no ASS subtitle is found, do not download an SRT fallback. Useful for anime.",
-    "anime_only_hint": "Restrict library scanning to Sonarr entries tagged as anime.",
-    "anime_movies_hint": "Include Radarr entries tagged as anime in anime-only scans.",
-    "max_items_per_run_hint": "Limit how many Wanted items are processed per search cycle.",
-    "backoff_base_hint": "Multiplier for wait time between retries. Higher values mean longer gaps.",
-    "backoff_cap_hint": "Maximum wait time in hours between retry attempts."
-  },
   "sonarr": {
     "url": "Sonarr URL",
     "api_key": "Sonarr API Key"
@@ -1181,7 +1163,9 @@
     "import_btn": "Import",
     "export_failed": "Export failed",
     "invalid_json": "Invalid JSON file",
-    "imported": "Imported {{count}} settings"
+    "imported": "Imported {{count}} settings",
+    "import_failed": "Import failed",
+    "skipped_invalid": "{{count}} settings were not imported: {{details}}"
   },
   "notification_history": {
     "empty": "No notification history yet.",
@@ -2523,5 +2507,9 @@
   "support_section_unavailable": "{{section}}: unavailable — {{reason}}",
   "support_more_count": "+{{count}} more",
   "support_entries_count": "{{count}} entries",
-  "support_details_label": "Details"
+  "support_details_label": "Details",
+  "settings_search": {
+    "placeholder": "Search settings…",
+    "clear": "Clear search"
+  }
 }

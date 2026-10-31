@@ -116,24 +116,6 @@
     "max_items_per_run": "Max. Einträge pro Suchlauf",
     "upgrade_scan_interval_hint": "Wie oft nach Upgrade-Möglichkeiten gesucht wird."
   },
-  "wanted_tab": {
-    "scan_interval": "Scan-Intervall (Stunden, 0=deaktiviert)",
-    "scan_interval_hint": "Wie oft Sublarr die Bibliothek nach neuen Medien ohne Untertitel scannt. 0 zum Deaktivieren.",
-    "scan_on_startup": "Scan beim Start",
-    "scan_on_startup_hint": "Die gesamte Bibliothek sofort beim Start von Sublarr scannen.",
-    "search_interval_hint": "Wie oft Sublarr bei Providern nach Einträgen in der Wanted-Liste sucht. 0 zum Deaktivieren.",
-    "search_on_startup_hint": "Beim Start von Sublarr bei Providern nach allen Wanted-Einträgen suchen.",
-    "anime_only": "Nur Anime (Sonarr)",
-    "anime_movies_only": "Nur Anime-Filme (Radarr)",
-    "max_search_attempts": "Max. Suchversuche",
-    "max_search_attempts_hint": "Automatische Suche nach dieser Anzahl fehlgeschlagener Versuche einstellen. Der Eintrag bleibt in Wanted und kann manuell gesucht werden.",
-    "skip_srt_hint": "Wenn kein ASS-Untertitel gefunden wird, keinen SRT-Fallback herunterladen. Nützlich für Anime.",
-    "anime_only_hint": "Bibliotheks-Scan auf als Anime markierte Sonarr-Einträge beschränken.",
-    "anime_movies_hint": "Als Anime markierte Radarr-Einträge in Anime-Only-Scans einbeziehen.",
-    "max_items_per_run_hint": "Begrenzt wie viele Wanted-Einträge pro Suchzyklus verarbeitet werden.",
-    "backoff_base_hint": "Multiplikator für die Wartezeit zwischen Wiederholungen. Höhere Werte bedeuten längere Abstände.",
-    "backoff_cap_hint": "Maximale Wartezeit in Stunden zwischen Wiederholungsversuchen."
-  },
   "sonarr": {
     "url": "Sonarr URL",
     "api_key": "Sonarr API Key"
@@ -1181,7 +1163,9 @@
     "import_btn": "Importieren",
     "export_failed": "Export fehlgeschlagen",
     "invalid_json": "Ungültige JSON-Datei",
-    "imported": "{{count}} Einstellungen importiert"
+    "imported": "{{count}} Einstellungen importiert",
+    "import_failed": "Import fehlgeschlagen",
+    "skipped_invalid": "{{count}} Einstellungen wurden nicht importiert: {{details}}"
   },
   "notification_history": {
     "empty": "Noch kein Benachrichtigungsverlauf.",
@@ -2523,5 +2507,9 @@
   "support_section_unavailable": "{{section}}: nicht verfügbar — {{reason}}",
   "support_more_count": "+{{count}} weitere",
   "support_entries_count": "{{count}} Einträge",
-  "support_details_label": "Details"
+  "support_details_label": "Details",
+  "settings_search": {
+    "placeholder": "Einstellungen durchsuchen …",
+    "clear": "Suche leeren"
+  }
 }

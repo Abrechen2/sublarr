@@ -220,7 +220,8 @@
     "cleanup_errors": "{{count}} error(s) during cleanup",
     "cleanup_failed": "Cleanup failed: {{error}}",
     "scanning": "Scanning: {{item}}",
-    "no_match_filters": "No items match the current filters"
+    "no_match_filters": "No items match the current filters",
+    "export_failed": "Export failed"
   },
   "wanted_extra": {
     "target": "Target:",

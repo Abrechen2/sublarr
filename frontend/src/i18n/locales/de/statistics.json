@@ -119,5 +119,14 @@
       "probe": "Dateien werden geprüft",
       "strip": "Spuren werden entfernt"
     }
+  },
+  "charts": {
+    "searches": "Suchen",
+    "downloads": "Downloads",
+    "success": "Erfolgreich",
+    "failed": "Fehlgeschlagen",
+    "avg_score": "Durchschnittlicher Score",
+    "issues": "Probleme",
+    "translated": "Übersetzt"
   }
 }
