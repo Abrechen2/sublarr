@@ -323,7 +323,9 @@ class _WantedScanSourcesMixin:
             logger.warning("[Auto-Extract] settings unavailable for item %d", item_id)
             return
 
-        if getattr(settings, "subtitle_automation_enabled", False):
+        if getattr(settings, "subtitle_automation_enabled", False) and getattr(
+            settings, "subtitle_automation_queue_enabled", True
+        ):
             target_lang = _lookup_target_language(item_id)
             if target_lang:
                 try:

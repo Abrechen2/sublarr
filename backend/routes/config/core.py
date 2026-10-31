@@ -489,6 +489,10 @@ def update_config():
     # it guarded is wrapped in a catch-all so a bonus behaviour can never fail
     # a settings save. The function is gone now (#214 replaced it), but the
     # lesson is why this one is named for what it holds.
+    # Every field a provider declares counts too: a saved Titlovi or
+    # LegendasDivx account otherwise reached the provider only after a
+    # restart (#61 A01).
+    _declared_provider_keys = set(_provider_field_owners())
     provider_cache_keys = {
         k
         for k in saved_keys
@@ -497,6 +501,7 @@ def update_config():
             or k.startswith("scoring_")
             or k.startswith("hub.")
             or k in _credential_keys
+            or k in _declared_provider_keys
         )
         and k != "providers_hidden"
     }

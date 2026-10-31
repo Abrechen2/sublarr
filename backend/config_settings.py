@@ -80,7 +80,7 @@ _ALLOWED_BOOT_FIELDS: frozenset[str] = frozenset(
 # anidb_fallback_to_mapping came back as "***configured***" from GET /config.
 # The path-mapping editor then showed the mask, and saving it would have
 # written that literal string over the user's real paths (2026-09-10).
-_SENSITIVE_SEGMENTS = frozenset({"password", "pin", "secret", "token", "key"})
+_SENSITIVE_SEGMENTS = frozenset({"password", "pin", "secret", "token", "key", "apikey"})
 # Credentials whose names carry none of the words above.
 _EXPLICIT_MASKED = frozenset({"database_url", "redis_url"})
 
@@ -270,6 +270,22 @@ class UISettings(BaseModel):
     # Titlovi (Balkan subtitles — account with API access required, #191)
     titlovi_username: str = ""
     titlovi_password: str = ""
+
+    # Accounts of providers whose config_fields named bare "username" /
+    # "password" / "apikey": no such setting existed, so the form could not
+    # save them and the provider never saw them (#61 A01). Stored as
+    # <provider name>_<field>; the manager strips the prefix again.
+    legendasdivx_username: str = ""
+    legendasdivx_password: str = ""
+    napisy24_username: str = ""
+    napisy24_password: str = ""
+    addic7ed_subliminal_username: str = ""
+    addic7ed_subliminal_password: str = ""
+    opensubtitles_subliminal_username: str = ""
+    opensubtitles_subliminal_password: str = ""
+    opensubtitlescom_subliminal_apikey: str = ""
+    opensubtitlescom_subliminal_username: str = ""
+    opensubtitlescom_subliminal_password: str = ""
     provider_search_timeout: int = 30  # Global timeout fallback (seconds)
     provider_cache_ttl_minutes: int = 5  # Cache TTL for provider search results
     provider_auto_prioritize: bool = True  # Auto-prioritize providers based on success rate

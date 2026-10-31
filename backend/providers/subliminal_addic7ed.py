@@ -39,9 +39,15 @@ class Addic7edSubliminalProvider(SubliminalProviderAdapter):
         "he",
     }
     config_fields = [
-        {"key": "username", "label": "Username", "type": "text", "required": True, "default": ""},
         {
-            "key": "password",
+            "key": "addic7ed_subliminal_username",
+            "label": "Username",
+            "type": "text",
+            "required": True,
+            "default": "",
+        },
+        {
+            "key": "addic7ed_subliminal_password",
             "label": "Password",
             "type": "password",
             "required": True,

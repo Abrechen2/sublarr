@@ -54,7 +54,9 @@ class ConfigResolvingMixin:
             # Built-in providers: read from Pydantic Settings
             for field in getattr(cls, "config_fields", []):
                 key = field["key"]
-                config[key] = getattr(self.settings, key, field.get("default", ""))
+                # An unset setting falls back to the field's own default
+                # (Napisy24's public account), not to "".
+                config[key] = getattr(self.settings, key, "") or field.get("default", "")
 
         # Map settings-level keys to constructor parameter names.
         # Built-in providers expect short param names (e.g. "api_key" not

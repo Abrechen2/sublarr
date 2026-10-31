@@ -47,10 +47,22 @@ class OpenSubtitlesComSubliminalProvider(SubliminalProviderAdapter):
         "vi",
     }
     config_fields = [
-        {"key": "apikey", "label": "API Key", "type": "password", "required": True, "default": ""},
-        {"key": "username", "label": "Username", "type": "text", "required": True, "default": ""},
         {
-            "key": "password",
+            "key": "opensubtitlescom_subliminal_apikey",
+            "label": "API Key",
+            "type": "password",
+            "required": True,
+            "default": "",
+        },
+        {
+            "key": "opensubtitlescom_subliminal_username",
+            "label": "Username",
+            "type": "text",
+            "required": True,
+            "default": "",
+        },
+        {
+            "key": "opensubtitlescom_subliminal_password",
             "label": "Password",
             "type": "password",
             "required": True,

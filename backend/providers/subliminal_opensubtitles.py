@@ -22,14 +22,14 @@ class OpenSubtitlesSubliminalProvider(SubliminalProviderAdapter):
     # Declarative config fields for the dynamic UI form
     config_fields = [
         {
-            "key": "username",
+            "key": "opensubtitles_subliminal_username",
             "label": "Username",
             "type": "text",
             "required": True,
             "default": "",
         },
         {
-            "key": "password",
+            "key": "opensubtitles_subliminal_password",
             "label": "Password",
             "type": "password",
             "required": True,

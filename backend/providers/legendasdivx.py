@@ -59,8 +59,8 @@ class LegendasDivxProvider(SubtitleProvider, _LegendasDivxParseMixin):
 
     # Plugin system attributes
     config_fields = [
-        {"key": "username", "label": "Username", "type": "text", "required": True},
-        {"key": "password", "label": "Password", "type": "password", "required": True},
+        {"key": "legendasdivx_username", "label": "Username", "type": "text", "required": True},
+        {"key": "legendasdivx_password", "label": "Password", "type": "password", "required": True},
     ]
     rate_limit = (5, 60)  # very conservative due to daily search limit
     timeout = 20

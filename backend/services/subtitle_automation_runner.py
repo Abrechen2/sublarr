@@ -92,11 +92,20 @@ def compute_backoff(*, attempt: int) -> timedelta:
 
 
 def _automation_enabled() -> bool:
-    """Read the master toggle. Indirected so tests can patch it cheaply."""
+    """Whether this worker may run extraction and translation rows.
+
+    Needs the master toggle AND the queue ("drain worker") toggle: with the
+    queue off, new items take the legacy inline "Auto-Extract on scan" path
+    and the worker leaves those rows alone (#61 A02 — the toggle was saved
+    and read by nothing). Indirected so tests can patch it cheaply.
+    """
     from config import get_settings
 
     try:
-        return bool(get_settings().subtitle_automation_enabled)
+        settings = get_settings()
+        return bool(settings.subtitle_automation_enabled) and bool(
+            getattr(settings, "subtitle_automation_queue_enabled", True)
+        )
     except Exception:
         # If settings can't load, act as if disabled — safe default.
         logger.exception("failed to read subtitle_automation_enabled; treating as off")

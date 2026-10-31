@@ -73,14 +73,14 @@ class Napisy24Provider(SubtitleProvider):
     # Plugin system attributes
     config_fields = [
         {
-            "key": "username",
+            "key": "napisy24_username",
             "label": "Username",
             "type": "text",
             "required": False,
             "default": "subliminal",
         },
         {
-            "key": "password",
+            "key": "napisy24_password",
             "label": "Password",
             "type": "password",
             "required": False,

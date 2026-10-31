@@ -377,7 +377,10 @@ def run_wanted_search(
     # extraction path. With subtitle_automation_enabled and
     # wanted_auto_extract both off, embedded items stay in the normal
     # provider search and their files are never touched.
-    automation_on = bool(getattr(settings, "subtitle_automation_enabled", False))
+    # The queue toggle off sends extraction down the legacy inline path (#61 A02).
+    automation_on = bool(getattr(settings, "subtitle_automation_enabled", False)) and bool(
+        getattr(settings, "subtitle_automation_queue_enabled", True)
+    )
     auto_extract_on = bool(getattr(settings, "wanted_auto_extract", False))
 
     if automation_on or auto_extract_on:
