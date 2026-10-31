@@ -6,6 +6,7 @@ Extracted from providers/search_coordinator.py. Pure mixin: used by
 
 import json
 import logging
+import math
 
 import decision_log
 from config_language_data import normalize_language_code
@@ -13,6 +14,20 @@ from providers.base import SubtitleFormat, compute_score
 from providers.episode_gate import apply_episode_gate
 
 logger = logging.getLogger(__name__)
+
+
+#: A minimum score above any score a result can reach is a typo, not a choice.
+MAX_MIN_SCORE = 10_000
+
+
+def is_valid_min_score(value) -> bool:
+    """A finite number between 0 and MAX_MIN_SCORE (``1e309`` is JSON for infinity, #65)."""
+    return (
+        isinstance(value, int | float)
+        and not isinstance(value, bool)
+        and math.isfinite(value)
+        and 0 <= value <= MAX_MIN_SCORE
+    )
 
 
 def per_language_min_scores(settings) -> dict[str, int]:
@@ -32,7 +47,7 @@ def per_language_min_scores(settings) -> dict[str, int]:
         return {}
     out: dict[str, int] = {}
     for lang, score in parsed.items():
-        if isinstance(score, bool) or not isinstance(score, int | float):
+        if not is_valid_min_score(score):
             continue
         code = normalize_language_code(str(lang))
         if code:
@@ -145,7 +160,11 @@ class SearchScoringMixin:
 
         # Filter by min score — per language where Settings → Scoring sets one
         # (#61 A16: score_threshold_per_language was saved and never read).
-        per_language = per_language_min_scores(getattr(self, "settings", None))
+        # The running settings, not the manager's copy from its creation: a
+        # saved threshold must apply without rebuilding the manager (#64).
+        from config import get_settings
+
+        per_language = per_language_min_scores(get_settings())
         if min_score > 0 or per_language:
             before = all_results
             all_results = [

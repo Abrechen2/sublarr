@@ -74,9 +74,9 @@ describe('onboarding payload contract', () => {
       standalone: buildOnboardingPayload({ ...VALUES, tvdb_api_key: 'k' }, 'standalone'),
       automation_off: buildOnboardingPayload({ ...VALUES, automation_enabled: 'false' }, 'arr'),
     }
-    const file = resolve(__dirname, '__contracts__/onboarding-payload.json')
-    const text = JSON.stringify(contract, null, 2) + '\n'
-    if (process.env.UPDATE_CONTRACTS) writeFileSync(file, text)
-    expect(readFileSync(file, 'utf-8')).toBe(text)
+    const file = resolve(import.meta.dirname, '__contracts__/onboarding-payload.json')
+    if (process.env.UPDATE_CONTRACTS) writeFileSync(file, JSON.stringify(contract, null, 2) + '\n')
+    // Compared as data, so a CRLF checkout of the file still matches (#66).
+    expect(JSON.parse(readFileSync(file, 'utf-8'))).toEqual(contract)
   })
 })

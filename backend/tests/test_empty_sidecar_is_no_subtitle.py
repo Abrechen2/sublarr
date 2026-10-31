@@ -63,3 +63,35 @@ def test_an_unreadable_sidecar_still_counts_so_it_is_not_downloaded_forever(tmp_
         assert not has_subtitle_lines(str(path))
     finally:
         path.chmod(0o644)
+
+
+SRT = "1\n00:00:01,000 --> 00:00:02,000\nHallo Welt\n"
+
+
+@pytest.mark.parametrize(
+    "data",
+    [
+        SRT.encode("utf-8"),
+        SRT.encode("utf-8-sig"),
+        SRT.encode("utf-16"),  # with BOM
+        SRT.encode("utf-16-le"),
+        SRT.encode("utf-16-be"),
+    ],
+    ids=["utf8", "utf8-bom", "utf16-bom", "utf16le", "utf16be"],
+)
+def test_a_valid_srt_counts_in_every_supported_encoding(tmp_path, data):
+    """#63: the byte search missed UTF-16 files, so a covered language was searched again."""
+    video = _video(tmp_path)
+    (tmp_path / "Film.de.srt").write_bytes(data)
+
+    assert detect_existing_target_for_lang(video, "de") == "srt"
+
+
+@pytest.mark.parametrize("encoding", ["utf-16", "utf-16-be"])
+def test_a_utf16_ass_with_a_line_counts_and_a_header_only_one_does_not(tmp_path, encoding):
+    path = tmp_path / "Film.de.ass"
+    path.write_bytes((HEADER + EVENT).encode(encoding))
+    assert has_subtitle_lines(str(path))
+
+    path.write_bytes(HEADER.encode(encoding))
+    assert not has_subtitle_lines(str(path))

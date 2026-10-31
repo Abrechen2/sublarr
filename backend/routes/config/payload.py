@@ -161,12 +161,13 @@ def _check_value(key: str, value: object) -> tuple[object, str | None]:
             parsed = json.loads(str(value))
         except ValueError:
             return None, 'score_threshold_per_language must be JSON like {"de": 80}'
-        if not isinstance(parsed, dict) or not all(
-            isinstance(v, int | float) and not isinstance(v, bool) for v in parsed.values()
-        ):
+        from providers.search_coordinator.scoring import MAX_MIN_SCORE, is_valid_min_score
+
+        if not isinstance(parsed, dict) or not all(is_valid_min_score(v) for v in parsed.values()):
             return (
                 None,
-                'score_threshold_per_language must map languages to scores, e.g. {"de": 80}',
+                "score_threshold_per_language must map languages to scores between 0 and "
+                f'{MAX_MIN_SCORE}, e.g. {{"de": 80}}',
             )
     if isinstance(value, str) and len(value) > MAX_STRING_LENGTH:
         return None, f"Value for {key} exceeds maximum length of {MAX_STRING_LENGTH}"

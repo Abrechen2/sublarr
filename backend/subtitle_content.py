@@ -16,7 +16,10 @@ logger = logging.getLogger(__name__)
 
 _CHUNK_BYTES = 65536
 #: The marker may straddle two chunks; keep this many bytes of the previous one.
-_OVERLAP = 16
+_OVERLAP = 32
+#: Subtitles arrive as UTF-8/ANSI or UTF-16 (with or without BOM); the marker
+#: is searched in each, so a valid UTF-16 file is not taken for empty (#63).
+_ENCODINGS = ("utf-8", "utf-16-le", "utf-16-be")
 
 
 def has_subtitle_lines(path: str, *, unreadable: bool = False) -> bool:
@@ -30,12 +33,14 @@ def has_subtitle_lines(path: str, *, unreadable: bool = False) -> bool:
     it pass True.
     """
     ext = os.path.splitext(path)[1].lower()
-    marker = b"Dialogue:" if ext in (".ass", ".ssa") else b"-->"
+    text = "Dialogue:" if ext in (".ass", ".ssa") else "-->"
+    markers = [text.encode(encoding) for encoding in _ENCODINGS]
     try:
         with open(path, "rb") as fh:
             tail = b""
             while chunk := fh.read(_CHUNK_BYTES):
-                if marker in tail + chunk:
+                window = tail + chunk
+                if any(marker in window for marker in markers):
                     return True
                 tail = chunk[-_OVERLAP:]
     except OSError as exc:
