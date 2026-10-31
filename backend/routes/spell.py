@@ -107,18 +107,12 @@ def check_spelling():
 
     try:
         if file_path:
-            # Path mapping
+            # The same mapping as every other route (#61 A26: this read a
+            # "media_path_mapping" setting that does not exist).
+            from config import map_path
+
             settings = get_settings()
-            mapped_path = file_path
-            if hasattr(settings, "media_path_mapping") and settings.media_path_mapping:
-                for mapping in settings.media_path_mapping:
-                    if file_path.startswith(mapping.get("from", "")):
-                        mapped_path = file_path.replace(
-                            mapping["from"],
-                            mapping.get("to", file_path),
-                            1,
-                        )
-                        break
+            mapped_path = map_path(file_path)
 
             if not is_safe_path(mapped_path, settings.media_path):
                 return jsonify({"error": "Access denied"}), 403

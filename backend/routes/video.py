@@ -5,7 +5,7 @@ import os
 
 from flask import Blueprint, jsonify, request, send_file
 
-from config import get_settings
+from config import get_settings, map_path
 from extensions import limiter
 from security_utils import is_safe_path
 from services.video_player import (
@@ -68,18 +68,10 @@ def get_video_stream():
     if not file_path:
         return jsonify({"error": "file_path parameter is required"}), 400
 
-    # Path mapping
+    # The configured path mapping (#61 A26: a "media_path_mapping" setting
+    # that does not exist was read here, so remote paths were never mapped).
     settings = get_settings()
-    mapped_path = file_path
-    if hasattr(settings, "media_path_mapping") and settings.media_path_mapping:
-        for mapping in settings.media_path_mapping:
-            if file_path.startswith(mapping.get("from", "")):
-                mapped_path = file_path.replace(
-                    mapping["from"],
-                    mapping.get("to", file_path),
-                    1,
-                )
-                break
+    mapped_path = map_path(file_path)
 
     if not is_safe_path(mapped_path, settings.media_path):
         return jsonify({"error": "Access denied"}), 403
@@ -230,18 +222,10 @@ def create_screenshot():
     except (TypeError, ValueError):
         return jsonify({"error": "timestamp must be a number"}), 400
 
-    # Path mapping
+    # The configured path mapping (#61 A26: a "media_path_mapping" setting
+    # that does not exist was read here, so remote paths were never mapped).
     settings = get_settings()
-    mapped_path = file_path
-    if hasattr(settings, "media_path_mapping") and settings.media_path_mapping:
-        for mapping in settings.media_path_mapping:
-            if file_path.startswith(mapping.get("from", "")):
-                mapped_path = file_path.replace(
-                    mapping["from"],
-                    mapping.get("to", file_path),
-                    1,
-                )
-                break
+    mapped_path = map_path(file_path)
 
     if not is_safe_path(mapped_path, settings.media_path):
         return jsonify({"error": "Access denied"}), 403
@@ -309,18 +293,10 @@ def get_subtitle_webvtt():
     if not file_path:
         return jsonify({"error": "file_path parameter is required"}), 400
 
-    # Path mapping
+    # The configured path mapping (#61 A26: a "media_path_mapping" setting
+    # that does not exist was read here, so remote paths were never mapped).
     settings = get_settings()
-    mapped_path = file_path
-    if hasattr(settings, "media_path_mapping") and settings.media_path_mapping:
-        for mapping in settings.media_path_mapping:
-            if file_path.startswith(mapping.get("from", "")):
-                mapped_path = file_path.replace(
-                    mapping["from"],
-                    mapping.get("to", file_path),
-                    1,
-                )
-                break
+    mapped_path = map_path(file_path)
 
     if not is_safe_path(mapped_path, settings.media_path):
         return jsonify({"error": "Access denied"}), 403

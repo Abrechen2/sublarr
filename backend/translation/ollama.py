@@ -597,25 +597,9 @@ class OllamaBackend(LLMBackend):
 
     def health_check(self) -> tuple[bool, str]:
         """Check if Ollama is reachable and the model is available."""
-        try:
-            resp = requests.get(f"{self._url}/api/tags", timeout=10)
-            if resp.status_code != 200:
-                return False, f"Ollama returned status {resp.status_code}"
-            try:
-                data = resp.json()
-            except ValueError:
-                return False, "Ollama returned invalid JSON"
-            models = [m["name"] for m in data.get("models", [])]
-            model_found = any(self._model in name for name in models)
-            if not model_found:
-                return False, f"Model '{self._model}' not found. Available: {models}"
-            return True, "OK"
-        except requests.Timeout:
-            return False, f"Ollama health check timed out at {self._url}"
-        except requests.ConnectionError:
-            return False, f"Cannot connect to Ollama at {self._url}"
-        except Exception as e:
-            return False, f"Ollama health check failed: {e}"
+        from ollama_client import check_ollama_health
+
+        return check_ollama_health(self._url, self._model)
 
     def get_config_fields(self) -> list[dict]:
         """Return config field definitions for the Settings UI."""

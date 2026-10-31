@@ -235,6 +235,15 @@ def analyze_and_store(subtitle_path: str, language: str) -> dict | None:
         return None
 
 
+def _candidate_sidecars(video_path: str, language: str, fmt: str) -> list[str]:
+    """Where the sidecar of a download can be: ``<base>.<lang>.<fmt>``, then
+    the bare ``<base>.<fmt>`` some sources save. Analysis and lookup both use
+    this list, so a verdict stored for the bare file is found again (#61 A29).
+    """
+    base, _ = os.path.splitext(video_path)
+    return [sidecar_path_for(video_path, language, fmt), f"{base}.{fmt}"]
+
+
 def maybe_queue_analysis(video_path: str, language: str, fmt: str) -> None:
     """Fire-and-forget analysis of a freshly-downloaded sidecar.
 
@@ -248,14 +257,11 @@ def maybe_queue_analysis(video_path: str, language: str, fmt: str) -> None:
             return
         if not (video_path and language and fmt):
             return
-        sidecar = sidecar_path_for(video_path, language, fmt)
-        if not os.path.isfile(sidecar):
-            # Some sources save the bare "<base>.<fmt>" sidecar.
-            base, _ = os.path.splitext(video_path)
-            alt = f"{base}.{fmt}"
-            if not os.path.isfile(alt):
-                return
-            sidecar = alt
+        sidecar = next(
+            (p for p in _candidate_sidecars(video_path, language, fmt) if os.path.isfile(p)), None
+        )
+        if sidecar is None:
+            return
 
         from flask import current_app
 
@@ -278,25 +284,26 @@ def attach_ai_quality(entries: list[dict]) -> None:
     Each entry needs file_path/language/format keys. Rows without a stored
     verdict get ai_quality = None.
     """
-    paths: dict[int, str] = {}
+    paths: dict[int, list[str]] = {}
     for i, entry in enumerate(entries):
         video = entry.get("file_path") or ""
         lang = entry.get("language") or ""
         fmt = entry.get("format") or ""
         if video and lang and fmt:
-            paths[i] = sidecar_path_for(video, lang, fmt)
+            paths[i] = _candidate_sidecars(video, lang, fmt)
 
     results: dict[str, dict] = {}
     if paths:
         try:
             from db.quality import get_ai_quality_results_for_paths
 
-            results = get_ai_quality_results_for_paths(list(set(paths.values())))
+            wanted = {p for candidates in paths.values() for p in candidates}
+            results = get_ai_quality_results_for_paths(sorted(wanted))
         except Exception:
             logger.debug("[ai-quality] batch lookup failed", exc_info=True)
 
     for i, entry in enumerate(entries):
-        row = results.get(paths.get(i, ""))
+        row = next((results[p] for p in paths.get(i, []) if p in results), None)
         if not row:
             entry["ai_quality"] = None
             continue

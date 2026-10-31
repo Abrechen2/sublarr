@@ -68,7 +68,7 @@ SUBTITLE_EXTS: frozenset[str] = frozenset({"srt", "ass", "ssa", "vtt"})
 # NOTE: deliberately diverges from remux._SIDECAR_MODIFIERS (has bak, lacks
 # sign/signs; stacks unbounded vs. single trailing token there). The remux
 # table's divergences all err toward NOT parsing = never trashing.
-MODIFIERS: frozenset[str] = frozenset({"hi", "bak", "forced", "sdh", "cc"})
+MODIFIERS: frozenset[str] = frozenset({"hi", "bak", "forced", "sdh", "cc", "sign", "signs"})
 
 # Lowercase ISO-639-1 (2 letters) and ISO-639-2 (3 letters). The lookup
 # table in config_language_data is the authoritative list, but for
@@ -109,6 +109,16 @@ class ParsedFilename:
             if m != "bak":
                 return m
         return None
+
+
+def _is_known_language_tag(token: str) -> bool:
+    """A tag the central table knows although it is no 2-3 letter code:
+    "german", "pt-br", "zh-hans". The cleanup already read those as languages
+    while the listing did not show the file at all (#61 A23).
+    """
+    from config_language_data import _REVERSE_LANGUAGE_TAGS
+
+    return token in _REVERSE_LANGUAGE_TAGS
 
 
 def parse_subtitle_filename(path: str) -> ParsedFilename | None:
@@ -157,7 +167,7 @@ def parse_subtitle_filename(path: str) -> ParsedFilename | None:
     if not parts:
         return None
     lang_candidate = parts[-1].lower()
-    if not _LANG_RE.match(lang_candidate):
+    if not (_LANG_RE.match(lang_candidate) or _is_known_language_tag(lang_candidate)):
         return None
 
     parts.pop()

@@ -464,6 +464,9 @@ def auto_sync_bulk():
             subtitle_path = entry.get("path")
             if not subtitle_path or subtitle_path in seen_subs:
                 continue
+            if entry.get("modifier") in ("sign", "signs"):
+                # Signs carry no dialogue to time against; listed since #61 A23.
+                continue
             if not is_safe_path(subtitle_path, media_path):
                 continue
             seen_subs.add(subtitle_path)

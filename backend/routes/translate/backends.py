@@ -101,7 +101,20 @@ def test_backend(name):
     if not backend:
         return jsonify({"error": f"Backend '{name}' not found"}), 404
 
-    healthy, message = backend.health_check()
+    body = request.get_json(silent=True) or {}
+    if name == "ollama" and (body.get("url") or body.get("model")):
+        # The setup wizard tests the values in its form before saving them.
+        from ollama_client import check_ollama_health
+        from security_utils import validate_service_url
+
+        url = str(body.get("url") or "")
+        if url:
+            ok, reason = validate_service_url(url, allow_loopback=True)
+            if not ok:
+                return jsonify({"healthy": False, "message": f"Invalid URL: {reason}"}), 200
+        healthy, message = check_ollama_health(url or None, str(body.get("model") or "") or None)
+    else:
+        healthy, message = backend.health_check()
     result = {"healthy": healthy, "message": message}
 
     # Include usage info if available

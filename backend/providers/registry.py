@@ -97,11 +97,19 @@ def default_enabled_names() -> set[str]:
     return {name for name, cls in _PROVIDER_CLASSES.items() if not getattr(cls, "opt_in", False)}
 
 
+#: ``providers_enabled`` with every provider switched off. Empty already means
+#: "the defaults", so switching off the last provider wrote "" and brought them
+#: all back (#61 A11).
+NO_PROVIDERS = "none"
+
+
 def resolve_enabled_names(value) -> set[str]:
     """The provider names a ``providers_enabled`` value enables."""
     text = (value or "").strip()
     if not text:
         return default_enabled_names()
+    if text.lower() == NO_PROVIDERS:
+        return set()
     return {p.strip() for p in text.split(",") if p.strip()}
 
 

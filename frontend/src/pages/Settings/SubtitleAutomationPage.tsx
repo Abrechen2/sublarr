@@ -7,6 +7,7 @@ import type { FormSectionDef } from '@/components/settings/layouts'
 import { SettingRow } from '@/components/shared/SettingRow'
 import { Toggle } from '@/components/shared/Toggle'
 import { toast } from '@/components/shared/Toast'
+import { apiErrorMessage } from '@/lib/apiError'
 import { useConfig, useUpdateConfig } from '@/hooks/useSystemApi'
 import { useAutomationStatus, useRunAutomationNow } from '@/hooks/useWantedApi'
 
@@ -406,6 +407,16 @@ export function SubtitleAutomationPage() {
                           { n: r.processed ?? 0 }
                         ),
                         r.status === 'disabled' ? 'error' : 'success'
+                      )
+                    },
+                    // A failed drain was reported as "queued" (#61 A28).
+                    onError: (err) => {
+                      toast(
+                        apiErrorMessage(
+                          err,
+                          t('subtitle_automation_page.status.run_failed', 'The drain failed.')
+                        ),
+                        'error'
                       )
                     },
                   })

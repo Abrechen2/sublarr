@@ -247,7 +247,9 @@ def test_process_wanted_item_skips_when_target_ass_exists(tmp_path):
 
     video = tmp_path / "Show.mkv"
     video.write_bytes(b"")
-    (tmp_path / "Show.de.ass").write_text("dummy subtitle")
+    (tmp_path / "Show.de.ass").write_text(
+        "[Events]\nDialogue: 0,0:00:01.00,0:00:02.00,Default,,0,0,0,,Hallo\n"
+    )
 
     item = {
         "id": 42,
@@ -293,7 +295,7 @@ def test_process_wanted_item_does_not_skip_when_srt_exists_and_upgrade_enabled(t
 
     video = tmp_path / "Show.mkv"
     video.write_bytes(b"")
-    (tmp_path / "Show.de.srt").write_text("dummy")
+    (tmp_path / "Show.de.srt").write_text("1\n00:00:01,000 --> 00:00:02,000\nHallo\n")
 
     item = {
         "id": 43,
@@ -331,7 +333,7 @@ def test_process_wanted_item_skips_when_srt_exists_and_upgrade_disabled(tmp_path
 
     video = tmp_path / "Show.mkv"
     video.write_bytes(b"")
-    (tmp_path / "Show.de.srt").write_text("dummy")
+    (tmp_path / "Show.de.srt").write_text("1\n00:00:01,000 --> 00:00:02,000\nHallo\n")
 
     item = {
         "id": 44,

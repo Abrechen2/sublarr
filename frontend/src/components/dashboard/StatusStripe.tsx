@@ -37,7 +37,7 @@ export function StatusStripe() {
     ? `${t('statusStripe.lastScan')}: ${formatRelativeTime(lastActivity)}`
     : t('statusStripe.neverScanned')
 
-  const missingCount = wantedSummary?.total ?? 0
+  const missingCount = wantedSummary?.missing ?? 0
 
   return (
     <div

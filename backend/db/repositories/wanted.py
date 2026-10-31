@@ -405,8 +405,19 @@ class WantedRepository(BaseRepository, _WantedUpsertMixin, _WantedUpdatesMixin):
             )
         )
 
+        # Still without a subtitle: the dashboard's "Missing" used ``total``,
+        # which also counts upgrade candidates, provisional machine
+        # translations and extracted items (#61 A27 — prod: 8 791 vs 590).
+        missing_stmt = (
+            select(func.count())
+            .select_from(WantedItem)
+            .where(WantedItem.status == "wanted", WantedItem.upgrade_candidate != 1)
+        )
+        missing = self.session.execute(missing_stmt).scalar()
+
         return {
             "total": total,
+            "missing": missing,
             "by_type": by_type,
             "by_status": by_status,
             "by_existing": by_existing,

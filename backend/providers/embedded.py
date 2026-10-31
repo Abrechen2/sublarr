@@ -17,6 +17,7 @@ import tempfile
 from ass_probe import is_sdh_stream
 from ass_utils import extract_subtitle_stream, get_media_streams
 from config import get_settings
+from config_language_data import _REVERSE_LANGUAGE_TAGS
 from providers import register_provider
 from providers.base import (
     SubtitleFormat,
@@ -27,58 +28,6 @@ from providers.base import (
 
 logger = logging.getLogger(__name__)
 
-# ffprobe language tag → ISO 639-1
-# ISO 639-2B/T three-letter codes that ffprobe returns
-_LANG3_TO_ISO1 = {
-    "eng": "en",
-    "ger": "de",
-    "deu": "de",
-    "fra": "fr",
-    "fre": "fr",
-    "spa": "es",
-    "ita": "it",
-    "por": "pt",
-    "nld": "nl",
-    "dut": "nl",
-    "pol": "pl",
-    "ron": "ro",
-    "rum": "ro",
-    "ces": "cs",
-    "cze": "cs",
-    "slk": "sk",
-    "slo": "sk",
-    "hun": "hu",
-    "hrv": "hr",
-    "srp": "sr",
-    "bos": "bs",
-    "slv": "sl",
-    "mkd": "mk",
-    "bul": "bg",
-    "rus": "ru",
-    "ukr": "uk",
-    "tur": "tr",
-    "ara": "ar",
-    "fas": "fa",
-    "per": "fa",
-    "zho": "zh",
-    "chi": "zh",
-    "jpn": "ja",
-    "kor": "ko",
-    "vie": "vi",
-    "ind": "id",
-    "heb": "he",
-    "ell": "el",
-    "gre": "el",
-    "swe": "sv",
-    "dan": "da",
-    "nor": "no",
-    "fin": "fi",
-    "tha": "th",
-    "hin": "hi",
-    "ben": "bn",
-    "msa": "ms",
-    "may": "ms",
-}
 
 _CODEC_TO_FORMAT = {
     "ass": SubtitleFormat.ASS,
@@ -105,11 +54,17 @@ _EMBEDDED_SCORE_BONUS = 300
 
 
 def _normalize_lang(tag: str) -> str | None:
-    """Convert ffprobe language tag to ISO 639-1. Returns None if unknown."""
+    """ffprobe's language tag as ISO 639-1, or None for an unknown tag.
+
+    The central table, not a short copy of it: "nob", "German" or "pt-BR"
+    were skipped here while the scanner and MediaInfo recognised them
+    (#61 A22). An unknown two-letter tag still counts as a code.
+    """
     tag = tag.lower().strip()
-    if len(tag) == 2:
-        return tag  # already ISO 639-1
-    return _LANG3_TO_ISO1.get(tag)
+    known = _REVERSE_LANGUAGE_TAGS.get(tag)
+    if known:
+        return known
+    return tag if len(tag) == 2 and tag.isalpha() else None
 
 
 @register_provider
@@ -122,25 +77,7 @@ class EmbeddedSubtitlesProvider(SubtitleProvider):
     """
 
     name = "embedded"
-    languages = set(_LANG3_TO_ISO1.values()) | {
-        "en",
-        "de",
-        "fr",
-        "es",
-        "it",
-        "pt",
-        "nl",
-        "pl",
-        "ro",
-        "cs",
-        "sk",
-        "hu",
-        "hr",
-        "sr",
-        "bs",
-        "sl",
-        "mk",
-    }
+    languages = set(_REVERSE_LANGUAGE_TAGS.values())
     config_fields: list = []
     rate_limit = (0, 0)  # no rate limit
     timeout = 30

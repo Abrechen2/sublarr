@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
-import { updateConfig, completeOnboarding, getHealth, getMediaServerTypes, saveMediaServerInstances, testMediaServer, saveWatchedFolder, triggerStandaloneScan, getScoringPreset, importScoringPreset, getSetupStatus, completeSetup } from '@/api/client'
+import { updateConfig, completeOnboarding, testBackend, getMediaServerTypes, saveMediaServerInstances, testMediaServer, saveWatchedFolder, triggerStandaloneScan, getScoringPreset, importScoringPreset, getSetupStatus, completeSetup } from '@/api/client'
 import type { SetupBenchmark, SetupProfile } from '@/api/health'
 import { testSonarrInstance, testRadarrInstance, testApiKey } from '@/api/settings'
 import { toast } from '@/components/shared/Toast'
@@ -298,11 +298,14 @@ export default function Onboarding() {
   const testOllama = async () => {
     setTesting('ollama')
     try {
-      const health = await getHealth()
-      if (health.services?.ollama && !health.services.ollama.includes('error')) {
+      // Test what the form holds, and trust the server's verdict: the health
+      // text was read as "fine unless it says error", so "Cannot connect" or a
+      // missing model showed green (#61 A10).
+      const result = await testBackend('ollama', { url: values.ollama_url, model: values.ollama_model })
+      if (result.healthy) {
         toast(t('ollama_step.connection_successful'))
       } else {
-        toast(t('ollama_step.connection_failed'), 'error')
+        toast(`${t('ollama_step.connection_failed')}: ${result.message}`, 'error')
       }
     } catch {
       toast(t('ollama_step.test_failed'), 'error')

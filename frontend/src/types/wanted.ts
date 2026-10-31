@@ -50,6 +50,8 @@ export interface PaginatedWanted {
 
 export interface WantedSummary {
   total: number
+  /** Items still without a subtitle: status "wanted", not an upgrade candidate (#61 A27). */
+  missing: number
   by_type: Record<string, number>
   by_status: Record<string, number>
   by_existing: Record<string, number>

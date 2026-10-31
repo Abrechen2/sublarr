@@ -229,8 +229,11 @@ def provider_rows() -> list[dict]:
     manager = get_provider_manager()
     live = getattr(manager, "_providers", {}) or {}
     breakers = getattr(manager, "_circuit_breakers", {}) or {}
-    enabled_raw = getattr(get_settings(), "providers_enabled", "") or ""
-    allowed = {p.strip().lower() for p in enabled_raw.split(",") if p.strip()}
+    from providers.registry import resolve_enabled_names
+
+    allowed = {
+        n.lower() for n in resolve_enabled_names(getattr(get_settings(), "providers_enabled", ""))
+    }
 
     rows = []
     for name in sorted(_PROVIDER_CLASSES):
@@ -239,7 +242,7 @@ def provider_rows() -> list[dict]:
         rows.append(
             {
                 "name": name,
-                "enabled": not allowed or name.lower() in allowed,
+                "enabled": name.lower() in allowed,
                 "active": name in live,
                 "circuit_state": status["state"] if status else None,
                 "failure_count": status["failure_count"] if status else None,

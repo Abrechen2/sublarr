@@ -60,7 +60,7 @@ export function MetricsRow() {
 
   const isLoading = statsLoading || wantedLoading
 
-  const missingNum = wantedSummary?.total
+  const missingNum = wantedSummary?.missing
   const lowScoreNum = stats?.low_score_count
 
   const total: string | number = isLoading ? '—' : formatNumber(stats?.total_subtitles)

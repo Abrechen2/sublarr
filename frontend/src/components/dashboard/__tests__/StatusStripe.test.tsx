@@ -5,7 +5,7 @@ const mockMutate = vi.fn()
 
 vi.mock('@/hooks/useWantedApi', () => ({
   useScannerStatus: vi.fn(() => ({ data: { is_scanning: false, is_searching: false, last_scan_at: '2026-04-05T10:00:00Z', last_search_at: null } })),
-  useWantedSummary: vi.fn(() => ({ data: { total: 3 } })),
+  useWantedSummary: vi.fn(() => ({ data: { total: 9, missing: 3 } })),
   useRefreshWanted: vi.fn(() => ({ mutate: mockMutate, isPending: false })),
   useWantedBatchStatus: vi.fn(() => ({ data: { running: false } })),
   useWantedBatchProbeStatus: vi.fn(() => ({ data: { running: false } })),

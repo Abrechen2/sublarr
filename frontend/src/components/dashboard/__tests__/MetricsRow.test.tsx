@@ -19,7 +19,7 @@ const DEFAULT_STATS = {
   data: { total_subtitles: 12500, downloads_today: 30, success_rate: 92, average_score: 86.5, low_score_count: 7 },
   isLoading: false,
 }
-const DEFAULT_WANTED = { data: { total: 12 }, isLoading: false }
+const DEFAULT_WANTED = { data: { total: 40, missing: 12 }, isLoading: false }
 
 beforeEach(() => {
   mockUseStats.mockReturnValue(DEFAULT_STATS)

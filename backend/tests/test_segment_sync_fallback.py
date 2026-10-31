@@ -150,3 +150,27 @@ def test_a_pal_speed_up_is_not_cut_into_stretches(tmp_path, speech):
 
     assert plan is None
     planner.assert_not_called()
+
+
+def test_the_engine_leaves_the_file_alone_beyond_the_sanity_threshold(tmp_path, speech):
+    """#61 A34: the engine copied the shifted file before any threshold check."""
+    from services.sync_engines.ffsubsync_engine import FfsubsyncEngine
+
+    sub = tmp_path / "ep.de.srt"
+    sub.write_text(SRT, encoding="utf-8")
+
+    def far(cmd, **kwargs):
+        with open(cmd[cmd.index("-o") + 1], "w", encoding="utf-8") as fh:
+            fh.write(SRT)
+        return MagicMock(returncode=0, stderr="INFO offset seconds: 61.000", stdout="")
+
+    with (
+        patch("services.sync_engines.ffsubsync_engine.shutil.which", return_value="ffsubsync"),
+        patch("services.sync_engines.ffsubsync_engine.subprocess.run", side_effect=far),
+        patch("config.get_settings", return_value=MagicMock(sync_sanity_threshold_ms=45_000)),
+    ):
+        result = FfsubsyncEngine().sync(str(sub), "/video.mkv")
+
+    assert result.ok is False
+    assert result.reason == "exceeds_sanity_threshold:45000ms"
+    assert sub.read_text(encoding="utf-8") == SRT

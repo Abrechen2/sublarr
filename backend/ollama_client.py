@@ -17,15 +17,22 @@ from config import get_settings
 logger = logging.getLogger(__name__)
 
 
-def check_ollama_health():
+def check_ollama_health(url: str | None = None, model: str | None = None):
     """Check if Ollama is reachable and the model is available.
+
+    ``url`` / ``model`` default to the saved settings; the setup wizard and
+    the backend test pass the values from the form, so a test checks what the
+    user typed, not what was saved before (#61 A10). The Ollama translation
+    backend uses this same check.
 
     Returns:
         tuple: (is_healthy: bool, message: str)
     """
     settings = get_settings()
+    url = (url or settings.ollama_url or "").rstrip("/")
+    model = model or settings.ollama_model
     try:
-        resp = requests.get(f"{settings.ollama_url}/api/tags", timeout=10)
+        resp = requests.get(f"{url}/api/tags", timeout=10)
         if resp.status_code != 200:
             return False, f"Ollama returned status {resp.status_code}"
         try:
@@ -33,13 +40,12 @@ def check_ollama_health():
         except ValueError:
             return False, "Ollama returned invalid JSON"
         models = [m["name"] for m in data.get("models", [])]
-        model_found = any(settings.ollama_model in name for name in models)
-        if not model_found:
-            return False, f"Model '{settings.ollama_model}' not found. Available: {models}"
+        if not any(model in name for name in models):
+            return False, f"Model '{model}' not found. Available: {models}"
         return True, "OK"
     except requests.Timeout:
-        return False, f"Ollama health check timed out at {settings.ollama_url}"
+        return False, f"Ollama health check timed out at {url}"
     except requests.ConnectionError:
-        return False, f"Cannot connect to Ollama at {settings.ollama_url}"
+        return False, f"Cannot connect to Ollama at {url}"
     except Exception as e:
         return False, f"Ollama health check failed: {e}"

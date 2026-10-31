@@ -296,3 +296,29 @@ def test_route_analyze_enabled_flow(client, tmp_path, monkeypatch):
     resp = client.post("/api/v1/quality/ai/analyze", json={"path": real, "language": "de"})
     assert resp.status_code == 202
     assert len(ran) == 1
+
+
+def test_a_verdict_for_the_bare_sidecar_is_found_from_history(app_ctx):
+    """#61 A29: analysis fell back to Film.srt, the history looked up Film.de.srt."""
+    from db.quality import save_ai_quality_result
+    from services.ai_quality import attach_ai_quality
+
+    save_ai_quality_result("/media/m/Film.srt", "de", "yellow", "{}", "[]", "m", 9)
+    entries = [{"file_path": "/media/m/Film.mkv", "language": "de", "format": "srt"}]
+
+    attach_ai_quality(entries)
+
+    assert entries[0]["ai_quality"]["verdict"] == "yellow"
+
+
+def test_the_language_sidecar_wins_over_the_bare_one(app_ctx):
+    from db.quality import save_ai_quality_result
+    from services.ai_quality import attach_ai_quality
+
+    save_ai_quality_result("/media/m/Show.srt", "de", "red", "{}", "[]", "m", 9)
+    save_ai_quality_result("/media/m/Show.de.srt", "de", "green", "{}", "[]", "m", 9)
+    entries = [{"file_path": "/media/m/Show.mkv", "language": "de", "format": "srt"}]
+
+    attach_ai_quality(entries)
+
+    assert entries[0]["ai_quality"]["verdict"] == "green"

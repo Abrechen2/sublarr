@@ -320,6 +320,8 @@ def _batch_process_series(series_id: int) -> None:
                 "sdh",
                 "cc",
                 "forced",
+                "sign",
+                "signs",
             ):
                 continue
             result = None

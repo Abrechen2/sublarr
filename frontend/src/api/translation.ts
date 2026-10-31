@@ -36,8 +36,12 @@ export async function getBackends(): Promise<{ backends: TranslationBackendInfo[
   return data
 }
 
-export async function testBackend(name: string): Promise<BackendHealthResult> {
-  const { data } = await api.post(`/backends/test/${name}`)
+/** ``values`` tests unsaved form values (Ollama: url, model) instead of the saved config. */
+export async function testBackend(
+  name: string,
+  values?: { url?: string; model?: string },
+): Promise<BackendHealthResult> {
+  const { data } = await api.post(`/backends/test/${name}`, values ?? {})
   return data
 }
 

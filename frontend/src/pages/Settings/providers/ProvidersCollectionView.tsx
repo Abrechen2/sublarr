@@ -27,6 +27,24 @@ interface ProvidersCollectionViewProps {
  * priority reorder, hide/add and inline editor state. Renders into the
  * CollectionLayout primitive with a HealthRail derived from useProviderHealth.
  */
+/**
+ * The ``providers_enabled`` value for a set of enabled providers. Empty means
+ * "every provider that is not opt-in" on the backend, so '' is written only
+ * for exactly that set, and an empty set is the explicit ``none``. Switching
+ * off the last provider used to write '' and turn them all back on, and adding
+ * a provider used its own rule that dropped opt-in providers (#61 A11).
+ */
+export function serializeEnabledProviders(
+  enabledSet: Set<string>,
+  providers: ReadonlyArray<{ name: string; opt_in?: boolean }>,
+): string {
+  if (enabledSet.size === 0) return 'none'
+  const defaultNames = providers.filter((p) => !p.opt_in).map((p) => p.name)
+  const isDefault =
+    enabledSet.size === defaultNames.length && defaultNames.every((n) => enabledSet.has(n))
+  return isDefault ? '' : Array.from(enabledSet).join(',')
+}
+
 export function ProvidersCollectionView({
   values, onFieldChange, onSave,
 }: ProvidersCollectionViewProps) {
@@ -136,15 +154,7 @@ export function ProvidersCollectionView({
     })
   }
 
-  // An empty providers_enabled means "every provider that is not opt-in" on the
-  // backend. Collapse to '' only when the set is exactly that, never when an
-  // opt-in (catalog) provider is part of it or a default one is missing.
-  const enabledValue = (enabledSet: Set<string>) => {
-    const defaultNames = providers.filter((p) => !p.opt_in).map((p) => p.name)
-    const isDefault =
-      enabledSet.size === defaultNames.length && defaultNames.every((n) => enabledSet.has(n))
-    return isDefault ? '' : Array.from(enabledSet).join(',')
-  }
+  const enabledValue = (enabledSet: Set<string>) => serializeEnabledProviders(enabledSet, providers)
 
   const handleToggle = (name: string, currentlyEnabled: boolean) => {
     const enabledSet = new Set(providers.filter((p) => p.enabled).map((p) => p.name))
@@ -171,11 +181,9 @@ export function ProvidersCollectionView({
     newHiddenSet.delete(name)
     const enabledSet = new Set(providers.filter((p) => p.enabled).map((p) => p.name))
     enabledSet.add(name)
-    const allNames = providers.map((p) => p.name)
-    const newEnabledValue = enabledSet.size === allNames.length ? '' : Array.from(enabledSet).join(',')
     onSave({
       providers_hidden: Array.from(newHiddenSet).join(','),
-      providers_enabled: newEnabledValue,
+      providers_enabled: enabledValue(enabledSet),
     })
     setSelectedId(name)
     setShowAddModal(false)

@@ -176,11 +176,23 @@ class FfsubsyncEngine(BaseSyncEngine):
                 duration_ms=int((time.monotonic() - start) * 1000),
                 reason=NO_OFFSET_MESSAGE,
             )
+        threshold = self._max_offset_ms()
+        if abs(offset_ms) > threshold:
+            # The service sync checked this before writing; the engine wrote
+            # first (#61 A34, latent while the orchestrator only shows chains).
+            _remove(tmp_path)
+            return SyncResult(
+                engine=self.name,
+                ok=False,
+                offset_ms=offset_ms,
+                duration_ms=int((time.monotonic() - start) * 1000),
+                reason=f"exceeds_sanity_threshold:{threshold}ms",
+            )
         scale = _parse_ffsubsync_scale(output)
         reason = ""
         if framerate_scale_is_insane(scale):
             plan = segment_sync_fallback(
-                subtitle_path, video_path, tmp_path, self._max_offset_ms(), scale, offset_ms
+                subtitle_path, video_path, tmp_path, threshold, scale, offset_ms
             )
             if plan is None:
                 _remove(tmp_path)

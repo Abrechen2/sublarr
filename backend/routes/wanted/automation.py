@@ -85,11 +85,13 @@ def automation_run_now():
     from services.subtitle_automation_runner import SubtitleAutomationRunner
 
     runner = SubtitleAutomationRunner()
-    processed = 0
     try:
         processed = runner.drain(max_items=25)
     except Exception as exc:
+        # Said "queued" with a success toast although nothing ran and nothing
+        # was queued (#61 A28).
         logger.warning("automation.run_now: drain raised: %s", exc)
+        return jsonify({"status": "error", "error": f"Drain failed: {exc}"}), 500
 
     return (
         jsonify({"status": "queued", "processed": processed}),
