@@ -5,6 +5,92 @@ All notable changes to Sublarr are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.19.0] - 2026-10-31
+
+A consistency audit (#61) checked that every setting the interface offers is
+saved, read back and actually used, and that the same rule is applied
+everywhere it matters. This release fixes what it found.
+
+### Added
+- **Minimum score per language** — Settings → Scoring takes a minimum score
+  per language (for example German 80, French 70). It applies to the next
+  search without a restart.
+- **Disk space warning** — An hourly check warns when the config or media
+  disk passes the configured percentage: in the log always, as a
+  notification when enabled, once per folder per day.
+- **Default library view** — The library opens in the view chosen in the
+  settings, unless this browser has picked one.
+
+### Changed
+- **One set of rules for saving settings** — Saving in the interface and
+  importing a backup now check values the same way and store them in one
+  step: a single invalid value saves nothing and is named with its reason.
+  Lists and numbers keep their type across restarts, and a stored number
+  outside its range is moved onto the limit instead of being reset.
+- **Paths that only come from the container** — Port, media path and
+  database path are shown read-only and can no longer be changed through
+  the interface or a backup; set them as environment variables.
+- **Backup export and import** — An export can be imported again as it is.
+  It leaves out the container-only paths, keeps secrets masked, and an
+  import shows every skipped key with its reason.
+
+### Fixed
+- **Provider accounts were not used** — Credentials entered for several
+  providers were saved under names the providers never read. They now take
+  effect as soon as they are saved.
+- **Drain-worker switch had no effect** — Turning the extraction and
+  translation queue off now stops it from taking new work.
+- **Subtitles of the wrong video** — Sidecar files were matched to a video
+  by name prefix, so a video could pick up the subtitles of another video
+  whose name starts the same way. Matching now uses the exact file name.
+- **Empty subtitle files counted as subtitles** — Files with only a header
+  (common for extracted ASS tracks) no longer remove an episode from the
+  wanted list; UTF-16 subtitles are recognised.
+- **New subtitles were not always processed** — Extracted tracks, manual
+  extractions and translations now all go through the same post-processing.
+- **"Missing" on the dashboard** — The counter showed all wanted items; it
+  now counts only those without any subtitle.
+- **Path mapping in spell check and video tools** — Four routes used the
+  Sonarr/Radarr path without mapping it.
+- **Language tags and file names** — The embedded-subtitle provider, the
+  file-name parser (`.signs`, full language names, region tags) and the
+  cleanup (`.ssa`) use the shared language table.
+- **Ollama connection test** — The setup wizard and the settings use the
+  same check, which tests the URL and model from the form.
+- **"No providers" could not be selected** — Turning off every provider is
+  now stored as such instead of falling back to all.
+- **Metadata cache lifetime and Gestdown retry delay** — Both settings now
+  take effect.
+- **Translation sanity check** — The check runs before a translation is
+  written, not after.
+- **Interface** — Switches stored as text show the right state, the login
+  redirect keeps a reverse-proxy prefix, error messages show the server's
+  reason, and 15 missing German and English texts were added.
+- **Settings page could stop loading** — A number too large for the
+  browser (for example 1e999) was accepted and broke the settings page.
+  Such values are now refused, and an already stored one is ignored on
+  restart.
+
+### Removed
+- **21 settings that never had an effect** — Download limits, scan filters,
+  file-name rules, episode context and auto glossary, auto-sync threshold
+  and fallback engine, the old quiet-hours fields (the Quiet Hours table
+  stays), default library sort and date format. They were saved but read by
+  nothing. Stored values are ignored.
+
+### Security
+- **API keys and PINs encrypted at rest** — Keys ending in `_apikey` and
+  `_pin` (for example the TVDB PIN) were masked in the interface but stored
+  in plain text. They are now encrypted, and existing values are encrypted
+  on upgrade.
+- **Secrets stay with their address** — Changing a media server's or
+  instance's URL while its key was still masked sent the stored key to the
+  new address. A masked key is now only kept for the same instance at the
+  same address.
+- **Backups import only safe keys** — An import could set plugin or
+  post-processing settings. It now accepts only regular settings and the
+  catalog provider settings.
+
 ## [1.18.4] - 2026-10-31
 
 ### Fixed
