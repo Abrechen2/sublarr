@@ -14,23 +14,23 @@
 import { lazy, Suspense, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
-import { Server, MessageSquare, BookOpen, Settings2, RefreshCw, Layers, Info, AlertTriangle } from 'lucide-react'
+import { Server, MessageSquare, BookOpen, Settings2, RefreshCw, Info, AlertTriangle } from 'lucide-react'
 import { SettingsDetailLayout } from '@/components/settings/SettingsDetailLayout'
 import { SettingsSection } from '@/components/settings/SettingsSection'
 import { FormGroup } from '@/components/settings/FormGroup'
 import { FormLayout } from '@/components/settings/layouts'
 import type { FormSectionDef } from '@/components/settings/layouts'
 
-// Settings Template B (FormLayout). Six sections — exactly at the cap.
+// Settings Template B (FormLayout). Five sections, under the cap.
 //
-// The Whisper link-tile is rendered between Sync Engine and Episode Context
+// The Whisper link-tile is rendered after Sync Engine
 // but DELIBERATELY excluded from the TOC: it's a navigation cross-link to
 // the dedicated Transcription page, not a TranslationSettings section. The
 // intro banner (top) and Danger Zone (bottom) are page-chrome, not sections,
 // so they also live outside the FormLayout grid.
 //
 // If a 7th real section ever needs to land here, the page MUST split into
-// a sub-page (e.g. /settings/translation/quality for Context+Sync+Episode)
+// a sub-page (e.g. /settings/translation/quality for Context+Sync)
 // — adding it inline would trip the dev-mode 6-section warn.
 const SECTIONS: readonly FormSectionDef[] = [
   { id: 'backends',        titleKey: 'translation_page.backends_section' },
@@ -38,9 +38,7 @@ const SECTIONS: readonly FormSectionDef[] = [
   { id: 'glossary',        titleKey: 'translation_page.glossary_section' },
   { id: 'context-quality', titleKey: 'translation_page.context_quality_section' },
   { id: 'sync',            titleKey: 'translation_page.sync_section' },
-  { id: 'episode-context', titleKey: 'translation_page.episode_context_section' },
 ]
-import { EpisodeContextSection } from './TranslationTab'
 import { useConfig, useUpdateConfig, useDisableTranslation } from '@/hooks/useApi'
 import { strVal } from '@/lib/configUtils'
 import { settingsInputStyle } from '@/styles/settingsShared'
@@ -332,24 +330,6 @@ export function TranslationSettings() {
           {t('translation_page.configure_link', 'Configure →')}
         </Link>
       </div>
-      {/* 6. Episode Context (Step 45) */}
-      <section id="episode-context" data-testid="settings.translation.section-episode-context">
-      <div data-testid="section-translation-context-wrapper">
-        <SettingsSection
-          title={t('translation_page.episode_context_section')}
-          description={t(
-            'settings.translation.episodeContext.description',
-            'Use prior episode subtitles as translation context and build per-series glossaries.',
-          )}
-          icon={<Layers size={16} style={{ color: 'var(--accent)' }} />}
-        >
-          <div data-testid="episode-context-content">
-            <EpisodeContextSection />
-          </div>
-        </SettingsSection>
-      </div>
-      </section>
-
       </FormLayout>
 
       {/* Danger Zone — Disable Translation (only when enabled) */}

@@ -3,7 +3,7 @@
  *
  * Covers:
  * - Renders the page via SettingsDetailLayout
- * - All 6 sections are present (data-testid attributes)
+ * - All 5 sections are present (data-testid attributes)
  * - Sections 4-6 (Context & Quality, Sync Engine, Whisper) use the `advanced`
  *   prop and are collapsed by default
  * - Expanding an advanced section via toggle reveals its content
@@ -58,23 +58,6 @@ vi.mock('../TranslationTab', () => ({
     <div data-testid="default-sync-engine">DefaultSyncEngineRow</div>
   ),
   AutoSyncSection: () => <div data-testid="auto-sync">AutoSyncSection</div>,
-  EpisodeContextSection: ({ useEpisodeContext }: { useEpisodeContext?: boolean }) => (
-    <div data-testid="section-translation-context">
-      <div data-testid="toggle-translation-use-episode-context">
-        <button
-          role="switch"
-          aria-checked={useEpisodeContext ?? false}
-          onClick={() => {}}
-        />
-      </div>
-      {useEpisodeContext && (
-        <input data-testid="input-translation-context-episodes" type="number" defaultValue={1} />
-      )}
-      <div data-testid="toggle-translation-series-glossary-auto">
-        <button role="switch" aria-checked={false} onClick={() => {}} />
-      </div>
-    </div>
-  ),
 }))
 
 const mockDisableMutate = vi.fn()
@@ -295,10 +278,10 @@ describe('TranslationSettings', () => {
 
   // ── All sections exist ────────────────────────────────────────────────────
 
-  it('renders exactly 6 settings sections (Whisper is nav card)', () => {
+  it('renders exactly 5 settings sections (Whisper is nav card)', () => {
     renderPage()
     const sections = screen.getAllByTestId('settings-section')
-    expect(sections).toHaveLength(6)
+    expect(sections).toHaveLength(5)
   })
 
   // ── Disable Translation ────────────────────────────────────────────────────
@@ -355,30 +338,5 @@ describe('TranslationSettings', () => {
     renderPage()
     expect(screen.queryByTestId('enable-translation-btn')).not.toBeInTheDocument()
     expect(screen.getByTestId('section-disable-translation')).toBeInTheDocument()
-  })
-})
-
-// ─── Translation Context section (Step 45) ───────────────────────────────────
-
-describe('Translation Context section', () => {
-  beforeEach(() => { vi.clearAllMocks() })
-
-  it('renders the Episode Context section wrapper', () => {
-    renderPage()
-    expect(screen.getByTestId('episode-context-content')).toBeInTheDocument()
-  })
-
-  it('toggle-translation-use-episode-context renders unchecked by default', () => {
-    renderPage()
-    const wrapper = screen.getByTestId('toggle-translation-use-episode-context')
-    const btn = wrapper.querySelector('[role="switch"]') as HTMLElement
-    expect(btn).toHaveAttribute('aria-checked', 'false')
-  })
-
-  it('toggle-translation-series-glossary-auto renders unchecked by default', () => {
-    renderPage()
-    const wrapper = screen.getByTestId('toggle-translation-series-glossary-auto')
-    const btn = wrapper.querySelector('[role="switch"]') as HTMLElement
-    expect(btn).toHaveAttribute('aria-checked', 'false')
   })
 })

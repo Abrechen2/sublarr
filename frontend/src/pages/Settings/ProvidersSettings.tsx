@@ -1,5 +1,5 @@
 import { useTranslation } from 'react-i18next'
-import { Store, ShieldAlert, Trash2, Settings2, Download } from 'lucide-react'
+import { Store, ShieldAlert, Trash2, Settings2 } from 'lucide-react'
 import { SettingsDetailLayout } from '@/components/settings/SettingsDetailLayout'
 import { SettingsSection } from '@/components/settings/SettingsSection'
 import { FormGroup } from '@/components/settings/FormGroup'
@@ -14,23 +14,17 @@ import { MarketplaceTab } from './providers/MarketplaceTab'
 import { strVal, boolVal } from '@/lib/configUtils'
 import { settingsInputStyle } from '@/styles/settingsShared'
 
-function parseNum(v: string | undefined, fallback: number): number {
-  const n = Number(v)
-  return isNaN(n) ? fallback : n
-}
-
 const inputStyle: React.CSSProperties = { ...settingsInputStyle, width: '220px', outline: 'none' }
 
-// Settings Template B (FormLayout) wraps the 6 global-provider sections below
+// Settings Template B (FormLayout) wraps the 5 global-provider sections below
 // the Template A CollectionView. Order matches scroll order; titleKey resolves
-// via useTranslation('settings'). Section count is exactly at the 6-section
+// via useTranslation('settings'). Section count is within the 6-section
 // cap — adding a 7th MUST be split into a sub-page (Codex blueprint).
 const SECTIONS: readonly FormSectionDef[] = [
   { id: 'global',          titleKey: 'providers_page.global_section' },
   { id: 'marketplace',     titleKey: 'providers_page.marketplace_section' },
   { id: 'anticaptcha',     titleKey: 'providers_page.anticaptcha_section' },
   { id: 'cache',           titleKey: 'providers_page.cache_section' },
-  { id: 'download-limits', titleKey: 'providers_page.download_limits_section' },
   { id: 'advanced',        titleKey: 'providers_page.advanced_section', advancedCount: 11 },
 ]
 
@@ -379,91 +373,6 @@ export function ProvidersSettings() {
           </button>
         </div>
       </SettingsSection>
-      </section>
-
-      {/* Download Limits (Step 44) */}
-      <section id="download-limits" data-testid="settings.providers.section-download-limits">
-      <div data-testid="section-download-limits">
-        <SettingsSection
-          title={t('settings.providers.downloadLimits.title', 'Download Limits')}
-          description={t(
-            'settings.providers.downloadLimits.description',
-            'Concurrency and size limits for subtitle provider downloads.',
-          )}
-          icon={<Download size={16} style={{ color: 'var(--accent)' }} />}
-        >
-          <div className="py-4 space-y-0" data-testid="download-limits-content">
-            <FormGroup
-              label={ts('providers_page.concurrent_searches')}
-              hint={ts('providers_page.concurrent_searches_hint')}
-              htmlFor="max-concurrent-provider-searches"
-              data-testid="form-group-max-concurrent-provider-searches"
-            >
-              <input
-                id="max-concurrent-provider-searches"
-                type="number"
-                data-testid="input-max-concurrent-provider-searches"
-                style={{ ...inputStyle, maxWidth: '100px' }}
-                value={parseNum(values['max_concurrent_provider_searches'], 3)}
-                onChange={(e) =>
-                  handleFieldChange(
-                    'max_concurrent_provider_searches',
-                    String(Number(e.target.value)),
-                  )
-                }
-                min={1}
-                max={10}
-              />
-            </FormGroup>
-
-            <FormGroup
-              label={ts('providers_page.max_subtitle_size')}
-              hint={ts('providers_page.max_subtitle_size_hint')}
-              htmlFor="max-subtitle-file-size-kb"
-              data-testid="form-group-max-subtitle-file-size-kb"
-            >
-              <input
-                id="max-subtitle-file-size-kb"
-                type="number"
-                data-testid="input-max-subtitle-file-size-kb"
-                style={{ ...inputStyle, maxWidth: '120px' }}
-                value={parseNum(values['max_subtitle_file_size_kb'], 2048)}
-                onChange={(e) =>
-                  handleFieldChange(
-                    'max_subtitle_file_size_kb',
-                    String(Number(e.target.value)),
-                  )
-                }
-                min={100}
-                max={10240}
-              />
-            </FormGroup>
-
-            <FormGroup
-              label={ts('providers_page.provider_delay')}
-              hint={ts('providers_page.provider_delay_hint')}
-              htmlFor="download-delay-between-providers-ms"
-              data-testid="form-group-download-delay-between-providers-ms"
-            >
-              <input
-                id="download-delay-between-providers-ms"
-                type="number"
-                data-testid="input-download-delay-between-providers-ms"
-                style={{ ...inputStyle, maxWidth: '120px' }}
-                value={parseNum(values['download_delay_between_providers_ms'], 0)}
-                onChange={(e) =>
-                  handleFieldChange(
-                    'download_delay_between_providers_ms',
-                    String(Number(e.target.value)),
-                  )
-                }
-                min={0}
-                max={5000}
-              />
-            </FormGroup>
-          </div>
-        </SettingsSection>
-      </div>
       </section>
 
       {/* Advanced — Provider Engine */}

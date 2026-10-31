@@ -29,8 +29,6 @@ const mockConfig: Record<string, unknown> = {
   interface_language: 'en',
   items_per_page: 25,
   default_library_view: 'grid',
-  default_library_sort: 'alpha',
-  datetime_format: 'relative',
 }
 
 const mockMutate = vi.fn()
@@ -249,18 +247,6 @@ describe('Interface Preferences section', () => {
     renderWithProviders(<GeneralSettings />)
     const sel = screen.getByTestId('select-default-library-view') as HTMLSelectElement
     expect(sel.value).toBe('grid')
-  })
-
-  it('select-default-library-sort renders with value from config (default "alpha")', () => {
-    renderWithProviders(<GeneralSettings />)
-    const sel = screen.getByTestId('select-default-library-sort') as HTMLSelectElement
-    expect(sel.value).toBe('alpha')
-  })
-
-  it('select-datetime-format renders with value from config (default "relative")', () => {
-    renderWithProviders(<GeneralSettings />)
-    const sel = screen.getByTestId('select-datetime-format') as HTMLSelectElement
-    expect(sel.value).toBe('relative')
   })
 
   it('changing select-interface-language calls updateConfig with { interface_language: "de" }', () => {

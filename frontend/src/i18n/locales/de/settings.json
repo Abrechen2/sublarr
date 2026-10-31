@@ -916,10 +916,6 @@
     "auto_hi_removal_hint": "Hörgeschädigten-Tags aus Untertiteln automatisch nach dem Download entfernen.",
     "auto_credit_removal": "Auto Abspann-Entfernung",
     "auto_credit_removal_hint": "Abspann-Zeilen (Übersetzernotizen, Gruppenhinweise) automatisch aus Untertiteln entfernen.",
-    "sync_threshold": "Auto-Sync Score-Schwellenwert",
-    "sync_threshold_hint": "Minimaler Untertitel-Score um Auto-Sync nach dem Download auszulösen.",
-    "sync_fallback_engine": "Sync Fallback-Engine",
-    "sync_fallback_engine_hint": "Synchronisations-Engine wenn der primäre Sync-Versuch fehlschlägt. ffsubsync ist audiobasiert; alass ist KI-basiert.",
     "nfo_export": "NFO-Sidecar exportieren",
     "nfo_export_hint": "Eine NFO-Metadaten-Sidecar-Datei neben jeden heruntergeladenen Untertitel schreiben.",
     "jellyfin_translate": "Bei Jellyfin-Wiedergabe übersetzen",
@@ -954,10 +950,7 @@
       "hi_removal": "HI-Removal",
       "credit_removal": "Credit-Removal",
       "auto_sync": "Auto-Sync",
-      "score_threshold": "Score-Schwelle:",
-      "engine": "Engine:",
-      "fallback": "Fallback:",
-      "no_fallback": "keiner"
+      "engine": "Engine:"
     },
     "ffmpeg_timeout": "FFmpeg-Timeout (Sekunden)",
     "metadata_engine": "Metadaten-Engine",
@@ -1098,15 +1091,6 @@
     "items_per_page_hint": "Anzahl der Einträge pro Seite in Bibliothekslisten",
     "default_library_view": "Standard-Bibliotheksansicht",
     "default_library_view_hint": "Standard-Ansichtsmodus für die Bibliothek (Raster oder Liste)",
-    "default_library_sort": "Standard-Sortierung",
-    "default_library_sort_hint": "Standard-Sortierreihenfolge für Bibliothekseinträge",
-    "sort_alpha": "Alphabetisch",
-    "sort_date": "Hinzugefügt",
-    "sort_score": "Score",
-    "datetime_format": "Datum-/Uhrzeitformat",
-    "datetime_format_hint": "Wie Datum und Uhrzeit in der Oberfläche angezeigt werden",
-    "datetime_relative": "Relativ (vor 2 Stunden)",
-    "datetime_absolute": "Absolut (2026-03-21 14:00)",
     "metadata_engine": "Metadaten-Scan-Engine",
     "metadata_engine_hint": "Tool zum Lesen von Medienmetadaten. 'auto' bevorzugt mediainfo wenn verfügbar.",
     "translation_workers": "Übersetzungs-Worker",
@@ -1332,7 +1316,6 @@
     "glossary_section": "Globales Glossar",
     "context_quality_section": "Kontext & Qualität",
     "sync_section": "Sync-Engine",
-    "episode_context_section": "Episoden-Kontext",
     "intro_title": "Übersetzung",
     "intro_body": "Die Übersetzung erstellt einen Untertitel in deiner Sprache, wenn kein Provider einen hat. Das Ergebnis hängt vom gewählten Übersetzer und Modell sowie vom Sprachpaar ab. Nutzung auf eigenes Risiko. Die Übersetzung bleibt aus, bis du sie aktivierst.",
     "enable_button": "Übersetzung aktivieren",
@@ -1378,8 +1361,6 @@
     "fansub_section": "Fansub-Präferenzen"
   },
   "subtitles_format_page": {
-    "naming_section": "Untertitel-Benennung",
-    "scan_filters_section": "Scan-Filter",
     "embedded_extraction_section": "Eingebettete Extraktion"
   },
   "hooks_page": {
@@ -1583,9 +1564,7 @@
     "common_fixes_hint": "Häufige Untertitel-Korrekturen anwenden: Duplikate entfernen, Kodierung korrigieren, Formatierung normalisieren.",
     "hi_removal_hint": "Hörgeschädigten-Tags aus heruntergeladenen Untertiteln automatisch entfernen.",
     "credit_removal_hint": "Übersetzer-Credits am Anfang oder Ende von Untertiteldateien entfernen.",
-    "post_command_hint": "Shell-Befehl, der nach jedem erfolgreichen Untertitel-Download ausgeführt wird. %path% für den Untertitel-Pfad, %media% für den Video-Pfad.",
-    "sync_threshold_hint": "Mindestkonfidenz für den Auto-Sync, um Änderungen anzuwenden.",
-    "sync_fallback_engine_hint": "Wenn die primäre Sync-Engine fehlschlägt, diese Engine als Fallback verwenden."
+    "post_command_hint": "Shell-Befehl, der nach jedem erfolgreichen Untertitel-Download ausgeführt wird. %path% für den Untertitel-Pfad, %media% für den Video-Pfad."
   },
   "subtitles": {
     "primary_language": "Primärsprache",
@@ -1656,9 +1635,6 @@
     "hot_reload_plugins": "Plugins Hot-Reload",
     "backend": "Backend",
     "api_key": "API-Key",
-    "concurrent_searches": "Parallele Provider-Suchen",
-    "max_subtitle_size": "Max. Untertitel-Größe (KB)",
-    "provider_delay": "Verzögerung zwischen Providern (ms)",
     "provider_reranking": "Provider-Reranking",
     "reranking_min_downloads": "Reranking min. Downloads",
     "reranking_max_modifier": "Reranking max. Modifier",
@@ -1674,7 +1650,6 @@
     "marketplace_section": "Marketplace",
     "anticaptcha_section": "Anti-Captcha",
     "cache_section": "Cache-Verwaltung",
-    "download_limits_section": "Download-Limits",
     "advanced_section": "Provider-Engine",
     "hidden_providers_hint": "Kommagetrennte Provider-IDs, die aus der Liste ausgeblendet werden sollen (z. B. opensubtitles,kitsunekko).",
     "dedup_on_download_hint": "Untertitel-Download überspringen, wenn bereits eine identische Datei vorhanden ist.",
@@ -1690,9 +1665,6 @@
     "hot_reload_plugins_hint": "Plugins automatisch neu laden, wenn sich ihre Dateien auf der Festplatte ändern.",
     "backend_hint": "Anti-Captcha-Dienstanbieter auswählen.",
     "api_key_hint": "API-Schlüssel deines Anti-Captcha-Dienstes.",
-    "concurrent_searches_hint": "Maximale Anzahl gleichzeitig durchsuchter Provider",
-    "max_subtitle_size_hint": "Untertiteldateien größer als diese Größe ablehnen",
-    "provider_delay_hint": "Millisekunden Wartezeit zwischen den Provider-Anfragen",
     "provider_reranking_hint": "Provider-Ergebnisse anhand historischer Download-Erfolgsraten neu ordnen.",
     "reranking_min_downloads_hint": "Mindestanzahl an Downloads, bevor ein Provider für die Neuordnung infrage kommt.",
     "reranking_max_modifier_hint": "Maximaler Score-Modifikator durch die Neuordnung (z. B. 0,3 = ±30 %).",
@@ -1769,9 +1741,6 @@
     "default_sync_engine": "Standard-Sync-Engine",
     "auto_sync_after_download": "Auto-Sync nach Download",
     "auto_sync_engine": "Auto-Sync-Engine",
-    "use_episode_context": "Episoden-Kontext verwenden",
-    "context_episodes": "Kontext-Episoden",
-    "auto_series_glossary": "Automatisches Serien-Glossar",
     "request_timeout": "Request-Timeout (Sekunden)",
     "request_timeout_help": "Timeout pro LLM-API-Anfrage. Für langsame oder große Modelle erhöhen. Standard: 90.",
     "backoff_base": "Backoff-Basis (Sekunden)",
@@ -1787,10 +1756,6 @@
     "auto_sync_after_download_help": "Synchronisiert heruntergeladene Untertitel automatisch gegen die Videodatei (nur ffsubsync).",
     "auto_sync_engine_help": "Engine für automatische Synchronisierung. alass wird bei Auto-Sync übersprungen (erfordert Referenz-Track).",
     "auto_sync_engine_ffsubsync_option": "ffsubsync (Spracherkennung)",
-    "episode_context_title": "Episoden-Kontext",
-    "use_episode_context_desc": "Vorherigen Episoden-Untertitel als Kontext für die Übersetzung einbeziehen",
-    "context_episodes_desc": "Anzahl der vorherigen Episoden, die als Kontext einbezogen werden",
-    "auto_series_glossary_desc": "Automatisch ein serienspezifisches Glossar aus dem Übersetzungsverlauf erstellen",
     "toast_request_timeout_saved": "Anfrage-Timeout gespeichert",
     "toast_request_timeout_failed": "Speichern des Anfrage-Timeouts fehlgeschlagen",
     "toast_backoff_base_saved": "Backoff-Basis gespeichert",
@@ -2100,10 +2065,6 @@
         "description": "Gecachte Untertitel-Suchergebnisse leeren. Pro-Provider-Caches können von der Provider-Karte aus geleert werden.",
         "clear_all": "Alle Provider-Caches leeren"
       },
-      "downloadLimits": {
-        "title": "Download-Limits",
-        "description": "Concurrency- und Größen-Limits für Untertitel-Provider-Downloads."
-      },
       "advanced": {
         "title": "Provider-Engine",
         "description": "Feinabstimmung von Provider-Reranking, dynamischen Timeouts und Circuit Breaker."
@@ -2124,28 +2085,6 @@
         "hint": "JSON-Objekt mit ISO-639-1-Code als Schlüssel und Mindest-Score als Wert. Leeres Objekt verwendet den globalen Schwellwert.",
         "example": "Beispiel: {\"de\": 80, \"fr\": 70} — Deutsche Untertitel erfordern Score ≥ 80, Französische ≥ 70.",
         "fallback": "Leer lassen {} um den globalen Schwellwert für alle Sprachen zu verwenden."
-      },
-      "subtitleNaming": {
-        "title": "Untertitel-Benennung",
-        "description": "Sprachcode-Format und Suffix-Konventionen für gespeicherte Untertiteldateien.",
-        "langCodeFormat": "Sprachcode-Format",
-        "langCodeFormatHint": "Format für das Sprachsuffix in Untertiteldateinamen",
-        "suffixSeparator": "Suffix-Trennzeichen",
-        "suffixSeparatorHint": "Zeichen zwischen Dateiname und Sprachsuffix",
-        "hiSuffix": "HI-Untertitel-Suffix",
-        "hiSuffixHint": "Suffix für Hörgeschädigten-Untertiteldateien",
-        "forcedSuffix": "Forced-Untertitel-Suffix",
-        "forcedSuffixHint": "Suffix für Forced-Untertiteldateien"
-      },
-      "scanFilters": {
-        "title": "Scan-Filter",
-        "description": "Dateien und Sprachen vom Untertitel-Scan ausschließen.",
-        "ignorePatterns": "Ignorier-Muster",
-        "ignorePatternsHint": "JSON-Array von Glob-Mustern, die beim Scan übersprungen werden",
-        "minFileSize": "Minimale Dateigröße (MB)",
-        "minFileSizeHint": "Mediendateien kleiner als dieser Wert beim Scan überspringen",
-        "ignoreLanguages": "Sprachen ignorieren",
-        "ignoreLanguagesHint": "JSON-Array von ISO-639-1-Codes, die vom Scan ausgeschlossen werden"
       }
     },
     "system": {
@@ -2183,9 +2122,6 @@
       "syncEngine": {
         "description": "Standard-Sync-Engine wählen und automatisches Sync-Verhalten konfigurieren.",
         "summary": "Steuert, welche Untertitel-Sync-Engine verwendet wird und wann Auto-Sync läuft."
-      },
-      "episodeContext": {
-        "description": "Vorherige Episoden-Untertitel als Übersetzungs-Kontext nutzen und Per-Series-Glossare aufbauen."
       }
     }
   },

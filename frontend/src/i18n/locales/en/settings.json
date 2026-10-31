@@ -916,10 +916,6 @@
     "auto_hi_removal_hint": "Remove hearing-impaired tags from subtitles automatically after download.",
     "auto_credit_removal": "Auto Credit Removal",
     "auto_credit_removal_hint": "Remove credit lines (translator notes, group ads) from subtitles automatically.",
-    "sync_threshold": "Auto-Sync Score Threshold",
-    "sync_threshold_hint": "Minimum subtitle score required to trigger auto-sync after download.",
-    "sync_fallback_engine": "Sync Fallback Engine",
-    "sync_fallback_engine_hint": "Synchronisation engine used when the primary sync attempt fails. ffsubsync is audio-based; alass is AI-based.",
     "nfo_export": "Export NFO Sidecar",
     "nfo_export_hint": "Write an NFO metadata sidecar file alongside each downloaded subtitle.",
     "jellyfin_translate": "Translate on Jellyfin Playback",
@@ -954,10 +950,7 @@
       "hi_removal": "HI Removal",
       "credit_removal": "Credit Removal",
       "auto_sync": "Auto-Sync",
-      "score_threshold": "Score threshold:",
-      "engine": "Engine:",
-      "fallback": "Fallback:",
-      "no_fallback": "none"
+      "engine": "Engine:"
     },
     "ffmpeg_timeout": "FFmpeg timeout (seconds)",
     "metadata_engine": "Metadata engine",
@@ -1098,15 +1091,6 @@
     "items_per_page_hint": "Number of items shown per page in library lists",
     "default_library_view": "Default Library View",
     "default_library_view_hint": "Default view mode for the library (grid or list)",
-    "default_library_sort": "Default Library Sort",
-    "default_library_sort_hint": "Default sort order for library listings",
-    "sort_alpha": "Alphabetical",
-    "sort_date": "Date Added",
-    "sort_score": "Score",
-    "datetime_format": "Date/Time Format",
-    "datetime_format_hint": "How dates and times are displayed throughout the UI",
-    "datetime_relative": "Relative (2 hours ago)",
-    "datetime_absolute": "Absolute (2026-03-21 14:00)",
     "metadata_engine": "Metadata Scan Engine",
     "metadata_engine_hint": "Tool used to read media metadata. 'auto' prefers mediainfo when available.",
     "translation_workers": "Translation Workers",
@@ -1332,7 +1316,6 @@
     "glossary_section": "Global Glossary",
     "context_quality_section": "Context & Quality",
     "sync_section": "Sync Engine",
-    "episode_context_section": "Episode Context",
     "intro_title": "Translation",
     "intro_body": "Translation creates a subtitle in your language when no provider has one. The result depends on the translation backend and model you choose and on the language pair. Use at your own risk. Translation stays off until you enable it.",
     "enable_button": "Enable translation",
@@ -1378,8 +1361,6 @@
     "fansub_section": "Fansub Preferences"
   },
   "subtitles_format_page": {
-    "naming_section": "Subtitle Naming",
-    "scan_filters_section": "Scan Filters",
     "embedded_extraction_section": "Embedded Extraction"
   },
   "hooks_page": {
@@ -1415,9 +1396,7 @@
     "common_fixes_hint": "Apply common subtitle fixes: remove duplicate lines, fix encoding, normalize formatting.",
     "hi_removal_hint": "Automatically remove Hearing Impaired tags from downloaded subtitles.",
     "credit_removal_hint": "Remove translator credit lines at the start or end of subtitle files.",
-    "post_command_hint": "Shell command executed after every successful subtitle download. Use %path% for the subtitle path, %media% for the video path.",
-    "sync_threshold_hint": "Minimum confidence score for auto-sync to apply changes.",
-    "sync_fallback_engine_hint": "If the primary sync engine fails, try this engine as fallback."
+    "post_command_hint": "Shell command executed after every successful subtitle download. Use %path% for the subtitle path, %media% for the video path."
   },
   "system_hooks_page": {
     "title": "Hooks & Webhooks",
@@ -1656,9 +1635,6 @@
     "hot_reload_plugins": "Hot Reload Plugins",
     "backend": "Backend",
     "api_key": "API Key",
-    "concurrent_searches": "Concurrent Provider Searches",
-    "max_subtitle_size": "Max Subtitle File Size (KB)",
-    "provider_delay": "Delay Between Providers (ms)",
     "provider_reranking": "Provider Reranking",
     "reranking_min_downloads": "Reranking Min Downloads",
     "reranking_max_modifier": "Reranking Max Modifier",
@@ -1674,7 +1650,6 @@
     "marketplace_section": "Marketplace",
     "anticaptcha_section": "Anti-Captcha",
     "cache_section": "Cache management",
-    "download_limits_section": "Download limits",
     "advanced_section": "Provider engine",
     "hidden_providers_hint": "Comma-separated provider IDs to hide from the list (e.g. opensubtitles,kitsunekko).",
     "dedup_on_download_hint": "Skip downloading a subtitle if an identical file is already present.",
@@ -1690,9 +1665,6 @@
     "hot_reload_plugins_hint": "Automatically reload plugins when their files change on disk.",
     "backend_hint": "Select the anti-captcha service provider.",
     "api_key_hint": "Your anti-captcha service API key.",
-    "concurrent_searches_hint": "Maximum number of providers searched simultaneously",
-    "max_subtitle_size_hint": "Reject subtitle files larger than this size",
-    "provider_delay_hint": "Milliseconds to wait between each provider request",
     "provider_reranking_hint": "Reorder provider results based on historical download success rates.",
     "reranking_min_downloads_hint": "Minimum download count before a provider is eligible for reranking.",
     "reranking_max_modifier_hint": "Maximum score modifier applied by reranking (e.g. 0.3 = ±30%).",
@@ -1769,9 +1741,6 @@
     "default_sync_engine": "Default sync engine",
     "auto_sync_after_download": "Auto-Sync after download",
     "auto_sync_engine": "Auto-Sync engine",
-    "use_episode_context": "Use Episode Context",
-    "context_episodes": "Context Episodes",
-    "auto_series_glossary": "Auto Series Glossary",
     "request_timeout": "Request timeout (seconds)",
     "request_timeout_help": "Timeout for each LLM API request. Increase for slow or large models. Default: 90.",
     "backoff_base": "Backoff base (seconds)",
@@ -1787,10 +1756,6 @@
     "auto_sync_after_download_help": "Automatically syncs downloaded subtitles against the video file (ffsubsync only).",
     "auto_sync_engine_help": "Engine for automatic synchronization. alass is skipped during auto-sync (requires reference track).",
     "auto_sync_engine_ffsubsync_option": "ffsubsync (speech detection)",
-    "episode_context_title": "Episode Context",
-    "use_episode_context_desc": "Include previous episode subtitle as context for translation",
-    "context_episodes_desc": "Number of prior episodes to include as context",
-    "auto_series_glossary_desc": "Automatically build a per-series glossary from translation history",
     "toast_request_timeout_saved": "Request timeout saved",
     "toast_request_timeout_failed": "Failed to save request timeout",
     "toast_backoff_base_saved": "Backoff base saved",
@@ -2100,10 +2065,6 @@
         "description": "Clear cached subtitle search results. Individual provider caches can be cleared from the provider card.",
         "clear_all": "Clear All Provider Caches"
       },
-      "downloadLimits": {
-        "title": "Download Limits",
-        "description": "Concurrency and size limits for subtitle provider downloads."
-      },
       "advanced": {
         "title": "Provider Engine",
         "description": "Fine-tune provider reranking, dynamic timeouts, and the circuit breaker."
@@ -2124,28 +2085,6 @@
         "hint": "JSON object mapping ISO-639-1 code to minimum score. Empty object uses global threshold for all languages.",
         "example": "Example: {\"de\": 80, \"fr\": 70} — German subtitles require score ≥ 80, French ≥ 70.",
         "fallback": "Leave as {} to use the global threshold for all languages."
-      },
-      "subtitleNaming": {
-        "title": "Subtitle Naming",
-        "description": "Language code format and suffix conventions for saved subtitle files.",
-        "langCodeFormat": "Language Code Format",
-        "langCodeFormatHint": "Format used for the language suffix in subtitle filenames",
-        "suffixSeparator": "Suffix Separator",
-        "suffixSeparatorHint": "Character between the base filename and the language suffix",
-        "hiSuffix": "HI Subtitle Suffix",
-        "hiSuffixHint": "Suffix appended to hearing-impaired subtitle filenames",
-        "forcedSuffix": "Forced Subtitle Suffix",
-        "forcedSuffixHint": "Suffix appended to forced subtitle filenames"
-      },
-      "scanFilters": {
-        "title": "Scan Filters",
-        "description": "Exclude files and languages from subtitle scans.",
-        "ignorePatterns": "Ignore Patterns",
-        "ignorePatternsHint": "JSON array of glob patterns to skip during scan",
-        "minFileSize": "Minimum File Size (MB)",
-        "minFileSizeHint": "Skip media files smaller than this size during scan",
-        "ignoreLanguages": "Ignore Languages",
-        "ignoreLanguagesHint": "JSON array of ISO-639-1 codes to exclude from scan"
       }
     },
     "system": {
@@ -2183,9 +2122,6 @@
       "syncEngine": {
         "description": "Choose the default synchronisation engine and configure automatic sync behaviour.",
         "summary": "Controls which subtitle synchronisation engine is used and when automatic sync runs."
-      },
-      "episodeContext": {
-        "description": "Use prior episode subtitles as translation context and build per-series glossaries."
       }
     }
   },

@@ -6,7 +6,6 @@ export {
   ContextWindowSizeRow,
   DefaultSyncEngineRow,
   AutoSyncSection,
-  EpisodeContextSection,
   TranslationBackendsTab,
 } from './translation/TranslationBackendsTab'
 export { PromptPresetsTab } from './translation/PromptPresetsTab'

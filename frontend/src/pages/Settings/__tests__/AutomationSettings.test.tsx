@@ -77,8 +77,6 @@ vi.mock('@/hooks/useApi', () => ({
       auto_process_common_fixes: 'false',
       auto_process_hi_removal: 'false',
       auto_process_credit_removal: 'false',
-      auto_process_sync_threshold: '80',
-      auto_process_sync_fallback_engine: 'ffsubsync',
       auto_nfo_export: 'false',
       streaming_enabled: 'false',
       jellyfin_play_translate_enabled: 'false',

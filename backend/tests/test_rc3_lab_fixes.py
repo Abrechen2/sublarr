@@ -47,13 +47,13 @@ def test_bad_page_size_is_rejected_before_other_keys_are_saved(client, value):
     from db.config import get_config_entry
 
     with client.application.app_context():
-        before = get_config_entry("default_library_sort")
+        before = get_config_entry("default_library_view")
     response = client.put(
-        "/api/v1/config", json={"default_library_sort": "score", "items_per_page": value}
+        "/api/v1/config", json={"default_library_view": "list", "items_per_page": value}
     )
     assert response.status_code == 400
     with client.application.app_context():
-        assert get_config_entry("default_library_sort") == before
+        assert get_config_entry("default_library_view") == before
 
 
 @pytest.mark.parametrize("value", [10, 200, "75"])

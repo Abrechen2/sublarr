@@ -41,16 +41,6 @@ export function GeneralSettings() {
   const save = useDebouncedConfigSave()
   const { t, i18n } = useTranslation('settings')
 
-  const librarySorts = [
-    { value: 'alpha', label: t('general_page.sort_alpha') },
-    { value: 'date',  label: t('general_page.sort_date') },
-    { value: 'score', label: t('general_page.sort_score') },
-  ]
-  const datetimeFormats = [
-    { value: 'relative', label: t('general_page.datetime_relative') },
-    { value: 'absolute', label: t('general_page.datetime_absolute') },
-  ]
-
   if (isLoading) {
     return (
       <SettingsDetailLayout
@@ -152,48 +142,6 @@ export function GeneralSettings() {
                   {LIBRARY_VIEWS.map((v) => (
                     <option key={v} value={v}>
                       {v}
-                    </option>
-                  ))}
-                </select>
-              </FormGroup>
-
-              <FormGroup
-                label={t('general_page.default_library_sort')}
-                hint={t('general_page.default_library_sort_hint')}
-                htmlFor="default-library-sort"
-                data-testid="form-group-default-library-sort"
-              >
-                <select
-                  id="default-library-sort"
-                  data-testid="select-default-library-sort"
-                  style={inputStyle}
-                  value={strVal(config, 'default_library_sort', 'alpha')}
-                  onChange={(e) => save({ default_library_sort: e.target.value })}
-                >
-                  {librarySorts.map((o) => (
-                    <option key={o.value} value={o.value}>
-                      {o.label}
-                    </option>
-                  ))}
-                </select>
-              </FormGroup>
-
-              <FormGroup
-                label={t('general_page.datetime_format')}
-                hint={t('general_page.datetime_format_hint')}
-                htmlFor="datetime-format"
-                data-testid="form-group-datetime-format"
-              >
-                <select
-                  id="datetime-format"
-                  data-testid="select-datetime-format"
-                  style={inputStyle}
-                  value={strVal(config, 'datetime_format', 'relative')}
-                  onChange={(e) => save({ datetime_format: e.target.value })}
-                >
-                  {datetimeFormats.map((o) => (
-                    <option key={o.value} value={o.value}>
-                      {o.label}
                     </option>
                   ))}
                 </select>
