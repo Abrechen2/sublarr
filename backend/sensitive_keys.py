@@ -25,7 +25,14 @@ plaintext value — a silent auth failure. Only flat, non-dotted top-level keys
 encryption targets.
 """
 
-SENSITIVE_SUFFIXES: tuple[str, ...] = ("_api_key", "_password", "_token", "_secret")
+SENSITIVE_SUFFIXES: tuple[str, ...] = (
+    "_api_key",
+    "_apikey",
+    "_password",
+    "_token",
+    "_secret",
+    "_pin",
+)
 SENSITIVE_EXACT: frozenset[str] = frozenset({"api_key"})
 EXCLUDED_KEYS: frozenset[str] = frozenset({"ui_session_secret", "ui_password_hash"})
 
