@@ -34,7 +34,7 @@ function MetadataApiKeysSection() {
   const [tmdbKey, setTmdbKey] = useState(() => String(cfg?.tmdb_api_key ?? ''))
   const [tvdbKey, setTvdbKey] = useState(() => String(cfg?.tvdb_api_key ?? ''))
   const [tvdbPin, setTvdbPin] = useState(() => String(cfg?.tvdb_pin ?? ''))
-  const [cacheTtl, setCacheTtl] = useState(() => String(cfg?.metadata_cache_ttl_days ?? '7'))
+  const [cacheTtl, setCacheTtl] = useState(() => String(cfg?.metadata_cache_ttl_days ?? '30'))
 
   const [showTmdb, setShowTmdb] = useState(false)
   const [showTvdb, setShowTvdb] = useState(false)

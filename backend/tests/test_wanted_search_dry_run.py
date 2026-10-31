@@ -206,7 +206,10 @@ class TestBypassExistingTargetCheck:
         base = str(mkv_path)[: -len(".mkv")]
         ass_path = f"{base}.{lang}.ass"
         with open(ass_path, "wb") as fh:
-            fh.write(b"[Script Info]\n")
+            # A real line: a header-only file is no subtitle (#61 A21).
+            fh.write(
+                b"[Script Info]\n[Events]\nDialogue: 0,0:00:01.00,0:00:02.00,Default,,0,0,0,,Hallo\n"
+            )
         return ass_path
 
     def test_default_skips_when_target_ass_already_present(self, app_ctx, monkeypatch, tmp_path):

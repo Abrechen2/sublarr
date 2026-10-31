@@ -358,8 +358,11 @@ class GestdownProvider(SubtitleProvider):
                     raise ProviderRateLimitError("Gestdown rate limit exceeded")
 
                 if resp.status_code == 423:
-                    # Locked/retry -- wait configurable delay and retry once
-                    retry_delay = 1.0
+                    # Locked/retry -- wait the configured delay and retry once
+                    # (#61 A36: the setting was replaced by a fixed 1.0 s).
+                    from config import get_settings
+
+                    retry_delay = float(getattr(get_settings(), "gestdown_retry_delay_s", 1.0))
                     logger.debug("Gestdown: HTTP 423 (locked), retrying after %.1fs", retry_delay)
                     if retry_delay > 0:
                         time.sleep(retry_delay)

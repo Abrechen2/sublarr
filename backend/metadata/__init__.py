@@ -111,13 +111,16 @@ class MetadataResolver:
         if data.get("metadata_source") == _FILENAME_STUB_SOURCE:
             return
         try:
+            from config import get_settings
             from db.standalone import cache_metadata
 
+            # The TTL the Connections page offers (#61 A18: fixed 30 days).
+            ttl_days = int(getattr(get_settings(), "metadata_cache_ttl_days", 30) or 30)
             cache_metadata(
                 cache_key,
                 provider=data.get("metadata_source", "resolver"),
                 response_json=json.dumps(data, default=str),
-                ttl_days=30,
+                ttl_days=max(1, ttl_days),
             )
         except Exception:
             logger.debug("Cache write for %s failed; continuing without cache", cache_key)

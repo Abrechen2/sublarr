@@ -285,7 +285,13 @@ def test_tracked_database_upgrades(tmp_path, monkeypatch):
     with engine.connect() as conn:
         version = conn.execute(sa.text("SELECT version_num FROM alembic_version")).scalar()
     engine.dispose()
-    assert version == "sa4_standalone_autoincrement"
+    # The head, whatever later migrations add on top of sa4.
+    from alembic.config import Config
+    from alembic.script import ScriptDirectory
+
+    cfg = Config()
+    cfg.set_main_option("script_location", "db/migrations")
+    assert version == ScriptDirectory.from_config(cfg).get_current_head()
 
     _boot(path, monkeypatch)
     _assert_rebuilt(path)
