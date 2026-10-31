@@ -156,6 +156,18 @@ def _check_value(key: str, value: object) -> tuple[object, str | None]:
         ok, reason = validate_service_url(str(value), allow_loopback=key in LOOPBACK_URL_KEYS)
         if not ok:
             return None, f"Invalid URL for {key}: {reason}"
+    if key == "score_threshold_per_language" and str(value).strip():
+        try:
+            parsed = json.loads(str(value))
+        except ValueError:
+            return None, 'score_threshold_per_language must be JSON like {"de": 80}'
+        if not isinstance(parsed, dict) or not all(
+            isinstance(v, int | float) and not isinstance(v, bool) for v in parsed.values()
+        ):
+            return (
+                None,
+                'score_threshold_per_language must map languages to scores, e.g. {"de": 80}',
+            )
     if isinstance(value, str) and len(value) > MAX_STRING_LENGTH:
         return None, f"Value for {key} exceeds maximum length of {MAX_STRING_LENGTH}"
     return value, None

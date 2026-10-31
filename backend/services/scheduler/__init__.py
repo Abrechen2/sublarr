@@ -80,6 +80,7 @@ def _build_default_jobs() -> list[JobSpec]:
     """
     from anidb_sync import anidb_sync_tick
     from cleanup_scheduler import cleanup_tick
+    from services.disk_warning import disk_warning_tick
     from services.dubtitle.sweep import dubtitle_scan_tick
     from services.foreign_tracks.sweep import foreign_track_sweep_tick
     from services.mt_reseek import mt_reseek_tick
@@ -148,6 +149,15 @@ def _build_default_jobs() -> list[JobSpec]:
             timeout_s=60,
             owner_module="services.provider_degradation",
             description="Notice a provider that stopped working without failing loudly.",
+        ),
+        JobSpec(
+            id="disk_warning_check",
+            func=disk_warning_tick,
+            # Hourly; reported once per folder per day (#61 A17).
+            default_trigger=IntervalTrigger(hours=1),
+            timeout_s=30,
+            owner_module="services.disk_warning",
+            description="Warn when the config or media disk passes the warning threshold.",
         ),
         JobSpec(
             id="usage_stats_ping",

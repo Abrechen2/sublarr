@@ -4,13 +4,40 @@ Extracted from providers/search_coordinator.py. Pure mixin: used by
 ``SearchCoordinatorMixin``.
 """
 
+import json
 import logging
 
 import decision_log
+from config_language_data import normalize_language_code
 from providers.base import SubtitleFormat, compute_score
 from providers.episode_gate import apply_episode_gate
 
 logger = logging.getLogger(__name__)
+
+
+def per_language_min_scores(settings) -> dict[str, int]:
+    """``score_threshold_per_language`` as ``{canonical language: score}``.
+
+    A malformed value never breaks a search: it is ignored with a warning.
+    """
+    raw = getattr(settings, "score_threshold_per_language", "") if settings else ""
+    if not isinstance(raw, str) or not raw.strip():
+        return {}
+    try:
+        parsed = json.loads(raw)
+    except ValueError:
+        logger.warning("score_threshold_per_language is not JSON; ignoring it")
+        return {}
+    if not isinstance(parsed, dict):
+        return {}
+    out: dict[str, int] = {}
+    for lang, score in parsed.items():
+        if isinstance(score, bool) or not isinstance(score, int | float):
+            continue
+        code = normalize_language_code(str(lang))
+        if code:
+            out[code] = int(score)
+    return out
 
 
 def _rejected(before: list, after: list) -> list:
@@ -116,10 +143,16 @@ class SearchScoringMixin:
                 wanted=format_filter.value,
             )
 
-        # Filter by min score
-        if min_score > 0:
+        # Filter by min score — per language where Settings → Scoring sets one
+        # (#61 A16: score_threshold_per_language was saved and never read).
+        per_language = per_language_min_scores(getattr(self, "settings", None))
+        if min_score > 0 or per_language:
             before = all_results
-            all_results = [r for r in all_results if r.score >= min_score]
+            all_results = [
+                r
+                for r in all_results
+                if r.score >= per_language.get(normalize_language_code(r.language), min_score)
+            ]
             decision_log.filter_stage(
                 "min_score",
                 len(before) - len(all_results),

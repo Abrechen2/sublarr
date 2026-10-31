@@ -47,6 +47,8 @@ const mockMovies = [
 
 const mockBulkMutate = vi.fn()
 
+let mockConfig: Record<string, unknown> = {}
+
 vi.mock('@/hooks/useApi', () => ({
   useLibrary: () => ({
     data: { series: mockSeries, movies: mockMovies },
@@ -60,6 +62,7 @@ vi.mock('@/hooks/useApi', () => ({
   }),
   useAssignProfile: () => ({ mutate: vi.fn() }),
   useBulkAssignProfile: () => ({ mutate: mockBulkMutate, isPending: false }),
+  useConfig: () => ({ data: mockConfig }),
 }))
 
 // ─── Routing ──────────────────────────────────────────────────────────────────
@@ -217,5 +220,27 @@ describe('LibraryPage', () => {
       { type: 'series', arrIds: [1], profileId: 2 },
       expect.any(Object),
     )
+  })
+})
+
+// Audit #61 A19: Settings → General → Default Library View was never read.
+describe('default library view', () => {
+  beforeEach(() => {
+    localStorage.removeItem('library_view_mode')
+  })
+
+  it('opens in the table view when the setting says list', () => {
+    mockConfig = { default_library_view: 'list' }
+    renderLibrary()
+    expect(screen.getByTestId('virtual-table')).toBeInTheDocument()
+    mockConfig = {}
+  })
+
+  it('keeps the view this browser picked over the setting', () => {
+    mockConfig = { default_library_view: 'list' }
+    localStorage.setItem('library_view_mode', 'grid')
+    renderLibrary()
+    expect(screen.queryByTestId('virtual-table')).toBeNull()
+    mockConfig = {}
   })
 })

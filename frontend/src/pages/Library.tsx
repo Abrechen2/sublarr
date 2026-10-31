@@ -1,6 +1,7 @@
 import { useState, useMemo, useCallback } from 'react'
 import { useTranslation } from 'react-i18next'
-import { useLibrary, useLanguageProfiles, useAssignProfile, useBulkAssignProfile } from '@/hooks/useApi'
+import { useLibrary, useLanguageProfiles, useAssignProfile, useBulkAssignProfile, useConfig } from '@/hooks/useApi'
+import { strVal } from '@/lib/configUtils'
 import { FilterPresetMenu } from '@/components/filters/FilterPresetMenu'
 import type { SeriesInfo, MovieInfo, SyncBatchProgress, SyncBatchComplete, FilterGroup } from '@/lib/types'
 import { Tv, Film, Loader2, Settings, ChevronLeft, ChevronRight, Search, RefreshCw, X, LayoutGrid, List } from 'lucide-react'
@@ -282,15 +283,20 @@ export function LibraryPage() {
   const [sortDir, setSortDir] = useState<SortDir>('asc')
   const [showBulkSync, setShowBulkSync] = useState(false)
   const [selectedSeries, setSelectedSeries] = useState<Set<number>>(new Set())
-  const [viewMode, setViewMode] = useState<'table' | 'grid'>(() =>
-    (localStorage.getItem('library_view_mode') as 'table' | 'grid') ?? 'grid'
+  // The view picked on this browser wins; without one, Settings → General's
+  // default applies ("list" is the table view). It was never read (#61 A19).
+  const { data: config } = useConfig()
+  const [localViewMode, setLocalViewMode] = useState<'table' | 'grid' | null>(
+    () => localStorage.getItem('library_view_mode') as 'table' | 'grid' | null
   )
+  const viewMode: 'table' | 'grid' =
+    localViewMode ?? (strVal(config, 'default_library_view', 'grid') === 'list' ? 'table' : 'grid')
   const [activeChip, setActiveChip] = useState<LibraryChip>('all')
   const [profileFilter, setProfileFilter] = useState<string>('all')
   const navigate = useNavigate()
 
   const handleViewMode = (mode: 'table' | 'grid') => {
-    setViewMode(mode)
+    setLocalViewMode(mode)
     localStorage.setItem('library_view_mode', mode)
   }
 
