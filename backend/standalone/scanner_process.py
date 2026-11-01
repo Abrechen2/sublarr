@@ -21,6 +21,82 @@ logger = logging.getLogger(__name__)
 class _StandaloneProcessMixin:
     """Item-processing methods composed into StandaloneScanner."""
 
+    def _wanted_kinds(self, owner: dict) -> tuple[bool, bool]:
+        """(full, forced) wanted items the title's profile asks for."""
+        from services.wanted_item_scanner import _wanted_kinds
+
+        try:
+            from db.profiles import get_profile_for_item
+
+            profile = get_profile_for_item(owner) or {}
+        except Exception:
+            logger.debug("Standalone: failed to read the profile of %s", owner, exc_info=True)
+            profile = {}
+        return _wanted_kinds(profile)
+
+    def _upsert_wanted_for_language(
+        self,
+        *,
+        item_type: str,
+        file_path: str,
+        title: str,
+        target_lang: str,
+        owner: dict,
+        kinds: tuple[bool, bool],
+        season_episode: str = "",
+    ) -> int:
+        """The full and [Forced] wanted rows of one file and language; returns rows written.
+
+        Standalone never created [Forced] items, so "Forced subtitles: Separate"
+        did nothing in standalone mode.
+        """
+        from db.wanted import upsert_wanted_item
+        from services.wanted_item_scanner import _drop_pending_full
+        from translator import detect_existing_target_for_lang
+
+        wants_full, wants_forced = kinds
+        episode = {"season_episode": season_episode} if season_episode else {}
+        written = 0
+        if wants_full:
+            existing = self._check_existing_subtitle(file_path, target_lang)
+            status = self._requeue_status(file_path, target_lang, existing, owner)
+            if not (
+                status == "wanted" and self._language_satisfied(file_path, target_lang, existing)
+            ):
+                upsert_wanted_item(
+                    item_type=item_type,
+                    file_path=file_path,
+                    title=title,
+                    existing_sub=existing or "",
+                    missing_languages=[target_lang],
+                    target_language=target_lang,
+                    instance_name="standalone",
+                    status=status,
+                    **episode,
+                    **owner,
+                )
+                written += 1
+        else:
+            _drop_pending_full(file_path, target_lang)
+
+        if wants_forced and (
+            detect_existing_target_for_lang(file_path, target_lang, subtitle_type="forced") is None
+        ):
+            upsert_wanted_item(
+                item_type=item_type,
+                file_path=file_path,
+                title=f"{title} [Forced]",
+                existing_sub="",
+                missing_languages=[target_lang],
+                target_language=target_lang,
+                instance_name="standalone",
+                subtitle_type="forced",
+                **episode,
+                **owner,
+            )
+            written += 1
+        return written
+
     def _process_series_group(self, title: str, files: list[dict], folder: dict) -> int:
         """Process a group of episode files belonging to one series.
 
@@ -38,7 +114,6 @@ class _StandaloneProcessMixin:
             Number of wanted items added.
         """
         from db.standalone import upsert_standalone_series
-        from db.wanted import upsert_wanted_item
         from standalone.nfo_parser import find_local_poster, parse_series_nfo
 
         # Use the first file's original title for display
@@ -123,6 +198,7 @@ class _StandaloneProcessMixin:
         # Check each episode for missing target subtitles
         wanted_added = 0
         target_languages = self._get_target_languages({"standalone_series_id": series_id})
+        kinds = self._wanted_kinds({"standalone_series_id": series_id})
 
         for f in files:
             if not self._title_exists(owner_col, series_id):
@@ -138,33 +214,19 @@ class _StandaloneProcessMixin:
             elif episode is not None:
                 season_episode = f"E{episode:02d}"
 
+            ep_title = resolved_title
+            if season_episode:
+                ep_title = f"{ep_title} -- {season_episode}"
             for target_lang in target_languages:
-                existing = self._check_existing_subtitle(file_path, target_lang)
-                status = self._requeue_status(
-                    file_path, target_lang, existing, {"standalone_series_id": series_id}
-                )
-                if status == "wanted" and self._language_satisfied(
-                    file_path, target_lang, existing
-                ):
-                    continue  # Goal achieved
-
-                ep_title = resolved_title
-                if season_episode:
-                    ep_title = f"{ep_title} -- {season_episode}"
-
-                upsert_wanted_item(
+                wanted_added += self._upsert_wanted_for_language(
                     item_type="episode",
                     file_path=file_path,
                     title=ep_title,
+                    target_lang=target_lang,
+                    owner={"standalone_series_id": series_id},
+                    kinds=kinds,
                     season_episode=season_episode,
-                    existing_sub=existing or "",
-                    missing_languages=[target_lang],
-                    target_language=target_lang,
-                    instance_name="standalone",
-                    standalone_series_id=series_id,
-                    status=status,
                 )
-                wanted_added += 1
 
         return wanted_added
 
@@ -185,7 +247,6 @@ class _StandaloneProcessMixin:
             1 if a wanted item was added, 0 otherwise.
         """
         from db.standalone import upsert_standalone_movie
-        from db.wanted import upsert_wanted_item
         from standalone.nfo_parser import find_local_poster, parse_movie_nfo
 
         title = parsed.get("title", "Unknown")
@@ -248,26 +309,16 @@ class _StandaloneProcessMixin:
             logger.info("Standalone movie %s was deleted during its scan; skipped", movie_id)
             return 0
 
+        kinds = self._wanted_kinds({"standalone_movie_id": movie_id})
         for target_lang in target_languages:
-            existing = self._check_existing_subtitle(file_path, target_lang)
-            status = self._requeue_status(
-                file_path, target_lang, existing, {"standalone_movie_id": movie_id}
-            )
-            if status == "wanted" and self._language_satisfied(file_path, target_lang, existing):
-                continue
-
-            upsert_wanted_item(
+            wanted_added += self._upsert_wanted_for_language(
                 item_type="movie",
                 file_path=file_path,
                 title=resolved_title,
-                existing_sub=existing or "",
-                missing_languages=[target_lang],
-                target_language=target_lang,
-                instance_name="standalone",
-                standalone_movie_id=movie_id,
-                status=status,
+                target_lang=target_lang,
+                owner={"standalone_movie_id": movie_id},
+                kinds=kinds,
             )
-            wanted_added += 1
 
         return wanted_added
 
@@ -317,7 +368,6 @@ class _StandaloneProcessMixin:
                 # metadata_source="nfo" after a full scan and metadata_source=
                 # "filename" after a single watcher event. See audit S1-2.
                 from db.standalone import upsert_standalone_series
-                from db.wanted import upsert_wanted_item
                 from standalone.nfo_parser import find_local_poster, parse_series_nfo
 
                 title = parsed.get("title", "Unknown")
@@ -394,33 +444,22 @@ class _StandaloneProcessMixin:
                 elif episode is not None:
                     season_episode = f"E{episode:02d}"
 
+                ep_title = resolved_title
+                if season_episode:
+                    ep_title = f"{ep_title} -- {season_episode}"
+                owner = {"standalone_series_id": series_id}
+                kinds = self._wanted_kinds(owner)
                 for target_lang in target_languages:
-                    existing = self._check_existing_subtitle(file_path, target_lang)
-                    status = self._requeue_status(
-                        file_path, target_lang, existing, {"standalone_series_id": series_id}
-                    )
-                    if status == "wanted" and self._language_satisfied(
-                        file_path, target_lang, existing
-                    ):
-                        continue
-
-                    ep_title = resolved_title
-                    if season_episode:
-                        ep_title = f"{ep_title} -- {season_episode}"
-
-                    upsert_wanted_item(
+                    if self._upsert_wanted_for_language(
                         item_type="episode",
                         file_path=file_path,
                         title=ep_title,
+                        target_lang=target_lang,
+                        owner=owner,
+                        kinds=kinds,
                         season_episode=season_episode,
-                        existing_sub=existing or "",
-                        missing_languages=[target_lang],
-                        target_language=target_lang,
-                        instance_name="standalone",
-                        standalone_series_id=series_id,
-                        status=status,
-                    )
-                    wanted = True
+                    ):
+                        wanted = True
 
                 return {
                     "type": "episode",

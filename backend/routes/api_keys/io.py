@@ -208,21 +208,36 @@ def _import_zip(uploaded) -> tuple:
                 if not isinstance(p, dict):
                     continue
                 try:
+                    # The export writes the profile dicts as the API returns
+                    # them (source_language, target_languages, ...); older
+                    # archives used the short names. Read both.
                     create_language_profile(
                         name=p.get("name", "Imported"),
-                        source_lang=p.get("source_lang", "en"),
-                        source_name=p.get("source_name", "English"),
-                        target_langs=p.get("target_langs", []),
-                        target_names=p.get("target_names", []),
+                        source_lang=p.get("source_language", p.get("source_lang", "en")),
+                        source_name=p.get("source_language_name", p.get("source_name", "English")),
+                        target_langs=p.get("target_languages", p.get("target_langs", [])),
+                        target_names=p.get("target_language_names", p.get("target_names", [])),
                         translation_backend=p.get("translation_backend", "ollama"),
                         fallback_chain=p.get("fallback_chain"),
                         forced_preference=p.get("forced_preference", "disabled"),
+                        hi_preference=p.get("hi_preference", "include"),
+                        forced_scoring=p.get("forced_scoring", "include"),
+                        prefer_signs=bool(p.get("prefer_signs", False)),
+                        download_full=bool(p.get("download_full", True)),
+                        must_contain=p.get("must_contain"),
+                        must_not_contain=p.get("must_not_contain"),
+                        cutoff_language=p.get("cutoff_language", ""),
                     )
                     result["profiles_imported"] += 1
                 except Exception as exc:
                     logger.warning("Failed to import profile '%s': %s", p.get("name"), exc)
         except Exception as exc:
             logger.warning("Failed to parse profiles.json: %s", exc)
+        if result["profiles_imported"]:
+            # GET /language-profiles is cached; the restored profiles must show.
+            from cache_response import invalidate_response_cache
+
+            invalidate_response_cache()
 
     # Import glossary.json
     if "glossary.json" in zf.namelist():

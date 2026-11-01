@@ -19,6 +19,12 @@ describe('SubtitleBadges', () => {
     expect(screen.getByText('F')).toBeInTheDocument()
   })
 
+  it('labels a signs & songs result instead of the plain forced flag', () => {
+    render(<ResultFlagBadges flags={{ forced: true, kind: 'signs' }} />)
+    expect(screen.getByText('S&S')).toBeInTheDocument()
+    expect(screen.queryByText('F')).toBeNull()
+  })
+
   it('renders trust badge only for positive bonus', () => {
     const { container } = render(<TrustBadge bonus={0} />)
     expect(container.textContent).toBe('')

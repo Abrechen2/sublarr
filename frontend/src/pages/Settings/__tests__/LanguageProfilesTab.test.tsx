@@ -236,14 +236,32 @@ describe('LanguageProfilesTab — combined subtitles', () => {
   it('sends combine_enabled=false when the toggle is switched off', () => {
     openEditor()
 
-    // The combine toggle is the only checkbox in the form.
-    fireEvent.click(screen.getByRole('checkbox'))
+    fireEvent.click(screen.getByTestId('profile-combine-enabled'))
     fireEvent.click(screen.getByText('language_profiles.save'))
 
     expect(updateMutate).toHaveBeenCalledWith(
       expect.objectContaining({
         id: 1,
         data: expect.objectContaining({ combine_enabled: false }),
+      }),
+      expect.anything(),
+    )
+  })
+
+  it('sends the signs & songs switches and warns when nothing would be searched', () => {
+    openEditor()
+
+    expect(screen.queryByText('language_profiles.download_nothing_warning')).toBeNull()
+    fireEvent.click(screen.getByTestId('profile-download-full'))
+    expect(screen.getByText('language_profiles.download_nothing_warning')).toBeTruthy()
+    fireEvent.click(screen.getByTestId('profile-prefer-signs'))
+    expect(screen.queryByText('language_profiles.download_nothing_warning')).toBeNull()
+    fireEvent.click(screen.getByText('language_profiles.save'))
+
+    expect(updateMutate).toHaveBeenCalledWith(
+      expect.objectContaining({
+        id: 1,
+        data: expect.objectContaining({ prefer_signs: true, download_full: false }),
       }),
       expect.anything(),
     )

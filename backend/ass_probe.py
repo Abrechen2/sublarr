@@ -47,12 +47,14 @@ def is_sdh_stream(stream: dict) -> bool:
 logger = logging.getLogger(__name__)
 
 
-def has_target_language_stream(ffprobe_data, target_language=None):
+def has_target_language_stream(ffprobe_data, target_language=None, kind="full"):
     """Check if the file has an embedded target language subtitle stream.
 
     Args:
         ffprobe_data: dict from ffprobe JSON output
         target_language: Language code (e.g., "de"). If None, uses default from settings.
+        kind: "full" (default) counts dialogue tracks only; "forced" counts
+            forced and signs & songs tracks only.
 
     Returns:
         str or None: "ass" if target lang ASS found, "srt" if SRT found, None otherwise.
@@ -80,7 +82,8 @@ def has_target_language_stream(ffprobe_data, target_language=None):
         # A forced or "Signs & Songs" track is not the dialogue subtitle: it
         # must not satisfy the language, or a signs-only track would stop the
         # search for the real one (and drop wanted rows since 1.14.3).
-        if detect_subtitle_type(stream_info=stream)[0] != "full":
+        is_full = detect_subtitle_type(stream_info=stream)[0] == "full"
+        if is_full != (kind == "full"):
             continue
         codec = stream.get("codec_name", "").lower()
         if codec in ("ass", "ssa"):

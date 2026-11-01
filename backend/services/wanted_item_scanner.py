@@ -197,6 +197,33 @@ def _warn_unmapped(title: str, missing: list[tuple[str, str]], total: int) -> No
     )
 
 
+def _wanted_kinds(profile: dict) -> tuple[bool, bool]:
+    """(full, forced): which wanted items this profile asks for.
+
+    "Prefer signs & songs" implies the [Forced] item; download_full off is the
+    dub watcher who wants the signs track and no dialogue subtitle.
+    """
+    wants_full = profile.get("download_full", True) is not False
+    wants_forced = profile.get("forced_preference") == "separate" or bool(
+        profile.get("prefer_signs")
+    )
+    return wants_full, wants_forced
+
+
+def _drop_pending_full(file_path: str, language: str) -> None:
+    """Remove the regular (full) wanted rows of a file the profile no longer wants."""
+    from db.wanted import delete_wanted_items_by_ids, get_wanted_items_by_path
+
+    ids = [
+        row["id"]
+        for row in get_wanted_items_by_path(file_path)
+        if row.get("subtitle_type", "full") == "full"
+        and (row.get("target_language") or "") == language
+    ]
+    if ids:
+        delete_wanted_items_by_ids(ids)
+
+
 def scan_radarr_movie(
     radarr,
     movie,
@@ -249,42 +276,50 @@ def scan_radarr_movie(
         except Exception as e:
             logger.debug("ffprobe failed for %s: %s", mapped_path, e)
 
-    for target_lang, _target_name in zip(target_languages, target_language_names):
-        lang_result = _check_language_for_item(
-            mapped_path, target_lang, probe_data, settings, keep_seeking_mt=keep_seeking_mt
-        )
-        if lang_result is None:
-            continue
+    wants_full, wants_forced = _wanted_kinds(profile)
 
+    for target_lang, _target_name in zip(target_languages, target_language_names):
         title = movie_title
         if len(target_languages) > 1:
             title = f"{title} [{target_lang.upper()}]"
 
-        item_id, was_updated = upsert_wanted_item(
-            item_type="movie",
-            file_path=mapped_path,
-            title=title,
-            existing_sub=lang_result["existing_sub"],
-            missing_languages=[target_lang],
-            radarr_movie_id=movie_id,
-            upgrade_candidate=lang_result["upgrade_candidate"],
-            current_score=lang_result["current_score"],
-            target_language=target_lang,
-            instance_name=instance_name or "",
-            subtitle_type="full",
-            embedded_languages=lang_result["embedded_languages"],
-            status=_requeue_status(lang_result),
-        )
-        if was_updated:
-            updated += 1
+        if wants_full:
+            lang_result = _check_language_for_item(
+                mapped_path, target_lang, probe_data, settings, keep_seeking_mt=keep_seeking_mt
+            )
         else:
-            added += 1
-            if lang_result["existing_sub"] in ("embedded_ass", "embedded_srt") and auto_extract_fn:
-                auto_extract_fn(item_id, mapped_path)
+            _drop_pending_full(mapped_path, target_lang)
+            lang_result = None
 
-        # Forced subtitle handling
-        forced_preference = profile.get("forced_preference", "disabled")
-        if forced_preference == "separate":
+        if lang_result is not None:
+            item_id, was_updated = upsert_wanted_item(
+                item_type="movie",
+                file_path=mapped_path,
+                title=title,
+                existing_sub=lang_result["existing_sub"],
+                missing_languages=[target_lang],
+                radarr_movie_id=movie_id,
+                upgrade_candidate=lang_result["upgrade_candidate"],
+                current_score=lang_result["current_score"],
+                target_language=target_lang,
+                instance_name=instance_name or "",
+                subtitle_type="full",
+                embedded_languages=lang_result["embedded_languages"],
+                status=_requeue_status(lang_result),
+            )
+            if was_updated:
+                updated += 1
+            else:
+                added += 1
+                if (
+                    lang_result["existing_sub"] in ("embedded_ass", "embedded_srt")
+                    and auto_extract_fn
+                ):
+                    auto_extract_fn(item_id, mapped_path)
+
+        # Forced subtitle handling: independent of the full subtitle. A
+        # library with English subs already present still needs its signs.
+        if wants_forced:
             existing_forced = detect_existing_target_for_lang(
                 mapped_path, target_lang, probe_data, subtitle_type="forced"
             )
@@ -381,6 +416,8 @@ def scan_sonarr_series(
         logger.info("Wanted scan: %s — stopping as asked before upserting", series_title)
         return added, updated, scanned_paths
 
+    wants_full, wants_forced = _wanted_kinds(profile)
+
     for ep, mapped_path in episode_data:
         scanned_paths.add(mapped_path)
 
@@ -396,46 +433,49 @@ def scan_sonarr_series(
             continue
 
         for target_lang, _target_name in zip(target_languages, target_language_names):
-            lang_result = _check_language_for_item(
-                mapped_path, target_lang, probe_data, settings, keep_seeking_mt=keep_seeking_mt
-            )
-            if lang_result is None:
-                continue
-
             title = f"{series_title} — {season_episode}"
             if len(target_languages) > 1:
                 title = f"{title} [{target_lang.upper()}]"
 
-            item_id, was_updated = upsert_wanted_item(
-                item_type="episode",
-                file_path=mapped_path,
-                title=title,
-                season_episode=season_episode,
-                existing_sub=lang_result["existing_sub"],
-                missing_languages=[target_lang],
-                sonarr_series_id=series_id,
-                sonarr_episode_id=episode_id,
-                upgrade_candidate=lang_result["upgrade_candidate"],
-                current_score=lang_result["current_score"],
-                target_language=target_lang,
-                instance_name=instance_name or "",
-                subtitle_type="full",
-                embedded_languages=lang_result["embedded_languages"],
-                status=_requeue_status(lang_result),
-            )
-            if was_updated:
-                updated += 1
+            if wants_full:
+                lang_result = _check_language_for_item(
+                    mapped_path, target_lang, probe_data, settings, keep_seeking_mt=keep_seeking_mt
+                )
             else:
-                added += 1
-                if (
-                    lang_result["existing_sub"] in ("embedded_ass", "embedded_srt")
-                    and auto_extract_fn
-                ):
-                    auto_extract_fn(item_id, mapped_path)
+                _drop_pending_full(mapped_path, target_lang)
+                lang_result = None
 
-            # Forced subtitle handling
-            forced_preference = profile.get("forced_preference", "disabled")
-            if forced_preference == "separate":
+            if lang_result is not None:
+                item_id, was_updated = upsert_wanted_item(
+                    item_type="episode",
+                    file_path=mapped_path,
+                    title=title,
+                    season_episode=season_episode,
+                    existing_sub=lang_result["existing_sub"],
+                    missing_languages=[target_lang],
+                    sonarr_series_id=series_id,
+                    sonarr_episode_id=episode_id,
+                    upgrade_candidate=lang_result["upgrade_candidate"],
+                    current_score=lang_result["current_score"],
+                    target_language=target_lang,
+                    instance_name=instance_name or "",
+                    subtitle_type="full",
+                    embedded_languages=lang_result["embedded_languages"],
+                    status=_requeue_status(lang_result),
+                )
+                if was_updated:
+                    updated += 1
+                else:
+                    added += 1
+                    if (
+                        lang_result["existing_sub"] in ("embedded_ass", "embedded_srt")
+                        and auto_extract_fn
+                    ):
+                        auto_extract_fn(item_id, mapped_path)
+
+            # Forced subtitle handling: independent of the full subtitle. A
+            # library with English subs already present still needs its signs.
+            if wants_forced:
                 existing_forced = detect_existing_target_for_lang(
                     mapped_path, target_lang, probe_data, subtitle_type="forced"
                 )

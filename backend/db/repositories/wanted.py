@@ -656,6 +656,8 @@ class WantedRepository(BaseRepository, _WantedUpsertMixin, _WantedUpdatesMixin):
             WantedItem.radarr_movie_id,
             WantedItem.standalone_series_id,
             WantedItem.standalone_movie_id,
+            # [Forced] items wait for the forced file, not the full one.
+            WantedItem.subtitle_type,
         )
         rows = self.session.execute(stmt).all()
         return [
@@ -669,6 +671,7 @@ class WantedRepository(BaseRepository, _WantedUpsertMixin, _WantedUpdatesMixin):
                 "radarr_movie_id": r[6],
                 "standalone_series_id": r[7],
                 "standalone_movie_id": r[8],
+                "subtitle_type": r[9] or "full",
             }
             for r in rows
         ]

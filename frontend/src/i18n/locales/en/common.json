@@ -1015,6 +1015,7 @@
     "machine_translated": "Machine-translated subtitle",
     "hearing_impaired": "Hearing impaired (SDH)",
     "forced": "Forced subtitle",
+    "signs_songs": "Signs & songs (signs and lyrics only)",
     "synced": "Synced",
     "synced_with": "Synced with {{engine}}",
     "source_whisper": "Whisper",

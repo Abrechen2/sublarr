@@ -12,6 +12,10 @@ export interface LanguageProfile {
   fallback_chain: string[]
   forced_preference: 'disabled' | 'separate' | 'auto'
   forced_scoring: 'include' | 'prefer' | 'exclude' | 'only'
+  /** [Forced] items rank signs & songs first; implies [Forced] items. */
+  prefer_signs?: boolean
+  /** false: no regular (full dialogue) wanted items. */
+  download_full?: boolean
   hi_preference: 'include' | 'prefer' | 'exclude' | 'only'
   cutoff_language: string
   // Provisional machine-translation (V1.6 #8)

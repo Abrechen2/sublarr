@@ -155,6 +155,11 @@ class VideoQuery:
 
     # Forced/signs subtitle search
     forced_only: bool = False  # When True, providers filter for forced/signs subtitles
+    # The regular wanted item: drop forced and signs results (a signs file is
+    # not the dialogue subtitle it waits for). Interactive search leaves it off.
+    full_only: bool = False
+    # Language profile "Prefer signs & songs": rank signs before other forced.
+    prefer_signs: bool = False
 
     # HI preference from the language profile — controls scoring bonus/penalty
     hi_preference: str = "include"  # include | prefer | exclude | only
@@ -216,8 +221,13 @@ class SubtitleResult:
     # Matching metadata
     release_info: str = ""
     hearing_impaired: bool = False
-    forced: bool = False
+    forced: bool = False  # not a full dialogue subtitle: forced or signs & songs
     fps: float | None = None
+    # full | forced | signs, set by the search's classification ("" = not yet:
+    # ``kind`` then derives it from ``forced``). ``forced`` stays the switch
+    # most code reads; set_kind keeps the two in step.
+    subtitle_kind: str = ""
+    kind_confidence: float = 0.0
 
     # Scoring
     score: int = 0
@@ -234,6 +244,15 @@ class SubtitleResult:
     # Uploader trust (populated by OpenSubtitles provider)
     uploader_name: str = ""
     uploader_trust: float = 0.0  # 0-20 rank-based bonus
+
+    @property
+    def kind(self) -> str:
+        return self.subtitle_kind or ("forced" if self.forced else "full")
+
+    def set_kind(self, kind: str, confidence: float = 1.0) -> None:
+        self.subtitle_kind = kind
+        self.kind_confidence = confidence
+        self.forced = kind != "full"
 
     @property
     def is_ass(self) -> bool:
@@ -448,12 +467,11 @@ def compute_score(result: SubtitleResult, query: VideoQuery) -> int:
     ):
         breakdown["hi_preference"] = -999
 
-    # Forced scoring preference — profile value takes precedence over global setting
-    forced_pref = getattr(query, "forced_scoring", None)
-    if not forced_pref or forced_pref == "include":
-        from config import get_settings as _get_settings
-
-        forced_pref = getattr(_get_settings(), "forced_preference", "include")
+    # Forced scoring preference of the query. The global forced_preference
+    # setting is gone: regular items only see full subtitles (full_only) and
+    # [Forced] items only forced ones, so a global "exclude" only marked every
+    # [Forced] candidate -999.
+    forced_pref = getattr(query, "forced_scoring", None) or "include"
     if forced_pref == "prefer" and result.forced:
         breakdown["forced_preference"] = 30
     elif forced_pref == "exclude" and result.forced or forced_pref == "only" and not result.forced:

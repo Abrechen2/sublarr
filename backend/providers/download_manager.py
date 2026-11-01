@@ -353,6 +353,19 @@ def search_and_download_best(
                         result.provider_name, result.subtitle_id, "length_mismatch", detail=mismatch
                     )
                     continue
+                from forced_detection import content_kind_mismatch
+
+                wrong_kind = content_kind_mismatch(result, content, query)
+                if wrong_kind:
+                    # Not the kind this item waits for (a "signs" file that is
+                    # full dialogue, an unlabeled signs track for a full item).
+                    logger.info(
+                        "Skipping %s/%s: %s", result.provider_name, result.subtitle_id, wrong_kind
+                    )
+                    decision_log.download_attempt(
+                        result.provider_name, result.subtitle_id, "kind_mismatch", detail=wrong_kind
+                    )
+                    continue
                 update_stats_fn(result.provider_name, success=True, score=result.score)
                 try:
                     from providers.reranker import apply_auto_reranking

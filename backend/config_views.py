@@ -227,7 +227,6 @@ class ScanningSettings(_SettingsView):
             "upgrade_scan_interval_hours",
             "hi_removal_enabled",
             "hi_preference",
-            "forced_preference",
             "credit_threshold_sec",
             "op_window_sec",
             "webhook_delay_minutes",

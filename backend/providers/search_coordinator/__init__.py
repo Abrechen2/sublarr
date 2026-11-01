@@ -465,7 +465,11 @@ class SearchCoordinatorMixin(SearchRetryMixin, SearchScoringMixin, SearchCacheMi
                             compute_score(result, query)
                             # A wrong episode is dropped later; it must not
                             # end the search for the right one first.
-                            if result.score >= 400 and not episode_gate_reason(result, query):
+                            if (
+                                result.score >= 400
+                                and not episode_gate_reason(result, query)
+                                and _fits_requested_kind(result, query)
+                            ):
                                 logger.info(
                                     "Perfect match found (score=%d) from provider %s, stopping search",
                                     result.score,
@@ -810,3 +814,18 @@ class SearchCoordinatorMixin(SearchRetryMixin, SearchScoringMixin, SearchCacheMi
             must_contain=must_contain,
             must_not_contain=must_not_contain,
         )
+
+
+def _fits_requested_kind(result, query) -> bool:
+    """Whether a result could be kept by the forced_only / full_only filter.
+
+    The early exit must not stop the search on a perfect full subtitle while a
+    [Forced] item waits for signs & songs (or the other way round).
+    """
+    if not (query.forced_only or getattr(query, "full_only", False)):
+        return True
+    from forced_detection import classify_result_kind
+
+    kind = classify_result_kind(result.filename, result.provider_data)[0]
+    is_forced = result.forced or kind != "full"
+    return is_forced if query.forced_only else not is_forced

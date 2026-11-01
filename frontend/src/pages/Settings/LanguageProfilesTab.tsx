@@ -38,6 +38,8 @@ const EMPTY_FORM = {
   target_languages: [] as string[],
   forced_preference: 'disabled' as 'disabled' | 'separate' | 'auto',
   forced_scoring: 'include' as 'include' | 'prefer' | 'exclude' | 'only',
+  prefer_signs: false,
+  download_full: true,
   hi_preference: 'include' as 'include' | 'prefer' | 'exclude' | 'only',
   cutoff_language: '',
   translation_backend: '',
@@ -85,6 +87,8 @@ export function LanguageProfilesTab() {
       target_languages: p.target_languages,
       forced_preference: p.forced_preference || 'disabled',
       forced_scoring: p.forced_scoring || 'include',
+      prefer_signs: p.prefer_signs ?? false,
+      download_full: p.download_full ?? true,
       hi_preference: p.hi_preference || 'include',
       cutoff_language: p.cutoff_language || '',
       translation_backend: p.translation_backend && p.translation_backend !== '' ? p.translation_backend : '',
@@ -131,6 +135,8 @@ export function LanguageProfilesTab() {
       target_language_names: targetNames,
       forced_preference: form.forced_preference,
       forced_scoring: form.forced_scoring,
+      prefer_signs: form.prefer_signs,
+      download_full: form.download_full,
       hi_preference: form.hi_preference,
       cutoff_language: form.cutoff_language,
       translation_backend: primary,
@@ -261,26 +267,40 @@ export function LanguageProfilesTab() {
               </p>
             </div>
 
-            {/* Forced Subtitles Scoring */}
+            {/* Signs & Songs: replaces the old forced scoring, which the
+                regular (full) item no longer reads */}
             <div className="space-y-1">
-              <label className="text-xs font-medium" style={{ color: 'var(--text-secondary)' }}>{t('language_profiles.forced_scoring')}</label>
-              <select
-                value={form.forced_scoring}
-                onChange={(e) => setForm((f) => ({ ...f, forced_scoring: e.target.value as 'include' | 'prefer' | 'exclude' | 'only' }))}
-                className="w-full px-2.5 py-1.5 rounded text-xs"
-                style={{ backgroundColor: 'var(--bg-primary)', border: '1px solid var(--border)', color: 'var(--text-primary)' }}
-              >
-                <option value="include">{t('language_profiles.include')}</option>
-                <option value="prefer">{t('language_profiles.prefer')}</option>
-                <option value="exclude">{t('language_profiles.exclude')}</option>
-                <option value="only">{t('language_profiles.only_forced')}</option>
-              </select>
-              <p className="text-[11px]" style={{ color: 'var(--text-muted)' }}>
-                {form.forced_scoring === 'include' && t('language_profiles.forced_scoring_include_desc')}
-                {form.forced_scoring === 'prefer' && t('language_profiles.forced_scoring_prefer_desc')}
-                {form.forced_scoring === 'exclude' && t('language_profiles.forced_scoring_exclude_desc')}
-                {form.forced_scoring === 'only' && t('language_profiles.forced_scoring_only_desc')}
-              </p>
+              <label className="flex items-center gap-2 cursor-pointer">
+                <input
+                  type="checkbox"
+                  data-testid="profile-prefer-signs"
+                  checked={form.prefer_signs}
+                  onChange={(e) => setForm((f) => ({ ...f, prefer_signs: e.target.checked }))}
+                  style={{ accentColor: 'var(--accent)' }}
+                />
+                <span className="text-xs font-medium text-secondary">
+                  {t('language_profiles.prefer_signs_label')}
+                </span>
+              </label>
+              <p className="text-[11px] text-muted">{t('language_profiles.prefer_signs_help')}</p>
+              <label className="flex items-center gap-2 cursor-pointer pt-1">
+                <input
+                  type="checkbox"
+                  data-testid="profile-download-full"
+                  checked={form.download_full}
+                  onChange={(e) => setForm((f) => ({ ...f, download_full: e.target.checked }))}
+                  style={{ accentColor: 'var(--accent)' }}
+                />
+                <span className="text-xs font-medium text-secondary">
+                  {t('language_profiles.download_full_label')}
+                </span>
+              </label>
+              <p className="text-[11px] text-muted">{t('language_profiles.download_full_help')}</p>
+              {!form.download_full && !form.prefer_signs && form.forced_preference !== 'separate' && (
+                <p className="text-[11px]" style={{ color: 'var(--warning)' }}>
+                  {t('language_profiles.download_nothing_warning')}
+                </p>
+              )}
             </div>
 
             {/* HI Subtitles Preference */}
@@ -491,6 +511,7 @@ export function LanguageProfilesTab() {
               <label className="flex items-center gap-2 cursor-pointer pt-2">
                 <input
                   type="checkbox"
+                  data-testid="profile-combine-enabled"
                   checked={form.combine_enabled}
                   onChange={(e) => setForm((f) => ({ ...f, combine_enabled: e.target.checked }))}
                   style={{ accentColor: 'var(--accent)' }}
@@ -661,9 +682,14 @@ export function LanguageProfilesTab() {
                 {t('language_profiles.summary_forced')} <code style={{ fontFamily: 'var(--font-mono)', color: 'var(--accent)' }}>{p.forced_preference}</code>
               </span>
             )}
-            {p.forced_scoring && p.forced_scoring !== 'include' && (
+            {p.prefer_signs && (
               <span>
-                {t('language_profiles.summary_forced_scoring')} <code style={{ fontFamily: 'var(--font-mono)', color: 'var(--accent)' }}>{p.forced_scoring}</code>
+                <code style={{ fontFamily: 'var(--font-mono)', color: 'var(--accent)' }}>{t('language_profiles.summary_prefer_signs')}</code>
+              </span>
+            )}
+            {p.download_full === false && (
+              <span>
+                <code style={{ fontFamily: 'var(--font-mono)', color: 'var(--accent)' }}>{t('language_profiles.summary_no_full')}</code>
               </span>
             )}
             {p.hi_preference && p.hi_preference !== 'include' && (

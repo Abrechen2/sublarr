@@ -231,6 +231,36 @@ class TestProcessForcedWantedItem:
         mock_delete.assert_called_once_with(1)
         mock_record.assert_called_once()
 
+    def test_prefer_signs_searches_once_across_formats_under_the_profile(
+        self, mock_build, mock_forced_path, mock_record, mock_delete
+    ):
+        """A signs SRT must be able to beat a forced ASS: one search, ranked by kind."""
+        from providers.base import VideoQuery
+        from wanted_search.post_processor import _process_forced_wanted_item
+
+        mock_build.side_effect = lambda item: VideoQuery(series_title="Show", season=1, episode=1)
+        result = _make_result(fmt=SubtitleFormat.SRT)
+        result.set_kind("signs", 0.95)
+        manager = MagicMock()
+        manager.search_and_download_best.return_value = result
+        manager.save_subtitle.return_value = "/out/forced.srt"
+        profile = {
+            "prefer_signs": True,
+            "enabled_providers": ["animetosho"],
+            "scoring_preset": "Anime",
+            "hi_preference": "exclude",
+        }
+
+        out = _process_forced_wanted_item(_make_wanted_item(), 1, "en", manager, profile)
+
+        assert out["status"] == "found"
+        (query,), kwargs = manager.search_and_download_best.call_args
+        assert kwargs["format_filter"] is None
+        assert query.forced_only and query.prefer_signs
+        assert query.allowed_providers == ["animetosho"]
+        assert (query.scoring_preset, query.hi_preference) == ("Anime", "exclude")
+        assert mock_record.call_args.kwargs["subtitle_type"] == "signs"
+
     def test_target_lang_found_srt_after_ass_fails(
         self, mock_build, mock_forced_path, mock_record, mock_delete
     ):
@@ -631,6 +661,61 @@ class TestDownloadSpecificForItem:
         mock_delete.assert_called_once_with(1)
         mock_sync.assert_called_once()
         mock_record.assert_called_once()
+
+    def _manual_pick(self, kind, subtitle_type="full", translate=False):
+        mock_translator = MagicMock()
+        mock_translator.get_output_path_for_lang.return_value = "/out/sub.en.srt"
+        mock_translator.get_forced_output_path.return_value = "/out/sub.en.forced.srt"
+        result = _make_result()
+        result.set_kind(kind, 0.95)
+        manager = MagicMock()
+        manager.search.return_value = [result]
+        manager.download.return_value = result.content
+        manager.save_subtitle.side_effect = lambda r, path, **kw: path
+        mock_delete = MagicMock()
+        mock_record = MagicMock()
+        item = {**_make_wanted_item(), "subtitle_type": subtitle_type}
+        with (
+            self._patched_module(mock_translator) as mod,
+            patch.object(mod, "get_wanted_item", return_value=item),
+            patch.object(mod, "get_settings", return_value=_make_settings()),
+            patch.object(mod, "build_query_from_wanted", return_value=MagicMock()),
+            patch.object(mod, "get_provider_manager", return_value=manager),
+            patch.object(mod, "delete_wanted_item", mock_delete),
+            patch.object(mod, "_try_auto_sync", autospec=True),
+            patch.object(mod, "record_subtitle_download", mock_record),
+        ):
+            # The item waits for "de"; an "en" pick with translate=True asks
+            # for a translation.
+            out = mod.download_specific_for_item(1, "test_provider", "sub123", "en", translate)
+        return out, mock_delete, mock_record
+
+    def test_a_signs_pick_is_saved_as_forced_and_keeps_the_full_item(self):
+        out, delete, record = self._manual_pick("signs")
+
+        assert out["path"] == "/out/sub.en.forced.srt"
+        assert out["kind"] == "signs"
+        assert record.call_args.kwargs["subtitle_type"] == "signs"
+        delete.assert_not_called()
+
+    def test_a_signs_pick_settles_a_forced_item(self):
+        out, delete, _ = self._manual_pick("signs", subtitle_type="forced")
+
+        assert out["path"] == "/out/sub.en.forced.srt"
+        delete.assert_called_once_with(1)
+
+    def test_a_full_pick_does_not_settle_a_forced_item(self):
+        out, delete, _ = self._manual_pick("full", subtitle_type="forced")
+
+        assert out["path"] == "/out/sub.en.srt"
+        delete.assert_not_called()
+
+    def test_a_forced_pick_is_not_translated(self):
+        out, _, record = self._manual_pick("forced", translate=True)
+
+        assert out["success"] is False
+        assert "not translated" in out["error"]
+        record.assert_not_called()
 
     def test_a_manual_download_saves_its_download_details(self):
         """The repair re-fetches a URL provider's file from what the download saved."""

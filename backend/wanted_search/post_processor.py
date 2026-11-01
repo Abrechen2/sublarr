@@ -111,7 +111,25 @@ def _try_auto_combine(item, video_path: str) -> None:
         logger.debug("auto-combine hook failed for %s: %s", video_path, exc)
 
 
-def _process_forced_wanted_item(item, item_id, item_lang, manager):
+def _fmt_name(fmt) -> str:
+    """A format filter's extension; "ass" when the search ran without one."""
+    return fmt.value if fmt else "ass"
+
+
+def _forced_query(item, language, profile_filters):
+    """The [Forced] item's query: forced or signs only, under the item's profile."""
+    query = build_query_from_wanted(item)
+    query.languages = [language]
+    query.forced_only = True
+    query.prefer_signs = bool(profile_filters.get("prefer_signs"))
+    # The same provider list, scoring preset and HI rule as the regular item.
+    query.allowed_providers = list(profile_filters.get("enabled_providers") or [])
+    query.scoring_preset = profile_filters.get("scoring_preset", "") or ""
+    query.hi_preference = profile_filters.get("hi_preference", "include")
+    return query
+
+
+def _process_forced_wanted_item(item, item_id, item_lang, manager, profile_filters=None):
     """Process a forced wanted item: search with forced_only, download, skip translation.
 
     Forced subtitles are download-only (no translation per research recommendation).
@@ -123,16 +141,22 @@ def _process_forced_wanted_item(item, item_id, item_lang, manager):
     file_path = item["file_path"]
 
     # Build forced query
-    query = build_query_from_wanted(item)
-    query.languages = [item_lang]
-    query.forced_only = True
+    pf = profile_filters or {}
+    query = _forced_query(item, item_lang, pf)
+    # "Prefer signs & songs" ranks by kind across formats (a signs SRT beats a
+    # forced ASS), so it searches once; otherwise ASS first, then SRT.
+    formats = (None,) if pf.get("prefer_signs") else (SubtitleFormat.ASS, SubtitleFormat.SRT)
 
     # Try target language forced ASS first, then forced SRT
-    for fmt in (SubtitleFormat.ASS, SubtitleFormat.SRT):
+    for fmt in formats:
         try:
             result = manager.search_and_download_best(query, format_filter=fmt)
             if result and result.content:
-                ext = result.format.value if result.format != SubtitleFormat.UNKNOWN else fmt.value
+                ext = (
+                    result.format.value
+                    if result.format != SubtitleFormat.UNKNOWN
+                    else _fmt_name(fmt)
+                )
                 output_path = get_forced_output_path(file_path, fmt=ext, target_language=item_lang)
                 try:
                     # save_subtitle may rewrite the extension when actual format
@@ -147,11 +171,11 @@ def _process_forced_wanted_item(item, item_id, item_lang, manager):
                         result.provider_name,
                         result.subtitle_id,
                         item_lang,
-                        result.format.value if result.format.value != "unknown" else fmt.value,
+                        result.format.value if result.format.value != "unknown" else _fmt_name(fmt),
                         file_path,
                         result.score,
                         score_breakdown=result.score_breakdown,
-                        subtitle_type="forced",
+                        subtitle_type=result.kind,
                     )
                     logger.info(
                         "Wanted %d: Forced subtitle downloaded from %s, skipping translation",
@@ -191,21 +215,23 @@ def _process_forced_wanted_item(item, item_id, item_lang, manager):
                     continue
         except Exception as e:
             logger.warning(
-                "Wanted %d: Forced %s search failed: %s", item_id, fmt.value, e, exc_info=True
+                "Wanted %d: Forced %s search failed: %s", item_id, _fmt_name(fmt), e, exc_info=True
             )
 
     # Also try source language forced subtitles (download-only, no translation)
     settings = get_settings()
     source_lang = settings.source_language
-    source_query = build_query_from_wanted(item)
-    source_query.languages = [source_lang]
-    source_query.forced_only = True
+    source_query = _forced_query(item, source_lang, pf)
 
-    for fmt in (SubtitleFormat.ASS, SubtitleFormat.SRT):
+    for fmt in formats:
         try:
             result = manager.search_and_download_best(source_query, format_filter=fmt)
             if result and result.content:
-                ext = result.format.value if result.format != SubtitleFormat.UNKNOWN else fmt.value
+                ext = (
+                    result.format.value
+                    if result.format != SubtitleFormat.UNKNOWN
+                    else _fmt_name(fmt)
+                )
                 output_path = get_forced_output_path(
                     file_path, fmt=ext, target_language=source_lang
                 )
@@ -222,11 +248,11 @@ def _process_forced_wanted_item(item, item_id, item_lang, manager):
                         result.provider_name,
                         result.subtitle_id,
                         source_lang,
-                        result.format.value if result.format.value != "unknown" else fmt.value,
+                        result.format.value if result.format.value != "unknown" else _fmt_name(fmt),
                         file_path,
                         result.score,
                         score_breakdown=result.score_breakdown,
-                        subtitle_type="forced",
+                        subtitle_type=result.kind,
                     )
                     logger.info(
                         "Wanted %d: Forced subtitle (source lang) downloaded from %s, skipping translation",
@@ -268,7 +294,7 @@ def _process_forced_wanted_item(item, item_id, item_lang, manager):
             logger.warning(
                 "Wanted %d: Forced source %s search failed: %s",
                 item_id,
-                fmt.value,
+                _fmt_name(fmt),
                 e,
                 exc_info=True,
             )
@@ -369,8 +395,16 @@ def _download_specific_for_item(
     from translator import get_output_path_for_lang
 
     fmt_ext = target_result.format.value if target_result.format.value != "unknown" else "srt"
+    # A forced or signs & songs pick is saved as .lang.forced.ext and only
+    # settles a [Forced] item; a full pick only settles the regular one.
+    satisfies_item = target_result.forced == (item.get("subtitle_type") == "forced")
 
     # When translate=True and we have a non-target language: save + translate
+    if translate and language != item_lang and target_result.forced:
+        return {
+            "success": False,
+            "error": "Forced and signs & songs subtitles are saved as they are, not translated",
+        }
     if translate and language != item_lang:
         base = os.path.splitext(file_path)[0]
         tmp_source_path = f"{base}.{language}.{fmt_ext}"
@@ -494,7 +528,10 @@ def _download_specific_for_item(
         }
 
     # Download only (no translation)
-    output_path = get_output_path_for_lang(file_path, fmt_ext, language)
+    if target_result.forced:
+        output_path = get_forced_output_path(file_path, fmt=fmt_ext, target_language=language)
+    else:
+        output_path = get_output_path_for_lang(file_path, fmt_ext, language)
     try:
         actual_path = manager.save_subtitle(
             target_result,
@@ -510,9 +547,11 @@ def _download_specific_for_item(
             file_path,
             target_result.score,
             score_breakdown=target_result.score_breakdown,
+            subtitle_type=target_result.kind,
         )
     except DuplicateSubtitleError as dup_err:
-        delete_wanted_item(item_id)
+        if satisfies_item:
+            delete_wanted_item(item_id)
         _try_auto_sync(
             dup_err.existing_path,
             file_path,
@@ -528,11 +567,13 @@ def _download_specific_for_item(
             "format": fmt_ext,
             "translated": False,
             "duplicate_skipped": True,
+            "kind": target_result.kind,
         }
     except (OSError, RuntimeError) as e:
         return {"success": False, "error": f"Failed to save subtitle: {e}"}
 
-    delete_wanted_item(item_id)
+    if satisfies_item:
+        delete_wanted_item(item_id)
     _try_auto_sync(
         actual_path, file_path, settings, item_id=item_id, target_language=language, item=item
     )
@@ -542,4 +583,5 @@ def _download_specific_for_item(
         "path": actual_path,
         "format": fmt_ext,
         "translated": False,
+        "kind": target_result.kind,
     }

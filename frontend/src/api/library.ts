@@ -70,6 +70,8 @@ export interface InteractiveSearchResult {
   score_breakdown?: Record<string, number>;
   hearing_impaired: boolean;
   forced: boolean;
+  /** full | forced | signs */
+  kind?: string;
   matches: string[];
   machine_translated?: boolean;
   mt_confidence?: number; // 0-100

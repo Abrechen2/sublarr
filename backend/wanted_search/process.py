@@ -1480,11 +1480,15 @@ def _search_flipped_item(
     # Forced subtitle handling: download-only, no translation
     if subtitle_type == "forced":
         with decision_log.session(item, "forced"):
-            return _process_forced_wanted_item(item, item_id, item_lang, manager)
+            return _process_forced_wanted_item(item, item_id, item_lang, manager, _pf)
 
     # Build primary target-language query shared across Step 1 / Step 3
     query = build_query_from_wanted(item)
     query.languages = [item_lang]
+    # This item waits for the dialogue subtitle. Forced and signs & songs
+    # files go to its [Forced] sibling; saved here they would sit under the
+    # normal name, and translated they would become a "full" subtitle.
+    query.full_only = True
 
     # Provider profile: restrict providers + swap the scoring weight set for
     # every search of this item (target and source language alike), so these
@@ -1499,7 +1503,9 @@ def _search_flipped_item(
     source_query.languages = [settings.source_language]
 
     query.hi_preference = _pf.get("hi_preference", "include")
-    query.forced_scoring = _pf.get("forced_scoring", "include")
+    # forced_scoring no longer applies: this query only sees full subtitles
+    # (full_only), so "only" would merely mark every candidate -999 and keep
+    # them. The profile's download_full / prefer_signs replace it.
 
     ctx = {
         "item": item,

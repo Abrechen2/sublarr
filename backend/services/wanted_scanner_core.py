@@ -423,7 +423,17 @@ class WantedScanner(_WantedSchedulerMixin, _WantedScanSourcesMixin):
                 continue
 
             settings = get_settings()
-            if target_lang:
+            if item.get("subtitle_type") == "forced":
+                # A [Forced] item waits for the forced file, not the full one:
+                # checking the full subtitle removed every [Forced] item of a
+                # library that already had subtitles.
+                if target_lang and detect_existing_target_for_lang(
+                    path, target_lang, subtitle_type="forced"
+                ):
+                    to_remove_ids.append(item["id"])
+                    continue
+                existing = None
+            elif target_lang:
                 existing = detect_existing_target_for_lang(path, target_lang)
                 # A quarantined sidecar is not the subtitle the item waits for.
                 existing = existing_ignoring_suspects(path, target_lang, existing)

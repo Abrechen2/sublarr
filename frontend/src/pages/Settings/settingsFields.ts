@@ -91,14 +91,6 @@ export const FIELDS: FieldConfig[] = [
       { value: 'exclude', label: 'Exclude HI (−999 penalty)' },
       { value: 'only', label: 'Only HI (non-HI excluded)' },
     ] },
-  { key: 'forced_preference', label: 'Forced Subtitle Preference', type: 'select', tab: 'Translation',
-    description: 'Wie Forced-Untertitel (für Fremdsprachen-Szenen) bei der Provider-Suche behandelt werden.',
-    options: [
-      { value: 'include', label: 'Include (no preference)' },
-      { value: 'prefer', label: 'Prefer forced (+30 score)' },
-      { value: 'exclude', label: 'Exclude forced (−999 penalty)' },
-      { value: 'only', label: 'Only forced (non-forced excluded)' },
-    ] },
   // Automation — Provider Re-ranking
   { key: 'provider_reranking_enabled', label: 'Auto Re-ranking', type: 'toggle', tab: 'Automation',
     description: 'Provider-Score-Modifier automatisch aus Download-History berechnen. Gute Provider bekommen Bonus, schlechte Penalty.' },

@@ -141,6 +141,8 @@ class SearchCacheMixin:
                     "release_info": r.release_info,
                     "hearing_impaired": r.hearing_impaired,
                     "forced": r.forced,
+                    "subtitle_kind": r.subtitle_kind,
+                    "kind_confidence": r.kind_confidence,
                     "score": r.score,
                     "provider_data": r.provider_data,
                 }
@@ -175,6 +177,8 @@ class SearchCacheMixin:
                 release_info=r_data.get("release_info", ""),
                 hearing_impaired=r_data.get("hearing_impaired", False),
                 forced=r_data.get("forced", False),
+                subtitle_kind=r_data.get("subtitle_kind", ""),
+                kind_confidence=r_data.get("kind_confidence", 0.0),
                 score=r_data.get("score", 0),
                 provider_data=r_data.get("provider_data", {}),
             )
@@ -226,6 +230,15 @@ class SearchCacheMixin:
             # candidate set and the scores — they must partition the cache.
             ",".join(sorted(getattr(query, "allowed_providers", None) or [])),
             getattr(query, "scoring_preset", "") or "",
+            # The cache holds results after filtering and scoring: everything
+            # that filters or scores by kind or HI must partition it too. A
+            # [Forced] item searched after the regular one was answered with
+            # the regular item's full subtitles.
+            "forced_only" if query.forced_only else "",
+            "full_only" if getattr(query, "full_only", False) else "",
+            "prefer_signs" if getattr(query, "prefer_signs", False) else "",
+            getattr(query, "forced_scoring", "") or "",
+            getattr(query, "hi_preference", "") or "",
             # Same reasoning: the exclusions decide which providers are asked
             # and which results survive, so a cache entry made under one set
             # of exclusions must not answer a search made under another.

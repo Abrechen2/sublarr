@@ -51,6 +51,8 @@ class ProfileRepository(BaseRepository):
         forced_preference: str = "disabled",
         hi_preference: str = "include",
         forced_scoring: str = "include",
+        prefer_signs: bool | int = 0,
+        download_full: bool | int = 1,
         must_contain: list = None,
         must_not_contain: list = None,
         cutoff_language: str = "",
@@ -100,6 +102,8 @@ class ProfileRepository(BaseRepository):
             forced_preference=forced_preference,
             hi_preference=hi_preference,
             forced_scoring=forced_scoring,
+            prefer_signs=1 if prefer_signs else 0,
+            download_full=1 if download_full else 0,
             is_default=0,
             created_at=now,
             updated_at=now,
@@ -188,6 +192,8 @@ class ProfileRepository(BaseRepository):
             "forced_preference",
             "hi_preference",
             "forced_scoring",
+            "prefer_signs",
+            "download_full",
             "must_contain",
             "must_not_contain",
             "cutoff_language",
@@ -261,6 +267,8 @@ class ProfileRepository(BaseRepository):
                 profile.combine_enabled = 1 if value else 0
             elif key == "mt_keep_seeking_original":
                 profile.mt_keep_seeking_original = 1 if value else 0
+            elif key in ("prefer_signs", "download_full"):
+                setattr(profile, key, 1 if value else 0)
             elif key == "combine_languages":
                 profile.combine_languages_json = json.dumps(
                     value if isinstance(value, list) else []
@@ -502,6 +510,8 @@ class ProfileRepository(BaseRepository):
 
         # Forced scoring preference (separate from forced_preference search behavior)
         d["forced_scoring"] = d.get("forced_scoring", "include")
+        d["prefer_signs"] = bool(d.get("prefer_signs", 0))
+        d["download_full"] = bool(d.get("download_full", 1))
 
         # Profile filter fields (Phase 4)
         try:

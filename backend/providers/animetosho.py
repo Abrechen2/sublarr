@@ -390,6 +390,11 @@ class AnimeToshoProvider(SubtitleProvider):
                         "entry_title": title,
                         "attach_id": attach_id,
                         "is_xz": True,
+                        # The raw MKV track name and forced flag: the filename
+                        # above went through secure_filename, which turns
+                        # "Signs & Songs" into "Signs__Songs".
+                        "track_name": info.get("name") or "",
+                        "track_forced": bool(info.get("forced")),
                     },
                 )
                 results.append(result)

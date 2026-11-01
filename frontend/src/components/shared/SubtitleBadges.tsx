@@ -48,6 +48,15 @@ export function ForcedBadge() {
   )
 }
 
+export function SignsBadge() {
+  const { t } = useTranslation('common')
+  return (
+    <span className={`${base} text-sky-400 bg-sky-400/10`} title={t('badges.signs_songs')}>
+      S&amp;S
+    </span>
+  )
+}
+
 export function SyncedBadge({ engine }: { engine?: string }) {
   const { t } = useTranslation('common')
   return (
@@ -89,6 +98,8 @@ export function SourceBadge({ source }: { source?: string | null }) {
 export interface ResultFlags {
   hearing_impaired?: boolean
   forced?: boolean
+  /** full | forced | signs, from the search's classification. */
+  kind?: string
   machine_translated?: boolean
   mt_confidence?: number
   uploader_trust_bonus?: number
@@ -105,7 +116,7 @@ export function ResultFlagBadges({ flags }: { flags: ResultFlags }) {
       )}
       {showMT && <MTBadge confidence={flags.mt_confidence} />}
       {flags.hearing_impaired && <HIBadge />}
-      {flags.forced && <ForcedBadge />}
+      {flags.kind === 'signs' ? <SignsBadge /> : flags.forced && <ForcedBadge />}
     </span>
   )
 }

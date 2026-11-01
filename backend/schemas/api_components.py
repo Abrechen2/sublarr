@@ -114,6 +114,8 @@ class LanguageProfile(BaseModel):
     audio_exclude_languages: list[str] = Field(default_factory=list)
     hi_preference: str = "include"
     forced_scoring: str = "include"
+    prefer_signs: bool = False
+    download_full: bool = True
 
 
 class CleanupRule(BaseModel):

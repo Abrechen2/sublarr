@@ -284,5 +284,5 @@ class TestClassifyForcedResult:
         assert classify_forced_result("show forced eng.srt") == "forced"
 
     def test_forced_in_underscore_context(self):
-        """'forced' surrounded by underscores is a word char boundary — not matched."""
-        assert classify_forced_result("show_forced_eng.srt") == "full"
+        """Underscores separate words: secure_filename turns "English Forced" into this."""
+        assert classify_forced_result("show_forced_eng.srt") == "forced"

@@ -103,15 +103,26 @@ class TestHIPreferenceScoring:
 
 
 class TestForcedPreferenceScoring:
+    """The query's forced_scoring; the global forced_preference setting is gone."""
+
     def _score(self, forced_preference, forced):
-        from config import reload_settings
         from providers.base import compute_score, invalidate_scoring_cache
 
         invalidate_scoring_cache()
-        reload_settings({"forced_preference": forced_preference})
         result = _make_result(forced=forced)
         query = _make_query()
+        query.forced_scoring = forced_preference
         return compute_score(result, query)
+
+    def test_a_stored_global_forced_preference_has_no_effect(self):
+        """It marked every [Forced] candidate -999 under "exclude"."""
+        from config import reload_settings
+
+        reload_settings({"forced_preference": "exclude"})
+        try:
+            assert self._score("include", forced=True) == self._score("include", forced=False)
+        finally:
+            reload_settings({})
 
     def test_include_forced_no_change(self):
         score_forced = self._score("include", forced=True)
@@ -146,10 +157,11 @@ class TestHIAndForcedCombined:
         from providers.base import compute_score, invalidate_scoring_cache
 
         invalidate_scoring_cache()
-        reload_settings({"hi_preference": "prefer", "forced_preference": "prefer"})
+        reload_settings({"hi_preference": "prefer"})
         result_both = _make_result(hearing_impaired=True, forced=True)
         result_neither = _make_result(hearing_impaired=False, forced=False)
         query = _make_query()
+        query.forced_scoring = "prefer"
         assert compute_score(result_both, query) == compute_score(result_neither, query) + 60
 
     def test_exclude_hi_independent_of_forced(self):
@@ -158,7 +170,7 @@ class TestHIAndForcedCombined:
         from providers.base import compute_score, invalidate_scoring_cache
 
         invalidate_scoring_cache()
-        reload_settings({"hi_preference": "exclude", "forced_preference": "include"})
+        reload_settings({"hi_preference": "exclude"})
         result_forced_only = _make_result(hearing_impaired=False, forced=True)
         result_neither = _make_result(hearing_impaired=False, forced=False)
         query = _make_query()

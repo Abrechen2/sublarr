@@ -86,6 +86,10 @@ def detect_existing_target_for_lang(
         for tag in lang_tags:
             if _usable(f"{base}.{tag}.forced.srt"):
                 return "srt"
+        # An embedded forced or "Signs & Songs" track of the language already
+        # covers it (anime releases often carry one).
+        if probe_data:
+            return has_target_language_stream(probe_data, target_language, kind="forced")
         return None
 
     # Default "full" behavior: check non-forced files

@@ -125,6 +125,8 @@ def search_providers():
                         "score": r.score,
                         "score_breakdown": r.score_breakdown,
                         "hearing_impaired": r.hearing_impaired,
+                        "forced": r.forced,
+                        "kind": r.kind,
                         "matches": list(r.matches),
                     }
                     for r in results[:50]  # Limit response size

@@ -195,6 +195,13 @@ class LanguageProfile(db.Model):
     forced_preference: Mapped[str | None] = mapped_column(Text, default="disabled")
     hi_preference: Mapped[str | None] = mapped_column(Text, default="include")
     forced_scoring: Mapped[str | None] = mapped_column(Text, default="include")
+    # Signs & songs (migration sig1). prefer_signs: [Forced] items rank signs &
+    # songs before other forced subtitles and are searched even without
+    # forced_preference "separate". download_full=0: no regular (full dialogue)
+    # wanted items, for dub watchers who only want the signs track.
+    # forced_scoring is no longer read: the regular item only takes full subs.
+    prefer_signs: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    download_full: Mapped[int] = mapped_column(Integer, nullable=False, default=1)
     # Filter fields (Bazarr parity)
     must_contain_json: Mapped[str] = mapped_column(Text, nullable=False, default="[]")
     must_not_contain_json: Mapped[str] = mapped_column(Text, nullable=False, default="[]")

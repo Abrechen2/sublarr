@@ -79,6 +79,8 @@ export interface SearchResult {
   score_breakdown?: Record<string, number>
   hearing_impaired: boolean
   forced?: boolean
+  /** full | forced | signs */
+  kind?: string
   machine_translated?: boolean
   mt_confidence?: number
   uploader_trust_bonus?: number

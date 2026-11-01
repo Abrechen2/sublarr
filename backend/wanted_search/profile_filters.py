@@ -40,6 +40,8 @@ def load_profile_filters(profile) -> dict:
         audio_exclude_languages: list[str]
         hi_preference: str  (include | prefer | exclude | only)
         forced_scoring: str  (include | prefer | exclude | only)
+        prefer_signs: bool  ([Forced] items rank signs & songs first)
+        download_full: bool  (False: no regular wanted items)
         enabled_providers: list[str]  (empty = all globally enabled providers)
         scoring_preset: str  (empty = global scoring weights)
     """
@@ -51,6 +53,8 @@ def load_profile_filters(profile) -> dict:
             "audio_exclude_languages": [],
             "hi_preference": "include",
             "forced_scoring": "include",
+            "prefer_signs": False,
+            "download_full": True,
             "enabled_providers": [],
             "scoring_preset": "",
         }
@@ -70,6 +74,8 @@ def load_profile_filters(profile) -> dict:
         "audio_exclude_languages": _load("audio_exclude_languages_json"),
         "hi_preference": getattr(profile, "hi_preference", "include") or "include",
         "forced_scoring": getattr(profile, "forced_scoring", "include") or "include",
+        "prefer_signs": bool(getattr(profile, "prefer_signs", 0)),
+        "download_full": bool(getattr(profile, "download_full", 1)),
         "enabled_providers": _load("enabled_providers_json"),
         "scoring_preset": getattr(profile, "scoring_preset", "") or "",
     }

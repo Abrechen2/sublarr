@@ -108,19 +108,22 @@ class SearchScoringMixin:
                 ],
             )
 
-        # Post-search forced classification: use forced_detection to classify
-        # results from providers without native forced support (e.g., AnimeTosho,
-        # Jimaku, SubDL). Single-pass: search once, classify results.
-        from forced_detection import classify_forced_result
+        # Classify every result as full, forced or signs & songs. Providers
+        # without native forced support (AnimeTosho, Jimaku, SubDL) only say
+        # so in the track name or file name; a native forced flag is kept and
+        # refined to signs when the name says so.
+        from forced_detection import classify_result_kind
 
         for result in all_results:
-            if not result.forced:
-                forced_type = classify_forced_result(
-                    result.filename,
-                    result.provider_data if hasattr(result, "provider_data") else None,
-                )
-                if forced_type in ("forced", "signs"):
-                    result.forced = True
+            kind, confidence, _source = classify_result_kind(result.filename, result.provider_data)
+            if kind == "full" and result.forced:
+                kind, confidence = "forced", 0.9
+            was_forced = result.forced
+            result.set_kind(kind, confidence)
+            if result.forced != was_forced:
+                # Scored above while still unflagged: the profile's forced
+                # preference (prefer/only) has to see the flag.
+                compute_score(result, query)
 
         # Post-filter: if query requests forced_only, remove non-forced results
         if query.forced_only:
@@ -128,6 +131,17 @@ class SearchScoringMixin:
             all_results = [r for r in all_results if r.forced]
             decision_log.filter_stage(
                 "forced_only",
+                len(before) - len(all_results),
+                len(all_results),
+                _rejected(before, all_results),
+            )
+        elif getattr(query, "full_only", False):
+            # The regular (full) wanted item: a signs or forced file is not the
+            # dialogue subtitle it waits for and must not be saved as one.
+            before = all_results
+            all_results = [r for r in all_results if not r.forced]
+            decision_log.filter_stage(
+                "full_only",
                 len(before) - len(all_results),
                 len(all_results),
                 _rejected(before, all_results),
@@ -257,15 +271,26 @@ class SearchScoringMixin:
                     # tooltip accounts for every point of the final score.
                     r.score_breakdown["release_group_prefer"] = bonus
 
-        # Sort by format preference (ASS first), then by score descending
+        # Sort by format preference (ASS first), then by score descending.
+        # A profile that prefers signs & songs ranks by kind first: a signs
+        # SRT beats a generic forced ASS. A score bonus could not promise that.
+        prefer_signs = getattr(query, "prefer_signs", False)
         all_results.sort(
             key=lambda r: (
+                kind_tier(r) if prefer_signs else 0,
                 0 if r.format == SubtitleFormat.ASS else 1,  # ASS first
                 -r.score,  # Then by score descending
             )
         )
 
         return all_results
+
+
+def kind_tier(result) -> int:
+    """Rank under "prefer signs & songs": certain signs, likely signs, forced, full."""
+    if result.kind == "signs":
+        return 0 if result.kind_confidence >= 0.9 else 1
+    return 2 if result.forced else 3
 
 
 def _blacklisted(result, query) -> bool:
