@@ -138,6 +138,11 @@ def get_wanted_items_by_path(file_path: str) -> list[dict]:
     return _get_repo().get_wanted_items_by_path(file_path)
 
 
+def get_wanted_ids_of_kind(file_paths: list[str], subtitle_type: str) -> list[tuple]:
+    """(id, file_path, target_language) of the full or forced rows of these files."""
+    return _get_repo().get_wanted_ids_of_kind(file_paths, subtitle_type)
+
+
 def update_wanted_status(item_id: int, status: str, error: str = ""):
     """Update a wanted item's status."""
     return _get_repo().update_wanted_status(item_id, status, error)

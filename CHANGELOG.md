@@ -5,13 +5,24 @@ All notable changes to Sublarr are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [1.19.0] - 2026-10-31
+## [1.19.0] - 2026-11-01
 
 A consistency audit (#61) checked that every setting the interface offers is
 saved, read back and actually used, and that the same rule is applied
-everywhere it matters. This release fixes what it found.
+everywhere it matters. This release fixes what it found, and makes signs &
+songs subtitles work for anime.
 
 ### Added
+- **Signs & songs subtitles** — Sublarr now tells signs & songs tracks (only
+  signs and lyrics, for watching the dub) apart from full dialogue subtitles
+  and other forced ones. AnimeTosho tracks are recognised by their name and
+  the forced flag of the original release. The interactive search marks them
+  "S&S".
+- **Language profile: Prefer signs & songs** — Searches forced subtitles for
+  every episode and takes signs & songs before other forced ones. They are
+  saved as `.forced` so Jellyfin, Plex and Emby treat them as forced.
+- **Language profile: Download full subtitles** — Turn it off to get only
+  forced or signs & songs subtitles and no full dialogue subtitle.
 - **Minimum score per language** — Settings → Scoring takes a minimum score
   per language (for example German 80, French 70). It applies to the next
   search without a restart.
@@ -27,6 +38,10 @@ everywhere it matters. This release fixes what it found.
   step: a single invalid value saves nothing and is named with its reason.
   Lists and numbers keep their type across restarts, and a stored number
   outside its range is moved onto the limit instead of being reset.
+- **Titles without a profile use the default profile everywhere** — The
+  wanted scan already took their languages from the default profile; the
+  search now applies its provider list, scoring preset, HI rule and filters
+  as well.
 - **Paths that only come from the container** — Port, media path and
   database path are shown read-only and can no longer be changed through
   the interface or a backup; set them as environment variables.
@@ -35,6 +50,24 @@ everywhere it matters. This release fixes what it found.
   import shows every skipped key with its reason.
 
 ### Fixed
+- **Signs & songs were taken as full subtitles** — On AnimeTosho a signs
+  track scored the same as the dialogue track and could be saved as the
+  normal subtitle. The regular search now only takes full subtitles, and a
+  downloaded file of nothing but signs is refused for it.
+- **Forced subtitles were never searched when subtitles already existed** —
+  The forced search only started when the full subtitle was missing, and the
+  wanted list dropped it again as soon as the full one appeared. In
+  standalone mode it never started at all.
+- **Forced search could return full subtitles** — Within five minutes of a
+  normal search for the same episode, the forced search was answered from
+  its cache, full subtitles included. A perfect full match could also end
+  a forced search early.
+- **"Prefer" and "Only" for forced subtitles had no effect** on AnimeTosho,
+  Jimaku and SubDL results, because the score was computed before the
+  subtitle was recognised as forced.
+- **Backups restored language profiles without their languages** — The
+  import read different field names than the export writes. Restored
+  profiles now keep their languages and options and show up right away.
 - **Provider accounts were not used** — Credentials entered for several
   providers were saved under names the providers never read. They now take
   effect as soon as they are saved.
@@ -72,6 +105,10 @@ everywhere it matters. This release fixes what it found.
   restart.
 
 ### Removed
+- **Forced subtitle scoring and the global forced preference** — The regular
+  search no longer considers forced subtitles, so both settings had nothing
+  left to decide. Profiles that used "Only" now have "Download full
+  subtitles" off and forced subtitles on; "Prefer" turns forced subtitles on.
 - **21 settings that never had an effect** — Download limits, scan filters,
   file-name rules, episode context and auto glossary, auto-sync threshold
   and fallback engine, the old quiet-hours fields (the Quiet Hours table

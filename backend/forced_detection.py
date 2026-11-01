@@ -73,10 +73,11 @@ def detect_subtitle_type(stream_info=None, file_path=None, ass_content=None):
         if isinstance(tags, dict):
             title = (tags.get("title", "") or "").lower()
         if title:
-            if "forced" in title or "foreign" in title:
-                signals.append(("forced", 0.8))
-            if "sign" in title or "song" in title:
-                signals.append(("signs", 0.8))
+            # The same rules as search results: "Full + Signs" is a dialogue
+            # track, a substring "sign" alone said signs.
+            kind, _confidence = classify_track_label(title)
+            if kind != "full":
+                signals.append((kind, 0.8))
 
     # Signal 4: ASS all-signs heuristic (lazy import to avoid circular deps)
     if ass_content is not None:
@@ -133,6 +134,7 @@ _LABEL_SEPARATORS_RE = re.compile(r"[\s_.()\[\]{}|,/:;-]+")
 _SIGNS_AND_SONGS_RE = re.compile(r"\bsigns?\s*(?:&|\+|and)?\s*songs?\b")
 _SIGNS_ONLY_RE = re.compile(r"\bsigns?\s+only\b")
 _SIGNS_RE = re.compile(r"\bsigns?\b")
+_SONGS_RE = re.compile(r"\bsongs?\b")
 _FORCED_RE = re.compile(r"\b(?:forced|foreign)\b")
 _DIALOGUE_RE = re.compile(r"\b(?:full|dialogue|dialog|complete)\b")
 _SUBTITLE_EXT_RE = re.compile(r"\.(?:ass|ssa|srt|vtt|sub|zip)$", re.IGNORECASE)
@@ -159,6 +161,9 @@ def classify_track_label(label: str) -> tuple[str, float]:
         return "forced", 0.9
     if _SIGNS_RE.search(text):
         return "signs", 0.7
+    if _SONGS_RE.search(text):
+        # "Songs Only", "Songs": lyrics without dialogue.
+        return "signs", 0.8
     return "full", 1.0
 
 

@@ -75,6 +75,13 @@ def _load_profile_filters(item: dict, item_id: int) -> dict:
             _mlp = get_row(MovieLanguageProfile, _movie_key)
             if _mlp:
                 _profile_obj = _db.session.get(LanguageProfile, _mlp.profile_id)
+        if _profile_obj is None:
+            # Unassigned titles use the default profile, as the scanner does
+            # (get_series_profile / get_movie_profile): its provider list,
+            # filters and signs & songs preference apply to their search too.
+            _profile_obj = _db.session.execute(
+                _db.select(LanguageProfile).where(LanguageProfile.is_default == 1)
+            ).scalar_one_or_none()
     except Exception as _pe:
         logger.debug("Could not load language profile for wanted %d: %s", item_id, _pe)
     return load_profile_filters(_profile_obj)
@@ -84,6 +91,10 @@ def _check_profile_cutoff_and_audio(
     item: dict, item_id: int, item_lang: str, _pf: dict
 ) -> dict | None:
     """Apply cutoff_language and audio_exclude profile gates. Returns skip-dict or None."""
+    if item.get("subtitle_type") == "forced":
+        # Both gates are about the dialogue subtitle. A [Forced] item is wanted
+        # exactly when the audio is already the target language (the dub).
+        return None
     _cutoff = _pf["cutoff_language"]
     if _cutoff:
         from translator import get_output_path_for_lang
@@ -133,9 +144,15 @@ def _check_existing_sidecar(item: dict, item_id: int, item_lang: str, settings) 
         from services.suspect_sidecars import existing_ignoring_suspects
         from translator import detect_existing_target_for_lang
 
-        _existing = detect_existing_target_for_lang(item["file_path"], item_lang, probe_data=None)
-        # A quarantined (suspect) sidecar is what this search is to replace.
-        _existing = existing_ignoring_suspects(item["file_path"], item_lang, _existing)
+        # A [Forced] item waits for the .forced file; the full subtitle next to
+        # it must not mark it done before it ever searched.
+        subtitle_type = item.get("subtitle_type") or "full"
+        _existing = detect_existing_target_for_lang(
+            item["file_path"], item_lang, probe_data=None, subtitle_type=subtitle_type
+        )
+        if subtitle_type == "full":
+            # A quarantined (suspect) sidecar is what this search is to replace.
+            _existing = existing_ignoring_suspects(item["file_path"], item_lang, _existing)
     except Exception as _dex:
         logger.debug("existing-sidecar probe failed (non-fatal): %s", _dex)
         _existing = None

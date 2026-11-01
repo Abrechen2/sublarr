@@ -18,6 +18,29 @@ import os
 logger = logging.getLogger(__name__)
 
 
+def _drop_pending(unwanted: dict[str, set]) -> None:
+    from services.wanted_item_scanner import _drop_pending as drop
+
+    drop(unwanted)
+
+
+def _embedded_streams(file_path: str):
+    """ffprobe data of a video (cached), so an embedded signs track counts; None if off."""
+    from config import get_settings
+
+    if not get_settings().use_embedded_subs or not file_path.lower().endswith(
+        (".mkv", ".mp4", ".m4v")
+    ):
+        return None
+    try:
+        from ass_utils import get_media_streams
+
+        return get_media_streams(file_path, use_cache=True)
+    except Exception:
+        logger.debug("Standalone: ffprobe failed for %s", file_path, exc_info=True)
+        return None
+
+
 class _StandaloneProcessMixin:
     """Item-processing methods composed into StandaloneScanner."""
 
@@ -43,15 +66,16 @@ class _StandaloneProcessMixin:
         target_lang: str,
         owner: dict,
         kinds: tuple[bool, bool],
+        unwanted: dict[str, set],
         season_episode: str = "",
     ) -> int:
         """The full and [Forced] wanted rows of one file and language; returns rows written.
 
         Standalone never created [Forced] items, so "Forced subtitles: Separate"
-        did nothing in standalone mode.
+        did nothing in standalone mode. Kinds the profile no longer asks for
+        are collected in ``unwanted`` for one ``_drop_pending`` per title.
         """
         from db.wanted import upsert_wanted_item
-        from services.wanted_item_scanner import _drop_pending_full
         from translator import detect_existing_target_for_lang
 
         wants_full, wants_forced = kinds
@@ -77,10 +101,15 @@ class _StandaloneProcessMixin:
                 )
                 written += 1
         else:
-            _drop_pending_full(file_path, target_lang)
+            unwanted["full"].add((file_path, target_lang))
 
-        if wants_forced and (
-            detect_existing_target_for_lang(file_path, target_lang, subtitle_type="forced") is None
+        if not wants_forced:
+            unwanted["forced"].add((file_path, target_lang))
+        elif (
+            detect_existing_target_for_lang(
+                file_path, target_lang, _embedded_streams(file_path), subtitle_type="forced"
+            )
+            is None
         ):
             upsert_wanted_item(
                 item_type=item_type,
@@ -199,6 +228,7 @@ class _StandaloneProcessMixin:
         wanted_added = 0
         target_languages = self._get_target_languages({"standalone_series_id": series_id})
         kinds = self._wanted_kinds({"standalone_series_id": series_id})
+        unwanted: dict[str, set] = {"full": set(), "forced": set()}
 
         for f in files:
             if not self._title_exists(owner_col, series_id):
@@ -225,9 +255,11 @@ class _StandaloneProcessMixin:
                     target_lang=target_lang,
                     owner={"standalone_series_id": series_id},
                     kinds=kinds,
+                    unwanted=unwanted,
                     season_episode=season_episode,
                 )
 
+        _drop_pending(unwanted)
         return wanted_added
 
     def _process_movie(self, parsed: dict, file_path: str, folder: dict) -> int:
@@ -310,6 +342,7 @@ class _StandaloneProcessMixin:
             return 0
 
         kinds = self._wanted_kinds({"standalone_movie_id": movie_id})
+        unwanted: dict[str, set] = {"full": set(), "forced": set()}
         for target_lang in target_languages:
             wanted_added += self._upsert_wanted_for_language(
                 item_type="movie",
@@ -318,8 +351,10 @@ class _StandaloneProcessMixin:
                 target_lang=target_lang,
                 owner={"standalone_movie_id": movie_id},
                 kinds=kinds,
+                unwanted=unwanted,
             )
 
+        _drop_pending(unwanted)
         return wanted_added
 
     def process_single_file(self, file_path: str) -> dict:
@@ -449,6 +484,7 @@ class _StandaloneProcessMixin:
                     ep_title = f"{ep_title} -- {season_episode}"
                 owner = {"standalone_series_id": series_id}
                 kinds = self._wanted_kinds(owner)
+                unwanted: dict[str, set] = {"full": set(), "forced": set()}
                 for target_lang in target_languages:
                     if self._upsert_wanted_for_language(
                         item_type="episode",
@@ -457,9 +493,11 @@ class _StandaloneProcessMixin:
                         target_lang=target_lang,
                         owner=owner,
                         kinds=kinds,
+                        unwanted=unwanted,
                         season_episode=season_episode,
                     ):
                         wanted = True
+                _drop_pending(unwanted)
 
                 return {
                     "type": "episode",

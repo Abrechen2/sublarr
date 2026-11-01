@@ -337,6 +337,23 @@ class WantedRepository(BaseRepository, _WantedUpsertMixin, _WantedUpdatesMixin):
         rows = self.session.execute(stmt).scalars().all()
         return [self._row_to_wanted(r) for r in rows]
 
+    def get_wanted_ids_of_kind(
+        self, file_paths: list[str], subtitle_type: str
+    ) -> list[tuple[int, str, str]]:
+        """(id, file_path, target_language) of the rows of one kind for these files.
+
+        One query per 500 paths: a library scan asks this for every file.
+        """
+        paths = sorted(set(file_paths))
+        found = []
+        for start in range(0, len(paths), 500):
+            stmt = select(WantedItem.id, WantedItem.file_path, WantedItem.target_language).where(
+                WantedItem.file_path.in_(paths[start : start + 500]),
+                func.coalesce(WantedItem.subtitle_type, "full") == subtitle_type,
+            )
+            found.extend(self.session.execute(stmt).all())
+        return [(r[0], r[1], r[2] or "") for r in found]
+
     # update_wanted_status, update_wanted_search_outcome, mark_search_attempted,
     # set_retry_after, update_existing_sub live on _WantedUpdatesMixin (see
     # wanted_updates.py).

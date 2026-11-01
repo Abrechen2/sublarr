@@ -161,3 +161,14 @@ def test_a_full_perfect_match_does_not_end_a_forced_search():
     assert _fits_requested_kind(signs, _query(forced_only=True))
     assert not _fits_requested_kind(signs, _query(full_only=True))
     assert _fits_requested_kind(full, _query())
+
+
+def test_under_prefer_signs_only_a_certain_signs_track_ends_the_search_early():
+    from providers.search_coordinator import _fits_requested_kind
+
+    query = _query(forced_only=True, prefer_signs=True)
+    forced = _result("forced", "track3.eng.ass", provider_data={"track_forced": True})
+    signs = _result("signs", "Signs__Songs.eng.ass", provider_data={"track_name": "Signs & Songs"})
+
+    assert not _fits_requested_kind(forced, query)
+    assert _fits_requested_kind(signs, query)

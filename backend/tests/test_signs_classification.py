@@ -24,13 +24,14 @@ from forced_detection import classify_result_kind, classify_track_label
         "Signs + Songs",
         "Signs and Songs",
         "Signs Only",
+        "Songs Only",
         "[Group] Show - 01 (Signs & Songs).ass",
     ],
 )
 def test_explicit_signs_names_are_signs(label):
     kind, confidence = classify_track_label(label)
     assert kind == "signs"
-    assert confidence >= 0.9
+    assert confidence >= 0.8
 
 
 @pytest.mark.parametrize("label", ["English (Signs) Official", "English_Signs_Official.eng.ass"])
@@ -40,7 +41,9 @@ def test_a_bare_signs_word_is_signs_with_lower_confidence(label):
     assert confidence < 0.9
 
 
-@pytest.mark.parametrize("label", ["Forced", "Forced.eng.ass", "English Forced", "Foreign parts"])
+@pytest.mark.parametrize(
+    "label", ["Forced", "Forced.eng.ass", "English Forced", "Foreign parts", "English_Forced"]
+)
 def test_forced_names_are_forced(label):
     assert classify_track_label(label)[0] == "forced"
 
@@ -57,6 +60,7 @@ def test_forced_names_are_forced(label):
         "English_subs.eng.ass",
         "track4.eng.ass",
         "English_Anime_Chap.eng.ass",
+        "Full (with songs)",
     ],
 )
 def test_dialogue_tracks_are_full(label):

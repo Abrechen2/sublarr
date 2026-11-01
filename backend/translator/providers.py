@@ -17,6 +17,9 @@ def _build_video_query(mkv_path, context=None):
     query = VideoQuery(
         file_path=mkv_path,
         languages=[settings.source_language],
+        # Translation sources and target ASS files are dialogue subtitles; a
+        # signs & songs track would end up as the full sidecar.
+        full_only=True,
     )
 
     if context:

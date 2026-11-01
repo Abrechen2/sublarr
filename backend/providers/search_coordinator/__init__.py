@@ -826,6 +826,10 @@ def _fits_requested_kind(result, query) -> bool:
         return True
     from forced_detection import classify_result_kind
 
-    kind = classify_result_kind(result.filename, result.provider_data)[0]
+    kind, confidence, _ = classify_result_kind(result.filename, result.provider_data)
     is_forced = result.forced or kind != "full"
+    if query.forced_only and getattr(query, "prefer_signs", False):
+        # Signs rank first: a perfect generic forced subtitle must not end the
+        # search before another provider answers with the signs track.
+        return kind == "signs" and confidence >= 0.9
     return is_forced if query.forced_only else not is_forced

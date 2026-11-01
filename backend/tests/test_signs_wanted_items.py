@@ -61,6 +61,16 @@ def test_an_embedded_signs_track_covers_forced_but_not_full(video):
     assert detect_existing_target_for_lang(str(video), "en", probe) is None
 
 
+def test_an_embedded_full_plus_signs_track_is_a_dialogue_track(video):
+    from translator import detect_existing_target_for_lang
+
+    stream = {**_DIALOGUE_STREAM, "tags": {"language": "eng", "title": "Full + Signs"}}
+    probe = {"streams": [stream]}
+
+    assert detect_existing_target_for_lang(str(video), "en", probe) == "ass"
+    assert detect_existing_target_for_lang(str(video), "en", probe, subtitle_type="forced") is None
+
+
 def test_an_embedded_dialogue_track_covers_full_but_not_forced(video):
     from translator import detect_existing_target_for_lang
 
@@ -158,6 +168,7 @@ def test_standalone_creates_the_forced_item_next_to_an_existing_full_subtitle(vi
             target_lang="en",
             owner={"standalone_series_id": 7},
             kinds=(True, True),
+            unwanted={"full": set(), "forced": set()},
             season_episode="S01E02",
         )
 
@@ -168,22 +179,40 @@ def test_standalone_creates_the_forced_item_next_to_an_existing_full_subtitle(vi
     assert upserts[0]["standalone_series_id"] == 7
 
 
-def test_download_full_off_drops_the_pending_full_item(video):
-    from services.wanted_item_scanner import _drop_pending_full
+@pytest.mark.parametrize(("kind", "expected"), [("full", [1]), ("forced", [2])])
+def test_a_kind_the_profile_no_longer_wants_is_dropped(video, kind, expected):
+    from services.wanted_item_scanner import _drop_pending
 
-    rows = [
-        {"id": 1, "subtitle_type": "full", "target_language": "en"},
-        {"id": 2, "subtitle_type": "forced", "target_language": "en"},
-        {"id": 3, "subtitle_type": "full", "target_language": "de"},
-    ]
+    rows = {
+        "full": [(1, str(video), "en"), (3, str(video), "de")],
+        "forced": [(2, str(video), "en")],
+    }
     deleted = []
     with (
-        patch("db.wanted.get_wanted_items_by_path", return_value=rows),
+        patch("db.wanted.get_wanted_ids_of_kind", side_effect=lambda paths, k: rows[k]),
         patch("db.wanted.delete_wanted_items_by_ids", side_effect=deleted.extend),
     ):
-        _drop_pending_full(str(video), "en")
+        _drop_pending({"full": set(), "forced": set(), kind: {(str(video), "en")}})
 
-    assert deleted == [1]
+    assert deleted == expected
+
+
+def test_the_kind_lookup_is_one_query_per_kind(client):
+    from db.wanted import get_wanted_ids_of_kind, upsert_wanted_item
+
+    with client.application.app_context():
+        for i, kind in enumerate(("full", "forced", "full")):
+            upsert_wanted_item(
+                item_type="episode",
+                file_path=f"/media/a{i}.mkv",
+                title="x",
+                target_language="en",
+                missing_languages=["en"],
+                subtitle_type=kind,
+            )
+        found = get_wanted_ids_of_kind(["/media/a0.mkv", "/media/a1.mkv"], "forced")
+
+    assert [(path, lang) for _id, path, lang in found] == [("/media/a1.mkv", "en")]
 
 
 # --- the downloaded file itself -----------------------------------------------
@@ -244,3 +273,41 @@ def test_the_content_check_ignores_srt_and_unreadable_files():
 
     assert content_kind_mismatch(srt, b"1\n00:00:01,000 --> 00:00:02,000\nHi\n", query) is None
     assert content_kind_mismatch(_ass_result("signs"), b"\xff\xfe garbage", query) is None
+
+
+# --- before the search ----------------------------------------------------------
+
+
+def test_a_forced_item_is_not_settled_by_the_full_subtitle(video, client):
+    """Codex P1: the existing-sidecar check marked new [Forced] items done."""
+    from wanted_search.process import _check_existing_sidecar
+
+    _sidecar(video, ".en.ass")
+    settings = MagicMock(upgrade_enabled=False)
+    item = {"file_path": str(video), "subtitle_type": "forced"}
+
+    with (
+        client.application.app_context(),
+        patch("wanted_search.process.update_existing_sub"),
+        patch("wanted_search.process.update_wanted_status") as status,
+    ):
+        assert _check_existing_sidecar(item, 1, "en", settings) is None
+        status.assert_not_called()
+
+        _sidecar(video, ".en.forced.ass")
+        assert _check_existing_sidecar(item, 1, "en", settings)["status"] == "skipped"
+
+
+def test_cutoff_and_audio_gates_skip_forced_items(video):
+    """A [Forced] item is wanted because the audio already is the target language."""
+    from wanted_search.process import _check_profile_cutoff_and_audio
+
+    pf = {"cutoff_language": "en", "audio_exclude_languages": ["en"]}
+    _sidecar(video, ".en.ass")
+
+    assert (
+        _check_profile_cutoff_and_audio(
+            {"file_path": str(video), "subtitle_type": "forced"}, 1, "en", pf
+        )
+        is None
+    )

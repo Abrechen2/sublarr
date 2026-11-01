@@ -210,16 +210,19 @@ def _wanted_kinds(profile: dict) -> tuple[bool, bool]:
     return wants_full, wants_forced
 
 
-def _drop_pending_full(file_path: str, language: str) -> None:
-    """Remove the regular (full) wanted rows of a file the profile no longer wants."""
-    from db.wanted import delete_wanted_items_by_ids, get_wanted_items_by_path
+def _drop_pending(unwanted: dict[str, set]) -> None:
+    """Remove wanted rows of a kind the profile no longer asks for.
 
-    ids = [
-        row["id"]
-        for row in get_wanted_items_by_path(file_path)
-        if row.get("subtitle_type", "full") == "full"
-        and (row.get("target_language") or "") == language
-    ]
+    ``unwanted`` maps "full"/"forced" to the (file_path, language) pairs a scan
+    found unwanted; one query per kind, not one per file.
+    """
+    from db.wanted import delete_wanted_items_by_ids, get_wanted_ids_of_kind
+
+    ids = []
+    for subtitle_type, pairs in unwanted.items():
+        if pairs:
+            rows = get_wanted_ids_of_kind([path for path, _ in pairs], subtitle_type)
+            ids.extend(row_id for row_id, path, lang in rows if (path, lang) in pairs)
     if ids:
         delete_wanted_items_by_ids(ids)
 
@@ -277,6 +280,7 @@ def scan_radarr_movie(
             logger.debug("ffprobe failed for %s: %s", mapped_path, e)
 
     wants_full, wants_forced = _wanted_kinds(profile)
+    unwanted: dict[str, set] = {"full": set(), "forced": set()}
 
     for target_lang, _target_name in zip(target_languages, target_language_names):
         title = movie_title
@@ -288,7 +292,7 @@ def scan_radarr_movie(
                 mapped_path, target_lang, probe_data, settings, keep_seeking_mt=keep_seeking_mt
             )
         else:
-            _drop_pending_full(mapped_path, target_lang)
+            unwanted["full"].add((mapped_path, target_lang))
             lang_result = None
 
         if lang_result is not None:
@@ -319,7 +323,9 @@ def scan_radarr_movie(
 
         # Forced subtitle handling: independent of the full subtitle. A
         # library with English subs already present still needs its signs.
-        if wants_forced:
+        if not wants_forced:
+            unwanted["forced"].add((mapped_path, target_lang))
+        else:
             existing_forced = detect_existing_target_for_lang(
                 mapped_path, target_lang, probe_data, subtitle_type="forced"
             )
@@ -343,6 +349,7 @@ def scan_radarr_movie(
                 else:
                     added += 1
 
+    _drop_pending(unwanted)
     return added, updated, scanned_paths
 
 
@@ -417,6 +424,7 @@ def scan_sonarr_series(
         return added, updated, scanned_paths
 
     wants_full, wants_forced = _wanted_kinds(profile)
+    unwanted: dict[str, set] = {"full": set(), "forced": set()}
 
     for ep, mapped_path in episode_data:
         scanned_paths.add(mapped_path)
@@ -442,7 +450,7 @@ def scan_sonarr_series(
                     mapped_path, target_lang, probe_data, settings, keep_seeking_mt=keep_seeking_mt
                 )
             else:
-                _drop_pending_full(mapped_path, target_lang)
+                unwanted["full"].add((mapped_path, target_lang))
                 lang_result = None
 
             if lang_result is not None:
@@ -475,7 +483,9 @@ def scan_sonarr_series(
 
             # Forced subtitle handling: independent of the full subtitle. A
             # library with English subs already present still needs its signs.
-            if wants_forced:
+            if not wants_forced:
+                unwanted["forced"].add((mapped_path, target_lang))
+            else:
                 existing_forced = detect_existing_target_for_lang(
                     mapped_path, target_lang, probe_data, subtitle_type="forced"
                 )
@@ -501,4 +511,5 @@ def scan_sonarr_series(
                     else:
                         added += 1
 
+    _drop_pending(unwanted)
     return added, updated, scanned_paths
