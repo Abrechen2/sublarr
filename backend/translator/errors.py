@@ -15,6 +15,12 @@ NO_TRANSLATABLE_DIALOGUE = "no_translatable_dialogue"
 #: already on disk, so there is nothing for a machine translation to do.
 TARGET_SUBTITLE_EXISTS = "target_subtitle_exists"
 
+#: Marker on a failure result: the source holds too few dialogue lines for the
+#: video to be its full subtitle — a signs track under a full name (prod
+#: 2026-11: 7 sign events "translated" into a German subtitle without dialogue).
+#: Like NO_TRANSLATABLE_DIALOGUE it reads the same on every attempt.
+SPARSE_SOURCE = "sparse_source"
+
 # An unsupported event or unsafe model answer is not proof of an empty track.
 # Keep it distinct so the queue does not take its terminal no-dialogue path.
 ASS_REVIEW_REQUIRED = "ass_review_required"

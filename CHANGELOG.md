@@ -5,6 +5,21 @@ All notable changes to Sublarr are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Fixed
+- **Signs tracks no longer pass as full subtitles** — A subtitle with far too
+  few dialogue lines for the video is now refused as the full subtitle,
+  whatever its style names say (for example 7 sign lines in style "Default"
+  for a 24-minute episode). Shorts stay unaffected: the check needs the
+  video's length and allows a few lines for a few minutes.
+- **Upgrades keep the dialogue** — An SRT→ASS upgrade and the "keep ASS"
+  cleanup no longer replace a subtitle with one that holds under a quarter
+  of its lines.
+- **No translations from signs tracks** — Translation refuses a source that
+  holds only signs and tries the next one: the SRT beside it, the provider
+  search. `.forced` and `.signs` sidecars are never used as a source.
+
 ## [1.19.2] - 2026-11-03
 
 1.19.1 was tagged but never published; its fix ships in this release.

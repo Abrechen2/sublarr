@@ -234,6 +234,21 @@ def _delivered_format(result) -> SubtitleFormat:
     return detected if detected != SubtitleFormat.UNKNOWN else result.format
 
 
+def _dialogue_drop_reason(existing_path: str, new_content: bytes | None) -> str | None:
+    """Why replacing ``existing_path`` with ``new_content`` loses dialogue. Never raises."""
+    if not new_content:
+        return None
+    try:
+        with open(existing_path, "rb") as fh:
+            old_content = fh.read()
+        from subtitle_dialogue import dialogue_drop
+
+        return dialogue_drop(old_content, new_content)
+    except Exception as exc:  # noqa: BLE001 — a check that cannot run must not block
+        logger.debug("Dialogue comparison skipped for %s: %s", existing_path, exc)
+        return None
+
+
 def _upgrade_rejected(item_id: int, reason: str) -> dict:
     """End a rejected upgrade with a backoff, like every other miss.
 
@@ -391,6 +406,12 @@ def _try_target_ass_direct(ctx: dict) -> dict | None:
                 upgrade_window_days=settings.upgrade_window_days,
                 existing_file_path=existing_srt,
             )
+            if do_upgrade:
+                # The format rule approves SRT->ASS unseen; a signs track would
+                # pass it and retire the dialogue (prod 2026-11: 405 cues -> 7).
+                drop = _dialogue_drop_reason(existing_srt, result.content)
+                if drop:
+                    do_upgrade, reason = False, drop
             decision_log.upgrade_decision(do_upgrade, reason, current_score, new_score)
             if not do_upgrade:
                 return _upgrade_rejected(item_id, reason)

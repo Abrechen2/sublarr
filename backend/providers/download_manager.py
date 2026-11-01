@@ -237,18 +237,28 @@ class _LengthCheck:
         self._query = query
         self._duration = self._UNSET
 
+    def duration(self) -> float | None:
+        """The queried video's length in seconds, probed on first use. Never raises."""
+        if self._duration is self._UNSET:
+            try:
+                import subtitle_plausibility as plausibility
+
+                self._duration = plausibility.video_duration_s(
+                    getattr(self._query, "file_path", "") or ""
+                )
+            except Exception as exc:  # noqa: BLE001 — an unknown length only skips checks
+                logger.debug("Video duration probe skipped: %s", exc)
+                self._duration = None
+        return self._duration
+
     def reason(self, result: SubtitleResult, content: bytes) -> str | None:
         """Why ``content`` cannot belong to the queried video, or None. Never raises."""
         try:
             import subtitle_plausibility as plausibility
 
-            if self._duration is self._UNSET:
-                self._duration = plausibility.video_duration_s(
-                    getattr(self._query, "file_path", "") or ""
-                )
             return plausibility.length_mismatch(
                 content,
-                self._duration,
+                self.duration(),
                 partial_ok=plausibility.is_partial_subtitle(result, self._query),
             )
         except Exception as exc:  # noqa: BLE001 — a check that cannot run must not block
@@ -355,7 +365,9 @@ def search_and_download_best(
                     continue
                 from forced_detection import content_kind_mismatch
 
-                wrong_kind = content_kind_mismatch(result, content, query)
+                wrong_kind = content_kind_mismatch(
+                    result, content, query, duration_s=length_check.duration()
+                )
                 if wrong_kind:
                     # Not the kind this item waits for (a "signs" file that is
                     # full dialogue, an unlabeled signs track for a full item).

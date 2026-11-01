@@ -436,6 +436,9 @@ def find_external_source_sub(mkv_path):
     return None
 
 
+# Filename modifiers of sidecars that hold only part of the dialogue.
+_PARTIAL_MODIFIERS = frozenset({"forced", "signs", "sign", "foreign"})
+
 # Bounded fallback source languages when the install has no candidate list.
 # Common subtitle source languages, ordered by how often they carry a
 # translatable original. The target language is always excluded at the call
@@ -522,6 +525,10 @@ def find_any_source_sub(mkv_path, target_language=None, preferred_languages=None
                 continue  # not a recognised language token
             lang = _REVERSE_LANGUAGE_TAGS[tag]
             if lang == target:
+                continue
+            if _PARTIAL_MODIFIERS.intersection(remainder.lower().split(".")[1:]):
+                # ".en.forced.srt" / ".en.signs.ass" covers a few scenes; a
+                # translation of it would be saved as the full target subtitle.
                 continue
             if os.path.normcase(os.path.normpath(path)) in machine_translated:
                 logger.debug("Skipping machine translation as a source: %s", path)

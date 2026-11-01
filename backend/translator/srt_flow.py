@@ -17,8 +17,9 @@ import os
 import re
 import tempfile
 
+from subtitle_dialogue import sparse_source_reason
 from subtitle_encoding import load_subtitle_file
-from translator.errors import NO_TRANSLATABLE_DIALOGUE, TranslationAbortedError
+from translator.errors import NO_TRANSLATABLE_DIALOGUE, SPARSE_SOURCE, TranslationAbortedError
 
 logger = logging.getLogger(__name__)
 
@@ -52,6 +53,7 @@ def translate_srt_from_stream(
             target_language=target_language,
             arr_context=arr_context,
             source_language=source_language,
+            video_path=mkv_path,
         )
     except TranslationAbortedError:
         # Cancellation is not a translation failure. Turning it into a failure
@@ -92,6 +94,7 @@ def translate_srt_from_file(
             target_language=target_language,
             arr_context=arr_context,
             source_language=source_language,
+            video_path=mkv_path,
         )
     except TranslationAbortedError:
         # Cancellation is not a translation failure. Turning it into a failure
@@ -110,13 +113,16 @@ def _translate_srt(
     target_language=None,
     arr_context=None,
     source_language=None,
+    video_path=None,
 ):
     """Internal: translate an SRT file.
 
     SRT is simpler than ASS: no styles to classify, no override tags.
 
     ``source_language`` overrides the translation-direction source language
-    (defaults to the configured ``settings.source_language``).
+    (defaults to the configured ``settings.source_language``). ``video_path``
+    is the video the subtitle belongs to; its length judges whether the source
+    is too sparse to be the full dialogue.
     """
     import translator.core as _core
 
@@ -141,6 +147,13 @@ def _translate_srt(
 
     if not dialog_texts:
         return _core._fail_result("No dialog lines found in SRT", reason=NO_TRANSLATABLE_DIALOGUE)
+    sparse = sparse_source_reason(subs, video_path, is_ass=False)
+    if sparse:
+        logger.warning("Not translating %s: source looks like signs only (%s)", srt_path, sparse)
+        return _core._fail_result(
+            f"Source subtitle looks like signs only, not the full dialogue: {sparse}",
+            reason=SPARSE_SOURCE,
+        )
 
     _get_settings = _core._pkg().get_settings
     settings = _get_settings()

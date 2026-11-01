@@ -25,6 +25,7 @@ from translator.ass_flow import (  # noqa: F401 — re-exported for patches
     _translate_external_ass,
     translate_ass,
 )
+from translator.errors import NO_TRANSLATABLE_DIALOGUE, SPARSE_SOURCE
 from translator.manager import _translate_with_manager  # noqa: F401 — re-exported
 from translator.output_paths import (  # noqa: F401 — re-exported for patches
     detect_existing_target_for_lang,
@@ -48,6 +49,29 @@ from translator.srt_flow import (  # noqa: F401 — re-exported for patches
 )
 
 logger = logging.getLogger(__name__)
+
+
+# A source refused for its content: only signs, or nothing to translate at all.
+# The next case gets its turn; if none succeeds, this refusal is the answer, so
+# its terminal reason reaches the automation queue instead of a generic miss.
+_REFUSED_SOURCE_REASONS = frozenset({SPARSE_SOURCE, NO_TRANSLATABLE_DIALOGUE})
+
+
+def _is_refused_source(result, case, source) -> bool:
+    """True when ``result`` refused its source for its content (see above)."""
+    if not (result and result.get("reason") in _REFUSED_SOURCE_REASONS):
+        return False
+    logger.info("Case %s: %s holds no dialogue to translate, trying the next source", case, source)
+    return True
+
+
+def _usable_sibling_source(path, mkv_path) -> bool:
+    """Whether the SRT beside a refused ASS may serve as the source."""
+    if not os.path.isfile(path):
+        return False
+    from services.mt_sidecars import machine_translation_paths
+
+    return os.path.normcase(os.path.normpath(path)) not in machine_translation_paths(mkv_path)
 
 
 def _pkg():
@@ -225,6 +249,7 @@ def translate_file(
     # language IS the target: "translating" it would push a same-language
     # file through the LLM — extraction is the right operation for that
     # stream, and C2b/C3 below still get their chance at a real source.
+    refused = None  # first source refused for its content, the answer if nothing works
     emb_ok = (
         best_stream is not None
         and (any_source or not emb_lang or emb_lang == pref_source)
@@ -241,10 +266,13 @@ def translate_file(
             arr_context=arr_context,
             source_language=emb_src,
         )
-        if result["success"]:
-            _record_config_hash_for_result(result, mkv_path)
-            _notify_integrations(arr_context, file_path=mkv_path)
-        return result
+        if _is_refused_source(result, "C1", "embedded ASS track"):
+            refused = result
+        else:
+            if result["success"]:
+                _record_config_hash_for_result(result, mkv_path)
+                _notify_integrations(arr_context, file_path=mkv_path)
+            return result
 
     # C2: Source SRT embedded → .{lang}.srt
     if best_stream and best_stream["format"] == "srt" and emb_ok:
@@ -256,10 +284,13 @@ def translate_file(
             arr_context=arr_context,
             source_language=emb_src,
         )
-        if result["success"]:
-            _record_config_hash_for_result(result, mkv_path)
-            _notify_integrations(arr_context, file_path=mkv_path)
-        return result
+        if _is_refused_source(result, "C2", "embedded SRT track"):
+            refused = refused or result
+        else:
+            if result["success"]:
+                _record_config_hash_for_result(result, mkv_path)
+                _notify_integrations(arr_context, file_path=mkv_path)
+            return result
 
     # C2b: External source sidecar → translate. Prefer the configured order; in
     # strict mode only the preferred source language is accepted.
@@ -289,10 +320,30 @@ def translate_file(
                 arr_context=arr_context,
                 source_language=ext_lang,
             )
-        if result and result["success"]:
-            _record_config_hash_for_result(result, mkv_path)
-            _notify_integrations(arr_context, file_path=mkv_path)
-        return result
+        sparse = _is_refused_source(result, "C2b", ext_src)
+        if sparse:
+            refused = refused or result
+        sibling_srt = os.path.splitext(ext_src)[0] + ".srt"
+        if (
+            sparse
+            and ext_src.lower().endswith(".ass")
+            and _usable_sibling_source(sibling_srt, mkv_path)
+        ):
+            # Discovery prefers ASS; the same language's SRT may be the full one.
+            logger.info("Case C2b: Translating %s instead", sibling_srt)
+            result = translate_srt_from_file(
+                mkv_path,
+                sibling_srt,
+                target_language=tgt_lang,
+                arr_context=arr_context,
+                source_language=ext_lang,
+            )
+            sparse = _is_refused_source(result, "C2b", sibling_srt)
+        if not sparse:
+            if result and result["success"]:
+                _record_config_hash_for_result(result, mkv_path)
+                _notify_integrations(arr_context, file_path=mkv_path)
+            return result
 
     # C3: Provider search for a source subtitle → translate. When multi-language
     # provider search is enabled, try the full configured preference order;
@@ -372,6 +423,8 @@ def translate_file(
             "Case D: Whisper transcription not available or failed to submit for %s", mkv_path
         )
 
+    if refused:
+        return refused
     return _fail_result("No source subtitle found to translate from")
 
 

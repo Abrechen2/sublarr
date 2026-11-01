@@ -36,12 +36,17 @@ from services.scheduler.cancellation import abort_requested
 from services.video_sync import SyncSanityThresholdError
 from translator.errors import (
     NO_TRANSLATABLE_DIALOGUE,
+    SPARSE_SOURCE,
     TARGET_SUBTITLE_EXISTS,
     NothingToTranslateError,
     TranslationAbortedError,
 )
 
 logger = logging.getLogger(__name__)
+
+# Failure reasons that read the same on every attempt: the source holds nothing
+# to translate, or only signs under a full name. Neither joins the backoff ladder.
+_TERMINAL_TRANSLATE_REASONS = frozenset({NO_TRANSLATABLE_DIALOGUE, SPARSE_SOURCE})
 
 # Failures that will fail identically on every retry. Sending these round the
 # backoff ladder burns a drain slot per attempt for a result that is already
@@ -304,7 +309,7 @@ class SubtitleAutomationRunner:
             # A source that holds nothing to translate reads the same on every
             # attempt, so it must not join the backoff ladder. The flows mark
             # that case rather than leaving it to be recognised by its wording.
-            if (result or {}).get("reason") == NO_TRANSLATABLE_DIALOGUE:
+            if (result or {}).get("reason") in _TERMINAL_TRANSLATE_REASONS:
                 raise NothingToTranslateError(error)
             raise RuntimeError(error)
 

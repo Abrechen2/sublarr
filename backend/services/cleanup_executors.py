@@ -173,6 +173,23 @@ def _has_subtitle_lines(path: str) -> bool:
     return has_subtitle_lines(path)
 
 
+def _loses_dialogue(inferior_path: str, preferred_path: str) -> bool:
+    """True when trashing ``inferior_path`` for ``preferred_path`` loses dialogue.
+
+    Unreadable files prove nothing either way and keep the old behaviour.
+    """
+    try:
+        with open(inferior_path, "rb") as fh:
+            old_content = fh.read()
+        with open(preferred_path, "rb") as fh:
+            new_content = fh.read()
+    except OSError:
+        return False
+    from subtitle_dialogue import dialogue_drop
+
+    return dialogue_drop(old_content, new_content) is not None
+
+
 def _detect_sidecar_language(path: str) -> str | None:
     """Return the language tag of a sidecar, or None if not classifiable.
 
@@ -491,6 +508,15 @@ def execute_format_upgrade(media_path: str, config: dict, dry_run: bool = False)
         # is the witness we surface in the dry-run example for context.
         kept_witness = preferred_paths[0]
         for inferior_path in inferior_paths:
+            if _loses_dialogue(inferior_path, kept_witness):
+                # A signs track under the preferred format is no upgrade of a
+                # full subtitle (prod 2026-11: a 7-event ASS beside 405 cues).
+                logger.info(
+                    "Keeping %s (format_upgrade): %s holds far fewer dialogue lines",
+                    inferior_path,
+                    os.path.basename(kept_witness),
+                )
+                continue
             try:
                 file_size = os.path.getsize(inferior_path)
             except OSError:

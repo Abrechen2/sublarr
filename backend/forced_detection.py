@@ -253,18 +253,30 @@ _DIALOGUE_EVENTS_MIN = 150
 _DIALOGUE_SHARE_MIN = 0.6
 
 
-def content_kind_mismatch(result, content: bytes, query) -> str | None:
-    """Why a downloaded ASS file is not the kind the wanted item waits for.
+def content_kind_mismatch(
+    result, content: bytes, query, duration_s: float | None = None
+) -> str | None:
+    """Why a downloaded file is not the kind the wanted item waits for.
 
     Corroborates the search-time classification after download: a [Forced]
     item refuses an ASS file that is plainly full dialogue, a regular item
     refuses one that holds nothing but signs & songs styles (an unlabeled
-    signs track). Only ASS is checked (SRT has no styles); anything unreadable
-    or uncertain passes.
+    signs track) or, when the video length ``duration_s`` is known, too few
+    dialogue lines to be its dialogue subtitle, in any format. Anything
+    unreadable or uncertain passes.
     """
     forced_only = getattr(query, "forced_only", False)
     full_only = getattr(query, "full_only", False)
-    if not (forced_only or full_only) or not content or not getattr(result, "is_ass", False):
+    if not (forced_only or full_only) or not content:
+        return None
+    judge_sparse = full_only and bool(duration_s)
+    if not getattr(result, "is_ass", False):
+        if judge_sparse:
+            from subtitle_dialogue import assess_content
+
+            verdict = assess_content(content, duration_s)
+            if verdict is not None and verdict.sparse_reason:
+                return f"sparse, not a full subtitle: {verdict.sparse_reason}"
         return None
     try:
         import pysubs2
@@ -274,6 +286,16 @@ def content_kind_mismatch(result, content: bytes, query) -> str | None:
         subs = pysubs2.SSAFile.from_string(content.decode("utf-8-sig", errors="replace"))
     except Exception:  # noqa: BLE001 — unreadable: no verdict, the file decides elsewhere
         return None
+
+    if judge_sparse:
+        from subtitle_dialogue import assess
+
+        try:
+            sparse = assess(subs, duration_s, is_ass=True).sparse_reason
+        except Exception:  # noqa: BLE001 — a check that cannot run must not block
+            sparse = None
+        if sparse:
+            return f"sparse, not a full subtitle: {sparse}"
 
     events = [e for e in subs.events if not e.is_comment and e.text.strip()]
     if not events:

@@ -35,8 +35,14 @@ from ass_utils import (
     split_around_drawings,
     text_outside_drawing,
 )
+from subtitle_dialogue import sparse_source_reason
 from subtitle_encoding import load_subtitle_file
-from translator.errors import ASS_REVIEW_REQUIRED, NO_TRANSLATABLE_DIALOGUE, TranslationAbortedError
+from translator.errors import (
+    ASS_REVIEW_REQUIRED,
+    NO_TRANSLATABLE_DIALOGUE,
+    SPARSE_SOURCE,
+    TranslationAbortedError,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -174,6 +180,20 @@ def _empty_selection_result(untranslated):
         }
         return result
     return _core._fail_result("No dialog lines found to translate", reason=NO_TRANSLATABLE_DIALOGUE)
+
+
+def _sparse_source_result(subs, video_path):
+    """A failure result when ``subs`` is too sparse to be the full source, else None."""
+    import translator.core as _core
+
+    reason = sparse_source_reason(subs, video_path, is_ass=True)
+    if not reason:
+        return None
+    logger.warning("Not translating %s: source looks like signs only (%s)", video_path, reason)
+    return _core._fail_result(
+        f"Source subtitle looks like signs only, not the full dialogue: {reason}",
+        reason=SPARSE_SOURCE,
+    )
 
 
 def _restore_one(source, translated, tags, length, prefix, suffix, model_source):
@@ -340,6 +360,9 @@ def translate_ass(
 
         if not dialog_texts:
             return _empty_selection_result(dialog_untranslated)
+        sparse = _sparse_source_result(subs, mkv_path)
+        if sparse:
+            return sparse
 
         # HI-removal before translation
         _get_settings = _core._pkg().get_settings
@@ -512,6 +535,9 @@ def _translate_external_ass(
 
         if not dialog_texts:
             return _empty_selection_result(dialog_untranslated)
+        sparse = _sparse_source_result(subs, mkv_path)
+        if sparse:
+            return sparse
 
         # HI-removal before translation
         _get_settings = _core._pkg().get_settings
