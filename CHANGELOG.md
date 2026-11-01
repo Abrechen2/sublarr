@@ -62,6 +62,12 @@ songs subtitles work for anime.
   normal search for the same episode, the forced search was answered from
   its cache, full subtitles included. A perfect full match could also end
   a forced search early.
+- **A slow provider was missing from searches for five minutes** — When a
+  provider answered after the search timeout (AnimeTosho at times takes 20–30
+  seconds), the results without it were cached, and the next searches for
+  the same episode, the manual search included, showed nothing from it. The
+  same happened after a search stopped early at a perfect match. Only
+  searches that heard from every provider are cached now.
 - **"Prefer" and "Only" for forced subtitles had no effect** on AnimeTosho,
   Jimaku and SubDL results, because the score was computed before the
   subtitle was recognised as forced.

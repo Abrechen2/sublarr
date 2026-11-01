@@ -388,6 +388,7 @@ class SearchCoordinatorMixin(SearchRetryMixin, SearchScoringMixin, SearchCacheMi
         query,
         early_exit: bool,
         update_provider_stats,
+        outcome: dict | None = None,
     ) -> list:
         """Drain submitted futures, record CB/stats, handle 429s, return results.
 
@@ -413,7 +414,13 @@ class SearchCoordinatorMixin(SearchRetryMixin, SearchScoringMixin, SearchCacheMi
         single future) is swallowed: partial results are returned rather
         than raising, because dropping the whole search on one slow
         provider is worse than returning what we have.
+
+        ``outcome["complete"]`` is set to False when not every provider
+        answered (overall timeout or early exit): such a list must not be
+        cached as the answer to the search.
         """
+        if outcome is not None:
+            outcome["complete"] = True
         all_results = []
         excludes = self._get_language_excludes()
         try:
@@ -481,6 +488,8 @@ class SearchCoordinatorMixin(SearchRetryMixin, SearchScoringMixin, SearchCacheMi
                         if perfect_match_found:
                             # Cancel remaining futures (they'll complete but we won't wait)
                             decision_log.early_exit(name, result.score)
+                            if outcome is not None:
+                                outcome["complete"] = False
                             break
 
                 except ProviderNotApplicableError as e:
@@ -563,6 +572,8 @@ class SearchCoordinatorMixin(SearchRetryMixin, SearchScoringMixin, SearchCacheMi
                 len(all_results),
             )
             decision_log.providers_unfinished(unfinished)
+            if outcome is not None:
+                outcome["complete"] = False
         return all_results
 
     def _handle_rate_limit_exception(self, e, name: str, future, futures_to_key: dict) -> None:
@@ -740,6 +751,7 @@ class SearchCoordinatorMixin(SearchRetryMixin, SearchScoringMixin, SearchCacheMi
         # finally block so pending futures are cancelled and running ones finish as
         # daemon threads without blocking the response.
         executor = ThreadPoolExecutor(max_workers=max(1, len(self._providers)))
+        outcome = {"complete": True}
         try:
             # Phase 4a: futures_to_key tracks which key_id each future used so
             # the rate-limit handler can call mark_429(key_id) later.
@@ -762,7 +774,13 @@ class SearchCoordinatorMixin(SearchRetryMixin, SearchScoringMixin, SearchCacheMi
                 + 3
             )
             all_results = self._collect_provider_results(
-                futures, futures_to_key, max_timeout, query, early_exit, update_provider_stats
+                futures,
+                futures_to_key,
+                max_timeout,
+                query,
+                early_exit,
+                update_provider_stats,
+                outcome=outcome,
             )
         finally:
             # cancel_futures=True cancels any queued-but-not-started futures immediately.
@@ -777,10 +795,17 @@ class SearchCoordinatorMixin(SearchRetryMixin, SearchScoringMixin, SearchCacheMi
         )
         decision_log.search_finished(_total_before_filters, len(all_results))
 
-        # Cache results in both tiers (delegated to _write_search_cache).
-        self._write_search_cache(
-            all_results, app_cache_key, cache_key, cache_ttl_minutes, cache_backend
-        )
+        # Cache results in both tiers (delegated to _write_search_cache) —
+        # only a complete answer. A provider that ran past the timeout
+        # (AnimeTosho at 19-30 s) or an early exit left results out, and a
+        # cached partial list answered the next five minutes of searches,
+        # the interactive one included, without them.
+        if outcome["complete"]:
+            self._write_search_cache(
+                all_results, app_cache_key, cache_key, cache_ttl_minutes, cache_backend
+            )
+        else:
+            logger.info("Search incomplete; not caching %d result(s)", len(all_results))
 
         return all_results
 
