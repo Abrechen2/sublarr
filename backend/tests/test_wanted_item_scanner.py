@@ -5,6 +5,14 @@ from unittest.mock import MagicMock, call, patch
 
 import pytest
 
+
+@pytest.fixture(autouse=True)
+def _no_pending_kind_rows():
+    """These scans mock the database; dropping unwanted kinds would query it."""
+    with patch("db.wanted.get_wanted_ids_of_kind", return_value=[]):
+        yield
+
+
 # ---------------------------------------------------------------------------
 # _check_language_for_item
 # ---------------------------------------------------------------------------

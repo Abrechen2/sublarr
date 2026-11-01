@@ -22,6 +22,16 @@ from __future__ import annotations
 
 from unittest.mock import MagicMock, patch
 
+import pytest
+
+
+@pytest.fixture(autouse=True)
+def _no_pending_kind_rows():
+    """These scans mock the database; dropping unwanted kinds would query it."""
+    with patch("db.wanted.get_wanted_ids_of_kind", return_value=[]):
+        yield
+
+
 # ---------------------------------------------------------------------------
 # 3. Provenance is the latest record for this video, language and format
 # ---------------------------------------------------------------------------

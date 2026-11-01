@@ -97,6 +97,7 @@ def _run_forced_item(monkeypatch, captured):
         subtitle_id="s1",
         score=50,
         score_breakdown=None,
+        kind="forced",
     )
     manager = SimpleNamespace(
         search_and_download_best=lambda query, format_filter=None: result,

@@ -9,7 +9,17 @@ search found subtitles, but there was no wanted item to download them for.
 import logging
 from unittest.mock import MagicMock, patch
 
+import pytest
+
 from services.wanted_item_scanner import scan_radarr_movie, scan_sonarr_series
+
+
+@pytest.fixture(autouse=True)
+def _no_pending_kind_rows():
+    """These scans mock the database; dropping unwanted kinds would query it."""
+    with patch("db.wanted.get_wanted_ids_of_kind", return_value=[]):
+        yield
+
 
 SETTINGS = MagicMock(target_language="de", target_language_name="German", use_embedded_subs=False)
 

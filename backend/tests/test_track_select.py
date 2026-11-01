@@ -154,7 +154,7 @@ def test_kept_last_track_when_no_full_or_sdh_candidate_exists():
     # full or SDH candidate for the language at all, so nothing is stripped.
     streams = [
         _sub(2, "eng", "ass", "Signs & Songs"),
-        _sub(3, "eng", "ass", "Full Subtitles (incl. Signs)"),
+        _sub(3, "eng", "ass", "Songs Only"),
     ]
     verdicts = select_tracks(streams, _ONE, _DE_EN, False, set())
     assert _kept(verdicts) == [2, 3]

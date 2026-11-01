@@ -143,6 +143,8 @@ def test_search_providers_returns_results(client, mock_provider_manager):
     mock_result.score_breakdown = {}
     mock_result.hearing_impaired = False
     mock_result.matches = set()
+    mock_result.forced = False
+    mock_result.kind = "full"
 
     mock_provider_manager.search.return_value = [mock_result]
 
