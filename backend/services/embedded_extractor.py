@@ -148,22 +148,50 @@ def collect_subtitle_streams(probe_data: dict) -> list[dict]:
 _SIDECAR_SAMPLE_BYTES = 65536
 
 
-def _sidecar_matches_tag(path: str, language: str, log_label: str) -> bool:
-    """False when the sidecar's letters contradict the stream's language tag.
+# Confidence the language detector must reach before an SRT is rejected for
+# holding the wrong language. Same bar as the health checker's "high" tier.
+_CONTENT_LANGUAGE_CONFIDENCE = 0.90
 
-    Reads at most 64 KB. A file that cannot be read or decoded, or that holds
-    too little text to judge, is trusted as before — the guard exists for the
-    gross case (Arabic under ``.de``), not to second-guess every file.
+
+def _content_language_mismatch(raw: bytes, language: str) -> str | None:
+    """Reason when an SRT's words are clearly the other of English/German.
+
+    The script check cannot tell English from German (both Latin), which is how
+    English dialogue sat under ``.de.srt`` for two months. The detector knows
+    only these two languages, so any other tag is not judged. Text too short
+    for a confident reading yields no claim.
+    """
+    from config_language_data import normalize_language_code
+    from services.subtitle_health.checkers.language_mislabel import detect_content_language
+
+    declared = normalize_language_code(language)
+    if declared not in ("en", "de"):
+        return None
+    detected, confidence = detect_content_language(raw)
+    if detected is None or detected == declared or confidence < _CONTENT_LANGUAGE_CONFIDENCE:
+        return None
+    return f"the text reads as {detected} ({confidence:.2f}), the name says {declared}"
+
+
+def _sidecar_matches_tag(path: str, language: str, log_label: str) -> bool:
+    """False when the sidecar's content contradicts the stream's language tag.
+
+    Two checks: the script (Arabic under ``.de``) and, for SRT, the language of
+    the words (English under ``.de``). Reads at most 64 KB. A file that cannot
+    be read or decoded, or that holds too little text to judge, is trusted as
+    before — the guard exists for the gross case, not to second-guess every file.
     """
     from subtitle_script import decode_sample, script_mismatch
 
     try:
         with open(path, "rb") as fh:
-            text = decode_sample(fh.read(_SIDECAR_SAMPLE_BYTES))
+            raw = fh.read(_SIDECAR_SAMPLE_BYTES)
     except OSError as exc:
-        logger.debug("[%s]: could not read %s for the script check: %s", log_label, path, exc)
+        logger.debug("[%s]: could not read %s for the content check: %s", log_label, path, exc)
         return True
-    reason = script_mismatch(text, language)
+    reason = script_mismatch(decode_sample(raw), language)
+    if reason is None and path.lower().endswith(".srt"):
+        reason = _content_language_mismatch(raw, language)
     if reason is None:
         return True
     logger.warning(
@@ -436,6 +464,14 @@ def extract_streams(
                 stream_info["language"],
                 out,
             )
+            if stream_info["format"] == "srt" and not _sidecar_matches_tag(
+                out, stream_info["language"], log_label
+            ):
+                # The container's tag lied (or the wrong stream was mapped):
+                # never leave the result under the target-language name, and
+                # keep the stream so nothing is lost with it.
+                _quarantine_mislabelled_sidecar(out, log_label)
+                continue
             if stream_info.get("kind") == "full":
                 # Only a full dialogue track is a genuine main sidecar: a
                 # signs/forced/SDH extraction must never make the full

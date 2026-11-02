@@ -5,6 +5,16 @@ All notable changes to Sublarr are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Fixed
+- **Embedded subtitle extraction — English text under a German name** — A
+  subtitle track whose words are English but whose name says German (or the
+  other way round) is no longer adopted or kept. Extraction now reads the
+  text of an SRT and drops it when the language is clearly the other one; the
+  track stays in the video. Before, only the script was checked, so English
+  passed for German and sat in `.de.srt` files unnoticed.
+
 ## [1.19.0] - 2026-11-01
 
 A consistency audit (#61) checked that every setting the interface offers is
