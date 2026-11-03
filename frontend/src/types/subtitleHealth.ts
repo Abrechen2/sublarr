@@ -6,6 +6,8 @@ export type HealthIssueType =
   | 'empty_or_tiny'
   | 'encoding_mojibake'
   | 'timing_sanity'
+  | 'timing_offset'
+  | 'timing_mismatch'
   | 'missing_language'
   | 'format_mismatch'
   | 'unicode_control_chars'

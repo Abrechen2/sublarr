@@ -13,6 +13,8 @@ class IssueType(StrEnum):
     EMPTY_OR_TINY = "empty_or_tiny"
     ENCODING_MOJIBAKE = "encoding_mojibake"
     TIMING_SANITY = "timing_sanity"
+    TIMING_OFFSET = "timing_offset"
+    TIMING_MISMATCH = "timing_mismatch"
     MISSING_LANGUAGE = "missing_language"
     FORMAT_MISMATCH = "format_mismatch"
     UNICODE_CONTROL_CHARS = "unicode_control_chars"

@@ -36,6 +36,23 @@ def apply_fix(finding_id: int, action: str, opts: dict | None = None) -> dict:
             from services.subtitle_health.fixers import reencode
 
             res = reencode.apply_to_sidecar(path, finding_id=finding_id)
+        elif action == "shift_timing":
+            from providers.download_manager import _video_for_sidecar
+            from services.subtitle_health.fixers import shift_timing
+
+            video = _video_for_sidecar(path)
+            if not video:
+                return {"changed": False, "reason": "video not found"}
+            res = shift_timing.apply_to_sidecar(path, video, finding_id=finding_id)
+        elif action == "quarantine_wrong_sidecar":
+            from providers.download_manager import _video_for_sidecar
+            from services.suspect_sidecars import quarantine_wrong_sidecar
+
+            video = _video_for_sidecar(path) or ""
+            reason = "; ".join(finding.get("snippets") or []) or "timing does not fit the video"
+            res = {"changed": quarantine_wrong_sidecar(path, video, reason)}
+            if not res["changed"]:
+                res["reason"] = "not an automatic download; left in place"
         elif action == "trash_sidecar":
             from services.subtitle_health.fixers import trash_sidecar
 

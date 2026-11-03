@@ -833,9 +833,10 @@ def save_subtitle(
 
     # A sidecar quarantined as another episode's subtitle was kept until now;
     # this one replaces it (same name: already overwritten above).
-    from services.suspect_sidecars import retire_suspect_siblings
+    from services.suspect_sidecars import retire_sparse_siblings, retire_suspect_siblings
 
     retire_suspect_siblings(output_path, result.language or "")
+    retire_sparse_siblings(output_path, result.language or "")
 
     # Register hash in dedup DB after successful write
     try:

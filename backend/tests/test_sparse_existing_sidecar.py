@@ -319,3 +319,29 @@ def test_sweep_requeues_a_sparse_finding(app_ctx):
     ):
         assert sweep._sweep_episode(5, "/m/e.mkv", False) is True
     requeue.assert_called_once_with("/m/e.mkv", "de")
+
+
+def test_a_full_srt_retires_the_sparse_ass_it_replaces(video):
+    sparse = _write(video, ".de.ass", credits_only_ass())
+    saved = _write(video, ".de.srt", full_srt(300))
+    with patch.object(suspect_sidecars, "_trash", side_effect=lambda paths: list(paths)) as trash:
+        suspect_sidecars.retire_sparse_siblings(saved, "de")
+    trash.assert_called_once_with([sparse])
+
+
+def test_a_sparse_save_or_a_forced_save_retires_nothing(video):
+    _write(video, ".de.ass", credits_only_ass())
+    sparse_srt = _write(video, ".de.srt", credits_only_ass())
+    forced = _write(video, ".de.forced.srt", full_srt(300))
+    with patch.object(suspect_sidecars, "_trash", side_effect=lambda paths: list(paths)) as trash:
+        suspect_sidecars.retire_sparse_siblings(sparse_srt, "de")
+        suspect_sidecars.retire_sparse_siblings(forced, "de")
+    assert all(call.args == ([],) for call in trash.call_args_list)
+
+
+def test_a_full_sibling_is_never_retired(video):
+    _write(video, ".de.ass", full_ass())
+    saved = _write(video, ".de.srt", full_srt(300))
+    with patch.object(suspect_sidecars, "_trash", side_effect=lambda paths: list(paths)) as trash:
+        suspect_sidecars.retire_sparse_siblings(saved, "de")
+    trash.assert_called_once_with([])

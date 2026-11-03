@@ -691,6 +691,8 @@
       "empty_or_tiny": "Leer/zu wenig Inhalt",
       "encoding_mojibake": "Kaputte Kodierung (Mojibake)",
       "timing_sanity": "Timing-Probleme",
+      "timing_offset": "Timing versetzt",
+      "timing_mismatch": "Timing passt nicht zum Video",
       "missing_language": "Sprache fehlt",
       "format_mismatch": "Format passt nicht zur Endung",
       "unicode_control_chars": "Steuerzeichen im Text",

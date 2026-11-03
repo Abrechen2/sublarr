@@ -691,6 +691,8 @@
       "empty_or_tiny": "Empty/too little content",
       "encoding_mojibake": "Broken encoding (mojibake)",
       "timing_sanity": "Timing problems",
+      "timing_offset": "Timing offset",
+      "timing_mismatch": "Timing does not fit the video",
       "missing_language": "Language missing",
       "format_mismatch": "Format does not match extension",
       "unicode_control_chars": "Control characters in text",

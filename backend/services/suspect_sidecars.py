@@ -483,6 +483,38 @@ def retire_suspect_siblings(saved_path: str, language: str) -> None:
         logger.warning("suspect sidecar: could not retire siblings of %s: %s", saved_path, exc)
 
 
+def retire_sparse_siblings(saved_path: str, language: str) -> None:
+    """Trash the signs/credits-only full sidecar a new full subtitle replaced.
+
+    A sparse ``.de.ass`` is kept until a real subtitle lands; when that one is
+    a ``.de.srt`` it does not overwrite the ASS, and the player would offer
+    both, the 10-line file first. Restorable (sidecar trash). Never raises.
+    """
+    try:
+        from subtitle_dialogue import sparse_sidecar_reason
+        from subtitle_filename import parse_subtitle_filename
+
+        parsed = parse_subtitle_filename(saved_path)
+        if parsed is None or parsed.primary_modifier is not None:
+            return  # only a full subtitle replaces a full one
+        from providers.download_manager import _video_for_sidecar
+        from translator import find_existing_target_file
+
+        video = _video_for_sidecar(saved_path)
+        if not video or sparse_sidecar_reason(saved_path, video):
+            return
+        keep = _norm(saved_path)
+        stale = []
+        for fmt in _SIDECAR_FORMATS:
+            other = find_existing_target_file(video, language, fmt)
+            if other and _norm(other) != keep and sparse_sidecar_reason(other, video):
+                stale.append(other)
+        for path in _trash(stale):
+            logger.info("sparse sidecar %s retired, replaced by %s", path, saved_path)
+    except Exception as exc:  # noqa: BLE001 — see docstring
+        logger.warning("sparse sidecar: could not retire siblings of %s: %s", saved_path, exc)
+
+
 def _download_vouching_for(subtitle_path: str):
     """``(video, language, download_row)`` when an automatic download wrote this file."""
     from db.quality import is_user_modified

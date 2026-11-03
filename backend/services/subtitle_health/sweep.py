@@ -119,6 +119,35 @@ def _requeue_sparse_sidecars(findings: list[dict], video_path: str) -> None:
         logger.exception("subtitle_health sweep: sparse requeue failed for %s", video_path)
 
 
+def _repair_timing(findings: list[dict], video_path: str) -> None:
+    """Shift a delayed sidecar, quarantine one for another cut (subtitle_timing).
+
+    Only confirmed verdicts carry an action, and both repairs are reversible
+    (the shifted original is backed up, the quarantined file trashed and its
+    download blacklisted), so they run with auto-fix off too: a wrong track
+    is found and replaced without anyone opening the episode.
+    """
+    from services.subtitle_health.checkers.timing_alignment import (
+        QUARANTINE_ACTION,
+        SHIFT_ACTION,
+    )
+
+    for finding in findings:
+        action = finding.get("suggested_fix")
+        if action not in (SHIFT_ACTION, QUARANTINE_ACTION):
+            continue
+        target = finding.get("target_path", "")
+        if finding.get("target_kind") != "sidecar" or not _is_stable(target):
+            continue
+        if is_suspect_sidecar(target):
+            continue
+        try:
+            result = apply_fix(finding["id"], action)
+            logger.info("subtitle_health sweep: %s %s: %s", action, target, result)
+        except Exception:
+            logger.exception("subtitle_health sweep: timing repair failed for %s", target)
+
+
 def _sweep_episode(ep_id: int, path: str | None, auto: bool) -> bool:
     """Scan one episode and auto-fix its findings; True when it was scanned."""
     if not path or not os.path.exists(path):
@@ -130,6 +159,7 @@ def _sweep_episode(ep_id: int, path: str | None, auto: bool) -> bool:
         return False
     findings = store.get_findings_for_episode(ep_id)
     _requeue_sparse_sidecars(findings, path)
+    _repair_timing(findings, path)
     if not auto:
         return True
     for finding in findings:
