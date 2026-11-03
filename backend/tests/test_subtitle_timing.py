@@ -93,6 +93,13 @@ class TestAlign:
         ]
         assert align(speech, sorted(half)).verdict == UNCERTAIN
 
+    def test_hostile_line_counts_give_no_verdict(self):
+        # Provider content: 6,000+ lines, or thousands piled into one minute,
+        # must not turn the check into minutes of work.
+        assert align(_speech(), [5.0 + i / 1000 for i in range(7000)]) is None
+        crowded = sorted([60.0 + i / 100 for i in range(5000)])
+        assert align(crowded, crowded) is None
+
     def test_too_few_lines_give_no_verdict(self):
         assert align(_speech(30), _speech(30)) is None
         assert align(_speech(), _speech(12)) is None

@@ -42,6 +42,11 @@ MISMATCH_MATCH = 0.35
 SHIFT_MIN_S = 0.5
 #: Fewer dialogue lines than this on either side give no verdict.
 MIN_CUES = 40
+#: More than this gives no verdict either: a feature film holds ~2,500 lines,
+#: and the content comes from providers, so the work must stay bounded.
+MAX_CUES = 6000
+#: Line pairs the offset histogram may count before it stops early.
+MAX_PAIRS = 2_000_000
 
 FIT = "fit"
 SHIFT = "shift"
@@ -73,20 +78,23 @@ def align(reference: list[float], candidate: list[float]) -> Alignment | None:
     lines it up. ``match`` is the share of the shorter track's lines that start
     together at that offset.
     """
-    if len(reference) < MIN_CUES or len(candidate) < MIN_CUES:
+    if not (MIN_CUES <= len(reference) <= MAX_CUES and MIN_CUES <= len(candidate) <= MAX_CUES):
         return None
     # Histogram of pairwise start differences within the search window: the
     # true offset collects one vote per line pair, any other offset only
     # chance pairs. Linear in lines x lines-per-window.
     votes: Counter[int] = Counter()
-    lo = 0
+    lo = pairs = 0
     for t in reference:
+        if pairs > MAX_PAIRS:
+            return None
         while lo < len(candidate) and candidate[lo] < t - MAX_OFFSET_S:
             lo += 1
         j = lo
         while j < len(candidate) and candidate[j] <= t + MAX_OFFSET_S:
             votes[round((candidate[j] - t) / _BUCKET_S)] += 1
             j += 1
+        pairs += j - lo
     if not votes:
         return Alignment(0.0, 0.0, MISMATCH)
     # Score the strongest buckets exactly (a bucket edge can split a peak).

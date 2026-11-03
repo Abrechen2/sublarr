@@ -31,6 +31,7 @@ from providers.base import (
 )
 from providers.episode_gate import episode_gate_reason
 from providers.language_excludes import parse_language_excludes
+from providers.search_coordinator import late_results
 from providers.search_coordinator.cache import SearchCacheMixin
 from providers.search_coordinator.retry import SearchRetryMixin
 from providers.search_coordinator.scoring import SearchScoringMixin
@@ -151,11 +152,28 @@ class SearchCoordinatorMixin(SearchRetryMixin, SearchScoringMixin, SearchCacheMi
             getattr(self.settings, "provider_language_excludes_json", "")
         )
 
+    def _take_late_answers(self, late_key: str, query) -> dict[str, list]:
+        """Late answers to an earlier identical search, by provider (late_results)."""
+        allowed = set(getattr(query, "allowed_providers", None) or [])
+        answered: dict[str, list] = {}
+        for name in self._providers:
+            if allowed and name not in allowed:
+                continue
+            answer = late_results.take(late_key, name)
+            if answer is not None:
+                answered[name] = answer
+                decision_log.provider_searched(name, len(answer), 0)
+                logger.info(
+                    "Using %d late result(s) %s kept from the last search", len(answer), name
+                )
+        return answered
+
     def _submit_provider_searches(
         self,
         executor,
         query,
         is_provider_auto_disabled,
+        answered: frozenset[str] = frozenset(),
     ) -> tuple[dict, dict]:
         """Gate every provider against auto-disable / CB / rate-limit / budget, then submit.
 
@@ -186,6 +204,9 @@ class SearchCoordinatorMixin(SearchRetryMixin, SearchScoringMixin, SearchCacheMi
         for name, provider in self._providers.items():
             # Reset per-iteration key tracking (Phase 4a).
             key: dict | None = None
+            if name in answered:
+                # Its late answer to the last search stands in (late_results).
+                continue
             if allowed and name not in allowed:
                 logger.debug("Skipping provider %s -- not in profile provider list", name)
                 continue
@@ -755,8 +776,10 @@ class SearchCoordinatorMixin(SearchRetryMixin, SearchScoringMixin, SearchCacheMi
         try:
             # Phase 4a: futures_to_key tracks which key_id each future used so
             # the rate-limit handler can call mark_429(key_id) later.
+            late_key = self._make_cache_key(query, None)
+            answered = self._take_late_answers(late_key, query)
             futures, futures_to_key = self._submit_provider_searches(
-                executor, query, is_provider_auto_disabled
+                executor, query, is_provider_auto_disabled, frozenset(answered)
             )
 
             # Collect results as they complete
@@ -782,6 +805,12 @@ class SearchCoordinatorMixin(SearchRetryMixin, SearchScoringMixin, SearchCacheMi
                 update_provider_stats,
                 outcome=outcome,
             )
+            for answer in answered.values():
+                all_results.extend(answer)
+            excludes = self._get_language_excludes()
+            for future, name in futures.items():
+                if not future.done():
+                    late_results.capture(future, late_key, name, query, excludes.get(name))
         finally:
             # cancel_futures=True cancels any queued-but-not-started futures immediately.
             # Already-running threads are released as daemon threads — we do NOT wait
