@@ -5,9 +5,15 @@ All notable changes to Sublarr are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [1.19.1] - 2026-11-03
+## [1.19.2] - 2026-11-03
+
+1.19.1 was tagged but never published; its fix ships in this release.
 
 ### Fixed
+- **English interface showed German pop-ups (#231)** — Toasts, the sync
+  dialog, the cleanup settings, the settings help texts and the settings
+  search were partly hardcoded in German and stayed German with the
+  interface set to English. They now follow the interface language.
 - **Embedded subtitle extraction — English text under a German name** — A
   subtitle track whose words are English but whose name says German (or the
   other way round) is no longer adopted or kept. Extraction now reads the
