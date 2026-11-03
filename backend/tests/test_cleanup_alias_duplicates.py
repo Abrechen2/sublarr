@@ -171,3 +171,45 @@ def test_rule_is_seeded_enabled(app_ctx):
     rule = next(r for r in CleanupRepository().get_rules() if r["rule_type"] == "alias_duplicates")
     assert rule["enabled"] is True
     assert rule["schedule"] == "daily"
+
+
+def _episode(n=345):
+    return [
+        (12000 + 4000 * i, 12000 + 4000 * i + 1400, f"Synthetic line {i} of text") for i in range(n)
+    ]
+
+
+def test_prod_shape_shifted_timing_and_split_lines_is_same(tmp_path):
+    """Prod pairs: every cue ~0.12 s earlier in one file, a few lines split or added."""
+    base = _episode()
+    shifted = [(a - 120, b - 120, t) for a, b, t in base]
+    for i in (10, 100, 200):  # split three lines in two halves
+        a, b, t = shifted[i]
+        words = t.split(" ")
+        mid = (a + b) // 2
+        shifted[i] = (a, mid, " ".join(words[:3]))
+        shifted.append((mid, b, " ".join(words[3:])))
+    shifted.append((1000, 2000, "An added line"))
+    shifted.sort()
+    _write(tmp_path, "v.de.srt", _srt(base))
+    _write(tmp_path, "v.deu.srt", _srt(shifted))
+
+    assert _run(tmp_path)[0]["deleted"] == 1
+    assert _files(tmp_path) == {"v.de.srt"}
+
+
+def test_same_timing_other_translation_is_different(tmp_path):
+    base = _episode()
+    other = [(a, b, f"Ganz andere Uebersetzung {i}") for i, (a, b, _) in enumerate(base)]
+    _write(tmp_path, "v.de.srt", _srt(base))
+    _write(tmp_path, "v.deu.srt", _srt(other))
+
+    assert _run(tmp_path)[0]["deleted"] == 0
+
+
+def test_same_texts_but_far_offset_is_different(tmp_path):
+    base = _episode()
+    _write(tmp_path, "v.de.srt", _srt(base))
+    _write(tmp_path, "v.deu.srt", _srt([(a + 5000, b + 5000, t) for a, b, t in base]))
+
+    assert _run(tmp_path)[0]["deleted"] == 0
