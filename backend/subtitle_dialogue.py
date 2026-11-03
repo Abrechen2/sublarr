@@ -71,22 +71,28 @@ def _plain(text: str) -> str:
     return visible.replace("\\N", " ").replace("\\n", " ").replace("\\h", " ").strip()
 
 
-def _dialogue_lines(subs, dialog_styles) -> tuple[int, int]:
-    """(dialogue lines, visible events): layers and repeats counted once."""
-    seen: set[tuple[int, int, str]] = set()
-    visible = 0
+def _visible_events(subs, dialog_styles):
+    """Yield (event, plain text, is_dialogue) for every event a viewer sees."""
     for event in subs.events:
         if event.is_comment:
             continue
         plain = _plain(event.text)
         if not plain:
             continue
+        is_dialogue = (
+            dialog_styles is None or event.style in dialog_styles
+        ) and not _SIGN_ACTOR.match(event.name or "")
+        yield event, plain, is_dialogue
+
+
+def _dialogue_lines(subs, dialog_styles) -> tuple[int, int]:
+    """(dialogue lines, visible events): layers and repeats counted once."""
+    seen: set[tuple[int, int, str]] = set()
+    visible = 0
+    for event, plain, is_dialogue in _visible_events(subs, dialog_styles):
         visible += 1
-        if dialog_styles is not None and event.style not in dialog_styles:
-            continue
-        if _SIGN_ACTOR.match(event.name or ""):
-            continue
-        seen.add((event.start, event.end, plain))
+        if is_dialogue:
+            seen.add((event.start, event.end, plain))
     return len(seen), visible
 
 
@@ -255,3 +261,30 @@ def sparse_sidecar_reason(sidecar_path: str | None, video_path: str | None) -> s
     except Exception as exc:  # noqa: BLE001
         logger.debug("Sparse sidecar check skipped for %s: %s", sidecar_path, exc)
         return None
+
+
+def dialogue_starts(content: bytes) -> list[float] | None:
+    """Sorted start times (seconds) of the dialogue lines; None when unreadable.
+
+    Signs, songs and typesetting are left out the way :func:`assess` leaves
+    them out, so two releases of the same episode compare on what is spoken.
+    """
+    parsed = _parse(content)
+    if parsed is None:
+        return None
+    subs, is_ass = parsed
+    try:
+        dialog_styles = None
+        if is_ass:
+            from ass_utils import classify_styles
+
+            dialog_styles, _signs = classify_styles(subs)
+        starts = {
+            event.start
+            for event, _plain, is_dialogue in _visible_events(subs, dialog_styles)
+            if is_dialogue
+        }
+    except Exception as exc:  # noqa: BLE001 — no timing verdict rather than a failed download
+        logger.debug("Dialogue start times skipped: %s", exc)
+        return None
+    return [ms / 1000.0 for ms in sorted(starts)]

@@ -266,6 +266,51 @@ class _LengthCheck:
             return None
 
 
+class _TimingCheck:
+    """Per-search timing gate; the reference is found once, lazily (see subtitle_timing)."""
+
+    _UNSET = object()
+
+    def __init__(self, query) -> None:
+        self._query = query
+        self._reference = self._UNSET
+
+    def reference(self, language: str = ""):
+        """The timing reference for this search, found on the first call. Never raises.
+
+        ``language`` (the candidate's) only matters on that first call: a search
+        asks for one language, so its candidates share it.
+        """
+        if self._reference is self._UNSET:
+            try:
+                import subtitle_timing
+
+                self._reference = subtitle_timing.find_reference(
+                    getattr(self._query, "file_path", "") or "", language
+                )
+            except Exception as exc:  # noqa: BLE001 — no reference only skips the check
+                logger.debug("Timing reference skipped: %s", exc)
+                self._reference = None
+        return self._reference
+
+    def judge(self, result: SubtitleResult, content: bytes):
+        """(alignment, reference) for ``content``; (None, None) without a verdict."""
+        try:
+            import subtitle_timing
+            from subtitle_dialogue import dialogue_starts
+
+            reference = self.reference(getattr(result, "language", "") or "")
+            if reference is None:
+                return None, None
+            starts = dialogue_starts(content)
+            if not starts:
+                return None, None
+            return subtitle_timing.align(reference.starts, starts), reference
+        except Exception as exc:  # noqa: BLE001 — a check that cannot run must not block
+            logger.debug("Timing check skipped: %s", exc)
+            return None, None
+
+
 def search_and_download_best(
     search_fn,
     download_fn,
@@ -304,6 +349,10 @@ def search_and_download_best(
 
     rate_limited_providers: set[str] = set()
     length_check = _LengthCheck(query)
+    timing_check = _TimingCheck(query)
+    # The first candidate an untrusted reference refused: if every candidate
+    # is refused, the reference (a sidecar) is the likelier fault.
+    timing_fallback: SubtitleResult | None = None
     for result in results:
         if result.provider_name in rate_limited_providers:
             decision_log.download_attempt(result.provider_name, result.subtitle_id, "rate_limited")
@@ -378,16 +427,11 @@ def search_and_download_best(
                         result.provider_name, result.subtitle_id, "kind_mismatch", detail=wrong_kind
                     )
                     continue
-                update_stats_fn(result.provider_name, success=True, score=result.score)
-                try:
-                    from providers.reranker import apply_auto_reranking
-
-                    apply_auto_reranking()
-                except Exception as _rr_err:
-                    logger.debug("Re-ranking trigger skipped: %s", _rr_err)
-                decision_log.download_attempt(result.provider_name, result.subtitle_id, "selected")
-                decision_log.selected(result)
-                return result
+                if not _passes_timing(result, content, timing_check):
+                    if timing_fallback is None and not timing_check.reference().trusted:
+                        timing_fallback = result
+                    continue
+                return _select(result, update_stats_fn)
             else:
                 update_stats_fn(result.provider_name, success=False, score=0)
                 decision_log.download_attempt(
@@ -409,7 +453,72 @@ def search_and_download_best(
                 result.provider_name, result.subtitle_id, "error", detail=str(e)
             )
 
+    if timing_fallback is not None:
+        logger.warning(
+            "Every candidate disagreed with the timing reference (%s); taking %s/%s",
+            timing_check.reference().source,
+            timing_fallback.provider_name,
+            timing_fallback.subtitle_id,
+        )
+        return _select(timing_fallback, update_stats_fn)
     return None
+
+
+def _passes_timing(result: SubtitleResult, content: bytes, timing_check: _TimingCheck) -> bool:
+    """Keep, shift into place, or refuse ``content`` by its timing. Never raises."""
+    import subtitle_timing
+
+    alignment, reference = timing_check.judge(result, content)
+    if alignment is None:
+        return True
+    if alignment.verdict == subtitle_timing.SHIFT:
+        shifted = subtitle_timing.shift_content(content, alignment.offset_s)
+        if shifted is not None:
+            logger.info(
+                "Shifting %s/%s by %.1f s to match %s",
+                result.provider_name,
+                result.subtitle_id,
+                -alignment.offset_s,
+                reference.source,
+            )
+            result.content = shifted
+            decision_log.download_attempt(
+                result.provider_name,
+                result.subtitle_id,
+                "timing_shifted",
+                detail=f"{-alignment.offset_s:+.1f} s",
+            )
+        return True
+    if alignment.verdict == subtitle_timing.MISMATCH:
+        detail = (
+            f"{alignment.match:.0%} of lines start with {reference.source} "
+            f"(best offset {alignment.offset_s:+.1f} s)"
+        )
+        logger.info(
+            "Skipping %s/%s: timing does not fit the video: %s",
+            result.provider_name,
+            result.subtitle_id,
+            detail,
+        )
+        decision_log.download_attempt(
+            result.provider_name, result.subtitle_id, "timing_mismatch", detail=detail
+        )
+        return False
+    return True
+
+
+def _select(result: SubtitleResult, update_stats_fn) -> SubtitleResult:
+    """Record ``result`` as the chosen download and return it."""
+    update_stats_fn(result.provider_name, success=True, score=result.score)
+    try:
+        from providers.reranker import apply_auto_reranking
+
+        apply_auto_reranking()
+    except Exception as _rr_err:
+        logger.debug("Re-ranking trigger skipped: %s", _rr_err)
+    decision_log.download_attempt(result.provider_name, result.subtitle_id, "selected")
+    decision_log.selected(result)
+    return result
 
 
 def _is_content_hash_blacklisted(provider_name: str, content: bytes) -> bool:
