@@ -181,7 +181,9 @@ class TestAnEpisodeWithoutASeriesNameIsNotSearchedFor:
             languages=["de"],
         )
         p.search(q)
-        sent = p.session.get.call_args.kwargs.get("params", {})
+        # The first request names the episode (a second, by season, follows
+        # only when it finds nothing).
+        sent = p.session.get.call_args_list[0].kwargs.get("params", {})
         assert "Some Show" in str(sent), sent
         assert "03" in str(sent), sent
 

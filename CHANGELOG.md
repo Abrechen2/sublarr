@@ -5,9 +5,42 @@ All notable changes to Sublarr are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [1.20.0] - 2026-11-03
+
+Sublarr now finds and repairs more bad subtitles by itself. Every case below
+came from one anime series on a production library, where none of them was
+caught.
+
+### Added
+- **Timing check for every download** — Each downloaded subtitle is lined up
+  with the video before it is saved: against an embedded text track (MKV and
+  MP4 `mov_text`), or else against a full sidecar in another language. A
+  subtitle that runs a constant few seconds early or late is shifted into
+  place; one whose lines fit the video at no offset (another cut or episode)
+  is skipped for the next candidate. A sidecar used as the reference never
+  blocks every candidate, since it may be the wrong one itself.
+- **Timing repair for subtitles already on disk** — The nightly
+  subtitle-health sweep checks the same for existing sidecars. A delayed one
+  is shifted (the original is kept as a backup); one for another cut is
+  moved to the trash, its download blacklisted and the episode searched
+  again. Both act only on a certain verdict and run without auto-fix,
+  because both can be undone. The health panel lists "Timing offset" and
+  "Timing does not fit the video".
 
 ### Fixed
+- **Slow providers are no longer thrown away** — AnimeTosho needs up to
+  30 s for a season-pack search; the search stopped waiting after ~23 s and
+  dropped its answer every time. A late answer is now kept for six hours,
+  the next search for the same episode uses it, and the episode is searched
+  again on the scheduler's next pass.
+- **AnimeTosho finds season packs of older seasons** — Without an AniDB
+  episode id the search for "Show 05" filled up with the airing season's
+  episode 5, so the BD packs of season 1 never showed up. When that search
+  finds nothing, the season is asked for next. Release names may also use
+  any of Sonarr's alternative titles for the series ("Mushoku Tensei - S01").
+- **A signs-only file goes when the real subtitle arrives** — A new full
+  `.de.srt` now moves a signs/credits-only `.de.ass` of the same episode to
+  the trash, so the player no longer offers both.
 - **Signs-only sidecars on disk are searched again** — A full `.de.ass`/`.srt`
   that holds only a title card and credits (10 lines for a 24-minute episode)
   no longer counts as the subtitle: the wanted scans and the search treat it

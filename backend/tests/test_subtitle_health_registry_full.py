@@ -1,7 +1,7 @@
 from services.subtitle_health.registry import CHECKERS
 
 
-def test_all_nine_checkers_registered():
+def test_all_ten_checkers_registered():
     names = {c.__module__.rsplit(".", 1)[-1] for c in CHECKERS}
     assert names == {
         "ass_escape_leak",
@@ -9,6 +9,7 @@ def test_all_nine_checkers_registered():
         "empty_or_tiny",
         "encoding_mojibake",
         "timing_sanity",
+        "timing_alignment",
         "format_mismatch",
         "unicode_control_chars",
         "container_metadata_drift",
