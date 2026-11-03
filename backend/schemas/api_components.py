@@ -140,7 +140,7 @@ class CleanupRule(BaseModel):
         description=(
             "One of: language_filter, format_upgrade, orphan_files, orphan_db, "
             "old_subtitle_baks, old_backups, dedup, orphaned, foreign_tracks, "
-            "signs_cleanup"
+            "signs_cleanup, alias_duplicates"
         )
     )
     enabled: bool = True

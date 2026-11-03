@@ -291,6 +291,19 @@ class CleanupRepository(BaseRepository):
             "schedule": "weekly",
             "config_json": "{}",
         },
+        {
+            "name": "Alias duplicates",
+            "rule_type": "alias_duplicates",
+            # Seeded ENABLED, unlike the rules above: it only moves a sidecar to
+            # the recoverable sidecar trash, and only when the file holds the
+            # same subtitle as its canonical-coded sibling (X.deu.srt next to
+            # X.de.srt). Nothing is lost, and the duplicate German track in the
+            # media server goes away without the user having to know the rule
+            # exists. Back-filled so existing installs get it too.
+            "enabled": True,
+            "schedule": "daily",
+            "config_json": "{}",
+        },
     ]
 
     # Config flag marking that the built-in defaults were offered once. Once

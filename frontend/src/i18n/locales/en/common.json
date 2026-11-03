@@ -1128,6 +1128,10 @@
       "title": "Old subtitle backups (.bak)",
       "description": "Orphaned .bak.srt/.bak.ass files are removed immediately; the rest after the retention period (0 = never)"
     },
+    "alias_duplicates": {
+      "title": "Duplicate language codes",
+      "description": "Moves a sidecar with an alias language code (.deu.srt) to the trash when it holds the same subtitle as the matching .de.srt"
+    },
     "foreign_tracks": {
       "title": "Remove foreign-language tracks",
       "description": "Removes embedded subtitle tracks from videos whose language is not on the keep list (the original is kept as a backup in the trash)"

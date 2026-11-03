@@ -212,6 +212,23 @@ def _execute_cleanup():
                         result.get("bytes_freed", 0),
                     )
 
+                elif rule_type == "alias_duplicates":
+                    from services.cleanup_alias_duplicates import execute_alias_duplicates
+
+                    result = execute_alias_duplicates(media_path, config, dry_run=False)
+                    repo.update_rule_last_run(rule_id)
+                    repo.log_cleanup(
+                        action_type="scheduled_alias_duplicates",
+                        files_deleted=result.get("deleted", 0),
+                        bytes_freed=result.get("bytes_freed", 0),
+                        rule_id=rule_id,
+                    )
+                    logger.info(
+                        "Scheduled alias_duplicates: %d trashed, %d bytes freed",
+                        result.get("deleted", 0),
+                        result.get("bytes_freed", 0),
+                    )
+
                 elif rule_type == "orphan_files":
                     result = execute_orphan_files(media_path, config, dry_run=False)
                     repo.update_rule_last_run(rule_id)

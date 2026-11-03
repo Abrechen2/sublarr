@@ -1128,6 +1128,10 @@
       "title": "Alte Untertitel-Backups (.bak)",
       "description": "Verwaiste .bak.srt/.bak.ass werden sofort entfernt; übrige nach Aufbewahrungsfrist (0 = nie)"
     },
+    "alias_duplicates": {
+      "title": "Doppelte Sprachcodes",
+      "description": "Verschiebt eine Untertitel-Datei mit Alias-Sprachcode (.deu.srt) in den Papierkorb, wenn sie denselben Untertitel enthält wie die passende .de.srt"
+    },
     "foreign_tracks": {
       "title": "Fremdsprachen-Tracks entfernen",
       "description": "Entfernt eingebettete Untertitel-Spuren aus den Videos, deren Sprache nicht in der Behalten-Liste steht (Original landet als Backup im Papierkorb)"

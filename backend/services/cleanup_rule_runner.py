@@ -121,6 +121,18 @@ def _execute_rule_locked(rule_id: int, *, socketio=None) -> dict:
             )
             return {"status": "aborted", "result": result}
         return {"status": "ok", "result": result}
+    elif rule_type == "alias_duplicates":
+        from services.cleanup_alias_duplicates import execute_alias_duplicates
+
+        result = execute_alias_duplicates(media_path, config, dry_run=False)
+        repo.update_rule_last_run(rule_id)
+        repo.log_cleanup(
+            action_type=rule_type,
+            rule_id=rule_id,
+            files_deleted=result.get("deleted", 0),
+            bytes_freed=result.get("bytes_freed", 0),
+        )
+        return {"status": "ok", "result": result}
     elif rule_type == "signs_cleanup":
         from services.cleanup_signs import execute_signs_cleanup
 
@@ -235,6 +247,10 @@ def preview_rule(rule_id: int) -> dict:
         # the production library, so the endpoint could only ever time out. The
         # sweep's scan table already holds a verdict per file.
         result = _preview_foreign_tracks()
+    elif rule_type == "alias_duplicates":
+        from services.cleanup_alias_duplicates import execute_alias_duplicates
+
+        result = execute_alias_duplicates(media_path, config, dry_run=True)
     elif rule_type == "signs_cleanup":
         from services.cleanup_signs import execute_signs_cleanup
 

@@ -7,7 +7,7 @@
  */
 import { useState, useCallback, useEffect } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Loader2, Globe, ArrowUpCircle, FileX, Database, Archive, Layers, FileWarning, ArrowRight } from 'lucide-react'
+import { Loader2, Globe, ArrowUpCircle, FileX, Database, Archive, Layers, FileWarning, Copy, ArrowRight } from 'lucide-react'
 import { Link } from 'react-router-dom'
 import { PageHeader } from '@/components/layout/PageHeader'
 import { DiskSpaceWidget } from '@/components/cleanup/DiskSpaceWidget'
@@ -84,6 +84,14 @@ const OPERATIONS: OpMeta[] = [
     iconBg: 'rgba(245,158,11,.12)',
     titleKey: 'cleanup_ops.old_subtitle_baks.title',
     descriptionKey: 'cleanup_ops.old_subtitle_baks.description',
+  },
+  {
+    ruleType: 'alias_duplicates',
+    Icon: Copy,
+    iconColor: 'var(--accent)',
+    iconBg: 'rgba(34,211,238,.13)',
+    titleKey: 'cleanup_ops.alias_duplicates.title',
+    descriptionKey: 'cleanup_ops.alias_duplicates.description',
   },
   {
     ruleType: 'foreign_tracks',

@@ -455,7 +455,9 @@
       "prev": "Previous",
       "next": "Next",
       "action_types": {
-        "scheduled_foreign_track_sweep": "Track cleanup (sweep)"
+        "scheduled_foreign_track_sweep": "Track cleanup (sweep)",
+        "scheduled_alias_duplicates": "Duplicate subtitle (alias code)",
+        "alias_duplicates": "Duplicate subtitle (alias code)"
       }
     },
     "diskSpace": {

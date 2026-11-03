@@ -455,7 +455,9 @@
       "prev": "Zurück",
       "next": "Weiter",
       "action_types": {
-        "scheduled_foreign_track_sweep": "Spur-Bereinigung (Sweep)"
+        "scheduled_foreign_track_sweep": "Spur-Bereinigung (Sweep)",
+        "scheduled_alias_duplicates": "Doppelter Untertitel (Alias-Code)",
+        "alias_duplicates": "Doppelter Untertitel (Alias-Code)"
       }
     },
     "diskSpace": {

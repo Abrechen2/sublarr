@@ -15,6 +15,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   until a validated replacement overwrites it. The subtitle-health check
   flags the same files (it missed exactly 10 lines) and the nightly sweep
   queues a search for them. `.forced` and signs sidecars are never touched.
+- **No more doubled language tracks** — A sidecar spelled with an ISO 639-2
+  code (`X.deu.srt`) that holds the same subtitle as the `X.de.srt` beside it
+  is moved to the sidecar trash by a new, enabled-by-default "Duplicate
+  language codes" cleanup rule, so Emby no longer lists two German tracks.
+  Forced and HI variants only pair with their own kind, different content
+  keeps both files, and an alias file without a canonical one stays.
 - **Signs tracks no longer pass as full subtitles** — A subtitle with far too
   few dialogue lines for the video is now refused as the full subtitle,
   whatever its style names say (for example 7 sign lines in style "Default"
