@@ -20,7 +20,7 @@ from db.profiles import get_movie_profile, get_series_profile
 from db.providers import is_machine_translated
 from db.wanted import upsert_wanted_item
 from services.scheduler.cancellation import abort_requested
-from services.suspect_sidecars import existing_ignoring_suspects
+from services.suspect_sidecars import existing_ignoring_suspects, note_sparse_sidecar
 from translator import (
     detect_existing_target_for_lang,
     find_existing_target_file,
@@ -311,6 +311,7 @@ def scan_radarr_movie(
                 embedded_languages=lang_result["embedded_languages"],
                 status=_requeue_status(lang_result),
             )
+            note_sparse_sidecar(mapped_path, target_lang)
             if was_updated:
                 updated += 1
             else:
@@ -471,6 +472,7 @@ def scan_sonarr_series(
                     embedded_languages=lang_result["embedded_languages"],
                     status=_requeue_status(lang_result),
                 )
+                note_sparse_sidecar(mapped_path, target_lang)
                 if was_updated:
                     updated += 1
                 else:

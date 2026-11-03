@@ -8,6 +8,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Fixed
+- **Signs-only sidecars on disk are searched again** — A full `.de.ass`/`.srt`
+  that holds only a title card and credits (10 lines for a 24-minute episode)
+  no longer counts as the subtitle: the wanted scans and the search treat it
+  as missing, the episode gets its search attempts back, and the file stays
+  until a validated replacement overwrites it. The subtitle-health check
+  flags the same files (it missed exactly 10 lines) and the nightly sweep
+  queues a search for them. `.forced` and signs sidecars are never touched.
 - **Signs tracks no longer pass as full subtitles** — A subtitle with far too
   few dialogue lines for the video is now refused as the full subtitle,
   whatever its style names say (for example 7 sign lines in style "Default"

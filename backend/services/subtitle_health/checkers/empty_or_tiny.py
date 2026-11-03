@@ -9,7 +9,10 @@ from services.subtitle_health.text_utils import decode_with_confidence
 
 logger = logging.getLogger(__name__)
 
-_MIN_CUES = 10  # below this, a track tagged as a full sub is suspect
+#: Fix action for a sparse full sidecar: no file is touched, the episode is
+#: queued for a fresh search and the sparse file stays until a validated
+#: replacement overwrites it.
+REQUEUE_ACTION = "requeue_search"
 
 
 def _count_cues(raw: bytes) -> int:
@@ -23,18 +26,49 @@ def _count_cues(raw: bytes) -> int:
     return sum(1 for ev in subs.events if not ev.is_comment and ev.text.strip())
 
 
+def _sparse(raw: bytes, ctx, duration: list):
+    """The sparse DialogueAssessment of ``raw``, or None.
+
+    The verdict is ``subtitle_dialogue``'s, the same one the scanners, the
+    search and the translator use. ``duration`` is a one-slot memo, so the
+    video length is only looked up when the count leaves the verdict open.
+    """
+    from subtitle_dialogue import RATED_DIALOGUE_EVENTS, assess_content
+
+    first = assess_content(raw, None)
+    if first is None:
+        return None
+    if first.sparse_reason is None and first.dialogue_events < RATED_DIALOGUE_EVENTS:
+        if not duration:
+            import subtitle_plausibility
+
+            duration.append(subtitle_plausibility.video_duration_s(ctx.video_path))
+        if duration[0]:
+            first = assess_content(raw, duration[0])
+    return first if first is not None and first.sparse_reason else None
+
+
 def detect(ctx) -> list[Issue]:
     issues: list[Issue] = []
+    duration: list = []
     for t in ctx.targets:
         if t.forced:
             continue
         n = _count_cues(t.raw) if t.raw else 0
+        sparse = None
         if n == 0:
             severity = Severity.CONFIRMED
-        elif n < _MIN_CUES:
-            severity = Severity.SUSPICIOUS
         else:
-            continue
+            sparse = _sparse(t.raw, ctx, duration)
+            if sparse is None:
+                continue
+            severity = Severity.SUSPICIOUS
+            n = sparse.dialogue_events
+        fix = None
+        if sparse is None and t.kind == TargetKind.SIDECAR:
+            fix = "trash_sidecar"
+        elif sparse is not None and t.kind == TargetKind.SIDECAR:
+            fix = REQUEUE_ACTION
         issues.append(
             Issue(
                 type=IssueType.EMPTY_OR_TINY,
@@ -45,12 +79,10 @@ def detect(ctx) -> list[Issue]:
                 stream_index=t.stream_index,
                 lang=t.lang,
                 count=n,
-                snippets=[f"{n} cues"],
+                snippets=[sparse.sparse_reason if sparse else f"{n} cues"],
                 raw_hash="",
                 fixable=False,
-                suggested_fix=(
-                    "trash_sidecar" if (n == 0 and t.kind == TargetKind.SIDECAR) else None
-                ),
+                suggested_fix=fix,
             )
         )
     return issues

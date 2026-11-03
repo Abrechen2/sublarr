@@ -16,7 +16,9 @@ because the verdict blocks downloads and translations unattended.
 from __future__ import annotations
 
 import logging
+import os
 import re
+import threading
 from dataclasses import dataclass
 
 logger = logging.getLogger(__name__)
@@ -96,6 +98,14 @@ def assess(subs, duration_s: float | None, *, is_ass: bool) -> DialogueAssessmen
 
         dialog_styles, _signs = classify_styles(subs)
     lines, visible = _dialogue_lines(subs, dialog_styles)
+    return judge(lines, visible, duration_s)
+
+
+def judge(lines: int, visible: int, duration_s: float | None) -> DialogueAssessment:
+    """The sparse verdict for a dialogue-line count against the video length.
+
+    Shared by :func:`assess` and the sidecar check, which caches the counts.
+    """
     per_minute = lines / (duration_s / 60) if duration_s and duration_s > 0 else None
 
     reason = None
@@ -180,3 +190,68 @@ def dialogue_drop(old_content: bytes, new_content: bytes) -> str | None:
             f"the existing subtitle {old.dialogue_events}"
         )
     return None
+
+
+#: Largest sidecar read for the on-disk check; a real subtitle is far smaller.
+_MAX_SIDECAR_BYTES = 8 * 1024 * 1024
+_COUNT_CACHE_MAX = 8192
+_count_cache: dict[tuple[str, int, int], tuple[int, int] | None] = {}
+_count_lock = threading.Lock()
+
+
+def _sidecar_counts(path: str) -> tuple[int, int] | None:
+    """(dialogue lines, visible events) of a sidecar, cached per path, mtime and size."""
+    try:
+        st = os.stat(path)
+    except OSError:
+        return None
+    key = (path, st.st_mtime_ns, st.st_size)
+    with _count_lock:
+        if key in _count_cache:
+            return _count_cache[key]
+    counts = None
+    if 0 < st.st_size <= _MAX_SIDECAR_BYTES:
+        try:
+            with open(path, "rb") as fh:
+                parsed = _parse(fh.read())
+            if parsed is not None:
+                subs, is_ass = parsed
+                assessment = assess(subs, None, is_ass=is_ass)
+                counts = (assessment.dialogue_events, assessment.total_events)
+        except Exception as exc:  # noqa: BLE001 — no verdict, never a failed scan
+            logger.debug("Sparse sidecar check skipped for %s: %s", path, exc)
+    with _count_lock:
+        if len(_count_cache) >= _COUNT_CACHE_MAX:
+            _count_cache.clear()
+        _count_cache[key] = counts
+    return counts
+
+
+def sparse_sidecar_reason(sidecar_path: str | None, video_path: str | None) -> str | None:
+    """Why the full sidecar on disk is signs/credits only, or None.
+
+    Prod 2026-11: a German ``.de.ass`` of 10 title-card and credit lines for a
+    24-minute episode counted as the full subtitle, so the episode was never
+    searched again. Judged only against a known video length (the cached
+    stream probe): without one a signs track cannot be told from a short.
+    Only for full sidecars — the caller passes ``.de.ass``/``.de.srt``, never
+    a ``.forced`` or signs file. Never raises.
+    """
+    if not sidecar_path or not video_path:
+        return None
+    try:
+        counts = _sidecar_counts(sidecar_path)
+        if counts is None:
+            return None
+        lines, visible = counts
+        if lines >= RATED_DIALOGUE_EVENTS:
+            return None  # never sparse; skip the duration lookup
+        import subtitle_plausibility
+
+        duration = subtitle_plausibility.video_duration_s(video_path)
+        if not duration:
+            return None
+        return judge(lines, visible, duration).sparse_reason
+    except Exception as exc:  # noqa: BLE001
+        logger.debug("Sparse sidecar check skipped for %s: %s", sidecar_path, exc)
+        return None

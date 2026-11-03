@@ -97,6 +97,28 @@ def _standalone_target_allowed(target: str, video_path: str) -> bool:
     return standalone_path_allowed(target, os.path.dirname(video_path))
 
 
+def _requeue_sparse_sidecars(findings: list[dict], video_path: str) -> None:
+    """Queue a search for every episode whose full sidecar is signs/credits only.
+
+    Non-destructive (no file is touched), so it runs with auto-fix off too.
+    """
+    from services.subtitle_health.checkers.empty_or_tiny import REQUEUE_ACTION
+    from services.subtitle_health.scan import _norm_lang
+    from services.suspect_sidecars import requeue_sparse_sidecar
+
+    try:
+        for finding in findings:
+            if finding.get("suggested_fix") != REQUEUE_ACTION:
+                continue
+            if finding.get("target_kind") != "sidecar":
+                continue
+            lang = _norm_lang(finding.get("lang") or "")
+            if lang and lang != "und":
+                requeue_sparse_sidecar(video_path, lang)
+    except Exception:
+        logger.exception("subtitle_health sweep: sparse requeue failed for %s", video_path)
+
+
 def _sweep_episode(ep_id: int, path: str | None, auto: bool) -> bool:
     """Scan one episode and auto-fix its findings; True when it was scanned."""
     if not path or not os.path.exists(path):
@@ -106,9 +128,11 @@ def _sweep_episode(ep_id: int, path: str | None, auto: bool) -> bool:
     except Exception:
         logger.exception("subtitle_health sweep: scan failed ep %s", ep_id)
         return False
+    findings = store.get_findings_for_episode(ep_id)
+    _requeue_sparse_sidecars(findings, path)
     if not auto:
         return True
-    for finding in store.get_findings_for_episode(ep_id):
+    for finding in findings:
         action = finding.get("suggested_fix")
         if action not in _AUTO_ACTIONS:
             continue

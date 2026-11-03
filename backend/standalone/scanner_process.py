@@ -99,6 +99,9 @@ class _StandaloneProcessMixin:
                     **episode,
                     **owner,
                 )
+                from services.suspect_sidecars import note_sparse_sidecar
+
+                note_sparse_sidecar(file_path, target_lang)
                 written += 1
         else:
             unwanted["full"].add((file_path, target_lang))

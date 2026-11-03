@@ -223,27 +223,82 @@ def _flag_holds(path: str, flag: _Flag) -> bool:
     return mtime <= flag.at + _REPLACED_GRACE
 
 
-def existing_ignoring_suspects(video_path: str, language: str, existing: str | None):
-    """``existing`` (as from ``detect_existing_target_for_lang``) minus suspect sidecars.
+def _discounted(path: str, video_path: str) -> bool:
+    """True when ``path`` must not count as the subtitle: suspect or signs/credits only."""
+    if is_suspect_sidecar(path):
+        return True
+    from subtitle_dialogue import sparse_sidecar_reason
 
-    A suspect ASS next to a genuine SRT reads as ``"srt"``; with no genuine
-    sidecar left the answer is None. Unchanged when nothing is suspect (the
-    common case costs one cached lookup) or no sidecar file is involved.
+    return sparse_sidecar_reason(path, video_path) is not None
+
+
+def sparse_full_sidecar(video_path: str, language: str) -> str | None:
+    """Path of a full sidecar for ``language`` that is signs/credits only, or None."""
+    from subtitle_dialogue import sparse_sidecar_reason
+    from translator import find_existing_target_file
+
+    for fmt in _SIDECAR_FORMATS:
+        found = find_existing_target_file(video_path, language, fmt)
+        if found and sparse_sidecar_reason(found, video_path):
+            return found
+    return None
+
+
+def existing_ignoring_suspects(video_path: str, language: str, existing: str | None):
+    """``existing`` (as from ``detect_existing_target_for_lang``) minus unusable sidecars.
+
+    Unusable are suspect sidecars (quarantined as another episode's subtitle)
+    and full sidecars that hold signs/credits only (``subtitle_dialogue``; the
+    file stays until a validated replacement overwrites it). A discounted ASS
+    next to a genuine SRT reads as ``"srt"``; with no genuine sidecar left the
+    answer is None. Unchanged when no sidecar file is involved. ``.forced`` and
+    signs sidecars never match the full-sidecar names, so they are untouched.
     """
-    if existing not in _SIDECAR_FORMATS or not _suspects():
+    if existing not in _SIDECAR_FORMATS:
         return existing
     from translator import find_existing_target_file
 
     found = {fmt: find_existing_target_file(video_path, language, fmt) for fmt in _SIDECAR_FORMATS}
-    if not found[existing] or not is_suspect_sidecar(found[existing]):
+    if not found[existing] or not _discounted(found[existing], video_path):
         # The answer came from a genuine sidecar, or from an embedded track:
         # an embedded ASS next to an SRT sidecar reads "ass" and must stay so
         # (it read "srt" whenever anything at all was suspect).
         return existing
     for fmt in _SIDECAR_FORMATS:
-        if found[fmt] and not is_suspect_sidecar(found[fmt]):
+        if found[fmt] and not _discounted(found[fmt], video_path):
             return fmt
     return None
+
+
+_noted_lock = threading.Lock()
+_noted: set[tuple[str, int, int]] = set()
+
+
+def note_sparse_sidecar(video_path: str, language: str) -> None:
+    """Give a video its search attempts back once its full sidecar proved sparse.
+
+    Called by a scan after it queued the item: an episode that searched in vain
+    for weeks sits in slow mode, and the sparse sidecar that hid it from the
+    search is the reason it never found anything. Once per file version, so a
+    nightly scan does not undo slow mode again. No series rescan here (the
+    caller is a scan); :func:`requeue_videos` is for callers outside one.
+    Never raises.
+    """
+    try:
+        path = sparse_full_sidecar(video_path, language)
+        if not path:
+            return
+        st = os.stat(path)
+        key = (_norm(path), st.st_mtime_ns, st.st_size)
+        with _noted_lock:
+            if key in _noted:
+                return
+            if len(_noted) > 8192:
+                _noted.clear()
+            _noted.add(key)
+        _clear_backoff(video_path, language)
+    except Exception as exc:  # noqa: BLE001 — see docstring
+        logger.debug("suspect sidecar: sparse note for %s failed: %s", video_path, exc)
 
 
 def is_quarantined_content(path: str, content: bytes) -> bool:
@@ -606,6 +661,37 @@ def requeue_videos(videos: list[tuple[str, str]]) -> None:
         if owner is None or not rescanned[owner]:
             _plain_wanted_row(video, language)
         _clear_backoff(video, language)
+
+
+_requeued: set[tuple[str, int, int]] = set()
+
+
+def requeue_sparse_sidecar(video_path: str, language: str) -> bool:
+    """Queue a fresh search for a video whose full sidecar is signs/credits only.
+
+    For callers outside a library scan (the health sweep): :func:`requeue_videos`
+    rescans the series and clears the backoff. Nothing is deleted; the sparse
+    file stays until a validated replacement overwrites it. Once per file
+    version, so a nightly sweep does not undo slow mode. True when it queued.
+    Never raises.
+    """
+    try:
+        path = sparse_full_sidecar(video_path, language)
+        if not path:
+            return False
+        st = os.stat(path)
+        key = (_norm(path), st.st_mtime_ns, st.st_size)
+        with _noted_lock:
+            if key in _requeued:
+                return False
+            if len(_requeued) > 8192:
+                _requeued.clear()
+            _requeued.add(key)
+        requeue_videos([(video_path, language)])
+        return True
+    except Exception as exc:  # noqa: BLE001 — see docstring
+        logger.warning("suspect sidecar: sparse requeue of %s failed: %s", video_path, exc)
+        return False
 
 
 def _requeue(video: str, language: str) -> None:
