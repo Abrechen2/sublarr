@@ -15,6 +15,16 @@ type SearchEntry = {
   fieldKey?: string
 }
 
+/** Language-independent page definitions. Labels are translated at render time
+ * (via `settings_search.pages.<id>` / `settings_search.groups.<group>`); `keywords`
+ * carries German and English search terms so both languages find the page. */
+interface PageDef {
+  id: string
+  group: string
+  keywords: string
+  href: string
+}
+
 const TAB_TO_ROUTE: Record<string, string> = {
   General: '/settings/general',
   Translation: '/settings/translation',
@@ -31,51 +41,75 @@ const TAB_TO_ROUTE: Record<string, string> = {
   Whisper: '/settings/providers/transcription',
 }
 
-const TAB_TO_LABEL: Record<string, string> = {
-  General: 'Allgemein',
-  Translation: 'Übersetzung',
-  Automation: 'Automatisierung',
-  Wanted: 'Automatisierung',
-  Sonarr: 'Verbindungen',
-  Radarr: 'Verbindungen',
-  'Library Sources': 'Verbindungen',
-  'Media Servers': 'Verbindungen',
-  'API Keys': 'Verbindungen',
-  Scoring: 'Untertitel',
-  'Subtitle Tools': 'Untertitel',
-  Cleanup: 'Untertitel',
-  Whisper: 'Provider',
+/** Settings tab -> sublabel group id (translated via `settings_search.groups.*`). */
+const TAB_TO_GROUP: Record<string, string> = {
+  General: 'general',
+  Translation: 'translation',
+  Automation: 'automation',
+  Wanted: 'automation',
+  Sonarr: 'connections',
+  Radarr: 'connections',
+  'Library Sources': 'connections',
+  'Media Servers': 'connections',
+  'API Keys': 'connections',
+  Scoring: 'subtitles',
+  'Subtitle Tools': 'subtitles',
+  Cleanup: 'subtitles',
+  Whisper: 'providers',
 }
 
-const PAGES: SearchEntry[] = [
-  { type: 'page', label: 'App & Oberfläche', sublabel: 'Allgemein', searchText: 'allgemein app oberfläche', href: '/settings/general' },
-  { type: 'page', label: 'Sonarr, Radarr & Medienserver', sublabel: 'Verbindungen', searchText: 'sonarr radarr medienserver verbindungen', href: '/settings/connections' },
-  { type: 'page', label: 'Metadaten', sublabel: 'Verbindungen', searchText: 'metadaten tmdb tvdb verbindungen', href: '/settings/connections/metadata' },
-  { type: 'page', label: 'Scoring', sublabel: 'Untertitel', searchText: 'scoring punkte bewertung untertitel', href: '/settings/subtitles/scoring' },
-  { type: 'page', label: 'Format & Benennung', sublabel: 'Untertitel', searchText: 'format benennung srt ass datei', href: '/settings/subtitles/format' },
-  { type: 'page', label: 'Bereinigung', sublabel: 'Untertitel', searchText: 'bereinigung cleanup duplikate', href: '/settings/cleanup' },
-  { type: 'page', label: 'Stream-Verwaltung', sublabel: 'Untertitel', searchText: 'stream verwaltung remux mkv', href: '/settings/subtitles/stream-management' },
-  { type: 'page', label: 'Provider & Zugangsdaten', sublabel: 'Provider', searchText: 'provider zugangsdaten opensubtitles', href: '/settings/providers' },
-  { type: 'page', label: 'Transkription', sublabel: 'Provider', searchText: 'transkription whisper speech', href: '/settings/providers/transcription' },
-  { type: 'page', label: 'Suche, Scan & Upgrades', sublabel: 'Automatisierung', searchText: 'suche scan upgrades automatisierung webhook', href: '/settings/automation' },
-  { type: 'page', label: 'Post-Processing', sublabel: 'Automatisierung', searchText: 'post processing nachbearbeitung automation', href: '/settings/automation/post-processing' },
-  { type: 'page', label: 'Backends & Glossar', sublabel: 'Übersetzung', searchText: 'backends glossar übersetzung ollama llm', href: '/settings/translation' },
-  { type: 'page', label: 'Kanäle & Vorlagen', sublabel: 'Benachrichtigungen', searchText: 'kanäle vorlagen benachrichtigungen discord', href: '/settings/notifications' },
-  { type: 'page', label: 'Sicherheit, Backup & Logs', sublabel: 'System', searchText: 'sicherheit backup logs system security', href: '/settings/system' },
-  { type: 'page', label: 'Hooks & Webhooks', sublabel: 'System', searchText: 'hooks webhooks system scripts', href: '/settings/system/hooks' },
-  { type: 'page', label: 'Über Sublarr', sublabel: 'Über', searchText: 'über version info about', href: '/settings/about' },
+const PAGE_DEFS: PageDef[] = [
+  { id: 'general', group: 'general', keywords: 'allgemein app oberfläche general interface language theme sprache', href: '/settings/general' },
+  { id: 'connections', group: 'connections', keywords: 'sonarr radarr medienserver verbindungen connections media servers jellyfin plex emby', href: '/settings/connections' },
+  { id: 'metadata', group: 'connections', keywords: 'metadaten metadata tmdb tvdb verbindungen connections', href: '/settings/connections/metadata' },
+  { id: 'scoring', group: 'subtitles', keywords: 'scoring punkte bewertung untertitel subtitles score points', href: '/settings/subtitles/scoring' },
+  { id: 'format', group: 'subtitles', keywords: 'format benennung naming srt ass datei file', href: '/settings/subtitles/format' },
+  { id: 'cleanup', group: 'subtitles', keywords: 'bereinigung cleanup duplikate duplicates', href: '/settings/cleanup' },
+  { id: 'stream_management', group: 'subtitles', keywords: 'stream verwaltung management remux mkv', href: '/settings/subtitles/stream-management' },
+  { id: 'providers', group: 'providers', keywords: 'provider zugangsdaten credentials login opensubtitles', href: '/settings/providers' },
+  { id: 'transcription', group: 'providers', keywords: 'transkription transcription whisper speech', href: '/settings/providers/transcription' },
+  { id: 'automation', group: 'automation', keywords: 'suche search scan upgrades automatisierung automation webhook', href: '/settings/automation' },
+  { id: 'post_processing', group: 'automation', keywords: 'post processing nachbearbeitung automation', href: '/settings/automation/post-processing' },
+  { id: 'translation', group: 'translation', keywords: 'backends glossar glossary übersetzung translation ollama llm', href: '/settings/translation' },
+  { id: 'notifications', group: 'notifications', keywords: 'kanäle channels vorlagen templates benachrichtigungen notifications discord', href: '/settings/notifications' },
+  { id: 'system', group: 'system', keywords: 'sicherheit security backup logs system', href: '/settings/system' },
+  { id: 'hooks', group: 'system', keywords: 'hooks webhooks system scripts', href: '/settings/system/hooks' },
+  { id: 'about', group: 'about', keywords: 'über about version info', href: '/settings/about' },
 ]
 
-const FIELD_ENTRIES: SearchEntry[] = FIELDS.map((f) => ({
-  type: 'setting',
-  label: f.label,
-  sublabel: TAB_TO_LABEL[f.tab] ?? f.tab,
-  searchText: [f.label, f.description ?? '', f.tab].join(' ').toLowerCase(),
-  href: TAB_TO_ROUTE[f.tab] ?? '/settings/general',
-  fieldKey: f.key,
-}))
+type TFn = (key: string, opts?: Record<string, unknown>) => string
 
-const ALL_ENTRIES: SearchEntry[] = [...PAGES, ...FIELD_ENTRIES]
+/** Builds the translated search index. Called inside the component so the
+ * entries follow the active UI language. */
+function buildEntries(t: TFn): { pages: SearchEntry[]; all: SearchEntry[] } {
+  const pages: SearchEntry[] = PAGE_DEFS.map((p) => {
+    const label = t(`settings_search.pages.${p.id}`)
+    const sublabel = t(`settings_search.groups.${p.group}`)
+    return {
+      type: 'page',
+      label,
+      sublabel,
+      searchText: `${label} ${sublabel} ${p.keywords}`.toLowerCase(),
+      href: p.href,
+    }
+  })
+  const fields: SearchEntry[] = FIELDS.map((f) => {
+    const group = TAB_TO_GROUP[f.tab]
+    // Help text is searchable in both languages regardless of the UI language.
+    const help = f.descriptionKey
+      ? `${t(`settings:${f.descriptionKey}`, { lng: 'de' })} ${t(`settings:${f.descriptionKey}`, { lng: 'en' })}`
+      : ''
+    return {
+      type: 'setting',
+      label: f.label,
+      sublabel: group ? t(`settings_search.groups.${group}`) : f.tab,
+      searchText: [f.label, help, f.tab].join(' ').toLowerCase(),
+      href: TAB_TO_ROUTE[f.tab] ?? '/settings/general',
+      fieldKey: f.key,
+    }
+  })
+  return { pages, all: [...pages, ...fields] }
+}
 
 // ─── Component ───────────────────────────────────────────────────────────────
 
@@ -91,11 +125,13 @@ export function SettingsSearchModal({ open, onClose }: SettingsSearchModalProps)
   const [activeIndex, setActiveIndex] = useState(0)
   const inputRef = useRef<HTMLInputElement>(null)
 
+  const entries = useMemo(() => buildEntries(tc), [tc])
+
   const results = useMemo<SearchEntry[]>(() => {
-    if (!query.trim()) return PAGES.slice(0, 8)
+    if (!query.trim()) return entries.pages.slice(0, 8)
     const q = query.toLowerCase()
-    return ALL_ENTRIES.filter((e) => e.searchText.includes(q) || e.label.toLowerCase().includes(q)).slice(0, 12)
-  }, [query])
+    return entries.all.filter((e) => e.searchText.includes(q) || e.label.toLowerCase().includes(q)).slice(0, 12)
+  }, [query, entries])
 
   // Reset active index when results change
   useEffect(() => { setActiveIndex(0) }, [results])
@@ -172,7 +208,7 @@ export function SettingsSearchModal({ open, onClose }: SettingsSearchModalProps)
         <div className="max-h-80 overflow-y-auto py-1">
           {results.length === 0 ? (
             <div className="px-4 py-8 text-center text-sm" style={{ color: 'var(--text-muted)' }}>
-              Keine Einstellung gefunden
+              {tc('settings_search.none_found')}
             </div>
           ) : (
             results.map((entry, i) => (
@@ -209,7 +245,7 @@ export function SettingsSearchModal({ open, onClose }: SettingsSearchModalProps)
                 </div>
                 {entry.type === 'page' && (
                   <span className="text-[10px] shrink-0 font-medium" style={{ color: 'var(--text-muted)' }}>
-                    Seite
+                    {tc('settings_search.page_badge')}
                   </span>
                 )}
               </button>
@@ -222,8 +258,8 @@ export function SettingsSearchModal({ open, onClose }: SettingsSearchModalProps)
           className="flex items-center gap-4 px-4 py-2 text-[10px] font-mono"
           style={{ borderTop: '1px solid var(--border)', color: 'var(--text-muted)' }}
         >
-          <span>↑↓ navigieren</span>
-          <span>↵ öffnen</span>
+          <span>{tc('settings_search.hint_navigate')}</span>
+          <span>{tc('settings_search.hint_open')}</span>
           <span>{tc('ui.esc_close')}</span>
         </div>
       </div>

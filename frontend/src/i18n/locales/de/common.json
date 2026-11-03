@@ -195,7 +195,40 @@
   },
   "settings_search": {
     "placeholder": "Einstellungen suchen...",
-    "clear": "Suche löschen"
+    "clear": "Suche löschen",
+    "groups": {
+      "general": "Allgemein",
+      "connections": "Verbindungen",
+      "subtitles": "Untertitel",
+      "providers": "Provider",
+      "automation": "Automatisierung",
+      "translation": "Übersetzung",
+      "notifications": "Benachrichtigungen",
+      "system": "System",
+      "about": "Über"
+    },
+    "pages": {
+      "general": "App & Oberfläche",
+      "connections": "Sonarr, Radarr & Medienserver",
+      "metadata": "Metadaten",
+      "scoring": "Scoring",
+      "format": "Format & Benennung",
+      "cleanup": "Bereinigung",
+      "stream_management": "Stream-Verwaltung",
+      "providers": "Provider & Zugangsdaten",
+      "transcription": "Transkription",
+      "automation": "Suche, Scan & Upgrades",
+      "post_processing": "Post-Processing",
+      "translation": "Backends & Glossar",
+      "notifications": "Kanäle & Vorlagen",
+      "system": "Sicherheit, Backup & Logs",
+      "hooks": "Hooks & Webhooks",
+      "about": "Über Sublarr"
+    },
+    "none_found": "Keine Einstellung gefunden",
+    "page_badge": "Seite",
+    "hint_navigate": "↑↓ navigieren",
+    "hint_open": "↵ öffnen"
   },
   "cleanup_detail": {
     "last_run_success": "Letzter Lauf erfolgreich",
@@ -205,7 +238,24 @@
     "preview": "Vorschau",
     "run_success": "Ausgeführt",
     "run_error": "Fehler beim Ausführen",
-    "preview_error": "Vorschau fehlgeschlagen"
+    "preview_error": "Vorschau fehlgeschlagen",
+    "format": {
+      "any": "Beide behalten",
+      "any_desc": "SRT und ASS gleichzeitig",
+      "ass": "ASS bevorzugen",
+      "ass_desc": "SRT löschen wenn ASS vorhanden",
+      "srt": "SRT bevorzugen",
+      "srt_desc": "ASS löschen wenn SRT vorhanden"
+    },
+    "schedule_options": {
+      "manual": "Manuell",
+      "daily": "Täglich (03:00)",
+      "weekly": "Wöchentlich",
+      "after_scan": "Nach jedem Scan"
+    },
+    "keep": "Behalten",
+    "add_language": "+ Sprache hinzufügen",
+    "nfo_untouched": "NFO-Dateien (.nfo) werden nie angefasst."
   },
   "health": {
     "running": "Systemprüfung läuft...",
@@ -304,7 +354,16 @@
     "sidecar_singular": "Batch",
     "sidecar_plural": "Batches",
     "mkv_singular": "Backup",
-    "mkv_plural": "Backups"
+    "mkv_plural": "Backups",
+    "toast": {
+      "restored": "{{count}} Untertitel wiederhergestellt",
+      "restore_failed": "Wiederherstellung fehlgeschlagen",
+      "delete_failed": "Löschen fehlgeschlagen",
+      "batch_deleted": "Batch endgültig gelöscht",
+      "backup_deleted": "Backup endgültig gelöscht",
+      "video_restored_with_sidecars": "Video wiederhergestellt — {{count}} Sidecar-Batch(es) gelöscht",
+      "video_restored": "Video-Backup wiederhergestellt"
+    }
   },
   "more_info": "Mehr Informationen",
   "timestamp_seconds_placeholder": "Zeitstempel (Sekunden)",
@@ -1043,5 +1102,78 @@
     "close": "Vergleich schließen"
   },
   "saved": "Gespeichert",
-  "save": "Speichern"
+  "save": "Speichern",
+  "cleanup_ops": {
+    "language_filter": {
+      "title": "Sprachen-Filter",
+      "description": "Löscht Subtitle-Sidecars in Sprachen, die nicht in der Behalten-Liste stehen"
+    },
+    "format_upgrade": {
+      "title": "Format-Upgrade",
+      "description": "Löscht SRT-Dateien, wenn eine ASS-Version für dieselbe Episode vorhanden ist"
+    },
+    "orphan_files": {
+      "title": "Verwaiste Dateien",
+      "description": "Löscht Subtitle-Sidecars ohne zugehörige Videodatei im selben Ordner"
+    },
+    "orphan_db": {
+      "title": "Verwaiste DB-Einträge",
+      "description": "Entfernt Datenbankeinträge, deren Datei auf der Festplatte fehlt"
+    },
+    "old_backups": {
+      "title": "Alte Backups",
+      "description": "Löscht Remux-Backup-Dateien nach Ablauf der Aufbewahrungsfrist"
+    },
+    "old_subtitle_baks": {
+      "title": "Alte Untertitel-Backups (.bak)",
+      "description": "Verwaiste .bak.srt/.bak.ass werden sofort entfernt; übrige nach Aufbewahrungsfrist (0 = nie)"
+    },
+    "foreign_tracks": {
+      "title": "Fremdsprachen-Tracks entfernen",
+      "description": "Entfernt eingebettete Untertitel-Spuren aus den Videos, deren Sprache nicht in der Behalten-Liste steht (Original landet als Backup im Papierkorb)"
+    }
+  },
+  "sync_modal": {
+    "title": "Untertitel synchronisieren",
+    "start_failed": "Sync-Start fehlgeschlagen",
+    "install_failed": "Installation fehlgeschlagen",
+    "status_starting": "Starte…",
+    "status_queued": "In Warteschlange…",
+    "status_running": "Läuft…",
+    "status_completed": "Fertig",
+    "status_failed": "Fehlgeschlagen",
+    "not_installed": "(nicht installiert)",
+    "install": "Installieren",
+    "engine_ffsubsync_desc": "Sprachbasiert — analysiert Audio-Sprachaktivität",
+    "engine_alass_desc": "Referenz-Untertitel — synchronisiert gegen einen eingebetteten Track",
+    "reference_track": "Referenz-Track",
+    "no_tracks": "Keine eingebetteten Untertitel-Tracks gefunden.",
+    "select_track": "— Track wählen —",
+    "forced_suffix": " [Forced]",
+    "shift": "Versatz: {{value}} ms",
+    "close": "Schließen",
+    "start": "Starten"
+  },
+  "connection_badge": {
+    "connected": "Verbunden",
+    "error": "Fehler",
+    "unconfigured": "Nicht konfiguriert",
+    "checking": "Prüfe..."
+  },
+  "language_select": {
+    "placeholder": "Sprache wählen…",
+    "none_found": "Keine Sprache gefunden"
+  },
+  "processing_preview": {
+    "changes_found": "{{count}} Änderungen gefunden",
+    "empty": "(leer)",
+    "removed": "(entfernt)",
+    "applying": "Wird angewendet…",
+    "apply": "Übernehmen",
+    "cancel": "Abbrechen"
+  },
+  "providers": {
+    "resultRate": "Treffer-Quote",
+    "downloadRate": "Download-Quote"
+  }
 }

@@ -1,3 +1,5 @@
+import { useTranslation } from 'react-i18next'
+
 type KeepFormat = 'any' | 'ass' | 'srt'
 
 interface FormatUpgradeConfigProps {
@@ -5,13 +7,15 @@ interface FormatUpgradeConfigProps {
   onChange: (format: KeepFormat) => void
 }
 
-const OPTIONS: { value: KeepFormat; label: string; desc: string }[] = [
-  { value: 'any', label: 'Beide behalten', desc: 'SRT und ASS gleichzeitig' },
-  { value: 'ass', label: 'ASS bevorzugen', desc: 'SRT löschen wenn ASS vorhanden' },
-  { value: 'srt', label: 'SRT bevorzugen', desc: 'ASS löschen wenn SRT vorhanden' },
+// Keys are resolved at render time so the language switch applies immediately.
+const OPTIONS: { value: KeepFormat; labelKey: string; descKey: string }[] = [
+  { value: 'any', labelKey: 'cleanup_detail.format.any', descKey: 'cleanup_detail.format.any_desc' },
+  { value: 'ass', labelKey: 'cleanup_detail.format.ass', descKey: 'cleanup_detail.format.ass_desc' },
+  { value: 'srt', labelKey: 'cleanup_detail.format.srt', descKey: 'cleanup_detail.format.srt_desc' },
 ]
 
 export function FormatUpgradeConfig({ value, onChange }: FormatUpgradeConfigProps) {
+  const { t } = useTranslation('common')
   return (
     <div className="flex gap-3">
       {OPTIONS.map((opt) => (
@@ -28,10 +32,10 @@ export function FormatUpgradeConfig({ value, onChange }: FormatUpgradeConfigProp
             className="text-xs font-semibold mb-0.5"
             style={{ color: value === opt.value ? 'var(--accent)' : 'var(--text-primary)' }}
           >
-            {opt.label}
+            {t(opt.labelKey)}
           </div>
           <div className="text-[11px]" style={{ color: 'var(--text-muted)' }}>
-            {opt.desc}
+            {t(opt.descKey)}
           </div>
         </button>
       ))}

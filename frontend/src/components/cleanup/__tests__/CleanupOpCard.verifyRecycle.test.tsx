@@ -11,7 +11,7 @@ import { CleanupOpCard, type OpMeta } from '../CleanupOpCard'
 import type { CleanupRule } from '@/lib/types'
 
 vi.mock('react-i18next', () => ({
-  useTranslation: () => ({ t: (key: string) => key }),
+  useTranslation: () => ({ t: (key: string) => key, i18n: { language: 'en' } }),
 }))
 
 const http = vi.hoisted(() => ({
@@ -27,9 +27,8 @@ const META: OpMeta = {
   Icon: () => null,
   iconColor: '',
   iconBg: '',
-  title: 'Foreign tracks',
-  description: '',
-  defaultName: 'Foreign tracks',
+  titleKey: 'cleanup_ops.foreign_tracks.title',
+  descriptionKey: 'cleanup_ops.foreign_tracks.description',
 }
 
 function rule(config: Record<string, unknown>): CleanupRule {
@@ -53,7 +52,7 @@ function renderCard(config: Record<string, unknown>, onUpdate = vi.fn()) {
       </MemoryRouter>
     </QueryClientProvider>,
   )
-  fireEvent.click(screen.getByText('Foreign tracks'))
+  fireEvent.click(screen.getByText('cleanup_ops.foreign_tracks.title'))
   return onUpdate
 }
 

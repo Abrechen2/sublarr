@@ -233,7 +233,7 @@ export function ProviderEditor({
               <div
                 className="flex-1 h-1.5 rounded-full"
                 style={{ backgroundColor: 'var(--bg-primary)' }}
-                title={`${ts('providers_tab.editor.result_rate', 'Treffer-Quote')}: ${Math.round((provider.stats.result_rate ?? 0) * 100)}%`}
+                title={`${ts('providers_tab.editor.result_rate')}: ${Math.round((provider.stats.result_rate ?? 0) * 100)}%`}
               >
                 <div
                   className="h-full rounded-full transition-all"
@@ -251,7 +251,7 @@ export function ProviderEditor({
               <div
                 className="flex-1 h-1.5 rounded-full"
                 style={{ backgroundColor: 'var(--bg-primary)' }}
-                title={`${ts('providers_tab.editor.download_rate', 'Download-Quote')}: ${Math.round((provider.stats.download_rate ?? provider.stats.success_rate) * 100)}%`}
+                title={`${ts('providers_tab.editor.download_rate')}: ${Math.round((provider.stats.download_rate ?? provider.stats.success_rate) * 100)}%`}
               >
                 <div
                   className="h-full rounded-full transition-all"

@@ -92,7 +92,7 @@ export function ProviderTile({
             <div
               className="mt-2 h-0.5 rounded-full"
               style={{ backgroundColor: 'var(--bg-primary)' }}
-              title={`${tc('providers.resultRate', 'Treffer-Quote')}: ${Math.round((provider.stats.result_rate ?? 0) * 100)}%`}
+              title={`${tc('providers.resultRate')}: ${Math.round((provider.stats.result_rate ?? 0) * 100)}%`}
             >
               <div
                 className="h-full rounded-full transition-all"
@@ -105,7 +105,7 @@ export function ProviderTile({
             <div
               className="mt-1 h-0.5 rounded-full"
               style={{ backgroundColor: 'var(--bg-primary)' }}
-              title={`${tc('providers.downloadRate', 'Download-Quote')}: ${Math.round((provider.stats.download_rate ?? provider.stats.success_rate) * 100)}%`}
+              title={`${tc('providers.downloadRate')}: ${Math.round((provider.stats.download_rate ?? provider.stats.success_rate) * 100)}%`}
             >
               <div
                 className="h-full rounded-full transition-all"

@@ -9,8 +9,9 @@ interface LanguageSelectProps {
   placeholder?: string
 }
 
-export function LanguageSelect({ value, onChange, placeholder = 'Sprache wählen…' }: LanguageSelectProps) {
+export function LanguageSelect({ value, onChange, placeholder }: LanguageSelectProps) {
   const { t } = useTranslation('common')
+  const resolvedPlaceholder = placeholder ?? t('language_select.placeholder')
   const { data: languages = [] } = useSupportedLanguages()
   const [open, setOpen] = useState(false)
   const [search, setSearch] = useState('')
@@ -57,7 +58,7 @@ export function LanguageSelect({ value, onChange, placeholder = 'Sprache wählen
         }}
       >
         <span>
-          {current ? `${current.name} (${current.code})` : value || placeholder}
+          {current ? `${current.name} (${current.code})` : value || resolvedPlaceholder}
         </span>
         <ChevronDown size={14} style={{ color: 'var(--text-muted)', flexShrink: 0, marginLeft: '8px' }} />
       </button>
@@ -89,7 +90,7 @@ export function LanguageSelect({ value, onChange, placeholder = 'Sprache wählen
           <div className="overflow-y-auto" style={{ maxHeight: '200px' }}>
             {filtered.length === 0 ? (
               <p className="px-3 py-2 text-[12px]" style={{ color: 'var(--text-muted)' }}>
-                Keine Sprache gefunden
+                {t('language_select.none_found')}
               </p>
             ) : (
               filtered.map((lang) => (

@@ -167,6 +167,16 @@
       "cancel": "Cancel",
       "button": "Fix ({{count}})",
       "button_tooltip": "Preview and apply safe timing fixes (overlaps, tight gaps, too-short cues)"
+    },
+    "extract_failed": "Audio could not be extracted.",
+    "cue_bar": {
+      "no_cues": "This file contains no cues.",
+      "select_cue": "Select a cue in the \"Cues\" tab or click a region to edit it.",
+      "reading_speed": "{{chars}} characters · Reading speed {{cps}} CPS",
+      "very_short": "very short display time",
+      "too_fast": "too fast",
+      "fast": "fast",
+      "empty_cue": "(empty cue)"
     }
   },
   "sync_preview": {
@@ -223,7 +233,7 @@
     "draft_found": "Found an unsaved draft from {{when}}",
     "draft_restore": "Restore",
     "draft_discard": "Discard",
-    "draft_restored": "Draft restored \u2014 not saved yet",
+    "draft_restored": "Draft restored — not saved yet",
     "converted": "Converted to {{format}}",
     "convert_failed": "Convert failed",
     "convert_exists": "The converted file already exists. Delete or rename it first.",

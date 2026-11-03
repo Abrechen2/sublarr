@@ -129,14 +129,14 @@ function QuietHoursConfigStub() {
       updateMut.mutate(
         { id: existingId, data: payload },
         {
-          onSuccess: () => toast(t('actions.saved', 'Saved')),
-          onError: () => toast(t('actions.save_failed', 'Save failed'), 'error'),
+          onSuccess: () => toast(t('actions.saved')),
+          onError: () => toast(t('actions.save_failed'), 'error'),
         },
       )
     } else {
       createMut.mutate(payload, {
-        onSuccess: () => toast(t('actions.saved', 'Saved')),
-        onError: () => toast(t('actions.save_failed', 'Save failed'), 'error'),
+        onSuccess: () => toast(t('actions.saved')),
+        onError: () => toast(t('actions.save_failed'), 'error'),
       })
     }
   }

@@ -1,19 +1,20 @@
 import { useState, useEffect } from 'react'
 import { X } from 'lucide-react'
+import { useTranslation } from 'react-i18next'
 
 const COMMON_LANGUAGES = [
-  { code: 'de', label: 'Deutsch', flag: '🇩🇪' },
-  { code: 'en', label: 'Englisch', flag: '🇬🇧' },
-  { code: 'ja', label: 'Japanisch', flag: '🇯🇵' },
-  { code: 'fr', label: 'Französisch', flag: '🇫🇷' },
-  { code: 'es', label: 'Spanisch', flag: '🇪🇸' },
-  { code: 'it', label: 'Italienisch', flag: '🇮🇹' },
-  { code: 'pt', label: 'Portugiesisch', flag: '🇵🇹' },
-  { code: 'ru', label: 'Russisch', flag: '🇷🇺' },
-  { code: 'ar', label: 'Arabisch', flag: '🇸🇦' },
-  { code: 'zh', label: 'Chinesisch', flag: '🇨🇳' },
-  { code: 'ko', label: 'Koreanisch', flag: '🇰🇷' },
-  { code: 'pl', label: 'Polnisch', flag: '🇵🇱' },
+  { code: 'de', flag: '🇩🇪' },
+  { code: 'en', flag: '🇬🇧' },
+  { code: 'ja', flag: '🇯🇵' },
+  { code: 'fr', flag: '🇫🇷' },
+  { code: 'es', flag: '🇪🇸' },
+  { code: 'it', flag: '🇮🇹' },
+  { code: 'pt', flag: '🇵🇹' },
+  { code: 'ru', flag: '🇷🇺' },
+  { code: 'ar', flag: '🇸🇦' },
+  { code: 'zh', flag: '🇨🇳' },
+  { code: 'ko', flag: '🇰🇷' },
+  { code: 'pl', flag: '🇵🇱' },
 ]
 
 interface LanguageFilterConfigProps {
@@ -21,7 +22,17 @@ interface LanguageFilterConfigProps {
   onChange: (langs: string[]) => void
 }
 
+/** Language name in the active UI language (e.g. "Deutsch" / "German"). */
+function languageLabel(code: string, uiLang: string): string {
+  try {
+    return new Intl.DisplayNames([uiLang], { type: 'language' }).of(code) ?? code.toUpperCase()
+  } catch {
+    return code.toUpperCase()
+  }
+}
+
 export function LanguageFilterConfig({ value, onChange }: LanguageFilterConfigProps) {
+  const { t, i18n } = useTranslation('common')
   const [localValue, setLocalValue] = useState(value)
   const [showDropdown, setShowDropdown] = useState(false)
 
@@ -45,10 +56,13 @@ export function LanguageFilterConfig({ value, onChange }: LanguageFilterConfigPr
     onChange(next)
   }
 
-  const getLang = (code: string) =>
-    COMMON_LANGUAGES.find((l) => l.code === code) ?? { code, label: code.toUpperCase(), flag: '🌐' }
+  const getLang = (code: string) => ({
+    code,
+    label: languageLabel(code, i18n.language),
+    flag: COMMON_LANGUAGES.find((l) => l.code === code)?.flag ?? '🌐',
+  })
 
-  const available = COMMON_LANGUAGES.filter((l) => !localValue.includes(l.code))
+  const available = COMMON_LANGUAGES.filter((l) => !localValue.includes(l.code)).map((l) => getLang(l.code))
 
   return (
     <div className="space-y-3">
@@ -56,7 +70,7 @@ export function LanguageFilterConfig({ value, onChange }: LanguageFilterConfigPr
         className="text-[10px] font-semibold uppercase tracking-wide"
         style={{ color: 'var(--text-muted)' }}
       >
-        Behalten
+        {t('cleanup_detail.keep')}
       </div>
       <div className="flex flex-wrap gap-2">
         {localValue.map((code) => {
@@ -86,7 +100,7 @@ export function LanguageFilterConfig({ value, onChange }: LanguageFilterConfigPr
             className="flex items-center gap-1 px-2.5 py-1 rounded-md text-xs border border-dashed"
             style={{ borderColor: 'var(--border)', color: 'var(--text-muted)' }}
           >
-            + Sprache hinzufügen
+            {t('cleanup_detail.add_language')}
           </button>
           {showDropdown && available.length > 0 && (
             <div
@@ -108,7 +122,7 @@ export function LanguageFilterConfig({ value, onChange }: LanguageFilterConfigPr
         </div>
       </div>
       <div className="text-xs" style={{ color: 'var(--text-muted)' }}>
-        NFO-Dateien (.nfo) werden nie angefasst.
+        {t('cleanup_detail.nfo_untouched')}
       </div>
     </div>
   )

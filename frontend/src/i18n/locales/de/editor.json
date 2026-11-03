@@ -167,6 +167,16 @@
       "cancel": "Abbrechen",
       "button": "Fix ({{count}})",
       "button_tooltip": "Sichere Timing-Korrekturen prüfen und anwenden (Überlappungen, enge Abstände, zu kurze Cues)"
+    },
+    "extract_failed": "Audio konnte nicht extrahiert werden.",
+    "cue_bar": {
+      "no_cues": "Diese Datei enthält keine Cues.",
+      "select_cue": "Wähle einen Cue im „Cues“-Tab oder klicke eine Region, um ihn zu bearbeiten.",
+      "reading_speed": "{{chars}} Zeichen · Lesegeschwindigkeit {{cps}} Zeichen/s",
+      "very_short": "sehr kurze Standzeit",
+      "too_fast": "zu schnell",
+      "fast": "schnell",
+      "empty_cue": "(leerer Cue)"
     }
   },
   "sync_preview": {
@@ -223,7 +233,7 @@
     "draft_found": "Ungespeicherter Entwurf vom {{when}} gefunden",
     "draft_restore": "Wiederherstellen",
     "draft_discard": "Verwerfen",
-    "draft_restored": "Entwurf wiederhergestellt \u2013 noch nicht gespeichert",
+    "draft_restored": "Entwurf wiederhergestellt – noch nicht gespeichert",
     "converted": "Zu {{format}} konvertiert",
     "convert_failed": "Konvertierung fehlgeschlagen",
     "convert_exists": "Die konvertierte Datei existiert bereits. Erst löschen oder umbenennen.",

@@ -7,6 +7,7 @@
  */
 
 import { useState, useEffect, useCallback } from 'react'
+import { useTranslation } from 'react-i18next'
 import { X, Loader2, Check, AlertTriangle, Download } from 'lucide-react'
 import { getSyncEngines, startVideoSync, getSyncJobStatus, listEpisodeTracks, installSyncEngine } from '@/api/client'
 import type { Track } from '@/lib/types'
@@ -22,6 +23,7 @@ interface SyncModalProps {
 type JobStatus = 'idle' | 'starting' | 'queued' | 'running' | 'completed' | 'failed'
 
 export function SyncModal({ episodeId, subtitlePath, videoPath, onClose, onComplete }: SyncModalProps) {
+  const { t } = useTranslation('common')
   const [engines, setEngines] = useState<Record<string, boolean>>({})
   const [engine, setEngine] = useState<'ffsubsync' | 'alass'>('ffsubsync')
   const [tracks, setTracks] = useState<Track[]>([])
@@ -80,12 +82,12 @@ export function SyncModal({ episodeId, subtitlePath, videoPath, onClose, onCompl
     } catch (e: unknown) {
       const msg =
         e && typeof e === 'object' && 'response' in e
-          ? ((e as { response?: { data?: { error?: string } } }).response?.data?.error ?? 'Sync-Start fehlgeschlagen')
-          : 'Sync-Start fehlgeschlagen'
+          ? ((e as { response?: { data?: { error?: string } } }).response?.data?.error ?? t('sync_modal.start_failed'))
+          : t('sync_modal.start_failed')
       setError(msg)
       setStatus('idle')
     }
-  }, [subtitlePath, videoPath, engine, refTrackIdx])
+  }, [subtitlePath, videoPath, engine, refTrackIdx, t])
 
   const handleInstall = useCallback(async (eng: 'ffsubsync' | 'alass') => {
     setInstalling(eng)
@@ -96,24 +98,24 @@ export function SyncModal({ episodeId, subtitlePath, videoPath, onClose, onCompl
       setEngines(updated)
     } catch (e: unknown) {
       const msg = e && typeof e === 'object' && 'response' in e
-        ? ((e as { response?: { data?: { error?: string } } }).response?.data?.error ?? `Installation fehlgeschlagen`)
-        : `Installation fehlgeschlagen`
+        ? ((e as { response?: { data?: { error?: string } } }).response?.data?.error ?? t('sync_modal.install_failed'))
+        : t('sync_modal.install_failed')
       setError(msg)
     } finally {
       setInstalling(null)
     }
-  }, [])
+  }, [t])
 
   const isRunning = status === 'starting' || status === 'queued' || status === 'running'
   const canStart = status === 'idle' && engines[engine] !== false && !(engine === 'alass' && refTrackIdx === undefined)
 
   const statusLabel: Record<JobStatus, string> = {
     idle: '',
-    starting: 'Starte…',
-    queued: 'In Warteschlange…',
-    running: 'Läuft…',
-    completed: 'Fertig',
-    failed: 'Fehlgeschlagen',
+    starting: t('sync_modal.status_starting'),
+    queued: t('sync_modal.status_queued'),
+    running: t('sync_modal.status_running'),
+    completed: t('sync_modal.status_completed'),
+    failed: t('sync_modal.status_failed'),
   }
 
   return (
@@ -136,7 +138,7 @@ export function SyncModal({ episodeId, subtitlePath, videoPath, onClose, onCompl
         >
           <div>
             <h2 id="sync-modal-title" className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>
-              Untertitel synchronisieren
+              {t('sync_modal.title')}
             </h2>
             <p className="text-xs truncate max-w-xs mt-0.5" style={{ color: 'var(--text-muted)' }}>
               {fileName}
@@ -177,7 +179,7 @@ export function SyncModal({ episodeId, subtitlePath, videoPath, onClose, onCompl
                   >
                     {e}
                     {engines[e] === false && (
-                      <span className="ml-1" style={{ color: 'var(--text-muted)' }}>(nicht installiert)</span>
+                      <span className="ml-1" style={{ color: 'var(--text-muted)' }}>{t('sync_modal.not_installed')}</span>
                     )}
                   </button>
                   {engines[e] === false && (
@@ -195,7 +197,7 @@ export function SyncModal({ episodeId, subtitlePath, videoPath, onClose, onCompl
                       {installing === e
                         ? <Loader2 size={11} className="animate-spin" />
                         : <Download size={11} />}
-                      Installieren
+                      {t('sync_modal.install')}
                     </button>
                   )}
                 </div>
@@ -203,8 +205,8 @@ export function SyncModal({ episodeId, subtitlePath, videoPath, onClose, onCompl
             </div>
             <p className="text-xs mt-1.5" style={{ color: 'var(--text-muted)' }}>
               {engine === 'ffsubsync'
-                ? 'Sprachbasiert — analysiert Audio-Sprachaktivität'
-                : 'Referenz-Untertitel — synchronisiert gegen einen eingebetteten Track'}
+                ? t('sync_modal.engine_ffsubsync_desc')
+                : t('sync_modal.engine_alass_desc')}
             </p>
           </div>
 
@@ -212,11 +214,11 @@ export function SyncModal({ episodeId, subtitlePath, videoPath, onClose, onCompl
           {engine === 'alass' && (
             <div>
               <p className="text-xs font-medium mb-2" style={{ color: 'var(--text-secondary)' }}>
-                Referenz-Track
+                {t('sync_modal.reference_track')}
               </p>
               {tracks.length === 0 ? (
                 <p className="text-xs" style={{ color: 'var(--text-muted)' }}>
-                  Keine eingebetteten Untertitel-Tracks gefunden.
+                  {t('sync_modal.no_tracks')}
                 </p>
               ) : (
                 <select
@@ -230,12 +232,12 @@ export function SyncModal({ episodeId, subtitlePath, videoPath, onClose, onCompl
                     color: 'var(--text-primary)',
                   }}
                 >
-                  <option value="">— Track wählen —</option>
-                  {tracks.map((t) => (
-                    <option key={t.index} value={t.index}>
-                      [{t.index}] {t.language} — {t.codec.toUpperCase()}
-                      {t.title ? ` (${t.title})` : ''}
-                      {t.forced ? ' [Forced]' : ''}
+                  <option value="">{t('sync_modal.select_track')}</option>
+                  {tracks.map((tr) => (
+                    <option key={tr.index} value={tr.index}>
+                      [{tr.index}] {tr.language} — {tr.codec.toUpperCase()}
+                      {tr.title ? ` (${tr.title})` : ''}
+                      {tr.forced ? t('sync_modal.forced_suffix') : ''}
                     </option>
                   ))}
                 </select>
@@ -266,7 +268,7 @@ export function SyncModal({ episodeId, subtitlePath, videoPath, onClose, onCompl
               {status === 'failed' && <AlertTriangle size={12} className="shrink-0" />}
               <span>
                 {statusLabel[status]}
-                {status === 'completed' && shiftMs !== undefined && ` — Versatz: ${shiftMs > 0 ? '+' : ''}${shiftMs} ms`}
+                {status === 'completed' && shiftMs !== undefined && ` — ${t('sync_modal.shift', { value: `${shiftMs > 0 ? '+' : ''}${shiftMs}` })}`}
               </span>
             </div>
           )}
@@ -290,7 +292,7 @@ export function SyncModal({ episodeId, subtitlePath, videoPath, onClose, onCompl
             onMouseEnter={(e) => { e.currentTarget.style.color = 'var(--text-primary)' }}
             onMouseLeave={(e) => { e.currentTarget.style.color = 'var(--text-muted)' }}
           >
-            Schließen
+            {t('sync_modal.close')}
           </button>
           <button
             onClick={() => void handleStart()}
@@ -302,7 +304,7 @@ export function SyncModal({ episodeId, subtitlePath, videoPath, onClose, onCompl
             }}
           >
             {isRunning && <Loader2 size={14} className="animate-spin" />}
-            {isRunning ? 'Läuft…' : 'Starten'}
+            {isRunning ? t('sync_modal.status_running') : t('sync_modal.start')}
           </button>
         </div>
       </div>

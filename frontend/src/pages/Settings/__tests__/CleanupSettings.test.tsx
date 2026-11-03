@@ -68,8 +68,8 @@ describe('CleanupSettings', () => {
 
   it('renders the 5 fixed operation cards', () => {
     wrap(<CleanupSettings />)
-    expect(screen.getByText(/Sprachen-Filter/i)).toBeTruthy()
-    expect(screen.getByText(/Format-Upgrade/i)).toBeTruthy()
+    expect(screen.getByText(/cleanup_ops.language_filter.title/)).toBeTruthy()
+    expect(screen.getByText(/cleanup_ops.format_upgrade.title/)).toBeTruthy()
   })
 
   it('renders the signs removal level dropdown and posts changes', () => {

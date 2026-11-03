@@ -79,7 +79,12 @@
     "queued": "Wartend",
     "queued_count": "Wartend ({{count}})",
     "no_active": "Keine aktiven Übersetzungen",
-    "no_queued": "Keine wartenden Aufgaben"
+    "no_queued": "Keine wartenden Aufgaben",
+    "provider_status": {
+      "all_active": "{{count}} Provider aktiv",
+      "mostly_throttled": "{{active}} aktiv · {{throttled}} gedrosselt — Suche verlangsamt",
+      "some_throttled": "{{active}} aktiv · {{throttled}} gedrosselt"
+    }
   },
   "history": {
     "filter_downloads": "Downloads",

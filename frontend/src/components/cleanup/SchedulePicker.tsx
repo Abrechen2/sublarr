@@ -1,3 +1,5 @@
+import { useTranslation } from 'react-i18next'
+
 type Schedule = 'manual' | 'daily' | 'weekly' | 'after_scan'
 
 interface SchedulePickerProps {
@@ -5,14 +7,16 @@ interface SchedulePickerProps {
   onChange: (schedule: Schedule) => void
 }
 
-const OPTIONS: { value: Schedule; label: string }[] = [
-  { value: 'manual', label: 'Manuell' },
-  { value: 'daily', label: 'Täglich (03:00)' },
-  { value: 'weekly', label: 'Wöchentlich' },
-  { value: 'after_scan', label: 'Nach jedem Scan' },
+// Keys are resolved at render time so the language switch applies immediately.
+const OPTIONS: { value: Schedule; labelKey: string }[] = [
+  { value: 'manual', labelKey: 'cleanup_detail.schedule_options.manual' },
+  { value: 'daily', labelKey: 'cleanup_detail.schedule_options.daily' },
+  { value: 'weekly', labelKey: 'cleanup_detail.schedule_options.weekly' },
+  { value: 'after_scan', labelKey: 'cleanup_detail.schedule_options.after_scan' },
 ]
 
 export function SchedulePicker({ value, onChange }: SchedulePickerProps) {
+  const { t } = useTranslation('common')
   return (
     <div className="flex flex-wrap gap-2">
       {OPTIONS.map((opt) => (
@@ -26,7 +30,7 @@ export function SchedulePicker({ value, onChange }: SchedulePickerProps) {
             color: value === opt.value ? 'var(--accent)' : 'var(--text-muted)',
           }}
         >
-          {opt.label}
+          {t(opt.labelKey)}
         </button>
       ))}
     </div>

@@ -235,7 +235,9 @@
     "add_mapping": "Add Mapping",
     "add_instance": "Add Instance",
     "enabled": "Enabled",
-    "disabled": "Disabled"
+    "disabled": "Disabled",
+    "saved": "Saved",
+    "save_failed": "Save failed"
   },
   "path_mapping": {
     "title": "Path Mapping (Remote → Local)",
@@ -295,7 +297,9 @@
       "test_download": "Test download",
       "test_download_hint": "Fetches one real subtitle and discards it. A search-only test reports green even when the download path is dead — search and download use different credentials. Uses one unit of the daily allowance.",
       "pool_overrides_field_one": "Searches use the API keys list below. This field is not used while that list has a key.",
-      "pool_overrides_field_other": "Searches use the API keys list below ({{count}} keys). This field is not used while that list has keys."
+      "pool_overrides_field_other": "Searches use the API keys list below ({{count}} keys). This field is not used while that list has keys.",
+      "result_rate": "Hit rate",
+      "download_rate": "Download rate"
     },
     "descriptions": {
       "fallback": "Subtitle provider",
@@ -959,7 +963,10 @@
     "media_io_max_parallel_hint": "How many disk-heavy processes (remux, extraction, sync, metadata scan) may run at once. 1 is gentle on the array; higher values speed things up on fast storage.",
     "search_scan_section": "Search & Scan",
     "upgrade_rules_section": "Upgrade Rules",
-    "scheduled_tasks_section": "Scheduled Tasks"
+    "scheduled_tasks_section": "Scheduled Tasks",
+    "ffmpeg_timeout_hint": "Maximum wait time for ffprobe/ffmpeg operations while scanning the media library.",
+    "metadata_engine_hint": "Tool used to read media file metadata. \"auto\" picks one automatically.",
+    "metadata_worker_hint": "Number of parallel threads for the metadata scan."
   },
   "scoring_tab": {
     "presets_title": "Quick Start: Apply a Preset",
@@ -2188,7 +2195,11 @@
     "confirm_delete": "Permanently delete backup?\n{{path}}",
     "deleted": "Backup deleted",
     "delete_failed": "Delete failed",
-    "orphan_badge": "Orphan"
+    "orphan_badge": "Orphan",
+    "toast": {
+      "purged": "{{deleted}} backups deleted ({{orphans}} orphans)",
+      "purge_failed": "Cleanup failed"
+    }
   },
   "scoring_content": {
     "toast_rg_saved": "Release group settings saved",
@@ -2447,5 +2458,76 @@
   "settings_search": {
     "placeholder": "Search settings…",
     "clear": "Clear search"
+  },
+  "settings_fields": {
+    "port": "HTTP port Sublarr listens on. Default: 5765.",
+    "api_key": "Optional API key for the X-Api-Key header. Leave empty to disable auth.",
+    "log_level": "Logging level: DEBUG, INFO, WARNING, ERROR.",
+    "media_path": "Root path of the media directory. All media paths must be located below it.",
+    "db_path": "SQLite database file. Only change this if the DB was moved.",
+    "source_language": "Source language of the subtitles (e.g. English). Also sets the language name for LLM prompts.",
+    "target_language": "Target language for translations and provider search (e.g. German).",
+    "source_language_name": "Full name of the source language for LLM prompts. Set automatically when the language changes.",
+    "target_language_name": "Full name of the target language for LLM prompts. Set automatically when the language changes.",
+    "hi_removal_enabled": "Removes [sound descriptions] and (speaker tags) from subtitles.",
+    "auto_translate_any_source": "Translates the missing target language from ANY available source language (preferring the profile/default source). Off: only the preferred source language is used.",
+    "auto_translate_provider_multilang": "Searches providers for source subtitles in several languages (more hits, more API usage). Only effective when \"from any source\" is enabled.",
+    "hi_preference": "How subtitles with HI tags are handled during provider search.",
+    "provider_reranking_enabled": "Calculate provider score modifiers automatically from the download history. Good providers get a bonus, bad ones a penalty.",
+    "provider_reranking_min_downloads": "Minimum number of successful downloads before a modifier is calculated.",
+    "provider_reranking_max_modifier": "Maximum absolute score modifier that re-ranking can assign.",
+    "upgrade_enabled": "Automatically search for better subtitles when the score threshold is not reached.",
+    "upgrade_prefer_ass": "Prefer ASS format (with styling) over SRT.",
+    "upgrade_min_score_delta": "Minimum score difference required to justify an upgrade download.",
+    "upgrade_window_days": "Only attempt upgrades within this time window after the release.",
+    "upgrade_scan_interval_hours": "How often the upgrade scanner looks for candidates. 0 = disabled.",
+    "webhook_delay_minutes": "Wait time after a Sonarr/Radarr webhook before the search starts.",
+    "webhook_auto_scan": "Automatically scan for embedded subtitles after a Sonarr/Radarr download.",
+    "webhook_auto_search": "Automatically search subtitle providers after a download.",
+    "webhook_auto_translate": "Automatically translate found subtitles.",
+    "remux_trash_dir": "Folder for backups of deleted streams. Relative to the media path (e.g. .sublarr) or an absolute path. Backups end up in <trash>/<date>/<file>.<ts>.bak.",
+    "remux_backup_retention_days": "After how many days remux backups are permanently deleted. 0 = never.",
+    "remux_use_reflink": "Where a hardlink is not possible, a CoW reflink is created on Btrfs/XFS instead of a full copy.",
+    "remux_arr_pause_enabled": "Pause Sonarr/Radarr folder monitoring during the remux.",
+    "remux_hardlink_policy": "Every remux breaks hardlinks (default for *arr setups with torrent seeding): disk usage doubles and the seeding copy diverges. \"Skip\" (default) skips container remuxes for files with multiple links.",
+    "wanted_search_interval_hours": "Interval for the automatic provider search. 0 = disabled.",
+    "wanted_search_on_startup": "Run the provider search at backend startup.",
+    "wanted_search_max_items_per_run": "Maximum number of entries per automatic search run.",
+    "wanted_search_order": "Order in which the auto-scheduler works through the queue.",
+    "wanted_scan_interval_hours": "How often the media library is checked for missing subtitles.",
+    "wanted_anime_only": "Only add Sonarr series with the anime tag to the Wanted list.",
+    "wanted_anime_movies_only": "Only add Radarr movies with the anime tag to the Wanted list.",
+    "wanted_scan_on_startup": "Run the Wanted scan at backend startup.",
+    "wanted_auto_extract": "Automatically extract embedded subtitles from MKV files.",
+    "wanted_auto_translate": "Automatically translate extracted subtitles. Requires auto-extract.",
+    "wanted_max_search_attempts": "After this number of failed attempts an entry is given up on.",
+    "sonarr_url": "URL of the Sonarr instance including port. No trailing slashes.",
+    "sonarr_api_key": "In Sonarr under Settings → General → Security.",
+    "radarr_url": "URL of the Radarr instance including port. No trailing slashes.",
+    "radarr_api_key": "In Radarr under Settings → General → Security.",
+    "standalone_enabled": "Scan the file system directly without Sonarr/Radarr. Media Path must be configured.",
+    "tmdb_api_key": "Bearer token from themoviedb.org for metadata lookups.",
+    "tvdb_api_key": "API key from thetvdb.com. Optional — TMDB is enough for most cases.",
+    "tvdb_pin": "TVDB subscriber PIN (only needed for the subscriber plan).",
+    "standalone_scan_interval_hours": "Interval for the automatic file system scan. 0 = disabled.",
+    "standalone_debounce_seconds": "Wait time after the last file change before a scan is triggered.",
+    "standalone_skip_extras": "Ignore trailers, featurettes, samples and similar files during the scan.",
+    "auto_cleanup_after_extract": "Automatically delete unneeded languages after batch-extract. Requires keep_languages.",
+    "auto_cleanup_keep_languages": "Comma-separated ISO-639-1 codes — sidecars of other languages are deleted. Empty = delete nothing.",
+    "auto_cleanup_keep_formats": "\"ass\": delete SRT when an ASS exists for the same language. \"srt\" or \"any\": keep both.",
+    "subtitle_trash_retention_days": "Deleted sidecar files are kept in the trash for N days and can be restored. 0 = keep permanently.",
+    "auto_nfo_export": "Write an XML sidecar (.nfo) next to every downloaded or translated subtitle. Contains provider, language, score, and translation metadata. Off by default.",
+    "streaming_enabled": "Serve video files for in-browser preview. Disable to block the /media/stream endpoint.",
+    "remux_hardlink_policy_options": {
+      "skip": "Skip (never remux hardlinked files)",
+      "warn": "Warn (remux, but log a warning)",
+      "allow": "Allow (always remux)"
+    },
+    "hi_preference_options": {
+      "include": "Include (no preference)",
+      "prefer": "Prefer HI (+30 score)",
+      "exclude": "Exclude HI (−999 penalty)",
+      "only": "Only HI (non-HI excluded)"
+    }
   }
 }

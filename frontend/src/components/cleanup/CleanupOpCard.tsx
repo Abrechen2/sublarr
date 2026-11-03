@@ -46,9 +46,9 @@ export interface OpMeta {
   Icon: React.ElementType
   iconColor: string
   iconBg: string
-  title: string
-  description: string
-  defaultName: string
+  /** i18n keys (common namespace), translated at render time. */
+  titleKey: string
+  descriptionKey: string
   /** Seed config applied when the rule is first created (default: {}). */
   defaultConfig?: Record<string, unknown>
 }
@@ -307,8 +307,8 @@ export function CleanupOpCard({ meta, rule, onToggle, onUpdate }: CleanupOpCardP
   const handleRun = () => {
     if (!rule) return
     runRule.mutate(rule.id, {
-      onSuccess: () => toast(t('cleanup_detail.run_success', 'Ausgeführt'), 'success'),
-      onError: () => toast(t('cleanup_detail.run_error', 'Fehler beim Ausführen'), 'error'),
+      onSuccess: () => toast(t('cleanup_detail.run_success'), 'success'),
+      onError: () => toast(t('cleanup_detail.run_error'), 'error'),
     })
   }
 
@@ -319,7 +319,7 @@ export function CleanupOpCard({ meta, rule, onToggle, onUpdate }: CleanupOpCardP
         setPreviewResult(data.preview)
         if (!expanded) setExpanded(true)
       },
-      onError: () => toast(t('cleanup_detail.preview_error', 'Vorschau fehlgeschlagen'), 'error'),
+      onError: () => toast(t('cleanup_detail.preview_error'), 'error'),
     })
   }
 
@@ -351,10 +351,10 @@ export function CleanupOpCard({ meta, rule, onToggle, onUpdate }: CleanupOpCardP
         {/* Title + description */}
         <div className="flex-1 min-w-0">
           <div className="text-sm font-semibold text-foreground">
-            {meta.title}
+            {t(meta.titleKey)}
           </div>
           <div className="text-xs mt-0.5 text-muted">
-            {meta.description}
+            {t(meta.descriptionKey)}
           </div>
         </div>
 

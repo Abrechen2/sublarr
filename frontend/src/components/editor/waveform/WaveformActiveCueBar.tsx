@@ -7,6 +7,7 @@
  * is selected, a short hint instructs the user to pick one.
  */
 
+import { useTranslation } from 'react-i18next'
 import { formatCueTextForDisplay } from './cueTextDisplay'
 import { classifyReadingSpeed, formatCps, type ReadingSpeedLevel } from './readingSpeed'
 
@@ -48,6 +49,7 @@ export function WaveformActiveCueBar({
   endSec,
   text,
 }: WaveformActiveCueBarProps) {
+  const { t } = useTranslation('editor')
   if (cueIndex === null) {
     return (
       <div
@@ -56,8 +58,8 @@ export function WaveformActiveCueBar({
         className="rounded border border-dashed border-border bg-surface px-4 py-3 text-sm text-muted"
       >
         {cueCount === 0
-          ? 'Diese Datei enthält keine Cues / no cues to edit.'
-          : 'Wähle einen Cue im "Cues"-Tab oder klick eine Region — Select a cue to edit.'}
+          ? t('waveform.cue_bar.no_cues')
+          : t('waveform.cue_bar.select_cue')}
       </div>
     )
   }
@@ -77,13 +79,12 @@ export function WaveformActiveCueBar({
         <span
           className={`tabular-nums font-medium ${CPS_LEVEL_CLASS[rs.level]}`}
           title={
-            `${rs.chars} Zeichen · Lesegeschwindigkeit ${formatCps(rs.cps)} Zeichen/s` +
-            (rs.tooShort ? ' · sehr kurze Standzeit' : '') +
-            ` — Reading speed: ${formatCps(rs.cps)} CPS` +
+            t('waveform.cue_bar.reading_speed', { chars: rs.chars, cps: formatCps(rs.cps) }) +
+            (rs.tooShort ? ` · ${t('waveform.cue_bar.very_short')}` : '') +
             (rs.level === 'tooFast'
-              ? ' (too fast)'
+              ? ` (${t('waveform.cue_bar.too_fast')})`
               : rs.level === 'fast'
-                ? ' (fast)'
+                ? ` (${t('waveform.cue_bar.fast')})`
                 : '')
           }
         >
@@ -93,7 +94,7 @@ export function WaveformActiveCueBar({
       </div>
       <div className="text-base leading-snug text-primary">
         {lines.length === 0 || (lines.length === 1 && lines[0] === '') ? (
-          <span className="italic text-muted">(leerer Cue / empty cue)</span>
+          <span className="italic text-muted">{t('waveform.cue_bar.empty_cue')}</span>
         ) : (
           lines.map((line, i) => (
             <div key={i}>{line}</div>

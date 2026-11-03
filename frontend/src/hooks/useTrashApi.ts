@@ -1,4 +1,4 @@
-﻿import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import {
   getTrashOverview,
   restoreSidecarBatch,
@@ -7,6 +7,7 @@ import {
   restoreMkvBackup,
 } from '@/api/trash'
 import { toast } from '@/components/shared/Toast'
+import i18n from '@/i18n'
 
 const TRASH_KEY = ['trash']
 
@@ -23,10 +24,10 @@ export function useRestoreSidecarBatch() {
   return useMutation({
     mutationFn: (batchId: string) => restoreSidecarBatch(batchId),
     onSuccess: (result) => {
-      toast(`${result.restored} Untertitel wiederhergestellt`)
+      toast(i18n.t('common:trash.toast.restored', { count: result.restored }))
       qc.invalidateQueries({ queryKey: TRASH_KEY })
     },
-    onError: () => toast('Wiederherstellung fehlgeschlagen', 'error'),
+    onError: () => toast(i18n.t('common:trash.toast.restore_failed'), 'error'),
   })
 }
 
@@ -35,10 +36,10 @@ export function useDeleteSidecarBatch() {
   return useMutation({
     mutationFn: (batchId: string) => deleteSidecarBatch(batchId),
     onSuccess: () => {
-      toast('Batch endgÃ¼ltig gelÃ¶scht')
+      toast(i18n.t('common:trash.toast.batch_deleted'))
       qc.invalidateQueries({ queryKey: TRASH_KEY })
     },
-    onError: () => toast('LÃ¶schen fehlgeschlagen', 'error'),
+    onError: () => toast(i18n.t('common:trash.toast.delete_failed'), 'error'),
   })
 }
 
@@ -47,10 +48,10 @@ export function useDeleteMkvBackup() {
   return useMutation({
     mutationFn: (backupPath: string) => deleteMkvBackup(backupPath),
     onSuccess: () => {
-      toast('Backup endgÃ¼ltig gelÃ¶scht')
+      toast(i18n.t('common:trash.toast.backup_deleted'))
       qc.invalidateQueries({ queryKey: TRASH_KEY })
     },
-    onError: () => toast('LÃ¶schen fehlgeschlagen', 'error'),
+    onError: () => toast(i18n.t('common:trash.toast.delete_failed'), 'error'),
   })
 }
 
@@ -69,11 +70,11 @@ export function useRestoreMkvBackup() {
     onSuccess: (result) => {
       const msg =
         result.sidecars_deleted > 0
-          ? `Video wiederhergestellt â€” ${result.sidecars_deleted} Sidecar-Batch(es) gelÃ¶scht`
-          : 'Video-Backup wiederhergestellt'
+          ? i18n.t('common:trash.toast.video_restored_with_sidecars', { count: result.sidecars_deleted })
+          : i18n.t('common:trash.toast.video_restored')
       toast(msg)
       qc.invalidateQueries({ queryKey: TRASH_KEY })
     },
-    onError: () => toast('Wiederherstellung fehlgeschlagen', 'error'),
+    onError: () => toast(i18n.t('common:trash.toast.restore_failed'), 'error'),
   })
 }

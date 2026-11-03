@@ -235,7 +235,9 @@
     "add_mapping": "Zuordnung hinzufügen",
     "add_instance": "Instanz hinzufügen",
     "enabled": "Aktiviert",
-    "disabled": "Deaktiviert"
+    "disabled": "Deaktiviert",
+    "saved": "Gespeichert",
+    "save_failed": "Speichern fehlgeschlagen"
   },
   "path_mapping": {
     "title": "Pfad-Mapping (Remote → Lokal)",
@@ -295,7 +297,9 @@
       "test_download": "Download testen",
       "test_download_hint": "Lädt einen echten Untertitel und verwirft ihn. Ein reiner Suchtest meldet grün, auch wenn der Download-Pfad tot ist — Suche und Download nutzen verschiedene Zugangsdaten. Verbraucht eine Einheit des Tageskontingents.",
       "pool_overrides_field_one": "Suchen benutzen die API-Schlüssel-Liste weiter unten. Dieses Feld wird nicht verwendet, solange dort ein Schlüssel steht.",
-      "pool_overrides_field_other": "Suchen benutzen die API-Schlüssel-Liste weiter unten ({{count}} Schlüssel). Dieses Feld wird nicht verwendet, solange dort Schlüssel stehen."
+      "pool_overrides_field_other": "Suchen benutzen die API-Schlüssel-Liste weiter unten ({{count}} Schlüssel). Dieses Feld wird nicht verwendet, solange dort Schlüssel stehen.",
+      "result_rate": "Treffer-Quote",
+      "download_rate": "Download-Quote"
     },
     "descriptions": {
       "fallback": "Untertitel-Provider",
@@ -959,7 +963,10 @@
     "media_io_max_parallel_hint": "Wie viele festplattenintensive Prozesse (Remux, Extraktion, Sync, Metadaten-Scan) gleichzeitig laufen dürfen. 1 schont das Array, höhere Werte beschleunigen den Durchsatz auf schnellen Datenträgern.",
     "search_scan_section": "Suchen & Scannen",
     "upgrade_rules_section": "Upgrade-Regeln",
-    "scheduled_tasks_section": "Geplante Aufgaben"
+    "scheduled_tasks_section": "Geplante Aufgaben",
+    "ffmpeg_timeout_hint": "Maximale Wartezeit für ffprobe/ffmpeg-Operationen beim Scannen der Mediathek.",
+    "metadata_engine_hint": "Tool für das Auslesen von Mediendatei-Metadaten. „auto“ wählt automatisch.",
+    "metadata_worker_hint": "Anzahl paralleler Threads für den Metadaten-Scan."
   },
   "scoring_tab": {
     "presets_title": "Schnellstart: Preset anwenden",
@@ -2188,7 +2195,11 @@
     "confirm_delete": "Backup endgültig löschen?\n{{path}}",
     "deleted": "Backup gelöscht",
     "delete_failed": "Löschen fehlgeschlagen",
-    "orphan_badge": "Orphan"
+    "orphan_badge": "Orphan",
+    "toast": {
+      "purged": "{{deleted}} Backups gelöscht ({{orphans}} Verwaiste)",
+      "purge_failed": "Bereinigung fehlgeschlagen"
+    }
   },
   "scoring_content": {
     "toast_rg_saved": "Release-Gruppen-Einstellungen gespeichert",
@@ -2447,5 +2458,76 @@
   "settings_search": {
     "placeholder": "Einstellungen durchsuchen …",
     "clear": "Suche leeren"
+  },
+  "settings_fields": {
+    "port": "HTTP-Port auf dem Sublarr lauscht. Standard: 5765.",
+    "api_key": "Optionaler API-Key für den X-Api-Key Header. Leer lassen um Auth zu deaktivieren.",
+    "log_level": "Logging-Stufe: DEBUG, INFO, WARNING, ERROR.",
+    "media_path": "Wurzelpfad des Medienverzeichnisses. Alle Medienpfade müssen darunter liegen.",
+    "db_path": "SQLite-Datenbankdatei. Nur ändern wenn die DB verschoben wurde.",
+    "source_language": "Quellsprache der Untertitel (z.B. Englisch). Setzt auch den Sprachnamen für LLM-Prompts.",
+    "target_language": "Zielsprache für Übersetzungen und Provider-Suche (z.B. Deutsch).",
+    "source_language_name": "Vollständiger Name der Quellsprache für LLM-Prompts. Wird automatisch beim Sprachwechsel gesetzt.",
+    "target_language_name": "Vollständiger Name der Zielsprache für LLM-Prompts. Wird automatisch beim Sprachwechsel gesetzt.",
+    "hi_removal_enabled": "Entfernt [Geräuschbeschreibungen] und (Sprechertags) aus Untertiteln.",
+    "auto_translate_any_source": "Übersetzt die fehlende Zielsprache aus JEDER vorhandenen Quell-Sprache (bevorzugt die Profil-/Standard-Quelle). Aus: es wird nur die bevorzugte Quellsprache genutzt.",
+    "auto_translate_provider_multilang": "Sucht bei Providern nach Quell-Untertiteln in mehreren Sprachen (mehr Treffer, mehr API-Verbrauch). Nur wirksam, wenn „aus beliebiger Quelle\" aktiv ist.",
+    "hi_preference": "Wie Untertitel mit HI-Tags bei der Provider-Suche behandelt werden.",
+    "provider_reranking_enabled": "Provider-Score-Modifier automatisch aus Download-History berechnen. Gute Provider bekommen Bonus, schlechte Penalty.",
+    "provider_reranking_min_downloads": "Mindest-Anzahl erfolgreicher Downloads bevor ein Modifier berechnet wird.",
+    "provider_reranking_max_modifier": "Maximaler absoluter Score-Modifier der durch Re-ranking vergeben wird.",
+    "upgrade_enabled": "Automatisch bessere Untertitel suchen wenn Score-Schwellenwert nicht erreicht.",
+    "upgrade_prefer_ass": "ASS-Format (mit Styling) gegenüber SRT bevorzugen.",
+    "upgrade_min_score_delta": "Mindest-Score-Unterschied um einen Upgrade-Download zu rechtfertigen.",
+    "upgrade_window_days": "Upgrade-Versuche nur innerhalb dieses Zeitfensters nach dem Release.",
+    "upgrade_scan_interval_hours": "Wie oft der Upgrade-Scanner nach Kandidaten sucht. 0 = deaktiviert.",
+    "webhook_delay_minutes": "Wartezeit nach Sonarr/Radarr-Webhook bevor die Suche startet.",
+    "webhook_auto_scan": "Nach Sonarr/Radarr-Download automatisch auf eingebettete Subs scannen.",
+    "webhook_auto_search": "Nach Download automatisch bei Subtitle-Providern suchen.",
+    "webhook_auto_translate": "Gefundene Untertitel automatisch übersetzen.",
+    "remux_trash_dir": "Ordner für Backups gelöschter Streams. Relativ zum Medienpfad (z.B. .sublarr) oder absoluter Pfad. Backups landen in <trash>/<datum>/<datei>.<ts>.bak.",
+    "remux_backup_retention_days": "Nach wie vielen Tagen werden Remux-Backups endgültig gelöscht. 0 = nie.",
+    "remux_use_reflink": "Wo kein Hardlink möglich ist, wird auf Btrfs/XFS ein CoW-Reflink statt einer vollen Kopie angelegt.",
+    "remux_arr_pause_enabled": "Sonarr/Radarr-Ordner-Monitoring während des Remux pausieren.",
+    "remux_hardlink_policy": "Jeder Remux bricht Hardlinks (Standard bei *arr-Setups mit Torrent-Seeding): Speicherverbrauch verdoppelt sich und die Seeding-Kopie weicht ab. \"Skip\" (Standard) überspringt Container-Remuxe für Dateien mit mehreren Links.",
+    "wanted_search_interval_hours": "Interval für automatische Provider-Suche. 0 = deaktiviert.",
+    "wanted_search_on_startup": "Provider-Suche beim Backend-Start ausführen.",
+    "wanted_search_max_items_per_run": "Maximale Anzahl Einträge pro automatischem Suchlauf.",
+    "wanted_search_order": "Reihenfolge in der der Auto-Scheduler die Warteschlange abarbeitet.",
+    "wanted_scan_interval_hours": "Wie oft die Medienbibliothek auf fehlende Untertitel geprüft wird.",
+    "wanted_anime_only": "Nur Sonarr-Serien mit Anime-Tag in die Wanted-Liste aufnehmen.",
+    "wanted_anime_movies_only": "Nur Radarr-Filme mit Anime-Tag in die Wanted-Liste aufnehmen.",
+    "wanted_scan_on_startup": "Wanted-Scan beim Backend-Start ausführen.",
+    "wanted_auto_extract": "Eingebettete Untertitel aus MKV-Dateien automatisch extrahieren.",
+    "wanted_auto_translate": "Extrahierte Untertitel automatisch übersetzen. Erfordert Auto-Extract.",
+    "wanted_max_search_attempts": "Nach dieser Anzahl fehlgeschlagener Versuche wird ein Eintrag aufgegeben.",
+    "sonarr_url": "URL der Sonarr-Instanz inkl. Port. Keine abschließenden Slashes.",
+    "sonarr_api_key": "In Sonarr unter Settings → General → Security.",
+    "radarr_url": "URL der Radarr-Instanz inkl. Port. Keine abschließenden Slashes.",
+    "radarr_api_key": "In Radarr unter Settings → General → Security.",
+    "standalone_enabled": "Direktes Dateisystem-Scanning ohne Sonarr/Radarr. Media Path muss konfiguriert sein.",
+    "tmdb_api_key": "Bearer Token von themoviedb.org für Metadaten-Abfragen.",
+    "tvdb_api_key": "API Key von thetvdb.com. Optional — TMDB reicht für die meisten Fälle.",
+    "tvdb_pin": "TVDB Subscriber PIN (nur für Subscriber-Plan benötigt).",
+    "standalone_scan_interval_hours": "Intervall für automatischen Dateisystem-Scan. 0 = deaktiviert.",
+    "standalone_debounce_seconds": "Wartezeit nach letzter Dateiänderung bevor Scan ausgelöst wird.",
+    "standalone_skip_extras": "Trailer, Featurettes, Samples und ähnliche Dateien beim Scan ignorieren.",
+    "auto_cleanup_after_extract": "Nach batch-extract automatisch nicht-benötigte Sprachen löschen. Benötigt keep_languages.",
+    "auto_cleanup_keep_languages": "Komma-getrennte ISO-639-1 Codes — Sidecars anderer Sprachen werden gelöscht. Leer = nichts löschen.",
+    "auto_cleanup_keep_formats": "\"ass\": SRT löschen wenn ASS für dieselbe Sprache vorhanden. \"srt\" oder \"any\": beide behalten.",
+    "subtitle_trash_retention_days": "Gelöschte Sidecar-Dateien werden N Tage im Papierkorb behalten und können wiederhergestellt werden. 0 = dauerhaft behalten.",
+    "auto_nfo_export": "Schreibt eine XML-Sidecar-Datei (.nfo) neben jeden heruntergeladenen oder übersetzten Untertitel. Enthält Provider, Sprache, Score und Übersetzungsmetadaten. Standardmäßig aus.",
+    "streaming_enabled": "Videodateien für die Vorschau im Browser ausliefern. Deaktivieren, um den Endpunkt /media/stream zu sperren.",
+    "remux_hardlink_policy_options": {
+      "skip": "Überspringen (Hardlink-Dateien nie remuxen)",
+      "warn": "Warnen (remuxen, aber Warnung loggen)",
+      "allow": "Erlauben (immer remuxen)"
+    },
+    "hi_preference_options": {
+      "include": "Einbeziehen (keine Präferenz)",
+      "prefer": "HI bevorzugen (+30 Score)",
+      "exclude": "HI ausschließen (−999 Abzug)",
+      "only": "Nur HI (Nicht-HI ausgeschlossen)"
+    }
   }
 }

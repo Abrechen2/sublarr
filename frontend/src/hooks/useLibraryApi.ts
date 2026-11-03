@@ -21,6 +21,7 @@ import {
   listMovieSubtitles, listSubtitleBackups, cleanupSubtitleBackups,
 } from '@/api/library'
 import { toast } from '@/components/shared/Toast'
+import i18n from '@/i18n'
 import type { BatchAction, SubtitleBackupCleanupRequest } from '@/lib/types'
 
 // ─── Library ─────────────────────────────────────────────────────────────────
@@ -434,9 +435,9 @@ export function useCleanupSubtitleBackups() {
       if (variables.dry_run) return
       const deleted = result.deleted.length
       const orphans = result.orphans_purged
-      toast(`${deleted} Backups gelöscht (${orphans} Orphans)`, 'success')
+      toast(i18n.t('settings:subtitle_backups.toast.purged', { deleted, orphans }), 'success')
       qc.invalidateQueries({ queryKey: ['subtitleBackups'] })
     },
-    onError: () => toast('Bereinigung fehlgeschlagen', 'error'),
+    onError: () => toast(i18n.t('settings:subtitle_backups.toast.purge_failed'), 'error'),
   })
 }

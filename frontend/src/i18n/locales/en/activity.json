@@ -79,7 +79,12 @@
     "queued": "Queued",
     "queued_count": "Queued ({{count}})",
     "no_active": "No active translations",
-    "no_queued": "No queued jobs"
+    "no_queued": "No queued jobs",
+    "provider_status": {
+      "all_active": "{{count}} providers active",
+      "mostly_throttled": "{{active}} active · {{throttled}} throttled — search slowed down",
+      "some_throttled": "{{active}} active · {{throttled}} throttled"
+    }
   },
   "history": {
     "filter_downloads": "Downloads",

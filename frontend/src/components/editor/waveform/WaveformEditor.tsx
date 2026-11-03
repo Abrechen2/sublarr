@@ -228,6 +228,9 @@ export function WaveformEditor({
   onApplyTimingFixes,
 }: WaveformEditorProps) {
   const { t } = useTranslation('editor')
+  // Latest translator for async callbacks, so a language switch does not re-run effects.
+  const tRef = useRef(t)
+  tRef.current = t
 
   const containerRef = useRef<HTMLDivElement>(null)
   const [audioUrl, setAudioUrl] = useState<string | null>(null)
@@ -463,7 +466,7 @@ export function WaveformEditor({
       })
       .catch((err: unknown) => {
         if (cancelled) return
-        const msg = err instanceof Error ? err.message : 'Audio konnte nicht extrahiert werden.'
+        const msg = err instanceof Error ? err.message : tRef.current('waveform.extract_failed')
         setExtractError(msg)
         setExtractLoading(false)
       })

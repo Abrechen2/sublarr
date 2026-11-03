@@ -34,6 +34,7 @@ import type { CleanupRule, CleanupPreviewData } from '@/lib/types'
 import { strVal } from '@/lib/configUtils'
 
 // ─── Fixed operation definitions ─────────────────────────────────────────────
+// Titles/descriptions are i18n keys (common namespace), translated at render time.
 
 const OPERATIONS: OpMeta[] = [
   {
@@ -41,65 +42,56 @@ const OPERATIONS: OpMeta[] = [
     Icon: Globe,
     iconColor: 'var(--accent)',
     iconBg: 'rgba(34,211,238,.13)',
-    title: 'Sprachen-Filter',
-    description: 'Löscht Subtitle-Sidecars in Sprachen, die nicht in der Behalten-Liste stehen',
-    defaultName: 'Sprachen-Filter',
+    titleKey: 'cleanup_ops.language_filter.title',
+    descriptionKey: 'cleanup_ops.language_filter.description',
   },
   {
     ruleType: 'format_upgrade',
     Icon: ArrowUpCircle,
     iconColor: 'var(--warning)',
     iconBg: 'rgba(245,158,11,.12)',
-    title: 'Format-Upgrade',
-    description: 'Löscht SRT-Dateien, wenn eine ASS-Version für dieselbe Episode vorhanden ist',
-    defaultName: 'Format-Upgrade',
+    titleKey: 'cleanup_ops.format_upgrade.title',
+    descriptionKey: 'cleanup_ops.format_upgrade.description',
   },
   {
     ruleType: 'orphan_files',
     Icon: FileX,
     iconColor: 'var(--error)',
     iconBg: 'rgba(239,68,68,.11)',
-    title: 'Verwaiste Dateien',
-    description: 'Löscht Subtitle-Sidecars ohne zugehörige Videodatei im selben Ordner',
-    defaultName: 'Verwaiste Dateien',
+    titleKey: 'cleanup_ops.orphan_files.title',
+    descriptionKey: 'cleanup_ops.orphan_files.description',
   },
   {
     ruleType: 'orphan_db',
     Icon: Database,
     iconColor: '#6b9df0',
     iconBg: 'rgba(107,157,240,.12)',
-    title: 'Verwaiste DB-Einträge',
-    description: 'Entfernt Datenbankeinträge, deren Datei auf der Festplatte fehlt',
-    defaultName: 'Verwaiste DB-Einträge',
+    titleKey: 'cleanup_ops.orphan_db.title',
+    descriptionKey: 'cleanup_ops.orphan_db.description',
   },
   {
     ruleType: 'old_backups',
     Icon: Archive,
     iconColor: 'var(--text-secondary)',
     iconBg: 'rgba(155,161,168,.1)',
-    title: 'Alte Backups',
-    description: 'Löscht Remux-Backup-Dateien nach Ablauf der Aufbewahrungsfrist',
-    defaultName: 'Alte Backups',
+    titleKey: 'cleanup_ops.old_backups.title',
+    descriptionKey: 'cleanup_ops.old_backups.description',
   },
   {
     ruleType: 'old_subtitle_baks',
     Icon: FileWarning,
     iconColor: 'var(--warning, #f59e0b)',
     iconBg: 'rgba(245,158,11,.12)',
-    title: 'Alte Untertitel-Backups (.bak)',
-    description:
-      'Verwaiste .bak.srt/.bak.ass werden sofort entfernt; übrige nach Aufbewahrungsfrist (0 = nie)',
-    defaultName: 'Alte Untertitel-Backups',
+    titleKey: 'cleanup_ops.old_subtitle_baks.title',
+    descriptionKey: 'cleanup_ops.old_subtitle_baks.description',
   },
   {
     ruleType: 'foreign_tracks',
     Icon: Layers,
     iconColor: 'var(--accent)',
     iconBg: 'rgba(34,211,238,.13)',
-    title: 'Fremdsprachen-Tracks entfernen',
-    description:
-      'Entfernt eingebettete Untertitel-Spuren aus den Videos, deren Sprache nicht in der Behalten-Liste steht (Original landet als Backup im Papierkorb)',
-    defaultName: 'Fremdsprachen-Tracks entfernen',
+    titleKey: 'cleanup_ops.foreign_tracks.title',
+    descriptionKey: 'cleanup_ops.foreign_tracks.description',
     defaultConfig: { keep_languages: ['de', 'en'], keep_und: true },
   },
 ]
@@ -220,6 +212,7 @@ function HistorySection() {
 
 export function CleanupSettings() {
   const { t } = useTranslation('settings')
+  const { t: tc } = useTranslation('common')
   const { data: rules = [], isLoading } = useCleanupRules()
   const { data: stats } = useCleanupStats()
   const createRule = useCreateCleanupRule()
@@ -262,7 +255,7 @@ export function CleanupSettings() {
       } else {
         createRule.mutate(
           {
-            name: meta.defaultName,
+            name: tc(meta.titleKey),
             rule_type: ruleType as CleanupRule['rule_type'],
             config_json: meta.defaultConfig ?? {},
             enabled,

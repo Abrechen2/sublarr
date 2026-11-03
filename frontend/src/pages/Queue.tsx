@@ -165,6 +165,7 @@ export function QueuePage() {
 // ─── Provider Status Line ────────────────────────────────────────────────────
 
 function ProviderStatusLine({ summary }: { summary: ProviderSummary }) {
+  const { t } = useTranslation('activity')
   const { throttled, circuit_open, active, throttled_providers } = summary
   const problemCount = throttled + circuit_open
 
@@ -172,7 +173,7 @@ function ProviderStatusLine({ summary }: { summary: ProviderSummary }) {
     return (
       <div className="mt-3 text-xs text-muted">
         <span className="text-success">&#9889;</span>{' '}
-        {active} Provider aktiv
+        {t('queue.provider_status.all_active', { count: active })}
       </div>
     )
   }
@@ -190,12 +191,12 @@ function ProviderStatusLine({ summary }: { summary: ProviderSummary }) {
     <div className={`mt-3 text-xs ${isMostlyThrottled ? 'text-warning' : 'text-muted'}`}>
       {isMostlyThrottled ? (
         <>
-          <span>&#9888;&#65039;</span> {active} aktiv &middot; {problemCount} gedrosselt &mdash; Suche verlangsamt
+          <span>&#9888;&#65039;</span> {t('queue.provider_status.mostly_throttled', { active, throttled: problemCount })}
         </>
       ) : (
         <>
           <span className="text-warning">&#9203;</span>{' '}
-          {active} aktiv &middot; {problemCount} gedrosselt
+          {t('queue.provider_status.some_throttled', { active, throttled: problemCount })}
           {throttledNames && (
             <span className="text-muted ml-1">
               ({throttledNames})

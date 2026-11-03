@@ -1,3 +1,4 @@
+import { useTranslation } from 'react-i18next'
 import type { ProcessingChange } from '@/api/client'
 
 interface Props {
@@ -8,18 +9,19 @@ interface Props {
 }
 
 export function ProcessingPreviewPanel({ changes, onConfirm, onCancel, loading }: Props) {
+  const { t } = useTranslation('common')
   return (
     <div className="border border-zinc-700 rounded-lg bg-zinc-900 p-4 space-y-3 max-w-lg">
       <div className="text-sm font-medium text-zinc-300">
-        {changes.length} Änderungen gefunden
+        {t('processing_preview.changes_found', { count: changes.length })}
       </div>
 
       <div className="max-h-64 overflow-y-auto space-y-1">
         {changes.map((c, i) => (
           <div key={i} className="text-xs font-mono grid grid-cols-2 gap-2 border-b border-zinc-800 pb-1">
-            <span className="text-zinc-400 truncate">{c.original_text || '(leer)'}</span>
+            <span className="text-zinc-400 truncate">{c.original_text || t('processing_preview.empty')}</span>
             <span className={c.modified_text ? 'text-yellow-400 truncate' : 'text-red-400'}>
-              {c.modified_text || '(entfernt)'}
+              {c.modified_text || t('processing_preview.removed')}
             </span>
           </div>
         ))}
@@ -31,13 +33,13 @@ export function ProcessingPreviewPanel({ changes, onConfirm, onCancel, loading }
           disabled={loading}
           className="px-3 py-1.5 text-sm bg-blue-600 hover:bg-blue-500 text-white rounded disabled:opacity-50"
         >
-          {loading ? 'Wird angewendet…' : 'Übernehmen'}
+          {loading ? t('processing_preview.applying') : t('processing_preview.apply')}
         </button>
         <button
           onClick={onCancel}
           className="px-3 py-1.5 text-sm bg-zinc-700 hover:bg-zinc-600 text-white rounded"
         >
-          Abbrechen
+          {t('processing_preview.cancel')}
         </button>
       </div>
     </div>
