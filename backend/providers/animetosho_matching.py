@@ -17,6 +17,21 @@ def _normalise_title(title: str) -> str:
     return "".join(c for c in unicodedata.normalize("NFKC", title).casefold() if c.isalnum())
 
 
+def _known_titles(expected_title: str, query: VideoQuery) -> set[str]:
+    """The series title and Sonarr's aliases that name every season.
+
+    German and fan groups name a release by a shorter alias ("[Fuechslein]
+    Mushoku Tensei - S01" for "Mushoku Tensei: Jobless Reincarnation"). An
+    alias scoped to one season is :func:`title_scope`'s business, not this.
+    """
+    known = {_normalise_title(expected_title)}
+    for alias in getattr(query, "series_aliases", None) or []:
+        title, season, scene_season = (tuple(alias) + (None, None))[:3]
+        if title and season in (None, -1) and scene_season in (None, -1):
+            known.add(_normalise_title(title))
+    return known
+
+
 def match_release(
     title: str, query: VideoQuery, *, allow_pack: bool = False, require_title: bool = True
 ) -> set[str] | None:
@@ -53,7 +68,7 @@ def match_release(
         matches.add("series")
     elif parsed_title and expected_title:
         titles = parsed_title if isinstance(parsed_title, list) else [parsed_title]
-        if _normalise_title(expected_title) not in {_normalise_title(t) for t in titles}:
+        if not _known_titles(expected_title, query) & {_normalise_title(t) for t in titles}:
             return None
         matches.add("series" if query.episode is not None else "title")
     elif require_title:

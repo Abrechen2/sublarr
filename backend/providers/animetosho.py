@@ -40,6 +40,8 @@ from security_utils import validate_download_url
 logger = logging.getLogger(__name__)
 
 FEED_API = "https://feed.animetosho.xyz/json"
+# Torrent-detail requests per feed request (each costs a call).
+MAX_DETAIL_CALLS = 8
 ATTACH_BASE = "https://animetosho.org/storage/attach"
 
 _SUBTITLE_EXTENSIONS = {".ass", ".srt", ".ssa"}
@@ -138,6 +140,42 @@ class AnimeToshoProvider(SubtitleProvider):
         except Exception as e:
             return False, str(e)
 
+    def _search_feed(self, params: dict, query: VideoQuery) -> list[SubtitleResult]:
+        """One feed request: the subtitles of its entries that fit ``query``."""
+        logger.debug("AnimeTosho: API request params: %s", params)
+        resp = self.session.get(FEED_API, params=params)
+        logger.debug("AnimeTosho: API response status: %d", resp.status_code)
+
+        if resp.status_code != 200:
+            logger.warning(
+                "AnimeTosho search failed: HTTP %d, response: %s",
+                resp.status_code,
+                resp.text[:200],
+            )
+            return []
+
+        entries = resp.json()
+        if not isinstance(entries, list):
+            logger.warning("AnimeTosho: API returned non-list response: %s", type(entries))
+            return []
+
+        logger.debug("AnimeTosho: API returned %d entries", len(entries))
+
+        # Pre-filter: only fetch torrent details for episode-matching entries
+        # to cap secondary API calls.  Batch releases (e.g. "01~12") are
+        # included when the query episode falls in their range.
+        results: list[SubtitleResult] = []
+        detail_count = 0
+        for entry in entries:
+            if detail_count >= MAX_DETAIL_CALLS:
+                break
+            if match_entry(entry, query) is None:
+                logger.debug("AnimeTosho: rejected unrelated release: %s", entry.get("title"))
+                continue
+            detail_count += 1
+            results.extend(self._process_entry(entry, query))
+        return results
+
     def search(self, query: VideoQuery) -> list[SubtitleResult]:
         if not self.session:
             logger.warning("AnimeTosho: cannot search - session is None")
@@ -193,39 +231,14 @@ class AnimeToshoProvider(SubtitleProvider):
                     query.anidb_episode_id,
                 )
 
-            logger.debug("AnimeTosho: API request params: %s", params)
-            resp = self.session.get(FEED_API, params=params)
-            logger.debug("AnimeTosho: API response status: %d", resp.status_code)
-
-            if resp.status_code != 200:
-                logger.warning(
-                    "AnimeTosho search failed: HTTP %d, response: %s",
-                    resp.status_code,
-                    resp.text[:200],
-                )
-                return []
-
-            entries = resp.json()
-            if not isinstance(entries, list):
-                logger.warning("AnimeTosho: API returned non-list response: %s", type(entries))
-                return []
-
-            logger.debug("AnimeTosho: API returned %d entries", len(entries))
-
-            # Pre-filter: only fetch torrent details for episode-matching entries
-            # to cap secondary API calls.  Batch releases (e.g. "01~12") are
-            # included when the query episode falls in their range.
-            MAX_DETAIL_CALLS = 8
-            detail_count = 0
-            for entry in entries:
-                if detail_count >= MAX_DETAIL_CALLS:
-                    break
-                if match_entry(entry, query) is None:
-                    logger.debug("AnimeTosho: rejected unrelated release: %s", entry.get("title"))
-                    continue
-                detail_count += 1
-                entry_results = self._process_entry(entry, query)
-                results.extend(entry_results)
+            results = self._search_feed(params, query)
+            if not results and "eid" not in params and query.is_episode and query.season:
+                # Without the AniDB episode the feed is a text search ranked by
+                # date: "Show 05" fills with the airing season's episode 5 and
+                # its batch, so season 1's BD packs never reach the page (prod
+                # 2026-11: Mushoku Tensei S01E02-E15 while S03 aired E01-E15).
+                # The season named instead finds the packs.
+                results = self._search_feed(dict(params, q=f"{name} S{query.season}"), query)
 
         except (ProviderRateLimitError, ProviderAuthError):
             # Re-raise: the coordinator's rate-limit handler + Phase 3 learning

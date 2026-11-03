@@ -140,11 +140,84 @@ def test_api_eid_is_an_identity_never_the_absolute_number(query, episode_id):
     provider.session.get.return_value.status_code = 200
     provider.session.get.return_value.json.return_value = []
     provider.search(query)
-    params = provider.session.get.call_args.kwargs["params"]
-    assert params["q"] == "Bleach 21"
-    assert params.get("eid") == episode_id
+    calls = [c.kwargs["params"] for c in provider.session.get.call_args_list]
+    assert calls[0]["q"] == "Bleach 21"
+    assert calls[0].get("eid") == episode_id
     if episode_id is None:
-        assert "aid" not in params
+        assert "aid" not in calls[0]
+        # Nothing found without the episode identity: the season is asked next.
+        assert [c["q"] for c in calls] == ["Bleach 21", "Bleach S2"]
+        assert "aid" not in calls[1]
+    else:
+        assert len(calls) == 1
+
+
+def _feed(*pages):
+    """A session whose feed requests answer ``pages`` in turn."""
+    session = MagicMock()
+    responses = []
+    for page in pages:
+        response = MagicMock(status_code=200)
+        response.json.return_value = page
+        responses.append(response)
+    session.get.side_effect = responses
+    return session
+
+
+def test_a_season_pack_crowded_out_by_the_airing_season_is_found_by_season():
+    # Prod 2026-11: "Mushoku Tensei: Jobless Reincarnation 05" answered with
+    # season 3's episode 5 and batches; season 1's BD packs never came up.
+    query = VideoQuery(
+        series_title="Mushoku Tensei: Jobless Reincarnation",
+        season=1,
+        episode=5,
+        languages=["en"],
+        series_aliases=[("Mushoku Tensei", None, None)],
+    )
+    provider = AnimeToshoProvider()
+    provider.session = _feed(
+        [{"id": 1, "title": "[SubsPlease] Mushoku Tensei S3 - 05 (1080p)", "num_files": 1}],
+        [{"id": 2, "title": "[Fuechslein] Mushoku Tensei - S01 (BD 1080p)", "num_files": 23}],
+    )
+    provider._fetch_torrent_detail = MagicMock(
+        return_value={"files": [_file("[Fuechslein] Mushoku Tensei - S01E05 (BD 1080p).mkv")]}
+    )
+
+    results = provider.search(query)
+
+    assert len(results) == 1
+    provider._fetch_torrent_detail.assert_called_once_with(2)
+    assert provider.session.get.call_args.kwargs["params"]["q"] == (
+        "Mushoku Tensei: Jobless Reincarnation S1"
+    )
+
+
+def test_a_found_episode_asks_no_second_time(query):
+    provider = AnimeToshoProvider()
+    provider.session = _feed([{"id": 20, "title": "Bleach S02E01 1080p.mkv", "num_files": 1}])
+    provider._fetch_torrent_detail = MagicMock(return_value={"files": [_file("Bleach S02E01.mkv")]})
+
+    assert len(provider.search(query)) == 1
+    assert provider.session.get.call_count == 1
+
+
+def test_an_alias_for_every_season_names_the_series():
+    query = VideoQuery(
+        series_title="Mushoku Tensei: Jobless Reincarnation",
+        season=1,
+        episode=5,
+        series_aliases=[("Mushoku Tensei", None, None)],
+    )
+    assert match_entry({"title": "[Fuechslein] Mushoku Tensei - S01 (BD 1080p)"}, query)
+    assert match_entry({"title": "[Fuechslein] Mushoku Tensei - S02 (BD 1080p)"}, query) is None
+    # An alias Sonarr scopes to another season is not a name for this one.
+    scoped = VideoQuery(
+        series_title="Mushoku Tensei: Jobless Reincarnation",
+        season=1,
+        episode=5,
+        series_aliases=[("Mushoku Tensei", 2, None)],
+    )
+    assert match_entry({"title": "[Fuechslein] Mushoku Tensei - S01 (BD 1080p)"}, scoped) is None
 
 
 def test_movie_matching_still_uses_title_and_year():
