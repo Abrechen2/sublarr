@@ -2094,6 +2094,10 @@
         "hint": "JSON object mapping ISO-639-1 code to minimum score. Empty object uses global threshold for all languages.",
         "example": "Example: {\"de\": 80, \"fr\": 70} — German subtitles require score ≥ 80, French ≥ 70.",
         "fallback": "Leave as {} to use the global threshold for all languages."
+      },
+      "embeddedExtraction": {
+        "maxAssSubtitleSize": "Maximum ASS/SSA subtitle size (MiB)",
+        "maxAssSubtitleSizeHint": "Files above this size are rejected by the subtitle sanitizer. Default: 20 MiB; allowed range: 1–50 MiB. SRT/VTT remain capped at 5 MiB."
       }
     },
     "system": {

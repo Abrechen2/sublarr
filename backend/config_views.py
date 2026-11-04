@@ -249,6 +249,7 @@ class ScanningSettings(_SettingsView):
             "auto_cleanup_keep_languages",
             "auto_cleanup_keep_formats",
             "subtitle_trash_retention_days",
+            "max_ass_subtitle_size_mb",
             "anidb_enabled",
             "anidb_cache_ttl_days",
             "anidb_custom_field_name",

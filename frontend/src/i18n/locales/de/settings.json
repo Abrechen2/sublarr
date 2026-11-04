@@ -2094,6 +2094,10 @@
         "hint": "JSON-Objekt mit ISO-639-1-Code als Schlüssel und Mindest-Score als Wert. Leeres Objekt verwendet den globalen Schwellwert.",
         "example": "Beispiel: {\"de\": 80, \"fr\": 70} — Deutsche Untertitel erfordern Score ≥ 80, Französische ≥ 70.",
         "fallback": "Leer lassen {} um den globalen Schwellwert für alle Sprachen zu verwenden."
+      },
+      "embeddedExtraction": {
+        "maxAssSubtitleSize": "Maximale Größe von ASS/SSA-Untertiteln (MiB)",
+        "maxAssSubtitleSizeHint": "Dateien über dieser Größe weist der Untertitel-Sanitizer zurück. Standard: 20 MiB; zulässiger Bereich: 1–50 MiB. SRT/VTT bleiben auf 5 MiB begrenzt."
       }
     },
     "system": {

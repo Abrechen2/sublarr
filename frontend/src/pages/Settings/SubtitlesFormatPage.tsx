@@ -14,7 +14,7 @@ import type { FormSectionDef } from '@/components/settings/layouts'
 import { Toggle } from '@/components/shared/Toggle'
 import { toast } from '@/components/shared/Toast'
 import { useConfig, useUpdateConfig } from '@/hooks/useApi'
-import { boolVal } from '@/lib/configUtils'
+import { boolVal, numVal } from '@/lib/configUtils'
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
@@ -51,6 +51,37 @@ function EmbeddedExtractionContent() {
 
   return (
     <div data-testid="embedded-extraction-content">
+      <FormGroup
+        label={t(
+          'settings.subtitles.embeddedExtraction.maxAssSubtitleSize',
+          'Maximum ASS/SSA subtitle size (MiB)',
+        )}
+        hint={t(
+          'settings.subtitles.embeddedExtraction.maxAssSubtitleSizeHint',
+          'Files above this size are rejected by the subtitle sanitizer. Default: 20 MiB; allowed range: 1 to 50 MiB. SRT/VTT remain capped at 5 MiB.',
+        )}
+        htmlFor="max-ass-subtitle-size-mb"
+        data-testid="form-group-max-ass-subtitle-size-mb"
+      >
+        <input
+          id="max-ass-subtitle-size-mb"
+          type="number"
+          data-testid="input-max-ass-subtitle-size-mb"
+          defaultValue={numVal(config, 'max_ass_subtitle_size_mb', 20)}
+          min={1}
+          max={50}
+          step={1}
+          onBlur={(e) => {
+            const value = Number(e.currentTarget.value)
+            if (Number.isInteger(value) && value >= 1 && value <= 50) {
+              save({ max_ass_subtitle_size_mb: value })
+            }
+          }}
+          disabled={isPending}
+          className="w-24 rounded-md border border-[var(--border)] bg-[var(--bg-primary)] px-3 py-2 text-sm text-[var(--text-primary)]"
+        />
+      </FormGroup>
+
       <FormGroup
         label={t('settings.subtitles.embeddedExtraction.autoExtract', 'Auto-Extract Embedded Subtitles')}
         hint={t(

@@ -56,11 +56,50 @@ def test_ass_above_the_text_limit_is_accepted():
     assert b"Sign text 0" in result
 
 
-def test_ass_above_its_own_limit_is_rejected():
+def test_ass_above_its_own_limit_is_rejected(monkeypatch):
+    from config import Settings
+
+    monkeypatch.setattr("config.get_settings", lambda: Settings(max_ass_subtitle_size_mb=20))
     content = b"[Script Info]\n" + b"x" * _MAX_ASS_BYTES
 
     with pytest.raises(ValueError, match="too large"):
         sanitize_subtitle(content, SubtitleFormat.ASS)
+
+
+def test_ass_limit_uses_the_configured_megabytes(monkeypatch):
+    from config import Settings
+
+    monkeypatch.setattr("config.get_settings", lambda: Settings(max_ass_subtitle_size_mb=1))
+    content = b"[Script Info]\n" + b"x" * (1024 * 1024)
+
+    with pytest.raises(ValueError, match="too large"):
+        sanitize_subtitle(content, SubtitleFormat.ASS)
+
+
+def test_ass_size_setting_defaults_to_twenty_and_is_bounded():
+    from pydantic import ValidationError
+
+    from config_settings import UISettings
+
+    assert UISettings().max_ass_subtitle_size_mb == 20
+    for value in (0, 51):
+        with pytest.raises(ValidationError):
+            UISettings(max_ass_subtitle_size_mb=value)
+
+
+def test_ass_size_setting_accepts_a_custom_value_from_config(client):
+    response = client.put("/api/v1/config", json={"max_ass_subtitle_size_mb": 32})
+
+    assert response.status_code == 200, response.get_json()
+    assert response.get_json()["config"]["max_ass_subtitle_size_mb"] == 32
+
+
+@pytest.mark.parametrize("value", [0, 51])
+def test_ass_size_setting_rejects_out_of_range_config_updates(client, value):
+    response = client.put("/api/v1/config", json={"max_ass_subtitle_size_mb": value})
+
+    assert response.status_code == 400
+    assert "max_ass_subtitle_size_mb" in response.get_json()["error"]
 
 
 def test_srt_keeps_the_text_limit():

@@ -16,7 +16,9 @@ from __future__ import annotations
 import types
 import typing
 
-BOUNDED_INT_KEYS: frozenset[str] = frozenset({"foreign_track_sweep_budget_s"})
+BOUNDED_INT_KEYS: frozenset[str] = frozenset(
+    {"foreign_track_sweep_budget_s", "max_ass_subtitle_size_mb"}
+)
 
 
 def _field_bounds(key: str) -> tuple[int | None, int | None]:
