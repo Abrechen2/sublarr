@@ -256,7 +256,15 @@ def sanitize_subtitle(content: bytes, fmt, language: str | None = None) -> bytes
 
         content = ensure_utf8(content, language=language)
 
-    limit = _MAX_ASS_BYTES if fmt_value in ("ass", "ssa") else _MAX_SUBTITLE_BYTES
+    if fmt_value in ("ass", "ssa"):
+        # Settings are UI-configured and reload live after a /config update. Import
+        # lazily to keep the sanitizer independent of config initialization.
+        from config import get_settings
+
+        max_ass_size_mb = getattr(get_settings(), "max_ass_subtitle_size_mb", 20)
+        limit = max_ass_size_mb * 1024 * 1024
+    else:
+        limit = _MAX_SUBTITLE_BYTES
     if len(content) > limit:
         raise ValueError(
             f"Subtitle too large: {len(content) // 1024} KB > {limit // 1024} KB limit"

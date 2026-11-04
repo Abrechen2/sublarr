@@ -729,6 +729,15 @@ class UISettings(BaseModel):
     # warning; "allow" is the pre-1.9.5 behaviour.
     remux_hardlink_policy: str = "skip"  # skip | warn | allow
 
+    # Subtitle sanitizer limits. Plain-text formats remain on the fixed 5 MiB cap;
+    # typeset ASS/SSA tracks can be much larger due to signs, drawings and karaoke.
+    max_ass_subtitle_size_mb: int = Field(
+        default=20,
+        ge=1,
+        le=50,
+        description="Maximum accepted ASS/SSA subtitle size in MiB (provider downloads are capped at 50 MiB)",
+    )
+
     # Subtitle backup files (.bak.srt/.bak.ass)
     subtitle_bak_retention_days: int = 30  # 0 = keep forever
 
