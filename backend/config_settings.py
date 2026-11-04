@@ -311,6 +311,7 @@ class UISettings(BaseModel):
 
     # Jimaku (anime subtitles)
     jimaku_api_key: str = ""
+    jimaku_unknown_language_fallback: str = "none"
 
     # SubDL (Subscene successor)
     subdl_api_key: str = ""
