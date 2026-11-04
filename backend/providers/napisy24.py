@@ -1,11 +1,15 @@
 """Napisy24 subtitle provider -- hash-based POST API for Polish subtitles.
 
-Napisy24.pl is a Polish subtitle database that uses file hash matching
-for accurate subtitle identification. Subtitles are searched by computing
-an MD5 hash of the first 10MB of the media file and posting it to the
-CheckSubAgent API endpoint.
+Napisy24.pl is a Polish subtitle database that matches by file hash. The
+search posts the OpenSubtitles hash (``fh``, upper case), the MD5 of the
+first 10 MB (``md``, lower case) and the size to CheckSubAgent; the answer
+is ``OK-2|field:value|...||`` followed by the subtitle ZIP itself. OK-0,
+OK-1 and OK-3 carry no subtitle. Until 1.20.0 the provider sent the MD5 as
+``fh``, took every OK-* answer for a hit and built a download URL the API
+does not have.
 
 API: http://napisy24.pl/run/CheckSubAgent.php
+Docs: https://forum.napisy24.pl/viewtopic.php?t=142
 License: GPL-3.0
 """
 
@@ -17,7 +21,7 @@ from typing import ClassVar
 from werkzeug.utils import secure_filename as _secure_filename
 
 from archive_utils import extract_subtitles_from_zip
-from providers import _stream_download, register_provider
+from providers import register_provider
 from providers.base import (
     ProviderError,
     SubtitleFormat,
@@ -26,7 +30,7 @@ from providers.base import (
     VideoQuery,
 )
 from providers.http_session import create_session
-from security_utils import validate_download_url
+from providers.opensubtitles_helpers import _compute_opensubtitles_hash
 
 logger = logging.getLogger(__name__)
 
@@ -37,9 +41,7 @@ HASH_CHUNK_SIZE = 10 * 1024 * 1024
 
 
 def _compute_napisy24_hash(file_path: str) -> str | None:
-    """Compute the Napisy24 file hash (MD5 of first 10MB).
-
-    Based on Bazarr's implementation of the Napisy24 hash algorithm.
+    """MD5 of the first 10 MB, the API's optional ``md`` parameter.
 
     Args:
         file_path: Path to the media file
@@ -56,6 +58,15 @@ def _compute_napisy24_hash(file_path: str) -> str | None:
     except OSError as e:
         logger.warning("Napisy24: failed to compute hash for %s: %s", file_path, e)
         return None
+
+
+_PRIORITY = {".srt": 0, ".ass": 1, ".ssa": 2, ".vtt": 3}
+_FORMATS = {
+    ".srt": SubtitleFormat.SRT,
+    ".ass": SubtitleFormat.ASS,
+    ".ssa": SubtitleFormat.SSA,
+    ".vtt": SubtitleFormat.VTT,
+}
 
 
 @register_provider
@@ -123,7 +134,7 @@ class Napisy24Provider(SubtitleProvider):
                     "ua": self.username,
                     "ap": self.password,
                     "fs": "0",
-                    "fh": "d41d8cd98f00b204e9800998ecf8427e",  # MD5 of empty
+                    "fh": "0000000000000000",
                     "fn": "health_check.mkv",
                 },
                 timeout=10,
@@ -156,11 +167,12 @@ class Napisy24Provider(SubtitleProvider):
             logger.debug("Napisy24: file not found: %s", query.file_path)
             return []
 
-        # Compute file hash
-        file_hash = _compute_napisy24_hash(query.file_path)
+        # The OpenSubtitles hash identifies the file; the MD5 is optional.
+        file_hash = (query.file_hash or _compute_opensubtitles_hash(query.file_path) or "").upper()
         if not file_hash:
             logger.warning("Napisy24: failed to compute file hash")
             return []
+        md5 = _compute_napisy24_hash(query.file_path) or ""
 
         # Get file size
         try:
@@ -178,130 +190,89 @@ class Napisy24Provider(SubtitleProvider):
             filename,
         )
 
+        request = {"fs": str(file_size), "fh": file_hash, "md": md5.lower(), "fn": filename}
         try:
-            resp = self.session.post(
-                API_URL,
-                data={
-                    "postAction": "CheckSub",
-                    "ua": self.username,
-                    "ap": self.password,
-                    "fs": str(file_size),
-                    "fh": file_hash,
-                    "fn": filename,
-                },
-                timeout=self.timeout,
-            )
-
-            if resp.status_code != 200:
-                logger.warning("Napisy24: API returned HTTP %d", resp.status_code)
-                return []
-
-            return self._parse_response(resp.text, file_hash)
-
+            return self._check_sub(request)
         except Exception as e:
             logger.warning("Napisy24: search failed: %s", e)
             return []
 
-    def _parse_response(self, response_text: str, file_hash: str) -> list[SubtitleResult]:
-        """Parse the pipe-delimited response from Napisy24 API.
-
-        The response format is pipe-delimited. If a subtitle is found,
-        the response starts with "OK" and contains subtitle info.
-        """
-        results = []
-
-        if not response_text:
-            logger.debug("Napisy24: empty response")
-            return []
-
-        response_text = response_text.strip()
-
-        # Check if response indicates success
-        if not response_text.startswith("OK"):
-            logger.debug("Napisy24: no subtitle found (response: %s)", response_text[:100])
-            return []
-
-        # Parse pipe-delimited response
-        # Format: OK|subtitle_id|download_url|... (varies)
-        parts = response_text.split("|")
-        if len(parts) < 3:
-            logger.debug("Napisy24: unexpected response format: %s", response_text[:100])
-            return []
-
-        # Extract subtitle info
-        subtitle_id = parts[1] if len(parts) > 1 else file_hash
-        download_info = parts[2] if len(parts) > 2 else ""
-
-        # Build download URL
-        if download_info.startswith("http"):
-            download_url = download_info
-        elif download_info:
-            download_url = (
-                f"http://napisy24.pl/run/CheckSubAgent.php?mode=download&id={download_info}"
-            )
-        else:
-            download_url = (
-                f"http://napisy24.pl/run/CheckSubAgent.php?mode=download&id={subtitle_id}"
-            )
-
-        result = SubtitleResult(
-            provider_name=self.name,
-            subtitle_id=f"napisy24:{subtitle_id}",
-            language="pl",
-            format=SubtitleFormat.SRT,
-            filename=f"{subtitle_id}.srt",
-            download_url=download_url,
-            matches={"hash"},  # Hash match = highest score
-            provider_data={
-                "file_hash": file_hash,
-                "raw_response": response_text[:200],
+    def _check_sub(self, request: dict) -> list[SubtitleResult]:
+        """POST one CheckSub request; the answer carries the subtitle itself."""
+        resp = self.session.post(
+            API_URL,
+            data={
+                "postAction": "CheckSub",
+                "ua": self.username,
+                "ap": self.password,
+                "nl": "pl",
+                **request,
             },
+            timeout=self.timeout,
         )
-        results.append(result)
-
-        logger.info("Napisy24: found %d subtitle result(s)", len(results))
+        if resp.status_code != 200:
+            logger.warning("Napisy24: API returned HTTP %d", resp.status_code)
+            return []
+        results = self._parse_response(resp.content, request["fh"])
+        for result in results:
+            result.provider_data["request"] = request  # a cached result has no content
         return results
 
-    def download(self, result: SubtitleResult) -> bytes:
-        if not self.session:
-            raise ProviderError("Napisy24 not initialized")
+    def _parse_response(self, raw: bytes, file_hash: str) -> list[SubtitleResult]:
+        """The subtitle an ``OK-2`` answer carries after its ``||``; [] for anything else."""
+        if not raw or not raw.startswith(b"OK-2"):
+            logger.debug("Napisy24: no subtitle (response: %r)", (raw or b"")[:20])
+            return []
+        meta, _sep, payload = raw.partition(b"||")
+        fields = {}
+        for part in meta.decode("utf-8", errors="replace").split("|")[1:]:
+            key, _colon, value = part.partition(":")
+            fields[key.strip()] = value.strip()
 
-        url = result.download_url
-        if not url:
-            raise ValueError("No download URL")
-
-        # P1: Validate download URL against allowed domains before fetching
-        url_ok, url_err = validate_download_url(url, self.name)
-        if not url_ok:
-            raise ProviderError(f"Napisy24 download URL rejected: {url_err}")
-
+        entries = extract_subtitles_from_zip(payload) if payload[:4] == b"PK\x03\x04" else []
+        if not entries:
+            # The forum reports ZIPs holding only an INFO.txt advert.
+            logger.debug("Napisy24: OK-2 without a subtitle file in its ZIP")
+            return []
+        entries.sort(key=lambda e: _PRIORITY.get(os.path.splitext(e[0])[1].lower(), 99))
+        name, content = entries[0]
+        ext = os.path.splitext(name)[1].lower()
+        napis_id = fields.get("napisId") or ""
         try:
-            # P5: 50 MB streaming cap
-            content = _stream_download(
-                self.session, url, timeout=self.timeout, provider_name=self.name
+            fps = float(fields["fps"]) if fields.get("fps") else None
+        except ValueError:
+            fps = None
+
+        return [
+            SubtitleResult(
+                provider_name=self.name,
+                subtitle_id=f"napisy24:{napis_id if napis_id not in ('', '0') else file_hash}",
+                language="pl",
+                format=_FORMATS.get(ext, SubtitleFormat.SRT),
+                # P2: sanitize the archive member name against path traversal
+                filename=_secure_filename(name) or "subtitle.srt",
+                content=content,
+                matches={"hash"},  # Hash match = highest score
+                fps=fps,
+                provider_data={
+                    "file_hash": file_hash,
+                    "imdb": fields.get("imdb", ""),
+                    "translated_percent": fields.get("tlPrc", ""),
+                },
             )
-        except ProviderError:
-            raise
-        except Exception as e:
-            raise ProviderError(f"Napisy24 download error: {e}") from e
+        ]
 
-        # Handle ZIP archives: prefer SRT then ASS/SSA
-        if content[:4] == b"PK\x03\x04":
-            _PRIORITY = {".srt": 0, ".ass": 1, ".ssa": 2, ".vtt": 3}
-            entries = extract_subtitles_from_zip(content)
-            if entries:
-                entries.sort(key=lambda e: _PRIORITY.get(os.path.splitext(e[0])[1].lower(), 99))
-                best_name, content = entries[0]
-                # P2: Sanitize archive-extracted filename to prevent path traversal
-                result.filename = _secure_filename(best_name) or "subtitle"
-                ext = os.path.splitext(best_name)[1].lower()
-                if ext == ".ass":
-                    result.format = SubtitleFormat.ASS
-                elif ext == ".ssa":
-                    result.format = SubtitleFormat.SSA
-                else:
-                    result.format = SubtitleFormat.SRT
-
-        result.content = content
-        logger.info("Napisy24: downloaded %s (%d bytes)", result.filename, len(content))
-        return content
+    def download(self, result: SubtitleResult) -> bytes:
+        """The subtitle arrives with the search answer; a cached result asks again."""
+        if result.content:
+            return result.content
+        request = (result.provider_data or {}).get("request")
+        if not self.session or not request:
+            raise ProviderError("Napisy24 subtitles come with the search; search again")
+        fresh = self._check_sub(request)
+        if not fresh:
+            raise ProviderError("Napisy24 no longer has this subtitle")
+        result.content = fresh[0].content
+        result.filename = fresh[0].filename
+        result.format = fresh[0].format
+        return result.content
