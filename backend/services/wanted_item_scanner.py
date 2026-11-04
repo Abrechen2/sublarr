@@ -227,6 +227,36 @@ def _drop_pending(unwanted: dict[str, set]) -> None:
         delete_wanted_items_by_ids(ids)
 
 
+def _drop_other_languages(file_paths, target_languages) -> None:
+    """Remove waiting rows of these files whose language the profile dropped (#234).
+
+    The scans only visit the profile's current languages, so a row for a
+    language removed from the profile was never touched again and kept being
+    searched. Rows with a result or history stay (see
+    ``get_pending_ids_by_language``); an empty language list removes nothing.
+    Never raises.
+    """
+    keep = {lang.lower() for lang in target_languages or () if lang}
+    if not keep or not file_paths:
+        return
+    from db.wanted import delete_wanted_items_by_ids, get_pending_ids_by_language
+
+    try:
+        ids = [
+            row_id
+            for row_id, _path, lang in get_pending_ids_by_language(list(file_paths))
+            if lang and lang.lower() not in keep
+        ]
+        if ids:
+            logger.info(
+                "Wanted scan: dropping %d items for languages no longer in the profile",
+                len(ids),
+            )
+            delete_wanted_items_by_ids(ids)
+    except Exception:  # a cleanup must never fail the scan that called it
+        logger.warning("Wanted scan: dropped-language cleanup failed", exc_info=True)
+
+
 def scan_radarr_movie(
     radarr,
     movie,
@@ -351,6 +381,7 @@ def scan_radarr_movie(
                     added += 1
 
     _drop_pending(unwanted)
+    _drop_other_languages(scanned_paths, target_languages)
     return added, updated, scanned_paths
 
 
@@ -514,4 +545,5 @@ def scan_sonarr_series(
                         added += 1
 
     _drop_pending(unwanted)
+    _drop_other_languages(scanned_paths, target_languages)
     return added, updated, scanned_paths

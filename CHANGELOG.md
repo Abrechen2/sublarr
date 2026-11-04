@@ -50,6 +50,11 @@ alone until you do.
   far, have switches on the subtitle-health settings page.
 
 ### Fixed
+- **Wanted items follow the profile's languages** — When a language is
+  removed from a series' or movie's language profile (or the title gets a
+  profile with other languages), the next scan removes its waiting wanted
+  items for that language instead of searching for them forever. Items with
+  a result or history (a provisional machine translation) stay (#234).
 - **Manual download of a result that vanished** — When a picked subtitle no
   longer shows up in the fresh search, the provider is asked for it by its
   id; a result rebuilt that way is classified as signs or full by its

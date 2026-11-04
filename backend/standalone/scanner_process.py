@@ -24,6 +24,12 @@ def _drop_pending(unwanted: dict[str, set]) -> None:
     drop(unwanted)
 
 
+def _drop_other_languages(file_paths, target_languages) -> None:
+    from services.wanted_item_scanner import _drop_other_languages as drop
+
+    drop(file_paths, target_languages)
+
+
 def _embedded_streams(file_path: str):
     """ffprobe data of a video (cached), so an embedded signs track counts; None if off."""
     from config import get_settings
@@ -263,6 +269,7 @@ class _StandaloneProcessMixin:
                 )
 
         _drop_pending(unwanted)
+        _drop_other_languages([f["file_path"] for f in files], target_languages)
         return wanted_added
 
     def _process_movie(self, parsed: dict, file_path: str, folder: dict) -> int:
@@ -358,6 +365,7 @@ class _StandaloneProcessMixin:
             )
 
         _drop_pending(unwanted)
+        _drop_other_languages([file_path], target_languages)
         return wanted_added
 
     def process_single_file(self, file_path: str) -> dict:
@@ -501,6 +509,7 @@ class _StandaloneProcessMixin:
                     ):
                         wanted = True
                 _drop_pending(unwanted)
+                _drop_other_languages([file_path], target_languages)
 
                 return {
                     "type": "episode",

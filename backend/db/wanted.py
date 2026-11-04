@@ -143,6 +143,11 @@ def get_wanted_ids_of_kind(file_paths: list[str], subtitle_type: str) -> list[tu
     return _get_repo().get_wanted_ids_of_kind(file_paths, subtitle_type)
 
 
+def get_pending_ids_by_language(file_paths: list[str]) -> list[tuple]:
+    """(id, file_path, target_language) of the still-waiting rows of these files."""
+    return _get_repo().get_pending_ids_by_language(file_paths)
+
+
 def update_wanted_status(item_id: int, status: str, error: str = ""):
     """Update a wanted item's status."""
     return _get_repo().update_wanted_status(item_id, status, error)

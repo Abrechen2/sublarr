@@ -354,6 +354,23 @@ class WantedRepository(BaseRepository, _WantedUpsertMixin, _WantedUpdatesMixin):
             found.extend(self.session.execute(stmt).all())
         return [(r[0], r[1], r[2] or "") for r in found]
 
+    def get_pending_ids_by_language(self, file_paths: list[str]) -> list[tuple[int, str, str]]:
+        """(id, file_path, target_language) of the ``wanted`` rows of these files.
+
+        Only rows still waiting: anything with a result or history (a
+        provisional machine translation, a found subtitle) is left alone.
+        One query per 500 paths.
+        """
+        paths = sorted(set(file_paths))
+        found = []
+        for start in range(0, len(paths), 500):
+            stmt = select(WantedItem.id, WantedItem.file_path, WantedItem.target_language).where(
+                WantedItem.file_path.in_(paths[start : start + 500]),
+                WantedItem.status == "wanted",
+            )
+            found.extend(self.session.execute(stmt).all())
+        return [(r[0], r[1], r[2] or "") for r in found]
+
     # update_wanted_status, update_wanted_search_outcome, mark_search_attempted,
     # set_retry_after, update_existing_sub live on _WantedUpdatesMixin (see
     # wanted_updates.py).
