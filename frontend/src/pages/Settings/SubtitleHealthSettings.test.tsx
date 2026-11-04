@@ -28,6 +28,22 @@ function renderWithQuery(ui: React.ReactElement) {
 }
 
 describe('SubtitleHealthSettings', () => {
+  it('shows the health switches', async () => {
+    vi.mocked(api.getHealthReport).mockResolvedValue({
+      total_findings: 0,
+      by_type: {},
+      affected_episodes: 0,
+    })
+    renderWithQuery(<SubtitleHealthSettings />)
+    for (const key of [
+      'subtitle_health_enabled',
+      'subtitle_health_sweep_enabled',
+      'subtitle_health_auto_fix',
+    ]) {
+      expect(screen.getByTestId(`form-group-${key}`)).toBeInTheDocument()
+    }
+  })
+
   it('renders the library report', async () => {
     vi.mocked(api.getHealthReport).mockResolvedValue({
       total_findings: 47,

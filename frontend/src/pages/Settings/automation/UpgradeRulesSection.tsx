@@ -126,6 +126,19 @@ export function UpgradeRulesContent() {
           disabled={updateConfig.isPending}
         />
       </FormGroup>
+
+      <FormGroup
+        label={tS('automation_page.auto_repair')}
+        hint={tS('automation_page.auto_repair_hint')}
+        htmlFor="auto-repair-enabled"
+        data-testid="form-group-auto-repair-enabled"
+      >
+        <Toggle
+          checked={boolVal(config, 'auto_repair_enabled', false)}
+          onChange={(v) => save({ auto_repair_enabled: v })}
+          disabled={updateConfig.isPending}
+        />
+      </FormGroup>
     </div>
   )
 }

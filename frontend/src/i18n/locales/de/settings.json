@@ -916,6 +916,8 @@
     "upgrade_window_hint": "Nur Untertitel upgraden die innerhalb dieser Anzahl von Tagen heruntergeladen wurden.",
     "prefer_ass": "ASS gegenüber SRT bevorzugen",
     "prefer_ass_hint": "Immer von SRT auf ASS upgraden wenn ein besserer ASS-Untertitel verfügbar ist.",
+    "auto_repair": "Automatische Reparatur",
+    "auto_repair_hint": "Prüft das Timing neuer Downloads am Video (verschiebt versetzte, lehnt fremde Schnitte ab), behandelt Untertitel mit nur Schildern/Credits als fehlend und repariert vorhandene Untertitel mit falschem Timing beim Health-Sweep. Ersetzte Dateien landen im Papierkorb.",
     "auto_common_fixes": "Auto Common Fixes",
     "auto_common_fixes_hint": "Häufige Untertitel-Formatierungskorrekturen automatisch nach dem Download anwenden.",
     "auto_hi_removal": "Auto HI-Entfernung",

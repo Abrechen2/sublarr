@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next'
 import { getHealthReport } from '@/api/subtitleHealth'
 import type { HealthReport } from '@/lib/types'
 import { AIQualitySettings } from './AIQualitySettings'
+import { SubtitleHealthSwitches } from './SubtitleHealthSwitches'
 
 export function SubtitleHealthSettings() {
   const { t } = useTranslation('library')
@@ -24,6 +25,7 @@ export function SubtitleHealthSettings() {
 
   return (
     <div className="space-y-4">
+      <SubtitleHealthSwitches />
       <h2 className="text-lg font-semibold">{t('subtitle_health.report_title')}</h2>
       {report && (
         <p className="text-sm text-muted">

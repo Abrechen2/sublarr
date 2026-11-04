@@ -702,6 +702,14 @@
     "fix_failed": "Behebung fehlgeschlagen: {{reason}}",
     "rollback_success": "Wiederhergestellt",
     "report_title": "Untertitel-Gesundheit (Bibliothek)",
-    "report_total": "{{count}} offene Befunde über {{episodes}} Episoden"
+    "report_total": "{{count}} offene Befunde über {{episodes}} Episoden",
+    "settings": {
+      "subtitle_health_enabled": "Untertitel-Health-Check",
+      "subtitle_health_enabled_hint": "Prüft Untertitel auf Fehler wie kaputte Zeichen, falsche Sprache oder falsches Timing und zeigt sie im Health-Panel.",
+      "subtitle_health_sweep_enabled": "Nächtlicher Health-Sweep",
+      "subtitle_health_sweep_enabled_hint": "Prüft jede Nacht die ganze Bibliothek, statt nur beim Öffnen einer Folge.",
+      "subtitle_health_auto_fix": "Auto-Fix",
+      "subtitle_health_auto_fix_hint": "Der Sweep repariert Escape-Fehler und falsche Zeichenkodierung selbst. Das Original bleibt als Backup erhalten."
+    }
   }
 }

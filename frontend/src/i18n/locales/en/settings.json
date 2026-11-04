@@ -916,6 +916,8 @@
     "upgrade_window_hint": "Only upgrade subtitles downloaded within this many days.",
     "prefer_ass": "Prefer ASS over SRT",
     "prefer_ass_hint": "Always upgrade from SRT to ASS format when a better ASS subtitle is available.",
+    "auto_repair": "Automatic repair",
+    "auto_repair_hint": "Checks the timing of new downloads against the video (shifts delayed ones, refuses other cuts), treats subtitles that hold only signs/credits as missing, and repairs existing subtitles with wrong timing during the health sweep. Replaced files go to the trash.",
     "auto_common_fixes": "Auto Common Fixes",
     "auto_common_fixes_hint": "Apply common subtitle formatting fixes automatically after download.",
     "auto_hi_removal": "Auto HI Removal",

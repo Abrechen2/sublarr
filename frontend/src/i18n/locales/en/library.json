@@ -702,6 +702,14 @@
     "fix_failed": "Fix failed: {{reason}}",
     "rollback_success": "Restored",
     "report_title": "Subtitle Health (library)",
-    "report_total": "{{count}} open findings across {{episodes}} episodes"
+    "report_total": "{{count}} open findings across {{episodes}} episodes",
+    "settings": {
+      "subtitle_health_enabled": "Subtitle health check",
+      "subtitle_health_enabled_hint": "Checks subtitles for faults such as broken characters, the wrong language or wrong timing and lists them in the health panel.",
+      "subtitle_health_sweep_enabled": "Nightly health sweep",
+      "subtitle_health_sweep_enabled_hint": "Checks the whole library every night instead of only when an episode is opened.",
+      "subtitle_health_auto_fix": "Auto-fix",
+      "subtitle_health_auto_fix_hint": "The sweep repairs escape errors and wrong character encoding by itself. The original is kept as a backup."
+    }
   }
 }
