@@ -225,6 +225,7 @@ class ScanningSettings(_SettingsView):
             "upgrade_prefer_ass",
             "upgrade_protect_user_modified",
             "upgrade_scan_interval_hours",
+            "auto_repair_enabled",
             "hi_removal_enabled",
             "hi_preference",
             "credit_threshold_sec",

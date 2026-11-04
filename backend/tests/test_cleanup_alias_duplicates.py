@@ -165,11 +165,12 @@ def test_dry_run_touches_nothing(tmp_path):
     notify.assert_not_called()
 
 
-def test_rule_is_seeded_enabled(app_ctx):
+def test_rule_is_seeded_disabled(app_ctx):
+    # An update never starts removing files on its own.
     from db.repositories.cleanup import CleanupRepository
 
     rule = next(r for r in CleanupRepository().get_rules() if r["rule_type"] == "alias_duplicates")
-    assert rule["enabled"] is True
+    assert rule["enabled"] is False
     assert rule["schedule"] == "daily"
 
 

@@ -7,25 +7,29 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [1.20.0] - 2026-11-03
 
-Sublarr now finds and repairs more bad subtitles by itself. Every case below
-came from one anime series on a production library, where none of them was
-caught.
+Sublarr can now find and repair more bad subtitles by itself. Every case
+below came from one anime series on a production library, where none of them
+was caught. The repairs are opt-in: turn on **Settings → Automation →
+Automatic Repair** (marked *opt-in* below); an update leaves your library
+alone until you do.
 
 ### Added
-- **Timing check for every download** — Each downloaded subtitle is lined up
+- **Automatic Repair setting** — One switch, off by default, for the timing
+  check on downloads, the timing repair on disk and treating signs-only
+  sidecars as missing.
+- **Timing check for every download** (opt-in) — Each downloaded subtitle is lined up
   with the video before it is saved: against an embedded text track (MKV and
   MP4 `mov_text`), or else against a full sidecar in another language. A
   subtitle that runs a constant few seconds early or late is shifted into
   place; one whose lines fit the video at no offset (another cut or episode)
   is skipped for the next candidate. A sidecar used as the reference never
   blocks every candidate, since it may be the wrong one itself.
-- **Timing repair for subtitles already on disk** — The nightly
+- **Timing repair for subtitles already on disk** (opt-in) — The nightly
   subtitle-health sweep checks the same for existing sidecars. A delayed one
   is shifted (the original is kept as a backup); one for another cut is
   moved to the trash, its download blacklisted and the episode searched
-  again. Both act only on a certain verdict and run without auto-fix,
-  because both can be undone. The health panel lists "Timing offset" and
-  "Timing does not fit the video".
+  again. Both act only on a certain verdict and can be undone. The health
+  panel lists "Timing offset" and "Timing does not fit the video" either way.
 
 ### Fixed
 - **Slow providers are no longer thrown away** — AnimeTosho needs up to
@@ -38,20 +42,21 @@ caught.
   episode 5, so the BD packs of season 1 never showed up. When that search
   finds nothing, the season is asked for next. Release names may also use
   any of Sonarr's alternative titles for the series ("Mushoku Tensei - S01").
-- **A signs-only file goes when the real subtitle arrives** — A new full
+- **A signs-only file goes when the real subtitle arrives** (opt-in) — A new full
   `.de.srt` now moves a signs/credits-only `.de.ass` of the same episode to
   the trash, so the player no longer offers both.
-- **Signs-only sidecars on disk are searched again** — A full `.de.ass`/`.srt`
+- **Signs-only sidecars on disk are searched again** (opt-in) — A full `.de.ass`/`.srt`
   that holds only a title card and credits (10 lines for a 24-minute episode)
   no longer counts as the subtitle: the wanted scans and the search treat it
   as missing, the episode gets its search attempts back, and the file stays
   until a validated replacement overwrites it. The subtitle-health check
-  flags the same files (it missed exactly 10 lines) and the nightly sweep
-  queues a search for them. `.forced` and signs sidecars are never touched.
+  flags the same files (it missed exactly 10 lines) either way; the nightly
+  sweep queues a search for them. `.forced` and signs sidecars are never touched.
 - **No more doubled language tracks** — A sidecar spelled with an ISO 639-2
   code (`X.deu.srt`) that holds the same subtitle as the `X.de.srt` beside it
-  is moved to the sidecar trash by a new, enabled-by-default "Duplicate
-  language codes" cleanup rule, so Emby no longer lists two German tracks.
+  is moved to the sidecar trash by a new "Duplicate language codes" cleanup
+  rule, so Emby no longer lists two German tracks. The rule is created
+  disabled; enable it under Settings → Cleanup.
   Forced and HI variants only pair with their own kind, different content
   keeps both files, and an alias file without a canonical one stays.
 - **Signs tracks no longer pass as full subtitles** — A subtitle with far too

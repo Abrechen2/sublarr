@@ -2480,6 +2480,7 @@
     "provider_reranking_max_modifier": "Maximaler absoluter Score-Modifier der durch Re-ranking vergeben wird.",
     "upgrade_enabled": "Automatisch bessere Untertitel suchen wenn Score-Schwellenwert nicht erreicht.",
     "upgrade_prefer_ass": "ASS-Format (mit Styling) gegenüber SRT bevorzugen.",
+    "auto_repair_enabled": "Prüft das Timing neuer Downloads am Video (verschiebt versetzte, lehnt fremde Schnitte ab), behandelt Untertitel mit nur Schildern/Credits als fehlend und repariert vorhandene Untertitel mit falschem Timing beim Health-Sweep. Ersetzte Dateien landen im Papierkorb.",
     "upgrade_min_score_delta": "Mindest-Score-Unterschied um einen Upgrade-Download zu rechtfertigen.",
     "upgrade_window_days": "Upgrade-Versuche nur innerhalb dieses Zeitfensters nach dem Release.",
     "upgrade_scan_interval_hours": "Wie oft der Upgrade-Scanner nach Kandidaten sucht. 0 = deaktiviert.",

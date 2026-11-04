@@ -541,6 +541,11 @@ class UISettings(BaseModel):
     upgrade_prefer_ass: bool = True  # SRT->ASS always upgrade
     # Never auto-replace subtitles the user hand-edited in the editor
     upgrade_protect_user_modified: bool = True
+    # Automatic repair (services.auto_repair): shift or refuse downloads whose
+    # timing does not fit the video, treat signs/credits-only sidecars as
+    # missing, and let the health sweep shift or quarantine sidecars on disk.
+    # Off by default: an update never changes what Sublarr does to a library.
+    auto_repair_enabled: bool = False
 
     # Decision Log — record the full selection pipeline per wanted-item search
     # (provider hits/skips, filter rejections, final pick) and store it on the

@@ -502,3 +502,12 @@ def _reset_ui_auth_flag_cache():
     ui_auth._auth_enabled_cache = None
     yield
     ui_auth._auth_enabled_cache = None
+
+
+@pytest.fixture
+def auto_repair_on():
+    """Enable the opt-in automatic repairs (services.auto_repair) for a test."""
+    from unittest.mock import patch
+
+    with patch("services.auto_repair.auto_repair_enabled", return_value=True):
+        yield

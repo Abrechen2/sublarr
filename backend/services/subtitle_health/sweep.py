@@ -7,6 +7,7 @@ import logging
 import os
 import time
 
+from services import auto_repair
 from services.scheduler.cancellation import abort_requested
 from services.subtitle_health import store
 from services.subtitle_health.apply import apply_fix
@@ -100,7 +101,7 @@ def _standalone_target_allowed(target: str, video_path: str) -> bool:
 def _requeue_sparse_sidecars(findings: list[dict], video_path: str) -> None:
     """Queue a search for every episode whose full sidecar is signs/credits only.
 
-    Non-destructive (no file is touched), so it runs with auto-fix off too.
+    Independent of auto-fix; gated by automatic repair (services.auto_repair).
     """
     from services.subtitle_health.checkers.empty_or_tiny import REQUEUE_ACTION
     from services.subtitle_health.scan import _norm_lang
@@ -124,8 +125,8 @@ def _repair_timing(findings: list[dict], video_path: str) -> None:
 
     Only confirmed verdicts carry an action, and both repairs are reversible
     (the shifted original is backed up, the quarantined file trashed and its
-    download blacklisted), so they run with auto-fix off too: a wrong track
-    is found and replaced without anyone opening the episode.
+    download blacklisted). Independent of auto-fix; gated by automatic repair
+    (services.auto_repair).
     """
     from services.subtitle_health.checkers.timing_alignment import (
         QUARANTINE_ACTION,
@@ -158,8 +159,9 @@ def _sweep_episode(ep_id: int, path: str | None, auto: bool) -> bool:
         logger.exception("subtitle_health sweep: scan failed ep %s", ep_id)
         return False
     findings = store.get_findings_for_episode(ep_id)
-    _requeue_sparse_sidecars(findings, path)
-    _repair_timing(findings, path)
+    if auto_repair.auto_repair_enabled():
+        _requeue_sparse_sidecars(findings, path)
+        _repair_timing(findings, path)
     if not auto:
         return True
     for finding in findings:

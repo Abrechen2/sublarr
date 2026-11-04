@@ -294,13 +294,11 @@ class CleanupRepository(BaseRepository):
         {
             "name": "Alias duplicates",
             "rule_type": "alias_duplicates",
-            # Seeded ENABLED, unlike the rules above: it only moves a sidecar to
-            # the recoverable sidecar trash, and only when the file holds the
-            # same subtitle as its canonical-coded sibling (X.deu.srt next to
-            # X.de.srt). Nothing is lost, and the duplicate German track in the
-            # media server goes away without the user having to know the rule
-            # exists. Back-filled so existing installs get it too.
-            "enabled": True,
+            # Seeded DISABLED like the rules above: an update never starts
+            # removing files on its own, even into the recoverable trash. It
+            # only trashes a sidecar that holds the same subtitle as its
+            # canonical-coded sibling (X.deu.srt next to X.de.srt).
+            "enabled": False,
             "schedule": "daily",
             "config_json": "{}",
         },

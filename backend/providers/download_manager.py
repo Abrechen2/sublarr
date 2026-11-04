@@ -465,9 +465,15 @@ def search_and_download_best(
 
 
 def _passes_timing(result: SubtitleResult, content: bytes, timing_check: _TimingCheck) -> bool:
-    """Keep, shift into place, or refuse ``content`` by its timing. Never raises."""
-    import subtitle_timing
+    """Keep, shift into place, or refuse ``content`` by its timing. Never raises.
 
+    Only with automatic repair enabled; otherwise every candidate passes.
+    """
+    import subtitle_timing
+    from services import auto_repair
+
+    if not auto_repair.auto_repair_enabled():
+        return True
     alignment, reference = timing_check.judge(result, content)
     if alignment is None:
         return True

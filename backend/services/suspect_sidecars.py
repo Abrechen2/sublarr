@@ -45,6 +45,7 @@ from datetime import UTC, datetime, timedelta
 from typing import NamedTuple
 
 from db.repositories.blacklist import SUSPECT_BLOCKED_EVERYWHERE, SUSPECT_REASON_PREFIX
+from services import auto_repair
 
 logger = logging.getLogger(__name__)
 
@@ -227,13 +228,20 @@ def _discounted(path: str, video_path: str) -> bool:
     """True when ``path`` must not count as the subtitle: suspect or signs/credits only."""
     if is_suspect_sidecar(path):
         return True
+    if not auto_repair.auto_repair_enabled():
+        return False
     from subtitle_dialogue import sparse_sidecar_reason
 
     return sparse_sidecar_reason(path, video_path) is not None
 
 
 def sparse_full_sidecar(video_path: str, language: str) -> str | None:
-    """Path of a full sidecar for ``language`` that is signs/credits only, or None."""
+    """Path of a full sidecar for ``language`` that is signs/credits only, or None.
+
+    Always None unless automatic repair is enabled (services.auto_repair).
+    """
+    if not auto_repair.auto_repair_enabled():
+        return None
     from subtitle_dialogue import sparse_sidecar_reason
     from translator import find_existing_target_file
 
@@ -488,8 +496,11 @@ def retire_sparse_siblings(saved_path: str, language: str) -> None:
 
     A sparse ``.de.ass`` is kept until a real subtitle lands; when that one is
     a ``.de.srt`` it does not overwrite the ASS, and the player would offer
-    both, the 10-line file first. Restorable (sidecar trash). Never raises.
+    both, the 10-line file first. Restorable (sidecar trash). Only with
+    automatic repair enabled. Never raises.
     """
+    if not auto_repair.auto_repair_enabled():
+        return
     try:
         from subtitle_dialogue import sparse_sidecar_reason
         from subtitle_filename import parse_subtitle_filename

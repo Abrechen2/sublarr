@@ -15,6 +15,8 @@ import subtitle_plausibility
 from services import suspect_sidecars
 from subtitle_dialogue import assess_content, sparse_sidecar_reason
 
+pytestmark = pytest.mark.usefixtures("auto_repair_on")
+
 EPISODE_S = 1422.0
 
 _HEAD = """[Script Info]
@@ -102,6 +104,13 @@ def test_sparse_ass_counts_as_missing_and_stays_on_disk(video):
     path = _write(video, ".de.ass", credits_only_ass())
     assert suspect_sidecars.existing_ignoring_suspects(video, "de", "ass") is None
     assert os.path.exists(path)
+
+
+def test_without_automatic_repair_a_sparse_ass_still_counts(video):
+    _write(video, ".de.ass", credits_only_ass())
+    with patch("services.auto_repair.auto_repair_enabled", return_value=False):
+        assert suspect_sidecars.existing_ignoring_suspects(video, "de", "ass") == "ass"
+        assert suspect_sidecars.sparse_full_sidecar(video, "de") is None
 
 
 def test_sparse_ass_next_to_genuine_srt_reads_srt(video):
@@ -318,7 +327,11 @@ def test_sweep_requeues_a_sparse_finding(app_ctx):
         patch("services.suspect_sidecars.requeue_sparse_sidecar") as requeue,
     ):
         assert sweep._sweep_episode(5, "/m/e.mkv", False) is True
-    requeue.assert_called_once_with("/m/e.mkv", "de")
+        requeue.assert_called_once_with("/m/e.mkv", "de")
+        requeue.reset_mock()
+        with patch("services.auto_repair.auto_repair_enabled", return_value=False):
+            assert sweep._sweep_episode(5, "/m/e.mkv", False) is True
+        requeue.assert_not_called()
 
 
 def test_a_full_srt_retires_the_sparse_ass_it_replaces(video):

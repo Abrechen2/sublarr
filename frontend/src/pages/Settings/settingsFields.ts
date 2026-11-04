@@ -106,6 +106,8 @@ export const FIELDS: FieldConfig[] = [
     descriptionKey: 'settings_fields.upgrade_enabled' },
   { key: 'upgrade_prefer_ass', label: 'Prefer ASS over SRT', type: 'toggle', tab: 'Automation',
     descriptionKey: 'settings_fields.upgrade_prefer_ass' },
+  { key: 'auto_repair_enabled', label: 'Automatic Repair', type: 'toggle', tab: 'Automation',
+    descriptionKey: 'settings_fields.auto_repair_enabled' },
   { key: 'upgrade_min_score_delta', label: 'Min Score Delta', type: 'number', placeholder: '50', tab: 'Automation',
     descriptionKey: 'settings_fields.upgrade_min_score_delta',
     advanced: true },

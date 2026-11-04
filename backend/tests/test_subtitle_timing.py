@@ -174,6 +174,7 @@ def _download(r: SubtitleResult) -> bytes:
     return r._test_content
 
 
+@pytest.mark.usefixtures("auto_repair_on")
 class TestDownloadGate:
     def _run(self, results, reference: Reference | None):
         from providers.download_manager import search_and_download_best
@@ -199,6 +200,15 @@ class TestDownloadGate:
         best, statuses = self._run([wrong, right], Reference(speech, True, "emb"))
         assert best is right
         assert statuses == ["timing_mismatch", "selected"]
+
+    def test_without_automatic_repair_nothing_is_checked(self):
+        speech = _speech()
+        wrong = _result("wrong", _srt(_translation_of(_speech(seed=99))))
+        right = _result("right", _srt(_translation_of(speech)))
+        with patch("services.auto_repair.auto_repair_enabled", return_value=False):
+            best, statuses = self._run([wrong, right], Reference(speech, True, "emb"))
+        assert best is wrong
+        assert statuses == ["selected"]
 
     def test_a_late_track_is_shifted_into_place(self):
         speech = _speech()

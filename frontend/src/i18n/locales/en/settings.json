@@ -2480,6 +2480,7 @@
     "provider_reranking_max_modifier": "Maximum absolute score modifier that re-ranking can assign.",
     "upgrade_enabled": "Automatically search for better subtitles when the score threshold is not reached.",
     "upgrade_prefer_ass": "Prefer ASS format (with styling) over SRT.",
+    "auto_repair_enabled": "Checks the timing of new downloads against the video (shifts delayed ones, refuses other cuts), treats subtitles that hold only signs/credits as missing, and repairs existing subtitles with wrong timing during the health sweep. Replaced files go to the trash.",
     "upgrade_min_score_delta": "Minimum score difference required to justify an upgrade download.",
     "upgrade_window_days": "Only attempt upgrades within this time window after the release.",
     "upgrade_scan_interval_hours": "How often the upgrade scanner looks for candidates. 0 = disabled.",
