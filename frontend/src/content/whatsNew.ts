@@ -9,7 +9,7 @@ import type { LucideIcon } from 'lucide-react'
 import {
   Layers, Columns2, BarChart3, Upload, ShieldCheck, KeyRound,
   Zap, Rocket, Activity, AudioLines, SlidersHorizontal, LogIn, FileDown,
-  PauseCircle, Languages, Globe, Gauge, Search, Copy, Trash2, Captions,
+  PauseCircle, Languages, Globe, Gauge, Search, Copy, Trash2, Captions, Wrench,
 } from 'lucide-react'
 
 export interface WhatsNewItem {
@@ -19,6 +19,13 @@ export interface WhatsNewItem {
 }
 
 export const WHATS_NEW: Record<string, WhatsNewItem[]> = {
+  '1.20.0': [
+    { icon: Wrench, titleKey: 'whatsnew.v1200.repair_title', descKey: 'whatsnew.v1200.repair_desc' },
+    { icon: Search, titleKey: 'whatsnew.v1200.anime_title', descKey: 'whatsnew.v1200.anime_desc' },
+    { icon: Globe, titleKey: 'whatsnew.v1200.providers_title', descKey: 'whatsnew.v1200.providers_desc' },
+    { icon: SlidersHorizontal, titleKey: 'whatsnew.v1200.switches_title', descKey: 'whatsnew.v1200.switches_desc' },
+    { icon: Copy, titleKey: 'whatsnew.v1200.cleanup_title', descKey: 'whatsnew.v1200.cleanup_desc' },
+  ],
   '1.17.0': [
     { icon: Languages, titleKey: 'whatsnew.v1170.encoding_title', descKey: 'whatsnew.v1170.encoding_desc' },
     { icon: Search, titleKey: 'whatsnew.v1170.episode_title', descKey: 'whatsnew.v1170.episode_desc' },

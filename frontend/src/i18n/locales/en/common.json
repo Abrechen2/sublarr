@@ -758,6 +758,18 @@
     }
   },
   "whatsnew": {
+    "v1200": {
+      "repair_title": "Automatic repair (optional)",
+      "repair_desc": "New under Automation → Search, scan & upgrades: Sublarr checks the timing of new downloads against the video, shifts delayed subtitles and refuses ones for another cut. Subtitles that hold only signs or credits count as missing, and the nightly health sweep repairs existing files with wrong timing. Off by default.",
+      "anime_title": "More anime results",
+      "anime_desc": "AnimeTosho finds the season packs of older seasons and the subtitles of multi-sub releases, and slow answers are no longer lost. Jimaku offers only the queried season and episode.",
+      "providers_title": "Providers fixed",
+      "providers_desc": "Gestdown and BetaSeries found nothing because of wrong API calls, Napisy24 reported subtitles it did not have. OpenSubtitles follows its API docs more closely. A passing provider test clears old failures.",
+      "switches_title": "New switches",
+      "switches_desc": "Copying ASS tracks unchanged, a configurable ASS size limit, the language of unmarked Jimaku files and the health switches are now in the settings. Series overrides show their saved values.",
+      "cleanup_title": "Clean up duplicate language codes",
+      "cleanup_desc": "The new cleanup rule removes a .deu.srt next to the .de.srt when both hold the same translation (to the trash). Off by default."
+    },
     "v1170": {
       "encoding_title": "Umlauts and special characters are kept",
       "encoding_desc": "Subtitles in older encodings (e.g. Windows-1252, Cyrillic, Greek, Chinese) are now read correctly and saved as UTF-8 instead of having letters replaced by \"�\". UTF-16 subtitles are accepted.",

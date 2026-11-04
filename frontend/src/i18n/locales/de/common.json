@@ -758,6 +758,18 @@
     }
   },
   "whatsnew": {
+    "v1200": {
+      "repair_title": "Automatische Reparatur (optional)",
+      "repair_desc": "Neu unter Automatisierung → Suche, Scan & Upgrades: Sublarr prüft das Timing neuer Downloads am Video, verschiebt versetzte Untertitel und lehnt solche für einen anderen Schnitt ab. Untertitel mit nur Schildern oder Credits gelten als fehlend, und der nächtliche Health-Sweep repariert vorhandene Dateien mit falschem Timing. Standardmäßig aus.",
+      "anime_title": "Mehr Treffer für Anime",
+      "anime_desc": "AnimeTosho findet die Staffel-Packs älterer Staffeln und die Untertitel von Multi-Sub-Releases, langsame Antworten gehen nicht mehr verloren. Jimaku liefert nur noch die gesuchte Staffel und Folge.",
+      "providers_title": "Provider repariert",
+      "providers_desc": "Gestdown und BetaSeries fanden durch falsche API-Aufrufe nichts, Napisy24 meldete Treffer, die es nicht gab. OpenSubtitles folgt seiner API-Doku genauer. Ein erfolgreicher Provider-Test setzt alte Fehler zurück.",
+      "switches_title": "Neue Schalter",
+      "switches_desc": "ASS-Spuren unverändert kopieren, ein einstellbares ASS-Größenlimit, die Sprache unmarkierter Jimaku-Dateien und die Health-Schalter stehen jetzt in den Einstellungen. Die Serien-Overrides zeigen die gespeicherten Werte.",
+      "cleanup_title": "Doppelte Sprachcodes aufräumen",
+      "cleanup_desc": "Die neue Bereinigungsregel entfernt eine .deu.srt neben der .de.srt, wenn beide dieselbe Übersetzung enthalten (in den Papierkorb). Standardmäßig aus."
+    },
     "v1170": {
       "encoding_title": "Umlaute und Sonderzeichen bleiben erhalten",
       "encoding_desc": "Untertitel in älteren Kodierungen (z. B. Windows-1252, Kyrillisch, Griechisch, Chinesisch) werden jetzt richtig gelesen und als UTF-8 gespeichert, statt Buchstaben durch „�“ zu ersetzen. UTF-16-Untertitel werden angenommen.",
