@@ -311,6 +311,8 @@ class UISettings(BaseModel):
 
     # Jimaku (anime subtitles)
     jimaku_api_key: str = ""
+    # "ja" is how unmarked files were read before this setting existed.
+    jimaku_unknown_language_fallback: str = "ja"
 
     # AnimeTosho: subtitles attached to a torrent rather than a file ("on"/"off")
     animetosho_root_attachments: str = "off"

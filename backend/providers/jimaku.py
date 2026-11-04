@@ -100,14 +100,28 @@ class JimakuProvider(SubtitleProvider):
     # Plugin system attributes
     config_fields = [
         {"key": "jimaku_api_key", "label": "API Key", "type": "password", "required": True},
+        {
+            "key": "jimaku_unknown_language_fallback",
+            "label": "Language for unmarked files",
+            "type": "select",
+            "options": ["none", "en", "ja"],
+            "default": "ja",
+            "help": (
+                "Jimaku files without a language marker are read as Japanese by "
+                "default. Choose none to skip them, or English to read them as English."
+            ),
+        },
     ]
     rate_limit = (100, 60)
     timeout = 30
     max_retries = 2
 
-    def __init__(self, api_key: str = "", **kwargs):
+    def __init__(self, api_key: str = "", unknown_language_fallback: str = "ja", **kwargs):
         super().__init__(**kwargs)
         self.api_key = api_key
+        self.unknown_language_fallback = (
+            unknown_language_fallback if unknown_language_fallback in {"en", "ja"} else "none"
+        )
         self.session = None
 
     def initialize(self):
@@ -215,8 +229,14 @@ class JimakuProvider(SubtitleProvider):
                 ext = os.path.splitext(filename)[1].lower()
                 fmt = _FORMAT_MAP.get(ext, SubtitleFormat.UNKNOWN)
 
-                # Detect language from filename
+                # Explicit filename markers take precedence. Unmarked files are
+                # excluded unless the user has explicitly configured a fallback.
                 lang = self._detect_language(filename)
+                if lang is None:
+                    lang = self.unknown_language_fallback
+                    if lang == "none":
+                        logger.debug("Jimaku: skipping file with unknown language: %s", filename)
+                        continue
 
                 # Check if language matches query
                 if query.languages and lang not in query.languages:
@@ -367,8 +387,8 @@ class JimakuProvider(SubtitleProvider):
             logger.warning("Jimaku get files failed: %s", e)
             return []
 
-    def _detect_language(self, filename: str) -> str:
-        """Detect language from filename patterns."""
+    def _detect_language(self, filename: str) -> str | None:
+        """Detect an explicit language marker, or return ``None`` if unmarked."""
         name_lower = filename.lower()
 
         # Common patterns (check in order of specificity)
@@ -396,8 +416,7 @@ class JimakuProvider(SubtitleProvider):
             if any(tag in name_lower for tag in patterns):
                 return lang
 
-        # Jimaku defaults to Japanese (most content is Japanese audio with English/Japanese subs)
-        return "ja"
+        return None
 
     def download(self, result: SubtitleResult) -> bytes:
         if not self.session:
