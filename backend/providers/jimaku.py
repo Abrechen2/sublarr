@@ -105,11 +105,10 @@ class JimakuProvider(SubtitleProvider):
             "label": "Language for unmarked files",
             "type": "select",
             "options": ["none", "en", "ja"],
-            "default": "none",
+            "default": "ja",
             "help": (
-                "Jimaku files without a language marker are skipped by default. "
-                "Choose English or Japanese only if you want to assign that language "
-                "to every unmarked Jimaku file."
+                "Jimaku files without a language marker are read as Japanese by "
+                "default. Choose none to skip them, or English to read them as English."
             ),
         },
     ]
@@ -117,7 +116,7 @@ class JimakuProvider(SubtitleProvider):
     timeout = 30
     max_retries = 2
 
-    def __init__(self, api_key: str = "", unknown_language_fallback: str = "none", **kwargs):
+    def __init__(self, api_key: str = "", unknown_language_fallback: str = "ja", **kwargs):
         super().__init__(**kwargs)
         self.api_key = api_key
         self.unknown_language_fallback = (
@@ -236,9 +235,7 @@ class JimakuProvider(SubtitleProvider):
                 if lang is None:
                     lang = self.unknown_language_fallback
                     if lang == "none":
-                        logger.debug(
-                            "Jimaku: skipping file with unknown language: %s", filename
-                        )
+                        logger.debug("Jimaku: skipping file with unknown language: %s", filename)
                         continue
 
                 # Check if language matches query

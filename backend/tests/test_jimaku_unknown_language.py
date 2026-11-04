@@ -17,8 +17,18 @@ def _search_with_file(provider: JimakuProvider, filename: str, languages: list[s
     )
 
 
-def test_unmarked_file_is_not_assumed_to_be_japanese_or_english():
+def test_unmarked_file_is_japanese_by_default():
+    # The behaviour before the setting existed; an update keeps it.
     provider = JimakuProvider(api_key="test")
+
+    results = _search_with_file(provider, "Example.Show.S01E01.ass", ["ja"])
+
+    assert len(results) == 1
+    assert results[0].language == "ja"
+
+
+def test_unmarked_file_can_be_skipped():
+    provider = JimakuProvider(api_key="test", unknown_language_fallback="none")
 
     assert provider._detect_language("Example.Show.S01E01.ass") is None
     assert _search_with_file(provider, "Example.Show.S01E01.ass", ["en"]) == []
@@ -51,17 +61,18 @@ def test_invalid_fallback_is_disabled():
     assert _search_with_file(provider, "Example.Show.S01E01.ass", ["en"]) == []
 
 
-def test_fallback_setting_is_opt_in_and_available_in_provider_config():
+def test_fallback_setting_keeps_japanese_and_is_in_provider_config():
     from config_settings import Settings
     from config_views import ProviderSettings
 
     field = next(
-        field for field in JimakuProvider.config_fields
+        field
+        for field in JimakuProvider.config_fields
         if field["key"] == "jimaku_unknown_language_fallback"
     )
     settings = Settings()
 
-    assert field["default"] == "none"
+    assert field["default"] == "ja"
     assert field["options"] == ["none", "en", "ja"]
-    assert settings.jimaku_unknown_language_fallback == "none"
-    assert ProviderSettings(settings).jimaku_unknown_language_fallback == "none"
+    assert settings.jimaku_unknown_language_fallback == "ja"
+    assert ProviderSettings(settings).jimaku_unknown_language_fallback == "ja"

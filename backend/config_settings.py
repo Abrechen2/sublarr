@@ -311,7 +311,8 @@ class UISettings(BaseModel):
 
     # Jimaku (anime subtitles)
     jimaku_api_key: str = ""
-    jimaku_unknown_language_fallback: str = "none"
+    # "ja" is how unmarked files were read before this setting existed.
+    jimaku_unknown_language_fallback: str = "ja"
 
     # SubDL (Subscene successor)
     subdl_api_key: str = ""
