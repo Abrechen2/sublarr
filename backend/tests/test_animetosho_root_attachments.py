@@ -50,12 +50,14 @@ def test_root_attachments_are_skipped_when_torrent_title_is_a_pack():
     assert results == []
 
 
-def test_root_attachments_are_opt_in():
+def test_root_attachments_are_on_by_default_and_can_be_switched_off():
+    # Live 2026-11-04: torrent 695392 carries its 40 subtitles (German among
+    # them) only at the torrent root.
     title = "[Group] Frieren S01E01 [1080p]"
     provider = _provider({"title": title, "attachments": [_attachment()]}, root_attachments="off")
 
     assert provider._process_entry(_entry(title), _query()) == []
-    assert AnimeToshoProvider().root_attachments is False
+    assert AnimeToshoProvider().root_attachments is True
 
 
 def test_a_root_attachment_url_can_be_looked_up_again():

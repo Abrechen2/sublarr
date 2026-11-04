@@ -40,10 +40,11 @@ alone until you do.
 - **Jimaku: language for unmarked files** — Jimaku files without a language
   marker are still read as Japanese; the provider settings can now skip
   them or read them as English instead. Thanks @KaramTNC (#246).
-- **AnimeTosho: torrent-level attachments** (opt-in) — Subtitles attached
-  to a whole torrent instead of one of its files can be used when the
-  torrent title names the episode (AnimeTosho provider settings).
-  Thanks @KaramTNC (#245).
+- **AnimeTosho: torrent-level attachments** — Multi-sub releases carry
+  their subtitles on the torrent instead of on its file (torrent 695392:
+  40 tracks, German among them, none per file); they are now used when the
+  torrent title names the episode. Can be switched off in the AnimeTosho
+  provider settings. Thanks @KaramTNC (#245).
 - **All switches in the UI** — "Automatic repair" sits in the upgrade rules
   (Settings → Automation → Search, scan & upgrades); the subtitle-health
   check, nightly sweep and auto-fix, configurable only through the API so

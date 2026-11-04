@@ -111,7 +111,7 @@ class AnimeToshoProvider(SubtitleProvider):
             "label": "Torrent-level attachments",
             "type": "select",
             "options": ["off", "on"],
-            "default": "off",
+            "default": "on",
             "help": (
                 "Also use subtitles attached to a whole torrent rather than to one "
                 "of its files, when the torrent title names the episode."
@@ -122,7 +122,7 @@ class AnimeToshoProvider(SubtitleProvider):
     timeout = 20
     max_retries = 2
 
-    def __init__(self, root_attachments: str = "off", **kwargs):
+    def __init__(self, root_attachments: str = "on", **kwargs):
         super().__init__(**kwargs)
         self.root_attachments = str(root_attachments).lower() == "on"
         self.session = None

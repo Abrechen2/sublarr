@@ -314,8 +314,10 @@ class UISettings(BaseModel):
     # "ja" is how unmarked files were read before this setting existed.
     jimaku_unknown_language_fallback: str = "ja"
 
-    # AnimeTosho: subtitles attached to a torrent rather than a file ("on"/"off")
-    animetosho_root_attachments: str = "off"
+    # AnimeTosho: subtitles attached to a torrent rather than a file ("on"/"off").
+    # On: multi-sub releases carry them only there (torrent 695392: 40, German
+    # among them, none per file).
+    animetosho_root_attachments: str = "on"
 
     # SubDL (Subscene successor)
     subdl_api_key: str = ""
