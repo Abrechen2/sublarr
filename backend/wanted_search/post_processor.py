@@ -380,9 +380,44 @@ def _download_specific_for_item(
 
     target_result = None
     for r in results:
-        if r.provider_name == provider_name and r.subtitle_id == subtitle_id:
+        if (
+            r.provider_name == provider_name
+            and r.subtitle_id == subtitle_id
+            and r.language == language
+        ):
             target_result = r
             break
+
+    if not target_result:
+        provider = manager.get_provider(provider_name)
+        if provider is not None:
+            try:
+                recovered_result = provider.result_for_download(subtitle_id, language)
+            except Exception as exc:
+                # Many providers cannot rebuild a result from its ID alone.
+                # Keep the existing not-found response for those providers.
+                logger.info(
+                    "Could not rehydrate %s/%s for manual download: %s",
+                    provider_name,
+                    subtitle_id,
+                    exc,
+                )
+            else:
+                recovered_identity = (
+                    getattr(recovered_result, "provider_name", None),
+                    getattr(recovered_result, "subtitle_id", None),
+                    getattr(recovered_result, "language", None),
+                )
+                requested_identity = (provider_name, subtitle_id, language)
+                if recovered_identity == requested_identity:
+                    target_result = recovered_result
+                else:
+                    logger.warning(
+                        "Rejected rehydrated result for %s/%s: identity %r did not match request",
+                        provider_name,
+                        subtitle_id,
+                        recovered_identity,
+                    )
 
     if not target_result:
         return {"success": False, "error": f"Result not found: {provider_name}/{subtitle_id}"}
