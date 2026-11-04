@@ -110,7 +110,9 @@ class _OpenSubtitlesFetchMixin:
         """Execute one OpenSubtitles /subtitles request and parse the response into results."""
         results: list[SubtitleResult] = []
         try:
-            resp = self.session.get(f"{API_BASE}/subtitles", params=params)
+            resp = self.session.get(
+                f"{getattr(self, '_api_base', API_BASE)}/subtitles", params=params
+            )
             logger.debug("OpenSubtitles: API response status: %d", resp.status_code)
 
             if resp.status_code in (401, 403):
@@ -146,6 +148,9 @@ class _OpenSubtitlesFetchMixin:
                 uploader_name = uploader_info.get("name", "") or ""
                 uploader_rank = (uploader_info.get("rank", "") or "").lower()
                 uploader_trust = _UPLOADER_RANK_BONUS.get(uploader_rank, 0.0)
+                if attrs.get("from_trusted"):
+                    # OpenSubtitles marks files from its trusted sources.
+                    uploader_trust = max(uploader_trust, _UPLOADER_RANK_BONUS["trusted"])
 
                 is_forced = bool(attrs.get("foreign_parts_only", False))
                 if query.forced_only and not is_forced:

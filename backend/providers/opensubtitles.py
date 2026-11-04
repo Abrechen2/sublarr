@@ -10,7 +10,9 @@ License: GPL-3.0
 import contextlib
 import logging
 import os
+import re
 import threading
+from datetime import UTC, datetime
 from typing import ClassVar
 
 from werkzeug.utils import secure_filename as _secure_filename
@@ -35,6 +37,10 @@ from providers.opensubtitles_helpers import (  # noqa: F401 — re-exported for 
 from security_utils import validate_download_url
 
 logger = logging.getLogger(__name__)
+
+
+# The only hosts a login's base_url may move the API to (api., vip-api.).
+_OS_HOST = re.compile(r"[a-z0-9-]+\.opensubtitles\.com")
 
 
 def _parse_reset_utc(value: object):
@@ -124,6 +130,10 @@ class OpenSubtitlesProvider(SubtitleProvider, _OpenSubtitlesFetchMixin):
     timeout = 15
     max_retries = 3
 
+    # Class defaults for instances built without __init__ (tests, pickles).
+    _api_base = API_BASE
+    _quota_reset_at = None
+
     def __init__(self, api_key: str = "", username: str = "", password: str = "", **kwargs):
         super().__init__(**kwargs)
         self.api_key = api_key
@@ -133,6 +143,11 @@ class OpenSubtitlesProvider(SubtitleProvider, _OpenSubtitlesFetchMixin):
         self._token: str | None = None
         self._token_generation = 0
         self._token_refresh_lock = threading.Lock()
+        # Login names the host for this account (vip-api for VIP); see _login.
+        self._api_base = API_BASE
+        # A successful download that leaves no quota (remaining <= 0) blocks
+        # the next ones until the reset, instead of waiting for their 406.
+        self._quota_reset_at = None
 
     def initialize(self):
         if not self.api_key:
@@ -185,6 +200,9 @@ class OpenSubtitlesProvider(SubtitleProvider, _OpenSubtitlesFetchMixin):
                 if token:
                     self._token = token
                     self.session.headers["Authorization"] = f"Bearer {self._token}"
+                    host = str(data.get("base_url") or "")
+                    if _OS_HOST.fullmatch(host):
+                        self._api_base = f"https://{host}/api/v1"
                     if refresh:
                         logger.info("OpenSubtitles: refreshed download token for %s", self.username)
                     else:
@@ -232,9 +250,25 @@ class OpenSubtitlesProvider(SubtitleProvider, _OpenSubtitlesFetchMixin):
             self._token_generation += 1
             return refreshed
 
+    def _note_remaining_quota(self, data: dict) -> None:
+        """Block further downloads until the reset once this one used the last."""
+        try:
+            remaining = int(data.get("remaining"))
+        except (TypeError, ValueError):
+            return
+        if remaining > 0:
+            self._quota_reset_at = None
+            return
+        reset_time = data.get("reset_time_utc") or data.get("reset_time")
+        self._quota_reset_at = _parse_reset_utc(reset_time)
+        logger.warning(
+            "OpenSubtitles: download quota used up (resets=%s); further downloads wait",
+            reset_time,
+        )
+
     def _request_download_link(self, file_id: str):
         return self.session.post(
-            f"{API_BASE}/download",
+            f"{self._api_base}/download",
             json={
                 "file_id": file_id,
             },
@@ -260,7 +294,7 @@ class OpenSubtitlesProvider(SubtitleProvider, _OpenSubtitlesFetchMixin):
             return self._cached_tier
 
         try:
-            resp = self.session.get(f"{API_BASE}/infos/user")
+            resp = self.session.get(f"{self._api_base}/infos/user")
             if resp.status_code != 200:
                 tier = "free"
             else:
@@ -281,7 +315,7 @@ class OpenSubtitlesProvider(SubtitleProvider, _OpenSubtitlesFetchMixin):
             # Logout if we have a token
             if self._token:
                 with contextlib.suppress(Exception):
-                    self.session.delete(f"{API_BASE}/logout")
+                    self.session.delete(f"{self._api_base}/logout")
             self.session.close()
             self.session = None
         # Drop cached tier so a fresh initialize() after a credentials change
@@ -306,7 +340,7 @@ class OpenSubtitlesProvider(SubtitleProvider, _OpenSubtitlesFetchMixin):
         try:
             had_token = bool(self._token)
             if had_token:
-                resp = self.session.get(f"{API_BASE}/infos/user")
+                resp = self.session.get(f"{self._api_base}/infos/user")
                 if resp.status_code == 200:
                     data = resp.json().get("data", {})
                     remaining = data.get("remaining_downloads", "?")
@@ -350,14 +384,15 @@ class OpenSubtitlesProvider(SubtitleProvider, _OpenSubtitlesFetchMixin):
             if file_hash:
                 params["moviehash"] = file_hash
 
-        # IMDB ID search
+        # IMDB ID search. An episode query carries the series' id, which the
+        # API documents as parent_imdb_id (imdb_id is the episode's own).
         if query.imdb_id:
             imdb_num = query.imdb_id.replace("tt", "")
-            params["imdb_id"] = imdb_num
+            params["parent_imdb_id" if query.is_episode else "imdb_id"] = imdb_num
 
         # Episode search
         if query.is_episode:
-            if not params.get("imdb_id") and not params.get("moviehash"):
+            if not params.get("parent_imdb_id") and not params.get("moviehash"):
                 params["query"] = query.series_title
             if query.season is not None:
                 params["season_number"] = query.season
@@ -367,7 +402,7 @@ class OpenSubtitlesProvider(SubtitleProvider, _OpenSubtitlesFetchMixin):
             if not params.get("imdb_id") and not params.get("moviehash"):
                 params["query"] = query.title
 
-        if not params.get("query") and not params.get("imdb_id") and not params.get("moviehash"):
+        if not any(params.get(k) for k in ("query", "imdb_id", "parent_imdb_id", "moviehash")):
             logger.warning("OpenSubtitles: insufficient search criteria - params: %s", params)
             return []
 
@@ -458,6 +493,12 @@ class OpenSubtitlesProvider(SubtitleProvider, _OpenSubtitlesFetchMixin):
         file_id = result.provider_data.get("file_id")
         if not file_id:
             raise ValueError("No file_id in provider_data")
+        reset_at = self._quota_reset_at
+        if reset_at is not None and datetime.now(UTC) < reset_at:
+            raise ProviderRateLimitError(
+                f"OpenSubtitles download quota exhausted (resets: {reset_at.isoformat()})",
+                reset_at=reset_at,
+            )
 
         # Request download link
         token_before_request = self._token
@@ -503,6 +544,7 @@ class OpenSubtitlesProvider(SubtitleProvider, _OpenSubtitlesFetchMixin):
             raise ProviderError(f"OpenSubtitles download request failed: HTTP {resp.status_code}")
 
         data = resp.json()
+        self._note_remaining_quota(data)
         download_link = data.get("link")
         if not download_link:
             raise ProviderError("No download link in response")
