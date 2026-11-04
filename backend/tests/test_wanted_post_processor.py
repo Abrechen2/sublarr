@@ -595,6 +595,7 @@ class TestDownloadSpecificForItem:
         """Returns error when specific subtitle_id not in search results."""
         other = _make_result(provider="other_prov", subtitle_id="other_id")
         manager = MagicMock()
+        manager.get_provider.return_value = None
         manager.search.return_value = [other]
         manager.download.return_value = b"content"
 
@@ -609,6 +610,145 @@ class TestDownloadSpecificForItem:
 
         assert out["success"] is False
         assert "not found" in out["error"].lower()
+
+    def test_a_rehydrated_signs_track_does_not_settle_a_full_item(self):
+        """A rebuilt result has no track metadata: its content decides the kind."""
+        signs = (
+            "[Script Info]\nScriptType: v4.00+\n\n[V4+ Styles]\n"
+            "Format: Name, Fontname, Fontsize\nStyle: Signs,Arial,20\n\n[Events]\n"
+            "Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text\n"
+            + "".join(
+                f"Dialogue: 0,0:0{i}:00.00,0:0{i}:02.00,Signs,,0,0,0,,Sign {i}\n" for i in range(5)
+            )
+        ).encode()
+        result = _make_result(
+            provider="test_provider", subtitle_id="selected-id", fmt=SubtitleFormat.ASS
+        )
+        manager = MagicMock()
+        manager.search.return_value = []
+        manager.get_provider.return_value.result_for_download.return_value = result
+        manager.download.return_value = signs
+        manager.save_subtitle.return_value = "/out/sub.en.forced.ass"
+
+        with (
+            self._patched_module() as mod,
+            patch.object(mod, "get_wanted_item", return_value=_make_wanted_item()),
+            patch.object(mod, "get_settings", return_value=_make_settings()),
+            patch.object(mod, "build_query_from_wanted", return_value=MagicMock()),
+            patch.object(mod, "get_provider_manager", return_value=manager),
+            patch.object(mod, "delete_wanted_item") as delete,
+            patch.object(mod, "_try_auto_sync", autospec=True),
+            patch.object(mod, "record_subtitle_download"),
+        ):
+            mod.download_specific_for_item(1, "test_provider", "selected-id", "en", False)
+
+        assert result.forced is True
+        delete.assert_not_called()
+
+    def test_rehydrates_the_exact_result_when_it_disappears_from_search(self):
+        """A volatile search may omit a result whose provider ID is still valid."""
+        result = _make_result(provider="test_provider", subtitle_id="selected-id", language="en")
+        manager = MagicMock()
+        manager.search.return_value = [
+            _make_result(provider="other_provider", subtitle_id="other-id")
+        ]
+        manager.get_provider.return_value.result_for_download.return_value = result
+        manager.download.return_value = result.content
+        manager.save_subtitle.return_value = "/out/sub.srt"
+
+        with (
+            self._patched_module() as mod,
+            patch.object(mod, "get_wanted_item", return_value=_make_wanted_item()),
+            patch.object(mod, "get_settings", return_value=_make_settings()),
+            patch.object(mod, "build_query_from_wanted", return_value=MagicMock()),
+            patch.object(mod, "get_provider_manager", return_value=manager),
+            patch.object(mod, "delete_wanted_item"),
+            patch.object(mod, "_try_auto_sync", autospec=True),
+            patch.object(mod, "record_subtitle_download"),
+        ):
+            out = mod.download_specific_for_item(1, "test_provider", "selected-id", "en", False)
+
+        assert out["success"] is True
+        manager.get_provider.assert_called_once_with("test_provider")
+        manager.get_provider.return_value.result_for_download.assert_called_once_with(
+            "selected-id", "en"
+        )
+        manager.download.assert_called_once_with(result)
+
+    def test_keeps_not_found_when_provider_cannot_rehydrate(self):
+        manager = MagicMock()
+        manager.search.return_value = []
+        manager.get_provider.return_value.result_for_download.side_effect = LookupError(
+            "provider cannot rebuild this result"
+        )
+
+        with (
+            self._patched_module() as mod,
+            patch.object(mod, "get_wanted_item", return_value=_make_wanted_item()),
+            patch.object(mod, "get_settings", return_value=_make_settings()),
+            patch.object(mod, "build_query_from_wanted", return_value=MagicMock()),
+            patch.object(mod, "get_provider_manager", return_value=manager),
+        ):
+            out = mod.download_specific_for_item(1, "test_provider", "selected-id", "en", False)
+
+        assert out == {
+            "success": False,
+            "error": "Result not found: test_provider/selected-id",
+        }
+        manager.download.assert_not_called()
+
+    @pytest.mark.parametrize(
+        "rehydrated",
+        [
+            _make_result(provider="other_provider", subtitle_id="selected-id", language="en"),
+            _make_result(provider="test_provider", subtitle_id="other-id", language="en"),
+            _make_result(provider="test_provider", subtitle_id="selected-id", language="de"),
+        ],
+        ids=["wrong-provider", "wrong-id", "wrong-language"],
+    )
+    def test_rejects_rehydrated_result_with_different_identity(self, rehydrated):
+        manager = MagicMock()
+        manager.search.return_value = []
+        manager.get_provider.return_value.result_for_download.return_value = rehydrated
+
+        with (
+            self._patched_module() as mod,
+            patch.object(mod, "get_wanted_item", return_value=_make_wanted_item()),
+            patch.object(mod, "get_settings", return_value=_make_settings()),
+            patch.object(mod, "build_query_from_wanted", return_value=MagicMock()),
+            patch.object(mod, "get_provider_manager", return_value=manager),
+        ):
+            out = mod.download_specific_for_item(1, "test_provider", "selected-id", "en", False)
+
+        assert out == {
+            "success": False,
+            "error": "Result not found: test_provider/selected-id",
+        }
+        manager.download.assert_not_called()
+
+    def test_does_not_accept_same_provider_and_id_with_wrong_search_language(self):
+        """Search matching must include language, not just provider and ID."""
+        wrong_language = _make_result(
+            provider="test_provider", subtitle_id="selected-id", language="de"
+        )
+        manager = MagicMock()
+        manager.search.return_value = [wrong_language]
+        manager.get_provider.return_value = None
+
+        with (
+            self._patched_module() as mod,
+            patch.object(mod, "get_wanted_item", return_value=_make_wanted_item()),
+            patch.object(mod, "get_settings", return_value=_make_settings()),
+            patch.object(mod, "build_query_from_wanted", return_value=MagicMock()),
+            patch.object(mod, "get_provider_manager", return_value=manager),
+        ):
+            out = mod.download_specific_for_item(1, "test_provider", "selected-id", "en", False)
+
+        assert out == {
+            "success": False,
+            "error": "Result not found: test_provider/selected-id",
+        }
+        manager.download.assert_not_called()
 
     def test_download_fails(self):
         """Returns error when download returns None."""
