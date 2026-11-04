@@ -1947,7 +1947,9 @@
       "enabled": "Drain-Worker",
       "enabled_help": "Verarbeitet neu hinzugefügte Library-Einträge automatisch. Bei \"aus\" greift das Legacy-Verhalten \"Auto-Extract im Scan\".",
       "interval": "Drain-Intervall (Minuten)",
-      "interval_help": "Scheduler-Takt. Niedriger = reaktiver, höher = weniger CPU-Last."
+      "interval_help": "Scheduler-Takt. Niedriger = reaktiver, höher = weniger CPU-Last.",
+      "ass_stream_copy": "ASS-Spuren unverändert kopieren",
+      "ass_stream_copy_help": "Extrahiert eingebettete ASS/SSA-Spuren per Stream-Copy statt sie neu zu encodieren; neu encodiert wird nur, wenn das Kopieren scheitert. Schneller und ohne Hänger bei komplexen Spuren."
     },
     "sdh": {
       "title": "SDH-Toleranz",

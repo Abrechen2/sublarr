@@ -538,8 +538,11 @@ def extract_subtitle_stream(mkv_path, stream_info, output_path):
     ext = os.path.splitext(output_path)[1].lower().lstrip(".")
     _encoder_map = {"srt": "srt", "ass": "ass", "ssa": "ass", "vtt": "webvtt"}
     encoder = _encoder_map.get(ext, "copy")
-    copy_first = ext in ("ass", "ssa")
-    _timeout = getattr(get_settings(), "ffmpeg_timeout", 300)
+    settings = get_settings()
+    copy_first = ext in ("ass", "ssa") and bool(
+        getattr(settings, "embedded_extract_ass_stream_copy", False)
+    )
+    _timeout = getattr(settings, "ffmpeg_timeout", 300)
     from services.media_io_gate import MediaGateBusyError, media_io_gate
 
     def _run_ffmpeg(tmp_path: str, subtitle_encoder: str) -> None:
@@ -587,9 +590,11 @@ def extract_subtitle_stream(mkv_path, stream_info, output_path):
 
         try:
             _run_ffmpeg(tmp_path, "copy")
-        except _ExtractionGateBusyError:
+        except (_ExtractionGateBusyError, subprocess.TimeoutExpired):
+            # A copy that timed out stalled on I/O, not on the codec; the
+            # encoder would wait out a second full timeout on the same file.
             raise
-        except (RuntimeError, OSError, subprocess.TimeoutExpired) as copy_error:
+        except (RuntimeError, OSError) as copy_error:
             # A failed ffmpeg attempt may leave partial bytes at the temp path.
             # Remove them before asking ffmpeg to encode into the same path.
             try:

@@ -1947,7 +1947,9 @@
       "enabled": "Drain worker",
       "enabled_help": "Processes new library items automatically. Falls back to the legacy \"Auto-Extract on scan\" behavior when off.",
       "interval": "Drain interval (minutes)",
-      "interval_help": "Scheduler cadence. Lower = more responsive, higher = lower CPU."
+      "interval_help": "Scheduler cadence. Lower = more responsive, higher = lower CPU.",
+      "ass_stream_copy": "Copy ASS tracks unchanged",
+      "ass_stream_copy_help": "Extracts embedded ASS/SSA tracks by stream copy instead of re-encoding them; re-encodes only when the copy fails. Faster, and avoids stalls on complex tracks."
     },
     "sdh": {
       "title": "SDH Tolerance",
