@@ -135,6 +135,7 @@ class ProviderSettings(_SettingsView):
             "opensubtitles_username",
             "opensubtitles_password",
             "jimaku_api_key",
+            "animetosho_root_attachments",
             "subdl_api_key",
             "subsource_api_key",
             "github_token",

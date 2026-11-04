@@ -105,13 +105,26 @@ class AnimeToshoProvider(SubtitleProvider):
     }
 
     # Plugin system attributes
-    config_fields = []  # no auth needed
+    config_fields = [  # no auth needed
+        {
+            "key": "animetosho_root_attachments",
+            "label": "Torrent-level attachments",
+            "type": "select",
+            "options": ["off", "on"],
+            "default": "off",
+            "help": (
+                "Also use subtitles attached to a whole torrent rather than to one "
+                "of its files, when the torrent title names the episode."
+            ),
+        },
+    ]
     rate_limit = (50, 30)
     timeout = 20
     max_retries = 2
 
-    def __init__(self, **kwargs):
+    def __init__(self, root_attachments: str = "off", **kwargs):
         super().__init__(**kwargs)
+        self.root_attachments = str(root_attachments).lower() == "on"
         self.session = None
 
     def initialize(self):
@@ -306,7 +319,7 @@ class AnimeToshoProvider(SubtitleProvider):
             return []
 
         files = list(detail.get("files") or [])
-        root_attachments = detail.get("attachments") or []
+        root_attachments = (detail.get("attachments") or []) if self.root_attachments else []
         if root_attachments:
             # Some torrent-detail responses put subtitle attachments on the
             # torrent instead of under a file. A torrent title that only names
@@ -479,8 +492,9 @@ class AnimeToshoProvider(SubtitleProvider):
         detail = self._fetch_torrent_detail(entry_id)
         if not detail:
             return None
-        for f in detail.get("files", []):
-            for attachment in f.get("attachments", []):
+        holders = [*detail.get("files", []), detail]  # root attachments: see _process_entry
+        for holder in holders:
+            for attachment in holder.get("attachments", []) or []:
                 if attachment.get("id") == attach_id:
                     return _storage_url(attachment.get("url"))
         return None

@@ -23,8 +23,8 @@ def _attachment():
     }
 
 
-def _provider(detail):
-    provider = AnimeToshoProvider()
+def _provider(detail, root_attachments="on"):
+    provider = AnimeToshoProvider(root_attachments=root_attachments)
     provider._fetch_torrent_detail = MagicMock(return_value=detail)
     return provider
 
@@ -48,3 +48,18 @@ def test_root_attachments_are_skipped_when_torrent_title_is_a_pack():
     results = provider._process_entry(_entry(title, num_files=12), _query())
 
     assert results == []
+
+
+def test_root_attachments_are_opt_in():
+    title = "[Group] Frieren S01E01 [1080p]"
+    provider = _provider({"title": title, "attachments": [_attachment()]}, root_attachments="off")
+
+    assert provider._process_entry(_entry(title), _query()) == []
+    assert AnimeToshoProvider().root_attachments is False
+
+
+def test_a_root_attachment_url_can_be_looked_up_again():
+    provider = _provider({"title": "x", "files": [], "attachments": [_attachment()]})
+    provider.session = MagicMock()
+
+    assert provider._lookup_attachment_url(687355, 3586174) == _attachment()["url"]
