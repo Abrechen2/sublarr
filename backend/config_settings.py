@@ -435,6 +435,9 @@ class UISettings(BaseModel):
     # unconditional side effect. Opt-in now; even when enabled, streams in
     # the keep-languages set are never removed.
     embedded_extract_remove_from_container: bool = False
+    # Extract embedded ASS/SSA by stream copy, re-encoding only when the copy
+    # fails. Opt-in: the default keeps the ASS encoder used until 1.20.0.
+    embedded_extract_ass_stream_copy: bool = False
 
     # Dubtitle detection (roadmap A4 / issue #146). Off by default: surfaces
     # the dubtitle among multiple English tracks; suggest-then-confirm, never

@@ -33,6 +33,7 @@ type AutomationKeys =
   | 'embedded_allow_sdh'
   | 'embedded_sdh_penalty'
   | 'embedded_extract_remove_from_container'
+  | 'embedded_extract_ass_stream_copy'
   | 'cleanup_foreign_tracks_default'
   | 'cleanup_foreign_tracks_keep_und'
   | 'cleanup_track_variant_mode'
@@ -146,6 +147,18 @@ export function SubtitleAutomationPage() {
               )
             }
             className="w-20 px-2 py-1 rounded text-sm bg-page border border-border text-foreground"
+          />
+        </SettingRow>
+        <SettingRow
+          label={t('subtitle_automation_page.queue.ass_stream_copy', 'Copy ASS tracks unchanged')}
+          description={t(
+            'subtitle_automation_page.queue.ass_stream_copy_help',
+            'Extracts embedded ASS/SSA tracks by stream copy instead of re-encoding them; re-encodes only when the copy fails. Faster, and avoids stalls on complex tracks.'
+          )}
+        >
+          <Toggle
+            checked={Boolean(cfg.embedded_extract_ass_stream_copy)}
+            onChange={(v) => set('embedded_extract_ass_stream_copy', v)}
           />
         </SettingRow>
       </SettingsSection>

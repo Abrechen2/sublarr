@@ -196,6 +196,7 @@ class ScanningSettings(_SettingsView):
             "embedded_allow_sdh",
             "embedded_sdh_penalty",
             "embedded_extract_remove_from_container",
+            "embedded_extract_ass_stream_copy",
             "cleanup_foreign_tracks_default",
             "cleanup_foreign_tracks_keep_und",
             "cleanup_track_variant_mode",
