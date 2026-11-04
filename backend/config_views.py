@@ -137,6 +137,7 @@ class ProviderSettings(_SettingsView):
             "jimaku_api_key",
             "subdl_api_key",
             "subsource_api_key",
+            "animetosho_root_attachments",
             "github_token",
             "anti_captcha_provider",
             "anti_captcha_api_key",

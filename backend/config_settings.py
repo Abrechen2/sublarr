@@ -312,6 +312,9 @@ class UISettings(BaseModel):
     # Jimaku (anime subtitles)
     jimaku_api_key: str = ""
 
+    # AnimeTosho: subtitles attached to a torrent rather than a file ("on"/"off")
+    animetosho_root_attachments: str = "off"
+
     # SubDL (Subscene successor)
     subdl_api_key: str = ""
 

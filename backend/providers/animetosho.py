@@ -105,13 +105,26 @@ class AnimeToshoProvider(SubtitleProvider):
     }
 
     # Plugin system attributes
-    config_fields = []  # no auth needed
+    config_fields = [  # no auth needed
+        {
+            "key": "animetosho_root_attachments",
+            "label": "Torrent-level attachments",
+            "type": "select",
+            "options": ["off", "on"],
+            "default": "off",
+            "help": (
+                "Also use subtitles attached to a whole torrent rather than to one "
+                "of its files, when the torrent title names the episode."
+            ),
+        },
+    ]
     rate_limit = (50, 30)
     timeout = 20
     max_retries = 2
 
-    def __init__(self, **kwargs):
+    def __init__(self, root_attachments: str = "off", **kwargs):
         super().__init__(**kwargs)
+        self.root_attachments = str(root_attachments).lower() == "on"
         self.session = None
 
     def initialize(self):
@@ -305,7 +318,30 @@ class AnimeToshoProvider(SubtitleProvider):
         if not detail:
             return []
 
-        files = detail.get("files", [])
+        files = list(detail.get("files") or [])
+        root_attachments = (detail.get("attachments") or []) if self.root_attachments else []
+        if root_attachments:
+            # Some torrent-detail responses put subtitle attachments on the
+            # torrent instead of under a file. A torrent title that only names
+            # a pack cannot tell us which episode owns those attachments.
+            root_title = detail.get("title") or title
+            root_matches = match_release(root_title, query, allow_pack=False)
+            if root_matches is None and root_title != title:
+                root_title = title
+                root_matches = match_release(root_title, query, allow_pack=False)
+
+            episode_is_proven = query.episode is None or (
+                root_matches is not None and "episode" in root_matches
+            )
+            if root_matches is not None and episode_is_proven:
+                files.append({"filename": root_title, "attachments": root_attachments})
+            else:
+                logger.debug(
+                    "AnimeTosho: skipping %d root attachments for ambiguous entry %s",
+                    len(root_attachments),
+                    title,
+                )
+
         if not files:
             return []
 
@@ -456,8 +492,9 @@ class AnimeToshoProvider(SubtitleProvider):
         detail = self._fetch_torrent_detail(entry_id)
         if not detail:
             return None
-        for f in detail.get("files", []):
-            for attachment in f.get("attachments", []):
+        holders = [*detail.get("files", []), detail]  # root attachments: see _process_entry
+        for holder in holders:
+            for attachment in holder.get("attachments", []) or []:
                 if attachment.get("id") == attach_id:
                     return _storage_url(attachment.get("url"))
         return None
