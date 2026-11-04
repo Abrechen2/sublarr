@@ -50,6 +50,20 @@ alone until you do.
   far, have switches on the subtitle-health settings page.
 
 ### Fixed
+- **Gestdown found nothing** — Its subtitle path takes the language
+  ("en"); the provider sent Addic7ed's numeric ids, which the API answers
+  with 404 for every language.
+- **BetaSeries found nothing** — `/subtitles/show/<id>` and
+  `/subtitles/movie` do not exist (404). Episodes are now looked up and
+  their subtitles fetched by episode id; BetaSeries has no movie subtitles.
+- **Napisy24 reported subtitles it did not have** — The search sent the
+  wrong hash, took the API's "no subtitle" answers (OK-0, OK-1, OK-3) for
+  hits and built a download address the API does not have. It now follows
+  the documented protocol and reads the subtitle from the answer itself.
+- **OpenSubtitles follows its API docs** — Episode searches send the series
+  as `parent_imdb_id`, VIP accounts use the host their login names, a
+  download that uses up the daily quota stops the next ones until the reset
+  without another request, and files from trusted sources count as trusted.
 - **Jimaku offers the right season and episode** — Jimaku's name search
   returns every season of a series and unrelated titles, and every file of
   every episode: 440 files for one Mushoku Tensei episode, with a season 3
