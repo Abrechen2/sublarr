@@ -70,6 +70,27 @@ def test_test_provider_health_ok(client, mock_provider_manager):
     assert data["health_check"]["message"] == "OK"
 
 
+def test_a_passing_test_clears_an_old_failure_streak(client, mock_provider_manager):
+    # Prod 2026-11: Jimaku showed "Error, 48 consecutive failures" next to
+    # "Test: OK" — the failures were searches from before its key was set.
+    from db.providers import get_provider_stats, update_provider_stats
+
+    with client.application.app_context():
+        for _ in range(3):
+            update_provider_stats("jimaku", success=False, score=0)
+    mock_prov = MagicMock()
+    mock_prov.health_check.return_value = (True, "OK")
+    mock_prov.session = MagicMock()
+    mock_provider_manager._providers = {"jimaku": mock_prov}
+
+    client.post("/api/v1/providers/test/jimaku", json={})
+
+    with client.application.app_context():
+        stats = get_provider_stats("jimaku")
+    row = stats.get("jimaku", stats)
+    assert row["consecutive_failures"] == 0
+
+
 def test_test_provider_health_fail(client, mock_provider_manager):
     mock_prov = MagicMock()
     mock_prov.health_check.return_value = (False, "Connection refused")

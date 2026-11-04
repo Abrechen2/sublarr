@@ -146,13 +146,9 @@ export default function ProviderKeysPool({ providerName }: ProviderKeysPoolProps
 
   return (
     <div
-      className="pt-1"
-      style={{ borderTop: '1px solid var(--border)' }}
+      className="mt-2 border-t border-border pt-4"
       data-testid={`provider-keys-pool-${providerName}`}
     >
-      <h4 style={{ margin: '12px 0 6px', fontSize: '13px', color: 'var(--text-primary)' }}>
-        {t('provider_keys.title')}
-      </h4>
       <KeysList
         provider={providerName}
         keys={keysQuery.data ?? []}
@@ -163,18 +159,13 @@ export default function ProviderKeysPool({ providerName }: ProviderKeysPoolProps
 
       {isDialogOpen && (
         <div
-          className="fixed inset-0 z-[60] flex items-center justify-center p-4"
-          style={{ backgroundColor: 'rgba(0,0,0,0.65)' }}
+          className="fixed inset-0 z-[60] flex items-center justify-center bg-black/65 p-4"
           onClick={(e) => {
             if (e.target === e.currentTarget) handleCancel()
           }}
         >
           <div
-            className="w-full max-w-md rounded-lg p-4"
-            style={{
-              backgroundColor: 'var(--bg-surface)',
-              border: '1px solid var(--border)',
-            }}
+            className="w-full max-w-md rounded-lg border border-border bg-surface p-4"
             onClick={(e) => e.stopPropagation()}
           >
             <KeyEditDialog

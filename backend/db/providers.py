@@ -282,6 +282,11 @@ def clear_auto_disable(provider_name: str):
     return _get_repo().clear_auto_disable(provider_name)
 
 
+def reset_consecutive_failures(provider_name: str) -> bool:
+    """Clear a provider's failure streak after a passing test."""
+    return _get_repo().reset_consecutive_failures(provider_name)
+
+
 def check_auto_disable(provider_name: str, threshold: int) -> bool:
     """Check if consecutive_failures >= threshold. If so, auto-disable."""
     return _get_repo().check_auto_disable(provider_name, threshold)

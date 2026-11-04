@@ -37,4 +37,17 @@ describe('KeyEditDialog', () => {
     fireEvent.change(screen.getByTestId('field-api-key'), { target: { value: 'k' } })
     expect((screen.getByTestId('test-connection') as HTMLButtonElement).disabled).toBe(false)
   })
+
+  test('a key-only provider shows no account fields', () => {
+    render(<KeyEditDialog provider="jimaku" onSave={vi.fn()} onCancel={vi.fn()} />)
+    expect(screen.queryByTestId('field-tier')).toBeNull()
+    expect(screen.queryByTestId('field-username')).toBeNull()
+    expect(screen.queryByTestId('field-password')).toBeNull()
+  })
+
+  test('OpenSubtitles shows tier and account fields', () => {
+    render(<KeyEditDialog provider="opensubtitles" onSave={vi.fn()} onCancel={vi.fn()} />)
+    expect(screen.getByTestId('field-tier')).toBeInTheDocument()
+    expect(screen.getByTestId('field-username')).toBeInTheDocument()
+  })
 })

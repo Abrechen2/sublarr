@@ -203,6 +203,13 @@ def test_provider(provider_name):
                 "healthy": healthy,
                 "message": message,
             }
+            if healthy and result["initialized"]:
+                # Failures from before the fix (a missing key: 48 searches
+                # without a session) kept the panel on "Error" next to
+                # "Test: OK" until the next successful search.
+                from db.providers import reset_consecutive_failures
+
+                reset_consecutive_failures(provider_name)
         except Exception as e:
             result["health_check"] = {
                 "healthy": False,

@@ -1585,9 +1585,10 @@
     "add_language_placeholder": "— Add language —"
   },
   "provider_keys": {
-    "title": "API keys",
+    "title": "Key pool (optional)",
     "add": "Add key",
-    "empty": "No keys configured.",
+    "hint": "Several keys that Sublarr rotates through, for example when one reaches its daily limit. As soon as a key is listed here, the \"API Key\" field above no longer applies.",
+    "empty": "No additional keys yet. The \"API Key\" field above applies.",
     "enabled": "Enabled",
     "disabled": "Disabled",
     "edit": "Edit",

@@ -1585,9 +1585,10 @@
     "add_language_placeholder": "— Sprache hinzufügen —"
   },
   "provider_keys": {
-    "title": "API-Schlüssel",
+    "title": "Schlüssel-Pool (optional)",
     "add": "Schlüssel hinzufügen",
-    "empty": "Keine Schlüssel konfiguriert.",
+    "hint": "Mehrere Schlüssel, die Sublarr abwechselnd nutzt, zum Beispiel wenn einer sein Tageslimit erreicht. Sobald hier ein Schlüssel steht, gilt das Feld „API Key“ oben nicht mehr.",
+    "empty": "Noch keine weiteren Schlüssel. Es gilt das Feld „API Key“ oben.",
     "enabled": "Aktiv",
     "disabled": "Deaktiviert",
     "edit": "Bearbeiten",

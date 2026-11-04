@@ -570,6 +570,16 @@ class ProviderRepository(BaseRepository):
         logger.info("Provider %s manually re-enabled (auto-disable cleared)", provider_name)
         return True
 
+    def reset_consecutive_failures(self, provider_name: str) -> bool:
+        """Forget a failure streak a passing test proved over; auto-disable stays as is."""
+        entry = self.session.get(ProviderStats, provider_name)
+        if not entry or not entry.consecutive_failures:
+            return False
+        entry.consecutive_failures = 0
+        entry.updated_at = self._now()
+        self._commit()
+        return True
+
     def is_auto_disabled(self, provider_name: str, now: datetime | None = None) -> bool:
         """Check if a provider is currently auto-disabled.
 

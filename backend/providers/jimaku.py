@@ -24,6 +24,14 @@ from providers.base import (
     VideoQuery,
 )
 from providers.http_session import create_session
+from providers.jimaku_matching import (
+    entry_season,
+    file_matches_episode,
+    is_later_part,
+    language_from_tags,
+    search_names,
+    select_entries,
+)
 from security_utils import validate_download_url
 
 logger = logging.getLogger(__name__)
@@ -203,29 +211,44 @@ class JimakuProvider(SubtitleProvider):
             logger.debug("Jimaku: searching by AniList ID: %d", query.anilist_id)
             entries = self._search_by_anilist(query.anilist_id)
 
-        # Fallback: search by name
+        # Fallback: search by name. Jimaku's search finds "Frieren" but not
+        # "Frieren: Beyond Journey's End", so other names are tried in turn.
         if not entries:
-            search_term = query.series_title or query.title
-            if search_term:
+            terms = search_names(query)
+            if not terms:
+                logger.warning("Jimaku: insufficient search criteria - no AniList ID and no title")
+            for search_term in terms:
                 logger.debug("Jimaku: searching by name: %s", search_term)
                 entries = self._search_by_name(search_term)
-            else:
-                logger.warning("Jimaku: insufficient search criteria - no AniList ID and no title")
+                if entries:
+                    break
 
         if not entries:
             logger.debug("Jimaku: no entries found")
             return []
 
         logger.debug("Jimaku: found %d entries", len(entries))
+        if not query.anilist_id:
+            # A name search also returns other seasons and other series.
+            entries = select_entries(entries, query)
 
         # For each entry, get available subtitle files
         for entry in entries[:5]:  # Limit to top 5 entries
             entry_id = entry.get("id")
             if not entry_id:
                 continue
+            season_matches = not is_later_part(entry) and (
+                entry_season(entry) == query.season
+                or (entry_season(entry) is None and query.season in (None, 1))
+            )
 
             files = self._get_entry_files(entry_id, query)
             for filename, download_url, is_archive in files:
+                episode_matches = False
+                if not is_archive and effective_episode is not None:
+                    if not file_matches_episode(filename, query, effective_episode):
+                        continue
+                    episode_matches = True
                 ext = os.path.splitext(filename)[1].lower()
                 fmt = _FORMAT_MAP.get(ext, SubtitleFormat.UNKNOWN)
 
@@ -250,6 +273,10 @@ class JimakuProvider(SubtitleProvider):
                     matches.add("series")
                 if query.anilist_id and entry.get("anilist_id") == query.anilist_id:
                     matches.add("series")
+                if episode_matches:
+                    matches.add("episode")
+                    if season_matches:
+                        matches.add("season")
 
                 result = SubtitleResult(
                     provider_name=self.name,
@@ -388,35 +415,13 @@ class JimakuProvider(SubtitleProvider):
             return []
 
     def _detect_language(self, filename: str) -> str | None:
-        """Detect an explicit language marker, or return ``None`` if unmarked."""
-        name_lower = filename.lower()
+        """The language a file name's tags state, or ``None`` if unmarked.
 
-        # Common patterns (check in order of specificity)
-        lang_patterns = {
-            "ja": [".ja.", ".jpn.", ".japanese.", "_ja_", "_jpn_", "[ja]", "[jpn]"],
-            "en": [".en.", ".eng.", ".english.", "_en_", "_eng_", "[en]", "[eng]"],
-            "de": [
-                ".de.",
-                ".deu.",
-                ".ger.",
-                ".german.",
-                "_de_",
-                "_deu_",
-                "[de]",
-                "[deu]",
-                "[ger]",
-                ".german",
-            ],
-            "fr": [".fr.", ".fra.", ".fre.", ".french.", "_fr_", "[fr]", "[fra]"],
-            "es": [".es.", ".spa.", ".spanish.", "_es_", "[es]", "[spa]"],
-            "zh": [".zh.", ".chi.", ".chinese.", "_zh_", "[zh]", "[chi]"],
-        }
-
-        for lang, patterns in lang_patterns.items():
-            if any(tag in name_lower for tag in patterns):
-                return lang
-
-        return None
+        Jimaku tags files ".ja.srt", "[JPN]", "[CHS, JPN]" or ".ja-en". A file
+        tagged with two languages shows both, so it is not a clean subtitle in
+        either and counts as unmarked.
+        """
+        return language_from_tags(filename)
 
     def download(self, result: SubtitleResult) -> bytes:
         if not self.session:

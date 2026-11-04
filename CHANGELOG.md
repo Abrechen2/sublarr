@@ -50,6 +50,25 @@ alone until you do.
   far, have switches on the subtitle-health settings page.
 
 ### Fixed
+- **Jimaku offers the right season and episode** — Jimaku's name search
+  returns every season of a series and unrelated titles, and every file of
+  every episode: 440 files for one Mushoku Tensei episode, with a season 3
+  file ranked first and the right ones without an episode match. Results are
+  now limited to the series' entries for the queried season and to files of
+  the queried episode, and carry their episode and season match. When the
+  full title finds nothing ("Frieren: Beyond Journey's End"), Sonarr's
+  alternative titles and the main title are tried. Language tags such as
+  `[JPN]`, `[ENG]` and `.ja` are read; files tagged with two languages count
+  as unmarked.
+- **Key pool dialog** — The "Add key" dialog of the provider settings had no
+  styling at all and asked for a tier, user name and password for providers
+  that have none. It now uses the Sublarr design and shows those fields for
+  OpenSubtitles (and user name/password for LegendasDivx and Turkcealtyazi)
+  only. The pool is labelled as an optional addition to the "API Key" field,
+  instead of a second "API keys" heading.
+- **A passing provider test clears an old failure streak** — Jimaku showed
+  "Error, 48 consecutive failures" next to "Test: OK"; the failures were
+  searches from before its key was set.
 - **Wanted items follow the profile's languages** — When a language is
   removed from a series' or movie's language profile (or the title gets a
   profile with other languages), the next scan removes its waiting wanted
