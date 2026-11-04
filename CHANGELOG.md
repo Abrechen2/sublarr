@@ -30,8 +30,31 @@ alone until you do.
   moved to the trash, its download blacklisted and the episode searched
   again. Both act only on a certain verdict and can be undone. The health
   panel lists "Timing offset" and "Timing does not fit the video" either way.
+- **Configurable ASS size limit** — The largest ASS/SSA file the sanitizer
+  accepts is a setting now (Settings → Format & naming → Embedded
+  extraction, 1–50 MiB, default 20 MiB as before). Thanks @KaramTNC (#247).
+- **ASS extraction by stream copy** (opt-in) — Embedded ASS/SSA tracks can
+  be copied unchanged instead of re-encoded, which is faster and avoids
+  stalls on complex tracks; a failed copy falls back to the encoder
+  (Subtitle Automation → Auto-Extract Queue). Thanks @KaramTNC (#244).
+- **Jimaku: language for unmarked files** — Jimaku files without a language
+  marker are still read as Japanese; the provider settings can now skip
+  them or read them as English instead. Thanks @KaramTNC (#246).
+- **AnimeTosho: torrent-level attachments** (opt-in) — Subtitles attached
+  to a whole torrent instead of one of its files can be used when the
+  torrent title names the episode (AnimeTosho provider settings).
+  Thanks @KaramTNC (#245).
+- **All switches in the UI** — "Automatic repair" sits in the upgrade rules
+  (Settings → Automation → Search, scan & upgrades); the subtitle-health
+  check, nightly sweep and auto-fix, configurable only through the API so
+  far, have switches on the subtitle-health settings page.
 
 ### Fixed
+- **Manual download of a result that vanished** — When a picked subtitle no
+  longer shows up in the fresh search, the provider is asked for it by its
+  id; a result rebuilt that way is classified as signs or full by its
+  content, so a signs track never settles the full subtitle. Thanks
+  @KaramTNC (#243).
 - **Slow providers are no longer thrown away** — AnimeTosho needs up to
   30 s for a season-pack search; the search stopped waiting after ~23 s and
   dropped its answer every time. A late answer is now kept for six hours,
