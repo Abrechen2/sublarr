@@ -8,6 +8,7 @@ and interactive download of specific provider results.
 import logging
 import os
 import re
+from types import SimpleNamespace
 
 import decision_log
 from config import get_settings
@@ -388,6 +389,7 @@ def _download_specific_for_item(
             target_result = r
             break
 
+    recovered = False
     if not target_result:
         provider = manager.get_provider(provider_name)
         if provider is not None:
@@ -411,6 +413,7 @@ def _download_specific_for_item(
                 requested_identity = (provider_name, subtitle_id, language)
                 if recovered_identity == requested_identity:
                     target_result = recovered_result
+                    recovered = True
                 else:
                     logger.warning(
                         "Rejected rehydrated result for %s/%s: identity %r did not match request",
@@ -425,6 +428,14 @@ def _download_specific_for_item(
     content = manager.download(target_result)
     if content is None:
         return {"success": False, "error": "Download failed"}
+    if recovered and not target_result.forced:
+        # A result rebuilt from its id carries no track metadata, so a signs
+        # & songs pick would read as full and settle the regular item.
+        from forced_detection import content_kind_mismatch
+
+        full_query = SimpleNamespace(full_only=True, forced_only=False)
+        if content_kind_mismatch(target_result, content, full_query):
+            target_result.forced = True
     decision_log.selected(target_result)
 
     from translator import get_output_path_for_lang
