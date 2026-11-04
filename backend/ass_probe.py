@@ -47,6 +47,10 @@ def is_sdh_stream(stream: dict) -> bool:
 logger = logging.getLogger(__name__)
 
 
+class _ExtractionGateBusyError(RuntimeError):
+    """Keep a busy media I/O gate from being mistaken for a copy failure."""
+
+
 def has_target_language_stream(ffprobe_data, target_language=None, kind="full"):
     """Check if the file has an embedded target language subtitle stream.
 
@@ -534,10 +538,11 @@ def extract_subtitle_stream(mkv_path, stream_info, output_path):
     ext = os.path.splitext(output_path)[1].lower().lstrip(".")
     _encoder_map = {"srt": "srt", "ass": "ass", "ssa": "ass", "vtt": "webvtt"}
     encoder = _encoder_map.get(ext, "copy")
+    copy_first = ext in ("ass", "ssa")
     _timeout = getattr(get_settings(), "ffmpeg_timeout", 300)
     from services.media_io_gate import MediaGateBusyError, media_io_gate
 
-    def _run_ffmpeg(tmp_path: str) -> None:
+    def _run_ffmpeg(tmp_path: str, subtitle_encoder: str) -> None:
         cmd = [
             "ffmpeg",
             "-y",
@@ -546,7 +551,7 @@ def extract_subtitle_stream(mkv_path, stream_info, output_path):
             "-map",
             f"0:s:{stream_info['sub_index']}",
             "-c:s",
-            encoder,
+            subtitle_encoder,
             _safe_arg_path(tmp_path),
         ]
         try:
@@ -560,7 +565,7 @@ def extract_subtitle_stream(mkv_path, stream_info, output_path):
                     timeout=_timeout,
                 )
         except MediaGateBusyError as exc:
-            raise RuntimeError(str(exc)) from None
+            raise _ExtractionGateBusyError(str(exc)) from None
         if result.returncode != 0:
             raise RuntimeError(f"ffmpeg extraction failed: {result.stderr}")
         # Refuse zero-byte output — ffmpeg sometimes returns 0 on no-data
@@ -575,7 +580,38 @@ def extract_subtitle_stream(mkv_path, stream_info, output_path):
     # media server — and left "tmpXXXXXXXX.srt" behind whenever the process was
     # killed mid-extraction. atomic_write_via relaxes the mode, uses the
     # sweepable prefix and reclaims stale temps in the directory first.
-    atomic_write_via(output_path, _run_ffmpeg)
+    def _write_extraction(tmp_path: str) -> None:
+        if not copy_first:
+            _run_ffmpeg(tmp_path, encoder)
+            return
+
+        try:
+            _run_ffmpeg(tmp_path, "copy")
+        except _ExtractionGateBusyError:
+            raise
+        except (RuntimeError, OSError, subprocess.TimeoutExpired) as copy_error:
+            # A failed ffmpeg attempt may leave partial bytes at the temp path.
+            # Remove them before asking ffmpeg to encode into the same path.
+            try:
+                os.unlink(tmp_path)
+            except FileNotFoundError:
+                pass
+            logger.warning(
+                "ASS/SSA stream-copy failed; retrying with the %s encoder: %s",
+                encoder,
+                copy_error,
+            )
+            try:
+                _run_ffmpeg(tmp_path, encoder)
+            except _ExtractionGateBusyError:
+                raise
+            except (RuntimeError, OSError, subprocess.TimeoutExpired) as fallback_error:
+                raise RuntimeError(
+                    f"ASS/SSA stream-copy failed ({copy_error}); "
+                    f"encoder fallback failed ({fallback_error})"
+                ) from fallback_error
+
+    atomic_write_via(output_path, _write_extraction)
 
     logger.info(
         "Extracted %s stream %d to %s",
