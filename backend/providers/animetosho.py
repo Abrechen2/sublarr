@@ -305,7 +305,30 @@ class AnimeToshoProvider(SubtitleProvider):
         if not detail:
             return []
 
-        files = detail.get("files", [])
+        files = list(detail.get("files") or [])
+        root_attachments = detail.get("attachments") or []
+        if root_attachments:
+            # Some torrent-detail responses put subtitle attachments on the
+            # torrent instead of under a file. A torrent title that only names
+            # a pack cannot tell us which episode owns those attachments.
+            root_title = detail.get("title") or title
+            root_matches = match_release(root_title, query, allow_pack=False)
+            if root_matches is None and root_title != title:
+                root_title = title
+                root_matches = match_release(root_title, query, allow_pack=False)
+
+            episode_is_proven = query.episode is None or (
+                root_matches is not None and "episode" in root_matches
+            )
+            if root_matches is not None and episode_is_proven:
+                files.append({"filename": root_title, "attachments": root_attachments})
+            else:
+                logger.debug(
+                    "AnimeTosho: skipping %d root attachments for ambiguous entry %s",
+                    len(root_attachments),
+                    title,
+                )
+
         if not files:
             return []
 
