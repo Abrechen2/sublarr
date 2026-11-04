@@ -1,7 +1,7 @@
-"""BetaSeries subtitle provider — French TV & movies.
+"""BetaSeries subtitle provider — French TV series.
 
 BetaSeries (betaseries.com) offers a REST API for French and multilingual
-subtitle lookup for TV series and movies. Requires a free API key.
+subtitle lookup for TV series (no movies). Requires a free API key.
 
 API Docs: https://www.betaseries.com/api/
 API Base: https://api.betaseries.com
@@ -55,7 +55,7 @@ def _format_from_url(url: str) -> SubtitleFormat:
 class BetaSeriesProvider(SubtitleProvider):
     """BetaSeries subtitle provider.
 
-    Focused on French TV series and movies. Requires a free API key.
+    Focused on French TV series. Requires a free API key.
     Register at https://www.betaseries.com/api/
     """
 
@@ -132,6 +132,22 @@ class BetaSeriesProvider(SubtitleProvider):
             logger.debug("BetaSeries: show search error: %s", e)
             return None
 
+    def _find_episode(self, show_id: str, season: int, episode: int) -> str | None:
+        """BetaSeries' id of one episode of a show, or None."""
+        try:
+            resp = self.session.get(
+                f"{_API_BASE}/episodes/search",
+                params={"show_id": show_id, "number": f"S{season:02d}E{episode:02d}"},
+                timeout=self.timeout,
+            )
+            if resp.status_code != 200:
+                return None
+            found = resp.json().get("episode") or {}
+            return str(found.get("id") or "") or None
+        except Exception as e:
+            logger.debug("BetaSeries: episode search error: %s", e)
+            return None
+
     def search(self, query: VideoQuery) -> list[SubtitleResult]:
         if not self.session:
             return []
@@ -144,82 +160,52 @@ class BetaSeriesProvider(SubtitleProvider):
         if not valid_langs:
             return []
 
+        # BetaSeries lists subtitles per episode (/subtitles/episode?id=); it
+        # has no movie subtitles. Until 1.20.0 the provider called
+        # /subtitles/show/<id> and /subtitles/movie, which both answer 404.
+        if not (query.is_episode and query.series_title and query.season and query.episode):
+            return []
+        show_id = self._search_show(query.series_title or query.title)
+        if not show_id:
+            return []
+        episode_id = self._find_episode(show_id, query.season, query.episode)
+        if not episode_id:
+            return []
+        try:
+            resp = self.session.get(
+                f"{_API_BASE}/subtitles/episode",
+                params={"id": episode_id},
+                timeout=self.timeout,
+            )
+            if resp.status_code != 200:
+                return []
+            subs = resp.json().get("subtitles") or []
+        except Exception as e:
+            logger.debug("BetaSeries: episode subtitle error: %s", e)
+            return []
+
         results = []
-
-        if query.is_episode and query.series_title and query.season and query.episode:
-            show_id = self._search_show(query.series_title or query.title)
-            if not show_id:
-                return []
-            try:
-                resp = self.session.get(
-                    f"{_API_BASE}/subtitles/show/{show_id}",
-                    params={"season": query.season, "episode": query.episode},
-                    timeout=self.timeout,
+        for sub in subs:
+            sub_lang = (sub.get("language") or "").upper()
+            matched = next((lc for lc in valid_langs if _LANG_MAP[lc] == sub_lang), None)
+            if not matched:
+                continue
+            dl_url = sub.get("url") or ""
+            if not dl_url:
+                continue
+            sub_id = str(sub.get("id") or dl_url.split("/")[-1])
+            results.append(
+                SubtitleResult(
+                    provider_name=self.name,
+                    subtitle_id=sub_id,
+                    language=matched,
+                    format=_format_from_url(dl_url),
+                    filename=f"{sub_id}.srt",
+                    download_url=dl_url,
+                    release_info=sub.get("source") or "",
+                    matches={"series", "season", "episode"},
                 )
-                if resp.status_code != 200:
-                    return []
-                subs = resp.json().get("subtitles") or []
-            except Exception as e:
-                logger.debug("BetaSeries: episode subtitle error: %s", e)
-                return []
-
-            for sub in subs:
-                sub_lang = (sub.get("language") or "").upper()
-                matched = next((lc for lc in valid_langs if _LANG_MAP[lc] == sub_lang), None)
-                if not matched:
-                    continue
-                dl_url = sub.get("url") or ""
-                if not dl_url:
-                    continue
-                sub_id = str(sub.get("id") or dl_url.split("/")[-1])
-                results.append(
-                    SubtitleResult(
-                        provider_name=self.name,
-                        subtitle_id=sub_id,
-                        language=matched,
-                        format=_format_from_url(dl_url),
-                        filename=f"{sub_id}.srt",
-                        download_url=dl_url,
-                        release_info=sub.get("source") or "",
-                        matches={"series", "season", "episode"},
-                    )
-                )
-
-        elif not query.is_episode and query.title:
-            try:
-                resp = self.session.get(
-                    f"{_API_BASE}/subtitles/movie",
-                    params={"title": query.title},
-                    timeout=self.timeout,
-                )
-                if resp.status_code != 200:
-                    return []
-                subs = resp.json().get("subtitles") or []
-            except Exception as e:
-                logger.debug("BetaSeries: movie subtitle error: %s", e)
-                return []
-
-            for sub in subs:
-                sub_lang = (sub.get("language") or "").upper()
-                matched = next((lc for lc in valid_langs if _LANG_MAP[lc] == sub_lang), None)
-                if not matched:
-                    continue
-                dl_url = sub.get("url") or ""
-                if not dl_url:
-                    continue
-                sub_id = str(sub.get("id") or dl_url.split("/")[-1])
-                results.append(
-                    SubtitleResult(
-                        provider_name=self.name,
-                        subtitle_id=sub_id,
-                        language=matched,
-                        format=_format_from_url(dl_url),
-                        filename=f"{sub_id}.srt",
-                        download_url=dl_url,
-                        release_info=sub.get("source") or "",
-                        matches={"title"},
-                    )
-                )
+            )
 
         logger.info("BetaSeries: found %d results", len(results))
         return results
