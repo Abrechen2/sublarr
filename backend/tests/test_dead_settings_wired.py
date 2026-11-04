@@ -29,7 +29,6 @@ def test_gestdown_waits_the_configured_retry_delay():
     query = VideoQuery(series_title="Show", season=1, episode=2, languages=["en"])
     with (
         patch.object(GestdownProvider, "_find_show", return_value={"id": "s1"}),
-        patch.object(GestdownProvider, "_get_language_map", return_value={"en": 1}),
         patch("config.get_settings", return_value=MagicMock(gestdown_retry_delay_s=2.5)),
         patch("providers.gestdown.time.sleep") as sleep,
     ):
@@ -48,7 +47,6 @@ def test_an_unbounded_gestdown_delay_falls_back_to_one_second():
     query = VideoQuery(series_title="Show", season=1, episode=2, languages=["en"])
     with (
         patch.object(GestdownProvider, "_find_show", return_value={"id": "s1"}),
-        patch.object(GestdownProvider, "_get_language_map", return_value={"en": 1}),
         patch("config.get_settings", return_value=MagicMock(gestdown_retry_delay_s=float("inf"))),
         patch("providers.gestdown.time.sleep") as sleep,
     ):

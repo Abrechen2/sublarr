@@ -105,7 +105,6 @@ class GestdownProvider(SubtitleProvider):
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
         self.session = None
-        self._language_cache: dict[str, int] | None = None
 
     def initialize(self):
         logger.debug("Gestdown: initializing (no API key required)")
@@ -121,7 +120,6 @@ class GestdownProvider(SubtitleProvider):
         if self.session:
             self.session.close()
             self.session = None
-        self._language_cache = None
 
     def health_check(self) -> tuple[bool, str]:
         if not self.session:
@@ -133,121 +131,6 @@ class GestdownProvider(SubtitleProvider):
             return False, f"HTTP {resp.status_code}"
         except Exception as e:
             return False, str(e)
-
-    def _get_language_map(self) -> dict[str, int]:
-        """Fetch and cache Gestdown's language ID mapping.
-
-        Maps ISO 639-1 codes to Gestdown's internal language IDs.
-        Falls back to a hardcoded common subset if the API call fails.
-        """
-        if self._language_cache is not None:
-            return self._language_cache
-
-        # Hardcoded fallback for the most common languages
-        # These are Gestdown's internal IDs matching Addic7ed's system
-        fallback = {
-            "en": 1,
-            "fr": 8,
-            "es": 4,
-            "de": 11,
-            "it": 7,
-            "pt": 10,
-            "nl": 17,
-            "ro": 26,
-            "pl": 23,
-            "cs": 14,
-            "hu": 20,
-            "tr": 16,
-            "el": 15,
-            "ar": 38,
-            "he": 22,
-            "zh": 24,
-            "ja": 35,
-            "ko": 37,
-            "ru": 19,
-            "sv": 18,
-            "da": 29,
-            "no": 25,
-            "fi": 31,
-            "bg": 35,
-            "hr": 38,
-            "sr": 36,
-            "sk": 33,
-            "sl": 42,
-            "ca": 34,
-            "eu": 39,
-        }
-
-        if not self.session:
-            self._language_cache = fallback
-            return fallback
-
-        try:
-            resp = self.session.get(f"{API_BASE}/languages")
-            if resp.status_code == 200:
-                data = resp.json()
-                lang_map = {}
-                # API returns a list of language objects with id and name
-                for lang_obj in (
-                    data if isinstance(data, list) else data.get("languages", data.get("items", []))
-                ):
-                    lang_id = lang_obj.get("id")
-                    lang_name = (lang_obj.get("name") or "").lower()
-                    # Map language names to ISO 639-1 codes
-                    name_to_iso = {
-                        "english": "en",
-                        "french": "fr",
-                        "spanish": "es",
-                        "german": "de",
-                        "italian": "it",
-                        "portuguese": "pt",
-                        "dutch": "nl",
-                        "romanian": "ro",
-                        "polish": "pl",
-                        "czech": "cs",
-                        "hungarian": "hu",
-                        "turkish": "tr",
-                        "greek": "el",
-                        "arabic": "ar",
-                        "hebrew": "he",
-                        "chinese": "zh",
-                        "japanese": "ja",
-                        "korean": "ko",
-                        "russian": "ru",
-                        "swedish": "sv",
-                        "danish": "da",
-                        "norwegian": "no",
-                        "finnish": "fi",
-                        "bulgarian": "bg",
-                        "croatian": "hr",
-                        "serbian": "sr",
-                        "slovak": "sk",
-                        "slovenian": "sl",
-                        "catalan": "ca",
-                        "basque": "eu",
-                        "galician": "gl",
-                        "ukrainian": "uk",
-                        "estonian": "et",
-                        "latvian": "lv",
-                        "lithuanian": "lt",
-                        "persian": "fa",
-                        "indonesian": "id",
-                        "malay": "ms",
-                        "thai": "th",
-                        "vietnamese": "vi",
-                    }
-                    iso_code = name_to_iso.get(lang_name)
-                    if iso_code and lang_id is not None:
-                        lang_map[iso_code] = lang_id
-                if lang_map:
-                    self._language_cache = lang_map
-                    logger.debug("Gestdown: cached %d language mappings from API", len(lang_map))
-                    return lang_map
-        except Exception as e:
-            logger.debug("Gestdown: failed to fetch languages, using fallback: %s", e)
-
-        self._language_cache = fallback
-        return fallback
 
     def _find_show(self, query: VideoQuery) -> dict | None:
         """Look up a show by TVDB ID or name search.
@@ -337,20 +220,14 @@ class GestdownProvider(SubtitleProvider):
 
         # Step 2: Get subtitles for each requested language
         results = []
-        lang_map = self._get_language_map()
-
         search_languages = query.languages if query.languages else ["en"]
 
         for lang_code in search_languages:
-            gestdown_lang_id = lang_map.get(lang_code)
-            if gestdown_lang_id is None:
-                logger.debug("Gestdown: no language mapping for '%s', skipping", lang_code)
-                continue
-
             try:
+                # The path takes the language itself ("en", "English"); the
+                # Addic7ed numeric ids used until 1.20.0 answered 404 for all.
                 url = (
-                    f"{API_BASE}/subtitles/get/{show_id}"
-                    f"/{query.season}/{query.episode}/{gestdown_lang_id}"
+                    f"{API_BASE}/subtitles/get/{show_id}/{query.season}/{query.episode}/{lang_code}"
                 )
                 resp = self.session.get(url)
 
