@@ -160,10 +160,10 @@ describe('SubtitleAutomationPage', () => {
     expect(screen.getByText('SDH behalten')).toBeInTheDocument()
     expect(screen.getByText('Wenn ein echter Untertitel daneben liegt')).toBeInTheDocument()
 
-    // 8 toggles (master + queue + SDH + 3x cleanup + keep_forced + keep_sdh)
+    // 9 toggles (master + queue + ASS copy + SDH + 3x cleanup + keep_forced + keep_sdh)
     // — interval/penalty are numbers, variant_mode/sidecar_policy are selects.
     const toggles = screen.getAllByRole('switch')
-    expect(toggles).toHaveLength(8)
+    expect(toggles).toHaveLength(9)
   })
 
   it('shows queue counts, last_run_at and last_error', () => {
@@ -217,10 +217,10 @@ describe('SubtitleAutomationPage — track variant policy disabled states', () =
     render(<SubtitleAutomationPage />)
 
     const toggles = screen.getAllByRole('switch')
-    // Document order: master, queue.enabled, sdh.allow, remove_extracted,
+    // Document order: master, queue.enabled, ass_stream_copy, sdh.allow, remove_extracted,
     // default, keep_und, keep_forced, keep_sdh.
-    const keepForcedToggle = toggles[6]
-    const keepSdhToggle = toggles[7]
+    const keepForcedToggle = toggles[7]
+    const keepSdhToggle = toggles[8]
     expect(keepForcedToggle).toBeDisabled()
     expect(keepSdhToggle).toBeDisabled()
 
@@ -240,8 +240,8 @@ describe('SubtitleAutomationPage — track variant policy disabled states', () =
     render(<SubtitleAutomationPage />)
 
     const toggles = screen.getAllByRole('switch')
-    const keepForcedToggle = toggles[6]
-    const keepSdhToggle = toggles[7]
+    const keepForcedToggle = toggles[7]
+    const keepSdhToggle = toggles[8]
     expect(keepForcedToggle).not.toBeDisabled()
     expect(keepSdhToggle).not.toBeDisabled()
 
