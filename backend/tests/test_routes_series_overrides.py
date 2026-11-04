@@ -130,3 +130,30 @@ def test_patch_response_always_includes_cleanup_field(client):
     assert resp.status_code == 200
     assert "cleanup_foreign_tracks" in body
     assert body["cleanup_foreign_tracks"] is None
+
+
+def test_get_returns_the_defaults_without_a_row(client):
+    body = client.get("/api/v1/series/202/settings").get_json()
+    assert body == {
+        "sonarr_series_id": 202,
+        "priority_override": None,
+        "min_attempts_per_day": 0,
+        "cleanup_foreign_tracks": None,
+        "subtitle_format_requirement": None,
+    }
+
+
+def test_get_returns_what_was_saved(client):
+    # The series page used to show "inherit"/0 whatever was saved.
+    client.patch(
+        "/api/v1/series/101/settings",
+        json={
+            "priority_override": "premium",
+            "min_attempts_per_day": 4,
+            "subtitle_format_requirement": "require_ass",
+        },
+    )
+    body = client.get("/api/v1/series/101/settings").get_json()
+    assert body["priority_override"] == "premium"
+    assert body["min_attempts_per_day"] == 4
+    assert body["subtitle_format_requirement"] == "require_ass"

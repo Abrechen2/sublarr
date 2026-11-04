@@ -351,6 +351,7 @@
     "tracks_failed_suffix": ", {{count}} fehlgeschlagen",
     "extraction_failed_count": "Extraktion fehlgeschlagen ({{count}} Fehler)",
     "extraction_done_all_present": "Extraktion abgeschlossen — alle bereits vorhanden",
+    "override_loading": "Einstellungen werden geladen…",
     "override_saved": "Override gespeichert",
     "save_failed": "Speichern fehlgeschlagen",
     "absolute_order_enabled": "Absolute Reihenfolge aktiviert",

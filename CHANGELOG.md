@@ -50,6 +50,11 @@ alone until you do.
   far, have switches on the subtitle-health settings page.
 
 ### Fixed
+- **Series overrides show what is saved** — The series page's scheduler
+  overrides (priority, minimum attempts per day, ASS requirement) always
+  opened as "inherit" and 0, so saving one field reset the other two. They
+  are now loaded from the server (new `GET /api/v1/series/<id>/settings`),
+  and the panel uses the Sublarr design instead of unstyled form controls.
 - **Gestdown found nothing** — Its subtitle path takes the language
   ("en"); the provider sent Addic7ed's numeric ids, which the API answers
   with 404 for every language.

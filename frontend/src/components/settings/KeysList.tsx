@@ -17,7 +17,7 @@ export default function KeysList({ provider, keys, onAdd, onEdit, onDelete }: Ke
     <div data-testid={`keys-list-${provider}`}>
       <div className="flex items-center justify-between gap-3">
         <div>
-          <h4 className="text-sm font-medium text-primary">{t('provider_keys.title')}</h4>
+          <h4 className="text-sm font-medium text-foreground">{t('provider_keys.title')}</h4>
           <p className="mt-0.5 text-xs text-muted">{t('provider_keys.hint')}</p>
         </div>
         <button
@@ -37,7 +37,7 @@ export default function KeysList({ provider, keys, onAdd, onEdit, onDelete }: Ke
             data-testid={`key-row-${k.id}`}
             className="flex items-center gap-3 border-b border-border py-2 text-sm"
           >
-            <span className="flex-1 text-primary">{k.label}</span>
+            <span className="flex-1 text-foreground">{k.label}</span>
             <span className="text-xs text-secondary">{k.tier}</span>
             <span className={`text-xs ${k.enabled ? 'text-success' : 'text-warning'}`}>
               {k.enabled ? t('provider_keys.enabled') : t('provider_keys.disabled')}

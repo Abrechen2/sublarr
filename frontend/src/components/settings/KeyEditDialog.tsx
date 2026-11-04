@@ -73,7 +73,7 @@ export default function KeyEditDialog({
 
   return (
     <div role="dialog" aria-labelledby="key-edit-title" data-testid="key-edit-dialog">
-      <h3 id="key-edit-title" className="mb-4 text-sm font-semibold text-primary">
+      <h3 id="key-edit-title" className="mb-4 text-sm font-semibold text-foreground">
         {initial ? t('provider_keys.edit_title') : t('provider_keys.add_title')}
       </h3>
       <div className="space-y-3">

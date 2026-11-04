@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, type ReactNode } from 'react'
 import { useTranslation } from 'react-i18next'
 
 export interface SeriesOverrideSettingsProps {
@@ -48,50 +48,72 @@ export default function SeriesOverrideSettings({
   }
 
   return (
-    <section data-testid={`series-override-${seriesId}`}>
-      <h4 style={{ margin: 0 }}>{t('series_override.title')}</h4>
-      <label>
-        {t('series_override.priority')}
-        <select
-          data-testid="priority-override-select"
-          value={priority}
-          onChange={(e) => setPriority(e.target.value)}
+    <section data-testid={`series-override-${seriesId}`} className="space-y-3">
+      <h4 className="text-sm font-semibold text-foreground">{t('series_override.title')}</h4>
+      <div className="grid gap-3 sm:grid-cols-3">
+        <Field label={t('series_override.priority')}>
+          <select
+            data-testid="priority-override-select"
+            className={INPUT}
+            value={priority}
+            onChange={(e) => setPriority(e.target.value)}
+          >
+            <option value="">{t('series_override.inherit')}</option>
+            <option value="premium">{t('series_override.premium')}</option>
+            <option value="standard">{t('series_override.standard')}</option>
+            <option value="backlog">{t('series_override.backlog')}</option>
+          </select>
+        </Field>
+        <Field label={t('series_override.min_attempts')}>
+          <input
+            type="number"
+            data-testid="min-attempts-input"
+            className={INPUT}
+            min={0}
+            max={50}
+            value={min}
+            onChange={(e) => {
+              const v = Number(e.target.value)
+              const clamped = Math.max(0, Math.min(50, Number.isFinite(v) ? v : 0))
+              setMin(clamped)
+            }}
+          />
+        </Field>
+        <Field label={t('series_override.format_requirement')}>
+          <select
+            data-testid="format-requirement-select"
+            className={INPUT}
+            value={formatReq}
+            onChange={(e) => setFormatReq(e.target.value)}
+          >
+            <option value="">{t('series_override.format_inherit')}</option>
+            <option value="require_ass">{t('series_override.format_require_ass')}</option>
+          </select>
+        </Field>
+      </div>
+      <div className="flex justify-end">
+        <button
+          type="button"
+          data-testid="save-override"
+          disabled={!dirty}
+          onClick={handleSave}
+          className="rounded bg-accent px-3 py-1.5 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:opacity-50"
         >
-          <option value="">{t('series_override.inherit')}</option>
-          <option value="premium">{t('series_override.premium')}</option>
-          <option value="standard">{t('series_override.standard')}</option>
-          <option value="backlog">{t('series_override.backlog')}</option>
-        </select>
-      </label>
-      <label>
-        {t('series_override.min_attempts')}
-        <input
-          type="number"
-          data-testid="min-attempts-input"
-          min={0}
-          max={50}
-          value={min}
-          onChange={(e) => {
-            const v = Number(e.target.value)
-            const clamped = Math.max(0, Math.min(50, Number.isFinite(v) ? v : 0))
-            setMin(clamped)
-          }}
-        />
-      </label>
-      <label>
-        {t('series_override.format_requirement')}
-        <select
-          data-testid="format-requirement-select"
-          value={formatReq}
-          onChange={(e) => setFormatReq(e.target.value)}
-        >
-          <option value="">{t('series_override.format_inherit')}</option>
-          <option value="require_ass">{t('series_override.format_require_ass')}</option>
-        </select>
-      </label>
-      <button data-testid="save-override" disabled={!dirty} onClick={handleSave}>
-        {t('series_override.save')}
-      </button>
+          {t('series_override.save')}
+        </button>
+      </div>
     </section>
+  )
+}
+
+const INPUT =
+  'w-full rounded border border-border bg-page px-2.5 py-1.5 text-sm text-foreground focus:outline-none'
+
+function Field({ label, children }: { label: string; children: ReactNode }) {
+  return (
+    <label className="block">
+      <span className="mb-1 block text-xs text-secondary">{label}</span>
+      {children}
+    </label>
   )
 }

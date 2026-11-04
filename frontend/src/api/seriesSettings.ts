@@ -18,6 +18,12 @@ export interface SeriesOverrideResponse {
   subtitle_format_requirement: string | null
 }
 
+/** The series' saved scheduler overrides (all inherited when none are saved). */
+export async function getSeriesSettings(seriesId: number): Promise<SeriesOverrideResponse> {
+  const { data } = await api.get(`/series/${seriesId}/settings`)
+  return data
+}
+
 /**
  * Persist per-series scheduler overrides (priority tier + minimum attempts).
  *

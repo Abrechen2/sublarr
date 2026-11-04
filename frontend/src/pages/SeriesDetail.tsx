@@ -36,7 +36,10 @@ import { SeriesHero } from '@/components/series/SeriesHero'
 import { SeriesSettingsPanel } from '@/components/series/SeriesSettingsPanel'
 import { SeasonTabs } from '@/components/series/SeasonTabs'
 import SeriesOverrideSettings from '@/components/library/SeriesOverrideSettings'
-import { updateSeriesSettings as patchSeriesSettings } from '@/api/seriesSettings'
+import {
+  getSeriesSettings,
+  updateSeriesSettings as patchSeriesSettings,
+} from '@/api/seriesSettings'
 import { useMutation } from '@tanstack/react-query'
 
 const SubtitleComparison = lazy(() => import('@/components/comparison/SubtitleComparison').then(m => ({ default: m.SubtitleComparison })))
@@ -203,6 +206,11 @@ export function SeriesDetailPage() {
   const updateSeriesSettingsMutation = useUpdateSeriesSettings()
 
   // Scheduler override (priority tier + min attempts/day) — PATCH /series/<id>/settings
+  const overrideQuery = useQuery({
+    queryKey: ['series-overrides', seriesId],
+    queryFn: () => getSeriesSettings(seriesId as number),
+    enabled: seriesId != null,
+  })
   const overrideMutation = useMutation({
     mutationFn: (payload: { priority_override: string | null; min_attempts_per_day: number }) => {
       if (seriesId == null) {
@@ -210,7 +218,10 @@ export function SeriesDetailPage() {
       }
       return patchSeriesSettings(seriesId, payload)
     },
-    onSuccess: () => toast(t('series_detail.override_saved'), 'success'),
+    onSuccess: (saved) => {
+      queryClient.setQueryData(['series-overrides', seriesId], saved)
+      toast(t('series_detail.override_saved'), 'success')
+    },
     onError: (err: unknown) => {
       const msg = err instanceof Error ? err.message : t('series_detail.save_failed')
       toast(msg, 'error')
@@ -632,15 +643,16 @@ export function SeriesDetailPage() {
             marginBottom: '16px',
           }}
         >
-          <SeriesOverrideSettings
-            seriesId={seriesId}
-            initial={{
-              priority_override: null,
-              min_attempts_per_day: 0,
-              subtitle_format_requirement: null,
-            }}
-            onSave={(payload) => overrideMutation.mutate(payload)}
-          />
+          {overrideQuery.data ? (
+            <SeriesOverrideSettings
+              key={JSON.stringify(overrideQuery.data)}
+              seriesId={seriesId}
+              initial={overrideQuery.data}
+              onSave={(payload) => overrideMutation.mutate(payload)}
+            />
+          ) : (
+            <p className="text-sm text-muted">{t('series_detail.override_loading')}</p>
+          )}
         </div>
       )}
 

@@ -1,4 +1,4 @@
-"""PATCH /api/v1/series/<id>/settings — priority_override + min_attempts_per_day (Phase 4a)."""
+"""GET/PATCH /api/v1/series/<id>/settings — priority_override + min_attempts_per_day (Phase 4a)."""
 
 from __future__ import annotations
 
@@ -24,6 +24,31 @@ _ALLOWED_PRIORITY = {"premium", "standard", "backlog"}
 _ALLOWED_FORMAT_REQUIREMENTS = {"require_ass"}
 _MIN_ATTEMPTS_MIN = 0
 _MIN_ATTEMPTS_MAX = 50
+
+
+def _payload(row) -> dict:
+    return {
+        "sonarr_series_id": getattr(row, "sonarr_series_id", None),
+        "priority_override": getattr(row, "priority_override", None),
+        "min_attempts_per_day": getattr(row, "min_attempts_per_day", None) or 0,
+        "cleanup_foreign_tracks": getattr(row, "cleanup_foreign_tracks", None),
+        "subtitle_format_requirement": getattr(row, "subtitle_format_requirement", None),
+    }
+
+
+@bp.route("/<int(signed=True):series_id>/settings", methods=["GET"])
+def get_series_settings(series_id: int):
+    """The series' saved overrides; the defaults (all inherited) when none are.
+
+    The series page showed "inherit" and 0 whatever was saved, so saving one
+    field silently reset the other two.
+    """
+    from services.standalone_owner_keys import get_row
+
+    row = get_row(SeriesSettings, series_id)
+    payload = _payload(row)
+    payload["sonarr_series_id"] = series_id
+    return jsonify(payload), 200
 
 
 @bp.route("/<int(signed=True):series_id>/settings", methods=["PATCH"])
@@ -93,12 +118,4 @@ def patch_series_settings(series_id: int):
     row.updated_at = now
     db.session.commit()
 
-    return jsonify(
-        {
-            "sonarr_series_id": row.sonarr_series_id,
-            "priority_override": row.priority_override,
-            "min_attempts_per_day": row.min_attempts_per_day,
-            "cleanup_foreign_tracks": row.cleanup_foreign_tracks,
-            "subtitle_format_requirement": row.subtitle_format_requirement,
-        }
-    ), 200
+    return jsonify(_payload(row)), 200

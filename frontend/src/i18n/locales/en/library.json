@@ -351,6 +351,7 @@
     "tracks_failed_suffix": ", {{count}} failed",
     "extraction_failed_count": "Extraction failed ({{count}} errors)",
     "extraction_done_all_present": "Extraction complete — all already present",
+    "override_loading": "Loading settings…",
     "override_saved": "Override saved",
     "save_failed": "Save failed",
     "absolute_order_enabled": "Absolute order enabled",
