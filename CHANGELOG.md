@@ -5,6 +5,21 @@ All notable changes to Sublarr are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Fixed
+- **Wanted scans on large libraries never completed** (#248) — A full scan
+  that needed longer than the job's two-hour ceiling was stopped, pruned
+  nothing and kept its watermark, so every following scan was full again and
+  stopped again; rows for moved or deleted files stayed forever. A stopped
+  full scan now resumes where it stopped on the next run, and the pass
+  finished in parts prunes against everything its parts covered. A stopped
+  scan also still removes rows whose file is gone or whose subtitle is
+  already there, stops between series instead of fetching and probing the
+  rest only to discard it, and releases the scan lock before its final
+  report, so a stalled report no longer answers every refresh with 409.
+  Thanks @Svnow132 for the detailed report.
+
 ## [1.20.0] - 2026-11-03
 
 Sublarr can now find and repair more bad subtitles by itself. Every case

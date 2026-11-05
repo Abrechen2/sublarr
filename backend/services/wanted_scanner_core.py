@@ -17,7 +17,7 @@ import logging
 import os
 import threading
 import time
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 
 from config import get_settings
 from db.activity import log_activity
@@ -45,8 +45,25 @@ CLEANUP_FUSE_MIN_ITEMS = 20
 FULL_SCAN_INTERVAL = 6
 
 
+def _added_since(added_at, since: datetime) -> bool:
+    """Whether a row's ``added_at`` is at or after ``since`` (naive means UTC)."""
+    if isinstance(added_at, str):
+        try:
+            added_at = datetime.fromisoformat(added_at)
+        except ValueError:
+            return False
+    if not isinstance(added_at, datetime):
+        return False
+    if added_at.tzinfo is None:
+        added_at = added_at.replace(tzinfo=UTC)
+    return added_at >= since
+
+
 class WantedScanner(_WantedSchedulerMixin, _WantedScanSourcesMixin):
     """Scans Sonarr/Radarr for episodes/movies missing target language subtitles."""
+
+    #: A stopped full pass older than this starts over instead of resuming.
+    RESUME_MAX_AGE = timedelta(days=3)
 
     def __init__(self):
         self._scan_lock = threading.Lock()
@@ -66,6 +83,10 @@ class WantedScanner(_WantedSchedulerMixin, _WantedScanSourcesMixin):
         self._scan_count = 0
         self._scan_had_errors = False
         self._cancel_event = threading.Event()
+        # The stopped full pass the next full scan continues (#248), and the
+        # items the running full pass has finished: {(source, instance, id): paths}.
+        self._resume = None
+        self._pass_done = None
 
     # ─── Properties ──────────────────────────────────────────────────────
 
@@ -109,7 +130,30 @@ class WantedScanner(_WantedSchedulerMixin, _WantedScanSourcesMixin):
             return {"error": "scan_already_running"}
 
         self._scanning = True
+        try:
+            result = self._scan_all_locked(incremental)
+        except Exception as e:
+            logger.exception("Wanted scan failed: %s", e)
+            return {"error": str(e)}
+        finally:
+            self._pass_done = None
+            self._scanning = False
+            self._progress = {"current": 0, "total": 0, "phase": "", "added": 0, "updated": 0}
+            self._scan_lock.release()
+            logger.debug("Wanted scan lock released")
+
+        # Reporting runs after the lock is gone: a count that stalls on the
+        # database must not keep every later scan out (#248 — a stopped scan
+        # held the lock for four hours, refresh answered 409 until a restart).
+        try:
+            return self._report_scan(result)
+        except Exception as e:
+            logger.exception("Wanted scan report failed: %s", e)
+            return {**result, "error": str(e)}
+
+    def _scan_all_locked(self, incremental: bool) -> dict:
         start = time.time()
+        started_at = datetime.now(UTC)
         added = 0
         updated = 0
         scanned_paths = set()
@@ -123,144 +167,160 @@ class WantedScanner(_WantedSchedulerMixin, _WantedScanSourcesMixin):
             incremental
             and self._last_scan_timestamp is not None
             and self._scan_count % FULL_SCAN_INTERVAL != 0
+            # A stopped full pass goes first: incremental scans in between
+            # would let its resume point go stale and restart it from zero.
+            and self._resume is None
         )
         scan_type = "incremental" if is_incremental else "full"
 
-        try:
-            settings = get_settings()
-            logger.info(
-                "Wanted scan starting (%s, cycle %d/%d)",
-                scan_type,
-                self._scan_count + 1,
-                FULL_SCAN_INTERVAL,
-            )
+        # A full pass that ran out of time continues where it stopped: what it
+        # scanned is kept, so a library that needs longer than the job's
+        # ceiling still completes over several runs (#248).
+        resume = None if is_incremental else self._resume
+        if resume and started_at - resume["started_at"] > self.RESUME_MAX_AGE:
+            logger.info("Wanted scan: resume point is stale, starting a fresh full pass")
+            resume = None
+        self._pass_done = None if is_incremental else dict(resume["done"] if resume else {})
 
-            since = self._last_scan_timestamp if is_incremental else None
-            if not is_incremental:
-                # Files quarantined while they were still kept on disk: out of
-                # the folder, so the scan below and every job after it sees none.
-                from services.suspect_sidecars import trash_quarantined_on_disk
+        settings = get_settings()
+        logger.info(
+            "Wanted scan starting (%s, cycle %d/%d%s)",
+            scan_type,
+            self._scan_count + 1,
+            FULL_SCAN_INTERVAL,
+            f", resuming after {len(resume['done'])} items" if resume else "",
+        )
 
-                trash_quarantined_on_disk()
+        since = self._last_scan_timestamp if is_incremental else None
+        if not is_incremental:
+            # Files quarantined while they were still kept on disk: out of
+            # the folder, so the scan below and every job after it sees none.
+            from services.suspect_sidecars import trash_quarantined_on_disk
 
-            # One source is the unit of work. A stop between sources is safe;
-            # a stop *within* one is not, because the cleanup below removes
-            # every wanted item whose path this pass did not see, and the
-            # sources that were skipped account for all of theirs.
-            aborted = False
+            trash_quarantined_on_disk()
 
-            # Scan all Sonarr instances
-            a, u, paths = self._scan_all_sonarr(settings, since)
+        # A stop is honoured between items. The full-set cleanup below
+        # removes every wanted item whose path this pass did not see, so it
+        # only runs when every source was walked to the end.
+        aborted = False
+
+        # Scan all Sonarr instances
+        a, u, paths = self._scan_all_sonarr(settings, since)
+        added += a
+        updated += u
+        scanned_paths.update(paths)
+
+        if abort_requested():
+            aborted = True
+        else:
+            # Scan all Radarr instances
+            a, u, paths = self._scan_all_radarr(settings, since)
             added += a
             updated += u
             scanned_paths.update(paths)
 
-            if abort_requested():
-                aborted = True
-            else:
-                # Scan all Radarr instances
-                a, u, paths = self._scan_all_radarr(settings, since)
-                added += a
-                updated += u
-                scanned_paths.update(paths)
+        if not aborted and abort_requested():
+            aborted = True
+        elif not aborted:
+            # Scan standalone items
+            a, u, paths = self._scan_all_standalone()
+            added += a
+            updated += u
+            scanned_paths.update(paths)
 
-            if not aborted and abort_requested():
-                aborted = True
-            elif not aborted:
-                # Scan standalone items
-                a, u, paths = self._scan_all_standalone()
-                added += a
-                updated += u
-                scanned_paths.update(paths)
-
-            if aborted:
-                # Never prune against an incomplete path set — that would delete
-                # the wanted queue of every source this pass never reached.
-                logger.info(
-                    "Wanted scan stopping as asked: +%d added, ~%d updated, nothing pruned",
-                    added,
-                    updated,
-                )
-                removed = 0
-            elif self._scan_had_errors:
-                # Same rule for a source that FAILED instead of being skipped:
-                # its items are all absent from scanned_paths through no fault
-                # of their own.
-                logger.warning("Wanted scan: a source errored — skipping cleanup, nothing pruned")
-                removed = 0
-            else:
-                removed = self._cleanup(scanned_paths if not is_incremental else set())
-
-            duration = round(time.time() - start, 1)
-            from db.wanted import get_wanted_count
-
-            total_wanted = get_wanted_count()
-
-            summary = {
-                "added": added,
-                "updated": updated,
-                "removed": removed,
-                "total_wanted": total_wanted,
-                "duration_seconds": duration,
-                "scan_type": scan_type,
-            }
-
-            self._last_scan_at = datetime.now(UTC)
-            # The rotation counter is not a watermark. It only decides when the
-            # next full rescan falls due, so a scan that ran out of time must
-            # still advance it: while it did not, an aborted full scan
-            # scheduled another full scan, which also aborted. Prod sat in that
-            # loop 2026-09-10..14 — eleven of twelve scans full against a
-            # one-in-six cadence, rewriting ~11 800 rows every six hours.
-            # A failed source still freezes it: there we do not know what the
-            # source held, which is a different thing from running out of time.
-            if not self._scan_had_errors:
-                self._scan_count += 1
-            if not aborted and not self._scan_had_errors:
-                # The watermark must not move past sources that were never
-                # looked at — whether skipped by a stop request or lost to an
-                # error: the next incremental pass would ask them for changes
-                # "since" a moment it never covered, and their edits in that
-                # window would be lost for good.
-                self._last_scan_timestamp = datetime.now(UTC)
-            self._last_summary = summary
-
+        if aborted:
+            # Never prune against an incomplete path set — that would delete
+            # the wanted queue of every source this pass never reached. The
+            # per-row checks (file gone, subtitle already there) do not need
+            # the path set; an incremental pass runs the same.
+            removed = self._cleanup(set())
             logger.info(
-                "Wanted %s scan complete: +%d added, ~%d updated, -%d removed, %d total (%.1fs)",
-                scan_type,
+                "Wanted scan stopping as asked: +%d added, ~%d updated, -%d removed "
+                "(file gone or subtitle present); %d items done, the next full scan resumes",
                 added,
                 updated,
                 removed,
-                total_wanted,
-                duration,
+                len(self._pass_done or {}),
             )
+        elif self._scan_had_errors:
+            # Same rule for a source that FAILED instead of being skipped:
+            # its items are all absent from scanned_paths through no fault
+            # of their own.
+            logger.warning("Wanted scan: a source errored — skipping cleanup, nothing pruned")
+            removed = 0
+        elif resume:
+            removed = self._cleanup(scanned_paths, protect_since=resume["started_at"])
+        else:
+            removed = self._cleanup(scanned_paths if not is_incremental else set())
 
-            log_activity(
-                EVENT_SCAN,
-                status="success",
-                details={
-                    "added": added,
-                    "updated": updated,
-                    "removed": removed,
-                    "total_wanted": total_wanted,
-                    "scan_type": scan_type,
-                    "duration": duration,
-                },
-            )
+        self._last_scan_at = datetime.now(UTC)
+        # The rotation counter is not a watermark. It only decides when the
+        # next full rescan falls due, so a scan that ran out of time must
+        # still advance it: while it did not, an aborted full scan
+        # scheduled another full scan, which also aborted. Prod sat in that
+        # loop 2026-09-10..14 — eleven of twelve scans full against a
+        # one-in-six cadence, rewriting ~11 800 rows every six hours.
+        # A failed source still freezes it: there we do not know what the
+        # source held, which is a different thing from running out of time.
+        if not self._scan_had_errors:
+            self._scan_count += 1
+        if not is_incremental:
+            if aborted or self._scan_had_errors:
+                self._resume = {
+                    "started_at": resume["started_at"] if resume else started_at,
+                    "done": self._pass_done,
+                }
+            else:
+                self._resume = None
+        if not aborted and not self._scan_had_errors:
+            # The watermark must not move past sources that were never
+            # looked at — whether skipped by a stop request or lost to an
+            # error: the next incremental pass would ask them for changes
+            # "since" a moment it never covered, and their edits in that
+            # window would be lost for good. A pass finished in parts covers
+            # changes only from the moment its first part began.
+            self._last_scan_timestamp = resume["started_at"] if resume else datetime.now(UTC)
 
-            return summary
+        return {
+            "added": added,
+            "updated": updated,
+            "removed": removed,
+            "duration_seconds": round(time.time() - start, 1),
+            "scan_type": scan_type,
+        }
 
-        except Exception as e:
-            logger.exception("Wanted scan failed: %s", e)
-            return {"error": str(e)}
-        finally:
-            self._scanning = False
-            self._progress = {"current": 0, "total": 0, "phase": "", "added": 0, "updated": 0}
-            self._scan_lock.release()
+    def _report_scan(self, result: dict) -> dict:
+        from db.wanted import get_wanted_count
+
+        summary = {**result, "total_wanted": get_wanted_count()}
+        self._last_summary = summary
+        logger.info(
+            "Wanted %s scan complete: +%d added, ~%d updated, -%d removed, %d total (%.1fs)",
+            summary["scan_type"],
+            summary["added"],
+            summary["updated"],
+            summary["removed"],
+            summary["total_wanted"],
+            summary["duration_seconds"],
+        )
+        log_activity(
+            EVENT_SCAN,
+            status="success",
+            details={
+                "added": summary["added"],
+                "updated": summary["updated"],
+                "removed": summary["removed"],
+                "total_wanted": summary["total_wanted"],
+                "scan_type": summary["scan_type"],
+                "duration": summary["duration_seconds"],
+            },
+        )
+        return summary
 
     def force_full_scan(self) -> dict:
         """Reset incremental state and run a full scan."""
         self._last_scan_timestamp = None
+        self._resume = None
         return self.scan_all(incremental=False)
 
     @staticmethod
@@ -395,8 +455,13 @@ class WantedScanner(_WantedSchedulerMixin, _WantedScanSourcesMixin):
     # _maybe_auto_extract) live on _WantedScanSourcesMixin — see
     # services/wanted_scanner_sources.py.
 
-    def _cleanup(self, scanned_paths: set) -> int:
+    def _cleanup(self, scanned_paths: set, protect_since: datetime | None = None) -> int:
         """Remove wanted items whose files no longer exist or whose subs appeared.
+
+        ``protect_since``: rows added from then on are never removed for
+        missing from ``scanned_paths``. A pass finished in parts restores the
+        paths of the items it skipped from the earlier part, which cannot
+        know an episode added since (#248).
 
         Fused: never removes more than ``CLEANUP_FUSE_MAX_FRACTION`` of the
         table in one pass once it holds ``CLEANUP_FUSE_MIN_ITEMS`` rows. A
@@ -451,6 +516,8 @@ class WantedScanner(_WantedSchedulerMixin, _WantedScanSourcesMixin):
             if instance_name == "standalone":
                 continue
             if scanned_paths and path not in scanned_paths:
+                if protect_since and _added_since(item.get("added_at"), protect_since):
+                    continue
                 to_remove_ids.append(item["id"])
 
         if len(items) >= CLEANUP_FUSE_MIN_ITEMS and len(

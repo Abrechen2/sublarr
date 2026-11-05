@@ -178,16 +178,17 @@ def test_start_scheduler_on_startup_with_flags_off_does_not_spawn(monkeypatch):
     assert spawned == []
 
 
-def test_a_stopped_full_scan_never_prunes(app_ctx, monkeypatch):
+def test_a_stopped_full_scan_never_prunes_against_its_path_set(app_ctx, monkeypatch):
     """The hazard specific to this job (#183, bug 3).
 
     A full scan removes every wanted item whose path it did not see. Stopping
     after the Sonarr phase would leave every Radarr and standalone path unseen
     — and deleting them is not a cosmetic wrong, it is the wanted queue.
 
-    So a scan that was cut short must neither prune nor advance the incremental
-    watermark: the phases it skipped were never looked at, and a watermark that
-    moved would mean their changes are never picked up either.
+    So a scan that was cut short must neither prune against its path set nor
+    advance the incremental watermark: the phases it skipped were never looked
+    at, and a watermark that moved would mean their changes are never picked
+    up either. Only the per-row checks run, as on an incremental pass (#248).
     """
     import threading
 
@@ -217,7 +218,9 @@ def test_a_stopped_full_scan_never_prunes(app_ctx, monkeypatch):
     finally:
         cancellation.deactivate(token)
 
-    assert cleaned == [], "a partial scan pruned the wanted queue against an incomplete path set"
+    assert cleaned == [set()], (
+        "a partial scan pruned the wanted queue against an incomplete path set"
+    )
     assert summary.get("removed") == 0
     assert scanner._last_scan_timestamp is None, (
         "the incremental watermark advanced past phases that were never scanned"

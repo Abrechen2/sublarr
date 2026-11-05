@@ -692,6 +692,7 @@ class WantedRepository(BaseRepository, _WantedUpsertMixin, _WantedUpdatesMixin):
             WantedItem.standalone_movie_id,
             # [Forced] items wait for the forced file, not the full one.
             WantedItem.subtitle_type,
+            WantedItem.added_at,
         )
         rows = self.session.execute(stmt).all()
         return [
@@ -706,6 +707,7 @@ class WantedRepository(BaseRepository, _WantedUpsertMixin, _WantedUpdatesMixin):
                 "standalone_series_id": r[7],
                 "standalone_movie_id": r[8],
                 "subtitle_type": r[9] or "full",
+                "added_at": r[10],
             }
             for r in rows
         ]

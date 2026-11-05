@@ -18,6 +18,7 @@ from db.wanted import batch_upsert_context
 
 # Aliased import: tests patch "services.wanted_scanner_sources._extract_embedded_sub".
 from services.embedded_extractor import extract_embedded_sub as _extract_embedded_sub
+from services.scheduler.cancellation import abort_requested
 from services.wanted_item_scanner import scan_radarr_movie, scan_sonarr_series
 
 logger = logging.getLogger(__name__)
@@ -58,6 +59,27 @@ def _enqueue_automation(*, wanted_item_id: int, file_path: str, target_language:
 
 class _WantedScanSourcesMixin:
     """Sonarr/Radarr/standalone scan loops composed into WantedScanner."""
+
+    def _resumed(self, key, all_paths) -> bool:
+        """True when an earlier, stopped part of this full pass already scanned ``key``.
+
+        Its paths still count as seen, so the pass that finishes prunes
+        against everything the parts covered together (#248).
+        """
+        done = self._pass_done
+        if done is None or key not in done:
+            return False
+        all_paths.update(done[key])
+        return True
+
+    def _mark_done(self, key, paths) -> None:
+        """Record ``key`` as scanned — unless the stop came while it ran.
+
+        A series stopped mid-way upserts nothing (``scan_sonarr_series``), so
+        it must be scanned again by the next part.
+        """
+        if self._pass_done is not None and not abort_requested():
+            self._pass_done[key] = frozenset(paths)
 
     def _scan_all_sonarr(self, settings, since=None):
         """Scan all Sonarr instances. Returns (added, updated, paths)."""
@@ -159,6 +181,11 @@ class _WantedScanSourcesMixin:
             series_id = series.get("id")
             if not series_id:
                 continue
+            key = ("sonarr", instance_name, series_id)
+            if self._resumed(key, all_paths):
+                continue
+            if abort_requested():
+                break
             with batch_upsert_context():
                 a, u, paths = scan_sonarr_series(
                     sonarr,
@@ -171,6 +198,7 @@ class _WantedScanSourcesMixin:
             total_added += a
             total_updated += u
             all_paths.update(paths)
+            self._mark_done(key, paths)
             self._progress.update({"current": idx, "added": total_added, "updated": total_updated})
             if self._socketio:
                 self._socketio.emit("wanted_scan_progress", dict(self._progress))
@@ -244,6 +272,11 @@ class _WantedScanSourcesMixin:
 
         yield_ms = getattr(settings, "scan_yield_ms", 0)
         for idx, movie in enumerate(movies, 1):
+            key = ("radarr", instance_name, movie.get("id"))
+            if self._resumed(key, all_paths):
+                continue
+            if abort_requested():
+                break
             with batch_upsert_context():
                 a, u, paths = scan_radarr_movie(
                     radarr,
@@ -255,6 +288,7 @@ class _WantedScanSourcesMixin:
             total_added += a
             total_updated += u
             all_paths.update(paths)
+            self._mark_done(key, paths)
             self._progress.update({"current": idx, "added": total_added, "updated": total_updated})
             if self._socketio:
                 self._socketio.emit("wanted_scan_progress", dict(self._progress))
