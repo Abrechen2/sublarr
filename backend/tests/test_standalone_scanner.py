@@ -952,11 +952,12 @@ class TestCleanupStaleSeries:
     via services.standalone_manager.delete_series_cascade so wanted_items
     pointing to the deleted series come along (audit S1-5)."""
 
-    def test_removes_nonexistent_folders(self):
+    def test_removes_nonexistent_folders(self, tmp_path):
         scanner = StandaloneScanner()
+        (tmp_path / "Still There").mkdir()
         series_list = [
-            {"id": 1, "folder_path": "/nonexistent/path"},
-            {"id": 2, "folder_path": "/also/missing"},
+            {"id": 1, "folder_path": str(tmp_path / "Deleted A")},
+            {"id": 2, "folder_path": str(tmp_path / "Deleted B")},
         ]
 
         with (
@@ -1039,7 +1040,7 @@ class TestCleanupStaleWanted:
 
         mock_db = MagicMock()
         mock_db.execute.return_value.fetchall.return_value = [
-            (1, "/nonexistent/ep01.mkv"),
+            (1, str(tmp_path / "ep01.mkv")),
             (2, str(tmp_path / "exists.mkv")),
         ]
         # Create the existing file

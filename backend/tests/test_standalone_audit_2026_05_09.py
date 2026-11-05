@@ -136,6 +136,7 @@ class TestCleanupCascade:
         from standalone.scanner import StandaloneScanner
 
         scanner = StandaloneScanner()
+        (tmp_path / "series-b").mkdir()
 
         # Force watched-roots probe to succeed so cleanup runs.
         with (
@@ -144,7 +145,7 @@ class TestCleanupCascade:
             patch(
                 "db.standalone.get_standalone_series",
                 return_value=[
-                    {"id": 1, "folder_path": "/nonexistent/series-a"},
+                    {"id": 1, "folder_path": str(tmp_path / "series-a")},
                 ],
             ),
             patch("services.standalone_manager.delete_series_cascade") as mock_cascade,

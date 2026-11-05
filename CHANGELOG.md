@@ -56,7 +56,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   file now counts as deleted only when the disk vouches for it; unreadable or
   unmounted ones are kept. A full wanted scan also keeps the items of episodes
   it could not read, and standalone cleanups only judge enabled watched
-  folders.
+  folders. A disk whose mount folder disappears on unmount (udisks under
+  /media, autofs) is treated as off, not deleted.
 - **Standalone: a large first folder starved the others** — Folders are now
   scanned least recently scanned first, so a pass the scheduler stops after a
   slow first folder continues with the next one.

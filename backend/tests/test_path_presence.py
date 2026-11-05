@@ -60,3 +60,26 @@ def test_an_empty_leftover_folder_further_up_is_not_proof(tmp_path):
     """A share unmounted below a bind mount leaves an empty plain folder."""
     (tmp_path / "tv").mkdir()
     assert PathPresence().is_gone(str(tmp_path / "tv" / "Show" / "S01" / "e01.mkv")) is False
+
+
+def test_a_vanished_mount_beside_other_mounts_is_not_proof(tmp_path):
+    """udisks and autofs remove the mount folder on unmount: /media/user then
+    holds only the disks still mounted, and the missing one looks deleted."""
+    media = tmp_path / "media"
+    (media / "other_disk" / "tv").mkdir(parents=True)
+    other = str(media / "other_disk")
+    real_ismount = os.path.ismount
+    with patch(
+        "utils.path_presence.os.path.ismount",
+        side_effect=lambda p: p == other or real_ismount(p),
+    ):
+        assert PathPresence().is_gone(str(media / "usb" / "tv" / "Show" / "e01.mkv")) is False
+
+
+def test_a_missing_top_level_folder_is_not_proof():
+    assert PathPresence().is_gone("/nonexistent_share_xyz/tv/Show/S01/e01.mkv") is False
+
+
+def test_a_deleted_series_beside_plain_folders_is_still_gone(tmp_path):
+    (tmp_path / "Other Show" / "S01").mkdir(parents=True)
+    assert PathPresence().is_gone(str(tmp_path / "Show" / "S01" / "e01.mkv")) is True

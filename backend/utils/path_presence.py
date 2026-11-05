@@ -22,11 +22,12 @@ class PathPresence:
 
     A path is gone only when stat reports it missing AND its nearest existing
     ancestor vouches for it: a readable folder that is not an empty mount
-    point. Any other error means "cannot tell" and keeps the row.
+    point and holds no mount points of its own. Any other error means
+    "cannot tell" and keeps the row.
     """
 
     def __init__(self) -> None:
-        self._nearest: dict[str, tuple[str, bool, bool] | None] = {}
+        self._nearest: dict[str, tuple[str, bool, bool, bool] | None] = {}
 
     def state(self, path: str) -> str:
         """``PRESENT``, ``GONE`` or ``UNKNOWN`` (unreadable, or a share that is off)."""
@@ -50,7 +51,12 @@ class PathPresence:
         found = self._nearest_existing(parent)
         if found is None:
             return False
-        folder, empty, mount = found
+        folder, empty, mount, holds_mounts = found
+        if holds_mounts:
+            # A folder of mount points (/media/<user>, /mnt, /): udisks and
+            # autofs remove a disk's folder on unmount, so a missing entry
+            # here is as likely a disk that is off as one that was deleted.
+            return False
         if not empty:
             return True
         # An empty folder proves only its own files gone (the last episode of
@@ -58,8 +64,9 @@ class PathPresence:
         # that is not mounted, and an empty mount point is one for certain.
         return folder == parent and not mount
 
-    def _nearest_existing(self, folder: str) -> tuple[str, bool, bool] | None:
-        """(nearest existing ancestor, is it empty, is it a mount point), or None."""
+    def _nearest_existing(self, folder: str) -> tuple[str, bool, bool, bool] | None:
+        """(nearest existing ancestor, is it empty, is it a mount point,
+        does it hold a mount point), or None."""
         missing = []
         found = None
         while True:
@@ -67,8 +74,7 @@ class PathPresence:
                 found = self._nearest[folder]
                 break
             try:
-                with os.scandir(folder) as entries:
-                    empty = next(entries, None) is None
+                empty, holds_mounts = _look_inside(folder)
             except FileNotFoundError:
                 missing.append(folder)
                 parent = os.path.dirname(folder)
@@ -78,12 +84,27 @@ class PathPresence:
                 continue
             except OSError:
                 break  # unreadable: cannot tell
-            found = (folder, empty, os.path.ismount(folder))
+            found = (folder, empty, os.path.ismount(folder), holds_mounts)
             self._nearest[folder] = found
             break
         for f in missing:
             self._nearest[f] = found
         return found
+
+
+def _look_inside(folder: str) -> tuple[bool, bool]:
+    """(is it empty, does one of its sub-folders hold a mount)."""
+    empty = True
+    with os.scandir(folder) as entries:
+        for entry in entries:
+            empty = False
+            try:
+                is_dir = entry.is_dir(follow_symlinks=False)
+            except OSError:
+                continue
+            if is_dir and os.path.ismount(entry.path):
+                return False, True
+    return empty, False
 
 
 def is_gone(path: str) -> bool:
