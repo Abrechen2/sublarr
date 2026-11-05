@@ -148,6 +148,32 @@ def test_embedded_srt_counts_when_no_sidecar_exists():
     assert result["existing_sub"] == "embedded_srt"
 
 
+@pytest.mark.parametrize("embedded", ["srt", "ass"])
+def test_our_own_ass_is_not_masked_by_an_embedded_track(embedded):
+    """With keep-seeking on, a machine-translated .ass does not satisfy the
+    language, but an embedded track is no way out: the extractor never writes
+    beside an .ass, so the item was enqueued, closed unwritten and re-added by
+    every full scan (prod 2026-11-05: ~1,600 rows a scan) and never reached
+    mt_reseek. It stays provisional instead."""
+    from services.wanted_item_scanner import _check_language_for_item
+
+    settings = MagicMock(upgrade_enabled=True)
+    with (
+        patch("services.wanted_item_scanner.detect_existing_target_for_lang", return_value="ass"),
+        patch("services.wanted_item_scanner.is_machine_translated", return_value=True),
+        patch("services.wanted_item_scanner.has_target_language_audio", return_value=False),
+        patch("services.wanted_item_scanner.has_target_language_stream", return_value=embedded),
+        patch("services.wanted_item_scanner.get_all_subtitle_streams", return_value=[]),
+        patch("services.wanted_item_scanner.find_existing_target_file", return_value=None),
+    ):
+        result = _check_language_for_item(
+            "/media/ep.mkv", "de", {"streams": []}, settings, keep_seeking_mt=True
+        )
+    assert result is not None
+    assert result["existing_sub"] == "ass"
+    assert result["machine_translated"] is True
+
+
 def test_check_language_no_existing_returns_empty_sub():
     """No existing subtitle at all -> existing_sub=''."""
     from services.wanted_item_scanner import _check_language_for_item

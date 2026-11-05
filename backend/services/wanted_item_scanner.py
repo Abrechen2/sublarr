@@ -153,7 +153,16 @@ def _check_language_for_item(
         # byte written. Same order as standalone.scanner._check_existing_subtitle.
         # Ask the disk, not ``existing``: detect_existing_target_for_lang
         # already answers "srt" for the embedded track itself.
-        if embedded_sub == "ass":
+        #
+        # Nothing beats an .ass sidecar, here only our own translation when
+        # the profile keeps seeking: the extractor never writes beside one,
+        # so an embedded track sent the item into an extraction that closed
+        # it unwritten, and every full scan re-added it (prod 2026-11-05,
+        # ~1,600 rows a scan) instead of leaving it to mt_reseek. Same rule
+        # as the standalone scanner, where a sidecar .ass always wins.
+        if existing == "ass":
+            pass
+        elif embedded_sub == "ass":
             existing = "embedded_ass"
         elif embedded_sub == "srt" and not find_existing_target_file(
             mapped_path, target_lang, "srt"

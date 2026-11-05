@@ -57,10 +57,9 @@ class SubtitleDownload(db.Model):
     decision_log_json: Mapped[str | None] = mapped_column(Text, nullable=True)
 
     __table_args__ = (
-        # idx_subtitle_downloads_path dropped in migration h1i2j3k4l5m6 —
-        # 0 scans in prod; planner prefers seq scan on this small table and
-        # the query patterns use file_path IN (...) which still does well
-        # without a dedicated index at current row counts.
+        # Re-added in sdp1_subtitle_downloads_path_idx: scans and the wanted
+        # cleanup look up provenance per file (is_machine_translated).
+        Index("idx_subtitle_downloads_file_path", "file_path"),
         Index("idx_subtitle_downloads_downloaded_at", "downloaded_at"),
         Index("idx_subtitle_downloads_language", "language"),
     )

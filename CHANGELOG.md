@@ -73,6 +73,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   are written in one transaction; the wrong-episode audit loads only the
   newest download per file; the probe-cache cleanup deletes in chunks below
   SQLite's parameter limit.
+- **"Keep seeking the original" never sought it for translated ASS** — The
+  scan filed an item served by Sublarr's own .ass translation as provisional,
+  and the cleanup right after it removed the item because an .ass was there.
+  Every full scan added and removed the same items (about 1,600 on a test
+  library) and the re-seek never saw them. The cleanup now keeps them. An
+  embedded track next to our own .ass no longer sends the item into an
+  extraction that never writes beside an .ass.
+- **Provenance lookups scanned the whole download history** — The index on
+  `subtitle_downloads.file_path` is back (migration), so scans and cleanups
+  no longer read the full table once per file.
 
 ## [1.20.0] - 2026-11-03
 

@@ -45,6 +45,23 @@ CLEANUP_FUSE_MIN_ITEMS = 20
 FULL_SCAN_INTERVAL = 6
 
 
+def _own_translation_kept_open(item: dict, path: str, target_lang: str, fmt: str) -> bool:
+    """Whether the subtitle on disk is our own translation and the item's
+    profile keeps seeking the original.
+
+    Such a row is ``provisional`` and belongs to mt_reseek; removing it here,
+    right after the scan filed it, meant the original was never sought (prod
+    2026-11-05: 1,584 of 1,791 machine-translated .ass had no row). A profile
+    that cannot be read keeps the row: a read error is no reason to delete.
+    """
+    from db.providers import is_machine_translated
+    from services.mt_provisional import _keep_seeking_or_none
+
+    if not target_lang or not is_machine_translated(path, target_lang, fmt):
+        return False
+    return _keep_seeking_or_none(item) is not False
+
+
 def _added_since(added_at, since: datetime) -> bool:
     """Whether a row's ``added_at`` is at or after ``since`` (naive means UTC)."""
     if isinstance(added_at, str):
@@ -511,11 +528,11 @@ class WantedScanner(_WantedSchedulerMixin, _WantedScanSourcesMixin):
                 from translator import detect_existing_target
 
                 existing = detect_existing_target(path)
-            if existing == "ass":
+            served = existing == "ass" or (existing == "srt" and not settings.upgrade_enabled)
+            if served and not _own_translation_kept_open(item, path, target_lang, existing):
                 to_remove_ids.append(item["id"])
                 continue
-            if existing == "srt" and not settings.upgrade_enabled:
-                to_remove_ids.append(item["id"])
+            if served:
                 continue
 
             if instance_name == "standalone":
