@@ -18,7 +18,7 @@ from ass_utils import (
 from config import get_settings, map_path
 from db.profiles import get_movie_profile, get_series_profile
 from db.providers import is_machine_translated
-from db.wanted import upsert_wanted_item
+from db.wanted import get_wanted_for_series, upsert_wanted_item
 from services.scheduler.cancellation import abort_requested
 from services.suspect_sidecars import existing_ignoring_suspects, note_sparse_sidecar
 from translator import (
@@ -399,7 +399,16 @@ def scan_sonarr_series(
         series_info = sonarr.get_series_by_id(series_id) or {}
 
     series_title = series_info.get("title", f"Series {series_id}")
-    episodes = sonarr.get_episodes(series_id)
+    episodes = sonarr.list_episodes(series_id)
+    if not isinstance(episodes, list):
+        # Sonarr did not answer. The series' rows count as seen: an empty
+        # path set would let the full scan's cleanup prune all of them, and
+        # one series never trips the fuse.
+        logger.warning(
+            "Wanted scan: Sonarr did not list the episodes of %s — keeping its rows",
+            series_title,
+        )
+        return 0, 0, {row["file_path"] for row in get_wanted_for_series(series_id)}
     if not episodes:
         return 0, 0, set()
 

@@ -113,3 +113,54 @@ class TestDubtitleScanTick:
         spec = next((j for j in _build_default_jobs() if j.id == "dubtitle_scan"), None)
         assert spec is not None
         assert spec.func is sweep.dubtitle_scan_tick
+
+
+class TestSweepWalksTheWholeLibrary:
+    """Every run read the same first 1,600 paths, so a library past them was
+    never looked at once those were cached."""
+
+    def test_the_next_run_starts_after_the_last_path_examined(self, app_ctx, monkeypatch):
+        from db.wanted import upsert_wanted_item
+
+        for i, p in enumerate(("/a.mkv", "/b.mkv", "/c.mkv"), 1):
+            upsert_wanted_item("episode", p, sonarr_episode_id=i, target_language="de")
+        monkeypatch.setattr(sweep, "_cursor", "")
+
+        assert sweep._candidate_file_paths(2) == ["/a.mkv", "/b.mkv"]
+        sweep._cursor = "/b.mkv"
+        assert sweep._candidate_file_paths(2) == ["/c.mkv"]
+
+    def test_the_cursor_wraps_after_a_short_page(self, monkeypatch):
+        monkeypatch.setattr(
+            "config.get_settings", lambda: type("S", (), {"dubtitle_detection": True})()
+        )
+        monkeypatch.setattr("config.map_path", lambda p: p)
+        monkeypatch.setattr(sweep, "_cursor", "/m.mkv")
+        monkeypatch.setattr(sweep, "_candidate_file_paths", lambda lim: ["/x.mkv"])
+        monkeypatch.setattr(sweep.os.path, "exists", lambda p: False)
+
+        sweep.dubtitle_scan_tick()
+
+        assert sweep._cursor == ""
+
+    def test_the_cursor_stops_where_the_cap_stopped(self, monkeypatch):
+        monkeypatch.setattr(
+            "config.get_settings", lambda: type("S", (), {"dubtitle_detection": True})()
+        )
+        monkeypatch.setattr("config.map_path", lambda p: p)
+        monkeypatch.setattr(sweep, "_cursor", "")
+        monkeypatch.setattr(sweep, "_BATCH_CAP", 1)
+        monkeypatch.setattr(
+            sweep, "_candidate_file_paths", lambda lim: ["/a.mkv", "/b.mkv"] * (lim // 2)
+        )
+        monkeypatch.setattr(sweep.os.path, "exists", lambda p: True)
+        monkeypatch.setattr("ass_utils.get_media_streams", lambda p, use_cache=True: {})
+        monkeypatch.setattr(
+            "services.dubtitle.detector._english_subtitle_streams", lambda probe: [{}, {}]
+        )
+        monkeypatch.setattr("services.dubtitle.get_cached_detection", lambda p: None)
+        monkeypatch.setattr("services.dubtitle.detect_dubtitle_cached", lambda p, **k: {})
+
+        sweep.dubtitle_scan_tick()
+
+        assert sweep._cursor == "/a.mkv"

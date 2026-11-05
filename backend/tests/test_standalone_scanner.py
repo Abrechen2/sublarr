@@ -26,7 +26,12 @@ from standalone.scanner import StandaloneScanner, _is_extra_file
 @pytest.fixture(autouse=True)
 def _no_pending_kind_rows():
     """These scans mock the database; dropping unwanted kinds would query it."""
-    with patch("db.wanted.get_wanted_ids_of_kind", return_value=[]):
+    with (
+        patch("db.wanted.get_wanted_ids_of_kind", return_value=[]),
+        # A profile lookup that fails now skips the title; these tests run
+        # without a database, so they answer "no profile" instead.
+        patch("db.profiles.get_profile_for_item", return_value=None),
+    ):
         yield
 
 
@@ -1152,3 +1157,57 @@ class TestIsScanning:
     def test_default_false(self):
         scanner = StandaloneScanner()
         assert scanner.is_scanning is False
+
+
+class TestProfileErrorsDropNothing:
+    """A profile that cannot be read is not an answer. Its fallback (the global
+    language, no [Forced]) then decided which pending rows to delete."""
+
+    def test_target_languages_of_a_title_raise(self):
+        scanner = StandaloneScanner()
+        with (
+            patch("db.profiles.get_profile_for_item", side_effect=RuntimeError("db")),
+            pytest.raises(RuntimeError),
+        ):
+            scanner._get_target_languages({"standalone_series_id": 1})
+
+    def test_wanted_kinds_raise(self):
+        scanner = StandaloneScanner()
+        with (
+            patch("db.profiles.get_profile_for_item", side_effect=RuntimeError("db")),
+            pytest.raises(RuntimeError),
+        ):
+            scanner._wanted_kinds({"standalone_series_id": 1})
+
+
+class TestCleanupStaleMovies:
+    """Deleted or moved films kept their row: visible in the library, and a
+    moved one came back as a second record."""
+
+    def test_removes_movies_whose_file_is_gone(self, tmp_path):
+        scanner = StandaloneScanner()
+        kept = tmp_path / "Film.mkv"
+        kept.write_bytes(b"x")
+        movies = [
+            {"id": 1, "file_path": str(kept)},
+            {"id": 2, "file_path": str(tmp_path / "Gone.mkv")},
+            # Under a disabled (maybe offline) folder: not probed, not removed.
+            {"id": 3, "file_path": "/offline/Film.mkv"},
+        ]
+        with (
+            patch.object(StandaloneScanner, "_watched_roots_reachable", return_value=True),
+            patch("db.standalone.get_watched_folders", return_value=[{"path": str(tmp_path)}]),
+            patch("db.standalone.get_standalone_movies", return_value=movies),
+            patch("services.standalone_manager.delete_movie_cascade") as cascade,
+        ):
+            assert scanner._cleanup_stale_movies() == 1
+        cascade.assert_called_once_with(2)
+
+    def test_does_nothing_while_a_root_is_unreachable(self):
+        scanner = StandaloneScanner()
+        with (
+            patch.object(StandaloneScanner, "_watched_roots_reachable", return_value=False),
+            patch("services.standalone_manager.delete_movie_cascade") as cascade,
+        ):
+            assert scanner._cleanup_stale_movies() == 0
+        cascade.assert_not_called()

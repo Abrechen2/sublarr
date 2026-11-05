@@ -74,7 +74,13 @@ def start_batch(app, item_ids: list[int]) -> bool:
     """Claim and submit a batch; False if one is already running."""
     if not claim_batch(item_ids):
         return False
-    submit_background(run_batch, app, list(item_ids))
+    try:
+        submit_background(run_batch, app, list(item_ids))
+    except Exception:
+        # Only the worker clears the claim; without one it would stay "running".
+        with _lock:
+            _state["running"] = False
+        raise
     return True
 
 

@@ -26,7 +26,7 @@ SETTINGS = MagicMock(target_language="de", target_language_name="German", use_em
 
 def _sonarr(paths):
     client = MagicMock()
-    client.get_episodes.return_value = [
+    client.list_episodes.return_value = client.get_episodes.return_value = [
         {"id": i, "hasFile": True, "episodeFile": {"path": p}} for i, p in enumerate(paths)
     ]
     return client

@@ -176,5 +176,10 @@ def requeue_wrong_episodes():
         finally:
             _requeue_lock.release()
 
-    threading.Thread(target=_run, name="wrong-episode-requeue", daemon=True).start()
+    try:
+        threading.Thread(target=_run, name="wrong-episode-requeue", daemon=True).start()
+    except Exception:
+        # Only the worker releases the lock; without one it would stay held.
+        _requeue_lock.release()
+        raise
     return jsonify({"status": "started", "language": language}), 202

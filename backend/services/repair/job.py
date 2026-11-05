@@ -95,7 +95,12 @@ def start(
                 _state.running = False
                 _state.finished_at = datetime.now(UTC).isoformat()
 
-    threading.Thread(target=_run, name="subtitle-repair", daemon=True).start()
+    try:
+        threading.Thread(target=_run, name="subtitle-repair", daemon=True).start()
+    except Exception:
+        # Only the worker clears the flag; without one it would stay "running".
+        _state.running = False
+        raise
     return True
 
 

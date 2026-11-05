@@ -52,16 +52,13 @@ class _StandaloneProcessMixin:
 
     def _wanted_kinds(self, owner: dict) -> tuple[bool, bool]:
         """(full, forced) wanted items the title's profile asks for."""
+        from db.profiles import get_profile_for_item
         from services.wanted_item_scanner import _wanted_kinds
 
-        try:
-            from db.profiles import get_profile_for_item
-
-            profile = get_profile_for_item(owner) or {}
-        except Exception:
-            logger.debug("Standalone: failed to read the profile of %s", owner, exc_info=True)
-            profile = {}
-        return _wanted_kinds(profile)
+        # No fallback: an empty profile means "no [Forced]", and the title's
+        # pending [Forced] rows would be dropped for a read error (the caller
+        # logs it and skips the title).
+        return _wanted_kinds(get_profile_for_item(owner) or {})
 
     def _upsert_wanted_for_language(
         self,

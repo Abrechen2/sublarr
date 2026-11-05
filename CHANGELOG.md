@@ -19,6 +19,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   rest only to discard it, and releases the scan lock before its final
   report, so a stalled report no longer answers every refresh with 409.
   Thanks @Svnow132 for the detailed report.
+- **A Sonarr hiccup could delete a series' wanted items** — When Sonarr did
+  not answer the episode list of one series during a full scan, the scan saw
+  that series as empty and its cleanup removed all its wanted items (one
+  series never trips the cleanup fuse). Its items are now kept.
+- **Dubtitle sweep only ever looked at the first 1,600 files** — Every run read
+  the same alphabetically first paths, so a larger library was never covered.
+  The sweep now continues where the last run stopped.
+- **Standalone: a profile read error deleted pending items** — The scan fell
+  back to the global language and "no forced subtitles" and dropped the
+  pending items of the title's real languages. A title whose profile cannot be
+  read is now skipped and logged.
+- **Standalone: deleted or moved films stayed in the library** — Films whose
+  file is gone are now removed with their wanted items (only under enabled,
+  reachable watched folders); a moved film no longer shows up twice.
+- **"Already running" until a restart** — The dedup scan, the subtitle repair,
+  the wrong-episode requeue and the MT approval batch now release their
+  running flag when their background worker cannot be started.
 
 ## [1.20.0] - 2026-11-03
 

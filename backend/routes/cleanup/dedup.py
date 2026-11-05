@@ -50,6 +50,8 @@ def start_scan():
     from config import get_settings
     from extensions import socketio
 
+    media_path = get_settings().media_path
+
     with _scan_lock:
         if _scan_state["running"]:
             return jsonify(
@@ -66,8 +68,6 @@ def start_scan():
         _scan_state["total"] = 0
         _scan_state["result"] = None
 
-    settings = get_settings()
-    media_path = settings.media_path
     # The worker runs on the shared pool, outside the request that started it.
     # Both the engine and the socket emit reach for app state, so the context
     # has to be handed over explicitly — without it the thread dies on the
@@ -98,7 +98,13 @@ def start_scan():
             except Exception:
                 logger.debug("emit scan_error itself failed", exc_info=True)
 
-    submit_background(_run_scan)
+    try:
+        submit_background(_run_scan)
+    except Exception:
+        # Only the worker clears the flag; without one every later scan is a 409.
+        with _scan_lock:
+            _scan_state["running"] = False
+        raise
 
     return jsonify({"status": "scanning", "scan_id": scan_id})
 

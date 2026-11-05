@@ -32,9 +32,14 @@ logger = logging.getLogger(__name__)
 
 _BATCH_CAP = 200  # max files newly detected per sweep run
 
+# Last path a run examined; the next run continues after it and wraps to the
+# start once a page comes back short. Without it every run read the same
+# first paths and a library past them was never looked at.
+_cursor = ""
+
 
 def _candidate_file_paths(limit: int) -> list[str]:
-    """Distinct on-disk video paths from wanted_items, capped at ``limit``."""
+    """Distinct video paths from wanted_items after ``_cursor``, capped at ``limit``."""
     try:
         from sqlalchemy import text as _text
 
@@ -44,10 +49,10 @@ def _candidate_file_paths(limit: int) -> list[str]:
         rows = db.execute(
             _text(
                 "SELECT DISTINCT file_path FROM wanted_items "
-                "WHERE file_path IS NOT NULL AND file_path != '' "
+                "WHERE file_path IS NOT NULL AND file_path > :after "
                 "ORDER BY file_path LIMIT :lim"
             ),
-            {"lim": limit},
+            {"lim": limit, "after": _cursor},
         ).fetchall()
         return [r[0] for r in rows if r[0]]
     except Exception:
@@ -72,7 +77,9 @@ def dubtitle_scan_tick() -> dict:
     from services.dubtitle.detector import _english_subtitle_streams
 
     # Probe a generous superset; we stop after _BATCH_CAP *new* detections.
-    paths = _candidate_file_paths(_BATCH_CAP * 8)
+    global _cursor
+    limit = _BATCH_CAP * 8
+    paths = _candidate_file_paths(limit)
     processed = 0
     skipped = 0
     for raw in paths:
@@ -84,6 +91,7 @@ def dubtitle_scan_tick() -> dict:
         if abort_requested():
             logger.info("dubtitle sweep: stopping as asked after %d file(s)", processed)
             return {"enabled": True, "processed": processed, "skipped": skipped}
+        _cursor = raw
         path = map_path(raw)
         if not os.path.exists(path):
             skipped += 1
@@ -110,6 +118,8 @@ def dubtitle_scan_tick() -> dict:
             logger.warning("dubtitle sweep: detection failed for %s", path, exc_info=True)
             skipped += 1
 
+    if len(paths) < limit and processed < _BATCH_CAP:
+        _cursor = ""  # reached the end of the library: start over next run
     if processed:
         logger.info("dubtitle sweep: detected %d file(s), skipped %d", processed, skipped)
     return {"enabled": True, "processed": processed, "skipped": skipped}

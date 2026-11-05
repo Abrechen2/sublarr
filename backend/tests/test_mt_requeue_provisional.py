@@ -197,7 +197,7 @@ def test_sonarr_scan_requeues_our_translation_as_provisional(tmp_path):
     video.write_bytes(b"\x00" * 100)
     mapped = str(video)
     sonarr = MagicMock()
-    sonarr.get_episodes.return_value = [
+    sonarr.list_episodes.return_value = sonarr.get_episodes.return_value = [
         {
             "hasFile": True,
             "id": 10,

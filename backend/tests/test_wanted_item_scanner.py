@@ -468,10 +468,25 @@ def test_scan_sonarr_series_no_episodes():
 
     sonarr = MagicMock()
     sonarr.get_series_by_id.return_value = {"title": "Series"}
-    sonarr.get_episodes.return_value = []
+    sonarr.list_episodes.return_value = sonarr.get_episodes.return_value = []
     settings = MagicMock()
     added, updated, paths = scan_sonarr_series(sonarr, 1, settings)
     assert added == 0 and updated == 0 and len(paths) == 0
+
+
+def test_scan_sonarr_series_unanswered_episode_list_keeps_its_rows():
+    """Sonarr did not answer: the series' rows count as seen, so a full scan
+    does not prune them. An empty set here deleted them (below the fuse)."""
+    from services.wanted_item_scanner import scan_sonarr_series
+
+    sonarr = MagicMock()
+    sonarr.get_series_by_id.return_value = {"title": "Series"}
+    sonarr.list_episodes.return_value = None
+    rows = [{"file_path": "/media/a.mkv"}, {"file_path": "/media/b.mkv"}]
+    with patch("services.wanted_item_scanner.get_wanted_for_series", return_value=rows):
+        added, updated, paths = scan_sonarr_series(sonarr, 1, MagicMock())
+
+    assert (added, updated, paths) == (0, 0, {"/media/a.mkv", "/media/b.mkv"})
 
 
 def test_scan_sonarr_series_episode_no_file():
@@ -479,7 +494,9 @@ def test_scan_sonarr_series_episode_no_file():
     from services.wanted_item_scanner import scan_sonarr_series
 
     sonarr = MagicMock()
-    sonarr.get_episodes.return_value = [{"hasFile": False, "id": 1}]
+    sonarr.list_episodes.return_value = sonarr.get_episodes.return_value = [
+        {"hasFile": False, "id": 1}
+    ]
     settings = MagicMock(
         target_language="de",
         target_language_name="German",
@@ -506,7 +523,7 @@ def test_scan_sonarr_series_adds_wanted_item(tmp_path):
     mapped = str(video)
 
     sonarr = MagicMock()
-    sonarr.get_episodes.return_value = [
+    sonarr.list_episodes.return_value = sonarr.get_episodes.return_value = [
         {
             "hasFile": True,
             "id": 10,
@@ -551,7 +568,7 @@ def test_scan_sonarr_series_multi_language(tmp_path):
     mapped = str(video)
 
     sonarr = MagicMock()
-    sonarr.get_episodes.return_value = [
+    sonarr.list_episodes.return_value = sonarr.get_episodes.return_value = [
         {
             "hasFile": True,
             "id": 10,
@@ -595,7 +612,7 @@ def test_scan_sonarr_series_uses_fallback_path(tmp_path):
     mapped = str(video)
 
     sonarr = MagicMock()
-    sonarr.get_episodes.return_value = [
+    sonarr.list_episodes.return_value = sonarr.get_episodes.return_value = [
         {
             "hasFile": True,
             "id": 10,

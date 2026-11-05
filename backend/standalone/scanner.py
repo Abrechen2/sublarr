@@ -241,6 +241,8 @@ class StandaloneScanner(_StandaloneProcessMixin):
 
             # Cleanup: remove stale series entries (season subfolders / missing dirs)
             self._cleanup_stale_series()
+            # Cleanup: remove movies whose file no longer exists
+            self._cleanup_stale_movies()
             # Cleanup: remove wanted items whose files no longer exist
             self._cleanup_stale_wanted()
             # Cleanup: remove episode ids whose files no longer exist
@@ -653,6 +655,11 @@ class StandaloneScanner(_StandaloneProcessMixin):
                     profile.get("name", "?"),
                 )
         except Exception:
+            if owner:
+                # A title's languages also decide which pending rows it drops;
+                # a guess here deleted the rows of its real languages.
+                logger.warning("Standalone: cannot read the profile of %s", owner)
+                raise
             logger.debug("Standalone: failed to read default profile", exc_info=True)
 
         # Fallback to global config
@@ -916,6 +923,43 @@ class StandaloneScanner(_StandaloneProcessMixin):
 
         except Exception as e:
             logger.error("Standalone series cleanup failed: %s", e)
+            return 0
+
+    def _cleanup_stale_movies(self) -> int:
+        """Remove standalone movies whose file no longer exists.
+
+        Movies are keyed by file path, so a moved film came back as a second
+        record beside the stale one. Cascades to ``wanted_items``; aborts
+        (returns 0) when any watched root is unreachable.
+        """
+        if not self._watched_roots_reachable():
+            return 0
+        try:
+            from db.standalone import get_standalone_movies, get_watched_folders
+            from services.standalone_manager import delete_movie_cascade
+
+            # Only roots that were just probed: a disabled folder may be
+            # offline, and its films are not gone.
+            roots = [
+                os.path.join(f["path"], "")
+                for f in get_watched_folders(enabled_only=True)
+                if f.get("path")
+            ]
+            stale = [
+                m["id"]
+                for m in get_standalone_movies() or []
+                if (path := m.get("file_path") or "")
+                and path.startswith(tuple(roots))
+                and not os.path.exists(path)
+            ]
+            for movie_id in stale:
+                delete_movie_cascade(movie_id)
+            if stale:
+                logger.info("Standalone cleanup: removed %d movies whose file is gone", len(stale))
+            return len(stale)
+        except Exception as e:
+            logger.error("Standalone movie cleanup failed: %s", e)
+            self._recover_session()
             return 0
 
     def _cleanup_stale_wanted(self) -> int:
