@@ -140,6 +140,7 @@ class TestCleanupCascade:
         # Force watched-roots probe to succeed so cleanup runs.
         with (
             patch.object(StandaloneScanner, "_watched_roots_reachable", return_value=True),
+            patch.object(StandaloneScanner, "_enabled_roots", return_value=("/",)),
             patch(
                 "db.standalone.get_standalone_series",
                 return_value=[

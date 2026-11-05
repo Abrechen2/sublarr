@@ -27,6 +27,7 @@ from translator import (
 )
 from upgrade_scorer import score_existing_subtitle
 from utils.context_executor import submit_with_run_label
+from utils.path_presence import UNKNOWN, PathPresence, is_gone
 
 logger = logging.getLogger(__name__)
 
@@ -35,6 +36,23 @@ logger = logging.getLogger(__name__)
 # refused probe says nothing about the file, and reading it as "no embedded
 # streams" upserted wanted rows with existing_sub="" over correct ones.
 PROBE_REFUSED = object()
+
+
+def _profile_ids_shared(source: str) -> bool:
+    """Whether several Sonarr (or Radarr) instances share one profile id space.
+
+    Profile assignments are keyed by the bare series/movie id, and two
+    instances number their titles independently: series 12 of one instance
+    reads the profile of series 12 of the other. Rows are then never dropped
+    for "not in the profile", since the profile may be another title's.
+    """
+    try:
+        from config import get_radarr_instances, get_sonarr_instances
+
+        instances = get_sonarr_instances() if source == "sonarr" else get_radarr_instances()
+        return len(instances or []) > 1
+    except Exception:
+        return True  # cannot tell: keep rows
 
 
 def batch_probe(paths: list[str]) -> dict[str, object]:
@@ -301,6 +319,9 @@ def scan_radarr_movie(
     mapped_path = map_path(file_path)
     if not os.path.exists(mapped_path):
         _warn_unmapped(movie_title, [(file_path, mapped_path)], 1)
+        if not is_gone(mapped_path):
+            # Out of reach (share offline), not deleted: its rows count as seen.
+            scanned_paths.add(mapped_path)
         return added, updated, scanned_paths
 
     scanned_paths.add(mapped_path)
@@ -388,8 +409,9 @@ def scan_radarr_movie(
                 else:
                     added += 1
 
-    _drop_pending(unwanted)
-    _drop_other_languages(scanned_paths, target_languages)
+    if not _profile_ids_shared("radarr"):
+        _drop_pending(unwanted)
+        _drop_other_languages(scanned_paths, target_languages)
     return added, updated, scanned_paths
 
 
@@ -429,6 +451,7 @@ def scan_sonarr_series(
     updated = 0
     scanned_paths = set()
 
+    presence = PathPresence()
     # Collect episode file paths for batch ffprobe
     episode_data = []
     missing: list[tuple[str, str]] = []
@@ -451,6 +474,10 @@ def scan_sonarr_series(
         mapped_path = map_path(file_path)
         if not os.path.exists(mapped_path):
             missing.append((file_path, mapped_path))
+            if presence.state(mapped_path) == UNKNOWN:
+                # Out of reach (share offline), not deleted: the full scan's
+                # cleanup must not prune its rows for missing from this pass.
+                scanned_paths.add(mapped_path)
             continue
 
         episode_data.append((ep, mapped_path))
@@ -561,6 +588,7 @@ def scan_sonarr_series(
                     else:
                         added += 1
 
-    _drop_pending(unwanted)
-    _drop_other_languages(scanned_paths, target_languages)
+    if not _profile_ids_shared("sonarr"):
+        _drop_pending(unwanted)
+        _drop_other_languages(scanned_paths, target_languages)
     return added, updated, scanned_paths

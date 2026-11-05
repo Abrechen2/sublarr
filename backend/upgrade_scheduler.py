@@ -22,6 +22,7 @@ DEFAULT_INTERVAL_HOURS = 0  # Disabled by default; user must opt in
 
 #: Subtitles with a score below this value are candidates regardless of format.
 UPGRADE_SCORE_THRESHOLD = 500
+_COMMIT_EVERY = 200
 
 
 _state = {
@@ -171,9 +172,16 @@ def _execute_scan() -> dict:
         db = get_db()
         wanted_repo = WantedRepository()
 
-        # Find subtitle_downloads older than window_days
-        stmt = select(SubtitleDownload).where(SubtitleDownload.downloaded_at < cutoff_download)
-        downloads = db.execute(stmt).scalars().all()
+        # Find subtitle_downloads older than window_days. Only the four columns
+        # the decision reads: whole ORM rows (decision logs and all) of a
+        # large download history cost a Pi hundreds of megabytes per scan.
+        stmt = select(
+            SubtitleDownload.source,
+            SubtitleDownload.score,
+            SubtitleDownload.format,
+            SubtitleDownload.file_path,
+        ).where(SubtitleDownload.downloaded_at < cutoff_download)
+        downloads = db.execute(stmt).all()
 
         for dl in downloads:
             # Phase-1 provisional-MT guard (feature #8): defense-in-depth
@@ -233,7 +241,8 @@ def _execute_scan() -> dict:
                     updated_at=datetime.now(UTC),
                 )
             )
-            db.commit()
+            if queued % _COMMIT_EVERY == _COMMIT_EVERY - 1:
+                db.commit()  # one commit per batch, not per row (SD cards)
             logger.debug(
                 "Upgrade candidate queued: wanted_id=%d file=%s score=%d format=%s",
                 item["id"],
@@ -242,6 +251,7 @@ def _execute_scan() -> dict:
                 dl.format or "?",
             )
             queued += 1
+        db.commit()
 
     finally:
         _state["executing"] = False

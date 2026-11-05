@@ -159,6 +159,7 @@ def ensure_episode_ids(series_id: int, files: list[tuple[str, dict]]) -> dict[st
     repo = StandaloneEpisodeRepository()
     known = {r["file_path"]: r for r in repo.get_episodes_for_series(series_id)}
     out: dict[str, int] = {}
+    to_write: list[tuple[str, int | None, int | None]] = []
     for fp, parsed in files:
         if not fp or fp in out:
             continue
@@ -167,8 +168,12 @@ def ensure_episode_ids(series_id: int, files: list[tuple[str, dict]]) -> dict[st
         # No parse result (folder unreachable, wanted-row fallback) keeps the
         # numbers a row already has.
         if row is None or (parsed and (row["season"], row["episode"]) != (season, episode)):
-            row = repo.upsert_episode(series_id, fp, season, episode)
-        out[fp] = row["id"]
+            to_write.append((fp, season, episode))
+            out[fp] = -1  # placeholder, filled in below
+        else:
+            out[fp] = row["id"]
+    # One transaction for every new or changed file of the series.
+    out.update(repo.upsert_episodes(series_id, to_write))
     return out
 
 

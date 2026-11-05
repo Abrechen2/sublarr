@@ -31,6 +31,8 @@ def _no_pending_kind_rows():
         # A profile lookup that fails now skips the title; these tests run
         # without a database, so they answer "no profile" instead.
         patch("db.profiles.get_profile_for_item", return_value=None),
+        # Every path here lives under one enabled watched root.
+        patch.object(StandaloneScanner, "_enabled_roots", return_value=("/",)),
     ):
         yield
 
@@ -1196,7 +1198,7 @@ class TestCleanupStaleMovies:
         ]
         with (
             patch.object(StandaloneScanner, "_watched_roots_reachable", return_value=True),
-            patch("db.standalone.get_watched_folders", return_value=[{"path": str(tmp_path)}]),
+            patch.object(StandaloneScanner, "_enabled_roots", return_value=(str(tmp_path) + "/",)),
             patch("db.standalone.get_standalone_movies", return_value=movies),
             patch("services.standalone_manager.delete_movie_cascade") as cascade,
         ):
@@ -1211,3 +1213,57 @@ class TestCleanupStaleMovies:
         ):
             assert scanner._cleanup_stale_movies() == 0
         cascade.assert_not_called()
+
+
+class TestCleanupSparesUnreadableAndDisabled:
+    def test_series_on_an_io_error_is_kept(self):
+        scanner = StandaloneScanner()
+        with (
+            patch.object(StandaloneScanner, "_watched_roots_reachable", return_value=True),
+            patch(
+                "db.standalone.get_standalone_series",
+                return_value=[{"id": 1, "folder_path": "/nas/Show"}],
+            ),
+            patch("standalone.scanner.PathPresence.is_gone", return_value=False),
+            patch("services.standalone_manager.delete_series_cascade") as cascade,
+        ):
+            assert scanner._cleanup_stale_series() == 0
+        cascade.assert_not_called()
+
+    def test_series_outside_the_enabled_roots_is_kept(self):
+        scanner = StandaloneScanner()
+        with (
+            patch.object(StandaloneScanner, "_watched_roots_reachable", return_value=True),
+            patch.object(StandaloneScanner, "_enabled_roots", return_value=("/enabled/",)),
+            patch(
+                "db.standalone.get_standalone_series",
+                return_value=[{"id": 1, "folder_path": "/disabled/Show"}],
+            ),
+            patch("services.standalone_manager.delete_series_cascade") as cascade,
+        ):
+            assert scanner._cleanup_stale_series() == 0
+        cascade.assert_not_called()
+
+
+def test_folders_are_scanned_least_recently_scanned_first():
+    scanner = StandaloneScanner()
+    folders = [
+        {"id": 1, "path": "/a", "last_scan_at": "2026-11-05T10:00:00"},
+        {"id": 2, "path": "/b", "last_scan_at": None},
+        {"id": 3, "path": "/c", "last_scan_at": "2026-11-04T10:00:00"},
+    ]
+    order = []
+    with (
+        patch("db.standalone.get_watched_folders", return_value=folders),
+        patch.object(
+            scanner, "_scan_folder", side_effect=lambda f: order.append(f["path"]) or (0, 0, 0)
+        ),
+        patch.object(scanner, "_cleanup_stale_series"),
+        patch.object(scanner, "_cleanup_stale_movies"),
+        patch.object(scanner, "_cleanup_stale_wanted"),
+        patch.object(scanner, "_cleanup_stale_episodes"),
+        patch.object(scanner, "_sweep_orphans"),
+    ):
+        scanner._scan_all_once()
+
+    assert order == ["/b", "/c", "/a"]

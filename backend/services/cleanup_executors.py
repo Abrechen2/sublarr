@@ -654,12 +654,13 @@ def execute_orphan_db(config: dict, dry_run: bool = False) -> dict:
     missing: list[str] = []
     examples: list[dict] = []
 
+    from utils.path_presence import PathPresence
+
+    # Only a vouched-for absence: os.path.exists answers False for an I/O
+    # error or a second share that is offline, too.
+    presence = PathPresence()
     for path in paths:
-        try:
-            exists = os.path.exists(path)
-        except OSError:
-            continue
-        if not exists:
+        if presence.is_gone(path):
             missing.append(path)
             if len(examples) < 20:
                 examples.append({"path": path, "size_bytes": 0, "reason": "file missing on disk"})

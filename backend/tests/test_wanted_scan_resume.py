@@ -184,7 +184,7 @@ class TestCleanupProtectsNewRows:
         with (
             patch("db.wanted.get_wanted_items_for_cleanup", return_value=rows),
             patch("services.standalone_library.wanted_item_path_refusal", return_value=None),
-            patch("services.wanted_scanner_core.os.path.exists", return_value=True),
+            patch("services.wanted_scanner_core.PathPresence.state", return_value="present"),
             patch(
                 "services.wanted_scanner_core.detect_existing_target_for_lang", return_value=None
             ),

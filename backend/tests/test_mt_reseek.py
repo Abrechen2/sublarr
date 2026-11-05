@@ -82,6 +82,20 @@ def test_get_provisional_items_selects_only_provisional(app_ctx):
     assert all(r["status"] == "provisional" for r in rows)
 
 
+def test_pinned_rows_do_not_take_a_batch_slot(app_ctx):
+    """The oldest pinned rows filled every batch and starved the rest."""
+    from db.repositories.wanted import WantedRepository
+    from db.wanted import set_mt_pinned
+
+    pinned = _make_wanted_item(file_path="/media/pinned.mkv", status="provisional")
+    set_mt_pinned(pinned.id, True)
+    free = _make_wanted_item(file_path="/media/free.mkv", status="provisional")
+
+    rows = WantedRepository().get_provisional_items(limit=1)
+
+    assert [r["id"] for r in rows] == [free.id]
+
+
 def test_get_provisional_items_respects_backoff(app_ctx):
     from db.repositories.wanted import WantedRepository
 
@@ -207,6 +221,8 @@ def test_reseek_skips_when_profile_no_longer_keep_seeking():
     assert result["searched"] == 0
     assert result["skipped"] == 1
     assert not mock_hook.called
+    # ...but its turn is taken, so it does not hold the front of every batch.
+    assert mock_update.call_args.args[0] == 3
 
 
 def test_reseek_skips_pinned_item():

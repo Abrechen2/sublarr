@@ -262,7 +262,12 @@ class WantedRepository(BaseRepository, _WantedUpsertMixin, _WantedUpdatesMixin):
         recently than the cutoff are excluded so the job stays cheap. Rows that
         were never searched (``last_search_at IS NULL``) always qualify.
         """
-        stmt = select(WantedItem).where(WantedItem.status == "provisional")
+        stmt = select(WantedItem).where(
+            WantedItem.status == "provisional",
+            # Pinned MT is never re-sought; left in, the oldest pinned rows
+            # filled every batch and starved the rest.
+            or_(WantedItem.mt_pinned.is_(None), WantedItem.mt_pinned == 0),
+        )
         if search_cutoff is not None:
             stmt = stmt.where(
                 or_(

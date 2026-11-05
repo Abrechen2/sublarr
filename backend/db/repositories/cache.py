@@ -123,8 +123,9 @@ class CacheRepository(BaseRepository):
         Returns:
             Dict with ``removed`` (int), ``paths`` (list of removed paths), and ``dry_run`` (bool).
         """
-        import os
+        from utils.path_presence import PathPresence
 
+        presence = PathPresence()
         stale: list[str] = []
         offset = 0
         while True:
@@ -140,11 +141,15 @@ class CacheRepository(BaseRepository):
             )
             if not batch:
                 break
-            stale.extend(p for p in batch if not os.path.exists(p))
+            stale.extend(p for p in batch if presence.is_gone(p))
             offset += _FFPROBE_CLEANUP_BATCH
 
         if not dry_run and stale:
-            self.session.execute(delete(FfprobeCache).where(FfprobeCache.file_path.in_(stale)))
+            # Chunked: one IN list per batch stays under SQLite's bound-parameter
+            # limit however many entries a large library drops at once.
+            for start in range(0, len(stale), _FFPROBE_CLEANUP_BATCH):
+                chunk = stale[start : start + _FFPROBE_CLEANUP_BATCH]
+                self.session.execute(delete(FfprobeCache).where(FfprobeCache.file_path.in_(chunk)))
             self._commit()
             logger.info("Removed %d stale ffprobe cache entries", len(stale))
 

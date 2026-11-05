@@ -14,7 +14,6 @@ Periodic scheduler lives in wanted_scanner_scheduler.py.
 """
 
 import logging
-import os
 import threading
 import time
 from datetime import UTC, datetime, timedelta
@@ -33,6 +32,7 @@ from services.wanted_scanner_sources import (  # noqa: F401 — re-exported for 
 )
 from services.wanted_search_runner import run_wanted_search
 from translator import detect_existing_target_for_lang
+from utils.path_presence import GONE, UNKNOWN, PathPresence
 
 logger = logging.getLogger(__name__)
 
@@ -474,6 +474,7 @@ class WantedScanner(_WantedSchedulerMixin, _WantedScanSourcesMixin):
 
         items = get_wanted_items_for_cleanup()
         to_remove_ids = []
+        presence = PathPresence()
 
         for item in items:
             if wanted_item_path_refusal(item):
@@ -483,8 +484,12 @@ class WantedScanner(_WantedSchedulerMixin, _WantedScanSourcesMixin):
             target_lang = item.get("target_language", "")
             instance_name = item.get("instance_name", "")
 
-            if not os.path.exists(path):
+            seen_on_disk = presence.state(path)
+            if seen_on_disk == GONE:
                 to_remove_ids.append(item["id"])
+                continue
+            if seen_on_disk == UNKNOWN:
+                # Unreadable or on a share that is offline: not a deleted file.
                 continue
 
             settings = get_settings()

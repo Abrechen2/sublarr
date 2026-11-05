@@ -25,6 +25,7 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm.exc import StaleDataError
 
 from db.models.core import WantedItem
+from utils.path_presence import PathPresence
 
 logger = logging.getLogger(__name__)
 
@@ -96,6 +97,7 @@ class _WantedUpsertMixin:
         candidates = self.session.execute(sibling_stmt).scalars().all()
 
         deleted_ids: list[int] = []
+        presence = PathPresence()
         for sib in candidates:
             sib_path = sib.file_path
             if not sib_path:
@@ -107,13 +109,9 @@ class _WantedUpsertMixin:
             # current path as stale-by-string.
             if os.path.normpath(sib_path) == os.path.normpath(keep_file_path):
                 continue
-            try:
-                exists = os.path.exists(sib_path)
-            except OSError:
-                # Mount went away mid-prune — bail; better to keep the
-                # row than to risk a wrongful delete.
-                continue
-            if not exists:
+            # The kept file proves its own share; a sibling may sit on another
+            # one that is offline, so only a vouched-for absence counts.
+            if presence.is_gone(sib_path):
                 self.session.delete(sib)
                 deleted_ids.append(sib.id)
 

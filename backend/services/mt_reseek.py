@@ -273,8 +273,11 @@ def _reseek() -> dict:
     for item in items:
         item_id = item.get("id")
         # Profile turned keep-seeking off → leave the item inert, don't search.
+        # Its turn is still taken, or the oldest such rows would fill every
+        # batch and starve the items that do keep seeking.
         if not resolve_keep_seeking(item):
             skipped += 1
+            _mark_reseek_miss(item_id)
             continue
         # Pinned (user-edited/confirmed) MT is never auto-replaced (Task 2).
         if _is_pinned(item):

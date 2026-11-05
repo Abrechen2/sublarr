@@ -100,7 +100,7 @@ def _run_cleanup(scanner, items, scanned_paths):
     with (
         patch("db.wanted.get_wanted_items_for_cleanup", return_value=items),
         patch("db.wanted.delete_wanted_items_by_ids") as delete,
-        patch("services.wanted_scanner_core.os.path.exists", return_value=True),
+        patch("services.wanted_scanner_core.PathPresence.state", return_value="present"),
         patch("services.wanted_scanner_core.detect_existing_target_for_lang", return_value=""),
         patch(
             "services.wanted_scanner_core.get_settings",
@@ -167,3 +167,24 @@ def test_repository_counts_rows_per_instance(app_ctx):
     assert get_wanted_count_for_instance("Sonarr 1") == 1
     assert get_wanted_count_for_instance("Sonarr 2") == 1
     assert get_wanted_count_for_instance("Radarr 1") == 0
+
+
+class TestOfflineShareIsNotDeleted:
+    """A file on a share that is offline reads as missing; it is not deleted."""
+
+    def test_unreadable_rows_survive_both_checks(self):
+        scanner = _scanner()
+        items = _items(30)
+        with (
+            patch("db.wanted.get_wanted_items_for_cleanup", return_value=items),
+            patch("db.wanted.delete_wanted_items_by_ids") as delete,
+            patch("services.wanted_scanner_core.PathPresence.state", return_value="unknown"),
+            patch(
+                "services.wanted_scanner_core.get_settings",
+                return_value=MagicMock(upgrade_enabled=True),
+            ),
+        ):
+            removed = scanner._cleanup({"/media/other.mkv"})
+
+        assert removed == 0
+        delete.assert_not_called()

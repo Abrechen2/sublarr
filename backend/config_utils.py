@@ -63,7 +63,17 @@ def map_path(path: str) -> str:
             continue
         if windows:
             remote_prefix = remote_prefix.replace("\\", "/")
-        if not is_under_folder(probe, remote_prefix):
+            # Windows paths ignore case: Sonarr may report d:\tv for D:\TV.
+            # Compared lowered only where lowering keeps the length, so the
+            # slice below still cuts the original at the same place.
+            if len(probe.lower()) == len(probe) and len(remote_prefix.lower()) == len(
+                remote_prefix
+            ):
+                if not is_under_folder(probe.lower(), remote_prefix.lower()):
+                    continue
+            elif not is_under_folder(probe, remote_prefix):
+                continue
+        elif not is_under_folder(probe, remote_prefix):
             continue
         if best is None or len(remote_prefix) > len(best[0]):
             best = (remote_prefix, local_prefix)

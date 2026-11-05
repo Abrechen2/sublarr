@@ -645,3 +645,50 @@ def test_scan_sonarr_series_uses_fallback_path(tmp_path):
         added, _, _ = scan_sonarr_series(sonarr, 1, settings, series_info={"title": "Series"})
     assert added == 1
     sonarr.get_episode_file_path.assert_called_once_with(10)
+
+
+def test_an_episode_on_an_offline_share_counts_as_seen():
+    """Its rows must survive the full scan's prune of paths not seen."""
+    from services.wanted_item_scanner import scan_sonarr_series
+
+    sonarr = MagicMock()
+    sonarr.get_series_by_id.return_value = {"title": "Series"}
+    sonarr.list_episodes.return_value = [
+        {
+            "id": 1,
+            "hasFile": True,
+            "seasonNumber": 1,
+            "episodeNumber": 1,
+            "episodeFile": {"path": "/nas/Show/e1.mkv"},
+        }
+    ]
+    settings = MagicMock(
+        target_language="de", target_language_name="German", use_embedded_subs=False
+    )
+    with (
+        patch("services.wanted_item_scanner.get_series_profile", return_value={}),
+        patch("services.wanted_item_scanner.map_path", side_effect=lambda p: p),
+        patch("services.wanted_item_scanner.PathPresence.state", return_value="unknown"),
+    ):
+        _, _, paths = scan_sonarr_series(sonarr, 1, settings)
+
+    assert paths == {"/nas/Show/e1.mkv"}
+
+
+def test_two_sonarr_instances_never_drop_rows_by_a_shared_profile_id():
+    """Series 12 of one instance reads the profile of series 12 of the other."""
+    from services import wanted_item_scanner as wis
+
+    sonarr = MagicMock()
+    sonarr.get_series_by_id.return_value = {"title": "Series"}
+    sonarr.list_episodes.return_value = [{"id": 1, "hasFile": False}]
+    with (
+        patch("config.get_sonarr_instances", return_value=[{"name": "A"}, {"name": "B"}]),
+        patch.object(wis, "get_series_profile", return_value={"target_languages": ["de"]}),
+        patch.object(wis, "_drop_other_languages") as drop_langs,
+        patch.object(wis, "_drop_pending") as drop_kinds,
+    ):
+        wis.scan_sonarr_series(sonarr, 12, MagicMock(), instance_name="B")
+
+    drop_langs.assert_not_called()
+    drop_kinds.assert_not_called()

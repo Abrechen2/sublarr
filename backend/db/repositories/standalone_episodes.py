@@ -80,6 +80,52 @@ class StandaloneEpisodeRepository(BaseRepository):
                 self._commit()
             return self._to_dict(existing)
 
+    def upsert_episodes(
+        self, series_id: int, entries: list[tuple[str, int | None, int | None]]
+    ) -> dict[str, int]:
+        """``upsert_episode`` for many files in one transaction; path -> row id.
+
+        One commit instead of one per episode: the first look at a large
+        series wrote thousands of transactions, slow on SD cards and NAS
+        disks. A lost insert race rolls the batch back and redoes it row by
+        row through the race-safe single upsert.
+        """
+        if not entries:
+            return {}
+        now = self._now()
+        rows: dict[str, StandaloneEpisode] = {}
+        try:
+            for file_path, season, episode in entries:
+                row = self._find_by_path(file_path)
+                if row is None:
+                    row = StandaloneEpisode(
+                        standalone_series_id=series_id,
+                        file_path=file_path,
+                        season=season,
+                        episode=episode,
+                        created_at=now,
+                        updated_at=now,
+                    )
+                    self.session.add(row)
+                elif (row.standalone_series_id, row.season, row.episode) != (
+                    series_id,
+                    season,
+                    episode,
+                ):
+                    row.standalone_series_id = series_id
+                    row.season = season
+                    row.episode = episode
+                    row.updated_at = now
+                rows[file_path] = row
+            self.session.commit()
+            return {fp: row.id for fp, row in rows.items()}
+        except IntegrityError:
+            self.session.rollback()
+            return {
+                fp: self.upsert_episode(series_id, fp, season, episode)["id"]
+                for fp, season, episode in entries
+            }
+
     def get_episode(self, episode_id: int) -> dict | None:
         row = self.session.get(StandaloneEpisode, episode_id)
         return self._to_dict(row) if row else None

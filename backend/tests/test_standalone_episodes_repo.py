@@ -115,3 +115,47 @@ def test_a_lost_insert_race_returns_the_winner(app_ctx, monkeypatch):
     rows = db.session.query(StandaloneEpisode).all()
     assert len(rows) == 1
     assert got["id"] == rows[0].id
+
+
+def test_many_files_are_recorded_in_one_commit(app_ctx, monkeypatch):
+    """First discovery of a large series committed once per episode — tens of
+    thousands of transactions on an SD card."""
+    from db.repositories.standalone_episodes import StandaloneEpisodeRepository
+    from extensions import db
+
+    sid = _series("Show", "/media/Show")
+    repo = StandaloneEpisodeRepository()
+    known = repo.upsert_episode(sid, "/media/Show/S01E01.mkv", 1, 9)
+    commits = []
+    real_commit = db.session.commit
+    monkeypatch.setattr(db.session, "commit", lambda: commits.append(1) or real_commit())
+
+    ids = repo.upsert_episodes(sid, [(f"/media/Show/S01E{n:02d}.mkv", 1, n) for n in range(1, 41)])
+
+    assert len(commits) == 1
+    assert len(set(ids.values())) == 40
+    assert ids["/media/Show/S01E01.mkv"] == known["id"]
+    assert repo.get_episode(known["id"])["episode"] == 1
+
+
+def test_a_lost_race_in_the_bulk_write_falls_back_to_single_rows(app_ctx, monkeypatch):
+    from sqlalchemy.exc import IntegrityError
+
+    from db.repositories.standalone_episodes import StandaloneEpisodeRepository
+    from extensions import db
+
+    sid = _series("Show", "/media/Show")
+    repo = StandaloneEpisodeRepository()
+    real_commit = db.session.commit
+    calls = {"n": 0}
+
+    def commit():
+        calls["n"] += 1
+        if calls["n"] == 1:
+            raise IntegrityError("INSERT", {}, Exception("unique"))
+        return real_commit()
+
+    monkeypatch.setattr(db.session, "commit", commit)
+    ids = repo.upsert_episodes(sid, [("/media/Show/a.mkv", 1, 1), ("/media/Show/b.mkv", 1, 2)])
+
+    assert set(ids) == {"/media/Show/a.mkv", "/media/Show/b.mkv"}

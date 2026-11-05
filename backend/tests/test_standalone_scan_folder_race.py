@@ -169,8 +169,9 @@ def test_scan_requests_during_a_scan_coalesce_into_one_rescan(scanner, tmp_path)
     ):
         scanner.scan_all_folders()
 
-    # First pass: only the first folder existed. One rescan covers both.
-    assert passes == [str(first), str(first), str(second)]
+    # First pass: only the first folder existed. One rescan covers both,
+    # least recently scanned first: the new folder before the one just done.
+    assert passes == [str(first), str(second), str(first)]
     assert _count("standalone_series") == 3
     assert not scanner.is_scanning
     # The lock is free again.

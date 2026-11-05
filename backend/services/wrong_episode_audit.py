@@ -28,6 +28,9 @@ from dataclasses import dataclass
 
 logger = logging.getLogger(__name__)
 
+# Rows loaded per query once the newest downloads are picked.
+_LOAD_CHUNK = 500
+
 _SIDECAR_FORMATS = ("ass", "srt", "ssa", "vtt")
 
 
@@ -102,13 +105,30 @@ def _newest_provider_downloads(language: str | None) -> list:
     from db.models.providers import SubtitleDownload
     from extensions import db
 
-    query = db.session.query(SubtitleDownload)
+    # Pick the newest row per (video, language) from the key columns only;
+    # whole rows with their decision logs cost a large history hundreds of
+    # megabytes, which a Pi does not have. The winners are loaded after.
+    keys = db.session.query(
+        SubtitleDownload.id,
+        SubtitleDownload.file_path,
+        SubtitleDownload.language,
+        SubtitleDownload.source,
+    )
     if language:
-        query = query.filter(SubtitleDownload.language == language)
-    newest: dict[tuple[str, str], object] = {}
-    for row in query.order_by(SubtitleDownload.downloaded_at.desc(), SubtitleDownload.id.desc()):
-        newest.setdefault((row.file_path, row.language), row)
-    return [row for row in newest.values() if (row.source or "provider") == "provider"]
+        keys = keys.filter(SubtitleDownload.language == language)
+    newest: dict[tuple[str, str], tuple[int, str | None]] = {}
+    for row_id, file_path, lang, source in keys.order_by(
+        SubtitleDownload.downloaded_at.desc(), SubtitleDownload.id.desc()
+    ):
+        newest.setdefault((file_path, lang), (row_id, source))
+    wanted_ids = [
+        row_id for row_id, source in newest.values() if (source or "provider") == "provider"
+    ]
+    rows = []
+    for start in range(0, len(wanted_ids), _LOAD_CHUNK):
+        chunk = wanted_ids[start : start + _LOAD_CHUNK]
+        rows.extend(db.session.query(SubtitleDownload).filter(SubtitleDownload.id.in_(chunk)))
+    return rows
 
 
 class _SonarrEpisodes:

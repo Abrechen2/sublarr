@@ -49,6 +49,29 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   profile could not be read. It is now left alone until the profile reads.
 - **Scheduler: a stalled history write blocked the job** — The run-history
   row is now written after the job lock is released.
+- **An offline share deleted its library's items** — Cleanups treated every
+  file they could not see as deleted: a NAS that dropped, an I/O error or a
+  share that was not mounted removed wanted items (up to the fuse), standalone
+  series, movies and episode ids, download history and probe cache entries. A
+  file now counts as deleted only when the disk vouches for it; unreadable or
+  unmounted ones are kept. A full wanted scan also keeps the items of episodes
+  it could not read, and standalone cleanups only judge enabled watched
+  folders.
+- **Standalone: a large first folder starved the others** — Folders are now
+  scanned least recently scanned first, so a pass the scheduler stops after a
+  slow first folder continues with the next one.
+- **MT re-seek starved behind pinned items** — Pinned items and items whose
+  profile stopped seeking no longer hold the front of every batch.
+- **Several Sonarr or Radarr instances** — Profile assignments are keyed by the
+  title id, which two instances number independently. While more than one
+  instance is configured, the scan no longer drops items for languages "not in
+  the profile", since that profile may belong to another instance's title.
+- **Windows path mappings ignored case** — `D:\TV` and `d:\tv` now map the same.
+- **Lighter on small hardware** — The upgrade scan reads four columns instead
+  of whole download rows and commits in batches; a large series' episode ids
+  are written in one transaction; the wrong-episode audit loads only the
+  newest download per file; the probe-cache cleanup deletes in chunks below
+  SQLite's parameter limit.
 
 ## [1.20.0] - 2026-11-03
 

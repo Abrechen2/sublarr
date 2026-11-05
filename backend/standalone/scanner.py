@@ -15,6 +15,7 @@ from sqlalchemy import text
 
 from services.scheduler.cancellation import abort_requested
 from standalone.scanner_process import _StandaloneProcessMixin  # noqa: F401 — re-exported
+from utils.path_presence import PathPresence
 
 logger = logging.getLogger(__name__)
 
@@ -201,7 +202,14 @@ class StandaloneScanner(_StandaloneProcessMixin):
         try:
             from db.standalone import get_watched_folders
 
-            folders = get_watched_folders(enabled_only=True)
+            # Least recently scanned first. A folder is stamped when its scan
+            # finishes, so a pass the scheduler stops after a long first
+            # folder starts with the next one instead of the same one again
+            # (path order starved every later folder on slow storage).
+            folders = sorted(
+                get_watched_folders(enabled_only=True),
+                key=lambda f: str(f.get("last_scan_at") or ""),
+            )
             if not folders:
                 logger.info("No enabled watched folders configured")
                 # Title cleanup is skipped without folders (a dropped mount
@@ -898,11 +906,17 @@ class StandaloneScanner(_StandaloneProcessMixin):
             if not all_series:
                 return 0
 
+            roots = self._enabled_roots()
+            presence = PathPresence()
             to_remove = []
             for s in all_series:
                 folder = s.get("folder_path", "")
                 basename = os.path.basename(folder)
-                if not os.path.isdir(folder) or self._SEASON_FOLDER_RE.match(basename):
+                if self._SEASON_FOLDER_RE.match(basename):
+                    to_remove.append(s["id"])
+                elif os.path.join(folder, "").startswith(roots) and presence.is_gone(folder):
+                    # Only below a probed root, and only when the disk vouches
+                    # for it: an I/O error on a NAS is not a deleted series.
                     to_remove.append(s["id"])
 
             for sid in to_remove:
@@ -925,6 +939,21 @@ class StandaloneScanner(_StandaloneProcessMixin):
             logger.error("Standalone series cleanup failed: %s", e)
             return 0
 
+    @staticmethod
+    def _enabled_roots() -> tuple[str, ...]:
+        """Enabled watched folders, each ending in a separator.
+
+        Cleanups only judge paths below these: a disabled folder is not
+        probed by ``_watched_roots_reachable`` and may be offline.
+        """
+        from db.standalone import get_watched_folders
+
+        return tuple(
+            os.path.join(f["path"], "")
+            for f in get_watched_folders(enabled_only=True)
+            if f.get("path")
+        )
+
     def _cleanup_stale_movies(self) -> int:
         """Remove standalone movies whose file no longer exists.
 
@@ -935,22 +964,17 @@ class StandaloneScanner(_StandaloneProcessMixin):
         if not self._watched_roots_reachable():
             return 0
         try:
-            from db.standalone import get_standalone_movies, get_watched_folders
+            from db.standalone import get_standalone_movies
             from services.standalone_manager import delete_movie_cascade
 
-            # Only roots that were just probed: a disabled folder may be
-            # offline, and its films are not gone.
-            roots = [
-                os.path.join(f["path"], "")
-                for f in get_watched_folders(enabled_only=True)
-                if f.get("path")
-            ]
+            roots = self._enabled_roots()
+            presence = PathPresence()
             stale = [
                 m["id"]
                 for m in get_standalone_movies() or []
                 if (path := m.get("file_path") or "")
-                and path.startswith(tuple(roots))
-                and not os.path.exists(path)
+                and path.startswith(roots)
+                and presence.is_gone(path)
             ]
             for movie_id in stale:
                 delete_movie_cascade(movie_id)
@@ -984,9 +1008,16 @@ class StandaloneScanner(_StandaloneProcessMixin):
                 text("SELECT id, file_path FROM wanted_items WHERE instance_name='standalone'")
             ).fetchall()
 
+            roots = self._enabled_roots()
+            presence = PathPresence()
             to_remove = []
             for row in rows:
-                if not os.path.exists(row[1]) or (skip_extras and _is_extra_file(row[1])):
+                if (
+                    skip_extras
+                    and _is_extra_file(row[1])
+                    or row[1].startswith(roots)
+                    and presence.is_gone(row[1])
+                ):
                     to_remove.append(row[0])
 
             if to_remove:
@@ -1018,10 +1049,13 @@ class StandaloneScanner(_StandaloneProcessMixin):
 
             repo = StandaloneEpisodeRepository()
             series_ids = {s["id"] for s in get_standalone_series() or []}
+            roots = self._enabled_roots()
+            presence = PathPresence()
             stale = [
                 e["id"]
                 for e in repo.get_all_episodes()
-                if e["standalone_series_id"] not in series_ids or not os.path.exists(e["file_path"])
+                if e["standalone_series_id"] not in series_ids
+                or (e["file_path"].startswith(roots) and presence.is_gone(e["file_path"]))
             ]
             removed = repo.delete_episodes_by_ids(stale)
             if removed:

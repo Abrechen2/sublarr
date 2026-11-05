@@ -101,7 +101,7 @@ class TestUpgradeSchedulerScanLogic:
             settings = _make_settings()
 
         mock_db = MagicMock()
-        mock_db.execute.return_value.scalars.return_value.all.return_value = downloads
+        mock_db.execute.return_value.all.return_value = downloads
 
         mock_wanted_repo = MagicMock()
         mock_wanted_repo.get_wanted_by_file_path.return_value = wanted_item
@@ -240,7 +240,7 @@ class TestUpgradeSchedulerScanLogic:
         assert scheduler.last_run_at is None
 
         mock_db = MagicMock()
-        mock_db.execute.return_value.scalars.return_value.all.return_value = []
+        mock_db.execute.return_value.all.return_value = []
 
         with (
             patch("config.get_settings", return_value=_make_settings()),
@@ -258,7 +258,7 @@ class TestUpgradeSchedulerScanLogic:
         scheduler = UpgradeScheduler(mock_app)
 
         mock_db = MagicMock()
-        mock_db.execute.return_value.scalars.return_value.all.return_value = []
+        mock_db.execute.return_value.all.return_value = []
 
         with (
             patch("config.get_settings", return_value=_make_settings()),
