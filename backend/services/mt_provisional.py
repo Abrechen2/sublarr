@@ -24,6 +24,16 @@ def _resolve_profile_for_item(item: dict) -> dict | None:
     return get_profile_for_item(item)
 
 
+def _keep_seeking_or_none(item: dict) -> bool | None:
+    """The profile's ``mt_keep_seeking_original``, or None when it cannot be read."""
+    try:
+        prof = _resolve_profile_for_item(item)
+    except Exception as e:
+        logger.warning("Cannot read the profile of wanted item %s: %s", item.get("id"), e)
+        return None
+    return bool(prof.get("mt_keep_seeking_original", 0)) if prof else False
+
+
 def resolve_keep_seeking(item: dict) -> bool:
     """Whether this item's profile keeps MT provisional. Fails safe to False.
 
@@ -84,15 +94,20 @@ def finalize_translation(item_id, item, output_path, target_lang, target_fmt) ->
 
     The MT subtitle_downloads row is recorded unconditionally whenever an
     output_path is available -- only the keep-provisional-vs-delete decision
-    for the wanted item is gated by the profile, and that gate fails safe to
-    delete (current behaviour) on any profile-resolution error.
+    for the wanted item is gated by the profile. When the profile cannot be
+    read the row is left as it is: deleting it on a read error dropped the
+    keep-seeking an opted-in profile asked for, and the next wanted scan
+    settles the row once the profile reads again.
     """
     from db.wanted import delete_wanted_item, update_wanted_status
 
     if output_path:
         record_mt_output(item["file_path"], output_path, target_lang, target_fmt)
 
-    if resolve_keep_seeking(item):
+    keep_seeking = _keep_seeking_or_none(item)
+    if keep_seeking is None:
+        return
+    if keep_seeking:
         update_wanted_status(item_id, "provisional")
     else:
         delete_wanted_item(item_id)

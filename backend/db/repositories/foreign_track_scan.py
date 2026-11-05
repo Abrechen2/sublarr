@@ -6,8 +6,9 @@ itself stays free of SQLAlchemy and is testable against a fake.
 
 import json
 import logging
+import os
 
-from sqlalchemy import delete, func, select
+from sqlalchemy import delete, func, or_, select, update
 
 from db.models.foreign_tracks import (
     ERROR_VERIFY,
@@ -65,6 +66,34 @@ class ForeignTrackScanRepository(BaseRepository):
             row.foreign_langs = None
             row.track_count = 0
         self._commit()
+
+    def paths_in_generation(self, generation: int) -> set[str]:
+        """Paths already stamped with ``generation`` (a stopped walk's progress)."""
+        return set(
+            self.session.execute(
+                select(ForeignTrackScan.path).where(ForeignTrackScan.generation == generation)
+            ).scalars()
+        )
+
+    def keep_under(self, paths: list[str], generation: int) -> int:
+        """Stamp rows at or below ``paths`` with ``generation`` so the prune spares them."""
+        kept = 0
+        for path in dict.fromkeys(paths):
+            under = os.path.join(path, "")
+            result = self.session.execute(
+                update(ForeignTrackScan)
+                .where(
+                    or_(
+                        ForeignTrackScan.path == path,
+                        ForeignTrackScan.path.startswith(under, autoescape=True),
+                    ),
+                    ForeignTrackScan.generation < generation,
+                )
+                .values(generation=generation)
+            )
+            kept += int(result.rowcount or 0)
+        self._commit()
+        return kept
 
     def prune_stale(self, generation: int) -> int:
         """Delete rows an enumeration pass did not see — the files are gone.

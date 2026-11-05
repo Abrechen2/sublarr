@@ -92,9 +92,13 @@ def _media_path_reachable(media_path: str) -> bool:
         return False
 
 
-def _safe_walk(root: str):
+def _safe_walk(root: str, unreadable: list[str] | None = None):
     """Yield ``(dirpath, filenames)`` from ``root`` without descending into
     symlink cycles.
+
+    ``unreadable`` collects the folders the walk could not enter or list. A
+    caller that prunes "everything the walk did not see" must spare them:
+    their files are unread, not deleted.
 
     Mirrors the standalone S0-3 inode-tracker so cleanup paths inherit
     the same defence: ``followlinks=True`` is preserved (homelab media
@@ -102,10 +106,19 @@ def _safe_walk(root: str):
     ``(st_dev, st_ino)`` short-circuits descent.
     """
     seen: set[tuple[int, int]] = set()
-    for dirpath, dirs, files in os.walk(root, followlinks=True):
+
+    def _note(path: str) -> None:
+        if unreadable is not None:
+            unreadable.append(path)
+
+    def _on_error(err: OSError) -> None:
+        _note(err.filename or root)
+
+    for dirpath, dirs, files in os.walk(root, followlinks=True, onerror=_on_error):
         try:
             st = os.stat(dirpath)
         except OSError:
+            _note(dirpath)
             dirs[:] = []
             continue
         key = (st.st_dev, st.st_ino)
@@ -121,6 +134,7 @@ def _safe_walk(root: str):
             try:
                 child = os.stat(os.path.join(dirpath, d))
             except OSError:
+                _note(os.path.join(dirpath, d))
                 continue
             if (child.st_dev, child.st_ino) in seen:
                 continue

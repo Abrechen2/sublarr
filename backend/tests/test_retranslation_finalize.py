@@ -41,7 +41,7 @@ def test_finalize_flags_mt_and_keeps_provisional_on_real_translation(
     """A genuine MT result records the MT row and (keep-seeking on) stays provisional."""
     from services import mt_provisional
 
-    monkeypatch.setattr(mt_provisional, "resolve_keep_seeking", lambda item: True)
+    monkeypatch.setattr(mt_provisional, "_keep_seeking_or_none", lambda item: True)
 
     item_id, item = _make_item(tmp_path)
     out = str(tmp_path / "ep.de.ass")

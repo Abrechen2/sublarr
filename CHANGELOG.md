@@ -36,6 +36,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **"Already running" until a restart** — The dedup scan, the subtitle repair,
   the wrong-episode requeue and the MT approval batch now release their
   running flag when their background worker cannot be started.
+- **Foreign-track sweep never finished on slow storage** — Every run walked
+  the library from the start; a walk longer than the job's two hours (a
+  Raspberry Pi, a slow network share, a very large library) was stopped every
+  time, so the sweep never got past it. A stopped walk now continues where it
+  stopped. Files in a folder the walk cannot read keep their cached result
+  instead of being treated as deleted.
+- **A stopped wanted scan waited for every probe of the current series** —
+  Probes not yet started are now dropped when the scan is asked to stop.
+- **MT: a profile read error deleted the wanted item** — With "keep seeking
+  the original" on, the item was deleted instead of kept provisional when the
+  profile could not be read. It is now left alone until the profile reads.
+- **Scheduler: a stalled history write blocked the job** — The run-history
+  row is now written after the job lock is released.
 
 ## [1.20.0] - 2026-11-03
 

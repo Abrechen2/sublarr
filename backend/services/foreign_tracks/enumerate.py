@@ -112,6 +112,7 @@ def iter_video_files(
     min_age_s: int,
     now: float,
     max_size_bytes: int = 0,
+    unreadable: list[str] | None = None,
 ) -> Iterator[tuple[str, int, float]]:
     """Yield ``(path, size_bytes, mtime)`` for every sweep candidate.
 
@@ -122,13 +123,16 @@ def iter_video_files(
     here rather than at strip time so an excluded file never enters the
     generation at all — it is not counted as affected, not probed, and does
     not sit in the state file waiting for a turn that must not come.
+
+    ``unreadable`` collects folders and files the walk could not read (see
+    ``_safe_walk``).
     """
     from services.cleanup_executors import VIDEO_EXTENSIONS, _safe_walk
 
     include_paths = [p for p in (include_paths or []) if p]
     exclude_paths = [p for p in (exclude_paths or []) if p]
 
-    for dirpath, filenames in _safe_walk(root):
+    for dirpath, filenames in _safe_walk(root, unreadable):
         if not _may_descend(dirpath, root, include_paths, exclude_paths):
             continue
         for fname in filenames:
@@ -142,6 +146,8 @@ def iter_video_files(
             try:
                 st = os.stat(full)
             except OSError:
+                if unreadable is not None:
+                    unreadable.append(full)
                 continue
             if min_age_s and (now - st.st_mtime) < min_age_s:
                 continue

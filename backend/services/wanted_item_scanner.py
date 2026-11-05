@@ -70,6 +70,14 @@ def batch_probe(paths: list[str]) -> dict[str, object]:
         future_to_path = {submit_with_run_label(executor, _gated_probe, p): p for p in paths}
         for future in as_completed(future_to_path):
             path = future_to_path[future]
+            if abort_requested():
+                # The caller discards a stopped batch; probes not yet started
+                # are dropped instead of run (minutes on a slow disk or a Pi).
+                for pending in future_to_path:
+                    if pending.cancel():
+                        results[future_to_path[pending]] = PROBE_REFUSED
+            if future.cancelled():
+                continue
             try:
                 results[path] = future.result()
             except MediaGateBusyError as e:

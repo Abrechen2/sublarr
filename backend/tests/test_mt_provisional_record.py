@@ -41,7 +41,7 @@ def test_finalize_translation_keeps_provisional_when_profile_opts_in(
     app_ctx, tmp_path, monkeypatch
 ):
     """keep-seeking TRUE: MT row recorded AND wanted item stays 'provisional'."""
-    monkeypatch.setattr(mt_provisional, "resolve_keep_seeking", lambda item: True)
+    monkeypatch.setattr(mt_provisional, "_keep_seeking_or_none", lambda item: True)
 
     item_id, item = _make_wanted_item(tmp_path)
     output_path = str(tmp_path / "ep.de.ass")
@@ -66,7 +66,7 @@ def test_finalize_translation_keeps_provisional_when_profile_opts_in(
 
 def test_finalize_translation_deletes_item_when_profile_opts_out(app_ctx, tmp_path, monkeypatch):
     """keep-seeking FALSE: MT row still recorded (flag always on) BUT item is deleted."""
-    monkeypatch.setattr(mt_provisional, "resolve_keep_seeking", lambda item: False)
+    monkeypatch.setattr(mt_provisional, "_keep_seeking_or_none", lambda item: False)
 
     item_id, item = _make_wanted_item(tmp_path)
     output_path = str(tmp_path / "ep.de.srt")
@@ -81,12 +81,12 @@ def test_finalize_translation_deletes_item_when_profile_opts_out(app_ctx, tmp_pa
     assert get_wanted_item(item_id) is None
 
 
-def test_finalize_translation_fails_safe_to_delete_on_profile_resolution_error(
+def test_finalize_translation_keeps_the_row_on_profile_resolution_error(
     app_ctx, tmp_path, monkeypatch
 ):
     """MT row still lands even when profile resolution blows up underneath
-    the REAL (unmocked) resolve_keep_seeking -- and the item is deleted
-    (fail-safe), proving resolve_keep_seeking's own try/except boundary works.
+    the REAL (unmocked) profile lookup -- and the item is left alone: a read
+    error is no answer, and deleting dropped an opted-in keep-seeking.
     """
 
     def _boom(item):
@@ -102,8 +102,8 @@ def test_finalize_translation_fails_safe_to_delete_on_profile_resolution_error(
     row = db.session.query(SubtitleDownload).filter_by(source="machine_translation").one()
     assert row.file_path == item["file_path"]
 
-    # Fails safe to delete when profile resolution errors out.
-    assert get_wanted_item(item_id) is None
+    kept = get_wanted_item(item_id)
+    assert kept is not None and kept["status"] == "wanted"
 
 
 def test_resolve_keep_seeking_reads_flag_from_real_series_profile(app_ctx, tmp_path):
@@ -153,7 +153,7 @@ def test_finalize_translation_does_not_double_count_daily_stats(app_ctx, tmp_pat
     recorded its own record_stat call. Without record_stats=False this row
     would add a second, phantom +1 to daily_stats.translated per translation.
     """
-    monkeypatch.setattr(mt_provisional, "resolve_keep_seeking", lambda item: True)
+    monkeypatch.setattr(mt_provisional, "_keep_seeking_or_none", lambda item: True)
 
     item_id, item = _make_wanted_item(tmp_path)
     output_path = str(tmp_path / "ep.de.ass")

@@ -65,7 +65,7 @@ class TestRetranslateSingleWithWantedItem:
 
         from services import mt_provisional
 
-        monkeypatch.setattr(mt_provisional, "resolve_keep_seeking", lambda item: True)
+        monkeypatch.setattr(mt_provisional, "_keep_seeking_or_none", lambda item: True)
 
         media = tmp_path / "ep.mkv"
         media.write_text("x")

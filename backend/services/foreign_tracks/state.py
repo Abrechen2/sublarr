@@ -28,6 +28,9 @@ class SweepState:
     generation: int = 0
     phase: str = PHASE_IDLE
     enumeration_complete: bool = False
+    # The walk of this generation was stopped part-way: the next one keeps
+    # the generation and only records the files it has not seen yet.
+    enumeration_resume: bool = False
     config_hash: str = ""
     # Which files the last walk admitted. Empty for state written before it
     # existed — then nothing forces a walk; probe and strip filter the

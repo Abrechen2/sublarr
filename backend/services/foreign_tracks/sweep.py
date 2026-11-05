@@ -292,6 +292,7 @@ def _run_slice_locked(media_root: str, config: dict, budget_s: int, now_fn, repo
         # last walk never admitted.
         logger.info("foreign_track_sweep: scope changed — walking the library again")
         state.phase = PHASE_ENUMERATE
+        state.enumeration_resume = False
     state.scope_hash = current_scope
     state.paused_reason = None
 
@@ -435,20 +436,31 @@ def _enumerate(media_root: str, config: dict, state, repo, scope=None) -> None:
     Stale rows are pruned ONLY after the walk finished. An interrupted walk
     leaves every unvisited file looking deleted, which would throw away its
     cached verdict — the worst failure this design has to avoid.
+
+    A stopped walk is continued, not restarted (Forgejo #68): the next one
+    keeps the generation and skips the files already stamped with it, so a
+    walk longer than the job's ceiling (a Pi, a slow network mount, a huge
+    library) still completes over several runs.
     """
     from config import get_settings
 
     min_age = int(getattr(get_settings(), "foreign_track_min_file_age_s", 600))
     scope = scope or _scope_for(media_root, config)
 
-    state.generation += 1
+    resuming = state.enumeration_resume
+    if not resuming:
+        state.generation += 1
+        state.started_at = _now_iso()
     state.enumeration_complete = False
-    state.started_at = _now_iso()
     state.completed_at = None
     save_state(state)
+    seen = repo.paths_in_generation(state.generation) if resuming else set()
+    unreadable: list[str] = []
 
     try:
-        _sweep_temp_files_logged(media_root)
+        if not resuming:
+            # A full walk of its own; once per generation is enough.
+            _sweep_temp_files_logged(media_root)
         started = _monotonic()
         last_report = started
         files = 0
@@ -456,7 +468,8 @@ def _enumerate(media_root: str, config: dict, state, repo, scope=None) -> None:
         # without it in the log, a generation that skipped every film reads as
         # a library that has none.
         logger.info(
-            "foreign_track_sweep: enumeration started gen=%d root=%s max_file_gb=%s",
+            "foreign_track_sweep: enumeration %s gen=%d root=%s max_file_gb=%s",
+            f"resumed ({len(seen)} files already seen)" if resuming else "started",
             state.generation,
             media_root,
             scope.max_size_bytes / 1024**3 if scope.max_size_bytes else "-",
@@ -468,6 +481,7 @@ def _enumerate(media_root: str, config: dict, state, repo, scope=None) -> None:
             min_age_s=min_age,
             now=time.time(),
             max_size_bytes=scope.max_size_bytes,
+            unreadable=unreadable,
         ):
             files += 1
             now_mono = _monotonic()
@@ -484,21 +498,35 @@ def _enumerate(media_root: str, config: dict, state, repo, scope=None) -> None:
             # path below: the pass stays incomplete and the prune is skipped,
             # because every unvisited file would otherwise look deleted.
             if abort_requested():
-                logger.info("foreign_track_sweep: enumeration stopping as asked — will restart")
+                logger.info("foreign_track_sweep: enumeration stopping as asked — will resume")
                 state.paused_reason = "enumeration stopped on request"
+                state.enumeration_resume = True
                 return
+            if path in seen:
+                continue
             repo.upsert_seen(path, size, mtime, state.generation)
     except OSError as exc:
-        logger.warning("foreign_track_sweep: enumeration interrupted (%s) — will restart", exc)
+        logger.warning("foreign_track_sweep: enumeration interrupted (%s) — will resume", exc)
         state.paused_reason = f"enumeration interrupted: {exc}"
+        state.enumeration_resume = True
         return
 
     state.enumeration_complete = True
+    state.enumeration_resume = False
     logger.info(
         "foreign_track_sweep: enumeration complete files=%d in %.1fs",
         files,
         _monotonic() - started,
     )
+    if unreadable:
+        # Files in a folder the walk could not read are unread, not deleted.
+        kept = repo.keep_under(unreadable, state.generation)
+        logger.warning(
+            "foreign_track_sweep: %d folder(s)/file(s) could not be read — kept %d row(s): %s",
+            len(unreadable),
+            kept,
+            ", ".join(unreadable[:5]),
+        )
     pruned = repo.prune_stale(state.generation)
     if pruned:
         logger.info("foreign_track_sweep: %d file(s) disappeared since the last pass", pruned)

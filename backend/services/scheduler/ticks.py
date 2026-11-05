@@ -529,20 +529,26 @@ def _tick_wrapper(
                         scheduler_job_duration_seconds.labels(job_id=spec.id).observe(duration_s)
                     except Exception:
                         logger.warning("scheduler: metrics emit failed", exc_info=True)
-                    _write_job_run(
-                        job_id=spec.id,
-                        started_at=started_at,
-                        finished_at=finished_at,
-                        status=status,
-                        triggered_by=triggered_by,
-                        error_type=error_type,
-                        error_msg=error_msg,
-                    )
+                    run_record = {
+                        "job_id": spec.id,
+                        "started_at": started_at,
+                        "finished_at": finished_at,
+                        "status": status,
+                        "triggered_by": triggered_by,
+                        "error_type": error_type,
+                        "error_msg": error_msg,
+                    }
         finally:
             # Release the per-job lock so subsequent ticks (scheduled or
             # manual) can fire — unless a still-running worker took it over,
             # in which case it comes back when that worker actually exits.
             if not lock_handed_over:
                 job_lock.release()
+
+        # The history row is written after the lock is gone: a write that
+        # stalls on the database must not keep the job from ever firing again
+        # (the shape of #248's held scan lock).
+        with app.app_context():
+            _write_job_run(**run_record)
 
     return _runner

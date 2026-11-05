@@ -115,3 +115,35 @@ def test_cancel_during_the_probe_batch_upserts_nothing(tmp_path):
 
     upsert.assert_not_called()
     assert mapped in paths
+
+
+def test_a_stop_drops_the_probes_not_yet_started():
+    """After a stop the batch is discarded; waiting for every probe of the
+    series cost minutes on slow disks."""
+    import threading
+
+    from services import wanted_item_scanner as wis
+    from services.scheduler import cancellation
+
+    event = threading.Event()
+    ran = []
+
+    def probe(path, *a, **k):
+        ran.append(path)
+        event.set()  # the stop arrives with the first probe
+        return {}
+
+    paths = [f"/m/{i}.mkv" for i in range(20)]
+    settings = MagicMock(scan_metadata_max_workers=1)
+    token = cancellation.activate(event)
+    try:
+        with (
+            patch.object(wis, "get_settings", return_value=settings),
+            patch.object(wis, "get_media_streams", side_effect=probe),
+        ):
+            results = wis.batch_probe(paths)
+    finally:
+        cancellation.deactivate(token)
+
+    assert len(ran) < len(paths)
+    assert set(results) == set(paths)

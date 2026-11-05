@@ -145,7 +145,9 @@ class TestCallSitesPropagate:
             cancelled=True,
         )
 
-        assert seen == [(label, False), (label, False)], seen
+        # A stopped batch may drop probes that had not started yet; every probe
+        # that did run logs under the label and does not see the stop.
+        assert seen and all(view == (label, False) for view in seen), seen
 
     def test_wanted_batch_workers_log_under_the_run_label(self, monkeypatch):
         from types import SimpleNamespace
