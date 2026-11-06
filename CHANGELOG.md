@@ -5,7 +5,7 @@ All notable changes to Sublarr are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [1.20.1] - 2026-11-05
+## [1.20.1] - 2026-11-06
 
 ### Security
 - **Sign-in without a password opened the API from anywhere** — With UI
@@ -129,6 +129,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Provenance lookups scanned the whole download history** — The index on
   `subtitle_downloads.file_path` is back (migration), so scans and cleanups
   no longer read the full table once per file.
+- **Wanted scans slowed down on libraries with many subtitles** — The check
+  for signs-only sidecars keeps a cache of each file's dialogue count. It held
+  8,192 files and was emptied whenever it filled, so a library with more
+  sidecars than that parsed every file again on every scan (a cleanup pass on
+  a test library: 172 s instead of 59 s). The cache now holds 65,536 files and
+  drops only its oldest entries when full.
+- **Errors no longer vanish silently** — 44 places that caught an error and
+  carried on without a trace now write it to the debug log.
 
 ## [1.20.0] - 2026-11-03
 
