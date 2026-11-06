@@ -370,9 +370,7 @@ def create_app(testing=False):
         response.headers.setdefault(
             "Content-Security-Policy",
             (
-                "default-src 'self'; "
-                + script_src
-                + "style-src 'self' 'unsafe-inline'; "
+                "default-src 'self'; " + script_src + "style-src 'self' 'unsafe-inline'; "
                 "img-src 'self' data: https:; "
                 "media-src 'self' blob:; "
                 "connect-src 'self' ws: wss:; "
@@ -654,8 +652,10 @@ def create_app(testing=False):
             logger.info("API key auto-generated on first start (64 hex chars)")
 
         # Webhooks get their own secret so Sonarr/Radarr/Jellyfin need not hold
-        # the API key (#71). Generated once; regenerated only on request.
-        if not getattr(settings, "webhook_secret", ""):
+        # the API key (#71). Generated once; regenerated only on request. Not
+        # in test apps: like the API key above, a generated secret is a row the
+        # test did not write (it broke the encrypt-at-rest migration tests).
+        if not getattr(settings, "webhook_secret", "") and not testing:
             import secrets
 
             save_config_entry("webhook_secret", secrets.token_hex(32))
