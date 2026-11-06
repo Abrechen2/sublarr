@@ -288,3 +288,13 @@ def test_request_is_local_network(addr, headers, local):
     app = Flask(__name__)
     with app.test_request_context("/", headers=headers, environ_base={"REMOTE_ADDR": addr}):
         assert ui_auth.request_is_local_network() is local
+
+
+def test_toggle_is_rate_limited_like_login():
+    """/toggle checks the password when called with the API key (#71)."""
+    import routes.auth_ui  # noqa: F401 — registers the decorated routes
+    from extensions import limiter
+
+    decorated = limiter.limit_manager._decorated_limits
+    assert "routes.auth_ui.toggle.toggle" in decorated
+    assert "routes.auth_ui.login.login" in decorated

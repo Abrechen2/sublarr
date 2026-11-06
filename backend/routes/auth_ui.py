@@ -327,6 +327,7 @@ def change_password():
 
 
 @auth_ui_bp.post("/toggle")
+@limiter.limit("10/minute; 30/hour")
 def toggle():
     """Enable or disable UI authentication.
     ---
@@ -372,6 +373,9 @@ def toggle():
         # not switch sign-in off and open the password-less session (#71).
         pw_hash = ui_auth._get_config_entry("ui_password_hash") or ""
         if pw_hash == "disabled" or not ui_auth.verify_password(body.get("password", ""), pw_hash):
+            logger.warning(
+                "Auth toggle with API key refused for %s: wrong password", request.remote_addr
+            )
             return jsonify(
                 {
                     "error": "With the API key, switching sign-in also needs the UI password.",
