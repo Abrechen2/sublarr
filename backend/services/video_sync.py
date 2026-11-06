@@ -360,64 +360,75 @@ def get_available_engines() -> dict:
     }
 
 
+# Pinned sync engines (code check 2026-11-05, #75): "latest" and an unpinned
+# pip install ran whatever upstream published as code in the container.
+FFSUBSYNC_VERSION = "0.5.1"
+ALASS_VERSION = "v2.0.0"
+# (system, machine) -> (release asset, SHA-256). v2.0.0 publishes a static
+# linux64 binary only; elsewhere alass has to be installed by hand.
+_ALASS_ASSETS: dict[tuple[str, str], tuple[str, str]] = {
+    ("linux", "x86_64"): (
+        "alass-linux64",
+        "7bd0b9ae7e035d3ba940eacffb21243614df36231d47f21f0b4ce42001ab7fcd",
+    ),
+}
+
+
 def _install_alass_binary() -> None:
-    """Download and install the alass binary for the current platform."""
+    """Download the pinned alass binary, check its hash, and install it."""
+    import hashlib
     import stat
-    import urllib.request
+
+    from security_utils import get_with_checked_redirects
 
     system = platform.system().lower()
     machine = platform.machine().lower()
-
-    # Map platform to GitHub release asset name
-    if system == "linux":
-        asset = "alass-linux64" if "x86_64" in machine or "amd64" in machine else None
-    elif system == "darwin":
-        asset = "alass-osx"
-    elif system == "windows":
-        asset = "alass-win64.exe"
-    else:
-        asset = None
-
-    if not asset:
-        raise RuntimeError(f"No alass binary available for {system}/{machine}")
-
-    url = f"https://github.com/kaegi/alass/releases/latest/download/{asset}"
-    install_name = "alass.exe" if system == "windows" else "alass"
-
-    # Install to ~/.local/bin (Linux/Mac) or next to Python (Windows)
-    if system == "windows":
-        install_dir = os.path.dirname(sys.executable)
-    else:
-        install_dir = os.path.expanduser("~/.local/bin")
-        os.makedirs(install_dir, exist_ok=True)
-
-    install_path = os.path.join(install_dir, install_name)
-    logger.info("Downloading alass from %s → %s", url, install_path)
-
-    with urllib.request.urlopen(url, timeout=60) as resp:  # noqa: S310
-        data = resp.read()
-
-    with open(install_path, "wb") as f:
-        f.write(data)
-
-    if system != "windows":
-        os.chmod(
-            install_path, os.stat(install_path).st_mode | stat.S_IEXEC | stat.S_IXGRP | stat.S_IXOTH
+    if machine == "amd64":
+        machine = "x86_64"
+    pinned = _ALASS_ASSETS.get((system, machine))
+    if pinned is None:
+        raise RuntimeError(
+            f"No pinned alass build for {system}/{machine}; install alass yourself "
+            "and put it on the PATH"
         )
+    asset, sha256 = pinned
+    url = f"https://github.com/kaegi/alass/releases/download/{ALASS_VERSION}/{asset}"
 
-    logger.info("alass installed to %s", install_path)
+    install_dir = os.path.expanduser("~/.local/bin")
+    os.makedirs(install_dir, exist_ok=True)
+    install_path = os.path.join(install_dir, "alass")
+    logger.info("Downloading alass %s from %s → %s", ALASS_VERSION, url, install_path)
+
+    try:
+        resp = get_with_checked_redirects(url, https_only=True, timeout=60)
+    except ValueError as e:
+        raise RuntimeError(f"alass download refused: {e}") from e
+    resp.raise_for_status()
+    data = resp.content
+    actual = hashlib.sha256(data).hexdigest()
+    if actual != sha256:
+        raise RuntimeError(f"alass download has SHA-256 {actual}, expected {sha256}; not installed")
+
+    # Written beside the target and renamed, so a failed write never leaves a
+    # half binary that a later sync would run.
+    tmp_path = install_path + ".part"
+    with open(tmp_path, "wb") as f:
+        f.write(data)
+    os.chmod(tmp_path, 0o755 | stat.S_IEXEC)
+    os.replace(tmp_path, install_path)
+    logger.info("alass %s installed to %s", ALASS_VERSION, install_path)
 
 
 def install_engine(engine: str) -> dict:
     """Install a sync engine. Returns { success, message }.
 
     Supported engines:
-        ffsubsync — installed via pip
-        alass     — downloaded binary from GitHub releases
+        ffsubsync — installed via pip, pinned to FFSUBSYNC_VERSION
+        alass     — pinned GitHub release binary, checked against its SHA-256
     """
     if engine == "ffsubsync":
         result = subprocess.run(
-            [sys.executable, "-m", "pip", "install", "ffsubsync"],
+            [sys.executable, "-m", "pip", "install", f"ffsubsync=={FFSUBSYNC_VERSION}"],
             capture_output=True,
             text=True,
             timeout=300,

@@ -36,6 +36,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   removing a plugin needs a signed-in session (the API key alone is refused),
   plugin names are checked (the name "." removed every installed plugin), and
   each download redirect is checked like the first URL.
+- **Sync engine installs are pinned** — "Install alass" downloaded whatever
+  the latest GitHub release was and made it executable without checking it,
+  and "Install ffsubsync" installed any version. alass is now version 2.0.0
+  and only installed when its SHA-256 matches; ffsubsync is pinned to 0.5.1.
+  alass 2.0.0 ships a Linux x86-64 binary only; on other systems install it by
+  hand.
 
 ### Fixed
 - **Wanted scans on large libraries never completed** (#248) — A full scan
