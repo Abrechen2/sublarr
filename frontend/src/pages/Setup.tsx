@@ -14,6 +14,9 @@ export function SetupPage() {
   const [confirm, setConfirm] = useState('')
   const [showPassword, setShowPassword] = useState(false)
   const [error, setError] = useState('')
+  // Set once the backend says this client is outside the local network (#72).
+  const [needsToken, setNeedsToken] = useState(false)
+  const [setupToken, setSetupToken] = useState('')
 
   const { mutate: doSetup, isPending } = useMutation({
     mutationFn: setupAuth,
@@ -22,7 +25,13 @@ export function SetupPage() {
       navigate('/')
     },
     onError: (err: unknown) => {
-      const msg = (err as { response?: { data?: { error?: string } } })?.response?.data?.error ?? 'Setup failed'
+      const data = (err as { response?: { data?: { error?: string; setup_token_required?: boolean } } })?.response?.data
+      if (data?.setup_token_required) {
+        setNeedsToken(true)
+        toast(t('setup.token_required'), 'error')
+        return
+      }
+      const msg = data?.error ?? 'Setup failed'
       // "Already configured" means auth is already set up (e.g. AUTH_ENABLED=false in env) — just navigate
       if (msg.includes('Already configured')) {
         queryClient.invalidateQueries({ queryKey: ['auth-status'] })
@@ -38,10 +47,14 @@ export function SetupPage() {
     setError('')
     if (password.length < 8) { setError('Password must be at least 8 characters.'); return }
     if (password !== confirm) { setError('Passwords do not match.'); return }
-    doSetup({ action: 'set_password', password })
+    doSetup({ action: 'set_password', password, ...tokenField() })
   }
 
-  function handleDisable() { doSetup({ action: 'disable' }) }
+  function handleDisable() { doSetup({ action: 'disable', ...tokenField() }) }
+
+  function tokenField() {
+    return needsToken && setupToken ? { setup_token: setupToken.trim() } : {}
+  }
 
   const inputStyle = {
     backgroundColor: 'var(--bg-input)',
@@ -63,6 +76,23 @@ export function SetupPage() {
             {t('setup.subtitle')}
           </p>
         </div>
+
+        {needsToken && (
+          <div className="mb-4">
+            <label htmlFor="setup-token" className="mb-1 block text-sm font-medium text-secondary">{t('setup.token_label')}</label>
+            <input
+              id="setup-token"
+              type="text"
+              value={setupToken}
+              onChange={(e) => setSetupToken(e.target.value)}
+              placeholder={t('setup.token_placeholder')}
+              className="w-full rounded-lg px-3 py-2 text-sm"
+              style={inputStyle}
+              autoComplete="off"
+            />
+            <p className="mt-1 text-xs text-muted">{t('setup.token_help')}</p>
+          </div>
+        )}
 
         <form onSubmit={handleSetPassword} className="space-y-4">
           <div>
@@ -113,7 +143,7 @@ export function SetupPage() {
             className="flex w-full items-center justify-center gap-2 rounded-lg py-2 text-sm transition-opacity hover:opacity-80 disabled:opacity-50"
             style={{ border: '1px solid var(--border)', color: 'var(--text-secondary)' }}>
             <Unlock size={14} />
-            Continue without password (open access)
+            {t('setup.continue_open')}
           </button>
         </div>
       </div>

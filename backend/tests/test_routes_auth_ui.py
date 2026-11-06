@@ -3,6 +3,7 @@
 import pytest
 
 import ui_auth
+from tests.ui_session_helpers import grant_ui_session
 
 
 @pytest.fixture
@@ -105,7 +106,7 @@ def test_login_when_auth_disabled_succeeds(app, monkeypatch):
 def test_logout_clears_session(app, monkeypatch):
     with app.test_client() as client:
         with client.session_transaction() as sess:
-            sess["ui_authenticated"] = True
+            grant_ui_session(sess)
         r = client.post("/api/v1/auth/logout")
         assert r.status_code == 200
         with client.session_transaction() as sess:
@@ -119,7 +120,7 @@ def test_logout_clears_entire_session(app, monkeypatch):
     """
     with app.test_client() as client:
         with client.session_transaction() as sess:
-            sess["ui_authenticated"] = True
+            grant_ui_session(sess)
             sess["unrelated_key"] = "stays-around-pre-fix"
         r = client.post("/api/v1/auth/logout")
         assert r.status_code == 200
@@ -137,7 +138,7 @@ def test_change_password_correct(app, monkeypatch):
     monkeypatch.setattr(ui_auth, "_save_config_entry", lambda k, v: saved.update({k: v}))
     with app.test_client() as client:
         with client.session_transaction() as sess:
-            sess["ui_authenticated"] = True
+            grant_ui_session(sess)
         r = client.post(
             "/api/v1/auth/change-password",
             json={"current_password": "old", "new_password": "newpass1-secure"},
@@ -153,7 +154,7 @@ def test_change_password_wrong_current(app, monkeypatch):
     )
     with app.test_client() as client:
         with client.session_transaction() as sess:
-            sess["ui_authenticated"] = True
+            grant_ui_session(sess)
         r = client.post(
             "/api/v1/auth/change-password",
             json={"current_password": "wrong", "new_password": "newpass1"},
@@ -258,7 +259,7 @@ def test_bootstrap_lan_allowed_with_session(app, monkeypatch):
     monkeypatch.setattr(config, "get_settings", lambda: _FakeSettings())
     with app.test_client() as client:
         with client.session_transaction() as sess:
-            sess["ui_authenticated"] = True
+            grant_ui_session(sess)
         r = client.get("/api/v1/auth/bootstrap", environ_base={"REMOTE_ADDR": "192.168.1.10"})
         assert r.status_code == 200
         assert r.get_json()["api_key"] == "session-key"
@@ -270,7 +271,7 @@ def test_toggle_disable_with_session(app, monkeypatch):
     monkeypatch.setattr(ui_auth, "_has_valid_api_key", lambda: False)
     with app.test_client() as client:
         with client.session_transaction() as sess:
-            sess["ui_authenticated"] = True
+            grant_ui_session(sess)
         r = client.post("/api/v1/auth/toggle", json={"enabled": False})
         assert r.status_code == 200
         assert saved.get("ui_auth_enabled") == "false"

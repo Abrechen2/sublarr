@@ -7,6 +7,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [1.20.1] - 2026-11-05
 
+### Security
+- **Sign-in without a password opened the API from anywhere** — With UI
+  authentication turned off, any client could ask for a session without a
+  password, and that session opened every API route and handed out the API
+  key, although a key was set. Over the plugin installer this reached code
+  execution. A password-less session is now only given to clients on the local
+  network (loopback, private ranges, Tailscale), never through a reverse proxy
+  and never before the first setup, and it ends as soon as UI authentication
+  is turned on. Behind a reverse proxy, turn UI authentication on.
+- **The first setup could be claimed by anyone** — Until UI authentication is
+  set up, the setup now needs the local network, the API key, or a one-time
+  token that Sublarr writes to the container log at start.
+- **Sessions outlived logout and password changes** — Logging out now ends
+  that session on the server too, so a copied cookie stops working; changing
+  the password or turning UI authentication on or off ends every other
+  session. Existing sessions end once with this update; sign in again.
+
 ### Fixed
 - **Wanted scans on large libraries never completed** (#248) — A full scan
   that needed longer than the job's two-hour ceiling was stopped, pruned

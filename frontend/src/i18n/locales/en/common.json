@@ -174,7 +174,8 @@
     "log_in": "Log In",
     "invalid_password": "Invalid password",
     "hide_password": "Hide password",
-    "show_password": "Show password"
+    "show_password": "Show password",
+    "local_only": "Sign-in is turned off. Without a password, Sublarr only opens from the local network, not through a reverse proxy. Turn sign-in on under Settings from the local network to sign in from elsewhere."
   },
   "not_found": {
     "title": "Page Not Found",

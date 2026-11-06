@@ -18,6 +18,7 @@ import pytest
 from app import create_app
 from config import get_settings, reload_settings
 from extensions import socketio
+from tests.ui_session_helpers import grant_ui_session
 
 
 @pytest.fixture
@@ -49,7 +50,7 @@ def test_ws_accepts_valid_api_key(ws_app):
 def test_ws_accepts_ui_session_without_key(ws_app):
     flask_client = ws_app.test_client()
     with flask_client.session_transaction() as sess:
-        sess["ui_authenticated"] = True
+        grant_ui_session(sess)
     client = socketio.test_client(ws_app, auth={}, flask_test_client=flask_client)
     assert client.is_connected()
     client.disconnect()

@@ -14,8 +14,9 @@ import threading
 import time
 from collections import defaultdict
 
-from flask import jsonify, request, session
+from flask import jsonify, request
 
+import ui_auth
 from config import get_settings
 
 logger = logging.getLogger(__name__)
@@ -72,7 +73,7 @@ def require_api_key(f):
             # No API key configured — allow all requests
             return f(*args, **kwargs)
 
-        if session.get("ui_authenticated"):
+        if ui_auth.has_valid_session():
             return f(*args, **kwargs)
 
         from proxy_auth import request_has_valid_proxy_auth
@@ -217,10 +218,10 @@ def init_auth(app):
         # unconditionally: a browser that had just logged in (session cookie
         # set, no key in localStorage yet) got 401 on every request, and the
         # frontend's 401 interceptor bounced it back to /login in an endless
-        # loop. A session is only free when UI auth is disabled — and in that
-        # configuration /auth/bootstrap already hands out the key to any LAN
-        # client by design, so this adds no exposure beyond that.
-        if session.get("ui_authenticated"):
+        # loop. has_valid_session() decides what a session is worth: one
+        # issued without a password holds only from the local network while
+        # UI auth stays off (#70, code check 2026-11-05).
+        if ui_auth.has_valid_session():
             return None
 
         # Same contract for reverse-proxy header auth (Authelia/authentik SSO):

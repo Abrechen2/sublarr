@@ -26,6 +26,8 @@ import json
 import zipfile
 from unittest.mock import patch
 
+from tests.ui_session_helpers import grant_ui_session
+
 # ---------------------------------------------------------------------------
 # Config-snapshot drift — must mirror Settings.get_safe_config()
 # ---------------------------------------------------------------------------
@@ -245,7 +247,7 @@ class TestSupportCallerAuthGate:
 
     def test_export_allowed_with_session_when_ui_auth_on(self, client):
         with client.session_transaction() as sess:
-            sess["ui_authenticated"] = True
+            grant_ui_session(sess)
         with patch("ui_auth.is_ui_auth_enabled", return_value=True):
             resp = client.get("/api/v1/logs/support-export")
         assert resp.status_code == 200

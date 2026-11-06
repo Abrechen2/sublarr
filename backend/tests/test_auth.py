@@ -8,6 +8,7 @@ from flask import Flask
 
 from auth import init_auth, require_api_key
 from config import reload_settings
+from tests.ui_session_helpers import grant_ui_session
 
 
 def test_no_auth_when_key_empty():
@@ -157,7 +158,7 @@ def test_ui_session_satisfies_api_key_gate():
     app = _protected_app()
     with patch("auth.get_settings", return_value=_settings()), app.test_client() as client:
         with client.session_transaction() as sess:
-            sess["ui_authenticated"] = True
+            grant_ui_session(sess)
         resp = client.get("/api/v1/protected")
         assert resp.status_code == 200
 
@@ -210,7 +211,7 @@ def test_require_api_key_decorator_accepts_ui_session():
             assert resp.status_code == 401
 
             with client.session_transaction() as sess:
-                sess["ui_authenticated"] = True
+                grant_ui_session(sess)
             resp = client.get("/decorated")
             assert resp.status_code == 200
     finally:

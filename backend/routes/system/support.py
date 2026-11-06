@@ -173,8 +173,6 @@ def _is_support_caller_authorized() -> bool:
     """
     import hmac as _hmac
 
-    from flask import session as _session
-
     import ui_auth as _ui_auth
     from config import get_settings
     from proxy_auth import request_has_valid_proxy_auth
@@ -184,7 +182,7 @@ def _is_support_caller_authorized() -> bool:
     provided = request.headers.get("X-Api-Key") or request.args.get("apikey", "")
     if api_key and _hmac.compare_digest(provided, api_key):
         return True
-    if _session.get("ui_authenticated"):
+    if _ui_auth.has_valid_session():
         return True
     if request_has_valid_proxy_auth():
         return True

@@ -174,7 +174,8 @@
     "log_in": "Anmelden",
     "invalid_password": "Falsches Passwort",
     "hide_password": "Passwort ausblenden",
-    "show_password": "Passwort anzeigen"
+    "show_password": "Passwort anzeigen",
+    "local_only": "Die Anmeldung ist ausgeschaltet. Ohne Passwort geht es nur aus dem lokalen Netz, nicht über einen Reverse Proxy. Schalte die Anmeldung im lokalen Netz unter Einstellungen ein, um dich von außen anzumelden."
   },
   "not_found": {
     "title": "Seite nicht gefunden",

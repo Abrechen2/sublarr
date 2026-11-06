@@ -130,7 +130,12 @@
     "show_password": "Show password",
     "or": "or",
     "setting_up": "Setting up…",
-    "set_password_btn": "Set Password & Continue"
+    "set_password_btn": "Set Password & Continue",
+    "token_label": "Setup token",
+    "token_placeholder": "Token from the container log…",
+    "token_help": "From outside the local network, the first setup needs the one-time token Sublarr writes to the container log at start.",
+    "token_required": "Setup token required – you find it in the container log.",
+    "continue_open": "Continue without password (open access)"
   },
   "library_step": {
     "description": "What does your library mainly contain?",

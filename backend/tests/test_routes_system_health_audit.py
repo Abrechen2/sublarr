@@ -18,6 +18,8 @@ from __future__ import annotations
 
 from unittest.mock import patch
 
+from tests.ui_session_helpers import grant_ui_session
+
 # ---------------------------------------------------------------------------
 # auth-layer composition: services hidden when ui_auth is on but api_key empty
 # ---------------------------------------------------------------------------
@@ -89,7 +91,7 @@ class TestHealthAuthLayerComposition:
         """ui_auth_enabled=True + valid session → services exposed (the UI
         dashboard needs them)."""
         with client.session_transaction() as sess:
-            sess["ui_authenticated"] = True
+            grant_ui_session(sess)
         with patch("ui_auth.is_ui_auth_enabled", return_value=True):
             resp = client.get("/api/v1/health")
         assert resp.status_code == 200

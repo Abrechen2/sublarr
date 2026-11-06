@@ -10,7 +10,7 @@ POST /api/v1/auth/toggle          — enable/disable auth (session or API key re
 
 import logging
 
-from flask import Blueprint, jsonify, request, session
+from flask import Blueprint, current_app, jsonify, request
 
 import ui_auth
 from extensions import limiter
@@ -22,7 +22,7 @@ _MIN_PASSWORD_LENGTH = 8
 
 
 def _is_session_authenticated() -> bool:
-    return bool(session.get("ui_authenticated"))
+    return ui_auth.has_valid_session()
 
 
 @auth_ui_bp.get("/status")
@@ -136,6 +136,17 @@ def setup():
     body = request.get_json(silent=True) or {}
     action = body.get("action")
 
+    # Until it is set up, anyone who reaches the instance could claim it (#72).
+    if not ui_auth.setup_allowed(body.get("setup_token", "")):
+        logger.warning("First-run setup refused for %s: no setup token", request.remote_addr)
+        return jsonify(
+            {
+                "error": "Setup from outside the local network needs the setup token "
+                "from the container log.",
+                "setup_token_required": True,
+            }
+        ), 403
+
     if action == "disable":
         ui_auth._save_config_entry("ui_auth_enabled", "false")
         ui_auth._save_config_entry("ui_password_hash", "disabled")
@@ -150,7 +161,7 @@ def setup():
             ), 400
         ui_auth._save_config_entry("ui_password_hash", ui_auth.hash_password(password))
         ui_auth._save_config_entry("ui_auth_enabled", "true")
-        session["ui_authenticated"] = True
+        ui_auth.start_session()
         logger.info("UI auth password set during first-run setup")
         return jsonify({"status": "enabled"})
 
@@ -193,7 +204,20 @@ def login():
           description: Wrong password
     """
     if not ui_auth.is_ui_auth_enabled():
-        session["ui_authenticated"] = True
+        # Without a password, a session is as good as the API key, so it is
+        # only handed out where the operator chose to trust everyone: the local
+        # network, once setup said "no password" (#70).
+        if not ui_auth.is_ui_auth_configured():
+            return jsonify({"error": "Setup required"}), 409
+        if not ui_auth.request_is_local_network():
+            logger.warning("Password-less sign-in refused for %s", request.remote_addr)
+            return jsonify(
+                {
+                    "error": "Signing in without a password only works from the local "
+                    "network. Turn on UI authentication to sign in from elsewhere."
+                }
+            ), 403
+        ui_auth.start_session(free=True)
         return jsonify({"status": "ok"})
 
     body = request.get_json(silent=True) or {}
@@ -204,8 +228,7 @@ def login():
         logger.warning("Failed UI login attempt from %s", request.remote_addr)
         return jsonify({"error": "Invalid password"}), 401
 
-    session["ui_authenticated"] = True
-    session.permanent = True
+    ui_auth.start_session()
     logger.info("UI login from %s", request.remote_addr)
     return jsonify({"status": "ok"})
 
@@ -232,10 +255,9 @@ def logout():
                     type: string
                     example: ok
     """
-    # session.clear() rather than pop("ui_authenticated") so any future
-    # session keys (e.g. CSRF token, last-seen flags) get wiped on
-    # logout too — defense in depth.
-    session.clear()
+    # end_session() clears every session key and refuses this cookie until it
+    # would have expired, so a copy of it stops working too (#73).
+    ui_auth.end_session(current_app.permanent_session_lifetime.total_seconds())
     return jsonify({"status": "ok"})
 
 
@@ -297,6 +319,9 @@ def change_password():
         ), 400
 
     ui_auth._save_config_entry("ui_password_hash", ui_auth.hash_password(new_pw))
+    # Every other browser signs in again with the new password (#73).
+    ui_auth.end_all_sessions()
+    ui_auth.start_session()
     logger.info("UI password changed")
     return jsonify({"status": "ok"})
 
@@ -348,5 +373,7 @@ def toggle():
         return jsonify({"error": "'enabled' must be a boolean"}), 400
 
     ui_auth._save_config_entry("ui_auth_enabled", "true" if enabled else "false")
+    # Sessions issued under the other mode end with it (#73).
+    ui_auth.end_all_sessions()
     logger.info("UI auth %s", "enabled" if enabled else "disabled")
     return jsonify({"status": "enabled" if enabled else "disabled"})

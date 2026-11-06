@@ -21,6 +21,8 @@ as valid too, alongside the dotted extension keys that were always allowed.
 
 from __future__ import annotations
 
+from tests.ui_session_helpers import grant_ui_session
+
 
 def test_import_does_not_reject_every_payload(client):
     """The regression: this endpoint answered 500 no matter what was sent."""
@@ -122,7 +124,7 @@ def test_auth_secrets_cannot_be_written_through_config(client):
     # authenticated, otherwise they only pass while an earlier cached "auth off"
     # answer happens to be fresh (the source of the sporadic 401s).
     with client.session_transaction() as sess:
-        sess["ui_authenticated"] = True
+        grant_ui_session(sess)
 
     for key, value in (
         ("ui_password_hash", "$2b$12$forged"),

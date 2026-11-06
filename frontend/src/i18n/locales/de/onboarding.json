@@ -130,7 +130,12 @@
     "show_password": "Passwort anzeigen",
     "or": "oder",
     "setting_up": "Wird eingerichtet…",
-    "set_password_btn": "Passwort setzen & Weiter"
+    "set_password_btn": "Passwort setzen & Weiter",
+    "token_label": "Setup-Token",
+    "token_placeholder": "Token aus dem Container-Log…",
+    "token_help": "Von außerhalb des lokalen Netzes braucht die Ersteinrichtung das einmalige Token, das Sublarr beim Start ins Container-Log schreibt.",
+    "token_required": "Setup-Token erforderlich – du findest es im Container-Log.",
+    "continue_open": "Ohne Passwort weiter (offener Zugang)"
   },
   "library_step": {
     "description": "Was enthält deine Bibliothek hauptsächlich?",

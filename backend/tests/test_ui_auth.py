@@ -6,6 +6,7 @@ import pytest
 from flask import Flask, session
 
 import ui_auth
+from tests.ui_session_helpers import grant_ui_session
 from ui_auth import (
     hash_password,
     init_ui_auth,
@@ -119,7 +120,7 @@ def test_hook_allows_protected_with_valid_session(monkeypatch):
     app = _make_app_with_auth(monkeypatch, configured=True, enabled=True)
     with app.test_client() as client:
         with client.session_transaction() as sess:
-            sess["ui_authenticated"] = True
+            grant_ui_session(sess)
         r = client.get("/api/v1/protected")
         assert r.status_code == 200
 

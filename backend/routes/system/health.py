@@ -150,8 +150,6 @@ def _caller_is_authenticated() -> bool:
     # matching the truly-open deployment.
     import hmac as _hmac
 
-    from flask import session as _session
-
     import ui_auth as _ui_auth
     from config import get_settings as _get_settings
 
@@ -159,7 +157,7 @@ def _caller_is_authenticated() -> bool:
     _api_key = getattr(_settings, "api_key", None)
     _provided = request.headers.get("X-Api-Key") or request.args.get("apikey", "")
     _key_ok = bool(_api_key and _hmac.compare_digest(_provided, _api_key))
-    _session_ok = bool(_session.get("ui_authenticated"))
+    _session_ok = _ui_auth.has_valid_session()
     try:
         _ui_auth_on = _ui_auth.is_ui_auth_enabled()
     except Exception:

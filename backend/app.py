@@ -746,8 +746,7 @@ def create_app(testing=False):
         # Register SocketIO events
         @socketio.on("connect")
         def handle_connect(auth):
-            from flask import session as _session
-
+            import ui_auth as _ui_auth_ws
             from config import get_settings as _gs
 
             _api_key = getattr(_gs(), "api_key", None)
@@ -759,7 +758,7 @@ def create_app(testing=False):
                 # profile, or stale key after a server-side key change) must
                 # not lose the WebSocket silently — that degraded log
                 # streaming and live updates without any visible error.
-                if _session.get("ui_authenticated"):
+                if _ui_auth_ws.has_valid_session():
                     logger.debug("WebSocket client connected (UI session)")
                     return None
                 provided = (auth or {}).get("apikey", "")

@@ -302,7 +302,9 @@ export async function getAuthStatus(): Promise<AuthStatus> {
   return data
 }
 
-export async function setupAuth(body: { action: 'set_password'; password: string } | { action: 'disable' }): Promise<void> {
+export async function setupAuth(
+  body: ({ action: 'set_password'; password: string } | { action: 'disable' }) & { setup_token?: string },
+): Promise<void> {
   await api.post('/auth/setup', body)
 }
 

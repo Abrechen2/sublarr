@@ -1,9 +1,9 @@
 import { useState } from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
-import { useMutation, useQueryClient } from '@tanstack/react-query'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Lock, Eye, EyeOff } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
-import { login } from '@/api/client'
+import { getAuthStatus, login } from '@/api/client'
 import { toast } from '@/components/shared/Toast'
 
 export function LoginPage() {
@@ -14,6 +14,10 @@ export function LoginPage() {
   const [password, setPassword] = useState('')
   const [showPassword, setShowPassword] = useState(false)
   const from = (location.state as { from?: string })?.from ?? '/'
+  // UI auth off yet still sent here: this client is outside the local network,
+  // where signing in without a password is refused (#70).
+  const { data: auth } = useQuery({ queryKey: ['auth-status'], queryFn: getAuthStatus, staleTime: 60_000 })
+  const localOnly = auth?.enabled === false && auth?.configured === true
 
   const { mutate: doLogin, isPending, isError } = useMutation({
     mutationFn: () => login(password),
@@ -41,6 +45,11 @@ export function LoginPage() {
           <h1 className="text-2xl font-bold" style={{ color: 'var(--text-primary)' }}>Sublarr</h1>
           <p className="mt-1 text-sm" style={{ color: 'var(--text-muted)' }}>{t('login.subtitle')}</p>
         </div>
+        {localOnly && (
+          <p role="status" className="mb-4 rounded-lg bg-elevated p-3 text-sm text-secondary">
+            {t('login.local_only')}
+          </p>
+        )}
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="relative">
             <input
