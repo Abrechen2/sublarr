@@ -21,10 +21,25 @@ describe('bootstrapApiKey', () => {
     vi.clearAllMocks()
   })
 
-  it('does nothing if a key is already stored', async () => {
+  it('does not fetch the key again if one is stored', async () => {
     localStorage.setItem('sublarr_api_key', 'existing-key')
+    ;(axios.get as any).mockResolvedValue({ data: { enabled: true, authenticated: true, configured: true } })
     await bootstrapApiKey()
-    expect(axios.get).not.toHaveBeenCalled()
+    const urls = (axios.get as any).mock.calls.map((c: unknown[]) => String(c[0]))
+    expect(urls.some((u: string) => u.includes('/auth/bootstrap'))).toBe(false)
+    expect(localStorage.getItem('sublarr_api_key')).toBe('existing-key')
+  })
+
+  it('still opens the password-less session when a key is stored (#71)', async () => {
+    localStorage.setItem('sublarr_api_key', 'existing-key')
+    ;(axios.get as any).mockResolvedValue({ data: { enabled: false, authenticated: false, configured: true } })
+    ;(axios.post as any).mockResolvedValue({ data: { status: 'ok' } })
+    await bootstrapApiKey()
+    expect(axios.post).toHaveBeenCalledWith(
+      expect.stringContaining('/auth/login'),
+      {},
+      expect.objectContaining({ headers: { 'X-Requested-With': 'XMLHttpRequest' } }),
+    )
   })
 
   it('calls the no-op login before bootstrap when auth is disabled and unauthenticated', async () => {
@@ -41,7 +56,7 @@ describe('bootstrapApiKey', () => {
 
     await bootstrapApiKey()
 
-    expect(axios.post).toHaveBeenCalledWith('/api/v1/auth/login', {})
+    expect(axios.post).toHaveBeenCalledWith('/api/v1/auth/login', {}, { headers: { 'X-Requested-With': 'XMLHttpRequest' } })
     expect(localStorage.getItem('sublarr_api_key')).toBe('fetched-key')
   })
 

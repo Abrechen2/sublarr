@@ -5,7 +5,11 @@ export const api = axios.create({
   // basePath is '' at the root; under a reverse-proxy prefix it makes the
   // API calls land on the same prefix the page itself was served from.
   baseURL: `${basePath}/api/v1`,
-  headers: { 'Content-Type': 'application/json' },
+  // X-Requested-With marks the request as the app's own: another site cannot
+  // send a custom header without a CORS preflight, so the backend's origin
+  // check (#77 N-1) never has to compare hosts for it — which a reverse proxy
+  // rewriting the Host header would get wrong.
+  headers: { 'Content-Type': 'application/json', 'X-Requested-With': 'XMLHttpRequest' },
 })
 
 // Add API key interceptor if configured
@@ -150,7 +154,7 @@ export async function bootstrapApiKey(): Promise<void> {
   try {
     const status = await axios.get(withBase('/api/v1/auth/status'))
     if (status.data?.enabled === false && status.data?.configured && !status.data?.authenticated) {
-      await axios.post(withBase('/api/v1/auth/login'), {})
+      await axios.post(withBase('/api/v1/auth/login'), {}, { headers: { 'X-Requested-With': 'XMLHttpRequest' } })
     }
   } catch {
     // Status check failed or sign-in refused (outside the local network) —

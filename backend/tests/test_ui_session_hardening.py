@@ -365,3 +365,25 @@ def test_toggle_is_origin_checked_too(csrf_app):
         "/api/v1/auth/toggle", json={"enabled": False}, headers={"Origin": "http://localhost:8080"}
     )
     assert r.status_code == 403
+
+
+def test_cookieless_cross_origin_requests_are_checked_too(csrf_app):
+    """An SSO proxy's cookie is ambient too: no session, still checked."""
+    r = csrf_app.test_client().post("/api/v1/thing", headers={"Origin": "https://evil.example"})
+    assert r.status_code == 403
+
+
+def test_an_invalid_api_key_header_does_not_exempt(csrf_app):
+    r = _cookie_client(csrf_app).post(
+        "/api/v1/thing", headers={"Origin": "https://evil.example", "X-Api-Key": "wrong"}
+    )
+    assert r.status_code == 403
+
+
+def test_the_apps_own_requests_pass_behind_a_host_rewriting_proxy(csrf_app):
+    """nginx's default proxy_pass sends Host: <upstream>; the UI must still work."""
+    r = _cookie_client(csrf_app).post(
+        "/api/v1/thing",
+        headers={"Origin": "https://sublarr.example", "X-Requested-With": "XMLHttpRequest"},
+    )
+    assert r.status_code == 200

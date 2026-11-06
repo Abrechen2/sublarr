@@ -330,11 +330,16 @@ def init_ui_auth(app):
 
     @app.before_request
     def check_same_origin():
-        # Only requests that ride on the session cookie: a custom X-Api-Key
-        # header cannot be sent cross-site without a CORS preflight.
+        # Every state-changing request that could ride on ambient credentials
+        # (the session cookie, or an SSO proxy's cookie) is checked. Exempt
+        # are requests with a custom header the app sends — a valid X-Api-Key
+        # or X-Requested-With: another site cannot add one without a CORS
+        # preflight, and /api sets no CORS headers. That keeps the UI working
+        # behind proxies that rewrite the Host header, where the host
+        # comparison below would refuse it.
         if request.method not in _UNSAFE_METHODS or not request.path.startswith("/api/"):
             return None
-        if not session.get("ui_authenticated") or request.headers.get("X-Api-Key"):
+        if request.headers.get("X-Requested-With") or _has_valid_api_key():
             return None
         if request_origin_is_foreign():
             logger.warning(
