@@ -1,5 +1,8 @@
 @import "tailwindcss";
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+/* Self-hosted (code check 2026-11-05, #76): loading them from Google sent
+   every visitor's IP there. */
+@import "@fontsource-variable/inter";
+@import "@fontsource-variable/jetbrains-mono";
 @custom-variant dark (&:where(.dark, .dark *));
 
 /* =================================================================
@@ -144,8 +147,8 @@
   --upgrade-bg: rgba(124, 58, 237, 0.10);
 
   /* Typography */
-  --font-body: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif;
-  --font-mono: 'JetBrains Mono', 'SF Mono', 'Fira Code', 'Cascadia Code', monospace;
+  --font-body: 'Inter Variable', 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif;
+  --font-mono: 'JetBrains Mono Variable', 'JetBrains Mono', 'SF Mono', 'Fira Code', 'Cascadia Code', monospace;
 
   /* Deep background */
   --bg-deep: #eff1f4;

@@ -372,11 +372,11 @@ def create_app(testing=False):
             (
                 "default-src 'self'; "
                 + script_src
-                + "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; "
+                + "style-src 'self' 'unsafe-inline'; "
                 "img-src 'self' data: https:; "
                 "media-src 'self' blob:; "
                 "connect-src 'self' ws: wss:; "
-                "font-src 'self' data: https://fonts.gstatic.com; "
+                "font-src 'self' data:; "
                 "frame-ancestors 'none'"
             ),
         )
