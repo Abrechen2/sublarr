@@ -31,6 +31,12 @@ def scheduler(app, tmp_path):
     s.attach_app(app)
     yield s
     if s.running:
+        # APScheduler 3.11's shutdown wakes its loop after setting STOPPED;
+        # the loop then processes a due one-shot that run_now left behind on
+        # the paused scheduler, and remove_job (which only looks at pending
+        # jobs once stopped) raises JobLookupError in the scheduler thread.
+        # pytest reports that as a stray warning, Bite as a failing run.
+        s._scheduler.remove_all_jobs()
         s.shutdown(timeout_s=2)
 
 
