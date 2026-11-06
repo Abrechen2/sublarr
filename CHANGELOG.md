@@ -17,8 +17,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   and never before the first setup, and it ends as soon as UI authentication
   is turned on. Behind a reverse proxy, turn UI authentication on.
 - **The first setup could be claimed by anyone** — Until UI authentication is
-  set up, the setup now needs the local network, the API key, or a one-time
-  token that Sublarr writes to the container log at start.
+  set up, the setup now needs the local network or a one-time token that
+  Sublarr writes to the container log at start.
+- **The API key alone no longer switches sign-in off** — Turning UI
+  authentication on or off with the API key now also needs the UI password.
 - **Sessions outlived logout and password changes** — Logging out now ends
   that session on the server too, so a copied cookie stops working; changing
   the password or turning UI authentication on or off ends every other

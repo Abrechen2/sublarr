@@ -105,6 +105,17 @@ class GitHubRegistry:
 
         try:
             existing = db.session.get(MarketplaceCache, manifest["name"])
+            # The name is the install key: a second repo publishing the same
+            # name must not replace the URL and hash of the first (security
+            # review of #71). The first repo keeps the name.
+            if existing is not None and existing.github_url != repo.get("html_url", ""):
+                logger.warning(
+                    "Plugin name %r from %s ignored: already published by %s",
+                    manifest["name"],
+                    repo.get("html_url", ""),
+                    existing.github_url,
+                )
+                return None
             if existing is not None:
                 existing.display_name = manifest["display_name"]
                 existing.author = manifest.get("author", repo.get("owner", {}).get("login", ""))

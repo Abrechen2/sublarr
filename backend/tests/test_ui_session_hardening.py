@@ -221,7 +221,8 @@ def test_setup_from_the_lan_needs_no_token(app, store):
         assert c.get("/api/v1/config", environ_base=LAN).status_code == 200
 
 
-def test_setup_with_the_api_key_needs_no_token(app, store):
+def test_the_api_key_alone_cannot_claim_the_setup(app, store):
+    """Sonarr and friends may hold the API key; it must not set the password."""
     with app.test_client() as c:
         r = c.post(
             "/api/v1/auth/setup",
@@ -229,7 +230,38 @@ def test_setup_with_the_api_key_needs_no_token(app, store):
             headers={"X-Api-Key": API_KEY},
             environ_base=REMOTE,
         )
+        assert r.status_code == 403
+        assert "ui_auth_enabled" not in store
+
+
+# -- the API key cannot switch sign-in off --------------------------------
+
+
+def test_the_api_key_alone_cannot_turn_sign_in_off(app, store):
+    _enabled(store)
+    with app.test_client() as c:
+        r = c.post(
+            "/api/v1/auth/toggle",
+            json={"enabled": False},
+            headers={"X-Api-Key": API_KEY},
+            environ_base=LAN,
+        )
+        assert r.status_code == 403
+        assert r.get_json()["password_required"] is True
+        assert store["ui_auth_enabled"] == "true"
+
+
+def test_the_api_key_with_the_password_can_switch_sign_in(app, store):
+    _enabled(store)
+    with app.test_client() as c:
+        r = c.post(
+            "/api/v1/auth/toggle",
+            json={"enabled": False, "password": "correct-horse"},
+            headers={"X-Api-Key": API_KEY},
+            environ_base=LAN,
+        )
         assert r.status_code == 200
+        assert store["ui_auth_enabled"] == "false"
 
 
 # -- locality --------------------------------------------------------------

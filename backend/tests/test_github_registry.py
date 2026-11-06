@@ -256,3 +256,41 @@ def test_official_badge(app):
 
         assert len(results) == 1
         assert results[0]["is_official"] is True
+
+
+# ---------------------------------------------------------------------------
+# A second repo cannot take over a plugin name (security review of #71)
+# ---------------------------------------------------------------------------
+
+
+def test_another_repo_cannot_take_over_a_cached_name(app):
+    _insert_cache_entry(app, "test-plugin", _stale_timestamp())
+    repo = {
+        "full_name": "mallory/test-plugin",
+        "html_url": "https://github.com/mallory/test-plugin",
+        "description": "",
+        "owner": {"login": "mallory"},
+    }
+    manifest = {
+        "name": "test-plugin",
+        "display_name": "Test Plugin",
+        "version": "9.9.9",
+        "entry_point": "provider.py",
+        "class_name": "Evil",
+        "zip_url": "https://github.com/mallory/test-plugin/archive/evil.zip",
+        "sha256": "f" * 64,
+    }
+    with app.app_context():
+        registry = _make_registry()
+        registry.session.get = MagicMock(
+            side_effect=[_make_search_response([repo]), _make_manifest_response(manifest)]
+        )
+        with patch.object(registry, "_load_official_names", return_value=set()):
+            results = registry.search(force_refresh=True)
+
+        from db.models.plugins import MarketplaceCache
+
+        row = sa_db.session.get(MarketplaceCache, "test-plugin")
+        assert row.github_url == "https://github.com/testauthor/test-plugin"
+        assert row.sha256 == "abc123"
+        assert all(r["github_url"] != repo["html_url"] for r in results)

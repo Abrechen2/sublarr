@@ -364,10 +364,21 @@ def toggle():
         401:
           description: Not authenticated
     """
-    if not _is_session_authenticated() and not ui_auth._has_valid_api_key():
-        return jsonify({"error": "Authentication required"}), 401
-
     body = request.get_json(silent=True) or {}
+    if not _is_session_authenticated():
+        if not ui_auth._has_valid_api_key():
+            return jsonify({"error": "Authentication required"}), 401
+        # Sonarr, Radarr and Jellyfin may hold the API key; on its own it must
+        # not switch sign-in off and open the password-less session (#71).
+        pw_hash = ui_auth._get_config_entry("ui_password_hash") or ""
+        if pw_hash == "disabled" or not ui_auth.verify_password(body.get("password", ""), pw_hash):
+            return jsonify(
+                {
+                    "error": "With the API key, switching sign-in also needs the UI password.",
+                    "password_required": True,
+                }
+            ), 403
+
     enabled = body.get("enabled")
     if not isinstance(enabled, bool):
         return jsonify({"error": "'enabled' must be a boolean"}), 400

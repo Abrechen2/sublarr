@@ -30,6 +30,9 @@ AUTH_OWNED_CONFIG_KEYS = frozenset(
         "ui_session_secret",
         "ui_session_generation",
         "ui_revoked_sessions",
+        # Set on first start and by its own regenerate route, which checks
+        # that a person (not just the API key) asks (#71).
+        "webhook_secret",
     }
 )
 
@@ -252,8 +255,11 @@ def setup_token() -> str:
 
 
 def setup_allowed(provided_token: str) -> bool:
-    """The first setup is open to the local network, the API key or the logged token."""
-    if request_is_local_network() or _has_valid_api_key():
+    """The first setup is open to the local network or the logged token.
+
+    Not to the API key: Sonarr, Radarr and Jellyfin may hold it (#71).
+    """
+    if request_is_local_network():
         return True
     return bool(provided_token) and hmac.compare_digest(str(provided_token), setup_token())
 

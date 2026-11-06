@@ -16,6 +16,10 @@ from routes.system import bp
 
 logger = logging.getLogger(__name__)
 
+# Whoever holds only the API key — possibly an arr — must not read or replace
+# the secret that decides which webhooks Sublarr trusts.
+_SESSION_REQUIRED = {"error": "Needs a signed-in UI session", "session_required": True}
+
 
 @bp.route("/system/webhook-secret", methods=["GET"])
 def get_webhook_secret():
@@ -32,8 +36,11 @@ def get_webhook_secret():
         200:
           description: Webhook secret
     """
+    import ui_auth
     from config import get_settings
 
+    if not ui_auth.request_has_admin_presence():
+        return jsonify(_SESSION_REQUIRED), 403
     s = get_settings()
     return jsonify(
         {
@@ -57,8 +64,12 @@ def regenerate_webhook_secret():
         200:
           description: The new webhook secret
     """
+    import ui_auth
     from config import reload_settings
     from db.config import get_all_config_entries, save_config_entry
+
+    if not ui_auth.request_has_admin_presence():
+        return jsonify(_SESSION_REQUIRED), 403
 
     new_secret = secrets.token_hex(32)
     save_config_entry("webhook_secret", new_secret)

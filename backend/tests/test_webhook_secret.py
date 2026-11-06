@@ -94,3 +94,16 @@ def test_the_secret_can_be_read_and_regenerated(client):
     new = client.post("/api/v1/system/webhook-secret/regenerate").get_json()["webhook_secret"]
     assert len(new) == 64 and new != first["webhook_secret"]
     assert client.get("/api/v1/system/webhook-secret").get_json()["webhook_secret"] == new
+
+
+def test_the_api_key_alone_cannot_read_or_replace_the_secret(client):
+    """Whoever holds only the API key (an arr) must not manage webhook trust."""
+    with patch("ui_auth.request_has_admin_presence", return_value=False):
+        assert client.get("/api/v1/system/webhook-secret").status_code == 403
+        assert client.post("/api/v1/system/webhook-secret/regenerate").status_code == 403
+
+
+def test_the_generic_config_writer_refuses_the_webhook_secret():
+    from routes.config.keys import is_writable_config_key
+
+    assert not is_writable_config_key("webhook_secret")
