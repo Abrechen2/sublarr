@@ -82,7 +82,7 @@ def _parse_episode_info(text: str) -> dict:
                 "resolution": str(info.get("screen_size", "")),
             }
         except Exception:
-            pass
+            logger.debug("Could not parse release info from the subtitle title", exc_info=True)
 
     # Regex fallback
     result = {

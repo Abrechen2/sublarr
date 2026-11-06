@@ -142,7 +142,7 @@ class KodiServer(MediaServer):
                 minor = version.get("minor", "?")
                 return True, f"{name} v{major}.{minor}"
         except Exception:
-            pass
+            logger.debug("Could not parse the Kodi version response", exc_info=True)
 
         return True, "Kodi (version unknown)"
 

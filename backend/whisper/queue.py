@@ -314,7 +314,7 @@ class WhisperQueue:
                         },
                     )
                 except Exception:
-                    pass
+                    logger.debug("Could not emit the whisper completion event", exc_info=True)
 
                 logger.info(
                     "Whisper job %s completed: %d segments, %.1fs duration, %.0fms processing",
@@ -357,7 +357,7 @@ class WhisperQueue:
                     },
                 )
             except Exception:
-                pass
+                logger.debug("Could not emit the whisper failure event", exc_info=True)
 
         finally:
             # Clean up temp audio file

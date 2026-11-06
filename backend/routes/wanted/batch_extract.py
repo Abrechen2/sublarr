@@ -95,7 +95,7 @@ def _run_batch_extract(item_ids, auto_translate, app):
 
             _db.session.remove()
         except Exception:
-            pass
+            logger.debug("Could not remove the DB session after the batch extract", exc_info=True)
         with _batch_extract_lock:
             _batch_extract_state["running"] = False
             snapshot = dict(_batch_extract_state)

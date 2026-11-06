@@ -51,4 +51,6 @@ def write_post_processing_run(
 
             db.session.rollback()
         except Exception:
-            pass
+            logger.debug(
+                "Could not roll back the DB session after a failed audit write", exc_info=True
+            )

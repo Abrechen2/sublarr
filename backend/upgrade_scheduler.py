@@ -101,7 +101,10 @@ def start_upgrade_scheduler(app):
         try:
             scheduler.resume_job("upgrade_scan")
         except Exception:
-            pass
+            logger.debug(
+                "upgrade: could not resume the upgrade_scan job after changing its interval",
+                exc_info=True,
+            )
         logger.info("upgrade: interval set to %dh via adapter", interval)
     except Exception:
         logger.error("upgrade: adapter failed", exc_info=True)
@@ -228,7 +231,10 @@ def _execute_scan() -> dict:
                         skipped += 1
                         continue
                 except Exception:
-                    pass
+                    logger.debug(
+                        "upgrade: could not parse the last search time, not skipping the item",
+                        exc_info=True,
+                    )
 
             # Re-queue as upgrade candidate
             db.execute(

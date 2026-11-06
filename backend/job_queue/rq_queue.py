@@ -189,7 +189,7 @@ class RQJobQueue(QueueBackend):
                     job = RQJob.fetch(jid, connection=self.redis_client)
                     results.append(_rq_job_to_info(job))
                 except Exception:
-                    pass
+                    logger.debug("Could not fetch RQ job %s from the registry", jid, exc_info=True)
         except Exception as e:
             logger.debug("Error fetching active jobs: %s", e)
         return results
@@ -211,7 +211,7 @@ class RQJobQueue(QueueBackend):
                     job = RQJob.fetch(jid, connection=self.redis_client)
                     results.append(_rq_job_to_info(job))
                 except Exception:
-                    pass
+                    logger.debug("Could not fetch RQ job %s from the registry", jid, exc_info=True)
         except Exception as e:
             logger.debug("Error fetching failed jobs: %s", e)
         return results

@@ -202,7 +202,9 @@ def _safe_rollback() -> None:
 
         db.session.rollback()
     except Exception:
-        pass
+        logger.debug(
+            "Could not roll back the DB session after a failed telemetry query", exc_info=True
+        )
 
 
 def _translation_backend_type(settings) -> str:
@@ -275,7 +277,7 @@ def _arr_connected(settings, url_field: str, key_field: str, json_field: str) ->
             arr = json.loads(raw)
             return isinstance(arr, list) and len(arr) > 0
     except Exception:
-        pass
+        logger.debug("Could not parse the stored list for the usage stats", exc_info=True)
     return False
 
 
@@ -287,7 +289,7 @@ def _auth_type(settings) -> str:
         if (getattr(settings, "api_key", "") or "").strip():
             return "ui"
     except Exception:
-        pass
+        logger.debug("Could not determine the auth mode for the usage stats", exc_info=True)
     return "none"
 
 

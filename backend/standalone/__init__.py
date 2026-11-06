@@ -195,14 +195,14 @@ class StandaloneManager:
             arr_configured = len(get_sonarr_instances()) > 0 or len(get_radarr_instances()) > 0
             auto_activated = enabled and not getattr(get_settings(), "standalone_enabled", False)
         except Exception:
-            pass
+            logger.debug("Could not determine the standalone mode state", exc_info=True)
 
         try:
             from db.standalone import get_watched_folders
 
             folders_count = len(get_watched_folders(enabled_only=True))
         except Exception:
-            pass
+            logger.debug("Could not count the watched folders", exc_info=True)
 
         return {
             "enabled": enabled,
@@ -225,7 +225,7 @@ class StandaloneManager:
 
                 emit_event("standalone_scan_complete", summary)
             except Exception:
-                pass
+                logger.debug("Could not emit the standalone_scan_complete event", exc_info=True)
             logger.info("Initial standalone scan complete: %s", summary)
         except Exception as e:
             logger.error("Initial standalone scan failed: %s", e)
@@ -254,7 +254,7 @@ class StandaloneManager:
                     },
                 )
             except Exception:
-                pass
+                logger.debug("Could not emit the standalone file event", exc_info=True)
             logger.info(
                 "Processed new file: %s (type=%s, wanted=%s)",
                 path,

@@ -2,8 +2,11 @@
 
 from __future__ import annotations
 
+import logging
 import os
 import shutil
+
+logger = logging.getLogger(__name__)
 
 
 def apply(fix_id: int) -> dict:
@@ -27,5 +30,5 @@ def apply(fix_id: int) -> dict:
 
             store.mark_finding(fid, "open")
         except Exception:
-            pass
+            logger.debug("Could not mark finding %s as open after the rollback", fid, exc_info=True)
     return {"restored": True, "target_path": dst}

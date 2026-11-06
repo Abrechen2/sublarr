@@ -261,7 +261,11 @@ def _apply_intervals_to_apscheduler(
             try:
                 scheduler.resume_job(job_id)
             except Exception:
-                pass
+                logger.debug(
+                    "Could not resume scheduler job %s after changing its interval",
+                    job_id,
+                    exc_info=True,
+                )
         except Exception:
             logger.error("%s: adapter failed", job_id, exc_info=True)
 

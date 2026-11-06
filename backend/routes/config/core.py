@@ -485,7 +485,10 @@ def update_config():
                     try:
                         _scheduler.resume_job("standalone_scan")
                     except Exception:
-                        pass
+                        logger.debug(
+                            "Could not resume the standalone_scan job after changing its interval",
+                            exc_info=True,
+                        )
         except Exception as exc:
             logger.warning("standalone_scan trigger update failed: %s", exc)
 

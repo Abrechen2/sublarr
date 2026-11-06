@@ -71,7 +71,9 @@ class SearchCacheMixin:
                             if _METRICS_AVAILABLE:
                                 _metrics_module.PROVIDER_CACHE_HITS_TOTAL.labels(layer="fast").inc()
                         except Exception:
-                            pass
+                            logger.debug(
+                                "Could not record the fast cache hit metric", exc_info=True
+                            )
                         return cached_results
                     except Exception as e:
                         logger.debug("Failed to parse fast cached results: %s", e)
@@ -93,7 +95,7 @@ class SearchCacheMixin:
                     if _METRICS_AVAILABLE:
                         _metrics_module.PROVIDER_CACHE_HITS_TOTAL.labels(layer="db").inc()
                 except Exception:
-                    pass
+                    logger.debug("Could not record the DB cache hit metric", exc_info=True)
                 if cache_backend:
                     try:
                         cache_backend.set(
@@ -111,7 +113,7 @@ class SearchCacheMixin:
                 _metrics_module.PROVIDER_CACHE_MISSES_TOTAL.labels(layer="fast").inc()
                 _metrics_module.PROVIDER_CACHE_MISSES_TOTAL.labels(layer="db").inc()
         except Exception:
-            pass
+            logger.debug("Could not record the cache miss metrics", exc_info=True)
         return None
 
     def _write_search_cache(

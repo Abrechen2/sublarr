@@ -62,7 +62,7 @@ def _finalize_batch_probe(start_time: float) -> None:
 
         _db.session.remove()
     except Exception:
-        pass
+        logger.debug("Could not remove the DB session after the batch probe", exc_info=True)
     duration_ms = int((time.time() - start_time) * 1000)
     with _batch_probe_lock:
         _batch_probe_state["running"] = False

@@ -151,7 +151,9 @@ def _safe_upsert(date_str: str, *, skip_if_empty: bool = False) -> None:
 
             db.session.rollback()
         except Exception:
-            pass
+            logger.debug(
+                "Could not roll back the DB session after a failed stats rollup", exc_info=True
+            )
 
 
 def stats_rollup_tick() -> None:

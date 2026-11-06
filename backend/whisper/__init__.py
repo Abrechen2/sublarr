@@ -199,7 +199,7 @@ class WhisperManager:
             if name and name in self._backend_classes:
                 return name
         except Exception:
-            pass
+            logger.debug("Could not read the configured whisper backend", exc_info=True)
         return "subgen"
 
     def _get_circuit_breaker(self) -> CircuitBreaker:

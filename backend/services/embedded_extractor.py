@@ -342,7 +342,9 @@ def _record_extraction(video_path: str, language: str, fmt: str) -> None:
 
             _db.session.rollback()
         except Exception:
-            pass
+            logger.debug(
+                "Could not roll back the DB session after a failed hash registration", exc_info=True
+            )
         # Bookkeeping only — never fail the extraction over it, but a
         # warning (not debug) so a persistently broken write is visible.
         logger.warning("extraction origin record failed for %s: %s", video_path, exc)
@@ -1141,7 +1143,10 @@ def extract_embedded_sub(
                         try:
                             ctx.pop()
                         except Exception:
-                            pass
+                            logger.debug(
+                                "Could not pop the Flask app context after auto-translate",
+                                exc_info=True,
+                            )
 
             submit_background(_translate_async)
         except Exception as exc:

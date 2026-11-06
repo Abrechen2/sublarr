@@ -371,7 +371,7 @@ class TranslationManager:
                     "batch_size": str(settings.batch_size),
                 }
             except Exception:
-                pass
+                logger.debug("Could not read the translation settings", exc_info=True)
 
         return config
 

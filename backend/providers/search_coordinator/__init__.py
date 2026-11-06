@@ -622,7 +622,7 @@ class SearchCoordinatorMixin(SearchRetryMixin, SearchScoringMixin, SearchCacheMi
                     },
                 )
             except Exception:
-                pass
+                logger.debug("Could not emit the provider throttled event", exc_info=True)
         except Exception as _te:
             logger.debug("Rate-limit throttle persistence failed: %s", _te)
         # Phase 3 learning hook — tell the budget manager so future
@@ -683,7 +683,7 @@ class SearchCoordinatorMixin(SearchRetryMixin, SearchScoringMixin, SearchCacheMi
                 },
             )
         except Exception:
-            pass
+            logger.debug("Could not emit the provider state event", exc_info=True)
 
     def _check_auto_disable(self, name: str):
         """Check if a provider should be auto-disabled based on consecutive failures.

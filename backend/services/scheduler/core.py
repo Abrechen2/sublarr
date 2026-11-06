@@ -531,5 +531,5 @@ def reconcile_stale_runs(grace_minutes: int = 10) -> int:
 
             scheduler_interrupted_runs_total.inc(len(stale))
         except Exception:
-            pass
+            logger.debug("Could not increment the scheduler interrupted-runs metric", exc_info=True)
     return len(stale)

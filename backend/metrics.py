@@ -226,7 +226,7 @@ def collect_database_metrics(db_path: str) -> None:
         if os.path.exists(db_path):
             DATABASE_SIZE.set(os.path.getsize(db_path))
     except Exception:
-        pass
+        logger.debug("Could not read the database file size for the metrics gauge", exc_info=True)
 
 
 def collect_circuit_breaker_metrics() -> None:
@@ -277,7 +277,7 @@ def collect_cache_metrics() -> None:
             CACHE_HITS_TOTAL.labels(backend=backend)  # ensure label initialized
             CACHE_SIZE.labels(backend=backend).set(stats.get("size", 0))
     except Exception:
-        pass
+        logger.debug("Could not update the cache metrics", exc_info=True)
 
 
 def collect_redis_metrics() -> None:
@@ -313,7 +313,7 @@ def collect_queue_job_metrics() -> None:
             QUEUE_ACTIVE.labels(backend=backend).set(len(queue.get_active_jobs()))
             QUEUE_FAILED.labels(backend=backend).set(len(queue.get_failed_jobs(100)))
     except Exception:
-        pass
+        logger.debug("Could not update the job queue metrics", exc_info=True)
 
 
 # -- Recording helpers ---------------------------------------------------------

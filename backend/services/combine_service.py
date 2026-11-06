@@ -138,7 +138,9 @@ def _record_combined(
 
             _db.session.rollback()
         except Exception:
-            pass
+            logger.debug(
+                "Could not roll back the DB session after a failed hash registration", exc_info=True
+            )
         logger.warning("combine: hash registration failed for %s: %s", out_path, exc)
 
     try:

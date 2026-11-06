@@ -1,10 +1,14 @@
 """Scoring weights and provider modifier operations -- delegating to SQLAlchemy repository."""
 
+import logging
+
 from db.repositories.scoring import (
     _DEFAULT_EPISODE_WEIGHTS,
     _DEFAULT_MOVIE_WEIGHTS,
     ScoringRepository,
 )
+
+logger = logging.getLogger(__name__)
 
 __all__ = [
     "_DEFAULT_EPISODE_WEIGHTS",
@@ -109,4 +113,4 @@ def set_penalty_rule_weight(rule_id: str, weight: int) -> None:
 
         invalidate_penalty_rule_weights_cache()
     except Exception:
-        pass
+        logger.debug("Could not invalidate the penalty rule weights cache", exc_info=True)

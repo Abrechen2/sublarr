@@ -557,7 +557,10 @@ def run_wanted_search(
                         get_provider_manager().get_provider_summary()
                     )
                 except Exception:
-                    pass
+                    logger.debug(
+                        "Could not add the provider summary to the search progress event",
+                        exc_info=True,
+                    )
                 socketio.emit("wanted_search_progress", progress_data)
 
     duration = round(time.time() - start, 1)

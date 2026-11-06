@@ -65,7 +65,7 @@ def main():
 
             redis_url = get_settings().redis_url
         except Exception:
-            pass
+            logger.debug("Could not read the Redis URL from the settings", exc_info=True)
 
     if not redis_url:
         logger.error(

@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import logging
 from datetime import UTC, datetime
 
 from flask import Blueprint, jsonify, request
@@ -37,6 +38,8 @@ from services.standalone_owner_keys import (
     legacy_ids_as_owner_keys,
     row_for_write,
 )
+
+logger = logging.getLogger(__name__)
 
 bp = Blueprint("profiles_overrides", __name__, url_prefix="/api/v1/profiles-overrides")
 
@@ -394,7 +397,7 @@ def _movie_title(movie_id: int) -> str:
             if row and row[0]:
                 return str(row[0])
         except Exception:
-            pass
+            logger.debug("Could not look up the standalone movie title", exc_info=True)
     if movie_id < 0:
         return f"#{movie_id}"
     radarr_title = get_radarr_movie_titles().get(movie_id)

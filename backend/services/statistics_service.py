@@ -170,7 +170,9 @@ def _db_size_bytes() -> int:
 
             db.session.rollback()
         except Exception:
-            pass
+            logger.debug(
+                "Could not roll back the DB session after a failed statistics query", exc_info=True
+            )
     return 0
 
 

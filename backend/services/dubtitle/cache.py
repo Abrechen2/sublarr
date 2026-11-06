@@ -77,7 +77,10 @@ def store_detection(file_path: str, result_dict: dict) -> None:
 
             db.session.rollback()
         except Exception:
-            pass
+            logger.debug(
+                "dubtitle cache: could not roll back the DB session after a failed write",
+                exc_info=True,
+            )
 
 
 def detect_dubtitle_cached(

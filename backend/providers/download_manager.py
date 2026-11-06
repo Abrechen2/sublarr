@@ -864,7 +864,9 @@ def save_subtitle(
 
             _db.session.rollback()
         except Exception:
-            pass
+            logger.debug(
+                "Could not roll back the DB session after a failed hash registration", exc_info=True
+            )
         logger.debug("Failed to register subtitle hash after write: %s", e)
 
     logger.info(
