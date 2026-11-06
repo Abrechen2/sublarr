@@ -133,13 +133,15 @@ def _get_or_create_secret_key() -> str:
 def _has_valid_api_key() -> bool:
     from config import get_settings
 
-    settings = get_settings()
-    if not settings.api_key:
+    # getattr: the origin check calls this on every state-changing request,
+    # including under settings objects that carry no api_key field.
+    api_key = getattr(get_settings(), "api_key", "")
+    if not api_key:
         return False
     provided = request.headers.get("X-Api-Key") or request.args.get("apikey")
     if not provided:
         return False
-    return hmac.compare_digest(provided, settings.api_key)
+    return hmac.compare_digest(provided, api_key)
 
 
 def request_is_local_network() -> bool:
