@@ -653,6 +653,15 @@ def create_app(testing=False):
             settings = reload_settings(get_all_config_entries())
             logger.info("API key auto-generated on first start (64 hex chars)")
 
+        # Webhooks get their own secret so Sonarr/Radarr/Jellyfin need not hold
+        # the API key (#71). Generated once; regenerated only on request.
+        if not getattr(settings, "webhook_secret", ""):
+            import secrets
+
+            save_config_entry("webhook_secret", secrets.token_hex(32))
+            settings = reload_settings(get_all_config_entries())
+            logger.info("Webhook secret generated (64 hex chars)")
+
         # Warn when both auth mechanisms are disabled — all API endpoints are public.
         # This is intentional for trusted-LAN / reverse-proxy deployments, but operators
         # should be aware of the exposure. See PENTEST_FINDINGS.md F-17.

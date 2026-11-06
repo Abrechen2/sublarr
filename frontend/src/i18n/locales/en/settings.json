@@ -1257,7 +1257,18 @@
     "copied": "Copied!",
     "sonarr_desc": "Paste into Sonarr → Settings → Connect → Webhook",
     "radarr_desc": "Paste into Radarr → Settings → Connect → Webhook",
-    "jellyfin_desc": "Paste into Jellyfin → Dashboard → Webhooks plugin"
+    "jellyfin_desc": "Paste into Jellyfin → Dashboard → Webhooks plugin",
+    "secret_title": "Webhook secret",
+    "secret_desc": "Sonarr, Radarr and Jellyfin send this secret as the X-Api-Key header. It opens the webhooks and nothing else – unlike the API key.",
+    "secret_label": "Secret",
+    "secret_show": "Show secret",
+    "secret_hide": "Hide secret",
+    "secret_copy": "Copy secret",
+    "secret_regenerate": "Regenerate",
+    "secret_regenerate_confirm": "Generate a new webhook secret? Connections using the old one stop working.",
+    "secret_regenerated": "New webhook secret generated",
+    "legacy_label": "Keep accepting the API key on webhooks",
+    "legacy_hint": "Turn this off once Sonarr, Radarr and Jellyfin use the webhook secret. Then nobody who reads their settings can control Sublarr with the API key."
   },
   "instance_editor": {
     "instances_label": "{{label}} Instances",
@@ -1888,7 +1899,8 @@
     "search_placeholder": "Search plugins...",
     "refresh_github": "Refresh from GitHub",
     "view_on_github": "View on GitHub",
-    "no_plugins": "No plugins found."
+    "no_plugins": "No plugins found.",
+    "session_required": "Installing and removing plugins needs a signed-in session, not just the API key. Sign in to the UI and try again."
   },
   "post_processing_tab": {
     "loading": "Loading post-processing config…",

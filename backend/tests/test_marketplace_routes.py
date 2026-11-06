@@ -131,8 +131,19 @@ def test_install_rejects_missing_fields(client):
     assert "zip_url" in data["error"] or "name" in data["error"]
 
 
-def test_install_sha256_mismatch_returns_500(client):
+def test_install_sha256_mismatch_returns_500(app, client):
     """Mock install_plugin_from_zip to raise RuntimeError; route must return 500."""
+    from db.models.plugins import MarketplaceCache
+
+    sa_db.session.add(
+        MarketplaceCache(
+            name="bad-plugin",
+            zip_url="https://example.com/bad-plugin.zip",
+            sha256="wronghash",
+            last_fetched=datetime.now(UTC),
+        )
+    )
+    sa_db.session.commit()
     with patch(
         "services.marketplace.PluginMarketplace.install_plugin_from_zip",
         side_effect=RuntimeError("SHA256 mismatch"),

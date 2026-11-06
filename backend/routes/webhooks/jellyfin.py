@@ -1,11 +1,9 @@
 """Jellyfin webhook handler — /api/v1/webhook/jellyfin."""
 
-import hmac
-
 from flask import jsonify, request
 
 from extensions import limiter
-from routes.webhooks import _spawn_pipeline, bp, logger
+from routes.webhooks import _spawn_pipeline, bp, logger, webhook_authorized
 
 
 @bp.route("/webhook/jellyfin", methods=["POST"])
@@ -53,10 +51,9 @@ def webhook_jellyfin():
 
     s = get_settings()
 
-    # Auth: always require API key on webhook endpoints (checked before feature gate)
-    _api_key = getattr(s, "api_key", None) or ""
-    _provided = request.headers.get("X-Api-Key", "")
-    if not _api_key or not hmac.compare_digest(_provided, _api_key):
+    # Auth: the webhook secret, or the API key while legacy auth is on
+    # (checked before the feature gate)
+    if not webhook_authorized(s):
         return jsonify({"error": "Unauthorized"}), 401
 
     # Feature gate — disabled by default

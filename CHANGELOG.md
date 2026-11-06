@@ -23,6 +23,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   that session on the server too, so a copied cookie stops working; changing
   the password or turning UI authentication on or off ends every other
   session. Existing sessions end once with this update; sign in again.
+- **Webhooks no longer need the API key** — Sonarr, Radarr and Jellyfin held
+  the API key for their webhooks, and that key could install plugins: whoever
+  read their settings could run code in Sublarr. Webhooks now have their own
+  secret, generated on first start and shown under Settings → System → Hooks,
+  which opens the webhooks and nothing else. The API key keeps working on
+  webhooks until you turn "Keep accepting the API key on webhooks" off there;
+  do that once every connection uses the webhook secret.
+- **Plugins install only from the plugin index** — The installer took the
+  download URL and hash from the request, so any HTTPS file could be
+  installed. URL and hash now come from the plugin index, installing or
+  removing a plugin needs a signed-in session (the API key alone is refused),
+  plugin names are checked (the name "." removed every installed plugin), and
+  each download redirect is checked like the first URL.
 
 ### Fixed
 - **Wanted scans on large libraries never completed** (#248) — A full scan

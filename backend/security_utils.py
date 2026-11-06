@@ -350,6 +350,36 @@ def validate_service_url(url: str, *, allow_loopback: bool = False) -> tuple[boo
     return True, None
 
 
+_MAX_CHECKED_REDIRECTS = 5
+
+
+def get_with_checked_redirects(url: str, *, https_only: bool = False, **kwargs):
+    """``requests.get`` that validates every redirect hop like the first URL.
+
+    ``validate_service_url`` only sees the URL it is given; ``requests``
+    follows redirects on its own, so an allowed host could bounce the request
+    to a blocked one (code check 2026-11-05, N-2). Redirects are followed
+    here, each target checked before it is fetched. DNS rebinding between
+    check and fetch is still not covered (see ``validate_service_url``).
+
+    Raises ``ValueError`` for a blocked hop; HTTP errors are left to the caller.
+    """
+    import requests
+
+    for _ in range(_MAX_CHECKED_REDIRECTS + 1):
+        if https_only and urllib.parse.urlparse(url).scheme != "https":
+            raise ValueError(f"Only HTTPS is allowed: {url}")
+        ok, reason = validate_service_url(url)
+        if not ok:
+            raise ValueError(f"URL blocked for security reasons: {reason}")
+        response = requests.get(url, allow_redirects=False, **kwargs)
+        if not response.is_redirect:
+            return response
+        url = urllib.parse.urljoin(url, response.headers["Location"])
+        response.close()
+    raise ValueError(f"Too many redirects (more than {_MAX_CHECKED_REDIRECTS})")
+
+
 def _check_ip_address(addr, label: str, *, allow_loopback: bool = False) -> tuple[bool, str | None]:
     """Return (False, reason) for any IP class we never want service URLs to point at.
 

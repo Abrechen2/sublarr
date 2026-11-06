@@ -297,6 +297,21 @@ export async function confirmBazarrImport(files: File[]): Promise<import('@/lib/
 
 // ─── UI Auth ─────────────────────────────────────────────────────────────────
 
+export interface WebhookSecret {
+  webhook_secret: string
+  legacy_auth: boolean
+}
+
+export async function getWebhookSecret(): Promise<WebhookSecret> {
+  const { data } = await api.get('/system/webhook-secret')
+  return data
+}
+
+export async function regenerateWebhookSecret(): Promise<{ webhook_secret: string }> {
+  const { data } = await api.post('/system/webhook-secret/regenerate')
+  return data
+}
+
 export async function getAuthStatus(): Promise<AuthStatus> {
   const { data } = await api.get('/auth/status')
   return data

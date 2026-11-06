@@ -1,11 +1,15 @@
 """Sonarr webhook handler — /api/v1/webhook/sonarr."""
 
-import hmac
-
 from flask import jsonify, request
 
 from extensions import limiter
-from routes.webhooks import _log_pathless_download, _spawn_pipeline, bp, logger
+from routes.webhooks import (
+    _log_pathless_download,
+    _spawn_pipeline,
+    bp,
+    logger,
+    webhook_authorized,
+)
 
 
 @bp.route("/webhook/sonarr", methods=["POST"])
@@ -82,11 +86,9 @@ def webhook_sonarr():
     from config import get_settings, map_path
     from security_utils import is_safe_path
 
-    # Auth: always require API key on webhook endpoints
+    # Auth: the webhook secret, or the API key while legacy auth is on
     _s = get_settings()
-    _api_key = getattr(_s, "api_key", None) or ""
-    _provided = request.headers.get("X-Api-Key", "")
-    if not _api_key or not hmac.compare_digest(_provided, _api_key):
+    if not webhook_authorized(_s):
         return jsonify({"error": "Unauthorized"}), 401
 
     data = request.get_json() or {}

@@ -1257,7 +1257,18 @@
     "copied": "Kopiert!",
     "sonarr_desc": "In Sonarr einfügen → Settings → Connect → Webhook",
     "radarr_desc": "In Radarr einfügen → Settings → Connect → Webhook",
-    "jellyfin_desc": "In Jellyfin einfügen → Dashboard → Webhooks-Plugin"
+    "jellyfin_desc": "In Jellyfin einfügen → Dashboard → Webhooks-Plugin",
+    "secret_title": "Webhook-Schlüssel",
+    "secret_desc": "Sonarr, Radarr und Jellyfin senden diesen Schlüssel als Header X-Api-Key. Er öffnet nur die Webhooks, sonst nichts – anders als der API-Schlüssel.",
+    "secret_label": "Schlüssel",
+    "secret_show": "Schlüssel anzeigen",
+    "secret_hide": "Schlüssel ausblenden",
+    "secret_copy": "Schlüssel kopieren",
+    "secret_regenerate": "Neu erzeugen",
+    "secret_regenerate_confirm": "Neuen Webhook-Schlüssel erzeugen? Verbindungen mit dem alten Schlüssel funktionieren danach nicht mehr.",
+    "secret_regenerated": "Neuer Webhook-Schlüssel erzeugt",
+    "legacy_label": "API-Schlüssel für Webhooks weiter akzeptieren",
+    "legacy_hint": "Ausschalten, sobald Sonarr, Radarr und Jellyfin den Webhook-Schlüssel nutzen. Dann kann niemand, der deren Einstellungen liest, mit dem API-Schlüssel Sublarr steuern."
   },
   "instance_editor": {
     "instances_label": "{{label}}-Instanzen",
@@ -1888,7 +1899,8 @@
     "search_placeholder": "Plugins suchen...",
     "refresh_github": "Von GitHub aktualisieren",
     "view_on_github": "Auf GitHub ansehen",
-    "no_plugins": "Keine Plugins gefunden."
+    "no_plugins": "Keine Plugins gefunden.",
+    "session_required": "Plugins installieren und entfernen geht nur mit angemeldeter Sitzung, nicht mit dem API-Schlüssel allein. Melde dich in der Oberfläche an und versuche es erneut."
   },
   "post_processing_tab": {
     "loading": "Post-Processing-Konfiguration wird geladen…",

@@ -585,6 +585,11 @@ class UISettings(BaseModel):
     webhook_auto_scan: bool = True
     webhook_auto_search: bool = True
     webhook_auto_translate: bool = True
+    # Secret for /api/v1/webhook/* only; generated on first start (#71).
+    webhook_secret: str = ""
+    # Whether webhooks still accept the API key. On by default so an update
+    # keeps existing Sonarr/Radarr/Jellyfin connections working.
+    webhook_legacy_auth: bool = True
     jellyfin_play_translate_enabled: bool = False  # Auto-translate when Jellyfin starts playback
 
     # Video Sync (ffsubsync / alass)

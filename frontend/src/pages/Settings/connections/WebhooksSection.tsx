@@ -12,6 +12,7 @@ import { SettingsSection } from '@/components/settings/SettingsSection'
 import { SettingRow } from '@/components/shared/SettingRow'
 import { toast } from '@/components/shared/Toast'
 import { withBase } from '@/basePath'
+import { WebhookSecretSection } from './WebhookSecretSection'
 
 const WEBHOOKS = [
   { service: 'Sonarr', hook: 'sonarr', descKey: 'webhooks_page.sonarr_desc' },
@@ -25,6 +26,7 @@ export function WebhooksSection() {
 
   return (
     <div className="space-y-4">
+      <WebhookSecretSection />
       {WEBHOOKS.map((w) => {
         // The URL Sonarr/Radarr/Jellyfin must call, prefix included when Sublarr sits behind one.
         const fullUrl = `${baseUrl}${withBase(`/api/v1/webhook/${w.hook}`)}`

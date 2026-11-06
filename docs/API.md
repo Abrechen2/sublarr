@@ -95,11 +95,11 @@ Note: Translation routes are registered under the `/api/v1/translate` blueprint.
 
 | Method | Path | Auth | Description |
 |--------|------|------|-------------|
-| POST | `/webhook/sonarr` | HMAC signature | Sonarr download/upgrade webhook — triggers scan/search/translate pipeline |
-| POST | `/webhook/radarr` | HMAC signature | Radarr download/upgrade webhook — triggers scan/search/translate pipeline |
-| POST | `/webhook/jellyfin` | HMAC signature | Jellyfin playback-start webhook — triggers subtitle search on play |
+| POST | `/webhook/sonarr` | Webhook secret | Sonarr download/upgrade webhook — triggers scan/search/translate pipeline |
+| POST | `/webhook/radarr` | Webhook secret | Radarr download/upgrade webhook — triggers scan/search/translate pipeline |
+| POST | `/webhook/jellyfin` | Webhook secret | Jellyfin playback-start webhook — triggers subtitle search on play |
 
-Webhook auth: Exempt from API key check. Each handler validates HMAC signature from the `X-Webhook-Signature` header using `hmac.compare_digest()`.
+Webhook auth: the caller sends the webhook secret in the `X-Api-Key` header. The secret is generated on first start, shown and regenerated under Settings → System → Hooks (`GET /system/webhook-secret`, `POST /system/webhook-secret/regenerate`), and opens these routes only. The API key is still accepted here while `webhook_legacy_auth` is on (the default); turn it off once every connection uses the webhook secret.
 
 ---
 

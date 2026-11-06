@@ -226,6 +226,24 @@ def has_valid_session() -> bool:
     return True
 
 
+def request_has_admin_presence() -> bool:
+    """A person, not a stored key: a valid UI session or the trusted SSO proxy.
+
+    For actions that run code (plugin install). The API key alone does not
+    count: Sonarr, Radarr and Jellyfin may hold it for their webhooks (#71).
+    With no API key and UI auth off, the operator chose an open instance.
+    """
+    if has_valid_session():
+        return True
+    from proxy_auth import request_has_valid_proxy_auth
+
+    if request_has_valid_proxy_auth():
+        return True
+    from config import get_settings
+
+    return not get_settings().api_key and not is_ui_auth_enabled()
+
+
 def setup_token() -> str:
     global _setup_token
     if _setup_token is None:

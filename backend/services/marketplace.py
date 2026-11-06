@@ -8,16 +8,29 @@ import hashlib
 import io
 import logging
 import os
+import re
 import shutil
-import subprocess
 import zipfile
-from urllib.parse import urlparse
 
 import requests
 
-from security_utils import is_safe_path, safe_zip_extract, validate_git_url, validate_service_url
+from security_utils import (
+    get_with_checked_redirects,
+    is_safe_path,
+    safe_zip_extract,
+    validate_service_url,
+)
 
 logger = logging.getLogger(__name__)
+
+
+# A plugin name becomes a folder under plugins_dir. "." passed is_safe_path
+# (it is the base itself) and uninstall then removed every plugin (N-3).
+_PLUGIN_NAME = re.compile(r"^[A-Za-z0-9][A-Za-z0-9_-]{0,99}$")
+
+
+def is_valid_plugin_name(name: object) -> bool:
+    return isinstance(name, str) and bool(_PLUGIN_NAME.fullmatch(name))
 
 
 def verify_zip_sha256(data: bytes, expected_sha256: str) -> bool:
@@ -108,155 +121,6 @@ class PluginMarketplace:
                 return plugin
         return None
 
-    def install_plugin(
-        self,
-        plugin_name: str,
-        plugins_dir: str,
-        version: str | None = None,
-    ) -> dict:
-        """Install a plugin from the marketplace.
-
-        Args:
-            plugin_name: Plugin identifier
-            plugins_dir: Target directory for plugins
-            version: Optional specific version (default: latest)
-
-        Returns:
-            Dict with installation result
-
-        Raises:
-            RuntimeError: If installation fails
-        """
-        plugin_info = self.get_plugin_info(plugin_name)
-        if not plugin_info:
-            raise RuntimeError(f"Plugin not found: {plugin_name}")
-
-        # Determine installation method
-        install_url = plugin_info.get("url")
-        if not install_url:
-            raise RuntimeError(f"Plugin has no installation URL: {plugin_name}")
-
-        os.makedirs(plugins_dir, exist_ok=True)
-
-        # Validate URL before dispatching to install method
-        if install_url.endswith(".git") or "github.com" in install_url:
-            validate_git_url(install_url)
-            return self._install_from_git(install_url, plugin_name, plugins_dir, version)
-        else:
-            # ZIP download
-            return self._install_from_zip(install_url, plugin_name, plugins_dir)
-
-    def _install_from_git(
-        self,
-        repo_url: str,
-        plugin_name: str,
-        plugins_dir: str,
-        version: str | None = None,
-    ) -> dict:
-        """Install plugin from Git repository.
-
-        Args:
-            repo_url: Git repository URL
-            plugin_name: Plugin name
-            plugins_dir: Target directory
-            version: Optional version/tag/branch
-
-        Returns:
-            Installation result dict
-        """
-        plugin_path = os.path.join(plugins_dir, plugin_name)
-        if not is_safe_path(plugin_path, plugins_dir):
-            raise RuntimeError("Invalid plugin name — path traversal detected")
-
-        # Remove existing plugin if present
-        if os.path.exists(plugin_path):
-            shutil.rmtree(plugin_path)
-
-        # Validate URL (second guard in case _install_from_git is called directly)
-        validate_git_url(repo_url)
-
-        # Clone repository
-        cmd = ["git", "clone", repo_url, plugin_path]
-        if version:
-            cmd.extend(["-b", version])
-
-        try:
-            result = subprocess.run(
-                cmd,
-                capture_output=True,
-                text=True,
-                timeout=60,
-            )
-            if result.returncode != 0:
-                raise RuntimeError(f"Git clone failed: {result.stderr}")
-
-            # Validate plugin
-            validation_result = self._validate_plugin(plugin_path)
-
-            return {
-                "status": "installed",
-                "path": plugin_path,
-                "validation": validation_result,
-            }
-        except subprocess.TimeoutExpired:
-            raise RuntimeError("Git clone timed out")
-        except FileNotFoundError:
-            raise RuntimeError("git not found. Install git to enable plugin installation.")
-        except Exception as e:
-            raise RuntimeError(f"Git installation failed: {e}")
-
-    def _install_from_zip(
-        self,
-        zip_url: str,
-        plugin_name: str,
-        plugins_dir: str,
-    ) -> dict:
-        """Install plugin from ZIP file.
-
-        Args:
-            zip_url: ZIP file URL
-            plugin_name: Plugin name
-            plugins_dir: Target directory
-
-        Returns:
-            Installation result dict
-        """
-        try:
-            if urlparse(zip_url).scheme != "https":
-                raise RuntimeError("Only HTTPS zip_url is allowed for plugin installation")
-
-            ok, reason = validate_service_url(zip_url)
-            if not ok:
-                raise RuntimeError(f"Plugin URL blocked for security reasons: {reason}")
-
-            response = requests.get(zip_url, timeout=60)
-            response.raise_for_status()
-
-            plugin_path = os.path.join(plugins_dir, plugin_name)
-            if not is_safe_path(plugin_path, plugins_dir):
-                raise RuntimeError("Invalid plugin name — path traversal detected")
-
-            # Remove existing plugin if present
-            if os.path.exists(plugin_path):
-                shutil.rmtree(plugin_path)
-
-            os.makedirs(plugin_path, exist_ok=True)
-
-            # Extract ZIP — safe_zip_extract rejects ZIP Slip entries
-            with zipfile.ZipFile(io.BytesIO(response.content)) as zip_file:
-                safe_zip_extract(zip_file, plugin_path)
-
-            # Validate plugin
-            validation_result = self._validate_plugin(plugin_path)
-
-            return {
-                "status": "installed",
-                "path": plugin_path,
-                "validation": validation_result,
-            }
-        except Exception as e:
-            raise RuntimeError(f"ZIP installation failed: {e}")
-
     def install_plugin_from_zip(
         self,
         plugin_name: str,
@@ -278,14 +142,15 @@ class PluginMarketplace:
         Raises:
             RuntimeError: If the HTTP request fails or the SHA256 does not match.
         """
-        if urlparse(zip_url).scheme != "https":
-            raise RuntimeError("Only HTTPS zip_url is allowed for plugin installation")
+        if not is_valid_plugin_name(plugin_name):
+            raise RuntimeError(f"Invalid plugin name: {plugin_name!r}")
+        if not expected_sha256:
+            raise RuntimeError("A SHA256 is required for plugin installation")
 
-        ok, reason = validate_service_url(zip_url)
-        if not ok:
-            raise RuntimeError(f"Plugin URL blocked for security reasons: {reason}")
-
-        response = requests.get(zip_url, timeout=60)
+        try:
+            response = get_with_checked_redirects(zip_url, https_only=True, timeout=60)
+        except ValueError as e:
+            raise RuntimeError(f"Plugin URL refused: {e}") from e
         response.raise_for_status()
         data = response.content
 
@@ -374,6 +239,8 @@ class PluginMarketplace:
         Returns:
             Uninstallation result
         """
+        if not is_valid_plugin_name(plugin_name):
+            raise RuntimeError(f"Invalid plugin name: {plugin_name!r}")
         plugin_path = os.path.join(plugins_dir, plugin_name)
         if not is_safe_path(plugin_path, plugins_dir):
             raise RuntimeError("Invalid plugin name — path traversal detected")

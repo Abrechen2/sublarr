@@ -30,6 +30,11 @@ vi.mock('@/components/settings/SettingsSection', () => ({
   ),
 }))
 
+// Covered by its own test; it needs a QueryClient.
+vi.mock('@/pages/Settings/connections/WebhookSecretSection', () => ({
+  WebhookSecretSection: () => null,
+}))
+
 vi.mock('@/components/shared/SettingRow', () => ({
   SettingRow: ({ label, children }: { label: string; children: React.ReactNode }) => (
     <div>

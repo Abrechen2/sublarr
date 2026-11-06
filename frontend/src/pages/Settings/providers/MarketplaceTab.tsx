@@ -21,6 +21,12 @@ function hasRiskyCapabilities(capabilities: string[]): boolean {
   return capabilities.some((c) => HIGH_RISK.has(c))
 }
 
+/** The backend refuses plugin changes made with the API key alone (#71). */
+function needsSession(err: unknown): boolean {
+  const data = (err as { response?: { data?: { session_required?: boolean } } })?.response?.data
+  return data?.session_required === true
+}
+
 export function MarketplaceTab() {
   const { t } = useTranslation('settings')
   const [search, setSearch] = useState('')
@@ -53,10 +59,10 @@ export function MarketplaceTab() {
     try {
       await installMutation.mutateAsync(plugin)
       toast(`"${plugin.display_name}" installed`, 'success')
-    } catch {
-      toast(`Failed to install "${plugin.display_name}"`, 'error')
+    } catch (err) {
+      toast(needsSession(err) ? t('marketplace_tab.session_required') : `Failed to install "${plugin.display_name}"`, 'error')
     }
-  }, [installMutation])
+  }, [installMutation, t])
 
   const handleInstallRequest = useCallback((plugin: MarketplaceBrowsePlugin) => {
     if (!plugin.is_official && hasRiskyCapabilities(plugin.capabilities)) {
@@ -70,10 +76,10 @@ export function MarketplaceTab() {
     try {
       await uninstallMutation.mutateAsync(name)
       toast(`"${displayName}" removed`, 'success')
-    } catch {
-      toast(`Failed to remove "${displayName}"`, 'error')
+    } catch (err) {
+      toast(needsSession(err) ? t('marketplace_tab.session_required') : `Failed to remove "${displayName}"`, 'error')
     }
-  }, [uninstallMutation])
+  }, [uninstallMutation, t])
 
   return (
     <div className="space-y-4">

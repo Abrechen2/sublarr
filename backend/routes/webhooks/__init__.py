@@ -12,7 +12,7 @@ Re-exports of ``emit_event`` and ``socketio`` keep the other two
 documented patch paths alive.
 """
 
-import hmac  # noqa: F401 — used by handler sub-modules via the routes.webhooks.hmac lookup
+import hmac
 import logging
 import time  # noqa: F401 — ditto
 
@@ -28,6 +28,31 @@ from extensions import socketio  # noqa: F401 — tests patch routes.webhooks.so
 from services.background_tasks import submit_background
 
 bp = Blueprint("webhooks", __name__, url_prefix="/api/v1")
+
+
+def webhook_authorized(settings) -> bool:
+    """Whether the request carries the webhook secret (or, while allowed, the API key).
+
+    The webhook secret opens these routes and nothing else, so Sonarr, Radarr
+    and Jellyfin no longer have to hold the API key that also installs
+    plugins (code check 2026-11-05, #71). The API key keeps working here until
+    the operator turns ``webhook_legacy_auth`` off, so an update does not
+    break existing connections.
+    """
+    provided = request.headers.get("X-Api-Key", "")
+    if not provided:
+        return False
+    secret = getattr(settings, "webhook_secret", "")
+    if isinstance(secret, str) and secret and hmac.compare_digest(provided, secret):
+        return True
+    api_key = getattr(settings, "api_key", "")
+    if not (isinstance(api_key, str) and api_key):
+        return False
+    if getattr(settings, "webhook_legacy_auth", True) is False:
+        return False
+    return hmac.compare_digest(provided, api_key)
+
+
 logger = logging.getLogger(__name__)
 
 
