@@ -189,9 +189,17 @@ def is_safe_path(file_path: str, base_dir: str) -> bool:
     ``realpath`` does not raise on a NUL, so this can only be observed on a
     Linux host — which is every install.
 
+    A relative file_path under an absolute base_dir is not safe either: it
+    resolves against the process's working directory, not against base_dir,
+    so the answer depended on where the process was started (Bite run
+    2026-11-06). Both relative still works: both resolve against the same
+    working directory, which a relative config_dir relies on.
+
     Returns:
         True if file_path is inside base_dir after resolving symlinks.
     """
+    if os.path.isabs(base_dir) and not os.path.isabs(file_path):
+        return False
     try:
         real_path = os.path.realpath(file_path)
         real_base = os.path.realpath(base_dir)
