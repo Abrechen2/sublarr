@@ -264,6 +264,30 @@ def setup_allowed(provided_token: str) -> bool:
     return bool(provided_token) and hmac.compare_digest(str(provided_token), setup_token())
 
 
+_UNSAFE_METHODS = frozenset({"POST", "PUT", "PATCH", "DELETE"})
+
+
+def request_origin_is_foreign() -> bool:
+    """Whether a browser sent this request from another origin.
+
+    SameSite=Lax keeps the cookie off cross-site requests, but another app on
+    the same host (another port) is the same site, so its pages could make the
+    browser send state-changing requests with Sublarr's cookie (#77 N-1).
+    No Origin and no Referer means no browser asked cross-site.
+    """
+    from urllib.parse import urlparse
+
+    source = request.headers.get("Origin") or request.headers.get("Referer")
+    if not source:
+        return False
+    if source == "null":
+        return True
+    allowed = {request.host.lower()}
+    forwarded = request.headers.get("X-Forwarded-Host", "")
+    allowed |= {h.strip().lower() for h in forwarded.split(",") if h.strip()}
+    return urlparse(source).netloc.lower() not in allowed
+
+
 _EXEMPT_PATHS = {"/api/v1/health"}
 _EXEMPT_PREFIXES = ("/api/v1/auth/", "/socket.io/")
 
@@ -303,6 +327,24 @@ def init_ui_auth(app):
     except Exception:
         # If settings fail to load, use secure default
         app.config["PERMANENT_SESSION_LIFETIME"] = timedelta(hours=8)
+
+    @app.before_request
+    def check_same_origin():
+        # Only requests that ride on the session cookie: a custom X-Api-Key
+        # header cannot be sent cross-site without a CORS preflight.
+        if request.method not in _UNSAFE_METHODS or not request.path.startswith("/api/"):
+            return None
+        if not session.get("ui_authenticated") or request.headers.get("X-Api-Key"):
+            return None
+        if request_origin_is_foreign():
+            logger.warning(
+                "Cross-origin %s %s refused (Origin %r)",
+                request.method,
+                request.path,
+                request.headers.get("Origin") or request.headers.get("Referer"),
+            )
+            return jsonify({"error": "Cross-origin request refused"}), 403
+        return None
 
     @app.before_request
     def check_ui_session():

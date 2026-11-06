@@ -298,3 +298,70 @@ def test_toggle_is_rate_limited_like_login():
     decorated = limiter.limit_manager._decorated_limits
     assert "routes.auth_ui.toggle.toggle" in decorated
     assert "routes.auth_ui.login.login" in decorated
+
+
+# -- #77 N-1: cross-site requests riding on the cookie --------------------
+
+
+@pytest.fixture
+def csrf_app(store):
+    app = Flask(__name__)
+    app.config["TESTING"] = True
+    app.config["SECRET_KEY"] = "test-secret"
+    ui_auth.init_ui_auth(app)
+    app.config["SECRET_KEY"] = "test-secret"
+
+    @app.post("/api/v1/thing")
+    def thing():
+        return jsonify({"ok": True})
+
+    _enabled(store)
+    return app
+
+
+def _cookie_client(app):
+    c = app.test_client()
+    with c.session_transaction() as s:
+        s["ui_authenticated"] = True
+        s["ui_generation"] = "0"
+        s["ui_sid"] = "sid"
+    return c
+
+
+@pytest.mark.parametrize(
+    ("headers", "status"),
+    [
+        ({"Origin": "http://localhost"}, 200),
+        ({"Origin": "http://localhost:5766"}, 403),  # another app on the same host
+        ({"Origin": "https://evil.example"}, 403),
+        ({"Origin": "null"}, 403),
+        ({"Referer": "http://evil.example/page"}, 403),
+        ({"Referer": "http://localhost/settings"}, 200),
+        ({}, 200),  # no browser headers: not a cross-site browser request
+        (
+            {"Origin": "https://sublarr.example", "X-Forwarded-Host": "sublarr.example"},
+            200,
+        ),
+    ],
+)
+def test_cookie_requests_from_another_origin_are_refused(csrf_app, headers, status):
+    r = _cookie_client(csrf_app).post("/api/v1/thing", headers=headers)
+    assert r.status_code == status
+
+
+def test_requests_with_the_api_key_header_are_not_origin_checked(csrf_app):
+    # A custom header cannot be sent cross-site without a CORS preflight.
+    r = _cookie_client(csrf_app).post(
+        "/api/v1/thing", headers={"Origin": "https://evil.example", "X-Api-Key": API_KEY}
+    )
+    assert r.status_code == 200
+
+
+def test_toggle_is_origin_checked_too(csrf_app):
+    from routes.auth_ui import auth_ui_bp
+
+    csrf_app.register_blueprint(auth_ui_bp)
+    r = _cookie_client(csrf_app).post(
+        "/api/v1/auth/toggle", json={"enabled": False}, headers={"Origin": "http://localhost:8080"}
+    )
+    assert r.status_code == 403

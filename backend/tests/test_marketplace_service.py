@@ -52,6 +52,7 @@ def test_install_raises_on_sha256_mismatch(tmp_path):
         resp = MagicMock()
         resp.content = data
         resp.raise_for_status = MagicMock()
+        resp.is_redirect = False
         mock_get.return_value = resp
         marketplace = PluginMarketplace()
         with pytest.raises(RuntimeError, match="SHA256 mismatch"):
@@ -72,6 +73,7 @@ def test_install_succeeds_on_correct_sha256(tmp_path):
         resp = MagicMock()
         resp.content = data
         resp.raise_for_status = MagicMock()
+        resp.is_redirect = False
         mock_get.return_value = resp
         with patch("services.marketplace.safe_zip_extract"):
             marketplace = PluginMarketplace()
@@ -85,21 +87,17 @@ def test_install_succeeds_on_correct_sha256(tmp_path):
     assert "test" in result["path"]
 
 
-def test_install_skips_sha256_when_empty(tmp_path):
+def test_install_refuses_an_empty_sha256(tmp_path):
+    """No hash, no install: the index supplies one for every plugin (#71)."""
     from services.marketplace import PluginMarketplace
 
-    data = make_zip_bytes()
     with patch("requests.get") as mock_get:
-        resp = MagicMock()
-        resp.content = data
-        resp.raise_for_status = MagicMock()
-        mock_get.return_value = resp
-        with patch("services.marketplace.safe_zip_extract"):
-            marketplace = PluginMarketplace()
-            result = marketplace.install_plugin_from_zip(
+        marketplace = PluginMarketplace()
+        with pytest.raises(RuntimeError, match="SHA256 is required"):
+            marketplace.install_plugin_from_zip(
                 plugin_name="test",
                 zip_url="https://example.com/plugin.zip",
                 expected_sha256="",
                 plugins_dir=str(tmp_path),
             )
-    assert result["status"] == "installed"
+    mock_get.assert_not_called()

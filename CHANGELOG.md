@@ -21,6 +21,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   Sublarr writes to the container log at start.
 - **The API key alone no longer switches sign-in off** — Turning UI
   authentication on or off with the API key now also needs the UI password.
+- **Other apps on the same host could act with your session** — A page of
+  another app on the same host (another port) could make the browser send
+  changes to Sublarr with its sign-in cookie. Changes that rely on the cookie
+  are now refused when they come from another origin.
 - **Sessions outlived logout and password changes** — Logging out now ends
   that session on the server too, so a copied cookie stops working; changing
   the password or turning UI authentication on or off ends every other
