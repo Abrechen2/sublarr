@@ -33,7 +33,7 @@ jobs:
       backend: ${{ steps.filter.outputs.backend }}
       frontend: ${{ steps.filter.outputs.frontend }}
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
       - uses: dorny/paths-filter@ceb8a2b8f2d89434be7ff52d3de7ec3738c5cc9d # v4.0.3
         id: filter
         with:
@@ -63,9 +63,9 @@ jobs:
     env:
       PYTEST_SHARD: ${{ matrix.shard }}/4
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
 
-      - uses: actions/setup-python@v7
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7
         with:
           python-version: '3.12'
           cache: 'pip'
@@ -153,9 +153,9 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 45
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
 
-      - uses: actions/setup-node@v7
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7
         with:
           node-version: '24'
           cache: 'npm'
@@ -187,9 +187,9 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
 
-      - uses: actions/setup-python@v7
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7
         with:
           python-version: '3.12'
           cache: 'pip'
@@ -221,7 +221,7 @@ jobs:
         working-directory: ./backend
         run: bandit -r . --ini .bandit --severity-level medium || true
 
-      - uses: actions/setup-node@v7
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7
         with:
           node-version: '24'
           cache: 'npm'
@@ -244,11 +244,11 @@ jobs:
         run: npm audit --audit-level=high || true
 
   # ─── Semgrep (deeper static analysis) ─────────────────────────────────────
-  # Report only, into this job's log; nothing is uploaded to GitHub code
-  # scanning. Its baseline is dominated by audit rules (raw SQL in migrations,
-  # dynamic urllib) that are reviewed false positives, so a blocking Semgrep
-  # would be a red check people learn to click past. Tests, vendored and
-  # sha256-pinned catalog code are not ours to fix and are excluded.
+  # Results go to this job's log; nothing is uploaded to GitHub code scanning.
+  # The existing baseline is dominated by audit rules (raw SQL in migrations,
+  # dynamic urllib) that are reviewed false positives, so only findings a
+  # change adds block (see the step). Tests, vendored and sha256-pinned
+  # catalog code are not ours to fix and are excluded.
   semgrep:
     name: Semgrep
     needs: changes
@@ -258,18 +258,60 @@ jobs:
     container:
       image: semgrep/semgrep
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          fetch-depth: 0
 
-      - name: Run Semgrep (report only)
-        run: >-
-          semgrep scan --config p/default --config p/python --config p/typescript
-          --exclude backend/venv
-          --exclude backend/tests
-          --exclude backend/providers/_vendor
-          --exclude backend/providers/hub/bundles
-          --exclude frontend/node_modules
-          --exclude 'frontend/src/**/__tests__'
-        continue-on-error: true
+      # Gate on what a push or PR adds: ERROR findings that are new against
+      # the base commit fail the job (code check 2026-11-05, #74). The 52
+      # ERROR findings already in the tree were triaged as false positives
+      # (fixed SQL, bound parameters, migrations), so a full-tree gate would
+      # only teach people to ignore the check. Without a base commit (tag
+      # pushes, release.yml's workflow_call) the scan reports only.
+      - name: Run Semgrep (gate — new ERROR findings)
+        env:
+          BASE: ${{ github.event_name == 'pull_request' && github.event.pull_request.base.sha || github.event.before }}
+        run: |
+          git config --global --add safe.directory "$GITHUB_WORKSPACE"
+          set -- --config p/default --config p/python --config p/typescript \
+            --exclude backend/venv --exclude backend/tests \
+            --exclude backend/providers/_vendor --exclude backend/providers/hub/bundles \
+            --exclude frontend/node_modules --exclude 'frontend/src/**/__tests__' \
+            --metrics=off
+          if [ -n "$BASE" ] && [ "$BASE" != "0000000000000000000000000000000000000000" ] \
+             && git cat-file -e "$BASE^{commit}" 2>/dev/null; then
+            semgrep scan "$@" --severity ERROR --error --baseline-commit "$BASE"
+          else
+            echo "No base commit — full scan, report only"
+            semgrep scan "$@" || true
+          fi
+
+  # ─── Secret scan (gitleaks) ───────────────────────────────────────────────
+  # A Sonarr API key sat in the public history for months (rotated
+  # 2026-11-06). Scans the commits a push or PR adds — the old history holds
+  # that dead key and is not re-litigated on every push. Fixtures and
+  # vendored code are allowlisted in .gitleaks.toml.
+  secrets:
+    name: Secret scan
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          fetch-depth: 0
+
+      - name: gitleaks (gate — new commits)
+        env:
+          BASE: ${{ github.event_name == 'pull_request' && github.event.pull_request.base.sha || github.event.before }}
+        run: |
+          RANGE="-1"
+          if [ -n "$BASE" ] && [ "$BASE" != "0000000000000000000000000000000000000000" ] \
+             && git cat-file -e "$BASE^{commit}" 2>/dev/null; then
+            RANGE="$BASE..HEAD"
+          fi
+          docker run --rm -v "$PWD:/repo" -w /repo \
+            ghcr.io/gitleaks/gitleaks:v8.30.1@sha256:c00b6bd0aeb3071cbcb79009cb16a60dd9e0a7c60e2be9ab65d25e6bc8abbb7f \
+            git /repo --redact --no-banner --config /repo/.gitleaks.toml --log-opts="$RANGE"
 
   # ─── Trivy (dependency + container surface) ───────────────────────────────
   # Sublarr ships a Docker image and never scanned it. This scans the repo
@@ -284,7 +326,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
 
       - name: Trivy filesystem scan (report only)
         uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0

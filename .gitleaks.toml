@@ -1,0 +1,18 @@
+# gitleaks configuration for the CI secret-scan gate (code check 2026-11-05, #74).
+# Extends the built-in rules; the allowlist covers fixtures and third-party
+# code whose "keys" are test values or public app keys (#77 N-6).
+title = "Sublarr"
+
+[extend]
+useDefault = true
+
+[allowlist]
+description = "Test fixtures and vendored code"
+paths = [
+  '''^backend/tests/''',
+  '''^frontend/src/.*__tests__/''',
+  '''^frontend/src/test/''',
+  '''^frontend/e2e/''',
+  '''^backend/providers/_vendor/''',
+  '''^backend/providers/hub/bundles/''',
+]
