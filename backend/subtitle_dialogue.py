@@ -200,7 +200,10 @@ def dialogue_drop(old_content: bytes, new_content: bytes) -> str | None:
 
 #: Largest sidecar read for the on-disk check; a real subtitle is far smaller.
 _MAX_SIDECAR_BYTES = 8 * 1024 * 1024
-_COUNT_CACHE_MAX = 8192
+#: One wanted cleanup reads every sidecar of the library (prod: ~10,000), so
+#: the cache must hold all of them or each pass parses them again (rc.2:
+#: 172 s instead of 59 s). An entry is a few hundred bytes.
+_COUNT_CACHE_MAX = 65_536
 _count_cache: dict[tuple[str, int, int], tuple[int, int] | None] = {}
 _count_lock = threading.Lock()
 
@@ -228,7 +231,10 @@ def _sidecar_counts(path: str) -> tuple[int, int] | None:
             logger.debug("Sparse sidecar check skipped for %s: %s", path, exc)
     with _count_lock:
         if len(_count_cache) >= _COUNT_CACHE_MAX:
-            _count_cache.clear()
+            # Drop the oldest eighth, not everything: clearing at the limit
+            # threw away the entries the same pass had just filled.
+            for old in list(_count_cache)[: max(1, _COUNT_CACHE_MAX // 8)]:
+                del _count_cache[old]
         _count_cache[key] = counts
     return counts
 
