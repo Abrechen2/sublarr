@@ -11,7 +11,8 @@ automatic download won with (from its decision log) and asks the search's
 own gate about it, with Sonarr's absolute number and episode title as the
 search has them. Only an explicit contradiction is reported ("S01E12" for
 S02E12); a name without numbering, a bare number the season may own, or a
-bare number under "Part 2" (a split cour) is not. A hash match identified
+bare number under "Part 2" whose cour split the season size can't tell is
+not. A hash match identified
 the file and is trusted.
 
 Requeueing hands each finding to the same quarantine a rejected sync uses:

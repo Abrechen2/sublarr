@@ -16,6 +16,8 @@ What a name may say and still be the queried episode:
 - a season pack (``S02``) of the queried season;
 - a bare ``- 12`` when no absolute number is known, or when the name marks
   a season — it may be this season's twelfth;
+- a split cour's own number ("Part 2 - 05") placed by the season's size:
+  episode 17 of a 24-episode season, and nothing when the split is unknown;
 - a serial's story title and part ("s01e06p2 The Warriors of Death",
   "Frontier in Space, episode 2") when Sonarr titles the episode by story and
   part ("The Aztecs The Warriors of Death 2") — classic Doctor Who.
@@ -59,6 +61,10 @@ _VAGUE_SEASON_RE = re.compile(
     r"(?<![a-z0-9])(?:season|\d+(?:st|nd|rd|th)|part[ ._-]?\d|ii|iii|iv|vi)(?![a-z0-9])",
     re.IGNORECASE,
 )
+# The second cour of a season, numbered from 1 again: "Part 2 - 05", "Cour 2 - 05".
+_LATER_PART_RE = re.compile(r"(?<![a-z0-9])(?:part|cour)[ ._-]?([2-9])(?![a-z0-9])", re.IGNORECASE)
+# Season sizes that are two cours of 10-13 episodes, and nothing longer.
+_TWO_COUR_SIZES = (20, 26)
 # Batch ranges: "Show - 13-24", "Show - 01 ~ 22", "Show - Ep. 01 - 19", "Episode 1 - 14",
 # "Show - E01-03". A range names every episode in it, not its first or last.
 _EP = r"(?:(?:ep?|episodes?)\.?[ ._]?)"
@@ -102,6 +108,8 @@ class _Claims:
     story_parts: list[tuple[int, int, int]] = field(default_factory=list)
     # The words of the series title the name opens with (see series_aliases).
     title_words: tuple[str, ...] = ()
+    # N of "Part N" / "Cour N" for N >= 2.
+    later_part: int | None = None
 
     @property
     def empty(self) -> bool:
@@ -156,6 +164,8 @@ def parse_claims(text: str) -> _Claims:
         claims.seasons.update(range(min(low, high), max(low, high) + 1))
     rest = _SEASON_RE.sub(" ", rest)
     claims.vague_season = bool(_VAGUE_SEASON_RE.search(rest))
+    part = _LATER_PART_RE.search(rest)
+    claims.later_part = int(part.group(1)) if part else None
     rest = _BARE_RANGE_RE.sub(lambda m: _take_range(m, claims.bare), rest)
     claims.fractions.update(m.group(1) or m.group(2) for m in _FRACTION_RE.finditer(rest))
     claims.bare.update(
@@ -181,6 +191,41 @@ def contradicts_query_numbering(query: VideoQuery, season: int, episodes: set[in
         return False
     absolute = query.matching_absolute_episode
     return not (absolute is not None and absolute in episodes and season in {1, query.season})
+
+
+def later_part(text: str) -> int | None:
+    """N of a "Part N" / "Cour N" (N >= 2) that ``text`` names, else None."""
+    match = _LATER_PART_RE.search(text or "")
+    return int(match.group(1)) if match else None
+
+
+def later_part_places(numbers: set[int], part: int, season_size: int | None) -> set[int] | None:
+    """Sonarr episodes a later part's numbers stand for, None when unknowable.
+
+    Only an even season of two cours can be placed: in a 24-episode season
+    "Part 2 - 05" is E17, and "Part 2 - 17" is already continuous. An odd
+    size (12+13 or 13+12), a third part, a season long enough for three cours
+    (Dr. Stone: Science Future, 3 x 12) or an unknown size can't be.
+    """
+    if part != 2 or not season_size or season_size % 2:
+        return None
+    if not _TWO_COUR_SIZES[0] <= season_size <= _TWO_COUR_SIZES[1]:
+        return None
+    half = season_size // 2
+    return {n + half if n <= half else n for n in numbers}
+
+
+def _later_part_verdict(claims: _Claims, query: VideoQuery) -> tuple[str, str]:
+    absolute = query.matching_absolute_episode
+    if absolute is not None and absolute in claims.bare:
+        return "match", ""
+    label = f"Part {claims.later_part}"
+    places = later_part_places(claims.bare, claims.later_part, query.season_size)
+    if places is None:
+        return "unplaced", label
+    if places & _wanted_episodes(query):
+        return "match", ""
+    return "contradict", f"{label} episode {min(claims.bare)}"
 
 
 def _wanted_episodes(query: VideoQuery) -> set[int]:
@@ -230,6 +275,8 @@ def _verdict(claims: _Claims, query: VideoQuery) -> tuple[str, str]:
         if absolute is not None and absolute in claims.bare:
             return "match", ""
         return "contradict", f"season {min(claims.seasons)}"
+    if claims.bare and claims.later_part:
+        return _later_part_verdict(claims, query)
     if claims.bare:
         allowed = {absolute} - {None}
         # Without an absolute number, or with the season in the name, a bare
@@ -273,6 +320,13 @@ def episode_gate_reason(result: SubtitleResult, query: VideoQuery) -> str:
         return ""
     if contradiction:
         return f"names {contradiction}, query is {_wanted_label(query)}"
+    unplaced = next((detail for kind, detail in verdicts if kind == "unplaced"), "")
+    if unplaced:
+        # Not a contradiction (the audit leaves it alone), but the provider's
+        # own episode match read the same part-relative number.
+        return (
+            f"no episode evidence ({unplaced} numbers its own episodes, the cour split is unknown)"
+        )
     if "episode" in result.matches or "season" in kinds or _resolves_pack(result):
         return ""
     return "no episode evidence (no episode match and no numbering in the name)"

@@ -10,6 +10,7 @@ import unicodedata
 from guessit import guessit
 
 from providers.base import VideoQuery
+from providers.episode_gate import later_part, later_part_places, parse_claims
 from providers.series_aliases import release_title_words, title_scope
 
 
@@ -125,6 +126,20 @@ def match_release(
         if not allow_pack or target is None or not numbers:
             return None
         if not min(numbers) <= target <= max(numbers):
+            return None
+    elif (
+        isinstance(episode, int)
+        and scope != "this"
+        and (part := later_part(title))
+        and not parse_claims(title).season_episodes
+    ):
+        # "Part 2 - 05" counts the second cour from 1: E17 of a 24-episode
+        # season, not E05 (prod: Mushoku Tensei S02E05 got S02E17's subtitle).
+        # An SxxEyy beside the part ("S04E16 ... Part 2") is Sonarr's own.
+        places = later_part_places({episode}, part, getattr(query, "season_size", None))
+        if episode == absolute or (places and query.episode in places):
+            matches.add("episode")
+        elif places is not None:
             return None
     elif episode is not None:
         if target is None or episode != target:
