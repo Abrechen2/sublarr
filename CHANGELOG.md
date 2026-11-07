@@ -5,6 +5,16 @@ All notable changes to Sublarr are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.20.2] - 2026-11-07
+
+### Fixed
+- **Second-cour releases landed on the wrong episode** — Groups such as
+  Erai-raws number a season's second half from 1 again ("Mushoku Tensei II
+  Part 2 - 05"). Sublarr read that number as the season's own episode and
+  saved episode 17's subtitle for episode 5. The number is now placed by the
+  season size (episode 17 of a 24-episode season); when the split can't be
+  told, such a release only counts with other proof of the episode.
+
 ## [1.20.1] - 2026-11-06
 
 ### Security
