@@ -164,3 +164,10 @@ def test_a_shift_at_the_edge_of_the_search_is_refused():
     speech = _speech(LINES, cuts, 1500)
 
     assert plan_segments(_subs(LINES), speech, max_offset_ms=45_000) is None
+
+
+def test_a_style_named_subtitle_is_dialogue():
+    from services.segment_sync import is_dialogue
+
+    assert is_dialogue(pysubs2.SSAEvent(text="Where are you going?", style="Subtitle"))
+    assert not is_dialogue(pysubs2.SSAEvent(text="Episode 3", style="Title"))

@@ -106,3 +106,23 @@ def test_save_subtitle_refuses_the_mislabelled_download(app_ctx, tmp_path, monke
     with pytest.raises(RuntimeError, match="rejected"):
         save_subtitle(result, str(tmp_path / "ep.en.srt"))
     assert not (tmp_path / "ep.en.srt").exists()
+
+
+def test_romanised_song_lyrics_do_not_vote():
+    """Prod: an English ASS whose "OP Roma" karaoke read as Indonesian."""
+    lyrics = "tada hashiru dakesa tekipaki patapata minna atsumatte hitotsu no shigoto"
+    events = "".join(
+        f"Dialogue: 0,0:0{i // 60}:{i % 60:02d}.00,0:0{i // 60}:{i % 60:02d}.90,OP Roma,,0,0,0,,"
+        f"{{\\k20}}{lyrics} {i}\n"
+        for i in range(300)
+    ) + "".join(
+        f"Dialogue: 0,0:1{i // 60}:{i % 60:02d}.00,0:1{i // 60}:{i % 60:02d}.90,Default,,0,0,0,,"
+        f"{line}\n"
+        for i, line in enumerate(_ENGLISH * 6)
+    )
+    ass = (
+        "[Script Info]\nScriptType: v4.00+\n\n[V4+ Styles]\nFormat: Name, Fontname, Fontsize\n"
+        "Style: Default,Arial,20\nStyle: OP Roma,Arial,20\n\n[Events]\n"
+        "Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text\n" + events
+    )
+    assert language_mismatch(ass.encode("utf-8"), "en") is None

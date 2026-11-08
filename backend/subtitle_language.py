@@ -9,15 +9,19 @@ an attachment's word.
 This module reads the dialogue and asks a language detector. It is built to
 stay silent unless the case is gross: only languages from a fixed set are
 judged, the text must be long enough, and a verdict needs the detector to be
-sure of another language *and* to give the claimed one almost no chance. The
-detector runs in low-accuracy mode (trigrams only): on a few thousand
-characters of dialogue it reads as well as the full models, at a fraction of
-their memory — this runs on Raspberry Pis too.
+sure of another language *and* to give the claimed one almost no chance.
+
+The detector runs in its default (high-accuracy) mode. The low-accuracy mode
+is wrong on long text: on prod 2026-11-08 it read 6,000 characters of plain
+English dialogue as German with confidence 1.00 (it was right up to ~600
+characters) and flagged 1,158 correct files. Limited to the fixed set below,
+the full models stay around 100 MB.
 """
 
 from __future__ import annotations
 
 import logging
+import re
 import threading
 
 logger = logging.getLogger(__name__)
@@ -42,6 +46,10 @@ _SAMPLE_CHARS = 6000
 DETECTED_MIN = 0.5
 CLAIMED_MAX = 0.2
 
+_LYRICS_STYLE = re.compile(r"\b(?:op|ed|song|songs|kara\w*|lyrics?|roma\w*|insert)\b", re.I)
+_KARAOKE_TAG = re.compile(r"\\[kK][fo]?\d")
+_PLACED_TAG = re.compile(r"\\(?:pos|move)\s*\(")
+
 _detector = None
 _codes: dict = {}
 _lock = threading.Lock()
@@ -55,9 +63,7 @@ def _get_detector():
 
             languages = [getattr(Language, name) for name in _LANGUAGE_NAMES]
             _codes.update({lang: lang.iso_code_639_1.name.lower() for lang in languages})
-            _detector = (
-                LanguageDetectorBuilder.from_languages(*languages).with_low_accuracy_mode().build()
-            )
+            _detector = LanguageDetectorBuilder.from_languages(*languages).build()
     return _detector
 
 
@@ -68,19 +74,24 @@ def _dialogue_sample(content: bytes) -> str:
     parsed = _parse(content)
     if parsed is None:
         return ""
-    subs, is_ass = parsed
-    dialog_styles = None
-    if is_ass:
-        from ass_utils import classify_styles
-
-        dialog_styles, _signs = classify_styles(subs)
-    lines = [
-        plain.replace("\n", " ")
-        for _event, plain, is_dialogue in _visible_events(subs, dialog_styles)
-        if is_dialogue
-    ]
-    # Drawings and \pos-placed typesetting survive _plain as short fragments.
-    lines = [line for line in lines if len(line) > 3]
+    subs, _is_ass = parsed
+    # Every visible line, not the style classifier's dialogue: a style it
+    # misreads (prod: 271 lines of "Subtitle" as signs) would leave nothing,
+    # and translated signs are in the subtitle's language anyway.
+    # Song lyrics are not: romanised Japanese reads as Indonesian (prod: an
+    # "OP Roma" style). Placed typesetting and drawings are left out too;
+    # karaoke layers repeat the same line back to back.
+    lines: list[str] = []
+    for event, plain, _is_dialogue in _visible_events(subs, None):
+        line = plain.replace("\n", " ")
+        if (
+            len(line) > 3
+            and not _LYRICS_STYLE.search(event.style or "")
+            and not _KARAOKE_TAG.search(event.text)
+            and not _PLACED_TAG.search(event.text)
+            and (not lines or lines[-1] != line)
+        ):
+            lines.append(line)
     if not lines:
         return ""
     middle = len(lines) // 2

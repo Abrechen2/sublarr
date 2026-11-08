@@ -71,3 +71,19 @@ def test_a_character_named_ed_keeps_their_dialogue():
 
     assert signs == set()
     assert dialog == {"Ed Smith", "Ed (thoughts)", "Op Officer"}
+
+
+def test_a_style_named_subtitle_is_dialogue():
+    """Prod 2026-11-08: "title" matched inside "Subtitle", so a file whose 271
+    dialogue lines used style "Subtitle" counted as signs only and its
+    dialogue was never translated."""
+    dialog, signs = classify_styles(_subs("Subtitle", "Subtitles", "Title", "Episode Title"))
+
+    assert {"Subtitle", "Subtitles"} <= dialog
+    assert {"Title", "Episode Title"} <= signs
+
+
+def test_shortened_romaji_and_english_song_styles_are_songs():
+    _dialog, signs = classify_styles(_subs("OP - Rom", "OP - Eng", "ED-Rom"))
+
+    assert signs == {"OP - Rom", "OP - Eng", "ED-Rom"}

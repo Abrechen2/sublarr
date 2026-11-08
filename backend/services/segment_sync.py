@@ -46,7 +46,7 @@ _ANCHOR_MS = 2_000
 _MIN_DECOYS = 4  # fewer usable rolls (a short video) and nothing is trusted
 
 _NON_DIALOGUE_STYLE = re.compile(
-    r"(?i)(?:^|[^a-z])(?:op|ed|ts)(?:[^a-z]|$)|sign|title|kara|song|insert|note"
+    r"(?i)(?:^|[^a-z])(?:op|ed|ts)(?:[^a-z]|$)|sign|(?<!sub)title|kara|song|insert|note"
 )
 _SONG_STYLE = re.compile(r"(?i)(?:^|[^a-z])(?:op|ed)(?:[^a-z]|$)|kara|song|insert")
 _KARAOKE_TAG = re.compile(r"\\(?:k|kf|ko|K)\d")

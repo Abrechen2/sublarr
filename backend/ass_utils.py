@@ -43,8 +43,9 @@ logger = logging.getLogger(__name__)
 # Japanese is never something to hand a translator.
 SIGNS_PATTERNS = re.compile(
     r"sign|^op$|^ed$|romaji"
-    r"|^(?:op|ed)[\s_.-]+(?:english|eng|kanji|jp|jpn|lyrics|karaoke)\b"
-    r"|song|karaoke|title|note|insert|logo|screen|board|card|letter",
+    r"|^(?:op|ed)[\s_.-]+(?:english|eng|kanji|jp|jpn|lyrics|karaoke|roma?)\b"
+    # "title" but not "Subtitle": that is a dialogue style (prod 2026-11-08).
+    r"|song|karaoke|(?<!sub)title|note|insert|logo|screen|board|card|letter",
     re.IGNORECASE,
 )
 DIALOG_PATTERNS = re.compile(

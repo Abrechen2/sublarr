@@ -33,6 +33,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   written as the full sidecar and the episode counted as subtitled. Such a
   track is now dropped and stays in the container, and the episode is
   searched.
+- **A style named "Subtitle" counted as signs** — The signs pattern matched
+  "title" inside "Subtitle", so dialogue in that style was left untranslated
+  and the file could count as signs only. Short song styles such as
+  "OP - Rom" now count as songs.
 - **The video length was unknown for many MKV files** — MakeMKV and mkvmerge
   name the length tag `DURATION-eng`, which Sublarr didn't read. Without a
   length, the checks for signs-only files, mismatched lengths and timing were
