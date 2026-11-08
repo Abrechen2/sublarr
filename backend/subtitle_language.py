@@ -91,7 +91,8 @@ def _dialogue_sample(content: bytes) -> str:
         size += len(line) + 1
         if size >= _SAMPLE_CHARS:
             break
-    return " ".join(sample)
+    # One oversized line must not carry the whole file to the detector.
+    return " ".join(sample)[:_SAMPLE_CHARS]
 
 
 def language_mismatch(content: bytes, claimed: str) -> str | None:
