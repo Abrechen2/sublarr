@@ -289,6 +289,8 @@ def batch_ocr_track(
     import glob as _glob
     from concurrent.futures import ThreadPoolExecutor as TPE
 
+    from utils.io_timeout import compute_io_timeout
+
     with tempfile.TemporaryDirectory() as tmp_dir:
         out_pattern = os.path.join(tmp_dir, "frame%08d.png")
         cmd = [
@@ -302,7 +304,9 @@ def batch_ocr_track(
             "vfr",
             out_pattern,
         ]
-        r = subprocess.run(cmd, capture_output=True, timeout=300)
+        r = subprocess.run(
+            cmd, capture_output=True, timeout=compute_io_timeout(video_path, floor=300)
+        )
         if r.returncode != 0:
             raise RuntimeError(
                 f"ffmpeg subtitle extraction failed: {r.stderr.decode(errors='replace')[:500]}"

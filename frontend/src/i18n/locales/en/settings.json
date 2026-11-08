@@ -968,7 +968,7 @@
     "search_scan_section": "Search & Scan",
     "upgrade_rules_section": "Upgrade Rules",
     "scheduled_tasks_section": "Scheduled Tasks",
-    "ffmpeg_timeout_hint": "Maximum wait time for ffprobe/ffmpeg operations while scanning the media library.",
+    "ffmpeg_timeout_hint": "Maximum wait time for extracting an embedded subtitle. Files over 2 GB get 60 s per GB on top, because ffmpeg reads the whole file.",
     "metadata_engine_hint": "Tool used to read media file metadata. \"auto\" picks one automatically.",
     "metadata_worker_hint": "Number of parallel threads for the metadata scan."
   },

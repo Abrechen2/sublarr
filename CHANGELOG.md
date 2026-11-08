@@ -5,7 +5,7 @@ All notable changes to Sublarr are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [1.20.2] - 2026-11-07
+## [1.20.2] - 2026-11-08
 
 ### Fixed
 - **Second-cour releases landed on the wrong episode** — Groups such as
@@ -14,6 +14,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   saved episode 17's subtitle for episode 5. The number is now placed by the
   season size (episode 17 of a 24-episode season); when the split can't be
   told, such a release only counts with other proof of the episode.
+- **Large remuxes were never translated** — Pulling an embedded subtitle out
+  of a video makes ffmpeg read the whole file, and the fixed 120 s limit
+  killed it on 7 GB Bluray remuxes whenever the disk was busy. Extraction now
+  allows 60 s per GB above the configured limit; timing references, the
+  ffsubsync sync and the OCR frame dump scale the same way.
 
 ## [1.20.1] - 2026-11-06
 

@@ -170,6 +170,7 @@ def sync_with_ffsubsync(subtitle_path: str, video_path: str) -> dict:
 
     from security_utils import safe_subprocess_arg
     from services.sync_engines.concurrency import nice_prefix, sync_subprocess_lock
+    from utils.io_timeout import compute_io_timeout
 
     cmd = [
         *nice_prefix(),
@@ -182,7 +183,9 @@ def sync_with_ffsubsync(subtitle_path: str, video_path: str) -> dict:
     ]
     try:
         with sync_subprocess_lock:
-            result = subprocess.run(cmd, capture_output=True, text=True, timeout=600)
+            result = subprocess.run(
+                cmd, capture_output=True, text=True, timeout=compute_io_timeout(video_path)
+            )
     except subprocess.TimeoutExpired:
         _safe_remove(out_path)
         _audit("error", None, "timeout 600s")

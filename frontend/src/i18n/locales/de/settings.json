@@ -968,7 +968,7 @@
     "search_scan_section": "Suchen & Scannen",
     "upgrade_rules_section": "Upgrade-Regeln",
     "scheduled_tasks_section": "Geplante Aufgaben",
-    "ffmpeg_timeout_hint": "Maximale Wartezeit für ffprobe/ffmpeg-Operationen beim Scannen der Mediathek.",
+    "ffmpeg_timeout_hint": "Maximale Wartezeit beim Herausziehen eingebetteter Untertitel. Dateien über 2 GB bekommen 60 s pro GB zusätzlich, weil ffmpeg die ganze Datei liest.",
     "metadata_engine_hint": "Tool für das Auslesen von Mediendatei-Metadaten. „auto“ wählt automatisch.",
     "metadata_worker_hint": "Anzahl paralleler Threads für den Metadaten-Scan."
   },

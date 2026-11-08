@@ -159,6 +159,7 @@ def _embedded_starts(video_path: str) -> tuple[list[float], str] | None:
     try:
         from remux import _safe_arg_path
         from services.subtitle_health.raw_io import list_subtitle_streams
+        from utils.io_timeout import compute_io_timeout
 
         streams = [s for s in list_subtitle_streams(video_path) if s["codec"] in _TEXT_CODECS]
         streams.sort(key=lambda s: s["forced"])  # full tracks first
@@ -172,7 +173,9 @@ def _embedded_starts(video_path: str) -> tuple[list[float], str] | None:
                 "ffmpeg", "-v", "error", "-y", "-i", _safe_arg_path(video_path),
                 "-map", f"0:s:{stream['sub_index']}", "-c:s", "srt", _safe_arg_path(tmp_path),
             ]  # fmt: skip
-            done = subprocess.run(cmd, capture_output=True, timeout=300)
+            done = subprocess.run(
+                cmd, capture_output=True, timeout=compute_io_timeout(video_path, floor=300)
+            )
             if done.returncode != 0:
                 return None
             with open(tmp_path, "rb") as fh:

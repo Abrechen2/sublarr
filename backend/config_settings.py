@@ -364,7 +364,9 @@ class UISettings(BaseModel):
     path_mapping: str = ""
 
     # ffmpeg / ffprobe
-    ffmpeg_timeout: int = 120  # Seconds before ffmpeg subtitle-extraction is killed
+    # Seconds before ffmpeg subtitle extraction is killed; files over ~2 GB get
+    # 60 s per GB on top (utils/io_timeout.py), since ffmpeg reads the whole file.
+    ffmpeg_timeout: int = 120
 
     # Scan Metadata Engine
     scan_metadata_engine: str = "auto"  # "ffprobe" | "mediainfo" | "auto"

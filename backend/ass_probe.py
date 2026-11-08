@@ -534,6 +534,7 @@ def extract_subtitle_stream(mkv_path, stream_info, output_path):
     """
     from remux import _safe_arg_path
     from utils.atomic_write import atomic_write_via
+    from utils.io_timeout import compute_io_timeout
 
     ext = os.path.splitext(output_path)[1].lower().lstrip(".")
     _encoder_map = {"srt": "srt", "ass": "ass", "ssa": "ass", "vtt": "webvtt"}
@@ -542,7 +543,8 @@ def extract_subtitle_stream(mkv_path, stream_info, output_path):
     copy_first = ext in ("ass", "ssa") and bool(
         getattr(settings, "embedded_extract_ass_stream_copy", False)
     )
-    _timeout = getattr(settings, "ffmpeg_timeout", 300)
+    # ffmpeg reads the whole file to pull one track: a remux needs longer.
+    _timeout = compute_io_timeout(mkv_path, base=0, floor=getattr(settings, "ffmpeg_timeout", 300))
     from services.media_io_gate import MediaGateBusyError, media_io_gate
 
     def _run_ffmpeg(tmp_path: str, subtitle_encoder: str) -> None:
