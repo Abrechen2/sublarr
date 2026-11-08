@@ -87,6 +87,24 @@ def _extract_episode_number(text: str) -> int | None:
     return None
 
 
+def _language_named_in(name_lower: str) -> str:
+    """The language ``name_lower`` names, or "".
+
+    A code counts only in the tag position (``name.vie.ass``): elsewhere
+    three-letter codes collide with words ("may", "per", "ice"). A spelled-out
+    name ("vietnamese") counts as any whole token.
+    """
+    from config_language_data import _REVERSE_LANGUAGE_TAGS
+
+    parts = name_lower.split(".")
+    if len(parts) >= 3 and len(parts[-2]) >= 3 and parts[-2] in _REVERSE_LANGUAGE_TAGS:
+        return _REVERSE_LANGUAGE_TAGS[parts[-2]]
+    for token in re.split(r"[^a-z]+", name_lower):
+        if len(token) > 3 and token in _REVERSE_LANGUAGE_TAGS:
+            return _REVERSE_LANGUAGE_TAGS[token]
+    return ""
+
+
 def _detect_language(filename: str, release_title: str = "") -> str:
     """Detect language from subtitle filename and release context."""
     name_lower = filename.lower()
@@ -117,6 +135,11 @@ def _detect_language(filename: str, release_title: str = "") -> str:
     for lang, patterns in lang_patterns.items():
         if any(p in name_lower for p in patterns):
             return lang
+    # Any other language the filename names ("Vietnamese.vie.ass") — without
+    # this, every language outside the table above became the "en" default.
+    named = _language_named_in(name_lower)
+    if named:
+        return named
 
     # Check release title for language tags
     for lang, patterns in lang_patterns.items():

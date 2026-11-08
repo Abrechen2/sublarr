@@ -541,7 +541,12 @@ def _video_duration(info: dict) -> float:
             except (TypeError, ValueError):
                 pass
         tags = s.get("tags") or {}
-        tag = tags.get("DURATION") or tags.get("duration")
+        # MakeMKV/mkvmerge suffix the tag with the track language
+        # ("DURATION-eng"); missing it left the length unknown (prod 2026-11).
+        tag = next(
+            (v for k, v in tags.items() if k.upper().split("-", 1)[0] == "DURATION" and v),
+            None,
+        )
         if tag:
             try:
                 h, m, sec = str(tag).split(":")

@@ -260,6 +260,19 @@ def _has_dialogue(path: str) -> bool:
     return has_subtitle_lines(path)
 
 
+def _sparse_full_track(path: str, video_path: str, stream_info: dict) -> str | None:
+    """Why a track extracted as the full subtitle is signs only, or None.
+
+    Forced and signs tracks are sparse by nature and not judged. Without a
+    known video length there is no verdict (see ``sparse_sidecar_reason``).
+    """
+    if stream_info.get("kind", "full") != "full":
+        return None
+    from subtitle_dialogue import sparse_sidecar_reason
+
+    return sparse_sidecar_reason(path, video_path)
+
+
 def _quarantine_mislabelled_sidecar(path: str, log_label: str) -> None:
     """Move a sidecar whose content contradicts its name into the trash.
 
@@ -472,6 +485,20 @@ def extract_streams(
                 # The container's tag lied (or the wrong stream was mapped):
                 # never leave the result under the target-language name, and
                 # keep the stream so nothing is lost with it.
+                _quarantine_mislabelled_sidecar(out, log_label)
+                continue
+            sparse = _sparse_full_track(out, file_path, stream_info)
+            if sparse:
+                # A "full" track of title cards and credits (prod 2026-11-08,
+                # Hell's Paradise: 8 lines for 24 minutes). Under the full
+                # name it would count as the subtitle; the stream stays.
+                logger.warning(
+                    "[%s]: %s holds no full subtitle (%s) — not keeping it as the %s track",
+                    log_label,
+                    out,
+                    sparse,
+                    stream_info["language"],
+                )
                 _quarantine_mislabelled_sidecar(out, log_label)
                 continue
             if stream_info.get("kind") == "full":

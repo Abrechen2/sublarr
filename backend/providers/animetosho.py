@@ -15,6 +15,7 @@ from typing import ClassVar
 from urllib.parse import urlparse
 
 from archive_utils import extract_subtitles_from_zip
+from config_language_data import normalize_language_code
 from providers import _stream_download, register_provider
 from providers.animetosho_matching import match_entry, match_release
 from providers.animetosho_parsers import (  # noqa: F401 — re-exported for back-compat
@@ -45,6 +46,8 @@ MAX_DETAIL_CALLS = 8
 ATTACH_BASE = "https://animetosho.org/storage/attach"
 
 _SUBTITLE_EXTENSIONS = {".ass", ".srt", ".ssa"}
+# Attachment language tags that name no language: the filename guess decides.
+_UNTAGGED = frozenset({"", "und", "mul", "zxx", "mis"})
 _FORMAT_MAP = {
     ".ass": SubtitleFormat.ASS,
     ".ssa": SubtitleFormat.SSA,
@@ -369,7 +372,13 @@ class AnimeToshoProvider(SubtitleProvider):
                 # .org spells these lang/codec/name; .xyz renamed them to
                 # language_code/format/language. Read either.
                 lang_raw = info.get("lang") or info.get("language_code") or ""
-                lang = _ISO639_2_TO_1.get(lang_raw.lower(), "")
+                # A track's own tag decides, whatever the language: "vie"
+                # missing from a short table fell through to the filename
+                # guess, whose default is "en" (prod 2026-11-07, Vietnamese
+                # saved as English). An unknown tag stays unknown and matches
+                # no wanted language.
+                tag = lang_raw.strip().lower()
+                lang = normalize_language_code(tag) if tag not in _UNTAGGED else ""
 
                 # Derive codec/extension from info.codec or attachment-level filename
                 codec = (info.get("codec") or info.get("format") or "").upper()

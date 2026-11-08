@@ -19,6 +19,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   killed it on 7 GB Bluray remuxes whenever the disk was busy. Extraction now
   allows 60 s per GB above the configured limit; timing references, the
   ffsubsync sync and the OCR frame dump scale the same way.
+- **AnimeTosho saved Vietnamese, Indonesian and Catalan tracks as English** —
+  A track whose language code was missing from the provider's short table
+  (`vie`, `ind`, `cat`, …) fell through to a filename guess that defaults to
+  English. The track's own tag now decides, for every language.
+- **Downloads in the wrong language were saved** — The download check only
+  compared writing systems, so Indonesian under `.en` or English under `.de`
+  passed. Sublarr now reads the dialogue and refuses a download that is
+  plainly another language; short files and languages outside the detector's
+  set are not judged.
+- **Signs-only tracks were extracted as the full subtitle** — An embedded
+  track of title cards and credits (8 lines for a 24-minute episode) was
+  written as the full sidecar and the episode counted as subtitled. Such a
+  track is now dropped and stays in the container, and the episode is
+  searched.
+- **The video length was unknown for many MKV files** — MakeMKV and mkvmerge
+  name the length tag `DURATION-eng`, which Sublarr didn't read. Without a
+  length, the checks for signs-only files, mismatched lengths and timing were
+  skipped for those videos.
 
 ## [1.20.1] - 2026-11-06
 

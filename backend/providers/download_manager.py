@@ -738,6 +738,12 @@ def save_subtitle(
     from subtitle_script import script_mismatch
 
     wrong_script = script_mismatch(result.content.decode("utf-8", "ignore"), result.language)
+    if not wrong_script:
+        # Same letters, other language: Indonesian, Vietnamese or Catalan as
+        # "English", English as "German" (prod 2026-11-08: 131 such files).
+        from subtitle_language import language_mismatch
+
+        wrong_script = language_mismatch(result.content, result.language)
     if wrong_script:
         raise RuntimeError(
             f"Downloaded subtitle rejected — {wrong_script} "
