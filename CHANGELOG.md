@@ -41,6 +41,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   name the length tag `DURATION-eng`, which Sublarr didn't read. Without a
   length, the checks for signs-only files, mismatched lengths and timing were
   skipped for those videos.
+- **An embedded English track was never translated after a re-search** — With
+  the automation queue on, the scheduled search leaves translation to the
+  queue, but an episode whose only source was a track inside the video never
+  got there. It waited a month between searches instead. The search now hands
+  such episodes to the queue.
 
 ## [1.20.1] - 2026-11-06
 

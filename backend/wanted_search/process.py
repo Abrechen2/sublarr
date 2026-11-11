@@ -1776,16 +1776,17 @@ def _run_search_steps(ctx: dict) -> dict:
         # search's thread pool it made the tick unstoppable: on cancel the
         # pool's shutdown(wait=True) blocks on whatever is in flight, so a 60s
         # grace could never be met and the run was recorded as
-        # timeout_abandoned (prod 2026-08-14). Embedded/sidecar work reaches
-        # the automation queue through classification (scan-time routing and
-        # the tick's enqueue phase), NOT through this exit — nobody enqueues
-        # an item here. So this is a plain no-result exit and must be charged
-        # as one; skipping the bookkeeping stranded every such row in
-        # 'searching', invisible to all future runs (prod 2026-08-19: 7,878
-        # rows, ~1,600 per tick).
+        # timeout_abandoned (prod 2026-08-14). Most embedded/sidecar work
+        # reaches the automation queue through classification (scan-time
+        # routing and the tick's enqueue phase); an embedded source-language
+        # track does not, so it is handed over here. It is still a no-result
+        # exit and must be charged as one; skipping the bookkeeping stranded
+        # every such row in 'searching', invisible to all future runs (prod
+        # 2026-08-19: 7,878 rows, ~1,600 per tick).
         from services.wanted_search_runner import record_search_outcome
 
         logger.debug("Wanted %d: translate fallback (Step 5) left to the caller", item_id)
+        _queue_embedded_source(ctx)
         decision_log.step_skipped(
             "translate_fallback", "automation queue owns extraction/translation"
         )
@@ -1798,6 +1799,64 @@ def _run_search_steps(ctx: dict) -> dict:
         }
     decision_log.set_step("translate_fallback")
     return _fallback_translate_file(ctx)
+
+
+def _queue_embedded_source(ctx: dict) -> None:
+    """Queue the drain's translation when the container holds a source track.
+
+    The tick's classification only routes an embedded *target* track and an
+    external source sidecar. A requeued item whose source is an embedded track
+    in another language reached neither: prod 2026-11-11 held 134 German-wanted
+    episodes with a full English track that were never translated, each in a
+    month of no-result backoff. ``embedded_languages`` already excludes the
+    target and image formats; ``translate_file`` picks the stream itself.
+    """
+    if not ctx["auto_translate"]:
+        return
+    from config_language_data import normalize_language_code
+
+    settings = ctx["settings"]
+    strict_source = None
+    if not getattr(settings, "auto_translate_any_source", True):
+        # translate_file accepts only the preferred source then; queueing any
+        # other track would send the drain on to providers and Whisper.
+        # Same direction as Step 5: the profile's source, else the global one.
+        try:
+            from services.mt_provisional import _resolve_profile_for_item
+
+            profile = _resolve_profile_for_item(ctx["item"]) or {}
+        except Exception:  # noqa: BLE001 — same fallback as Step 5
+            profile = {}
+        strict_source = normalize_language_code(
+            profile.get("source_language") or settings.source_language or ""
+        )
+    sources = [
+        lang
+        for lang in (
+            normalize_language_code(e.get("lang") or "")
+            for e in ctx["item"].get("embedded_languages") or []
+        )
+        if lang and (strict_source is None or lang == strict_source)
+    ]
+    if not sources:
+        return
+    from db.models.core import SubtitleAutomationQueueEntry
+    from db.repositories.subtitle_automation_queue import SubtitleAutomationQueueRepository
+
+    try:
+        SubtitleAutomationQueueRepository().enqueue(
+            wanted_item_id=ctx["item_id"],
+            file_path=ctx["file_path"],
+            target_language=ctx["item_lang"],
+            task_type=SubtitleAutomationQueueEntry.TASK_SIDECAR_TRANSLATE,
+            source_language=sources[0],
+        )
+    except Exception as exc:  # noqa: BLE001 — the no-result exit must still be booked
+        logger.warning(
+            "Wanted %d: could not queue the embedded translation: %s", ctx["item_id"], exc
+        )
+        return
+    decision_log.step_skipped("translate_fallback", "embedded source track queued for translation")
 
 
 def _finalize_decision_log(item_id: int, result: dict, dry_run: bool) -> None:

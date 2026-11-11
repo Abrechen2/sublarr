@@ -148,3 +148,105 @@ class TestScheduledSearchWiring:
 
         assert seen, "the provider phase must have run an item"
         assert seen[0].get("allow_translate_fallback") is not False
+
+
+class TestEmbeddedSourceHandoff:
+    """Step 5's exit must hand an embedded source track to the drain.
+
+    Prod 2026-11-11: 134 German-wanted episodes with a full English track in
+    the container had never been translated. The scheduled search stops before
+    Step 5 when the automation queue is on, and the queue only receives items
+    the scanner discovers new or whose embedded track is the target language.
+    A requeued item with only a source-language track reached neither, and
+    went into a month of no-result backoff instead.
+    """
+
+    def _item(self, tmp_path, embedded):
+        mkv = tmp_path / "ep.mkv"
+        mkv.touch()
+        row_id, _ = upsert_wanted_item(
+            item_type="episode",
+            file_path=str(mkv),
+            target_language="de",
+            embedded_languages=embedded,
+        )
+        return row_id, str(mkv)
+
+    def _run(self, monkeypatch, item_id, *, auto_translate=True, any_source=True):
+        from config import get_settings
+        from wanted_search import process_wanted_item
+
+        settings = get_settings()
+        monkeypatch.setattr(settings, "wanted_auto_translate", auto_translate, raising=False)
+        monkeypatch.setattr(settings, "auto_translate_any_source", any_source, raising=False)
+        monkeypatch.setattr(settings, "source_language", "en", raising=False)
+        _no_provider_hits(monkeypatch)
+        monkeypatch.setattr(
+            "wanted_search.process._fallback_translate_file",
+            lambda ctx: {"status": "should-not-happen"},
+        )
+        return process_wanted_item(item_id, allow_translate_fallback=False)
+
+    def _queued(self, item_id):
+        from db.models.core import SubtitleAutomationQueueEntry
+
+        return [
+            (row.task_type, row.state, row.source_language)
+            for row in SubtitleAutomationQueueEntry.query.filter_by(wanted_item_id=item_id)
+        ]
+
+    def test_embedded_source_track_is_queued_for_translation(self, app_ctx, monkeypatch, tmp_path):
+        item_id, _ = self._item(tmp_path, [{"lang": "eng", "format": "ass"}])
+
+        out = self._run(monkeypatch, item_id)
+
+        assert out.get("status") == "not_found"
+        assert self._queued(item_id) == [("sidecar_translate", "pending", "en")]
+
+    def test_no_embedded_track_queues_nothing(self, app_ctx, monkeypatch, tmp_path):
+        item_id, _ = self._item(tmp_path, [])
+
+        self._run(monkeypatch, item_id)
+
+        assert self._queued(item_id) == []
+
+    def test_auto_translate_off_queues_nothing(self, app_ctx, monkeypatch, tmp_path):
+        """Original-only searches (auto-translate off, provisional re-seek)
+        must never turn into a translation."""
+        item_id, _ = self._item(tmp_path, [{"lang": "eng", "format": "ass"}])
+
+        self._run(monkeypatch, item_id, auto_translate=False)
+
+        assert self._queued(item_id) == []
+
+    def test_strict_source_mode_skips_other_languages(self, app_ctx, monkeypatch, tmp_path):
+        """translate_file would refuse a French track in strict English mode
+        and go on to providers and Whisper from the drain instead."""
+        item_id, _ = self._item(tmp_path, [{"lang": "fre", "format": "ass"}])
+
+        self._run(monkeypatch, item_id, any_source=False)
+
+        assert self._queued(item_id) == []
+
+    def test_strict_source_mode_takes_the_preferred_track(self, app_ctx, monkeypatch, tmp_path):
+        item_id, _ = self._item(
+            tmp_path, [{"lang": "fre", "format": "ass"}, {"lang": "eng", "format": "srt"}]
+        )
+
+        self._run(monkeypatch, item_id, any_source=False)
+
+        assert self._queued(item_id) == [("sidecar_translate", "pending", "en")]
+
+    def test_strict_source_mode_follows_the_profile_source(self, app_ctx, monkeypatch, tmp_path):
+        """Step 5 translates from the profile's source language when it has one."""
+        item_id, _ = self._item(
+            tmp_path, [{"lang": "eng", "format": "ass"}, {"lang": "jpn", "format": "srt"}]
+        )
+        monkeypatch.setattr(
+            "services.mt_provisional._resolve_profile_for_item",
+            lambda item: {"source_language": "ja"},
+        )
+
+        self._run(monkeypatch, item_id, any_source=False)
+
+        assert self._queued(item_id) == [("sidecar_translate", "pending", "ja")]
