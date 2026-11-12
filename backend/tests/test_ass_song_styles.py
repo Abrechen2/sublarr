@@ -87,3 +87,21 @@ def test_shortened_romaji_and_english_song_styles_are_songs():
     _dialog, signs = classify_styles(_subs("OP - Rom", "OP - Eng", "ED-Rom"))
 
     assert signs == {"OP - Rom", "OP - Eng", "ED-Rom"}
+
+
+def test_song_styles_with_a_group_prefix_are_songs():
+    """Prod 2026-11-11: the anchored pairing missed a fansub prefix, so the
+    "Neo OP English Top" and "Neo ED English" lyrics went to the translator."""
+    _dialog, signs = classify_styles(
+        _subs("Neo OP English Top", "Neo ED English", "Neo_ED_Eng_Top", "[Grp] OP Lyrics")
+    )
+
+    assert signs == {"Neo OP English Top", "Neo ED English", "Neo_ED_Eng_Top", "[Grp] OP Lyrics"}
+
+
+def test_names_ending_in_ed_before_english_stay_dialogue():
+    """The prefix may only be a separate word: 'Fred English' is a character."""
+    dialog, signs = classify_styles(_subs("Fred English", "Ted Eng", "Neo Ed Smith"))
+
+    assert signs == set()
+    assert dialog == {"Fred English", "Ted Eng", "Neo Ed Smith"}

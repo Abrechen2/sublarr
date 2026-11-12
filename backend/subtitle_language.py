@@ -46,7 +46,11 @@ _SAMPLE_CHARS = 6000
 DETECTED_MIN = 0.5
 CLAIMED_MAX = 0.2
 
-_LYRICS_STYLE = re.compile(r"\b(?:op|ed|song|songs|kara\w*|lyrics?|roma\w*|insert)\b", re.I)
+# Bounded by letters and digits, not \b: "_" is a word character, and
+# fansubs write "Neo_ED_English".
+_LYRICS_STYLE = re.compile(
+    r"(?<![a-z0-9])(?:op|ed|song|songs|kara\w*|lyrics?|roma\w*|insert)(?![a-z0-9])", re.I
+)
 _KARAOKE_TAG = re.compile(r"\\[kK][fo]?\d")
 _PLACED_TAG = re.compile(r"\\(?:pos|move)\s*\(")
 

@@ -39,11 +39,14 @@ logger = logging.getLogger(__name__)
 # purge_signs_after_extract, which DELETE what they consider signs — so a
 # fansub style named after a character ("Ed", "Ed Smith") must never match.
 # Hence: bare "op"/"ed" only as the whole name, plus the unambiguous karaoke
-# pairing ("OP Romaji", "ED English"), plus romaji anywhere — transliterated
-# Japanese is never something to hand a translator.
+# pairing ("OP Romaji", "ED English") as separate words anywhere in the name —
+# fansubs prefix their group ("Neo OP English Top", prod 2026-11-11) — plus
+# romaji anywhere: transliterated Japanese is never something to hand a
+# translator. "_" counts as a separator, so "\b" cannot bound these words.
 SIGNS_PATTERNS = re.compile(
     r"sign|^op$|^ed$|romaji"
-    r"|^(?:op|ed)[\s_.-]+(?:english|eng|kanji|jp|jpn|lyrics|karaoke|roma?)\b"
+    r"|(?:^|[\s_.\]-])(?:op|ed)[\s_.-]+(?:english|eng|kanji|jp|jpn|lyrics|karaoke|roma?)"
+    r"(?![a-z0-9])"
     # "title" but not "Subtitle": that is a dialogue style (prod 2026-11-08).
     r"|song|karaoke|(?<!sub)title|note|insert|logo|screen|board|card|letter",
     re.IGNORECASE,

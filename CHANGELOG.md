@@ -46,6 +46,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   queue, but an episode whose only source was a track inside the video never
   got there. It waited a month between searches instead. The search now hands
   such episodes to the queue.
+- **Song lyrics with a group prefix were translated as dialogue** — Song
+  styles like "Neo OP English Top", "Kara-ED-Eng" or "DAL V - OP English"
+  were counted as dialogue, so their lyrics went to the translator. The OP/ED
+  pairing is now recognised anywhere in a style name, and underscores
+  ("OP_Romaji") count as separators when the language check leaves lyrics out.
 
 ## [1.20.1] - 2026-11-06
 
