@@ -1639,13 +1639,16 @@ def _target_subtitle_on_disk(ctx: dict) -> str | None:
     lang = ctx.get("item_lang")
     if not (file_path and lang) or ctx.get("target_on_disk_is_mt"):
         return None
-    from services.suspect_sidecars import is_suspect_sidecar
+    from services.suspect_sidecars import _discounted
     from translator import find_existing_target_file
 
-    # A sidecar quarantined as another episode's subtitle serves nobody.
+    # A sidecar quarantined as another episode's subtitle serves nobody, and
+    # one holding signs/credits only keeps the episode wanted (the scanner
+    # discounts it the same way): stopping here would leave it untranslated
+    # for good (prod 2026-11-12, a 4-line ".de.srt").
     for fmt in ("srt", "ass"):
         found = find_existing_target_file(file_path, lang, fmt)
-        if found and not is_suspect_sidecar(found):
+        if found and not _discounted(found, file_path):
             return found
     return None
 

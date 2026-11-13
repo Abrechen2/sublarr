@@ -181,6 +181,21 @@ def test_search_does_not_skip_on_sparse_sidecar(video):
     assert skipped is not None and skipped["status"] == "skipped"
 
 
+def test_translation_fallback_does_not_stop_at_a_sparse_sidecar(video):
+    """Prod 2026-11-12: a 4-line ".de.srt" (title, credits, preview) kept the
+    episode wanted, yet the queued translation stopped at "a real target
+    subtitle exists" — every tick, for good."""
+    from wanted_search.process import _target_subtitle_on_disk
+
+    ctx = {"file_path": video, "item_lang": "de"}
+    sparse = _write(video, ".de.ass", credits_only_ass())
+    assert _target_subtitle_on_disk(ctx) is None
+    with patch("services.auto_repair.auto_repair_enabled", return_value=False):
+        assert _target_subtitle_on_disk(ctx) == sparse
+    full = _write(video, ".de.srt", full_srt())
+    assert _target_subtitle_on_disk(ctx) == full
+
+
 def test_search_leaves_a_forced_item_alone(video):
     from wanted_search.process import _check_existing_sidecar
 

@@ -128,7 +128,9 @@ def test_romanised_song_lyrics_do_not_vote():
     assert language_mismatch(ass.encode("utf-8"), "en") is None
 
 
-@pytest.mark.parametrize("style", ["OP Roma", "Neo_ED_English", "Grp_Karaoke", "Insert_Song", "RomajiED2", "OP1-Romaji2"])
+@pytest.mark.parametrize(
+    "style", ["OP Roma", "Neo_ED_English", "Grp_Karaoke", "Insert_Song", "RomajiED2", "OP1-Romaji2"]
+)
 def test_lyrics_styles_are_recognised_with_underscores(style):
     """A plain \\b misses "Neo_ED_English": "_" is a word character."""
     from subtitle_language import _LYRICS_STYLE

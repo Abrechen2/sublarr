@@ -51,6 +51,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   were counted as dialogue, so their lyrics went to the translator. The OP/ED
   pairing is now recognised anywhere in a style name, and underscores
   ("OP_Romaji") count as separators when the language check leaves lyrics out.
+- **A signs-only subtitle stopped the queued translation for good** — With
+  automatic repair on, a German sidecar that holds only a title card and the
+  credits keeps the episode wanted, but the queued translation still took it
+  for a real subtitle and skipped the episode on every pass. The translation
+  now discounts such a sidecar the same way the scan does.
 
 ## [1.20.1] - 2026-11-06
 
