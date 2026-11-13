@@ -12,6 +12,8 @@ flask-swagger-ui==5.34.1
 gunicorn==23.0.0
 pysubs2==1.7.3
 requests==2.33.0
+# certifi before 2026.10.18 trusts compromised emSign roots; pinned above the transitive floor
+certifi==2026.10.23
 PlexAPI==4.18.3
 pydantic==2.10.6
 pydantic-settings==2.7.1
