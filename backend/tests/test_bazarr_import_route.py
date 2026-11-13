@@ -20,13 +20,13 @@ general:
 sonarr:
   apikey: 0123456789abcdef0123456789abcdef
   base_url: /sonarr
-  ip: 192.168.50.10
+  ip: 192.0.2.10
   port: 8989
   ssl: false
 radarr:
   apikey: fedcba9876543210fedcba9876543210
   base_url: /
-  ip: 192.168.50.11
+  ip: 192.0.2.11
   port: 7878
   ssl: true
 opensubtitles:
@@ -82,8 +82,8 @@ def test_preview_builds_full_arr_urls_from_bazarr_fields(client):
     resp = _post(client, BAZARR_CONFIG.encode(), "config.yaml")
     assert resp.status_code == 200, resp.get_json()
     entries = _entries(resp.get_json())
-    assert entries["sonarr_url"]["value"] == "http://192.168.50.10:8989/sonarr"
-    assert entries["radarr_url"]["value"] == "https://192.168.50.11:7878"
+    assert entries["sonarr_url"]["value"] == "http://192.0.2.10:8989/sonarr"
+    assert entries["radarr_url"]["value"] == "https://192.0.2.11:7878"
 
 
 def test_preview_prefers_the_current_opensubtitles_section(client):
@@ -131,13 +131,13 @@ def test_confirm_applies_and_the_running_settings_see_it(client, tmp_path):
         from config import get_settings
         from db.config import get_config_entry
 
-        assert get_config_entry("sonarr_url") == "http://192.168.50.10:8989/sonarr"
+        assert get_config_entry("sonarr_url") == "http://192.0.2.10:8989/sonarr"
         assert get_config_entry("opensubtitles_username") == "osuser"
-        assert get_settings().sonarr_url == "http://192.168.50.10:8989/sonarr"
+        assert get_settings().sonarr_url == "http://192.0.2.10:8989/sonarr"
 
 
 def test_confirm_refuses_a_url_the_config_endpoint_would_refuse(client):
-    loopback = BAZARR_CONFIG.replace("ip: 192.168.50.10", "ip: 127.0.0.1")
+    loopback = BAZARR_CONFIG.replace("ip: 192.0.2.10", "ip: 127.0.0.1")
     resp = _post(client, loopback.encode(), "config.yaml", confirm=True)
     assert resp.status_code == 200, resp.get_json()
     body = resp.get_json()
@@ -149,7 +149,7 @@ def test_confirm_refuses_a_url_the_config_endpoint_would_refuse(client):
         assert not get_config_entry("sonarr_url")
         assert not get_config_entry("sonarr_api_key")
         # The other half of the file is still imported.
-        assert get_config_entry("radarr_url") == "https://192.168.50.11:7878"
+        assert get_config_entry("radarr_url") == "https://192.0.2.11:7878"
 
 
 def test_config_and_database_can_arrive_as_two_parts(client, tmp_path):
@@ -173,8 +173,8 @@ def test_a_file_with_nothing_importable_is_refused(client):
 
 
 def test_two_config_files_are_merged_not_overwritten(client):
-    sonarr_only = "sonarr:\n  ip: 192.168.50.10\n  port: 8989\n  apikey: aaaabbbbccccdddd\n"
-    radarr_ini = "[radarr]\nip = 192.168.50.11\nport = 7878\napikey = eeeeffffgggghhhh\n"
+    sonarr_only = "sonarr:\n  ip: 192.0.2.10\n  port: 8989\n  apikey: aaaabbbbccccdddd\n"
+    radarr_ini = "[radarr]\nip = 192.0.2.11\nport = 7878\napikey = eeeeffffgggghhhh\n"
     data = {
         "file": [
             (io.BytesIO(sonarr_only.encode()), "config.yaml"),
@@ -204,7 +204,7 @@ def test_a_current_bazarr_database_raises_no_legacy_table_warnings(client, tmp_p
 
 
 def test_preview_already_says_which_address_will_be_skipped(client):
-    loopback = BAZARR_CONFIG.replace("ip: 192.168.50.11", "ip: 127.0.0.1")
+    loopback = BAZARR_CONFIG.replace("ip: 192.0.2.11", "ip: 127.0.0.1")
     body = _post(client, loopback.encode(), "config.yaml").get_json()
     assert any(w.startswith("radarr_url will not be imported") for w in body["warnings"])
     assert not any("sonarr_url" in w for w in body["warnings"])
