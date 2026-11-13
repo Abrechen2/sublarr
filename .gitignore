@@ -130,3 +130,9 @@ memory-backup-*.tar.gz
 # is public, so it must never be committed.
 roadmap.local.yaml
 .roadmap/
+
+# Private infrastructure — versioned in Sublarr-local (Forgejo), never on GitHub
+scripts/deploy.local.env
+scripts/check-*.sh
+docker-compose.cardinal.yml
+docs/RELEASE_WORKFLOW.md

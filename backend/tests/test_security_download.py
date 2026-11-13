@@ -121,7 +121,7 @@ class TestValidateDownloadUrl:
     def test_subsdump_any_host_allowed(self):
         """Self-hosted providers: private LAN IPs must be allowed (operator-controlled)."""
         ok, err = validate_download_url(
-            "http://192.168.178.195:8080/api/download/123.zip", "subsdump"
+            "http://192.168.1.195:8080/api/download/123.zip", "subsdump"
         )
         assert ok is True
         assert err is None

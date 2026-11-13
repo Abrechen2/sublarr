@@ -30,8 +30,8 @@ class TestValidateServiceUrl:
     @pytest.mark.parametrize(
         "url",
         [
-            "http://192.168.178.36:8989",  # Sonarr on LAN
-            "http://192.168.178.155:11434",  # Ollama on LAN
+            "http://192.168.1.36:8989",  # Sonarr on LAN
+            "http://192.168.1.155:11434",  # Ollama on LAN
             "https://192.168.1.1",  # HTTPS private IP
             "http://10.0.0.5:7878",  # Radarr on 10.x network
             "http://172.16.0.1:8096",  # Jellyfin on 172.16.x
@@ -96,7 +96,7 @@ class TestValidateServiceUrl:
         assert ok is False
 
     def test_trailing_slash_accepted(self):
-        ok, _ = validate_service_url("http://192.168.178.36:8989/")
+        ok, _ = validate_service_url("http://192.168.1.36:8989/")
         assert ok is True
 
 
@@ -213,7 +213,7 @@ class TestSocketIOLogSanitizer:
 
     def test_warning_log_unchanged(self):
         Handler = self._get_sanitizer()
-        warning = "[WARNING] auth: Invalid API key from 192.168.178.50"
+        warning = "[WARNING] auth: Invalid API key from 192.168.1.50"
         assert Handler._sanitize(warning) == warning
 
     def test_prefix_preserved_on_db_error(self):

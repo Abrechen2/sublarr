@@ -50,7 +50,7 @@ class TestDownloadServesTheBundle:
         _point_log_file_at(
             tmp_path,
             monkeypatch,
-            content="2026-08-08 10:00:00,000 [ERROR] p: failed talking to 192.168.178.194\n",
+            content="2026-08-08 10:00:00,000 [ERROR] p: failed talking to 192.168.1.194\n",
         )
 
         resp = client.get("/api/v1/logs/download")
@@ -58,7 +58,7 @@ class TestDownloadServesTheBundle:
             log_member = next(n for n in zf.namelist() if n.startswith("logs/"))
             body = zf.read(log_member).decode("utf-8")
 
-        assert "192.168.178.194" not in body, "the raw address must not survive the export"
+        assert "192.168.1.194" not in body, "the raw address must not survive the export"
         assert "192.168.xxx.xxx" in body
 
     def test_raw_escape_hatch_still_serves_the_plain_file(self, client, tmp_path, monkeypatch):

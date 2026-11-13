@@ -4216,7 +4216,7 @@ LLM translation remains experimental.
 ## [0.90.0-beta] - 2026-05-07
 
 ### Added
-- **Disk safety-valve for wanted_search** — When the `/config` device crosses the configured threshold (default 98 %), `wanted_search` now early-returns with `paused_reason="disk_critical"` instead of fetching the eligibility list, querying providers, or writing downloads. Configurable via the new UI setting `wanted_search_disk_pause_pct` (range 50.0–100.0; set to 100.0 to disable). Closes a V1 readiness gap surfaced by the 2026-05-07 audit: with Cardinal at 97 % usage, a single bulk run could push `/config` over the cliff and corrupt the application DB.
+- **Disk safety-valve for wanted_search** — When the `/config` device crosses the configured threshold (default 98 %), `wanted_search` now early-returns with `paused_reason="disk_critical"` instead of fetching the eligibility list, querying providers, or writing downloads. Configurable via the new UI setting `wanted_search_disk_pause_pct` (range 50.0–100.0; set to 100.0 to disable). Closes a V1 readiness gap surfaced by the 2026-05-07 audit: with the prod host at 97 % usage, a single bulk run could push `/config` over the cliff and corrupt the application DB.
 - **Auto-mark-as-unsourceable** — A wanted item that fails through the configured number of slow-mode cycles (default `wanted_search_max_slow_cycles=3` — i.e. once `search_count` reaches `max_attempts + max_slow_cycles`) now moves to `status='unsourceable'` and drops out of the scheduler queue, instead of cycling indefinitely every 30 days. Existing slow-mode items escalate organically as they hit the threshold. New UI setting `wanted_search_max_slow_cycles` (range 0–999; set to 0 to skip slow-mode entirely, set high for legacy never-escalate behaviour). Eliminates the "2084 wanted, never shrinks" UX wart for items where the target language genuinely is not available at any provider.
 
 ## [0.89.0-beta] - 2026-05-06
@@ -4540,7 +4540,7 @@ LLM translation remains experimental.
 ## [0.76.9-beta] - 2026-04-28
 
 ### Fixed
-- **`Sprachen & Profile` leaking into EN-mode Settings sidebar** — `SettingsNav.tsx` resolves `t('settings.nav.languages', 'Sprachen & Profile')` for the Subtitles → Languages & Profiles entry. The 0.76.4 i18n full-coverage pass added 19 of the 20 nav keys used by the component but missed this specific one, so EN users saw the German inline-default fallback between otherwise-translated siblings. Adds `settings.nav.languages` to both `en/common.json` ("Languages & Profiles") and `de/common.json` ("Sprachen & Profile"). Caught during post-deploy Playwright UAT against Cardinal.
+- **`Sprachen & Profile` leaking into EN-mode Settings sidebar** — `SettingsNav.tsx` resolves `t('settings.nav.languages', 'Sprachen & Profile')` for the Subtitles → Languages & Profiles entry. The 0.76.4 i18n full-coverage pass added 19 of the 20 nav keys used by the component but missed this specific one, so EN users saw the German inline-default fallback between otherwise-translated siblings. Adds `settings.nav.languages` to both `en/common.json` ("Languages & Profiles") and `de/common.json` ("Sprachen & Profile"). Caught during post-deploy Playwright UAT against prod.
 
 ## [0.76.8-beta] - 2026-04-28
 
@@ -4557,7 +4557,7 @@ LLM translation remains experimental.
 ## [0.76.7-beta] - 2026-04-27
 
 ### Fixed
-- **Slow-mode bypass in wanted search filter** — Items that exhausted `wanted_max_search_attempts` should re-enter the search rotation roughly once every 30 days via the `no_result_slow` slow-mode contract that `record_search_outcome` already sets, but the eligibility filter `_filter_eligible` kept the hard `search_count < max` cap and silently dropped them. The filter now honours items at or above the cap when their `failure_kind == 'no_result_slow'` AND their `retry_after` window has elapsed; other failure kinds (provider_error etc.) still respect the cap. A new Alembic migration `f3d8e9c2a4b1` retroactively promotes legacy frozen items (search_count >= 3, failure_kind NULL, retry_after NULL) into the slow-mode contract, spreading the retry instants over the next 30 days via `id % 30` so the resurrected items don't all hit the providers in one tick. 2032 stuck items on Cardinal will rejoin the rotation. Eleven new tests pin the contract on both the legacy and adaptive paths.
+- **Slow-mode bypass in wanted search filter** — Items that exhausted `wanted_max_search_attempts` should re-enter the search rotation roughly once every 30 days via the `no_result_slow` slow-mode contract that `record_search_outcome` already sets, but the eligibility filter `_filter_eligible` kept the hard `search_count < max` cap and silently dropped them. The filter now honours items at or above the cap when their `failure_kind == 'no_result_slow'` AND their `retry_after` window has elapsed; other failure kinds (provider_error etc.) still respect the cap. A new Alembic migration `f3d8e9c2a4b1` retroactively promotes legacy frozen items (search_count >= 3, failure_kind NULL, retry_after NULL) into the slow-mode contract, spreading the retry instants over the next 30 days via `id % 30` so the resurrected items don't all hit the providers in one tick. 2032 stuck items in production will rejoin the rotation. Eleven new tests pin the contract on both the legacy and adaptive paths.
 
 ## [0.76.6-beta] - 2026-04-26
 
@@ -4578,7 +4578,7 @@ LLM translation remains experimental.
 - **Activity sidebar label** — was "Translations" in EN, confusing because the page is multi-tab (Queue / Translations / History / Blacklist). Renamed to "Activity" to match the page's own title.
 - **`wanted_search_complete` event** is now registered in `events.catalog` so the recurring `emit_event called with unknown event` warning in prod logs goes away and the SocketIO bridge propagates the event to connected clients.
 - **Bottom-nav "99+" badge no longer overlaps adjacent items** — re-anchored the Wanted-tab badge to the icon corner via `left-full -translate-x-1/2`, with `max-w-[28px]` and `pointer-events-none` so it can't bleed into the next slot or steal taps.
-- **Default profile renamed in production DB** from "Standart" → "Standard". One-shot SQL fix on Cardinal; fresh installs already used "Default" so no seed change needed.
+- **Default profile renamed in production DB** from "Standart" → "Standard". One-shot SQL fix in production; fresh installs already used "Default" so no seed change needed.
 
 ## [0.76.3-beta] - 2026-04-26
 
@@ -5117,7 +5117,7 @@ This version completes Plan A's 5-phase roadmap:
 ## [0.51.5-beta] - 2026-04-14
 
 ### Fixed
-- **Stream removal after extraction now works end-to-end** — The mkvmerge `--subtitle-tracks` exclusion argument was built as `!3,!4`, which mkvmerge v91+ rejects as an invalid BCP 47 language tag. The correct form is `!3,4` (single `!` at the start of the list). Every subtitle extraction on Cardinal was logging `mkvmerge failed (exit 2)` with an empty reason — subtitles were extracted correctly to `.ass` files but the tracks stayed in the container. Error capture now also falls back to stdout when stderr is empty, because mkvmerge writes hard errors to stdout.
+- **Stream removal after extraction now works end-to-end** — The mkvmerge `--subtitle-tracks` exclusion argument was built as `!3,!4`, which mkvmerge v91+ rejects as an invalid BCP 47 language tag. The correct form is `!3,4` (single `!` at the start of the list). Every subtitle extraction in production was logging `mkvmerge failed (exit 2)` with an empty reason — subtitles were extracted correctly to `.ass` files but the tracks stayed in the container. Error capture now also falls back to stdout when stderr is empty, because mkvmerge writes hard errors to stdout.
 - **Circuit breaker hardening** — Auth and rate-limit errors in provider search methods were caught by generic exception handlers and returned as empty results, preventing the circuit breaker from ever opening. All three layers (download, provider search, coordinator retry loop) now correctly propagate these errors.
 - **Orphan scanner false positives** — Episode titles containing dots (e.g. `Mr. Saturday`) were truncated by the language-tag regex, producing false orphan reports. The regex is now anchored to known subtitle extensions (srt/ass/ssa) and accepts modifier suffixes.
 - **Wanted-search NULL guard** — `process_wanted_item` no longer crashes with a TypeError when `search_count` is NULL. Items inserted before a later default=0 migration triggered this crash, which in turn caused retry storms that logged identical tracebacks thousands of times at the same millisecond.

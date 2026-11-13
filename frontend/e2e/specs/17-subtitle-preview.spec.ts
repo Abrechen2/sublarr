@@ -18,7 +18,7 @@
 
 import { test, expect, type Page } from '@playwright/test';
 
-const BASE = 'http://192.168.178.194:5765';
+const BASE = process.env.PLAYWRIGHT_BASE_URL || 'http://localhost:5765';
 
 // ── Navigation helpers ────────────────────────────────────────────────────────
 

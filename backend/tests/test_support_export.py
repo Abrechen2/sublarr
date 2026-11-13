@@ -83,7 +83,7 @@ class TestAnonymize:
         return _anonymize(*args, **kwargs)
 
     def test_private_ip_192_168(self):
-        assert self._fn("Connected to 192.168.178.194") == "Connected to 192.168.xxx.xxx"
+        assert self._fn("Connected to 192.168.1.194") == "Connected to 192.168.xxx.xxx"
 
     def test_private_ip_10_x(self):
         assert self._fn("Host: 10.0.0.1") == "Host: 10.0.xxx.xxx"

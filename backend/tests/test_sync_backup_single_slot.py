@@ -1,6 +1,6 @@
 """The sync backup is the same single-slot undo as everywhere else.
 
-Two production defects pinned here, found 2026-08-27 on Cardinal:
+Two production defects pinned here, found 2026-08-27 in production:
 
 1. ``video_sync._make_backup`` overwrote an existing ``.bak`` on every sync
    run. The bak is a single-slot undo of the *original* text (see

@@ -113,7 +113,7 @@ def test_a_list_setting_keeps_its_type_through_put_and_reload(client):
 def test_a_masked_media_server_blob_keeps_its_secrets(client):
     # As stored on prod: media-server entries have no id.
     servers = [
-        {"type": "emby", "name": "Cardinal", "url": "http://192.168.10.5:8096", "api_key": "real"}
+        {"type": "emby", "name": "Home", "url": "http://192.168.10.5:8096", "api_key": "real"}
     ]
     assert (
         client.put("/api/v1/config", json={"media_servers_json": json.dumps(servers)}).status_code

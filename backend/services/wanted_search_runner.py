@@ -232,7 +232,7 @@ def run_wanted_search(
     settings = get_settings()
 
     # Disk safety-valve: refuse to run when /config is critically full. Downloads
-    # land next to the DB on the same volume in the default Cardinal layout,
+    # land next to the DB on the same volume in the default Unraid layout,
     # and a full /config corrupts the DB. Returning paused_reason rather than
     # raising lets the scheduler record the run as ok and try again next tick.
     from services.disk_safety import format_disk_status, is_disk_critical

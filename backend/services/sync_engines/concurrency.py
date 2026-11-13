@@ -3,7 +3,7 @@
 ffsubsync and alass both spawn long-running CPU+IO-heavy subprocesses. Without
 throttling they can fan out across multiple Flask threads — uncontrolled bulk
 operations from the UI plus inline auto-sync from wanted-search produced load
-spikes >9 on the host (Cardinal, 2026-05-14 incident).
+spikes >9 on the host (prod, 2026-05-14 incident).
 
 A module-level BoundedSemaphore(1) lets at most one sync subprocess run at a
 time across all callers in this Gunicorn process. Gunicorn runs single-worker

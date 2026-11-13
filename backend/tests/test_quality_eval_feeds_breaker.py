@@ -62,7 +62,7 @@ class _DeadOllama(TranslationBackend):
 
     def _call_ollama(self, prompt):
         self.calls += 1
-        raise ConnectionError("HTTPConnectionPool(host='192.168.178.155', port=11434)")
+        raise ConnectionError("HTTPConnectionPool(host='192.168.1.155', port=11434)")
 
 
 @pytest.fixture()

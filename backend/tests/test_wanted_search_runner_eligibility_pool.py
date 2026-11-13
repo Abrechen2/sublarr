@@ -2,7 +2,7 @@
 pool before ``wanted_search_max_items_per_run`` truncation, not after a
 premature fetch-time LIMIT.
 
-Production incident (2026-07-05, reproduced via direct SQL against Cardinal):
+Production incident (2026-07-05, reproduced via direct SQL against prod):
 with 2284 ``wanted`` rows and ``wanted_search_max_items_per_run=2000``, 29
 items were individually eligible (``retry_after`` elapsed, ``search_count``
 under the cap) but had a slightly MORE RECENT ``last_search_at`` than the

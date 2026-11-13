@@ -101,7 +101,7 @@ class TestAllowListSnapshot:
     @pytest.mark.parametrize(
         ("value", "expected"),
         [
-            ("http://user:pw@192.168.178.20:8989/sonarr", "http://<private-ip>:8989"),
+            ("http://user:pw@192.168.1.20:8989/sonarr", "http://<private-ip>:8989"),
             ("https://sonarr.example.com", "https://<host>"),
             ("http://localhost:11434", "http://<loopback>:11434"),
             ("http://127.0.0.1:11434", "http://<loopback>:11434"),

@@ -26,5 +26,5 @@ Write-Host "=== Docker Build (VERSION=$Version) ===" -ForegroundColor Cyan
 & docker build --build-arg "VERSION=$Version" @DockerArgs
 
 Write-Host ""
-Write-Host "=== Cardinal Deploy (after docker save | ssh docker load) ===" -ForegroundColor Cyan
-Write-Host "VERSION=$Version docker compose -f docker-compose.yml -f docker-compose.cardinal.yml up -d"
+Write-Host "=== Deploy (after docker save | ssh docker load) ===" -ForegroundColor Cyan
+Write-Host "VERSION=$Version docker compose -f docker-compose.yml -f <your-overlay>.yml up -d"

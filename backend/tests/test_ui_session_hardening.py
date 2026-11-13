@@ -274,7 +274,7 @@ def test_the_api_key_with_the_password_can_switch_sign_in(app, store):
         ("::1", {}, True),
         ("10.0.0.4", {}, True),
         ("172.19.0.1", {}, True),
-        ("::ffff:192.168.178.20", {}, True),
+        ("::ffff:192.168.1.20", {}, True),
         ("100.101.102.103", {}, True),  # Tailscale / CGNAT range
         ("fd00::1", {}, True),
         ("8.8.4.4", {}, False),

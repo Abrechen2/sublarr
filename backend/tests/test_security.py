@@ -102,7 +102,7 @@ class TestValidateServiceUrlBypassResistance:
         from security_utils import validate_service_url
 
         # Sublarr is built for self-hosting and reaches Sonarr/Radarr on LAN.
-        ok, _ = validate_service_url("http://192.168.178.36:5765/")
+        ok, _ = validate_service_url("http://192.168.1.36:5765/")
         assert ok is True
 
     def test_private_lan_10_8_allowed(self):

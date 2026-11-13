@@ -23,5 +23,5 @@ echo "=== Docker Build (VERSION=$VERSION) ==="
 docker build --build-arg VERSION="$VERSION" "$@"
 
 echo ""
-echo "=== Cardinal Deploy (after docker save | ssh docker load) ==="
-echo "VERSION=$VERSION docker compose -f docker-compose.yml -f docker-compose.cardinal.yml up -d"
+echo "=== Deploy (after docker save | ssh docker load) ==="
+echo "VERSION=$VERSION docker compose -f docker-compose.yml -f <your-overlay>.yml up -d"

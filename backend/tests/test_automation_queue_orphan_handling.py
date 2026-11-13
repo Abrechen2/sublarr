@@ -1,6 +1,6 @@
 """Queue rows must not outlive their usefulness.
 
-Two production findings from Cardinal, 2026-08-27:
+Two production findings, 2026-08-27:
 
 1. 25 embedded_extract rows whose wanted item had been deleted retried
    daily, forever — ``extract_embedded_sub`` raised ``ValueError`` for the

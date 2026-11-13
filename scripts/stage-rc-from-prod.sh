@@ -7,7 +7,13 @@ set -euo pipefail
 # NB: rely on ssh's default key discovery (~/.ssh/id_ed25519) rather than an
 # explicit -i path — a HOME with spaces (Windows git-bash "Dennis Wittke")
 # word-splits inside the unquoted $SSH expansion and breaks the -i argument.
-SSH="ssh -o ConnectTimeout=10 root@192.168.178.36"
+# The host stays out of the public repo: SUBLARR_HOST (user@host) comes from
+# the environment or from scripts/deploy.local.env (gitignored).
+LOCAL_ENV="$(dirname "$0")/deploy.local.env"
+# shellcheck source=/dev/null
+[ -f "$LOCAL_ENV" ] && . "$LOCAL_ENV"
+: "${SUBLARR_HOST:?set SUBLARR_HOST=user@host or write it to scripts/deploy.local.env}"
+SSH="ssh -o ConnectTimeout=10 $SUBLARR_HOST"
 SOURCE_PG="sublarr-postgres"
 TARGET_PG="${TARGET_PG:-sublarr-rc-postgres}"
 DB="sublarr"
@@ -15,7 +21,7 @@ DBUSER="sublarr"
 RC_COMPOSE_DIR="/mnt/user/appdata/sublarr-rc"
 RC_PROJECT="sublarr-rc"
 RC_APP="sublarr-rc"
-RC_PORT="5766"  # RC's port on the Cardinal host (container itself listens on 5765)
+RC_PORT="5766"  # RC's port on the prod host (container itself listens on 5765)
 # Config-at-rest encryption key lives in {config_dir}/.encryption_key, deliberately
 # OUTSIDE the DB — so a DB clone alone can't decrypt prod's encrypted config values
 # and the RC app crashes on boot ("Failed to decrypt"). Copy prod's key too.
@@ -119,7 +125,7 @@ $SSH "cd $RC_COMPOSE_DIR && docker compose -p $RC_PROJECT up -d $RC_APP"
 # like a real instance. Unpause individually in Settings → System →
 # Scheduler when a round genuinely needs to exercise translation.
 # NB: 5766 is RC's port *on the host* — the container listens on 5765, but
-# these curls run on Cardinal, not inside it.
+# these curls run on the host, not inside it.
 echo "Waiting for RC to accept requests ..."
 $SSH "for i in \$(seq 1 60); do curl -sf --max-time 3 http://localhost:${RC_PORT}/api/v1/health >/dev/null 2>&1 && exit 0; sleep 2; done; exit 1" || {
   echo "REFUSE: RC did not become healthy — pause the paid-API jobs by hand" >&2

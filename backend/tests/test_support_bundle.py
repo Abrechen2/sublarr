@@ -242,8 +242,8 @@ class TestHostnameRedaction:
     def test_hostname_is_matched_case_insensitively_and_whole_word(self):
         from routes.system.support_logs import _anonymize
 
-        out = _anonymize("Host CARDINAL up; cardinalfish swims", hostname="cardinal")
-        assert out == "Host ***HOST*** up; cardinalfish swims"
+        out = _anonymize("Host MEDIABOX up; mediaboxes stack", hostname="mediabox")
+        assert out == "Host ***HOST*** up; mediaboxes stack"
 
 
 # ─── Bundle content additions ────────────────────────────────────────────────

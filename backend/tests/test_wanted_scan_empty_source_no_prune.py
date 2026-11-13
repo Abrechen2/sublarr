@@ -1,6 +1,6 @@
 """A source that answers with an EMPTY list must not get its queue pruned.
 
-Prod 2026-09-04 19:48 CEST: Cardinal came back from a NUT shutdown, Sonarr
+Prod 2026-09-04 19:48 CEST: the prod host came back from a NUT shutdown, Sonarr
 and Sublarr started within the same second, and the boot-time full scan
 asked Sonarr for its series while Sonarr was still initialising. Sonarr
 answered 200 with an empty list — no exception, so the 2026-08-30 guard
