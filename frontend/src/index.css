@@ -124,10 +124,11 @@
   --border: #dde0e8;
   --border-hover: #c6cad5;
 
-  /* Text — Light */
+  /* Text — Light. Secondary and muted reach 4.5:1 (WCAG AA) on every
+     light surface; muted used to sit at 2.7:1. */
   --text-primary: #18191f;
-  --text-secondary: #525968;
-  --text-muted: #8c95a6;
+  --text-secondary: #474e5c;
+  --text-muted: #656d7d;
 
   /* Brand — Sublarr Teal */
   --accent: #0f9bb5;
@@ -200,10 +201,11 @@
   --border: #2a2e38;
   --border-hover: #3a3f4d;
 
-  /* Text — Dark */
+  /* Text — Dark. Secondary and muted reach 4.5:1 (WCAG AA) on every
+     dark surface; muted used to sit at 1.8:1, grey on grey. */
   --text-primary: #e0e4ec;
-  --text-secondary: #848b9e;
-  --text-muted: #4a5168;
+  --text-secondary: #a7aebf;
+  --text-muted: #8d95a9;
 
   /* Brand — Sublarr Teal (unchanged) */
   --accent: #1DB8D4;
