@@ -50,8 +50,8 @@ run does not double-post.
 
 Targets are independent: if one lacks its variables or the API rejects it, the
 error names the missing variable(s) (never the values), the remaining targets
-still run, and the exit code is 1. Secrets belong in Infisical
-(`external-apis`), not in git.
+still run, and the exit code is 1. Secrets belong in Infisical (project
+`sublarr`, environment `prod`, folder `/ops`), not in git.
 
 ## Release announcements: this is the only path
 
@@ -82,7 +82,7 @@ npm run read              # should list the guild's channels
 ```
 
 `DISCORD_BOT_TOKEN` is a secret; its source of truth is Infisical (project
-`sublarr`, environment `prod`). `DISCORD_GUILD_ID` is not a secret — the
+`sublarr`, environment `prod`, folder `/ops`). `DISCORD_GUILD_ID` is not a secret — the
 default in `.env.example` is correct and needs no change.
 
 **Bot permissions:** View Channels, Read Message History, Send Messages, Send
