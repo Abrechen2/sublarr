@@ -12,7 +12,7 @@ from translator._helpers import (
 )
 from translator.cache import _apply_translation_cache, _store_translations_in_cache
 from translator.errors import TranslationAbortedError
-from translator.output_guard import find_chat_filler, find_script_mismatch
+from translator.output_guard import find_chat_filler, find_script_mismatch, find_untranslated_echo
 
 logger = logging.getLogger(__name__)
 
@@ -196,7 +196,7 @@ def _cache_batch(cache_enabled, source_lines, result, source_lang, target_lang):
     )
 
 
-def _verify_batch(result, expected_count, batch_label, target_lang=None):
+def _verify_batch(result, expected_count, batch_label, target_lang=None, source_lines=None):
     """Verify one backend result before it may reach the file or the cache.
 
     Checks line count, rejects chat filler, and — when the target language
@@ -205,11 +205,13 @@ def _verify_batch(result, expected_count, batch_label, target_lang=None):
     reply is exactly one line — how 1124 chat replies reached the prod
     translation memory during the batch_size=1 era), and neither check
     catches the model echoing its input: a Chinese source sent through an
-    "English → German" prompt comes back Chinese, one line per line.
+    "English → German" prompt comes back Chinese, one line per line. Between
+    two Latin languages the script check is blind too, so with
+    ``source_lines`` a batch that came back mostly unchanged is rejected.
 
     Raises:
-        RuntimeError: If the count is off, a line is filler or the script is
-            wrong, so the batch fails like any other translation failure and
+        RuntimeError: If the count is off, a line is filler, the script is
+            wrong or the batch came back untranslated, so the batch fails like any other translation failure and
             nothing is cached.
     """
     if len(result.translated_lines) != expected_count:
@@ -229,6 +231,13 @@ def _verify_batch(result, expected_count, batch_label, target_lang=None):
         if wrong_script:
             raise RuntimeError(
                 f"{batch_label} came back in the wrong script ({wrong_script}). "
+                "Aborting to prevent cache pollution."
+            )
+    if source_lines is not None:
+        echo = find_untranslated_echo(source_lines, result.translated_lines)
+        if echo:
+            raise RuntimeError(
+                f"{batch_label} came back untranslated ({echo}). "
                 "Aborting to prevent cache pollution."
             )
 
@@ -281,7 +290,13 @@ def _translate_batch_or_split(
         failure = result.error
     else:
         try:
-            _verify_batch(result, len(batch_lines), f"Batch {label}", target_lang=target_lang)
+            _verify_batch(
+                result,
+                len(batch_lines),
+                f"Batch {label}",
+                target_lang=target_lang,
+                source_lines=batch_lines,
+            )
         except RuntimeError as exc:
             failure = str(exc)
 
