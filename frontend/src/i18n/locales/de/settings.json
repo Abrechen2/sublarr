@@ -2334,6 +2334,8 @@
     "no_entries": "Keine globalen Glossar-Einträge. Füge Begriffe hinzu, die serienübergreifend konsistent übersetzt werden sollen."
   },
   "glossary_presets": {
+    "list_count_one": "{{count}} Liste",
+    "list_count_other": "{{count}} Listen",
     "title": "Vorschläge",
     "help": "Fertige Begriffslisten für häufige Anime-Begriffe. Übernommene Begriffe landen im globalen Glossar und gelten nur für die jeweilige Zielsprache. Vorhandene Begriffe bleiben unverändert.",
     "import_one": "{{count}} Begriff übernehmen",

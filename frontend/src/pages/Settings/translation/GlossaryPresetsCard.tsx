@@ -7,12 +7,19 @@ import type { GlossaryEntry } from '@/api/translation'
 
 // ─── Glossary presets ───────────────────────────────────────────────────────
 // Bundled term lists the user can import into the global glossary. Nothing is
-// applied until the user clicks import.
+// applied until the user clicks import. The card starts folded once the
+// glossary has terms, so it does not push the term list down.
 
-export function GlossaryPresetsCard({ entries }: { entries: GlossaryEntry[] }) {
+interface GlossaryPresetsCardProps {
+  entries: GlossaryEntry[]
+  defaultOpen?: boolean
+}
+
+export function GlossaryPresetsCard({ entries, defaultOpen }: GlossaryPresetsCardProps) {
   const { t } = useTranslation('settings')
   const { data } = useGlossaryPresets()
   const importPreset = useImportGlossaryPreset()
+  const [cardOpen, setCardOpen] = useState(defaultOpen ?? entries.length === 0)
   const [openId, setOpenId] = useState<string | null>(null)
 
   const presets = data?.presets ?? []
@@ -39,16 +46,28 @@ export function GlossaryPresetsCard({ entries }: { entries: GlossaryEntry[] }) {
       className="rounded-lg p-4 space-y-3 bg-surface border border-border"
       data-testid="glossary-presets"
     >
-      <div className="flex items-center gap-2">
+      <button
+        type="button"
+        onClick={() => setCardOpen((v) => !v)}
+        className="flex w-full items-center gap-2 text-left"
+        aria-expanded={cardOpen}
+        data-testid="glossary-presets-toggle"
+      >
+        {cardOpen ? <ChevronDown size={14} className="text-muted" /> : <ChevronRight size={14} className="text-muted" />}
         <Sparkles size={14} className="text-accent" />
         <h3 className="text-sm font-semibold text-foreground">
           {t('glossary_presets.title')}
         </h3>
-      </div>
-      <p className="text-xs text-secondary">
-        {t('glossary_presets.help')}
-      </p>
-      {presets.map((preset) => {
+        <span className="text-xs text-muted">
+          {t('glossary_presets.list_count', { count: presets.length })}
+        </span>
+      </button>
+      {cardOpen && (
+        <p className="text-xs text-secondary">
+          {t('glossary_presets.help')}
+        </p>
+      )}
+      {cardOpen && presets.map((preset) => {
         const missing = missingCount(preset)
         const open = openId === preset.id
         return (

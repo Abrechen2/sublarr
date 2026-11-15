@@ -313,9 +313,13 @@ export function GlossaryPanel({ seriesId }: GlossaryPanelProps) {
           {searchQuery ? t('series_detail.no_glossary_match') : t('series_detail.no_glossary_entries')}
         </div>
       ) : (
-        <div className="rounded-md overflow-hidden" style={{ border: '1px solid var(--border)' }}>
+        // Long glossaries scroll inside the box; the header row stays visible.
+        <div
+          className="rounded-md max-h-[24rem] overflow-y-auto border border-border"
+          data-testid="series-glossary-table-scroll"
+        >
           <table className="w-full">
-            <thead>
+            <thead className="sticky top-0 z-10">
               <tr style={{ backgroundColor: 'var(--bg-surface)', borderBottom: '1px solid var(--border)' }}>
                 <th className="text-left text-[10px] font-semibold uppercase tracking-wider px-3 py-1.5" style={{ color: 'var(--text-muted)' }}>{t('glossary_panel.col_source')}</th>
                 <th className="text-left text-[10px] font-semibold uppercase tracking-wider px-3 py-1.5" style={{ color: 'var(--text-muted)' }}>{t('glossary_panel.col_target')}</th>

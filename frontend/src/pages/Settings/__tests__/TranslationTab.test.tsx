@@ -8,7 +8,7 @@
  * - AutoSyncSection: presence and SettingRow pattern (already implemented)
  */
 import React from 'react'
-import { describe, it, expect, vi, beforeEach } from 'vitest'
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { render, screen, fireEvent } from '@testing-library/react'
 import { BrowserRouter } from 'react-router-dom'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
@@ -20,6 +20,8 @@ import {
 } from '../TranslationTab'
 
 // ─── Mocks ───────────────────────────────────────────────────────────────────
+
+let mockGlossaryEntries: Record<string, unknown>[] = []
 
 vi.mock('react-i18next', () => ({
   useTranslation: () => ({
@@ -50,7 +52,7 @@ vi.mock('@/hooks/useApi', () => ({
   useCreatePromptPreset: () => ({ mutate: vi.fn() }),
   useUpdatePromptPreset: () => ({ mutate: vi.fn() }),
   useDeletePromptPreset: () => ({ mutate: vi.fn() }),
-  useGlobalGlossaryEntries: () => ({ data: { entries: [] }, isLoading: false }),
+  useGlobalGlossaryEntries: () => ({ data: { entries: mockGlossaryEntries }, isLoading: false }),
   useCreateGlossaryEntry: () => ({ mutate: vi.fn() }),
   useUpdateGlossaryEntry: () => ({ mutate: vi.fn() }),
   useDeleteGlossaryEntry: () => ({ mutate: vi.fn() }),
@@ -275,5 +277,25 @@ describe('GlobalGlossaryPanel — CRUD and Export', () => {
   it('Add Entry button has correct label', () => {
     renderComponent(<GlobalGlossaryPanel />)
     expect(screen.getByTestId('glossary-add-btn')).toHaveTextContent('glossary_panel.add_entry')
+  })
+})
+
+// ─── GlobalGlossaryPanel — long lists scroll ───────────────────────────────
+
+describe('GlobalGlossaryPanel — term list', () => {
+  afterEach(() => { mockGlossaryEntries = [] })
+
+  // A long glossary scrolls inside its own box instead of stretching the page.
+  it('puts the terms in a scroll box', () => {
+    mockGlossaryEntries = Array.from({ length: 40 }, (_, i) => ({
+      id: i + 1, series_id: null, source_term: `Term ${i}`, target_term: `Begriff ${i}`,
+      notes: '', term_type: 'other', confidence: null, approved: 1, target_language: 'de',
+      created_at: '', updated_at: '',
+    }))
+    renderComponent(<GlobalGlossaryPanel />)
+    const box = screen.getByTestId('glossary-table-scroll')
+    expect(box.className).toContain('overflow-y-auto')
+    expect(box.className).toMatch(/max-h-/)
+    expect(box.querySelectorAll('tbody tr')).toHaveLength(40)
   })
 })

@@ -345,9 +345,13 @@ export function GlobalGlossaryPanel() {
           </p>
         </div>
       ) : (
-        <div className="rounded-md overflow-hidden" style={{ border: '1px solid var(--border)' }}>
+        // Long glossaries scroll inside the box; the header row stays visible.
+        <div
+          className="rounded-md max-h-[28rem] overflow-y-auto border border-border"
+          data-testid="glossary-table-scroll"
+        >
           <table className="w-full">
-            <thead>
+            <thead className="sticky top-0 z-10">
               <tr style={{ backgroundColor: 'var(--bg-surface)', borderBottom: '1px solid var(--border)' }}>
                 <th className="text-left text-[10px] font-semibold uppercase tracking-wider px-3 py-2" style={{ color: 'var(--text-muted)' }}>{t('glossary_page.col_source')}</th>
                 <th className="text-left text-[10px] font-semibold uppercase tracking-wider px-3 py-2" style={{ color: 'var(--text-muted)' }}>{t('glossary_page.col_target')}</th>

@@ -2334,6 +2334,8 @@
     "no_entries": "No global glossary entries. Add terms that should be consistently translated across all series."
   },
   "glossary_presets": {
+    "list_count_one": "{{count}} list",
+    "list_count_other": "{{count}} lists",
     "title": "Suggestions",
     "help": "Ready-made term lists for common anime terms. Imported terms go into the global glossary and apply only to their target language. Terms you already have stay unchanged.",
     "import_one": "Import {{count}} term",
