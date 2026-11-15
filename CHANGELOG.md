@@ -5,6 +5,41 @@ All notable changes to Sublarr are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.21.0] - 2026-11-15
+
+### Added
+- **Anime glossary suggestions** — The global glossary offers two bundled
+  term lists for anime (English → German, 18 terms; German → English,
+  11 terms) as a suggestion card. The list can be reviewed before import,
+  nothing applies until "Import" is clicked, and terms that already exist
+  are kept.
+- **Glossary entries per target language** — An entry can name the target
+  language it is written for, so a German term list no longer reaches
+  translations into other languages. Existing entries keep applying to
+  every language.
+
+### Fixed
+- **Untranslated batches were saved as translations** — Between two
+  Latin-script languages Sublarr could not tell a translation from the
+  model echoing its input; one batch came back with ten of fifteen German
+  lines unchanged and would have been cached. A batch whose longer lines
+  are mostly unchanged is now rejected and translated again. Names, calls
+  and short lines don't count.
+- **Pending glossary suggestions were applied** — DeepL and Google built
+  their glossaries from every entry, and the global glossary path ignored
+  the approval flag, so a suggestion nobody had accepted was used anyway.
+  Only approved entries reach a backend now.
+- **Series glossaries were cut at 30 entries** — The merged series
+  glossary silently dropped everything after 30 terms. The limit is gone;
+  series terms come first and override global ones with the same source
+  term.
+- **Grey-on-grey text** — Secondary and muted text (timestamps, help
+  texts, metadata) now reach WCAG AA contrast (4.5:1) in both themes.
+
+### Security
+- **certifi** pinned to 2026.10.18 or later, which removes the compromised
+  emSign root certificates. Dev dependencies with advisories were updated.
+
 ## [1.20.2] - 2026-11-08
 
 ### Fixed
