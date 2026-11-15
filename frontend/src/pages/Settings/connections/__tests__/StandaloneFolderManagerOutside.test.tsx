@@ -46,6 +46,13 @@ describe('StandaloneFolderManager outside the media folder', () => {
     expect(screen.queryByTestId('folder-outside-media-1')).toBeNull()
   })
 
+  it('lists the folders in a scroll box', () => {
+    render(<StandaloneFolderManager />)
+    const box = screen.getByTestId('standalone-folder-list')
+    expect(box.className).toContain('overflow-y-auto')
+    expect(box.contains(screen.getByTestId('folder-outside-media-2'))).toBe(true)
+  })
+
   it("shows the server's reason when adding is refused", () => {
     render(<StandaloneFolderManager />)
     fireEvent.click(screen.getByText('library_sources.add_folder'))

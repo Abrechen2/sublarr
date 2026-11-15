@@ -2,6 +2,7 @@ import { useQuery } from '@tanstack/react-query'
 
 import { fetchSyncEngines, fetchSyncRuns } from '@/api/syncEngines'
 import { SettingsDetailLayout } from '@/components/settings/SettingsDetailLayout'
+import { ScrollList } from '@/components/shared/ScrollList'
 import { useTranslation } from 'react-i18next'
 
 // Plan B7 — Multi-Engine Sync Orchestrator settings tab.
@@ -119,28 +120,30 @@ export function SyncEnginesTab() {
               will appear here.
             </p>
           ) : (
-            <ul className="space-y-2">
-              {runs.map((run) => (
-                <li
-                  key={run.id}
-                  className="bg-bg rounded-md p-3 border border-border text-sm"
-                >
-                  <div className="flex items-center gap-3 flex-wrap">
-                    <code className="text-sm">{run.engine}</code>
-                    <span className="text-xs px-2 py-0.5 rounded bg-surface border border-border">
-                      {run.status}
-                    </span>
-                    <span className="text-xs text-muted">
-                      offset {formatOffset(run.offset_ms)} · {run.duration_ms} ms ·{' '}
-                      {formatDate(run.created_at)}
-                    </span>
-                  </div>
-                  {run.reason && (
-                    <p className="text-xs text-muted mt-1">reason: {run.reason}</p>
-                  )}
-                </li>
-              ))}
-            </ul>
+            <ScrollList size="sm" testId="sync-runs-list">
+              <ul className="space-y-2">
+                {runs.map((run) => (
+                  <li
+                    key={run.id}
+                    className="bg-bg rounded-md p-3 border border-border text-sm"
+                  >
+                    <div className="flex items-center gap-3 flex-wrap">
+                      <code className="text-sm">{run.engine}</code>
+                      <span className="text-xs px-2 py-0.5 rounded bg-surface border border-border">
+                        {run.status}
+                      </span>
+                      <span className="text-xs text-muted">
+                        offset {formatOffset(run.offset_ms)} · {run.duration_ms} ms ·{' '}
+                        {formatDate(run.created_at)}
+                      </span>
+                    </div>
+                    {run.reason && (
+                      <p className="text-xs text-muted mt-1">reason: {run.reason}</p>
+                    )}
+                  </li>
+                ))}
+              </ul>
+            </ScrollList>
           )}
         </section>
       </div>

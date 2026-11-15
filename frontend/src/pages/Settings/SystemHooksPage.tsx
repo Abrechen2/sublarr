@@ -13,6 +13,7 @@ import {
 import { Loader2, Plus, Edit2, Trash2, TestTube, X } from 'lucide-react'
 import type { HookConfig } from '@/lib/types'
 import { WebhooksSection } from './connections/WebhooksSection'
+import { ScrollList } from '@/components/shared/ScrollList'
 
 // ─── Skeleton ─────────────────────────────────────────────────────────────────
 
@@ -192,55 +193,57 @@ function OutgoingHooksSection() {
         </div>
       )}
 
-      {hooks.map((hook) => (
-        <div
-          key={hook.id}
-          className="flex items-center gap-3 p-3 rounded-lg"
-          style={{ backgroundColor: 'var(--bg-surface)', border: '1px solid var(--border)' }}
-        >
-          <div className="flex-1 min-w-0">
-            <div className="font-medium text-sm" style={{ color: 'var(--text-primary)' }}>{hook.name}</div>
-            <div className="text-xs mt-0.5 flex items-center gap-2" style={{ color: 'var(--text-muted)' }}>
-              <span
-                className="px-1.5 py-0.5 rounded text-[10px]"
-                style={{ backgroundColor: 'var(--bg-elevated)', border: '1px solid var(--border)' }}
+      <ScrollList className="space-y-2" testId="hooks-list">
+        {hooks.map((hook) => (
+          <div
+            key={hook.id}
+            className="flex items-center gap-3 p-3 rounded-lg"
+            style={{ backgroundColor: 'var(--bg-surface)', border: '1px solid var(--border)' }}
+          >
+            <div className="flex-1 min-w-0">
+              <div className="font-medium text-sm" style={{ color: 'var(--text-primary)' }}>{hook.name}</div>
+              <div className="text-xs mt-0.5 flex items-center gap-2" style={{ color: 'var(--text-muted)' }}>
+                <span
+                  className="px-1.5 py-0.5 rounded text-[10px]"
+                  style={{ backgroundColor: 'var(--bg-elevated)', border: '1px solid var(--border)' }}
+                >
+                  {hook.event_name}
+                </span>
+                <span className="truncate max-w-[200px] font-mono">{hook.script_path}</span>
+              </div>
+            </div>
+            <div className="flex items-center gap-1.5">
+              <button
+                title={t('settings:system_hooks_page.action.test')}
+                onClick={() => handleTest(hook.id)}
+                className="p-1.5 rounded"
+                style={{ color: 'var(--text-muted)', border: '1px solid var(--border)' }}
+                data-testid={`test-hook-${hook.id}`}
               >
-                {hook.event_name}
-              </span>
-              <span className="truncate max-w-[200px] font-mono">{hook.script_path}</span>
+                <TestTube size={13} />
+              </button>
+              <button
+                title={t('settings:system_hooks_page.action.edit')}
+                onClick={() => { setEditingHook(hook); setShowModal(true) }}
+                className="p-1.5 rounded"
+                style={{ color: 'var(--text-muted)', border: '1px solid var(--border)' }}
+                data-testid={`edit-hook-${hook.id}`}
+              >
+                <Edit2 size={13} />
+              </button>
+              <button
+                title={t('settings:system_hooks_page.action.delete')}
+                onClick={() => setDeleteConfirmId(hook.id)}
+                className="p-1.5 rounded"
+                style={{ color: 'var(--error)', border: '1px solid var(--border)' }}
+                data-testid={`delete-hook-${hook.id}`}
+              >
+                <Trash2 size={13} />
+              </button>
             </div>
           </div>
-          <div className="flex items-center gap-1.5">
-            <button
-              title={t('settings:system_hooks_page.action.test')}
-              onClick={() => handleTest(hook.id)}
-              className="p-1.5 rounded"
-              style={{ color: 'var(--text-muted)', border: '1px solid var(--border)' }}
-              data-testid={`test-hook-${hook.id}`}
-            >
-              <TestTube size={13} />
-            </button>
-            <button
-              title={t('settings:system_hooks_page.action.edit')}
-              onClick={() => { setEditingHook(hook); setShowModal(true) }}
-              className="p-1.5 rounded"
-              style={{ color: 'var(--text-muted)', border: '1px solid var(--border)' }}
-              data-testid={`edit-hook-${hook.id}`}
-            >
-              <Edit2 size={13} />
-            </button>
-            <button
-              title={t('settings:system_hooks_page.action.delete')}
-              onClick={() => setDeleteConfirmId(hook.id)}
-              className="p-1.5 rounded"
-              style={{ color: 'var(--error)', border: '1px solid var(--border)' }}
-              data-testid={`delete-hook-${hook.id}`}
-            >
-              <Trash2 size={13} />
-            </button>
-          </div>
-        </div>
-      ))}
+        ))}
+      </ScrollList>
 
       {showModal && (
         <HookFormModal

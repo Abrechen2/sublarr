@@ -1,6 +1,8 @@
 import { render, screen, fireEvent, waitFor } from '@testing-library/react'
 import { vi, it, expect, describe } from 'vitest'
 import { MemoryRouter } from 'react-router-dom'
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
+import { AdvancedSettingsProvider } from '@/contexts/AdvancedSettingsContext'
 
 const mockHooks = [{ id: 1, name: 'Test Hook', event_name: 'subtitle_found', script_path: '/scripts/test.sh', enabled: true, hook_type: 'script', timeout_seconds: 30, last_triggered_at: '', last_status: '', trigger_count: 0, created_at: '', updated_at: '' }]
 const mockCreate = vi.fn()
@@ -27,6 +29,7 @@ vi.mock('react-i18next', () => ({
 vi.mock('@/components/shared/Toast', () => ({ toast: vi.fn() }))
 
 const { HooksPage } = await import('../HooksPage')
+const { SystemHooksPage } = await import('../SystemHooksPage')
 
 function renderPage() {
   return render(
@@ -40,6 +43,20 @@ describe('HooksPage', () => {
   it('renders hooks list', async () => {
     renderPage()
     await waitFor(() => expect(screen.getByText('Test Hook')).toBeInTheDocument())
+  })
+
+  it('lists the hooks in a scroll box', async () => {
+    render(
+      <QueryClientProvider client={new QueryClient()}>
+        <AdvancedSettingsProvider>
+          <MemoryRouter><SystemHooksPage /></MemoryRouter>
+        </AdvancedSettingsProvider>
+      </QueryClientProvider>,
+    )
+    await waitFor(() => expect(screen.getByText('Test Hook')).toBeInTheDocument())
+    const box = screen.getByTestId('hooks-list')
+    expect(box.className).toContain('overflow-y-auto')
+    expect(box).toHaveTextContent('Test Hook')
   })
 
   it('opens new hook modal on "New Hook" button click', async () => {

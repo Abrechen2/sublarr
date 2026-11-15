@@ -51,6 +51,14 @@ describe('ScoringCustomRules', () => {
     expect(screen.getByText('+15')).toBeInTheDocument()
   })
 
+  it('lists the rules in a scroll box', () => {
+    mockRules = [RULE]
+    render(<ScoringCustomRules />)
+    const box = screen.getByTestId('custom-rule-list')
+    expect(box.className).toContain('overflow-y-auto')
+    expect(box).toHaveTextContent('Dual audio')
+  })
+
   it('creates a rule from the add form', () => {
     render(<ScoringCustomRules />)
     fireEvent.change(screen.getByTestId('input-custom-rule-name'), { target: { value: 'Uncensored' } })

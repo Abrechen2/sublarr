@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Loader2, Plus, Edit2, Trash2, Check, X, BookOpen, Search, Download } from 'lucide-react'
+import { ScrollList } from '@/components/shared/ScrollList'
 import { toast } from '@/components/shared/Toast'
 import { SettingRow } from '@/components/shared/SettingRow'
 import { Toggle } from '@/components/shared/Toggle'
@@ -346,10 +347,7 @@ export function GlobalGlossaryPanel() {
         </div>
       ) : (
         // Long glossaries scroll inside the box; the header row stays visible.
-        <div
-          className="rounded-md max-h-[28rem] overflow-y-auto border border-border"
-          data-testid="glossary-table-scroll"
-        >
+        <ScrollList className="rounded-md border border-border" testId="glossary-table-scroll">
           <table className="w-full">
             <thead className="sticky top-0 z-10">
               <tr style={{ backgroundColor: 'var(--bg-surface)', borderBottom: '1px solid var(--border)' }}>
@@ -399,7 +397,7 @@ export function GlobalGlossaryPanel() {
               ))}
             </tbody>
           </table>
-        </div>
+        </ScrollList>
       )}
     </div>
   )

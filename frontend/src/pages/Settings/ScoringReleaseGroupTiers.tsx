@@ -14,6 +14,7 @@ import { SettingsSection } from '@/components/settings/SettingsSection'
 import { toast } from '@/components/shared/Toast'
 import { useReleaseGroupTiers, useUpdateReleaseGroupTiers } from '@/hooks/useApi'
 import { settingsInputStyle } from '@/styles/settingsShared'
+import { ScrollList } from '@/components/shared/ScrollList'
 
 const inputStyle: React.CSSProperties = { ...settingsInputStyle, outline: 'none' }
 
@@ -104,60 +105,62 @@ export function ScoringReleaseGroupTiers() {
         </p>
       )}
 
-      {tiers.map((group, idx) => (
-        <div
-          key={group.toLowerCase()}
-          data-testid={`tier-row-${idx}`}
-          style={{
-            display: 'flex', alignItems: 'center', gap: 8,
-            padding: '6px 0', borderBottom: '1px solid var(--border)',
-          }}
-        >
-          <span
+      <ScrollList testId="tier-list">
+        {tiers.map((group, idx) => (
+          <div
+            key={group.toLowerCase()}
+            data-testid={`tier-row-${idx}`}
             style={{
-              width: 26, textAlign: 'right', fontSize: 11,
-              color: 'var(--text-muted)', fontFamily: 'var(--font-mono, monospace)',
+              display: 'flex', alignItems: 'center', gap: 8,
+              padding: '6px 0', borderBottom: '1px solid var(--border)',
             }}
           >
-            {idx + 1}.
-          </span>
-          <span style={{ flex: 1, minWidth: 0, fontSize: 13, overflowWrap: 'anywhere' }}>{group}</span>
-          <span
-            style={{
-              fontSize: 11, color: 'var(--success)',
-              fontFamily: 'var(--font-mono, monospace)', whiteSpace: 'nowrap',
-            }}
-          >
-            +{step * (n - idx)}
-          </span>
-          <button
-            aria-label={tc('settings:scoring_tiers.move_up')}
-            data-testid={`tier-up-${idx}`}
-            disabled={idx === 0}
-            onClick={() => move(idx, -1)}
-            style={{ ...iconBtnStyle, opacity: idx === 0 ? 0.35 : 1 }}
-          >
-            <ArrowUp size={12} />
-          </button>
-          <button
-            aria-label={tc('settings:scoring_tiers.move_down')}
-            data-testid={`tier-down-${idx}`}
-            disabled={idx === n - 1}
-            onClick={() => move(idx, 1)}
-            style={{ ...iconBtnStyle, opacity: idx === n - 1 ? 0.35 : 1 }}
-          >
-            <ArrowDown size={12} />
-          </button>
-          <button
-            aria-label={tc('settings:scoring_tiers.remove')}
-            data-testid={`tier-remove-${idx}`}
-            onClick={() => setTiers(t => t.filter((_, i) => i !== idx))}
-            style={{ ...iconBtnStyle, color: 'var(--error)' }}
-          >
-            <X size={12} />
-          </button>
-        </div>
-      ))}
+            <span
+              style={{
+                width: 26, textAlign: 'right', fontSize: 11,
+                color: 'var(--text-muted)', fontFamily: 'var(--font-mono, monospace)',
+              }}
+            >
+              {idx + 1}.
+            </span>
+            <span style={{ flex: 1, minWidth: 0, fontSize: 13, overflowWrap: 'anywhere' }}>{group}</span>
+            <span
+              style={{
+                fontSize: 11, color: 'var(--success)',
+                fontFamily: 'var(--font-mono, monospace)', whiteSpace: 'nowrap',
+              }}
+            >
+              +{step * (n - idx)}
+            </span>
+            <button
+              aria-label={tc('settings:scoring_tiers.move_up')}
+              data-testid={`tier-up-${idx}`}
+              disabled={idx === 0}
+              onClick={() => move(idx, -1)}
+              style={{ ...iconBtnStyle, opacity: idx === 0 ? 0.35 : 1 }}
+            >
+              <ArrowUp size={12} />
+            </button>
+            <button
+              aria-label={tc('settings:scoring_tiers.move_down')}
+              data-testid={`tier-down-${idx}`}
+              disabled={idx === n - 1}
+              onClick={() => move(idx, 1)}
+              style={{ ...iconBtnStyle, opacity: idx === n - 1 ? 0.35 : 1 }}
+            >
+              <ArrowDown size={12} />
+            </button>
+            <button
+              aria-label={tc('settings:scoring_tiers.remove')}
+              data-testid={`tier-remove-${idx}`}
+              onClick={() => setTiers(t => t.filter((_, i) => i !== idx))}
+              style={{ ...iconBtnStyle, color: 'var(--error)' }}
+            >
+              <X size={12} />
+            </button>
+          </div>
+        ))}
+      </ScrollList>
 
       <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 10 }}>
         <input

@@ -38,6 +38,7 @@ describe('ScoringReleaseGroupTiers', () => {
     // Top tier: 10 * (2 - 0) = 20; second tier: 10 * (2 - 1) = 10
     expect(screen.getByText('+20')).toBeInTheDocument()
     expect(screen.getByText('+10')).toBeInTheDocument()
+    expect(screen.getByTestId('tier-list').className).toContain('overflow-y-auto')
   })
 
   it('adds a group via the input and saves', () => {

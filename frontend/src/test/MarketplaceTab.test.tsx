@@ -68,6 +68,13 @@ describe('MarketplaceTab', () => {
     expect(screen.getByText('Risky Provider')).toBeInTheDocument()
   })
 
+  it('lists the plugins in a scroll box', () => {
+    renderWithQuery(<MarketplaceTab />)
+    const box = screen.getByTestId('marketplace-list')
+    expect(box.className).toContain('overflow-y-auto')
+    expect(box).toHaveTextContent('Test Provider')
+  })
+
   it('shows Community badge for non-official plugins', () => {
     renderWithQuery(<MarketplaceTab />)
     const badges = screen.getAllByText('Community')

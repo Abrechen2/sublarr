@@ -36,6 +36,7 @@ import { Toggle } from '@/components/shared/Toggle'
 import { boolVal } from '@/lib/configUtils'
 import { apiErrorMessage } from '@/lib/apiError'
 import type { WatchedFolder } from '@/lib/types'
+import { ScrollList } from '@/components/shared/ScrollList'
 
 export function StandaloneFolderManager() {
   const { t } = useTranslation('settings')
@@ -180,7 +181,8 @@ export function StandaloneFolderManager() {
       ) : (
         <div className="space-y-2">
           {folders && folders.length > 0 ? (
-            folders.map((folder) => (
+            <ScrollList className="space-y-2" testId="standalone-folder-list">
+            {folders.map((folder) => (
               <div
                 key={folder.id}
                 className="rounded-lg p-3 space-y-2"
@@ -332,7 +334,8 @@ export function StandaloneFolderManager() {
                   </div>
                 )}
               </div>
-            ))
+            ))}
+            </ScrollList>
           ) : (
             <div className="text-center py-4 text-xs" style={{ color: 'var(--text-muted)' }}>
               {t('library_sources.no_folders')}

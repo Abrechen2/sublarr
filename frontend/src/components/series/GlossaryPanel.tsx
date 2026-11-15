@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next'
 import { Plus, Edit2, Trash2, Check, X, Download, Loader2, Wand2 } from 'lucide-react'
 import { useGlossaryEntries, useCreateGlossaryEntry, useUpdateGlossaryEntry, useDeleteGlossaryEntry, useSuggestGlossaryTerms, useExportGlossaryTsv } from '@/hooks/useApi'
 import type { GlossaryCandidate } from '@/api/client'
+import { ScrollList } from '@/components/shared/ScrollList'
 import { toast } from '@/components/shared/Toast'
 
 const TERM_TYPE_COLORS: Record<string, string> = {
@@ -314,10 +315,7 @@ export function GlossaryPanel({ seriesId }: GlossaryPanelProps) {
         </div>
       ) : (
         // Long glossaries scroll inside the box; the header row stays visible.
-        <div
-          className="rounded-md max-h-[24rem] overflow-y-auto border border-border"
-          data-testid="series-glossary-table-scroll"
-        >
+        <ScrollList size="sm" className="rounded-md border border-border" testId="series-glossary-table-scroll">
           <table className="w-full">
             <thead className="sticky top-0 z-10">
               <tr style={{ backgroundColor: 'var(--bg-surface)', borderBottom: '1px solid var(--border)' }}>
@@ -378,7 +376,7 @@ export function GlossaryPanel({ seriesId }: GlossaryPanelProps) {
               ))}
             </tbody>
           </table>
-        </div>
+        </ScrollList>
       )}
     </div>
   )

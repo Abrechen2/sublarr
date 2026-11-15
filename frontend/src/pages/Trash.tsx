@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Trash2, RotateCcw, X, FileVideo, Files, AlertTriangle, Loader2 } from 'lucide-react'
+import { Trash2, RotateCcw, X, FileVideo, Files, AlertTriangle, Loader2, ChevronDown, ChevronRight } from 'lucide-react'
 import {
   useTrashOverview,
   useRestoreSidecarBatch,
@@ -9,6 +9,7 @@ import {
   useRestoreMkvBackup,
 } from '@/hooks/useTrashApi'
 import { PageHeader } from '@/components/layout/PageHeader'
+import { ScrollList } from '@/components/shared/ScrollList'
 import { formatBytes } from '@/lib/diskUtils'
 import type { SidecarBatch, MkvBackup } from '@/api/trash'
 
@@ -433,12 +434,22 @@ interface SectionHeaderProps {
   title: string
   count: number
   retention: string
+  open: boolean
+  onToggle: () => void
+  testId: string
 }
 
-function SectionHeader({ icon, title, count, retention }: SectionHeaderProps) {
+function SectionHeader({ icon, title, count, retention, open, onToggle, testId }: SectionHeaderProps) {
   return (
     <div className="flex items-center justify-between">
-      <div className="flex items-center gap-2">
+      <button
+        type="button"
+        onClick={onToggle}
+        className="flex items-center gap-2 text-left"
+        aria-expanded={open}
+        data-testid={testId}
+      >
+        {open ? <ChevronDown size={14} className="text-muted" /> : <ChevronRight size={14} className="text-muted" />}
         {icon}
         <h2 className="text-sm font-semibold">{title}</h2>
         <span
@@ -447,7 +458,7 @@ function SectionHeader({ icon, title, count, retention }: SectionHeaderProps) {
         >
           {count}
         </span>
-      </div>
+      </button>
       <span style={{ fontSize: '11px', color: 'var(--text-tertiary)' }}>{retention}</span>
     </div>
   )
@@ -464,6 +475,8 @@ export function TrashPage() {
   const totalSize = data?.total_size_bytes ?? 0
   const retentionSubtitle = data?.retention.subtitle_trash_days ?? 30
   const retentionMkv = data?.retention.mkv_backup_days ?? 7
+  const [sidecarsOpen, setSidecarsOpen] = useState(true)
+  const [mkvOpen, setMkvOpen] = useState(true)
 
   return (
     <div className="space-y-6">
@@ -500,12 +513,17 @@ export function TrashPage() {
                 title={t('trash.subtitle_sidecars')}
                 count={sidecarCount}
                 retention={t('trash.retention_subtitle', { days: retentionSubtitle })}
+                open={sidecarsOpen}
+                onToggle={() => setSidecarsOpen((v) => !v)}
+                testId="trash-sidecar-toggle"
               />
-              <div className="space-y-2">
-                {data!.sidecar_batches.map((batch) => (
-                  <SidecarBatchCard key={batch.batch_id} batch={batch} />
-                ))}
-              </div>
+              {sidecarsOpen && (
+                <ScrollList className="space-y-2" testId="trash-sidecar-list">
+                  {data!.sidecar_batches.map((batch) => (
+                    <SidecarBatchCard key={batch.batch_id} batch={batch} />
+                  ))}
+                </ScrollList>
+              )}
             </section>
           )}
 
@@ -516,12 +534,17 @@ export function TrashPage() {
                 title={t('trash.video_backups')}
                 count={mkvCount}
                 retention={t('trash.retention_mkv', { days: retentionMkv })}
+                open={mkvOpen}
+                onToggle={() => setMkvOpen((v) => !v)}
+                testId="trash-mkv-toggle"
               />
-              <div className="space-y-2">
-                {data!.mkv_backups.map((bak) => (
-                  <MkvBackupCard key={bak.path} backup={bak} />
-                ))}
-              </div>
+              {mkvOpen && (
+                <ScrollList className="space-y-2" testId="trash-mkv-list">
+                  {data!.mkv_backups.map((bak) => (
+                    <MkvBackupCard key={bak.path} backup={bak} />
+                  ))}
+                </ScrollList>
+              )}
             </section>
           )}
         </>

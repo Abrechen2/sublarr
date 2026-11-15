@@ -14,6 +14,7 @@ import {
 } from '@/hooks/useApi'
 import { CapabilityWarningModal } from './CapabilityWarningModal'
 import type { MarketplaceBrowsePlugin } from '@/api/client'
+import { ScrollList } from '@/components/shared/ScrollList'
 
 const HIGH_RISK = new Set(['filesystem', 'subprocess'])
 
@@ -120,80 +121,82 @@ export function MarketplaceTab() {
         </div>
       ) : (
         <div className="space-y-2">
-          {filtered.map((plugin) => {
-            const installed = installedNames.has(plugin.name)
-            const currentVersion = installedVersions[plugin.name]
-            const hasUpdate = installed && currentVersion !== undefined && currentVersion !== plugin.version
-            const isInstalling =
-              installMutation.isPending &&
-              (installMutation.variables as MarketplaceBrowsePlugin | undefined)?.name === plugin.name
+          <ScrollList className="space-y-2" testId="marketplace-list">
+            {filtered.map((plugin) => {
+              const installed = installedNames.has(plugin.name)
+              const currentVersion = installedVersions[plugin.name]
+              const hasUpdate = installed && currentVersion !== undefined && currentVersion !== plugin.version
+              const isInstalling =
+                installMutation.isPending &&
+                (installMutation.variables as MarketplaceBrowsePlugin | undefined)?.name === plugin.name
 
-            return (
-              <div
-                key={plugin.name}
-                className="flex items-start gap-4 p-4 bg-gray-800 rounded-lg border border-gray-700"
-              >
-                <Package className="w-5 h-5 text-teal-500 shrink-0 mt-0.5" />
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2 flex-wrap">
-                    <span className="font-semibold text-white">{plugin.display_name}</span>
-                    <span className="text-xs text-gray-400">v{plugin.version}</span>
-                    {plugin.is_official ? (
-                      <span className="flex items-center gap-1 text-xs bg-green-600/20 text-green-400 px-2 py-0.5 rounded-full">
-                        <ShieldCheck className="w-3 h-3" /> Official
-                      </span>
-                    ) : (
-                      <span className="text-xs bg-gray-700 text-gray-400 px-2 py-0.5 rounded-full">
-                        Community
-                      </span>
+              return (
+                <div
+                  key={plugin.name}
+                  className="flex items-start gap-4 p-4 bg-gray-800 rounded-lg border border-gray-700"
+                >
+                  <Package className="w-5 h-5 text-teal-500 shrink-0 mt-0.5" />
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <span className="font-semibold text-white">{plugin.display_name}</span>
+                      <span className="text-xs text-gray-400">v{plugin.version}</span>
+                      {plugin.is_official ? (
+                        <span className="flex items-center gap-1 text-xs bg-green-600/20 text-green-400 px-2 py-0.5 rounded-full">
+                          <ShieldCheck className="w-3 h-3" /> Official
+                        </span>
+                      ) : (
+                        <span className="text-xs bg-gray-700 text-gray-400 px-2 py-0.5 rounded-full">
+                          Community
+                        </span>
+                      )}
+                      {hasUpdate && (
+                        <span className="text-xs bg-yellow-600/20 text-yellow-400 px-2 py-0.5 rounded-full">
+                          Update → v{plugin.version}
+                        </span>
+                      )}
+                    </div>
+                    <p className="text-sm text-gray-400 mt-1 truncate">{plugin.description}</p>
+                    <p className="text-xs text-gray-500 mt-0.5">by {plugin.author}</p>
+                  </div>
+                  <div className="flex items-center gap-2 shrink-0">
+                    {plugin.github_url.startsWith('https://') && (
+                      <a
+                        href={plugin.github_url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="p-1.5 text-gray-400 hover:text-white rounded"
+                        title={t('marketplace_tab.view_on_github')}
+                      >
+                        <ExternalLink className="w-4 h-4" />
+                      </a>
                     )}
-                    {hasUpdate && (
-                      <span className="text-xs bg-yellow-600/20 text-yellow-400 px-2 py-0.5 rounded-full">
-                        Update → v{plugin.version}
-                      </span>
+                    {installed ? (
+                      <button
+                        onClick={() => void handleUninstall(plugin.name, plugin.display_name)}
+                        className="px-3 py-1.5 text-sm bg-red-500/20 hover:bg-red-500/30 text-red-400 rounded flex items-center gap-1.5"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                        Remove
+                      </button>
+                    ) : (
+                      <button
+                        onClick={() => handleInstallRequest(plugin)}
+                        disabled={isInstalling}
+                        className="px-3 py-1.5 text-sm bg-teal-600 hover:bg-teal-500 text-white rounded flex items-center gap-1.5 disabled:opacity-50"
+                      >
+                        {isInstalling ? (
+                          <Loader2 className="w-4 h-4 animate-spin" />
+                        ) : (
+                          <Download className="w-4 h-4" />
+                        )}
+                        Install
+                      </button>
                     )}
                   </div>
-                  <p className="text-sm text-gray-400 mt-1 truncate">{plugin.description}</p>
-                  <p className="text-xs text-gray-500 mt-0.5">by {plugin.author}</p>
                 </div>
-                <div className="flex items-center gap-2 shrink-0">
-                  {plugin.github_url.startsWith('https://') && (
-                    <a
-                      href={plugin.github_url}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="p-1.5 text-gray-400 hover:text-white rounded"
-                      title={t('marketplace_tab.view_on_github')}
-                    >
-                      <ExternalLink className="w-4 h-4" />
-                    </a>
-                  )}
-                  {installed ? (
-                    <button
-                      onClick={() => void handleUninstall(plugin.name, plugin.display_name)}
-                      className="px-3 py-1.5 text-sm bg-red-500/20 hover:bg-red-500/30 text-red-400 rounded flex items-center gap-1.5"
-                    >
-                      <Trash2 className="w-4 h-4" />
-                      Remove
-                    </button>
-                  ) : (
-                    <button
-                      onClick={() => handleInstallRequest(plugin)}
-                      disabled={isInstalling}
-                      className="px-3 py-1.5 text-sm bg-teal-600 hover:bg-teal-500 text-white rounded flex items-center gap-1.5 disabled:opacity-50"
-                    >
-                      {isInstalling ? (
-                        <Loader2 className="w-4 h-4 animate-spin" />
-                      ) : (
-                        <Download className="w-4 h-4" />
-                      )}
-                      Install
-                    </button>
-                  )}
-                </div>
-              </div>
-            )
-          })}
+              )
+            })}
+          </ScrollList>
           {filtered.length === 0 && (
             <div className="text-center py-12 text-gray-400">
               <Package className="w-10 h-10 mx-auto mb-3 opacity-40" />

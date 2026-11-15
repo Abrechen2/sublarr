@@ -19,6 +19,7 @@ import {
   useUpdateCustomScoringRule,
 } from '@/hooks/useApi'
 import { settingsInputStyle } from '@/styles/settingsShared'
+import { ScrollList } from '@/components/shared/ScrollList'
 
 const inputStyle: React.CSSProperties = { ...settingsInputStyle, outline: 'none' }
 
@@ -102,60 +103,62 @@ export function ScoringCustomRules() {
         </p>
       )}
 
-      {rules.map((rule) => (
-        <div
-          key={rule.id}
-          data-testid={`custom-rule-row-${rule.id}`}
-          style={{
-            display: 'flex', alignItems: 'center', gap: 10,
-            padding: '6px 0', borderBottom: '1px solid var(--border)',
-            opacity: rule.enabled ? 1 : 0.55,
-          }}
-        >
-          <input
-            type="checkbox"
-            checked={rule.enabled}
-            data-testid={`custom-rule-toggle-${rule.id}`}
-            aria-label={tc('settings:scoring_custom.toggle')}
-            onChange={() => handleToggle(rule)}
-            style={{ accentColor: 'var(--accent)' }}
-          />
-          <span style={{ flex: '0 1 160px', fontSize: 13, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-            {rule.name}
-          </span>
-          <code
+      <ScrollList testId="custom-rule-list">
+        {rules.map((rule) => (
+          <div
+            key={rule.id}
+            data-testid={`custom-rule-row-${rule.id}`}
             style={{
-              flex: 1, fontSize: 11, color: 'var(--text-muted)',
-              fontFamily: 'var(--font-mono, monospace)',
-              overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
-            }}
-            title={rule.pattern}
-          >
-            {rule.pattern}
-          </code>
-          <span
-            style={{
-              fontSize: 11, fontFamily: 'var(--font-mono, monospace)', whiteSpace: 'nowrap',
-              color: rule.weight > 0 ? 'var(--success)' : rule.weight < 0 ? 'var(--error)' : 'var(--text-muted)',
+              display: 'flex', alignItems: 'center', gap: 10,
+              padding: '6px 0', borderBottom: '1px solid var(--border)',
+              opacity: rule.enabled ? 1 : 0.55,
             }}
           >
-            {rule.weight > 0 ? `+${rule.weight}` : rule.weight}
-          </span>
-          <button
-            aria-label={tc('settings:scoring_custom.delete')}
-            data-testid={`custom-rule-delete-${rule.id}`}
-            onClick={() => handleDelete(rule)}
-            style={{
-              display: 'flex', alignItems: 'center', justifyContent: 'center',
-              width: 24, height: 24, borderRadius: 5, padding: 0,
-              background: 'var(--bg-surface)', border: '1px solid var(--border)',
-              color: 'var(--error)', cursor: 'pointer',
-            }}
-          >
-            <Trash2 size={12} />
-          </button>
-        </div>
-      ))}
+            <input
+              type="checkbox"
+              checked={rule.enabled}
+              data-testid={`custom-rule-toggle-${rule.id}`}
+              aria-label={tc('settings:scoring_custom.toggle')}
+              onChange={() => handleToggle(rule)}
+              style={{ accentColor: 'var(--accent)' }}
+            />
+            <span style={{ flex: '0 1 160px', fontSize: 13, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+              {rule.name}
+            </span>
+            <code
+              style={{
+                flex: 1, fontSize: 11, color: 'var(--text-muted)',
+                fontFamily: 'var(--font-mono, monospace)',
+                overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+              }}
+              title={rule.pattern}
+            >
+              {rule.pattern}
+            </code>
+            <span
+              style={{
+                fontSize: 11, fontFamily: 'var(--font-mono, monospace)', whiteSpace: 'nowrap',
+                color: rule.weight > 0 ? 'var(--success)' : rule.weight < 0 ? 'var(--error)' : 'var(--text-muted)',
+              }}
+            >
+              {rule.weight > 0 ? `+${rule.weight}` : rule.weight}
+            </span>
+            <button
+              aria-label={tc('settings:scoring_custom.delete')}
+              data-testid={`custom-rule-delete-${rule.id}`}
+              onClick={() => handleDelete(rule)}
+              style={{
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                width: 24, height: 24, borderRadius: 5, padding: 0,
+                background: 'var(--bg-surface)', border: '1px solid var(--border)',
+                color: 'var(--error)', cursor: 'pointer',
+              }}
+            >
+              <Trash2 size={12} />
+            </button>
+          </div>
+        ))}
+      </ScrollList>
 
       <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 10, flexWrap: 'wrap' }}>
         <input
