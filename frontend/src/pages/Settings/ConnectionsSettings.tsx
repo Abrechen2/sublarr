@@ -6,7 +6,8 @@
  * 2. Radarr           — multi-instance (radarr_instances_json)
  * 3. Media Servers    — Plex / Jellyfin / Emby
  * 4. Standalone Mode  — file-system watcher when no *arr is configured
- * 5. Metadata API Keys — TMDB, TheTVDB, cache TTL
+ * 5. Metadata API Keys — TMDB, TheTVDB, cache TTL; only shown in standalone
+ *    mode, the only place those keys are read
  * 6. Path Mapping    — remote→local rewrites, with a path test (forgejo #25)
  *
  * Each Sonarr/Radarr/MediaServers internally manages its own instance
@@ -29,6 +30,8 @@ import {
 } from './connections/ConnectionsMediaServers'
 import { MetadataSectionWrapper } from './connections/ConnectionsMetadata'
 import { PathMappingSection } from './connections/ConnectionsPathMapping'
+import { useConfig } from '@/hooks/useApi'
+import { boolVal } from '@/lib/configUtils'
 
 // Settings Template B (FormLayout). titleKey points at the SAME key that
 // each XSection's <SettingsSection title=> already uses, so TOC + section
@@ -45,6 +48,9 @@ const SECTIONS: readonly FormSectionDef[] = [
 export function ConnectionsSettings() {
   const { t } = useTranslation('settings')
   const { t: tc } = useTranslation('common')
+  const { data: config } = useConfig()
+  const standaloneEnabled = boolVal(config, 'standalone_enabled', false)
+  const sections = standaloneEnabled ? SECTIONS : SECTIONS.filter((s) => s.id !== 'metadata')
 
   return (
     <SettingsDetailLayout
@@ -55,7 +61,7 @@ export function ConnectionsSettings() {
         { label: tc('ui.connections') },
       ]}
     >
-      <FormLayout sections={SECTIONS}>
+      <FormLayout sections={sections}>
         <section id="sonarr" data-testid="settings.connections.section-sonarr">
           <SonarrSection />
         </section>
@@ -68,9 +74,11 @@ export function ConnectionsSettings() {
         <section id="standalone" data-testid="settings.connections.section-standalone">
           <StandaloneModeSection />
         </section>
-        <section id="metadata" data-testid="settings.connections.section-metadata">
-          <MetadataSectionWrapper />
-        </section>
+        {standaloneEnabled && (
+          <section id="metadata" data-testid="settings.connections.section-metadata">
+            <MetadataSectionWrapper />
+          </section>
+        )}
         <section id="path-mapping" data-testid="settings.connections.section-path-mapping">
           <PathMappingSection />
         </section>

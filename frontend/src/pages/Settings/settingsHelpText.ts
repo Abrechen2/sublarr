@@ -54,8 +54,8 @@ export const HELP_TEXT: Record<string, string> = {
 
   // Library Sources (Standalone Mode)
   standalone_enabled: 'Enable direct filesystem scanning without Sonarr/Radarr.',
-  tmdb_api_key: 'TMDB Bearer Token for movie/series metadata in standalone mode.',
-  tvdb_api_key: 'Optional TVDB API key for enhanced TV series metadata.',
+  tmdb_api_key: 'TMDB API Read Access Token (not the short v3 key); only needed in standalone mode.',
+  tvdb_api_key: 'Optional TVDB API key for TV series metadata; only needed in standalone mode.',
   tvdb_pin: 'Optional TVDB subscriber PIN.',
   standalone_scan_interval_hours: 'How often to scan watched folders for new files. 0 = disabled.',
   standalone_debounce_seconds: 'Wait this many seconds after file detection before processing.',

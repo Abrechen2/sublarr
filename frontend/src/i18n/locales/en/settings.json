@@ -1881,7 +1881,7 @@
     "connection_failed": "Connection failed"
   },
   "connections_metadata": {
-    "tmdb_placeholder": "Enter TMDB v3 API key",
+    "tmdb_placeholder": "Enter TMDB API Read Access Token",
     "tvdb_placeholder": "Enter TheTVDB v4 API key",
     "subscriber_pin": "Optional subscriber PIN",
     "title": "Metadata API Keys",
@@ -1893,7 +1893,7 @@
     "cache_ttl": "Cache TTL (days)",
     "cache_ttl_desc": "How long metadata is cached before a refresh.",
     "save": "Save",
-    "section_desc": "API keys for metadata providers (TMDB, TheTVDB)"
+    "section_desc": "API keys for metadata providers (TMDB, TheTVDB). Only needed in standalone mode – with Sonarr/Radarr they are not used."
   },
   "marketplace_tab": {
     "search_placeholder": "Search plugins...",
@@ -2545,8 +2545,8 @@
     "radarr_url": "URL of the Radarr instance including port. No trailing slashes.",
     "radarr_api_key": "In Radarr under Settings → General → Security.",
     "standalone_enabled": "Scan the file system directly without Sonarr/Radarr. Media Path must be configured.",
-    "tmdb_api_key": "Bearer token from themoviedb.org for metadata lookups.",
-    "tvdb_api_key": "API key from thetvdb.com. Optional — TMDB is enough for most cases.",
+    "tmdb_api_key": "API Read Access Token from themoviedb.org (not the short v3 key). Only needed in standalone mode.",
+    "tvdb_api_key": "API key from thetvdb.com. Optional, standalone mode only — TMDB is enough for most cases.",
     "tvdb_pin": "TVDB subscriber PIN (only needed for the subscriber plan).",
     "standalone_scan_interval_hours": "Interval for the automatic file system scan. 0 = disabled.",
     "standalone_debounce_seconds": "Wait time after the last file change before a scan is triggered.",

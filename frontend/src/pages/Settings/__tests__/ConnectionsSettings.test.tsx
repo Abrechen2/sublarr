@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest'
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { render, screen, fireEvent, waitFor } from '@testing-library/react'
 import { BrowserRouter } from 'react-router-dom'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
@@ -125,10 +125,12 @@ describe('ConnectionsSettings', () => {
 
   // ── Sections ──
 
-  it('renders all 6 settings sections', () => {
+  it('renders all 6 settings sections in standalone mode', () => {
+    mockConfig.standalone_enabled = 'true'
     renderWithProviders(<ConnectionsSettings />)
     const sections = screen.getAllByTestId('settings-section')
     expect(sections.length).toBeGreaterThanOrEqual(6)
+    delete mockConfig.standalone_enabled
   })
 
   // ── Path mapping (forgejo #25) ──
@@ -252,8 +254,31 @@ describe('RadarrMultiInstanceSection (Step 26)', () => {
 
 // ─── Step 27: MetadataApiKeysSection ─────────────────────────────────────────
 
+describe('Metadata section visibility', () => {
+  afterEach(() => { delete mockConfig.standalone_enabled })
+
+  // TMDB/TVDB are only read by the standalone scanner; with Sonarr/Radarr the
+  // keys do nothing, so the section and its TOC entry stay out of the way.
+  it('is hidden while standalone mode is off', () => {
+    mockConfig.standalone_enabled = 'false'
+    renderWithProviders(<ConnectionsSettings />)
+    expect(screen.queryByTestId('settings.connections.section-metadata')).toBeNull()
+    expect(screen.queryByText('connections_metadata.title')).toBeNull()
+  })
+
+  it('is shown once standalone mode is on', () => {
+    mockConfig.standalone_enabled = 'true'
+    renderWithProviders(<ConnectionsSettings />)
+    expect(screen.getByTestId('settings.connections.section-metadata')).toBeInTheDocument()
+  })
+})
+
 describe('MetadataApiKeysSection (Step 27)', () => {
-  beforeEach(() => { vi.clearAllMocks() })
+  beforeEach(() => {
+    vi.clearAllMocks()
+    mockConfig.standalone_enabled = 'true'
+  })
+  afterEach(() => { delete mockConfig.standalone_enabled })
 
   it('renders the metadata API keys section', () => {
     renderWithProviders(<ConnectionsSettings />)
