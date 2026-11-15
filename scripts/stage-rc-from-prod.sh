@@ -9,11 +9,11 @@ set -euo pipefail
 # word-splits inside the unquoted $SSH expansion and breaks the -i argument.
 # The host stays out of the public repo: SUBLARR_HOST (user@host) comes from
 # the environment or from scripts/deploy.local.env (gitignored).
+# Loaded before the guards so they also check anything it sets; the host is
+# only required after them, since refusing needs no host.
 LOCAL_ENV="$(dirname "$0")/deploy.local.env"
 # shellcheck source=/dev/null
 [ -f "$LOCAL_ENV" ] && . "$LOCAL_ENV"
-: "${SUBLARR_HOST:?set SUBLARR_HOST=user@host or write it to scripts/deploy.local.env}"
-SSH="ssh -o ConnectTimeout=10 $SUBLARR_HOST"
 SOURCE_PG="sublarr-postgres"
 TARGET_PG="${TARGET_PG:-sublarr-rc-postgres}"
 DB="sublarr"
@@ -48,6 +48,9 @@ if [[ "$TARGET_PG" == "$SOURCE_PG" ]]; then
   echo "REFUSE: target equals source" >&2
   exit 5
 fi
+
+: "${SUBLARR_HOST:?set SUBLARR_HOST=user@host or write it to scripts/deploy.local.env}"
+SSH="ssh -o ConnectTimeout=10 $SUBLARR_HOST"
 
 # --- Clone: stop RC app (release connections) -> drop+recreate -> dump|restore -> start ---
 echo "Cloning $SOURCE_PG -> $TARGET_PG ..."
